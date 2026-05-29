@@ -1,0 +1,206 @@
+name: Deploy prod
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  PNPM_VERSION: "9.15.4"
+  DESKTOP_TAURI_CONFIG: apps/desktop/src-tauri/tauri.conf.json
+  AZURE_RELEASE_BASE_URL: https://stplaycountereuw.blob.core.windows.net/releases
+  AZURE_STORAGE_CONTAINER: releases
+
+jobs:
+  detect-desktop-version:
+    name: Detect desktop version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.current }}
+      version_changed: ${{ steps.version.outputs.changed }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compare desktop version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current="$(node scripts/ci/read-desktop-version.mjs)"
+          changed="true"
+          before="${{ github.event.before }}"
+
+          if [ "${before}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${before}:${DESKTOP_TAURI_CONFIG}" 2>/dev/null; then
+            tmp_previous="$(mktemp)"
+            git show "${before}:${DESKTOP_TAURI_CONFIG}" > "${tmp_previous}"
+            previous="$(node scripts/ci/read-desktop-version.mjs "${tmp_previous}")"
+
+            if [ "${current}" = "${previous}" ]; then
+              changed="false"
+            fi
+          fi
+
+          echo "current=${current}" >> "${GITHUB_OUTPUT}"
+          echo "changed=${changed}" >> "${GITHUB_OUTPUT}"
+          echo "Desktop version: ${current}; changed: ${changed}"
+
+  deploy-api:
+    name: Build and deploy API
+    runs-on: ubuntu-latest
+    environment: production
+    needs:
+      - detect-desktop-version
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: |
+          pnpm --filter @playcounter/shared build
+          pnpm --filter @playcounter/api build
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter @playcounter/api db:migrate
+
+      - name: Package API
+        run: node scripts/ci/package-api.mjs
+
+      - name: Deploy API to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .deploy/api/playcounter-api.zip
+
+  build-desktop-windows:
+    name: Build Windows desktop
+    runs-on: windows-latest
+    needs:
+      - detect-desktop-version
+      - deploy-api
+    if: needs.detect-desktop-version.outputs.version_changed == 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check desktop version sync
+        run: node scripts/ci/check-desktop-version-sync.mjs
+
+      - name: Build desktop distributables
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+        run: |
+          pnpm --filter @playcounter/shared build
+          corepack pnpm --filter @playcounter/desktop tauri:build:prod
+
+      - name: Upload Windows bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-windows-bundle
+          path: apps/desktop/src-tauri/target/release/bundle
+
+  publish-desktop:
+    name: Publish desktop artifacts
+    runs-on: ubuntu-latest
+    environment: production
+    needs:
+      - detect-desktop-version
+      - build-desktop-windows
+    if: needs.detect-desktop-version.outputs.version_changed == 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download Windows bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-windows-bundle
+          path: .deploy/desktop/windows
+
+      - name: Create updater manifest
+        run: node scripts/ci/create-tauri-latest-json.mjs ".deploy/desktop/windows" "${{ env.AZURE_RELEASE_BASE_URL }}" .deploy/desktop/latest.json
+
+      - name: Upload desktop artifacts to Azure Blob Storage
+        env:
+          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+        run: |
+          set -euo pipefail
+          container="${AZURE_STORAGE_CONTAINER:-releases}"
+
+          find .deploy/desktop -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.dmg' -o -name '*.sig' \) -print0 | while IFS= read -r -d '' file; do
+            blob_name="$(basename "$file")"
+            case "$file" in
+              *desktop-macos-x86_64-bundle*) blob_name="macos-x86_64-${blob_name}" ;;
+              *desktop-macos-aarch64-bundle*) blob_name="macos-aarch64-${blob_name}" ;;
+            esac
+
+            az storage blob upload \
+              --account-name "$AZURE_STORAGE_ACCOUNT" \
+              --account-key "$AZURE_STORAGE_KEY" \
+              --container-name "$container" \
+              --name "$blob_name" \
+              --file "$file" \
+              --overwrite true
+          done
+
+          az storage blob upload \
+            --account-name "$AZURE_STORAGE_ACCOUNT" \
+            --account-key "$AZURE_STORAGE_KEY" \
+            --container-name "$container" \
+            --name latest.json \
+            --file .deploy/desktop/latest.json \
+            --content-type application/json \
+            --overwrite true

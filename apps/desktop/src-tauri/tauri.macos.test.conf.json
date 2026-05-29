@@ -1,0 +1,8 @@
+{
+  "build": {
+    "beforeBuildCommand": "corepack pnpm build:test"
+  },
+  "bundle": {
+    "targets": ["dmg", "app"]
+  }
+}

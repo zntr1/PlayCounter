@@ -1,0 +1,36 @@
+# PlayCounter built-in ignored processes for macOS.
+# One process name per line. Lines starting with # are ignored.
+
+accountsd
+airportd
+assistantd
+battle.net
+bird
+cfprefsd
+chrome
+controlcenter
+coreaudiod
+distnoted
+dock
+epicgameslauncher
+finder
+firefox
+goggalaxy
+kernel_task
+launchd
+loginwindow
+mds
+mds_stores
+notificationcenter
+powerd
+runningboardd
+safari
+sharingd
+sirid
+spotlight
+steam
+syslogd
+systemuiserver
+trustd
+ubisoftconnect
+windowserver

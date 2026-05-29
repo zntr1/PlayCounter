@@ -1,0 +1,46 @@
+# Claude Code / AI tooling
+.claude/
+CLAUDE.md
+AGENTS.md
+.superpowers/
+
+# Environment & secrets
+.env
+.env.*
+!apps/.env.example
+!apps/desktop/.env.example
+!apps/desktop/.env.test
+!apps/desktop/.env.production
+*.pem
+*.key
+*.key.pub
+
+# Node
+node_modules/
+dist/
+.turbo/
+
+# Rust / Tauri
+target/
+*.exe
+*.msi
+*.sig
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+
+# internal
+temp_screenshots/
+docs/superpowers/
+docs/update.md
+docs/work-summary.md
+docs/postgres-next-step-plan.md

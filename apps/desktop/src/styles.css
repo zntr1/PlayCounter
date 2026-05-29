@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-width: 920px;
+  background: #0f1014;
+  color: #e7e9ee;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2e39;
+  border-radius: 9999px;
+  border: 2px solid #0f1014;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4051;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

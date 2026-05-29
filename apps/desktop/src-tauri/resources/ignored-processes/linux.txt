@@ -1,0 +1,33 @@
+# PlayCounter built-in ignored processes for Linux.
+# One process name per line. Lines starting with # are ignored.
+
+at-spi-bus-launcher
+battle.net
+chrome
+chromium
+dbus-daemon
+epicgameslauncher
+firefox
+gnome-shell
+gnome-software
+gvfsd
+gvfsd-fuse
+ibus-daemon
+kded5
+kdeconnectd
+kwin_x11
+kwin_wayland
+pipewire
+plasmashell
+pulseaudio
+steam
+systemd
+systemd-journald
+systemd-logind
+systemd-resolved
+systemd-udevd
+wayland
+wireplumber
+xorg
+xwayland
+ubisoftconnect

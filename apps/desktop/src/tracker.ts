@@ -1,0 +1,2019 @@
+import type {
+  Game,
+  GameMetadataResponse,
+  LiveEntry,
+  MatchProcessesResponse,
+  Platform,
+  ProcessIdentifier,
+  ReportableGameSource,
+  Session,
+  Settings,
+} from "@playcounter/shared";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import {
+  useAppStore,
+  DEFAULT_API_ENDPOINT,
+  gameMetadataKey,
+  type ActiveSession,
+  type AmbiguousProcessMatch,
+  type ExeCacheEntry,
+  type GameMetadata,
+  type ProcessSnapshot,
+} from "./store";
+
+const STORAGE_KEY = "playcounter:v1";
+const CUSTOM_GAME_ID_BASE = -1_000_000_000;
+const HEARTBEAT_GRACE_MS = 5_000;
+const SESSION_CHECKPOINT_INTERVAL_MS = 60_000;
+const BACKEND_HEALTH_INTERVAL_MS = 60_000;
+const BACKEND_HEALTH_TIMEOUT_MS = 2_500;
+const API_REQUEST_TIMEOUT_MS = 8_000;
+export const PENDING_COMMUNITY_RETRY_MS = 5 * 60 * 1000;
+
+type PersistedState = {
+  installUuid?: string;
+  settings?: Partial<Settings>;
+  exeCache?: ExeCacheEntry[];
+  gameMetadata?: GameMetadata[];
+  ambiguousMatches?: AmbiguousProcessMatch[];
+  sessions?: Session[];
+  activeSession?: ActiveSession;
+  activeSessions?: ActiveSession[];
+  blacklist?: string[];
+};
+
+type ProcessMatch = {
+  process: ProcessSnapshot;
+  game: Game;
+  startedAt?: string;
+};
+
+type IgnoredProcessesResponse = {
+  processes: string[];
+  userProcesses?: string[];
+  userFilePath: string;
+};
+
+let initialized = false;
+let heartbeatTimer: number | undefined;
+let backendHealthTimer: number | undefined;
+let liveTimer: number | undefined;
+let processTimer: number | undefined;
+let trayTimer: number | undefined;
+let liveSocket: WebSocket | undefined;
+let unsubscribeTraySync: (() => void) | undefined;
+let nextSessionSequence = 0;
+let scanInFlight: Promise<void> | undefined;
+let scanQueued = false;
+
+const launcherBlacklist = [
+  "epicgameslauncher.exe",
+  "steam.exe",
+  "battle.net.exe",
+  "eadesktop.exe",
+  "goggalaxy.exe",
+  "ubisoftconnect.exe",
+];
+
+export async function initializeTracker() {
+  if (initialized) return;
+  initialized = true;
+  logRuntime("tracker initialize started");
+
+  hydrate();
+  syncTrayNowPlaying();
+  scheduleTraySync();
+  unsubscribeTraySync = useAppStore.subscribe((state, previousState) => {
+    if (state.activeSessions !== previousState.activeSessions) {
+      syncTrayNowPlaying();
+      scheduleTraySync();
+    }
+  });
+  logRuntime("tracker state hydrated");
+
+  window.setTimeout(() => {
+    void finishTrackerStartup();
+  }, 1_000);
+}
+
+async function finishTrackerStartup() {
+  logRuntime("tracker deferred startup started");
+  await loadIgnoredProcesses();
+  scheduleProcessPolling(
+    useAppStore.getState().settings.pollingIntervalSeconds,
+  );
+  logRuntime("tracker process polling scheduled");
+
+  try {
+    const installUuid = await getInstallUuid();
+    useAppStore.getState().setInstallUuid(installUuid);
+    persist();
+    logRuntime("install UUID loaded");
+  } catch (error) {
+    logRuntime(`install UUID failed: ${formatError(error)}`);
+    useAppStore
+      .getState()
+      .setRuntimeError(`Tauri command failed: ${formatError(error)}`);
+  }
+
+  void closeStaleSession();
+  scheduleBackendHealthChecks();
+  void refreshLiveFeed();
+  logRuntime("live feed initialized");
+
+  logRuntime("process listener skipped; polling is active");
+
+  useAppStore.getState().setCleanup(() => {
+    logRuntime("tracker cleanup running");
+    if (heartbeatTimer) window.clearInterval(heartbeatTimer);
+    heartbeatTimer = undefined;
+    if (backendHealthTimer) window.clearInterval(backendHealthTimer);
+    backendHealthTimer = undefined;
+    if (liveTimer) window.clearInterval(liveTimer);
+    liveTimer = undefined;
+    if (processTimer) window.clearInterval(processTimer);
+    processTimer = undefined;
+    if (trayTimer) window.clearInterval(trayTimer);
+    trayTimer = undefined;
+    unsubscribeTraySync?.();
+    unsubscribeTraySync = undefined;
+    liveSocket?.close();
+    liveSocket = undefined;
+    initialized = false;
+  });
+
+  scheduleHeartbeat(useAppStore.getState().settings.heartbeatIntervalSeconds);
+  logRuntime("heartbeat scheduled");
+
+  window.setTimeout(() => {
+    void (async () => {
+      await recheckPendingCommunityApprovals("startup");
+      await requestProcessScan("startup");
+    })();
+  }, 1_500);
+}
+
+function hydrate() {
+  const persisted = readPersisted();
+  const settings = {
+    ...useAppStore.getState().settings,
+    ...persisted.settings,
+  };
+  const blacklist = persisted.blacklist ?? [];
+  const exeCache = persisted.exeCache ?? [];
+  logRuntime(
+    `hydrate loaded cache=${exeCache.length}, blacklist=${blacklist.length}, sessions=${persisted.sessions?.length ?? 0}`,
+  );
+  useAppStore.setState({
+    installUuid: persisted.installUuid ?? null,
+    settings,
+    exeCache: new Map(
+      exeCache.map((entry) => [entry.exeName.toLowerCase(), entry]),
+    ),
+    gameMetadata: new Map(
+      (persisted.gameMetadata ?? []).map((game) => [
+        gameMetadataKey(game),
+        game,
+      ]),
+    ),
+    recentSessions: persisted.sessions ?? [],
+    activeSessions: normalizePersistedActiveSessions(persisted),
+    ambiguousMatches: persisted.ambiguousMatches ?? [],
+    blacklist: new Set(blacklist.map((exe) => exe.toLowerCase())),
+  });
+}
+
+async function getInstallUuid() {
+  const persisted = readPersisted();
+  if (persisted.installUuid) {
+    verboseRuntime("install UUID using persisted value");
+    return persisted.installUuid;
+  }
+  logRuntime("install UUID requesting Tauri command");
+  return invoke<string>("install_uuid");
+}
+
+export async function reloadIgnoredProcesses() {
+  logRuntime("ignored processes reload requested");
+  await loadIgnoredProcesses();
+  void requestProcessScan("after ignore reload");
+}
+
+async function loadIgnoredProcesses() {
+  try {
+    logRuntime("ignored process list loading");
+    const ignored = await invoke<IgnoredProcessesResponse>("ignored_processes");
+    useAppStore
+      .getState()
+      .setIgnoredProcesses(
+        ignored.processes,
+        ignored.userFilePath,
+        ignored.userProcesses,
+      );
+    logRuntime(
+      `ignored process list loaded entries=${ignored.processes.length}, userFile=${ignored.userFilePath}`,
+    );
+  } catch (error) {
+    useAppStore.getState().setIgnoredProcesses(launcherBlacklist, null);
+    logRuntime(`ignored process list failed: ${formatError(error)}`);
+    useAppStore
+      .getState()
+      .setRuntimeError(`Ignored process list failed: ${formatError(error)}`);
+  }
+}
+
+export async function setUserIgnoredProcess(exeName: string, ignored: boolean) {
+  logRuntime(
+    `user ignored process ${ignored ? "add" : "remove"} requested ${exeName}`,
+  );
+  const response = await invoke<IgnoredProcessesResponse>(
+    "set_user_ignored_process",
+    {
+      exeName,
+      ignored,
+    },
+  );
+  useAppStore
+    .getState()
+    .setIgnoredProcesses(
+      response.processes,
+      response.userFilePath,
+      response.userProcesses,
+    );
+  logRuntime(
+    `user ignored process ${ignored ? "added" : "removed"} ${exeName}`,
+  );
+  void requestProcessScan("after ignored process update");
+}
+
+export async function doNotTrackGame(
+  gameId: number,
+  source: Game["source"] | null,
+  exeNames: string[] = [],
+  removeHistory = false,
+) {
+  const state = useAppStore.getState();
+  const matchingExeNames = [
+    ...new Set(
+      [
+        ...exeNames,
+        ...[...state.exeCache.values()]
+          .filter(
+            (entry) =>
+              entry.state === "matched" &&
+              entry.gameId === gameId &&
+              (source ? entry.source === source : true),
+          )
+          .map((entry) => entry.exeName),
+      ].filter((exeName) => exeName.trim().length > 0),
+    ),
+  ];
+
+  for (const exeName of matchingExeNames) {
+    await setUserIgnoredProcess(exeName, true);
+  }
+  untrackGame(gameId, source, removeHistory);
+}
+
+export async function openUserIgnoredProcessesFolder() {
+  logRuntime("user ignored processes folder open requested");
+  await invoke("open_user_ignored_processes_folder");
+}
+
+async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
+  const startedAt = Date.now();
+  const normalized = uniqueProcesses(processes);
+  useAppStore.getState().setProcesses(normalized);
+
+  const state = useAppStore.getState();
+  const ignored = normalized.filter((process) =>
+    isIgnoredProcess(process.exeName, state),
+  );
+  const candidates = normalized.filter(
+    (process) => !isIgnoredProcess(process.exeName, state),
+  );
+  logRuntime(
+    `scan handling total=${processes.length}, unique=${normalized.length}, ignored=${ignored.length}, candidates=${candidates.length}`,
+  );
+  verboseRuntime(`scan ignored: ${formatExeSample(ignored)}`);
+  const matches = await resolveProcesses(candidates);
+  logRuntime(`scan resolved matches=${matches.length}`);
+
+  const currentSessions = useAppStore.getState().activeSessions;
+  const currentAmbiguous = useAppStore.getState().ambiguousMatches;
+  const nextKeys = new Set(
+    matches.map((match) =>
+      activeSessionKey(match.process.exeName, match.game.id, match.game.source),
+    ),
+  );
+  const runningProcessKeys = new Set(
+    candidates.map((process) => process.exeName.toLowerCase()),
+  );
+
+  for (const current of currentSessions) {
+    if (nextKeys.has(sessionIdentityKey(current))) {
+      checkpointActiveSessionIfDue(current);
+      verboseRuntime(
+        `scan active session unchanged ${current.gameName} (${current.exeName})`,
+      );
+      continue;
+    }
+
+    logRuntime(
+      `scan match ended; ending active session ${current.gameName} (${current.exeName})`,
+    );
+    await endSession(current, recoveredSessionEndAt(current));
+  }
+
+  for (const ambiguous of currentAmbiguous) {
+    if (!runningProcessKeys.has(ambiguous.exeName.toLowerCase())) {
+      useAppStore.getState().setAmbiguousMatch({
+        ...ambiguous,
+        endedAt: ambiguous.endedAt ?? new Date().toISOString(),
+      });
+      logRuntime(`ambiguous match stopped running ${ambiguous.exeName}`);
+    }
+  }
+
+  const activeAfterEnds = useAppStore.getState().activeSessions;
+  const activeKeys = new Set(
+    activeAfterEnds.map((session) => sessionIdentityKey(session)),
+  );
+
+  for (const match of matches) {
+    const key = activeSessionKey(
+      match.process.exeName,
+      match.game.id,
+      match.game.source,
+    );
+    if (!activeKeys.has(key)) {
+      startSession(match.process, match.game, match.startedAt);
+    }
+  }
+
+  if (matches.length === 0 && currentSessions.length === 0) {
+    logRuntime("scan no match; app remains idle");
+  }
+
+  persist();
+  logRuntime(`scan complete durationMs=${Date.now() - startedAt}`);
+}
+
+function isIgnoredProcess(
+  exeName: string,
+  state: { blacklist: Set<string>; ignoredProcesses: Set<string> },
+) {
+  const exeKey = exeName.toLowerCase();
+  return state.blacklist.has(exeKey) || state.ignoredProcesses.has(exeKey);
+}
+
+type CachedResolution =
+  | { state: "matched"; game: Game }
+  | { state: "skipped" }
+  | { state: "query" };
+
+async function resolveProcesses(
+  processes: ProcessSnapshot[],
+  options: { forceQueryKeys?: Set<string> } = {},
+): Promise<ProcessMatch[]> {
+  const state = useAppStore.getState();
+  const now = Date.now();
+  const ttlMs = state.settings.unmatchedRetryDays * 24 * 60 * 60 * 1000;
+  const matches: ProcessMatch[] = [];
+  const queryProcesses: ProcessSnapshot[] = [];
+  const customUpgradeProcesses: ProcessSnapshot[] = [];
+  let cacheMatchedCount = 0;
+  let cacheSkippedCount = 0;
+
+  for (const process of processes) {
+    const existing = state.exeCache.get(process.exeName.toLowerCase());
+    if (existing?.state === "matched" && existing.source === "custom") {
+      customUpgradeProcesses.push(process);
+    }
+    if (options.forceQueryKeys?.has(processCacheKey(process))) {
+      queryProcesses.push(process);
+      continue;
+    }
+    const cached = resolveCachedProcess(process, state.exeCache, now, ttlMs);
+    if (cached.state === "matched") {
+      matches.push({ process, game: cached.game });
+      cacheMatchedCount += 1;
+    } else if (cached.state === "query") {
+      queryProcesses.push(process);
+    } else {
+      cacheSkippedCount += 1;
+    }
+  }
+
+  if (customUpgradeProcesses.length > 0) {
+    void checkCommunityUpgrades(customUpgradeProcesses);
+  }
+
+  logRuntime(
+    `match resolve cacheMatched=${cacheMatchedCount}, cacheSkipped=${cacheSkippedCount}, batchQuery=${queryProcesses.length}`,
+  );
+  verboseRuntime(`match batch query exes: ${formatExeSample(queryProcesses)}`);
+
+  if (queryProcesses.length === 0) {
+    logRuntime("match resolve completed without API call");
+    return matches;
+  }
+
+  try {
+    const requestStartedAt = Date.now();
+    logRuntime(
+      `match API batch request started count=${queryProcesses.length}`,
+    );
+    const response = await fetchWithTimeout(
+      `${state.settings.apiEndpoint}/api/match-processes`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({
+          processes: queryProcesses.map((process) => ({
+            key: processCacheKey(process),
+            identifiers: processIdentifiers(process),
+          })),
+        }),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`${response.status} ${response.statusText}`);
+
+    const body = (await response.json()) as MatchProcessesResponse;
+    const matchedCount = body.matches.filter((match) => match.game).length;
+    logRuntime(
+      `match API batch response ok count=${body.matches.length}, matched=${matchedCount}, durationMs=${Date.now() - requestStartedAt}`,
+    );
+    const resultsByExe = new Map(
+      body.matches.map((match) => [match.key.toLowerCase(), match]),
+    );
+
+    for (const process of queryProcesses) {
+      const result = resultsByExe.get(processCacheKey(process));
+      if (result?.ambiguousGames?.length) {
+        cacheAmbiguousMatch(process, result.ambiguousGames);
+        continue;
+      }
+      if (result?.pendingCommunityGame) {
+        cachePendingCommunityMatch(
+          process.exeName,
+          result.pendingCommunityGame,
+        );
+        continue;
+      }
+
+      const game = result?.game ?? null;
+      cacheMatchResult(process.exeName, game);
+      if (game) matches.push({ process, game });
+    }
+  } catch (error) {
+    logRuntime(
+      `match API batch failed count=${queryProcesses.length}: ${formatError(error)}`,
+    );
+    state.addApiRequestLogEntry({
+      endpoint: state.settings.apiEndpoint,
+      exeName: `${queryProcesses.length} executables`,
+      status: "error",
+      detail: formatError(error),
+    });
+    if (
+      state.backendHealth.status === "offline" ||
+      state.backendHealth.status === "reconnecting"
+    ) {
+      verboseRuntime(
+        "match API unavailable; leaving uncached executables pending",
+      );
+    } else {
+      state.setRuntimeError(`Match API failed: ${formatError(error)}`);
+    }
+  }
+
+  return matches;
+}
+
+async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
+  const state = useAppStore.getState();
+  try {
+    const response = await fetchWithTimeout(
+      `${state.settings.apiEndpoint}/api/match-processes`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({
+          processes: processes.map((process) => ({
+            key: processCacheKey(process),
+            identifiers: processIdentifiers(process),
+          })),
+        }),
+      },
+    );
+    if (!response.ok)
+      throw new Error(`${response.status} ${response.statusText}`);
+
+    const body = (await response.json()) as MatchProcessesResponse;
+    for (const result of body.matches) {
+      if (result.game?.source === "community") {
+        setCommunityUpgrade(result.key, result.game);
+        continue;
+      }
+      if (result.pendingCommunityGame) {
+        setCommunitySuggestionMarker(
+          result.key,
+          result.pendingCommunityGame,
+          false,
+        );
+      }
+    }
+  } catch (error) {
+    verboseRuntime(`community upgrade check failed: ${formatError(error)}`);
+  }
+}
+
+function setCommunitySuggestionMarker(
+  exeName: string,
+  game: Game,
+  verified: boolean,
+) {
+  useAppStore.setState((state) => {
+    const key = exeName.toLowerCase();
+    const existing = state.exeCache.get(key);
+    if (existing?.state !== "matched" || existing.source !== "custom") {
+      return {};
+    }
+
+    const exeCache = new Map(state.exeCache);
+    exeCache.set(key, {
+      ...existing,
+      communitySuggestionId: game.id,
+      communitySuggestionVerified: verified,
+    });
+    return {
+      exeCache,
+      activeSessions: state.activeSessions.map((session) =>
+        session.exeName.toLowerCase() === key && session.source === "custom"
+          ? {
+              ...session,
+              communitySuggestionId: game.id,
+              communitySuggestionVerified: verified,
+            }
+          : session,
+      ),
+    };
+  });
+}
+
+function setCommunityUpgrade(exeName: string, game: Game) {
+  let promoted = false;
+  useAppStore.setState((state) => {
+    const key = exeName.toLowerCase();
+    const existing = state.exeCache.get(key);
+    if (
+      existing?.state !== "matched" ||
+      existing.source !== "custom" ||
+      existing.dismissedCommunityUpgradeGameId === game.id
+    ) {
+      return {};
+    }
+
+    const exeCache = new Map(state.exeCache);
+    if (existing.communitySuggestionId === game.id) {
+      promoted = true;
+      const oldGameId = existing.gameId;
+      exeCache.set(key, {
+        ...existing,
+        gameId: game.id,
+        gameName: game.name,
+        coverUrl: game.coverUrl,
+        source: "community",
+        communitySuggestionId: game.id,
+        communitySuggestionVerified: true,
+        communityUpgradeGame: undefined,
+        lastCheckedAt: new Date().toISOString(),
+      });
+      return {
+        exeCache,
+        activeSessions: state.activeSessions.map((session) =>
+          session.exeName.toLowerCase() === key && session.source === "custom"
+            ? {
+                ...session,
+                gameId: game.id,
+                gameName: game.name,
+                coverUrl: game.coverUrl,
+                source: "community",
+                communitySuggestionId: game.id,
+                communitySuggestionVerified: true,
+              }
+            : session,
+        ),
+        recentSessions: state.recentSessions.map((session) =>
+          session.exeName.toLowerCase() === key && session.gameId === oldGameId
+            ? {
+                ...session,
+                gameId: game.id,
+                gameName: game.name,
+                coverUrl: game.coverUrl,
+                source: "community",
+                communitySuggestionId: game.id,
+                communitySuggestionVerified: true,
+              }
+            : session,
+        ),
+      };
+    }
+
+    exeCache.set(key, {
+      ...existing,
+      communitySuggestionId: existing.communitySuggestionId ?? game.id,
+      communitySuggestionVerified: true,
+      communityUpgradeGame: game,
+    });
+    return {
+      exeCache,
+      activeSessions: state.activeSessions.map((session) =>
+        session.exeName.toLowerCase() === key && session.source === "custom"
+          ? {
+              ...session,
+              communitySuggestionId: existing.communitySuggestionId ?? game.id,
+              communitySuggestionVerified: true,
+            }
+          : session,
+      ),
+    };
+  });
+  if (promoted) {
+    logRuntime(`community suggestion approved ${exeName} -> ${game.name}`);
+    persist();
+    void sendHeartbeat();
+  }
+}
+
+export function acceptCommunityUpgrade(exeName: string) {
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  const existing = state.exeCache.get(key);
+  const game = existing?.communityUpgradeGame;
+  if (existing?.state !== "matched" || existing.source !== "custom" || !game) {
+    return;
+  }
+
+  const oldGameId = existing.gameId;
+  state.setExeCacheEntry({
+    exeName: existing.exeName,
+    state: "matched",
+    gameId: game.id,
+    gameName: game.name,
+    coverUrl: game.coverUrl,
+    source: "community",
+    lastCheckedAt: new Date().toISOString(),
+  });
+
+  useAppStore.setState((current) => ({
+    activeSessions: current.activeSessions.map((session) =>
+      session.exeName.toLowerCase() === key && session.source === "custom"
+        ? {
+            ...session,
+            gameId: game.id,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
+            source: "community",
+            communitySuggestionId: existing.communitySuggestionId,
+            communitySuggestionVerified: true,
+          }
+        : session,
+    ),
+    recentSessions: current.recentSessions.map((session) =>
+      session.exeName.toLowerCase() === key && session.gameId === oldGameId
+        ? {
+            ...session,
+            gameId: game.id,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
+            source: "community",
+            communitySuggestionId: existing.communitySuggestionId,
+            communitySuggestionVerified: true,
+          }
+        : session,
+    ),
+  }));
+
+  logRuntime(`community upgrade accepted ${existing.exeName} -> ${game.name}`);
+  persist();
+  void requestProcessScan("after community upgrade accepted");
+}
+
+export function convertLocalSuggestionToCommunity(exeName: string) {
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  const existing = state.exeCache.get(key);
+  if (
+    existing?.state !== "matched" ||
+    existing.source !== "custom" ||
+    !existing.communitySuggestionId ||
+    !existing.communitySuggestionVerified
+  ) {
+    return;
+  }
+
+  const oldGameId = existing.gameId;
+  const communityGame: Game = {
+    id: existing.communitySuggestionId,
+    name: existing.gameName ?? exeName,
+    coverUrl: existing.coverUrl ?? "",
+    source: "community",
+  };
+
+  state.setExeCacheEntry({
+    exeName: existing.exeName,
+    state: "matched",
+    gameId: communityGame.id,
+    gameName: communityGame.name,
+    coverUrl: communityGame.coverUrl,
+    source: "community",
+    communitySuggestionId: existing.communitySuggestionId,
+    communitySuggestionVerified: true,
+    lastCheckedAt: new Date().toISOString(),
+  });
+
+  useAppStore.setState((current) => ({
+    activeSessions: current.activeSessions.map((session) =>
+      session.exeName.toLowerCase() === key && session.source === "custom"
+        ? {
+            ...session,
+            gameId: communityGame.id,
+            gameName: communityGame.name,
+            coverUrl: communityGame.coverUrl,
+            source: "community",
+            communitySuggestionId: existing.communitySuggestionId,
+            communitySuggestionVerified: true,
+          }
+        : session,
+    ),
+    recentSessions: current.recentSessions.map((session) =>
+      session.exeName.toLowerCase() === key && session.gameId === oldGameId
+        ? {
+            ...session,
+            gameId: communityGame.id,
+            gameName: communityGame.name,
+            coverUrl: communityGame.coverUrl,
+            source: "community",
+            communitySuggestionId: existing.communitySuggestionId,
+            communitySuggestionVerified: true,
+          }
+        : session,
+    ),
+  }));
+
+  logRuntime(`local suggestion converted to community ${exeName}`);
+  persist();
+  void requestProcessScan("after local suggestion conversion");
+}
+
+export function dismissCommunityUpgrade(exeName: string) {
+  useAppStore.setState((state) => {
+    const key = exeName.toLowerCase();
+    const existing = state.exeCache.get(key);
+    const game = existing?.communityUpgradeGame;
+    if (
+      existing?.state !== "matched" ||
+      existing.source !== "custom" ||
+      !game
+    ) {
+      return {};
+    }
+
+    const exeCache = new Map(state.exeCache);
+    exeCache.set(key, {
+      ...existing,
+      communityUpgradeGame: undefined,
+      dismissedCommunityUpgradeGameId: game.id,
+    });
+    return { exeCache };
+  });
+  logRuntime(`community upgrade dismissed ${exeName}`);
+  persist();
+}
+
+function cachePendingCommunityMatch(exeName: string, game: Game) {
+  const state = useAppStore.getState();
+  const checkedAt = new Date().toISOString();
+  state.addApiRequestLogEntry({
+    endpoint: state.settings.apiEndpoint,
+    exeName,
+    status: "unmatched",
+    detail: `Awaiting community approval: ${game.name}`,
+  });
+  state.setExeCacheEntry({
+    exeName,
+    state: "unmatched",
+    pendingCommunityGame: game,
+    lastCheckedAt: checkedAt,
+  });
+  logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
+}
+
+function cacheAmbiguousMatch(process: ProcessSnapshot, candidates: Game[]) {
+  const state = useAppStore.getState();
+  const existing = state.ambiguousMatches.find(
+    (match) => match.exeName.toLowerCase() === process.exeName.toLowerCase(),
+  );
+  state.setAmbiguousMatch({
+    exeName: process.exeName,
+    exePath: process.exePath,
+    candidates,
+    detectedAt: existing?.detectedAt ?? new Date().toISOString(),
+    endedAt: undefined,
+  });
+  state.addApiRequestLogEntry({
+    endpoint: state.settings.apiEndpoint,
+    exeName: process.exeName,
+    status: "unmatched",
+    detail: `Ambiguous: ${candidates.map((game) => game.name).join(", ")}`,
+  });
+  logRuntime(
+    `match ambiguous ${process.exeName}: ${candidates.map((game) => game.name).join(", ")}`,
+  );
+}
+
+function resolveCachedProcess(
+  process: ProcessSnapshot,
+  exeCache: Map<string, ExeCacheEntry>,
+  now: number,
+  ttlMs: number,
+): CachedResolution {
+  const exeKey = process.exeName.toLowerCase();
+  const cached = exeCache.get(exeKey);
+
+  if (cached?.state === "blacklisted") return { state: "skipped" };
+  if (cached?.state === "matched" && cached.gameId && cached.gameName) {
+    return {
+      state: "matched",
+      game: {
+        id: cached.gameId,
+        name: cached.gameName,
+        coverUrl: cached.coverUrl ?? "",
+        source: cached.source ?? "igdb",
+      },
+    };
+  }
+  if (cached?.state === "unmatched") {
+    const checkedAt = Date.parse(cached.lastCheckedAt);
+    const retryMs = cached.pendingCommunityGame
+      ? PENDING_COMMUNITY_RETRY_MS
+      : ttlMs;
+    if (Number.isFinite(checkedAt) && now - checkedAt < retryMs) {
+      return { state: "skipped" };
+    }
+  }
+
+  return { state: "query" };
+}
+
+function cacheMatchResult(exeName: string, game: Game | null) {
+  const state = useAppStore.getState();
+  const checkedAt = new Date().toISOString();
+  const existing = state.exeCache.get(exeName.toLowerCase());
+
+  if (existing?.state === "matched" && existing.source === "custom") {
+    verboseRuntime(`match cache preserved custom game ${exeName}`);
+    return;
+  }
+
+  if (!game) {
+    verboseRuntime(`match cache unmatched ${exeName}`);
+    state.addApiRequestLogEntry({
+      endpoint: state.settings.apiEndpoint,
+      exeName,
+      status: "unmatched",
+      detail: "No game returned",
+    });
+    state.setExeCacheEntry({
+      exeName,
+      state: "unmatched",
+      lastCheckedAt: checkedAt,
+    });
+    return;
+  }
+
+  logRuntime(`match cache matched ${exeName} -> ${game.name}`);
+  state.addApiRequestLogEntry({
+    endpoint: state.settings.apiEndpoint,
+    exeName,
+    status: "matched",
+    detail: game.name,
+  });
+  state.setExeCacheEntry({
+    exeName,
+    state: "matched",
+    gameId: game.id,
+    gameName: game.name,
+    coverUrl: game.coverUrl,
+    source: game.source,
+    lastCheckedAt: checkedAt,
+  });
+}
+
+function startSession(
+  process: ProcessSnapshot,
+  game: Game,
+  startedAtOverride?: string,
+) {
+  logRuntime(`session starting ${game.name} (${process.exeName})`);
+  const startedAt = startedAtOverride ?? new Date().toISOString();
+  const cacheEntry = useAppStore
+    .getState()
+    .exeCache.get(process.exeName.toLowerCase());
+  const session: ActiveSession = {
+    id: createSessionId(),
+    gameId: game.id,
+    gameName: game.name,
+    exeName: process.exeName,
+    coverUrl: game.coverUrl,
+    source: game.source,
+    communitySuggestionId: cacheEntry?.communitySuggestionId,
+    communitySuggestionVerified: cacheEntry?.communitySuggestionVerified,
+    startedAt,
+    checkpointedAt: startedAt,
+  };
+  useAppStore.setState((state) => ({
+    activeSessions: [...state.activeSessions, session],
+  }));
+  void sendHeartbeat();
+}
+
+export function selectAmbiguousMatch(exeName: string, game: Game) {
+  const state = useAppStore.getState();
+  const ambiguous = state.ambiguousMatches.find(
+    (match) => match.exeName.toLowerCase() === exeName.toLowerCase(),
+  );
+  if (!ambiguous) return;
+
+  cacheMatchResult(ambiguous.exeName, game);
+  state.removeAmbiguousMatch(ambiguous.exeName);
+  const active = useAppStore
+    .getState()
+    .activeSessions.some(
+      (session) =>
+        session.exeName.toLowerCase() === ambiguous.exeName.toLowerCase() &&
+        session.gameId === game.id,
+    );
+  if (!active) {
+    if (ambiguous.endedAt) {
+      addCompletedAmbiguousSession(ambiguous, game);
+    } else {
+      startSession(
+        { exeName: ambiguous.exeName, exePath: ambiguous.exePath },
+        game,
+        ambiguous.detectedAt,
+      );
+    }
+  }
+  logRuntime(`ambiguous match selected ${ambiguous.exeName} -> ${game.name}`);
+  persist();
+}
+
+function addCompletedAmbiguousSession(
+  ambiguous: AmbiguousProcessMatch,
+  game: Game,
+) {
+  const endedAt = ambiguous.endedAt ?? new Date().toISOString();
+  const durationSeconds = Math.max(
+    1,
+    Math.round((Date.parse(endedAt) - Date.parse(ambiguous.detectedAt)) / 1000),
+  );
+  useAppStore.getState().addSession({
+    id: createSessionId(),
+    gameId: game.id,
+    gameName: game.name,
+    coverUrl: game.coverUrl,
+    source: game.source,
+    exeName: ambiguous.exeName,
+    startedAt: ambiguous.detectedAt,
+    endedAt,
+    durationSeconds,
+  });
+  logRuntime(
+    `ambiguous completed session added ${game.name} durationSeconds=${durationSeconds}`,
+  );
+}
+
+export async function dismissAmbiguousMatch(exeName: string) {
+  const state = useAppStore.getState();
+  state.removeAmbiguousMatch(exeName);
+  await setUserIgnoredProcess(exeName, true);
+  logRuntime(`ambiguous match ignored as not a game ${exeName}`);
+  persist();
+}
+
+async function endSession(session: ActiveSession, endedAtOverride?: string) {
+  logRuntime(`session ending ${session.gameName} (${session.exeName})`);
+  const endedAt = endedAtOverride ?? new Date().toISOString();
+  const durationSeconds = Math.max(
+    1,
+    Math.round((Date.parse(endedAt) - Date.parse(session.startedAt)) / 1000),
+  );
+  useAppStore.getState().addSession({
+    id: session.id,
+    gameId: session.gameId,
+    gameName: session.gameName,
+    coverUrl: session.coverUrl,
+    source: session.source,
+    communitySuggestionId: session.communitySuggestionId,
+    communitySuggestionVerified: session.communitySuggestionVerified,
+    exeName: session.exeName,
+    startedAt: session.startedAt,
+    endedAt,
+    durationSeconds,
+  });
+  removeActiveSession(session);
+  await sendSessionEnd(session);
+  logRuntime(
+    `session ended ${session.gameName} durationSeconds=${durationSeconds}`,
+  );
+}
+
+async function closeStaleSession() {
+  const activeSessions = useAppStore.getState().activeSessions;
+  if (activeSessions.length === 0) {
+    verboseRuntime("stale session check skipped; no active sessions");
+    return;
+  }
+  for (const active of activeSessions) {
+    const ageMs = Date.now() - Date.parse(active.startedAt);
+    logRuntime(
+      `stale session check ${active.gameName} (${active.exeName}) activeAgeMs=${ageMs}`,
+    );
+    if (ageMs > 4 * 60 * 60 * 1000) {
+      await endSession(active, active.checkpointedAt);
+    }
+  }
+}
+
+function scheduleHeartbeat(intervalSeconds: number) {
+  if (heartbeatTimer) window.clearInterval(heartbeatTimer);
+  heartbeatTimer = undefined;
+  heartbeatTimer = window.setInterval(
+    () => void sendHeartbeat(),
+    Math.max(10, intervalSeconds) * 1000 + HEARTBEAT_GRACE_MS,
+  );
+  logRuntime(`heartbeat scheduled intervalSeconds=${intervalSeconds}`);
+}
+
+function scheduleBackendHealthChecks() {
+  if (backendHealthTimer) window.clearInterval(backendHealthTimer);
+  backendHealthTimer = undefined;
+  window.setTimeout(() => void checkBackendHealth(), 1_000);
+  backendHealthTimer = window.setInterval(
+    () => void checkBackendHealth(),
+    BACKEND_HEALTH_INTERVAL_MS,
+  );
+  logRuntime("backend health checks scheduled");
+}
+
+async function checkBackendHealth() {
+  const state = useAppStore.getState();
+  const endpoint = state.settings.apiEndpoint.replace(/\/+$/, "");
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    setBackendHealth("reconnecting", "Checking backend connection");
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${endpoint}/health`, {
+      cache: "no-store",
+      timeoutMs: BACKEND_HEALTH_TIMEOUT_MS,
+    });
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+
+    const body = (await response.json()) as { ok?: boolean };
+    if (body.ok !== true) throw new Error("Health check returned not ok");
+
+    setBackendHealth("online", "Backend health check passed");
+  } catch (error) {
+    const detail =
+      error instanceof DOMException && error.name === "AbortError"
+        ? "Health check timed out"
+        : formatError(error);
+    setBackendHealth("offline", detail);
+  }
+}
+
+function setBackendHealth(
+  status: "checking" | "online" | "offline" | "reconnecting",
+  detail: string,
+) {
+  const state = useAppStore.getState();
+  const previousStatus = state.backendHealth.status;
+  state.setBackendHealth({
+    status,
+    detail,
+    checkedAt: new Date().toISOString(),
+  });
+
+  if (previousStatus !== status) {
+    logRuntime(`backend health ${status}: ${detail}`);
+  }
+
+  if (status === "online" && state.runtimeError?.includes("API failed")) {
+    state.setRuntimeError(null);
+  }
+}
+
+function scheduleProcessPolling(intervalSeconds: number) {
+  if (processTimer) window.clearInterval(processTimer);
+  processTimer = undefined;
+  processTimer = window.setInterval(
+    () => {
+      void requestProcessScan("polling");
+    },
+    Math.max(2, intervalSeconds) * 1000,
+  );
+  logRuntime(`process polling intervalSeconds=${intervalSeconds}`);
+}
+
+async function sendHeartbeat() {
+  const state = useAppStore.getState();
+  const reportableSessions = state.activeSessions.filter(
+    (session) => !isCustomSession(session),
+  );
+  if (
+    !state.settings.shareAnonymousLiveData ||
+    !state.installUuid ||
+    reportableSessions.length === 0
+  ) {
+    verboseRuntime(
+      "heartbeat skipped; sharing disabled, install UUID missing, no active sessions, or only custom games",
+    );
+    return;
+  }
+
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    verboseRuntime("heartbeat skipped; backend offline");
+    return;
+  }
+
+  for (const session of reportableSessions) {
+    const source = reportableSessionSource(session);
+    if (!source) continue;
+    try {
+      verboseRuntime(
+        `heartbeat sending source=${source} gameId=${session.gameId}`,
+      );
+      await fetchWithTimeout(`${state.settings.apiEndpoint}/api/heartbeat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({
+          installUuid: state.installUuid,
+          gameId: session.gameId,
+          source,
+        }),
+      });
+      verboseRuntime(
+        `heartbeat sent source=${source} gameId=${session.gameId}`,
+      );
+    } catch (error) {
+      logRuntime(`heartbeat failed: ${formatError(error)}`);
+      if (!isBackendUnavailable()) {
+        state.setRuntimeError(`Heartbeat failed: ${formatError(error)}`);
+      }
+    }
+  }
+}
+
+async function sendSessionEnd(session: ActiveSession) {
+  const state = useAppStore.getState();
+  if (
+    !state.settings.shareAnonymousLiveData ||
+    !state.installUuid ||
+    isCustomSession(session)
+  ) {
+    verboseRuntime(
+      "session-end skipped; sharing disabled, install UUID missing, or custom game",
+    );
+    return;
+  }
+
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    verboseRuntime("session-end skipped; backend offline");
+    return;
+  }
+
+  try {
+    const gameId = session.gameId;
+    const source = reportableSessionSource(session);
+    if (!source) return;
+    logRuntime(`session-end sending source=${source} gameId=${gameId}`);
+    await fetchWithTimeout(`${state.settings.apiEndpoint}/api/session-end`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      timeoutMs: API_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify({ installUuid: state.installUuid, gameId, source }),
+    });
+    logRuntime(`session-end sent source=${source} gameId=${gameId}`);
+  } catch (error) {
+    logRuntime(`session-end failed: ${formatError(error)}`);
+    if (!isBackendUnavailable()) {
+      state.setRuntimeError(`Session-end failed: ${formatError(error)}`);
+    }
+  }
+}
+
+function isBackendUnavailable() {
+  const status = useAppStore.getState().backendHealth.status;
+  return status === "offline" || status === "reconnecting";
+}
+
+function connectLiveFeed() {
+  if (isBackendUnavailable()) {
+    verboseRuntime("live websocket skipped; backend offline");
+    return;
+  }
+
+  liveSocket?.close();
+  const endpoint = useAppStore
+    .getState()
+    .settings.apiEndpoint.replace(/^http/, "ws");
+
+  try {
+    logRuntime(`live websocket connecting ${endpoint}/api/live`);
+    liveSocket = new WebSocket(`${endpoint}/api/live`);
+    liveSocket.onopen = () => logRuntime("live websocket connected");
+    liveSocket.onmessage = (event) => {
+      const entries = JSON.parse(event.data) as LiveEntry[];
+      useAppStore.getState().setLiveEntries(entries);
+      verboseRuntime(`live websocket snapshot entries=${entries.length}`);
+    };
+    liveSocket.onerror = () => {
+      logRuntime("live websocket error; enabling stats polling fallback");
+      if (!liveTimer)
+        liveTimer = window.setInterval(() => void refreshLiveFeed(), 10_000);
+    };
+  } catch {
+    logRuntime("live websocket setup failed; enabling stats polling fallback");
+    liveTimer = window.setInterval(() => void refreshLiveFeed(), 10_000);
+  }
+}
+
+export function startLiveFeed() {
+  if (isBackendUnavailable()) {
+    verboseRuntime("live feed start skipped; backend offline");
+    return;
+  }
+
+  void refreshLiveFeed();
+  connectLiveFeed();
+}
+
+export function stopLiveFeed() {
+  if (liveTimer) window.clearInterval(liveTimer);
+  liveTimer = undefined;
+  liveSocket?.close();
+  liveSocket = undefined;
+  logRuntime("live feed disconnected");
+}
+
+async function refreshLiveFeed() {
+  const state = useAppStore.getState();
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    verboseRuntime("live feed refresh skipped; backend offline");
+    return;
+  }
+
+  try {
+    verboseRuntime("live feed refresh started");
+    const response = await fetchWithTimeout(
+      `${state.settings.apiEndpoint}/api/stats/today`,
+      { timeoutMs: API_REQUEST_TIMEOUT_MS },
+    );
+    if (response.ok) {
+      const entries = (await response.json()) as LiveEntry[];
+      state.setLiveEntries(entries);
+      verboseRuntime(`live feed refresh ok entries=${entries.length}`);
+    } else {
+      logRuntime(`live feed refresh failed status=${response.status}`);
+    }
+  } catch (error) {
+    verboseRuntime(`live feed refresh skipped: ${formatError(error)}`);
+  }
+}
+
+export function persist() {
+  const state = useAppStore.getState();
+  const persisted: PersistedState = {
+    installUuid: state.installUuid ?? undefined,
+    settings: state.settings,
+    exeCache: [...state.exeCache.values()],
+    gameMetadata: [...state.gameMetadata.values()],
+    sessions: state.recentSessions,
+    activeSessions: state.activeSessions,
+    ambiguousMatches: state.ambiguousMatches,
+    blacklist: [...state.blacklist],
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+  verboseRuntime(
+    `persisted state cache=${state.exeCache.size}, sessions=${state.recentSessions.length}, blacklist=${state.blacklist.size}`,
+  );
+}
+
+export function recheckUnmatched() {
+  const state = useAppStore.getState();
+  const previousSize = state.exeCache.size;
+  const exeCache = new Map(
+    [...state.exeCache].filter(([, entry]) => entry.state !== "unmatched"),
+  );
+  useAppStore.setState({ exeCache });
+  logRuntime(
+    `unmatched cache recheck requested removed=${previousSize - exeCache.size}`,
+  );
+  persist();
+  void requestProcessScan("after unmatched recheck");
+}
+
+async function recheckPendingCommunityApprovals(reason: string) {
+  const pendingProcesses = [...useAppStore.getState().exeCache.values()]
+    .filter(
+      (entry) => entry.state === "unmatched" && entry.pendingCommunityGame,
+    )
+    .map((entry) => ({ exeName: entry.exeName, exePath: null }));
+
+  if (pendingProcesses.length === 0) return;
+
+  logRuntime(
+    `pending community approval recheck ${reason} count=${pendingProcesses.length}`,
+  );
+  await resolveProcesses(pendingProcesses, {
+    forceQueryKeys: new Set(
+      pendingProcesses.map((process) => processCacheKey(process)),
+    ),
+  });
+  persist();
+}
+
+export async function recheckExecutable(exeName: string) {
+  logRuntime(`executable recheck requested ${exeName}`);
+  await resolveProcesses([{ exeName, exePath: null }], {
+    forceQueryKeys: new Set([exeName.toLowerCase()]),
+  });
+  persist();
+  void requestProcessScan(`after executable recheck ${exeName}`);
+}
+
+export function addCustomGame(exeName: string, gameName: string) {
+  const state = useAppStore.getState();
+  const normalizedGameName = gameName.trim();
+  if (!normalizedGameName) return;
+
+  state.setExeCacheEntry({
+    exeName,
+    state: "matched",
+    gameId: customGameId(exeName),
+    gameName: normalizedGameName,
+    coverUrl: "",
+    source: "custom",
+    lastCheckedAt: new Date().toISOString(),
+  });
+  logRuntime(`custom game added ${exeName} -> ${normalizedGameName}`);
+  persist();
+  void requestProcessScan("after custom game add");
+}
+
+export function addSharedCustomGame(
+  exeName: string,
+  gameName: string,
+  coverUrl: string,
+  communitySuggestionId: number,
+  communitySuggestionVerified: boolean,
+) {
+  const normalizedGameName = gameName.trim();
+  if (!normalizedGameName) return null;
+
+  const game: Game = {
+    id: customGameId(exeName),
+    name: normalizedGameName,
+    coverUrl,
+    source: "custom",
+  };
+  useAppStore.getState().setExeCacheEntry({
+    exeName,
+    state: "matched",
+    gameId: game.id,
+    gameName: game.name,
+    coverUrl,
+    source: "custom",
+    pendingCommunityGame: {
+      id: communitySuggestionId,
+      name: game.name,
+      coverUrl,
+      source: "community",
+    },
+    communitySuggestionId,
+    communitySuggestionVerified,
+    lastCheckedAt: new Date().toISOString(),
+  });
+  logRuntime(
+    `shared custom game added ${exeName} -> ${game.name} suggestion=${communitySuggestionId}`,
+  );
+  persist();
+  void requestProcessScan("after shared custom game add");
+  return game;
+}
+
+export function selectAmbiguousCommunitySuggestion(
+  exeName: string,
+  gameName: string,
+  coverUrl: string,
+  communitySuggestionId: number,
+  communitySuggestionVerified: boolean,
+) {
+  const game = addSharedCustomGame(
+    exeName,
+    gameName,
+    coverUrl,
+    communitySuggestionId,
+    communitySuggestionVerified,
+  );
+  if (!game) return;
+  selectAmbiguousMatch(exeName, game);
+}
+
+export async function setCustomGameCover(gameId: number, file: File | Blob) {
+  const extension = coverExtension(file);
+  if (!extension) {
+    throw new Error("Cover image must be a PNG, JPG, or WebP file.");
+  }
+
+  const bytes = [...new Uint8Array(await file.arrayBuffer())];
+  const coverPath = await invoke<string>("save_custom_cover", {
+    gameId,
+    extension,
+    bytes,
+  });
+  const coverUrl = convertFileSrc(coverPath);
+  updateCustomGameCover(gameId, coverUrl);
+  logRuntime(`custom game cover updated gameId=${gameId}`);
+  persist();
+}
+
+export function clearCustomGameCover(gameId: number) {
+  updateCustomGameCover(gameId, "");
+  logRuntime(`custom game cover cleared gameId=${gameId}`);
+  persist();
+}
+
+export function untrackCustomGame(exeName: string) {
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  const existing = state.exeCache.get(key);
+  if (existing?.source !== "custom") return;
+
+  const active = state.activeSessions.find(
+    (session) => session.exeName.toLowerCase() === key,
+  );
+  if (active) {
+    removeActiveSession(active);
+    void sendSessionEnd(active);
+  }
+
+  state.removeExeCacheEntry(exeName);
+  logRuntime(`custom game untracked ${exeName}`);
+  persist();
+  void requestProcessScan("after custom game untrack");
+}
+
+export function untrackGame(
+  gameId: number,
+  source: Game["source"] | null,
+  removeHistory: boolean,
+) {
+  const state = useAppStore.getState();
+  const matchingExeNames = [...state.exeCache.values()]
+    .filter(
+      (entry) =>
+        entry.state === "matched" &&
+        entry.gameId === gameId &&
+        (source ? entry.source === source : true),
+    )
+    .map((entry) => entry.exeName);
+
+  for (const session of state.activeSessions) {
+    if (session.gameId !== gameId) continue;
+    if (source && session.source !== source) continue;
+    removeActiveSession(session);
+    void sendSessionEnd(session);
+  }
+
+  for (const exeName of matchingExeNames) {
+    state.removeExeCacheEntry(exeName);
+  }
+
+  if (removeHistory) {
+    useAppStore.setState((current) => ({
+      recentSessions: current.recentSessions.filter((session) => {
+        if (session.gameId !== gameId) return true;
+        if (source && session.source !== source) return true;
+        return false;
+      }),
+    }));
+  }
+
+  logRuntime(
+    `game untracked gameId=${gameId} source=${source ?? "unknown"} exes=${matchingExeNames.length} removeHistory=${removeHistory}`,
+  );
+  persist();
+  void requestProcessScan("after game untrack");
+}
+
+export function removeHistorySession(sessionId: number) {
+  const previousCount = useAppStore.getState().recentSessions.length;
+  useAppStore.setState((state) => ({
+    recentSessions: state.recentSessions.filter(
+      (session) => session.id !== sessionId,
+    ),
+  }));
+  const removedCount =
+    previousCount - useAppStore.getState().recentSessions.length;
+  if (removedCount > 0) logRuntime(`history session removed ${sessionId}`);
+  persist();
+}
+
+export function removeGameHistory(gameId: number) {
+  const previousCount = useAppStore.getState().recentSessions.length;
+  useAppStore.setState((state) => ({
+    recentSessions: state.recentSessions.filter(
+      (session) => session.gameId !== gameId,
+    ),
+  }));
+  const removedCount =
+    previousCount - useAppStore.getState().recentSessions.length;
+  if (removedCount > 0)
+    logRuntime(
+      `game history removed gameId=${gameId} sessions=${removedCount}`,
+    );
+  persist();
+}
+
+export function removeGameHistoryBySource(
+  gameId: number,
+  source: Game["source"] | null,
+) {
+  const previousCount = useAppStore.getState().recentSessions.length;
+  useAppStore.setState((state) => ({
+    recentSessions: state.recentSessions.filter((session) => {
+      if (session.gameId !== gameId) return true;
+      if (source && session.source !== source) return true;
+      return false;
+    }),
+  }));
+  const removedCount =
+    previousCount - useAppStore.getState().recentSessions.length;
+  if (removedCount > 0)
+    logRuntime(
+      `game history removed gameId=${gameId} source=${source ?? "unknown"} sessions=${removedCount}`,
+    );
+  persist();
+}
+
+export function clearLocalCache() {
+  useAppStore.getState().clearCache();
+  logRuntime("local cache cleared");
+  persist();
+}
+
+export async function scanProcessesNow() {
+  await requestProcessScan("manual");
+}
+
+export async function hydrateGameMetadata(
+  gameRefs: Array<{ gameId: number; source?: Game["source"] }>,
+) {
+  const state = useAppStore.getState();
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    verboseRuntime("game metadata hydration skipped; backend offline");
+    return;
+  }
+
+  const refs = gameRefs.filter((ref) => ref.gameId > 0);
+  const missingIds = [
+    ...new Set(
+      refs
+        .filter((ref) => {
+          if (ref.source === "custom") return false;
+          if (!ref.source) {
+            return (
+              !state.gameMetadata.has(`igdb:${ref.gameId}`) &&
+              !state.gameMetadata.has(`community:${ref.gameId}`)
+            );
+          }
+          return !state.gameMetadata.has(
+            gameMetadataKey({ id: ref.gameId, source: ref.source }),
+          );
+        })
+        .map((ref) => ref.gameId),
+    ),
+  ];
+  if (missingIds.length === 0) return;
+
+  try {
+    const response = await fetchWithTimeout(
+      `${state.settings.apiEndpoint}/api/games/metadata?ids=${missingIds.join(",")}`,
+      { timeoutMs: API_REQUEST_TIMEOUT_MS },
+    );
+    if (!response.ok)
+      throw new Error(`${response.status} ${response.statusText}`);
+
+    const body = (await response.json()) as GameMetadataResponse;
+    useAppStore
+      .getState()
+      .setGameMetadata(
+        body.games.filter(
+          (game): game is GameMetadata =>
+            game.source === "igdb" || game.source === "community",
+        ),
+      );
+    logRuntime(`game metadata hydrated count=${body.games.length}`);
+    persist();
+  } catch (error) {
+    logRuntime(`game metadata hydration failed: ${formatError(error)}`);
+  }
+}
+
+async function requestProcessScan(reason: string) {
+  if (scanInFlight) {
+    scanQueued = true;
+    logRuntime(`scan ${reason} queued; scan already running`);
+    return scanInFlight;
+  }
+
+  scanInFlight = runQueuedProcessScans(reason);
+  return scanInFlight;
+}
+
+async function runQueuedProcessScans(initialReason: string) {
+  let reason = initialReason;
+  try {
+    do {
+      scanQueued = false;
+      await runProcessScan(reason);
+      reason = "queued";
+    } while (scanQueued);
+  } catch (error) {
+    logRuntime(`scan ${reason} failed: ${formatError(error)}`);
+    useAppStore.getState().setProcessScanError(formatError(error));
+    useAppStore
+      .getState()
+      .setRuntimeError(`Process scan failed: ${formatError(error)}`);
+  } finally {
+    scanInFlight = undefined;
+  }
+}
+
+async function runProcessScan(reason: string) {
+  logRuntime(`scan ${reason} requested`);
+  const processes = await invoke<ProcessSnapshot[]>("scan_processes");
+  logRuntime(`scan ${reason} returned ${processes.length}`);
+  await handleProcessSnapshot(processes);
+}
+
+function readPersisted(): PersistedState {
+  try {
+    return JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "{}",
+    ) as PersistedState;
+  } catch {
+    logRuntime("persisted state parse failed; using empty state");
+    return {};
+  }
+}
+
+function normalizePersistedActiveSessions(persisted: PersistedState) {
+  const sessions = persisted.activeSessions ?? [];
+  if (persisted.activeSession) sessions.push(persisted.activeSession);
+
+  return sessions.map((session) => ({
+    ...session,
+    checkpointedAt: session.checkpointedAt ?? session.startedAt,
+    recoveredFromCheckpoint: true,
+  }));
+}
+
+function checkpointActiveSessionIfDue(session: ActiveSession) {
+  if (
+    Date.now() - Date.parse(session.checkpointedAt) <
+    SESSION_CHECKPOINT_INTERVAL_MS
+  ) {
+    return;
+  }
+
+  const checkpointedAt = new Date().toISOString();
+  updateActiveSession({
+    ...session,
+    checkpointedAt,
+    recoveredFromCheckpoint: false,
+  });
+  verboseRuntime(
+    `session checkpoint ${session.gameName} durationSeconds=${Math.max(
+      0,
+      Math.round(
+        (Date.parse(checkpointedAt) - Date.parse(session.startedAt)) / 1000,
+      ),
+    )}`,
+  );
+}
+
+function recoveredSessionEndAt(session: ActiveSession) {
+  return session.recoveredFromCheckpoint ? session.checkpointedAt : undefined;
+}
+
+function isCustomSession(session: ActiveSession) {
+  return session.source === "custom" || session.gameId < 0;
+}
+
+function reportableSessionSource(
+  session: ActiveSession,
+): ReportableGameSource | null {
+  if (session.source === "igdb" || session.source === "community") {
+    return session.source;
+  }
+  return isCustomSession(session) ? null : "igdb";
+}
+
+function activeSessionKey(
+  exeName: string,
+  gameId: number,
+  source: ActiveSession["source"],
+) {
+  return `${source ?? "unknown"}:${gameId}:${exeName.toLowerCase()}`;
+}
+
+function sessionIdentityKey(
+  session: Pick<ActiveSession, "exeName" | "gameId" | "source">,
+) {
+  return activeSessionKey(session.exeName, session.gameId, session.source);
+}
+
+function updateActiveSession(session: ActiveSession) {
+  const key = sessionIdentityKey(session);
+  useAppStore.setState((state) => ({
+    activeSessions: state.activeSessions.map((active) =>
+      sessionIdentityKey(active) === key ? session : active,
+    ),
+  }));
+}
+
+function removeActiveSession(session: ActiveSession) {
+  const key = sessionIdentityKey(session);
+  useAppStore.setState((state) => ({
+    activeSessions: state.activeSessions.filter(
+      (active) => sessionIdentityKey(active) !== key,
+    ),
+  }));
+}
+
+function syncTrayNowPlaying() {
+  const sessions = useAppStore.getState().activeSessions.map((session) => ({
+    gameName: session.gameName,
+    elapsedSeconds: Math.max(
+      0,
+      Math.floor((Date.now() - Date.parse(session.startedAt)) / 1000),
+    ),
+  }));
+  void invoke("update_tray_now_playing", { sessions }).catch((error) => {
+    logRuntime(`tray update failed: ${formatError(error)}`);
+  });
+}
+
+function scheduleTraySync() {
+  if (trayTimer) window.clearInterval(trayTimer);
+  trayTimer = undefined;
+
+  if (useAppStore.getState().activeSessions.length === 0) return;
+
+  trayTimer = window.setInterval(() => {
+    syncTrayNowPlaying();
+  }, 15_000);
+}
+
+function customGameId(exeName: string) {
+  let hash = 0;
+  for (const char of exeName.toLowerCase()) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return CUSTOM_GAME_ID_BASE - (hash % 900_000_000);
+}
+
+function updateCustomGameCover(gameId: number, coverUrl: string) {
+  useAppStore.setState((state) => {
+    const exeCache = new Map(state.exeCache);
+
+    for (const [key, entry] of exeCache) {
+      if (
+        entry.state === "matched" &&
+        entry.source === "custom" &&
+        entry.gameId === gameId
+      ) {
+        exeCache.set(key, { ...entry, coverUrl });
+      }
+    }
+
+    return {
+      exeCache,
+      activeSessions: state.activeSessions.map((session) =>
+        session.gameId === gameId && isCustomSession(session)
+          ? { ...session, coverUrl }
+          : session,
+      ),
+    };
+  });
+}
+
+function coverExtension(file: File | Blob) {
+  const mimeExtension = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+  }[file.type];
+
+  if (mimeExtension) return mimeExtension;
+  if (!(file instanceof File)) return null;
+
+  const match = /\.([a-z0-9]+)$/i.exec(file.name);
+  const extension = match?.[1]?.toLowerCase();
+  if (extension === "jpeg") return "jpg";
+  if (extension === "jpg" || extension === "png" || extension === "webp") {
+    return extension;
+  }
+
+  return null;
+}
+
+function createSessionId() {
+  nextSessionSequence = (nextSessionSequence + 1) % 1000;
+  return Date.now() * 1000 + nextSessionSequence;
+}
+
+function uniqueProcesses(processes: ProcessSnapshot[]) {
+  return [
+    ...new Map(
+      processes.map((process) => [process.exeName.toLowerCase(), process]),
+    ).values(),
+  ].sort((a, b) => a.exeName.localeCompare(b.exeName));
+}
+
+function processCacheKey(process: ProcessSnapshot) {
+  return process.exeName.toLowerCase();
+}
+
+function processIdentifiers(process: ProcessSnapshot): ProcessIdentifier[] {
+  const platform = detectProcessPlatform(process);
+  const identifiers: ProcessIdentifier[] = [];
+
+  if (platform === "windows") {
+    addIdentifier(identifiers, platform, "exe", process.exeName);
+    return identifiers;
+  }
+
+  if (platform === "macos") {
+    const appBundle = macosAppBundleName(process.exePath);
+    if (appBundle)
+      addIdentifier(identifiers, platform, "app_bundle", appBundle);
+    addIdentifier(identifiers, platform, "process_name", process.exeName);
+    return identifiers;
+  }
+
+  const steamAppId = linuxSteamAppId(process.exePath);
+  if (steamAppId)
+    addIdentifier(identifiers, platform, "steam_app_id", steamAppId);
+  if (/\.exe$/i.test(process.exeName)) {
+    addIdentifier(identifiers, platform, "wine_exe", process.exeName);
+  }
+  if (process.exePath) {
+    addIdentifier(
+      identifiers,
+      platform,
+      "executable_path",
+      normalizeProcessPath(process.exePath),
+    );
+  }
+  addIdentifier(identifiers, platform, "executable_name", process.exeName);
+
+  return identifiers;
+}
+
+function detectProcessPlatform(process: ProcessSnapshot): Platform {
+  const path = process.exePath ?? "";
+  if (path.includes("\\") || /\.exe$/i.test(process.exeName)) return "windows";
+  if (path.includes(".app/Contents/MacOS/")) return "macos";
+
+  const userAgent = navigator.userAgent.toLowerCase();
+  const navigatorPlatform = navigator.platform.toLowerCase();
+  if (userAgent.includes("mac") || navigatorPlatform.includes("mac")) {
+    return "macos";
+  }
+  return "linux";
+}
+
+function addIdentifier(
+  identifiers: ProcessIdentifier[],
+  platform: Platform,
+  kind: ProcessIdentifier["kind"],
+  value: string,
+) {
+  const trimmed = value.trim();
+  const normalized = trimmed.toLowerCase();
+  if (!trimmed) return;
+  if (
+    identifiers.some(
+      (identifier) =>
+        identifier.platform === platform &&
+        identifier.kind === kind &&
+        identifier.value.toLowerCase() === normalized,
+    )
+  ) {
+    return;
+  }
+  identifiers.push({ platform, kind, value: trimmed });
+}
+
+function macosAppBundleName(path: string | null) {
+  if (!path) return null;
+  const match = /(^|\/)([^/]+\.app)\/Contents\/MacOS\//i.exec(path);
+  return match?.[2] ?? null;
+}
+
+function linuxSteamAppId(path: string | null) {
+  if (!path) return null;
+  const compatMatch = /\/steamapps\/compatdata\/(\d+)\//i.exec(path);
+  if (compatMatch?.[1]) return compatMatch[1];
+
+  const appManifestMatch = /\/steamapps\/appmanifest_(\d+)\.acf$/i.exec(path);
+  return appManifestMatch?.[1] ?? null;
+}
+
+function normalizeProcessPath(path: string) {
+  return path.replace(/\\/g, "/").toLowerCase();
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit & { timeoutMs?: number } = {},
+) {
+  const { timeoutMs = API_REQUEST_TIMEOUT_MS, signal, ...requestInit } = init;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else
+      signal.addEventListener("abort", () => controller.abort(), {
+        once: true,
+      });
+  }
+
+  try {
+    return await fetch(input, { ...requestInit, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function formatError(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function logRuntime(message: string) {
+  useAppStore.getState().addRuntimeLogEntry(message);
+}
+
+function verboseRuntime(message: string) {
+  if (useAppStore.getState().settings.verboseLogs) logRuntime(message);
+}
+
+function formatExeSample(processes: ProcessSnapshot[]) {
+  if (processes.length === 0) return "none";
+  const sample = processes
+    .slice(0, 12)
+    .map((process) => process.exeName)
+    .join(", ");
+  return processes.length > 12
+    ? `${sample}, +${processes.length - 12} more`
+    : sample;
+}

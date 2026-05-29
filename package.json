@@ -1,0 +1,37 @@
+{
+  "name": "playcounter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gametime tracker. Detects running games from any sources and tracks your play sessions locally.",
+  "license": "MIT",
+  "author": "zntr1",
+  "homepage": "https://playcounter.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zntr1/PlayCounter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zntr1/PlayCounter/issues"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "turbo dev",
+    "api:dev": "corepack pnpm --filter @playcounter/api dev",
+    "db:migrate": "corepack pnpm --filter @playcounter/api db:migrate",
+    "db:seed": "corepack pnpm --filter @playcounter/igdb-seed dev",
+    "db:seed-all-windows-exes": "corepack pnpm --filter @playcounter/igdb-seed seed-all-windows-exes",
+    "db:add-game-by-id": "corepack pnpm --filter @playcounter/igdb-seed add-game-by-id",
+    "db:add-community-game": "corepack pnpm --filter @playcounter/igdb-seed add-community-game",
+    "desktop:version": "node scripts/ci/sync-desktop-version.mjs",
+    "desktop:dev": "scripts\\dev-desktop.cmd",
+    "desktop:build": "scripts\\build-desktop.cmd",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.3",
+    "typescript": "^5.8.3"
+  }
+}
