@@ -1321,6 +1321,8 @@
         "operatingSystem": ["Windows", "macOS", "Linux"],
         "url": "https://playcounter.app/",
         "image": "https://playcounter.app/og-image.jpg",
+        "sameAs": ["https://github.com/zntr1/PlayCounter"],
+        "isAccessibleForFree": true,
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -1361,10 +1363,18 @@
           },
           {
             "@type": "Question",
+            "name": "Is PlayCounter open source?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. The full client and the server it talks to are open source under the MIT license in one public repository on GitHub. Because PlayCounter reads your running processes, you can verify exactly what it does, and every release includes a SHA-256 checksum and a VirusTotal scan so you can confirm your download is genuine."
+            }
+          },
+          {
+            "@type": "Question",
             "name": "What about privacy and data collection?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "PlayCounter watches your processes locally to detect games. We do not harvest your personal data. Community features (like the live feed) are strictly opt-in and fully anonymous."
+              "text": "PlayCounter watches your processes locally to detect games. We do not harvest your personal data. The community live feed is fully anonymous and on by default, and you can opt out anytime with a single toggle in Settings."
             }
           },
           {
@@ -1410,7 +1420,21 @@
         <div class="nav-links">
           <a class="nav-text-link" href="#how">How it works</a>
           <a class="nav-text-link" href="#features">Features</a>
+          <a class="nav-text-link" href="#open-source">Open source</a>
           <a class="nav-text-link" href="#faq-section">FAQ</a>
+          <a
+            class="nav-icon-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="PlayCounter on GitHub"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"
+              />
+            </svg>
+          </a>
           <a
             class="nav-icon-link"
             href="https://discord.gg/t2nG3jaEEY"
@@ -1424,7 +1448,13 @@
               />
             </svg>
           </a>
-          <a class="btn btn-primary" href="#download" data-download>
+          <a
+            class="btn btn-primary"
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-download
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -1451,8 +1481,7 @@
           <div class="stagger">
             <div>
               <span class="eyebrow"
-                ><span class="pulse-dot"></span> Tracks every game · 100%
-                free</span
+                ><span class="pulse-dot"></span> Open source · 100% free</span
               >
             </div>
             <h1>
@@ -1467,7 +1496,13 @@
               No data you don't control.
             </p>
             <div class="cta-row">
-              <a class="btn btn-primary" href="#download" data-download>
+              <a
+            class="btn btn-primary"
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-download
+          >
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -1510,8 +1545,8 @@
               </span>
             </div>
             <p class="trust-line">
-              <span>Free</span> · <span>No sign-up</span> ·
-              <span>Lightweight&nbsp;install</span>
+              <span>Free</span> · <span>Open&nbsp;source</span> ·
+              <span>No sign-up</span> · <span>Lightweight&nbsp;install</span>
             </p>
           </div>
 
@@ -1802,8 +1837,9 @@
             </div>
             <h3>Private by design</h3>
             <p>
-              Tracking happens on your machine. Sharing to the feed is one
-              toggle — anonymous, and off until you turn it on.
+              Tracking happens on your machine. Contributing to the live feed
+              is anonymous and on by default — one toggle opts you out whenever
+              you want.
             </p>
             <div class="toggle-demo">
               <div class="lbl">
@@ -1861,6 +1897,113 @@
       </div>
     </section>
 
+    <!-- OPEN SOURCE / TRANSPARENCY -->
+    <section class="proof section-pad" id="open-source">
+      <div class="wrap reveal">
+        <p class="kicker" style="text-align: center">Open &amp; verifiable</p>
+        <h2 style="max-width: 18em; margin: 14px auto 0">
+          A tracker watches your PC. You shouldn't have to
+          <span style="color: var(--accent)">take our word</span> for what it
+          does.
+        </h2>
+        <p
+          class="proof-note"
+          style="
+            max-width: 42em;
+            margin: 20px auto 0;
+            font-size: 1.05rem;
+            color: var(--text-muted);
+          "
+        >
+          PlayCounter detects games by reading your running processes — so the
+          entire client <em>and</em> the server it talks to are open source. You
+          can read exactly what is collected, what leaves your machine, and what
+          doesn't. Nothing is hidden.
+        </p>
+
+        <div class="trust-grid">
+          <div class="trust-card">
+            <div class="ic">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"
+                />
+              </svg>
+            </div>
+            <h3>Open source, end to end</h3>
+            <p>
+              Client and server both live in one public repository under the MIT
+              license. Read the code, audit it, fork it, or contribute.
+            </p>
+          </div>
+          <div class="trust-card">
+            <div class="ic">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="M9 12l2 2 4-4" />
+              </svg>
+            </div>
+            <h3>Signed &amp; verifiable builds</h3>
+            <p>
+              Every release ships a SHA-256 checksum and an independent
+              VirusTotal scan, so you can confirm the installer you downloaded
+              is exactly what we published.
+            </p>
+          </div>
+          <div class="trust-card">
+            <div class="ic">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <h3>Private by design</h3>
+            <p>
+              Tracking runs locally and there's no account. Live-feed
+              contributions are always anonymous and on by default — a single
+              toggle opts you out anytime.
+            </p>
+          </div>
+        </div>
+
+        <div class="cta-row" style="justify-content: center; margin-top: 40px">
+          <a
+            class="btn btn-primary"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5z"
+              />
+            </svg>
+            View the source on GitHub
+          </a>
+          <a
+            class="btn btn-ghost"
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Releases &amp; checksums
+          </a>
+        </div>
+      </div>
+    </section>
+
     <!-- VISION / MOVEMENT -->
     <section class="proof section-pad" id="vision">
       <div class="wrap reveal">
@@ -1883,8 +2026,8 @@
           Right now there's nowhere to look. Steam shows Steam. Epic shows Epic.
           The full, launcher-free picture of what gamers are playing
           <em>right now</em> doesn't exist anywhere. So we're building it — one
-          tracker that unifies every source, and a global pulse made from the
-          players who choose to share, anonymously.
+          tracker that unifies every source, and a global pulse made from
+          players sharing anonymously.
         </p>
         <p
           class="proof-note"
@@ -1895,12 +2038,19 @@
             color: var(--text-muted);
           "
         >
-          Every player who shares makes the picture sharper. No pressure, no
-          account — just flip the switch whenever you're ready.
+          Every player who shares makes the picture sharper. It's anonymous and
+          on by default — no account, and one toggle opts you out whenever you
+          want.
         </p>
 
         <div class="cta-row" style="justify-content: center; margin-top: 34px">
-          <a class="btn btn-primary" href="#download" data-download>
+          <a
+            class="btn btn-primary"
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-download
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -1987,6 +2137,35 @@
           </div>
           <div class="faq-item">
             <button class="faq-btn" aria-expanded="false">
+              Is PlayCounter open source?
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="faq-content">
+              <div class="faq-inner">
+                Yes. The full client and the server it talks to are open source
+                under the MIT license, in one public repository on
+                <a
+                  href="https://github.com/zntr1/PlayCounter"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="color: var(--accent)"
+                  >GitHub</a
+                >. Because PlayCounter reads your running processes, you can
+                verify exactly what it does — and every release includes a
+                SHA-256 checksum and a VirusTotal scan so you can confirm your
+                download is genuine.
+              </div>
+            </div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-btn" aria-expanded="false">
               What about privacy and data collection?
               <svg
                 viewBox="0 0 24 24"
@@ -2000,8 +2179,9 @@
             <div class="faq-content">
               <div class="faq-inner">
                 PlayCounter watches your processes locally to detect games. We
-                do not harvest your personal data. Community features (like the
-                live feed) are strictly opt-in and fully anonymous.
+                do not harvest your personal data. The community live feed is
+                fully anonymous and on by default — you can opt out anytime with
+                a single toggle in Settings.
               </div>
             </div>
           </div>
@@ -2097,7 +2277,9 @@
         <div class="cta-row" style="justify-content: center">
           <a
             class="btn btn-primary"
-            href="#"
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
             data-download
             style="font-size: 16px; padding: 14px 28px"
           >
@@ -2116,8 +2298,8 @@
           </a>
         </div>
         <p class="trust-line" style="text-align: center">
-          <span>Free</span> · <span>Private</span> ·
-          <span>macOS &amp; Linux coming soon</span>
+          <span>Free</span> · <span>Open&nbsp;source</span> ·
+          <span>Private</span> · <span>macOS &amp; Linux coming soon</span>
         </p>
       </div>
     </section>
@@ -2130,9 +2312,21 @@
           PlayCounter
         </a>
         <div class="foot-links">
-          <a href="#download" data-download>Download</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-download
+            >Download</a
+          >
           <a href="#features">Features</a>
           <a href="#faq-section">FAQ</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
           <a href="https://discord.gg/t2nG3jaEEY" target="_blank">Discord</a>
         </div>
         <div>© <span id="year"></span> PlayCounter</div>
@@ -2140,44 +2334,11 @@
     </footer>
 
     <script>
-      // ====================================================================
-      // DOWNLOAD — resolved from the same release manifest the in-app updater
-      // uses, so the button always points at the latest signed build.
-      // Requires CORS on the storage account for this page's origin.
-      // ====================================================================
-      var MANIFEST_URL =
-        "https://stplaycountereuw.blob.core.windows.net/releases/latest.json";
-      // Optional hardcoded fallback used only if the manifest can't be fetched.
-      // Leave empty to fall back to in-page scroll behavior.
-      var FALLBACK_DOWNLOAD_URL = "";
-
-      var downloadEls = document.querySelectorAll("[data-download]");
-
-      function setDownloadUrl(url) {
-        downloadEls.forEach(function (el) {
-          el.setAttribute("href", url);
-        });
-      }
-
-      if (FALLBACK_DOWNLOAD_URL) setDownloadUrl(FALLBACK_DOWNLOAD_URL);
-
-      fetch(MANIFEST_URL, { cache: "no-store" })
-        .then(function (res) {
-          if (!res.ok) throw new Error("manifest " + res.status);
-          return res.json();
-        })
-        .then(function (manifest) {
-          var win =
-            manifest &&
-            manifest.platforms &&
-            manifest.platforms["windows-x86_64"];
-          if (win && win.url) setDownloadUrl(win.url);
-        })
-        .catch(function () {
-          // Network/CORS failure: keep FALLBACK_DOWNLOAD_URL if set, otherwise
-          // the buttons retain their in-page scroll target.
-        });
-
+      // Download buttons ([data-download]) link straight to the GitHub
+      // releases page in the markup — no JS needed. We point visitors at the
+      // release page (not a direct file) on purpose: it surfaces the SHA-256
+      // checksum, the VirusTotal scan, and the open-source notes right when
+      // they decide to install.
       document.getElementById("year").textContent = new Date().getFullYear();
 
       // Nav border on scroll
