@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Datenschutzerklärung · PlayCounter</title>
+    <meta
+      name="description"
+      content="Datenschutzerklärung / Privacy Policy for the PlayCounter website and desktop app."
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#8b8cff" />
+    <link rel="icon" href="icon.png" />
+    <link rel="apple-touch-icon" href="icon.png" />
+    <link rel="canonical" href="https://playcounter.app/datenschutz.html" />
+    <link rel="stylesheet" href="fonts/fonts.css" />
+    <style>
+      :root {
+        --bg: #0f1014;
+        --surface: #16181f;
+        --border: #2a2e39;
+        --text: #e7e9ee;
+        --text-muted: #9aa1ad;
+        --text-faint: #6b7280;
+        --accent: #8b8cff;
+        --accent-hover: #a5a6ff;
+        --font-display: "Bricolage Grotesque", sans-serif;
+        --font-body: "DM Sans", sans-serif;
+        --max: 760px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-body);
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        color: var(--accent-hover);
+        text-decoration: underline;
+      }
+      nav {
+        border-bottom: 1px solid var(--border);
+        background: rgba(15, 16, 20, 0.8);
+        backdrop-filter: blur(12px);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .nav-inner {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text);
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 17px;
+      }
+      .brand img {
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+      }
+      .back {
+        font-size: 14.5px;
+        color: var(--text-muted);
+      }
+      .back:hover {
+        color: var(--text);
+      }
+      main {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 56px 24px 96px;
+      }
+      h1 {
+        font-family: var(--font-display);
+        font-weight: 800;
+        font-size: clamp(2rem, 5vw, 2.8rem);
+        letter-spacing: -0.025em;
+        margin-bottom: 8px;
+      }
+      .lang-jump {
+        font-size: 14px;
+        color: var(--text-faint);
+        margin-bottom: 8px;
+      }
+      .updated {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12.5px;
+        color: var(--text-faint);
+        margin-bottom: 40px;
+      }
+      h2 {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 1.45rem;
+        letter-spacing: -0.01em;
+        margin: 48px 0 14px;
+        scroll-margin-top: 80px;
+      }
+      h3 {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 1.08rem;
+        margin: 30px 0 8px;
+      }
+      p {
+        color: var(--text-muted);
+        margin-bottom: 14px;
+      }
+      ul {
+        color: var(--text-muted);
+        margin: 0 0 16px 22px;
+      }
+      li {
+        margin-bottom: 7px;
+      }
+      strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      address {
+        color: var(--text-muted);
+        font-style: normal;
+        line-height: 1.8;
+        margin-bottom: 14px;
+      }
+      .note {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 16px 18px;
+        margin: 18px 0;
+        font-size: 0.95rem;
+      }
+      .divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 64px 0;
+      }
+      .lede {
+        color: var(--text-faint);
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-family: "JetBrains Mono", monospace;
+        margin-bottom: 4px;
+      }
+      footer {
+        border-top: 1px solid var(--border);
+      }
+      .foot-inner {
+        max-width: var(--max);
+        margin: 0 auto;
+        padding: 28px 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: space-between;
+        color: var(--text-faint);
+        font-size: 14px;
+      }
+      .foot-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .foot-links a {
+        color: var(--text-muted);
+      }
+      .foot-links a:hover {
+        color: var(--text);
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="nav-inner">
+        <a class="brand" href="index.html">
+          <img src="icon.png" alt="PlayCounter logo" />
+          PlayCounter
+        </a>
+        <a class="back" href="index.html">← Zur Startseite / Home</a>
+      </div>
+    </nav>
+
+    <main>
+      <p class="lede">Datenschutz</p>
+      <h1>Datenschutzerklärung</h1>
+      <p class="lang-jump"><a href="#en">English version below ↓</a></p>
+      <p class="updated">Stand: 30. Mai 2026</p>
+
+      <p>
+        Diese Datenschutzerklärung gilt für die Website
+        <strong>playcounter.app</strong> sowie für die
+        <strong>PlayCounter-Desktop-App</strong>. Wir gehen sorgsam mit deinen
+        Daten um: PlayCounter benötigt kein Benutzerkonto, und der Großteil
+        deiner Daten (Spielzeiten, Verlauf, Einstellungen) bleibt
+        ausschließlich lokal auf deinem Gerät.
+      </p>
+
+      <h2>1. Verantwortlicher</h2>
+      <address>
+        <strong>Philipp Pradzinski</strong><br />
+        Ebbergstr. 5, 58239 Schwerte, Deutschland<br />
+        E-Mail: <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a>
+      </address>
+
+      <h2>2. Die Website (playcounter.app)</h2>
+
+      <h3>Hosting &amp; Server-Logfiles</h3>
+      <p>
+        Die Website wird bei <strong>Microsoft Azure Static Web Apps</strong>
+        (Microsoft Corporation) gehostet. Beim Aufruf der Seite verarbeitet der
+        Hosting-Anbieter technisch notwendige Zugriffsdaten in Server-Logs,
+        insbesondere die IP-Adresse, Datum und Uhrzeit des Zugriffs, die
+        aufgerufene Seite, übertragene Datenmenge sowie Browser- und
+        Betriebssystemangaben. Diese Verarbeitung ist zum sicheren und stabilen
+        Betrieb der Website erforderlich.
+      </p>
+      <p>
+        Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am
+        sicheren Betrieb der Website).
+      </p>
+
+      <h3>Schriftarten (selbst gehostet)</h3>
+      <p>
+        Die verwendeten Schriftarten werden <strong>lokal von unserem Server
+        ausgeliefert</strong> (Self-Hosting). Es findet
+        <strong>keine</strong> Verbindung zu Google Fonts oder anderen externen
+        Schriftdiensten statt; deine IP-Adresse wird dabei nicht an Dritte
+        übertragen.
+      </p>
+
+      <h3>Cookies, Tracking &amp; Analyse</h3>
+      <p>
+        Die Website setzt <strong>keine Cookies</strong>, verwendet
+        <strong>kein</strong> Tracking und <strong>keine</strong>
+        Analyse-/Statistik-Tools. Es werden keine Profile gebildet.
+      </p>
+
+      <h3>Externe Links</h3>
+      <p>
+        Die Website verlinkt auf externe Dienste (u.&nbsp;a.
+        <strong>GitHub</strong> und <strong>Discord</strong>). Eine
+        Datenübertragung an diese Anbieter findet erst statt, wenn du einen Link
+        aktiv anklickst und die jeweilige Seite besuchst. Dann gelten die
+        Datenschutzbestimmungen des jeweiligen Anbieters.
+      </p>
+
+      <h2>3. Die Desktop-App</h2>
+
+      <h3>Lokale Verarbeitung</h3>
+      <p>
+        Zur Erkennung gespielter Spiele liest PlayCounter
+        <strong>lokal auf deinem Gerät</strong> die Namen der laufenden Prozesse
+        aus. Deine Spielzeiten, dein Verlauf, deine Einstellungen sowie eine
+        zufällig erzeugte Installations-Kennung werden
+        <strong>ausschließlich lokal</strong> auf deinem Gerät gespeichert. Es
+        gibt kein Benutzerkonto, und wir speichern diese Daten nicht auf unseren
+        Servern.
+      </p>
+
+      <h3>Spiele-Abgleich (Matching)</h3>
+      <p>
+        Um ein laufendes Programm einem Spiel zuzuordnen, sendet die App die
+        <strong>Namen bzw. Kennungen der laufenden Programme</strong> an unsere
+        API (<strong>api.playcounter.app</strong>, gehostet bei Microsoft Azure
+        in der EU). Unter Windows wird dabei ausschließlich der Dateiname der
+        ausführbaren Datei übertragen (z.&nbsp;B. <code>Hades2.exe</code>),
+        nicht der vollständige Dateipfad. Unter Linux kann zusätzlich der
+        Programmpfad übertragen werden, um das Spiel zu identifizieren.
+      </p>
+      <p>
+        Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
+        der Kernfunktion der App, Spiele automatisch zu erkennen).
+      </p>
+
+      <h3>Anonymer Community-Live-Feed</h3>
+      <p>
+        PlayCounter kann anzeigen, welche Spiele in der Community gerade gespielt
+        werden. Ist diese Funktion aktiv, sendet die App in regelmäßigen
+        Abständen eine <strong>zufällig erzeugte Installations-Kennung
+        (Install-UUID)</strong> zusammen mit der <strong>ID des gerade
+        gespielten Spiels</strong> an unsere API. Es werden dabei
+        <strong>kein Name, keine E-Mail-Adresse und keine Kontodaten</strong>
+        übertragen; die Install-UUID lässt keinen Rückschluss auf deine Person
+        zu. Selbst angelegte (Custom-)Spiele werden nie übertragen.
+      </p>
+      <p>
+        Diese Funktion ist <strong>standardmäßig aktiviert</strong>, lässt sich
+        aber jederzeit mit einem Schalter in den
+        <strong>Einstellungen</strong> der App vollständig deaktivieren
+        (Widerspruchsrecht). Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
+      </p>
+
+      <h3>Feedback &amp; Spiele-Vorschläge</h3>
+      <p>
+        Wenn du in der App aktiv Feedback sendest oder ein noch nicht erkanntes
+        Spiel vorschlägst, werden die von dir eingegebenen Angaben (z.&nbsp;B.
+        Nachrichtentext, App-Version, Betriebssystem, vorgeschlagener
+        Spielname/Exe-Name und ggf. die Install-UUID) an unsere API übermittelt
+        und gespeichert. Rechtsgrundlage: Art. 6 Abs. 1 lit. a/f DSGVO
+        (freiwillige Eingabe bzw. berechtigtes Interesse an der Verbesserung des
+        Dienstes).
+      </p>
+
+      <h3>Update-Prüfung</h3>
+      <p>
+        Zur Bereitstellung von Updates ruft die App eine Versionsdatei von
+        <strong>Microsoft Azure Blob Storage</strong>
+        (<code>stplaycountereuw.blob.core.windows.net</code>) ab. Dabei wird
+        technisch bedingt deine IP-Adresse an Microsoft übertragen.
+        Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Sicherheit durch aktuelle
+        Software).
+      </p>
+
+      <h3>Spiele-Cover (IGDB)</h3>
+      <p>
+        Cover-Bilder zu Spielen werden direkt von
+        <strong>images.igdb.com</strong> (IGDB, betrieben von Twitch
+        Interactive&nbsp;/ Amazon) geladen. Beim Laden dieser Bilder wird
+        technisch bedingt deine IP-Adresse an diesen Anbieter übertragen.
+        Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Darstellung von
+        Cover-Abbildungen).
+      </p>
+
+      <h2>4. Empfänger &amp; Übermittlung in Drittländer</h2>
+      <p>
+        Zur Bereitstellung des Dienstes setzen wir folgende Auftragsverarbeiter
+        bzw. Dienste ein: <strong>Microsoft Azure</strong> (Hosting der Website,
+        der API und der Update-Dateien) sowie <strong>IGDB / Twitch /
+        Amazon</strong> (Cover-Bilder). Diese Anbieter sind US-Unternehmen; eine
+        Verarbeitung kann auch in den USA stattfinden. Soweit Daten in die USA
+        übermittelt werden, stützt sich dies auf geeignete Garantien (z.&nbsp;B.
+        EU-Standardvertragsklauseln bzw. die Zertifizierung des Anbieters unter
+        dem EU-US Data Privacy Framework).
+      </p>
+
+      <h2>5. Speicherdauer</h2>
+      <p>
+        Lokale Daten verbleiben auf deinem Gerät, bis du sie in der App oder über
+        dein Betriebssystem löschst. Server-Logs des Hostings werden nur für eine
+        kurze, technisch erforderliche Dauer vorgehalten. An die API übermittelte
+        Live-/Sitzungsdaten werden nur so lange gespeichert, wie es für die
+        jeweilige Funktion (z.&nbsp;B. den aktuellen Live-Feed) erforderlich ist.
+      </p>
+
+      <h2>6. Deine Rechte</h2>
+      <p>Dir stehen nach der DSGVO folgende Rechte zu:</p>
+      <ul>
+        <li>Auskunft über die zu dir gespeicherten Daten (Art. 15)</li>
+        <li>Berichtigung unrichtiger Daten (Art. 16)</li>
+        <li>Löschung (Art. 17)</li>
+        <li>Einschränkung der Verarbeitung (Art. 18)</li>
+        <li>Datenübertragbarkeit (Art. 20)</li>
+        <li>
+          Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen
+          (Art. 21) – z.&nbsp;B. durch Abschalten des Live-Feeds in den
+          Einstellungen
+        </li>
+        <li>
+          Beschwerde bei einer Aufsichtsbehörde (Art. 77), z.&nbsp;B. der
+          Landesbeauftragten für Datenschutz und Informationsfreiheit
+          Nordrhein-Westfalen
+        </li>
+      </ul>
+      <p>
+        Zur Ausübung deiner Rechte genügt eine formlose Nachricht an
+        <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a>. Da wir keine
+        Konten führen und an die API gesendete Daten nicht mit deiner Person
+        verknüpfen, können wir einzelne Datensätze nur eingeschränkt einem
+        Nutzer zuordnen.
+      </p>
+
+      <div class="note">
+        Hinweis: Du kannst die Datenübertragung der App jederzeit unterbinden,
+        indem du den Community-Live-Feed in den Einstellungen deaktivierst bzw.
+        die App offline betreibst. Die App funktioniert auch ohne
+        Server-Verbindung; lediglich der automatische Spiele-Abgleich und der
+        Live-Feed stehen dann nicht zur Verfügung.
+      </div>
+
+      <hr class="divider" />
+
+      <p class="lede" id="en">Privacy</p>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: 30 May 2026</p>
+
+      <p>
+        This privacy policy covers the <strong>playcounter.app</strong> website
+        and the <strong>PlayCounter desktop app</strong>. PlayCounter does not
+        require an account, and most of your data (playtime, history, settings)
+        stays exclusively on your local device.
+      </p>
+
+      <h2>1. Controller</h2>
+      <address>
+        <strong>Philipp Pradzinski</strong><br />
+        Ebbergstr. 5, 58239 Schwerte, Germany<br />
+        Email: <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a>
+      </address>
+
+      <h2>2. The website (playcounter.app)</h2>
+      <h3>Hosting &amp; server logs</h3>
+      <p>
+        The website is hosted on <strong>Microsoft Azure Static Web Apps</strong>.
+        When you access the site, the hosting provider processes technically
+        necessary access data in server logs (IP address, date/time, requested
+        page, data volume, browser and OS information) to operate the site
+        securely and reliably. Legal basis: Art. 6(1)(f) GDPR (legitimate
+        interest).
+      </p>
+      <h3>Fonts (self-hosted)</h3>
+      <p>
+        All fonts are <strong>served locally from our own server</strong>. There
+        is <strong>no</strong> connection to Google Fonts or any external font
+        service, so your IP address is not shared with third parties for fonts.
+      </p>
+      <h3>Cookies, tracking &amp; analytics</h3>
+      <p>
+        The website uses <strong>no cookies</strong>, <strong>no</strong>
+        tracking and <strong>no</strong> analytics. No profiles are created.
+      </p>
+      <h3>External links</h3>
+      <p>
+        The site links to external services (e.g. <strong>GitHub</strong> and
+        <strong>Discord</strong>). Data is only transferred to these providers
+        once you actively click a link and visit the respective site, where
+        their own privacy policies apply.
+      </p>
+
+      <h2>3. The desktop app</h2>
+      <h3>Local processing</h3>
+      <p>
+        To detect the games you play, PlayCounter reads the names of running
+        processes <strong>locally on your device</strong>. Your playtime,
+        history, settings and a randomly generated install identifier are stored
+        <strong>exclusively on your device</strong>. There is no user account,
+        and we do not store this data on our servers.
+      </p>
+      <h3>Game matching</h3>
+      <p>
+        To map a running program to a game, the app sends the
+        <strong>names/identifiers of running programs</strong> to our API
+        (<strong>api.playcounter.app</strong>, hosted on Microsoft Azure in the
+        EU). On Windows only the executable file name is sent (e.g.
+        <code>Hades2.exe</code>), not the full file path. On Linux the program
+        path may additionally be sent to identify the game. Legal basis:
+        Art. 6(1)(f) GDPR.
+      </p>
+      <h3>Anonymous community live feed</h3>
+      <p>
+        PlayCounter can show which games the community is currently playing. When
+        enabled, the app periodically sends a <strong>randomly generated install
+        identifier (install UUID)</strong> together with the <strong>ID of the
+        game currently being played</strong> to our API. <strong>No name, email
+        or account data</strong> is transmitted, and the install UUID cannot be
+        traced back to you as a person. Custom (self-created) games are never
+        transmitted.
+      </p>
+      <p>
+        This feature is <strong>enabled by default</strong> but can be fully
+        turned off at any time via a toggle in the app
+        <strong>Settings</strong> (right to object). Legal basis: Art. 6(1)(f)
+        GDPR.
+      </p>
+      <h3>Feedback &amp; game suggestions</h3>
+      <p>
+        If you actively send feedback or suggest an unrecognised game, the
+        information you enter (e.g. message text, app version, operating system,
+        suggested game/executable name and possibly the install UUID) is sent to
+        and stored by our API. Legal basis: Art. 6(1)(a)/(f) GDPR.
+      </p>
+      <h3>Update check</h3>
+      <p>
+        To deliver updates, the app retrieves a version file from
+        <strong>Microsoft Azure Blob Storage</strong>
+        (<code>stplaycountereuw.blob.core.windows.net</code>), which technically
+        transmits your IP address to Microsoft. Legal basis: Art. 6(1)(f) GDPR.
+      </p>
+      <h3>Game covers (IGDB)</h3>
+      <p>
+        Game cover images are loaded directly from
+        <strong>images.igdb.com</strong> (IGDB, operated by Twitch Interactive /
+        Amazon). Loading these images technically transmits your IP address to
+        this provider. Legal basis: Art. 6(1)(f) GDPR.
+      </p>
+
+      <h2>4. Recipients &amp; international transfers</h2>
+      <p>
+        We use the following processors/services: <strong>Microsoft Azure</strong>
+        (hosting of the website, API and update files) and <strong>IGDB /
+        Twitch / Amazon</strong> (cover images). These providers are US
+        companies and processing may also take place in the USA. Where data is
+        transferred to the USA, this is based on appropriate safeguards (e.g. EU
+        Standard Contractual Clauses or the provider's certification under the
+        EU-US Data Privacy Framework).
+      </p>
+
+      <h2>5. Retention</h2>
+      <p>
+        Local data remains on your device until you delete it in the app or via
+        your operating system. Hosting server logs are kept only for a short,
+        technically necessary period. Live/session data sent to the API is kept
+        only as long as needed for the respective feature (e.g. the current live
+        feed).
+      </p>
+
+      <h2>6. Your rights</h2>
+      <p>Under the GDPR you have the right to:</p>
+      <ul>
+        <li>access (Art. 15)</li>
+        <li>rectification (Art. 16)</li>
+        <li>erasure (Art. 17)</li>
+        <li>restriction of processing (Art. 18)</li>
+        <li>data portability (Art. 20)</li>
+        <li>
+          object to processing based on legitimate interest (Art. 21) – e.g. by
+          turning off the live feed in Settings
+        </li>
+        <li>
+          lodge a complaint with a supervisory authority (Art. 77), e.g. the
+          data protection authority of North Rhine-Westphalia (LDI NRW)
+        </li>
+      </ul>
+      <p>
+        To exercise your rights, an informal message to
+        <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a> is sufficient.
+        As we keep no accounts and do not link data sent to the API to your
+        identity, we can only attribute individual records to a user to a limited
+        extent.
+      </p>
+
+      <div class="note">
+        Note: You can stop the app from transmitting data at any time by
+        disabling the community live feed in Settings or running the app offline.
+        The app also works without a server connection; only automatic game
+        matching and the live feed are then unavailable.
+      </div>
+    </main>
+
+    <footer>
+      <div class="foot-inner">
+        <div>© <span id="year"></span> PlayCounter</div>
+        <div class="foot-links">
+          <a href="index.html">Start / Home</a>
+          <a href="impressum.html">Impressum</a>
+          <a href="datenschutz.html">Datenschutz / Privacy</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

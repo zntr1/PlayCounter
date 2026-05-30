@@ -13,6 +13,8 @@ to track. It recognizes games by matching executables against a community game
 database, keeps your sessions and history locally, and shows your current and
 recent activity in one place. Free, open source, no account.
 
+Different AI models supported me in developing this application.
+
 ## Download
 
 **[Download the latest release for Windows →](https://github.com/zntr1/PlayCounter/releases/latest)**
@@ -20,6 +22,7 @@ recent activity in one place. Free, open source, no account.
 Every release ships the Windows installer together with its **SHA-256 checksum**
 and an independent **VirusTotal scan**, so you can verify your download before you
 install. macOS and Linux are planned.
+
 
 ## Screenshots
 
