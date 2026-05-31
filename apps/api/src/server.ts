@@ -10,7 +10,7 @@ import type {
   SessionEndPayload,
 } from "@playcounter/shared";
 import Fastify from "fastify";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { loadDotEnv } from "./env.js";
 import { logger } from "./logger.js";
 import { createRepository } from "./repository.js";
@@ -97,6 +97,21 @@ const communityGameSuggestionSchema = z.object({
 // raw-JSON lines (incoming + completed) Fastify emits by default.
 const app = Fastify({ loggerInstance: logger, disableRequestLogging: true });
 const repository = createRepository();
+
+app.setErrorHandler((error, request, reply) => {
+  if (error instanceof ZodError) {
+    request.log.warn({ issues: error.issues }, "invalid request");
+    return reply.code(400).send({
+      error: "Bad Request",
+      issues: error.issues.map((issue) => ({
+        path: issue.path.join("."),
+        message: issue.message,
+      })),
+    });
+  }
+
+  return reply.send(error);
+});
 
 // Routes that fire constantly (health probes, CORS preflight, client
 // heartbeats) would otherwise drown the log. Skip them while everything is

@@ -62,6 +62,7 @@ let processTimer: number | undefined;
 let trayTimer: number | undefined;
 let liveSocket: WebSocket | undefined;
 let unsubscribeTraySync: (() => void) | undefined;
+let unsubscribePrivacySync: (() => void) | undefined;
 let nextSessionSequence = 0;
 let scanInFlight: Promise<void> | undefined;
 let scanQueued = false;
@@ -87,6 +88,14 @@ export async function initializeTracker() {
     if (state.activeSessions !== previousState.activeSessions) {
       syncTrayNowPlaying();
       scheduleTraySync();
+    }
+  });
+  unsubscribePrivacySync = useAppStore.subscribe((state, previousState) => {
+    if (
+      previousState.settings.shareAnonymousLiveData &&
+      !state.settings.shareAnonymousLiveData
+    ) {
+      void clearSharedLiveSessions(previousState.activeSessions);
     }
   });
   logRuntime("tracker state hydrated");
@@ -137,6 +146,8 @@ async function finishTrackerStartup() {
     trayTimer = undefined;
     unsubscribeTraySync?.();
     unsubscribeTraySync = undefined;
+    unsubscribePrivacySync?.();
+    unsubscribePrivacySync = undefined;
     liveSocket?.close();
     liveSocket = undefined;
     initialized = false;
@@ -1168,16 +1179,22 @@ async function sendHeartbeat() {
       verboseRuntime(
         `heartbeat sending source=${source} gameId=${session.gameId}`,
       );
-      await fetchWithTimeout(`${state.settings.apiEndpoint}/api/heartbeat`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        timeoutMs: API_REQUEST_TIMEOUT_MS,
-        body: JSON.stringify({
-          installUuid: state.installUuid,
-          gameId: session.gameId,
-          source,
-        }),
-      });
+      const response = await fetchWithTimeout(
+        `${state.settings.apiEndpoint}/api/heartbeat`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          timeoutMs: API_REQUEST_TIMEOUT_MS,
+          body: JSON.stringify({
+            installUuid: state.installUuid,
+            gameId: session.gameId,
+            source,
+          }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`);
+      }
       verboseRuntime(
         `heartbeat sent source=${source} gameId=${session.gameId}`,
       );
@@ -1190,10 +1207,14 @@ async function sendHeartbeat() {
   }
 }
 
-async function sendSessionEnd(session: ActiveSession) {
+async function sendSessionEnd(
+  session: ActiveSession,
+  options: { ignoreSharingDisabled?: boolean } = {},
+) {
   const state = useAppStore.getState();
   if (
-    !state.settings.shareAnonymousLiveData ||
+    (!options.ignoreSharingDisabled &&
+      !state.settings.shareAnonymousLiveData) ||
     !state.installUuid ||
     isCustomSession(session)
   ) {
@@ -1216,19 +1237,47 @@ async function sendSessionEnd(session: ActiveSession) {
     const source = reportableSessionSource(session);
     if (!source) return;
     logRuntime(`session-end sending source=${source} gameId=${gameId}`);
-    await fetchWithTimeout(`${state.settings.apiEndpoint}/api/session-end`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      timeoutMs: API_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify({ installUuid: state.installUuid, gameId, source }),
-    });
+    const response = await fetchWithTimeout(
+      `${state.settings.apiEndpoint}/api/session-end`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({
+          installUuid: state.installUuid,
+          gameId,
+          source,
+        }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
     logRuntime(`session-end sent source=${source} gameId=${gameId}`);
   } catch (error) {
     logRuntime(`session-end failed: ${formatError(error)}`);
     if (!isBackendUnavailable()) {
-      state.setRuntimeError(`Session-end failed: ${formatError(error)}`);
+      useAppStore
+        .getState()
+        .setRuntimeError(`Session-end failed: ${formatError(error)}`);
     }
   }
+}
+
+async function clearSharedLiveSessions(sessions: ActiveSession[]) {
+  const reportableSessions = sessions.filter(
+    (session) => !isCustomSession(session),
+  );
+  if (reportableSessions.length === 0) return;
+
+  logRuntime(
+    `anonymous sharing disabled; clearing ${reportableSessions.length} shared live session(s)`,
+  );
+  await Promise.allSettled(
+    reportableSessions.map((session) =>
+      sendSessionEnd(session, { ignoreSharingDisabled: true }),
+    ),
+  );
 }
 
 function isBackendUnavailable() {
