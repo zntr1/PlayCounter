@@ -1,0 +1,8 @@
+# Machine-generated lockfiles — owned by the package manager, never format these.
+# Prettier reformatting pnpm-lock.yaml causes a huge diff that pnpm reverts on
+# the next install (quote style + object layout), so leave it alone.
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+**/dist/

@@ -12,6 +12,7 @@ import type {
 import Fastify from "fastify";
 import { z } from "zod";
 import { loadDotEnv } from "./env.js";
+import { logger } from "./logger.js";
 import { createRepository } from "./repository.js";
 
 loadDotEnv();
@@ -91,8 +92,32 @@ const communityGameSuggestionSchema = z.object({
   installUuid: z.string().uuid().optional(),
 });
 
-const app = Fastify({ logger: true });
+// Use our shared pretty logger and turn off Fastify's built-in request logging;
+// the onResponse hook below logs one tidy line per request instead of the two
+// raw-JSON lines (incoming + completed) Fastify emits by default.
+const app = Fastify({ loggerInstance: logger, disableRequestLogging: true });
 const repository = createRepository();
+
+// Routes that fire constantly (health probes, CORS preflight, client
+// heartbeats) would otherwise drown the log. Skip them while everything is
+// fine, but still surface them if they ever fail with a 5xx.
+const QUIET_PATHS = ["/health", "/api/heartbeat", "/api/session-end"];
+
+app.addHook("onResponse", (request, reply, done) => {
+  const isQuiet =
+    request.method === "OPTIONS" ||
+    QUIET_PATHS.some((path) => request.url.startsWith(path));
+  if (isQuiet && reply.statusCode < 500) {
+    done();
+    return;
+  }
+
+  const line = `${request.method} ${request.url} -> ${reply.statusCode} (${Math.round(reply.elapsedTime)}ms)`;
+  if (reply.statusCode >= 500) request.log.error(line);
+  else if (reply.statusCode >= 400) request.log.warn(line);
+  else request.log.info(line);
+  done();
+});
 
 await app.register(cors, { origin: true });
 await app.register(rateLimit, {

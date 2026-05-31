@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { count, logger } from "./logger.js";
 
 const twitchTokenSchema = z.object({
   access_token: z.string().min(1),
@@ -85,11 +86,11 @@ export class IgdbClient {
       const requester = requestedBy.length
         ? ` requested by ${[...new Set(requestedBy)].join(", ")}`
         : "";
-      console.warn(
-        `[match] Ambiguous IGDB Windows executable ${JSON.stringify(name)}${requester} matched ${distinctGames.size} games: ${[
+      logger.warn(
+        `[match] Ambiguous IGDB Windows executable ${JSON.stringify(name)}${requester} matched ${count(distinctGames.size, "game")}: ${[
           ...distinctGames.values(),
         ]
-          .map((game) => `${game.name} (${game.id})`)
+          .map((game) => `${game.name} (#${game.id})`)
           .join(", ")}.`,
       );
       return {

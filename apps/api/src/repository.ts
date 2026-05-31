@@ -17,6 +17,7 @@ import {
   type IgdbClient,
   type IgdbExecutableMatch,
 } from "./igdb.js";
+import { count, logger } from "./logger.js";
 
 type LiveSession = {
   installUuid: string;
@@ -267,8 +268,8 @@ export class PostgresRepository implements PlayCounterRepository {
     const candidates = flattenProcessIdentifiers(processes);
     if (candidates.length === 0) return new Map();
 
-    console.info(
-      `[match] Checking ${processes.length} process(es) with ${candidates.length} identifier(s).`,
+    logger.info(
+      `[match] Matching ${count(processes.length, "process", "processes")} using ${count(candidates.length, "identifier")}.`,
     );
 
     const lookupKeys = candidates.map((candidate) => candidate.lookupKey);
@@ -294,7 +295,9 @@ export class PostgresRepository implements PlayCounterRepository {
       [lookupKeys],
     );
 
-    console.info(`[match] IGDB database returned ${igdb.rowCount} hit(s).`);
+    logger.info(
+      `[match] IGDB database returned ${count(igdb.rowCount ?? 0, "hit")}.`,
+    );
     logAmbiguousProcessMatches("IGDB database", candidates, igdb.rows);
 
     for (const row of igdb.rows) {
@@ -314,7 +317,9 @@ export class PostgresRepository implements PlayCounterRepository {
       .filter((candidate) => !matches.has(candidate.processKey))
       .map((candidate) => candidate.lookupKey);
     if (unmatchedLookupKeys.length === 0) {
-      console.info("[match] Every process matched from the IGDB database.");
+      logger.info(
+        "[match] All processes resolved from the IGDB database; done.",
+      );
       return stripProcessMatchPriority(matches);
     }
 
@@ -334,8 +339,8 @@ export class PostgresRepository implements PlayCounterRepository {
       [[...new Set(unmatchedLookupKeys)]],
     );
 
-    console.info(
-      `[match] Community database returned ${community.rowCount} hit(s) for remaining process(es).`,
+    logger.info(
+      `[match] Verified community database returned ${count(community.rowCount ?? 0, "hit")} for the ${count(new Set(unmatchedLookupKeys).size, "remaining identifier")}.`,
     );
     logAmbiguousProcessMatches(
       "community database",
@@ -378,8 +383,8 @@ export class PostgresRepository implements PlayCounterRepository {
         [[...new Set(pendingLookupKeys)]],
       );
 
-      console.info(
-        `[match] Pending community database returned ${pendingCommunity.rowCount} hit(s) for remaining process(es).`,
+      logger.info(
+        `[match] Pending (unverified) community database returned ${count(pendingCommunity.rowCount ?? 0, "hit")} for the ${count(new Set(pendingLookupKeys).size, "still-unmatched identifier")}.`,
       );
 
       for (const row of pendingCommunity.rows) {
@@ -419,15 +424,15 @@ export class PostgresRepository implements PlayCounterRepository {
         if (checkedExeNames.has(candidate.normalizedValue)) continue;
         checkedExeNames.add(candidate.normalizedValue);
         if (igdbFallbackCount >= maxIgdbFallbacksPerMatchRequest) {
-          console.info(
-            `[match] IGDB fallback limit reached; skipping ${exeName} for this request.`,
+          logger.info(
+            `[match] IGDB live-lookup limit (${maxIgdbFallbacksPerMatchRequest}) reached; skipping "${exeName}" until the next request.`,
           );
           continue;
         }
         igdbFallbackCount += 1;
 
-        console.info(
-          `[match] No database match for ${exeName}; checking IGDB alternative names.`,
+        logger.info(
+          `[match] No stored mapping for "${exeName}"; querying IGDB for a matching Windows alternative name.`,
         );
         const requestedBy = windowsExeCandidates
           .filter(
@@ -439,8 +444,8 @@ export class PostgresRepository implements PlayCounterRepository {
           requestedBy,
         );
         if (!result) {
-          console.info(
-            `[match] IGDB had no exact Windows alternative name for ${exeName}.`,
+          logger.info(
+            `[match] IGDB had no exact Windows alternative name for "${exeName}"; leaving it unmatched.`,
           );
           continue;
         }
@@ -467,10 +472,8 @@ export class PostgresRepository implements PlayCounterRepository {
       }
     }
 
-    console.info(
-      `[match] Returning ${matches.size} matched process(es) and ${
-        processes.length - matches.size
-      } unmatched process(es).`,
+    logger.info(
+      `[match] Done: ${count(matches.size, "process", "processes")} matched, ${count(processes.length - matches.size, "process", "processes")} unmatched.`,
     );
     return stripProcessMatchPriority(
       matches,
@@ -497,7 +500,7 @@ export class PostgresRepository implements PlayCounterRepository {
       [installUuid, gameId, source],
     );
     if (result.rowCount === 0) {
-      console.warn(
+      logger.warn(
         `[heartbeat] Ignored heartbeat for unknown ${source} game ${gameId}.`,
       );
     }
@@ -602,8 +605,8 @@ export class PostgresRepository implements PlayCounterRepository {
           : undefined,
       }));
     } catch (error) {
-      console.warn(
-        `IGDB metadata search failed for ${JSON.stringify(query)}: ${formatError(error)}`,
+      logger.warn(
+        `[search] IGDB metadata search failed for ${JSON.stringify(query)}: ${formatError(error)}`,
       );
       return [];
     }
@@ -641,8 +644,8 @@ export class PostgresRepository implements PlayCounterRepository {
       const existingGame = existing.rows[0];
       if (existingGame) {
         await client.query("COMMIT");
-        console.info(
-          `[community] Reused existing ${existingGame.verified ? "verified" : "pending"} community game ${existingGame.id} for ${exeName}; skipping duplicate suggestion.`,
+        logger.info(
+          `[community] Reused existing ${existingGame.verified ? "verified" : "pending"} community game ${existingGame.id} for "${exeName}"; skipping duplicate suggestion.`,
         );
         return { id: existingGame.id, verified: existingGame.verified };
       }
@@ -664,8 +667,8 @@ export class PostgresRepository implements PlayCounterRepository {
       );
 
       await client.query("COMMIT");
-      console.info(
-        `[community] Suggested ${name} for ${exeName} as community game ${game.id}.`,
+      logger.info(
+        `[community] Recorded "${name}" for "${exeName}" as pending community game ${game.id}.`,
       );
       return { id: game.id, verified: game.verified };
     } catch (error) {
@@ -729,8 +732,8 @@ export class PostgresRepository implements PlayCounterRepository {
     requestedBy: string[],
   ) {
     if (!this.igdb.configured) {
-      console.info(
-        `[match] IGDB fallback skipped for ${exeName}; IGDB_CLIENT_ID/TWITCH_CLIENT_ID and IGDB_ACCESS_TOKEN/TWITCH_CLIENT_SECRET are not configured.`,
+      logger.info(
+        `[match] IGDB live lookup skipped for "${exeName}"; credentials missing (set IGDB_CLIENT_ID/TWITCH_CLIENT_ID and IGDB_ACCESS_TOKEN/TWITCH_CLIENT_SECRET).`,
       );
       return null;
     }
@@ -742,8 +745,8 @@ export class PostgresRepository implements PlayCounterRepository {
         requestedBy,
       );
     } catch (error) {
-      console.warn(
-        `IGDB lookup failed for ${JSON.stringify(exeName)}: ${formatError(error)}`,
+      logger.warn(
+        `[match] IGDB live lookup failed for ${JSON.stringify(exeName)}: ${formatError(error)}`,
       );
       return null;
     }
@@ -759,8 +762,8 @@ export class PostgresRepository implements PlayCounterRepository {
     }
 
     const { executableName, game: igdbGame } = igdbMatch;
-    console.info(
-      `[match] IGDB found ${igdbGame.name} (${igdbGame.id}) for ${executableName}; saving mapping.`,
+    logger.info(
+      `[match] IGDB matched "${executableName}" -> ${igdbGame.name} (IGDB #${igdbGame.id}); saving mapping.`,
     );
 
     const coverUrl = igdbGame.cover?.image_id
@@ -789,14 +792,14 @@ export class PostgresRepository implements PlayCounterRepository {
       );
 
       await client.query("COMMIT");
-      console.info(
-        `[match] Saved ${executableName} -> ${igdbGame.name} in the IGDB identifier database.`,
+      logger.info(
+        `[match] Saved "${executableName}" -> ${igdbGame.name} to the IGDB identifier database; future matches will be instant.`,
       );
       return { game: igdbGameToGame(dbGameId, igdbGame, coverUrl) };
     } catch (error) {
       await client.query("ROLLBACK");
-      console.warn(
-        `Failed to persist IGDB match for ${JSON.stringify(exeName)}: ${formatError(error)}`,
+      logger.warn(
+        `[match] Failed to persist IGDB match for ${JSON.stringify(exeName)}: ${formatError(error)}`,
       );
       return null;
     } finally {
@@ -971,11 +974,11 @@ function logAmbiguousProcessMatches(
       .filter((candidate) => candidate.lookupKey === lookupKey)
       .map((candidate) => candidate.processKey);
 
-    console.warn(
-      `[match] Ambiguous ${source} match for ${lookupKey} requested by ${[
+    logger.warn(
+      `[match] Ambiguous ${source} match: ${lookupKey} (requested by ${[
         ...new Set(requestedBy),
-      ].join(", ")}: ${[...games]
-        .map(([id, name]) => `${name} (${id})`)
+      ].join(", ")}) maps to ${count(games.size, "game")}: ${[...games]
+        .map(([id, name]) => `${name} (#${id})`)
         .join(", ")}.`,
     );
   }
