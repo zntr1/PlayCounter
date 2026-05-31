@@ -215,6 +215,14 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
       - name: Download Windows bundle artifact
         uses: actions/download-artifact@v4
         with:
@@ -241,6 +249,9 @@ jobs:
             echo "sha=${sha}"
           } >> "${GITHUB_OUTPUT}"
 
+      - name: Create updater manifest
+        run: node scripts/ci/create-tauri-latest-json.mjs ".deploy/desktop/windows" "https://github.com/zntr1/PlayCounter/releases/download/v${{ needs.detect-desktop-version.outputs.version }}" .deploy/release/latest.json
+
       - name: Scan installer on VirusTotal
         continue-on-error: true
         uses: crazy-max/ghaction-virustotal@v4
@@ -260,6 +271,7 @@ jobs:
           files: |
             .deploy/release/${{ steps.artifact.outputs.exe_name }}
             .deploy/release/${{ steps.artifact.outputs.exe_name }}.sha256
+            .deploy/release/latest.json
           body: |
             ## PlayCounter v${{ needs.detect-desktop-version.outputs.version }}
 

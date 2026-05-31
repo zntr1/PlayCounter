@@ -164,12 +164,33 @@ async function finishTrackerStartup() {
   }, 1_500);
 }
 
+// Early tester builds shipped with the test API baked in as the default, which
+// then got persisted to localStorage. A normal update changes the build-time
+// default but not the persisted value, so those clients would keep hitting the
+// test API forever. On hydrate we rewrite the known stale test endpoint to the
+// current build default. In a test build DEFAULT_API_ENDPOINT is that same test
+// URL, so this is a no-op there — only prod builds move testers onto the prod API.
+const LEGACY_API_ENDPOINTS = new Set([
+  "https://app-playcounter-api-001.azurewebsites.net",
+]);
+
+function migrateApiEndpoint(settings: Settings): Settings {
+  const current = settings.apiEndpoint?.replace(/\/+$/, "");
+  if (current && LEGACY_API_ENDPOINTS.has(current)) {
+    logRuntime(
+      `migrating stale API endpoint ${current} -> ${DEFAULT_API_ENDPOINT}`,
+    );
+    return { ...settings, apiEndpoint: DEFAULT_API_ENDPOINT };
+  }
+  return settings;
+}
+
 function hydrate() {
   const persisted = readPersisted();
-  const settings = {
+  const settings = migrateApiEndpoint({
     ...useAppStore.getState().settings,
     ...persisted.settings,
-  };
+  });
   const blacklist = persisted.blacklist ?? [];
   const exeCache = persisted.exeCache ?? [];
   logRuntime(
