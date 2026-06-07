@@ -26,6 +26,9 @@ export function NowPlayingView() {
   const activeSessions = useAppStore((state) => state.activeSessions);
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
   const recentSessions = useAppStore((state) => state.recentSessions);
+  const showDurationDays = useAppStore(
+    (state) => state.settings.showDurationDays,
+  );
   const setActiveView = useAppStore((state) => state.setActiveView);
   const [now, setNow] = useState(() => Date.now());
   const hasActivity = activeSessions.length > 0 || ambiguousMatches.length > 0;
@@ -93,6 +96,7 @@ export function NowPlayingView() {
             Math.floor((now - Date.parse(activeSession.startedAt)) / 1000),
           )}
           recentSessions={recentSessions}
+          showDurationDays={showDurationDays}
         />
       ))}
     </div>
@@ -103,10 +107,12 @@ function HeroSession({
   session,
   elapsedSeconds,
   recentSessions,
+  showDurationDays,
 }: {
   session: ActiveSession;
   elapsedSeconds: number;
   recentSessions: Session[];
+  showDurationDays: boolean;
 }) {
   const priorSessions = recentSessions.filter(
     (entry) =>
@@ -174,7 +180,7 @@ function HeroSession({
             />
             <HeroStat
               label="Total playtime"
-              value={formatDuration(lifetimeSeconds)}
+              value={formatDuration(lifetimeSeconds, showDurationDays)}
             />
             <HeroStat label="Sessions" value={String(lifetimeSessionCount)} />
           </div>

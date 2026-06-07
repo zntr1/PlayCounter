@@ -124,6 +124,7 @@ export interface FeedbackResponse {
 export interface Settings {
   shareAnonymousLiveData: boolean;
   launchOnStartup: boolean;
+  showDurationDays: boolean;
   pollingIntervalSeconds: number;
   heartbeatIntervalSeconds: number;
   unmatchedRetryDays: number;

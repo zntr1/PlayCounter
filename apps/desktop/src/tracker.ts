@@ -23,6 +23,9 @@ import {
 
 const STORAGE_KEY = "playcounter:v1";
 const CUSTOM_GAME_ID_BASE = -1_000_000_000;
+const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
+const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
+const FAKE_HISTORY_EXE_PREFIX = "playcounter-fake-";
 const HEARTBEAT_GRACE_MS = 5_000;
 const SESSION_CHECKPOINT_INTERVAL_MS = 60_000;
 const BACKEND_HEALTH_INTERVAL_MS = 60_000;
@@ -1657,6 +1660,124 @@ export function removeGameHistoryBySource(
       `game history removed gameId=${gameId} source=${source ?? "unknown"} sessions=${removedCount}`,
     );
   persist();
+}
+
+type FakeHistoryGame = {
+  id: number;
+  name: string;
+  exeName: string;
+  coverUrl: string;
+  durationsHours: number[];
+};
+
+const fakeHistoryGames: FakeHistoryGame[] = [
+  {
+    id: FAKE_HISTORY_GAME_ID_BASE - 1,
+    name: "Starlight Drifter",
+    exeName: `${FAKE_HISTORY_EXE_PREFIX}starlight-drifter.exe`,
+    coverUrl:
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.jpg",
+    durationsHours: [5.2, 3.4, 7.6, 2.8, 6.5, 4.1, 5.9],
+  },
+  {
+    id: FAKE_HISTORY_GAME_ID_BASE - 2,
+    name: "Iron Vale",
+    exeName: `${FAKE_HISTORY_EXE_PREFIX}iron-vale.exe`,
+    coverUrl:
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co1r7f.jpg",
+    durationsHours: [1.3, 2.1, 1.8, 3.4, 2.6],
+  },
+  {
+    id: FAKE_HISTORY_GAME_ID_BASE - 3,
+    name: "Neon Rally",
+    exeName: `${FAKE_HISTORY_EXE_PREFIX}neon-rally.exe`,
+    coverUrl:
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg",
+    durationsHours: [0.8, 1.1, 1.5, 0.9, 2.2, 1.4],
+  },
+  {
+    id: FAKE_HISTORY_GAME_ID_BASE - 4,
+    name: "Moonbase Orchard",
+    exeName: `${FAKE_HISTORY_EXE_PREFIX}moonbase-orchard.exe`,
+    coverUrl:
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co1qv8.jpg",
+    durationsHours: [4.7, 6.3, 5.1, 8.2, 3.9, 7.5],
+  },
+  {
+    id: FAKE_HISTORY_GAME_ID_BASE - 5,
+    name: "Dungeon Courier",
+    exeName: `${FAKE_HISTORY_EXE_PREFIX}dungeon-courier.exe`,
+    coverUrl:
+      "https://images.igdb.com/igdb/image/upload/t_cover_big/co2mli.jpg",
+    durationsHours: [2.5, 2.9, 3.2, 1.6],
+  },
+];
+
+export function seedFakeHistory() {
+  const now = Date.now();
+  const fakeSessions = fakeHistoryGames.flatMap((game, gameIndex) =>
+    game.durationsHours.map((durationHours, sessionIndex) => {
+      const durationSeconds = Math.round(durationHours * 60 * 60);
+      const endedAtMs =
+        now -
+        ((gameIndex * 5 + sessionIndex) * 26 + 2 + gameIndex) * 60 * 60 * 1000;
+      const startedAtMs = endedAtMs - durationSeconds * 1000;
+
+      return {
+        id: FAKE_HISTORY_SESSION_ID_BASE - gameIndex * 100 - sessionIndex,
+        gameId: game.id,
+        gameName: game.name,
+        coverUrl: game.coverUrl,
+        source: "custom" as const,
+        exeName: game.exeName,
+        startedAt: new Date(startedAtMs).toISOString(),
+        endedAt: new Date(endedAtMs).toISOString(),
+        durationSeconds,
+      };
+    }),
+  );
+
+  useAppStore.setState((state) => ({
+    recentSessions: [
+      ...fakeSessions,
+      ...state.recentSessions.filter(
+        (session) => !isFakeHistorySession(session),
+      ),
+    ]
+      .sort(
+        (left, right) =>
+          Date.parse(right.endedAt ?? right.startedAt) -
+          Date.parse(left.endedAt ?? left.startedAt),
+      )
+      .slice(0, 500),
+  }));
+
+  logRuntime(`fake history seeded sessions=${fakeSessions.length}`);
+  persist();
+}
+
+export function clearFakeHistory() {
+  const previousCount = useAppStore.getState().recentSessions.length;
+  useAppStore.setState((state) => ({
+    recentSessions: state.recentSessions.filter(
+      (session) => !isFakeHistorySession(session),
+    ),
+  }));
+  const removedCount =
+    previousCount - useAppStore.getState().recentSessions.length;
+  if (removedCount > 0)
+    logRuntime(`fake history cleared sessions=${removedCount}`);
+  persist();
+}
+
+function isFakeHistorySession(session: Session) {
+  return (
+    session.exeName.startsWith(FAKE_HISTORY_EXE_PREFIX) ||
+    (session.gameId <= FAKE_HISTORY_GAME_ID_BASE - 1 &&
+      session.gameId > FAKE_HISTORY_GAME_ID_BASE - 10) ||
+    (session.id <= FAKE_HISTORY_SESSION_ID_BASE &&
+      session.id > FAKE_HISTORY_SESSION_ID_BASE - 1_000)
+  );
 }
 
 export function clearLocalCache() {

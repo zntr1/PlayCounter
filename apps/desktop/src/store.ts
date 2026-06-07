@@ -150,6 +150,7 @@ type AppState = {
   setCleanup: (cleanup: () => void) => void;
   setShareAnonymousLiveData: (enabled: boolean) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
+  setShowDurationDays: (enabled: boolean) => void;
   setDevNumber: (
     key:
       | "pollingIntervalSeconds"
@@ -174,6 +175,7 @@ export const BUILD_STAGE: Stage =
 const defaultSettings: Settings = {
   shareAnonymousLiveData: true,
   launchOnStartup: true,
+  showDurationDays: false,
   pollingIntervalSeconds: 5,
   heartbeatIntervalSeconds: 60,
   unmatchedRetryDays: 30,
@@ -327,6 +329,12 @@ export const useAppStore = create<AppState>((set) => ({
   setLaunchOnStartup: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, launchOnStartup: enabled },
+    }));
+    persistSoon();
+  },
+  setShowDurationDays: (enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, showDurationDays: enabled },
     }));
     persistSoon();
   },

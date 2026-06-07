@@ -38,9 +38,13 @@ export function Stat({
   );
 }
 
-export function formatDuration(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
+export function formatDuration(seconds: number, showDays = false) {
+  const days = Math.floor(seconds / 86400);
+  const hours = showDays
+    ? Math.floor((seconds % 86400) / 3600)
+    : Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
+  if (showDays && days > 0) return `${days}d ${hours}h`;
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 

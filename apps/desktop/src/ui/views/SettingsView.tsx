@@ -42,6 +42,7 @@ export function SettingsView() {
     (state) => state.setShareAnonymousLiveData,
   );
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
+  const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
   const ignoredProcessCount = useAppStore(
     (state) => state.ignoredProcesses.size,
   );
@@ -168,6 +169,17 @@ export function SettingsView() {
             Anonymous sharing is paused while PlayCounter is offline.
           </p>
         ) : null}
+        <SettingsRow
+          description="Shows long playtimes as days and hours instead of total hours."
+          title="Show days in playtime"
+        >
+          <input
+            type="checkbox"
+            checked={settings.showDurationDays}
+            onChange={(event) => setShowDurationDays(event.target.checked)}
+            className="h-5 w-5 accent-accent"
+          />
+        </SettingsRow>
       </SettingsPanel>
 
       <SettingsPanel

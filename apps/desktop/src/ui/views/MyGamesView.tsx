@@ -146,6 +146,9 @@ export function MyGamesView() {
   const activeSessions = useAppStore((state) => state.activeSessions);
   const exeCache = useAppStore((state) => state.exeCache);
   const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
+  const showDurationDays = useAppStore(
+    (state) => state.settings.showDurationDays,
+  );
   const userIgnoredProcesses = useAppStore(
     (state) => state.userIgnoredProcesses,
   );
@@ -431,6 +434,7 @@ export function MyGamesView() {
                 <GameLibraryCard
                   key={`${game.source ?? "unknown"}:${game.gameId}`}
                   game={game}
+                  showDurationDays={showDurationDays}
                   view={view}
                   onRemove={() =>
                     setPendingRemoval({
@@ -529,11 +533,13 @@ export function MyGamesView() {
 
 function GameLibraryCard({
   game,
+  showDurationDays,
   view,
   onRemove,
   onStopTracking,
 }: {
   game: GameSummary;
+  showDurationDays: boolean;
   view: ViewMode;
   onRemove: () => void;
   onStopTracking?: () => void;
@@ -781,7 +787,7 @@ function GameLibraryCard({
           </h2>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="font-mono text-lg font-bold tracking-tight text-text">
-              {formatDuration(game.totalSeconds)}
+              {formatDuration(game.totalSeconds, showDurationDays)}
             </span>
             <span className="text-[11px] font-medium text-text-muted">
               in {game.sessionCount} session{game.sessionCount !== 1 ? "s" : ""}
@@ -960,7 +966,7 @@ function GameLibraryCard({
                 Playtime
               </div>
               <div className="mt-0.5 font-mono text-sm font-semibold text-text">
-                {formatDuration(game.totalSeconds)}
+                {formatDuration(game.totalSeconds, showDurationDays)}
               </div>
             </div>
             <div className="text-right">
@@ -976,7 +982,7 @@ function GameLibraryCard({
                 Average
               </div>
               <div className="mt-0.5 font-mono text-sm font-semibold text-text">
-                {formatDuration(averageSeconds)}
+                {formatDuration(averageSeconds, showDurationDays)}
               </div>
             </div>
           </div>

@@ -870,13 +870,18 @@ function TriageWizardCard({
       </div>
 
       <div className="p-6 sm:p-8">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
+        <div className="mb-8 flex min-w-0 flex-col items-center gap-2 text-center">
           <div className="mb-2 grid h-16 w-16 place-items-center rounded-2xl bg-surface-hover text-text-faint">
             <Gamepad2 size={32} />
           </div>
-          <h3 className="break-all text-3xl font-bold text-text">
-            {executable.exeName}
-          </h3>
+          <div className="flex h-10 w-full max-w-full items-center justify-center">
+            <h3
+              className="max-w-full truncate text-2xl font-bold text-text sm:text-3xl"
+              title={executable.exeName}
+            >
+              {executable.exeName}
+            </h3>
+          </div>
           <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
             <span
               className={clsx(
@@ -1068,8 +1073,9 @@ function DiscoveredExecutableRow({
               />
             )}
             <h4
+              title={executable.exeName}
               className={clsx(
-                "truncate font-medium",
+                "min-w-0 max-w-full flex-1 truncate font-medium",
                 isSystemIgnored ? "text-text-faint" : "text-text",
               )}
             >
@@ -1339,12 +1345,17 @@ export function CommunitySuggestionForm({
       }}
     >
       <div className="flex max-h-[85vh] w-full max-w-4xl animate-toast-in flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-raised">
-        <div className="flex shrink-0 items-center justify-between border-b border-border bg-surface px-5 py-4">
-          <div>
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-surface px-5 py-4">
+          <div className="min-w-0">
             <h2 className="font-semibold text-text">Suggest community game</h2>
-            <p className="mt-1 text-sm text-text-muted">
+            <p className="mt-1 truncate text-sm text-text-muted">
               Link the correct game to{" "}
-              <span className="font-medium text-text">{exeName}</span>
+              <span
+                className="inline-block max-w-full truncate align-bottom font-medium text-text"
+                title={exeName}
+              >
+                {exeName}
+              </span>
             </p>
           </div>
           <button

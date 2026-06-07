@@ -1,5 +1,13 @@
 import clsx from "clsx";
-import { CalendarDays, Clock3, Search, Timer, Trash2, ChevronDown, X } from "lucide-react";
+import {
+  CalendarDays,
+  Clock3,
+  Search,
+  Timer,
+  Trash2,
+  ChevronDown,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hydrateGameMetadata, removeHistorySession } from "../../tracker";
 import { gameMetadataKey, useAppStore } from "../../store";
@@ -10,7 +18,13 @@ import {
   Stat,
   formatDuration,
 } from "../components";
-import { IconButton, Input, useContextMenu, ContextMenu, ContextMenuItem } from "../primitives";
+import {
+  IconButton,
+  Input,
+  useContextMenu,
+  ContextMenu,
+  ContextMenuItem,
+} from "../primitives";
 import type { GameSource } from "@playcounter/shared";
 
 type HistoryFilter = "all" | "today" | "week" | "month";
@@ -79,6 +93,9 @@ export function HistoryView() {
   const sessions = useAppStore((state) => state.recentSessions);
   const exeCache = useAppStore((state) => state.exeCache);
   const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
+  const showDurationDays = useAppStore(
+    (state) => state.settings.showDurationDays,
+  );
   const addToast = useAppStore((state) => state.addToast);
 
   useEffect(() => {
@@ -299,105 +316,114 @@ export function HistoryView() {
     })
     .filter((group) => group.items.length > 0);
 
-function HistorySessionRow({
-  session,
-  metadata,
-  addToast,
-}: {
-  session: any; // We can infer or use any if needed, but let's use the explicit type later, or pass properties
-  metadata: any;
-  addToast: any;
-}) {
-  const contextMenu = useContextMenu();
-  const source = session.source ?? metadata?.source;
-  const gameName = session.gameName || metadata?.gameName || session.exeName.replace(/\.exe$/i, "");
-  const coverUrl = session.coverUrl ?? metadata?.coverUrl;
+  function HistorySessionRow({
+    session,
+    metadata,
+    addToast,
+  }: {
+    session: any; // We can infer or use any if needed, but let's use the explicit type later, or pass properties
+    metadata: any;
+    addToast: any;
+  }) {
+    const contextMenu = useContextMenu();
+    const source = session.source ?? metadata?.source;
+    const gameName =
+      session.gameName ||
+      metadata?.gameName ||
+      session.exeName.replace(/\.exe$/i, "");
+    const coverUrl = session.coverUrl ?? metadata?.coverUrl;
 
-  const handleRemove = () => {
-    removeHistorySession(session.id);
-    addToast({
-      tone: "success",
-      title: "Session removed",
-      detail: `${gameName} was removed from history.`,
-    });
-    contextMenu.close();
-  };
+    const handleRemove = () => {
+      removeHistorySession(session.id);
+      addToast({
+        tone: "success",
+        title: "Session removed",
+        detail: `${gameName} was removed from history.`,
+      });
+      contextMenu.close();
+    };
 
-  return (
-    <article
-      {...contextMenu.props}
-      className="group grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent/40 hover:shadow-raised"
-    >
-      {coverUrl ? (
-        <img
-          src={coverUrl}
-          alt=""
-          loading="lazy"
-          className="h-[52px] w-10 shrink-0 rounded object-cover shadow-sm"
-        />
-      ) : (
-        <div className="grid h-[52px] w-10 shrink-0 place-items-center rounded bg-surface-hover text-text-faint shadow-sm">
-          <Timer size={16} />
-        </div>
-      )}
-      <div className="flex min-w-0 flex-col justify-center">
-        <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-base font-bold text-text">{gameName}</h3>
-          <div className="hidden shrink-0 items-center gap-2 sm:flex">
-            <SourceBadge source={source} />
-            {source === "custom" ? (
-              <CommunityApprovalBadge
-                suggestionId={
-                  session.communitySuggestionId ??
-                  metadata?.communitySuggestionId
-                }
-                verified={
-                  session.communitySuggestionVerified ??
-                  metadata?.communitySuggestionVerified
-                }
-              />
-            ) : null}
+    return (
+      <article
+        {...contextMenu.props}
+        className="group grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent/40 hover:shadow-raised"
+      >
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt=""
+            loading="lazy"
+            className="h-[52px] w-10 shrink-0 rounded object-cover shadow-sm"
+          />
+        ) : (
+          <div className="grid h-[52px] w-10 shrink-0 place-items-center rounded bg-surface-hover text-text-faint shadow-sm">
+            <Timer size={16} />
+          </div>
+        )}
+        <div className="flex min-w-0 flex-col justify-center">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate text-base font-bold text-text">
+              {gameName}
+            </h3>
+            <div className="hidden shrink-0 items-center gap-2 sm:flex">
+              <SourceBadge source={source} />
+              {source === "custom" ? (
+                <CommunityApprovalBadge
+                  suggestionId={
+                    session.communitySuggestionId ??
+                    metadata?.communitySuggestionId
+                  }
+                  verified={
+                    session.communitySuggestionVerified ??
+                    metadata?.communitySuggestionVerified
+                  }
+                />
+              ) : null}
+            </div>
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-muted">
+            <span className="truncate">{session.exeName}</span>
+            <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <CalendarDays size={13} className="text-text-faint" />
+              {formatSessionDate(session.startedAt)}
+            </span>
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Clock3 size={13} className="text-text-faint" />
+              {formatTimeRange(session.startedAt, session.endedAt)}
+            </span>
           </div>
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-muted">
-          <span className="truncate">{session.exeName}</span>
-          <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <CalendarDays size={13} className="text-text-faint" />
-            {formatSessionDate(session.startedAt)}
-          </span>
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <Clock3 size={13} className="text-text-faint" />
-            {formatTimeRange(session.startedAt, session.endedAt)}
-          </span>
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-4">
-        <div className="text-right">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-text-faint">
-            Playtime
+        <div className="flex shrink-0 items-center gap-4">
+          <div className="text-right">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-text-faint">
+              Playtime
+            </div>
+            <div className="font-mono text-[15px] font-bold text-accent">
+              {formatDuration(session.durationSeconds ?? 0, showDurationDays)}
+            </div>
           </div>
-          <div className="font-mono text-[15px] font-bold text-accent">
-            {formatDuration(session.durationSeconds ?? 0)}
-          </div>
+          <IconButton
+            icon={Trash2}
+            intent="danger"
+            aria-label={`Remove history entry for ${gameName}`}
+            onClick={handleRemove}
+            className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100"
+          />
         </div>
-        <IconButton
-          icon={Trash2}
-          intent="danger"
-          aria-label={`Remove history entry for ${gameName}`}
-          onClick={handleRemove}
-          className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100"
-        />
-      </div>
 
-      <ContextMenu open={contextMenu.open} position={contextMenu.position} onClose={contextMenu.close}>
-        <ContextMenuItem icon={Trash2} danger onClick={handleRemove}>
-          Delete Session
-        </ContextMenuItem>
-      </ContextMenu>
-    </article>
-  );
-}
+        <ContextMenu
+          open={contextMenu.open}
+          position={contextMenu.position}
+          onClose={contextMenu.close}
+        >
+          <ContextMenuItem icon={Trash2} danger onClick={handleRemove}>
+            Delete Session
+          </ContextMenuItem>
+        </ContextMenu>
+      </article>
+    );
+  }
 
   return (
     <div className="grid h-full items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -405,7 +431,9 @@ function HistorySessionRow({
         <Panel className="overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
             <div>
-              <h2 className="text-xl font-bold tracking-tight text-text">Session Timeline</h2>
+              <h2 className="text-xl font-bold tracking-tight text-text">
+                Session Timeline
+              </h2>
               <p className="mt-0.5 text-sm text-text-muted">
                 {lastSession
                   ? `Last session ${formatStartTime(lastSession.startedAt)}`
@@ -413,7 +441,11 @@ function HistorySessionRow({
               </p>
             </div>
             <div className="rounded-md border border-border bg-surface-hover px-3 py-1.5 text-sm font-medium text-text-muted">
-              Showing <span className="font-mono text-text">{filteredSessions.length}</span> of {formatSessionCount(sessions.length)}
+              Showing{" "}
+              <span className="font-mono text-text">
+                {filteredSessions.length}
+              </span>{" "}
+              of {formatSessionCount(sessions.length)}
             </div>
           </div>
 
@@ -456,12 +488,14 @@ function HistorySessionRow({
                     if (!showSuggestions) return;
                     const needle = query.trim().toLowerCase();
                     const matches = gameOptions.filter((g) =>
-                      g.name.toLowerCase().includes(needle)
+                      g.name.toLowerCase().includes(needle),
                     );
                     if (matches.length === 0) return;
                     if (event.key === "ArrowDown") {
                       event.preventDefault();
-                      setHighlightedIndex((i) => Math.min(i + 1, matches.length - 1));
+                      setHighlightedIndex((i) =>
+                        Math.min(i + 1, matches.length - 1),
+                      );
                     } else if (event.key === "ArrowUp") {
                       event.preventDefault();
                       setHighlightedIndex((i) => Math.max(i - 1, 0));
@@ -484,7 +518,11 @@ function HistorySessionRow({
                 {query ? (
                   <button
                     type="button"
-                    onClick={() => { setQuery(""); setShowSuggestions(false); setHighlightedIndex(-1); }}
+                    onClick={() => {
+                      setQuery("");
+                      setShowSuggestions(false);
+                      setHighlightedIndex(-1);
+                    }}
                     className="absolute right-8 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
                     aria-label="Clear search"
                   >
@@ -495,42 +533,52 @@ function HistorySessionRow({
                   size={14}
                   className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-faint"
                 />
-                {showSuggestions && query.trim().length > 0 && (() => {
-                  const needle = query.trim().toLowerCase();
-                  const matches = gameOptions.filter((g) =>
-                    g.name.toLowerCase().includes(needle)
-                  );
-                  if (matches.length === 0) return null;
-                  return (
-                    <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-surface shadow-raised">
-                      {matches.map((game, index) => (
-                        <li key={game.key}>
-                          <button
-                            type="button"
-                            className={clsx(
-                              "w-full px-4 py-2 text-left text-sm text-text",
-                              index === highlightedIndex
-                                ? "bg-accent/20 text-accent"
-                                : "hover:bg-surface-hover",
-                            )}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              setQuery(game.name);
-                              setShowSuggestions(false);
-                              setHighlightedIndex(-1);
-                            }}
-                            onMouseEnter={() => setHighlightedIndex(index)}
-                          >
-                            {game.name}
-                            <span className={clsx("ml-2 text-xs", index === highlightedIndex ? "text-accent/60" : "text-text-faint")}>
-                              {game.sessionCount} session{game.sessionCount !== 1 ? "s" : ""}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  );
-                })()}
+                {showSuggestions &&
+                  query.trim().length > 0 &&
+                  (() => {
+                    const needle = query.trim().toLowerCase();
+                    const matches = gameOptions.filter((g) =>
+                      g.name.toLowerCase().includes(needle),
+                    );
+                    if (matches.length === 0) return null;
+                    return (
+                      <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-surface shadow-raised">
+                        {matches.map((game, index) => (
+                          <li key={game.key}>
+                            <button
+                              type="button"
+                              className={clsx(
+                                "w-full px-4 py-2 text-left text-sm text-text",
+                                index === highlightedIndex
+                                  ? "bg-accent/20 text-accent"
+                                  : "hover:bg-surface-hover",
+                              )}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setQuery(game.name);
+                                setShowSuggestions(false);
+                                setHighlightedIndex(-1);
+                              }}
+                              onMouseEnter={() => setHighlightedIndex(index)}
+                            >
+                              {game.name}
+                              <span
+                                className={clsx(
+                                  "ml-2 text-xs",
+                                  index === highlightedIndex
+                                    ? "text-accent/60"
+                                    : "text-text-faint",
+                                )}
+                              >
+                                {game.sessionCount} session
+                                {game.sessionCount !== 1 ? "s" : ""}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
               </div>
             </div>
           </div>
@@ -541,8 +589,12 @@ function HistorySessionRow({
                 <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-surface-hover text-text-faint">
                   <Timer size={32} />
                 </div>
-                <h3 className="mb-1 text-lg font-bold text-text">No History Yet</h3>
-                <p className="text-sm text-text-muted">Start playing a tracked game to build your timeline.</p>
+                <h3 className="mb-1 text-lg font-bold text-text">
+                  No History Yet
+                </h3>
+                <p className="text-sm text-text-muted">
+                  Start playing a tracked game to build your timeline.
+                </p>
               </div>
             ) : groups.length === 0 ? (
               <div className="py-12 text-center text-sm font-medium text-text-muted">
@@ -554,13 +606,16 @@ function HistorySessionRow({
                   <section key={group.label} className="relative">
                     <div className="mb-4 flex items-baseline justify-between px-2">
                       <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-bold text-text">{group.label}</h3>
+                        <h3 className="text-lg font-bold text-text">
+                          {group.label}
+                        </h3>
                         <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-text-muted">
-                          {group.items.length} session{group.items.length !== 1 ? "s" : ""}
+                          {group.items.length} session
+                          {group.items.length !== 1 ? "s" : ""}
                         </span>
                       </div>
                       <span className="font-mono text-sm font-bold text-text-muted">
-                        {formatDuration(group.seconds)} total
+                        {formatDuration(group.seconds, showDurationDays)} total
                       </span>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -588,20 +643,30 @@ function HistorySessionRow({
           </h3>
           <div className="flex flex-col gap-5">
             <div>
-              <div className="text-[13px] font-medium text-text-muted">Total Time Logged</div>
+              <div className="text-[13px] font-medium text-text-muted">
+                Total Time Logged
+              </div>
               <div className="mt-1 font-mono text-3xl font-black text-text">
-                {formatDuration(total)}
+                {formatDuration(total, showDurationDays)}
               </div>
             </div>
             <div className="h-px w-full bg-border" />
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-[13px] font-medium text-text-muted">Sessions</div>
-                <div className="mt-1 font-mono text-xl font-bold text-text">{sessions.length}</div>
+                <div className="text-[13px] font-medium text-text-muted">
+                  Sessions
+                </div>
+                <div className="mt-1 font-mono text-xl font-bold text-text">
+                  {sessions.length}
+                </div>
               </div>
               <div>
-                <div className="text-[13px] font-medium text-text-muted">Average Length</div>
-                <div className="mt-1 font-mono text-xl font-bold text-text">{formatDuration(average)}</div>
+                <div className="text-[13px] font-medium text-text-muted">
+                  Average Length
+                </div>
+                <div className="mt-1 font-mono text-xl font-bold text-text">
+                  {formatDuration(average, showDurationDays)}
+                </div>
               </div>
             </div>
           </div>
@@ -614,16 +679,21 @@ function HistorySessionRow({
                 Last 7 Days
               </h3>
               <div className="mt-1 text-sm font-medium text-text">
-                <span className="font-mono font-bold text-accent">{formatDuration(weekTotal)}</span> logged
+                <span className="font-mono font-bold text-accent">
+                  {formatDuration(weekTotal, showDurationDays)}
+                </span>{" "}
+                logged
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-end justify-between gap-1.5 h-32">
             {last7Days.map((day, index) => {
               const heightPct = Math.max(
                 4,
-                day.seconds > 0 ? Math.round((day.seconds / maxDaySeconds) * 100) : 0,
+                day.seconds > 0
+                  ? Math.round((day.seconds / maxDaySeconds) * 100)
+                  : 0,
               );
               return (
                 <div
@@ -633,18 +703,18 @@ function HistorySessionRow({
                   <div
                     className={clsx(
                       "w-full max-w-[28px] rounded-t-sm transition-all duration-500",
-                      day.seconds > 0 
-                        ? "bg-accent/80 group-hover:bg-accent" 
+                      day.seconds > 0
+                        ? "bg-accent/80 group-hover:bg-accent"
                         : "bg-surface-hover",
                     )}
                     style={{ height: `${heightPct}%` }}
                   />
-                  
+
                   {/* Tooltip on hover */}
                   <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 scale-95 rounded bg-surface px-2 py-1 text-xs font-bold text-text opacity-0 shadow-raised transition-all group-hover:scale-100 group-hover:opacity-100">
-                    {formatDuration(day.seconds)}
+                    {formatDuration(day.seconds, showDurationDays)}
                   </div>
-                  
+
                   <div className="mt-3 truncate text-[10px] font-bold uppercase tracking-wider text-text-faint">
                     {day.label}
                   </div>
