@@ -296,12 +296,14 @@ export function DiscoveredView() {
           ? `${exeName} will no longer be matched or tracked.`
           : `${exeName} can be matched again on the next scan.`,
       });
+      return true;
     } catch (error) {
       addToast({
         tone: "error",
         title: ignored ? "Ignore failed" : "Restore failed",
         detail: formatError(error),
       });
+      return false;
     } finally {
       setPendingExe(null);
     }
@@ -557,6 +559,18 @@ export function DiscoveredView() {
     }
   }
 
+  function nextReviewKeyAfter(currentKey: string) {
+    const currentIndex = filteredExecutables.findIndex(
+      (executable) => executable.key === currentKey,
+    );
+    const remaining = filteredExecutables.filter(
+      (executable) => executable.key !== currentKey,
+    );
+    if (remaining.length === 0) return null;
+    if (currentIndex < 0) return remaining[0].key;
+    return remaining[Math.min(currentIndex, remaining.length - 1)].key;
+  }
+
   return (
     <div className="grid gap-5">
       <Panel className="overflow-hidden">
@@ -680,9 +694,14 @@ export function DiscoveredView() {
                       setCustomGameName("");
                     }}
                     onCustomGameNameChange={setCustomGameName}
-                    onIgnore={() =>
-                      void updateUserIgnored(activeReviewItem.exeName, true)
-                    }
+                    onIgnore={async () => {
+                      const nextKey = nextReviewKeyAfter(activeReviewItem.key);
+                      const ignored = await updateUserIgnored(
+                        activeReviewItem.exeName,
+                        true,
+                      );
+                      if (ignored) setActiveReviewKey(nextKey);
+                    }}
                     isOffline={isOffline}
                     onRecheck={() => {
                       if (isOffline) return;
