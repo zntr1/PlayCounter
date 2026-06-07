@@ -242,8 +242,10 @@ jobs:
           mkdir -p .deploy/release
           name="$(basename "${exe}")"
           cp "${exe}" ".deploy/release/${name}"
+          cp "${exe}" ".deploy/release/PlayCounter-Setup.exe"
           sha="$(sha256sum ".deploy/release/${name}" | awk '{print $1}')"
           printf '%s  %s\n' "${sha}" "${name}" > ".deploy/release/${name}.sha256"
+          printf '%s  %s\n' "${sha}" "PlayCounter-Setup.exe" > ".deploy/release/PlayCounter-Setup.exe.sha256"
           {
             echo "exe_name=${name}"
             echo "sha=${sha}"
@@ -271,6 +273,8 @@ jobs:
           files: |
             .deploy/release/${{ steps.artifact.outputs.exe_name }}
             .deploy/release/${{ steps.artifact.outputs.exe_name }}.sha256
+            .deploy/release/PlayCounter-Setup.exe
+            .deploy/release/PlayCounter-Setup.exe.sha256
             .deploy/release/latest.json
           body: |
             ## PlayCounter v${{ needs.detect-desktop-version.outputs.version }}

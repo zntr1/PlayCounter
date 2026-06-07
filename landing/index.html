@@ -1324,7 +1324,7 @@
         "operatingSystem": ["Windows", "macOS", "Linux"],
         "url": "https://playcounter.app/",
         "image": "https://playcounter.app/og-image.jpg",
-        "downloadUrl": "https://github.com/zntr1/PlayCounter/releases/latest",
+        "downloadUrl": "https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe",
         "sameAs": ["https://github.com/zntr1/PlayCounter"],
         "isAccessibleForFree": true,
         "offers": {
@@ -1454,7 +1454,7 @@
           </a>
           <a
             class="btn btn-primary"
-            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
             target="_blank"
             rel="noopener noreferrer"
             data-download
@@ -1502,7 +1502,7 @@
             <div class="cta-row">
               <a
             class="btn btn-primary"
-            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
             target="_blank"
             rel="noopener noreferrer"
             data-download
@@ -2050,7 +2050,7 @@
         <div class="cta-row" style="justify-content: center; margin-top: 34px">
           <a
             class="btn btn-primary"
-            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
             target="_blank"
             rel="noopener noreferrer"
             data-download
@@ -2281,7 +2281,7 @@
         <div class="cta-row" style="justify-content: center">
           <a
             class="btn btn-primary"
-            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
             target="_blank"
             rel="noopener noreferrer"
             data-download
@@ -2317,7 +2317,7 @@
         </a>
         <div class="foot-links">
           <a
-            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
             target="_blank"
             rel="noopener noreferrer"
             data-download
@@ -2340,11 +2340,41 @@
     </footer>
 
     <script>
-      // Download buttons ([data-download]) link straight to the GitHub
-      // releases page in the markup - no JS needed. We point visitors at the
-      // release page (not a direct file) on purpose: it surfaces the SHA-256
-      // checksum, the VirusTotal scan, and the open-source notes right when
-      // they decide to install.
+      // Download buttons ([data-download]) link straight to the latest GitHub
+      // installer asset. The release workflow also publishes a stable alias for
+      // new releases; this fetch keeps the link working for existing versioned
+      // release assets too.
+      (function hydrateDownloadLinks() {
+        var releaseApi =
+          "https://api.github.com/repos/zntr1/PlayCounter/releases/latest";
+        fetch(releaseApi, {
+          headers: { Accept: "application/vnd.github+json" },
+        })
+          .then(function (response) {
+            if (!response.ok) throw new Error("release lookup failed");
+            return response.json();
+          })
+          .then(function (release) {
+            var assets = Array.isArray(release.assets) ? release.assets : [];
+            var installer =
+              assets.find(function (asset) {
+                return asset.name === "PlayCounter-Setup.exe";
+              }) ||
+              assets.find(function (asset) {
+                return /-setup\.exe$/i.test(asset.name);
+              });
+
+            if (!installer || !installer.browser_download_url) return;
+
+            document.querySelectorAll("[data-download]").forEach(function (el) {
+              el.href = installer.browser_download_url;
+            });
+          })
+          .catch(function () {
+            // Keep the stable latest-download href from the markup.
+          });
+      })();
+
       document.getElementById("year").textContent = new Date().getFullYear();
 
       // Nav border on scroll
