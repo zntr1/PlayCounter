@@ -28,6 +28,7 @@ import {
   type ActiveSession,
   type ExeCacheEntry,
 } from "../../store";
+import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import {
   CommunityApprovalBadge,
   Panel,
@@ -167,7 +168,7 @@ export function MyGamesView() {
   const games = useMemo(() => {
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
     const isIgnored = (exeName: string) =>
-      ignoredExeNames.has(exeName.toLowerCase());
+      matchesProcessPatternSet(exeName, ignoredExeNames);
     const metadata = matchedEntriesByGame(
       [...exeCache.values()].filter((entry) => !isIgnored(entry.exeName)),
     );

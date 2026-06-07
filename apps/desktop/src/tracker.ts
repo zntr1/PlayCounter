@@ -20,6 +20,7 @@ import {
   type GameMetadata,
   type ProcessSnapshot,
 } from "./store";
+import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 
 const STORAGE_KEY = "playcounter:v1";
 const CUSTOM_GAME_ID_BASE = -1_000_000_000;
@@ -398,8 +399,10 @@ function isIgnoredProcess(
   exeName: string,
   state: { blacklist: Set<string>; ignoredProcesses: Set<string> },
 ) {
-  const exeKey = exeName.toLowerCase();
-  return state.blacklist.has(exeKey) || state.ignoredProcesses.has(exeKey);
+  return (
+    matchesProcessPatternSet(exeName, state.blacklist) ||
+    matchesProcessPatternSet(exeName, state.ignoredProcesses)
+  );
 }
 
 type CachedResolution =

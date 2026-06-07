@@ -35,6 +35,7 @@ import {
   type ExeCacheEntry,
   type ProcessSnapshot,
 } from "../../store";
+import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { Panel } from "../components";
 import { AnimatedCount, Button, IconButton, Input } from "../primitives";
 
@@ -160,13 +161,13 @@ function getDiscoveryStatus(
   const key = exeName.toLowerCase();
 
   if (
-    userIgnoredProcesses.has(key) ||
-    blacklist.has(key) ||
+    matchesProcessPatternSet(key, userIgnoredProcesses) ||
+    matchesProcessPatternSet(key, blacklist) ||
     cacheEntry?.state === "blacklisted"
   ) {
     return "userIgnored";
   }
-  if (ignoredProcesses.has(key)) return "ignored";
+  if (matchesProcessPatternSet(key, ignoredProcesses)) return "ignored";
   if (cacheEntry?.state === "matched" && cacheEntry.source === "custom")
     return "custom";
   if (cacheEntry?.state === "matched") return "matched";

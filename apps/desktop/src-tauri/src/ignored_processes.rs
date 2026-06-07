@@ -57,7 +57,9 @@ pub fn set_user_ignored(
     if ignored {
         user_processes.insert(exe_name);
     } else {
-        user_processes.remove(&exe_name);
+        user_processes.retain(|process| {
+            process != &exe_name && !(has_wildcard(process) && wildcard_matches(process, &exe_name))
+        });
     }
 
     fs::write(&user_file_path, format_user_file(&user_processes))
@@ -121,6 +123,50 @@ fn normalize_process_name(exe_name: &str) -> Result<String, String> {
     Ok(exe_name)
 }
 
+fn has_wildcard(process: &str) -> bool {
+    process.contains('*') || process.contains('?')
+}
+
+fn wildcard_matches(pattern: &str, value: &str) -> bool {
+    wildcard_matches_inner(pattern.as_bytes(), value.as_bytes(), 0, 0, None, None)
+}
+
+fn wildcard_matches_inner(
+    pattern: &[u8],
+    value: &[u8],
+    mut pattern_index: usize,
+    mut value_index: usize,
+    mut star_pattern_index: Option<usize>,
+    mut star_value_index: Option<usize>,
+) -> bool {
+    while value_index < value.len() {
+        if pattern_index < pattern.len()
+            && (pattern[pattern_index] == b'?' || pattern[pattern_index] == value[value_index])
+        {
+            pattern_index += 1;
+            value_index += 1;
+        } else if pattern_index < pattern.len() && pattern[pattern_index] == b'*' {
+            star_pattern_index = Some(pattern_index);
+            pattern_index += 1;
+            star_value_index = Some(value_index);
+        } else if let (Some(star_pattern), Some(star_value)) =
+            (star_pattern_index, star_value_index)
+        {
+            pattern_index = star_pattern + 1;
+            value_index = star_value + 1;
+            star_value_index = Some(value_index);
+        } else {
+            return false;
+        }
+    }
+
+    while pattern_index < pattern.len() && pattern[pattern_index] == b'*' {
+        pattern_index += 1;
+    }
+
+    pattern_index == pattern.len()
+}
+
 fn format_user_file(user_processes: &BTreeSet<String>) -> String {
     let mut contents = default_user_file().to_string();
     for process in user_processes {
@@ -132,7 +178,9 @@ fn format_user_file(user_processes: &BTreeSet<String>) -> String {
 
 fn default_user_file() -> &'static str {
     "# PlayCounter user ignored processes.\n\
-     # Add one process name per line. Lines starting with # are ignored.\n\
+     # Add one process name or wildcard pattern per line. Lines starting with # are ignored.\n\
+     # Wildcards: * matches any text, ? matches one character.\n\
      # Windows example: chrome.exe\n\
+     # Windows wildcard example: claude*.exe\n\
      # macOS/Linux example: chrome\n"
 }
