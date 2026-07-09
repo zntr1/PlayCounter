@@ -313,7 +313,6 @@ export function SettingsView() {
         >
           <div className="flex shrink-0 justify-end">
             <Button
-              variant="danger"
               icon={Upload}
               loading={importing}
               onClick={() => setConfirmImport(true)}
@@ -490,7 +489,7 @@ function ImportDataDialog({
           <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={onConfirm}>
+          <Button variant="secondary" onClick={onConfirm}>
             Choose file
           </Button>
         </div>
