@@ -26,6 +26,9 @@ const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
 const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
 const FAKE_HISTORY_EXE_PREFIX = "playcounter-fake-";
 const SESSION_CHECKPOINT_INTERVAL_MS = 60_000;
+// Minimum accumulated discovered runtime before it is credited to a game on
+// take-over. Avoids polluting history with a few seconds of background noise.
+const MIN_BACKFILL_SECONDS = 60;
 const BACKEND_HEALTH_INTERVAL_MS = 60_000;
 const BACKEND_HEALTH_TIMEOUT_MS = 2_500;
 const API_REQUEST_TIMEOUT_MS = 8_000;
@@ -176,7 +179,12 @@ function hydrate() {
     installUuid: persisted.installUuid ?? null,
     settings,
     exeCache: new Map(
-      exeCache.map((entry) => [entry.exeName.toLowerCase(), entry]),
+      exeCache.map((entry) => {
+        // Drop any open running window: runtime while the app was closed cannot
+        // be observed and must not be credited. Accumulated time is kept.
+        const { runningSince: _r, ...rest } = entry;
+        return [entry.exeName.toLowerCase(), rest];
+      }),
     ),
     gameMetadata: new Map(
       (persisted.gameMetadata ?? []).map((game) => [
@@ -362,6 +370,8 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   if (matches.length === 0 && currentSessions.length === 0) {
     logRuntime("scan no match; app remains idle");
   }
+
+  accumulateUnmatchedRuntime(runningProcessKeys);
 
   persist();
   logRuntime(`scan complete durationMs=${Date.now() - startedAt}`);
@@ -808,6 +818,7 @@ export function dismissCommunityUpgrade(exeName: string) {
 function cachePendingCommunityMatch(exeName: string, game: Game) {
   const state = useAppStore.getState();
   const checkedAt = new Date().toISOString();
+  const existing = state.exeCache.get(exeName.toLowerCase());
   state.addApiRequestLogEntry({
     endpoint: state.settings.apiEndpoint,
     exeName,
@@ -819,6 +830,11 @@ function cachePendingCommunityMatch(exeName: string, game: Game) {
     state: "unmatched",
     pendingCommunityGame: game,
     lastCheckedAt: checkedAt,
+    // Keep accumulated discovered runtime while it awaits approval.
+    trackedSeconds:
+      existing?.state === "unmatched" ? existing.trackedSeconds : undefined,
+    runningSince:
+      existing?.state === "unmatched" ? existing.runningSince : undefined,
   });
   logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
 }
@@ -880,6 +896,101 @@ function resolveCachedProcess(
   return { state: "query" };
 }
 
+// Folds elapsed runtime for every discovered-but-unmatched executable forward
+// on each scan. Running exes accumulate; stopped exes have their open window
+// closed; ignored exes have any accumulated time deleted. The accumulated time
+// is later credited to a game by backfillTrackedRuntime when the exe is matched.
+function accumulateUnmatchedRuntime(runningKeys: Set<string>) {
+  const state = useAppStore.getState();
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const exeCache = new Map(state.exeCache);
+  let changed = false;
+
+  const isIgnored = (key: string) =>
+    matchesProcessPatternSet(key, state.userIgnoredProcesses) ||
+    matchesProcessPatternSet(key, state.blacklist) ||
+    matchesProcessPatternSet(key, state.ignoredProcesses);
+
+  for (const [key, entry] of exeCache) {
+    if (entry.state !== "unmatched") continue;
+
+    if (isIgnored(key)) {
+      if (entry.trackedSeconds || entry.runningSince) {
+        const { trackedSeconds: _t, runningSince: _r, ...rest } = entry;
+        exeCache.set(key, rest);
+        changed = true;
+      }
+      continue;
+    }
+
+    const running = runningKeys.has(key);
+    if (running) {
+      if (!entry.runningSince) {
+        // Open a new running window; nothing folded yet.
+        exeCache.set(key, { ...entry, runningSince: nowIso });
+        changed = true;
+      } else {
+        const since = Date.parse(entry.runningSince);
+        const elapsedMs = Number.isFinite(since) ? now - since : 0;
+        // Fold at most once per checkpoint interval to avoid rewriting state on
+        // every ~5s scan. The open remainder is added at read time / backfill.
+        if (elapsedMs >= SESSION_CHECKPOINT_INTERVAL_MS) {
+          exeCache.set(key, {
+            ...entry,
+            trackedSeconds: (entry.trackedSeconds ?? 0) + elapsedMs / 1000,
+            runningSince: nowIso,
+          });
+          changed = true;
+        }
+      }
+    } else if (entry.runningSince) {
+      const since = Date.parse(entry.runningSince);
+      const delta = Number.isFinite(since)
+        ? Math.max(0, (now - since) / 1000)
+        : 0;
+      const { runningSince: _r, ...rest } = entry;
+      exeCache.set(key, {
+        ...rest,
+        trackedSeconds: (entry.trackedSeconds ?? 0) + delta,
+      });
+      changed = true;
+    }
+  }
+
+  if (changed) useAppStore.setState({ exeCache });
+}
+
+// Credits runtime accumulated while an executable was unmatched to the game it
+// was just matched to, as a single completed history session. Must be called
+// with the still-unmatched cache entry present (before it is overwritten).
+function backfillTrackedRuntime(exeName: string, game: Game) {
+  const entry = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (!entry) return;
+
+  const now = Date.now();
+  const openDelta = entry.runningSince
+    ? Math.max(0, (now - Date.parse(entry.runningSince)) / 1000)
+    : 0;
+  const total = Math.round((entry.trackedSeconds ?? 0) + openDelta);
+  if (total < MIN_BACKFILL_SECONDS) return;
+
+  useAppStore.getState().addSession({
+    id: createSessionId(),
+    gameId: game.id,
+    gameName: game.name,
+    coverUrl: game.coverUrl,
+    source: game.source,
+    exeName,
+    startedAt: new Date(now - total * 1000).toISOString(),
+    endedAt: new Date(now).toISOString(),
+    durationSeconds: total,
+  });
+  logRuntime(
+    `backfilled discovered runtime ${exeName} -> ${game.name} seconds=${total}`,
+  );
+}
+
 function cacheMatchResult(exeName: string, game: Game | null) {
   const state = useAppStore.getState();
   const checkedAt = new Date().toISOString();
@@ -902,11 +1013,18 @@ function cacheMatchResult(exeName: string, game: Game | null) {
       exeName,
       state: "unmatched",
       lastCheckedAt: checkedAt,
+      // Preserve any runtime already accumulated for this discovered exe so a
+      // periodic re-check does not reset it.
+      trackedSeconds:
+        existing?.state === "unmatched" ? existing.trackedSeconds : undefined,
+      runningSince:
+        existing?.state === "unmatched" ? existing.runningSince : undefined,
     });
     return;
   }
 
   logRuntime(`match cache matched ${exeName} -> ${game.name}`);
+  if (existing?.state === "unmatched") backfillTrackedRuntime(exeName, game);
   state.addApiRequestLogEntry({
     endpoint: state.settings.apiEndpoint,
     exeName,
@@ -1200,6 +1318,12 @@ export function addCustomGame(exeName: string, gameName: string) {
   const normalizedGameName = gameName.trim();
   if (!normalizedGameName) return;
 
+  backfillTrackedRuntime(exeName, {
+    id: customGameId(exeName),
+    name: normalizedGameName,
+    coverUrl: "",
+    source: "custom",
+  });
   state.setExeCacheEntry({
     exeName,
     state: "matched",
@@ -1230,6 +1354,7 @@ export function addSharedCustomGame(
     coverUrl,
     source: "custom",
   };
+  backfillTrackedRuntime(exeName, game);
   useAppStore.getState().setExeCacheEntry({
     exeName,
     state: "matched",

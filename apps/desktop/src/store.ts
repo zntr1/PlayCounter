@@ -56,6 +56,15 @@ export type ExeCacheEntry = {
   communityUpgradeGame?: Game;
   dismissedCommunityUpgradeGameId?: number;
   lastCheckedAt: string;
+  // Runtime accumulated while this exe is discovered but not yet matched to a
+  // game. Folded forward on every scan and credited to the game when the exe is
+  // taken over. Deleted when the exe is ignored.
+  trackedSeconds?: number;
+  // ISO start of the current not-yet-folded running window. The elapsed time
+  // since this timestamp is folded into trackedSeconds about once a minute (and
+  // added on the fly when read or credited). Cleared on hydrate so time spent
+  // while the app was closed is never credited.
+  runningSince?: string;
 };
 
 export type ApiRequestLogEntry = {

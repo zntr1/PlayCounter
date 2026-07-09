@@ -913,6 +913,14 @@ function TriageWizardCard({
             />
             {executable.isRunning ? "Running right now" : "Not running"}
           </div>
+          {trackedSecondsFor(executable.cacheEntry) >= 60 ? (
+            <div className="mt-1 text-xs text-text-faint">
+              Tracked so far:{" "}
+              <span className="font-medium text-text-muted">
+                {formatTrackedTime(trackedSecondsFor(executable.cacheEntry))}
+              </span>
+            </div>
+          ) : null}
           {isRetrying && (
             <span className="mt-2 animate-pulse text-sm font-medium text-accent">
               Checking database...
@@ -1121,6 +1129,14 @@ function DiscoveredExecutableRow({
           {matchedName ? (
             <div className="mt-1 truncate text-sm font-medium text-text-muted">
               {matchedName}
+            </div>
+          ) : null}
+          {trackedSecondsFor(executable.cacheEntry) >= 60 ? (
+            <div className="mt-1 text-xs text-text-faint">
+              Tracked so far:{" "}
+              <span className="font-medium text-text-muted">
+                {formatTrackedTime(trackedSecondsFor(executable.cacheEntry))}
+              </span>
             </div>
           ) : null}
           {executable.cacheEntry?.pendingCommunityGame ? (
@@ -1561,6 +1577,26 @@ export function CommunitySuggestionForm({
     </div>,
     document.body,
   );
+}
+
+function formatTrackedTime(seconds: number) {
+  const totalMinutes = Math.floor(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return "<1m";
+}
+
+function trackedSecondsFor(cacheEntry: ExeCacheEntry | null) {
+  if (!cacheEntry || cacheEntry.state !== "unmatched") return 0;
+  const base = cacheEntry.trackedSeconds ?? 0;
+  // Folded runtime updates ~once a minute; add the open running window so the
+  // displayed total stays current between checkpoints.
+  if (!cacheEntry.runningSince) return base;
+  const since = Date.parse(cacheEntry.runningSince);
+  if (!Number.isFinite(since)) return base;
+  return base + Math.max(0, (Date.now() - since) / 1000);
 }
 
 function formatError(error: unknown) {
