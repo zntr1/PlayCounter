@@ -4,7 +4,6 @@ import {
   Download,
   Gamepad2,
   Globe,
-  Globe2,
   ListChecks,
   LoaderCircle,
   MessageSquarePlus,
@@ -25,7 +24,6 @@ import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
 import { DevToolsView } from "./views/DevToolsView";
 import { HistoryView } from "./views/HistoryView";
-import { LiveFeedView } from "./views/LiveFeedView";
 import { MyGamesView } from "./views/MyGamesView";
 import { NowPlayingView } from "./views/NowPlayingView";
 import { DiscoveredView } from "./views/DiscoveredView";
@@ -67,12 +65,6 @@ const views: Record<
     icon: ListChecks,
     component: <DiscoveredView />,
   },
-  live: {
-    label: "Live Feed",
-    subtitle: "What the community is playing right now",
-    icon: Globe2,
-    component: <LiveFeedView />,
-  },
   history: {
     label: "My History",
     subtitle: "Your past play sessions",
@@ -95,7 +87,6 @@ const views: Record<
 
 const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
   { label: "Library", items: ["now", "games", "history"] },
-  { label: "Community", items: ["live"] },
   { label: "System", items: ["discovered", "settings", "dev"] },
 ];
 

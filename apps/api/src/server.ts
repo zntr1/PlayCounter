@@ -1,13 +1,10 @@
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
-import websocket from "@fastify/websocket";
 import type {
   CommunityGameSuggestionPayload,
   FeedbackPayload,
   GameMetadataResponse,
-  HeartbeatPayload,
   MatchProcessesRequest,
-  SessionEndPayload,
 } from "@playcounter/shared";
 import Fastify from "fastify";
 import { z, ZodError } from "zod";
@@ -48,11 +45,6 @@ const matchProcessesSchema = z.object({
     )
     .min(1)
     .max(200),
-});
-const heartbeatSchema = z.object({
-  installUuid: z.string().uuid(),
-  gameId: z.number().int().positive(),
-  source: z.enum(["igdb", "community"]),
 });
 const communityMetadataQuerySchema = z.object({
   query: z.string().trim().min(2).max(120),
@@ -113,10 +105,16 @@ app.setErrorHandler((error, request, reply) => {
   return reply.send(error);
 });
 
-// Routes that fire constantly (health probes, CORS preflight, client
-// heartbeats) would otherwise drown the log. Skip them while everything is
-// fine, but still surface them if they ever fail with a 5xx.
-const QUIET_PATHS = ["/health", "/api/heartbeat", "/api/session-end"];
+// Routes that fire constantly (health probes, CORS preflight, and the retired
+// live-stats endpoints old clients still ping) would otherwise drown the log.
+// Skip them while everything is fine, but still surface them if they ever fail
+// with a 5xx.
+const QUIET_PATHS = [
+  "/health",
+  "/api/heartbeat",
+  "/api/session-end",
+  "/api/stats",
+];
 
 app.addHook("onResponse", (request, reply, done) => {
   const isQuiet =
@@ -139,7 +137,6 @@ await app.register(rateLimit, {
   max: 120,
   timeWindow: "1 minute",
 });
-await app.register(websocket);
 
 app.get("/health", async () => ({ ok: true }));
 
@@ -195,57 +192,14 @@ app.post("/api/feedback", async (request) => {
   return repository.createFeedback(body);
 });
 
-app.post(
-  "/api/heartbeat",
-  { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
-  async (request, reply) => {
-    const body = heartbeatSchema.parse(request.body) satisfies HeartbeatPayload;
-    await repository.heartbeat(body.installUuid, body.gameId, body.source);
-    return reply.code(204).send();
-  },
-);
-
-app.post("/api/session-end", async (request, reply) => {
-  const body = heartbeatSchema.parse(request.body) satisfies SessionEndPayload;
-  await repository.endSession(body.installUuid, body.gameId, body.source);
-  return reply.code(204).send();
-});
-
-const liveSockets = new Set<import("@fastify/websocket").WebSocket>();
-const MAX_LIVE_CONNECTIONS =
-  Number.parseInt(process.env.LIVE_MAX_CONNECTIONS ?? "", 10) || 10_000;
-let lastLiveSnapshot = "[]";
-
-async function broadcastLiveSnapshot() {
-  try {
-    lastLiveSnapshot = JSON.stringify(await repository.liveSnapshot());
-  } catch (error) {
-    app.log.error({ error }, "live snapshot failed");
-    return;
-  }
-  for (const socket of liveSockets) {
-    if (socket.readyState === socket.OPEN) socket.send(lastLiveSnapshot);
-  }
-}
-
-void broadcastLiveSnapshot();
-setInterval(() => void broadcastLiveSnapshot(), 10_000);
-
-app.get("/api/live", { websocket: true }, (socket) => {
-  if (liveSockets.size >= MAX_LIVE_CONNECTIONS) {
-    socket.close(1013, "Too many connections");
-    return;
-  }
-
-  liveSockets.add(socket);
-  socket.send(lastLiveSnapshot);
-  socket.on("close", () => liveSockets.delete(socket));
-});
-
-app.get("/api/stats/today", async () => repository.statsToday());
-app.get("/api/stats/week", async () => repository.statsWeek());
-
-setInterval(() => void repository.purgeStaleSessions(120_000), 120_000);
+// Retired live-stats endpoints. The feature was removed, but desktop versions
+// that predate the removal still call these. They return success and do
+// nothing so those clients don't surface "404" error banners. Once old
+// versions have aged out, these stubs can be deleted entirely.
+app.post("/api/heartbeat", async (_request, reply) => reply.code(204).send());
+app.post("/api/session-end", async (_request, reply) => reply.code(204).send());
+app.get("/api/stats/today", async () => []);
+app.get("/api/stats/week", async () => []);
 
 const port = Number(process.env.PORT ?? 4000);
 await app.listen({ host: "0.0.0.0", port });

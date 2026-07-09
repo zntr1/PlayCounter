@@ -44,12 +44,6 @@ export function DevToolsView() {
           onChange={(value) => setDevNumber("pollingIntervalSeconds", value)}
         />
         <NumberInput
-          label="Heartbeat interval"
-          suffix="seconds"
-          value={settings.heartbeatIntervalSeconds}
-          onChange={(value) => setDevNumber("heartbeatIntervalSeconds", value)}
-        />
-        <NumberInput
           label="Unmatched retry"
           suffix="days"
           value={settings.unmatchedRetryDays}

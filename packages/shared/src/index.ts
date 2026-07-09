@@ -1,5 +1,4 @@
 export type GameSource = "igdb" | "community" | "custom";
-export type ReportableGameSource = Exclude<GameSource, "custom">;
 
 export interface Game {
   id: number;
@@ -73,26 +72,6 @@ export interface GameMetadataResponse {
   games: Game[];
 }
 
-export interface HeartbeatPayload {
-  installUuid: string;
-  gameId: number;
-  source: ReportableGameSource;
-}
-
-export interface SessionEndPayload {
-  installUuid: string;
-  gameId: number;
-  source: ReportableGameSource;
-}
-
-export interface LiveEntry {
-  gameId: number;
-  name: string;
-  coverUrl: string;
-  source?: GameSource;
-  playerCount: number;
-}
-
 export interface Session {
   id: number;
   gameId: number;
@@ -122,11 +101,9 @@ export interface FeedbackResponse {
 }
 
 export interface Settings {
-  shareAnonymousLiveData: boolean;
   launchOnStartup: boolean;
   showDurationDays: boolean;
   pollingIntervalSeconds: number;
-  heartbeatIntervalSeconds: number;
   unmatchedRetryDays: number;
   apiEndpoint: string;
   verboseLogs: boolean;

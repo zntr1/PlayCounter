@@ -1,11 +1,9 @@
 import type {
   Game,
   GameMetadataResponse,
-  LiveEntry,
   MatchProcessesResponse,
   Platform,
   ProcessIdentifier,
-  ReportableGameSource,
   Session,
   Settings,
 } from "@playcounter/shared";
@@ -27,7 +25,6 @@ const CUSTOM_GAME_ID_BASE = -1_000_000_000;
 const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
 const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
 const FAKE_HISTORY_EXE_PREFIX = "playcounter-fake-";
-const HEARTBEAT_GRACE_MS = 5_000;
 const SESSION_CHECKPOINT_INTERVAL_MS = 60_000;
 const BACKEND_HEALTH_INTERVAL_MS = 60_000;
 const BACKEND_HEALTH_TIMEOUT_MS = 2_500;
@@ -59,14 +56,10 @@ type IgnoredProcessesResponse = {
 };
 
 let initialized = false;
-let heartbeatTimer: number | undefined;
 let backendHealthTimer: number | undefined;
-let liveTimer: number | undefined;
 let processTimer: number | undefined;
 let trayTimer: number | undefined;
-let liveSocket: WebSocket | undefined;
 let unsubscribeTraySync: (() => void) | undefined;
-let unsubscribePrivacySync: (() => void) | undefined;
 let nextSessionSequence = 0;
 let scanInFlight: Promise<void> | undefined;
 let scanQueued = false;
@@ -92,14 +85,6 @@ export async function initializeTracker() {
     if (state.activeSessions !== previousState.activeSessions) {
       syncTrayNowPlaying();
       scheduleTraySync();
-    }
-  });
-  unsubscribePrivacySync = useAppStore.subscribe((state, previousState) => {
-    if (
-      previousState.settings.shareAnonymousLiveData &&
-      !state.settings.shareAnonymousLiveData
-    ) {
-      void clearSharedLiveSessions(previousState.activeSessions);
     }
   });
   logRuntime("tracker state hydrated");
@@ -131,34 +116,21 @@ async function finishTrackerStartup() {
 
   void closeStaleSession();
   scheduleBackendHealthChecks();
-  void refreshLiveFeed();
-  logRuntime("live feed initialized");
 
   logRuntime("process listener skipped; polling is active");
 
   useAppStore.getState().setCleanup(() => {
     logRuntime("tracker cleanup running");
-    if (heartbeatTimer) window.clearInterval(heartbeatTimer);
-    heartbeatTimer = undefined;
     if (backendHealthTimer) window.clearInterval(backendHealthTimer);
     backendHealthTimer = undefined;
-    if (liveTimer) window.clearInterval(liveTimer);
-    liveTimer = undefined;
     if (processTimer) window.clearInterval(processTimer);
     processTimer = undefined;
     if (trayTimer) window.clearInterval(trayTimer);
     trayTimer = undefined;
     unsubscribeTraySync?.();
     unsubscribeTraySync = undefined;
-    unsubscribePrivacySync?.();
-    unsubscribePrivacySync = undefined;
-    liveSocket?.close();
-    liveSocket = undefined;
     initialized = false;
   });
-
-  scheduleHeartbeat(useAppStore.getState().settings.heartbeatIntervalSeconds);
-  logRuntime("heartbeat scheduled");
 
   window.setTimeout(() => {
     void (async () => {
@@ -684,7 +656,6 @@ function setCommunityUpgrade(exeName: string, game: Game) {
   if (promoted) {
     logRuntime(`community suggestion approved ${exeName} -> ${game.name}`);
     persist();
-    void sendHeartbeat();
   }
 }
 
@@ -978,7 +949,6 @@ function startSession(
   useAppStore.setState((state) => ({
     activeSessions: [...state.activeSessions, session],
   }));
-  void sendHeartbeat();
 }
 
 export function selectAmbiguousMatch(exeName: string, game: Game) {
@@ -1066,7 +1036,6 @@ async function endSession(session: ActiveSession, endedAtOverride?: string) {
     durationSeconds,
   });
   removeActiveSession(session);
-  await sendSessionEnd(session);
   logRuntime(
     `session ended ${session.gameName} durationSeconds=${durationSeconds}`,
   );
@@ -1087,16 +1056,6 @@ async function closeStaleSession() {
       await endSession(active, active.checkpointedAt);
     }
   }
-}
-
-function scheduleHeartbeat(intervalSeconds: number) {
-  if (heartbeatTimer) window.clearInterval(heartbeatTimer);
-  heartbeatTimer = undefined;
-  heartbeatTimer = window.setInterval(
-    () => void sendHeartbeat(),
-    Math.max(10, intervalSeconds) * 1000 + HEARTBEAT_GRACE_MS,
-  );
-  logRuntime(`heartbeat scheduled intervalSeconds=${intervalSeconds}`);
 }
 
 function scheduleBackendHealthChecks() {
@@ -1173,220 +1132,6 @@ function scheduleProcessPolling(intervalSeconds: number) {
     Math.max(2, intervalSeconds) * 1000,
   );
   logRuntime(`process polling intervalSeconds=${intervalSeconds}`);
-}
-
-async function sendHeartbeat() {
-  const state = useAppStore.getState();
-  const reportableSessions = state.activeSessions.filter(
-    (session) => !isCustomSession(session),
-  );
-  if (
-    !state.settings.shareAnonymousLiveData ||
-    !state.installUuid ||
-    reportableSessions.length === 0
-  ) {
-    verboseRuntime(
-      "heartbeat skipped; sharing disabled, install UUID missing, no active sessions, or only custom games",
-    );
-    return;
-  }
-
-  if (
-    state.backendHealth.status === "offline" ||
-    state.backendHealth.status === "reconnecting"
-  ) {
-    verboseRuntime("heartbeat skipped; backend offline");
-    return;
-  }
-
-  for (const session of reportableSessions) {
-    const source = reportableSessionSource(session);
-    if (!source) continue;
-    try {
-      verboseRuntime(
-        `heartbeat sending source=${source} gameId=${session.gameId}`,
-      );
-      const response = await fetchWithTimeout(
-        `${state.settings.apiEndpoint}/api/heartbeat`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          timeoutMs: API_REQUEST_TIMEOUT_MS,
-          body: JSON.stringify({
-            installUuid: state.installUuid,
-            gameId: session.gameId,
-            source,
-          }),
-        },
-      );
-      if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`);
-      }
-      verboseRuntime(
-        `heartbeat sent source=${source} gameId=${session.gameId}`,
-      );
-    } catch (error) {
-      logRuntime(`heartbeat failed: ${formatError(error)}`);
-      if (!isBackendUnavailable()) {
-        state.setRuntimeError(`Heartbeat failed: ${formatError(error)}`);
-      }
-    }
-  }
-}
-
-async function sendSessionEnd(
-  session: ActiveSession,
-  options: { ignoreSharingDisabled?: boolean } = {},
-) {
-  const state = useAppStore.getState();
-  if (
-    (!options.ignoreSharingDisabled &&
-      !state.settings.shareAnonymousLiveData) ||
-    !state.installUuid ||
-    isCustomSession(session)
-  ) {
-    verboseRuntime(
-      "session-end skipped; sharing disabled, install UUID missing, or custom game",
-    );
-    return;
-  }
-
-  if (
-    state.backendHealth.status === "offline" ||
-    state.backendHealth.status === "reconnecting"
-  ) {
-    verboseRuntime("session-end skipped; backend offline");
-    return;
-  }
-
-  try {
-    const gameId = session.gameId;
-    const source = reportableSessionSource(session);
-    if (!source) return;
-    logRuntime(`session-end sending source=${source} gameId=${gameId}`);
-    const response = await fetchWithTimeout(
-      `${state.settings.apiEndpoint}/api/session-end`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        timeoutMs: API_REQUEST_TIMEOUT_MS,
-        body: JSON.stringify({
-          installUuid: state.installUuid,
-          gameId,
-          source,
-        }),
-      },
-    );
-    if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
-    }
-    logRuntime(`session-end sent source=${source} gameId=${gameId}`);
-  } catch (error) {
-    logRuntime(`session-end failed: ${formatError(error)}`);
-    if (!isBackendUnavailable()) {
-      useAppStore
-        .getState()
-        .setRuntimeError(`Session-end failed: ${formatError(error)}`);
-    }
-  }
-}
-
-async function clearSharedLiveSessions(sessions: ActiveSession[]) {
-  const reportableSessions = sessions.filter(
-    (session) => !isCustomSession(session),
-  );
-  if (reportableSessions.length === 0) return;
-
-  logRuntime(
-    `anonymous sharing disabled; clearing ${reportableSessions.length} shared live session(s)`,
-  );
-  await Promise.allSettled(
-    reportableSessions.map((session) =>
-      sendSessionEnd(session, { ignoreSharingDisabled: true }),
-    ),
-  );
-}
-
-function isBackendUnavailable() {
-  const status = useAppStore.getState().backendHealth.status;
-  return status === "offline" || status === "reconnecting";
-}
-
-function connectLiveFeed() {
-  if (isBackendUnavailable()) {
-    verboseRuntime("live websocket skipped; backend offline");
-    return;
-  }
-
-  liveSocket?.close();
-  const endpoint = useAppStore
-    .getState()
-    .settings.apiEndpoint.replace(/^http/, "ws");
-
-  try {
-    logRuntime(`live websocket connecting ${endpoint}/api/live`);
-    liveSocket = new WebSocket(`${endpoint}/api/live`);
-    liveSocket.onopen = () => logRuntime("live websocket connected");
-    liveSocket.onmessage = (event) => {
-      const entries = JSON.parse(event.data) as LiveEntry[];
-      useAppStore.getState().setLiveEntries(entries);
-      verboseRuntime(`live websocket snapshot entries=${entries.length}`);
-    };
-    liveSocket.onerror = () => {
-      logRuntime("live websocket error; enabling stats polling fallback");
-      if (!liveTimer)
-        liveTimer = window.setInterval(() => void refreshLiveFeed(), 10_000);
-    };
-  } catch {
-    logRuntime("live websocket setup failed; enabling stats polling fallback");
-    liveTimer = window.setInterval(() => void refreshLiveFeed(), 10_000);
-  }
-}
-
-export function startLiveFeed() {
-  if (isBackendUnavailable()) {
-    verboseRuntime("live feed start skipped; backend offline");
-    return;
-  }
-
-  void refreshLiveFeed();
-  connectLiveFeed();
-}
-
-export function stopLiveFeed() {
-  if (liveTimer) window.clearInterval(liveTimer);
-  liveTimer = undefined;
-  liveSocket?.close();
-  liveSocket = undefined;
-  logRuntime("live feed disconnected");
-}
-
-async function refreshLiveFeed() {
-  const state = useAppStore.getState();
-  if (
-    state.backendHealth.status === "offline" ||
-    state.backendHealth.status === "reconnecting"
-  ) {
-    verboseRuntime("live feed refresh skipped; backend offline");
-    return;
-  }
-
-  try {
-    verboseRuntime("live feed refresh started");
-    const response = await fetchWithTimeout(
-      `${state.settings.apiEndpoint}/api/stats/today`,
-      { timeoutMs: API_REQUEST_TIMEOUT_MS },
-    );
-    if (response.ok) {
-      const entries = (await response.json()) as LiveEntry[];
-      state.setLiveEntries(entries);
-      verboseRuntime(`live feed refresh ok entries=${entries.length}`);
-    } else {
-      logRuntime(`live feed refresh failed status=${response.status}`);
-    }
-  } catch (error) {
-    verboseRuntime(`live feed refresh skipped: ${formatError(error)}`);
-  }
 }
 
 export function persist() {
@@ -1563,7 +1308,6 @@ export function untrackCustomGame(exeName: string) {
   );
   if (active) {
     removeActiveSession(active);
-    void sendSessionEnd(active);
   }
 
   state.removeExeCacheEntry(exeName);
@@ -1591,7 +1335,6 @@ export function untrackGame(
     if (session.gameId !== gameId) continue;
     if (source && session.source !== source) continue;
     removeActiveSession(session);
-    void sendSessionEnd(session);
   }
 
   for (const exeName of matchingExeNames) {
@@ -1939,15 +1682,6 @@ function recoveredSessionEndAt(session: ActiveSession) {
 
 function isCustomSession(session: ActiveSession) {
   return session.source === "custom" || session.gameId < 0;
-}
-
-function reportableSessionSource(
-  session: ActiveSession,
-): ReportableGameSource | null {
-  if (session.source === "igdb" || session.source === "community") {
-    return session.source;
-  }
-  return isCustomSession(session) ? null : "igdb";
 }
 
 function activeSessionKey(

@@ -1,17 +1,10 @@
-import type {
-  Game,
-  GameSource,
-  LiveEntry,
-  Session,
-  Settings,
-} from "@playcounter/shared";
+import type { Game, GameSource, Session, Settings } from "@playcounter/shared";
 import { create } from "zustand";
 
 export type ViewId =
   | "now"
   | "games"
   | "discovered"
-  | "live"
   | "history"
   | "settings"
   | "dev";
@@ -106,7 +99,6 @@ type AppState = {
   activeSessions: ActiveSession[];
   ambiguousMatches: AmbiguousProcessMatch[];
   recentSessions: Session[];
-  liveEntries: LiveEntry[];
   gameMetadata: Map<string, GameMetadata>;
   processes: ProcessSnapshot[];
   lastProcessScanAt: string | null;
@@ -130,7 +122,6 @@ type AppState = {
   setAmbiguousMatch: (match: AmbiguousProcessMatch) => void;
   removeAmbiguousMatch: (exeName: string) => void;
   addSession: (session: Session) => void;
-  setLiveEntries: (entries: LiveEntry[]) => void;
   setGameMetadata: (games: GameMetadata[]) => void;
   setProcesses: (processes: ProcessSnapshot[]) => void;
   setProcessScanError: (error: string | null) => void;
@@ -148,14 +139,10 @@ type AppState = {
   addToast: (toast: Omit<Toast, "id">) => void;
   dismissToast: (toastId: number) => void;
   setCleanup: (cleanup: () => void) => void;
-  setShareAnonymousLiveData: (enabled: boolean) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
   setDevNumber: (
-    key:
-      | "pollingIntervalSeconds"
-      | "heartbeatIntervalSeconds"
-      | "unmatchedRetryDays",
+    key: "pollingIntervalSeconds" | "unmatchedRetryDays",
     value: number,
   ) => void;
   setApiEndpoint: (value: string) => void;
@@ -173,11 +160,9 @@ export const BUILD_STAGE: Stage =
   (import.meta.env.VITE_PLAYCOUNTER_STAGE as Stage | undefined) ?? "local";
 
 const defaultSettings: Settings = {
-  shareAnonymousLiveData: true,
   launchOnStartup: true,
   showDurationDays: false,
   pollingIntervalSeconds: 5,
-  heartbeatIntervalSeconds: 60,
   unmatchedRetryDays: 30,
   apiEndpoint: DEFAULT_API_ENDPOINT,
   verboseLogs: false,
@@ -211,7 +196,6 @@ export const useAppStore = create<AppState>((set) => ({
   activeSessions: [],
   ambiguousMatches: [],
   recentSessions: [],
-  liveEntries: [],
   gameMetadata: new Map(),
   processes: [],
   lastProcessScanAt: null,
@@ -258,7 +242,6 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       recentSessions: [session, ...state.recentSessions].slice(0, 500),
     })),
-  setLiveEntries: (liveEntries) => set({ liveEntries }),
   setGameMetadata: (games) =>
     set((state) => {
       const gameMetadata = new Map(state.gameMetadata);
@@ -320,12 +303,6 @@ export const useAppStore = create<AppState>((set) => ({
       toasts: state.toasts.filter((toast) => toast.id !== toastId),
     })),
   setCleanup: (cleanup) => set({ cleanup }),
-  setShareAnonymousLiveData: (enabled) => {
-    set((state) => ({
-      settings: { ...state.settings, shareAnonymousLiveData: enabled },
-    }));
-    persistSoon();
-  },
   setLaunchOnStartup: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, launchOnStartup: enabled },

@@ -5,10 +5,8 @@ import type {
   FeedbackPayload,
   FeedbackResponse,
   Game,
-  LiveEntry,
   MatchProcessRequestItem,
   ProcessIdentifier,
-  ReportableGameSource,
 } from "@playcounter/shared";
 import pg from "pg";
 import {
@@ -18,13 +16,6 @@ import {
   type IgdbExecutableMatch,
 } from "./igdb.js";
 import { count, logger } from "./logger.js";
-
-type LiveSession = {
-  installUuid: string;
-  gameId: number;
-  source: ReportableGameSource;
-  lastPing: number;
-};
 
 type ProcessMatchResult = {
   game: Game | null;
@@ -76,32 +67,10 @@ const identifierPriority: Record<string, number> = {
 };
 const maxIgdbFallbacksPerMatchRequest = 5;
 
-function liveSessionKey(
-  installUuid: string,
-  gameId: number,
-  source: ReportableGameSource,
-) {
-  return `${installUuid}:${source}:${gameId}`;
-}
-
 export interface PlayCounterRepository {
   matchProcesses(
     processes: MatchProcessRequestItem[],
   ): Promise<Map<string, ProcessMatchResult>>;
-  heartbeat(
-    installUuid: string,
-    gameId: number,
-    source: ReportableGameSource,
-  ): Promise<void>;
-  endSession(
-    installUuid: string,
-    gameId: number,
-    source: ReportableGameSource,
-  ): Promise<void>;
-  liveSnapshot(): Promise<LiveEntry[]>;
-  statsToday(): Promise<LiveEntry[]>;
-  statsWeek(): Promise<LiveEntry[]>;
-  purgeStaleSessions(maxAgeMs: number): Promise<void>;
   gamesByIds(gameIds: number[]): Promise<Game[]>;
   searchIgdbGames(query: string): Promise<Game[]>;
   searchCommunityMetadata(query: string): Promise<CommunityMetadataCandidate[]>;
@@ -112,8 +81,6 @@ export interface PlayCounterRepository {
 }
 
 export class MemoryRepository implements PlayCounterRepository {
-  private readonly live = new Map<string, LiveSession>();
-
   async matchProcesses(
     processes: MatchProcessRequestItem[],
   ): Promise<Map<string, ProcessMatchResult>> {
@@ -143,93 +110,6 @@ export class MemoryRepository implements PlayCounterRepository {
       if (best) matches.set(process.key, best);
     }
     return matches;
-  }
-
-  async heartbeat(
-    installUuid: string,
-    gameId: number,
-    source: ReportableGameSource,
-  ): Promise<void> {
-    this.live.set(liveSessionKey(installUuid, gameId, source), {
-      installUuid,
-      gameId,
-      source,
-      lastPing: Date.now(),
-    });
-  }
-
-  async endSession(
-    installUuid: string,
-    gameId: number,
-    source: ReportableGameSource,
-  ): Promise<void> {
-    this.live.delete(liveSessionKey(installUuid, gameId, source));
-  }
-
-  async liveSnapshot(): Promise<LiveEntry[]> {
-    const counts = new Map<
-      string,
-      { gameId: number; source: ReportableGameSource; playerCount: number }
-    >();
-    for (const session of this.live.values()) {
-      const key = `${session.source}:${session.gameId}`;
-      const existing = counts.get(key);
-      counts.set(key, {
-        gameId: session.gameId,
-        source: session.source,
-        playerCount: (existing?.playerCount ?? 0) + 1,
-      });
-    }
-
-    return [...counts.values()]
-      .map(({ gameId, source, playerCount }) => {
-        const game = demoGames.find((candidate) => candidate.id === gameId);
-        return {
-          gameId,
-          name: game?.name ?? `Game #${gameId}`,
-          coverUrl: game?.coverUrl ?? "",
-          source,
-          playerCount,
-        };
-      })
-      .sort((a, b) => b.playerCount - a.playerCount);
-  }
-
-  async statsToday(): Promise<LiveEntry[]> {
-    return this.liveSnapshot();
-  }
-
-  async statsWeek(): Promise<LiveEntry[]> {
-    return [
-      {
-        gameId: 1,
-        name: "Cyberpunk 2077",
-        coverUrl: demoGames[0].coverUrl,
-        source: "igdb",
-        playerCount: 142,
-      },
-      {
-        gameId: 2,
-        name: "Hades II",
-        coverUrl: demoGames[1].coverUrl,
-        source: "igdb",
-        playerCount: 96,
-      },
-      {
-        gameId: 3,
-        name: "Balatro",
-        coverUrl: demoGames[2].coverUrl,
-        source: "igdb",
-        playerCount: 71,
-      },
-    ];
-  }
-
-  async purgeStaleSessions(maxAgeMs: number): Promise<void> {
-    const cutoff = Date.now() - maxAgeMs;
-    for (const [installUuid, session] of this.live) {
-      if (session.lastPing < cutoff) this.live.delete(installUuid);
-    }
   }
 
   async gamesByIds(gameIds: number[]): Promise<Game[]> {
@@ -482,85 +362,6 @@ export class PostgresRepository implements PlayCounterRepository {
     );
   }
 
-  async heartbeat(
-    installUuid: string,
-    gameId: number,
-    source: ReportableGameSource,
-  ): Promise<void> {
-    const result = await this.pool.query(
-      `INSERT INTO live_sessions (install_uuid, game_id, game_source, last_ping)
-       SELECT $1, $2, $3, now()
-       WHERE EXISTS (
-         SELECT 1 FROM igdb_games WHERE $3 = 'igdb' AND id = $2
-         UNION ALL
-         SELECT 1 FROM community_games WHERE $3 = 'community' AND id = $2
-       )
-       ON CONFLICT (install_uuid, game_source, game_id)
-       DO UPDATE SET last_ping = now()`,
-      [installUuid, gameId, source],
-    );
-    if (result.rowCount === 0) {
-      logger.warn(
-        `[heartbeat] Ignored heartbeat for unknown ${source} game ${gameId}.`,
-      );
-    }
-  }
-
-  async endSession(
-    installUuid: string,
-    gameId: number,
-    source: ReportableGameSource,
-  ): Promise<void> {
-    await this.pool.query(
-      "DELETE FROM live_sessions WHERE install_uuid = $1 AND game_id = $2 AND game_source = $3",
-      [installUuid, gameId, source],
-    );
-  }
-
-  async liveSnapshot(): Promise<LiveEntry[]> {
-    const result = await this.pool.query(
-      `SELECT live_sessions.game_id,
-              live_sessions.game_source AS source,
-              coalesce(igdb_games.name, community_games.name, 'Unknown Game') AS name,
-              coalesce(igdb_games.cover_url, community_games.cover_url, '') AS cover_url,
-              count(*)::int AS player_count
-       FROM live_sessions
-       LEFT JOIN igdb_games
-         ON live_sessions.game_source = 'igdb'
-        AND igdb_games.id = live_sessions.game_id
-       LEFT JOIN community_games
-         ON live_sessions.game_source = 'community'
-        AND community_games.id = live_sessions.game_id
-       GROUP BY live_sessions.game_id,
-                live_sessions.game_source,
-                coalesce(igdb_games.name, community_games.name, 'Unknown Game'),
-                coalesce(igdb_games.cover_url, community_games.cover_url, '')
-       ORDER BY player_count DESC`,
-    );
-    return result.rows.map((row) => ({
-      gameId: row.game_id,
-      name: row.name,
-      coverUrl: row.cover_url,
-      source: row.source,
-      playerCount: row.player_count,
-    }));
-  }
-
-  async statsToday(): Promise<LiveEntry[]> {
-    return this.statsForInterval("1 day");
-  }
-
-  async statsWeek(): Promise<LiveEntry[]> {
-    return this.statsForInterval("7 days");
-  }
-
-  async purgeStaleSessions(maxAgeMs: number): Promise<void> {
-    await this.pool.query(
-      "DELETE FROM live_sessions WHERE last_ping < now() - make_interval(secs => $1)",
-      [Math.floor(maxAgeMs / 1000)],
-    );
-  }
-
   async gamesByIds(gameIds: number[]): Promise<Game[]> {
     if (gameIds.length === 0) return [];
     const result = await this.pool.query(
@@ -693,38 +494,6 @@ export class PostgresRepository implements PlayCounterRepository {
       ],
     );
     return { id: result.rows[0].id };
-  }
-
-  private async statsForInterval(interval: string): Promise<LiveEntry[]> {
-    const result = await this.pool.query(
-      `SELECT daily_stats.game_id,
-              daily_stats.game_source AS source,
-              coalesce(igdb_games.name, community_games.name, 'Unknown Game') AS name,
-              coalesce(igdb_games.cover_url, community_games.cover_url, '') AS cover_url,
-              max(daily_stats.player_count)::int AS player_count
-       FROM daily_stats
-       LEFT JOIN igdb_games
-         ON daily_stats.game_source = 'igdb'
-        AND igdb_games.id = daily_stats.game_id
-       LEFT JOIN community_games
-         ON daily_stats.game_source = 'community'
-        AND community_games.id = daily_stats.game_id
-       WHERE daily_stats.date >= (current_date - $1::interval)
-       GROUP BY daily_stats.game_id,
-                daily_stats.game_source,
-                coalesce(igdb_games.name, community_games.name, 'Unknown Game'),
-                coalesce(igdb_games.cover_url, community_games.cover_url, '')
-       ORDER BY player_count DESC
-       LIMIT 50`,
-      [interval],
-    );
-    return result.rows.map((row) => ({
-      gameId: row.game_id,
-      name: row.name,
-      coverUrl: row.cover_url,
-      source: row.source,
-      playerCount: row.player_count,
-    }));
   }
 
   private async findAndPersistIgdbWindowsExe(

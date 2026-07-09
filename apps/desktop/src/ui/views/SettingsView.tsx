@@ -38,9 +38,6 @@ export function SettingsView() {
   const [confirmResetCache, setConfirmResetCache] = useState(false);
   const isOffline = useIsOffline();
   const settings = useAppStore((state) => state.settings);
-  const setShareAnonymousLiveData = useAppStore(
-    (state) => state.setShareAnonymousLiveData,
-  );
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
   const ignoredProcessCount = useAppStore(
@@ -131,7 +128,7 @@ export function SettingsView() {
   return (
     <div className="grid max-w-4xl gap-5">
       <SettingsPanel
-        description="Control background behavior and anonymous community stats."
+        description="Control background behavior and how playtimes are shown."
         title="General"
       >
         <SettingsRow
@@ -150,24 +147,6 @@ export function SettingsView() {
         </SettingsRow>
         {startupError ? (
           <p className="break-words text-sm text-danger">{startupError}</p>
-        ) : null}
-        <SettingsRow
-          description="Shares only install UUID, game ID, and timestamp while a matched game is running."
-          title="Anonymous live data"
-        >
-          <input
-            type="checkbox"
-            checked={settings.shareAnonymousLiveData}
-            onChange={(event) =>
-              setShareAnonymousLiveData(event.target.checked)
-            }
-            className="h-5 w-5 accent-accent"
-          />
-        </SettingsRow>
-        {isOffline && settings.shareAnonymousLiveData ? (
-          <p className="text-sm text-text-muted">
-            Anonymous sharing is paused while PlayCounter is offline.
-          </p>
         ) : null}
         <SettingsRow
           description="Shows long playtimes as days and hours instead of total hours."
