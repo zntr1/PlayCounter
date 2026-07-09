@@ -408,6 +408,9 @@ async function resolveProcesses(
   const matches: ProcessMatch[] = [];
   const queryProcesses: ProcessSnapshot[] = [];
   const customUpgradeProcesses: ProcessSnapshot[] = [];
+  const ambiguousByKey = new Map(
+    state.ambiguousMatches.map((match) => [match.exeName.toLowerCase(), match]),
+  );
   let cacheMatchedCount = 0;
   let cacheSkippedCount = 0;
 
@@ -423,6 +426,17 @@ async function resolveProcesses(
     }
     if (options.forceQueryKeys?.has(processCacheKey(process))) {
       queryProcesses.push(process);
+      continue;
+    }
+    // An unresolved ambiguity has no exe cache entry and would otherwise be
+    // re-queried on every scan; the stored candidates keep driving the UI.
+    const ambiguous = ambiguousByKey.get(processCacheKey(process));
+    if (
+      ambiguous &&
+      now - Date.parse(ambiguous.lastCheckedAt ?? ambiguous.detectedAt) <
+        PENDING_COMMUNITY_RETRY_MS
+    ) {
+      cacheSkippedCount += 1;
       continue;
     }
     const cached = resolveCachedProcess(process, state.exeCache, now, ttlMs);
@@ -891,6 +905,7 @@ function cacheAmbiguousMatch(process: ProcessSnapshot, candidates: Game[]) {
     candidates,
     detectedAt: existing?.detectedAt ?? new Date().toISOString(),
     endedAt: undefined,
+    lastCheckedAt: new Date().toISOString(),
   });
   state.addApiRequestLogEntry({
     endpoint: state.settings.apiEndpoint,

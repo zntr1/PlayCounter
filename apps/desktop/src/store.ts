@@ -34,6 +34,8 @@ export type AmbiguousProcessMatch = {
   candidates: Game[];
   detectedAt: string;
   endedAt?: string;
+  // When the candidates were last fetched; gates re-querying the match API.
+  lastCheckedAt?: string;
 };
 
 export type GameMetadata = {

@@ -140,9 +140,13 @@ export class MemoryRepository implements PlayCounterRepository {
 export class PostgresRepository implements PlayCounterRepository {
   private readonly pool: pg.Pool;
   private readonly igdb: IgdbClient;
-  // In-memory negative cache for IGDB live lookups that found no match, keyed
-  // by lowercased exe name. Lost on restart, which just costs one extra lookup.
-  private readonly igdbLookupMisses = new Map<string, number>();
+  // In-memory cache for IGDB live lookups that found no match or an ambiguous
+  // set, keyed by lowercased exe name. Lost on restart, which just costs one
+  // extra lookup.
+  private readonly igdbLookupCache = new Map<
+    string,
+    { at: number; ambiguousGames?: Game[] }
+  >();
 
   constructor(connectionString: string, igdb = createIgdbClientFromEnv()) {
     this.pool = new pg.Pool({ connectionString });
@@ -514,16 +518,18 @@ export class PostgresRepository implements PlayCounterRepository {
       return null;
     }
 
-    const missKey = exeName.toLowerCase();
-    const missedAt = this.igdbLookupMisses.get(missKey);
-    if (missedAt !== undefined) {
-      if (Date.now() - missedAt < igdbLookupMissTtlMs) {
+    const cacheKey = exeName.toLowerCase();
+    const cached = this.igdbLookupCache.get(cacheKey);
+    if (cached !== undefined) {
+      if (Date.now() - cached.at < igdbLookupMissTtlMs) {
         logger.info(
-          `[match] IGDB live lookup skipped for "${exeName}"; a recent lookup found no match.`,
+          `[match] IGDB live lookup skipped for "${exeName}"; a recent lookup found ${cached.ambiguousGames ? "the same ambiguous set" : "no match"}.`,
         );
-        return null;
+        return cached.ambiguousGames
+          ? { ambiguousGames: cached.ambiguousGames }
+          : null;
       }
-      this.igdbLookupMisses.delete(missKey);
+      this.igdbLookupCache.delete(cacheKey);
     }
 
     let igdbMatch: IgdbExecutableMatch | null;
@@ -542,16 +548,16 @@ export class PostgresRepository implements PlayCounterRepository {
     if (!igdbMatch) {
       // Only genuine "no exact match" results are cached; lookup errors above
       // return early and stay retryable.
-      this.igdbLookupMisses.set(missKey, Date.now());
+      this.igdbLookupCache.set(cacheKey, { at: Date.now() });
       return null;
     }
 
     if (igdbMatch.ambiguousGames) {
-      return {
-        ambiguousGames: await this.persistIgdbGameMetadata(
-          igdbMatch.ambiguousGames,
-        ),
-      };
+      const ambiguousGames = await this.persistIgdbGameMetadata(
+        igdbMatch.ambiguousGames,
+      );
+      this.igdbLookupCache.set(cacheKey, { at: Date.now(), ambiguousGames });
+      return { ambiguousGames };
     }
 
     const { executableName, game: igdbGame } = igdbMatch;
