@@ -91,6 +91,41 @@ fn save_custom_cover(
 }
 
 #[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    const MAX_IMPORT_BYTES: u64 = 64 * 1024 * 1024;
+
+    let path = PathBuf::from(path);
+    let size = fs::metadata(&path).map_err(|error| error.to_string())?.len();
+    if size > MAX_IMPORT_BYTES {
+        return Err("Backup file is too large to import.".to_string());
+    }
+    fs::read_to_string(&path).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    fs::write(PathBuf::from(path), contents).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn backup_local_data(app: tauri::AppHandle, contents: String) -> Result<String, String> {
+    let backup_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("backups");
+    fs::create_dir_all(&backup_dir).map_err(|error| error.to_string())?;
+
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_secs();
+    let path = backup_dir.join(format!("playcounter-backup-{stamp}.json"));
+    fs::write(&path, contents).map_err(|error| error.to_string())?;
+    path_to_string(path)
+}
+
+#[tauri::command]
 fn open_user_ignored_processes_folder(app: tauri::AppHandle) -> Result<(), String> {
     let folder = ignored_processes::user_file_dir(&app)?;
     open_folder(&folder)
@@ -126,6 +161,7 @@ pub fn run() {
             show_main_window(app);
         }))
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
@@ -137,6 +173,9 @@ pub fn run() {
             ignored_processes,
             set_user_ignored_process,
             save_custom_cover,
+            read_text_file,
+            write_text_file,
+            backup_local_data,
             open_user_ignored_processes_folder,
             open_external_url,
             update_tray_now_playing,

@@ -1,4 +1,4 @@
-import { Download, FolderOpen, RotateCcw } from "lucide-react";
+import { Download, FolderOpen, RotateCcw, Upload } from "lucide-react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
 import {
@@ -6,6 +6,7 @@ import {
   openUserIgnoredProcessesFolder,
   reloadIgnoredProcesses,
 } from "../../tracker";
+import { exportLocalData, importLocalData } from "../../backup";
 import { useAppStore, useIsOffline } from "../../store";
 import {
   checkForUpdate,
@@ -36,6 +37,9 @@ export function SettingsView() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [reloadingIgnored, setReloadingIgnored] = useState(false);
   const [confirmResetCache, setConfirmResetCache] = useState(false);
+  const [confirmImport, setConfirmImport] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const isOffline = useIsOffline();
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
@@ -116,6 +120,49 @@ export function SettingsView() {
     } catch (error) {
       setUpdateError(formatError(error));
       setUpdateStatus("error");
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const result = await exportLocalData();
+      if ("cancelled" in result) return;
+      addToast({
+        tone: "success",
+        title: "Backup exported",
+        detail: result.path,
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Export failed",
+        detail: formatError(error),
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleImport() {
+    setImporting(true);
+    try {
+      const result = await importLocalData();
+      if ("cancelled" in result) return;
+      // On success the window reloads, so this toast is best-effort.
+      addToast({
+        tone: "success",
+        title: "Backup imported",
+        detail: `${result.sessions} sessions restored. Reloading…`,
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Import failed",
+        detail: formatError(error),
+      });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -243,6 +290,41 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
+        description="Move your play history and game cache to another PC. Backups are plain JSON files."
+        title="Backup & transfer"
+      >
+        <SettingsRow
+          description="Save all local data (play history, game cache, settings) to a JSON file you can copy to another PC."
+          title="Export data"
+        >
+          <div className="flex shrink-0 justify-end">
+            <Button
+              icon={Download}
+              loading={exporting}
+              onClick={() => void handleExport()}
+            >
+              Export
+            </Button>
+          </div>
+        </SettingsRow>
+        <SettingsRow
+          description="Replace all local data with a backup file. Your current data is backed up automatically first."
+          title="Import data"
+        >
+          <div className="flex shrink-0 justify-end">
+            <Button
+              variant="danger"
+              icon={Upload}
+              loading={importing}
+              onClick={() => setConfirmImport(true)}
+            >
+              Import
+            </Button>
+          </div>
+        </SettingsRow>
+      </SettingsPanel>
+
+      <SettingsPanel
         description="Check and install updates from the configured release feed."
         title="Updates"
       >
@@ -289,6 +371,15 @@ export function SettingsView() {
           </div>
         </div>
       </SettingsPanel>
+      {confirmImport ? (
+        <ImportDataDialog
+          onCancel={() => setConfirmImport(false)}
+          onConfirm={() => {
+            setConfirmImport(false);
+            void handleImport();
+          }}
+        />
+      ) : null}
       {confirmResetCache ? (
         <ResetCacheDialog
           onCancel={() => setConfirmResetCache(false)}
@@ -372,6 +463,35 @@ function ResetCacheDialog({
           </Button>
           <Button variant="danger" onClick={onConfirm}>
             Reset cache
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImportDataDialog({
+  onCancel,
+  onConfirm,
+}: {
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
+        <h2 className="text-lg font-semibold text-text">Import backup?</h2>
+        <p className="mt-2 text-sm text-text-muted">
+          This replaces your current play history, game cache, and settings with
+          the contents of the backup file. Your current data is saved to a
+          backup file first, and PlayCounter reloads when the import finishes.
+        </p>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <Button variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={onConfirm}>
+            Choose file
           </Button>
         </div>
       </div>
