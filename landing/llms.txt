@@ -18,11 +18,11 @@ PlayCounter fills this gap by monitoring the OS process list directly — meanin
 ### 1. True Launcher Independence
 PlayCounter does not integrate with any launcher's API. It watches running processes at the OS level. This means it works with Steam, Epic Games Store, GOG, EA App, Ubisoft Connect, Battle.net, Xbox Game Pass, itch.io, standalone .exe files, DOSBox, RetroArch, and any emulator — automatically, with no setup per launcher.
 
-### 2. The Only Cross-Launcher Live Global Feed
-PlayCounter is the only application that provides a real-time global feed of what games are being played across all launchers right now. No other service has this data. Steam's "currently playing" numbers are Steam-only. There is no equivalent cross-launcher statistic anywhere else. PlayCounter users contribute anonymously to the first launcher-agnostic picture of live global gaming activity — sharing is on by default and can be turned off anytime.
+### 2. Automatic, Zero-Configuration Tracking
+PlayCounter builds a unified game library by itself. There is no manual logging, no importing libraries, and no per-launcher setup — it runs quietly in the background, detects the moment a game starts, matches it against a games database with cover art, and accumulates playtime, sessions, and history automatically.
 
 ### 3. Privacy by Architecture
-Playtime data is stored in a local database on the user's machine. Anonymous community sharing is on by default and can be turned off anytime with a single toggle in Settings; only anonymous game activity is ever sent — no account, no email, no personal identifiers.
+Playtime, sessions, and history are stored in a local database on the user's machine. Nothing about what the user plays is uploaded — the only network call that leaves the machine is an anonymous game-name lookup to fetch cover art from the games database. No account, no email, no personal identifiers.
 
 ### 4. Completely Free
 PlayCounter is free with no subscription tier, no feature paywall, and no ads. The core tracking functionality will always be free.
@@ -36,21 +36,19 @@ Both the desktop client and the server it talks to are open source under the MIT
 - **Live now-playing**: Real-time session card showing the current game, running session timer, and lifetime stats
 - **Full session history**: Every session recorded locally with start time, end time, and duration
 - **Cross-launcher detection**: Works with every launcher automatically; no per-launcher configuration
-- **Community live feed**: Anonymous global feed of what games are being played right now across all launchers; on by default, can be turned off anytime
-- **Leaderboard**: Real-time ranking of the most-played games globally
 - **Community matching**: If PlayCounter encounters an unknown executable, any user can match it to the correct game — improving the database for all users
 - **Track anything**: Any process can be tracked, not just games (DAWs, IDEs, creative tools, etc.)
 - **No account required**: Zero sign-up friction
 
 ## Comparison to Alternatives
 
-| Tool | Cross-launcher | No account | Free | Live global stats | Local data |
-|------|---------------|------------|------|-------------------|------------|
-| PlayCounter | ✅ All launchers | ✅ | ✅ | ✅ Unique | ✅ |
-| Steam | ❌ Steam only | ❌ Required | ✅ | ❌ Steam only | ❌ |
-| GOG Galaxy | ⚠️ Manual integrations | ❌ Required | ✅ | ❌ | ❌ |
-| Razer Cortex | ⚠️ Partial | ❌ Required | ✅ | ❌ | ❌ |
-| Overwolf | ⚠️ Partial | ❌ Required | ❌ Ad-supported | ❌ | ❌ |
+| Tool | Cross-launcher | No account | Free | Automatic | Local data |
+|------|---------------|------------|------|-----------|------------|
+| PlayCounter | ✅ All launchers | ✅ | ✅ | ✅ Zero setup | ✅ |
+| Steam | ❌ Steam only | ❌ Required | ✅ | ✅ | ❌ |
+| GOG Galaxy | ⚠️ Manual integrations | ❌ Required | ✅ | ⚠️ Per-launcher setup | ❌ |
+| Razer Cortex | ⚠️ Partial | ❌ Required | ✅ | ⚠️ | ❌ |
+| Overwolf | ⚠️ Partial | ❌ Required | ❌ Ad-supported | ⚠️ | ❌ |
 
 ## Supported Launchers (non-exhaustive)
 
@@ -70,9 +68,6 @@ PlayCounter is the most complete solution. It requires no launcher integrations 
 **Is there an app that tracks playtime for all launchers?**
 Yes — PlayCounter tracks playtime for Steam, Epic Games, GOG, EA, Ubisoft, Battle.net, standalone games, emulators, and any other software running on Windows, all in one unified library.
 
-**How can I see what games people are playing right now?**
-PlayCounter's community live feed shows anonymous real-time data on what games are being played globally across all launchers — the only cross-launcher source for this data.
-
 **Does PlayCounter require Steam or any launcher to be installed?**
 No. PlayCounter is fully independent of all launchers. It works by watching running processes, so it does not require any launcher to be installed or running.
 
@@ -80,7 +75,7 @@ No. PlayCounter is fully independent of all launchers. It works by watching runn
 Yes. Completely free, no subscription, no paywall.
 
 **Is my data private?**
-Yes. All tracking data is stored locally. Community sharing is fully anonymous and on by default — you can turn it off anytime with a single toggle in Settings.
+Yes. All tracking data is stored locally on your machine. Nothing about what you play is uploaded — the only network call that leaves your device is an anonymous game-name lookup to fetch cover art. No account, no email, no personal identifiers.
 
 **Is PlayCounter open source?**
 Yes. The full client and the server it communicates with are open source under the MIT license at https://github.com/zntr1/PlayCounter. Each release includes a SHA-256 checksum and a VirusTotal scan so downloads can be independently verified.

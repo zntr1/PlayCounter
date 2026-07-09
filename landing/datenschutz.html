@@ -296,24 +296,6 @@
         der Kernfunktion der App, Spiele automatisch zu erkennen).
       </p>
 
-      <h3>Anonymer Community-Live-Feed</h3>
-      <p>
-        PlayCounter kann anzeigen, welche Spiele in der Community gerade gespielt
-        werden. Ist diese Funktion aktiv, sendet die App in regelmäßigen
-        Abständen eine <strong>zufällig erzeugte Installations-Kennung
-        (Install-UUID)</strong> zusammen mit der <strong>ID des gerade
-        gespielten Spiels</strong> an unsere API. Es werden dabei
-        <strong>kein Name, keine E-Mail-Adresse und keine Kontodaten</strong>
-        übertragen; die Install-UUID lässt keinen Rückschluss auf deine Person
-        zu. Selbst angelegte (Custom-)Spiele werden nie übertragen.
-      </p>
-      <p>
-        Diese Funktion ist <strong>standardmäßig aktiviert</strong>, lässt sich
-        aber jederzeit mit einem Schalter in den
-        <strong>Einstellungen</strong> der App vollständig deaktivieren
-        (Widerspruchsrecht). Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
-      </p>
-
       <h3>Feedback &amp; Spiele-Vorschläge</h3>
       <p>
         Wenn du in der App aktiv Feedback sendest oder ein noch nicht erkanntes
@@ -361,9 +343,11 @@
       <p>
         Lokale Daten verbleiben auf deinem Gerät, bis du sie in der App oder über
         dein Betriebssystem löschst. Server-Logs des Hostings werden nur für eine
-        kurze, technisch erforderliche Dauer vorgehalten. An die API übermittelte
-        Live-/Sitzungsdaten werden nur so lange gespeichert, wie es für die
-        jeweilige Funktion (z.&nbsp;B. den aktuellen Live-Feed) erforderlich ist.
+        kurze, technisch erforderliche Dauer vorgehalten. Beim Spiele-Abgleich
+        übermittelte Programmkennungen werden nicht dauerhaft mit deiner Person
+        gespeichert. Von dir aktiv gesendetes Feedback bzw. Spiele-Vorschläge
+        werden gespeichert, solange es für deren Bearbeitung und die Verbesserung
+        des Dienstes erforderlich ist.
       </p>
 
       <h2>6. Deine Rechte</h2>
@@ -376,8 +360,7 @@
         <li>Datenübertragbarkeit (Art. 20)</li>
         <li>
           Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen
-          (Art. 21) – z.&nbsp;B. durch Abschalten des Live-Feeds in den
-          Einstellungen
+          (Art. 21) – z.&nbsp;B. durch Offline-Betrieb der App
         </li>
         <li>
           Beschwerde bei einer Aufsichtsbehörde (Art. 77), z.&nbsp;B. der
@@ -395,10 +378,9 @@
 
       <div class="note">
         Hinweis: Du kannst die Datenübertragung der App jederzeit unterbinden,
-        indem du den Community-Live-Feed in den Einstellungen deaktivierst bzw.
-        die App offline betreibst. Die App funktioniert auch ohne
-        Server-Verbindung; lediglich der automatische Spiele-Abgleich und der
-        Live-Feed stehen dann nicht zur Verfügung.
+        indem du die App offline betreibst. Die App funktioniert auch ohne
+        Server-Verbindung; lediglich der automatische Spiele-Abgleich und das
+        Laden von Cover-Bildern stehen dann nicht zur Verfügung.
       </div>
 
       <hr class="divider" />
@@ -469,22 +451,6 @@
         path may additionally be sent to identify the game. Legal basis:
         Art. 6(1)(f) GDPR.
       </p>
-      <h3>Anonymous community live feed</h3>
-      <p>
-        PlayCounter can show which games the community is currently playing. When
-        enabled, the app periodically sends a <strong>randomly generated install
-        identifier (install UUID)</strong> together with the <strong>ID of the
-        game currently being played</strong> to our API. <strong>No name, email
-        or account data</strong> is transmitted, and the install UUID cannot be
-        traced back to you as a person. Custom (self-created) games are never
-        transmitted.
-      </p>
-      <p>
-        This feature is <strong>enabled by default</strong> but can be fully
-        turned off at any time via a toggle in the app
-        <strong>Settings</strong> (right to object). Legal basis: Art. 6(1)(f)
-        GDPR.
-      </p>
       <h3>Feedback &amp; game suggestions</h3>
       <p>
         If you actively send feedback or suggest an unrecognised game, the
@@ -522,9 +488,10 @@
       <p>
         Local data remains on your device until you delete it in the app or via
         your operating system. Hosting server logs are kept only for a short,
-        technically necessary period. Live/session data sent to the API is kept
-        only as long as needed for the respective feature (e.g. the current live
-        feed).
+        technically necessary period. Program identifiers sent for game matching
+        are not stored in a way that is linked to you. Feedback and game
+        suggestions you actively send are kept only as long as needed to process
+        them and improve the service.
       </p>
 
       <h2>6. Your rights</h2>
@@ -537,7 +504,7 @@
         <li>data portability (Art. 20)</li>
         <li>
           object to processing based on legitimate interest (Art. 21) – e.g. by
-          turning off the live feed in Settings
+          running the app offline
         </li>
         <li>
           lodge a complaint with a supervisory authority (Art. 77), e.g. the
@@ -553,10 +520,9 @@
       </p>
 
       <div class="note">
-        Note: You can stop the app from transmitting data at any time by
-        disabling the community live feed in Settings or running the app offline.
-        The app also works without a server connection; only automatic game
-        matching and the live feed are then unavailable.
+        Note: You can stop the app from transmitting data at any time by running
+        the app offline. The app also works without a server connection; only
+        automatic game matching and cover-image loading are then unavailable.
       </div>
     </main>
 

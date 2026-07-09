@@ -1336,9 +1336,8 @@
           "Automatic game playtime tracking for PC",
           "Automatic playtime detection via process monitoring",
           "Tracks games from Steam, Epic Games, GOG, EA, Ubisoft, Battle.net, standalone executables, emulators",
-          "Private - data stored locally on your machine",
+          "Private - playtime stored locally on your machine, nothing about your sessions uploaded",
           "No account or sign-up required",
-          "Community anonymous live feed",
           "Full session history",
           "Community-powered game matching"
         ]
@@ -1378,7 +1377,7 @@
             "name": "What about privacy and data collection?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "PlayCounter watches your processes locally to detect games. We do not harvest your personal data. The community live feed is fully anonymous and on by default, and you can opt out anytime with a single toggle in Settings."
+              "text": "PlayCounter watches your processes locally to detect games and stores your playtime in a local database on your machine. Nothing about what you play is uploaded - the only thing sent to our server is an anonymous game-name lookup so we can show the right cover art. No account, no personal data."
             }
           },
           {
@@ -1770,8 +1769,8 @@
             </div>
           </div>
 
-          <!-- community feed -->
-          <div class="card col-4" id="community">
+          <!-- everything stays local -->
+          <div class="card col-4" id="local">
             <div class="ic">
               <svg
                 viewBox="0 0 24 24"
@@ -1779,51 +1778,38 @@
                 stroke="currentColor"
                 stroke-width="2"
               >
-                <circle cx="12" cy="12" r="10" />
-                <path
-                  d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"
-                />
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="M9 12l2 2 4-4" />
               </svg>
             </div>
-            <h3>See what the world's playing</h3>
+            <h3>Everything stays on your machine</h3>
             <p>
-              An anonymous community live feed and leaderboard of what's being
-              played right now. Find your next game by watching the crowd.
+              Your playtime, sessions and history live in a local database on
+              your PC. Nothing about what you play is ever uploaded - the only
+              thing that touches our server is an anonymous game-name lookup so
+              we can show the right cover art.
             </p>
-            <div class="podium">
-              <div class="pod">
-                <div class="rank">2</div>
-                <div
-                  class="pc"
-                  style="
-                    background-image: url(&quot;covers/cyberpunk.webp&quot;);
-                  "
-                ></div>
-                <div class="count">312</div>
-                <div class="who">playing</div>
+            <div
+              class="toggle-demo"
+              style="
+                margin-top: 22px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
+              "
+            >
+              <div class="lbl">
+                <b>Stays on your device</b>
+                <span>Playtime · Sessions · History · Covers</span>
               </div>
-              <div class="pod first">
-                <div class="rank">1</div>
-                <div
-                  class="pc"
-                  style="background-image: url(&quot;covers/hades.webp&quot;)"
-                ></div>
-                <div class="count">874</div>
-                <div class="who">playing</div>
-              </div>
-              <div class="pod">
-                <div class="rank">3</div>
-                <div
-                  class="pc"
-                  style="background-image: url(&quot;covers/wow.webp&quot;)"
-                ></div>
-                <div class="count">196</div>
-                <div class="who">playing</div>
+              <div class="lbl">
+                <b>Ever leaves your device</b>
+                <span>Only anonymous cover-art lookups</span>
               </div>
             </div>
           </div>
 
-          <!-- privacy -->
+          <!-- no account -->
           <div class="card col-2">
             <div class="ic">
               <svg
@@ -1835,19 +1821,11 @@
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
             </div>
-            <h3>Private by design</h3>
+            <h3>No account, ever</h3>
             <p>
-              Tracking happens on your machine. Contributing to the live feed
-              is anonymous and on by default - one toggle opts you out whenever
-              you want.
+              No email, no sign-up, no cloud profile. You download the app and
+              it just works - your data belongs to you and nobody else.
             </p>
-            <div class="toggle-demo">
-              <div class="lbl">
-                <b>Share anonymously</b>
-                <span>your choice, always</span>
-              </div>
-              <span class="switch" id="privacy-switch"></span>
-            </div>
           </div>
 
           <!-- community matching -->
@@ -1971,9 +1949,9 @@
             </div>
             <h3>Private by design</h3>
             <p>
-              Tracking runs locally and there's no account. Live-feed
-              contributions are always anonymous and on by default - a single
-              toggle opts you out anytime.
+              Tracking runs locally and there's no account. Your play data
+              stays in a local database on your machine - nothing about what
+              you play is uploaded.
             </p>
           </div>
         </div>
@@ -2009,10 +1987,10 @@
       <div class="wrap reveal">
         <p class="kicker" style="text-align: center">Why we're building this</p>
         <h2 style="max-width: 16em; margin: 14px auto 0">
-          We want to see what the world is&nbsp;<span
+          Every hour you play, finally in&nbsp;<span
             style="color: var(--accent)"
-            >actually</span
-          >&nbsp;playing.
+            >one place</span
+          >.
         </h2>
         <p
           class="proof-note"
@@ -2023,11 +2001,11 @@
             color: var(--text-muted);
           "
         >
-          Right now there's nowhere to look. Steam shows Steam. Epic shows Epic.
-          The full, launcher-free picture of what gamers are playing
-          <em>right now</em> doesn't exist anywhere. So we're building it - one
-          tracker that unifies every source, and a global pulse made from
-          players sharing anonymously.
+          Your real gaming life is scattered across a dozen launchers that will
+          never talk to each other. Steam shows Steam. Epic shows Epic. The full
+          picture of what <em>you</em> actually play doesn't exist anywhere. So
+          we're building it - one tracker that sits above every launcher and
+          quietly keeps count of everything.
         </p>
         <p
           class="proof-note"
@@ -2038,9 +2016,9 @@
             color: var(--text-muted);
           "
         >
-          Every player who shares makes the picture sharper. It's anonymous and
-          on by default - no account, and one toggle opts you out whenever you
-          want.
+          It runs on your machine, builds your library by itself, and keeps your
+          history local. No account, no cloud, no catch - just the full picture,
+          and it's yours.
         </p>
 
         <div class="cta-row" style="justify-content: center; margin-top: 34px">
@@ -2178,10 +2156,11 @@
             </button>
             <div class="faq-content">
               <div class="faq-inner">
-                PlayCounter watches your processes locally to detect games. We
-                do not harvest your personal data. The community live feed is
-                fully anonymous and on by default - you can opt out anytime with
-                a single toggle in Settings.
+                PlayCounter watches your processes locally to detect games and
+                stores your playtime in a local database on your machine.
+                Nothing about what you play is uploaded - the only thing sent
+                to our server is an anonymous game-name lookup so we can show
+                the right cover art. No account, no personal data.
               </div>
             </div>
           </div>
@@ -2404,12 +2383,6 @@
           s = ft % 60;
         ftEl.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
       }, 1000);
-
-      // Privacy toggle gentle demo
-      var sw = document.getElementById("privacy-switch");
-      setInterval(function () {
-        sw.classList.toggle("on");
-      }, 2600);
 
       // Scroll reveal
       var io = new IntersectionObserver(
