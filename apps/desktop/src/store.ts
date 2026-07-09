@@ -55,6 +55,10 @@ export type ExeCacheEntry = {
   communitySuggestionVerified?: boolean;
   communityUpgradeGame?: Game;
   dismissedCommunityUpgradeGameId?: number;
+  // IGDB and community ids come from separate sequences and can collide, so a
+  // dismissal is only valid together with the source it was recorded for.
+  // Entries persisted before this field existed were always community.
+  dismissedCommunityUpgradeSource?: GameSource;
   lastCheckedAt: string;
   // Runtime accumulated while this exe is discovered but not yet matched to a
   // game. Folded forward on every scan and credited to the game when the exe is

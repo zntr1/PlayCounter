@@ -66,6 +66,10 @@ const identifierPriority: Record<string, number> = {
   "linux:executable_name": 50,
 };
 const maxIgdbFallbacksPerMatchRequest = 5;
+// How long a failed IGDB live lookup is remembered. Clients poll match-processes
+// continuously while an exe runs, and without this every poll from every client
+// re-queries IGDB for the same known-unmatched executable.
+const igdbLookupMissTtlMs = 6 * 60 * 60 * 1000;
 
 export interface PlayCounterRepository {
   matchProcesses(
@@ -136,6 +140,9 @@ export class MemoryRepository implements PlayCounterRepository {
 export class PostgresRepository implements PlayCounterRepository {
   private readonly pool: pg.Pool;
   private readonly igdb: IgdbClient;
+  // In-memory negative cache for IGDB live lookups that found no match, keyed
+  // by lowercased exe name. Lost on restart, which just costs one extra lookup.
+  private readonly igdbLookupMisses = new Map<string, number>();
 
   constructor(connectionString: string, igdb = createIgdbClientFromEnv()) {
     this.pool = new pg.Pool({ connectionString });
@@ -507,6 +514,18 @@ export class PostgresRepository implements PlayCounterRepository {
       return null;
     }
 
+    const missKey = exeName.toLowerCase();
+    const missedAt = this.igdbLookupMisses.get(missKey);
+    if (missedAt !== undefined) {
+      if (Date.now() - missedAt < igdbLookupMissTtlMs) {
+        logger.info(
+          `[match] IGDB live lookup skipped for "${exeName}"; a recent lookup found no match.`,
+        );
+        return null;
+      }
+      this.igdbLookupMisses.delete(missKey);
+    }
+
     let igdbMatch: IgdbExecutableMatch | null;
     try {
       igdbMatch = await this.igdb.findWindowsGameByAlternativeName(
@@ -520,7 +539,12 @@ export class PostgresRepository implements PlayCounterRepository {
       return null;
     }
 
-    if (!igdbMatch) return null;
+    if (!igdbMatch) {
+      // Only genuine "no exact match" results are cached; lookup errors above
+      // return early and stay retryable.
+      this.igdbLookupMisses.set(missKey, Date.now());
+      return null;
+    }
 
     if (igdbMatch.ambiguousGames) {
       return {

@@ -58,6 +58,12 @@ type IgnoredProcessesResponse = {
   userFilePath: string;
 };
 
+// Last time each custom game's exe was sent to the community upgrade check.
+// Without this the check fires on every process scan (every few seconds) for
+// the whole time a custom game is running. Not persisted; a restart re-checks
+// once, which is what the startup approval recheck does anyway.
+const communityUpgradeCheckedAt = new Map<string, number>();
+
 let initialized = false;
 let backendHealthTimer: number | undefined;
 let processTimer: number | undefined;
@@ -407,7 +413,12 @@ async function resolveProcesses(
 
   for (const process of processes) {
     const existing = state.exeCache.get(process.exeName.toLowerCase());
-    if (existing?.state === "matched" && existing.source === "custom") {
+    if (
+      existing?.state === "matched" &&
+      existing.source === "custom" &&
+      now - (communityUpgradeCheckedAt.get(processCacheKey(process)) ?? 0) >=
+        PENDING_COMMUNITY_RETRY_MS
+    ) {
       customUpgradeProcesses.push(process);
     }
     if (options.forceQueryKeys?.has(processCacheKey(process))) {
@@ -515,6 +526,12 @@ async function resolveProcesses(
 
 async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
   const state = useAppStore.getState();
+  // Recorded before the request so a failing backend is not retried on every
+  // scan either; the next attempt waits a full interval.
+  const now = Date.now();
+  for (const process of processes) {
+    communityUpgradeCheckedAt.set(processCacheKey(process), now);
+  }
   try {
     const response = await fetchWithTimeout(
       `${state.settings.apiEndpoint}/api/match-processes`,
@@ -535,7 +552,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
 
     const body = (await response.json()) as MatchProcessesResponse;
     for (const result of body.matches) {
-      if (result.game?.source === "community") {
+      if (result.game && result.game.source !== "custom") {
         setCommunityUpgrade(result.key, result.game);
         continue;
       }
@@ -585,6 +602,18 @@ function setCommunitySuggestionMarker(
   });
 }
 
+// A dismissal recorded before igdb upgrades existed has no source; those were
+// always community games.
+function isDismissedUpgrade(entry: ExeCacheEntry, game: Game) {
+  return (
+    entry.dismissedCommunityUpgradeGameId === game.id &&
+    (entry.dismissedCommunityUpgradeSource ?? "community") === game.source
+  );
+}
+
+// Records a database match found for a custom game. A community game the user
+// suggested themselves is applied directly; anything else (someone else's
+// community game or an igdb match) becomes an upgrade offer.
 function setCommunityUpgrade(exeName: string, game: Game) {
   let promoted = false;
   useAppStore.setState((state) => {
@@ -593,13 +622,16 @@ function setCommunityUpgrade(exeName: string, game: Game) {
     if (
       existing?.state !== "matched" ||
       existing.source !== "custom" ||
-      existing.dismissedCommunityUpgradeGameId === game.id
+      isDismissedUpgrade(existing, game)
     ) {
       return {};
     }
 
     const exeCache = new Map(state.exeCache);
-    if (existing.communitySuggestionId === game.id) {
+    if (
+      game.source === "community" &&
+      existing.communitySuggestionId === game.id
+    ) {
       promoted = true;
       const oldGameId = existing.gameId;
       exeCache.set(key, {
@@ -644,6 +676,11 @@ function setCommunityUpgrade(exeName: string, game: Game) {
       };
     }
 
+    if (game.source !== "community") {
+      exeCache.set(key, { ...existing, communityUpgradeGame: game });
+      return { exeCache };
+    }
+
     exeCache.set(key, {
       ...existing,
       communitySuggestionId: existing.communitySuggestionId ?? game.id,
@@ -679,13 +716,16 @@ export function acceptCommunityUpgrade(exeName: string) {
   }
 
   const oldGameId = existing.gameId;
+  const suggestionId =
+    game.source === "community" ? existing.communitySuggestionId : undefined;
+  const suggestionVerified = game.source === "community" ? true : undefined;
   state.setExeCacheEntry({
     exeName: existing.exeName,
     state: "matched",
     gameId: game.id,
     gameName: game.name,
     coverUrl: game.coverUrl,
-    source: "community",
+    source: game.source,
     lastCheckedAt: new Date().toISOString(),
   });
 
@@ -697,9 +737,9 @@ export function acceptCommunityUpgrade(exeName: string) {
             gameId: game.id,
             gameName: game.name,
             coverUrl: game.coverUrl,
-            source: "community",
-            communitySuggestionId: existing.communitySuggestionId,
-            communitySuggestionVerified: true,
+            source: game.source,
+            communitySuggestionId: suggestionId,
+            communitySuggestionVerified: suggestionVerified,
           }
         : session,
     ),
@@ -710,9 +750,9 @@ export function acceptCommunityUpgrade(exeName: string) {
             gameId: game.id,
             gameName: game.name,
             coverUrl: game.coverUrl,
-            source: "community",
-            communitySuggestionId: existing.communitySuggestionId,
-            communitySuggestionVerified: true,
+            source: game.source,
+            communitySuggestionId: suggestionId,
+            communitySuggestionVerified: suggestionVerified,
           }
         : session,
     ),
@@ -808,6 +848,7 @@ export function dismissCommunityUpgrade(exeName: string) {
       ...existing,
       communityUpgradeGame: undefined,
       dismissedCommunityUpgradeGameId: game.id,
+      dismissedCommunityUpgradeSource: game.source,
     });
     return { exeCache };
   });
@@ -1285,22 +1326,44 @@ export function recheckUnmatched() {
 }
 
 async function recheckPendingCommunityApprovals(reason: string) {
-  const pendingProcesses = [...useAppStore.getState().exeCache.values()]
+  const entries = [...useAppStore.getState().exeCache.values()];
+  const pendingProcesses = entries
     .filter(
       (entry) => entry.state === "unmatched" && entry.pendingCommunityGame,
     )
     .map((entry) => ({ exeName: entry.exeName, exePath: null }));
 
-  if (pendingProcesses.length === 0) return;
+  // Custom games with a not-yet-verified suggestion otherwise only re-check
+  // while their exe is running; without this an approval that happened while
+  // the game wasn't played would never be applied. Routed through the upgrade
+  // check because resolveProcesses would overwrite the custom entry.
+  const pendingCustomProcesses = entries
+    .filter(
+      (entry) =>
+        entry.state === "matched" &&
+        entry.source === "custom" &&
+        entry.communitySuggestionId &&
+        !entry.communitySuggestionVerified,
+    )
+    .map((entry) => ({ exeName: entry.exeName, exePath: null }));
+
+  if (pendingProcesses.length === 0 && pendingCustomProcesses.length === 0) {
+    return;
+  }
 
   logRuntime(
-    `pending community approval recheck ${reason} count=${pendingProcesses.length}`,
+    `pending community approval recheck ${reason} unmatched=${pendingProcesses.length}, custom=${pendingCustomProcesses.length}`,
   );
-  await resolveProcesses(pendingProcesses, {
-    forceQueryKeys: new Set(
-      pendingProcesses.map((process) => processCacheKey(process)),
-    ),
-  });
+  if (pendingProcesses.length > 0) {
+    await resolveProcesses(pendingProcesses, {
+      forceQueryKeys: new Set(
+        pendingProcesses.map((process) => processCacheKey(process)),
+      ),
+    });
+  }
+  if (pendingCustomProcesses.length > 0) {
+    await checkCommunityUpgrades(pendingCustomProcesses);
+  }
   persist();
 }
 

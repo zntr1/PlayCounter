@@ -854,7 +854,7 @@ function GameLibraryCard({
                         acceptCommunityUpgrade(game.communityUpgradeExeName!);
                         addToast({
                           tone: "success",
-                          title: "Community match applied",
+                          title: "Database match applied",
                           detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
                         });
                       }}
@@ -967,13 +967,13 @@ function GameLibraryCard({
                       acceptCommunityUpgrade(game.communityUpgradeExeName!);
                       addToast({
                         tone: "success",
-                        title: "Community match applied",
+                        title: "Database match applied",
                         detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
                       });
                     }}
                     className="border-success-border bg-success-tint px-3 py-1 text-xs text-success"
                   >
-                    Use community match
+                    Use database match
                   </Button>
                   <Button
                     variant="secondary"
