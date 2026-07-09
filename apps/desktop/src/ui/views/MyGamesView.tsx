@@ -1,8 +1,10 @@
 import clsx from "clsx";
+import { createPortal } from "react-dom";
 import {
   Ban,
   Clipboard,
   Clock3,
+  ClockPlus,
   Copy,
   History,
   ImagePlus,
@@ -14,6 +16,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   acceptCommunityUpgrade,
+  addManualSession,
   clearCustomGameCover,
   convertLocalSuggestionToCommunity,
   dismissCommunityUpgrade,
@@ -555,6 +558,7 @@ function GameLibraryCard({
   const contextMenu = useContextMenu();
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [showAddPlaytime, setShowAddPlaytime] = useState(false);
   const canEditCover = game.source === "custom";
 
   const handleCopyExe = () => {
@@ -581,6 +585,26 @@ function GameLibraryCard({
     setHistoryQuery(game.name);
     setActiveView("history");
     contextMenu.close();
+  };
+
+  const handleAddPlaytime = (durationSeconds: number, endedAt?: string) => {
+    addManualSession({
+      gameId: game.gameId,
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+      source: game.source,
+      exeName: game.exeNames[0] ?? "",
+      durationSeconds,
+      endedAt,
+      communitySuggestionId: game.communitySuggestionId,
+      communitySuggestionVerified: game.communitySuggestionVerified,
+    });
+    addToast({
+      tone: "success",
+      title: "Playtime added",
+      detail: `${formatDuration(durationSeconds, showDurationDays)} added to ${game.name}.`,
+    });
+    setShowAddPlaytime(false);
   };
 
   async function saveCover(file: File | Blob | null) {
@@ -658,6 +682,15 @@ function GameLibraryCard({
     >
       <ContextMenuItem icon={History} onClick={handleShowHistory}>
         Show History
+      </ContextMenuItem>
+      <ContextMenuItem
+        icon={ClockPlus}
+        onClick={() => {
+          contextMenu.close();
+          setShowAddPlaytime(true);
+        }}
+      >
+        Add playtime manually
       </ContextMenuItem>
       {canEditCover ? (
         <>
@@ -748,6 +781,13 @@ function GameLibraryCard({
 
           {/* Hover Actions - Top Right (Destructive Actions) */}
           <div className="absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
+            <IconButton
+              icon={ClockPlus}
+              aria-label={`Add playtime manually to ${game.name}`}
+              title="Add playtime manually"
+              onClick={() => setShowAddPlaytime(true)}
+              className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+            />
             {onStopTracking ? (
               <IconButton
                 icon={Ban}
@@ -860,6 +900,13 @@ function GameLibraryCard({
           )}
         </div>
         {renderContextMenu()}
+        {showAddPlaytime ? (
+          <AddPlaytimeDialog
+            game={game}
+            onCancel={() => setShowAddPlaytime(false)}
+            onConfirm={handleAddPlaytime}
+          />
+        ) : null}
       </article>
     );
   }
@@ -989,6 +1036,12 @@ function GameLibraryCard({
           </div>
 
           <div className="flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+            <IconButton
+              icon={ClockPlus}
+              aria-label={`Add playtime manually to ${game.name}`}
+              title="Add playtime manually"
+              onClick={() => setShowAddPlaytime(true)}
+            />
             {onStopTracking ? (
               <IconButton
                 icon={Ban}
@@ -1018,6 +1071,13 @@ function GameLibraryCard({
         }}
       />
       {renderContextMenu()}
+      {showAddPlaytime ? (
+        <AddPlaytimeDialog
+          game={game}
+          onCancel={() => setShowAddPlaytime(false)}
+          onConfirm={handleAddPlaytime}
+        />
+      ) : null}
     </article>
   );
 }
@@ -1114,6 +1174,117 @@ function RemoveGameDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+function localDateTimeValue(date: Date) {
+  // Format a Date as the value expected by <input type="datetime-local">
+  // (local time, no timezone suffix): YYYY-MM-DDTHH:mm.
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
+function AddPlaytimeDialog({
+  game,
+  onCancel,
+  onConfirm,
+}: {
+  game: GameSummary;
+  onCancel: () => void;
+  onConfirm: (durationSeconds: number, endedAt?: string) => void;
+}) {
+  const [hours, setHours] = useState("");
+  const [minutes, setMinutes] = useState("");
+  const [useDate, setUseDate] = useState(false);
+  const [dateValue, setDateValue] = useState(() =>
+    localDateTimeValue(new Date()),
+  );
+
+  const durationSeconds =
+    (Math.max(0, Number(hours) || 0) * 60 + Math.max(0, Number(minutes) || 0)) *
+    60;
+  const parsedDate = useDate ? new Date(dateValue) : null;
+  const dateInvalid = useDate && Number.isNaN(parsedDate?.getTime());
+  const canSubmit = durationSeconds >= 1 && !dateInvalid;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    onConfirm(
+      durationSeconds,
+      parsedDate ? parsedDate.toISOString() : undefined,
+    );
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
+        <h2 className="text-lg font-semibold text-text">
+          Add playtime to {game.name}
+        </h2>
+        <p className="mt-2 text-sm text-text-muted">
+          Log a session manually — for time played before PlayCounter, or when a
+          session was missed.
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+            Hours
+            <Input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={hours}
+              onChange={(event) => setHours(event.target.value)}
+              placeholder="0"
+            />
+          </label>
+          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+            Minutes
+            <Input
+              type="number"
+              min={0}
+              max={59}
+              inputMode="numeric"
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+              placeholder="0"
+            />
+          </label>
+        </div>
+
+        <label className="mt-4 flex items-center gap-2 text-sm text-text">
+          <input
+            type="checkbox"
+            checked={useDate}
+            onChange={(event) => setUseDate(event.target.checked)}
+            className="h-4 w-4 accent-accent"
+          />
+          Set a specific date for this session
+        </label>
+        {useDate ? (
+          <Input
+            type="datetime-local"
+            value={dateValue}
+            max={localDateTimeValue(new Date())}
+            onChange={(event) => setDateValue(event.target.value)}
+            className="mt-2 w-full"
+          />
+        ) : null}
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <Button variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
+            Add playtime
+          </Button>
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

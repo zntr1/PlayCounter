@@ -1483,6 +1483,48 @@ export function untrackGame(
   void requestProcessScan("after game untrack");
 }
 
+// Adds a manually entered play session for a game already in the library. The
+// caller supplies the game identity (from its existing sessions/cache) so the
+// entry aggregates onto the same library card. endedAt defaults to now; the
+// start is derived so the session spans the given duration.
+export function addManualSession(params: {
+  gameId: number;
+  gameName: string;
+  coverUrl: string;
+  source: Game["source"] | null;
+  exeName: string;
+  durationSeconds: number;
+  endedAt?: string;
+  communitySuggestionId?: number;
+  communitySuggestionVerified?: boolean;
+}) {
+  const durationSeconds = Math.round(params.durationSeconds);
+  if (durationSeconds < 1) return;
+
+  const endedAt = params.endedAt ?? new Date().toISOString();
+  const startedAt = new Date(
+    Date.parse(endedAt) - durationSeconds * 1000,
+  ).toISOString();
+
+  useAppStore.getState().addSession({
+    id: createSessionId(),
+    gameId: params.gameId,
+    gameName: params.gameName,
+    coverUrl: params.coverUrl,
+    source: params.source ?? undefined,
+    communitySuggestionId: params.communitySuggestionId,
+    communitySuggestionVerified: params.communitySuggestionVerified,
+    exeName: params.exeName,
+    startedAt,
+    endedAt,
+    durationSeconds,
+  });
+  logRuntime(
+    `manual session added ${params.gameName} (${params.exeName}) seconds=${durationSeconds}`,
+  );
+  persist();
+}
+
 export function removeHistorySession(sessionId: number) {
   const previousCount = useAppStore.getState().recentSessions.length;
   useAppStore.setState((state) => ({
