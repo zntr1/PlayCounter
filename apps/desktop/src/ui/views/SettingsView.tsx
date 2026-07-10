@@ -15,7 +15,7 @@ import {
   type UpdateCheckResult,
 } from "../../updater";
 import { Panel } from "../components";
-import { Button } from "../primitives";
+import { Button, useEscapeKey } from "../primitives";
 
 type UpdateStatus =
   | "idle"
@@ -448,6 +448,7 @@ function ResetCacheDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  useEscapeKey(onCancel);
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
@@ -476,6 +477,7 @@ function ImportDataDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  useEscapeKey(onCancel);
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">

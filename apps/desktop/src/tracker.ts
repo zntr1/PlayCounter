@@ -878,6 +878,20 @@ export function applyGameMatch(exeName: string, game: Game) {
   void requestProcessScan("after game match applied");
 }
 
+// Applies a database game directly to an exe — used when a community
+// suggestion turned out to be an already-known IGDB match. Handles both
+// unmatched exes (Discovered) and already matched ones (library).
+export function applyKnownGameMatch(exeName: string, game: Game) {
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (existing?.state === "matched") {
+    applyGameMatch(exeName, game);
+    return;
+  }
+  cacheMatchResult(exeName, game);
+  persist();
+  void requestProcessScan("after known game match applied");
+}
+
 // Manual "check for matches": runs the exe through the normal match pipeline
 // and returns every database candidate found. Pending (unverified)
 // suggestions are deliberately not offered.
@@ -1656,6 +1670,71 @@ export function shareTrackedCustomGame(
   return game;
 }
 
+// Demotes a wrongly matched igdb/community game to a local custom game — the
+// escape hatch when the real game exists in no database (e.g. an own tool or
+// unlisted title). Purely local; the shared mapping stays untouched.
+export function convertToCustomGame(exeName: string, gameName: string) {
+  const normalizedGameName = gameName.trim();
+  if (!normalizedGameName) return;
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (existing?.state !== "matched" || existing.source === "custom") return;
+  applyGameMatch(exeName, {
+    id: customGameId(exeName),
+    name: normalizedGameName,
+    coverUrl: existing.coverUrl ?? "",
+    source: "custom",
+  });
+  logRuntime(`converted to custom game ${exeName} -> ${normalizedGameName}`);
+}
+
+// Suggests the correct game for a tracked exe to the community. Custom games
+// are shared as-is; for igdb/community games this is the "report wrong match"
+// path — the exe is retagged locally as a shared custom game carrying the
+// suggested metadata and the awaiting-approval marker.
+export function suggestTrackedGameToCommunity(
+  exeName: string,
+  gameName: string,
+  coverUrl: string,
+  communitySuggestionId: number,
+  communitySuggestionVerified: boolean,
+) {
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (existing?.state !== "matched") return null;
+  if (existing.source === "custom") {
+    return shareTrackedCustomGame(
+      exeName,
+      gameName,
+      coverUrl,
+      communitySuggestionId,
+      communitySuggestionVerified,
+    );
+  }
+
+  const customGame: Game = {
+    id: customGameId(exeName),
+    name: gameName.trim(),
+    coverUrl,
+    source: "custom",
+  };
+  if (!customGame.name) return null;
+  applyGameMatch(exeName, customGame);
+  setCommunitySuggestionMarker(
+    exeName,
+    {
+      id: communitySuggestionId,
+      name: customGame.name,
+      coverUrl,
+      source: "community",
+    },
+    communitySuggestionVerified,
+  );
+  logRuntime(
+    `wrong match reported ${exeName} -> ${customGame.name} suggestion=${communitySuggestionId}`,
+  );
+  persist();
+  return customGame;
+}
+
 // Resolves an ambiguity picker with a locally created custom game — the
 // offline-friendly escape hatch when none of the candidates fit and the
 // community search is not available or not wanted. Runs through the regular
@@ -2138,7 +2217,7 @@ function recoveredSessionEndAt(session: ActiveSession) {
   return session.recoveredFromCheckpoint ? session.checkpointedAt : undefined;
 }
 
-function isCustomSession(session: ActiveSession) {
+function isCustomSession(session: Pick<ActiveSession, "source" | "gameId">) {
   return session.source === "custom" || session.gameId < 0;
 }
 
@@ -2206,6 +2285,40 @@ function customGameId(exeName: string) {
   return CUSTOM_GAME_ID_BASE - (hash % 900_000_000);
 }
 
+export function renameCustomGame(gameId: number, gameName: string) {
+  const name = gameName.trim();
+  if (!name) return;
+  useAppStore.setState((state) => {
+    const exeCache = new Map(state.exeCache);
+
+    for (const [key, entry] of exeCache) {
+      if (
+        entry.state === "matched" &&
+        entry.source === "custom" &&
+        entry.gameId === gameId
+      ) {
+        exeCache.set(key, { ...entry, gameName: name });
+      }
+    }
+
+    return {
+      exeCache,
+      activeSessions: state.activeSessions.map((session) =>
+        session.gameId === gameId && isCustomSession(session)
+          ? { ...session, gameName: name }
+          : session,
+      ),
+      recentSessions: state.recentSessions.map((session) =>
+        session.gameId === gameId && isCustomSession(session)
+          ? { ...session, gameName: name }
+          : session,
+      ),
+    };
+  });
+  logRuntime(`custom game renamed gameId=${gameId} -> ${name}`);
+  persist();
+}
+
 function updateCustomGameCover(gameId: number, coverUrl: string) {
   useAppStore.setState((state) => {
     const exeCache = new Map(state.exeCache);
@@ -2223,6 +2336,13 @@ function updateCustomGameCover(gameId: number, coverUrl: string) {
     return {
       exeCache,
       activeSessions: state.activeSessions.map((session) =>
+        session.gameId === gameId && isCustomSession(session)
+          ? { ...session, coverUrl }
+          : session,
+      ),
+      // Recorded sessions drive the library card's cover, so they must
+      // follow too — otherwise a cleared/changed cover keeps showing.
+      recentSessions: state.recentSessions.map((session) =>
         session.gameId === gameId && isCustomSession(session)
           ? { ...session, coverUrl }
           : session,

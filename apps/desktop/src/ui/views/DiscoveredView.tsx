@@ -23,6 +23,7 @@ import { createPortal } from "react-dom";
 import {
   addCustomGame,
   addSharedCustomGame,
+  applyKnownGameMatch,
   PENDING_COMMUNITY_RETRY_MS,
   recheckExecutable,
   scanProcessesNow,
@@ -36,6 +37,7 @@ import {
   type ProcessSnapshot,
 } from "../../store";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
+import { ExeIcon } from "../ExeIcon";
 import { Panel } from "../components";
 import { AnimatedCount, Button, IconButton, Input } from "../primitives";
 
@@ -423,12 +425,26 @@ export function DiscoveredView() {
         throw new Error(`${response.status} ${response.statusText}`);
 
       const result = (await response.json()) as CommunityGameSuggestionResponse;
+      if (result.igdbGame) {
+        applyKnownGameMatch(exeName, result.igdbGame);
+        setSuggestionState("saved");
+        setSuggestionExe(null);
+        setSuggestionSelection(null);
+        setSuggestionCandidates([]);
+        addToast({
+          tone: "success",
+          title: "Already in IGDB",
+          detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
+        });
+        return;
+      }
+      if (result.id === undefined) throw new Error("Unexpected response");
       addSharedCustomGame(
         exeName,
         suggestionSelection.name,
         suggestionSelection.coverUrl,
         result.id,
-        result.verified,
+        result.verified ?? false,
       );
       setSuggestionState("saved");
       setSuggestionMessage(
@@ -925,7 +941,11 @@ function TriageWizardCard({
       <div className="p-6 sm:p-8">
         <div className="mb-8 flex min-w-0 flex-col items-center gap-2 text-center">
           <div className="mb-2 grid h-16 w-16 place-items-center rounded-2xl bg-surface-hover text-text-faint">
-            <Gamepad2 size={32} />
+            <ExeIcon
+              exePath={executable.exePath}
+              className="h-8 w-8"
+              fallback={<Gamepad2 size={32} />}
+            />
           </div>
           <div className="flex h-10 w-full max-w-full items-center justify-center">
             <h3
@@ -1133,6 +1153,10 @@ function DiscoveredExecutableRow({
                 aria-label={executable.isRunning ? "Running" : "Not running"}
               />
             )}
+            <ExeIcon
+              exePath={executable.exePath}
+              className="h-4 w-4 shrink-0 rounded-sm"
+            />
             <h4
               title={executable.exeName}
               className={clsx(

@@ -132,6 +132,17 @@ export function Input({ className, ...rest }: InputProps) {
   );
 }
 
+// Closes an open overlay (modal, menu) when the user presses Escape.
+export function useEscapeKey(onClose: () => void) {
+  useEffect(() => {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+}
+
 export function useContextMenu() {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -179,18 +190,23 @@ export function ContextMenu({
     }
 
     const handleGlobalClick = (e: globalThis.MouseEvent) => {
-      // Allow clicking inside the menu without closing immediately 
+      // Allow clicking inside the menu without closing immediately
       // (item clicks will close it if they call onClose)
       if (menuRef.current && menuRef.current.contains(e.target as Node)) {
         return;
       }
       onClose();
     };
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
 
     window.addEventListener("mousedown", handleGlobalClick);
+    window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("blur", onClose);
     return () => {
       window.removeEventListener("mousedown", handleGlobalClick);
+      window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("blur", onClose);
     };
   }, [open, position, onClose]);

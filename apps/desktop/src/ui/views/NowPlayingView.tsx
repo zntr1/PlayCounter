@@ -324,12 +324,26 @@ function AmbiguousMatchCard({
         throw new Error(`${response.status} ${response.statusText}`);
 
       const result = (await response.json()) as CommunityGameSuggestionResponse;
+      if (result.igdbGame) {
+        selectAmbiguousMatch(exeName, result.igdbGame);
+        setSearchState("saved");
+        setSuggestionOpen(false);
+        setSelection(null);
+        setSearchResults([]);
+        addToast({
+          tone: "success",
+          title: "Already in IGDB",
+          detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
+        });
+        return;
+      }
+      if (result.id === undefined) throw new Error("Unexpected response");
       selectAmbiguousCommunitySuggestion(
         exeName,
         selection.name,
         selection.coverUrl,
         result.id,
-        result.verified,
+        result.verified ?? false,
       );
       setSearchState("saved");
       setSearchMessage(

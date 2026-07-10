@@ -64,8 +64,11 @@ export interface CommunityGameSuggestionPayload {
 }
 
 export interface CommunityGameSuggestionResponse {
-  id: number;
-  verified: boolean;
+  id?: number;
+  verified?: boolean;
+  // Set instead of id/verified when the suggested game is already a known
+  // IGDB match for the exe — the client applies it directly, no review needed.
+  igdbGame?: Game;
 }
 
 export interface GameMetadataResponse {

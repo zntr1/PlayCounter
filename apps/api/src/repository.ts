@@ -464,6 +464,46 @@ export class PostgresRepository implements PlayCounterRepository {
     const coverUrl = suggestion.coverUrl?.trim() || null;
     const submittedBy = suggestion.installUuid ?? null;
 
+    // If IGDB already maps this exe to the suggested game (directly or as an
+    // ambiguous candidate), there is nothing to review — tell the client to
+    // apply the IGDB match instead of filing a redundant suggestion.
+    const knownIgdb = await this.pool.query<{
+      id: number;
+      name: string;
+      cover_url: string | null;
+    }>(
+      `SELECT igdb_games.id, igdb_games.name, igdb_games.cover_url
+       FROM (
+         SELECT game_id FROM igdb_game_identifiers
+         WHERE lower(platform) = 'windows'
+           AND lower(kind) = 'exe'
+           AND lower(value) = lower($1)
+         UNION ALL
+         SELECT game_id FROM igdb_ambiguous_game_identifiers
+         WHERE lower(platform) = 'windows'
+           AND lower(kind) = 'exe'
+           AND lower(value) = lower($1)
+       ) identifiers
+       INNER JOIN igdb_games ON igdb_games.id = identifiers.game_id
+       WHERE lower(igdb_games.name) = lower($2)
+       LIMIT 1`,
+      [exeName, name],
+    );
+    const knownIgdbGame = knownIgdb.rows[0];
+    if (knownIgdbGame) {
+      logger.info(
+        `[community] Suggestion "${name}" for "${exeName}" is already a known IGDB match (#${knownIgdbGame.id}); returning it instead of filing a suggestion.`,
+      );
+      return {
+        igdbGame: {
+          id: knownIgdbGame.id,
+          name: knownIgdbGame.name,
+          coverUrl: knownIgdbGame.cover_url ?? "",
+          source: "igdb",
+        },
+      };
+    }
+
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");

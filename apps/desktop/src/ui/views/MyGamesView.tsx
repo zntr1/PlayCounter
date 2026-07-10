@@ -6,10 +6,13 @@ import {
   Clock3,
   ClockPlus,
   Copy,
+  Flag,
+  Gamepad2,
   History,
   ImagePlus,
   LayoutGrid,
   List,
+  Pencil,
   Search,
   Send,
   Trash2,
@@ -24,9 +27,11 @@ import {
   dismissCommunityUpgrade,
   doNotTrackGame,
   findGameMatches,
+  convertToCustomGame,
   hydrateGameMetadata,
+  renameCustomGame,
   setCustomGameCover,
-  shareTrackedCustomGame,
+  suggestTrackedGameToCommunity,
   untrackGame,
 } from "../../tracker";
 import {
@@ -52,6 +57,7 @@ import {
   IconButton,
   Input,
   useContextMenu,
+  useEscapeKey,
 } from "../primitives";
 import type {
   CommunityGameSuggestionResponse,
@@ -95,7 +101,7 @@ type PendingRemoval = {
 
 type PendingStopTracking = {
   gameId: number;
-  source: Exclude<GameSource, "custom">;
+  source: GameSource;
   name: string;
   exeNames: string[];
   sessionCount: number;
@@ -460,25 +466,16 @@ export function MyGamesView() {
                     })
                   }
                   onStopTracking={
-                    game.source === "igdb"
+                    game.source
                       ? () =>
                           setPendingStopTracking({
                             gameId: game.gameId,
-                            source: "igdb",
+                            source: game.source!,
                             name: game.name,
                             exeNames: game.exeNames,
                             sessionCount: game.sessionCount,
                           })
-                      : game.source === "community"
-                        ? () =>
-                            setPendingStopTracking({
-                              gameId: game.gameId,
-                              source: "community",
-                              name: game.name,
-                              exeNames: game.exeNames,
-                              sessionCount: game.sessionCount,
-                            })
-                        : undefined
+                      : undefined
                   }
                 />
               ))}
@@ -499,8 +496,8 @@ export function MyGamesView() {
             addToast({
               tone: "success",
               title: removeHistory
-                ? "Game untracked and history cleared"
-                : "Game untracked",
+                ? "Removed from library and history cleared"
+                : "Removed from library",
               detail: removeHistory
                 ? `${pendingRemoval.name} was removed from your library and history.`
                 : `${pendingRemoval.name} was removed from your library. History was kept.`,
@@ -526,8 +523,8 @@ export function MyGamesView() {
                 addToast({
                   tone: "success",
                   title: clearHistory
-                    ? "Tracking stopped and history cleared"
-                    : "Tracking stopped",
+                    ? "Game ignored and history cleared"
+                    : "Game ignored",
                   detail: clearHistory
                     ? `${game.name} will be ignored from now on. Existing history was cleared.`
                     : `${game.name} will be ignored from now on. History was kept.`,
@@ -536,7 +533,7 @@ export function MyGamesView() {
               .catch((error) => {
                 addToast({
                   tone: "error",
-                  title: "Stop tracking failed",
+                  title: "Could not ignore game",
                   detail: formatError(error),
                 });
               });
@@ -586,7 +583,38 @@ function GameLibraryCard({
     "idle" | "loading" | "saving" | "saved" | "error"
   >("idle");
   const [shareMessage, setShareMessage] = useState("");
+  const [showConvert, setShowConvert] = useState(false);
+  const [convertName, setConvertName] = useState("");
+  const [showRename, setShowRename] = useState(false);
+  const [renameName, setRenameName] = useState("");
   const canEditCover = game.source === "custom";
+  // Shown in place of the title while hovering the card.
+  const exeLabel = game.exeNames.filter(Boolean).join(", ");
+
+  function submitRename() {
+    const name = renameName.trim();
+    if (!name) return;
+    renameCustomGame(game.gameId, name);
+    addToast({
+      tone: "success",
+      title: "Game renamed",
+      detail: `The custom game is now called ${name}.`,
+    });
+    setShowRename(false);
+  }
+
+  function submitConvertToCustom() {
+    const exeName = game.exeNames[0];
+    const name = convertName.trim();
+    if (!exeName || !name) return;
+    convertToCustomGame(exeName, name);
+    addToast({
+      tone: "success",
+      title: "Converted to custom game",
+      detail: `${exeName} is now tracked as ${name}.`,
+    });
+    setShowConvert(false);
+  }
 
   const handleApplyMatch = (match: Game) => {
     applyGameMatch(game.exeNames[0], match);
@@ -668,12 +696,23 @@ function GameLibraryCard({
         throw new Error(`${response.status} ${response.statusText}`);
 
       const result = (await response.json()) as CommunityGameSuggestionResponse;
-      shareTrackedCustomGame(
+      if (result.igdbGame) {
+        applyGameMatch(exeName, result.igdbGame);
+        closeShare();
+        addToast({
+          tone: "success",
+          title: "Already in IGDB",
+          detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
+        });
+        return;
+      }
+      if (result.id === undefined) throw new Error("Unexpected response");
+      suggestTrackedGameToCommunity(
         exeName,
         shareSelection.name,
         shareSelection.coverUrl,
         result.id,
-        result.verified,
+        result.verified ?? false,
       );
       closeShare();
       addToast({
@@ -841,11 +880,44 @@ function GameLibraryCard({
               Suggest to Community
             </ContextMenuItem>
           ) : null}
+          {game.source === "igdb" || game.source === "community" ? (
+            <>
+              <ContextMenuItem
+                icon={Flag}
+                onClick={() => {
+                  contextMenu.close();
+                  setShareOpen(true);
+                }}
+              >
+                Report Wrong Match
+              </ContextMenuItem>
+              <ContextMenuItem
+                icon={Gamepad2}
+                onClick={() => {
+                  contextMenu.close();
+                  setConvertName(game.name);
+                  setShowConvert(true);
+                }}
+              >
+                Convert to Custom Game
+              </ContextMenuItem>
+            </>
+          ) : null}
         </>
       ) : null}
       {canEditCover ? (
         <>
           <ContextMenuSeparator />
+          <ContextMenuItem
+            icon={Pencil}
+            onClick={() => {
+              contextMenu.close();
+              setRenameName(game.name);
+              setShowRename(true);
+            }}
+          >
+            Rename Game
+          </ContextMenuItem>
           <ContextMenuItem
             icon={ImagePlus}
             onClick={() => {
@@ -884,7 +956,7 @@ function GameLibraryCard({
             contextMenu.close();
           }}
         >
-          Stop Tracking
+          Ignore Game
         </ContextMenuItem>
       ) : null}
       <ContextMenuItem
@@ -895,7 +967,7 @@ function GameLibraryCard({
           contextMenu.close();
         }}
       >
-        Untrack Game
+        Remove from Library
       </ContextMenuItem>
     </ContextMenu>
   );
@@ -930,8 +1002,38 @@ function GameLibraryCard({
             ) : null}
           </div>
 
-          {/* Hover Actions - Top Right (Destructive Actions) */}
+          {/* Hover Actions - Top Right (constructive first, destructive last) */}
           <div className="absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
+            {game.source && game.exeNames[0] ? (
+              <IconButton
+                icon={Search}
+                aria-label={`Check matches for ${game.name}`}
+                title="Check for matches"
+                onClick={() => setShowMatchCheck(true)}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+            ) : null}
+            {game.source === "custom" &&
+            game.exeNames[0] &&
+            !game.communitySuggestionId ? (
+              <IconButton
+                icon={Send}
+                aria-label={`Suggest ${game.name} to the community`}
+                title="Suggest to community"
+                onClick={() => setShareOpen(true)}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+            ) : null}
+            {(game.source === "igdb" || game.source === "community") &&
+            game.exeNames[0] ? (
+              <IconButton
+                icon={Flag}
+                aria-label={`Report wrong match for ${game.name}`}
+                title="Report wrong match"
+                onClick={() => setShareOpen(true)}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+            ) : null}
             <IconButton
               icon={ClockPlus}
               aria-label={`Add playtime manually to ${game.name}`}
@@ -942,8 +1044,8 @@ function GameLibraryCard({
             {onStopTracking ? (
               <IconButton
                 icon={Ban}
-                aria-label={`Stop tracking ${game.name}`}
-                title="Stop tracking"
+                aria-label={`Ignore ${game.name}`}
+                title="Ignore game (never track again)"
                 onClick={onStopTracking}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-warning hover:border-warning hover:text-white"
               />
@@ -951,8 +1053,8 @@ function GameLibraryCard({
             <IconButton
               icon={Trash2}
               intent="danger"
-              aria-label={`Untrack ${game.name}`}
-              title="Untrack game"
+              aria-label={`Remove ${game.name} from library`}
+              title="Remove from library"
               onClick={onRemove}
               className="bg-bg text-text-muted shadow-raised border-bg hover:!bg-danger-solid hover:!border-danger-solid hover:!text-white"
             />
@@ -973,9 +1075,18 @@ function GameLibraryCard({
         <div className="flex flex-1 flex-col border-t border-border bg-surface p-3">
           <h2
             className="truncate text-[15px] font-semibold text-text"
-            title={game.name}
+            title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
           >
-            {game.name}
+            {exeLabel ? (
+              <>
+                <span className="group-hover:hidden">{game.name}</span>
+                <span className="hidden font-mono text-[13px] group-hover:inline">
+                  {exeLabel}
+                </span>
+              </>
+            ) : (
+              game.name
+            )}
           </h2>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="font-mono text-lg font-bold tracking-tight text-text">
@@ -994,56 +1105,59 @@ function GameLibraryCard({
                 <>
                   <div
                     className="truncate text-[11px] font-semibold text-success"
-                    title={`Match: ${game.communityUpgradeGameName}`}
+                    title={`Found in database: ${game.communityUpgradeGameName}`}
                   >
-                    Update: {game.communityUpgradeGameName}
+                    Match found: {game.communityUpgradeGameName}
                   </div>
                   <div className="flex gap-2">
                     <Button
                       variant="primary"
+                      title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
                       onClick={() => {
                         acceptCommunityUpgrade(game.communityUpgradeExeName!);
                         addToast({
                           tone: "success",
-                          title: "Database match applied",
+                          title: "Match applied",
                           detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
                         });
                       }}
                       className="flex-1 px-0 py-1 text-[11px]"
                     >
-                      Update
+                      Use match
                     </Button>
                     <Button
                       variant="secondary"
+                      title="Keep the custom game and never show this match again"
                       onClick={() =>
                         dismissCommunityUpgrade(game.communityUpgradeExeName!)
                       }
                       className="px-2 py-1 text-[11px]"
                     >
-                      Dismiss
+                      Keep custom
                     </Button>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="text-[11px] font-semibold text-success">
-                    Community approved
+                    Your community suggestion was approved
                   </div>
                   <Button
                     variant="primary"
+                    title="Track this game as the approved community game from now on"
                     onClick={() => {
                       convertLocalSuggestionToCommunity(
                         game.communitySuggestionExeName!,
                       );
                       addToast({
                         tone: "success",
-                        title: "Community version applied",
+                        title: "Community match applied",
                         detail: `${game.name} now uses the approved community match.`,
                       });
                     }}
                     className="w-full py-1 text-[11px]"
                   >
-                    Apply Update
+                    Switch to community version
                   </Button>
                 </>
               )}
@@ -1084,6 +1198,28 @@ function GameLibraryCard({
             onSubmit={() => void submitShareSuggestion()}
           />
         ) : null}
+        {showConvert ? (
+          <GameNameDialog
+            title={`Convert ${game.name} to a custom game`}
+            description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
+            confirmLabel="Convert to custom"
+            name={convertName}
+            onNameChange={setConvertName}
+            onCancel={() => setShowConvert(false)}
+            onConfirm={submitConvertToCustom}
+          />
+        ) : null}
+        {showRename ? (
+          <GameNameDialog
+            title={`Rename ${game.name}`}
+            description="Changes the display name of this custom game everywhere, including recorded sessions."
+            confirmLabel="Rename"
+            name={renameName}
+            onNameChange={setRenameName}
+            onCancel={() => setShowRename(false)}
+            onConfirm={submitRename}
+          />
+        ) : null}
       </article>
     );
   }
@@ -1111,8 +1247,20 @@ function GameLibraryCard({
 
         <div className="min-w-0 py-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="truncate text-base font-semibold text-text">
-              {game.name}
+            <h2
+              className="truncate text-base font-semibold text-text"
+              title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
+            >
+              {exeLabel ? (
+                <>
+                  <span className="group-hover:hidden">{game.name}</span>
+                  <span className="hidden font-mono text-sm group-hover:inline">
+                    {exeLabel}
+                  </span>
+                </>
+              ) : (
+                game.name
+              )}
             </h2>
             <SourceBadge source={game.source} />
             {game.source === "custom" ? (
@@ -1140,44 +1288,49 @@ function GameLibraryCard({
                 <>
                   <Button
                     variant="secondary"
+                    title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
                     onClick={() => {
                       acceptCommunityUpgrade(game.communityUpgradeExeName!);
                       addToast({
                         tone: "success",
-                        title: "Database match applied",
+                        title: "Match applied",
                         detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
                       });
                     }}
-                    className="border-success-border bg-success-tint px-3 py-1 text-xs text-success"
+                    className="max-w-64 border-success-border bg-success-tint px-3 py-1 text-xs text-success"
                   >
-                    Use database match
+                    <span className="truncate">
+                      Use match: {game.communityUpgradeGameName}
+                    </span>
                   </Button>
                   <Button
                     variant="secondary"
+                    title="Keep the custom game and never show this match again"
                     onClick={() =>
                       dismissCommunityUpgrade(game.communityUpgradeExeName!)
                     }
                     className="px-3 py-1 text-xs"
                   >
-                    Dismiss
+                    Keep custom
                   </Button>
                 </>
               ) : (
                 <Button
                   variant="secondary"
+                  title="Your community suggestion was approved — track this game as the community game from now on"
                   onClick={() => {
                     convertLocalSuggestionToCommunity(
                       game.communitySuggestionExeName!,
                     );
                     addToast({
                       tone: "success",
-                      title: "Community version applied",
+                      title: "Community match applied",
                       detail: `${game.name} now uses the approved community match.`,
                     });
                   }}
                   className="border-success-border bg-success-tint px-3 py-1 text-xs text-success"
                 >
-                  Apply approved community match
+                  Suggestion approved — switch to community version
                 </Button>
               )}
             </div>
@@ -1222,16 +1375,16 @@ function GameLibraryCard({
             {onStopTracking ? (
               <IconButton
                 icon={Ban}
-                aria-label={`Stop tracking ${game.name}`}
-                title="Stop tracking"
+                aria-label={`Ignore ${game.name}`}
+                title="Ignore game (never track again)"
                 onClick={onStopTracking}
               />
             ) : null}
             <IconButton
               icon={Trash2}
               intent="danger"
-              aria-label={`Untrack ${game.name}`}
-              title="Untrack game"
+              aria-label={`Remove ${game.name} from library`}
+              title="Remove from library"
               onClick={onRemove}
             />
           </div>
@@ -1281,6 +1434,28 @@ function GameLibraryCard({
           onSubmit={() => void submitShareSuggestion()}
         />
       ) : null}
+      {showConvert ? (
+        <GameNameDialog
+          title={`Convert ${game.name} to a custom game`}
+          description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
+          confirmLabel="Convert to custom"
+          name={convertName}
+          onNameChange={setConvertName}
+          onCancel={() => setShowConvert(false)}
+          onConfirm={submitConvertToCustom}
+        />
+      ) : null}
+      {showRename ? (
+        <GameNameDialog
+          title={`Rename ${game.name}`}
+          description="Changes the display name of this custom game everywhere, including recorded sessions."
+          confirmLabel="Rename"
+          name={renameName}
+          onNameChange={setRenameName}
+          onCancel={() => setShowRename(false)}
+          onConfirm={submitRename}
+        />
+      ) : null}
     </article>
   );
 }
@@ -1305,15 +1480,17 @@ function StopTrackingDialog({
   onCancel: () => void;
   onConfirm: (clearHistory: boolean) => void;
 }) {
+  useEscapeKey(onCancel);
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
         <h2 className="text-lg font-semibold text-text">
-          Stop tracking {game.name}?
+          Ignore {game.name}?
         </h2>
         <p className="mt-2 text-sm text-text-muted">
-          PlayCounter will ignore this game&apos;s executable matches going
-          forward. Choose whether to keep or remove its existing history.
+          PlayCounter ignores this game&apos;s executable from now on — it will
+          never be tracked again. You can undo this anytime under Discovered
+          &rarr; Ignored.
         </p>
         {game.sessionCount > 0 ? (
           <p className="mt-2 text-sm text-text-muted">
@@ -1327,14 +1504,14 @@ function StopTrackingDialog({
         </div>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
-            Keep history
+            Ignore game
           </Button>
           <Button
             variant="danger"
             onClick={() => onConfirm(true)}
             disabled={game.sessionCount === 0}
           >
-            Clear history
+            Ignore + clear history
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancel
@@ -1354,22 +1531,24 @@ function RemoveGameDialog({
   onCancel: () => void;
   onConfirm: (removeHistory: boolean) => void;
 }) {
+  useEscapeKey(onCancel);
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
         <h2 className="text-lg font-semibold text-text">
-          Untrack {game.name}?
+          Remove {game.name} from library?
         </h2>
         <p className="mt-2 text-sm text-text-muted">
-          This removes the local executable mapping and stops active tracking if
-          it is currently running. Do you also want to remove its history?
+          Removes the game and its executable link, and stops an active session.
+          If the game runs again it will be re-detected — use Ignore Game to
+          block it for good.
         </p>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
-            Keep history
+            Remove
           </Button>
           <Button variant="danger" onClick={() => onConfirm(true)}>
-            Clear history
+            Remove + clear history
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancel
@@ -1399,6 +1578,7 @@ function AddPlaytimeDialog({
   onCancel: () => void;
   onConfirm: (durationSeconds: number, endedAt?: string) => void;
 }) {
+  useEscapeKey(onCancel);
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [useDate, setUseDate] = useState(false);
@@ -1500,6 +1680,7 @@ function MatchCheckDialog({
   onCancel: () => void;
   onApply: (match: Game) => void;
 }) {
+  useEscapeKey(onCancel);
   const exeName = game.exeNames[0] ?? "";
   const [state, setState] = useState<"loading" | "error" | "done">("loading");
   const [error, setError] = useState("");
@@ -1631,6 +1812,63 @@ function MatchCheckDialog({
             {game.source === "custom" ? "Keep custom game" : "Keep current match"}
           </Button>
         </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function GameNameDialog({
+  title,
+  description,
+  confirmLabel,
+  name,
+  onNameChange,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  name: string;
+  onNameChange: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEscapeKey(onCancel);
+  return createPortal(
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
+        <h2 className="text-lg font-semibold text-text">{title}</h2>
+        <p className="mt-2 text-sm text-text-muted">{description}</p>
+
+        <form
+          className="mt-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onConfirm();
+          }}
+        >
+          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+            Game name
+            <Input
+              value={name}
+              onChange={(event) => onNameChange(event.target.value)}
+              maxLength={120}
+              autoFocus
+              placeholder="Game name..."
+            />
+          </label>
+
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <Button variant="primary" type="submit" disabled={!name.trim()}>
+              {confirmLabel}
+            </Button>
+            <Button variant="ghost" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       </div>
     </div>,
     document.body,

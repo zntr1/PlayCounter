@@ -143,6 +143,23 @@ fn open_external_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn get_exe_icon(exe_path: String) -> Result<String, String> {
+    if !Path::new(&exe_path).is_file() {
+        return Err("Executable not found.".to_string());
+    }
+    // Icon extraction goes through OS APIs (GDI on Windows); run it off the
+    // async runtime so a slow disk cannot stall other commands.
+    tauri::async_runtime::spawn_blocking(move || {
+        let png = systemicons::get_icon(&exe_path, 32)
+            .map_err(|error| format!("Icon extraction failed: {error:?}"))?;
+        use base64::Engine as _;
+        Ok(base64::engine::general_purpose::STANDARD.encode(png))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 fn update_tray_now_playing(
     app: tauri::AppHandle,
     sessions: Vec<TraySession>,
@@ -179,7 +196,8 @@ pub fn run() {
             open_user_ignored_processes_folder,
             open_external_url,
             update_tray_now_playing,
-            scan_processes
+            scan_processes,
+            get_exe_icon
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
