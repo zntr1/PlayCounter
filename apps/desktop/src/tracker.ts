@@ -1598,6 +1598,64 @@ export function addSharedCustomGame(
   return game;
 }
 
+// Shares an already tracked custom game as a community suggestion: the entry
+// takes the suggested metadata plus the "awaiting approval" marker (same as
+// Discovered's "Add & Share"), and recorded sessions follow the new name and
+// cover so the library card matches the suggestion.
+export function shareTrackedCustomGame(
+  exeName: string,
+  gameName: string,
+  coverUrl: string,
+  communitySuggestionId: number,
+  communitySuggestionVerified: boolean,
+) {
+  const key = exeName.toLowerCase();
+  const existing = useAppStore.getState().exeCache.get(key);
+  if (existing?.state !== "matched" || existing.source !== "custom") {
+    return null;
+  }
+
+  const oldGameId = existing.gameId;
+  const game = addSharedCustomGame(
+    exeName,
+    gameName,
+    coverUrl,
+    communitySuggestionId,
+    communitySuggestionVerified,
+  );
+  if (!game) return null;
+
+  useAppStore.setState((current) => ({
+    activeSessions: current.activeSessions.map((session) =>
+      session.exeName.toLowerCase() === key && session.gameId === oldGameId
+        ? {
+            ...session,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
+            communitySuggestionId,
+            communitySuggestionVerified,
+          }
+        : session,
+    ),
+    recentSessions: current.recentSessions.map((session) =>
+      session.exeName.toLowerCase() === key && session.gameId === oldGameId
+        ? {
+            ...session,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
+            communitySuggestionId,
+            communitySuggestionVerified,
+          }
+        : session,
+    ),
+  }));
+  logRuntime(
+    `tracked custom game shared ${exeName} -> ${game.name} suggestion=${communitySuggestionId}`,
+  );
+  persist();
+  return game;
+}
+
 // Resolves an ambiguity picker with a locally created custom game — the
 // offline-friendly escape hatch when none of the candidates fit and the
 // community search is not available or not wanted. Runs through the regular

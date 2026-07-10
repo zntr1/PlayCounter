@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   List,
   Search,
+  Send,
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -25,14 +26,17 @@ import {
   findGameMatches,
   hydrateGameMetadata,
   setCustomGameCover,
+  shareTrackedCustomGame,
   untrackGame,
 } from "../../tracker";
 import {
   gameMetadataKey,
   useAppStore,
+  useIsOffline,
   type ActiveSession,
   type ExeCacheEntry,
 } from "../../store";
+import { CommunitySuggestionForm } from "./DiscoveredView";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import {
   CommunityApprovalBadge,
@@ -49,7 +53,13 @@ import {
   Input,
   useContextMenu,
 } from "../primitives";
-import type { Game, GameSource } from "@playcounter/shared";
+import type {
+  CommunityGameSuggestionResponse,
+  CommunityMetadataCandidate,
+  CommunityMetadataSearchResponse,
+  Game,
+  GameSource,
+} from "@playcounter/shared";
 
 type SortKey = "recent" | "playtime" | "name" | "sessions";
 type ViewMode = "grid" | "list";
@@ -562,6 +572,20 @@ function GameLibraryCard({
   const [coverBusy, setCoverBusy] = useState(false);
   const [showAddPlaytime, setShowAddPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
+  const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  const installUuid = useAppStore((state) => state.installUuid);
+  const isOffline = useIsOffline();
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareSearch, setShareSearch] = useState("");
+  const [shareCandidates, setShareCandidates] = useState<
+    CommunityMetadataCandidate[]
+  >([]);
+  const [shareSelection, setShareSelection] =
+    useState<CommunityMetadataCandidate | null>(null);
+  const [shareState, setShareState] = useState<
+    "idle" | "loading" | "saving" | "saved" | "error"
+  >("idle");
+  const [shareMessage, setShareMessage] = useState("");
   const canEditCover = game.source === "custom";
 
   const handleApplyMatch = (match: Game) => {
@@ -573,6 +597,95 @@ function GameLibraryCard({
     });
     setShowMatchCheck(false);
   };
+
+  function closeShare() {
+    setShareOpen(false);
+    setShareSearch("");
+    setShareCandidates([]);
+    setShareSelection(null);
+    setShareState("idle");
+    setShareMessage("");
+  }
+
+  async function searchShareCandidates() {
+    const query = shareSearch.trim();
+    if (query.length < 2 || isOffline) return;
+
+    setShareState("loading");
+    setShareMessage("");
+    setShareCandidates([]);
+    try {
+      const response = await fetch(
+        `${apiEndpoint}/api/community/metadata?query=${encodeURIComponent(query)}`,
+      );
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+      const body = (await response.json()) as CommunityMetadataSearchResponse;
+      setShareCandidates(body.candidates);
+      setShareMessage(
+        body.candidates.length > 0
+          ? "Pick the exact game this executable belongs to."
+          : "No matching games found.",
+      );
+      setShareState("idle");
+    } catch (error) {
+      setShareState("error");
+      setShareMessage(formatError(error));
+    }
+  }
+
+  function applyShareCandidate(candidate: CommunityMetadataCandidate) {
+    if (!candidate.coverUrl) {
+      setShareSelection(null);
+      setShareMessage(
+        `${candidate.name} has no cover art. Pick a result with cover art.`,
+      );
+      return;
+    }
+
+    setShareSelection(candidate);
+    setShareMessage(`Selected ${candidate.name} from the database.`);
+  }
+
+  async function submitShareSuggestion() {
+    const exeName = game.exeNames[0];
+    if (!shareSelection?.coverUrl || !exeName) return;
+
+    setShareState("saving");
+    setShareMessage("");
+    try {
+      const response = await fetch(`${apiEndpoint}/api/community/suggestions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          exeName,
+          name: shareSelection.name,
+          coverUrl: shareSelection.coverUrl,
+          installUuid: installUuid ?? undefined,
+        }),
+      });
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+
+      const result = (await response.json()) as CommunityGameSuggestionResponse;
+      shareTrackedCustomGame(
+        exeName,
+        shareSelection.name,
+        shareSelection.coverUrl,
+        result.id,
+        result.verified,
+      );
+      closeShare();
+      addToast({
+        tone: "success",
+        title: "Suggested to community",
+        detail: `Your community suggestion was submitted for ${exeName}.`,
+      });
+    } catch (error) {
+      setShareState("error");
+      setShareMessage(formatError(error));
+    }
+  }
 
   const handleCopyExe = () => {
     navigator.clipboard.writeText(game.exeNames[0]);
@@ -717,6 +830,17 @@ function GameLibraryCard({
           >
             Check for Matches
           </ContextMenuItem>
+          {game.source === "custom" && !game.communitySuggestionId ? (
+            <ContextMenuItem
+              icon={Send}
+              onClick={() => {
+                contextMenu.close();
+                setShareOpen(true);
+              }}
+            >
+              Suggest to Community
+            </ContextMenuItem>
+          ) : null}
         </>
       ) : null}
       {canEditCover ? (
@@ -941,6 +1065,25 @@ function GameLibraryCard({
             onApply={handleApplyMatch}
           />
         ) : null}
+        {shareOpen ? (
+          <CommunitySuggestionForm
+            candidates={shareCandidates}
+            exeName={game.exeNames[0] ?? ""}
+            message={shareMessage}
+            search={shareSearch}
+            selection={shareSelection}
+            state={shareState}
+            isOffline={isOffline}
+            onApplyCandidate={applyShareCandidate}
+            onCancel={closeShare}
+            onSearch={() => void searchShareCandidates()}
+            onSearchChange={(value) => {
+              setShareSearch(value);
+              setShareSelection(null);
+            }}
+            onSubmit={() => void submitShareSuggestion()}
+          />
+        ) : null}
       </article>
     );
   }
@@ -1117,6 +1260,25 @@ function GameLibraryCard({
           game={game}
           onCancel={() => setShowMatchCheck(false)}
           onApply={handleApplyMatch}
+        />
+      ) : null}
+      {shareOpen ? (
+        <CommunitySuggestionForm
+          candidates={shareCandidates}
+          exeName={game.exeNames[0] ?? ""}
+          message={shareMessage}
+          search={shareSearch}
+          selection={shareSelection}
+          state={shareState}
+          isOffline={isOffline}
+          onApplyCandidate={applyShareCandidate}
+          onCancel={closeShare}
+          onSearch={() => void searchShareCandidates()}
+          onSearchChange={(value) => {
+            setShareSearch(value);
+            setShareSelection(null);
+          }}
+          onSubmit={() => void submitShareSuggestion()}
         />
       ) : null}
     </article>
