@@ -11,6 +11,7 @@ import { useAppStore, useIsOffline, type ActiveSession } from "../../store";
 import {
   dismissAmbiguousMatch,
   selectAmbiguousCommunitySuggestion,
+  selectAmbiguousCustomGame,
   selectAmbiguousMatch,
 } from "../../tracker";
 import {
@@ -19,7 +20,7 @@ import {
   SourceBadge,
   formatDuration,
 } from "../components";
-import { Button } from "../primitives";
+import { Button, Input } from "../primitives";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 
 export function NowPlayingView() {
@@ -249,6 +250,19 @@ function AmbiguousMatchCard({
     "idle" | "loading" | "saving" | "saved" | "error"
   >("idle");
   const [searchMessage, setSearchMessage] = useState("");
+  const [customEntryOpen, setCustomEntryOpen] = useState(false);
+  const [customName, setCustomName] = useState("");
+
+  function submitCustomGame() {
+    const name = customName.trim();
+    if (!name) return;
+    selectAmbiguousCustomGame(exeName, name);
+    addToast({
+      tone: "success",
+      title: "Custom game added",
+      detail: `${exeName} will be tracked as ${name}.`,
+    });
+  }
 
   async function searchIgdb() {
     const query = searchQuery.trim();
@@ -417,29 +431,64 @@ function AmbiguousMatchCard({
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col justify-between gap-4 rounded-lg border border-border bg-surface-hover/30 p-4 sm:flex-row sm:items-center">
-          <div>
-            <div className="text-sm font-medium text-text">
-              Game not listed?
+        <div className="mt-6 rounded-lg border border-border bg-surface-hover/30 p-4">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <div className="text-sm font-medium text-text">
+                Game not listed?
+              </div>
+              <p className="mt-1 text-sm text-text-muted">
+                {isOffline
+                  ? "Database search is unavailable offline. Add the game as a custom game for now."
+                  : "Search for another game, add it as a custom game, and send the executable match for community review."}
+              </p>
             </div>
-            <p className="mt-1 text-sm text-text-muted">
-              Search for another game, add it as a custom game, and send the
-              executable match for community review.
-            </p>
+            {!isOffline ? (
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setSuggestionOpen(true);
+                  setSearchMessage("");
+                }}
+              >
+                Find another game
+              </Button>
+            ) : null}
           </div>
-          <Button
-            variant="primary"
-            disabled={isOffline}
-            title={
-              isOffline ? "Database search unavailable offline" : undefined
-            }
-            onClick={() => {
-              setSuggestionOpen(true);
-              setSearchMessage("");
-            }}
-          >
-            Find another game
-          </Button>
+          {customEntryOpen || isOffline ? (
+            <form
+              className="mt-3 flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitCustomGame();
+              }}
+            >
+              <Input
+                value={customName}
+                onChange={(event) => setCustomName(event.target.value)}
+                maxLength={120}
+                autoFocus={customEntryOpen}
+                placeholder="Game name..."
+                className="h-9 min-w-0 flex-1"
+              />
+              <Button
+                variant="secondary"
+                type="submit"
+                disabled={!customName.trim()}
+                className="h-9 shrink-0"
+              >
+                Add as Custom
+              </Button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCustomEntryOpen(true)}
+              className="mt-2 text-xs text-text-faint underline-offset-2 transition hover:text-text-muted hover:underline"
+            >
+              Add as custom game instead (only on this PC)
+            </button>
+          )}
         </div>
       </div>
       {suggestionOpen ? (

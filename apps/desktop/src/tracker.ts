@@ -1598,6 +1598,21 @@ export function addSharedCustomGame(
   return game;
 }
 
+// Resolves an ambiguity picker with a locally created custom game — the
+// offline-friendly escape hatch when none of the candidates fit and the
+// community search is not available or not wanted. Runs through the regular
+// ambiguous selection so the runtime since detection is credited.
+export function selectAmbiguousCustomGame(exeName: string, gameName: string) {
+  const normalizedGameName = gameName.trim();
+  if (!normalizedGameName) return;
+  selectAmbiguousMatch(exeName, {
+    id: customGameId(exeName),
+    name: normalizedGameName,
+    coverUrl: "",
+    source: "custom",
+  });
+}
+
 export function selectAmbiguousCommunitySuggestion(
   exeName: string,
   gameName: string,
