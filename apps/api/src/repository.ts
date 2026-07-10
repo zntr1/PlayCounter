@@ -191,29 +191,10 @@ export class PostgresRepository implements PlayCounterRepository {
     );
     logAmbiguousProcessMatches("IGDB database", candidates, igdb.rows);
 
-    for (const row of igdb.rows) {
-      const game = {
-        id: row.id,
-        name: row.name,
-        coverUrl: row.cover_url ?? "",
-        source: "igdb" as const,
-      };
-      const lookupKey = `${row.platform}:${row.kind}:${row.value}`;
-      for (const candidate of candidatesForLookup(candidates, lookupKey)) {
-        setBestProcessMatch(matches, candidate, game);
-      }
-    }
-
-    const unmatchedLookupKeys = candidates
-      .filter((candidate) => !matches.has(candidate.processKey))
-      .map((candidate) => candidate.lookupKey);
-    if (unmatchedLookupKeys.length === 0) {
-      logger.info(
-        "[match] All processes resolved from the IGDB database; done.",
-      );
-      return stripProcessMatchPriority(matches);
-    }
-
+    // Verified community entries are always checked alongside the IGDB
+    // database: a community entry for an exe that IGDB also maps is usually a
+    // correction, so both candidates go to the picker instead of IGDB winning
+    // silently.
     const community = await this.pool.query(
       `SELECT lower(community_game_identifiers.platform) AS platform,
               lower(community_game_identifiers.kind) AS kind,
@@ -227,11 +208,11 @@ export class PostgresRepository implements PlayCounterRepository {
          AND lower(community_game_identifiers.platform) || ':' ||
              lower(community_game_identifiers.kind) || ':' ||
              lower(community_game_identifiers.value) = ANY($1::text[])`,
-      [[...new Set(unmatchedLookupKeys)]],
+      [[...new Set(lookupKeys)]],
     );
 
     logger.info(
-      `[match] Verified community database returned ${count(community.rowCount ?? 0, "hit")} for the ${count(new Set(unmatchedLookupKeys).size, "remaining identifier")}.`,
+      `[match] Verified community database returned ${count(community.rowCount ?? 0, "hit")}.`,
     );
     logAmbiguousProcessMatches(
       "community database",
@@ -239,23 +220,58 @@ export class PostgresRepository implements PlayCounterRepository {
       community.rows,
     );
 
-    for (const row of community.rows) {
-      const game = {
-        id: row.id,
-        name: row.name,
-        coverUrl: row.cover_url ?? "",
-        source: "community" as const,
-      };
-      const lookupKey = `${row.platform}:${row.kind}:${row.value}`;
+    // Merge both sources per identifier; IGDB rows go first so they lead
+    // ambiguous candidate lists. Entries sharing a name count as the same game.
+    const storedGamesByLookup = new Map<string, Game[]>();
+    const addStoredRows = (
+      rows: (DatabaseMatchRow & { cover_url: string | null })[],
+      source: "igdb" | "community",
+    ) => {
+      for (const row of rows) {
+        const lookupKey = `${row.platform}:${row.kind}:${row.value}`;
+        const games = storedGamesByLookup.get(lookupKey) ?? [];
+        if (
+          !games.some(
+            (existing) =>
+              existing.name.toLowerCase() === row.name.toLowerCase(),
+          )
+        ) {
+          games.push({
+            id: row.id,
+            name: row.name,
+            coverUrl: row.cover_url ?? "",
+            source,
+          });
+        }
+        storedGamesByLookup.set(lookupKey, games);
+      }
+    };
+    addStoredRows(igdb.rows, "igdb");
+    addStoredRows(community.rows, "community");
+
+    for (const [lookupKey, games] of storedGamesByLookup) {
       for (const candidate of candidatesForLookup(candidates, lookupKey)) {
-        if (!matches.has(candidate.processKey)) {
-          setBestProcessMatch(matches, candidate, game);
+        if (games.length === 1) {
+          setBestProcessMatch(matches, candidate, games[0]);
+        } else if (!ambiguousMatches.has(candidate.processKey)) {
+          ambiguousMatches.set(candidate.processKey, games);
         }
       }
     }
 
+    const isUnresolved = (candidate: ProcessMatchCandidate) =>
+      !matches.has(candidate.processKey) &&
+      !ambiguousMatches.has(candidate.processKey);
+
+    if (!candidates.some(isUnresolved)) {
+      logger.info(
+        "[match] All processes resolved from the stored databases; done.",
+      );
+      return stripProcessMatchPriority(matches, ambiguousMatches);
+    }
+
     const pendingLookupKeys = candidates
-      .filter((candidate) => !matches.has(candidate.processKey))
+      .filter(isUnresolved)
       .map((candidate) => candidate.lookupKey);
     if (pendingLookupKeys.length > 0) {
       const pendingCommunity = await this.pool.query(
@@ -287,7 +303,7 @@ export class PostgresRepository implements PlayCounterRepository {
         };
         const lookupKey = `${row.platform}:${row.kind}:${row.value}`;
         for (const candidate of candidatesForLookup(candidates, lookupKey)) {
-          if (!matches.has(candidate.processKey)) {
+          if (isUnresolved(candidate)) {
             pendingCommunityMatches.set(candidate.processKey, game);
           }
         }
@@ -295,9 +311,7 @@ export class PostgresRepository implements PlayCounterRepository {
     }
 
     const stillUnmatchedProcesses = new Set(
-      candidates
-        .filter((candidate) => !matches.has(candidate.processKey))
-        .map((candidate) => candidate.processKey),
+      candidates.filter(isUnresolved).map((candidate) => candidate.processKey),
     );
 
     if (stillUnmatchedProcesses.size > 0) {

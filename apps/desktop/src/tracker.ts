@@ -576,11 +576,85 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
           result.pendingCommunityGame,
           false,
         );
+        continue;
       }
+      applyCommunitySuggestionOutcome(result.key, result.ambiguousGames);
     }
   } catch (error) {
     verboseRuntime(`community upgrade check failed: ${formatError(error)}`);
   }
+}
+
+// A pending suggestion that no longer comes back from the server was rejected:
+// rejected suggestions are deleted from the community database, so the game
+// falls back to a plain local one. An ambiguous response is inconclusive (the
+// server skips the pending check for ambiguous identifiers) — unless the
+// user's own suggestion is among the candidates, which means it was approved.
+function applyCommunitySuggestionOutcome(
+  exeName: string,
+  ambiguousGames?: Game[],
+) {
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (
+    existing?.state !== "matched" ||
+    existing.source !== "custom" ||
+    !existing.communitySuggestionId ||
+    existing.communitySuggestionVerified
+  ) {
+    return;
+  }
+
+  const approved = ambiguousGames?.find(
+    (game) =>
+      game.source === "community" &&
+      game.id === existing.communitySuggestionId,
+  );
+  if (approved) {
+    setCommunityUpgrade(exeName, approved);
+    return;
+  }
+  if (ambiguousGames?.length) return;
+
+  clearCommunitySuggestionMarker(exeName);
+}
+
+function clearCommunitySuggestionMarker(exeName: string) {
+  const key = exeName.toLowerCase();
+  useAppStore.setState((state) => {
+    const existing = state.exeCache.get(key);
+    if (existing?.state !== "matched" || existing.source !== "custom") {
+      return {};
+    }
+
+    const exeCache = new Map(state.exeCache);
+    exeCache.set(key, {
+      ...existing,
+      communitySuggestionId: undefined,
+      communitySuggestionVerified: undefined,
+    });
+    return {
+      exeCache,
+      activeSessions: state.activeSessions.map((session) =>
+        session.exeName.toLowerCase() === key && session.source === "custom"
+          ? {
+              ...session,
+              communitySuggestionId: undefined,
+              communitySuggestionVerified: undefined,
+            }
+          : session,
+      ),
+      recentSessions: state.recentSessions.map((session) =>
+        session.exeName.toLowerCase() === key && session.source === "custom"
+          ? {
+              ...session,
+              communitySuggestionId: undefined,
+              communitySuggestionVerified: undefined,
+            }
+          : session,
+      ),
+    };
+  });
+  logRuntime(`community suggestion rejected; now plain local ${exeName}`);
 }
 
 function setCommunitySuggestionMarker(
