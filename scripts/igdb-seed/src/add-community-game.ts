@@ -41,8 +41,7 @@ try {
     await client.query(
       `INSERT INTO community_game_identifiers (platform, kind, value, game_id)
        VALUES ('windows', 'exe', $1, $2)
-       ON CONFLICT (lower(platform), lower(kind), lower(value))
-       DO UPDATE SET value = excluded.value, game_id = excluded.game_id`,
+       ON CONFLICT DO NOTHING`,
       [exeName, gameId],
     );
   }

@@ -55,7 +55,9 @@ export class IgdbClient {
       body: [
         "fields name,comment,game.name,game.cover.image_id,game.platforms,game.first_release_date;",
         `where name ~ "${escapeIgdbString(name)}";`,
-        "limit 25;",
+        // IGDB's maximum page size; exe names shared by more than 500 games
+        // do not exist in practice, so this never truncates candidates.
+        "limit 500;",
       ].join(" "),
     });
 

@@ -267,7 +267,7 @@ function AmbiguousMatchCard({
       setSearchResults(body.candidates);
       setSearchMessage(
         body.candidates.length > 0
-          ? "Select the game you launched. PlayCounter will track it locally while the community match is reviewed."
+          ? "Select the game you launched. PlayCounter will track it as a custom game while the community match is reviewed."
           : "No matching games found.",
       );
       setSearchState("idle");
@@ -327,7 +327,7 @@ function AmbiguousMatchCard({
       addToast({
         tone: "success",
         title: "Game added and shared",
-        detail: `${exeName} is now tracked locally while approval is pending.`,
+        detail: `${exeName} is now tracked as a custom game while approval is pending.`,
       });
     } catch (error) {
       setSearchState("error");
@@ -423,8 +423,8 @@ function AmbiguousMatchCard({
               Game not listed?
             </div>
             <p className="mt-1 text-sm text-text-muted">
-              Search for another game, add it locally, and send the executable
-              match for community review.
+              Search for another game, add it as a custom game, and send the
+              executable match for community review.
             </p>
           </div>
           <Button

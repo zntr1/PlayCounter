@@ -17,10 +17,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   acceptCommunityUpgrade,
   addManualSession,
+  applyGameMatch,
   clearCustomGameCover,
   convertLocalSuggestionToCommunity,
   dismissCommunityUpgrade,
   doNotTrackGame,
+  findGameMatches,
   hydrateGameMetadata,
   setCustomGameCover,
   untrackGame,
@@ -47,7 +49,7 @@ import {
   Input,
   useContextMenu,
 } from "../primitives";
-import type { GameSource } from "@playcounter/shared";
+import type { Game, GameSource } from "@playcounter/shared";
 
 type SortKey = "recent" | "playtime" | "name" | "sessions";
 type ViewMode = "grid" | "list";
@@ -559,7 +561,18 @@ function GameLibraryCard({
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
   const [showAddPlaytime, setShowAddPlaytime] = useState(false);
+  const [showMatchCheck, setShowMatchCheck] = useState(false);
   const canEditCover = game.source === "custom";
+
+  const handleApplyMatch = (match: Game) => {
+    applyGameMatch(game.exeNames[0], match);
+    addToast({
+      tone: "success",
+      title: "Match applied",
+      detail: `${game.name} is now tracked as ${match.name}.`,
+    });
+    setShowMatchCheck(false);
+  };
 
   const handleCopyExe = () => {
     navigator.clipboard.writeText(game.exeNames[0]);
@@ -692,6 +705,20 @@ function GameLibraryCard({
       >
         Add playtime manually
       </ContextMenuItem>
+      {game.source && game.exeNames[0] ? (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            icon={Search}
+            onClick={() => {
+              contextMenu.close();
+              setShowMatchCheck(true);
+            }}
+          >
+            Check for Matches
+          </ContextMenuItem>
+        </>
+      ) : null}
       {canEditCover ? (
         <>
           <ContextMenuSeparator />
@@ -907,6 +934,13 @@ function GameLibraryCard({
             onConfirm={handleAddPlaytime}
           />
         ) : null}
+        {showMatchCheck ? (
+          <MatchCheckDialog
+            game={game}
+            onCancel={() => setShowMatchCheck(false)}
+            onApply={handleApplyMatch}
+          />
+        ) : null}
       </article>
     );
   }
@@ -1076,6 +1110,13 @@ function GameLibraryCard({
           game={game}
           onCancel={() => setShowAddPlaytime(false)}
           onConfirm={handleAddPlaytime}
+        />
+      ) : null}
+      {showMatchCheck ? (
+        <MatchCheckDialog
+          game={game}
+          onCancel={() => setShowMatchCheck(false)}
+          onApply={handleApplyMatch}
         />
       ) : null}
     </article>
@@ -1280,6 +1321,152 @@ function AddPlaytimeDialog({
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancel
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function MatchCheckDialog({
+  game,
+  onCancel,
+  onApply,
+}: {
+  game: GameSummary;
+  onCancel: () => void;
+  onApply: (match: Game) => void;
+}) {
+  const exeName = game.exeNames[0] ?? "";
+  const [state, setState] = useState<"loading" | "error" | "done">("loading");
+  const [error, setError] = useState("");
+  const [candidates, setCandidates] = useState<Game[]>([]);
+  const [selection, setSelection] = useState<Game | null>(null);
+
+  const isCurrentMatch = (match: Game) =>
+    match.source === game.source && match.id === game.gameId;
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const games = await findGameMatches(exeName);
+        if (cancelled) return;
+        setCandidates(games);
+        // A single combined IGDB/community result is preselected so applying
+        // is one click — unless it is what the exe already uses. An ambiguous
+        // set requires an explicit pick.
+        setSelection(
+          games.length === 1 &&
+            !(games[0].source === game.source && games[0].id === game.gameId)
+            ? games[0]
+            : null,
+        );
+        setState("done");
+      } catch (err) {
+        if (cancelled) return;
+        setError(formatError(err));
+        setState("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [exeName, game.gameId, game.source]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
+      <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-5 shadow-raised">
+        <h2 className="text-lg font-semibold text-text">
+          Check matches for {game.name}
+        </h2>
+        <p className="mt-2 text-sm text-text-muted">
+          Looks up{" "}
+          <span
+            className="inline-block max-w-full truncate align-bottom font-medium text-text"
+            title={exeName}
+          >
+            {exeName}
+          </span>{" "}
+          in the IGDB and community databases.
+        </p>
+
+        <div className="mt-4 max-h-80 overflow-y-auto">
+          {state === "loading" ? (
+            <div className="rounded-md border border-dashed border-border bg-bg p-8 text-center text-sm text-text-muted">
+              Checking databases...
+            </div>
+          ) : state === "error" ? (
+            <div className="rounded-md border border-border bg-bg p-4 text-sm text-text-muted">
+              Match check failed: {error}
+            </div>
+          ) : candidates.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border bg-bg p-8 text-center text-sm text-text-muted">
+              No database match found.
+              {game.source === "custom"
+                ? ` ${game.name} stays a custom game.`
+                : ""}
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {candidates.map((match) => {
+                const selected =
+                  selection?.id === match.id &&
+                  selection.source === match.source;
+                return (
+                  <button
+                    key={`${match.source}:${match.id}`}
+                    type="button"
+                    onClick={() => setSelection(selected ? null : match)}
+                    className={clsx(
+                      "flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition",
+                      selected
+                        ? "border-accent bg-surface-hover"
+                        : "border-border bg-surface hover:border-accent/40 hover:bg-surface-hover",
+                    )}
+                  >
+                    {match.coverUrl ? (
+                      <img
+                        src={match.coverUrl}
+                        alt=""
+                        className="h-16 w-12 shrink-0 rounded bg-surface-hover object-cover"
+                      />
+                    ) : (
+                      <div className="h-16 w-12 shrink-0 rounded bg-surface-hover" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-text">
+                        {match.name}
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <SourceBadge source={match.source} />
+                        {isCurrentMatch(match) ? (
+                          <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
+                            Current match
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <Button
+            variant="primary"
+            disabled={!selection || isCurrentMatch(selection)}
+            onClick={() => {
+              if (selection) onApply(selection);
+            }}
+          >
+            Apply match
+          </Button>
+          <Button variant="ghost" onClick={onCancel}>
+            {game.source === "custom" ? "Keep custom game" : "Keep current match"}
           </Button>
         </div>
       </div>

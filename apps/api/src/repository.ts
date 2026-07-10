@@ -186,8 +186,25 @@ export class PostgresRepository implements PlayCounterRepository {
       [lookupKeys],
     );
 
+    // Candidate sets from earlier ambiguous IGDB live lookups; they feed the
+    // picker straight from the database instead of repeating the lookup.
+    const igdbAmbiguous = await this.pool.query(
+      `SELECT lower(igdb_ambiguous_game_identifiers.platform) AS platform,
+              lower(igdb_ambiguous_game_identifiers.kind) AS kind,
+              lower(igdb_ambiguous_game_identifiers.value) AS value,
+              igdb_games.id,
+              igdb_games.name,
+              igdb_games.cover_url
+       FROM igdb_ambiguous_game_identifiers
+       INNER JOIN igdb_games ON igdb_games.id = igdb_ambiguous_game_identifiers.game_id
+       WHERE lower(igdb_ambiguous_game_identifiers.platform) || ':' ||
+             lower(igdb_ambiguous_game_identifiers.kind) || ':' ||
+             lower(igdb_ambiguous_game_identifiers.value) = ANY($1::text[])`,
+      [[...new Set(lookupKeys)]],
+    );
+
     logger.info(
-      `[match] IGDB database returned ${count(igdb.rowCount ?? 0, "hit")}.`,
+      `[match] IGDB database returned ${count(igdb.rowCount ?? 0, "hit")} plus ${count(igdbAmbiguous.rowCount ?? 0, "stored ambiguous candidate")}.`,
     );
     logAmbiguousProcessMatches("IGDB database", candidates, igdb.rows);
 
@@ -247,6 +264,7 @@ export class PostgresRepository implements PlayCounterRepository {
       }
     };
     addStoredRows(igdb.rows, "igdb");
+    addStoredRows(igdbAmbiguous.rows, "igdb");
     addStoredRows(community.rows, "community");
 
     for (const [lookupKey, games] of storedGamesByLookup) {
@@ -449,6 +467,9 @@ export class PostgresRepository implements PlayCounterRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      // Reuse an existing entry only when it is for the same game; a
+      // suggestion for a different game becomes its own pending entry so
+      // corrections are never silently swallowed.
       const existing = await client.query<{ id: number; verified: boolean }>(
         `SELECT community_games.id, community_games.verified
          FROM community_game_identifiers
@@ -456,16 +477,12 @@ export class PostgresRepository implements PlayCounterRepository {
          WHERE lower(community_game_identifiers.platform) = 'windows'
            AND lower(community_game_identifiers.kind) = 'exe'
            AND lower(community_game_identifiers.value) = lower($1)
-           AND (
-             community_games.verified = true
-             OR community_games.submitted_by = $2
-             OR community_games.verified = false
-           )
+           AND lower(community_games.name) = lower($3)
          ORDER BY community_games.verified DESC,
                   CASE WHEN community_games.submitted_by = $2 THEN 0 ELSE 1 END,
                   community_games.created_at ASC
          LIMIT 1`,
-        [exeName, submittedBy],
+        [exeName, submittedBy, name],
       );
       const existingGame = existing.rows[0];
       if (existingGame) {
@@ -487,8 +504,7 @@ export class PostgresRepository implements PlayCounterRepository {
       await client.query(
         `INSERT INTO community_game_identifiers (platform, kind, value, game_id)
          VALUES ('windows', 'exe', $1, $2)
-         ON CONFLICT (lower(platform), lower(kind), lower(value))
-         DO UPDATE SET value = excluded.value, game_id = excluded.game_id`,
+         ON CONFLICT DO NOTHING`,
         [exeName, game.id],
       );
 
@@ -570,6 +586,17 @@ export class PostgresRepository implements PlayCounterRepository {
       const ambiguousGames = await this.persistIgdbGameMetadata(
         igdbMatch.ambiguousGames,
       );
+      // Persist the candidate set so future requests resolve it from the
+      // stored-database merge (together with any later community entry)
+      // instead of repeating this lookup.
+      for (const game of ambiguousGames) {
+        await this.pool.query(
+          `INSERT INTO igdb_ambiguous_game_identifiers (platform, kind, value, game_id)
+           VALUES ('windows', 'exe', $1, $2)
+           ON CONFLICT DO NOTHING`,
+          [cacheKey, game.id],
+        );
+      }
       this.igdbLookupCache.set(cacheKey, { at: Date.now(), ambiguousGames });
       return { ambiguousGames };
     }

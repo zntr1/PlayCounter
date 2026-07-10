@@ -17,6 +17,20 @@ CREATE TABLE IF NOT EXISTS igdb_game_identifiers (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_igdb_game_identifiers_lookup_key
   ON igdb_game_identifiers (lower(platform), lower(kind), lower(value));
 
+-- Candidate sets from ambiguous IGDB live lookups; unioned into the match
+-- merge so the picker is served from the database without repeating lookups.
+CREATE TABLE IF NOT EXISTS igdb_ambiguous_game_identifiers (
+  platform TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  value TEXT NOT NULL,
+  game_id INTEGER NOT NULL REFERENCES igdb_games(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (platform, kind, value, game_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_igdb_ambiguous_identifiers_lookup_key
+  ON igdb_ambiguous_game_identifiers (lower(platform), lower(kind), lower(value), game_id);
+
 CREATE TABLE IF NOT EXISTS community_games (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
@@ -26,17 +40,19 @@ CREATE TABLE IF NOT EXISTS community_games (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- One identifier may map to several community games: disagreeing suggestions
+-- coexist as separate pending entries, verified collisions reach the picker.
 CREATE TABLE IF NOT EXISTS community_game_identifiers (
   platform TEXT NOT NULL,
   kind TEXT NOT NULL,
   value TEXT NOT NULL,
   game_id INTEGER NOT NULL REFERENCES community_games(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (platform, kind, value)
+  PRIMARY KEY (platform, kind, value, game_id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_game_identifiers_lookup_key
-  ON community_game_identifiers (lower(platform), lower(kind), lower(value));
+  ON community_game_identifiers (lower(platform), lower(kind), lower(value), game_id);
 
 CREATE TABLE IF NOT EXISTS live_sessions (
   install_uuid TEXT NOT NULL,

@@ -124,8 +124,14 @@ export function useNeedsReviewCount() {
     (state) => state.userIgnoredProcesses,
   );
   const blacklist = useAppStore((state) => state.blacklist);
+  const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
 
   return useMemo(() => {
+    // Exes with a pending ambiguity picker are handled in Now Playing; they
+    // are not additionally up for review here.
+    const ambiguousKeys = new Set(
+      ambiguousMatches.map((match) => match.exeName.toLowerCase()),
+    );
     const byKey = new Map<string, ExeCacheEntry | null>();
     for (const process of processes) {
       const key = process.exeName.toLowerCase();
@@ -138,6 +144,7 @@ export function useNeedsReviewCount() {
 
     let count = 0;
     for (const [key, entry] of byKey) {
+      if (ambiguousKeys.has(key)) continue;
       const status = getDiscoveryStatus(
         entry?.exeName ?? key,
         entry ?? undefined,
@@ -148,7 +155,14 @@ export function useNeedsReviewCount() {
       if (status === "unmatched" || status === "checking") count += 1;
     }
     return count;
-  }, [processes, exeCache, ignoredProcesses, userIgnoredProcesses, blacklist]);
+  }, [
+    processes,
+    exeCache,
+    ignoredProcesses,
+    userIgnoredProcesses,
+    blacklist,
+    ambiguousMatches,
+  ]);
 }
 
 function getDiscoveryStatus(
@@ -254,6 +268,7 @@ export function DiscoveredView() {
     (state) => state.userIgnoredProcesses,
   );
   const blacklist = useAppStore((state) => state.blacklist);
+  const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
   const toggleBlacklist = useAppStore((state) => state.toggleBlacklist);
   const lastProcessScanAt = useAppStore((state) => state.lastProcessScanAt);
   const addToast = useAppStore((state) => state.addToast);
@@ -324,7 +339,7 @@ export function DiscoveredView() {
     addToast({
       tone: "success",
       title: "Added to My Games",
-      detail: `${name} is now tracked locally.`,
+      detail: `${name} is now tracked as a custom game.`,
     });
   }
 
@@ -443,31 +458,42 @@ export function DiscoveredView() {
   }
 
   const discoverySections = useMemo((): DiscoverySection[] => {
+    // Exes with a pending ambiguity picker are resolved in Now Playing; do
+    // not offer them for review here at the same time.
+    const ambiguousKeys = new Set(
+      ambiguousMatches.map((match) => match.exeName.toLowerCase()),
+    );
     const runningKeys = new Set(
       processes.map((process) => process.exeName.toLowerCase()),
     );
-    const running = processes.map((process): DiscoveredExecutable => {
-      const key = process.exeName.toLowerCase();
-      const cacheEntry = exeCache.get(key) ?? null;
+    const running = processes
+      .filter(
+        (process) => !ambiguousKeys.has(process.exeName.toLowerCase()),
+      )
+      .map((process): DiscoveredExecutable => {
+        const key = process.exeName.toLowerCase();
+        const cacheEntry = exeCache.get(key) ?? null;
 
-      return {
-        ...process,
-        key,
-        isRunning: true,
-        cacheEntry,
-        status: getDiscoveryStatus(
-          process.exeName,
-          cacheEntry ?? undefined,
-          ignoredProcesses,
-          userIgnoredProcesses,
-          blacklist,
-        ),
-      };
-    });
+        return {
+          ...process,
+          key,
+          isRunning: true,
+          cacheEntry,
+          status: getDiscoveryStatus(
+            process.exeName,
+            cacheEntry ?? undefined,
+            ignoredProcesses,
+            userIgnoredProcesses,
+            blacklist,
+          ),
+        };
+      });
     const savedByKey = new Map<string, ExeCacheEntry | null>();
     for (const entry of exeCache.values()) {
       const key = entry.exeName.toLowerCase();
-      if (!runningKeys.has(key)) savedByKey.set(key, entry);
+      if (!runningKeys.has(key) && !ambiguousKeys.has(key)) {
+        savedByKey.set(key, entry);
+      }
     }
     for (const exeName of [...userIgnoredProcesses, ...blacklist]) {
       const key = exeName.toLowerCase();
@@ -509,7 +535,14 @@ export function DiscoveredView() {
         executables: saved.sort(sortDiscovered),
       },
     ];
-  }, [blacklist, exeCache, ignoredProcesses, processes, userIgnoredProcesses]);
+  }, [
+    ambiguousMatches,
+    blacklist,
+    exeCache,
+    ignoredProcesses,
+    processes,
+    userIgnoredProcesses,
+  ]);
 
   const allExecutables = useMemo(
     () =>
@@ -984,7 +1017,7 @@ function TriageWizardCard({
             onClick={onStartCustomGame}
             className="h-12 w-full text-sm"
           >
-            Add Locally
+            Add as Custom
           </Button>
           <Button
             variant="secondary"
@@ -1196,7 +1229,7 @@ function DiscoveredExecutableRow({
               <div className="ml-1 flex items-center gap-1 border-l border-border pl-2">
                 <IconButton
                   icon={Gamepad2}
-                  title="Add locally (do not share)"
+                  title="Add as custom game (do not share)"
                   disabled={isPending || isRetrying}
                   onClick={onStartCustomGame}
                 />

@@ -348,6 +348,16 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   }
 
   for (const ambiguous of currentAmbiguous) {
+    const cached = useAppStore
+      .getState()
+      .exeCache.get(ambiguous.exeName.toLowerCase());
+    if (cached?.state === "matched") {
+      // The exe got matched elsewhere (e.g. added as a custom game); the
+      // picker is obsolete.
+      useAppStore.getState().removeAmbiguousMatch(ambiguous.exeName);
+      logRuntime(`stale ambiguity dropped for matched exe ${ambiguous.exeName}`);
+      continue;
+    }
     if (!runningProcessKeys.has(ambiguous.exeName.toLowerCase())) {
       useAppStore.getState().setAmbiguousMatch({
         ...ambiguous,
@@ -429,9 +439,15 @@ async function resolveProcesses(
       continue;
     }
     // An unresolved ambiguity has no exe cache entry and would otherwise be
-    // re-queried on every scan; the stored candidates keep driving the UI.
+    // re-queried on every scan; the stored candidates keep driving the UI. A
+    // matched cache entry always wins — the ambiguity is stale then (e.g. the
+    // exe was added as a custom game while the picker was open) and gets
+    // dropped so the picker disappears and the match tracks normally.
     const ambiguous = ambiguousByKey.get(processCacheKey(process));
-    if (
+    if (ambiguous && existing?.state === "matched") {
+      state.removeAmbiguousMatch(process.exeName);
+      logRuntime(`stale ambiguity dropped for matched exe ${process.exeName}`);
+    } else if (
       ambiguous &&
       now - Date.parse(ambiguous.lastCheckedAt ?? ambiguous.detectedAt) <
         PENDING_COMMUNITY_RETRY_MS
@@ -795,18 +811,29 @@ function setCommunityUpgrade(exeName: string, game: Game) {
 }
 
 export function acceptCommunityUpgrade(exeName: string) {
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  const game = existing?.communityUpgradeGame;
+  if (!game) return;
+  applyGameMatch(exeName, game);
+}
+
+// Switches an exe's matched game (custom, igdb, or community) over to another
+// database game, used by the automatic upgrade offer and the manual "check
+// for matches" dialog. Rewrites the cache entry and the sessions recorded
+// under the previous game.
+export function applyGameMatch(exeName: string, game: Game) {
   const state = useAppStore.getState();
   const key = exeName.toLowerCase();
   const existing = state.exeCache.get(key);
-  const game = existing?.communityUpgradeGame;
-  if (existing?.state !== "matched" || existing.source !== "custom" || !game) {
-    return;
-  }
+  if (existing?.state !== "matched") return;
+  if (existing.source === game.source && existing.gameId === game.id) return;
 
   const oldGameId = existing.gameId;
   const suggestionId =
-    game.source === "community" ? existing.communitySuggestionId : undefined;
-  const suggestionVerified = game.source === "community" ? true : undefined;
+    game.source === "community" && existing.communitySuggestionId === game.id
+      ? existing.communitySuggestionId
+      : undefined;
+  const suggestionVerified = suggestionId ? true : undefined;
   state.setExeCacheEntry({
     exeName: existing.exeName,
     state: "matched",
@@ -819,7 +846,7 @@ export function acceptCommunityUpgrade(exeName: string) {
 
   useAppStore.setState((current) => ({
     activeSessions: current.activeSessions.map((session) =>
-      session.exeName.toLowerCase() === key && session.source === "custom"
+      session.exeName.toLowerCase() === key && session.gameId === oldGameId
         ? {
             ...session,
             gameId: game.id,
@@ -846,9 +873,44 @@ export function acceptCommunityUpgrade(exeName: string) {
     ),
   }));
 
-  logRuntime(`community upgrade accepted ${existing.exeName} -> ${game.name}`);
+  logRuntime(`game match applied ${existing.exeName} -> ${game.name}`);
   persist();
-  void requestProcessScan("after community upgrade accepted");
+  void requestProcessScan("after game match applied");
+}
+
+// Manual "check for matches": runs the exe through the normal match pipeline
+// and returns every database candidate found. Pending (unverified)
+// suggestions are deliberately not offered.
+export async function findGameMatches(exeName: string): Promise<Game[]> {
+  const state = useAppStore.getState();
+  const process: ProcessSnapshot = { exeName, exePath: null };
+  const response = await fetchWithTimeout(
+    `${state.settings.apiEndpoint}/api/match-processes`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      timeoutMs: API_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify({
+        processes: [
+          {
+            key: processCacheKey(process),
+            identifiers: processIdentifiers(process),
+          },
+        ],
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}`);
+  }
+
+  const body = (await response.json()) as MatchProcessesResponse;
+  const result = body.matches.find(
+    (match) => match.key.toLowerCase() === processCacheKey(process),
+  );
+  if (!result) return [];
+  if (result.game && result.game.source !== "custom") return [result.game];
+  return result.ambiguousGames ?? [];
 }
 
 export function convertLocalSuggestionToCommunity(exeName: string) {
@@ -1154,6 +1216,8 @@ function cacheMatchResult(exeName: string, game: Game | null) {
   }
 
   logRuntime(`match cache matched ${exeName} -> ${game.name}`);
+  // A resolved match supersedes any pending ambiguity picker for this exe.
+  state.removeAmbiguousMatch(exeName);
   if (existing?.state === "unmatched") backfillTrackedRuntime(exeName, game);
   state.addApiRequestLogEntry({
     endpoint: state.settings.apiEndpoint,
@@ -1485,6 +1549,8 @@ export function addCustomGame(exeName: string, gameName: string) {
     source: "custom",
     lastCheckedAt: new Date().toISOString(),
   });
+  // A pending ambiguity picker for this exe is obsolete now.
+  state.removeAmbiguousMatch(exeName);
   logRuntime(`custom game added ${exeName} -> ${normalizedGameName}`);
   persist();
   void requestProcessScan("after custom game add");
