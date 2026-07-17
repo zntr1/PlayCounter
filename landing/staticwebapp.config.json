@@ -1,0 +1,9 @@
+{
+  "trailingSlash": "auto",
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=()",
+    "X-Frame-Options": "DENY"
+  }
+}

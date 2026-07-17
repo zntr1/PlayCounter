@@ -9,23 +9,22 @@
       content="Datenschutzerklärung / Privacy Policy for the PlayCounter website and desktop app."
     />
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#8b8cff" />
+    <meta name="theme-color" content="#2457e6" />
     <link rel="icon" href="icon.png" />
     <link rel="apple-touch-icon" href="icon.png" />
     <link rel="canonical" href="https://playcounter.app/datenschutz.html" />
-    <link rel="stylesheet" href="fonts/fonts.css" />
     <style>
       :root {
-        --bg: #0f1014;
-        --surface: #16181f;
-        --border: #2a2e39;
-        --text: #e7e9ee;
-        --text-muted: #9aa1ad;
-        --text-faint: #6b7280;
-        --accent: #8b8cff;
-        --accent-hover: #a5a6ff;
-        --font-display: "Bricolage Grotesque", sans-serif;
-        --font-body: "DM Sans", sans-serif;
+        --bg: #f3f0e8;
+        --surface: #fffdf8;
+        --border: #c7ccc5;
+        --text: #121713;
+        --text-muted: #2f3731;
+        --text-faint: #5d665f;
+        --accent: #2457e6;
+        --accent-hover: #16389f;
+        --font-display: "Segoe UI", Arial, Helvetica, sans-serif;
+        --font-body: "Segoe UI", Arial, Helvetica, sans-serif;
         --max: 760px;
       }
       * {
@@ -50,8 +49,7 @@
       }
       nav {
         border-bottom: 1px solid var(--border);
-        background: rgba(15, 16, 20, 0.8);
-        backdrop-filter: blur(12px);
+        background: rgba(255, 253, 248, 0.96);
         position: sticky;
         top: 0;
         z-index: 10;
@@ -104,7 +102,7 @@
         margin-bottom: 8px;
       }
       .updated {
-        font-family: "JetBrains Mono", monospace;
+        font-family: Consolas, "Courier New", monospace;
         font-size: 12.5px;
         color: var(--text-faint);
         margin-bottom: 40px;
@@ -162,7 +160,7 @@
         font-size: 13px;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        font-family: "JetBrains Mono", monospace;
+        font-family: Consolas, "Courier New", monospace;
         margin-bottom: 4px;
       }
       footer {
@@ -208,15 +206,15 @@
       <p class="lede">Datenschutz</p>
       <h1>Datenschutzerklärung</h1>
       <p class="lang-jump"><a href="#en">English version below ↓</a></p>
-      <p class="updated">Stand: 30. Mai 2026</p>
+      <p class="updated">Stand: 17. Juli 2026</p>
 
       <p>
         Diese Datenschutzerklärung gilt für die Website
         <strong>playcounter.app</strong> sowie für die
         <strong>PlayCounter-Desktop-App</strong>. Wir gehen sorgsam mit deinen
         Daten um: PlayCounter benötigt kein Benutzerkonto, und der Großteil
-        deiner Daten (Spielzeiten, Verlauf, Einstellungen) bleibt
-        ausschließlich lokal auf deinem Gerät.
+        deiner Daten (Spielzeiten, Verlauf, Einstellungen) bleibt ausschließlich
+        lokal auf deinem Gerät.
       </p>
 
       <h2>1. Verantwortlicher</h2>
@@ -242,14 +240,22 @@
         Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse am
         sicheren Betrieb der Website).
       </p>
-
-      <h3>Schriftarten (selbst gehostet)</h3>
       <p>
-        Die verwendeten Schriftarten werden <strong>lokal von unserem Server
-        ausgeliefert</strong> (Self-Hosting). Es findet
-        <strong>keine</strong> Verbindung zu Google Fonts oder anderen externen
-        Schriftdiensten statt; deine IP-Adresse wird dabei nicht an Dritte
-        übertragen.
+        PlayCounter führt diese Zugriffsdaten nicht mit Nutzerprofilen zusammen
+        und betreibt keine eigene Reichweitenmessung. Die Aufbewahrung
+        technischer Zugriffs- und Sicherheitsprotokolle richtet sich nach der
+        für den Azure-Dienst konfigurierten bzw. von Microsoft vorgegebenen
+        Protokollaufbewahrung; anschließend werden sie gelöscht oder
+        überschrieben, sofern kein Sicherheitsvorfall oder eine gesetzliche
+        Pflicht eine längere Aufbewahrung erfordert.
+      </p>
+
+      <h3>Schriftarten (Systemschriften)</h3>
+      <p>
+        Die Website verwendet lokal auf deinem Gerät verfügbare Systemschriften.
+        Es werden keine Schriftdateien von Google Fonts oder anderen externen
+        Schriftdiensten geladen; deine IP-Adresse wird zu diesem Zweck nicht an
+        Dritte übertragen.
       </p>
 
       <h3>Cookies, Tracking &amp; Analyse</h3>
@@ -276,9 +282,11 @@
         <strong>lokal auf deinem Gerät</strong> die Namen der laufenden Prozesse
         aus. Deine Spielzeiten, dein Verlauf, deine Einstellungen sowie eine
         zufällig erzeugte Installations-Kennung werden
-        <strong>ausschließlich lokal</strong> auf deinem Gerät gespeichert. Es
-        gibt kein Benutzerkonto, und wir speichern diese Daten nicht auf unseren
-        Servern.
+        <strong>lokal</strong> auf deinem Gerät gespeichert. Die aktuelle
+        Desktop-App übermittelt keine Spielzeiten oder Sitzungsverläufe an den
+        Server. Es gibt kein Benutzerkonto. Aus Kompatibilitätsgründen noch
+        vorhandene Endpunkte für ältere Live-Statistik-Versionen verwerfen
+        eingehende Anfragen, ohne neue Aktivitätsdaten zu speichern.
       </p>
 
       <h3>Spiele-Abgleich (Matching)</h3>
@@ -292,29 +300,51 @@
         Programmpfad übertragen werden, um das Spiel zu identifizieren.
       </p>
       <p>
+        Die API verarbeitet diese Angaben, um eine Übereinstimmung
+        zurückzugeben. Ein verlässlicher Dateiname-zu-Spiel-Eintrag kann ohne
+        Verknüpfung zu einer Installations-Kennung als Teil der gemeinsamen
+        Matching-Datenbank gespeichert werden. In technischen
+        Anwendungsprotokollen können angefragte Dateinamen vorübergehend zur
+        Fehlerdiagnose erscheinen; unter Windows werden dort keine vollständigen
+        Programmpfade oder Spielzeiten protokolliert. Bei jeder
+        Netzwerkverbindung wird die IP-Adresse technisch an Azure übertragen und
+        kann in dessen Zugriffs- oder Sicherheitsprotokollen verarbeitet werden.
+      </p>
+      <p>
         Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
         der Kernfunktion der App, Spiele automatisch zu erkennen).
       </p>
 
-      <h3>Feedback &amp; Spiele-Vorschläge</h3>
+      <h3>Community-Spiele-Vorschläge</h3>
       <p>
-        Wenn du in der App aktiv Feedback sendest oder ein noch nicht erkanntes
-        Spiel vorschlägst, werden die von dir eingegebenen Angaben (z.&nbsp;B.
-        Nachrichtentext, App-Version, Betriebssystem, vorgeschlagener
-        Spielname/Exe-Name und ggf. die Install-UUID) an unsere API übermittelt
-        und gespeichert. Rechtsgrundlage: Art. 6 Abs. 1 lit. a/f DSGVO
-        (freiwillige Eingabe bzw. berechtigtes Interesse an der Verbesserung des
-        Dienstes).
+        Wenn du ein noch nicht erkanntes Spiel zur Community-Datenbank
+        vorschlägst, werden Exe-Name, Spielname, ausgewähltes Cover und ggf. die
+        zufällige Installations-Kennung an unsere API übermittelt und in der
+        Matching-Datenbank gespeichert. Die Kennung hilft, Einreichungen während
+        der Prüfung auseinanderzuhalten. Abgelehnte Einträge werden entfernt;
+        bestätigte Match-Daten können als Teil der gemeinsamen Datenbank
+        bestehen bleiben. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO
+        (berechtigtes Interesse an einer überprüfbaren und zuverlässigen
+        Community-Datenbank).
+      </p>
+
+      <h3>Feedback</h3>
+      <p>
+        Wenn du aktiv Feedback sendest, werden Feedback-Art, Nachrichtentext,
+        App-Version, Betriebssystem und ggf. die zufällige Installations-Kennung
+        an unsere API übermittelt und gespeichert. Die Übermittlung ist
+        freiwillig. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
+        Interesse an der Bearbeitung von Fehlerberichten und der Verbesserung
+        des Dienstes).
       </p>
 
       <h3>Update-Prüfung</h3>
       <p>
-        Zur Bereitstellung von Updates ruft die App eine Versionsdatei von
-        <strong>Microsoft Azure Blob Storage</strong>
-        (<code>stplaycountereuw.blob.core.windows.net</code>) ab. Dabei wird
-        technisch bedingt deine IP-Adresse an Microsoft übertragen.
-        Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Sicherheit durch aktuelle
-        Software).
+        Zur Prüfung und Bereitstellung von Updates ruft die App eine
+        Versionsdatei bzw. Installationsdateien von
+        <strong>GitHub Releases</strong> (GitHub, Inc.) ab. Dabei wird technisch
+        bedingt deine IP-Adresse an GitHub übertragen. Rechtsgrundlage: Art. 6
+        Abs. 1 lit. f DSGVO (Sicherheit durch aktuelle Software).
       </p>
 
       <h3>Spiele-Cover (IGDB)</h3>
@@ -327,30 +357,70 @@
         Cover-Abbildungen).
       </p>
 
-      <h2>4. Empfänger &amp; Übermittlung in Drittländer</h2>
+      <h2>4. Kontakt per E-Mail</h2>
       <p>
-        Zur Bereitstellung des Dienstes setzen wir folgende Auftragsverarbeiter
-        bzw. Dienste ein: <strong>Microsoft Azure</strong> (Hosting der Website,
-        der API und der Update-Dateien) sowie <strong>IGDB / Twitch /
-        Amazon</strong> (Cover-Bilder). Diese Anbieter sind US-Unternehmen; eine
-        Verarbeitung kann auch in den USA stattfinden. Soweit Daten in die USA
-        übermittelt werden, stützt sich dies auf geeignete Garantien (z.&nbsp;B.
-        EU-Standardvertragsklauseln bzw. die Zertifizierung des Anbieters unter
-        dem EU-US Data Privacy Framework).
+        Wenn du uns per E-Mail kontaktierst, verarbeiten wir deine
+        E-Mail-Adresse, den Nachrichteninhalt und die üblichen technischen
+        Metadaten, um die Anfrage zu beantworten. Die Bereitstellung ist
+        freiwillig. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; bei
+        vertragsbezogenen Anfragen zusätzlich Art. 6 Abs. 1 lit. b DSGVO. Als
+        E-Mail-Dienst wird Google Gmail eingesetzt.
       </p>
 
-      <h2>5. Speicherdauer</h2>
+      <h2>5. Empfänger &amp; Übermittlung in Drittländer</h2>
       <p>
-        Lokale Daten verbleiben auf deinem Gerät, bis du sie in der App oder über
-        dein Betriebssystem löschst. Server-Logs des Hostings werden nur für eine
-        kurze, technisch erforderliche Dauer vorgehalten. Beim Spiele-Abgleich
-        übermittelte Programmkennungen werden nicht dauerhaft mit deiner Person
-        gespeichert. Von dir aktiv gesendetes Feedback bzw. Spiele-Vorschläge
-        werden gespeichert, solange es für deren Bearbeitung und die Verbesserung
-        des Dienstes erforderlich ist.
+        Empfänger bzw. eingesetzte Dienste sind
+        <strong>Microsoft Azure</strong> (Hosting von Website und API), der für
+        die API konfigurierte <strong>PostgreSQL-Hosting-Anbieter</strong>
+        (serverseitige Matching-, Vorschlags- und Feedback-Daten),
+        <strong>GitHub</strong> (Updates, Downloads und Quellcode-Repository),
+        <strong>IGDB / Twitch / Amazon</strong> (Cover-Bilder) und
+        <strong>Google</strong> (E-Mail-Kommunikation). Diese Unternehmen haben
+        ihren Sitz in den USA oder können Daten von dort aus verarbeiten.
+        Übermittlungen an zertifizierte US-Empfänger können auf dem
+        Angemessenheitsbeschluss zum EU-US Data Privacy Framework beruhen;
+        soweit dieser für einen Empfänger oder Verarbeitungsvorgang nicht
+        greift, werden die von den Anbietern vorgesehenen
+        EU-Standardvertragsklauseln oder eine andere Garantie nach Art. 46 DSGVO
+        verwendet. Informationen zu der im Einzelfall eingesetzten Garantie
+        können per E-Mail angefordert werden.
       </p>
 
-      <h2>6. Deine Rechte</h2>
+      <h2>6. Speicherdauer</h2>
+      <ul>
+        <li>
+          Lokale Spielzeiten, Verläufe und Einstellungen bleiben auf deinem
+          Gerät, bis du sie in der App oder über dein Betriebssystem löschst.
+        </li>
+        <li>
+          Matching-Anfragen werden nicht als personenbezogener Spielverlauf in
+          der Datenbank gespeichert. Nicht personenbezogene
+          Dateiname-zu-Spiel-Zuordnungen können dauerhaft bestehen bleiben.
+        </li>
+        <li>
+          Technische Provider- und Anwendungsprotokolle werden nach den
+          konfigurierten Aufbewahrungsregeln gelöscht oder überschrieben, sobald
+          sie für Betrieb, Fehleranalyse und Sicherheit nicht mehr erforderlich
+          sind.
+        </li>
+        <li>
+          Feedback wird bis zum Abschluss der Bearbeitung und danach nur so
+          lange gespeichert, wie es für nachvollziehbare Produktentscheidungen
+          oder die Abwehr möglicher Rechtsansprüche erforderlich ist.
+        </li>
+        <li>
+          Community-Vorschläge werden bis zur Prüfung gespeichert. Bestätigte
+          Match-Daten können bestehen bleiben, solange sie Teil der gemeinsamen
+          Datenbank sind; abgelehnte Einträge werden entfernt.
+        </li>
+        <li>
+          E-Mails werden nach Abschluss der Anfrage gelöscht, sofern keine
+          gesetzlichen Aufbewahrungspflichten oder möglichen Rechtsansprüche
+          eine weitere Speicherung erfordern.
+        </li>
+      </ul>
+
+      <h2>7. Deine Rechte</h2>
       <p>Dir stehen nach der DSGVO folgende Rechte zu:</p>
       <ul>
         <li>Auskunft über die zu dir gespeicherten Daten (Art. 15)</li>
@@ -376,159 +446,256 @@
         Nutzer zuordnen.
       </p>
 
+      <h2>8. Freiwilligkeit und automatisierte Entscheidungen</h2>
+      <p>
+        Feedback, Community-Vorschläge und eine Kontaktaufnahme per E-Mail sind
+        freiwillig. Ohne eine Online-Verbindung kann PlayCounter lokal weiter
+        verwendet werden; automatischer Spiele-Abgleich, Cover-Bilder und
+        Updates stehen dann nicht zur Verfügung. Es findet keine automatisierte
+        Entscheidungsfindung im Sinne von Art. 22 DSGVO und kein Profiling
+        statt.
+      </p>
+
       <div class="note">
         Hinweis: Du kannst die Datenübertragung der App jederzeit unterbinden,
         indem du die App offline betreibst. Die App funktioniert auch ohne
         Server-Verbindung; lediglich der automatische Spiele-Abgleich und das
-        Laden von Cover-Bildern stehen dann nicht zur Verfügung.
+        Laden von Cover-Bildern sowie Update-Prüfungen stehen dann nicht zur
+        Verfügung.
       </div>
 
       <hr class="divider" />
 
-      <p class="lede" id="en">Privacy</p>
-      <h1>Privacy Policy</h1>
-      <p class="updated">Last updated: 30 May 2026</p>
+      <section lang="en" aria-labelledby="privacy-policy-title">
+        <p class="lede" id="en">Privacy</p>
+        <h1 id="privacy-policy-title">Privacy Policy</h1>
+        <p class="updated">Last updated: 17 July 2026</p>
 
-      <p>
-        This privacy policy covers the <strong>playcounter.app</strong> website
-        and the <strong>PlayCounter desktop app</strong>. PlayCounter does not
-        require an account, and most of your data (playtime, history, settings)
-        stays exclusively on your local device.
-      </p>
+        <p>
+          This privacy policy covers the
+          <strong>playcounter.app</strong> website and the
+          <strong>PlayCounter desktop app</strong>. PlayCounter does not require
+          an account, and most of your data (playtime, history, settings) stays
+          exclusively on your local device.
+        </p>
 
-      <h2>1. Controller</h2>
-      <address>
-        <strong>Philipp Pradzinski</strong><br />
-        Ebbergstr. 5, 58239 Schwerte, Germany<br />
-        Email: <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a>
-      </address>
+        <h2>1. Controller</h2>
+        <address>
+          <strong>Philipp Pradzinski</strong><br />
+          Ebbergstr. 5, 58239 Schwerte, Germany<br />
+          Email: <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a>
+        </address>
 
-      <h2>2. The website (playcounter.app)</h2>
-      <h3>Hosting &amp; server logs</h3>
-      <p>
-        The website is hosted on <strong>Microsoft Azure Static Web Apps</strong>.
-        When you access the site, the hosting provider processes technically
-        necessary access data in server logs (IP address, date/time, requested
-        page, data volume, browser and OS information) to operate the site
-        securely and reliably. Legal basis: Art. 6(1)(f) GDPR (legitimate
-        interest).
-      </p>
-      <h3>Fonts (self-hosted)</h3>
-      <p>
-        All fonts are <strong>served locally from our own server</strong>. There
-        is <strong>no</strong> connection to Google Fonts or any external font
-        service, so your IP address is not shared with third parties for fonts.
-      </p>
-      <h3>Cookies, tracking &amp; analytics</h3>
-      <p>
-        The website uses <strong>no cookies</strong>, <strong>no</strong>
-        tracking and <strong>no</strong> analytics. No profiles are created.
-      </p>
-      <h3>External links</h3>
-      <p>
-        The site links to external services (e.g. <strong>GitHub</strong> and
-        <strong>Discord</strong>). Data is only transferred to these providers
-        once you actively click a link and visit the respective site, where
-        their own privacy policies apply.
-      </p>
+        <h2>2. The website (playcounter.app)</h2>
+        <h3>Hosting &amp; server logs</h3>
+        <p>
+          The website is hosted on
+          <strong>Microsoft Azure Static Web Apps</strong>. When you access the
+          site, the hosting provider processes technically necessary access data
+          in server logs (IP address, date/time, requested page, data volume,
+          browser and OS information) to operate the site securely and reliably.
+          Legal basis: Art. 6(1)(f) GDPR (legitimate interest).
+        </p>
+        <p>
+          PlayCounter does not combine this access data with user profiles and
+          does not operate its own audience measurement. Technical access and
+          security logs are retained according to the retention configured for
+          the Azure service or specified by Microsoft and are then deleted or
+          overwritten, unless a security incident or legal obligation requires
+          longer retention.
+        </p>
+        <h3>Fonts (system fonts)</h3>
+        <p>
+          The website uses system fonts available locally on your device. It
+          does not load font files from Google Fonts or another external font
+          service, so your IP address is not shared with third parties for this
+          purpose.
+        </p>
+        <h3>Cookies, tracking &amp; analytics</h3>
+        <p>
+          The website uses <strong>no cookies</strong>,
+          <strong>no</strong> tracking and <strong>no</strong> analytics. No
+          profiles are created.
+        </p>
+        <h3>External links</h3>
+        <p>
+          The site links to external services (e.g. <strong>GitHub</strong> and
+          <strong>Discord</strong>). Data is only transferred to these providers
+          once you actively click a link and visit the respective site, where
+          their own privacy policies apply.
+        </p>
 
-      <h2>3. The desktop app</h2>
-      <h3>Local processing</h3>
-      <p>
-        To detect the games you play, PlayCounter reads the names of running
-        processes <strong>locally on your device</strong>. Your playtime,
-        history, settings and a randomly generated install identifier are stored
-        <strong>exclusively on your device</strong>. There is no user account,
-        and we do not store this data on our servers.
-      </p>
-      <h3>Game matching</h3>
-      <p>
-        To map a running program to a game, the app sends the
-        <strong>names/identifiers of running programs</strong> to our API
-        (<strong>api.playcounter.app</strong>, hosted on Microsoft Azure in the
-        EU). On Windows only the executable file name is sent (e.g.
-        <code>Hades2.exe</code>), not the full file path. On Linux the program
-        path may additionally be sent to identify the game. Legal basis:
-        Art. 6(1)(f) GDPR.
-      </p>
-      <h3>Feedback &amp; game suggestions</h3>
-      <p>
-        If you actively send feedback or suggest an unrecognised game, the
-        information you enter (e.g. message text, app version, operating system,
-        suggested game/executable name and possibly the install UUID) is sent to
-        and stored by our API. Legal basis: Art. 6(1)(a)/(f) GDPR.
-      </p>
-      <h3>Update check</h3>
-      <p>
-        To deliver updates, the app retrieves a version file from
-        <strong>Microsoft Azure Blob Storage</strong>
-        (<code>stplaycountereuw.blob.core.windows.net</code>), which technically
-        transmits your IP address to Microsoft. Legal basis: Art. 6(1)(f) GDPR.
-      </p>
-      <h3>Game covers (IGDB)</h3>
-      <p>
-        Game cover images are loaded directly from
-        <strong>images.igdb.com</strong> (IGDB, operated by Twitch Interactive /
-        Amazon). Loading these images technically transmits your IP address to
-        this provider. Legal basis: Art. 6(1)(f) GDPR.
-      </p>
+        <h2>3. The desktop app</h2>
+        <h3>Local processing</h3>
+        <p>
+          To detect the games you play, PlayCounter reads the names of running
+          processes <strong>locally on your device</strong>. Your playtime,
+          history, settings and a randomly generated install identifier are
+          stored <strong>locally on your device</strong>. The current desktop
+          app does not transmit playtime or session history to the server. There
+          is no user account. Compatibility endpoints retained for older
+          live-statistics versions discard incoming requests without storing new
+          activity data.
+        </p>
+        <h3>Game matching</h3>
+        <p>
+          To map a running program to a game, the app sends the
+          <strong>names/identifiers of running programs</strong> to our API
+          (<strong>api.playcounter.app</strong>, hosted on Microsoft Azure in
+          the EU). On Windows only the executable file name is sent (e.g.
+          <code>Hades2.exe</code>), not the full file path. On Linux the program
+          path may additionally be sent to identify the game. Legal basis: Art.
+          6(1)(f) GDPR.
+        </p>
+        <p>
+          The API processes these identifiers to return a match. A reliable
+          filename-to-game mapping may be stored as part of the shared matching
+          database without being linked to an install identifier. Requested
+          filenames may temporarily appear in technical application logs for
+          troubleshooting; on Windows, full program paths and playtime are not
+          logged there. Every network connection necessarily transmits the IP
+          address to Azure, where it may be processed in access or security
+          logs.
+        </p>
+        <h3>Community game suggestions</h3>
+        <p>
+          If you suggest an unrecognised game to the community database, the
+          executable name, game name, selected cover and possibly the random
+          install identifier are sent to the API and stored in the matching
+          database. The identifier helps distinguish submissions during review.
+          Rejected entries are removed; confirmed match data may remain as part
+          of the shared database. Legal basis: Art. 6(1)(f) GDPR (legitimate
+          interest in a reviewable and reliable community database).
+        </p>
+        <h3>Feedback</h3>
+        <p>
+          If you actively send feedback, its type, message, app version,
+          operating system and possibly the random install identifier are sent
+          to and stored by the API. Submission is voluntary. Legal basis: Art.
+          6(1)(f) GDPR (legitimate interest in processing bug reports and
+          improving the service).
+        </p>
+        <h3>Update check</h3>
+        <p>
+          To check for and deliver updates, the app retrieves a version file and
+          installation files from <strong>GitHub Releases</strong> (GitHub,
+          Inc.). This technically transmits your IP address to GitHub. Legal
+          basis: Art. 6(1)(f) GDPR.
+        </p>
+        <h3>Game covers (IGDB)</h3>
+        <p>
+          Game cover images are loaded directly from
+          <strong>images.igdb.com</strong> (IGDB, operated by Twitch Interactive
+          / Amazon). Loading these images technically transmits your IP address
+          to this provider. Legal basis: Art. 6(1)(f) GDPR.
+        </p>
 
-      <h2>4. Recipients &amp; international transfers</h2>
-      <p>
-        We use the following processors/services: <strong>Microsoft Azure</strong>
-        (hosting of the website, API and update files) and <strong>IGDB /
-        Twitch / Amazon</strong> (cover images). These providers are US
-        companies and processing may also take place in the USA. Where data is
-        transferred to the USA, this is based on appropriate safeguards (e.g. EU
-        Standard Contractual Clauses or the provider's certification under the
-        EU-US Data Privacy Framework).
-      </p>
+        <h2>4. Contact by email</h2>
+        <p>
+          If you contact us by email, we process your email address, message and
+          usual technical metadata to answer the request. Providing this data is
+          voluntary. The legal basis is Art. 6(1)(f) GDPR and, for
+          contract-related enquiries, also Art. 6(1)(b) GDPR. Google Gmail is
+          used as the email service.
+        </p>
 
-      <h2>5. Retention</h2>
-      <p>
-        Local data remains on your device until you delete it in the app or via
-        your operating system. Hosting server logs are kept only for a short,
-        technically necessary period. Program identifiers sent for game matching
-        are not stored in a way that is linked to you. Feedback and game
-        suggestions you actively send are kept only as long as needed to process
-        them and improve the service.
-      </p>
+        <h2>5. Recipients &amp; international transfers</h2>
+        <p>
+          Recipients and services used are
+          <strong>Microsoft Azure</strong> (website and API hosting), the
+          <strong>PostgreSQL hosting provider</strong> configured for the API
+          (server-side matching, suggestion and feedback data),
+          <strong>GitHub</strong> (updates, downloads and source repository),
+          <strong>IGDB / Twitch / Amazon</strong> (cover images), and
+          <strong>Google</strong> (email communication). These companies are
+          based in the United States or may process data from there. Transfers
+          to certified US recipients may rely on the EU-US Data Privacy
+          Framework adequacy decision. Where that decision does not cover a
+          recipient or processing operation, the provider's EU Standard
+          Contractual Clauses or another safeguard under Article 46 GDPR is
+          used. Information about the safeguard used for a particular transfer
+          can be requested by email.
+        </p>
 
-      <h2>6. Your rights</h2>
-      <p>Under the GDPR you have the right to:</p>
-      <ul>
-        <li>access (Art. 15)</li>
-        <li>rectification (Art. 16)</li>
-        <li>erasure (Art. 17)</li>
-        <li>restriction of processing (Art. 18)</li>
-        <li>data portability (Art. 20)</li>
-        <li>
-          object to processing based on legitimate interest (Art. 21) – e.g. by
-          running the app offline
-        </li>
-        <li>
-          lodge a complaint with a supervisory authority (Art. 77), e.g. the
-          data protection authority of North Rhine-Westphalia (LDI NRW)
-        </li>
-      </ul>
-      <p>
-        To exercise your rights, an informal message to
-        <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a> is sufficient.
-        As we keep no accounts and do not link data sent to the API to your
-        identity, we can only attribute individual records to a user to a limited
-        extent.
-      </p>
+        <h2>6. Retention</h2>
+        <ul>
+          <li>
+            Local playtime, history and settings remain on your device until you
+            delete them in the app or through your operating system.
+          </li>
+          <li>
+            Matching requests are not stored in the database as a personal
+            gaming history. Non-personal filename-to-game mappings may remain
+            permanently.
+          </li>
+          <li>
+            Technical provider and application logs are deleted or overwritten
+            under the configured retention rules once no longer required for
+            operation, troubleshooting and security.
+          </li>
+          <li>
+            Feedback is stored until processing is complete and afterward only
+            as long as required for traceable product decisions or the defence
+            of possible legal claims.
+          </li>
+          <li>
+            Community suggestions are stored pending review. Confirmed match
+            data may remain while part of the shared database; rejected entries
+            are removed.
+          </li>
+          <li>
+            Emails are deleted after the request is complete unless statutory
+            retention obligations or possible legal claims require further
+            storage.
+          </li>
+        </ul>
 
-      <div class="note">
-        Note: You can stop the app from transmitting data at any time by running
-        the app offline. The app also works without a server connection; only
-        automatic game matching and cover-image loading are then unavailable.
-      </div>
+        <h2>7. Your rights</h2>
+        <p>Under the GDPR you have the right to:</p>
+        <ul>
+          <li>access (Art. 15)</li>
+          <li>rectification (Art. 16)</li>
+          <li>erasure (Art. 17)</li>
+          <li>restriction of processing (Art. 18)</li>
+          <li>data portability (Art. 20)</li>
+          <li>
+            object to processing based on legitimate interest (Art. 21) – e.g.
+            by running the app offline
+          </li>
+          <li>
+            lodge a complaint with a supervisory authority (Art. 77), e.g. the
+            data protection authority of North Rhine-Westphalia (LDI NRW)
+          </li>
+        </ul>
+        <p>
+          To exercise your rights, an informal message to
+          <a href="mailto:zesarex@gmail.com">zesarex@gmail.com</a> is
+          sufficient. As we keep no accounts and do not link data sent to the
+          API to your identity, we can only attribute individual records to a
+          user to a limited extent.
+        </p>
+
+        <h2>8. Voluntary provision and automated decisions</h2>
+        <p>
+          Feedback, community suggestions and contacting us by email are
+          voluntary. PlayCounter can continue to be used locally without an
+          online connection; automatic game matching, cover images and updates
+          are then unavailable. There is no automated decision-making within the
+          meaning of Article 22 GDPR and no profiling.
+        </p>
+
+        <div class="note">
+          Note: You can stop the app from transmitting data at any time by
+          running the app offline. The app also works without a server
+          connection; only automatic game matching, cover-image loading and
+          update checks are then unavailable.
+        </div>
+      </section>
     </main>
 
     <footer>
       <div class="foot-inner">
-        <div>© <span id="year"></span> PlayCounter</div>
+        <div>© 2026 PlayCounter</div>
         <div class="foot-links">
           <a href="index.html">Start / Home</a>
           <a href="impressum.html">Impressum</a>
@@ -536,9 +703,5 @@
         </div>
       </div>
     </footer>
-
-    <script>
-      document.getElementById("year").textContent = new Date().getFullYear();
-    </script>
   </body>
 </html>

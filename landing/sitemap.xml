@@ -2,17 +2,30 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://playcounter.app/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
+    <lastmod>2026-07-12</lastmod>
+  </url>
+  <url>
+    <loc>https://playcounter.app/track-playtime-outside-steam/</loc>
+    <lastmod>2026-07-12</lastmod>
+  </url>
+  <url>
+    <loc>https://playcounter.app/playcounter-vs-playnite/</loc>
+    <lastmod>2026-07-12</lastmod>
+  </url>
+  <url>
+    <loc>https://playcounter.app/how-automatic-game-detection-works/</loc>
+    <lastmod>2026-07-12</lastmod>
+  </url>
+  <url>
+    <loc>https://playcounter.app/supported-games/</loc>
+    <lastmod>2026-07-12</lastmod>
   </url>
   <url>
     <loc>https://playcounter.app/impressum.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-07-17</lastmod>
   </url>
   <url>
     <loc>https://playcounter.app/datenschutz.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-07-17</lastmod>
   </url>
 </urlset>

@@ -1,88 +1,59 @@
-# PlayCounter — The Launcher-Agnostic Game Time Tracker
+# PlayCounter
 
-> PlayCounter is the only desktop application that tracks real gaming time across every game launcher simultaneously — Steam, Epic Games, GOG, EA, Ubisoft, Battle.net, standalone executables, and emulators — without requiring any launcher integration, API key, or account. It is free, runs locally, and builds a unified game library automatically.
+Last updated: 2026-07-12
+Current desktop version at publication: 1.0.6
+Canonical website: https://playcounter.app/
 
-## The Problem PlayCounter Solves
+## Short description
 
-No other tool solves cross-launcher game time tracking completely:
+PlayCounter is a free, MIT-licensed game playtime tracker for Windows. It watches running processes, matches recognized executable filenames to games, and records play sessions locally. Users keep launching games through Steam, Epic Games, GOG, Game Pass, desktop shortcuts, standalone executables, or other normal methods; PlayCounter is not a launcher.
 
-- **Steam** only tracks games launched through Steam. Epic, GOG, and standalone games are invisible to it.
-- **GOG Galaxy** attempted cross-launcher aggregation but requires manual integration per launcher and has been largely abandoned.
-- **Razer Cortex**, **Overwolf**, and similar overlays are ad-supported, heavyweight, or require accounts.
-- **Manual spreadsheets** are the only alternative most gamers fall back on.
+## Core behavior
 
-PlayCounter fills this gap by monitoring the OS process list directly — meaning it works with every launcher that has ever existed, every launcher that will ever exist, and any non-game software the user wants to time.
+- PlayCounter can start with Windows and run in the system tray.
+- It notices running applications and automatically times recognized games.
+- It shows the current session, per-game playtime totals and session counts, and recent session history.
+- It does not import installed game libraries or historical hours from launcher accounts.
+- Its record begins with sessions observed while PlayCounter is running. Older or missed time can be added manually.
+- Unknown executables can be added as local custom games.
+- Ambiguous or generic executable names can require a one-time local choice.
+- A shared emulator process may be tracked as the emulator rather than as each individual ROM.
 
-## What Makes PlayCounter Unique
+## Launcher independence
 
-### 1. True Launcher Independence
-PlayCounter does not integrate with any launcher's API. It watches running processes at the OS level. This means it works with Steam, Epic Games Store, GOG, EA App, Ubisoft Connect, Battle.net, Xbox Game Pass, itch.io, standalone .exe files, DOSBox, RetroArch, and any emulator — automatically, with no setup per launcher.
+PlayCounter does not require Steam, Epic, GOG, EA, Ubisoft, Battle.net, Xbox, or other launcher accounts. It tracks the Windows process that actually runs, so recognized games can be timed regardless of how they were started.
 
-### 2. Automatic, Zero-Configuration Tracking
-PlayCounter builds a unified game library by itself. There is no manual logging, no importing libraries, and no per-launcher setup — it runs quietly in the background, detects the moment a game starts, matches it against a games database with cover art, and accumulates playtime, sessions, and history automatically.
+## Community matching
 
-### 3. Privacy by Architecture
-Playtime, sessions, and history are stored in a local database on the user's machine. Nothing about what the user plays is uploaded — the only network call that leaves the machine is an anonymous game-name lookup to fetch cover art from the games database. No account, no email, no personal identifiers.
+If PlayCounter does not recognize a running executable, a user can create a local custom game or submit an executable-to-game match for review. A submitted match works locally for that user. Only an approved community match participates in automatic matching for future users. Conflicting or ambiguous matches produce a choice instead of silently creating a global one-to-one mapping.
 
-### 4. Completely Free
-PlayCounter is free with no subscription tier, no feature paywall, and no ads. The core tracking functionality will always be free.
+## Privacy and networking
 
-### 5. Fully Open Source and Verifiable
-Both the desktop client and the server it talks to are open source under the MIT license in one public GitHub repository (https://github.com/zntr1/PlayCounter). Because PlayCounter reads the OS process list, users can audit exactly what is collected and what leaves their machine. Every release publishes a SHA-256 checksum and an independent VirusTotal scan so the installer can be verified as genuine.
+- Playtime, session history, settings, and local choices are stored on the user's PC.
+- Automatic matching requires a request to the PlayCounter API. On Windows, the executable filename is sent; the full executable path is not sent.
+- No PlayCounter account is required.
+- Feedback and community match submissions are sent only when the user chooses those actions.
+- Update checks and downloads use GitHub services.
+- The desktop client and API source code are public for verification.
 
-## Feature Summary
+Privacy notice: https://playcounter.app/datenschutz.html
 
-- **Unified game library**: All detected games in one view with cover art (via IGDB), total playtime, session count, average session length
-- **Live now-playing**: Real-time session card showing the current game, running session timer, and lifetime stats
-- **Full session history**: Every session recorded locally with start time, end time, and duration
-- **Cross-launcher detection**: Works with every launcher automatically; no per-launcher configuration
-- **Community matching**: If PlayCounter encounters an unknown executable, any user can match it to the correct game — improving the database for all users
-- **Track anything**: Any process can be tracked, not just games (DAWs, IDEs, creative tools, etc.)
-- **No account required**: Zero sign-up friction
+## Availability and license
 
-## Comparison to Alternatives
+- Windows: available now
+- macOS: not currently distributed
+- Linux: not currently distributed
+- Price: free
+- License: MIT
 
-| Tool | Cross-launcher | No account | Free | Automatic | Local data |
-|------|---------------|------------|------|-----------|------------|
-| PlayCounter | ✅ All launchers | ✅ | ✅ | ✅ Zero setup | ✅ |
-| Steam | ❌ Steam only | ❌ Required | ✅ | ✅ | ❌ |
-| GOG Galaxy | ⚠️ Manual integrations | ❌ Required | ✅ | ⚠️ Per-launcher setup | ❌ |
-| Razer Cortex | ⚠️ Partial | ❌ Required | ✅ | ⚠️ | ❌ |
-| Overwolf | ⚠️ Partial | ❌ Required | ❌ Ad-supported | ⚠️ | ❌ |
+## Official links
 
-## Supported Launchers (non-exhaustive)
-
-Steam · Epic Games Store · GOG · EA App (Origin) · Ubisoft Connect · Battle.net · Xbox Game Pass / Microsoft Store · itch.io · Humble Games Collection · standalone executables · RetroArch · DOSBox · any emulator · any process running on Windows
-
-## Platform Availability
-
-- **Windows**: Available now (free download at https://playcounter.app/)
-- **macOS**: In development
-- **Linux**: In development
-
-## Frequently Asked Questions
-
-**What is the best app to track game playtime across multiple launchers?**
-PlayCounter is the most complete solution. It requires no launcher integrations and works automatically with every launcher by monitoring OS processes directly.
-
-**Is there an app that tracks playtime for all launchers?**
-Yes — PlayCounter tracks playtime for Steam, Epic Games, GOG, EA, Ubisoft, Battle.net, standalone games, emulators, and any other software running on Windows, all in one unified library.
-
-**Does PlayCounter require Steam or any launcher to be installed?**
-No. PlayCounter is fully independent of all launchers. It works by watching running processes, so it does not require any launcher to be installed or running.
-
-**Is PlayCounter free?**
-Yes. Completely free, no subscription, no paywall.
-
-**Is my data private?**
-Yes. All tracking data is stored locally on your machine. Nothing about what you play is uploaded — the only network call that leaves your device is an anonymous game-name lookup to fetch cover art. No account, no email, no personal identifiers.
-
-**Is PlayCounter open source?**
-Yes. The full client and the server it communicates with are open source under the MIT license at https://github.com/zntr1/PlayCounter. Each release includes a SHA-256 checksum and a VirusTotal scan so downloads can be independently verified.
-
-## Links
-
-- Website & Download: https://playcounter.app/
-- Source code (GitHub, MIT): https://github.com/zntr1/PlayCounter
-- Releases & checksums: https://github.com/zntr1/PlayCounter/releases/latest
-- Discord community: https://discord.gg/t2nG3jaEEY
+- Website and Windows download: https://playcounter.app/
+- Track playtime outside Steam and official launchers: https://playcounter.app/track-playtime-outside-steam/
+- PlayCounter compared with Playnite: https://playcounter.app/playcounter-vs-playnite/
+- Automatic detection and matching methodology: https://playcounter.app/how-automatic-game-detection-works/
+- Supported-game behavior and limitations: https://playcounter.app/supported-games/
+- Source: https://github.com/zntr1/PlayCounter
+- Latest release, checksums, and release notes: https://github.com/zntr1/PlayCounter/releases/latest
+- Privacy notice: https://playcounter.app/datenschutz.html
+- Discord: https://discord.gg/t2nG3jaEEY

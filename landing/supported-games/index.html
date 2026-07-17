@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Supported Games: What PlayCounter Can Track</title>
+    <meta
+      name="description"
+      content="Learn which Windows games PlayCounter can track across Steam, Epic, GOG, Game Pass, standalone installs, portable games, and emulators."
+    />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/supported-games/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="Which Games Can PlayCounter Track?" />
+    <meta
+      property="og:description"
+      content="An honest guide to launcher-independent Windows game coverage, automatic matches, and shared-process limits."
+    />
+    <meta property="og:type" content="article" />
+    <meta
+      property="og:url"
+      content="https://playcounter.app/supported-games/"
+    />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta
+      property="og:image"
+      content="https://playcounter.app/playcounter-og-2026-07-v2.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter tracking recognized games from different Windows launchers"
+    />
+    <meta property="article:published_time" content="2026-07-12" />
+    <meta property="article:modified_time" content="2026-07-12" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Which Games Can PlayCounter Track?" />
+    <meta
+      name="twitter:description"
+      content="Windows game coverage across launchers, standalone installs, and shared processes."
+    />
+    <meta
+      name="twitter:image"
+      content="https://playcounter.app/playcounter-og-2026-07-v2.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/supported-games/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Supported games",
+                "item": "https://playcounter.app/supported-games/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/supported-games/#article",
+            "headline": "Which games does PlayCounter support?",
+            "description": "A guide to PlayCounter's Windows game coverage across launchers, standalone installations, custom matches, and shared-process edge cases.",
+            "url": "https://playcounter.app/supported-games/",
+            "mainEntityOfPage": "https://playcounter.app/supported-games/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-07-12",
+            "dateModified": "2026-07-12",
+            "inLanguage": "en",
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/track-playtime-outside-steam/"
+            >Non-Steam</a
+          >
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/" aria-current="page"
+            >Games</a
+          >
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a
+            class="button button-primary"
+            href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+            >Download</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / Supported games
+          </p>
+          <p class="eyebrow">Windows game coverage</p>
+          <h1>Which games can PlayCounter track?</h1>
+          <p class="article-deck">
+            Because PlayCounter identifies games by their running executable, it
+            can time a Windows game when that executable is recognized or after
+            you make a local match, regardless of which legitimate source
+            installed it.
+          </p>
+          <p class="article-meta">Updated July 12, 2026 · 5 minute read</p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>Support is based on the process, not the store</h2>
+            <p>
+              There is no short, fixed “supported launcher” list behind
+              PlayCounter. The Windows app observes running processes and
+              matches their executable filenames to games. A distinctive
+              filename with a known match can be tracked automatically wherever
+              the game was started. A filename that is not known yet can be
+              assigned locally.
+            </p>
+            <p>
+              That makes support broader than one account library, but it does
+              not mean every title is identified perfectly on first launch.
+              Automatic coverage depends on accurate executable-to-game matches.
+              Generic names and shared processes need special handling,
+              described below.
+            </p>
+
+            <div class="article-callout">
+              <strong>The useful rule</strong>
+              <p>
+                If a Windows game exposes its own stable executable process,
+                PlayCounter has a clear signal to time. If many games share one
+                process, identifying the individual title is harder.
+              </p>
+            </div>
+
+            <h2>Games from major PC launchers</h2>
+            <p>
+              Recognized games can be timed when launched through Steam, Epic
+              Games, GOG, Xbox or Game Pass, EA, Ubisoft, Battle.net, and other
+              PC launchers. PlayCounter does not connect to those accounts or
+              ask to import their installed libraries. Once the actual game
+              process is running, its executable filename is what matters.
+            </p>
+            <p>
+              This also means you do not need to re-add a game to a different
+              frontend just for timing. Start it from the store client, Start
+              menu, desktop shortcut, mod manager, or wherever you normally do.
+              The guide to
+              <a href="/track-playtime-outside-steam/"
+                >tracking playtime outside Steam</a
+              >
+              covers that workflow in detail.
+            </p>
+
+            <h2>DRM-free, portable, and standalone games</h2>
+            <p>
+              Legally obtained DRM-free releases, portable games, indie
+              downloads, fan games, and titles with a standalone installer can
+              all produce ordinary Windows executable processes. A recognized
+              executable is automatic. An unknown one can be added as a local
+              custom game or submitted as a community match for review.
+            </p>
+            <p>
+              The install folder does not decide whether a game is supported.
+              For Windows matching, PlayCounter sends the filename rather than
+              the full executable path. Moving a portable build therefore does
+              not inherently change its filename match, though renaming the
+              executable can prevent recognition.
+            </p>
+
+            <h2>Unknown games and community coverage</h2>
+            <p>
+              A title may be missing because it is new, niche, renamed, or
+              simply not in the shared matching data yet. The user can name it
+              as a local custom game and keep tracking. They may also submit the
+              executable-to-game relationship for review. A reviewed approval
+              improves automatic matching for future players.
+            </p>
+            <p>
+              Community growth is useful, but accuracy takes priority over raw
+              match count. A suggestion made by one person is not immediately a
+              trusted global mapping. This is how PlayCounter can become more
+              automatic over time without silently teaching every client a bad
+              answer.
+            </p>
+
+            <h2>Generic and ambiguous executable names</h2>
+            <p>
+              Some games ship as <code>game.exe</code>, <code>start.exe</code>,
+              or another name used by unrelated titles. PlayCounter cannot
+              safely infer a universal game from that filename alone. When
+              multiple exact candidates are known, it presents them for one
+              local choice. The selection is remembered on that PC and is not
+              promoted to a normal global one-to-one match just because one user
+              selected it.
+            </p>
+            <p>
+              That is still much less setup than finding and configuring every
+              executable in advance: distinctive known names remain automatic,
+              while only uncertain cases ask. Read
+              <a href="/how-automatic-game-detection-works/"
+                >how automatic game detection works</a
+              >
+              for the complete matching sequence.
+            </p>
+
+            <h2>Emulators, browser games, and cloud clients</h2>
+            <p>
+              An emulator often runs every ROM inside the same emulator
+              executable. The visible Windows process may therefore identify the
+              emulator, not the individual console game. PlayCounter may track
+              that shared emulator process as one application rather than
+              produce a reliable per-ROM total.
+            </p>
+            <p>
+              Browser games and cloud gaming clients have a similar limitation:
+              many titles can share one browser or streaming-client process.
+              Process detection alone does not always reveal which content is
+              active inside it. These are honest limits of filename-based
+              tracking, not a promise of title-level support.
+            </p>
+
+            <h2>Games, tools, and other applications</h2>
+            <p>
+              PlayCounter can also keep time for a locally defined non-game
+              application. That is useful for a level editor, creative tool, or
+              any executable whose usage you deliberately want in the same local
+              record. Conversely, ordinary background processes can be ignored
+              so they do not clutter the games view.
+            </p>
+
+            <h2>What support includes and excludes</h2>
+            <ul>
+              <li>
+                <strong>Windows only:</strong> PlayCounter is not currently
+                distributed for macOS or Linux.
+              </li>
+              <li>
+                <strong>Observed sessions:</strong> it records while PlayCounter
+                is running; it does not automatically reconstruct missed time.
+              </li>
+              <li>
+                <strong>No historical import:</strong> older Steam or launcher
+                hours are not pulled into the record, though time can be added
+                manually.
+              </li>
+              <li>
+                <strong>Local history:</strong> totals, session counts, and
+                recent session history stay in local app storage.
+              </li>
+              <li>
+                <strong>No account required:</strong> automatic matching does
+                not require a PlayCounter login.
+              </li>
+            </ul>
+            <p>
+              PlayCounter's coverage is therefore best understood as “Windows
+              processes that can be identified,” not “games sold by a particular
+              store.”
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Try your games</h2>
+            <p>
+              Recognized Windows executables are automatic. Unknown ones can be
+              assigned locally.
+            </p>
+            <a
+              class="button button-primary"
+              href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/track-playtime-outside-steam/"
+                >Track playtime outside Steam</a
+              >
+              <a href="/how-automatic-game-detection-works/"
+                >How automatic detection works</a
+              >
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>
+              Start with your next Windows session. If a game is unknown, add it
+              locally and keep the record growing.
+            </p>
+          </div>
+          <div class="cta-box">
+            <a
+              class="button button-primary button-large"
+              href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows · Free · Open source</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">© 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
