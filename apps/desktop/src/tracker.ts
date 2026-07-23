@@ -19,6 +19,7 @@ import {
   type ProcessSnapshot,
 } from "./store";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
+import { filterPersistableSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
 
 const STORAGE_KEY = "playcounter:v1";
@@ -200,7 +201,7 @@ function hydrate() {
         game,
       ]),
     ),
-    recentSessions: persisted.sessions ?? [],
+    recentSessions: filterPersistableSessions(persisted.sessions ?? []),
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
     blacklist: new Set(blacklist.map((exe) => exe.toLowerCase())),
@@ -1469,7 +1470,7 @@ export function persist() {
     settings: state.settings,
     exeCache: [...state.exeCache.values()],
     gameMetadata: [...state.gameMetadata.values()],
-    sessions: state.recentSessions,
+    sessions: filterPersistableSessions(state.recentSessions),
     activeSessions: state.activeSessions,
     ambiguousMatches: state.ambiguousMatches,
     blacklist: [...state.blacklist],

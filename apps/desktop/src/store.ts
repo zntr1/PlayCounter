@@ -6,6 +6,7 @@ import type {
   Theme,
 } from "@playcounter/shared";
 import { create } from "zustand";
+import { filterPersistableSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
 
 export type ViewId =
@@ -207,7 +208,7 @@ function persistSoon() {
         settings: state.settings,
         exeCache: [...state.exeCache.values()],
         gameMetadata: [...state.gameMetadata.values()],
-        sessions: state.recentSessions,
+        sessions: filterPersistableSessions(state.recentSessions),
         activeSessions: state.activeSessions,
         blacklist: [...state.blacklist],
       }),
@@ -266,7 +267,10 @@ export const useAppStore = create<AppState>((set) => ({
     })),
   addSession: (session) =>
     set((state) => ({
-      recentSessions: [session, ...state.recentSessions].slice(0, 500),
+      recentSessions: filterPersistableSessions([
+        session,
+        ...state.recentSessions,
+      ]).slice(0, 500),
     })),
   setGameMetadata: (games) =>
     set((state) => {
