@@ -1,4 +1,10 @@
-import type { Game, GameSource, Session, Settings } from "@playcounter/shared";
+import type {
+  Game,
+  GameSource,
+  Session,
+  Settings,
+  Theme,
+} from "@playcounter/shared";
 import { create } from "zustand";
 
 export type ViewId =
@@ -161,6 +167,7 @@ type AppState = {
     value: number,
   ) => void;
   setApiEndpoint: (value: string) => void;
+  setTheme: (theme: Theme) => void;
   toggleVerboseLogs: () => void;
   toggleBlacklist: (exeName: string, enabled: boolean) => void;
   clearCache: () => void;
@@ -181,7 +188,12 @@ const defaultSettings: Settings = {
   unmatchedRetryDays: 30,
   apiEndpoint: DEFAULT_API_ENDPOINT,
   verboseLogs: false,
+  theme: "dark",
 };
+
+export function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme;
+}
 
 let nextRuntimeLogId = 0;
 let nextToastId = 0;
@@ -338,6 +350,11 @@ export const useAppStore = create<AppState>((set) => ({
   },
   setApiEndpoint: (apiEndpoint) => {
     set((state) => ({ settings: { ...state.settings, apiEndpoint } }));
+    persistSoon();
+  },
+  setTheme: (theme) => {
+    set((state) => ({ settings: { ...state.settings, theme } }));
+    applyTheme(theme);
     persistSoon();
   },
   toggleVerboseLogs: () => {

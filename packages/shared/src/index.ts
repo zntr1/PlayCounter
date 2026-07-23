@@ -103,6 +103,8 @@ export interface FeedbackResponse {
   id: number;
 }
 
+export type Theme = "dark" | "light";
+
 export interface Settings {
   launchOnStartup: boolean;
   showDurationDays: boolean;
@@ -110,4 +112,5 @@ export interface Settings {
   unmatchedRetryDays: number;
   apiEndpoint: string;
   verboseLogs: boolean;
+  theme: Theme;
 }

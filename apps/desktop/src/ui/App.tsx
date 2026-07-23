@@ -7,8 +7,10 @@ import {
   ListChecks,
   LoaderCircle,
   MessageSquarePlus,
+  Moon,
   Play,
   Settings,
+  Sun,
   Wifi,
   WifiOff,
   X,
@@ -120,6 +122,8 @@ export function App() {
   const activeSessionsCount = useAppStore(
     (state) => state.activeSessions.length,
   );
+  const theme = useAppStore((state) => state.settings.theme);
+  const setTheme = useAppStore((state) => state.setTheme);
 
   useEffect(() => {
     void initializeTracker();
@@ -276,6 +280,20 @@ export function App() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <IconButton
+              aria-label={
+                theme === "dark"
+                  ? "Switch to light theme"
+                  : "Switch to dark theme"
+              }
+              title={
+                theme === "dark"
+                  ? "Switch to light theme"
+                  : "Switch to dark theme"
+              }
+              icon={theme === "dark" ? Sun : Moon}
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            />
             <IconButton
               aria-label="Open PlayCounter website"
               title={

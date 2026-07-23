@@ -2,19 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
+/* Color tokens. Space-separated RGB triples so Tailwind can apply opacity
+   modifiers (bg-surface/50); tokens with a baked-in alpha stay full colors.
+   Dark is the default theme; light overrides via data-theme on <html>. */
+:root {
+  color-scheme: dark;
+
+  --color-bg: 15 16 20;
+  --color-surface: 22 24 31;
+  --color-surface-hover: 30 33 42;
+  --color-border: 42 46 57;
+  --color-text: 231 233 238;
+  --color-text-muted: 154 161 173;
+  --color-text-faint: 107 114 128;
+  --color-accent: 139 140 255;
+  --color-accent-hover: 165 166 255;
+  --color-accent-tint: rgba(139, 140, 255, 0.14);
+  --color-accent-fg: 15 16 20;
+  --color-success: 74 222 128;
+  --color-success-tint: 20 83 45;
+  --color-success-border: 34 197 94;
+  --color-warning: 251 191 36;
+  --color-warning-tint: 120 53 15;
+  --color-warning-border: 245 158 11;
+  --color-danger: 248 113 113;
+  --color-danger-solid: 225 29 72;
+  --color-danger-solid-hover: 190 18 60;
+  --color-danger-tint: rgba(244, 63, 94, 0.12);
+  --color-danger-border: rgba(244, 63, 94, 0.34);
+  --color-info: 56 189 248;
+  --color-info-tint: rgba(14, 165, 233, 0.12);
+  --color-info-border: rgba(14, 165, 233, 0.32);
+  --color-community: 196 181 253;
+  --color-community-tint: 76 29 149;
+  --color-community-border: 124 58 237;
+
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --scrollbar-thumb: #2a2e39;
+  --scrollbar-thumb-hover: #3a4051;
 }
 
-html {
-  color-scheme: dark;
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg: 244 245 248;
+  --color-surface: 255 255 255;
+  --color-surface-hover: 238 240 244;
+  --color-border: 216 220 228;
+  --color-text: 27 30 38;
+  --color-text-muted: 91 100 114;
+  --color-text-faint: 154 161 173;
+  --color-accent: 91 92 226;
+  --color-accent-hover: 74 75 212;
+  --color-accent-tint: rgba(91, 92, 226, 0.12);
+  --color-accent-fg: 255 255 255;
+  --color-success: 21 128 61;
+  --color-success-tint: 220 252 231;
+  --color-success-border: 134 239 172;
+  --color-warning: 180 83 9;
+  --color-warning-tint: 254 243 199;
+  --color-warning-border: 245 158 11;
+  --color-danger: 220 38 38;
+  --color-danger-solid: 225 29 72;
+  --color-danger-solid-hover: 190 18 60;
+  --color-danger-tint: rgba(225, 29, 72, 0.08);
+  --color-danger-border: rgba(225, 29, 72, 0.3);
+  --color-info: 2 132 199;
+  --color-info-tint: rgba(2, 132, 199, 0.08);
+  --color-info-border: rgba(2, 132, 199, 0.3);
+  --color-community: 109 40 217;
+  --color-community-tint: 237 233 254;
+  --color-community-border: 167 139 250;
+
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb: #c6ccd6;
+  --scrollbar-thumb-hover: #aeb6c4;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
   min-width: 920px;
-  background: #0f1014;
-  color: #e7e9ee;
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-text));
 }
 
 button,
@@ -29,13 +102,13 @@ select {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a2e39;
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
-  border: 2px solid #0f1014;
+  border: 2px solid rgb(var(--color-bg));
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a4051;
+  background: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-track {

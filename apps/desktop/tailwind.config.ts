@@ -1,56 +1,60 @@
 import type { Config } from "tailwindcss";
 
+// Theme-aware color: reads an RGB triple from a CSS variable defined in
+// styles.css so Tailwind opacity modifiers (bg-surface/50) keep working.
+const rgb = (variable: string) => `rgb(var(${variable}) / <alpha-value>)`;
+
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        bg: "#0f1014",
-        surface: "#16181f",
-        "surface-hover": "#1e212a",
-        border: "#2a2e39",
-        text: "#e7e9ee",
-        "text-muted": "#9aa1ad",
-        "text-faint": "#6b7280",
+        bg: rgb("--color-bg"),
+        surface: rgb("--color-surface"),
+        "surface-hover": rgb("--color-surface-hover"),
+        border: rgb("--color-border"),
+        text: rgb("--color-text"),
+        "text-muted": rgb("--color-text-muted"),
+        "text-faint": rgb("--color-text-faint"),
         accent: {
-          DEFAULT: "#8b8cff",
-          hover: "#a5a6ff",
-          tint: "rgba(139, 140, 255, 0.14)",
-          fg: "#0f1014",
+          DEFAULT: rgb("--color-accent"),
+          hover: rgb("--color-accent-hover"),
+          tint: "var(--color-accent-tint)",
+          fg: rgb("--color-accent-fg"),
         },
         success: {
-          DEFAULT: "#4ade80",
-          tint: "#14532d",
-          border: "#22c55e",
+          DEFAULT: rgb("--color-success"),
+          tint: rgb("--color-success-tint"),
+          border: rgb("--color-success-border"),
         },
         warning: {
-          DEFAULT: "#fbbf24",
-          tint: "#78350f",
-          border: "#f59e0b",
+          DEFAULT: rgb("--color-warning"),
+          tint: rgb("--color-warning-tint"),
+          border: rgb("--color-warning-border"),
         },
         danger: {
-          DEFAULT: "#f87171",
-          solid: "#e11d48",
-          "solid-hover": "#be123c",
-          tint: "rgba(244, 63, 94, 0.12)",
-          border: "rgba(244, 63, 94, 0.34)",
+          DEFAULT: rgb("--color-danger"),
+          solid: rgb("--color-danger-solid"),
+          "solid-hover": rgb("--color-danger-solid-hover"),
+          tint: "var(--color-danger-tint)",
+          border: "var(--color-danger-border)",
         },
         info: {
-          DEFAULT: "#38bdf8",
-          tint: "rgba(14, 165, 233, 0.12)",
-          border: "rgba(14, 165, 233, 0.32)",
+          DEFAULT: rgb("--color-info"),
+          tint: "var(--color-info-tint)",
+          border: "var(--color-info-border)",
         },
         community: {
-          DEFAULT: "#c4b5fd",
-          tint: "#4c1d95",
-          border: "#7c3aed",
+          DEFAULT: rgb("--color-community"),
+          tint: rgb("--color-community-tint"),
+          border: rgb("--color-community-border"),
         },
       },
       fontFamily: {
         sans: ["Inter", "Segoe UI", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        raised: "0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25)",
+        raised: "var(--shadow-raised)",
       },
       keyframes: {
         pop: {

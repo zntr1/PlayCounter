@@ -1,0 +1,1 @@
+Playcounter is an desktop app developed by me that runs on windows and that automatically tries to match your processes to discover running games and track your playtime, building a session history, a small library of played games and the playtime behind them.
