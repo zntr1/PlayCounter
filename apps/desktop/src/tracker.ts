@@ -19,6 +19,7 @@ import {
   type ProcessSnapshot,
 } from "./store";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
+import { adjustPlaytimeSessions } from "./playtimeAdjustment";
 import { filterPersistableSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
 
@@ -1894,6 +1895,65 @@ export function addManualSession(params: {
   });
   logRuntime(
     `manual session added ${params.gameName} (${params.exeName}) seconds=${durationSeconds}`,
+  );
+  persist();
+}
+
+export function setGamePlaytime(params: {
+  gameId: number;
+  gameName: string;
+  coverUrl: string;
+  source: Game["source"] | null;
+  exeName: string;
+  targetSeconds: number;
+  communitySuggestionId?: number;
+  communitySuggestionVerified?: boolean;
+}) {
+  const targetSeconds = Math.max(0, Math.round(params.targetSeconds));
+  if (targetSeconds > 0 && targetSeconds < 60) {
+    throw new Error("Playtime must be zero or at least one minute");
+  }
+
+  const matchesGame = (session: { gameId: number; source?: Game["source"] }) =>
+    session.gameId === params.gameId &&
+    (params.source ? session.source === params.source : true);
+  const state = useAppStore.getState();
+
+  if (state.activeSessions.some(matchesGame)) {
+    throw new Error("Stop the active session before adjusting playtime");
+  }
+
+  const matchingSessions = state.recentSessions.filter(matchesGame);
+  if (matchingSessions.length === 0) {
+    if (targetSeconds === 0) return;
+    addManualSession({
+      gameId: params.gameId,
+      gameName: params.gameName,
+      coverUrl: params.coverUrl,
+      source: params.source,
+      exeName: params.exeName,
+      durationSeconds: targetSeconds,
+      communitySuggestionId: params.communitySuggestionId,
+      communitySuggestionVerified: params.communitySuggestionVerified,
+    });
+    return;
+  }
+
+  const adjustedById = new Map(
+    adjustPlaytimeSessions(matchingSessions, targetSeconds).map((session) => [
+      session.id,
+      session,
+    ]),
+  );
+  useAppStore.setState((current) => ({
+    recentSessions: current.recentSessions.flatMap((session) => {
+      if (!matchesGame(session)) return [session];
+      const adjusted = adjustedById.get(session.id);
+      return adjusted ? [adjusted] : [];
+    }),
+  }));
+  logRuntime(
+    `game playtime adjusted gameId=${params.gameId} source=${params.source ?? "unknown"} seconds=${targetSeconds}`,
   );
   persist();
 }
