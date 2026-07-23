@@ -15,9 +15,9 @@
   --color-text: 231 233 238;
   --color-text-muted: 154 161 173;
   --color-text-faint: 123 132 148;
-  --color-accent: 139 140 255;
-  --color-accent-hover: 165 166 255;
-  --color-accent-tint: rgba(139, 140, 255, 0.14);
+  --color-accent: 110 166 255;
+  --color-accent-hover: 136 182 255;
+  --color-accent-tint: rgba(110, 166, 255, 0.13);
   --color-accent-fg: 15 16 20;
   --color-success: 74 222 128;
   --color-success-tint: 20 83 45;
@@ -30,9 +30,9 @@
   --color-danger-solid-hover: 190 18 60;
   --color-danger-tint: rgba(244, 63, 94, 0.12);
   --color-danger-border: rgba(244, 63, 94, 0.34);
-  --color-info: 56 189 248;
-  --color-info-tint: rgba(14, 165, 233, 0.12);
-  --color-info-border: rgba(14, 165, 233, 0.32);
+  --color-info: 96 165 250;
+  --color-info-tint: rgba(59, 130, 246, 0.12);
+  --color-info-border: rgba(59, 130, 246, 0.32);
   --color-community: 196 181 253;
   --color-community-tint: 76 29 149;
   --color-community-border: 124 58 237;
@@ -54,9 +54,9 @@
   --color-text: 27 30 38;
   --color-text-muted: 91 100 114;
   --color-text-faint: 102 112 128;
-  --color-accent: 91 92 226;
-  --color-accent-hover: 74 75 212;
-  --color-accent-tint: rgba(91, 92, 226, 0.12);
+  --color-accent: 3 79 201;
+  --color-accent-hover: 5 70 174;
+  --color-accent-tint: rgba(3, 79, 201, 0.1);
   --color-accent-fg: 255 255 255;
   --color-success: 21 128 61;
   --color-success-tint: 220 252 231;
@@ -69,9 +69,9 @@
   --color-danger-solid-hover: 190 18 60;
   --color-danger-tint: rgba(225, 29, 72, 0.08);
   --color-danger-border: rgba(225, 29, 72, 0.3);
-  --color-info: 2 132 199;
-  --color-info-tint: rgba(2, 132, 199, 0.08);
-  --color-info-border: rgba(2, 132, 199, 0.3);
+  --color-info: 29 78 216;
+  --color-info-tint: rgba(37, 99, 235, 0.08);
+  --color-info-border: rgba(37, 99, 235, 0.3);
   --color-community: 109 40 217;
   --color-community-tint: 237 233 254;
   --color-community-border: 167 139 250;
@@ -81,6 +81,10 @@
   --shadow-card-hover: 0 8px 30px rgba(31, 41, 55, 0.14);
   --scrollbar-thumb: #c6ccd6;
   --scrollbar-thumb-hover: #aeb6c4;
+}
+
+:root[data-theme="light"] .sidebar-button-active {
+  background: rgb(var(--color-accent) / 0.15);
 }
 
 * {

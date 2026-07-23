@@ -6,6 +6,7 @@ import type {
   Theme,
 } from "@playcounter/shared";
 import { create } from "zustand";
+import { applyTheme, normalizeAccentColor } from "./theme";
 
 export type ViewId =
   | "now"
@@ -168,6 +169,7 @@ type AppState = {
   ) => void;
   setApiEndpoint: (value: string) => void;
   setTheme: (theme: Theme) => void;
+  setAccentColor: (color: string | null) => void;
   toggleVerboseLogs: () => void;
   toggleBlacklist: (exeName: string, enabled: boolean) => void;
   clearCache: () => void;
@@ -189,11 +191,8 @@ const defaultSettings: Settings = {
   apiEndpoint: DEFAULT_API_ENDPOINT,
   verboseLogs: false,
   theme: "dark",
+  accentColor: null,
 };
-
-export function applyTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
-}
 
 let nextRuntimeLogId = 0;
 let nextToastId = 0;
@@ -354,7 +353,13 @@ export const useAppStore = create<AppState>((set) => ({
   },
   setTheme: (theme) => {
     set((state) => ({ settings: { ...state.settings, theme } }));
-    applyTheme(theme);
+    applyTheme(theme, useAppStore.getState().settings.accentColor);
+    persistSoon();
+  },
+  setAccentColor: (color) => {
+    const accentColor = normalizeAccentColor(color);
+    set((state) => ({ settings: { ...state.settings, accentColor } }));
+    applyTheme(useAppStore.getState().settings.theme, accentColor);
     persistSoon();
   },
   toggleVerboseLogs: () => {

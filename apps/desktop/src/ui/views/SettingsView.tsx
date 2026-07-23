@@ -16,6 +16,7 @@ import {
 } from "../../updater";
 import { Panel } from "../components";
 import { Button, useEscapeKey } from "../primitives";
+import { DEFAULT_ACCENT_COLOR } from "../../theme";
 
 type UpdateStatus =
   | "idle"
@@ -44,6 +45,7 @@ export function SettingsView() {
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
+  const setAccentColor = useAppStore((state) => state.setAccentColor);
   const ignoredProcessCount = useAppStore(
     (state) => state.ignoredProcesses.size,
   );
@@ -174,6 +176,36 @@ export function SettingsView() {
 
   return (
     <div className="grid max-w-4xl gap-5">
+      <SettingsPanel
+        description="Personalize PlayCounter's interactive controls and highlights."
+        title="Appearance"
+      >
+        <SettingsRow
+          description="Choose an accent color. PlayCounter adjusts it automatically for readable contrast in both themes."
+          title="Accent color"
+        >
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              aria-label="Choose accent color"
+              value={settings.accentColor ?? DEFAULT_ACCENT_COLOR}
+              onChange={(event) => setAccentColor(event.target.value)}
+              className="h-9 w-11 cursor-pointer rounded-md border border-border bg-surface p-1"
+            />
+            <span className="w-[4.5rem] font-mono text-xs text-text-muted">
+              {settings.accentColor ?? DEFAULT_ACCENT_COLOR}
+            </span>
+            <Button
+              variant="ghost"
+              disabled={!settings.accentColor}
+              onClick={() => setAccentColor(null)}
+            >
+              Reset
+            </Button>
+          </div>
+        </SettingsRow>
+      </SettingsPanel>
+
       <SettingsPanel
         description="Control background behavior and how playtimes are shown."
         title="General"

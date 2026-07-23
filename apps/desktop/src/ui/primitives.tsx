@@ -256,7 +256,10 @@ export function ContextMenuItem({
       onClick={onClick}
     >
       {Icon && (
-        <Icon size={14} className={danger ? "text-danger" : "text-text-muted"} />
+        <Icon
+          size={14}
+          className={danger ? "text-danger" : "text-text-muted"}
+        />
       )}
       <span className="flex-1 truncate">{children}</span>
     </button>

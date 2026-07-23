@@ -27,7 +27,7 @@ export function SidebarButton({
       className={clsx(
         "group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
         active
-          ? "bg-accent-tint text-accent before:absolute before:left-0 before:top-1/2 before:h-6 before:w-[3px] before:-translate-y-1/2 before:rounded-r-full before:bg-accent before:shadow-[0_0_8px_rgb(var(--color-accent)/0.6)]"
+          ? "sidebar-button-active bg-accent-tint text-text"
           : "text-text-muted hover:bg-surface-hover hover:text-text",
       )}
     >
@@ -36,8 +36,7 @@ export function SidebarButton({
         className={clsx(
           "shrink-0 transition-transform duration-200",
           !active && "group-hover:scale-110 group-hover:text-text",
-          active &&
-            "scale-105 drop-shadow-[0_0_8px_rgb(var(--color-accent)/0.4)]",
+          active && "scale-105 text-accent",
         )}
       />
       <span className="truncate">{label}</span>

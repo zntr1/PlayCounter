@@ -19,6 +19,7 @@ import {
   type ProcessSnapshot,
 } from "./store";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
+import { normalizeAccentColor } from "./theme";
 
 const STORAGE_KEY = "playcounter:v1";
 const CUSTOM_GAME_ID_BASE = -1_000_000_000;
@@ -175,6 +176,7 @@ function hydrate() {
   const settings = migrateApiEndpoint({
     ...useAppStore.getState().settings,
     ...persisted.settings,
+    accentColor: normalizeAccentColor(persisted.settings?.accentColor),
   });
   const blacklist = persisted.blacklist ?? [];
   const exeCache = persisted.exeCache ?? [];

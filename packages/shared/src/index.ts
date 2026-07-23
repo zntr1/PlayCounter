@@ -113,4 +113,5 @@ export interface Settings {
   apiEndpoint: string;
   verboseLogs: boolean;
   theme: Theme;
+  accentColor: string | null;
 }
