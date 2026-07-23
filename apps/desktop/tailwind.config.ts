@@ -55,6 +55,8 @@ export default {
       },
       boxShadow: {
         raised: "var(--shadow-raised)",
+        sidebar: "var(--shadow-sidebar)",
+        "card-hover": "var(--shadow-card-hover)",
       },
       keyframes: {
         pop: {

@@ -202,7 +202,7 @@ export function App() {
 
   return (
     <main className="flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg">
-      <aside className="flex w-[260px] flex-col border-r border-border bg-surface/50 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
+      <aside className="flex w-[260px] flex-col border-r border-border bg-surface/50 shadow-sidebar backdrop-blur-xl">
         <div className="flex items-center justify-center gap-3 px-4 py-8">
           <img
             src="/icon.png"
@@ -541,7 +541,7 @@ function BackendStatusIndicator({
 }) {
   if (health.status === "online") {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 text-success drop-shadow-[0_0_6px_rgba(74,222,128,0.4)] transition-all">
+      <span className="inline-flex shrink-0 items-center gap-1.5 text-success drop-shadow-[0_0_6px_rgb(var(--color-success)/0.4)] transition-all">
         <Wifi size={13} strokeWidth={2.5} />
         <span className="tracking-wide">Online</span>
       </span>
@@ -550,7 +550,7 @@ function BackendStatusIndicator({
 
   if (health.status === "offline") {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 text-warning drop-shadow-[0_0_6px_rgba(251,191,36,0.4)] transition-all">
+      <span className="inline-flex shrink-0 items-center gap-1.5 text-warning drop-shadow-[0_0_6px_rgb(var(--color-warning)/0.4)] transition-all">
         <WifiOff size={13} strokeWidth={2.5} />
         <span className="tracking-wide">Offline</span>
       </span>

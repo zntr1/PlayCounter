@@ -976,7 +976,7 @@ function GameLibraryCard({
     return (
       <article
         {...contextMenu.props}
-        className="group flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+        className="group flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover"
       >
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
           {game.coverUrl ? (
