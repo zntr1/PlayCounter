@@ -2,6 +2,7 @@ import clsx from "clsx";
 import {
   CalendarDays,
   Clock3,
+  Maximize2,
   Search,
   Timer,
   Trash2,
@@ -22,6 +23,7 @@ import {
   IconButton,
   Input,
   useContextMenu,
+  useEscapeKey,
   ContextMenu,
   ContextMenuItem,
 } from "../primitives";
@@ -29,6 +31,7 @@ import type { GameSource } from "@playcounter/shared";
 
 type HistoryFilter = "all" | "today" | "week" | "month";
 type HistorySort = "newest" | "oldest" | "duration";
+type ChartBucket = { label: string; tooltip: string; seconds: number };
 
 const historyFilters: Array<{ id: HistoryFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -85,9 +88,14 @@ function formatSessionCount(count: number) {
 export function HistoryView() {
   const query = useAppStore((state) => state.historyQuery);
   const setQuery = useAppStore((state) => state.setHistoryQuery);
+  const selectedGameKey = useAppStore((state) => state.historyGameKey);
+  const setSelectedGameKey = useAppStore(
+    (state) => state.setHistoryGameKey,
+  );
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [sort, setSort] = useState<HistorySort>("newest");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [chartExpanded, setChartExpanded] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchRef = useRef<HTMLDivElement>(null);
   const sessions = useAppStore((state) => state.recentSessions);
@@ -100,6 +108,7 @@ export function HistoryView() {
 
   useEffect(() => {
     setQuery("");
+    setSelectedGameKey(null);
   }, []);
 
   useEffect(() => {
@@ -167,36 +176,12 @@ export function HistoryView() {
     return metadata;
   }, [exeCache, hydratedGameMetadata]);
 
-  const total = sessions.reduce(
-    (sum, session) => sum + (session.durationSeconds ?? 0),
-    0,
-  );
-  const average = Math.round(total / Math.max(1, sessions.length));
   const lastSession = sessions[0];
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const todayMs = startOfToday.getTime();
   const dayMs = 86_400_000;
-
-  const last7Days = Array.from({ length: 7 }, (_, index) => {
-    const dayStart = todayMs - (6 - index) * dayMs;
-    const seconds = sessions.reduce((sum, session) => {
-      const t = Date.parse(session.startedAt);
-      return t >= dayStart && t < dayStart + dayMs
-        ? sum + (session.durationSeconds ?? 0)
-        : sum;
-    }, 0);
-    return {
-      label:
-        index === 6
-          ? "Today"
-          : new Date(dayStart).toLocaleDateString([], { weekday: "short" }),
-      seconds,
-    };
-  });
-  const maxDaySeconds = Math.max(1, ...last7Days.map((day) => day.seconds));
-  const weekTotal = last7Days.reduce((sum, day) => sum + day.seconds, 0);
 
   const bucketOrder = ["Today", "Yesterday", "Earlier this week", "Earlier"];
   function bucketFor(startedAt: string) {
@@ -269,7 +254,10 @@ export function HistoryView() {
       const startedAt = Date.parse(session.startedAt);
       if (minStartedAt !== null && startedAt < minStartedAt) return false;
 
-      const needle = query.trim().toLowerCase();
+      if (selectedGameKey) {
+        return getSessionGameKey(session) === selectedGameKey;
+      }
+
       if (!needle) return true;
 
       const gameName = getSessionGameName(session);
@@ -279,7 +267,166 @@ export function HistoryView() {
         session.exeName.toLowerCase().includes(needle)
       );
     });
-  }, [dayMs, filter, query, sessions, todayMs]);
+  }, [dayMs, filter, query, selectedGameKey, sessions, todayMs]);
+
+  const chartData = useMemo(() => {
+    type Bucket = { label: string; tooltip: string; seconds: number };
+    type Chart = { title: string; compact: Bucket[]; full: Bucket[] };
+
+    const formatHour = (hour: number) =>
+      new Date(todayMs + hour * 3_600_000).toLocaleTimeString([], {
+        hour: "numeric",
+      });
+    const formatDate = (ms: number) =>
+      new Date(ms).toLocaleDateString([], { month: "short", day: "numeric" });
+    const distribute = (buckets: Bucket[], spanMs: number, startMs: number) => {
+      for (const session of filteredSessions) {
+        const index = Math.floor(
+          (Date.parse(session.startedAt) - startMs) / spanMs,
+        );
+        if (index >= 0 && index < buckets.length) {
+          buckets[index].seconds += session.durationSeconds ?? 0;
+        }
+      }
+      return buckets;
+    };
+
+    if (filter === "today") {
+      const compact = Array.from({ length: 4 }, (_, index) => {
+        const startHour = index * 6;
+        return {
+          label: formatHour(startHour),
+          tooltip: `${formatHour(startHour)} - ${formatHour(startHour + 6)}`,
+          seconds: 0,
+        };
+      });
+      const full = Array.from({ length: 24 }, (_, hour) => ({
+        label: formatHour(hour),
+        tooltip: formatHour(hour),
+        seconds: 0,
+      }));
+      return {
+        title: "Today",
+        compact: distribute(compact, 6 * 3_600_000, todayMs),
+        full: distribute(full, 3_600_000, todayMs),
+      };
+    }
+
+    if (filter === "month") {
+      const startMs = todayMs - 29 * dayMs;
+      const compact = Array.from({ length: 5 }, (_, index) => {
+        const weekStart = startMs + index * 7 * dayMs;
+        return {
+          label: formatDate(weekStart),
+          tooltip: `${formatDate(weekStart)} - ${formatDate(weekStart + 6 * dayMs)}`,
+          seconds: 0,
+        };
+      });
+      const full = Array.from({ length: 30 }, (_, index) => {
+        const dayStart = startMs + index * dayMs;
+        return {
+          label: new Date(dayStart).toLocaleDateString([], {
+            weekday: "narrow",
+          }),
+          tooltip: formatDate(dayStart),
+          seconds: 0,
+        };
+      });
+      return {
+        title: "Last 30 Days",
+        compact: distribute(compact, 7 * dayMs, startMs),
+        full: distribute(full, dayMs, startMs),
+      };
+    }
+
+    if (filter === "all") {
+      const timestamps = filteredSessions.map((session) =>
+        Date.parse(session.startedAt),
+      );
+      const empty: Chart = { title: "All Time", compact: [], full: [] };
+      if (timestamps.length === 0) return empty;
+
+      const first = new Date(Math.min(...timestamps));
+      first.setDate(1);
+      first.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const monthCount =
+        (now.getFullYear() - first.getFullYear()) * 12 +
+        (now.getMonth() - first.getMonth()) +
+        1;
+
+      const buckets: Bucket[] = [];
+      const cursor = new Date(first);
+      for (let i = 0; i < monthCount; i++) {
+        buckets.push({
+          label: cursor.toLocaleDateString([], { month: "narrow" }),
+          tooltip: cursor.toLocaleDateString([], {
+            month: "short",
+            year: "numeric",
+          }),
+          seconds: 0,
+        });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      for (const session of filteredSessions) {
+        const d = new Date(session.startedAt);
+        const index =
+          (d.getFullYear() - first.getFullYear()) * 12 +
+          (d.getMonth() - first.getMonth());
+        if (index >= 0 && index < buckets.length) {
+          buckets[index].seconds += session.durationSeconds ?? 0;
+        }
+      }
+
+      const full = buckets;
+      const compact =
+        buckets.length <= 6
+          ? buckets
+          : Array.from({ length: 6 }, (_, index) => {
+              const from = Math.floor((index * buckets.length) / 6);
+              const to = Math.floor(((index + 1) * buckets.length) / 6);
+              return {
+                label: buckets[from].label,
+                tooltip:
+                  to - from === 1
+                    ? buckets[from].tooltip
+                    : `${buckets[from].tooltip} - ${buckets[to - 1].tooltip}`,
+                seconds: buckets
+                  .slice(from, to)
+                  .reduce((sum, b) => sum + b.seconds, 0),
+              };
+            });
+      return { title: "All Time", compact, full };
+    }
+
+    const startMs = todayMs - 6 * dayMs;
+    const buckets = Array.from({ length: 7 }, (_, index) => {
+      const dayStart = startMs + index * dayMs;
+      return {
+        label:
+          index === 6
+            ? "Today"
+            : new Date(dayStart).toLocaleDateString([], { weekday: "short" }),
+        tooltip: index === 6 ? "Today" : formatDate(dayStart),
+        seconds: 0,
+      };
+    });
+    return {
+      title: "Last 7 Days",
+      compact: distribute(buckets, dayMs, startMs),
+      full: distribute([...buckets.map((b) => ({ ...b }))], dayMs, startMs),
+    };
+  }, [filteredSessions, filter, todayMs, dayMs]);
+  const chartTotal = chartData.compact.reduce(
+    (sum, bucket) => sum + bucket.seconds,
+    0,
+  );
+
+  const total = filteredSessions.reduce(
+    (sum, session) => sum + (session.durationSeconds ?? 0),
+    0,
+  );
+  const average = Math.round(total / Math.max(1, filteredSessions.length));
 
   const sortedSessions = useMemo(() => {
     const items = [...filteredSessions];
@@ -480,6 +627,7 @@ export function HistoryView() {
                   value={query}
                   onChange={(event) => {
                     setQuery(event.target.value);
+                    setSelectedGameKey(null);
                     setShowSuggestions(true);
                     setHighlightedIndex(-1);
                   }}
@@ -501,13 +649,14 @@ export function HistoryView() {
                       setHighlightedIndex((i) => Math.max(i - 1, 0));
                     } else if (event.key === "Enter" && highlightedIndex >= 0) {
                       event.preventDefault();
-                      setQuery(matches[highlightedIndex].name);
+                      const match = matches[highlightedIndex];
+                      setSelectedGameKey(match.key);
+                      setQuery(match.name);
                       setShowSuggestions(false);
                       setHighlightedIndex(-1);
                     } else if (event.key === "Escape") {
-                      if (query) {
-                        setQuery("");
-                      }
+                      setQuery("");
+                      setSelectedGameKey(null);
                       setShowSuggestions(false);
                       setHighlightedIndex(-1);
                     }
@@ -520,6 +669,7 @@ export function HistoryView() {
                     type="button"
                     onClick={() => {
                       setQuery("");
+                      setSelectedGameKey(null);
                       setShowSuggestions(false);
                       setHighlightedIndex(-1);
                     }}
@@ -534,7 +684,6 @@ export function HistoryView() {
                   className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-faint"
                 />
                 {showSuggestions &&
-                  query.trim().length > 0 &&
                   (() => {
                     const needle = query.trim().toLowerCase();
                     const matches = gameOptions.filter((g) =>
@@ -555,6 +704,7 @@ export function HistoryView() {
                               )}
                               onMouseDown={(e) => {
                                 e.preventDefault();
+                                setSelectedGameKey(game.key);
                                 setQuery(game.name);
                                 setShowSuggestions(false);
                                 setHighlightedIndex(-1);
@@ -657,7 +807,7 @@ export function HistoryView() {
                   Sessions
                 </div>
                 <div className="mt-1 font-mono text-xl font-bold text-text">
-                  {sessions.length}
+                  {filteredSessions.length}
                 </div>
               </div>
               <div>
@@ -676,54 +826,138 @@ export function HistoryView() {
           <div className="mb-6 flex items-end justify-between">
             <div>
               <h3 className="text-sm font-bold uppercase tracking-wider text-text-faint">
-                Last 7 Days
+                {chartData.title}
               </h3>
               <div className="mt-1 text-sm font-medium text-text">
                 <span className="font-mono font-bold text-accent">
-                  {formatDuration(weekTotal, showDurationDays)}
+                  {formatDuration(chartTotal, showDurationDays)}
                 </span>{" "}
                 logged
               </div>
             </div>
+            <IconButton
+              icon={Maximize2}
+              aria-label="Expand chart"
+              onClick={() => setChartExpanded(true)}
+            />
           </div>
 
-          <div className="flex items-end justify-between gap-1.5 h-32">
-            {last7Days.map((day, index) => {
-              const heightPct = Math.max(
-                4,
-                day.seconds > 0
-                  ? Math.round((day.seconds / maxDaySeconds) * 100)
-                  : 0,
-              );
-              return (
-                <div
-                  key={index}
-                  className="group relative flex h-full flex-1 flex-col items-center justify-end"
-                >
-                  <div
-                    className={clsx(
-                      "w-full max-w-[28px] rounded-t-sm transition-all duration-500",
-                      day.seconds > 0
-                        ? "bg-accent/80 group-hover:bg-accent"
-                        : "bg-surface-hover",
-                    )}
-                    style={{ height: `${heightPct}%` }}
-                  />
-
-                  {/* Tooltip on hover */}
-                  <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 scale-95 rounded bg-surface px-2 py-1 text-xs font-bold text-text opacity-0 shadow-raised transition-all group-hover:scale-100 group-hover:opacity-100">
-                    {formatDuration(day.seconds, showDurationDays)}
-                  </div>
-
-                  <div className="mt-3 truncate text-[10px] font-bold uppercase tracking-wider text-text-faint">
-                    {day.label}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {chartData.compact.length === 0 ? (
+            <div className="py-8 text-center text-sm font-medium text-text-muted">
+              No sessions in this range.
+            </div>
+          ) : (
+            <BarChart buckets={chartData.compact} />
+          )}
         </Panel>
       </aside>
+
+      {chartExpanded ? (
+        <ChartModal
+          title={chartData.title}
+          total={chartTotal}
+          buckets={chartData.full}
+          onClose={() => setChartExpanded(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function BarChart({
+  buckets,
+  className = "h-32",
+}: {
+  buckets: ChartBucket[];
+  className?: string;
+}) {
+  const showDurationDays = useAppStore(
+    (state) => state.settings.showDurationDays,
+  );
+  const maxSeconds = Math.max(1, ...buckets.map((bucket) => bucket.seconds));
+  return (
+    <div className={clsx("flex items-end justify-between gap-1.5", className)}>
+      {buckets.map((bucket, index) => {
+        const heightPct = Math.max(
+          4,
+          bucket.seconds > 0 ? Math.round((bucket.seconds / maxSeconds) * 100) : 0,
+        );
+        return (
+          <div
+            key={index}
+            className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+          >
+            <div
+              className={clsx(
+                "w-full max-w-[28px] rounded-t-sm transition-all duration-500",
+                bucket.seconds > 0
+                  ? "bg-accent/80 group-hover:bg-accent"
+                  : "bg-surface-hover",
+              )}
+              style={{ height: `${heightPct}%` }}
+            />
+
+            {/* Tooltip on hover */}
+            <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 scale-95 rounded bg-surface px-2 py-1 text-xs font-bold text-text opacity-0 shadow-raised transition-all group-hover:scale-100 group-hover:opacity-100 whitespace-nowrap z-10">
+              {bucket.tooltip ? `${bucket.tooltip} · ` : ""}
+              {formatDuration(bucket.seconds, showDurationDays)}
+            </div>
+
+            <div className="mt-3 w-full truncate text-center text-[9px] font-bold uppercase tracking-normal text-text-faint">
+              {bucket.label}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChartModal({
+  title,
+  total,
+  buckets,
+  onClose,
+}: {
+  title: string;
+  total: number;
+  buckets: ChartBucket[];
+  onClose: () => void;
+}) {
+  useEscapeKey(onClose);
+  const showDurationDays = useAppStore(
+    (state) => state.settings.showDurationDays,
+  );
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="flex h-[80vh] w-[90vw] max-w-6xl flex-col rounded-lg border border-border bg-surface p-6 shadow-raised">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-text-faint">
+              {title}
+            </h2>
+            <div className="mt-1 text-sm font-medium text-text">
+              <span className="font-mono font-bold text-accent">
+                {formatDuration(total, showDurationDays)}
+              </span>{" "}
+              logged
+            </div>
+          </div>
+          <IconButton icon={X} aria-label="Close chart" onClick={onClose} />
+        </div>
+        {buckets.length === 0 ? (
+          <div className="grid flex-1 place-items-center text-sm font-medium text-text-muted">
+            No sessions in this range.
+          </div>
+        ) : (
+          <BarChart buckets={buckets} className="min-h-0 flex-1" />
+        )}
+      </div>
     </div>
   );
 }
