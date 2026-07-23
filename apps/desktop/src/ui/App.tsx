@@ -110,6 +110,8 @@ export function App() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
   const setActiveView = useAppStore((state) => state.setActiveView);
+  const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
+  const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
   const runtimeError = useAppStore((state) => state.runtimeError);
   const backendHealth = useAppStore((state) => state.backendHealth);
   const isOffline = useIsOffline();
@@ -250,6 +252,10 @@ export function App() {
                             window.dispatchEvent(
                               new CustomEvent("playcounter:discovered-reset"),
                             );
+                          }
+                          if (item === "history") {
+                            setHistoryQuery("");
+                            setHistoryGameKey(null);
                           }
                           setActiveView(item);
                         }}

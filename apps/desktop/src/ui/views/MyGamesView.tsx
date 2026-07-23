@@ -90,6 +90,7 @@ type GameSummary = {
   communityUpgradeGameName?: string;
   totalSeconds: number;
   sessionCount: number;
+  historyGameKey: string | null;
   lastPlayedAt: string;
   exeNames: string[];
 };
@@ -251,6 +252,7 @@ export function MyGamesView() {
         communityUpgradeGameName: gameMeta?.communityUpgradeGame?.name,
         totalSeconds: session.durationSeconds ?? 0,
         sessionCount: 1,
+        historyGameKey: `${session.source ?? "unknown"}:${session.gameId}`,
         lastPlayedAt: endedOrStartedAt,
         exeNames: [session.exeName],
       });
@@ -295,6 +297,7 @@ export function MyGamesView() {
             activeSession.communitySuggestionVerified,
           totalSeconds: activeSeconds,
           sessionCount: 0,
+          historyGameKey: null,
           lastPlayedAt: activeSession.checkpointedAt,
           exeNames: [activeSession.exeName],
         });
@@ -326,6 +329,7 @@ export function MyGamesView() {
         communityUpgradeGameName: gameMeta.communityUpgradeGame?.name,
         totalSeconds: 0,
         sessionCount: 0,
+        historyGameKey: null,
         lastPlayedAt: gameMeta.lastCheckedAt,
         exeNames: [gameMeta.exeName],
       });
@@ -565,6 +569,7 @@ function GameLibraryCard({
   const addToast = useAppStore((state) => state.addToast);
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
+  const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
   const contextMenu = useContextMenu();
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
@@ -757,6 +762,7 @@ function GameLibraryCard({
 
   const handleShowHistory = () => {
     setHistoryQuery(game.name);
+    setHistoryGameKey(game.historyGameKey);
     setActiveView("history");
     contextMenu.close();
   };
@@ -1137,9 +1143,16 @@ function GameLibraryCard({
             <span className="font-mono text-lg font-bold tracking-tight text-text">
               {formatDuration(game.totalSeconds, showDurationDays)}
             </span>
-            <span className="text-[11px] font-medium text-text-muted">
-              in {game.sessionCount} session{game.sessionCount !== 1 ? "s" : ""}
-            </span>
+            <span className="text-[11px] font-medium text-text-muted">in</span>
+            <button
+              type="button"
+              disabled={game.sessionCount === 0}
+              onClick={handleShowHistory}
+              className="text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent disabled:no-underline"
+              aria-label={`Show ${game.sessionCount} session${game.sessionCount === 1 ? "" : "s"} for ${game.name} in history`}
+            >
+              {game.sessionCount} session{game.sessionCount !== 1 ? "s" : ""}
+            </button>
           </div>
 
           {/* Persistent Community Prompts */}

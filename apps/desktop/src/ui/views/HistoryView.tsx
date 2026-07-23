@@ -2,6 +2,7 @@ import clsx from "clsx";
 import {
   CalendarDays,
   Clock3,
+  Filter,
   Maximize2,
   Search,
   Timer,
@@ -105,11 +106,6 @@ export function HistoryView() {
     (state) => state.settings.showDurationDays,
   );
   const addToast = useAppStore((state) => state.addToast);
-
-  useEffect(() => {
-    setQuery("");
-    setSelectedGameKey(null);
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -490,6 +486,14 @@ export function HistoryView() {
       contextMenu.close();
     };
 
+    const handleFilterForGame = () => {
+      setSelectedGameKey(getSessionGameKey(session));
+      setQuery(gameName);
+      setShowSuggestions(false);
+      setHighlightedIndex(-1);
+      contextMenu.close();
+    };
+
     return (
       <article
         {...contextMenu.props}
@@ -564,6 +568,9 @@ export function HistoryView() {
           position={contextMenu.position}
           onClose={contextMenu.close}
         >
+          <ContextMenuItem icon={Filter} onClick={handleFilterForGame}>
+            Filter for this game
+          </ContextMenuItem>
           <ContextMenuItem icon={Trash2} danger onClick={handleRemove}>
             Delete Session
           </ContextMenuItem>
