@@ -8,7 +8,6 @@ import {
   Search,
   Send,
   SkipForward,
-  Trash2,
   Undo2,
   X,
   Copy,
@@ -28,7 +27,6 @@ import {
   recheckExecutable,
   scanProcessesNow,
   setUserIgnoredProcess,
-  untrackCustomGame,
 } from "../../tracker";
 import {
   useAppStore,
@@ -38,7 +36,14 @@ import {
 } from "../../store";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { ExeIcon } from "../ExeIcon";
-import { Panel } from "../components";
+import { Panel, SourceBadge } from "../components";
+import {
+  filterRunningExecutables,
+  paginateExecutables,
+  shouldShowRunningUserProcessesOnly,
+  sortIgnoredExecutables,
+  type IgnoredProcessSort,
+} from "../discoveredSort";
 import { AnimatedCount, Button, IconButton, Input } from "../primitives";
 
 import {
@@ -144,6 +149,8 @@ const discoveryFilters: Array<{
   { id: "tracked", label: "Tracked", statuses: ["matched", "custom"] },
   { id: "ignored", label: "Ignored", statuses: ["userIgnored", "ignored"] },
 ];
+
+const IGNORED_PAGE_SIZE = 50;
 
 const statusToTone: Record<DiscoveryStatus, DiscoveryGroup["tone"]> = {
   matched: "local",
@@ -288,6 +295,9 @@ export function DiscoveredView() {
   >("idle");
   const [suggestionMessage, setSuggestionMessage] = useState("");
   const [filter, setFilter] = useState<FilterId>("review");
+  const [ignoredSort, setIgnoredSort] =
+    useState<IgnoredProcessSort>("lastAdded");
+  const [ignoredPage, setIgnoredPage] = useState(1);
   const [runningOnly, setRunningOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [retryingExe, setRetryingExe] = useState<string | null>(null);
@@ -314,6 +324,8 @@ export function DiscoveredView() {
   useEffect(() => {
     function handleReset() {
       setFilter("review");
+      setIgnoredSort("lastAdded");
+      setIgnoredPage(1);
       setSearch("");
       setRunningOnly(false);
       setActiveReviewKey(null);
@@ -502,15 +514,6 @@ export function DiscoveredView() {
     }
   }
 
-  function removeCustomGame(exeName: string) {
-    untrackCustomGame(exeName);
-    addToast({
-      tone: "success",
-      title: "Manual game removed",
-      detail: `${exeName} is no longer tracked as a custom game.`,
-    });
-  }
-
   const discoverySections = useMemo((): DiscoverySection[] => {
     // Exes with a pending ambiguity picker are resolved in Now Playing; do
     // not offer them for review here at the same time.
@@ -619,12 +622,30 @@ export function DiscoveredView() {
     );
   };
   const searchable = allExecutables.filter(matchesSearch);
-  const filteredExecutables = searchable
-    .filter((executable) => activeFilter.statuses.includes(executable.status))
-    .filter((executable) => (runningOnly ? executable.isRunning : true));
+  const matchingExecutables = filterRunningExecutables(
+    searchable.filter((executable) =>
+      activeFilter.statuses.includes(executable.status),
+    ),
+    filter,
+    runningOnly,
+  );
+  const filteredExecutables =
+    filter === "ignored"
+      ? sortIgnoredExecutables(matchingExecutables, ignoredSort, [
+          ...userIgnoredProcesses,
+          ...blacklist,
+        ])
+      : matchingExecutables;
   const runningCount = searchable.filter(
-    (executable) => executable.isRunning,
+    (executable) => executable.isRunning && executable.status === "userIgnored",
   ).length;
+  const ignoredPagination = paginateExecutables(
+    filteredExecutables,
+    ignoredPage,
+    IGNORED_PAGE_SIZE,
+  );
+  const displayedExecutables =
+    filter === "ignored" ? ignoredPagination.items : filteredExecutables;
 
   const isWizardMode = filter === "review" && !search;
   let activeReviewItem = null;
@@ -678,7 +699,10 @@ export function DiscoveredView() {
               />
               <Input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setIgnoredPage(1);
+                }}
                 placeholder="Search apps..."
                 className="w-56 pl-9"
               />
@@ -702,20 +726,23 @@ export function DiscoveredView() {
 
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
           {discoveryFilters.map((entry) => {
-            const count = searchable
-              .filter((executable) =>
-                runningOnly ? executable.isRunning : true,
-              )
-              .filter((executable) =>
+            const count = filterRunningExecutables(
+              searchable.filter((executable) =>
                 entry.statuses.includes(executable.status),
-              ).length;
+              ),
+              entry.id,
+              runningOnly,
+            ).length;
             const active = filter === entry.id;
             const needsAttention = entry.id === "review" && count > 0;
             return (
               <button
                 key={entry.id}
                 type="button"
-                onClick={() => setFilter(entry.id)}
+                onClick={() => {
+                  setFilter(entry.id);
+                  setIgnoredPage(1);
+                }}
                 className={clsx(
                   "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition",
                   active
@@ -743,15 +770,37 @@ export function DiscoveredView() {
               </button>
             );
           })}
-          <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-sm text-text-muted">
-            <input
-              type="checkbox"
-              checked={runningOnly}
-              onChange={(event) => setRunningOnly(event.target.checked)}
-              className="h-4 w-4 accent-accent"
-            />
-            Running only{runningCount ? ` (${runningCount})` : ""}
-          </label>
+          {shouldShowRunningUserProcessesOnly(filter) ? (
+            <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-sm text-text-muted">
+              <input
+                type="checkbox"
+                checked={runningOnly}
+                onChange={(event) => {
+                  setRunningOnly(event.target.checked);
+                  setIgnoredPage(1);
+                }}
+                className="h-4 w-4 accent-accent"
+              />
+              Running user processes only ({runningCount})
+            </label>
+          ) : null}
+          {filter === "ignored" ? (
+            <select
+              aria-label="Sort ignored processes"
+              value={ignoredSort}
+              onChange={(event) => {
+                setIgnoredSort(event.target.value as IgnoredProcessSort);
+                setIgnoredPage(1);
+              }}
+              className="min-w-0 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+            >
+              <option value="lastAdded">Sort: Last ignored</option>
+              <option value="az">Sort: A–Z</option>
+              <option value="za">Sort: Z–A</option>
+              <option value="userFirst">Sort: User first</option>
+              <option value="systemFirst">Sort: System first</option>
+            </select>
+          ) : null}
         </div>
 
         {isOffline ? (
@@ -852,69 +901,107 @@ export function DiscoveredView() {
               Nothing here right now.
             </div>
           ) : (
-            filteredExecutables.map((executable) => (
-              <Fragment key={executable.key}>
-                <DiscoveredExecutableRow
-                  executable={executable}
-                  customGameName={customGameName}
-                  groupTone={statusToTone[executable.status]}
-                  hideStatusLabel={filter === "tracked" || filter === "ignored"}
-                  isCustomGameEntryOpen={customGameExe === executable.key}
-                  isPending={pendingExe === executable.key}
-                  isRetrying={retryingExe === executable.key}
-                  onCancelCustomGame={() => {
-                    setCustomGameExe(null);
-                    setCustomGameName("");
-                  }}
-                  onCustomGameNameChange={setCustomGameName}
-                  onIgnore={() =>
-                    void updateUserIgnored(executable.exeName, true)
-                  }
-                  isOffline={isOffline}
-                  onRecheck={() => {
-                    if (isOffline) return;
-                    setRetryingExe(executable.key);
-                    void recheckExecutable(executable.exeName);
-                  }}
-                  onSaveCustomGame={() => saveCustomGame(executable.exeName)}
-                  onStartCustomGame={() =>
-                    startCustomGameEntry(executable.exeName)
-                  }
-                  onSuggest={() => startCommunitySuggestion(executable.exeName)}
-                  onUnignore={() =>
-                    void updateUserIgnored(executable.exeName, false)
-                  }
-                  onUntrack={() => removeCustomGame(executable.exeName)}
-                  unmatchedRetryDays={unmatchedRetryDays}
-                />
-                {suggestionExe === executable.key ? (
-                  <CommunitySuggestionForm
-                    candidates={suggestionCandidates}
-                    exeName={executable.exeName}
-                    message={suggestionMessage}
-                    search={suggestionSearch}
-                    selection={suggestionSelection}
-                    state={suggestionState}
-                    isOffline={isOffline}
-                    onApplyCandidate={applyMetadataCandidate}
-                    onCancel={() => {
-                      setSuggestionExe(null);
-                      setSuggestionSelection(null);
-                      setSuggestionState("idle");
-                      setSuggestionMessage("");
-                    }}
-                    onSearch={searchSuggestionMetadata}
-                    onSearchChange={(value) => {
-                      setSuggestionSearch(value);
-                      setSuggestionSelection(null);
-                    }}
-                    onSubmit={() =>
-                      void submitCommunitySuggestion(executable.exeName)
+            <>
+              {displayedExecutables.map((executable) => (
+                <Fragment key={executable.key}>
+                  <DiscoveredExecutableRow
+                    executable={executable}
+                    customGameName={customGameName}
+                    groupTone={statusToTone[executable.status]}
+                    hideStatusLabel={
+                      filter === "tracked" || filter === "ignored"
                     }
+                    isCustomGameEntryOpen={customGameExe === executable.key}
+                    isPending={pendingExe === executable.key}
+                    isRetrying={retryingExe === executable.key}
+                    onCancelCustomGame={() => {
+                      setCustomGameExe(null);
+                      setCustomGameName("");
+                    }}
+                    onCustomGameNameChange={setCustomGameName}
+                    onIgnore={() =>
+                      void updateUserIgnored(executable.exeName, true)
+                    }
+                    isOffline={isOffline}
+                    onRecheck={() => {
+                      if (isOffline) return;
+                      setRetryingExe(executable.key);
+                      void recheckExecutable(executable.exeName);
+                    }}
+                    onSaveCustomGame={() => saveCustomGame(executable.exeName)}
+                    onStartCustomGame={() =>
+                      startCustomGameEntry(executable.exeName)
+                    }
+                    onSuggest={() =>
+                      startCommunitySuggestion(executable.exeName)
+                    }
+                    onUnignore={() =>
+                      void updateUserIgnored(executable.exeName, false)
+                    }
+                    allowTrackingChanges={filter !== "tracked"}
+                    unmatchedRetryDays={unmatchedRetryDays}
                   />
-                ) : null}
-              </Fragment>
-            ))
+                  {suggestionExe === executable.key ? (
+                    <CommunitySuggestionForm
+                      candidates={suggestionCandidates}
+                      exeName={executable.exeName}
+                      message={suggestionMessage}
+                      search={suggestionSearch}
+                      selection={suggestionSelection}
+                      state={suggestionState}
+                      isOffline={isOffline}
+                      onApplyCandidate={applyMetadataCandidate}
+                      onCancel={() => {
+                        setSuggestionExe(null);
+                        setSuggestionSelection(null);
+                        setSuggestionState("idle");
+                        setSuggestionMessage("");
+                      }}
+                      onSearch={searchSuggestionMetadata}
+                      onSearchChange={(value) => {
+                        setSuggestionSearch(value);
+                        setSuggestionSelection(null);
+                      }}
+                      onSubmit={() =>
+                        void submitCommunitySuggestion(executable.exeName)
+                      }
+                    />
+                  ) : null}
+                </Fragment>
+              ))}
+              {filter === "ignored" && ignoredPagination.pageCount > 1 ? (
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-border px-1 pt-3 text-sm text-text-muted">
+                  <span>
+                    Showing {ignoredPagination.start}–{ignoredPagination.end} of{" "}
+                    {ignoredPagination.total}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={ignoredPagination.page === 1}
+                      onClick={() => setIgnoredPage(ignoredPagination.page - 1)}
+                      className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Previous
+                    </button>
+                    <span>
+                      Page {ignoredPagination.page} of{" "}
+                      {ignoredPagination.pageCount}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={
+                        ignoredPagination.page === ignoredPagination.pageCount
+                      }
+                      onClick={() => setIgnoredPage(ignoredPagination.page + 1)}
+                      className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </Panel>
@@ -1117,7 +1204,7 @@ function DiscoveredExecutableRow({
   onStartCustomGame,
   onSuggest,
   onUnignore,
-  onUntrack,
+  allowTrackingChanges,
   unmatchedRetryDays,
 }: {
   executable: DiscoveredExecutable;
@@ -1136,7 +1223,7 @@ function DiscoveredExecutableRow({
   onStartCustomGame: () => void;
   onSuggest: () => void;
   onUnignore: () => void;
-  onUntrack: () => void;
+  allowTrackingChanges: boolean;
   unmatchedRetryDays: number;
 }) {
   const matchedName =
@@ -1203,11 +1290,7 @@ function DiscoveredExecutableRow({
             >
               {executable.exeName}
             </h4>
-            {executable.cacheEntry?.pendingCommunityGame ? (
-              <span className="inline-flex max-w-full rounded bg-community-tint px-2 py-0.5 text-xs font-medium text-community">
-                <span className="truncate">Awaiting approval</span>
-              </span>
-            ) : hideStatusLabel ? null : (
+            {hideStatusLabel ? null : (
               <span
                 className={clsx(
                   "inline-flex max-w-full rounded px-2 py-0.5 text-xs font-medium",
@@ -1250,6 +1333,14 @@ function DiscoveredExecutableRow({
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+          {executable.cacheEntry?.state === "matched" ? (
+            <SourceBadge source={executable.cacheEntry.source} />
+          ) : null}
+          {executable.cacheEntry?.pendingCommunityGame ? (
+            <span className="inline-flex shrink-0 whitespace-nowrap rounded bg-community-tint px-2 py-0.5 text-xs font-medium text-community">
+              Awaiting community approval
+            </span>
+          ) : null}
           {executable.status === "ignored" ? (
             <span className="px-2 text-xs font-medium text-text-faint">
               System ignored
@@ -1264,13 +1355,6 @@ function DiscoveredExecutableRow({
             >
               Restore
             </Button>
-          ) : executable.status === "custom" ? (
-            <IconButton
-              icon={Trash2}
-              intent="danger"
-              title="Remove custom tracking"
-              onClick={onUntrack}
-            />
           ) : executable.status === "unmatched" && !isCustomGameEntryOpen ? (
             <>
               <Button
@@ -1372,30 +1456,33 @@ function DiscoveredExecutableRow({
         <ContextMenuItem icon={Copy} onClick={handleCopyExe}>
           Copy Executable Name
         </ContextMenuItem>
-        <ContextMenuSeparator />
-
-        {executable.status === "ignored" ||
-        executable.status === "userIgnored" ? (
-          <ContextMenuItem
-            icon={Undo2}
-            onClick={() => {
-              onUnignore();
-              contextMenu.close();
-            }}
-          >
-            Restore Executable
-          </ContextMenuItem>
-        ) : (
-          <ContextMenuItem
-            icon={EyeOff}
-            onClick={() => {
-              onIgnore();
-              contextMenu.close();
-            }}
-          >
-            Ignore Executable
-          </ContextMenuItem>
-        )}
+        {allowTrackingChanges ? (
+          <>
+            <ContextMenuSeparator />
+            {executable.status === "ignored" ||
+            executable.status === "userIgnored" ? (
+              <ContextMenuItem
+                icon={Undo2}
+                onClick={() => {
+                  onUnignore();
+                  contextMenu.close();
+                }}
+              >
+                Restore Executable
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                icon={EyeOff}
+                onClick={() => {
+                  onIgnore();
+                  contextMenu.close();
+                }}
+              >
+                Ignore Executable
+              </ContextMenuItem>
+            )}
+          </>
+        ) : null}
 
         {!isOffline &&
         (executable.status === "unmatched" ||
@@ -1410,19 +1497,6 @@ function DiscoveredExecutableRow({
             Retry Database Match
           </ContextMenuItem>
         ) : null}
-
-        {executable.status === "custom" && (
-          <ContextMenuItem
-            icon={Trash2}
-            danger
-            onClick={() => {
-              onUntrack();
-              contextMenu.close();
-            }}
-          >
-            Remove Custom Tracking
-          </ContextMenuItem>
-        )}
       </ContextMenu>
     </article>
   );
