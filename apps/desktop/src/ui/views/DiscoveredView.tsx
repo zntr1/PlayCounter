@@ -56,6 +56,42 @@ type DiscoveryStatus =
   | "userIgnored"
   | "checking";
 
+// Single floating heart shown briefly after a successful "Add & Share".
+// Lives outside the heavy view so firing it never re-renders the list.
+function HeartOverlay() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    function handleShow() {
+      setVisible(true);
+    }
+    window.addEventListener("playcounter:heart", handleShow);
+    return () => window.removeEventListener("playcounter:heart", handleShow);
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => setVisible(false), 1500);
+    return () => clearTimeout(timer);
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return createPortal(
+    <div
+      className="pointer-events-none fixed inset-0 z-[100] grid place-items-center"
+      aria-hidden="true"
+    >
+      <span className="animate-heart-float text-6xl">❤️</span>
+    </div>,
+    document.body,
+  );
+}
+
+function showHeart() {
+  window.dispatchEvent(new Event("playcounter:heart"));
+}
+
 type DiscoveredExecutable = ProcessSnapshot & {
   key: string;
   isRunning: boolean;
@@ -436,6 +472,7 @@ export function DiscoveredView() {
           title: "Already in IGDB",
           detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
         });
+        showHeart();
         return;
       }
       if (result.id === undefined) throw new Error("Unexpected response");
@@ -458,6 +495,7 @@ export function DiscoveredView() {
         title: "Game added and shared",
         detail: `Your community suggestion was submitted for ${exeName}.`,
       });
+      showHeart();
     } catch (error) {
       setSuggestionState("error");
       setSuggestionMessage(formatError(error));
@@ -483,9 +521,7 @@ export function DiscoveredView() {
       processes.map((process) => process.exeName.toLowerCase()),
     );
     const running = processes
-      .filter(
-        (process) => !ambiguousKeys.has(process.exeName.toLowerCase()),
-      )
+      .filter((process) => !ambiguousKeys.has(process.exeName.toLowerCase()))
       .map((process): DiscoveredExecutable => {
         const key = process.exeName.toLowerCase();
         const cacheEntry = exeCache.get(key) ?? null;
@@ -623,6 +659,7 @@ export function DiscoveredView() {
 
   return (
     <div className="grid gap-5">
+      <HeartOverlay />
       <Panel className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-4 py-3">
           <div>
