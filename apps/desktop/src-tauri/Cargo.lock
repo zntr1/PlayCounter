@@ -3058,7 +3058,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 
 [[package]]
 name = "playcounter"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
