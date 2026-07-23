@@ -1,5 +1,9 @@
 use serde::Serialize;
-use std::{collections::BTreeSet, fs, path::PathBuf};
+use std::{
+    collections::{BTreeSet, HashSet},
+    fs,
+    path::PathBuf,
+};
 use tauri::{AppHandle, Manager};
 
 const USER_FILE_NAME: &str = "ignored-processes.user.txt";
@@ -29,7 +33,7 @@ pub fn load(app: &AppHandle) -> Result<IgnoredProcesses, String> {
     ensure_user_file(&user_file_path)?;
 
     let user_ignored = fs::read_to_string(&user_file_path).map_err(|error| error.to_string())?;
-    let user_processes: BTreeSet<String> = parse_process_list(&user_ignored).collect();
+    let user_processes = parse_user_process_list(&user_ignored);
 
     let mut processes = BTreeSet::new();
     processes.extend(parse_process_list(BUILT_IN_IGNORED_PROCESSES));
@@ -37,7 +41,7 @@ pub fn load(app: &AppHandle) -> Result<IgnoredProcesses, String> {
 
     Ok(IgnoredProcesses {
         processes: processes.into_iter().collect(),
-        user_processes: user_processes.into_iter().collect(),
+        user_processes,
         user_file_path: user_file_path.to_string_lossy().to_string(),
     })
 }
@@ -51,11 +55,13 @@ pub fn set_user_ignored(
     ensure_user_file(&user_file_path)?;
 
     let user_ignored = fs::read_to_string(&user_file_path).map_err(|error| error.to_string())?;
-    let mut user_processes: BTreeSet<String> = parse_process_list(&user_ignored).collect();
+    let mut user_processes = parse_user_process_list(&user_ignored);
     let exe_name = normalize_process_name(exe_name)?;
 
     if ignored {
-        user_processes.insert(exe_name);
+        if !user_processes.contains(&exe_name) {
+            user_processes.push(exe_name);
+        }
     } else {
         user_processes.retain(|process| {
             process != &exe_name && !(has_wildcard(process) && wildcard_matches(process, &exe_name))
@@ -106,6 +112,13 @@ fn parse_process_list(contents: &str) -> impl Iterator<Item = String> + '_ {
 
         Some(process.to_lowercase())
     })
+}
+
+fn parse_user_process_list(contents: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+    parse_process_list(contents)
+        .filter(|process| seen.insert(process.clone()))
+        .collect()
 }
 
 fn normalize_process_name(exe_name: &str) -> Result<String, String> {
@@ -167,7 +180,7 @@ fn wildcard_matches_inner(
     pattern_index == pattern.len()
 }
 
-fn format_user_file(user_processes: &BTreeSet<String>) -> String {
+fn format_user_file(user_processes: &[String]) -> String {
     let mut contents = default_user_file().to_string();
     for process in user_processes {
         contents.push_str(process);
@@ -183,4 +196,23 @@ fn default_user_file() -> &'static str {
      # Windows example: chrome.exe\n\
      # Windows wildcard example: claude*.exe\n\
      # macOS/Linux example: chrome\n"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_user_process_list;
+
+    #[test]
+    fn user_processes_keep_the_order_they_were_added() {
+        let processes = parse_user_process_list("charlie.exe\nalpha.exe\nbeta.exe\n");
+
+        assert_eq!(processes, vec!["charlie.exe", "alpha.exe", "beta.exe"]);
+    }
+
+    #[test]
+    fn duplicate_user_processes_keep_their_first_position() {
+        let processes = parse_user_process_list("beta.exe\nalpha.exe\nbeta.exe\n");
+
+        assert_eq!(processes, vec!["beta.exe", "alpha.exe"]);
+    }
 }
