@@ -30,6 +30,7 @@ import {
   convertToCustomGame,
   hydrateGameMetadata,
   renameCustomGame,
+  setGamePlaytime,
   setCustomGameCover,
   suggestTrackedGameToCommunity,
   untrackGame,
@@ -568,6 +569,7 @@ function GameLibraryCard({
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
   const [showAddPlaytime, setShowAddPlaytime] = useState(false);
+  const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const installUuid = useAppStore((state) => state.installUuid);
@@ -587,6 +589,13 @@ function GameLibraryCard({
   const [convertName, setConvertName] = useState("");
   const [showRename, setShowRename] = useState(false);
   const [renameName, setRenameName] = useState("");
+  const hasActiveSession = useAppStore((state) =>
+    state.activeSessions.some(
+      (session) =>
+        session.gameId === game.gameId &&
+        (game.source ? session.source === game.source : true),
+    ),
+  );
   const canEditCover = game.source === "custom";
   // Shown in place of the title while hovering the card.
   const exeLabel = game.exeNames.filter(Boolean).join(", ");
@@ -772,6 +781,33 @@ function GameLibraryCard({
     setShowAddPlaytime(false);
   };
 
+  const handleAdjustPlaytime = (targetSeconds: number) => {
+    try {
+      setGamePlaytime({
+        gameId: game.gameId,
+        gameName: game.name,
+        coverUrl: game.coverUrl,
+        source: game.source,
+        exeName: game.exeNames[0] ?? "",
+        targetSeconds,
+        communitySuggestionId: game.communitySuggestionId,
+        communitySuggestionVerified: game.communitySuggestionVerified,
+      });
+      addToast({
+        tone: "success",
+        title: "Playtime adjusted",
+        detail: `${game.name} now has ${formatDuration(targetSeconds, showDurationDays)} of playtime.`,
+      });
+      setShowAdjustPlaytime(false);
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Could not adjust playtime",
+        detail: formatError(error),
+      });
+    }
+  };
+
   async function saveCover(file: File | Blob | null) {
     if (!file || !canEditCover || coverBusy) return;
 
@@ -856,6 +892,15 @@ function GameLibraryCard({
         }}
       >
         Add playtime manually
+      </ContextMenuItem>
+      <ContextMenuItem
+        icon={Clock3}
+        onClick={() => {
+          contextMenu.close();
+          setShowAdjustPlaytime(true);
+        }}
+      >
+        Adjust total playtime
       </ContextMenuItem>
       {game.source && game.exeNames[0] ? (
         <>
@@ -1172,6 +1217,14 @@ function GameLibraryCard({
             onConfirm={handleAddPlaytime}
           />
         ) : null}
+        {showAdjustPlaytime ? (
+          <AdjustPlaytimeDialog
+            game={game}
+            disabled={hasActiveSession}
+            onCancel={() => setShowAdjustPlaytime(false)}
+            onConfirm={handleAdjustPlaytime}
+          />
+        ) : null}
         {showMatchCheck ? (
           <MatchCheckDialog
             game={game}
@@ -1406,6 +1459,14 @@ function GameLibraryCard({
           game={game}
           onCancel={() => setShowAddPlaytime(false)}
           onConfirm={handleAddPlaytime}
+        />
+      ) : null}
+      {showAdjustPlaytime ? (
+        <AdjustPlaytimeDialog
+          game={game}
+          disabled={hasActiveSession}
+          onCancel={() => setShowAdjustPlaytime(false)}
+          onConfirm={handleAdjustPlaytime}
         />
       ) : null}
       {showMatchCheck ? (
@@ -1665,6 +1726,111 @@ function AddPlaytimeDialog({
             Cancel
           </Button>
         </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function AdjustPlaytimeDialog({
+  game,
+  disabled,
+  onCancel,
+  onConfirm,
+}: {
+  game: GameSummary;
+  disabled: boolean;
+  onCancel: () => void;
+  onConfirm: (targetSeconds: number) => void;
+}) {
+  useEscapeKey(onCancel);
+  const [hours, setHours] = useState(() =>
+    Math.floor(game.totalSeconds / 3600).toString(),
+  );
+  const [minutes, setMinutes] = useState(() =>
+    Math.floor((game.totalSeconds % 3600) / 60).toString(),
+  );
+  const hoursNumber = Number(hours);
+  const minutesNumber = Number(minutes);
+  const valuesValid =
+    Number.isInteger(hoursNumber) &&
+    hoursNumber >= 0 &&
+    Number.isInteger(minutesNumber) &&
+    minutesNumber >= 0 &&
+    minutesNumber <= 59;
+  const targetSeconds = valuesValid
+    ? (hoursNumber * 60 + minutesNumber) * 60
+    : 0;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
+      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
+        <h2 className="text-lg font-semibold text-text">
+          Adjust playtime for {game.name}
+        </h2>
+        <p className="mt-2 text-sm text-text-muted">
+          Set the exact total playtime shown in your library. Lowering it trims
+          older recorded sessions; setting it to zero clears this game&apos;s
+          history.
+        </p>
+
+        <div className="mt-4 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text-muted">
+          Current playtime: {formatDuration(game.totalSeconds)}
+        </div>
+
+        {disabled ? (
+          <div className="mt-3 rounded-md border border-warning-border bg-warning-tint px-3 py-2 text-sm text-warning">
+            Stop the active session before adjusting this game&apos;s playtime.
+          </div>
+        ) : null}
+
+        <form
+          className="mt-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (valuesValid && !disabled) onConfirm(targetSeconds);
+          }}
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+              Hours
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                value={hours}
+                onChange={(event) => setHours(event.target.value)}
+                autoFocus
+              />
+            </label>
+            <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+              Minutes
+              <Input
+                type="number"
+                min={0}
+                max={59}
+                step={1}
+                inputMode="numeric"
+                value={minutes}
+                onChange={(event) => setMinutes(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!valuesValid || disabled}
+            >
+              Set exact playtime
+            </Button>
+            <Button variant="ghost" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       </div>
     </div>,
     document.body,
