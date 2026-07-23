@@ -8,7 +8,6 @@ import {
   Search,
   Send,
   SkipForward,
-  Trash2,
   Undo2,
   X,
   Copy,
@@ -28,7 +27,6 @@ import {
   recheckExecutable,
   scanProcessesNow,
   setUserIgnoredProcess,
-  untrackCustomGame,
 } from "../../tracker";
 import {
   useAppStore,
@@ -38,7 +36,7 @@ import {
 } from "../../store";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { ExeIcon } from "../ExeIcon";
-import { Panel } from "../components";
+import { Panel, SourceBadge } from "../components";
 import {
   filterRunningExecutables,
   paginateExecutables,
@@ -478,15 +476,6 @@ export function DiscoveredView() {
     }
   }
 
-  function removeCustomGame(exeName: string) {
-    untrackCustomGame(exeName);
-    addToast({
-      tone: "success",
-      title: "Manual game removed",
-      detail: `${exeName} is no longer tracked as a custom game.`,
-    });
-  }
-
   const discoverySections = useMemo((): DiscoverySection[] => {
     // Exes with a pending ambiguity picker are resolved in Now Playing; do
     // not offer them for review here at the same time.
@@ -910,7 +899,7 @@ export function DiscoveredView() {
                     onUnignore={() =>
                       void updateUserIgnored(executable.exeName, false)
                     }
-                    onUntrack={() => removeCustomGame(executable.exeName)}
+                    allowTrackingChanges={filter !== "tracked"}
                     unmatchedRetryDays={unmatchedRetryDays}
                   />
                   {suggestionExe === executable.key ? (
@@ -1176,7 +1165,7 @@ function DiscoveredExecutableRow({
   onStartCustomGame,
   onSuggest,
   onUnignore,
-  onUntrack,
+  allowTrackingChanges,
   unmatchedRetryDays,
 }: {
   executable: DiscoveredExecutable;
@@ -1195,7 +1184,7 @@ function DiscoveredExecutableRow({
   onStartCustomGame: () => void;
   onSuggest: () => void;
   onUnignore: () => void;
-  onUntrack: () => void;
+  allowTrackingChanges: boolean;
   unmatchedRetryDays: number;
 }) {
   const matchedName =
@@ -1262,11 +1251,7 @@ function DiscoveredExecutableRow({
             >
               {executable.exeName}
             </h4>
-            {executable.cacheEntry?.pendingCommunityGame ? (
-              <span className="inline-flex max-w-full rounded bg-community-tint px-2 py-0.5 text-xs font-medium text-community">
-                <span className="truncate">Awaiting approval</span>
-              </span>
-            ) : hideStatusLabel ? null : (
+            {hideStatusLabel ? null : (
               <span
                 className={clsx(
                   "inline-flex max-w-full rounded px-2 py-0.5 text-xs font-medium",
@@ -1309,6 +1294,14 @@ function DiscoveredExecutableRow({
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+          {executable.cacheEntry?.state === "matched" ? (
+            <SourceBadge source={executable.cacheEntry.source} />
+          ) : null}
+          {executable.cacheEntry?.pendingCommunityGame ? (
+            <span className="inline-flex shrink-0 whitespace-nowrap rounded bg-community-tint px-2 py-0.5 text-xs font-medium text-community">
+              Awaiting community approval
+            </span>
+          ) : null}
           {executable.status === "ignored" ? (
             <span className="px-2 text-xs font-medium text-text-faint">
               System ignored
@@ -1323,13 +1316,6 @@ function DiscoveredExecutableRow({
             >
               Restore
             </Button>
-          ) : executable.status === "custom" ? (
-            <IconButton
-              icon={Trash2}
-              intent="danger"
-              title="Remove custom tracking"
-              onClick={onUntrack}
-            />
           ) : executable.status === "unmatched" && !isCustomGameEntryOpen ? (
             <>
               <Button
@@ -1431,30 +1417,33 @@ function DiscoveredExecutableRow({
         <ContextMenuItem icon={Copy} onClick={handleCopyExe}>
           Copy Executable Name
         </ContextMenuItem>
-        <ContextMenuSeparator />
-
-        {executable.status === "ignored" ||
-        executable.status === "userIgnored" ? (
-          <ContextMenuItem
-            icon={Undo2}
-            onClick={() => {
-              onUnignore();
-              contextMenu.close();
-            }}
-          >
-            Restore Executable
-          </ContextMenuItem>
-        ) : (
-          <ContextMenuItem
-            icon={EyeOff}
-            onClick={() => {
-              onIgnore();
-              contextMenu.close();
-            }}
-          >
-            Ignore Executable
-          </ContextMenuItem>
-        )}
+        {allowTrackingChanges ? (
+          <>
+            <ContextMenuSeparator />
+            {executable.status === "ignored" ||
+            executable.status === "userIgnored" ? (
+              <ContextMenuItem
+                icon={Undo2}
+                onClick={() => {
+                  onUnignore();
+                  contextMenu.close();
+                }}
+              >
+                Restore Executable
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem
+                icon={EyeOff}
+                onClick={() => {
+                  onIgnore();
+                  contextMenu.close();
+                }}
+              >
+                Ignore Executable
+              </ContextMenuItem>
+            )}
+          </>
+        ) : null}
 
         {!isOffline &&
         (executable.status === "unmatched" ||
@@ -1469,19 +1458,6 @@ function DiscoveredExecutableRow({
             Retry Database Match
           </ContextMenuItem>
         ) : null}
-
-        {executable.status === "custom" && (
-          <ContextMenuItem
-            icon={Trash2}
-            danger
-            onClick={() => {
-              onUntrack();
-              contextMenu.close();
-            }}
-          >
-            Remove Custom Tracking
-          </ContextMenuItem>
-        )}
       </ContextMenu>
     </article>
   );
