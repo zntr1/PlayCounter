@@ -76,12 +76,22 @@ export default {
           "0%": { opacity: "1", transform: "translateX(0) scale(1)" },
           "100%": { opacity: "0", transform: "translateX(16px) scale(0.98)" },
         },
+        // Single heart: pop in, float up slightly, fade away.
+        "heart-float": {
+          "0%": { opacity: "0", transform: "translate(-50%, -50%) scale(0.6)" },
+          "15%": { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
+          "100%": {
+            opacity: "0",
+            transform: "translate(-50%, calc(-50% - 120px)) scale(1)",
+          },
+        },
       },
       animation: {
         pop: "pop 320ms ease-out",
         "fade-in": "fade-in 200ms ease-out",
         "toast-in": "toast-in 220ms ease-out",
         "toast-out": "toast-out 260ms ease-in forwards",
+        "heart-float": "heart-float 1.4s ease-out forwards",
       },
       gridTemplateColumns: {
         14: "repeat(14, minmax(0, 1fr))",
