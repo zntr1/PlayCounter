@@ -88,6 +88,10 @@ function formatSessionCount(count: number) {
 export function HistoryView() {
   const query = useAppStore((state) => state.historyQuery);
   const setQuery = useAppStore((state) => state.setHistoryQuery);
+  const selectedGameKey = useAppStore((state) => state.historyGameKey);
+  const setSelectedGameKey = useAppStore(
+    (state) => state.setHistoryGameKey,
+  );
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [sort, setSort] = useState<HistorySort>("newest");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -104,6 +108,7 @@ export function HistoryView() {
 
   useEffect(() => {
     setQuery("");
+    setSelectedGameKey(null);
   }, []);
 
   useEffect(() => {
@@ -249,7 +254,10 @@ export function HistoryView() {
       const startedAt = Date.parse(session.startedAt);
       if (minStartedAt !== null && startedAt < minStartedAt) return false;
 
-      const needle = query.trim().toLowerCase();
+      if (selectedGameKey) {
+        return getSessionGameKey(session) === selectedGameKey;
+      }
+
       if (!needle) return true;
 
       const gameName = getSessionGameName(session);
@@ -259,7 +267,7 @@ export function HistoryView() {
         session.exeName.toLowerCase().includes(needle)
       );
     });
-  }, [dayMs, filter, query, sessions, todayMs]);
+  }, [dayMs, filter, query, selectedGameKey, sessions, todayMs]);
 
   const chartData = useMemo(() => {
     type Bucket = { label: string; tooltip: string; seconds: number };
@@ -619,6 +627,7 @@ export function HistoryView() {
                   value={query}
                   onChange={(event) => {
                     setQuery(event.target.value);
+                    setSelectedGameKey(null);
                     setShowSuggestions(true);
                     setHighlightedIndex(-1);
                   }}
@@ -640,13 +649,14 @@ export function HistoryView() {
                       setHighlightedIndex((i) => Math.max(i - 1, 0));
                     } else if (event.key === "Enter" && highlightedIndex >= 0) {
                       event.preventDefault();
-                      setQuery(matches[highlightedIndex].name);
+                      const match = matches[highlightedIndex];
+                      setSelectedGameKey(match.key);
+                      setQuery(match.name);
                       setShowSuggestions(false);
                       setHighlightedIndex(-1);
                     } else if (event.key === "Escape") {
-                      if (query) {
-                        setQuery("");
-                      }
+                      setQuery("");
+                      setSelectedGameKey(null);
                       setShowSuggestions(false);
                       setHighlightedIndex(-1);
                     }
@@ -659,6 +669,7 @@ export function HistoryView() {
                     type="button"
                     onClick={() => {
                       setQuery("");
+                      setSelectedGameKey(null);
                       setShowSuggestions(false);
                       setHighlightedIndex(-1);
                     }}
@@ -673,7 +684,6 @@ export function HistoryView() {
                   className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-faint"
                 />
                 {showSuggestions &&
-                  query.trim().length > 0 &&
                   (() => {
                     const needle = query.trim().toLowerCase();
                     const matches = gameOptions.filter((g) =>
@@ -694,6 +704,7 @@ export function HistoryView() {
                               )}
                               onMouseDown={(e) => {
                                 e.preventDefault();
+                                setSelectedGameKey(game.key);
                                 setQuery(game.name);
                                 setShowSuggestions(false);
                                 setHighlightedIndex(-1);

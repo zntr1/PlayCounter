@@ -117,6 +117,7 @@ export type Toast = {
 type AppState = {
   activeView: ViewId;
   historyQuery: string;
+  historyGameKey: string | null;
   installUuid: string | null;
   activeSessions: ActiveSession[];
   ambiguousMatches: AmbiguousProcessMatch[];
@@ -139,6 +140,7 @@ type AppState = {
   settings: Settings;
   setActiveView: (view: ViewId) => void;
   setHistoryQuery: (query: string) => void;
+  setHistoryGameKey: (key: string | null) => void;
   setInstallUuid: (installUuid: string) => void;
   setActiveSessions: (sessions: ActiveSession[]) => void;
   setAmbiguousMatch: (match: AmbiguousProcessMatch) => void;
@@ -218,6 +220,7 @@ function persistSoon() {
 export const useAppStore = create<AppState>((set) => ({
   activeView: "now",
   historyQuery: "",
+  historyGameKey: null,
   installUuid: null,
   activeSessions: [],
   ambiguousMatches: [],
@@ -240,6 +243,7 @@ export const useAppStore = create<AppState>((set) => ({
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
   setHistoryQuery: (historyQuery) => set({ historyQuery }),
+  setHistoryGameKey: (historyGameKey) => set({ historyGameKey }),
   setInstallUuid: (installUuid) => set({ installUuid }),
   setActiveSessions: (activeSessions) => set({ activeSessions }),
   setAmbiguousMatch: (match) =>
