@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Is PlayCounter Safe? What It Does and Sends</title>
+    <meta name="description" content="What PlayCounter runs, what data leaves your PC, why Windows may warn about the installer, and how to verify the download for yourself." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/is-playcounter-safe/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="Is PlayCounter safe to install?" />
+    <meta property="og:description" content="What PlayCounter runs, what data leaves your PC, why Windows may warn about the installer, and how to verify the download for yourself." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/is-playcounter-safe/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Is PlayCounter safe to install?" />
+    <meta name="twitter:description" content="What PlayCounter runs, what data leaves your PC, why Windows may warn about the installer, and how to verify the download for yourself." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/is-playcounter-safe/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Is it safe?",
+                "item": "https://playcounter.app/is-playcounter-safe/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/is-playcounter-safe/#article",
+            "headline": "Is PlayCounter safe?",
+            "description": "What PlayCounter runs, what data leaves your PC, why Windows may warn about the installer, and how to verify the download for yourself.",
+            "url": "https://playcounter.app/is-playcounter-safe/",
+            "mainEntityOfPage": "https://playcounter.app/is-playcounter-safe/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 435,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/is-playcounter-safe/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Does PlayCounter need administrator rights?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Normal operation is reading which processes are running and writing to local app storage. Elevated rights are not part of the tracking model."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Will PlayCounter get me banned by anti-cheat?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It does not inject into games, hook rendering, or read game memory - it observes which processes exist, similar to Task Manager. It is not an overlay or a game modification."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why does Windows SmartScreen warn about the installer?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "SmartScreen warns about installers without established download reputation, which is normal for small independent software and is unrelated to the file's contents."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is any of my data sold or shared?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "There are no accounts, session history stays on your PC, and matching sends executable filenames without full paths. The privacy notice is the authoritative statement."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            Is it safe?
+          </p>
+          <p class="eyebrow">Trust &amp;amp; privacy</p>
+          <h1>Is PlayCounter safe?</h1>
+          <p class="article-deck">It is a program that watches which applications run on your PC, so the question is fair. Here is exactly what it does, what it sends, and how to check the claims yourself.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>What it actually does</h2>
+            <p>
+              PlayCounter runs as a Windows desktop application and periodically looks at
+              which processes are running. When it sees an executable filename it
+              recognises as a game, it starts a session and stops it when that process
+              exits.
+            </p>
+            <p>
+              It does not inject into games, hook rendering, install a driver, or run a
+              kernel component. It is not an overlay, and it does not read game memory. It
+              is closer to Task Manager than to anti-cheat software.
+            </p>
+
+            <h2>What leaves your PC</h2>
+            <ul>
+              <li>
+                <strong>Executable filenames, for matching.</strong> To identify a game,
+                the filename such as <code>example.exe</code> is sent to PlayCounter's
+                API. On Windows the full path is not sent.
+              </li>
+              <li>
+                <strong>Cover images.</strong> Artwork for recognised games is fetched
+                from IGDB.
+              </li>
+              <li>
+                <strong>Update checks.</strong> Version checks and downloads use GitHub.
+              </li>
+              <li>
+                <strong>Anonymous activity, where applicable.</strong> The service
+                supports an anonymous live view of what is being played; this is not tied
+                to an account because there are no accounts.
+              </li>
+              <li>
+                <strong>Feedback and community match submissions.</strong> These are sent
+                only when you choose to send them.
+              </li>
+            </ul>
+            <p>
+              What stays local: your session history, per-game totals, settings, and any
+              one-time matching choices you make. The
+              <a href="/datenschutz.html">privacy notice</a> is the authoritative
+              document.
+            </p>
+
+            <h2>Why Windows may warn you</h2>
+            <p>
+              SmartScreen shows a warning for installers it has not seen often enough to
+              have built up reputation. This is normal for small independent software and
+              is a statement about download volume, not about the contents of the file.
+              The warning fades as more people install a given release.
+            </p>
+            <p>
+              Some antivirus engines also flag process-monitoring behaviour heuristically,
+              because watching running processes is a behaviour shared with monitoring
+              tools generally. If you see a heuristic detection, checking the file on a
+              multi-engine scanner usually shows a small number of heuristic hits against
+              a majority of clean results.
+            </p>
+
+            <h2>How to verify it yourself</h2>
+            <ol>
+              <li>
+                <strong>Read the source.</strong> PlayCounter is MIT-licensed and the
+                desktop client and API source are public on
+                <a
+                  href="https://github.com/zntr1/PlayCounter"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >GitHub</a
+                >. Everything above can be checked against the code.
+              </li>
+              <li>
+                <strong>Download from the official source only.</strong> Releases are
+                published on GitHub with release notes and checksums. Do not install a
+                build from anywhere else.
+              </li>
+              <li>
+                <strong>Verify the checksum.</strong> Compare the hash of your downloaded
+                installer against the published one before running it.
+              </li>
+              <li>
+                <strong>Watch the traffic.</strong> If you want to confirm what is sent,
+                a local network monitor will show you the matching requests directly.
+              </li>
+            </ol>
+
+            <h2>Is it a virus, a miner, or spyware?</h2>
+            <p>
+              No, and the way to be confident about that is not our assurance but the
+              open source, the published checksums, and the fact that you can inspect both.
+              Any tracker of this kind sees which programs you run - that is inherent to
+              the job - which is precisely why the reasonable standard is a tool you can
+              verify rather than one you have to trust.
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Verify, then install</h2>
+            <p>The client and API are open source under MIT, and releases ship with published checksums so you can check the installer before running it.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/how-automatic-game-detection-works/">How automatic detection works</a>
+              <a href="/best-free-game-playtime-trackers/">Best free playtime trackers</a>
+              <a href="/game-time-tracker-windows/">Game time tracker for Windows</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Does PlayCounter need administrator rights?</summary>
+              <div class="faq-answer">
+                <p>Normal operation is reading which processes are running and writing to local app storage. Elevated rights are not part of the tracking model.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Will PlayCounter get me banned by anti-cheat?</summary>
+              <div class="faq-answer">
+                <p>It does not inject into games, hook rendering, or read game memory - it observes which processes exist, similar to Task Manager. It is not an overlay or a game modification.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Why does Windows SmartScreen warn about the installer?</summary>
+              <div class="faq-answer">
+                <p>SmartScreen warns about installers without established download reputation, which is normal for small independent software and is unrelated to the file's contents.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Is any of my data sold or shared?</summary>
+              <div class="faq-answer">
+                <p>There are no accounts, session history stays on your PC, and matching sends executable filenames without full paths. The <a href="/datenschutz.html">privacy notice</a> is the authoritative statement.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Download the current release from GitHub, verify the checksum if you want to, and let PlayCounter build your playtime record locally.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

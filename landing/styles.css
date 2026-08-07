@@ -717,6 +717,66 @@ a:hover {
   margin-top: 10px;
 }
 
+.link-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0;
+  margin-top: 40px;
+  border-top: 1px solid var(--line-dark);
+}
+
+.link-grid a {
+  padding: 16px 4px;
+  border-bottom: 1px solid var(--line-dark);
+  color: var(--paper);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.link-grid a:hover {
+  color: var(--yellow);
+}
+
+.table-scroll {
+  margin: 2em 0;
+  overflow-x: auto;
+  border: 2px solid var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.table-scroll table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  background: var(--paper-strong);
+  font-size: 0.92rem;
+}
+
+.table-scroll th,
+.table-scroll td {
+  padding: 12px 16px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.table-scroll thead th {
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.table-scroll tbody tr:last-child th,
+.table-scroll tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-scroll td:first-child {
+  font-weight: 700;
+}
+
 @media (max-width: 980px) {
   .difference-grid,
   .faq-layout,

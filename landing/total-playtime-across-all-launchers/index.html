@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>See Total Playtime Across All Launchers</title>
+    <meta name="description" content="Your hours are split across Steam, Epic, Game Pass, GOG, EA, and standalone games. Here is how to get one combined playtime total on Windows." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/total-playtime-across-all-launchers/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="How to see your total playtime across every launcher" />
+    <meta property="og:description" content="Your hours are split across Steam, Epic, Game Pass, GOG, EA, and standalone games. Here is how to get one combined playtime total on Windows." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/total-playtime-across-all-launchers/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How to see your total playtime across every launcher" />
+    <meta name="twitter:description" content="Your hours are split across Steam, Epic, Game Pass, GOG, EA, and standalone games. Here is how to get one combined playtime total on Windows." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/total-playtime-across-all-launchers/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Total playtime",
+                "item": "https://playcounter.app/total-playtime-across-all-launchers/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/total-playtime-across-all-launchers/#article",
+            "headline": "How to see your total playtime across all launchers",
+            "description": "Your hours are split across Steam, Epic, Game Pass, GOG, EA, and standalone games. Here is how to get one combined playtime total on Windows.",
+            "url": "https://playcounter.app/total-playtime-across-all-launchers/",
+            "mainEntityOfPage": "https://playcounter.app/total-playtime-across-all-launchers/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 601,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/total-playtime-across-all-launchers/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Is there an app that combines Steam and Epic playtime?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Not by merging the stores' own numbers, because neither exposes a complete history for that purpose. A process-based tracker on Windows records both from the moment you install it, in one list."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I import my existing hours from Steam?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "PlayCounter does not import launcher histories. Its totals grow from sessions it observes, and older time can be added manually per game if you want it included."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do I have to launch games through the tracker?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. That is the point of the process-based approach - you keep your current launch habits and the tracker notices the game on its own."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it work for games that are not from any store?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. DRM-free installs, portable builds, and standalone executables are treated exactly like store games because the tracker watches the process, not the storefront."
+                }
+              }
+            ]
+          },
+          {
+            "@type": "HowTo",
+            "@id": "https://playcounter.app/total-playtime-across-all-launchers/#howto",
+            "name": "See your total playtime across every PC launcher",
+            "step": [
+              {
+                "@type": "HowToStep",
+                "position": 1,
+                "name": "Install a process-based tracker",
+                "text": "Download and install PlayCounter for Windows. It is free, open source, and requires no account."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 2,
+                "name": "Let it run in the background",
+                "text": "Enable start with Windows so the tracker is running whenever you play. It stays in the system tray."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 3,
+                "name": "Launch games however you normally do",
+                "text": "Start games from Steam, Epic, the Xbox app, GOG, a shortcut, or the executable itself. Recognised games are timed automatically."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 4,
+                "name": "Review your combined totals",
+                "text": "Open the app to see per-game totals, session counts, and recent history across every launcher in one list."
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            Total playtime
+          </p>
+          <p class="eyebrow">Cross-launcher tracking</p>
+          <h1>How to see your total playtime across all launchers</h1>
+          <p class="article-deck">No storefront can answer how much you play, because each one only sees its own games. Here is why that is, what the workarounds cost you, and the approach that actually works.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>Why no launcher can give you the total</h2>
+            <p>
+              Every store counts the games it launches. Steam knows your Steam hours.
+              Epic knows your Epic hours. Xbox knows about the titles that report
+              statistics to Xbox services. None of them knows about the others, and
+              none of them knows about the game you downloaded as a zip file and run
+              from a folder.
+            </p>
+            <p>
+              A typical PC library in 2026 is spread across four or five launchers
+              plus a handful of games that belong to no launcher at all. The number
+              you actually want - "how many hours did I game this month?" - does not
+              exist in any one place.
+            </p>
+
+            <h2>The three usual workarounds, and what breaks</h2>
+            <ol>
+              <li>
+                <strong>Add everything to Steam as non-Steam shortcuts.</strong>
+                This works only if you always remember to launch through Steam,
+                produces entries with no cover art or metadata, and still misses
+                anything you start any other way.
+              </li>
+              <li>
+                <strong>Use a library manager.</strong> Tools like Playnite unify
+                your libraries beautifully and can track sessions they launch. The
+                cost is that you have to adopt a new launch routine and let the
+                manager become your front door to gaming.
+              </li>
+              <li>
+                <strong>Add the numbers by hand.</strong> Open four launchers, copy
+                four figures, ignore that each measures differently, and accept that
+                the standalone games are simply absent. It is also a chore you will
+                not repeat monthly.
+              </li>
+            </ol>
+            <p>
+              All three share the same flaw: they require you to change how you start
+              games, or to do manual work, in order to answer a question you only
+              wanted to check occasionally.
+            </p>
+
+            <h2>The process-based approach</h2>
+            <p>
+              There is one thing every PC game has in common regardless of where it
+              came from: it runs as a Windows process. A tracker that watches
+              processes rather than launchers sees all of them equally.
+            </p>
+            <p>
+              PlayCounter runs in the system tray, notices when a recognised game's
+              executable starts, and records the session until the process exits. A
+              Steam game, a Game Pass title, an old GOG installer, a Riot client, and
+              a jam game extracted to your desktop all land in the same list, measured
+              by the same rule.
+            </p>
+            <p>
+              You do not launch anything through PlayCounter. You keep using Steam,
+              the Xbox app, a desktop shortcut, or whatever you already use, and the
+              record builds itself in the background.
+            </p>
+
+            <h2>What you get and what you give up</h2>
+            <p>
+              What you get: one library view with cover art, per-game totals, session
+              counts, a session-by-session history, and a live view of what is running
+              right now. No account, no launcher logins, no library imports, and the
+              data lives in local app storage on your PC.
+            </p>
+            <p>
+              What you give up: the past. PlayCounter starts counting when you install
+              it and does not import the hours already recorded by Steam or anyone
+              else. If you want a lifetime archive, keep the store counters for
+              history and use PlayCounter for the ongoing, unified picture. Older
+              sessions can also be entered manually if a particular game matters to
+              you.
+            </p>
+            <p>
+              There are also honest technical limits. Emulators typically run one
+              process for every ROM, so an emulated session may be recorded against
+              the emulator rather than the individual game. Browser and cloud games
+              share one client process for the same reason. And a game with a generic
+              or renamed executable may need a one-time local identification before it
+              tracks automatically.
+            </p>
+
+            <h2>Setting it up</h2>
+            <ol>
+              <li>
+                Download PlayCounter for Windows and install it. It is free and
+                MIT-licensed, and the installer is hosted on GitHub with published
+                checksums.
+              </li>
+              <li>
+                Let it start with Windows so it is running when you are. It sits in
+                the system tray and stays out of the way.
+              </li>
+              <li>
+                Play as normal. Recognised games start and stop sessions on their own.
+              </li>
+              <li>
+                Open it whenever you want the numbers - current session, per-game
+                totals, session counts, and recent history.
+              </li>
+            </ol>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Track it automatically</h2>
+            <p>PlayCounter is a free, open-source playtime tracker for Windows. It times recognized games automatically, whatever you launch them from.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/check-playtime-on-steam/">Steam playtime</a>
+              <a href="/check-playtime-epic-games/">Epic Games playtime</a>
+              <a href="/check-playtime-xbox-game-pass/">Game Pass playtime</a>
+              <a href="/playcounter-vs-playnite/">PlayCounter vs Playnite</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Is there an app that combines Steam and Epic playtime?</summary>
+              <div class="faq-answer">
+                <p>Not by merging the stores' own numbers, because neither exposes a complete history for that purpose. A process-based tracker on Windows records both from the moment you install it, in one list.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can I import my existing hours from Steam?</summary>
+              <div class="faq-answer">
+                <p>PlayCounter does not import launcher histories. Its totals grow from sessions it observes, and older time can be added manually per game if you want it included.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Do I have to launch games through the tracker?</summary>
+              <div class="faq-answer">
+                <p>No. That is the point of the process-based approach - you keep your current launch habits and the tracker notices the game on its own.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Does it work for games that are not from any store?</summary>
+              <div class="faq-answer">
+                <p>Yes. DRM-free installs, portable builds, and standalone executables are treated exactly like store games because the tracker watches the process, not the storefront.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Install PlayCounter once and it keeps a local record of the recognized games you play from here on, across every launcher on the PC.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

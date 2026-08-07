@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>How to Check Playtime in GOG Galaxy</title>
+    <meta name="description" content="See hours played in GOG Galaxy, understand why offline and DRM-free launches go uncounted, and keep an accurate record of every GOG game you play." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/check-playtime-gog-galaxy/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="How to Check Playtime in GOG Galaxy" />
+    <meta property="og:description" content="See hours played in GOG Galaxy, understand why offline and DRM-free launches go uncounted, and keep an accurate record of every GOG game you play." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/check-playtime-gog-galaxy/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How to Check Playtime in GOG Galaxy" />
+    <meta name="twitter:description" content="See hours played in GOG Galaxy, understand why offline and DRM-free launches go uncounted, and keep an accurate record of every GOG game you play." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/check-playtime-gog-galaxy/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "GOG Galaxy playtime",
+                "item": "https://playcounter.app/check-playtime-gog-galaxy/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/check-playtime-gog-galaxy/#article",
+            "headline": "How to check playtime in GOG Galaxy",
+            "description": "See hours played in GOG Galaxy, understand why offline and DRM-free launches go uncounted, and keep an accurate record of every GOG game you play.",
+            "url": "https://playcounter.app/check-playtime-gog-galaxy/",
+            "mainEntityOfPage": "https://playcounter.app/check-playtime-gog-galaxy/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 337,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/check-playtime-gog-galaxy/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Does GOG Galaxy track games launched outside the client?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Galaxy records time for sessions it starts. Running a DRM-free installation directly produces no recorded playtime."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I sort my GOG library by hours played?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Galaxy shows time played per game but has never offered a built-in sort or total by hours across the library. It remains a frequently requested feature."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why is my GOG playtime higher than expected?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Galaxy can keep a session open when a game hands off to another process or launcher, so time continues accruing after you have actually stopped playing."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do I need to keep Galaxy installed to track playtime?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Not if you use a process-based tracker. PlayCounter records recognised games with no client running - see how detection works ."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            GOG Galaxy playtime
+          </p>
+          <p class="eyebrow">GOG</p>
+          <h1>How to check playtime in GOG Galaxy</h1>
+          <p class="article-deck">GOG Galaxy tracks hours for games it launches, which is awkward for a store whose whole appeal is DRM-free games you can run without the client.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>Finding hours played in Galaxy</h2>
+            <p>
+              Open GOG Galaxy, select a game in your library, and its details panel
+              shows time played alongside the last-played date. Galaxy's integration
+              plugins can also pull playtime from connected accounts such as Steam,
+              so a game you own in several places may show a combined figure.
+            </p>
+            <p>
+              What Galaxy has never offered is a first-class way to sort or total the
+              whole library by hours. It is a long-standing community request. You
+              can build custom library views with filters and tags, but ranking every
+              game by time played is not among the built-in sorts.
+            </p>
+
+            <h2>The DRM-free contradiction</h2>
+            <p>
+              GOG's defining feature is that you can download an offline installer,
+              install the game, and run it forever without a client. That is also
+              exactly the situation in which Galaxy records nothing. Double-click the
+              game's executable and no time is logged, because the client was not
+              involved.
+            </p>
+            <p>
+              Plenty of GOG customers keep Galaxy uninstalled on principle, or use it
+              only to download. For them the store's own playtime figure is
+              permanently near zero regardless of how much they play.
+            </p>
+
+            <h2>Over-counting is a real complaint too</h2>
+            <p>
+              The opposite failure also shows up: sessions that keep accruing after
+              you stop playing. When Galaxy hands off to another launcher, or when a
+              game exits to a separate configuration process, the client can keep a
+              session open longer than the game actually ran. Users have reported
+              both missing hours and inflated ones, which makes the number hard to
+              trust for anything precise.
+            </p>
+
+            <h2>A tracker that does not care how you launched it</h2>
+            <p>
+              PlayCounter watches Windows processes rather than launcher events. A
+              GOG game gets timed identically whether you started it from Galaxy,
+              from an offline installer's desktop shortcut, from the game folder, or
+              from a portable copy on an external drive. The session begins when the
+              recognised executable appears and ends when it exits.
+            </p>
+            <p>
+              That makes it a natural fit for a DRM-free library: you keep the
+              freedom that made you buy from GOG in the first place, and still get a
+              playtime record. Everything stays local, no account is required, and
+              the app is MIT-licensed and open source, which you can verify yourself.
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Track it automatically</h2>
+            <p>PlayCounter is a free, open-source playtime tracker for Windows. It times recognized games automatically, whatever you launch them from.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/track-playtime-outside-steam/">Track playtime outside Steam</a>
+              <a href="/how-automatic-game-detection-works/">How automatic detection works</a>
+              <a href="/total-playtime-across-all-launchers/">Total playtime across all launchers</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Does GOG Galaxy track games launched outside the client?</summary>
+              <div class="faq-answer">
+                <p>No. Galaxy records time for sessions it starts. Running a DRM-free installation directly produces no recorded playtime.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can I sort my GOG library by hours played?</summary>
+              <div class="faq-answer">
+                <p>Galaxy shows time played per game but has never offered a built-in sort or total by hours across the library. It remains a frequently requested feature.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Why is my GOG playtime higher than expected?</summary>
+              <div class="faq-answer">
+                <p>Galaxy can keep a session open when a game hands off to another process or launcher, so time continues accruing after you have actually stopped playing.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Do I need to keep Galaxy installed to track playtime?</summary>
+              <div class="faq-answer">
+                <p>Not if you use a process-based tracker. PlayCounter records recognised games with no client running - see <a href="/how-automatic-game-detection-works/">how detection works</a>.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Install PlayCounter once and it keeps a local record of the recognized games you play from here on, across every launcher on the PC.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Automatic Game Playtime Tracker for Windows | PlayCounter</title>
+    <title>Free Automatic Game Playtime Tracker for PC | PlayCounter</title>
     <meta
       name="description"
-      content="PlayCounter is a free, open-source game playtime tracker for Windows that records recognized games automatically, no matter how you launch them."
+      content="Free automatic playtime tracker for PC games. PlayCounter counts your hours played across Steam, Epic, Game Pass, GOG and standalone games, with no account."
     />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#2457e6" />
@@ -21,7 +21,7 @@
 
     <meta
       property="og:title"
-      content="Automatic Game Playtime Tracker for Windows | PlayCounter"
+      content="Free Automatic Game Playtime Tracker for PC | PlayCounter"
     />
     <meta
       property="og:description"
@@ -45,7 +45,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="Automatic Game Playtime Tracker for Windows | PlayCounter"
+      content="Free Automatic Game Playtime Tracker for PC | PlayCounter"
     />
     <meta
       name="twitter:description"
@@ -69,7 +69,7 @@
             "@id": "https://playcounter.app/#website",
             "url": "https://playcounter.app/",
             "name": "PlayCounter",
-            "description": "A free automatic game playtime tracker for Windows.",
+            "description": "A free automatic game playtime tracker for Windows that counts hours played across every launcher.",
             "inLanguage": "en"
           },
           {
@@ -84,8 +84,12 @@
             "@type": "SoftwareApplication",
             "@id": "https://playcounter.app/#software",
             "name": "PlayCounter",
+            "alternateName": [
+              "PlayCounter game time tracker",
+              "PlayCounter playtime counter"
+            ],
             "url": "https://playcounter.app/",
-            "description": "PlayCounter detects recognized games and apps running on a Windows PC and records local play sessions automatically, regardless of launcher.",
+            "description": "PlayCounter is a free automatic game playtime tracker for Windows. It detects recognized games running on a PC and records local play sessions automatically, regardless of launcher, so hours played from Steam, Epic, Game Pass, GOG, and standalone games land in one list.",
             "applicationCategory": "UtilitiesApplication",
             "applicationSubCategory": "Game playtime tracker",
             "operatingSystem": "Windows",
@@ -104,7 +108,10 @@
             },
             "featureList": [
               "Automatic playtime recording for recognized Windows games",
+              "Counts hours played across Steam, Epic, Game Pass, GOG, EA, Ubisoft, and Battle.net games",
               "Tracks games started from any launcher, shortcut, or executable",
+              "Live now-playing view with current session time",
+              "Playtime statistics across games and days",
               "No launcher accounts or library imports",
               "Local playtime and session history",
               "One-time local choices for unknown or ambiguous executables",
@@ -118,6 +125,22 @@
             "@type": "FAQPage",
             "@id": "https://playcounter.app/#faq",
             "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Is PlayCounter free?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "PlayCounter is free with no paid tier and no account. It is open source under the MIT license, and the installer is published on GitHub with release notes and checksums."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it show my total playtime across Steam, Epic, and Game Pass?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, for the games it records. PlayCounter times the running Windows process, so recognized games from every launcher land in one list with the same measurement. It does not import the hours those launchers already recorded; its totals grow from the sessions it observes after installation."
+                }
+              },
               {
                 "@type": "Question",
                 "name": "Can PlayCounter track non-Steam and standalone games?",
@@ -170,7 +193,7 @@
         <nav class="nav-items" aria-label="Main navigation">
           <a class="nav-link" href="#difference">Why PlayCounter</a>
           <a class="nav-link" href="#how">How it works</a>
-          <a class="nav-link" href="#questions">Questions</a>
+          <a class="nav-link" href="/guides/">Guides</a>
           <a
             class="nav-link nav-github"
             href="https://github.com/zntr1/PlayCounter"
@@ -191,14 +214,16 @@
       <section class="hero" aria-labelledby="hero-title">
         <div class="shell">
           <div class="hero-copy">
-            <p class="eyebrow">Automatic game playtime tracker for Windows</p>
+            <p class="eyebrow">
+              Free automatic playtime tracker for PC games
+            </p>
             <h1 id="hero-title">
-              Track game time automatically, wherever you launch
+              Automatically track your playtime for every PC game
             </h1>
             <p class="hero-lede">
-              PlayCounter records recognized Windows games in the background—no
-              launcher accounts, library imports, or change to how you start
-              them.
+              PlayCounter is a free game time tracker for Windows. It counts your
+              hours played in the background—across Steam, Epic, Game Pass, GOG,
+              and games that belong to no launcher at all.
             </p>
 
             <div class="hero-actions">
@@ -374,6 +399,38 @@
 
           <div class="faq-list">
             <details>
+              <summary>Is PlayCounter free?</summary>
+              <div class="faq-answer">
+                <p>
+                  PlayCounter is free with no paid tier and no account. It is
+                  open source under the MIT license, and the installer is
+                  published on GitHub with release notes and checksums. See
+                  <a href="/is-playcounter-safe/">what it does and what it sends</a
+                  >.
+                </p>
+              </div>
+            </details>
+
+            <details>
+              <summary>
+                Does it show my total playtime across Steam, Epic, and Game
+                Pass?
+              </summary>
+              <div class="faq-answer">
+                <p>
+                  Yes, for the games it records. PlayCounter times the running
+                  Windows process, so recognized games from every launcher land
+                  in one list with the same measurement. It does not import the
+                  hours those launchers already recorded; its totals grow from
+                  the sessions it observes after installation. More in the
+                  <a href="/total-playtime-across-all-launchers/"
+                    >cross-launcher playtime guide</a
+                  >.
+                </p>
+              </div>
+            </details>
+
+            <details>
               <summary>Can it track non-Steam and standalone games?</summary>
               <div class="faq-answer">
                 <p>
@@ -426,6 +483,50 @@
         </div>
       </section>
 
+      <section
+        class="section section-dark"
+        id="guides"
+        aria-labelledby="guides-title"
+      >
+        <div class="shell">
+          <h2 class="section-heading" id="guides-title">
+            Where does each launcher hide your hours played?
+          </h2>
+          <p class="section-intro">
+            Every store counts only its own games, and several count nothing at
+            all. These guides explain where each one keeps the number, what it
+            actually measures, and how to get one total across all of them.
+          </p>
+
+          <div class="link-grid">
+            <a href="/check-playtime-on-steam/">Check playtime on Steam</a>
+            <a href="/check-playtime-epic-games/">Epic Games Launcher hours</a>
+            <a href="/check-playtime-xbox-game-pass/"
+              >Xbox Game Pass time played</a
+            >
+            <a href="/check-playtime-gog-galaxy/">GOG Galaxy playtime</a>
+            <a href="/check-playtime-battle-net/">Battle.net playtime</a>
+            <a href="/check-playtime-ea-app/">EA app hours played</a>
+            <a href="/check-playtime-ubisoft-connect/">Ubisoft Connect stats</a>
+            <a href="/check-playtime-riot-games/">League of Legends hours</a>
+            <a href="/check-playtime-fortnite/">Fortnite playtime</a>
+            <a href="/check-playtime-minecraft/">Minecraft playtime</a>
+            <a href="/check-playtime-roblox/">Roblox time played</a>
+            <a href="/playtime-tracker-for-emulators/">Emulator playtime</a>
+            <a href="/total-playtime-across-all-launchers/"
+              >Total playtime across all launchers</a
+            >
+            <a href="/how-much-time-do-i-spend-gaming/"
+              >How much time do I spend gaming?</a
+            >
+            <a href="/best-free-game-playtime-trackers/"
+              >Best free playtime trackers</a
+            >
+            <a href="/guides/">All guides</a>
+          </div>
+        </div>
+      </section>
+
       <section class="final-cta" id="download" aria-labelledby="download-title">
         <div class="shell cta-grid">
           <div>
@@ -461,7 +562,9 @@
 
         <nav class="footer-links" aria-label="Footer navigation">
           <a href="#difference">Why PlayCounter</a>
-          <a href="#questions">FAQ</a>
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/game-time-tracker-windows/">Game time tracker</a>
           <a href="/track-playtime-outside-steam/">Outside Steam</a>
           <a href="/playcounter-vs-playnite/">Comparison</a>
           <a href="/how-automatic-game-detection-works/">Detection guide</a>

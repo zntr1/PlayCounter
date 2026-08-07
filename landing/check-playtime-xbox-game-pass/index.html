@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Check Playtime on Xbox Game Pass for PC</title>
+    <meta name="description" content="How to see time played for Xbox app and Game Pass games on Windows, why many PC titles report nothing, and how to track the whole library automatically." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/check-playtime-xbox-game-pass/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="Check Playtime on Xbox Game Pass for PC" />
+    <meta property="og:description" content="How to see time played for Xbox app and Game Pass games on Windows, why many PC titles report nothing, and how to track the whole library automatically." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/check-playtime-xbox-game-pass/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Check Playtime on Xbox Game Pass for PC" />
+    <meta name="twitter:description" content="How to see time played for Xbox app and Game Pass games on Windows, why many PC titles report nothing, and how to track the whole library automatically." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/check-playtime-xbox-game-pass/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Game Pass playtime",
+                "item": "https://playcounter.app/check-playtime-xbox-game-pass/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/check-playtime-xbox-game-pass/#article",
+            "headline": "How to check playtime on Xbox Game Pass for PC",
+            "description": "How to see time played for Xbox app and Game Pass games on Windows, why many PC titles report nothing, and how to track the whole library automatically.",
+            "url": "https://playcounter.app/check-playtime-xbox-game-pass/",
+            "mainEntityOfPage": "https://playcounter.app/check-playtime-xbox-game-pass/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 436,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/check-playtime-xbox-game-pass/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Why does the Xbox app not show time played for my PC game?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Time played is a statistic the game reports through Xbox services. Many Game Pass PC titles do not implement it, so no value is ever recorded."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I see total hours across my whole Game Pass library?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Not through Microsoft. Stats are per game and must be opened individually, with no library-wide total or sorting."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Game Pass playtime carry over between PC and console?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "For titles that report the statistic, time played is attached to your Xbox profile and combines play across devices. Titles that do not report it show nothing on either platform."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What happens to my record when a game leaves Game Pass?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Microsoft's stats remain tied to the game entry, but the title disappears from your installed library. A local tracker keeps its own history whether or not the game is still in the catalogue."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            Game Pass playtime
+          </p>
+          <p class="eyebrow">Xbox &amp;amp; Game Pass</p>
+          <h1>How to check playtime on Xbox Game Pass for PC</h1>
+          <p class="article-deck">The Xbox app on Windows has no playtime column. The number exists, but it lives in your Xbox profile stats, and only for games that report it.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>Where the number lives</h2>
+            <p>
+              Microsoft ties time played to your Xbox profile rather than to the PC
+              app's library, so you check it the same way whether you played on a
+              console or on Windows:
+            </p>
+            <ol>
+              <li>
+                <strong>In the Xbox app or on the console.</strong> Open your
+                profile, go to <em>Achievements</em>, pick a game, and open its
+                stats. Time played appears among the recorded statistics.
+              </li>
+              <li>
+                <strong>On the web.</strong> Sign in at
+                <code>account.xbox.com</code>, open your Xbox profile, then
+                <em>Achievements</em>, and select a game to see its stats.
+              </li>
+            </ol>
+            <p>
+              There is no single screen that totals your library, and no way to sort
+              games by hours played. You look up one title at a time.
+            </p>
+
+            <h2>Why so many PC games show nothing</h2>
+            <p>
+              Time played is reported by the game through Xbox services, not
+              measured by the launcher. A PC title that ships without full Xbox
+              integration - and a large share of Game Pass PC titles fall into this
+              group - simply never reports the statistic. You get achievements but
+              no hours, or no stats page at all.
+            </p>
+            <p>
+              This is the single biggest complaint about Game Pass on PC for anyone
+              who likes tracking their library. Because Game Pass encourages trying
+              a lot of games briefly, it is exactly the service where you would most
+              want a reliable record of what you actually played and for how long.
+            </p>
+
+            <h2>The rotation problem</h2>
+            <p>
+              Game Pass titles leave the catalogue. When a game rotates out and you
+              uninstall it, whatever partial record existed becomes even harder to
+              find, and the game disappears from your installed library entirely.
+              A month later it is genuinely difficult to answer "did I play that,
+              and was it worth buying?"
+            </p>
+            <p>
+              A local tracker keeps its own entry regardless of whether the game is
+              still installed or still in the catalogue, which turns Game Pass into
+              something you can review at the end of a subscription month.
+            </p>
+
+            <h2>Tracking Game Pass PC games automatically</h2>
+            <p>
+              Game Pass games on Windows are still ordinary Windows processes.
+              PlayCounter runs in the background, recognises the executable, and
+              times the session - whether the game was started from the Xbox app,
+              from a pinned Start menu tile, or from a desktop shortcut.
+            </p>
+            <p>
+              The result is one library view with cover art, per-game totals,
+              session counts, and recent history that includes your Game Pass
+              titles next to your Steam, Epic, and standalone games. Nothing is
+              tied to a Microsoft account, and the record stays on the PC.
+            </p>
+            <p>
+              Two caveats worth stating plainly. Some Microsoft Store and Game Pass
+              titles install into protected folders with unusual executable names,
+              so an occasional game needs a one-time local identification. And
+              PlayCounter starts counting from install; it cannot recover the hours
+              Xbox never recorded in the first place.
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Track it automatically</h2>
+            <p>PlayCounter is a free, open-source playtime tracker for Windows. It times recognized games automatically, whatever you launch them from.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/total-playtime-across-all-launchers/">Total playtime across all launchers</a>
+              <a href="/how-automatic-game-detection-works/">How automatic detection works</a>
+              <a href="/supported-games/">Which games are supported?</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Why does the Xbox app not show time played for my PC game?</summary>
+              <div class="faq-answer">
+                <p>Time played is a statistic the game reports through Xbox services. Many Game Pass PC titles do not implement it, so no value is ever recorded.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can I see total hours across my whole Game Pass library?</summary>
+              <div class="faq-answer">
+                <p>Not through Microsoft. Stats are per game and must be opened individually, with no library-wide total or sorting.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Does Game Pass playtime carry over between PC and console?</summary>
+              <div class="faq-answer">
+                <p>For titles that report the statistic, time played is attached to your Xbox profile and combines play across devices. Titles that do not report it show nothing on either platform.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>What happens to my record when a game leaves Game Pass?</summary>
+              <div class="faq-answer">
+                <p>Microsoft's stats remain tied to the game entry, but the title disappears from your installed library. A local tracker keeps its own history whether or not the game is still in the catalogue.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Install PlayCounter once and it keeps a local record of the recognized games you play from here on, across every launcher on the PC.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

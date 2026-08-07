@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Game Time Tracker for Windows (Free)</title>
+    <meta name="description" content="A free game time tracker for Windows that records recognized games automatically, counts hours across every launcher, and keeps the history on your PC." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/game-time-tracker-windows/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="A free game time tracker for Windows" />
+    <meta property="og:description" content="A free game time tracker for Windows that records recognized games automatically, counts hours across every launcher, and keeps the history on your PC." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/game-time-tracker-windows/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="A free game time tracker for Windows" />
+    <meta name="twitter:description" content="A free game time tracker for Windows that records recognized games automatically, counts hours across every launcher, and keeps the history on your PC." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/game-time-tracker-windows/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Game time tracker",
+                "item": "https://playcounter.app/game-time-tracker-windows/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/game-time-tracker-windows/#article",
+            "headline": "A free game time tracker for Windows",
+            "description": "A free game time tracker for Windows that records recognized games automatically, counts hours across every launcher, and keeps the history on your PC.",
+            "url": "https://playcounter.app/game-time-tracker-windows/",
+            "mainEntityOfPage": "https://playcounter.app/game-time-tracker-windows/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 357,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/game-time-tracker-windows/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Is there a free game time tracker for Windows?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. PlayCounter is free and MIT-licensed, with no account and no paid tier. Store counters are also free but only cover their own games."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it slow down games?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It watches running processes from the background and does not hook into or inject anything into games, so it is not an overlay and does not interpose on rendering."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do I need to keep it open while playing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It needs to be running to observe sessions, which is why it can start with Windows and sit in the system tray. The window itself does not need to be open."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can it track applications that are not games?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Recognition is aimed at games. Unknown executables can be added as local custom entries, which is how people track other applications they care about."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            Game time tracker
+          </p>
+          <p class="eyebrow">Windows app</p>
+          <h1>A free game time tracker for Windows</h1>
+          <p class="article-deck">Game time tracker, playtime counter, hours-played recorder - whatever you call it, the job is the same: know how long you actually played, without babysitting it.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>What a game time tracker should do</h2>
+            <p>
+              The useful version of this tool has four properties, and most options
+              fail at least one of them.
+            </p>
+            <ul>
+              <li>
+                <strong>Automatic.</strong> No start button, no stopwatch, no
+                remembering. If you have to press anything, you will forget.
+              </li>
+              <li>
+                <strong>Launcher-independent.</strong> It should count a Steam game, a
+                Game Pass game, and a folder of extracted files identically.
+              </li>
+              <li>
+                <strong>Local.</strong> A tool that sees every program you run should
+                keep that on your machine and be inspectable.
+              </li>
+              <li>
+                <strong>Out of the way.</strong> Tray application, low overhead, no new
+                launch routine.
+              </li>
+            </ul>
+
+            <h2>How PlayCounter does it</h2>
+            <p>
+              PlayCounter runs in the Windows system tray and watches which applications
+              are running. When it recognises a game's executable filename, it opens a
+              session; when the process exits, it closes it. That is the whole
+              interaction model - there is nothing to press.
+            </p>
+            <p>
+              For matching, the executable filename is sent to PlayCounter's API. On
+              Windows the full path is not sent. Sessions, totals, and history are stored
+              in local app storage on your PC. There is no account, and cover art is
+              fetched from IGDB for recognised titles.
+            </p>
+
+            <h2>What you see in the app</h2>
+            <ul>
+              <li>
+                <strong>Now playing</strong> - the running game with its cover, current
+                session time, lifetime total, and session count.
+              </li>
+              <li>
+                <strong>Library</strong> - every recognised game you have played, with
+                totals and session counts.
+              </li>
+              <li>
+                <strong>History</strong> - session-by-session records you can filter and
+                inspect.
+              </li>
+              <li>
+                <strong>Statistics</strong> - how your time distributes across games and
+                across days.
+              </li>
+            </ul>
+
+            <h2>Honest limitations</h2>
+            <p>
+              It is Windows-only today; macOS and Linux are not distributed. It starts
+              counting from installation and does not import existing launcher hours,
+              though older sessions can be added manually.
+            </p>
+            <p>
+              Recognition is based on executable filenames, so a new, renamed, or generic
+              name may need a one-time local choice. Emulators that share one process
+              across ROMs are recorded as the emulator, and browser or cloud-streamed
+              games are recorded as the client.
+            </p>
+            <p>
+              None of that changes for the majority of a normal PC library, where games
+              have their own executables and are recognised on first launch.
+            </p>
+
+            <h2>Getting started</h2>
+            <p>
+              Download the installer, let PlayCounter start with Windows, and play. The
+              first recognised game you launch creates its own entry, and the record
+              grows from there. It is free, MIT-licensed, and the installer is published
+              on GitHub with release notes and checksums.
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Track it automatically</h2>
+            <p>PlayCounter is a free, open-source playtime tracker for Windows. It times recognized games automatically, whatever you launch them from.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/total-playtime-across-all-launchers/">Total playtime across all launchers</a>
+              <a href="/best-free-game-playtime-trackers/">Best free playtime trackers</a>
+              <a href="/how-automatic-game-detection-works/">How automatic detection works</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Is there a free game time tracker for Windows?</summary>
+              <div class="faq-answer">
+                <p>Yes. PlayCounter is free and MIT-licensed, with no account and no paid tier. Store counters are also free but only cover their own games.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Does it slow down games?</summary>
+              <div class="faq-answer">
+                <p>It watches running processes from the background and does not hook into or inject anything into games, so it is not an overlay and does not interpose on rendering.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Do I need to keep it open while playing?</summary>
+              <div class="faq-answer">
+                <p>It needs to be running to observe sessions, which is why it can start with Windows and sit in the system tray. The window itself does not need to be open.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can it track applications that are not games?</summary>
+              <div class="faq-answer">
+                <p>Recognition is aimed at games. Unknown executables can be added as local custom entries, which is how people track other applications they care about.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Install PlayCounter once and it keeps a local record of the recognized games you play from here on, across every launcher on the PC.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

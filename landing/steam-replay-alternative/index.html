@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>A Steam Replay Alternative for Every Game</title>
+    <meta name="description" content="Steam Replay only covers Steam games. Here is how to get a year-in-review of your playtime that includes Epic, Game Pass, GOG, and standalone games too." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/steam-replay-alternative/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="A year in review for every game, not just Steam" />
+    <meta property="og:description" content="Steam Replay only covers Steam games. Here is how to get a year-in-review of your playtime that includes Epic, Game Pass, GOG, and standalone games too." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/steam-replay-alternative/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="A year in review for every game, not just Steam" />
+    <meta name="twitter:description" content="Steam Replay only covers Steam games. Here is how to get a year-in-review of your playtime that includes Epic, Game Pass, GOG, and standalone games too." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/steam-replay-alternative/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Steam Replay alternative",
+                "item": "https://playcounter.app/steam-replay-alternative/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/steam-replay-alternative/#article",
+            "headline": "A Steam Replay alternative that covers every game",
+            "description": "Steam Replay only covers Steam games. Here is how to get a year-in-review of your playtime that includes Epic, Game Pass, GOG, and standalone games too.",
+            "url": "https://playcounter.app/steam-replay-alternative/",
+            "mainEntityOfPage": "https://playcounter.app/steam-replay-alternative/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 304,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/steam-replay-alternative/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Is there a Steam Replay for other launchers?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Not as an official feature. Epic, GOG, and the Xbox app do not produce comparable year-in-review summaries, and none of them can see games outside their own store."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I get a year in review for all my games?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Only by recording your own playtime as it happens. A background tracker on Windows builds the dated history a complete retrospective needs."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does PlayCounter generate a year-in-review page?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It records the underlying data - per-game totals, session counts, and dated history - and shows statistics across games and days in the app."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I include this year retroactively?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Not automatically. A tracker can only summarise sessions it observed, though individual older sessions can be added manually."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            Steam Replay alternative
+          </p>
+          <p class="eyebrow">Year in review</p>
+          <h1>A Steam Replay alternative that covers every game</h1>
+          <p class="article-deck">Steam Replay is a nice end-of-year summary of one storefront. If half your play happens elsewhere, it is a summary of half your year.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>What Steam Replay covers</h2>
+            <p>
+              Steam Replay summarises your year on Steam: the games you played, roughly
+              when you played them, how your time distributed across months, and which
+              titles dominated. It is generated from Steam's own records, and it is
+              genuinely well done.
+            </p>
+            <p>
+              It also, necessarily, ends at the edge of Steam. Games from the Epic Games
+              Store, Game Pass, GOG, EA, Ubisoft, Battle.net, and itch.io are absent, as
+              is everything you run from a folder. For a lot of people that is most of
+              their year.
+            </p>
+
+            <h2>Why a complete year in review does not exist</h2>
+            <p>
+              No store can build one, because no store sees the others. There is no API
+              that exposes a complete, retroactive playtime history across launchers, and
+              even where partial data exists the definitions differ. A complete
+              retrospective has to be built from your own measurements, which means the
+              measuring has to start before the year does.
+            </p>
+
+            <h2>Build your own, starting now</h2>
+            <p>
+              PlayCounter records every recognised game you play on Windows, from every
+              source, with dated session history. Leave it running and by the end of the
+              year you have the underlying data for a complete retrospective: total time,
+              per-game totals, session counts, and the distribution across days and
+              months.
+            </p>
+            <p>
+              Unlike a store summary, it includes the free game you got from Epic, the
+              Game Pass title you played for a weekend, the twenty-year-old GOG game, and
+              the itch.io jam entry. And unlike a store summary, it is built from data on
+              your own machine.
+            </p>
+            <p>
+              The catch is the obvious one: it can only summarise what it observed. Install
+              it in December and December is what you get. The earlier in the year you
+              start, the more complete the picture.
+            </p>
+
+            <h2>Keep Steam Replay too</h2>
+            <p>
+              These are not in competition. Steam Replay remains the better archive of
+              your Steam history because Valve has years of it. A local tracker is the way
+              to make sure next year's retrospective includes everything else. Use both.
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Track it automatically</h2>
+            <p>PlayCounter is a free, open-source playtime tracker for Windows. It times recognized games automatically, whatever you launch them from.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/check-playtime-on-steam/">Steam playtime</a>
+              <a href="/total-playtime-across-all-launchers/">Total playtime across all launchers</a>
+              <a href="/how-much-time-do-i-spend-gaming/">How much time do I spend gaming?</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Is there a Steam Replay for other launchers?</summary>
+              <div class="faq-answer">
+                <p>Not as an official feature. Epic, GOG, and the Xbox app do not produce comparable year-in-review summaries, and none of them can see games outside their own store.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can I get a year in review for all my games?</summary>
+              <div class="faq-answer">
+                <p>Only by recording your own playtime as it happens. A background tracker on Windows builds the dated history a complete retrospective needs.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Does PlayCounter generate a year-in-review page?</summary>
+              <div class="faq-answer">
+                <p>It records the underlying data - per-game totals, session counts, and dated history - and shows statistics across games and days in the app.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can I include this year retroactively?</summary>
+              <div class="faq-answer">
+                <p>Not automatically. A tracker can only summarise sessions it observed, though individual older sessions can be added manually.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Install PlayCounter once and it keeps a local record of the recognized games you play from here on, across every launcher on the PC.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

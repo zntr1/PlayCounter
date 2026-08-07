@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>How to Check Playtime on Steam (2026 Guide)</title>
+    <meta name="description" content="See your hours on record in the Steam client, on your profile, and per game - plus what Steam's playtime counter actually measures and where it misses time." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/check-playtime-on-steam/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="How to Check Playtime on Steam (2026 Guide)" />
+    <meta property="og:description" content="See your hours on record in the Steam client, on your profile, and per game - plus what Steam's playtime counter actually measures and where it misses time." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/check-playtime-on-steam/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How to Check Playtime on Steam (2026 Guide)" />
+    <meta name="twitter:description" content="See your hours on record in the Steam client, on your profile, and per game - plus what Steam's playtime counter actually measures and where it misses time." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/check-playtime-on-steam/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Steam playtime",
+                "item": "https://playcounter.app/check-playtime-on-steam/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/check-playtime-on-steam/#article",
+            "headline": "How to check playtime on Steam",
+            "description": "See your hours on record in the Steam client, on your profile, and per game - plus what Steam's playtime counter actually measures and where it misses time.",
+            "url": "https://playcounter.app/check-playtime-on-steam/",
+            "mainEntityOfPage": "https://playcounter.app/check-playtime-on-steam/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 597,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/check-playtime-on-steam/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Why is my Steam playtime wrong or missing hours?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The usual causes are offline sessions that never synced, a game launched outside the Steam client, or a title that runs through a second launcher process which Steam stops watching. Steam also cannot retroactively add time it did not observe."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Steam count idle or AFK time?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Steam measures how long the game process runs, not how long you are at the keyboard, so paused menus and minimised windows still accumulate hours."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I see my total hours across all Steam games?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Steam does not show a single lifetime total in the client. Your profile's Games tab lists per-game hours and can be sorted, and third-party sites can sum them if your profile is public. For a total across every launcher, see the cross-launcher playtime guide ."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can Steam track non-Steam games?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Only if you add the game as a non-Steam shortcut and always start it through Steam. A process-based tracker avoids that requirement entirely - see tracking playtime outside Steam ."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            Steam playtime
+          </p>
+          <p class="eyebrow">Steam</p>
+          <h1>How to check playtime on Steam</h1>
+          <p class="article-deck">Steam records hours for games launched through the Steam client. Here is where to find that number, what it really counts, and what to do about the games Steam never sees.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>The quick answer</h2>
+            <p>
+              Steam shows playtime in three places:
+            </p>
+            <ol>
+              <li>
+                <strong>In your library.</strong> Open the Steam client, select a
+                game in the left-hand list, and look under the play button. Steam
+                displays the total hours on record and, separately, the hours from
+                the past two weeks.
+              </li>
+              <li>
+                <strong>On your Steam profile.</strong> Click your name, then
+                <em>Games</em>. The list can be sorted by hours played, which is
+                the fastest way to see your all-time top titles.
+              </li>
+              <li>
+                <strong>On the game's own page.</strong> A game you own shows your
+                personal hours in the top-right sidebar of its store page.
+              </li>
+            </ol>
+            <p>
+              If your profile is set to private, the games list is only visible to
+              you while you are signed in. Playtime totals sync to Steam's servers,
+              so the same numbers appear on any PC where you log in.
+            </p>
+
+            <h2>What Steam's number actually measures</h2>
+            <p>
+              Steam counts the time between the game process starting and stopping
+              while the Steam client is watching it. That is a good approximation
+              of play, but it is not a measure of active play. The counter keeps
+              running when a game sits paused at a menu, when it is minimised in
+              the background, and when you walk away from the PC for an hour with
+              the game still open.
+            </p>
+            <p>
+              It also stops counting in situations that surprise people. Time spent
+              in a game's separate launcher or configuration tool usually does not
+              register. Sessions played in offline mode are held locally and pushed
+              on the next sign-in, and a client crash before that sync can drop
+              them. Games played through Family Sharing accrue against the account
+              that is actually playing.
+            </p>
+
+            <h2>The games Steam will never count</h2>
+            <p>
+              Steam only counts what Steam launches. That leaves a real gap for
+              most PC libraries in 2026:
+            </p>
+            <ul>
+              <li>
+                Games bought from Epic Games, GOG, Xbox / Game Pass, EA, Ubisoft,
+                Battle.net, itch.io, or a developer's own site.
+              </li>
+              <li>
+                DRM-free installers, portable builds, and games copied from an
+                external drive or an old disc.
+              </li>
+              <li>
+                Anything you launch straight from its <code>.exe</code> or a desktop
+                shortcut, even if you also own it on Steam.
+              </li>
+              <li>
+                Emulated and fan-made games, mod loaders, and standalone tools.
+              </li>
+            </ul>
+            <p>
+              Adding a non-Steam shortcut to your library is the usual workaround,
+              but it only counts time when you remember to start the game from
+              inside Steam, and the entry carries no store metadata or cover art.
+            </p>
+
+            <h2>Track every game the same way instead</h2>
+            <p>
+              PlayCounter takes the opposite approach to a store counter. It runs
+              quietly on Windows, watches which applications are actually running,
+              and starts a session when it recognises a game's executable. Steam
+              games, Epic games, a portable build on a USB stick, and a shortcut on
+              the desktop all get timed identically, because the tracker cares about
+              the process, not the storefront.
+            </p>
+            <p>
+              You keep launching games exactly as you do now. There is no launcher
+              login, no library import, and no account to create. Sessions, totals,
+              and history live in local app storage on your PC.
+            </p>
+            <p>
+              One honest limitation: PlayCounter's record starts when you install
+              it. It does not import the hundreds of hours already sitting in your
+              Steam profile. Those stay in Steam; PlayCounter builds one unified
+              timeline going forward, and older sessions can be added by hand.
+            </p>
+
+            <h2>Steam playtime vs. a launcher-independent tracker</h2>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Question</th>
+                    <th>Steam</th>
+                    <th>PlayCounter</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Counts Steam games</td>
+                    <td>Yes</td>
+                    <td>Yes, when recognised</td>
+                  </tr>
+                  <tr>
+                    <td>Counts Epic, GOG, Game Pass, EA, Ubisoft</td>
+                    <td>No</td>
+                    <td>Yes, when recognised</td>
+                  </tr>
+                  <tr>
+                    <td>Counts a bare <code>.exe</code> or shortcut</td>
+                    <td>Only via a manual shortcut entry</td>
+                    <td>Yes, automatically</td>
+                  </tr>
+                  <tr>
+                    <td>Needs an account</td>
+                    <td>Yes</td>
+                    <td>No</td>
+                  </tr>
+                  <tr>
+                    <td>Where history is stored</td>
+                    <td>Valve's servers</td>
+                    <td>Locally on your PC</td>
+                  </tr>
+                  <tr>
+                    <td>Has your pre-existing hours</td>
+                    <td>Yes</td>
+                    <td>No, it starts from install</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              The two are complements rather than replacements. Steam keeps the
+              historical archive for one store; PlayCounter answers "how much have I
+              played lately, across everything?"
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Track it automatically</h2>
+            <p>PlayCounter is a free, open-source playtime tracker for Windows. It times recognized games automatically, whatever you launch them from.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/track-playtime-outside-steam/">Track playtime outside Steam</a>
+              <a href="/total-playtime-across-all-launchers/">Total playtime across all launchers</a>
+              <a href="/steam-replay-alternative/">A Steam Replay for every game</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Why is my Steam playtime wrong or missing hours?</summary>
+              <div class="faq-answer">
+                <p>The usual causes are offline sessions that never synced, a game launched outside the Steam client, or a title that runs through a second launcher process which Steam stops watching. Steam also cannot retroactively add time it did not observe.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Does Steam count idle or AFK time?</summary>
+              <div class="faq-answer">
+                <p>Yes. Steam measures how long the game process runs, not how long you are at the keyboard, so paused menus and minimised windows still accumulate hours.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can I see my total hours across all Steam games?</summary>
+              <div class="faq-answer">
+                <p>Steam does not show a single lifetime total in the client. Your profile's <em>Games</em> tab lists per-game hours and can be sorted, and third-party sites can sum them if your profile is public. For a total across every launcher, see the <a href="/total-playtime-across-all-launchers/">cross-launcher playtime guide</a>.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can Steam track non-Steam games?</summary>
+              <div class="faq-answer">
+                <p>Only if you add the game as a non-Steam shortcut and always start it through Steam. A process-based tracker avoids that requirement entirely - see <a href="/track-playtime-outside-steam/">tracking playtime outside Steam</a>.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Install PlayCounter once and it keeps a local record of the recognized games you play from here on, across every launcher on the PC.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

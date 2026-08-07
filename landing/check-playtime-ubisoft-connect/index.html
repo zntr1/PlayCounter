@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Check Playtime on Ubisoft Connect</title>
+    <meta name="description" content="Where Ubisoft Connect shows time played, why the figure differs from Steam and Epic for the same game, and how to keep one accurate total on Windows." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#2457e6" />
+    <meta name="application-name" content="PlayCounter" />
+
+    <link rel="canonical" href="https://playcounter.app/check-playtime-ubisoft-connect/" />
+    <link rel="icon" href="../icon.png" />
+    <link rel="apple-touch-icon" href="../icon.png" />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="sitemap" type="application/xml" href="../sitemap.xml" />
+
+    <meta property="og:title" content="Check Playtime on Ubisoft Connect" />
+    <meta property="og:description" content="Where Ubisoft Connect shows time played, why the figure differs from Steam and Epic for the same game, and how to keep one accurate total on Windows." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://playcounter.app/check-playtime-ubisoft-connect/" />
+    <meta property="og:site_name" content="PlayCounter" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="PlayCounter recording playtime for a running Windows game"
+    />
+    <meta property="article:published_time" content="2026-08-07" />
+    <meta property="article:modified_time" content="2026-08-07" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Check Playtime on Ubisoft Connect" />
+    <meta name="twitter:description" content="Where Ubisoft Connect shows time played, why the figure differs from Steam and Epic for the same game, and how to keep one accurate total on Windows." />
+    <meta name="twitter:image" content="https://playcounter.app/playcounter-og-2026-07-v2.png" />
+    <meta
+      name="twitter:image:alt"
+      content="PlayCounter automatically matching and timing a running Windows game"
+    />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://playcounter.app/check-playtime-ubisoft-connect/#breadcrumb",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "PlayCounter",
+                "item": "https://playcounter.app/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Guides",
+                "item": "https://playcounter.app/guides/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Ubisoft Connect playtime",
+                "item": "https://playcounter.app/check-playtime-ubisoft-connect/"
+              }
+            ]
+          },
+          {
+            "@type": "Article",
+            "@id": "https://playcounter.app/check-playtime-ubisoft-connect/#article",
+            "headline": "How to check playtime on Ubisoft Connect",
+            "description": "Where Ubisoft Connect shows time played, why the figure differs from Steam and Epic for the same game, and how to keep one accurate total on Windows.",
+            "url": "https://playcounter.app/check-playtime-ubisoft-connect/",
+            "mainEntityOfPage": "https://playcounter.app/check-playtime-ubisoft-connect/",
+            "image": "https://playcounter.app/playcounter-og-2026-07-v2.png",
+            "datePublished": "2026-08-07",
+            "dateModified": "2026-08-07",
+            "inLanguage": "en",
+            "wordCount": 312,
+            "timeRequired": "PT3M",
+            "about": {
+              "@id": "https://playcounter.app/#software"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://playcounter.app/icon.png"
+              }
+            },
+            "isPartOf": {
+              "@type": "WebSite",
+              "name": "PlayCounter",
+              "url": "https://playcounter.app/"
+            }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://playcounter.app/check-playtime-ubisoft-connect/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Why does Ubisoft Connect show different hours than Steam?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Both are watching, but each starts and stops its session at different moments in the launcher chain, and time spent in the Connect client itself is treated differently by each."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Ubisoft Connect track playtime for every game?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Only for titles with statistics integration. Older and smaller releases often show no time-played figure at all."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I see total hours across all my Ubisoft games?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "There is no library-wide total in the client or on the web profile. You check games individually."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What happens to my record when a Ubisoft+ subscription ends?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Access to the games ends and their entries become hard to review. A local tracker keeps its own history regardless of subscription status."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <header class="site-header">
+      <div class="shell nav-shell">
+        <a class="brand" href="/" aria-label="PlayCounter home">
+          <img src="../icon.png" alt="" width="38" height="38" />
+          <span>PlayCounter</span>
+        </a>
+
+        <nav class="nav-items" aria-label="Main navigation">
+          <a class="nav-link" href="/guides/">Guides</a>
+          <a class="nav-link" href="/how-automatic-game-detection-works/"
+            >Detection</a
+          >
+          <a class="nav-link" href="/supported-games/">Games</a>
+          <a
+            class="nav-link"
+            href="https://github.com/zntr1/PlayCounter"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <header class="article-hero">
+        <div class="shell">
+          <p class="breadcrumb">
+            <a href="/">PlayCounter</a> / <a href="/guides/">Guides</a> /
+            Ubisoft Connect playtime
+          </p>
+          <p class="eyebrow">Ubisoft Connect</p>
+          <h1>How to check playtime on Ubisoft Connect</h1>
+          <p class="article-deck">Ubisoft Connect surfaces time played on a game's page for titles with statistics integration - which is not all of them, and rarely matches what other stores report.</p>
+          <p class="article-meta">
+            Updated August 7, 2026 &middot; 3 minute read
+          </p>
+        </div>
+      </header>
+
+      <section class="section">
+        <div class="shell article-layout">
+          <article class="article-body">
+            <h2>Finding the figure</h2>
+            <p>
+              In the Ubisoft Connect desktop client, open <em>Games</em>, select a
+              title, and look at its overview and statistics. For supported games,
+              time played appears with the other tracked stats such as challenges and
+              units. Your Ubisoft profile on the web shows a similar view for games
+              tied to the account.
+            </p>
+            <p>
+              As with the other publisher launchers, there is no library-wide total
+              and no way to rank your games by hours.
+            </p>
+
+            <h2>The double-launcher problem</h2>
+            <p>
+              Ubisoft games are unusual in how often they run through two launchers
+              at once. Buy Assassin's Creed or Far Cry on Steam or Epic and the game
+              still starts Ubisoft Connect, which starts the game. Each layer has its
+              own idea of when the session began and ended.
+            </p>
+            <p>
+              The practical result is three different numbers for one game: what
+              Steam recorded, what Ubisoft Connect recorded, and what you actually
+              played. Time spent sitting in the Connect launcher, waiting for an
+              update or a sign-in, is counted by some layers and not others.
+            </p>
+
+            <h2>Ubisoft+ makes it worse</h2>
+            <p>
+              Subscription access means installing a game, playing it for a while,
+              and removing it. Nothing keeps a durable record across those cycles,
+              and a title you cancelled six months ago is hard to look up at all. If
+              you subscribe periodically, a local record is the only way to know what
+              a subscription month actually gave you.
+            </p>
+
+            <h2>One number, measured the same way every time</h2>
+            <p>
+              PlayCounter ignores the launcher chain and times the game's own
+              process. When Assassin's Creed's executable is running, the session is
+              running; when it exits, the session closes. That gives you a figure
+              measured the same way for Ubisoft, Steam, Epic, Game Pass, and
+              standalone games, so comparisons across your library actually mean
+              something.
+            </p>
+            <p>
+              Because launchers themselves are processes too, PlayCounter is designed
+              to track recognised games rather than the launcher shells around them.
+              Where an unusual wrapper makes a title ambiguous, you confirm the match
+              once and the choice is remembered locally.
+            </p>
+          </article>
+
+          <aside class="article-aside" aria-label="Download and related guides">
+            <h2>Track it automatically</h2>
+            <p>PlayCounter is a free, open-source playtime tracker for Windows. It times recognized games automatically, whatever you launch them from.</p>
+            <a class="button button-primary" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download for Windows</a
+            >
+            <div class="related-links">
+              <a href="/total-playtime-across-all-launchers/">Total playtime across all launchers</a>
+              <a href="/check-playtime-on-steam/">Steam playtime</a>
+              <a href="/how-automatic-game-detection-works/">How automatic detection works</a>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="faq" aria-labelledby="faq-title">
+        <div class="shell faq-layout">
+          <div>
+            <h2 class="section-heading" id="faq-title">Common questions</h2>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary>Why does Ubisoft Connect show different hours than Steam?</summary>
+              <div class="faq-answer">
+                <p>Both are watching, but each starts and stops its session at different moments in the launcher chain, and time spent in the Connect client itself is treated differently by each.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Does Ubisoft Connect track playtime for every game?</summary>
+              <div class="faq-answer">
+                <p>Only for titles with statistics integration. Older and smaller releases often show no time-played figure at all.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>Can I see total hours across all my Ubisoft games?</summary>
+              <div class="faq-answer">
+                <p>There is no library-wide total in the client or on the web profile. You check games individually.</p>
+              </div>
+            </details>
+
+            <details>
+              <summary>What happens to my record when a Ubisoft+ subscription ends?</summary>
+              <div class="faq-answer">
+                <p>Access to the games ends and their entries become hard to review. A local tracker keeps its own history regardless of subscription status.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="download-title">
+        <div class="shell cta-grid">
+          <div>
+            <h2 id="download-title">Download PlayCounter for Windows</h2>
+            <p>Install PlayCounter once and it keeps a local record of the recognized games you play from here on, across every launcher on the PC.</p>
+          </div>
+          <div class="cta-box">
+            <a class="button button-primary button-large" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe"
+              >Download PlayCounter</a
+            >
+            <p>Windows &middot; Free &middot; No account</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-shell">
+        <div>
+          <a class="brand" href="/">
+            <img src="../icon.png" alt="" width="38" height="38" />
+            <span>PlayCounter</span>
+          </a>
+          <div class="copyright">&copy; 2026 PlayCounter</div>
+        </div>
+
+        <nav class="footer-links" aria-label="Footer navigation">
+          <a href="/guides/">All guides</a>
+          <a href="/total-playtime-across-all-launchers/">Total playtime</a>
+          <a href="/track-playtime-outside-steam/">Outside Steam</a>
+          <a href="/playcounter-vs-playnite/">Comparison</a>
+          <a href="/how-automatic-game-detection-works/">Detection guide</a>
+          <a href="/supported-games/">Supported games</a>
+          <a
+            href="https://github.com/zntr1/PlayCounter/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Releases &amp; checksums</a
+          >
+          <a href="/impressum.html">Impressum</a>
+          <a href="/datenschutz.html">Privacy</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
