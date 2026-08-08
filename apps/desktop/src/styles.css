@@ -104,6 +104,21 @@ select {
   font: inherit;
 }
 
+@keyframes history-filter-hold-progress {
+  from {
+    stroke-dashoffset: 56.55;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.history-filter-hold-progress {
+  stroke-dasharray: 56.55;
+  stroke-dashoffset: 56.55;
+  animation: history-filter-hold-progress 0.75s linear forwards;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import {
+  ArrowLeft,
   CalendarDays,
   Clock3,
   Filter,
@@ -11,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { hydrateGameMetadata, removeHistorySession } from "../../tracker";
 import { gameMetadataKey, useAppStore } from "../../store";
 import {
@@ -33,6 +35,9 @@ import type { GameSource } from "@playcounter/shared";
 type HistoryFilter = "all" | "today" | "week" | "month";
 type HistorySort = "newest" | "oldest" | "duration";
 type ChartBucket = { label: string; tooltip: string; seconds: number };
+
+const filterHoldDurationMs = 750;
+const filterHoldIndicatorRadius = 20;
 
 const historyFilters: Array<{ id: HistoryFilter; label: string }> = [
   { id: "all", label: "All" },
@@ -469,12 +474,23 @@ export function HistoryView() {
     addToast: any;
   }) {
     const contextMenu = useContextMenu();
+    const rowRef = useRef<HTMLElement>(null);
+    const holdRef = useRef<{
+      pointerId: number;
+      timer: ReturnType<typeof setTimeout>;
+    } | null>(null);
+    const [holdPosition, setHoldPosition] = useState<{
+      x: number;
+      y: number;
+    } | null>(null);
     const source = session.source ?? metadata?.source;
     const gameName =
       session.gameName ||
       metadata?.gameName ||
       session.exeName.replace(/\.exe$/i, "");
     const coverUrl = session.coverUrl ?? metadata?.coverUrl;
+    const gameKey = getSessionGameKey(session);
+    const isActiveGameFilter = selectedGameKey === gameKey;
 
     const handleRemove = () => {
       removeHistorySession(session.id);
@@ -487,23 +503,161 @@ export function HistoryView() {
     };
 
     const handleFilterForGame = () => {
-      setSelectedGameKey(getSessionGameKey(session));
+      setSelectedGameKey(gameKey);
       setQuery(gameName);
       setShowSuggestions(false);
       setHighlightedIndex(-1);
       contextMenu.close();
     };
 
+    const handleHoldFilterAction = () => {
+      if (!isActiveGameFilter) {
+        handleFilterForGame();
+        return;
+      }
+
+      setSelectedGameKey(null);
+      setQuery("");
+      setShowSuggestions(false);
+      setHighlightedIndex(-1);
+    };
+
+    const cancelFilterHold = () => {
+      const hold = holdRef.current;
+      if (!hold) return;
+
+      clearTimeout(hold.timer);
+      holdRef.current = null;
+      setHoldPosition(null);
+
+      const row = rowRef.current;
+      if (row?.hasPointerCapture(hold.pointerId)) {
+        row.releasePointerCapture(hold.pointerId);
+      }
+    };
+
+    const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+      if (event.button !== 0 || !event.isPrimary) return;
+      if (
+        (event.target as Element).closest(
+          "button, a, input, select, textarea, [role='button']",
+        )
+      ) {
+        return;
+      }
+
+      cancelFilterHold();
+      event.preventDefault();
+
+      const rowBounds = event.currentTarget.getBoundingClientRect();
+      setHoldPosition({
+        x: Math.min(
+          Math.max(event.clientX - rowBounds.left, filterHoldIndicatorRadius),
+          rowBounds.width - filterHoldIndicatorRadius,
+        ),
+        y: Math.min(
+          Math.max(event.clientY - rowBounds.top, filterHoldIndicatorRadius),
+          rowBounds.height - filterHoldIndicatorRadius,
+        ),
+      });
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const pointerId = event.pointerId;
+      holdRef.current = {
+        pointerId,
+        timer: setTimeout(() => {
+          if (holdRef.current?.pointerId !== pointerId) return;
+          holdRef.current = null;
+          setHoldPosition(null);
+          handleHoldFilterAction();
+        }, filterHoldDurationMs),
+      };
+    };
+
+    const handlePointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+      const hold = holdRef.current;
+      if (!hold || hold.pointerId !== event.pointerId) return;
+
+      const rowBounds = event.currentTarget.getBoundingClientRect();
+      const isInsideRow =
+        event.clientX >= rowBounds.left &&
+        event.clientX <= rowBounds.right &&
+        event.clientY >= rowBounds.top &&
+        event.clientY <= rowBounds.bottom;
+      if (!isInsideRow) cancelFilterHold();
+    };
+
+    useEffect(
+      () => () => {
+        if (holdRef.current) clearTimeout(holdRef.current.timer);
+      },
+      [],
+    );
+
     return (
       <article
-        {...contextMenu.props}
-        className="group grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent/40 hover:shadow-raised"
+        ref={rowRef}
+        onContextMenu={(event) => {
+          cancelFilterHold();
+          contextMenu.props.onContextMenu(event);
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={cancelFilterHold}
+        onPointerCancel={cancelFilterHold}
+        onLostPointerCapture={cancelFilterHold}
+        className="group relative grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent/40 hover:shadow-raised"
       >
+        {holdPosition ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute z-10 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface/95 shadow-raised"
+            style={{ left: holdPosition.x, top: holdPosition.y }}
+          >
+            <svg
+              className="h-8 w-8 -rotate-90 [grid-area:1/1]"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="9"
+                fill="none"
+                stroke="rgb(var(--color-border))"
+                strokeWidth="2.5"
+              />
+              <circle
+                className="history-filter-hold-progress"
+                cx="12"
+                cy="12"
+                r="9"
+                fill="none"
+                stroke="rgb(var(--color-accent))"
+                strokeLinecap="round"
+                strokeWidth="2.5"
+              />
+            </svg>
+            {isActiveGameFilter ? (
+              <ArrowLeft
+                size={15}
+                strokeWidth={2.75}
+                className="text-accent [grid-area:1/1]"
+              />
+            ) : (
+              <Filter
+                size={14}
+                strokeWidth={2.75}
+                className="text-accent [grid-area:1/1]"
+              />
+            )}
+          </span>
+        ) : null}
         {coverUrl ? (
           <img
             src={coverUrl}
             alt=""
             loading="lazy"
+            draggable={false}
             className="h-[52px] w-10 shrink-0 rounded object-cover shadow-sm"
           />
         ) : (

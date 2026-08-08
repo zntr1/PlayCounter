@@ -453,7 +453,7 @@ export function MyGamesView() {
             <div
               className={
                 view === "grid"
-                  ? "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5"
+                  ? "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]"
                   : "grid gap-3"
               }
             >
