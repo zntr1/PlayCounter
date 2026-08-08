@@ -76,11 +76,14 @@ export function ColumnChart({
       <div className="font-semibold">{bucket.tooltip}</div>
       <div>{formatDuration(bucket.seconds, showDurationDays)}</div>
       <div className="text-text-muted">
-        {bucket.sessionCount} session{bucket.sessionCount === 1 ? "" : "s"}
-        {bucket.topGameKey
-          ? ` · ${resolveGameName(bucket.topGameKey) ?? "Unknown game"}`
-          : ""}
+        {bucket.sessionCount} total session
+        {bucket.sessionCount === 1 ? "" : "s"}
       </div>
+      {bucket.topGameKey ? (
+        <div className="text-text-muted">
+          Most played: {resolveGameName(bucket.topGameKey) ?? "Unknown game"}
+        </div>
+      ) : null}
     </div>
   );
 
@@ -257,7 +260,7 @@ export function ColumnChart({
                 }}
                 type="button"
                 tabIndex={index === activeIndex ? 0 : -1}
-                aria-label={`${bucket.tooltip}: ${formatDuration(bucket.seconds, showDurationDays)}, ${bucket.sessionCount} sessions`}
+                aria-label={`${bucket.tooltip}: ${formatDuration(bucket.seconds, showDurationDays)}, ${bucket.sessionCount} total session${bucket.sessionCount === 1 ? "" : "s"}${bucket.topGameKey ? `, most played: ${resolveGameName(bucket.topGameKey) ?? "Unknown game"}` : ""}`}
                 className="absolute inset-y-0 rounded-sm border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
                 style={{ left: index * bandWidth, width: bandWidth }}
                 onPointerEnter={(event) => {

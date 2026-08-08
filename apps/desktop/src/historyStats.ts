@@ -279,20 +279,16 @@ export function bucketSessions(
 
   if (filter === "today") {
     const toMs = addLocalDays(todayMs, 1);
-    const fullBoundaries = elapsedHourBoundaries(todayMs, toMs);
-    const compactBoundaries = groupedBoundaries(fullBoundaries, 4);
+    const hourlyBoundaries = elapsedHourBoundaries(todayMs, toMs);
+    const hourlyBuckets = aggregateBoundaries(
+      sessions,
+      hourlyBoundaries,
+      descriptorsForBoundaries(hourlyBoundaries, "hour"),
+    );
     return {
       title: "Today",
-      compact: aggregateBoundaries(
-        sessions,
-        compactBoundaries,
-        descriptorsForBoundaries(compactBoundaries, "hour"),
-      ),
-      full: aggregateBoundaries(
-        sessions,
-        fullBoundaries,
-        descriptorsForBoundaries(fullBoundaries, "hour"),
-      ),
+      compact: hourlyBuckets,
+      full: hourlyBuckets,
     };
   }
 

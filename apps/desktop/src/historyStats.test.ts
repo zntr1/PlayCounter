@@ -48,7 +48,9 @@ describe("calendar-safe buckets", () => {
     expect(new Date(range.toMs).getHours()).toBe(0);
 
     const transitionDay = new Date("2026-03-29T12:00:00+02:00").getTime();
-    expect(bucketSessions([], "today", transitionDay).full).toHaveLength(23);
+    const buckets = bucketSessions([], "today", transitionDay);
+    expect(buckets.compact).toHaveLength(23);
+    expect(buckets.full).toHaveLength(23);
   });
 
   it("keeps range edges at local midnight across fall DST", () => {
@@ -58,7 +60,19 @@ describe("calendar-safe buckets", () => {
     expect(new Date(range.toMs).getHours()).toBe(0);
 
     const transitionDay = new Date("2026-10-25T12:00:00+01:00").getTime();
-    expect(bucketSessions([], "today", transitionDay).full).toHaveLength(25);
+    const buckets = bucketSessions([], "today", transitionDay);
+    expect(buckets.compact).toHaveLength(25);
+    expect(buckets.full).toHaveLength(25);
+  });
+
+  it("shows each hour in the compact Today chart", () => {
+    const nowMs = new Date("2026-08-09T12:00:00+02:00").getTime();
+    const buckets = bucketSessions([], "today", nowMs);
+
+    expect(buckets.compact).toHaveLength(24);
+    expect(buckets.compact.map((bucket) => bucket.tooltip)).toEqual(
+      buckets.full.map((bucket) => bucket.tooltip),
+    );
   });
 });
 
