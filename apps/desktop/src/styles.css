@@ -234,6 +234,13 @@ select {
   text-shadow: 0 0 6px rgb(255 247 178 / 0.9);
 }
 
+:root[data-theme="light"] .chart-game-cover-zoom::after {
+  color: rgb(var(--color-warning));
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9),
+    0 0 4px rgb(var(--color-warning) / 0.45);
+}
+
 .chart-game-cover-small .chart-game-cover-zoom::after {
   right: -4px;
   top: -5px;
