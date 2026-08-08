@@ -79,24 +79,45 @@ export function splitAcrossBoundaries(
     { length: Math.max(0, boundaries.length - 1) },
     () => 0,
   );
+  visitBoundaryOverlaps(session, boundaries, (index, seconds) => {
+    result[index] = seconds;
+  });
+  return result;
+}
+
+function firstBoundaryAfter(boundaries: number[], value: number) {
+  let low = 0;
+  let high = boundaries.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (boundaries[middle] <= value) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+function visitBoundaryOverlaps(
+  session: Session,
+  boundaries: number[],
+  visit: (index: number, seconds: number) => void,
+) {
   const interval = sessionInterval(session);
-  if (!interval || boundaries.length < 2) return result;
+  if (!interval || boundaries.length < 2) return;
 
   const clipStart = Math.max(interval.fromMs, boundaries[0]);
   const clipEnd = Math.min(interval.toMs, boundaries[boundaries.length - 1]);
-  if (clipEnd <= clipStart) return result;
+  if (clipEnd <= clipStart) return;
 
+  let index = Math.max(0, firstBoundaryAfter(boundaries, clipStart) - 1);
   let allocatedSeconds = 0;
-  for (let index = 0; index < result.length; index += 1) {
-    const cumulativeEnd = Math.min(
-      clipEnd,
-      Math.max(clipStart, boundaries[index + 1]),
-    );
+  while (index < boundaries.length - 1 && boundaries[index] < clipEnd) {
+    const cumulativeEnd = Math.min(clipEnd, boundaries[index + 1]);
     const cumulativeSeconds = Math.round((cumulativeEnd - clipStart) / 1000);
-    result[index] = Math.max(0, cumulativeSeconds - allocatedSeconds);
+    const seconds = Math.max(0, cumulativeSeconds - allocatedSeconds);
+    if (seconds > 0) visit(index, seconds);
     allocatedSeconds = cumulativeSeconds;
+    index += 1;
   }
-  return result;
 }
 
 function startOfLocalDay(ms: number) {
@@ -177,10 +198,11 @@ function topKey(gameSeconds: Map<string, number>) {
 function aggregateBoundaries(
   sessions: Session[],
   boundaries: number[],
-  descriptors: Array<{ label: string; tooltip: string }>,
+  descriptors?: Array<{ label: string; tooltip: string }>,
 ): HistoryBucket[] {
-  const buckets = descriptors.map((descriptor) => ({
-    ...descriptor,
+  const buckets = boundaries.slice(0, -1).map((_, index) => ({
+    label: descriptors?.[index]?.label ?? "",
+    tooltip: descriptors?.[index]?.tooltip ?? "",
     seconds: 0,
     sessionCount: 0,
     topGameKey: null as string | null,
@@ -188,10 +210,8 @@ function aggregateBoundaries(
   const games = buckets.map(() => new Map<string, number>());
 
   for (const session of sessions) {
-    const split = splitAcrossBoundaries(session, boundaries);
     const key = getSessionGameKey(session);
-    split.forEach((seconds, index) => {
-      if (seconds <= 0 || !buckets[index]) return;
+    visitBoundaryOverlaps(session, boundaries, (index, seconds) => {
       buckets[index].seconds += seconds;
       buckets[index].sessionCount += 1;
       games[index].set(key, (games[index].get(key) ?? 0) + seconds);
@@ -348,11 +368,7 @@ export function dailyTotals(sessions: Session[], fromMs: number, toMs: number) {
     boundaries.push(cursor);
   }
   boundaries.push(toMs);
-  const buckets = aggregateBoundaries(
-    sessions,
-    boundaries,
-    descriptorsForBoundaries(boundaries, "day"),
-  );
+  const buckets = aggregateBoundaries(sessions, boundaries);
   return new Map<string, DailyTotal>(
     buckets.map((bucket, index) => [
       localDateKey(boundaries[index]),

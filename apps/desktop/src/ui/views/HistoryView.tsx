@@ -18,7 +18,10 @@ import { gameMetadataKey, useAppStore } from "../../store";
 import { hydrateGameMetadata } from "../../tracker";
 import { Panel, formatDuration } from "../components";
 import { Button, Input } from "../primitives";
-import { HistoryInsights } from "./history/HistoryInsights";
+import {
+  hasCachedHistoryInsights,
+  HistoryInsights,
+} from "./history/HistoryInsights";
 import {
   HistorySessionRow,
   type HistoryRowMetadata,
@@ -98,7 +101,22 @@ export function HistoryView() {
   const viewRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
+  const [insightsReady, setInsightsReady] = useState(() =>
+    hasCachedHistoryInsights(sessions, nowMs),
+  );
   const deferredQuery = useDeferredValue(query);
+
+  useEffect(() => {
+    if (insightsReady) return;
+    let timer: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      timer = window.setTimeout(() => setInsightsReady(true), 0);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [insightsReady]);
 
   useEffect(() => {
     const scroller = viewRef.current?.parentElement;
@@ -131,12 +149,18 @@ export function HistoryView() {
   }, []);
 
   useEffect(() => {
-    void hydrateGameMetadata(
-      sessions.map((session) => ({
+    const refs = new Map<
+      string,
+      { gameId: number; source?: Session["source"] }
+    >();
+    for (const session of sessions) {
+      if (session.gameId <= 0 || session.source === "custom") continue;
+      refs.set(`${session.source ?? "unknown"}:${session.gameId}`, {
         gameId: session.gameId,
         source: session.source,
-      })),
-    );
+      });
+    }
+    void hydrateGameMetadata([...refs.values()]);
   }, [sessions]);
 
   const gameMetadata = useMemo(() => {
@@ -198,6 +222,7 @@ export function HistoryView() {
   );
 
   const gameOptions = useMemo(() => {
+    if (!showSuggestions) return [];
     const options = new Map<
       string,
       { key: string; name: string; sessionCount: number }
@@ -217,10 +242,11 @@ export function HistoryView() {
     return [...options.values()].sort((left, right) =>
       left.name.localeCompare(right.name),
     );
-  }, [resolveGame, sessions]);
+  }, [resolveGame, sessions, showSuggestions]);
 
   const gameFilteredSessions = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase();
+    if (!selectedGameKey && !needle) return sessions;
     return sessions.filter((session) => {
       if (selectedGameKey) {
         return getSessionGameKey(session) === selectedGameKey;
@@ -237,18 +263,17 @@ export function HistoryView() {
     () => historyRange(filter, nowMs),
     [filter, nowMs],
   );
-  const timelineSessions = useMemo(
-    () =>
-      gameFilteredSessions.filter((session) => {
-        if (!selectedRange) return true;
-        const startedAt = Date.parse(session.startedAt);
-        return (
-          startedAt >= selectedRange.fromMs && startedAt < selectedRange.toMs
-        );
-      }),
-    [gameFilteredSessions, selectedRange],
-  );
+  const timelineSessions = useMemo(() => {
+    if (!selectedRange) return gameFilteredSessions;
+    return gameFilteredSessions.filter((session) => {
+      const startedAt = Date.parse(session.startedAt);
+      return (
+        startedAt >= selectedRange.fromMs && startedAt < selectedRange.toMs
+      );
+    });
+  }, [gameFilteredSessions, selectedRange]);
   const sortedSessions = useMemo(() => {
+    if (sort === "newest") return timelineSessions;
     const result = [...timelineSessions];
     result.sort((left, right) => {
       if (sort === "oldest") {
@@ -260,7 +285,7 @@ export function HistoryView() {
           Date.parse(right.startedAt) - Date.parse(left.startedAt)
         );
       }
-      return Date.parse(right.startedAt) - Date.parse(left.startedAt);
+      return 0;
     });
     return result;
   }, [sort, timelineSessions]);
@@ -458,14 +483,18 @@ export function HistoryView() {
         </div>
       </Panel>
 
-      <HistoryInsights
-        sessions={gameFilteredSessions}
-        filter={filter}
-        nowMs={nowMs}
-        showDurationDays={showDurationDays}
-        resolveGame={resolveGame}
-        onSelectGame={selectGame}
-      />
+      {insightsReady ? (
+        <HistoryInsights
+          sessions={gameFilteredSessions}
+          filter={filter}
+          nowMs={nowMs}
+          showDurationDays={showDurationDays}
+          resolveGame={resolveGame}
+          onSelectGame={selectGame}
+        />
+      ) : (
+        <HistoryInsightsPlaceholder />
+      )}
 
       <Panel className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
@@ -553,6 +582,31 @@ export function HistoryView() {
           )}
         </div>
       </Panel>
+    </div>
+  );
+}
+
+function HistoryInsightsPlaceholder() {
+  return (
+    <div
+      className="grid min-w-0 gap-6"
+      aria-label="Loading history insights"
+      aria-busy="true"
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        {Array.from({ length: 6 }, (_, index) => (
+          <div
+            key={index}
+            className="h-[70px] animate-pulse rounded-lg border border-border bg-surface"
+          />
+        ))}
+      </div>
+      <Panel className="h-[270px] animate-pulse bg-surface" />
+      <Panel className="h-[240px] animate-pulse bg-surface" />
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,2fr)_minmax(520px,3fr)]">
+        <Panel className="h-[300px] animate-pulse bg-surface" />
+        <Panel className="h-[300px] animate-pulse bg-surface" />
+      </div>
     </div>
   );
 }

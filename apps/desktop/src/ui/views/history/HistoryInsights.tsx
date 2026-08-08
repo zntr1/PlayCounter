@@ -29,6 +29,74 @@ import { IconButton, useEscapeKey } from "../../primitives";
 
 type ResolvedGame = { name: string; coverUrl: string };
 
+type CachedFilterAnalytics = {
+  selectedRange: ReturnType<typeof historyRange>;
+  chart: ReturnType<typeof bucketSessions>;
+  rangeStats: ReturnType<typeof summaryStats>;
+};
+
+type CachedHistoryAnalytics = {
+  dayKey: number;
+  allTimeStats: ReturnType<typeof summaryStats>;
+  rhythm: ReturnType<typeof weekdayHourMatrix>;
+  calendar: ReturnType<typeof dailyTotals>;
+  filters: Map<HistoryFilter, CachedFilterAnalytics>;
+};
+
+const historyAnalyticsCache = new WeakMap<Session[], CachedHistoryAnalytics>();
+
+function localDayKey(nowMs: number) {
+  const day = new Date(nowMs);
+  day.setHours(0, 0, 0, 0);
+  return day.getTime();
+}
+
+function getHistoryAnalytics(
+  sessions: Session[],
+  filter: HistoryFilter,
+  nowMs: number,
+) {
+  const dayKey = localDayKey(nowMs);
+  let cached = historyAnalyticsCache.get(sessions);
+  if (!cached || cached.dayKey !== dayKey) {
+    const today = new Date(dayKey);
+    const from = addDays(today, -363);
+    cached = {
+      dayKey,
+      allTimeStats: summaryStats(sessions, nowMs),
+      rhythm: weekdayHourMatrix(sessions, nowMs),
+      calendar: dailyTotals(
+        sessions,
+        from.getTime(),
+        addDays(today, 1).getTime(),
+      ),
+      filters: new Map(),
+    };
+    historyAnalyticsCache.set(sessions, cached);
+  }
+
+  let filtered = cached.filters.get(filter);
+  if (!filtered) {
+    const selectedRange = historyRange(filter, nowMs);
+    filtered = {
+      selectedRange,
+      chart: bucketSessions(sessions, filter, nowMs),
+      rangeStats:
+        filter === "all"
+          ? cached.allTimeStats
+          : summaryStats(sessions, nowMs, selectedRange),
+    };
+    cached.filters.set(filter, filtered);
+  }
+
+  return { ...cached, ...filtered };
+}
+
+export function hasCachedHistoryInsights(sessions: Session[], nowMs: number) {
+  const cached = historyAnalyticsCache.get(sessions);
+  return cached?.dayKey === localDayKey(nowMs) && cached.filters.has("all");
+}
+
 function PanelHeading({
   id,
   title,
@@ -73,36 +141,15 @@ export const HistoryInsights = memo(function HistoryInsights({
 }) {
   const [expanded, setExpanded] = useState(false);
   const expandButtonRef = useRef<HTMLButtonElement>(null);
-  const selectedRange = useMemo(
-    () => historyRange(filter, nowMs),
-    [filter, nowMs],
-  );
-  const chart = useMemo(
-    () => bucketSessions(sessions, filter, nowMs),
-    [filter, nowMs, sessions],
-  );
-  const rangeStats = useMemo(
-    () => summaryStats(sessions, nowMs, selectedRange),
-    [nowMs, selectedRange, sessions],
-  );
-  const allTimeStats = useMemo(
-    () => summaryStats(sessions, nowMs),
-    [nowMs, sessions],
-  );
+  const { selectedRange, chart, rangeStats, allTimeStats, rhythm, calendar } =
+    useMemo(
+      () => getHistoryAnalytics(sessions, filter, nowMs),
+      [filter, nowMs, sessions],
+    );
   const games = useMemo(
     () => topGames(sessions, resolveGame, 8, selectedRange),
     [resolveGame, selectedRange, sessions],
   );
-  const rhythm = useMemo(
-    () => weekdayHourMatrix(sessions, nowMs),
-    [nowMs, sessions],
-  );
-  const calendar = useMemo(() => {
-    const today = new Date(nowMs);
-    today.setHours(0, 0, 0, 0);
-    const from = addDays(today, -363);
-    return dailyTotals(sessions, from.getTime(), addDays(today, 1).getTime());
-  }, [nowMs, sessions]);
   const gamesByKey = useMemo(() => {
     const games = new Map<string, ResolvedGame>();
     for (const session of sessions) {

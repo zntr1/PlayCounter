@@ -2,6 +2,7 @@ import type { Session } from "@playcounter/shared";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   bucketSessions,
+  dailyTotals,
   historyRange,
   quantileLevel,
   quantileThresholds,
@@ -86,6 +87,39 @@ describe("splitAcrossBoundaries", () => {
 });
 
 describe("range-aware aggregates", () => {
+  it("assigns sparse sessions directly to their overlapping calendar days", () => {
+    const fromMs = new Date("2026-08-01T00:00:00+02:00").getTime();
+    const toMs = new Date("2026-08-05T00:00:00+02:00").getTime();
+    const totals = dailyTotals(
+      [
+        session("2026-08-01T23:30:00+02:00", 2 * 3600, { id: 1 }),
+        session("2026-08-04T12:00:00+02:00", 1800, {
+          id: 2,
+          gameId: 20,
+        }),
+      ],
+      fromMs,
+      toMs,
+    );
+
+    expect(totals.get("2026-08-01")).toMatchObject({
+      seconds: 1800,
+      sessionCount: 1,
+      topGameKey: "custom:10",
+    });
+    expect(totals.get("2026-08-02")).toMatchObject({
+      seconds: 5400,
+      sessionCount: 1,
+      topGameKey: "custom:10",
+    });
+    expect(totals.get("2026-08-03")?.seconds).toBe(0);
+    expect(totals.get("2026-08-04")).toMatchObject({
+      seconds: 1800,
+      sessionCount: 1,
+      topGameKey: "custom:20",
+    });
+  });
+
   it("clips totals, averages, longest sessions and top games", () => {
     const item = session("2026-08-07T22:00:00+02:00", 4 * 3600);
     const nowMs = new Date("2026-08-08T12:00:00+02:00").getTime();
