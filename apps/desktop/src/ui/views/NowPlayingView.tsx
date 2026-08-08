@@ -1,5 +1,5 @@
 import { Gamepad2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
@@ -252,6 +252,14 @@ function AmbiguousMatchCard({
   const [searchMessage, setSearchMessage] = useState("");
   const [customEntryOpen, setCustomEntryOpen] = useState(false);
   const [customName, setCustomName] = useState("");
+  const orderedCandidates = useMemo(
+    () =>
+      [...candidates].sort(
+        (left, right) =>
+          ambiguousCandidatePriority(left) - ambiguousCandidatePriority(right),
+      ),
+    [candidates],
+  );
 
   function submitCustomGame() {
     const name = customName.trim();
@@ -436,9 +444,9 @@ function AmbiguousMatchCard({
             Possible matches
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {candidates.map((game) => (
+            {orderedCandidates.map((game) => (
               <GameCandidateButton
-                key={game.id}
+                key={`${game.source}:${game.id}`}
                 exeName={exeName}
                 game={game}
               />
@@ -533,6 +541,12 @@ function AmbiguousMatchCard({
 
 function formatError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function ambiguousCandidatePriority(game: Game) {
+  if (game.source === "community") return 0;
+  if (game.source === "igdb") return 1;
+  return 2;
 }
 
 function GameCandidateButton({
