@@ -1,4 +1,5 @@
 import type {
+  CommunityGameAlias,
   Game,
   GameMetadataResponse,
   MatchProcessesResponse,
@@ -325,13 +326,17 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   const matches = await resolveProcesses(candidates);
   logRuntime(`scan resolved matches=${matches.length}`);
 
-  const currentSessions = useAppStore.getState().activeSessions;
+  const currentSessions = collapseDuplicateActiveSessions();
   const currentAmbiguous = useAppStore.getState().ambiguousMatches;
-  const nextKeys = new Set(
-    matches.map((match) =>
-      activeSessionKey(match.process.exeName, match.game.id, match.game.source),
-    ),
-  );
+  // A game can run under several executables at once (launcher, anti-cheat
+  // wrapper, client). They all resolve to the same game and share one session:
+  // the first one seen starts it, and it only ends once none of them is left.
+  const matchesByGame = new Map<string, ProcessMatch>();
+  for (const match of matches) {
+    const key = activeSessionKey(match.game.id, match.game.source);
+    if (!matchesByGame.has(key)) matchesByGame.set(key, match);
+  }
+  const nextKeys = new Set(matchesByGame.keys());
   const runningProcessKeys = new Set(
     candidates.map((process) => process.exeName.toLowerCase()),
   );
@@ -376,12 +381,7 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     activeAfterEnds.map((session) => sessionIdentityKey(session)),
   );
 
-  for (const match of matches) {
-    const key = activeSessionKey(
-      match.process.exeName,
-      match.game.id,
-      match.game.source,
-    );
+  for (const [key, match] of matchesByGame) {
     if (!activeKeys.has(key)) {
       startSession(match.process, match.game, match.startedAt);
     }
@@ -421,7 +421,7 @@ async function resolveProcesses(
   const ttlMs = state.settings.unmatchedRetryDays * 24 * 60 * 60 * 1000;
   const matches: ProcessMatch[] = [];
   const queryProcesses: ProcessSnapshot[] = [];
-  const customUpgradeProcesses: ProcessSnapshot[] = [];
+  const communityCheckProcesses: ProcessSnapshot[] = [];
   const ambiguousByKey = new Map(
     state.ambiguousMatches.map((match) => [match.exeName.toLowerCase(), match]),
   );
@@ -430,13 +430,16 @@ async function resolveProcesses(
 
   for (const process of processes) {
     const existing = state.exeCache.get(process.exeName.toLowerCase());
+    // Custom games are checked for a database match; community games are
+    // checked because their id can change on the server when two entries for
+    // one game are merged, and a matched entry is otherwise cached forever.
     if (
       existing?.state === "matched" &&
-      existing.source === "custom" &&
+      (existing.source === "custom" || existing.source === "community") &&
       now - (communityUpgradeCheckedAt.get(processCacheKey(process)) ?? 0) >=
         PENDING_COMMUNITY_RETRY_MS
     ) {
-      customUpgradeProcesses.push(process);
+      communityCheckProcesses.push(process);
     }
     if (options.forceQueryKeys?.has(processCacheKey(process))) {
       queryProcesses.push(process);
@@ -470,8 +473,8 @@ async function resolveProcesses(
     }
   }
 
-  if (customUpgradeProcesses.length > 0) {
-    void checkCommunityUpgrades(customUpgradeProcesses);
+  if (communityCheckProcesses.length > 0) {
+    void checkCommunityUpgrades(communityCheckProcesses);
   }
 
   logRuntime(
@@ -586,8 +589,19 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
 
     const body = (await response.json()) as MatchProcessesResponse;
     for (const result of body.matches) {
+      const aliases = result.communityGameAliases;
+      // The surviving game can be the match or one of the picker candidates —
+      // an exe that IGDB and the community both map is ambiguous by design.
+      const communityGames = [
+        result.game,
+        ...(result.ambiguousGames ?? []),
+      ].filter((game): game is Game => game?.source === "community");
+
+      if (applyMergedCommunityGame(result.key, communityGames, aliases)) {
+        continue;
+      }
       if (result.game && result.game.source !== "custom") {
-        setCommunityUpgrade(result.key, result.game);
+        setCommunityUpgrade(result.key, result.game, aliases);
         continue;
       }
       if (result.pendingCommunityGame) {
@@ -598,11 +612,148 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
         );
         continue;
       }
-      applyCommunitySuggestionOutcome(result.key, result.ambiguousGames);
+      applyCommunitySuggestionOutcome(
+        result.key,
+        result.ambiguousGames,
+        aliases,
+      );
     }
   } catch (error) {
     verboseRuntime(`community upgrade check failed: ${formatError(error)}`);
   }
+}
+
+// Two community entries for one game get merged into one on the server, which
+// retires one of the ids. A client still holding the retired id would keep it
+// forever (a matched entry is never re-queried) and run a second session next
+// to the executable that already uses the surviving id. The server names the
+// retired ids for the game it just matched, so this only moves entries the
+// server itself declared to be the same game — a different game that happens
+// to share the title stays an upgrade offer for the user to decide.
+function applyMergedCommunityGame(
+  exeName: string,
+  communityGames: Game[],
+  aliases: CommunityGameAlias[] | undefined,
+) {
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (
+    existing?.state !== "matched" ||
+    existing.source !== "community" ||
+    existing.gameId === undefined
+  ) {
+    return false;
+  }
+
+  const survivor = survivorOfRetiredGame(existing.gameId, aliases);
+  if (survivor === undefined || survivor === existing.gameId) return false;
+  const game = communityGames.find((candidate) => candidate.id === survivor);
+  if (!game) return false;
+
+  logRuntime(
+    `community game merged ${exeName}: ${existing.gameId} -> ${game.id} (${game.name})`,
+  );
+  const ownSuggestion = isOwnCommunitySuggestion(existing, game, aliases);
+  applyGameMatch(exeName, game);
+  // applyGameMatch drops a suggestion marker that does not name the new game;
+  // here it named the retired one, so it carries over to the survivor.
+  if (ownSuggestion) {
+    const merged = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+    if (merged?.state === "matched") {
+      useAppStore.getState().setExeCacheEntry({
+        ...merged,
+        communitySuggestionId: game.id,
+        communitySuggestionVerified: true,
+      });
+    }
+  }
+  return true;
+}
+
+// The community game a retired id was merged into, if the server declared one.
+function survivorOfRetiredGame(
+  gameId: number,
+  aliases: CommunityGameAlias[] | undefined,
+) {
+  return aliases?.find((alias) => alias.mergedFromGameIds.includes(gameId))
+    ?.gameId;
+}
+
+// Whether a community game is the one this entry suggested itself — directly,
+// or because the suggestion's id was retired when that game absorbed it.
+function isOwnCommunitySuggestion(
+  entry: ExeCacheEntry,
+  game: Game,
+  aliases: CommunityGameAlias[] | undefined,
+) {
+  if (
+    game.source !== "community" ||
+    entry.communitySuggestionId === undefined
+  ) {
+    return false;
+  }
+  return (
+    entry.communitySuggestionId === game.id ||
+    survivorOfRetiredGame(entry.communitySuggestionId, aliases) === game.id
+  );
+}
+
+// Every executable of one pending suggestion has to share a single local game
+// while it waits for approval. Executables added before their shared
+// suggestion id was known still carry their own per-exe id and would each run
+// their own session; this folds them onto one and moves what was recorded
+// under the others.
+function canonicalizeSharedCustomGames(communitySuggestionId: number) {
+  const gameIds = [...useAppStore.getState().exeCache.values()]
+    .filter(
+      (entry) =>
+        entry.state === "matched" &&
+        entry.source === "custom" &&
+        entry.communitySuggestionId === communitySuggestionId &&
+        entry.gameId !== undefined,
+    )
+    .map((entry) => entry.gameId as number);
+  if (gameIds.length < 2) return;
+
+  const canonicalId = Math.min(...gameIds);
+  const staleIds = new Set(gameIds.filter((gameId) => gameId !== canonicalId));
+  if (staleIds.size === 0) return;
+
+  const isStaleCustom = (session: Pick<Session, "gameId" | "source">) =>
+    session.source === "custom" && staleIds.has(session.gameId);
+
+  useAppStore.setState((state) => {
+    const exeCache = new Map(state.exeCache);
+    for (const [key, entry] of exeCache) {
+      if (
+        entry.state === "matched" &&
+        entry.source === "custom" &&
+        entry.communitySuggestionId === communitySuggestionId &&
+        entry.gameId !== undefined &&
+        staleIds.has(entry.gameId)
+      ) {
+        exeCache.set(key, { ...entry, gameId: canonicalId });
+      }
+    }
+
+    return {
+      exeCache,
+      activeSessions: dedupeSessionsByGame(
+        state.activeSessions.map((session) =>
+          isStaleCustom(session)
+            ? { ...session, gameId: canonicalId }
+            : session,
+        ),
+      ),
+      recentSessions: state.recentSessions.map((session) =>
+        isStaleCustom(session) ? { ...session, gameId: canonicalId } : session,
+      ),
+    };
+  });
+
+  logRuntime(
+    `shared suggestion ${communitySuggestionId}: merged local games ${[...staleIds].join(", ")} into ${canonicalId}`,
+  );
+  persist();
 }
 
 // A pending suggestion that no longer comes back from the server was rejected:
@@ -613,6 +764,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
 function applyCommunitySuggestionOutcome(
   exeName: string,
   ambiguousGames?: Game[],
+  aliases?: CommunityGameAlias[],
 ) {
   const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
   if (
@@ -624,13 +776,11 @@ function applyCommunitySuggestionOutcome(
     return;
   }
 
-  const approved = ambiguousGames?.find(
-    (game) =>
-      game.source === "community" &&
-      game.id === existing.communitySuggestionId,
+  const approved = ambiguousGames?.find((game) =>
+    isOwnCommunitySuggestion(existing, game, aliases),
   );
   if (approved) {
-    setCommunityUpgrade(exeName, approved);
+    setCommunityUpgrade(exeName, approved, aliases);
     return;
   }
   if (ambiguousGames?.length) return;
@@ -708,6 +858,10 @@ function setCommunitySuggestionMarker(
       ),
     };
   });
+
+  // The server may have filed this exe under a suggestion another of the
+  // game's executables already uses; both then have to share one local game.
+  canonicalizeSharedCustomGames(game.id);
 }
 
 // A dismissal recorded before igdb upgrades existed has no source; those were
@@ -722,7 +876,11 @@ function isDismissedUpgrade(entry: ExeCacheEntry, game: Game) {
 // Records a database match found for a custom game. A community game the user
 // suggested themselves is applied directly; anything else (someone else's
 // community game or an igdb match) becomes an upgrade offer.
-function setCommunityUpgrade(exeName: string, game: Game) {
+function setCommunityUpgrade(
+  exeName: string,
+  game: Game,
+  aliases?: CommunityGameAlias[],
+) {
   let promoted = false;
   useAppStore.setState((state) => {
     const key = exeName.toLowerCase();
@@ -736,10 +894,11 @@ function setCommunityUpgrade(exeName: string, game: Game) {
     }
 
     const exeCache = new Map(state.exeCache);
-    if (
-      game.source === "community" &&
-      existing.communitySuggestionId === game.id
-    ) {
+    // Also the entry's own suggestion when its id was retired by a merge —
+    // otherwise the approval reads as someone else's game and the user is
+    // asked to accept an upgrade to what they suggested themselves, while the
+    // exe keeps running as a separate local game.
+    if (isOwnCommunitySuggestion(existing, game, aliases)) {
       promoted = true;
       const oldGameId = existing.gameId;
       exeCache.set(key, {
@@ -1259,6 +1418,19 @@ function startSession(
   game: Game,
   startedAtOverride?: string,
 ) {
+  const sessionKey = activeSessionKey(game.id, game.source);
+  const alreadyRunning = useAppStore
+    .getState()
+    .activeSessions.some(
+      (session) => sessionIdentityKey(session) === sessionKey,
+    );
+  if (alreadyRunning) {
+    verboseRuntime(
+      `session already open for ${game.name}; ${process.exeName} joins it`,
+    );
+    return;
+  }
+
   logRuntime(`session starting ${game.name} (${process.exeName})`);
   const startedAt = startedAtOverride ?? new Date().toISOString();
   const cacheEntry = useAppStore
@@ -1290,12 +1462,13 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
 
   cacheMatchResult(ambiguous.exeName, game);
   state.removeAmbiguousMatch(ambiguous.exeName);
+  // The picked game may already be tracked through one of its other
+  // executables; then this exe joins that session instead of adding a second.
+  const sessionKey = activeSessionKey(game.id, game.source);
   const active = useAppStore
     .getState()
     .activeSessions.some(
-      (session) =>
-        session.exeName.toLowerCase() === ambiguous.exeName.toLowerCase() &&
-        session.gameId === game.id,
+      (session) => sessionIdentityKey(session) === sessionKey,
     );
   if (!active) {
     if (ambiguous.endedAt) {
@@ -1585,7 +1758,11 @@ export function addSharedCustomGame(
   if (!normalizedGameName) return null;
 
   const game: Game = {
-    id: customGameId(exeName),
+    // Every executable suggested for the same game shares the suggestion id,
+    // so they share one local game while the suggestion is pending. Without
+    // this the second exe would get its own local id and run a second session
+    // next to the first one until approval merges them.
+    id: sharedCustomGameId(exeName, communitySuggestionId),
     name: normalizedGameName,
     coverUrl,
     source: "custom",
@@ -2245,11 +2422,49 @@ function normalizePersistedActiveSessions(persisted: PersistedState) {
   const sessions = persisted.activeSessions ?? [];
   if (persisted.activeSession) sessions.push(persisted.activeSession);
 
-  return sessions.map((session) => ({
-    ...session,
-    checkpointedAt: session.checkpointedAt ?? session.startedAt,
-    recoveredFromCheckpoint: true,
-  }));
+  // Earlier versions kept one session per executable, so a game with several
+  // executables was counted twice.
+  return dedupeSessionsByGame(
+    sessions.map((session) => ({
+      ...session,
+      checkpointedAt: session.checkpointedAt ?? session.startedAt,
+      recoveredFromCheckpoint: true,
+    })),
+  );
+}
+
+// One game, one session — regardless of how many of its executables run. Of
+// several sessions on the same game the earliest wins; the others cover the
+// same playtime and would double-count it.
+function dedupeSessionsByGame(sessions: ActiveSession[]) {
+  const byGame = new Map<string, ActiveSession>();
+  for (const session of sessions) {
+    const key = sessionIdentityKey(session);
+    const existing = byGame.get(key);
+    if (
+      existing &&
+      Date.parse(existing.startedAt) <= Date.parse(session.startedAt)
+    ) {
+      continue;
+    }
+    byGame.set(key, session);
+  }
+  return [...byGame.values()];
+}
+
+// Two executables of one game can each end up with a session, e.g. when a
+// community suggestion for the second exe gets approved and both exes start
+// pointing at the same game.
+function collapseDuplicateActiveSessions() {
+  const sessions = useAppStore.getState().activeSessions;
+  const deduped = dedupeSessionsByGame(sessions);
+  if (deduped.length === sessions.length) return sessions;
+
+  useAppStore.setState({ activeSessions: deduped });
+  logRuntime(
+    `merged ${sessions.length - deduped.length} duplicate active session(s) into one per game`,
+  );
+  return deduped;
 }
 
 function checkpointActiveSessionIfDue(session: ActiveSession) {
@@ -2284,18 +2499,15 @@ function isCustomSession(session: Pick<ActiveSession, "source" | "gameId">) {
   return session.source === "custom" || session.gameId < 0;
 }
 
-function activeSessionKey(
-  exeName: string,
-  gameId: number,
-  source: ActiveSession["source"],
-) {
-  return `${source ?? "unknown"}:${gameId}:${exeName.toLowerCase()}`;
+// A session belongs to a game, not to an executable: a game started through
+// several executables is one session, and its `exeName` is only the executable
+// that opened it.
+function activeSessionKey(gameId: number, source: ActiveSession["source"]) {
+  return `${source ?? "unknown"}:${gameId}`;
 }
 
-function sessionIdentityKey(
-  session: Pick<ActiveSession, "exeName" | "gameId" | "source">,
-) {
-  return activeSessionKey(session.exeName, session.gameId, session.source);
+function sessionIdentityKey(session: Pick<ActiveSession, "gameId" | "source">) {
+  return activeSessionKey(session.gameId, session.source);
 }
 
 function updateActiveSession(session: ActiveSession) {
@@ -2338,6 +2550,20 @@ function scheduleTraySync() {
   trayTimer = window.setInterval(() => {
     syncTrayNowPlaying();
   }, 15_000);
+}
+
+// Local id for an executable that was shared as a community suggestion: the id
+// already used by another executable of the same suggestion, or a fresh one.
+function sharedCustomGameId(exeName: string, communitySuggestionId: number) {
+  const sibling = [...useAppStore.getState().exeCache.values()].find(
+    (entry) =>
+      entry.state === "matched" &&
+      entry.source === "custom" &&
+      entry.communitySuggestionId === communitySuggestionId &&
+      entry.exeName.toLowerCase() !== exeName.toLowerCase() &&
+      entry.gameId !== undefined,
+  );
+  return sibling?.gameId ?? customGameId(exeName);
 }
 
 function customGameId(exeName: string) {

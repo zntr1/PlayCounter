@@ -81,6 +81,7 @@ const communityGameSuggestionSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
+  igdbId: z.number().int().positive().optional(),
   installUuid: z.string().uuid().optional(),
 });
 
@@ -154,6 +155,7 @@ app.post("/api/match-processes", async (request) => {
         matchedIdentifier: match?.identifier,
         ambiguousGames: match?.ambiguousGames,
         pendingCommunityGame: match?.pendingCommunityGame,
+        communityGameAliases: match?.communityGameAliases,
       };
     }),
   };

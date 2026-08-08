@@ -703,6 +703,7 @@ function GameLibraryCard({
           exeName,
           name: shareSelection.name,
           coverUrl: shareSelection.coverUrl,
+          igdbId: shareSelection.igdbId,
           installUuid: installUuid ?? undefined,
         }),
       });

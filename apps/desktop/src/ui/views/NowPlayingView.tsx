@@ -317,6 +317,7 @@ function AmbiguousMatchCard({
           exeName,
           name: selection.name,
           coverUrl: selection.coverUrl,
+          igdbId: selection.igdbId,
           installUuid: installUuid ?? undefined,
         }),
       });

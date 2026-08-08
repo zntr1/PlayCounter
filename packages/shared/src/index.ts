@@ -35,6 +35,15 @@ export interface MatchProcessesRequest {
   processes: MatchProcessRequestItem[];
 }
 
+// Community game ids that were merged into `gameId` and no longer exist. A
+// client still holding one of them — as a cached match or as the id of its own
+// pending suggestion — is holding a retired id for this exact game and can
+// move over. Any other id is a different game.
+export interface CommunityGameAlias {
+  gameId: number;
+  mergedFromGameIds: number[];
+}
+
 export interface MatchProcessesResponse {
   matches: Array<{
     key: string;
@@ -42,6 +51,11 @@ export interface MatchProcessesResponse {
     matchedIdentifier?: ProcessIdentifier;
     ambiguousGames?: Game[];
     pendingCommunityGame?: Game;
+    // Covers every community game named in this result — the match, the
+    // ambiguous candidates and the pending suggestion. Community and IGDB
+    // entries for one exe deliberately end up in the picker, so a merged game
+    // often appears only as a candidate.
+    communityGameAliases?: CommunityGameAlias[];
   }>;
 }
 
@@ -60,6 +74,11 @@ export interface CommunityGameSuggestionPayload {
   exeName: string;
   name: string;
   coverUrl?: string;
+  // Identity of the picked metadata candidate. Names are not unique (remakes,
+  // re-releases), so this is what decides whether a suggestion joins an
+  // existing community game or starts a new one. Optional: clients released
+  // before this field existed still only send the name.
+  igdbId?: number;
   installUuid?: string;
 }
 

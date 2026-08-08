@@ -1,4 +1,5 @@
 import type {
+  CommunityGameAlias,
   CommunityGameSuggestionPayload,
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
@@ -22,6 +23,7 @@ type ProcessMatchResult = {
   identifier?: ProcessIdentifier;
   ambiguousGames?: Game[];
   pendingCommunityGame?: Game;
+  communityGameAliases?: CommunityGameAlias[];
 };
 
 const demoGames: Game[] = [
@@ -211,7 +213,8 @@ export class PostgresRepository implements PlayCounterRepository {
     // Verified community entries are always checked alongside the IGDB
     // database: a community entry for an exe that IGDB also maps is usually a
     // correction, so both candidates go to the picker instead of IGDB winning
-    // silently.
+    // silently. Verification is per identifier — a game can be reached through
+    // several executables, and each of them is reviewed on its own.
     const community = await this.pool.query(
       `SELECT lower(community_game_identifiers.platform) AS platform,
               lower(community_game_identifiers.kind) AS kind,
@@ -221,7 +224,7 @@ export class PostgresRepository implements PlayCounterRepository {
               community_games.cover_url
        FROM community_game_identifiers
        INNER JOIN community_games ON community_games.id = community_game_identifiers.game_id
-       WHERE community_games.verified = true
+       WHERE community_game_identifiers.verified = true
          AND lower(community_game_identifiers.platform) || ':' ||
              lower(community_game_identifiers.kind) || ':' ||
              lower(community_game_identifiers.value) = ANY($1::text[])`,
@@ -285,7 +288,9 @@ export class PostgresRepository implements PlayCounterRepository {
       logger.info(
         "[match] All processes resolved from the stored databases; done.",
       );
-      return stripProcessMatchPriority(matches, ambiguousMatches);
+      return this.attachCommunityGameAliases(
+        stripProcessMatchPriority(matches, ambiguousMatches),
+      );
     }
 
     const pendingLookupKeys = candidates
@@ -301,7 +306,7 @@ export class PostgresRepository implements PlayCounterRepository {
                 community_games.cover_url
          FROM community_game_identifiers
          INNER JOIN community_games ON community_games.id = community_game_identifiers.game_id
-         WHERE community_games.verified = false
+         WHERE community_game_identifiers.verified = false
            AND lower(community_game_identifiers.platform) || ':' ||
                lower(community_game_identifiers.kind) || ':' ||
                lower(community_game_identifiers.value) = ANY($1::text[])`,
@@ -398,11 +403,72 @@ export class PostgresRepository implements PlayCounterRepository {
     logger.info(
       `[match] Done: ${count(matches.size, "process", "processes")} matched, ${count(processes.length - matches.size, "process", "processes")} unmatched.`,
     );
-    return stripProcessMatchPriority(
-      matches,
-      ambiguousMatches,
-      pendingCommunityMatches,
+    return this.attachCommunityGameAliases(
+      stripProcessMatchPriority(
+        matches,
+        ambiguousMatches,
+        pendingCommunityMatches,
+      ),
     );
+  }
+
+  // Tells the client which retired community ids belong to the games named in
+  // a result. A client that still holds one of those ids — as a cached match,
+  // or as the id of its own pending suggestion — can then move to the
+  // surviving game, without guessing from the name, which two games can share.
+  //
+  // Every community game in the result is covered, not just the match: an exe
+  // that both IGDB and the community map goes to the picker on purpose, so a
+  // merged game frequently appears only among the candidates.
+  private async attachCommunityGameAliases(
+    results: Map<string, ProcessMatchResult>,
+  ) {
+    const communityGamesIn = (result: ProcessMatchResult) =>
+      [
+        result.game,
+        result.pendingCommunityGame,
+        ...(result.ambiguousGames ?? []),
+      ].filter((game): game is Game => game?.source === "community");
+
+    const communityGameIds = [
+      ...new Set(
+        [...results.values()].flatMap((result) =>
+          communityGamesIn(result).map((game) => game.id),
+        ),
+      ),
+    ];
+    if (communityGameIds.length === 0) return results;
+
+    const aliases = await this.pool.query<{
+      old_game_id: number;
+      game_id: number;
+    }>(
+      `SELECT old_game_id, game_id FROM community_game_aliases
+       WHERE game_id = ANY($1::int[])`,
+      [communityGameIds],
+    );
+    if (aliases.rowCount === 0) return results;
+
+    const retiredIdsByGame = new Map<number, number[]>();
+    for (const row of aliases.rows) {
+      const retired = retiredIdsByGame.get(row.game_id) ?? [];
+      retired.push(row.old_game_id);
+      retiredIdsByGame.set(row.game_id, retired);
+    }
+
+    for (const result of results.values()) {
+      const gameAliases = [
+        ...new Set(communityGamesIn(result).map((game) => game.id)),
+      ]
+        .map((gameId) => ({
+          gameId,
+          mergedFromGameIds: retiredIdsByGame.get(gameId) ?? [],
+        }))
+        .filter((alias) => alias.mergedFromGameIds.length > 0);
+      if (gameAliases.length > 0) result.communityGameAliases = gameAliases;
+    }
+
+    return results;
   }
 
   async gamesByIds(gameIds: number[]): Promise<Game[]> {
@@ -414,7 +480,19 @@ export class PostgresRepository implements PlayCounterRepository {
        UNION ALL
        SELECT id, name, cover_url, 'community' AS source
        FROM community_games
-       WHERE id = ANY($1::int[])`,
+       WHERE id = ANY($1::int[])
+       UNION ALL
+       -- Community ids that were merged into another entry still sit in older
+       -- clients' caches and history. Serve the metadata of the game they were
+       -- merged into, under the id that was asked for, so those cards keep
+       -- their name and cover until the executable is matched again.
+       SELECT aliases.old_game_id AS id,
+              community_games.name,
+              community_games.cover_url,
+              'community' AS source
+       FROM community_game_aliases aliases
+       INNER JOIN community_games ON community_games.id = aliases.game_id
+       WHERE aliases.old_game_id = ANY($1::int[])`,
       [[...new Set(gameIds)]],
     );
     return result.rows.map((row) => ({
@@ -462,6 +540,7 @@ export class PostgresRepository implements PlayCounterRepository {
     const exeName = suggestion.exeName.trim();
     const name = suggestion.name.trim();
     const coverUrl = suggestion.coverUrl?.trim() || null;
+    const igdbId = suggestion.igdbId ?? null;
     const submittedBy = suggestion.installUuid ?? null;
 
     // If IGDB already maps this exe to the suggested game (directly or as an
@@ -485,9 +564,10 @@ export class PostgresRepository implements PlayCounterRepository {
            AND lower(value) = lower($1)
        ) identifiers
        INNER JOIN igdb_games ON igdb_games.id = identifiers.game_id
-       WHERE lower(igdb_games.name) = lower($2)
+       WHERE ($3::int IS NOT NULL AND igdb_games.igdb_id = $3::int)
+          OR ($3::int IS NULL AND lower(igdb_games.name) = lower($2))
        LIMIT 1`,
-      [exeName, name],
+      [exeName, name, igdbId],
     );
     const knownIgdbGame = knownIgdb.rows[0];
     if (knownIgdbGame) {
@@ -507,52 +587,107 @@ export class PostgresRepository implements PlayCounterRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      // Reuse an existing entry only when it is for the same game; a
-      // suggestion for a different game becomes its own pending entry so
-      // corrections are never silently swallowed.
-      const existing = await client.query<{ id: number; verified: boolean }>(
-        `SELECT community_games.id, community_games.verified
-         FROM community_game_identifiers
-         INNER JOIN community_games ON community_games.id = community_game_identifiers.game_id
-         WHERE lower(community_game_identifiers.platform) = 'windows'
-           AND lower(community_game_identifiers.kind) = 'exe'
-           AND lower(community_game_identifiers.value) = lower($1)
-           AND lower(community_games.name) = lower($3)
-         ORDER BY community_games.verified DESC,
-                  CASE WHEN community_games.submitted_by = $2 THEN 0 ELSE 1 END,
-                  community_games.created_at ASC
-         LIMIT 1`,
-        [exeName, submittedBy, name],
-      );
-      const existingGame = existing.rows[0];
-      if (existingGame) {
-        await client.query("COMMIT");
-        logger.info(
-          `[community] Reused existing ${existingGame.verified ? "verified" : "pending"} community game ${existingGame.id} for "${exeName}"; skipping duplicate suggestion.`,
-        );
-        return { id: existingGame.id, verified: existingGame.verified };
+      // Two clients can suggest the same new game at the same moment; both
+      // would find nothing and insert their own row. Serialize per game so the
+      // second one sees the first one's entry. Both keys are taken, always in
+      // the same order: a client that sends no igdb id races against one that
+      // does, and only the name connects those two.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        `community-game-name:${name.toLowerCase()}`,
+      ]);
+      if (igdbId !== null) {
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+          `community-game-igdb:${igdbId}`,
+        ]);
       }
 
-      const gameResult = await client.query<{ id: number; verified: boolean }>(
-        `INSERT INTO community_games (name, cover_url, submitted_by, verified)
-         VALUES ($1, $2, $3, false)
-         RETURNING id, verified`,
-        [name, coverUrl, submittedBy],
+      // Which game this suggestion belongs to is decided once, here, and every
+      // step below works off that id — the identity rule must not be repeated
+      // in several queries that could disagree.
+      //
+      // The picked IGDB metadata is the identity. Name and cover art together
+      // are the fallback: two games can share a title, but not a title and an
+      // IGDB cover image. It carries suggestions from clients released before
+      // igdb ids were sent, and lets a suggestion that has one adopt a row
+      // that predates them — but never a row already identified as a
+      // different game.
+      const knownGame = await client.query<{
+        id: number;
+        igdb_id: number | null;
+      }>(
+        `SELECT id, igdb_id FROM community_games
+         WHERE ($1::int IS NOT NULL AND igdb_id = $1::int)
+            OR (
+              lower(name) = lower($2)
+              AND ($3::text IS NOT NULL AND cover_url = $3::text)
+              AND ($1::int IS NULL OR igdb_id IS NULL)
+            )
+         ORDER BY ($1::int IS NOT NULL AND igdb_id = $1::int) DESC, id ASC
+         LIMIT 1`,
+        [igdbId, name, coverUrl],
       );
-      const game = gameResult.rows[0];
+      let gameId = knownGame.rows[0]?.id;
+      const reusedGame = gameId !== undefined;
 
+      if (gameId === undefined) {
+        // The unique index on igdb_id makes this the atomic point of truth:
+        // a racing insert of the same game resolves to that game's row.
+        const gameResult = await client.query<{ id: number }>(
+          `INSERT INTO community_games (name, cover_url, submitted_by, verified, igdb_id)
+           VALUES ($1, $2, $3, false, $4)
+           ON CONFLICT (igdb_id) WHERE igdb_id IS NOT NULL
+           DO UPDATE SET igdb_id = excluded.igdb_id
+           RETURNING id`,
+          [name, coverUrl, submittedBy, igdbId],
+        );
+        gameId = gameResult.rows[0].id;
+      } else if (igdbId !== null && knownGame.rows[0].igdb_id === null) {
+        // Matched a legacy row by name and cover: give it that identity so
+        // later suggestions no longer depend on the name at all.
+        await client.query(
+          `UPDATE community_games SET igdb_id = $2
+           WHERE id = $1 AND igdb_id IS NULL`,
+          [gameId, igdbId],
+        );
+      }
+
+      // This exact exe was already suggested for this game; report its own
+      // review state back. Verification is per identifier, so a verified game
+      // says nothing about a newly added exe.
+      const existing = await client.query<{ verified: boolean }>(
+        `SELECT verified FROM community_game_identifiers
+         WHERE lower(platform) = 'windows'
+           AND lower(kind) = 'exe'
+           AND lower(value) = lower($1)
+           AND game_id = $2
+         LIMIT 1`,
+        [exeName, gameId],
+      );
+      const existingIdentifier = existing.rows[0];
+      if (existingIdentifier) {
+        await client.query("COMMIT");
+        logger.info(
+          `[community] "${exeName}" is already ${existingIdentifier.verified ? "a verified" : "a pending"} identifier of community game ${gameId}; skipping duplicate suggestion.`,
+        );
+        return { id: gameId, verified: existingIdentifier.verified };
+      }
+
+      // The new identifier always starts unverified, even on a game that is
+      // already live — otherwise any exe could be published without review.
       await client.query(
-        `INSERT INTO community_game_identifiers (platform, kind, value, game_id)
-         VALUES ('windows', 'exe', $1, $2)
+        `INSERT INTO community_game_identifiers (platform, kind, value, game_id, verified)
+         VALUES ('windows', 'exe', $1, $2, false)
          ON CONFLICT DO NOTHING`,
-        [exeName, game.id],
+        [exeName, gameId],
       );
 
       await client.query("COMMIT");
       logger.info(
-        `[community] Recorded "${name}" for "${exeName}" as pending community game ${game.id}.`,
+        reusedGame
+          ? `[community] Added "${exeName}" as a pending identifier of existing community game ${gameId} ("${name}").`
+          : `[community] Recorded "${name}" for "${exeName}" as pending community game ${gameId}.`,
       );
-      return { id: game.id, verified: game.verified };
+      return { id: gameId, verified: false };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

@@ -466,6 +466,7 @@ export function DiscoveredView() {
           exeName,
           name: suggestionSelection.name,
           coverUrl: suggestionSelection.coverUrl,
+          igdbId: suggestionSelection.igdbId,
           installUuid: installUuid ?? undefined,
         }),
       });
