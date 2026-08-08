@@ -5,6 +5,81 @@ export type IgnoredProcessSort =
   | "userFirst"
   | "systemFirst";
 
+type ReviewExecutable = {
+  exeName: string;
+  isRunning: boolean;
+  cacheEntry: {
+    state: string;
+    trackedSeconds?: number;
+    runningSince?: string;
+  } | null;
+};
+
+type FindableReviewExecutable = {
+  exeName: string;
+  exePath: string | null;
+};
+
+export function findReviewExecutables<T extends FindableReviewExecutable>(
+  executables: readonly T[],
+  query: string,
+  limit = 8,
+): T[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle || limit <= 0) return [];
+
+  return executables
+    .map((executable, index) => {
+      const exeName = executable.exeName.toLowerCase();
+      const exePath = executable.exePath?.toLowerCase() ?? "";
+      const matchRank = exeName.startsWith(needle)
+        ? 0
+        : exeName.includes(needle)
+          ? 1
+          : exePath.includes(needle)
+            ? 2
+            : -1;
+      return { executable, index, matchRank };
+    })
+    .filter((entry) => entry.matchRank >= 0)
+    .sort(
+      (left, right) =>
+        left.matchRank - right.matchRank || left.index - right.index,
+    )
+    .slice(0, limit)
+    .map((entry) => entry.executable);
+}
+
+function observedRuntimeSeconds(executable: ReviewExecutable, now: number) {
+  const entry = executable.cacheEntry;
+  if (!entry || entry.state !== "unmatched") return 0;
+
+  const accumulated = entry.trackedSeconds ?? 0;
+  if (!executable.isRunning || !entry.runningSince) return accumulated;
+
+  const runningSince = Date.parse(entry.runningSince);
+  if (!Number.isFinite(runningSince)) return accumulated;
+  return accumulated + Math.max(0, (now - runningSince) / 1000);
+}
+
+export function sortReviewExecutables<T extends ReviewExecutable>(
+  executables: readonly T[],
+  now = Date.now(),
+): T[] {
+  return [...executables].sort((left, right) => {
+    const runningOrder = Number(right.isRunning) - Number(left.isRunning);
+    if (runningOrder !== 0) return runningOrder;
+
+    const runtimeOrder =
+      observedRuntimeSeconds(right, now) - observedRuntimeSeconds(left, now);
+    if (runtimeOrder !== 0) return runtimeOrder;
+
+    return left.exeName.localeCompare(right.exeName, undefined, {
+      sensitivity: "base",
+    });
+  });
+}
+
 type IgnoredExecutable = {
   key: string;
   exeName: string;

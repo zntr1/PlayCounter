@@ -38,10 +38,12 @@ import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { ExeIcon } from "../ExeIcon";
 import { Panel, SourceBadge } from "../components";
 import {
+  findReviewExecutables,
   filterRunningExecutables,
   paginateExecutables,
   shouldShowRunningUserProcessesOnly,
   sortIgnoredExecutables,
+  sortReviewExecutables,
   type IgnoredProcessSort,
 } from "../discoveredSort";
 import { AnimatedCount, Button, IconButton, Input } from "../primitives";
@@ -636,7 +638,9 @@ export function DiscoveredView() {
           ...userIgnoredProcesses,
           ...blacklist,
         ])
-      : matchingExecutables;
+      : filter === "review"
+        ? sortReviewExecutables(matchingExecutables)
+        : matchingExecutables;
   const runningCount = searchable.filter(
     (executable) => executable.isRunning && executable.status === "userIgnored",
   ).length;
@@ -818,6 +822,7 @@ export function DiscoveredView() {
                 <div className="w-full max-w-2xl">
                   <TriageWizardCard
                     executable={activeReviewItem}
+                    reviewOptions={filteredExecutables}
                     queueLength={filteredExecutables.length}
                     currentIndex={wizardCurrentIndex + 1}
                     customGameName={customGameName}
@@ -855,6 +860,7 @@ export function DiscoveredView() {
                       startCommunitySuggestion(activeReviewItem.exeName)
                     }
                     onSkip={handleSkip}
+                    onSelectReview={(key) => setActiveReviewKey(key)}
                   />
                   {suggestionExe === activeReviewItem.key ? (
                     <CommunitySuggestionForm
@@ -1012,6 +1018,7 @@ export function DiscoveredView() {
 
 function TriageWizardCard({
   executable,
+  reviewOptions,
   queueLength,
   currentIndex,
   customGameName,
@@ -1027,8 +1034,10 @@ function TriageWizardCard({
   onStartCustomGame,
   onSuggest,
   onSkip,
+  onSelectReview,
 }: {
   executable: DiscoveredExecutable;
+  reviewOptions: DiscoveredExecutable[];
   queueLength: number;
   currentIndex: number;
   customGameName: string;
@@ -1044,23 +1053,145 @@ function TriageWizardCard({
   onStartCustomGame: () => void;
   onSuggest: () => void;
   onSkip: () => void;
+  onSelectReview: (key: string) => void;
 }) {
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const reviewSuggestions = useMemo(
+    () => findReviewExecutables(reviewOptions, reviewSearch),
+    [reviewOptions, reviewSearch],
+  );
+
+  function selectReview(executable: DiscoveredExecutable) {
+    onSelectReview(executable.key);
+    setReviewSearch("");
+    setActiveSuggestionIndex(0);
+  }
+
   return (
     <div className="animate-fade-in overflow-hidden rounded-xl border border-border bg-surface shadow-md">
-      <div className="flex items-center justify-between border-b border-border bg-surface-hover/30 px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
-            {currentIndex}
-          </span>
-          <span className="text-sm font-medium text-text-muted">
-            of {queueLength} remaining
-          </span>
+      <div className="border-b border-border bg-surface-hover/30 px-6 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+              {currentIndex}
+            </span>
+            <span className="text-sm font-medium text-text-muted">
+              of {queueLength} remaining
+            </span>
+          </div>
+          {executable.status === "checking" && (
+            <span className="inline-flex items-center rounded-full bg-community-tint px-2.5 py-1 text-xs font-medium text-community">
+              Checking database...
+            </span>
+          )}
         </div>
-        {executable.status === "checking" && (
-          <span className="inline-flex items-center rounded-full bg-community-tint px-2.5 py-1 text-xs font-medium text-community">
-            Checking database...
-          </span>
-        )}
+
+        <div className="mt-3">
+          <div className="relative">
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
+            />
+            <Input
+              value={reviewSearch}
+              onChange={(event) => {
+                setReviewSearch(event.target.value);
+                setActiveSuggestionIndex(0);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown" && reviewSuggestions.length > 0) {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((index) =>
+                    Math.min(index + 1, reviewSuggestions.length - 1),
+                  );
+                } else if (
+                  event.key === "ArrowUp" &&
+                  reviewSuggestions.length > 0
+                ) {
+                  event.preventDefault();
+                  setActiveSuggestionIndex((index) => Math.max(index - 1, 0));
+                } else if (
+                  event.key === "Enter" &&
+                  reviewSuggestions[activeSuggestionIndex]
+                ) {
+                  event.preventDefault();
+                  selectReview(reviewSuggestions[activeSuggestionIndex]);
+                } else if (event.key === "Escape") {
+                  setReviewSearch("");
+                  setActiveSuggestionIndex(0);
+                }
+              }}
+              placeholder="Find a process in this queue..."
+              aria-label="Find a process in the review queue"
+              aria-expanded={reviewSuggestions.length > 0}
+              aria-controls="review-process-suggestions"
+              aria-autocomplete="list"
+              role="combobox"
+              className="w-full bg-surface pl-9"
+            />
+          </div>
+
+          {reviewSuggestions.length > 0 ? (
+            <div
+              id="review-process-suggestions"
+              role="listbox"
+              className="mt-2 max-h-64 overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-md"
+            >
+              {reviewSuggestions.map((suggestion, index) => {
+                const trackedSeconds = trackedSecondsFor(suggestion.cacheEntry);
+                return (
+                  <button
+                    key={suggestion.key}
+                    type="button"
+                    role="option"
+                    aria-selected={index === activeSuggestionIndex}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectReview(suggestion)}
+                    className={clsx(
+                      "flex w-full min-w-0 items-center gap-3 rounded px-3 py-2 text-left transition",
+                      index === activeSuggestionIndex
+                        ? "bg-accent/10"
+                        : "hover:bg-surface-hover",
+                    )}
+                  >
+                    <ExeIcon
+                      exePath={suggestion.exePath}
+                      className="h-5 w-5 shrink-0 rounded-sm"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-text">
+                        {suggestion.exeName}
+                      </span>
+                      {suggestion.exePath ? (
+                        <span
+                          className="block truncate text-xs text-text-faint"
+                          title={suggestion.exePath}
+                        >
+                          {suggestion.exePath}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 text-right text-xs text-text-muted">
+                      <span className="block">
+                        {suggestion.isRunning ? "Running" : "Not running"}
+                      </span>
+                      {trackedSeconds >= 60 ? (
+                        <span className="block text-text-faint">
+                          {formatTrackedTime(trackedSeconds)} tracked
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : reviewSearch.trim() ? (
+            <div className="mt-2 rounded-md border border-dashed border-border bg-surface px-3 py-3 text-center text-sm text-text-muted">
+              No process matches “{reviewSearch.trim()}”.
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="p-6 sm:p-8">
