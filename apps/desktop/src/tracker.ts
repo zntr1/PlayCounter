@@ -21,10 +21,10 @@ import {
 } from "./store";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 import { adjustPlaytimeSessions } from "./playtimeAdjustment";
-import { filterPersistableSessions } from "./sessionPersistence";
+import { persistAppState, readPersistedRecord } from "./persistence";
+import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
 
-const STORAGE_KEY = "playcounter:v1";
 const CUSTOM_GAME_ID_BASE = -1_000_000_000;
 const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
 const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
@@ -203,7 +203,7 @@ function hydrate() {
         game,
       ]),
     ),
-    recentSessions: filterPersistableSessions(persisted.sessions ?? []),
+    recentSessions: normalizeSessions(persisted.sessions ?? []),
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
     blacklist: new Set(blacklist.map((exe) => exe.toLowerCase())),
@@ -364,7 +364,9 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
       // The exe got matched elsewhere (e.g. added as a custom game); the
       // picker is obsolete.
       useAppStore.getState().removeAmbiguousMatch(ambiguous.exeName);
-      logRuntime(`stale ambiguity dropped for matched exe ${ambiguous.exeName}`);
+      logRuntime(
+        `stale ambiguity dropped for matched exe ${ambiguous.exeName}`,
+      );
       continue;
     }
     if (!runningProcessKeys.has(ambiguous.exeName.toLowerCase())) {
@@ -1639,17 +1641,27 @@ function scheduleProcessPolling(intervalSeconds: number) {
 
 export function persist() {
   const state = useAppStore.getState();
-  const persisted: PersistedState = {
-    installUuid: state.installUuid ?? undefined,
-    settings: state.settings,
-    exeCache: [...state.exeCache.values()],
-    gameMetadata: [...state.gameMetadata.values()],
-    sessions: filterPersistableSessions(state.recentSessions),
-    activeSessions: state.activeSessions,
-    ambiguousMatches: state.ambiguousMatches,
-    blacklist: [...state.blacklist],
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+  const result = persistAppState(state);
+  if (result.status === "trimmed") {
+    useAppStore.setState({ recentSessions: result.sessions });
+    const oldest = result.removed.at(-1)?.startedAt;
+    logRuntime(
+      `storage quota reached; removed ${result.removed.length} oldest sessions`,
+    );
+    state.addToast({
+      tone: "error",
+      title: "History storage was full",
+      detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were removed so new data could be saved.`,
+    });
+  } else if (result.status === "failed") {
+    logRuntime("local persistence failed after retry");
+    state.addToast({
+      tone: "error",
+      title: "Changes could not be saved",
+      detail:
+        "Local storage is unavailable or full. Your in-memory history was kept.",
+    });
+  }
   verboseRuntime(
     `persisted state cache=${state.exeCache.size}, sessions=${state.recentSessions.length}, blacklist=${state.blacklist.size}`,
   );
@@ -2123,11 +2135,13 @@ export function setGamePlaytime(params: {
     ]),
   );
   useAppStore.setState((current) => ({
-    recentSessions: current.recentSessions.flatMap((session) => {
-      if (!matchesGame(session)) return [session];
-      const adjusted = adjustedById.get(session.id);
-      return adjusted ? [adjusted] : [];
-    }),
+    recentSessions: normalizeSessions(
+      current.recentSessions.flatMap((session) => {
+        if (!matchesGame(session)) return [session];
+        const adjusted = adjustedById.get(session.id);
+        return adjusted ? [adjusted] : [];
+      }),
+    ),
   }));
   logRuntime(
     `game playtime adjusted gameId=${params.gameId} source=${params.source ?? "unknown"} seconds=${targetSeconds}`,
@@ -2238,41 +2252,86 @@ const fakeHistoryGames: FakeHistoryGame[] = [
 
 export function seedFakeHistory() {
   const now = Date.now();
-  const fakeSessions = fakeHistoryGames.flatMap((game, gameIndex) =>
-    game.durationsHours.map((durationHours, sessionIndex) => {
-      const durationSeconds = Math.round(durationHours * 60 * 60);
-      const endedAtMs =
-        now -
-        ((gameIndex * 5 + sessionIndex) * 26 + 2 + gameIndex) * 60 * 60 * 1000;
-      const startedAtMs = endedAtMs - durationSeconds * 1000;
-
-      return {
-        id: FAKE_HISTORY_SESSION_ID_BASE - gameIndex * 100 - sessionIndex,
+  let randomState = 0x5eed1234;
+  const random = () => {
+    randomState = (randomState * 1664525 + 1013904223) >>> 0;
+    return randomState / 0x1_0000_0000;
+  };
+  const fakeSessions: Session[] = [];
+  let sequence = 0;
+  for (let daysAgo = 0; daysAgo < 365; daysAgo += 1) {
+    const day = new Date(now);
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - daysAgo);
+    const weekend = day.getDay() === 0 || day.getDay() === 6;
+    if (random() > (weekend ? 0.68 : 0.38)) continue;
+    const count = random() < (weekend ? 0.3 : 0.12) ? 2 : 1;
+    for (let index = 0; index < count; index += 1) {
+      const gameIndex = Math.floor(random() * fakeHistoryGames.length);
+      const game = fakeHistoryGames[gameIndex];
+      const durationHours =
+        game.durationsHours[Math.floor(random() * game.durationsHours.length)];
+      const crossesMidnight = sequence % 29 === 0;
+      const start = new Date(day);
+      start.setHours(
+        crossesMidnight
+          ? 23
+          : weekend
+            ? 12 + Math.floor(random() * 9)
+            : 18 + Math.floor(random() * 5),
+        Math.floor(random() * 4) * 15,
+        0,
+        0,
+      );
+      const durationSeconds = Math.round(
+        (crossesMidnight ? Math.max(2.5, durationHours) : durationHours) *
+          60 *
+          60,
+      );
+      const endedAtMs = start.getTime() + durationSeconds * 1000;
+      if (endedAtMs > now) continue;
+      fakeSessions.push({
+        id: FAKE_HISTORY_SESSION_ID_BASE - sequence,
         gameId: game.id,
         gameName: game.name,
         coverUrl: game.coverUrl,
-        source: "custom" as const,
+        source: "custom",
         exeName: game.exeName,
-        startedAt: new Date(startedAtMs).toISOString(),
+        startedAt: start.toISOString(),
         endedAt: new Date(endedAtMs).toISOString(),
         durationSeconds,
-      };
-    }),
-  );
+      });
+      sequence += 1;
+    }
+  }
+  const nowDate = new Date(now);
+  const transitionYear =
+    nowDate.getMonth() < 2 ? nowDate.getFullYear() - 1 : nowDate.getFullYear();
+  const springTransition = new Date(transitionYear, 2, 31, 0, 30, 0, 0);
+  springTransition.setDate(31 - springTransition.getDay());
+  const transitionDurationSeconds = 4 * 60 * 60;
+  const transitionEndMs =
+    springTransition.getTime() + transitionDurationSeconds * 1000;
+  const transitionGame = fakeHistoryGames[0];
+  fakeSessions.push({
+    id: FAKE_HISTORY_SESSION_ID_BASE - sequence,
+    gameId: transitionGame.id,
+    gameName: transitionGame.name,
+    coverUrl: transitionGame.coverUrl,
+    source: "custom",
+    exeName: transitionGame.exeName,
+    startedAt: springTransition.toISOString(),
+    endedAt: new Date(transitionEndMs).toISOString(),
+    durationSeconds: transitionDurationSeconds,
+  });
 
   useAppStore.setState((state) => ({
-    recentSessions: [
+    recentSessions: normalizeSessions([
       ...fakeSessions,
       ...state.recentSessions.filter(
         (session) => !isFakeHistorySession(session),
       ),
-    ]
-      .sort(
-        (left, right) =>
-          Date.parse(right.endedAt ?? right.startedAt) -
-          Date.parse(left.endedAt ?? left.startedAt),
-      )
-      .slice(0, 500),
+    ]),
   }));
 
   logRuntime(`fake history seeded sessions=${fakeSessions.length}`);
@@ -2408,14 +2467,9 @@ async function runProcessScan(reason: string) {
 }
 
 function readPersisted(): PersistedState {
-  try {
-    return JSON.parse(
-      localStorage.getItem(STORAGE_KEY) ?? "{}",
-    ) as PersistedState;
-  } catch {
-    logRuntime("persisted state parse failed; using empty state");
-    return {};
-  }
+  return readPersistedRecord(() =>
+    logRuntime("persisted state parse failed; using empty state"),
+  ) as PersistedState;
 }
 
 function normalizePersistedActiveSessions(persisted: PersistedState) {

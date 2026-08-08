@@ -121,7 +121,7 @@ function parseHexColor(color: string): RgbColor | null {
   };
 }
 
-function mixColors(
+export function mixColors(
   first: RgbColor,
   second: RgbColor,
   amount: number,
@@ -133,7 +133,7 @@ function mixColors(
   };
 }
 
-function contrastRatio(first: RgbColor, second: RgbColor) {
+export function contrastRatio(first: RgbColor, second: RgbColor) {
   const firstLuminance = relativeLuminance(first);
   const secondLuminance = relativeLuminance(second);
   const lighter = Math.max(firstLuminance, secondLuminance);

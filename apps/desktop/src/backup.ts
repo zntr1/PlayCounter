@@ -1,7 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import type { Session } from "@playcounter/shared";
+import {
+  readPersistedRecord,
+  STORAGE_KEY,
+  writePersistedRecord,
+} from "./persistence";
+import {
+  filterPersistableSessions,
+  MAX_STORED_SESSIONS,
+  normalizeSessions,
+} from "./sessionPersistence";
 
-const STORAGE_KEY = "playcounter:v1";
 const BACKUP_FORMAT = "playcounter-backup";
 const BACKUP_VERSION = 1;
 
@@ -21,14 +31,7 @@ const TRANSIENT_KEYS = ["activeSessions", "activeSession", "ambiguousMatches"];
 const JSON_FILTER = [{ name: "PlayCounter backup", extensions: ["json"] }];
 
 function readPersistedRaw(): Record<string, unknown> {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Record<
-      string,
-      unknown
-    >;
-  } catch {
-    return {};
-  }
+  return readPersistedRecord();
 }
 
 function defaultExportName() {
@@ -101,6 +104,17 @@ export async function importLocalData(): Promise<ImportResult> {
 
   for (const key of TRANSIENT_KEYS) delete data[key];
 
+  if (Array.isArray(data.sessions)) {
+    const persistableCount = filterPersistableSessions(
+      data.sessions as Session[],
+    ).length;
+    if (persistableCount > MAX_STORED_SESSIONS) {
+      throw new Error(
+        `This backup contains ${persistableCount} sessions, above this version's safe limit of ${MAX_STORED_SESSIONS}. No local data was changed.`,
+      );
+    }
+  }
+
   const existing = localStorage.getItem(STORAGE_KEY);
   let backupPath: string | null = null;
   if (existing) {
@@ -116,7 +130,10 @@ export async function importLocalData(): Promise<ImportResult> {
     });
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  if (Array.isArray(data.sessions)) {
+    data.sessions = normalizeSessions(data.sessions as Session[]);
+  }
+  writePersistedRecord(data);
 
   const sessions = Array.isArray(data.sessions) ? data.sessions.length : 0;
   // Re-hydrate the whole app from the freshly written storage.

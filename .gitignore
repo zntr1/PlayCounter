@@ -19,6 +19,7 @@ AGENTS.md
 node_modules/
 dist/
 .turbo/
+.pnpm-store/
 
 # Rust / Tauri
 target/

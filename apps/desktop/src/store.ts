@@ -6,7 +6,8 @@ import type {
   Theme,
 } from "@playcounter/shared";
 import { create } from "zustand";
-import { filterPersistableSessions } from "./sessionPersistence";
+import { persistAppState } from "./persistence";
+import { normalizeSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
 
 export type ViewId =
@@ -203,18 +204,27 @@ let nextToastId = 0;
 function persistSoon() {
   queueMicrotask(() => {
     const state = useAppStore.getState();
-    localStorage.setItem(
-      "playcounter:v1",
-      JSON.stringify({
-        installUuid: state.installUuid ?? undefined,
-        settings: state.settings,
-        exeCache: [...state.exeCache.values()],
-        gameMetadata: [...state.gameMetadata.values()],
-        sessions: filterPersistableSessions(state.recentSessions),
-        activeSessions: state.activeSessions,
-        blacklist: [...state.blacklist],
-      }),
-    );
+    const result = persistAppState(state);
+    if (result.status === "trimmed") {
+      useAppStore.setState({ recentSessions: result.sessions });
+      const oldest = result.removed.at(-1)?.startedAt;
+      state.addRuntimeLogEntry(
+        `storage quota reached; removed ${result.removed.length} oldest sessions`,
+      );
+      state.addToast({
+        tone: "error",
+        title: "History storage was full",
+        detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were removed so new data could be saved.`,
+      });
+    } else if (result.status === "failed") {
+      state.addRuntimeLogEntry("local persistence failed after retry");
+      state.addToast({
+        tone: "error",
+        title: "Changes could not be saved",
+        detail:
+          "Local storage is unavailable or full. Your in-memory history was kept.",
+      });
+    }
   });
 }
 
@@ -271,10 +281,7 @@ export const useAppStore = create<AppState>((set) => ({
     })),
   addSession: (session) =>
     set((state) => ({
-      recentSessions: filterPersistableSessions([
-        session,
-        ...state.recentSessions,
-      ]).slice(0, 500),
+      recentSessions: normalizeSessions([session, ...state.recentSessions]),
     })),
   setGameMetadata: (games) =>
     set((state) => {

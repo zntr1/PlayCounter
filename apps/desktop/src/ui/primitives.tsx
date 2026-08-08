@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import {
+  forwardRef,
   useEffect,
   useRef,
   useState,
@@ -70,28 +71,34 @@ const iconButtonIntents: Record<IconButtonIntent, string> = {
     "border-border text-text-muted hover:border-danger-border hover:bg-danger-tint hover:text-danger",
 };
 
-export function IconButton({
-  icon: Icon,
-  intent = "default",
-  className,
-  children,
-  type = "button",
-  ...rest
-}: IconButtonProps) {
-  return (
-    <button
-      type={type}
-      className={clsx(
-        "inline-grid h-8 w-8 shrink-0 place-items-center rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
-        iconButtonIntents[intent],
-        className,
-      )}
-      {...rest}
-    >
-      {Icon ? <Icon size={15} /> : children}
-    </button>
-  );
-}
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
+  function IconButton(
+    {
+      icon: Icon,
+      intent = "default",
+      className,
+      children,
+      type = "button",
+      ...rest
+    },
+    ref,
+  ) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={clsx(
+          "inline-grid h-8 w-8 shrink-0 place-items-center rounded-md border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
+          iconButtonIntents[intent],
+          className,
+        )}
+        {...rest}
+      >
+        {Icon ? <Icon size={15} /> : children}
+      </button>
+    );
+  },
+);
 
 type InputProps = InputHTMLAttributes<HTMLInputElement>;
 

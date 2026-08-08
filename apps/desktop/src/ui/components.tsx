@@ -24,11 +24,11 @@ export function Stat({
   trend?: string;
 }) {
   return (
-    <Panel className="flex flex-1 flex-col justify-center px-5 py-4">
+    <Panel className="flex min-w-0 flex-1 flex-col justify-center px-5 py-4">
       <div className="text-xs font-medium uppercase tracking-wider text-text-faint">
         {label}
       </div>
-      <div className="mt-1 flex items-baseline gap-2">
+      <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <div className="font-mono text-2xl font-bold tracking-tight text-text">
           {value}
         </div>
