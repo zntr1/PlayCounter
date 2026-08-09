@@ -203,9 +203,9 @@ export function ColumnChart({
                   Math.min(
                     margin.top + plotHeight - coverHeight,
                     margin.top +
-                      plotHeight -
-                      barHeight -
-                      (roomy ? 12 : coverHeight + 4),
+                    plotHeight -
+                    barHeight -
+                    (roomy ? 12 : coverHeight + 4),
                   ),
                 );
                 return (

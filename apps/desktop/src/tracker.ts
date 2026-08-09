@@ -526,17 +526,20 @@ async function resolveProcesses(
         cacheAmbiguousMatch(process, result.ambiguousGames);
         continue;
       }
-      if (result?.pendingCommunityGame) {
-        cachePendingCommunityMatch(
-          process.exeName,
-          result.pendingCommunityGame,
-        );
+      const game = result?.game ?? null;
+      if (game) {
+        cacheMatchResult(process.exeName, game);
+        matches.push({ process, game });
+        continue;
+      }
+      const pendingCommunityGame =
+        result?.pendingCommunityGame ?? result?.pendingCommunityGames?.[0];
+      if (pendingCommunityGame) {
+        cachePendingCommunityMatch(process.exeName, pendingCommunityGame);
         continue;
       }
 
-      const game = result?.game ?? null;
       cacheMatchResult(process.exeName, game);
-      if (game) matches.push({ process, game });
     }
   } catch (error) {
     logRuntime(
@@ -602,23 +605,25 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
       if (applyMergedCommunityGame(result.key, communityGames, aliases)) {
         continue;
       }
+
+      const pendingCommunityGames =
+        result.pendingCommunityGames ??
+        (result.pendingCommunityGame ? [result.pendingCommunityGame] : []);
+      const suggestionOutcome = applyCommunitySuggestionOutcome(
+        result.key,
+        communityGames,
+        pendingCommunityGames,
+        result.pendingCommunityGames !== undefined,
+        Boolean(result.game || result.ambiguousGames?.length),
+        aliases,
+      );
+      if (suggestionOutcome === "pending" || suggestionOutcome === "approved") {
+        continue;
+      }
       if (result.game && result.game.source !== "custom") {
         setCommunityUpgrade(result.key, result.game, aliases);
         continue;
       }
-      if (result.pendingCommunityGame) {
-        setCommunitySuggestionMarker(
-          result.key,
-          result.pendingCommunityGame,
-          false,
-        );
-        continue;
-      }
-      applyCommunitySuggestionOutcome(
-        result.key,
-        result.ambiguousGames,
-        aliases,
-      );
     }
   } catch (error) {
     verboseRuntime(`community upgrade check failed: ${formatError(error)}`);
@@ -758,14 +763,16 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
   persist();
 }
 
-// A pending suggestion that no longer comes back from the server was rejected:
-// rejected suggestions are deleted from the community database, so the game
-// falls back to a plain local one. An ambiguous response is inconclusive (the
-// server skips the pending check for ambiguous identifiers) — unless the
-// user's own suggestion is among the candidates, which means it was approved.
+// Reconciles the local suggestion marker with the authoritative community
+// result. It stays pending while its unverified row exists, becomes approved
+// while the game remains custom when its verified row appears, and is removed
+// when neither row exists because moderators rejected it.
 function applyCommunitySuggestionOutcome(
   exeName: string,
-  ambiguousGames?: Game[],
+  communityGames: Game[],
+  pendingCommunityGames: Game[],
+  pendingGamesAreAuthoritative: boolean,
+  responseHasOtherMatches: boolean,
   aliases?: CommunityGameAlias[],
 ) {
   const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
@@ -775,19 +782,33 @@ function applyCommunitySuggestionOutcome(
     !existing.communitySuggestionId ||
     existing.communitySuggestionVerified
   ) {
-    return;
+    return "not-applicable" as const;
   }
 
-  const approved = ambiguousGames?.find((game) =>
+  const approved = communityGames.find((game) =>
     isOwnCommunitySuggestion(existing, game, aliases),
   );
   if (approved) {
-    setCommunityUpgrade(exeName, approved, aliases);
-    return;
+    setCommunitySuggestionApproved(exeName, approved);
+    return "approved" as const;
   }
-  if (ambiguousGames?.length) return;
 
+  const pending = pendingCommunityGames.find((game) =>
+    isOwnCommunitySuggestion(existing, game, aliases),
+  );
+  if (pending) {
+    setCommunitySuggestionMarker(exeName, pending, false);
+    return "pending" as const;
+  }
+
+  // Older servers did not report pending suggestions beside another stored
+  // match. Treat that response as inconclusive instead of falsely declaring a
+  // rejection. New servers always include pendingCommunityGames, even empty.
+  if (!pendingGamesAreAuthoritative && responseHasOtherMatches) {
+    return "inconclusive" as const;
+  }
   clearCommunitySuggestionMarker(exeName);
+  return "rejected" as const;
 }
 
 function clearCommunitySuggestionMarker(exeName: string) {
@@ -801,6 +822,7 @@ function clearCommunitySuggestionMarker(exeName: string) {
     const exeCache = new Map(state.exeCache);
     exeCache.set(key, {
       ...existing,
+      pendingCommunityGame: undefined,
       communitySuggestionId: undefined,
       communitySuggestionVerified: undefined,
     });
@@ -827,6 +849,7 @@ function clearCommunitySuggestionMarker(exeName: string) {
     };
   });
   logRuntime(`community suggestion rejected; now plain local ${exeName}`);
+  persist();
 }
 
 function setCommunitySuggestionMarker(
@@ -844,12 +867,22 @@ function setCommunitySuggestionMarker(
     const exeCache = new Map(state.exeCache);
     exeCache.set(key, {
       ...existing,
+      pendingCommunityGame: verified ? undefined : game,
       communitySuggestionId: game.id,
       communitySuggestionVerified: verified,
     });
     return {
       exeCache,
       activeSessions: state.activeSessions.map((session) =>
+        session.exeName.toLowerCase() === key && session.source === "custom"
+          ? {
+              ...session,
+              communitySuggestionId: game.id,
+              communitySuggestionVerified: verified,
+            }
+          : session,
+      ),
+      recentSessions: state.recentSessions.map((session) =>
         session.exeName.toLowerCase() === key && session.source === "custom"
           ? {
               ...session,
@@ -866,6 +899,12 @@ function setCommunitySuggestionMarker(
   canonicalizeSharedCustomGames(game.id);
 }
 
+function setCommunitySuggestionApproved(exeName: string, game: Game) {
+  setCommunitySuggestionMarker(exeName, game, true);
+  logRuntime(`community suggestion approved ${exeName} -> ${game.name}`);
+  persist();
+}
+
 // A dismissal recorded before igdb upgrades existed has no source; those were
 // always community games.
 function isDismissedUpgrade(entry: ExeCacheEntry, game: Game) {
@@ -875,15 +914,24 @@ function isDismissedUpgrade(entry: ExeCacheEntry, game: Game) {
   );
 }
 
-// Records a database match found for a custom game. A community game the user
-// suggested themselves is applied directly; anything else (someone else's
-// community game or an igdb match) becomes an upgrade offer.
+// Records a database match found for a custom game. Approval of the user's own
+// suggestion is only marked here; switching its source to community remains a
+// deliberate user action. Other matches become upgrade offers.
 function setCommunityUpgrade(
   exeName: string,
   game: Game,
   aliases?: CommunityGameAlias[],
 ) {
-  let promoted = false;
+  const current = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (
+    current?.state === "matched" &&
+    current.source === "custom" &&
+    isOwnCommunitySuggestion(current, game, aliases)
+  ) {
+    setCommunitySuggestionApproved(exeName, game);
+    return;
+  }
+
   useAppStore.setState((state) => {
     const key = exeName.toLowerCase();
     const existing = state.exeCache.get(key);
@@ -896,83 +944,12 @@ function setCommunityUpgrade(
     }
 
     const exeCache = new Map(state.exeCache);
-    // Also the entry's own suggestion when its id was retired by a merge —
-    // otherwise the approval reads as someone else's game and the user is
-    // asked to accept an upgrade to what they suggested themselves, while the
-    // exe keeps running as a separate local game.
-    if (isOwnCommunitySuggestion(existing, game, aliases)) {
-      promoted = true;
-      const oldGameId = existing.gameId;
-      exeCache.set(key, {
-        ...existing,
-        gameId: game.id,
-        gameName: game.name,
-        coverUrl: game.coverUrl,
-        source: "community",
-        communitySuggestionId: game.id,
-        communitySuggestionVerified: true,
-        communityUpgradeGame: undefined,
-        lastCheckedAt: new Date().toISOString(),
-      });
-      return {
-        exeCache,
-        activeSessions: state.activeSessions.map((session) =>
-          session.exeName.toLowerCase() === key && session.source === "custom"
-            ? {
-                ...session,
-                gameId: game.id,
-                gameName: game.name,
-                coverUrl: game.coverUrl,
-                source: "community",
-                communitySuggestionId: game.id,
-                communitySuggestionVerified: true,
-              }
-            : session,
-        ),
-        recentSessions: state.recentSessions.map((session) =>
-          session.exeName.toLowerCase() === key && session.gameId === oldGameId
-            ? {
-                ...session,
-                gameId: game.id,
-                gameName: game.name,
-                coverUrl: game.coverUrl,
-                source: "community",
-                communitySuggestionId: game.id,
-                communitySuggestionVerified: true,
-              }
-            : session,
-        ),
-      };
-    }
-
-    if (game.source !== "community") {
-      exeCache.set(key, { ...existing, communityUpgradeGame: game });
-      return { exeCache };
-    }
-
-    exeCache.set(key, {
-      ...existing,
-      communitySuggestionId: existing.communitySuggestionId ?? game.id,
-      communitySuggestionVerified: true,
-      communityUpgradeGame: game,
-    });
-    return {
-      exeCache,
-      activeSessions: state.activeSessions.map((session) =>
-        session.exeName.toLowerCase() === key && session.source === "custom"
-          ? {
-              ...session,
-              communitySuggestionId: existing.communitySuggestionId ?? game.id,
-              communitySuggestionVerified: true,
-            }
-          : session,
-      ),
-    };
+    // A verified match submitted by somebody else is an available upgrade,
+    // not an approval of this user's suggestion. Keep those states separate so
+    // the approval badge can only follow an actual pending suggestion.
+    exeCache.set(key, { ...existing, communityUpgradeGame: game });
+    return { exeCache };
   });
-  if (promoted) {
-    logRuntime(`community suggestion approved ${exeName} -> ${game.name}`);
-    persist();
-  }
 }
 
 export function acceptCommunityUpgrade(exeName: string) {

@@ -253,15 +253,17 @@ export const HistorySessionRow = memo(function HistorySessionRow({
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="truncate text-base font-bold text-text">{gameName}</h3>
           <SourceBadge source={source} />
-          <CommunityApprovalBadge
-            suggestionId={
-              session.communitySuggestionId ?? metadata?.communitySuggestionId
-            }
-            verified={
-              session.communitySuggestionVerified ??
-              metadata?.communitySuggestionVerified
-            }
-          />
+          {source === "custom" ? (
+            <CommunityApprovalBadge
+              suggestionId={
+                session.communitySuggestionId ?? metadata?.communitySuggestionId
+              }
+              verified={
+                session.communitySuggestionVerified ??
+                metadata?.communitySuggestionVerified
+              }
+            />
+          ) : null}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-muted">
           <span className="truncate">{session.exeName}</span>

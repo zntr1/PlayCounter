@@ -23,7 +23,6 @@ import {
   addCustomGame,
   addSharedCustomGame,
   applyKnownGameMatch,
-  PENDING_COMMUNITY_RETRY_MS,
   recheckExecutable,
   scanProcessesNow,
   setUserIgnoredProcess,
@@ -267,18 +266,6 @@ function unmatchedRetryAt(cacheEntry: ExeCacheEntry | null, retryDays: number) {
       timeStyle: "short",
     },
   );
-}
-
-function pendingCommunityRetryAt(cacheEntry: ExeCacheEntry | null) {
-  if (cacheEntry?.state !== "unmatched" || !cacheEntry.pendingCommunityGame) {
-    return null;
-  }
-  const checkedAt = Date.parse(cacheEntry.lastCheckedAt);
-  if (!Number.isFinite(checkedAt)) return null;
-  return new Date(checkedAt + PENDING_COMMUNITY_RETRY_MS).toLocaleString([], {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
 }
 
 export function DiscoveredView() {
@@ -1365,7 +1352,6 @@ function DiscoveredExecutableRow({
   const isReview = groupTone === "review";
   const isSystemIgnored = groupTone === "systemIgnored";
   const retryAt = unmatchedRetryAt(executable.cacheEntry, unmatchedRetryDays);
-  const pendingRetryAt = pendingCommunityRetryAt(executable.cacheEntry);
   const contextMenu = useContextMenu();
   const addToast = useAppStore((state) => state.addToast);
 
@@ -1448,30 +1434,11 @@ function DiscoveredExecutableRow({
               </span>
             </div>
           ) : null}
-          {executable.cacheEntry?.pendingCommunityGame ? (
-            <div className="mt-1 flex items-center gap-2 text-sm text-community">
-              {executable.cacheEntry.pendingCommunityGame.coverUrl ? (
-                <img
-                  src={executable.cacheEntry.pendingCommunityGame.coverUrl}
-                  alt=""
-                  className="h-9 w-7 rounded bg-surface-hover object-contain"
-                />
-              ) : null}
-              <span className="truncate">
-                {executable.cacheEntry.pendingCommunityGame.name}
-              </span>
-            </div>
-          ) : null}
         </div>
 
         <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
           {executable.cacheEntry?.state === "matched" ? (
             <SourceBadge source={executable.cacheEntry.source} />
-          ) : null}
-          {executable.cacheEntry?.pendingCommunityGame ? (
-            <span className="inline-flex shrink-0 whitespace-nowrap rounded bg-community-tint px-2 py-0.5 text-xs font-medium text-community">
-              Awaiting community approval
-            </span>
           ) : null}
           {executable.status === "ignored" ? (
             <span className="px-2 text-xs font-medium text-text-faint">

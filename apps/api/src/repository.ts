@@ -23,6 +23,7 @@ type ProcessMatchResult = {
   identifier?: ProcessIdentifier;
   ambiguousGames?: Game[];
   pendingCommunityGame?: Game;
+  pendingCommunityGames?: Game[];
   communityGameAliases?: CommunityGameAlias[];
 };
 
@@ -171,7 +172,7 @@ export class PostgresRepository implements PlayCounterRepository {
       { game: Game; identifier: ProcessIdentifier; priority: number }
     >();
     const ambiguousMatches = new Map<string, Game[]>();
-    const pendingCommunityMatches = new Map<string, Game>();
+    const pendingCommunityMatches = new Map<string, Game[]>();
 
     const igdb = await this.pool.query(
       `SELECT lower(igdb_game_identifiers.platform) AS platform,
@@ -284,19 +285,11 @@ export class PostgresRepository implements PlayCounterRepository {
       !matches.has(candidate.processKey) &&
       !ambiguousMatches.has(candidate.processKey);
 
-    if (!candidates.some(isUnresolved)) {
-      logger.info(
-        "[match] All processes resolved from the stored databases; done.",
-      );
-      return this.attachCommunityGameAliases(
-        stripProcessMatchPriority(matches, ambiguousMatches),
-      );
-    }
-
-    const pendingLookupKeys = candidates
-      .filter(isUnresolved)
-      .map((candidate) => candidate.lookupKey);
-    if (pendingLookupKeys.length > 0) {
+    // Pending suggestions are queried for every identifier, including ones
+    // that already resolve to IGDB or another community game. Otherwise a
+    // client cannot tell that its pending suggestion was rejected: the other
+    // match masks the absence of the pending row indefinitely.
+    if (lookupKeys.length > 0) {
       const pendingCommunity = await this.pool.query(
         `SELECT lower(community_game_identifiers.platform) AS platform,
                 lower(community_game_identifiers.kind) AS kind,
@@ -310,11 +303,11 @@ export class PostgresRepository implements PlayCounterRepository {
            AND lower(community_game_identifiers.platform) || ':' ||
                lower(community_game_identifiers.kind) || ':' ||
                lower(community_game_identifiers.value) = ANY($1::text[])`,
-        [[...new Set(pendingLookupKeys)]],
+        [[...new Set(lookupKeys)]],
       );
 
       logger.info(
-        `[match] Pending (unverified) community database returned ${count(pendingCommunity.rowCount ?? 0, "hit")} for the ${count(new Set(pendingLookupKeys).size, "still-unmatched identifier")}.`,
+        `[match] Pending (unverified) community database returned ${count(pendingCommunity.rowCount ?? 0, "hit")} for ${count(new Set(lookupKeys).size, "identifier")}.`,
       );
 
       for (const row of pendingCommunity.rows) {
@@ -326,11 +319,26 @@ export class PostgresRepository implements PlayCounterRepository {
         };
         const lookupKey = `${row.platform}:${row.kind}:${row.value}`;
         for (const candidate of candidatesForLookup(candidates, lookupKey)) {
-          if (isUnresolved(candidate)) {
-            pendingCommunityMatches.set(candidate.processKey, game);
+          const games = pendingCommunityMatches.get(candidate.processKey) ?? [];
+          if (!games.some((existing) => existing.id === game.id)) {
+            games.push(game);
           }
+          pendingCommunityMatches.set(candidate.processKey, games);
         }
       }
+    }
+
+    if (!candidates.some(isUnresolved)) {
+      logger.info(
+        "[match] All processes resolved from the stored databases; done.",
+      );
+      return this.attachCommunityGameAliases(
+        stripProcessMatchPriority(
+          matches,
+          ambiguousMatches,
+          pendingCommunityMatches,
+        ),
+      );
     }
 
     const stillUnmatchedProcesses = new Set(
@@ -427,6 +435,7 @@ export class PostgresRepository implements PlayCounterRepository {
       [
         result.game,
         result.pendingCommunityGame,
+        ...(result.pendingCommunityGames ?? []),
         ...(result.ambiguousGames ?? []),
       ].filter((game): game is Game => game?.source === "community");
 
@@ -926,7 +935,7 @@ function stripProcessMatchPriority(
     { game: Game; identifier: ProcessIdentifier; priority: number }
   >,
   ambiguousMatches = new Map<string, Game[]>(),
-  pendingCommunityMatches = new Map<string, Game>(),
+  pendingCommunityMatches = new Map<string, Game[]>(),
 ) {
   const results = new Map<string, ProcessMatchResult>();
   for (const [key, match] of matches) {
@@ -935,10 +944,20 @@ function stripProcessMatchPriority(
   for (const [key, ambiguousGames] of ambiguousMatches) {
     if (!results.has(key)) results.set(key, { game: null, ambiguousGames });
   }
-  for (const [key, pendingCommunityGame] of pendingCommunityMatches) {
-    if (!results.has(key)) {
-      results.set(key, { game: null, pendingCommunityGame });
-    }
+  for (const [key, pendingCommunityGames] of pendingCommunityMatches) {
+    const existing: ProcessMatchResult = results.get(key) ?? { game: null };
+    const hasResolvedMatch =
+      existing.game !== null || Boolean(existing.ambiguousGames?.length);
+    results.set(key, {
+      ...existing,
+      // Keep the legacy singular field exclusive to unresolved results. Older
+      // desktops prioritize it over a normal match; the array is the
+      // authoritative status channel used by newer clients.
+      pendingCommunityGame: hasResolvedMatch
+        ? undefined
+        : pendingCommunityGames[0],
+      pendingCommunityGames,
+    });
   }
   return results;
 }

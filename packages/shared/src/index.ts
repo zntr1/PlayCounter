@@ -51,8 +51,13 @@ export interface MatchProcessesResponse {
     matchedIdentifier?: ProcessIdentifier;
     ambiguousGames?: Game[];
     pendingCommunityGame?: Game;
+    // All unverified suggestions for the matched identifiers. Newer servers
+    // always include this array (including when empty), which lets the desktop
+    // distinguish a rejected suggestion from one hidden behind another match.
+    // The singular field remains for older clients and discovery UI.
+    pendingCommunityGames?: Game[];
     // Covers every community game named in this result — the match, the
-    // ambiguous candidates and the pending suggestion. Community and IGDB
+    // ambiguous candidates and pending suggestions. Community and IGDB
     // entries for one exe deliberately end up in the picker, so a merged game
     // often appears only as a candidate.
     communityGameAliases?: CommunityGameAlias[];

@@ -155,6 +155,7 @@ app.post("/api/match-processes", async (request) => {
         matchedIdentifier: match?.identifier,
         ambiguousGames: match?.ambiguousGames,
         pendingCommunityGame: match?.pendingCommunityGame,
+        pendingCommunityGames: match?.pendingCommunityGames ?? [],
         communityGameAliases: match?.communityGameAliases,
       };
     }),
