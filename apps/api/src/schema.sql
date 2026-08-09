@@ -72,12 +72,58 @@ CREATE TABLE IF NOT EXISTS community_game_identifiers (
   value TEXT NOT NULL,
   game_id INTEGER NOT NULL REFERENCES community_games(id) ON DELETE CASCADE,
   verified BOOLEAN NOT NULL DEFAULT false,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'verified', 'rejected')),
+  review_note TEXT,
+  reviewed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (platform, kind, value, game_id)
+  PRIMARY KEY (platform, kind, value, game_id),
+  CONSTRAINT community_identifier_status_matches_verified
+    CHECK (verified = (status = 'verified'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_community_game_identifiers_lookup_key
   ON community_game_identifiers (lower(platform), lower(kind), lower(value), game_id);
+
+CREATE OR REPLACE FUNCTION sync_community_identifier_status()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.verified IS DISTINCT FROM OLD.verified
+     AND NEW.status IS NOT DISTINCT FROM OLD.status THEN
+    NEW.status := CASE WHEN NEW.verified THEN 'verified' ELSE 'pending' END;
+    IF NEW.verified THEN
+      NEW.review_note := NULL;
+      NEW.reviewed_at := now();
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_sync_community_identifier_status
+  ON community_game_identifiers;
+CREATE TRIGGER trg_sync_community_identifier_status
+  BEFORE UPDATE ON community_game_identifiers
+  FOR EACH ROW EXECUTE FUNCTION sync_community_identifier_status();
+
+CREATE TABLE IF NOT EXISTS community_identifier_submissions (
+  id BIGSERIAL PRIMARY KEY,
+  platform TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  value TEXT NOT NULL,
+  game_id INTEGER NOT NULL,
+  install_uuid TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (platform, kind, value, game_id)
+    REFERENCES community_game_identifiers (platform, kind, value, game_id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_community_submissions_unique
+  ON community_identifier_submissions
+     (lower(platform), lower(kind), lower(value), game_id, install_uuid);
+CREATE INDEX IF NOT EXISTS idx_community_submissions_install
+  ON community_identifier_submissions (install_uuid);
 
 CREATE TABLE IF NOT EXISTS live_sessions (
   install_uuid TEXT NOT NULL,
@@ -94,4 +140,14 @@ CREATE TABLE IF NOT EXISTS daily_stats (
   player_count INTEGER NOT NULL DEFAULT 0,
   total_hours NUMERIC NOT NULL DEFAULT 0,
   PRIMARY KEY (game_source, game_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS feedback (
+  id BIGSERIAL PRIMARY KEY,
+  type TEXT NOT NULL CHECK (type IN ('bug', 'feature', 'other')),
+  message TEXT NOT NULL,
+  app_version TEXT,
+  platform TEXT,
+  install_uuid UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

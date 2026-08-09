@@ -23,6 +23,7 @@ import {
   addCustomGame,
   addSharedCustomGame,
   applyKnownGameMatch,
+  markCommunitySuggestionRejected,
   recheckExecutable,
   scanProcessesNow,
   setUserIgnoredProcess,
@@ -475,6 +476,27 @@ export function DiscoveredView() {
           detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
         });
         showHeart();
+        return;
+      }
+      if (result.rejected) {
+        if (result.id === undefined) throw new Error("Unexpected response");
+        addSharedCustomGame(
+          exeName,
+          suggestionSelection.name,
+          suggestionSelection.coverUrl,
+          result.id,
+          false,
+        );
+        markCommunitySuggestionRejected(exeName, result.reviewNote);
+        setSuggestionState("saved");
+        setSuggestionExe(null);
+        setSuggestionSelection(null);
+        setSuggestionCandidates([]);
+        addToast({
+          tone: "info",
+          title: "Suggestion already reviewed",
+          detail: result.reviewNote ?? "This suggestion was not accepted.",
+        });
         return;
       }
       if (result.id === undefined) throw new Error("Unexpected response");

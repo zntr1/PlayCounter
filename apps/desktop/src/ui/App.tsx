@@ -21,6 +21,7 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState, type ReactNode } from "react";
 import { initializeTracker } from "../tracker";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { NotificationBell } from "./NotificationBell";
 import { SidebarButton } from "./SidebarButton";
 import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
@@ -286,6 +287,7 @@ export function App() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <IconButton
               aria-label={
                 theme === "dark"

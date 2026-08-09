@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "db:migrate": "tsx src/migrate.ts",
     "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/server.js"
   },
@@ -24,6 +25,7 @@
     "@types/node": "^22.15.21",
     "@types/pg": "^8.15.2",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
   }
 }

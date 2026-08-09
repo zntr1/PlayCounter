@@ -1,5 +1,8 @@
 import type {
   CommunityGameAlias,
+  Contribution,
+  ContributionStatus,
+  ContributionsResponse,
   Game,
   GameMetadataResponse,
   MatchProcessesResponse,
@@ -11,6 +14,7 @@ import type {
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import {
   useAppStore,
+  BUILD_STAGE,
   DEFAULT_API_ENDPOINT,
   gameMetadataKey,
   type ActiveSession,
@@ -20,6 +24,14 @@ import {
   type ProcessSnapshot,
 } from "./store";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
+import { evaluateMilestones } from "./milestones";
+import {
+  contributionKey,
+  contributionNotification,
+  shouldNotifyContributionTransition,
+  type AppNotification,
+  type ContributionCounts,
+} from "./notifications";
 import { adjustPlaytimeSessions } from "./playtimeAdjustment";
 import { persistAppState, readPersistedRecord } from "./persistence";
 import { normalizeSessions } from "./sessionPersistence";
@@ -40,6 +52,7 @@ export const PENDING_COMMUNITY_RETRY_MS = 5 * 60 * 1000;
 
 type PersistedState = {
   installUuid?: string;
+  contributionOwnerUuid?: string;
   settings?: Partial<Settings>;
   exeCache?: ExeCacheEntry[];
   gameMetadata?: GameMetadata[];
@@ -48,6 +61,13 @@ type PersistedState = {
   activeSession?: ActiveSession;
   activeSessions?: ActiveSession[];
   blacklist?: string[];
+  notifications?: AppNotification[];
+  seenContributionStatus?: Record<string, ContributionStatus>;
+  contributionCounts?: ContributionCounts;
+  awardedMilestoneIds?: string[];
+  milestonesInitializedAt?: string;
+  archivedSeconds?: number;
+  archivedGameSeconds?: Record<string, number>;
 };
 
 type ProcessMatch = {
@@ -70,6 +90,7 @@ const communityUpgradeCheckedAt = new Map<string, number>();
 
 let initialized = false;
 let backendHealthTimer: number | undefined;
+let contributionsTimer: number | undefined;
 let processTimer: number | undefined;
 let trayTimer: number | undefined;
 let unsubscribeTraySync: (() => void) | undefined;
@@ -115,10 +136,12 @@ async function finishTrackerStartup() {
   );
   logRuntime("tracker process polling scheduled");
 
+  let identityResolved = false;
   try {
     const installUuid = await getInstallUuid();
-    useAppStore.getState().setInstallUuid(installUuid);
+    useAppStore.getState().adoptInstallIdentity(installUuid);
     persist();
+    identityResolved = true;
     logRuntime("install UUID loaded");
   } catch (error) {
     logRuntime(`install UUID failed: ${formatError(error)}`);
@@ -136,6 +159,8 @@ async function finishTrackerStartup() {
     logRuntime("tracker cleanup running");
     if (backendHealthTimer) window.clearInterval(backendHealthTimer);
     backendHealthTimer = undefined;
+    if (contributionsTimer) window.clearInterval(contributionsTimer);
+    contributionsTimer = undefined;
     if (processTimer) window.clearInterval(processTimer);
     processTimer = undefined;
     if (trayTimer) window.clearInterval(trayTimer);
@@ -147,36 +172,37 @@ async function finishTrackerStartup() {
 
   window.setTimeout(() => {
     void (async () => {
+      if (identityResolved) await pollContributions("startup");
+      evaluateAndStoreMilestones();
       await recheckPendingCommunityApprovals("startup");
       await requestProcessScan("startup");
     })();
   }, 1_500);
+  if (identityResolved) {
+    contributionsTimer = window.setInterval(
+      () => void pollContributions("interval"),
+      30 * 60 * 1000,
+    );
+  }
 }
 
-// Early tester builds shipped with the test API baked in as the default, which
-// then got persisted to localStorage. A normal update changes the build-time
-// default but not the persisted value, so those clients would keep hitting the
-// test API forever. On hydrate we rewrite the known stale test endpoint to the
-// current build default. In a test build DEFAULT_API_ENDPOINT is that same test
-// URL, so this is a no-op there — only prod builds move testers onto the prod API.
-const LEGACY_API_ENDPOINTS = new Set([
-  "https://app-playcounter-api-001.azurewebsites.net",
-]);
-
-function migrateApiEndpoint(settings: Settings): Settings {
+// The API target belongs to the build mode, not to imported or stale local
+// settings. Dev Tools can still override it for the current run, but every
+// launch starts from the endpoint compiled for local/test/prod.
+function applyBuildApiEndpoint(settings: Settings): Settings {
   const current = settings.apiEndpoint?.replace(/\/+$/, "");
-  if (current && LEGACY_API_ENDPOINTS.has(current)) {
+  const configured = DEFAULT_API_ENDPOINT.replace(/\/+$/, "");
+  if (current && current !== configured) {
     logRuntime(
-      `migrating stale API endpoint ${current} -> ${DEFAULT_API_ENDPOINT}`,
+      `resetting ${BUILD_STAGE} API endpoint ${current} -> ${DEFAULT_API_ENDPOINT}`,
     );
-    return { ...settings, apiEndpoint: DEFAULT_API_ENDPOINT };
   }
-  return settings;
+  return { ...settings, apiEndpoint: DEFAULT_API_ENDPOINT };
 }
 
 function hydrate() {
   const persisted = readPersisted();
-  const settings = migrateApiEndpoint({
+  const settings = applyBuildApiEndpoint({
     ...useAppStore.getState().settings,
     ...persisted.settings,
     accentColor: normalizeAccentColor(persisted.settings?.accentColor),
@@ -188,13 +214,14 @@ function hydrate() {
   );
   useAppStore.setState({
     installUuid: persisted.installUuid ?? null,
+    contributionOwnerUuid: persisted.contributionOwnerUuid ?? null,
     settings,
     exeCache: new Map(
       exeCache.map((entry) => {
         // Drop any open running window: runtime while the app was closed cannot
         // be observed and must not be credited. Accumulated time is kept.
         const { runningSince: _r, ...rest } = entry;
-        return [entry.exeName.toLowerCase(), rest];
+        return [entry.exeName.toLowerCase(), inferSuggestionStatus(rest)];
       }),
     ),
     gameMetadata: new Map(
@@ -203,21 +230,45 @@ function hydrate() {
         game,
       ]),
     ),
-    recentSessions: normalizeSessions(persisted.sessions ?? []),
+    recentSessions: normalizeSessions(
+      (persisted.sessions ?? []).map(inferSuggestionStatus),
+    ),
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
     blacklist: new Set(blacklist.map((exe) => exe.toLowerCase())),
+    notifications: persisted.notifications ?? [],
+    seenContributionStatus: persisted.seenContributionStatus ?? {},
+    contributionCounts: persisted.contributionCounts ?? {
+      suggested: 0,
+      verified: 0,
+      pending: 0,
+      rejected: 0,
+    },
+    awardedMilestoneIds: persisted.awardedMilestoneIds ?? [],
+    milestonesInitializedAt: persisted.milestonesInitializedAt ?? null,
+    archivedSeconds: Math.max(0, persisted.archivedSeconds ?? 0),
+    archivedGameSeconds: persisted.archivedGameSeconds ?? {},
   });
 }
 
 async function getInstallUuid() {
   const persisted = readPersisted();
-  if (persisted.installUuid) {
-    verboseRuntime("install UUID using persisted value");
-    return persisted.installUuid;
+  logRuntime("install UUID requesting durable Tauri identity");
+  try {
+    return await invoke<string>("install_uuid", {
+      existing: persisted.installUuid ?? null,
+    });
+  } catch (error) {
+    if (persisted.installUuid) {
+      logRuntime("install UUID file unavailable; using persisted value");
+      return persisted.installUuid;
+    }
+    if (typeof crypto.randomUUID === "function") {
+      logRuntime("install UUID file unavailable; using local fallback");
+      return crypto.randomUUID();
+    }
+    throw error;
   }
-  logRuntime("install UUID requesting Tauri command");
-  return invoke<string>("install_uuid");
 }
 
 export async function reloadIgnoredProcesses() {
@@ -670,6 +721,8 @@ function applyMergedCommunityGame(
         ...merged,
         communitySuggestionId: game.id,
         communitySuggestionVerified: true,
+        communitySuggestionStatus: "verified",
+        communitySuggestionNote: undefined,
       });
     }
   }
@@ -756,6 +809,11 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
       ),
     };
   });
+  for (const staleId of staleIds) {
+    useAppStore
+      .getState()
+      .rekeyArchivedGameSeconds(`custom:${staleId}`, `custom:${canonicalId}`);
+  }
 
   logRuntime(
     `shared suggestion ${communitySuggestionId}: merged local games ${[...staleIds].join(", ")} into ${canonicalId}`,
@@ -767,7 +825,7 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
 // result. It stays pending while its unverified row exists, becomes approved
 // while the game remains custom when its verified row appears, and is removed
 // when neither row exists because moderators rejected it.
-function applyCommunitySuggestionOutcome(
+export function applyCommunitySuggestionOutcome(
   exeName: string,
   communityGames: Game[],
   pendingCommunityGames: Game[],
@@ -780,7 +838,9 @@ function applyCommunitySuggestionOutcome(
     existing?.state !== "matched" ||
     existing.source !== "custom" ||
     !existing.communitySuggestionId ||
-    existing.communitySuggestionVerified
+    existing.communitySuggestionStatus === "verified" ||
+    (existing.communitySuggestionStatus === undefined &&
+      existing.communitySuggestionVerified)
   ) {
     return "not-applicable" as const;
   }
@@ -807,11 +867,13 @@ function applyCommunitySuggestionOutcome(
   if (!pendingGamesAreAuthoritative && responseHasOtherMatches) {
     return "inconclusive" as const;
   }
-  clearCommunitySuggestionMarker(exeName);
+  if (existing.communitySuggestionStatus !== "rejected") {
+    setCommunitySuggestionRejected(exeName, existing.communitySuggestionNote);
+  }
   return "rejected" as const;
 }
 
-function clearCommunitySuggestionMarker(exeName: string) {
+function setCommunitySuggestionRejected(exeName: string, note?: string) {
   const key = exeName.toLowerCase();
   useAppStore.setState((state) => {
     const existing = state.exeCache.get(key);
@@ -823,8 +885,9 @@ function clearCommunitySuggestionMarker(exeName: string) {
     exeCache.set(key, {
       ...existing,
       pendingCommunityGame: undefined,
-      communitySuggestionId: undefined,
-      communitySuggestionVerified: undefined,
+      communitySuggestionVerified: false,
+      communitySuggestionStatus: "rejected",
+      communitySuggestionNote: note,
     });
     return {
       exeCache,
@@ -832,8 +895,9 @@ function clearCommunitySuggestionMarker(exeName: string) {
         session.exeName.toLowerCase() === key && session.source === "custom"
           ? {
               ...session,
-              communitySuggestionId: undefined,
-              communitySuggestionVerified: undefined,
+              communitySuggestionVerified: false,
+              communitySuggestionStatus: "rejected" as const,
+              communitySuggestionNote: note,
             }
           : session,
       ),
@@ -841,15 +905,23 @@ function clearCommunitySuggestionMarker(exeName: string) {
         session.exeName.toLowerCase() === key && session.source === "custom"
           ? {
               ...session,
-              communitySuggestionId: undefined,
-              communitySuggestionVerified: undefined,
+              communitySuggestionVerified: false,
+              communitySuggestionStatus: "rejected" as const,
+              communitySuggestionNote: note,
             }
           : session,
       ),
     };
   });
-  logRuntime(`community suggestion rejected; now plain local ${exeName}`);
+  logRuntime(`community suggestion rejected ${exeName}`);
   persist();
+}
+
+export function markCommunitySuggestionRejected(
+  exeName: string,
+  note?: string,
+) {
+  setCommunitySuggestionRejected(exeName, note);
 }
 
 function setCommunitySuggestionMarker(
@@ -870,6 +942,8 @@ function setCommunitySuggestionMarker(
       pendingCommunityGame: verified ? undefined : game,
       communitySuggestionId: game.id,
       communitySuggestionVerified: verified,
+      communitySuggestionStatus: verified ? "verified" : "pending",
+      communitySuggestionNote: undefined,
     });
     return {
       exeCache,
@@ -879,6 +953,8 @@ function setCommunitySuggestionMarker(
               ...session,
               communitySuggestionId: game.id,
               communitySuggestionVerified: verified,
+              communitySuggestionStatus: verified ? "verified" : "pending",
+              communitySuggestionNote: undefined,
             }
           : session,
       ),
@@ -888,6 +964,8 @@ function setCommunitySuggestionMarker(
               ...session,
               communitySuggestionId: game.id,
               communitySuggestionVerified: verified,
+              communitySuggestionStatus: verified ? "verified" : "pending",
+              communitySuggestionNote: undefined,
             }
           : session,
       ),
@@ -976,6 +1054,7 @@ export function applyGameMatch(exeName: string, game: Game) {
       ? existing.communitySuggestionId
       : undefined;
   const suggestionVerified = suggestionId ? true : undefined;
+  const suggestionStatus = suggestionId ? "verified" : undefined;
   state.setExeCacheEntry({
     exeName: existing.exeName,
     state: "matched",
@@ -983,6 +1062,10 @@ export function applyGameMatch(exeName: string, game: Game) {
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: game.source,
+    communitySuggestionId: suggestionId,
+    communitySuggestionVerified: suggestionVerified,
+    communitySuggestionStatus: suggestionStatus,
+    communitySuggestionNote: undefined,
     lastCheckedAt: new Date().toISOString(),
   });
 
@@ -997,6 +1080,8 @@ export function applyGameMatch(exeName: string, game: Game) {
             source: game.source,
             communitySuggestionId: suggestionId,
             communitySuggestionVerified: suggestionVerified,
+            communitySuggestionStatus: suggestionStatus,
+            communitySuggestionNote: undefined,
           }
         : session,
     ),
@@ -1010,10 +1095,19 @@ export function applyGameMatch(exeName: string, game: Game) {
             source: game.source,
             communitySuggestionId: suggestionId,
             communitySuggestionVerified: suggestionVerified,
+            communitySuggestionStatus: suggestionStatus,
+            communitySuggestionNote: undefined,
           }
         : session,
     ),
   }));
+
+  if (oldGameId !== undefined) {
+    state.rekeyArchivedGameSeconds(
+      `${existing.source ?? "unknown"}:${oldGameId}`,
+      `${game.source}:${game.id}`,
+    );
+  }
 
   logRuntime(`game match applied ${existing.exeName} -> ${game.name}`);
   persist();
@@ -1099,6 +1193,8 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
     source: "community",
     communitySuggestionId: existing.communitySuggestionId,
     communitySuggestionVerified: true,
+    communitySuggestionStatus: "verified",
+    communitySuggestionNote: undefined,
     lastCheckedAt: new Date().toISOString(),
   });
 
@@ -1113,6 +1209,8 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
             source: "community",
             communitySuggestionId: existing.communitySuggestionId,
             communitySuggestionVerified: true,
+            communitySuggestionStatus: "verified",
+            communitySuggestionNote: undefined,
           }
         : session,
     ),
@@ -1126,10 +1224,18 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
             source: "community",
             communitySuggestionId: existing.communitySuggestionId,
             communitySuggestionVerified: true,
+            communitySuggestionStatus: "verified",
+            communitySuggestionNote: undefined,
           }
         : session,
     ),
   }));
+  if (oldGameId !== undefined) {
+    state.rekeyArchivedGameSeconds(
+      `custom:${oldGameId}`,
+      `community:${communityGame.id}`,
+    );
+  }
 
   logRuntime(`local suggestion converted to community ${exeName}`);
   persist();
@@ -1424,6 +1530,8 @@ function startSession(
     source: game.source,
     communitySuggestionId: cacheEntry?.communitySuggestionId,
     communitySuggestionVerified: cacheEntry?.communitySuggestionVerified,
+    communitySuggestionStatus: cacheEntry?.communitySuggestionStatus,
+    communitySuggestionNote: cacheEntry?.communitySuggestionNote,
     startedAt,
     checkpointedAt: startedAt,
   };
@@ -1512,12 +1620,15 @@ async function endSession(session: ActiveSession, endedAtOverride?: string) {
     source: session.source,
     communitySuggestionId: session.communitySuggestionId,
     communitySuggestionVerified: session.communitySuggestionVerified,
+    communitySuggestionStatus: session.communitySuggestionStatus,
+    communitySuggestionNote: session.communitySuggestionNote,
     exeName: session.exeName,
     startedAt: session.startedAt,
     endedAt,
     durationSeconds,
   });
   removeActiveSession(session);
+  evaluateAndStoreMilestones();
   logRuntime(
     `session ended ${session.gameName} durationSeconds=${durationSeconds}`,
   );
@@ -1619,17 +1730,26 @@ function scheduleProcessPolling(intervalSeconds: number) {
 export function persist() {
   const state = useAppStore.getState();
   const result = persistAppState(state);
-  if (result.status === "trimmed") {
-    useAppStore.setState({ recentSessions: result.sessions });
-    const oldest = result.removed.at(-1)?.startedAt;
-    logRuntime(
-      `storage quota reached; removed ${result.removed.length} oldest sessions`,
-    );
-    state.addToast({
-      tone: "error",
-      title: "History storage was full",
-      detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were removed so new data could be saved.`,
+  if (result.status !== "failed") {
+    useAppStore.setState({
+      recentSessions: result.sessions,
+      notifications: result.notifications,
+      archivedSeconds: result.archivedSeconds,
+      archivedGameSeconds: result.archivedGameSeconds,
     });
+  }
+  if (result.status === "trimmed") {
+    const oldest = result.removed.at(-1)?.startedAt;
+    if (result.removed.length > 0) {
+      logRuntime(
+        `storage quota reached; removed ${result.removed.length} oldest sessions`,
+      );
+      state.addToast({
+        tone: "error",
+        title: "History storage was full",
+        detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were archived so new data could be saved.`,
+      });
+    }
   } else if (result.status === "failed") {
     logRuntime("local persistence failed after retry");
     state.addToast({
@@ -1700,6 +1820,178 @@ async function recheckPendingCommunityApprovals(reason: string) {
   persist();
 }
 
+export async function pollContributions(reason: string) {
+  const state = useAppStore.getState();
+  const installUuid = state.installUuid;
+  if (!installUuid) return;
+  if (
+    state.backendHealth.status === "offline" ||
+    state.backendHealth.status === "reconnecting"
+  ) {
+    verboseRuntime(`contributions poll ${reason} skipped while offline`);
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({ installUuid });
+    const response = await fetchWithTimeout(
+      `${state.settings.apiEndpoint}/api/community/contributions?${params}`,
+      { timeoutMs: API_REQUEST_TIMEOUT_MS },
+    );
+    if (!response.ok)
+      throw new Error(`${response.status} ${response.statusText}`);
+    const body = (await response.json()) as ContributionsResponse;
+    const previous = useAppStore.getState().seenContributionStatus;
+    const arrived: AppNotification[] = [];
+    const seenContributionStatus = { ...previous };
+    for (const contribution of body.items) {
+      const key = contributionKey(contribution);
+      if (
+        shouldNotifyContributionTransition(previous[key], contribution.status)
+      ) {
+        const notification = contributionNotification(contribution);
+        if (notification) arrived.push(notification);
+      }
+      seenContributionStatus[key] = contribution.status;
+    }
+
+    useAppStore.setState((current) => {
+      const exeCache = applyContributionMarkers(current.exeCache, body.items);
+      const updateSession = <T extends ActiveSession | Session>(
+        session: T,
+      ): T => {
+        const contribution = body.items.find(
+          (item) =>
+            item.value.toLowerCase() === session.exeName.toLowerCase() &&
+            item.gameId === session.communitySuggestionId,
+        );
+        if (!contribution) {
+          return session;
+        }
+        return {
+          ...session,
+          communitySuggestionVerified: contribution.status === "verified",
+          communitySuggestionStatus: contribution.status,
+          communitySuggestionNote: contribution.reviewNote,
+        };
+      };
+      const notifications = [...arrived, ...current.notifications].filter(
+        (notification, index, all) =>
+          all.findIndex((candidate) => candidate.id === notification.id) ===
+          index,
+      );
+      return {
+        exeCache,
+        activeSessions: current.activeSessions.map(updateSession),
+        recentSessions: current.recentSessions.map(updateSession),
+        seenContributionStatus,
+        contributionCounts: body.counts,
+        notifications: notifications.slice(0, 100),
+      };
+    });
+
+    for (const notification of arrived) {
+      useAppStore.getState().addToast({
+        tone: notification.kind === "suggestion-verified" ? "success" : "info",
+        title: notification.title,
+        detail: notification.body,
+      });
+    }
+    persist();
+    evaluateAndStoreMilestones();
+    logRuntime(`contributions poll ${reason} items=${body.items.length}`);
+  } catch (error) {
+    verboseRuntime(
+      `contributions poll ${reason} failed: ${formatError(error)}`,
+    );
+  }
+}
+
+export function evaluateAndStoreMilestones(now = new Date()) {
+  const state = useAppStore.getState();
+  const result = evaluateMilestones({
+    sessions: state.recentSessions,
+    archivedSeconds: state.archivedSeconds,
+    archivedGameSeconds: state.archivedGameSeconds,
+    verifiedContributions: state.contributionCounts.verified,
+    awardedMilestoneIds: state.awardedMilestoneIds,
+    milestonesInitializedAt: state.milestonesInitializedAt,
+    now,
+  });
+  useAppStore.setState((current) => ({
+    awardedMilestoneIds: result.awardedMilestoneIds,
+    milestonesInitializedAt: result.milestonesInitializedAt,
+    notifications: [...result.notifications, ...current.notifications]
+      .filter(
+        (notification, index, all) =>
+          all.findIndex((candidate) => candidate.id === notification.id) ===
+          index,
+      )
+      .slice(0, 100),
+  }));
+  for (const notification of result.notifications) {
+    state.addToast({
+      tone: "success",
+      title: notification.title,
+      detail: notification.body,
+    });
+  }
+  persist();
+}
+
+export function applyContributionMarkers(
+  current: Map<string, ExeCacheEntry>,
+  contributions: Contribution[],
+) {
+  const exeCache = new Map(current);
+  const byExe = new Map<string, Contribution[]>();
+  for (const contribution of contributions) {
+    const key = contribution.value.toLowerCase();
+    byExe.set(key, [...(byExe.get(key) ?? []), contribution]);
+  }
+
+  for (const [exeKey, candidates] of byExe) {
+    const entry = exeCache.get(exeKey);
+    if (entry?.state !== "matched" || entry.source !== "custom") continue;
+
+    let contribution = candidates.find(
+      (candidate) => candidate.gameId === entry.communitySuggestionId,
+    );
+    if (!contribution && entry.communitySuggestionId === undefined) {
+      const viable = candidates.filter((candidate) => {
+        const namesMatch =
+          candidate.gameName.trim().toLowerCase() ===
+          (entry.gameName ?? "").trim().toLowerCase();
+        const coversMatch =
+          !candidate.coverUrl ||
+          !entry.coverUrl ||
+          candidate.coverUrl === entry.coverUrl;
+        return namesMatch && coversMatch;
+      });
+      if (viable.length === 1) contribution = viable[0];
+    }
+    if (!contribution) continue;
+
+    exeCache.set(exeKey, {
+      ...entry,
+      pendingCommunityGame:
+        contribution.status === "pending"
+          ? {
+              id: contribution.gameId,
+              name: contribution.gameName,
+              coverUrl: contribution.coverUrl,
+              source: "community",
+            }
+          : undefined,
+      communitySuggestionId: contribution.gameId,
+      communitySuggestionVerified: contribution.status === "verified",
+      communitySuggestionStatus: contribution.status,
+      communitySuggestionNote: contribution.reviewNote,
+    });
+  }
+  return exeCache;
+}
+
 export async function recheckExecutable(exeName: string) {
   logRuntime(`executable recheck requested ${exeName}`);
   await resolveProcesses([{ exeName, exePath: null }], {
@@ -1764,14 +2056,20 @@ export function addSharedCustomGame(
     gameName: game.name,
     coverUrl,
     source: "custom",
-    pendingCommunityGame: {
-      id: communitySuggestionId,
-      name: game.name,
-      coverUrl,
-      source: "community",
-    },
+    pendingCommunityGame: communitySuggestionVerified
+      ? undefined
+      : {
+          id: communitySuggestionId,
+          name: game.name,
+          coverUrl,
+          source: "community",
+        },
     communitySuggestionId,
     communitySuggestionVerified,
+    communitySuggestionStatus: communitySuggestionVerified
+      ? "verified"
+      : "pending",
+    communitySuggestionNote: undefined,
     lastCheckedAt: new Date().toISOString(),
   });
   logRuntime(
@@ -1818,6 +2116,10 @@ export function shareTrackedCustomGame(
             coverUrl: game.coverUrl,
             communitySuggestionId,
             communitySuggestionVerified,
+            communitySuggestionStatus: communitySuggestionVerified
+              ? "verified"
+              : "pending",
+            communitySuggestionNote: undefined,
           }
         : session,
     ),
@@ -1829,6 +2131,10 @@ export function shareTrackedCustomGame(
             coverUrl: game.coverUrl,
             communitySuggestionId,
             communitySuggestionVerified,
+            communitySuggestionStatus: communitySuggestionVerified
+              ? "verified"
+              : "pending",
+            communitySuggestionNote: undefined,
           }
         : session,
     ),
@@ -2037,6 +2343,8 @@ export function addManualSession(params: {
   endedAt?: string;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+  communitySuggestionNote?: string;
 }) {
   const durationSeconds = Math.round(params.durationSeconds);
   if (durationSeconds < 1) return;
@@ -2054,6 +2362,8 @@ export function addManualSession(params: {
     source: params.source ?? undefined,
     communitySuggestionId: params.communitySuggestionId,
     communitySuggestionVerified: params.communitySuggestionVerified,
+    communitySuggestionStatus: params.communitySuggestionStatus,
+    communitySuggestionNote: params.communitySuggestionNote,
     exeName: params.exeName,
     startedAt,
     endedAt,
@@ -2074,6 +2384,8 @@ export function setGamePlaytime(params: {
   targetSeconds: number;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+  communitySuggestionNote?: string;
 }) {
   const targetSeconds = Math.max(0, Math.round(params.targetSeconds));
   if (targetSeconds > 0 && targetSeconds < 60) {
@@ -2101,6 +2413,8 @@ export function setGamePlaytime(params: {
       durationSeconds: targetSeconds,
       communitySuggestionId: params.communitySuggestionId,
       communitySuggestionVerified: params.communitySuggestionVerified,
+      communitySuggestionStatus: params.communitySuggestionStatus,
+      communitySuggestionNote: params.communitySuggestionNote,
     });
     return;
   }
@@ -2457,11 +2771,32 @@ function normalizePersistedActiveSessions(persisted: PersistedState) {
   // executables was counted twice.
   return dedupeSessionsByGame(
     sessions.map((session) => ({
-      ...session,
+      ...inferSuggestionStatus(session),
       checkpointedAt: session.checkpointedAt ?? session.startedAt,
       recoveredFromCheckpoint: true,
     })),
   );
+}
+
+function inferSuggestionStatus<
+  T extends {
+    communitySuggestionId?: number;
+    communitySuggestionVerified?: boolean;
+    communitySuggestionStatus?: ContributionStatus;
+  },
+>(value: T): T {
+  if (
+    value.communitySuggestionId === undefined ||
+    value.communitySuggestionStatus !== undefined
+  ) {
+    return value;
+  }
+  return {
+    ...value,
+    communitySuggestionStatus: value.communitySuggestionVerified
+      ? "verified"
+      : "pending",
+  };
 }
 
 // One game, one session — regardless of how many of its executables run. Of

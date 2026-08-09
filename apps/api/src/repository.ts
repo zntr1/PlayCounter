@@ -3,6 +3,8 @@ import type {
   CommunityGameSuggestionPayload,
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
+  ContributionsResponse,
+  ContributionStatus,
   FeedbackPayload,
   FeedbackResponse,
   Game,
@@ -84,6 +86,7 @@ export interface PlayCounterRepository {
   suggestCommunityGame(
     suggestion: CommunityGameSuggestionPayload,
   ): Promise<CommunityGameSuggestionResponse>;
+  listContributions(installUuid: string): Promise<ContributionsResponse>;
   createFeedback(payload: FeedbackPayload): Promise<FeedbackResponse>;
 }
 
@@ -135,6 +138,13 @@ export class MemoryRepository implements PlayCounterRepository {
     return { id: -1, verified: false };
   }
 
+  async listContributions(): Promise<ContributionsResponse> {
+    return {
+      items: [],
+      counts: { suggested: 0, verified: 0, pending: 0, rejected: 0 },
+    };
+  }
+
   async createFeedback(): Promise<FeedbackResponse> {
     return { id: -1 };
   }
@@ -154,6 +164,10 @@ export class PostgresRepository implements PlayCounterRepository {
   constructor(connectionString: string, igdb = createIgdbClientFromEnv()) {
     this.pool = new pg.Pool({ connectionString });
     this.igdb = igdb;
+  }
+
+  async close() {
+    await this.pool.end();
   }
 
   async matchProcesses(
@@ -300,6 +314,7 @@ export class PostgresRepository implements PlayCounterRepository {
          FROM community_game_identifiers
          INNER JOIN community_games ON community_games.id = community_game_identifiers.game_id
          WHERE community_game_identifiers.verified = false
+           AND community_game_identifiers.status <> 'rejected'
            AND lower(community_game_identifiers.platform) || ':' ||
                lower(community_game_identifiers.kind) || ':' ||
                lower(community_game_identifiers.value) = ANY($1::text[])`,
@@ -596,6 +611,31 @@ export class PostgresRepository implements PlayCounterRepository {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      type IdentifierReviewRow = {
+        platform: string;
+        kind: string;
+        value: string;
+        game_id: number;
+        verified: boolean;
+        status: ContributionStatus;
+        review_note: string | null;
+      };
+      const recordSubmission = async (identifier: IdentifierReviewRow) => {
+        if (!submittedBy) return;
+        await client.query(
+          `INSERT INTO community_identifier_submissions
+             (platform, kind, value, game_id, install_uuid)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT DO NOTHING`,
+          [
+            identifier.platform,
+            identifier.kind,
+            identifier.value,
+            identifier.game_id,
+            submittedBy,
+          ],
+        );
+      };
       // Two clients can suggest the same new game at the same moment; both
       // would find nothing and insert their own row. Serialize per game so the
       // second one sees the first one's entry. Both keys are taken, always in
@@ -663,8 +703,9 @@ export class PostgresRepository implements PlayCounterRepository {
       // This exact exe was already suggested for this game; report its own
       // review state back. Verification is per identifier, so a verified game
       // says nothing about a newly added exe.
-      const existing = await client.query<{ verified: boolean }>(
-        `SELECT verified FROM community_game_identifiers
+      const existing = await client.query<IdentifierReviewRow>(
+        `SELECT platform, kind, value, game_id, verified, status, review_note
+         FROM community_game_identifiers
          WHERE lower(platform) = 'windows'
            AND lower(kind) = 'exe'
            AND lower(value) = lower($1)
@@ -674,21 +715,36 @@ export class PostgresRepository implements PlayCounterRepository {
       );
       const existingIdentifier = existing.rows[0];
       if (existingIdentifier) {
+        await recordSubmission(existingIdentifier);
         await client.query("COMMIT");
         logger.info(
-          `[community] "${exeName}" is already ${existingIdentifier.verified ? "a verified" : "a pending"} identifier of community game ${gameId}; skipping duplicate suggestion.`,
+          `[community] "${exeName}" is already ${existingIdentifier.status} for community game ${gameId}; skipping duplicate suggestion.`,
         );
-        return { id: gameId, verified: existingIdentifier.verified };
+        return {
+          id: gameId,
+          verified: existingIdentifier.verified,
+          ...(existingIdentifier.status === "rejected"
+            ? {
+                rejected: true,
+                reviewNote: existingIdentifier.review_note ?? undefined,
+              }
+            : {}),
+        };
       }
 
       // The new identifier always starts unverified, even on a game that is
       // already live — otherwise any exe could be published without review.
-      await client.query(
-        `INSERT INTO community_game_identifiers (platform, kind, value, game_id, verified)
-         VALUES ('windows', 'exe', $1, $2, false)
-         ON CONFLICT DO NOTHING`,
+      const inserted = await client.query<IdentifierReviewRow>(
+        `INSERT INTO community_game_identifiers
+           (platform, kind, value, game_id, verified, status)
+         VALUES ('windows', 'exe', $1, $2, false, 'pending')
+         ON CONFLICT (lower(platform), lower(kind), lower(value), game_id)
+         DO UPDATE SET platform = community_game_identifiers.platform
+         RETURNING platform, kind, value, game_id, verified, status, review_note`,
         [exeName, gameId],
       );
+      const identifier = inserted.rows[0];
+      await recordSubmission(identifier);
 
       await client.query("COMMIT");
       logger.info(
@@ -696,13 +752,91 @@ export class PostgresRepository implements PlayCounterRepository {
           ? `[community] Added "${exeName}" as a pending identifier of existing community game ${gameId} ("${name}").`
           : `[community] Recorded "${name}" for "${exeName}" as pending community game ${gameId}.`,
       );
-      return { id: gameId, verified: false };
+      return {
+        id: gameId,
+        verified: identifier.verified,
+        ...(identifier.status === "rejected"
+          ? {
+              rejected: true,
+              reviewNote: identifier.review_note ?? undefined,
+            }
+          : {}),
+      };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
+  }
+
+  async listContributions(installUuid: string): Promise<ContributionsResponse> {
+    const result = await this.pool.query<{
+      platform: string;
+      kind: string;
+      value: string;
+      game_id: number;
+      game_name: string;
+      cover_url: string | null;
+      status: ContributionStatus;
+      review_note: string | null;
+      reviewed_at: Date | null;
+      created_at: Date;
+    }>(
+      `SELECT submissions.platform,
+              submissions.kind,
+              submissions.value,
+              submissions.game_id,
+              games.name AS game_name,
+              games.cover_url,
+              identifiers.status,
+              identifiers.review_note,
+              identifiers.reviewed_at,
+              submissions.created_at
+       FROM community_identifier_submissions submissions
+       INNER JOIN community_game_identifiers identifiers
+         ON identifiers.platform = submissions.platform
+        AND identifiers.kind = submissions.kind
+        AND identifiers.value = submissions.value
+        AND identifiers.game_id = submissions.game_id
+       INNER JOIN community_games games ON games.id = submissions.game_id
+       WHERE submissions.install_uuid = $1
+       ORDER BY submissions.created_at DESC, submissions.id DESC`,
+      [installUuid],
+    );
+
+    const counts = {
+      suggested: result.rows.length,
+      verified: 0,
+      pending: 0,
+      rejected: 0,
+    };
+    for (const row of result.rows) counts[row.status] += 1;
+
+    return {
+      items: result.rows.map((row) => ({
+        platform: row.platform as "windows" | "macos" | "linux",
+        kind: row.kind as
+          | "exe"
+          | "bundle_id"
+          | "app_bundle"
+          | "process_name"
+          | "steam_app_id"
+          | "executable_path"
+          | "executable_name"
+          | "desktop_id"
+          | "wine_exe",
+        value: row.value,
+        gameId: row.game_id,
+        gameName: row.game_name,
+        coverUrl: row.cover_url ?? "",
+        status: row.status,
+        reviewNote: row.review_note ?? undefined,
+        reviewedAt: row.reviewed_at?.toISOString(),
+        createdAt: row.created_at.toISOString(),
+      })),
+      counts,
+    };
   }
 
   async createFeedback(payload: FeedbackPayload): Promise<FeedbackResponse> {

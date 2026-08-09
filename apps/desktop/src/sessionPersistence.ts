@@ -17,9 +17,17 @@ export function filterPersistableSessions<
 export function normalizeSessions<
   T extends { durationSeconds: number | null; startedAt: string },
 >(sessions: T[], limit = MAX_STORED_SESSIONS): T[] {
-  return filterPersistableSessions(sessions)
-    .sort(
-      (left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt),
-    )
-    .slice(0, limit);
+  return splitStoredSessions(sessions, limit).kept;
+}
+
+export function splitStoredSessions<
+  T extends { durationSeconds: number | null; startedAt: string },
+>(sessions: T[], limit = MAX_STORED_SESSIONS) {
+  const normalized = filterPersistableSessions(sessions).sort(
+    (left, right) => Date.parse(right.startedAt) - Date.parse(left.startedAt),
+  );
+  return {
+    kept: normalized.slice(0, limit),
+    removed: normalized.slice(limit),
+  };
 }

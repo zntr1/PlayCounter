@@ -90,9 +90,36 @@ export interface CommunityGameSuggestionPayload {
 export interface CommunityGameSuggestionResponse {
   id?: number;
   verified?: boolean;
+  rejected?: boolean;
+  reviewNote?: string;
   // Set instead of id/verified when the suggested game is already a known
   // IGDB match for the exe — the client applies it directly, no review needed.
   igdbGame?: Game;
+}
+
+export type ContributionStatus = "pending" | "verified" | "rejected";
+
+export interface Contribution {
+  platform: Platform;
+  kind: ProcessIdentifierKind;
+  value: string;
+  gameId: number;
+  gameName: string;
+  coverUrl: string;
+  status: ContributionStatus;
+  reviewNote?: string;
+  reviewedAt?: string;
+  createdAt: string;
+}
+
+export interface ContributionsResponse {
+  items: Contribution[];
+  counts: {
+    suggested: number;
+    verified: number;
+    pending: number;
+    rejected: number;
+  };
 }
 
 export interface GameMetadataResponse {
@@ -107,6 +134,8 @@ export interface Session {
   source?: GameSource;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+  communitySuggestionNote?: string;
   exeName: string;
   startedAt: string;
   endedAt: string | null;

@@ -35,8 +35,8 @@ struct TraySession {
 }
 
 #[tauri::command]
-fn install_uuid() -> String {
-    session::install_uuid()
+fn install_uuid(app: tauri::AppHandle, existing: Option<String>) -> Result<String, String> {
+    session::install_uuid(app, existing)
 }
 
 #[tauri::command]

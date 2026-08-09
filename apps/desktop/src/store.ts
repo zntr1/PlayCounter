@@ -1,4 +1,5 @@
 import type {
+  ContributionStatus,
   Game,
   GameSource,
   Session,
@@ -6,8 +7,10 @@ import type {
   Theme,
 } from "@playcounter/shared";
 import { create } from "zustand";
+import type { AppNotification, ContributionCounts } from "./notifications";
+import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
 import { persistAppState } from "./persistence";
-import { normalizeSessions } from "./sessionPersistence";
+import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
 
 export type ViewId =
@@ -32,6 +35,8 @@ export type ActiveSession = {
   source?: GameSource;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+  communitySuggestionNote?: string;
   startedAt: string;
   checkpointedAt: string;
   recoveredFromCheckpoint?: boolean;
@@ -64,6 +69,8 @@ export type ExeCacheEntry = {
   pendingCommunityGame?: Game;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+  communitySuggestionNote?: string;
   communityUpgradeGame?: Game;
   dismissedCommunityUpgradeGameId?: number;
   // IGDB and community ids come from separate sequences and can collide, so a
@@ -121,6 +128,7 @@ type AppState = {
   historyQuery: string;
   historyGameKey: string | null;
   installUuid: string | null;
+  contributionOwnerUuid: string | null;
   activeSessions: ActiveSession[];
   ambiguousMatches: AmbiguousProcessMatch[];
   recentSessions: Session[];
@@ -138,12 +146,19 @@ type AppState = {
   runtimeError: string | null;
   backendHealth: BackendHealth;
   toasts: Toast[];
+  notifications: AppNotification[];
+  seenContributionStatus: Record<string, ContributionStatus>;
+  contributionCounts: ContributionCounts;
+  awardedMilestoneIds: string[];
+  milestonesInitializedAt: string | null;
+  archivedSeconds: number;
+  archivedGameSeconds: Record<string, number>;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
   setHistoryQuery: (query: string) => void;
   setHistoryGameKey: (key: string | null) => void;
-  setInstallUuid: (installUuid: string) => void;
+  adoptInstallIdentity: (installUuid: string) => void;
   setActiveSessions: (sessions: ActiveSession[]) => void;
   setAmbiguousMatch: (match: AmbiguousProcessMatch) => void;
   removeAmbiguousMatch: (exeName: string) => void;
@@ -164,6 +179,11 @@ type AppState = {
   setBackendHealth: (health: BackendHealth) => void;
   addToast: (toast: Omit<Toast, "id">) => void;
   dismissToast: (toastId: number) => void;
+  addNotification: (notification: AppNotification) => void;
+  dismissNotification: (notificationId: string) => void;
+  clearNotifications: () => void;
+  markAllNotificationsRead: () => void;
+  rekeyArchivedGameSeconds: (from: string, to: string) => void;
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
@@ -180,7 +200,7 @@ type AppState = {
 };
 
 export const DEFAULT_API_ENDPOINT =
-  import.meta.env.VITE_PLAYCOUNTER_API_URL ?? "http://localhost:4000";
+  import.meta.env.VITE_PLAYCOUNTER_API_URL ?? "http://localhost:3003";
 
 export type Stage = "local" | "test" | "prod";
 
@@ -201,21 +221,45 @@ const defaultSettings: Settings = {
 let nextRuntimeLogId = 0;
 let nextToastId = 0;
 
+function addSessionsToArchive(
+  archivedSeconds: number,
+  currentGameSeconds: Record<string, number>,
+  sessions: Session[],
+) {
+  const archivedGameSeconds = { ...currentGameSeconds };
+  for (const session of sessions) {
+    const seconds = Math.max(0, session.durationSeconds ?? 0);
+    archivedSeconds += seconds;
+    const key = `${session.source ?? "unknown"}:${session.gameId}`;
+    archivedGameSeconds[key] = (archivedGameSeconds[key] ?? 0) + seconds;
+  }
+  return { archivedSeconds, archivedGameSeconds };
+}
+
 function persistSoon() {
   queueMicrotask(() => {
     const state = useAppStore.getState();
     const result = persistAppState(state);
-    if (result.status === "trimmed") {
-      useAppStore.setState({ recentSessions: result.sessions });
-      const oldest = result.removed.at(-1)?.startedAt;
-      state.addRuntimeLogEntry(
-        `storage quota reached; removed ${result.removed.length} oldest sessions`,
-      );
-      state.addToast({
-        tone: "error",
-        title: "History storage was full",
-        detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were removed so new data could be saved.`,
+    if (result.status !== "failed") {
+      useAppStore.setState({
+        recentSessions: result.sessions,
+        notifications: result.notifications,
+        archivedSeconds: result.archivedSeconds,
+        archivedGameSeconds: result.archivedGameSeconds,
       });
+    }
+    if (result.status === "trimmed") {
+      const oldest = result.removed.at(-1)?.startedAt;
+      if (result.removed.length > 0) {
+        state.addRuntimeLogEntry(
+          `storage quota reached; removed ${result.removed.length} oldest sessions`,
+        );
+        state.addToast({
+          tone: "error",
+          title: "History storage was full",
+          detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were archived so new data could be saved.`,
+        });
+      }
     } else if (result.status === "failed") {
       state.addRuntimeLogEntry("local persistence failed after retry");
       state.addToast({
@@ -233,6 +277,7 @@ export const useAppStore = create<AppState>((set) => ({
   historyQuery: "",
   historyGameKey: null,
   installUuid: null,
+  contributionOwnerUuid: null,
   activeSessions: [],
   ambiguousMatches: [],
   recentSessions: [],
@@ -250,12 +295,33 @@ export const useAppStore = create<AppState>((set) => ({
   runtimeError: null,
   backendHealth: { status: "checking", checkedAt: null, detail: null },
   toasts: [],
+  notifications: [],
+  seenContributionStatus: {},
+  contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
+  awardedMilestoneIds: [],
+  milestonesInitializedAt: null,
+  archivedSeconds: 0,
+  archivedGameSeconds: {},
   cleanup: null,
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
   setHistoryQuery: (historyQuery) => set({ historyQuery }),
   setHistoryGameKey: (historyGameKey) => set({ historyGameKey }),
-  setInstallUuid: (installUuid) => set({ installUuid }),
+  adoptInstallIdentity: (installUuid) =>
+    set((state) => {
+      if (state.contributionOwnerUuid === installUuid) {
+        return { installUuid, contributionOwnerUuid: installUuid };
+      }
+      return {
+        installUuid,
+        contributionOwnerUuid: installUuid,
+        seenContributionStatus: {},
+        contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
+        notifications: state.notifications.filter(
+          (notification) => !notification.kind.startsWith("suggestion-"),
+        ),
+      };
+    }),
   setActiveSessions: (activeSessions) => set({ activeSessions }),
   setAmbiguousMatch: (match) =>
     set((state) => {
@@ -280,9 +346,18 @@ export const useAppStore = create<AppState>((set) => ({
       ),
     })),
   addSession: (session) =>
-    set((state) => ({
-      recentSessions: normalizeSessions([session, ...state.recentSessions]),
-    })),
+    set((state) => {
+      const { kept, removed } = splitStoredSessions([
+        session,
+        ...state.recentSessions,
+      ]);
+      const archive = addSessionsToArchive(
+        state.archivedSeconds,
+        state.archivedGameSeconds,
+        removed,
+      );
+      return { recentSessions: kept, ...archive };
+    }),
   setGameMetadata: (games) =>
     set((state) => {
       const gameMetadata = new Map(state.gameMetadata);
@@ -337,12 +412,51 @@ export const useAppStore = create<AppState>((set) => ({
   setBackendHealth: (backendHealth) => set({ backendHealth }),
   addToast: (toast) =>
     set((state) => ({
-      toasts: [{ ...toast, id: nextToastId++ }],
+      toasts: [{ ...toast, id: nextToastId++ }, ...state.toasts].slice(0, 5),
     })),
   dismissToast: (toastId) =>
     set((state) => ({
       toasts: state.toasts.filter((toast) => toast.id !== toastId),
     })),
+  addNotification: (notification) => {
+    set((state) => ({
+      notifications: [
+        notification,
+        ...state.notifications.filter((item) => item.id !== notification.id),
+      ].slice(0, 100),
+    }));
+    persistSoon();
+  },
+  dismissNotification: (notificationId) => {
+    set((state) => ({
+      notifications: state.notifications.filter(
+        (notification) => notification.id !== notificationId,
+      ),
+    }));
+    persistSoon();
+  },
+  clearNotifications: () => {
+    set({ notifications: [] });
+    persistSoon();
+  },
+  markAllNotificationsRead: () => {
+    const now = new Date().toISOString();
+    set((state) => ({
+      notifications: state.notifications.map((notification) =>
+        notification.readAt ? notification : { ...notification, readAt: now },
+      ),
+    }));
+    persistSoon();
+  },
+  rekeyArchivedGameSeconds: (from, to) =>
+    set((state) => {
+      if (from === to || !state.archivedGameSeconds[from]) return {};
+      const archivedGameSeconds = { ...state.archivedGameSeconds };
+      archivedGameSeconds[to] =
+        (archivedGameSeconds[to] ?? 0) + archivedGameSeconds[from];
+      delete archivedGameSeconds[from];
+      return { archivedGameSeconds };
+    }),
   setCleanup: (cleanup) => set({ cleanup }),
   setLaunchOnStartup: (enabled) => {
     set((state) => ({

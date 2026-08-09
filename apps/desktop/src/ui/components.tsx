@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from "react";
-import type { GameSource } from "@playcounter/shared";
+import type { ContributionStatus, GameSource } from "@playcounter/shared";
 
 export function Panel({
   children,
@@ -83,15 +83,21 @@ export function SourceBadge({ source }: { source?: GameSource | null }) {
 export function CommunityApprovalBadge({
   suggestionId,
   verified,
+  status,
 }: {
   suggestionId?: number;
   verified?: boolean;
+  status?: ContributionStatus;
 }) {
   if (!suggestionId) return null;
+  const resolvedStatus = status ?? (verified ? "verified" : "pending");
+  if (resolvedStatus === "rejected") return null;
 
   return (
     <span className="inline-flex shrink-0 rounded border border-community-border bg-community-tint px-1.5 py-0.5 text-[11px] font-medium text-community">
-      {verified ? "Community approved" : "Awaiting community approval"}
+      {resolvedStatus === "verified"
+        ? "Community approved"
+        : "Awaiting community approval"}
     </span>
   );
 }

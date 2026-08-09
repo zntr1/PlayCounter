@@ -10,6 +10,7 @@ import type {
 import { useAppStore, useIsOffline, type ActiveSession } from "../../store";
 import {
   dismissAmbiguousMatch,
+  markCommunitySuggestionRejected,
   selectAmbiguousCommunitySuggestion,
   selectAmbiguousCustomGame,
   selectAmbiguousMatch,
@@ -166,6 +167,7 @@ function HeroSession({
               <CommunityApprovalBadge
                 suggestionId={session.communitySuggestionId}
                 verified={session.communitySuggestionVerified}
+                status={session.communitySuggestionStatus}
               />
             ) : null}
             <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted drop-shadow-sm">
@@ -343,6 +345,27 @@ function AmbiguousMatchCard({
           tone: "success",
           title: "Already in IGDB",
           detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
+        });
+        return;
+      }
+      if (result.rejected) {
+        if (result.id === undefined) throw new Error("Unexpected response");
+        selectAmbiguousCommunitySuggestion(
+          exeName,
+          selection.name,
+          selection.coverUrl,
+          result.id,
+          false,
+        );
+        markCommunitySuggestionRejected(exeName, result.reviewNote);
+        setSearchState("saved");
+        setSuggestionOpen(false);
+        setSelection(null);
+        setSearchResults([]);
+        addToast({
+          tone: "info",
+          title: "Suggestion already reviewed",
+          detail: result.reviewNote ?? "This suggestion was not accepted.",
         });
         return;
       }

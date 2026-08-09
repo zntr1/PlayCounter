@@ -41,7 +41,9 @@ desktop.ini
 
 # internal
 temp_screenshots/
-docs/superpowers/
+docs/*
+!docs/screenshots/
+!docs/screenshots/**
 docs/update.md
 docs/work-summary.md
 docs/postgres-next-step-plan.md

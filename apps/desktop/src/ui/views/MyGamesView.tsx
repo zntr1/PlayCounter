@@ -29,6 +29,7 @@ import {
   findGameMatches,
   convertToCustomGame,
   hydrateGameMetadata,
+  markCommunitySuggestionRejected,
   renameCustomGame,
   setGamePlaytime,
   setCustomGameCover,
@@ -64,6 +65,7 @@ import type {
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
   CommunityMetadataSearchResponse,
+  ContributionStatus,
   Game,
   GameSource,
 } from "@playcounter/shared";
@@ -85,6 +87,8 @@ type GameSummary = {
   source: GameSource | null;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+  communitySuggestionNote?: string;
   communitySuggestionExeName?: string;
   communityUpgradeExeName?: string;
   communityUpgradeGameName?: string;
@@ -216,6 +220,23 @@ export function MyGamesView() {
       if (existing) {
         existing.totalSeconds += session.durationSeconds ?? 0;
         existing.sessionCount += 1;
+        existing.communitySuggestionId ??=
+          session.communitySuggestionId ?? gameMeta?.communitySuggestionId;
+        existing.communitySuggestionVerified ??=
+          session.communitySuggestionVerified ??
+          gameMeta?.communitySuggestionVerified;
+        existing.communitySuggestionStatus ??=
+          session.communitySuggestionStatus ??
+          gameMeta?.communitySuggestionStatus;
+        existing.communitySuggestionNote ??=
+          session.communitySuggestionNote ?? gameMeta?.communitySuggestionNote;
+        if (
+          (session.communitySuggestionId ?? gameMeta?.communitySuggestionId) &&
+          (session.communitySuggestionVerified ??
+            gameMeta?.communitySuggestionVerified)
+        ) {
+          existing.communitySuggestionExeName ??= session.exeName;
+        }
         if (Date.parse(endedOrStartedAt) > Date.parse(existing.lastPlayedAt)) {
           existing.lastPlayedAt = endedOrStartedAt;
         }
@@ -239,11 +260,20 @@ export function MyGamesView() {
           "",
         source:
           session.source ?? gameMeta?.source ?? hydratedMeta?.source ?? null,
-        communitySuggestionId: gameMeta?.communitySuggestionId,
-        communitySuggestionVerified: gameMeta?.communitySuggestionVerified,
+        communitySuggestionId:
+          session.communitySuggestionId ?? gameMeta?.communitySuggestionId,
+        communitySuggestionVerified:
+          session.communitySuggestionVerified ??
+          gameMeta?.communitySuggestionVerified,
+        communitySuggestionStatus:
+          session.communitySuggestionStatus ??
+          gameMeta?.communitySuggestionStatus,
+        communitySuggestionNote:
+          session.communitySuggestionNote ?? gameMeta?.communitySuggestionNote,
         communitySuggestionExeName:
-          gameMeta?.communitySuggestionId &&
-          gameMeta.communitySuggestionVerified
+          (session.communitySuggestionId ?? gameMeta?.communitySuggestionId) &&
+          (session.communitySuggestionVerified ??
+            gameMeta?.communitySuggestionVerified)
             ? session.exeName
             : undefined,
         communityUpgradeExeName: gameMeta?.communityUpgradeGame
@@ -283,6 +313,16 @@ export function MyGamesView() {
         existing.communitySuggestionId ??= activeSession.communitySuggestionId;
         existing.communitySuggestionVerified ??=
           activeSession.communitySuggestionVerified;
+        existing.communitySuggestionStatus ??=
+          activeSession.communitySuggestionStatus;
+        existing.communitySuggestionNote ??=
+          activeSession.communitySuggestionNote;
+        if (
+          activeSession.communitySuggestionId &&
+          activeSession.communitySuggestionVerified
+        ) {
+          existing.communitySuggestionExeName ??= activeSession.exeName;
+        }
         if (!existing.exeNames.includes(activeSession.exeName)) {
           existing.exeNames.push(activeSession.exeName);
         }
@@ -295,6 +335,13 @@ export function MyGamesView() {
           communitySuggestionId: activeSession.communitySuggestionId,
           communitySuggestionVerified:
             activeSession.communitySuggestionVerified,
+          communitySuggestionStatus: activeSession.communitySuggestionStatus,
+          communitySuggestionNote: activeSession.communitySuggestionNote,
+          communitySuggestionExeName:
+            activeSession.communitySuggestionId &&
+            activeSession.communitySuggestionVerified
+              ? activeSession.exeName
+              : undefined,
           totalSeconds: activeSeconds,
           sessionCount: 0,
           historyGameKey: null,
@@ -319,6 +366,8 @@ export function MyGamesView() {
         source: gameMeta.source ?? null,
         communitySuggestionId: gameMeta.communitySuggestionId,
         communitySuggestionVerified: gameMeta.communitySuggestionVerified,
+        communitySuggestionStatus: gameMeta.communitySuggestionStatus,
+        communitySuggestionNote: gameMeta.communitySuggestionNote,
         communitySuggestionExeName:
           gameMeta.communitySuggestionId && gameMeta.communitySuggestionVerified
             ? gameMeta.exeName
@@ -721,6 +770,24 @@ function GameLibraryCard({
         });
         return;
       }
+      if (result.rejected) {
+        if (result.id === undefined) throw new Error("Unexpected response");
+        suggestTrackedGameToCommunity(
+          exeName,
+          shareSelection.name,
+          shareSelection.coverUrl,
+          result.id,
+          false,
+        );
+        markCommunitySuggestionRejected(exeName, result.reviewNote);
+        closeShare();
+        addToast({
+          tone: "info",
+          title: "Suggestion already reviewed",
+          detail: result.reviewNote ?? "This suggestion was not accepted.",
+        });
+        return;
+      }
       if (result.id === undefined) throw new Error("Unexpected response");
       suggestTrackedGameToCommunity(
         exeName,
@@ -779,6 +846,8 @@ function GameLibraryCard({
       endedAt,
       communitySuggestionId: game.communitySuggestionId,
       communitySuggestionVerified: game.communitySuggestionVerified,
+      communitySuggestionStatus: game.communitySuggestionStatus,
+      communitySuggestionNote: game.communitySuggestionNote,
     });
     addToast({
       tone: "success",
@@ -799,6 +868,8 @@ function GameLibraryCard({
         targetSeconds,
         communitySuggestionId: game.communitySuggestionId,
         communitySuggestionVerified: game.communitySuggestionVerified,
+        communitySuggestionStatus: game.communitySuggestionStatus,
+        communitySuggestionNote: game.communitySuggestionNote,
       });
       addToast({
         tone: "success",
@@ -1050,6 +1121,7 @@ function GameLibraryCard({
               <CommunityApprovalBadge
                 suggestionId={game.communitySuggestionId}
                 verified={game.communitySuggestionVerified}
+                status={game.communitySuggestionStatus}
               />
             ) : null}
           </div>
@@ -1334,6 +1406,7 @@ function GameLibraryCard({
               <CommunityApprovalBadge
                 suggestionId={game.communitySuggestionId}
                 verified={game.communitySuggestionVerified}
+                status={game.communitySuggestionStatus}
               />
             ) : null}
           </div>
@@ -1559,9 +1632,7 @@ function StopTrackingDialog({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">
-          Ignore {game.name}?
-        </h2>
+        <h2 className="text-lg font-semibold text-text">Ignore {game.name}?</h2>
         <p className="mt-2 text-sm text-text-muted">
           PlayCounter ignores this game&apos;s executable from now on — it will
           never be tracked again. You can undo this anytime under Discovered
@@ -1733,7 +1804,11 @@ function AddPlaytimeDialog({
         ) : null}
 
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <Button variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
+          <Button
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+          >
             Add playtime
           </Button>
           <Button variant="ghost" onClick={onCancel}>
@@ -1989,7 +2064,9 @@ function MatchCheckDialog({
             Apply match
           </Button>
           <Button variant="ghost" onClick={onCancel}>
-            {game.source === "custom" ? "Keep custom game" : "Keep current match"}
+            {game.source === "custom"
+              ? "Keep custom game"
+              : "Keep current match"}
           </Button>
         </div>
       </div>
