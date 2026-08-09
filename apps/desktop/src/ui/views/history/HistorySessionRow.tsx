@@ -259,6 +259,14 @@ export const HistorySessionRow = memo(function HistorySessionRow({
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="truncate text-base font-bold text-text">{gameName}</h3>
           <SourceBadge source={source} />
+          {session.origin === "manual" ? (
+            <span
+              title="Entered manually"
+              className="rounded-full border border-border bg-surface-hover px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted"
+            >
+              Manual
+            </span>
+          ) : null}
           {source === "custom" ? (
             <CommunityApprovalBadge
               suggestionId={

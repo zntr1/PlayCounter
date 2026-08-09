@@ -142,6 +142,7 @@ export interface Session {
   startedAt: string;
   endedAt: string | null;
   durationSeconds: number | null;
+  origin?: "manual";
 }
 
 export type FeedbackType = "bug" | "feature" | "other";

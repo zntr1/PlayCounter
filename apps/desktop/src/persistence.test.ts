@@ -57,6 +57,7 @@ function makeState(
     milestonesInitializedAt: null,
     archivedSeconds: 0,
     archivedGameSeconds: {},
+    playtimeAdjustments: { "community:42": 600 },
   };
 }
 
@@ -109,6 +110,9 @@ describe("session persistence", () => {
       const serialized = JSON.parse(setItem.mock.calls[1][1]);
       expect(serialized.archivedSeconds).toBe(120);
       expect(serialized.archivedGameSeconds["unknown:1"]).toBe(120);
+      expect(serialized.playtimeAdjustments).toEqual({
+        "community:42": 600,
+      });
     }
     expect(setItem).toHaveBeenCalledTimes(2);
   });
@@ -141,5 +145,8 @@ describe("session persistence", () => {
     const serialized = JSON.parse(setItem.mock.calls[1][1]);
     expect(serialized.notifications).toEqual([]);
     expect(serialized.sessions).toHaveLength(2);
+    expect(serialized.playtimeAdjustments).toEqual({
+      "community:42": 600,
+    });
   });
 });

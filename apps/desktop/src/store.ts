@@ -7,6 +7,7 @@ import type {
   Theme,
 } from "@playcounter/shared";
 import { create } from "zustand";
+import { gameSecondsKey } from "./gameSeconds";
 import type { AppNotification, ContributionCounts } from "./notifications";
 import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
 import { persistAppState } from "./persistence";
@@ -168,6 +169,7 @@ type AppState = {
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  playtimeAdjustments: Record<string, number>;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
@@ -198,7 +200,13 @@ type AppState = {
   dismissNotification: (notificationId: string) => void;
   clearNotifications: () => void;
   markAllNotificationsRead: () => void;
-  rekeyArchivedGameSeconds: (from: string, to: string) => void;
+  rekeyGameSeconds: (from: string, to: string) => void;
+  setPlaytimeAdjustment: (
+    key: string,
+    seconds: number,
+    clearKeys?: string[],
+  ) => void;
+  clearGameSeconds: (keys: string[]) => void;
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
@@ -245,7 +253,7 @@ function addSessionsToArchive(
   for (const session of sessions) {
     const seconds = Math.max(0, session.durationSeconds ?? 0);
     archivedSeconds += seconds;
-    const key = `${session.source ?? "unknown"}:${session.gameId}`;
+    const key = gameSecondsKey(session);
     archivedGameSeconds[key] = (archivedGameSeconds[key] ?? 0) + seconds;
   }
   return { archivedSeconds, archivedGameSeconds };
@@ -317,6 +325,7 @@ export const useAppStore = create<AppState>((set) => ({
   milestonesInitializedAt: null,
   archivedSeconds: 0,
   archivedGameSeconds: {},
+  playtimeAdjustments: {},
   cleanup: null,
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
@@ -463,14 +472,51 @@ export const useAppStore = create<AppState>((set) => ({
     }));
     persistSoon();
   },
-  rekeyArchivedGameSeconds: (from, to) =>
+  rekeyGameSeconds: (from, to) =>
     set((state) => {
-      if (from === to || !state.archivedGameSeconds[from]) return {};
+      if (from === to) return {};
       const archivedGameSeconds = { ...state.archivedGameSeconds };
-      archivedGameSeconds[to] =
-        (archivedGameSeconds[to] ?? 0) + archivedGameSeconds[from];
-      delete archivedGameSeconds[from];
-      return { archivedGameSeconds };
+      const playtimeAdjustments = { ...state.playtimeAdjustments };
+      const move = (record: Record<string, number>) => {
+        const seconds = record[from];
+        if (seconds === undefined) return;
+        const merged = (record[to] ?? 0) + seconds;
+        if (merged === 0) delete record[to];
+        else record[to] = merged;
+        delete record[from];
+      };
+      move(archivedGameSeconds);
+      move(playtimeAdjustments);
+      return { archivedGameSeconds, playtimeAdjustments };
+    }),
+  setPlaytimeAdjustment: (key, seconds, clearKeys = []) =>
+    set((state) => {
+      const playtimeAdjustments = { ...state.playtimeAdjustments };
+      for (const clearKey of clearKeys) delete playtimeAdjustments[clearKey];
+      const normalized = Math.round(seconds);
+      if (Number.isFinite(normalized) && normalized !== 0) {
+        playtimeAdjustments[key] = normalized;
+      }
+      return { playtimeAdjustments };
+    }),
+  clearGameSeconds: (keys) =>
+    set((state) => {
+      const archivedGameSeconds = { ...state.archivedGameSeconds };
+      const playtimeAdjustments = { ...state.playtimeAdjustments };
+      let removedArchivedSeconds = 0;
+      for (const key of new Set(keys)) {
+        removedArchivedSeconds += Math.max(0, archivedGameSeconds[key] ?? 0);
+        delete archivedGameSeconds[key];
+        delete playtimeAdjustments[key];
+      }
+      return {
+        archivedSeconds: Math.max(
+          0,
+          state.archivedSeconds - removedArchivedSeconds,
+        ),
+        archivedGameSeconds,
+        playtimeAdjustments,
+      };
     }),
   setCleanup: (cleanup) => set({ cleanup }),
   setLaunchOnStartup: (enabled) => {

@@ -2,11 +2,13 @@ import type { Contribution, Game, Session } from "@playcounter/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore, type ExeCacheEntry } from "./store";
 import {
+  addManualSession,
   applyGameMatch,
   applyCommunitySuggestionOutcome,
   applyContributionMarkers,
   hydrateGameMetadata,
   persist,
+  removeGameHistory,
   setGamePlaytime,
   untrackGame,
 } from "./tracker";
@@ -49,6 +51,9 @@ beforeEach(() => {
     activeSessions: [],
     recentSessions: [],
     gameMetadata: new Map(),
+    archivedSeconds: 0,
+    archivedGameSeconds: {},
+    playtimeAdjustments: {},
     backendHealth: {
       status: "online",
       checkedAt: "2026-08-09T00:00:00.000Z",
@@ -301,17 +306,19 @@ describe("canonical alias actions", () => {
       { gameId: 1, source: "igdb" as const },
       { gameId: 7, source: "community" as const },
     ];
-    const sessions = aliases.map((alias, index) => ({
-      id: index + 1,
-      gameId: alias.gameId,
-      igdbId: 12345,
-      gameName: "Game",
-      exeName: index === 0 ? "Game.exe" : "GameShipping.exe",
-      source: alias.source,
-      startedAt: `2026-08-0${index + 1}T00:00:00.000Z`,
-      endedAt: `2026-08-0${index + 1}T01:00:00.000Z`,
-      durationSeconds: 3600,
-    }));
+    const sessions = aliases
+      .map((alias, index) => ({
+        id: index + 1,
+        gameId: alias.gameId,
+        igdbId: 12345,
+        gameName: "Game",
+        exeName: index === 0 ? "Game.exe" : "GameShipping.exe",
+        source: alias.source,
+        startedAt: `2026-08-0${index + 1}T00:00:00.000Z`,
+        endedAt: `2026-08-0${index + 1}T01:00:00.000Z`,
+        durationSeconds: 3600,
+      }))
+      .reverse();
     useAppStore.setState({
       recentSessions: sessions,
       exeCache: new Map([
@@ -338,17 +345,129 @@ describe("canonical alias actions", () => {
       targetSeconds: 3600,
       aliases,
     });
-    expect(
-      useAppStore
-        .getState()
-        .recentSessions.reduce(
-          (total, session) => total + (session.durationSeconds ?? 0),
-          0,
-        ),
-    ).toBe(3600);
+    expect(useAppStore.getState().recentSessions).toEqual(sessions);
+    expect(useAppStore.getState().playtimeAdjustments).toEqual({
+      "igdb:1": -3600,
+    });
 
     untrackGame(1, "igdb", true, aliases);
     expect(useAppStore.getState().exeCache.size).toBe(0);
     expect(useAppStore.getState().recentSessions).toEqual([]);
+    expect(useAppStore.getState().playtimeAdjustments).toEqual({});
+  });
+
+  it("stores an archive-aware adjustment without inventing a session", () => {
+    useAppStore.setState({
+      archivedSeconds: 3600,
+      archivedGameSeconds: { "community:7": 3600 },
+    });
+
+    setGamePlaytime({
+      gameId: 7,
+      gameName: "Game",
+      coverUrl: "cover",
+      source: "community",
+      exeName: "Game.exe",
+      targetSeconds: 1800,
+    });
+
+    expect(useAppStore.getState().recentSessions).toEqual([]);
+    expect(useAppStore.getState().playtimeAdjustments).toEqual({
+      "community:7": -1800,
+    });
+  });
+
+  it("refuses adjustments while the game is active", () => {
+    useAppStore.setState({
+      activeSessions: [
+        {
+          id: 1,
+          gameId: 7,
+          gameName: "Game",
+          coverUrl: "cover",
+          exeName: "Game.exe",
+          source: "community",
+          startedAt: "2026-08-09T00:00:00.000Z",
+          checkpointedAt: "2026-08-09T00:01:00.000Z",
+        },
+      ],
+    });
+
+    expect(() =>
+      setGamePlaytime({
+        gameId: 7,
+        gameName: "Game",
+        coverUrl: "cover",
+        source: "community",
+        exeName: "Game.exe",
+        targetSeconds: 3600,
+      }),
+    ).toThrow("Stop the active session");
+    expect(useAppStore.getState().playtimeAdjustments).toEqual({});
+  });
+
+  it("keeps archived and adjusted time when untracking without history removal", () => {
+    useAppStore.setState({
+      archivedSeconds: 3600,
+      archivedGameSeconds: { "community:7": 3600 },
+      playtimeAdjustments: { "community:7": 600 },
+      exeCache: new Map([
+        ["game.exe", entry({ gameId: 7, source: "community" })],
+      ]),
+    });
+
+    untrackGame(7, "community", false);
+
+    expect(useAppStore.getState()).toMatchObject({
+      archivedSeconds: 3600,
+      archivedGameSeconds: { "community:7": 3600 },
+      playtimeAdjustments: { "community:7": 600 },
+    });
+  });
+
+  it("marks a manually logged session without treating it as an adjustment", () => {
+    addManualSession({
+      gameId: 7,
+      gameName: "Game",
+      coverUrl: "cover",
+      source: "community",
+      exeName: "Game.exe",
+      durationSeconds: 600,
+      endedAt: "2026-08-09T01:00:00.000Z",
+    });
+
+    expect(useAppStore.getState().recentSessions[0]).toMatchObject({
+      origin: "manual",
+      durationSeconds: 600,
+    });
+    expect(useAppStore.getState().playtimeAdjustments).toEqual({});
+  });
+
+  it("clears retained, archived, and adjusted time together", () => {
+    useAppStore.setState({
+      recentSessions: [
+        {
+          id: 1,
+          gameId: 7,
+          source: "community",
+          exeName: "Game.exe",
+          startedAt: "2026-08-09T00:00:00.000Z",
+          endedAt: "2026-08-09T01:00:00.000Z",
+          durationSeconds: 3600,
+        },
+      ],
+      archivedSeconds: 1800,
+      archivedGameSeconds: { "community:7": 1800 },
+      playtimeAdjustments: { "community:7": -900 },
+    });
+
+    removeGameHistory(7, [{ gameId: 7, source: "community" }]);
+
+    expect(useAppStore.getState()).toMatchObject({
+      recentSessions: [],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+    });
   });
 });

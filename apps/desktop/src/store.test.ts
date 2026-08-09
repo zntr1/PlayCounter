@@ -56,6 +56,7 @@ beforeEach(() => {
     awardedMilestoneIds: [],
     archivedSeconds: 0,
     archivedGameSeconds: {},
+    playtimeAdjustments: {},
   });
 });
 
@@ -119,16 +120,32 @@ describe("contribution identity", () => {
   });
 });
 
-describe("archived game rekeying", () => {
-  it("moves the source bucket into the destination", () => {
+describe("game seconds state", () => {
+  it("moves archive and adjustment buckets into the destination", () => {
     useAppStore.setState({
       archivedGameSeconds: { "custom:-1": 120, "community:42": 30 },
+      playtimeAdjustments: { "custom:-1": -60, "community:42": 10 },
     });
-    useAppStore
-      .getState()
-      .rekeyArchivedGameSeconds("custom:-1", "community:42");
+    useAppStore.getState().rekeyGameSeconds("custom:-1", "community:42");
     expect(useAppStore.getState().archivedGameSeconds).toEqual({
       "community:42": 150,
+    });
+    expect(useAppStore.getState().playtimeAdjustments).toEqual({
+      "community:42": -50,
+    });
+  });
+
+  it("clears archive and adjustment buckets and updates the archive total", () => {
+    useAppStore.setState({
+      archivedSeconds: 180,
+      archivedGameSeconds: { "community:42": 120, "igdb:7": 60 },
+      playtimeAdjustments: { "community:42": -60, "igdb:7": 30 },
+    });
+    useAppStore.getState().clearGameSeconds(["community:42"]);
+    expect(useAppStore.getState()).toMatchObject({
+      archivedSeconds: 60,
+      archivedGameSeconds: { "igdb:7": 60 },
+      playtimeAdjustments: { "igdb:7": 30 },
     });
   });
 

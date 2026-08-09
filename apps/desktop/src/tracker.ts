@@ -35,7 +35,12 @@ import {
   type AppNotification,
   type ContributionCounts,
 } from "./notifications";
-import { adjustPlaytimeSessions } from "./playtimeAdjustment";
+import {
+  gameSecondsKey,
+  gameSecondsKeys,
+  sanitizeGameSecondsRecord,
+} from "./gameSeconds";
+import { nextAdjustmentSeconds } from "./playtimeAdjustments";
 import { persistAppState, readPersistedRecord } from "./persistence";
 import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
@@ -71,6 +76,7 @@ type PersistedState = {
   milestonesInitializedAt?: string;
   archivedSeconds?: number;
   archivedGameSeconds?: Record<string, number>;
+  playtimeAdjustments?: Record<string, number>;
 };
 
 type ProcessMatch = {
@@ -272,7 +278,14 @@ function hydrate() {
     awardedMilestoneIds: persisted.awardedMilestoneIds ?? [],
     milestonesInitializedAt: persisted.milestonesInitializedAt ?? null,
     archivedSeconds: Math.max(0, persisted.archivedSeconds ?? 0),
-    archivedGameSeconds: persisted.archivedGameSeconds ?? {},
+    archivedGameSeconds: sanitizeGameSecondsRecord(
+      persisted.archivedGameSeconds,
+      { signed: false },
+    ),
+    playtimeAdjustments: sanitizeGameSecondsRecord(
+      persisted.playtimeAdjustments,
+      { signed: true },
+    ),
   });
 }
 
@@ -855,7 +868,7 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
   for (const staleId of staleIds) {
     useAppStore
       .getState()
-      .rekeyArchivedGameSeconds(`custom:${staleId}`, `custom:${canonicalId}`);
+      .rekeyGameSeconds(`custom:${staleId}`, `custom:${canonicalId}`);
   }
 
   logRuntime(
@@ -1159,7 +1172,7 @@ export function applyGameMatch(exeName: string, game: Game) {
   }));
 
   if (oldGameId !== undefined) {
-    state.rekeyArchivedGameSeconds(
+    state.rekeyGameSeconds(
       `${existing.source ?? "unknown"}:${oldGameId}`,
       `${game.source}:${game.id}`,
     );
@@ -1291,7 +1304,7 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
     ),
   }));
   if (oldGameId !== undefined) {
-    state.rekeyArchivedGameSeconds(
+    state.rekeyGameSeconds(
       `custom:${oldGameId}`,
       `community:${communityGame.id}`,
     );
@@ -2030,6 +2043,7 @@ export function evaluateAndStoreMilestones(now = new Date()) {
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
+    playtimeAdjustments: state.playtimeAdjustments,
     verifiedContributions: state.contributionCounts.verified,
     awardedMilestoneIds: state.awardedMilestoneIds,
     milestonesInitializedAt: state.milestonesInitializedAt,
@@ -2455,6 +2469,7 @@ export function untrackGame(
         return !matchesGameAlias(session, aliases);
       }),
     }));
+    state.clearGameSeconds(gameSecondsKeys(aliases));
   }
 
   logRuntime(
@@ -2476,16 +2491,20 @@ export function addManualSession(params: {
   source: Game["source"] | null;
   exeName: string;
   durationSeconds: number;
-  endedAt?: string;
+  endedAt: string;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
   communitySuggestionStatus?: ContributionStatus;
   communitySuggestionNote?: string;
 }) {
   const durationSeconds = Math.round(params.durationSeconds);
-  if (durationSeconds < 1) return;
+  if (!Number.isFinite(durationSeconds) || durationSeconds < 1) return;
 
-  const endedAt = params.endedAt ?? new Date().toISOString();
+  const endedAtMs = Date.parse(params.endedAt);
+  if (!Number.isFinite(endedAtMs)) {
+    throw new Error("Manual sessions require a valid date and time");
+  }
+  const endedAt = new Date(endedAtMs).toISOString();
   const startedAt = new Date(
     Date.parse(endedAt) - durationSeconds * 1000,
   ).toISOString();
@@ -2505,6 +2524,7 @@ export function addManualSession(params: {
     startedAt,
     endedAt,
     durationSeconds,
+    origin: "manual",
   });
   logRuntime(
     `manual session added ${params.gameName} (${params.exeName}) seconds=${durationSeconds}`,
@@ -2526,6 +2546,9 @@ export function setGamePlaytime(params: {
   communitySuggestionNote?: string;
   aliases?: GameAliasRef[];
 }) {
+  if (!Number.isFinite(params.targetSeconds)) {
+    throw new Error("Playtime must be a finite number");
+  }
   const targetSeconds = Math.max(0, Math.round(params.targetSeconds));
   if (targetSeconds > 0 && targetSeconds < 60) {
     throw new Error("Playtime must be zero or at least one minute");
@@ -2542,42 +2565,29 @@ export function setGamePlaytime(params: {
     throw new Error("Stop the active session before adjusting playtime");
   }
 
-  const matchingSessions = state.recentSessions.filter(matchesGame);
-  if (matchingSessions.length === 0) {
-    if (targetSeconds === 0) return;
-    addManualSession({
-      gameId: params.gameId,
-      igdbId: params.igdbId,
-      gameName: params.gameName,
-      coverUrl: params.coverUrl,
-      source: params.source,
-      exeName: params.exeName,
-      durationSeconds: targetSeconds,
-      communitySuggestionId: params.communitySuggestionId,
-      communitySuggestionVerified: params.communitySuggestionVerified,
-      communitySuggestionStatus: params.communitySuggestionStatus,
-      communitySuggestionNote: params.communitySuggestionNote,
-    });
-    return;
-  }
-
-  const adjustedById = new Map(
-    adjustPlaytimeSessions(matchingSessions, targetSeconds).map((session) => [
-      session.id,
-      session,
-    ]),
+  const keys = gameSecondsKeys(aliases);
+  const retainedSeconds = state.recentSessions
+    .filter(matchesGame)
+    .reduce(
+      (total, session) => total + Math.max(0, session.durationSeconds ?? 0),
+      0,
+    );
+  const archivedSeconds = keys.reduce(
+    (total, key) => total + Math.max(0, state.archivedGameSeconds[key] ?? 0),
+    0,
   );
-  useAppStore.setState((current) => ({
-    recentSessions: normalizeSessions(
-      current.recentSessions.flatMap((session) => {
-        if (!matchesGame(session)) return [session];
-        const adjusted = adjustedById.get(session.id);
-        return adjusted ? [adjusted] : [];
-      }),
-    ),
-  }));
+  const recordedSeconds = retainedSeconds + archivedSeconds;
+  const adjustmentSeconds = nextAdjustmentSeconds(
+    recordedSeconds,
+    targetSeconds,
+  );
+  state.setPlaytimeAdjustment(
+    gameSecondsKey({ gameId: params.gameId, source: params.source }),
+    adjustmentSeconds,
+    keys,
+  );
   logRuntime(
-    `game playtime adjusted gameId=${params.gameId} source=${params.source ?? "unknown"} seconds=${targetSeconds}`,
+    `game playtime adjustment set gameId=${params.gameId} source=${params.source ?? "unknown"} recorded=${recordedSeconds} target=${targetSeconds} offset=${adjustmentSeconds}`,
   );
   persist();
 }
@@ -2605,6 +2615,7 @@ export function removeGameHistory(
       (session) => !matchesGameAlias(session, aliases),
     ),
   }));
+  useAppStore.getState().clearGameSeconds(gameSecondsKeys(aliases));
   const removedCount =
     previousCount - useAppStore.getState().recentSessions.length;
   if (removedCount > 0)
@@ -2625,6 +2636,7 @@ export function removeGameHistoryBySource(
       return !matchesGameAlias(session, aliases);
     }),
   }));
+  useAppStore.getState().clearGameSeconds(gameSecondsKeys(aliases));
   const removedCount =
     previousCount - useAppStore.getState().recentSessions.length;
   if (removedCount > 0)

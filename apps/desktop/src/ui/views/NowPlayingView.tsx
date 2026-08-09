@@ -23,6 +23,11 @@ import {
   selectAmbiguousCustomGame,
   selectAmbiguousMatch,
 } from "../../tracker";
+import { gameSecondsKeys } from "../../gameSeconds";
+import {
+  adjustmentSecondsFor,
+  displayTotalSeconds,
+} from "../../playtimeAdjustments";
 import {
   CommunityApprovalBadge,
   Panel,
@@ -36,6 +41,8 @@ export function NowPlayingView() {
   const activeSessions = useAppStore((state) => state.activeSessions);
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
   const recentSessions = useAppStore((state) => state.recentSessions);
+  const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
+  const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const gameMetadata = useAppStore((state) => state.gameMetadata);
   const resolveIgdbId = useMemo(
@@ -115,6 +122,8 @@ export function NowPlayingView() {
           showDurationDays={showDurationDays}
           exeCache={exeCache}
           resolveIgdbId={resolveIgdbId}
+          archivedGameSeconds={archivedGameSeconds}
+          playtimeAdjustments={playtimeAdjustments}
         />
       ))}
     </div>
@@ -128,6 +137,8 @@ function HeroSession({
   showDurationDays,
   exeCache,
   resolveIgdbId,
+  archivedGameSeconds,
+  playtimeAdjustments,
 }: {
   session: ActiveSession;
   elapsedSeconds: number;
@@ -135,6 +146,8 @@ function HeroSession({
   showDurationDays: boolean;
   exeCache: ReadonlyMap<string, ExeCacheEntry>;
   resolveIgdbId: GameIdentityResolver;
+  archivedGameSeconds: Record<string, number>;
+  playtimeAdjustments: Record<string, number>;
 }) {
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
@@ -173,11 +186,32 @@ function HeroSession({
       ...matchingEntries.map((entry) => entry.exeName),
     ]),
   ];
-  const lifetimeSeconds =
+  const keys = gameSecondsKeys([
+    { gameId: session.gameId, source: session.source },
+    ...matchingEntries.map((entry) => ({
+      gameId: entry.gameId!,
+      source: entry.source,
+    })),
+    ...priorSessions.map((entry) => ({
+      gameId: entry.gameId,
+      source: entry.source,
+    })),
+  ]);
+  const archivedSeconds = keys.reduce(
+    (sum, key) => sum + Math.max(0, archivedGameSeconds[key] ?? 0),
+    0,
+  );
+  const recordedSeconds =
     priorSessions.reduce(
       (sum, entry) => sum + (entry.durationSeconds ?? 0),
       0,
-    ) + elapsedSeconds;
+    ) +
+    archivedSeconds +
+    elapsedSeconds;
+  const lifetimeSeconds = displayTotalSeconds(
+    recordedSeconds,
+    adjustmentSecondsFor(playtimeAdjustments, keys),
+  );
   const lifetimeSessionCount = priorSessions.length + 1;
 
   return (

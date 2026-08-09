@@ -4,6 +4,7 @@ import type {
   Settings,
 } from "@playcounter/shared";
 import type { AppNotification, ContributionCounts } from "./notifications";
+import { gameSecondsKey } from "./gameSeconds";
 import { normalizeSessions } from "./sessionPersistence";
 
 export const STORAGE_KEY = "playcounter:v1";
@@ -26,6 +27,7 @@ type PersistableAppState = {
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  playtimeAdjustments: Record<string, number>;
 };
 
 export type PersistedPayload = {
@@ -45,6 +47,7 @@ export type PersistedPayload = {
   milestonesInitializedAt?: string;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  playtimeAdjustments: Record<string, number>;
 };
 
 export type PersistedProjection = Pick<
@@ -81,6 +84,7 @@ export function createPersistedPayload(
     milestonesInitializedAt: state.milestonesInitializedAt ?? undefined,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
+    playtimeAdjustments: state.playtimeAdjustments,
   };
 }
 
@@ -106,7 +110,7 @@ function archiveRemovedSessions(payload: PersistedPayload, removed: Session[]) {
   for (const session of removed) {
     const seconds = Math.max(0, session.durationSeconds ?? 0);
     archivedSeconds += seconds;
-    const key = `${session.source ?? "unknown"}:${session.gameId}`;
+    const key = gameSecondsKey(session);
     archivedGameSeconds[key] = (archivedGameSeconds[key] ?? 0) + seconds;
   }
   return { archivedSeconds, archivedGameSeconds };

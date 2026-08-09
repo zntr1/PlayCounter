@@ -1,5 +1,6 @@
-import type { GameSource, Session } from "@playcounter/shared";
+import type { Session } from "@playcounter/shared";
 import { dailyTotals, getSessionGameKey, summaryStats } from "./historyStats";
+import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
 import type { AppNotification, NotificationKind } from "./notifications";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 
@@ -19,6 +20,7 @@ export function evaluateMilestones(input: {
   sessions: Session[];
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  playtimeAdjustments: Record<string, number>;
   verifiedContributions: number;
   awardedMilestoneIds: string[];
   milestonesInitializedAt: string | null;
@@ -32,16 +34,6 @@ export function evaluateMilestones(input: {
     (total, session) => total + Math.max(0, session.durationSeconds ?? 0),
     0,
   );
-  addThresholds(
-    reached,
-    "milestone-total",
-    "milestone:total",
-    (input.archivedSeconds + retainedSeconds) / 3600,
-    TOTAL_HOURS,
-    (hours) => `You've played ${hours.toLocaleString()} hours in total`,
-    createdAt,
-  );
-
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -65,25 +57,25 @@ export function evaluateMilestones(input: {
 
   const games = new Map<
     string,
-    { seconds: number; name: string; coverUrl: string }
+    {
+      recordedSeconds: number;
+      adjustmentSeconds: number;
+      name: string;
+      coverUrl: string;
+    }
   >();
   const aliasesByGame = new Map<string, Set<string>>();
   for (const [key, seconds] of Object.entries(input.archivedGameSeconds)) {
-    const separator = key.indexOf(":");
-    const source = separator >= 0 ? key.slice(0, separator) : "unknown";
-    const gameId = Number(key.slice(separator + 1));
-    const canonicalKey = Number.isFinite(gameId)
-      ? resolvedCanonicalGameKey(
-          { gameId, source: source as GameSource },
-          input.resolveIgdbId,
-        )
-      : key;
+    const ref = gameSecondsRefFromKey(key);
+    if (!ref) continue;
+    const canonicalKey = resolvedCanonicalGameKey(ref, input.resolveIgdbId);
     const game = games.get(canonicalKey) ?? {
-      seconds: 0,
+      recordedSeconds: 0,
+      adjustmentSeconds: 0,
       name: "A game",
       coverUrl: "",
     };
-    game.seconds += seconds;
+    game.recordedSeconds += Math.max(0, seconds);
     games.set(canonicalKey, game);
     const aliases = aliasesByGame.get(canonicalKey) ?? new Set<string>();
     aliases.add(key);
@@ -92,25 +84,68 @@ export function evaluateMilestones(input: {
   for (const session of input.sessions) {
     const key = getSessionGameKey(session, input.resolveIgdbId);
     const game = games.get(key) ?? {
-      seconds: 0,
+      recordedSeconds: 0,
+      adjustmentSeconds: 0,
       name: session.gameName ?? session.exeName,
       coverUrl: session.coverUrl ?? "",
     };
-    game.seconds += Math.max(0, session.durationSeconds ?? 0);
+    game.recordedSeconds += Math.max(0, session.durationSeconds ?? 0);
     if (session.gameName) game.name = session.gameName;
     if (session.coverUrl) game.coverUrl = session.coverUrl;
     games.set(key, game);
     const aliases = aliasesByGame.get(key) ?? new Set<string>();
-    aliases.add(`${session.source ?? "unknown"}:${session.gameId}`);
+    aliases.add(gameSecondsKey(session));
     aliasesByGame.set(key, aliases);
   }
+
+  for (const [key, seconds] of Object.entries(input.playtimeAdjustments)) {
+    const ref = gameSecondsRefFromKey(key);
+    if (!ref) continue;
+    const canonicalKey = resolvedCanonicalGameKey(ref, input.resolveIgdbId);
+    const game = games.get(canonicalKey) ?? {
+      recordedSeconds: 0,
+      adjustmentSeconds: 0,
+      name: "A game",
+      coverUrl: "",
+    };
+    game.adjustmentSeconds += seconds;
+    games.set(canonicalKey, game);
+    const aliases = aliasesByGame.get(canonicalKey) ?? new Set<string>();
+    aliases.add(key);
+    aliasesByGame.set(canonicalKey, aliases);
+  }
+
+  const adjustmentDeltaSeconds = [...games.values()].reduce((sum, game) => {
+    const totalSeconds = Math.max(
+      0,
+      game.recordedSeconds + game.adjustmentSeconds,
+    );
+    return sum + totalSeconds - game.recordedSeconds;
+  }, 0);
+  addThresholds(
+    reached,
+    "milestone-total",
+    "milestone:total",
+    Math.max(
+      0,
+      input.archivedSeconds + retainedSeconds + adjustmentDeltaSeconds,
+    ) / 3600,
+    TOTAL_HOURS,
+    (hours) => `You've played ${hours.toLocaleString()} hours in total`,
+    createdAt,
+  );
+
   const equivalentAwardIds = new Map<string, string[]>();
   for (const [key, game] of games) {
+    const totalSeconds = Math.max(
+      0,
+      game.recordedSeconds + game.adjustmentSeconds,
+    );
     addThresholds(
       reached,
       "milestone-game",
       `milestone:game:${key}`,
-      game.seconds / 3600,
+      totalSeconds / 3600,
       GAME_HOURS,
       (hours) => `${hours} hours played in ${game.name}`,
       createdAt,

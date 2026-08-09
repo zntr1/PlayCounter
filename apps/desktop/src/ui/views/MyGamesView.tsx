@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { createPortal } from "react-dom";
 import {
   Ban,
+  CalendarDays,
   Clipboard,
   Clock3,
   ClockPlus,
@@ -13,6 +14,7 @@ import {
   LayoutGrid,
   List,
   Pencil,
+  RotateCcw,
   Search,
   Send,
   Trash2,
@@ -49,6 +51,11 @@ import {
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
+import { gameSecondsKeys } from "../../gameSeconds";
+import {
+  adjustmentSecondsFor,
+  displayTotalSeconds,
+} from "../../playtimeAdjustments";
 import {
   CommunityApprovalBadge,
   Panel,
@@ -100,6 +107,10 @@ type GameSummary = {
   communityUpgradeExeName?: string;
   communityUpgradeGameName?: string;
   totalSeconds: number;
+  sessionSeconds: number;
+  archivedSeconds: number;
+  adjustmentSeconds: number;
+  recordedSeconds: number;
   sessionCount: number;
   historyGameKey: string | null;
   lastPlayedAt: string;
@@ -188,6 +199,8 @@ export function MyGamesView() {
   const [view, setView] = useState<ViewMode>("grid");
   const sessions = useAppStore((state) => state.recentSessions);
   const activeSessions = useAppStore((state) => state.activeSessions);
+  const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
+  const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
   const showDurationDays = useAppStore(
@@ -292,6 +305,10 @@ export function MyGamesView() {
       sources: params.source ? [params.source] : [],
       aliases: [{ gameId: params.gameId, source: params.source ?? null }],
       totalSeconds: 0,
+      sessionSeconds: 0,
+      archivedSeconds: 0,
+      adjustmentSeconds: 0,
+      recordedSeconds: 0,
       sessionCount: 0,
       historyGameKey: params.historyGameKey ?? null,
       lastPlayedAt: params.lastPlayedAt,
@@ -353,7 +370,7 @@ export function MyGamesView() {
         addAlias(existing, session.gameId, resolvedSource);
       }
       for (const entry of gameEntries) mergeEntry(existing, entry);
-      existing.totalSeconds += session.durationSeconds ?? 0;
+      existing.sessionSeconds += session.durationSeconds ?? 0;
       existing.sessionCount += 1;
       existing.historyGameKey = summaryKey;
       existing.communitySuggestionId ??=
@@ -432,7 +449,7 @@ export function MyGamesView() {
       for (const entry of metadata.get(summaryKey) ?? []) {
         mergeEntry(existing, entry);
       }
-      existing.totalSeconds += activeSeconds;
+      existing.sessionSeconds += activeSeconds;
       existing.lastPlayedAt = activeSession.checkpointedAt;
       existing.communitySuggestionId ??= activeSession.communitySuggestionId;
       existing.communitySuggestionVerified ??=
@@ -469,15 +486,40 @@ export function MyGamesView() {
       }
     }
 
+    const consumedKeys = new Set<string>();
+    for (const summary of summaries.values()) {
+      const keys = gameSecondsKeys(summary.aliases).filter((key) => {
+        if (consumedKeys.has(key)) return false;
+        consumedKeys.add(key);
+        return true;
+      });
+      summary.archivedSeconds = keys.reduce(
+        (total, key) => total + Math.max(0, archivedGameSeconds[key] ?? 0),
+        0,
+      );
+      summary.adjustmentSeconds = adjustmentSecondsFor(
+        playtimeAdjustments,
+        keys,
+      );
+      summary.recordedSeconds =
+        summary.sessionSeconds + summary.archivedSeconds;
+      summary.totalSeconds = displayTotalSeconds(
+        summary.recordedSeconds,
+        summary.adjustmentSeconds,
+      );
+    }
+
     return [...summaries.values()].sort(
       (left, right) =>
         Date.parse(right.lastPlayedAt) - Date.parse(left.lastPlayedAt),
     );
   }, [
     activeSessions,
+    archivedGameSeconds,
     blacklist,
     exeCache,
     hydratedGameMetadata,
+    playtimeAdjustments,
     resolveIgdbId,
     sessions,
     userIgnoredProcesses,
@@ -706,7 +748,7 @@ function GameLibraryCard({
   onStopTracking?: () => void;
 }) {
   const averageSeconds = Math.round(
-    game.totalSeconds / Math.max(1, game.sessionCount),
+    game.sessionSeconds / Math.max(1, game.sessionCount),
   );
   const isList = view === "list";
   const addToast = useAppStore((state) => state.addToast);
@@ -933,7 +975,7 @@ function GameLibraryCard({
     contextMenu.close();
   };
 
-  const handleAddPlaytime = (durationSeconds: number, endedAt?: string) => {
+  const handleAddPlaytime = (durationSeconds: number, endedAt: string) => {
     addManualSession({
       gameId: game.gameId,
       igdbId: game.igdbId,
@@ -975,7 +1017,7 @@ function GameLibraryCard({
       addToast({
         tone: "success",
         title: "Playtime adjusted",
-        detail: `${game.name} now has ${formatDuration(targetSeconds, showDurationDays)} of playtime.`,
+        detail: `${game.name} now has ${formatDuration(targetSeconds, showDurationDays)} of playtime. History was not changed.`,
       });
       setShowAdjustPlaytime(false);
     } catch (error) {
@@ -1070,7 +1112,7 @@ function GameLibraryCard({
           setShowAddPlaytime(true);
         }}
       >
-        Add playtime manually
+        Log missed session
       </ContextMenuItem>
       <ContextMenuItem
         icon={Clock3}
@@ -1263,8 +1305,8 @@ function GameLibraryCard({
             ) : null}
             <IconButton
               icon={ClockPlus}
-              aria-label={`Add playtime manually to ${game.name}`}
-              title="Add playtime manually"
+              aria-label={`Log a missed session for ${game.name}`}
+              title="Log missed session"
               onClick={() => setShowAddPlaytime(true)}
               className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
             />
@@ -1615,8 +1657,8 @@ function GameLibraryCard({
           <div className="flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
             <IconButton
               icon={ClockPlus}
-              aria-label={`Add playtime manually to ${game.name}`}
-              title="Add playtime manually"
+              aria-label={`Log a missed session for ${game.name}`}
+              title="Log missed session"
               onClick={() => setShowAddPlaytime(true)}
             />
             {onStopTracking ? (
@@ -1829,12 +1871,11 @@ function AddPlaytimeDialog({
 }: {
   game: GameSummary;
   onCancel: () => void;
-  onConfirm: (durationSeconds: number, endedAt?: string) => void;
+  onConfirm: (durationSeconds: number, endedAt: string) => void;
 }) {
   useEscapeKey(onCancel);
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
-  const [useDate, setUseDate] = useState(false);
   const [dateValue, setDateValue] = useState(() =>
     localDateTimeValue(new Date()),
   );
@@ -1842,85 +1883,138 @@ function AddPlaytimeDialog({
   const durationSeconds =
     (Math.max(0, Number(hours) || 0) * 60 + Math.max(0, Number(minutes) || 0)) *
     60;
-  const parsedDate = useDate ? new Date(dateValue) : null;
-  const dateInvalid = useDate && Number.isNaN(parsedDate?.getTime());
+  const parsedDate = new Date(dateValue);
+  const dateInvalid = Number.isNaN(parsedDate.getTime());
   const canSubmit = durationSeconds >= 1 && !dateInvalid;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onConfirm(
-      durationSeconds,
-      parsedDate ? parsedDate.toISOString() : undefined,
-    );
+    onConfirm(durationSeconds, parsedDate.toISOString());
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">
-          Add playtime to {game.name}
-        </h2>
-        <p className="mt-2 text-sm text-text-muted">
-          Log a session manually — for time played before PlayCounter, or when a
-          session was missed.
-        </p>
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-            Hours
-            <Input
-              type="number"
-              min={0}
-              inputMode="numeric"
-              value={hours}
-              onChange={(event) => setHours(event.target.value)}
-              placeholder="0"
-            />
-          </label>
-          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-            Minutes
-            <Input
-              type="number"
-              min={0}
-              max={59}
-              inputMode="numeric"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-              placeholder="0"
-            />
-          </label>
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="log-session-title"
+        className="max-h-[90vh] w-full max-w-md animate-toast-in overflow-y-auto rounded-2xl border border-border bg-surface shadow-raised"
+      >
+        <div className="border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5">
+          <div className="flex items-start gap-3.5">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
+              <ClockPlus size={21} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+                History
+              </div>
+              <h2
+                id="log-session-title"
+                className="mt-0.5 text-xl font-bold text-text"
+              >
+                Log a missed session
+              </h2>
+              <p
+                className="mt-1 truncate text-sm text-text-muted"
+                title={game.name}
+              >
+                {game.name}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-text">
-          <input
-            type="checkbox"
-            checked={useDate}
-            onChange={(event) => setUseDate(event.target.checked)}
-            className="h-4 w-4 accent-accent"
-          />
-          Set a specific date for this session
-        </label>
-        {useDate ? (
-          <Input
-            type="datetime-local"
-            value={dateValue}
-            max={localDateTimeValue(new Date())}
-            onChange={(event) => setDateValue(event.target.value)}
-            className="mt-2 w-full"
-          />
-        ) : null}
+        <div className="p-5">
+          <p className="text-sm leading-6 text-text-muted">
+            Use this when PlayCounter missed a session you actually played.
+            Choose how long you played and when the session ended.
+          </p>
 
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-          >
-            Add playtime
-          </Button>
-          <Button variant="ghost" onClick={onCancel}>
-            Cancel
-          </Button>
+          <div className="mt-4 flex gap-3 rounded-xl border border-accent/20 bg-accent-tint px-3.5 py-3 text-sm">
+            <History size={17} className="mt-0.5 shrink-0 text-accent" />
+            <div>
+              <div className="font-semibold text-text">Added to History</div>
+              <p className="mt-0.5 leading-5 text-text-muted">
+                This session will affect dates, streaks, and other play stats.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-border bg-bg/60 p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-text">
+                Session length
+              </h3>
+              <p className="mt-0.5 text-xs text-text-faint">
+                Enter the time you played in this session.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+                Hours
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={hours}
+                  onChange={(event) => setHours(event.target.value)}
+                  placeholder="0"
+                  autoFocus
+                />
+              </label>
+              <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+                Minutes
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  inputMode="numeric"
+                  value={minutes}
+                  onChange={(event) => setMinutes(event.target.value)}
+                  placeholder="0"
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 grid gap-1.5 text-xs font-medium text-text-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarDays size={13} />
+                When did the session end?
+              </span>
+              <Input
+                type="datetime-local"
+                value={dateValue}
+                max={localDateTimeValue(new Date())}
+                onChange={(event) => setDateValue(event.target.value)}
+                className="w-full"
+              />
+            </label>
+          </div>
+
+          <p className="mt-3 text-xs leading-5 text-text-faint">
+            Only know the game&apos;s total time? Use Adjust total playtime
+            instead. It will not create a History entry.
+          </p>
+
+          <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <Button
+              variant="primary"
+              icon={ClockPlus}
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+            >
+              Log session
+            </Button>
+            <Button variant="ghost" onClick={onCancel}>
+              Cancel
+            </Button>
+          </div>
         </div>
       </div>
     </div>,
@@ -1959,74 +2053,168 @@ function AdjustPlaytimeDialog({
     : 0;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">
-          Adjust playtime for {game.name}
-        </h2>
-        <p className="mt-2 text-sm text-text-muted">
-          Set the exact total playtime shown in your library. Lowering it trims
-          older recorded sessions; setting it to zero clears this game&apos;s
-          history.
-        </p>
-
-        <div className="mt-4 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text-muted">
-          Current playtime: {formatDuration(game.totalSeconds)}
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onCancel();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="adjust-playtime-title"
+        className="max-h-[90vh] w-full max-w-md animate-toast-in overflow-y-auto rounded-2xl border border-border bg-surface shadow-raised"
+      >
+        <div className="border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5">
+          <div className="flex items-start gap-3.5">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
+              <Clock3 size={21} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+                Library total
+              </div>
+              <h2
+                id="adjust-playtime-title"
+                className="mt-0.5 text-xl font-bold text-text"
+              >
+                Adjust total playtime
+              </h2>
+              <p
+                className="mt-1 truncate text-sm text-text-muted"
+                title={game.name}
+              >
+                {game.name}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {disabled ? (
-          <div className="mt-3 rounded-md border border-warning-border bg-warning-tint px-3 py-2 text-sm text-warning">
-            Stop the active session before adjusting this game&apos;s playtime.
-          </div>
-        ) : null}
+        <div className="p-5">
+          <p className="text-sm leading-6 text-text-muted">
+            Already played this game before using PlayCounter? Enter the full
+            playtime shown by Steam or another launcher. You can also use this
+            to correct a total that is wrong.
+          </p>
 
-        <form
-          className="mt-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (valuesValid && !disabled) onConfirm(targetSeconds);
-          }}
-        >
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-              Hours
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                inputMode="numeric"
-                value={hours}
-                onChange={(event) => setHours(event.target.value)}
-                autoFocus
-              />
-            </label>
-            <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-              Minutes
-              <Input
-                type="number"
-                min={0}
-                max={59}
-                step={1}
-                inputMode="numeric"
-                value={minutes}
-                onChange={(event) => setMinutes(event.target.value)}
-              />
-            </label>
+          <div className="mt-4 flex gap-3 rounded-xl border border-border bg-bg/60 px-3.5 py-3 text-sm">
+            <History size={17} className="mt-0.5 shrink-0 text-text-faint" />
+            <div>
+              <div className="font-semibold text-text">
+                History stays unchanged
+              </div>
+              <p className="mt-0.5 leading-5 text-text-muted">
+                No session is added, edited, or removed.
+              </p>
+            </div>
           </div>
 
-          <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            <Button
-              variant="primary"
-              type="submit"
-              disabled={!valuesValid || disabled}
-            >
-              Set exact playtime
-            </Button>
-            <Button variant="ghost" onClick={onCancel}>
-              Cancel
-            </Button>
+          <div className="mt-5 overflow-hidden rounded-xl border border-border bg-bg/60 text-sm">
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-text-muted">
+              <span>Time from sessions</span>
+              <span className="font-mono font-medium text-text">
+                {formatDuration(game.recordedSeconds)}
+              </span>
+            </div>
+            {game.adjustmentSeconds !== 0 ? (
+              <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-text-muted">
+                <span>Current adjustment</span>
+                <span className="font-mono font-medium text-text">
+                  {game.adjustmentSeconds > 0 ? "+" : "−"}
+                  {formatDuration(Math.abs(game.adjustmentSeconds))}
+                </span>
+              </div>
+            ) : null}
+            <div className="flex items-center justify-between gap-3 border-t border-accent/20 bg-accent-tint px-4 py-3">
+              <span className="font-semibold text-text">Current total</span>
+              <span className="font-mono text-base font-bold text-accent">
+                {formatDuration(game.totalSeconds)}
+              </span>
+            </div>
           </div>
-        </form>
+
+          {disabled ? (
+            <div className="mt-4 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
+              Stop the active session before changing the total.
+            </div>
+          ) : null}
+
+          <form
+            className="mt-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (valuesValid && !disabled) onConfirm(targetSeconds);
+            }}
+          >
+            <div className="rounded-xl border border-border bg-bg/60 p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-text">New total</h3>
+                <p className="mt-0.5 text-xs text-text-faint">
+                  Enter the full total, not only the hours that are missing.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+                  Hours
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    value={hours}
+                    onChange={(event) => setHours(event.target.value)}
+                    autoFocus
+                  />
+                </label>
+                <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+                  Minutes
+                  <Input
+                    type="number"
+                    min={0}
+                    max={59}
+                    step={1}
+                    inputMode="numeric"
+                    value={minutes}
+                    onChange={(event) => setMinutes(event.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {valuesValid && targetSeconds < game.recordedSeconds ? (
+              <div className="mt-3 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
+                This total is lower than your recorded sessions. Those sessions
+                will still stay in History.
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <Button
+                variant="primary"
+                icon={Clock3}
+                type="submit"
+                disabled={!valuesValid || disabled}
+              >
+                Save total
+              </Button>
+              <Button type="button" variant="ghost" onClick={onCancel}>
+                Cancel
+              </Button>
+            </div>
+            {game.adjustmentSeconds !== 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                icon={RotateCcw}
+                className="mt-2 w-full"
+                disabled={disabled}
+                onClick={() => onConfirm(game.recordedSeconds)}
+              >
+                Reset to recorded time
+              </Button>
+            ) : null}
+          </form>
+        </div>
       </div>
     </div>,
     document.body,

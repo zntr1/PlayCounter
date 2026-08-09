@@ -24,6 +24,7 @@ describe("milestones", () => {
       sessions: [session(55)],
       archivedSeconds: 0,
       archivedGameSeconds: {},
+      playtimeAdjustments: {},
       verifiedContributions: 5,
       awardedMilestoneIds: [],
       milestonesInitializedAt: null,
@@ -40,6 +41,7 @@ describe("milestones", () => {
       sessions: [session(1)],
       archivedSeconds: 9 * 3600,
       archivedGameSeconds: { "community:42": 9 * 3600 },
+      playtimeAdjustments: {},
       verifiedContributions: 0,
       awardedMilestoneIds: [],
       milestonesInitializedAt: initializedAt,
@@ -56,6 +58,7 @@ describe("milestones", () => {
       sessions: [session(1)],
       archivedSeconds: 9 * 3600,
       archivedGameSeconds: { "community:42": 9 * 3600 },
+      playtimeAdjustments: {},
       verifiedContributions: 0,
       awardedMilestoneIds: first.awardedMilestoneIds,
       milestonesInitializedAt: initializedAt,
@@ -69,6 +72,7 @@ describe("milestones", () => {
       sessions: [session(10, "2026-08-09T08:00:00.000Z")],
       archivedSeconds: 0,
       archivedGameSeconds: {},
+      playtimeAdjustments: {},
       verifiedContributions: 0,
       awardedMilestoneIds: [],
       milestonesInitializedAt: "2026-07-01T00:00:00.000Z",
@@ -78,6 +82,7 @@ describe("milestones", () => {
       sessions: [session(10, "2026-09-09T08:00:00.000Z")],
       archivedSeconds: 0,
       archivedGameSeconds: {},
+      playtimeAdjustments: {},
       verifiedContributions: 0,
       awardedMilestoneIds: august.awardedMilestoneIds,
       milestonesInitializedAt: "2026-07-01T00:00:00.000Z",
@@ -94,6 +99,7 @@ describe("milestones", () => {
       sessions: [session(1)],
       archivedSeconds: 9 * 3600,
       archivedGameSeconds: { "community:42": 9 * 3600 },
+      playtimeAdjustments: {},
       verifiedContributions: 0,
       awardedMilestoneIds: ["milestone:game:community:42:10"],
       milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
@@ -105,6 +111,54 @@ describe("milestones", () => {
     );
     expect(result.awardedMilestoneIds).toContain(
       "milestone:game:igdb#12345:10",
+    );
+  });
+
+  it("counts positive adjustments in lifetime but not calendar milestones", () => {
+    const result = evaluateMilestones({
+      sessions: [session(9)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: { "community:42": 3600 },
+      verifiedContributions: 0,
+      awardedMilestoneIds: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-09T20:00:00.000Z"),
+    });
+    expect(result.notifications.map((item) => item.id)).toContain(
+      "milestone:total:10",
+    );
+    expect(result.notifications.map((item) => item.id)).toContain(
+      "milestone:game:community:42:10",
+    );
+    expect(result.notifications.map((item) => item.id)).not.toContain(
+      "milestone:month:2026-08:10",
+    );
+  });
+
+  it("clamps negative adjustments per game before computing global time", () => {
+    const other = {
+      ...session(10, "2026-08-08T08:00:00.000Z"),
+      id: 99,
+      gameId: 99,
+      gameName: "Other Game",
+      exeName: "other.exe",
+    };
+    const result = evaluateMilestones({
+      sessions: [session(1), other],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: { "community:42": -2 * 3600 },
+      verifiedContributions: 0,
+      awardedMilestoneIds: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-09T20:00:00.000Z"),
+    });
+    expect(result.notifications.map((item) => item.id)).toContain(
+      "milestone:total:10",
+    );
+    expect(result.notifications.map((item) => item.id)).toContain(
+      "milestone:game:community:99:10",
     );
   });
 });
