@@ -193,6 +193,7 @@ export class PostgresRepository implements PlayCounterRepository {
               lower(igdb_game_identifiers.kind) AS kind,
               lower(igdb_game_identifiers.value) AS value,
               igdb_games.id,
+              igdb_games.igdb_id,
               igdb_games.name,
               igdb_games.cover_url
        FROM igdb_game_identifiers
@@ -210,6 +211,7 @@ export class PostgresRepository implements PlayCounterRepository {
               lower(igdb_ambiguous_game_identifiers.kind) AS kind,
               lower(igdb_ambiguous_game_identifiers.value) AS value,
               igdb_games.id,
+              igdb_games.igdb_id,
               igdb_games.name,
               igdb_games.cover_url
        FROM igdb_ambiguous_game_identifiers
@@ -235,6 +237,7 @@ export class PostgresRepository implements PlayCounterRepository {
               lower(community_game_identifiers.kind) AS kind,
               lower(community_game_identifiers.value) AS value,
               community_games.id,
+              community_games.igdb_id,
               community_games.name,
               community_games.cover_url
        FROM community_game_identifiers
@@ -273,6 +276,7 @@ export class PostgresRepository implements PlayCounterRepository {
         ) {
           games.push({
             id: row.id,
+            igdbId: row.igdb_id ?? undefined,
             name: row.name,
             coverUrl: row.cover_url ?? "",
             source,
@@ -309,6 +313,7 @@ export class PostgresRepository implements PlayCounterRepository {
                 lower(community_game_identifiers.kind) AS kind,
                 lower(community_game_identifiers.value) AS value,
                 community_games.id,
+                community_games.igdb_id,
                 community_games.name,
                 community_games.cover_url
          FROM community_game_identifiers
@@ -328,6 +333,7 @@ export class PostgresRepository implements PlayCounterRepository {
       for (const row of pendingCommunity.rows) {
         const game = {
           id: row.id,
+          igdbId: row.igdb_id ?? undefined,
           name: row.name,
           coverUrl: row.cover_url ?? "",
           source: "community" as const,
@@ -498,11 +504,11 @@ export class PostgresRepository implements PlayCounterRepository {
   async gamesByIds(gameIds: number[]): Promise<Game[]> {
     if (gameIds.length === 0) return [];
     const result = await this.pool.query(
-      `SELECT id, name, cover_url, 'igdb' AS source
+      `SELECT id, igdb_id, name, cover_url, 'igdb' AS source
        FROM igdb_games
        WHERE id = ANY($1::int[])
        UNION ALL
-       SELECT id, name, cover_url, 'community' AS source
+       SELECT id, igdb_id, name, cover_url, 'community' AS source
        FROM community_games
        WHERE id = ANY($1::int[])
        UNION ALL
@@ -511,6 +517,7 @@ export class PostgresRepository implements PlayCounterRepository {
        -- merged into, under the id that was asked for, so those cards keep
        -- their name and cover until the executable is matched again.
        SELECT aliases.old_game_id AS id,
+              community_games.igdb_id,
               community_games.name,
               community_games.cover_url,
               'community' AS source
@@ -521,6 +528,7 @@ export class PostgresRepository implements PlayCounterRepository {
     );
     return result.rows.map((row) => ({
       id: row.id,
+      igdbId: row.igdb_id ?? undefined,
       name: row.name,
       coverUrl: row.cover_url ?? "",
       source: row.source,
@@ -572,10 +580,11 @@ export class PostgresRepository implements PlayCounterRepository {
     // apply the IGDB match instead of filing a redundant suggestion.
     const knownIgdb = await this.pool.query<{
       id: number;
+      igdb_id: number | null;
       name: string;
       cover_url: string | null;
     }>(
-      `SELECT igdb_games.id, igdb_games.name, igdb_games.cover_url
+      `SELECT igdb_games.id, igdb_games.igdb_id, igdb_games.name, igdb_games.cover_url
        FROM (
          SELECT game_id FROM igdb_game_identifiers
          WHERE lower(platform) = 'windows'
@@ -601,6 +610,7 @@ export class PostgresRepository implements PlayCounterRepository {
       return {
         igdbGame: {
           id: knownIgdbGame.id,
+          igdbId: knownIgdbGame.igdb_id ?? undefined,
           name: knownIgdbGame.name,
           coverUrl: knownIgdbGame.cover_url ?? "",
           source: "igdb",
@@ -1103,6 +1113,7 @@ function igdbGameToGame(
 ) {
   return {
     id: dbGameId,
+    igdbId: game.id,
     name: game.name,
     coverUrl:
       coverUrl ??
@@ -1118,6 +1129,7 @@ type DatabaseMatchRow = {
   kind: string;
   value: string;
   id: number;
+  igdb_id: number | null;
   name: string;
 };
 

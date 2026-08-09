@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import type { GameIdentityResolver } from "../../../store";
 import {
   bucketSessions,
   dailyTotals,
@@ -37,6 +38,7 @@ type CachedFilterAnalytics = {
 
 type CachedHistoryAnalytics = {
   dayKey: number;
+  resolveIgdbId: GameIdentityResolver;
   allTimeStats: ReturnType<typeof summaryStats>;
   rhythm: ReturnType<typeof weekdayHourMatrix>;
   calendar: ReturnType<typeof dailyTotals>;
@@ -55,14 +57,20 @@ function getHistoryAnalytics(
   sessions: Session[],
   filter: HistoryFilter,
   nowMs: number,
+  resolveIgdbId: GameIdentityResolver,
 ) {
   const dayKey = localDayKey(nowMs);
   let cached = historyAnalyticsCache.get(sessions);
-  if (!cached || cached.dayKey !== dayKey) {
+  if (
+    !cached ||
+    cached.dayKey !== dayKey ||
+    cached.resolveIgdbId !== resolveIgdbId
+  ) {
     const today = new Date(dayKey);
     const from = addDays(today, -363);
     cached = {
       dayKey,
+      resolveIgdbId,
       allTimeStats: summaryStats(sessions, nowMs),
       rhythm: weekdayHourMatrix(sessions, nowMs),
       calendar: dailyTotals(
@@ -80,7 +88,7 @@ function getHistoryAnalytics(
     const selectedRange = historyRange(filter, nowMs);
     filtered = {
       selectedRange,
-      chart: bucketSessions(sessions, filter, nowMs),
+      chart: bucketSessions(sessions, filter, nowMs, resolveIgdbId),
       rangeStats:
         filter === "all"
           ? cached.allTimeStats
@@ -130,6 +138,7 @@ export const HistoryInsights = memo(function HistoryInsights({
   nowMs,
   showDurationDays,
   resolveGame,
+  resolveIgdbId,
   onSelectGame,
 }: {
   sessions: Session[];
@@ -137,26 +146,30 @@ export const HistoryInsights = memo(function HistoryInsights({
   nowMs: number;
   showDurationDays: boolean;
   resolveGame: (session: Session) => ResolvedGame;
+  resolveIgdbId: GameIdentityResolver;
   onSelectGame: (key: string, name: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const expandButtonRef = useRef<HTMLButtonElement>(null);
   const { selectedRange, chart, rangeStats, allTimeStats, rhythm, calendar } =
     useMemo(
-      () => getHistoryAnalytics(sessions, filter, nowMs),
-      [filter, nowMs, sessions],
+      () => getHistoryAnalytics(sessions, filter, nowMs, resolveIgdbId),
+      [filter, nowMs, resolveIgdbId, sessions],
     );
   const games = useMemo(
-    () => topGames(sessions, resolveGame, 8, selectedRange),
-    [resolveGame, selectedRange, sessions],
+    () => topGames(sessions, resolveGame, 8, selectedRange, resolveIgdbId),
+    [resolveGame, resolveIgdbId, selectedRange, sessions],
   );
   const gamesByKey = useMemo(() => {
     const games = new Map<string, ResolvedGame>();
     for (const session of sessions) {
-      games.set(getSessionGameKey(session), resolveGame(session));
+      games.set(
+        getSessionGameKey(session, resolveIgdbId),
+        resolveGame(session),
+      );
     }
     return games;
-  }, [resolveGame, sessions]);
+  }, [resolveGame, resolveIgdbId, sessions]);
   const resolveGameName = (key: string | null) =>
     key ? (gamesByKey.get(key)?.name ?? null) : null;
   const resolveGameCover = (key: string | null) =>

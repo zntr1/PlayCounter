@@ -486,6 +486,7 @@ export function DiscoveredView() {
           suggestionSelection.coverUrl,
           result.id,
           false,
+          suggestionSelection.igdbId,
         );
         markCommunitySuggestionRejected(exeName, result.reviewNote);
         setSuggestionState("saved");
@@ -506,6 +507,7 @@ export function DiscoveredView() {
         suggestionSelection.coverUrl,
         result.id,
         result.verified ?? false,
+        suggestionSelection.igdbId,
       );
       setSuggestionState("saved");
       setSuggestionMessage(

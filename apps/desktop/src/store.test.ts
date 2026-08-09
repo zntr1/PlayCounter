@@ -1,6 +1,50 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useAppStore } from "./store";
+import {
+  canSwitchApprovedSuggestionToCommunity,
+  canonicalGameKey,
+  createGameIdentityResolver,
+  resolvedCanonicalGameKey,
+  useAppStore,
+} from "./store";
 import { MAX_STORED_SESSIONS } from "./sessionPersistence";
+
+describe("approved community suggestion switch", () => {
+  const approvedSuggestion = {
+    communitySuggestionId: 42,
+    communitySuggestionVerified: true,
+  };
+
+  it("is offered only while the game is still custom", () => {
+    expect(
+      canSwitchApprovedSuggestionToCommunity({
+        ...approvedSuggestion,
+        source: "custom",
+      }),
+    ).toBe(true);
+    expect(
+      canSwitchApprovedSuggestionToCommunity({
+        ...approvedSuggestion,
+        source: "community",
+      }),
+    ).toBe(false);
+    expect(
+      canSwitchApprovedSuggestionToCommunity({
+        ...approvedSuggestion,
+        source: "igdb",
+      }),
+    ).toBe(false);
+  });
+
+  it("is not offered before approval", () => {
+    expect(
+      canSwitchApprovedSuggestionToCommunity({
+        source: "custom",
+        communitySuggestionId: 42,
+        communitySuggestionVerified: false,
+      }),
+    ).toBe(false);
+  });
+});
 
 beforeEach(() => {
   useAppStore.setState({
@@ -122,5 +166,55 @@ describe("archived game rekeying", () => {
       );
     expect(state.recentSessions).toHaveLength(MAX_STORED_SESSIONS);
     expect(lifetime).toBe(before + 60);
+  });
+});
+
+describe("canonical game identity", () => {
+  it("uses igdbId across sources and falls back to the local pair", () => {
+    expect(canonicalGameKey({ gameId: 1, source: "igdb", igdbId: 12345 })).toBe(
+      "igdb#12345",
+    );
+    expect(canonicalGameKey({ gameId: 7, source: "community" })).toBe(
+      "community:7",
+    );
+  });
+
+  it("resolves legacy records from metadata and exe cache", () => {
+    const resolveIgdbId = createGameIdentityResolver(
+      new Map([
+        [
+          "igdb:1",
+          {
+            id: 1,
+            igdbId: 12345,
+            name: "Game",
+            coverUrl: "",
+            source: "igdb" as const,
+          },
+        ],
+      ]),
+      new Map([
+        [
+          "game.exe",
+          {
+            exeName: "Game.exe",
+            state: "matched" as const,
+            gameId: 7,
+            igdbId: 12345,
+            source: "community" as const,
+            lastCheckedAt: "2026-08-09T00:00:00.000Z",
+          },
+        ],
+      ]),
+    );
+    expect(
+      resolvedCanonicalGameKey({ gameId: 1, source: "igdb" }, resolveIgdbId),
+    ).toBe("igdb#12345");
+    expect(
+      resolvedCanonicalGameKey(
+        { gameId: 7, source: "community" },
+        resolveIgdbId,
+      ),
+    ).toBe("igdb#12345");
   });
 });

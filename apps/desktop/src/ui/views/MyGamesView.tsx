@@ -35,9 +35,13 @@ import {
   setCustomGameCover,
   suggestTrackedGameToCommunity,
   untrackGame,
+  type GameAliasRef,
 } from "../../tracker";
 import {
+  canSwitchApprovedSuggestionToCommunity,
+  createGameIdentityResolver,
   gameMetadataKey,
+  resolvedCanonicalGameKey,
   useAppStore,
   useIsOffline,
   type ActiveSession,
@@ -82,9 +86,12 @@ const sortOptions: Array<{ key: SortKey; label: string }> = [
 
 type GameSummary = {
   gameId: number;
+  igdbId?: number;
   name: string;
   coverUrl: string;
   source: GameSource | null;
+  sources: GameSource[];
+  aliases: GameAliasRef[];
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
   communitySuggestionStatus?: ContributionStatus;
@@ -103,6 +110,7 @@ type PendingRemoval = {
   gameId: number;
   source: GameSource | null;
   name: string;
+  aliases: GameAliasRef[];
 } | null;
 
 type PendingStopTracking = {
@@ -111,18 +119,28 @@ type PendingStopTracking = {
   name: string;
   exeNames: string[];
   sessionCount: number;
+  aliases: GameAliasRef[];
 } | null;
 
-function matchedEntriesByGame(entries: ExeCacheEntry[]) {
-  const byGameId = new Map<string, ExeCacheEntry>();
+function matchedEntriesByGame(
+  entries: ExeCacheEntry[],
+  resolveIgdbId: ReturnType<typeof createGameIdentityResolver>,
+) {
+  const byGameId = new Map<string, ExeCacheEntry[]>();
 
   for (const entry of entries) {
     if (entry.state !== "matched" || !entry.gameId) continue;
-    const key =
-      entry.source === "igdb" || entry.source === "community"
-        ? gameMetadataKey({ id: entry.gameId, source: entry.source })
-        : `unknown:${entry.gameId}`;
-    if (!byGameId.has(key)) byGameId.set(key, entry);
+    const key = resolvedCanonicalGameKey(
+      {
+        gameId: entry.gameId,
+        source: entry.source,
+        igdbId: entry.igdbId,
+      },
+      resolveIgdbId,
+    );
+    const grouped = byGameId.get(key) ?? [];
+    grouped.push(entry);
+    byGameId.set(key, grouped);
   }
 
   return byGameId;
@@ -132,10 +150,8 @@ function fallbackGameName(exeName: string) {
   return exeName.replace(/\.exe$/i, "");
 }
 
-function gameSummaryKey(gameId: number, source: GameSource | null | undefined) {
-  return source === "igdb" || source === "community"
-    ? gameMetadataKey({ id: gameId, source })
-    : `unknown:${gameId}`;
+function sourceRank(source: GameSource | null | undefined) {
+  return source === "igdb" ? 0 : source === "community" ? 1 : 2;
 }
 
 function formatLastPlayed(value: string) {
@@ -182,6 +198,10 @@ export function MyGamesView() {
   );
   const blacklist = useAppStore((state) => state.blacklist);
   const addToast = useAppStore((state) => state.addToast);
+  const resolveIgdbId = useMemo(
+    () => createGameIdentityResolver(hydratedGameMetadata, exeCache),
+    [exeCache, hydratedGameMetadata],
+  );
 
   useEffect(() => {
     void hydrateGameMetadata(
@@ -198,8 +218,85 @@ export function MyGamesView() {
       matchesProcessPatternSet(exeName, ignoredExeNames);
     const metadata = matchedEntriesByGame(
       [...exeCache.values()].filter((entry) => !isIgnored(entry.exeName)),
+      resolveIgdbId,
     );
     const summaries = new Map<string, GameSummary>();
+
+    const addAlias = (
+      summary: GameSummary,
+      gameId: number,
+      source: GameSource | null | undefined,
+    ) => {
+      const normalizedSource = source ?? null;
+      if (
+        !summary.aliases.some(
+          (alias) =>
+            alias.gameId === gameId && alias.source === normalizedSource,
+        )
+      ) {
+        summary.aliases.push({ gameId, source: normalizedSource });
+      }
+      if (source && !summary.sources.includes(source)) {
+        summary.sources.push(source);
+        summary.sources.sort(
+          (left, right) => sourceRank(left) - sourceRank(right),
+        );
+      }
+      const primary = [...summary.aliases].sort(
+        (left, right) => sourceRank(left.source) - sourceRank(right.source),
+      )[0];
+      if (primary) {
+        summary.gameId = primary.gameId;
+        summary.source = primary.source;
+      }
+    };
+
+    const mergeEntry = (summary: GameSummary, entry: ExeCacheEntry) => {
+      if (entry.gameId !== undefined) {
+        addAlias(summary, entry.gameId, entry.source);
+      }
+      summary.igdbId ??= entry.igdbId;
+      if (!summary.exeNames.includes(entry.exeName)) {
+        if (entry.source === summary.source)
+          summary.exeNames.unshift(entry.exeName);
+        else summary.exeNames.push(entry.exeName);
+      }
+      summary.communitySuggestionId ??= entry.communitySuggestionId;
+      summary.communitySuggestionVerified ??= entry.communitySuggestionVerified;
+      summary.communitySuggestionStatus ??= entry.communitySuggestionStatus;
+      summary.communitySuggestionNote ??= entry.communitySuggestionNote;
+      if (canSwitchApprovedSuggestionToCommunity(entry)) {
+        summary.communitySuggestionExeName ??= entry.exeName;
+      }
+      if (entry.communityUpgradeGame) {
+        summary.communityUpgradeExeName ??= entry.exeName;
+        summary.communityUpgradeGameName ??= entry.communityUpgradeGame.name;
+      }
+    };
+
+    const createSummary = (params: {
+      gameId: number;
+      igdbId?: number;
+      name: string;
+      coverUrl: string;
+      source?: GameSource | null;
+      lastPlayedAt: string;
+      exeName: string;
+      historyGameKey?: string | null;
+    }): GameSummary => ({
+      gameId: params.gameId,
+      igdbId: params.igdbId,
+      name: params.name,
+      coverUrl: params.coverUrl,
+      source: params.source ?? null,
+      sources: params.source ? [params.source] : [],
+      aliases: [{ gameId: params.gameId, source: params.source ?? null }],
+      totalSeconds: 0,
+      sessionCount: 0,
+      historyGameKey: params.historyGameKey ?? null,
+      lastPlayedAt: params.lastPlayedAt,
+      exeNames: [params.exeName],
+    });
 
     for (const session of sessions) {
       if (isIgnored(session.exeName)) continue;
@@ -212,80 +309,81 @@ export function MyGamesView() {
           : (hydratedGameMetadata.get(`igdb:${session.gameId}`) ??
             hydratedGameMetadata.get(`community:${session.gameId}`));
       const resolvedSource = session.source ?? hydratedMeta?.source ?? null;
-      const summaryKey = gameSummaryKey(session.gameId, resolvedSource);
-      const gameMeta = metadata.get(summaryKey);
-      const existing = summaries.get(summaryKey);
+      const igdbId =
+        session.igdbId ??
+        hydratedMeta?.igdbId ??
+        resolveIgdbId(session.gameId, resolvedSource);
+      const summaryKey = resolvedCanonicalGameKey({
+        gameId: session.gameId,
+        source: resolvedSource,
+        igdbId,
+      });
+      const gameEntries = metadata.get(summaryKey) ?? [];
+      const gameMeta =
+        gameEntries.find(
+          (entry) =>
+            entry.exeName.toLowerCase() === session.exeName.toLowerCase(),
+        ) ?? gameEntries[0];
+      let existing = summaries.get(summaryKey);
       const endedOrStartedAt = session.endedAt ?? session.startedAt;
 
-      if (existing) {
-        existing.totalSeconds += session.durationSeconds ?? 0;
-        existing.sessionCount += 1;
-        existing.communitySuggestionId ??=
-          session.communitySuggestionId ?? gameMeta?.communitySuggestionId;
-        existing.communitySuggestionVerified ??=
-          session.communitySuggestionVerified ??
-          gameMeta?.communitySuggestionVerified;
-        existing.communitySuggestionStatus ??=
-          session.communitySuggestionStatus ??
-          gameMeta?.communitySuggestionStatus;
-        existing.communitySuggestionNote ??=
-          session.communitySuggestionNote ?? gameMeta?.communitySuggestionNote;
-        if (
-          (session.communitySuggestionId ?? gameMeta?.communitySuggestionId) &&
-          (session.communitySuggestionVerified ??
-            gameMeta?.communitySuggestionVerified)
-        ) {
-          existing.communitySuggestionExeName ??= session.exeName;
-        }
-        if (Date.parse(endedOrStartedAt) > Date.parse(existing.lastPlayedAt)) {
-          existing.lastPlayedAt = endedOrStartedAt;
-        }
-        if (!existing.exeNames.includes(session.exeName)) {
-          existing.exeNames.push(session.exeName);
-        }
-        continue;
+      if (!existing) {
+        existing = createSummary({
+          gameId: session.gameId,
+          igdbId,
+          name:
+            session.gameName ??
+            gameMeta?.gameName ??
+            hydratedMeta?.name ??
+            fallbackGameName(session.exeName),
+          coverUrl:
+            session.coverUrl ??
+            gameMeta?.coverUrl ??
+            hydratedMeta?.coverUrl ??
+            "",
+          source: resolvedSource,
+          lastPlayedAt: endedOrStartedAt,
+          exeName: session.exeName,
+          historyGameKey: summaryKey,
+        });
+        summaries.set(summaryKey, existing);
       }
-
-      summaries.set(summaryKey, {
-        gameId: session.gameId,
-        name:
-          session.gameName ??
-          gameMeta?.gameName ??
-          hydratedMeta?.name ??
-          fallbackGameName(session.exeName),
-        coverUrl:
-          session.coverUrl ??
-          gameMeta?.coverUrl ??
-          hydratedMeta?.coverUrl ??
-          "",
-        source:
-          session.source ?? gameMeta?.source ?? hydratedMeta?.source ?? null,
-        communitySuggestionId:
-          session.communitySuggestionId ?? gameMeta?.communitySuggestionId,
-        communitySuggestionVerified:
-          session.communitySuggestionVerified ??
-          gameMeta?.communitySuggestionVerified,
-        communitySuggestionStatus:
-          session.communitySuggestionStatus ??
-          gameMeta?.communitySuggestionStatus,
-        communitySuggestionNote:
-          session.communitySuggestionNote ?? gameMeta?.communitySuggestionNote,
-        communitySuggestionExeName:
-          (session.communitySuggestionId ?? gameMeta?.communitySuggestionId) &&
-          (session.communitySuggestionVerified ??
-            gameMeta?.communitySuggestionVerified)
-            ? session.exeName
-            : undefined,
-        communityUpgradeExeName: gameMeta?.communityUpgradeGame
-          ? session.exeName
-          : undefined,
-        communityUpgradeGameName: gameMeta?.communityUpgradeGame?.name,
-        totalSeconds: session.durationSeconds ?? 0,
-        sessionCount: 1,
-        historyGameKey: `${session.source ?? "unknown"}:${session.gameId}`,
-        lastPlayedAt: endedOrStartedAt,
-        exeNames: [session.exeName],
-      });
+      addAlias(existing, session.gameId, session.source);
+      if (session.source !== resolvedSource) {
+        addAlias(existing, session.gameId, resolvedSource);
+      }
+      for (const entry of gameEntries) mergeEntry(existing, entry);
+      existing.totalSeconds += session.durationSeconds ?? 0;
+      existing.sessionCount += 1;
+      existing.historyGameKey = summaryKey;
+      existing.communitySuggestionId ??=
+        session.communitySuggestionId ?? gameMeta?.communitySuggestionId;
+      existing.communitySuggestionVerified ??=
+        session.communitySuggestionVerified ??
+        gameMeta?.communitySuggestionVerified;
+      existing.communitySuggestionStatus ??=
+        session.communitySuggestionStatus ??
+        gameMeta?.communitySuggestionStatus;
+      existing.communitySuggestionNote ??=
+        session.communitySuggestionNote ?? gameMeta?.communitySuggestionNote;
+      if (
+        canSwitchApprovedSuggestionToCommunity({
+          source: session.source ?? gameMeta?.source,
+          communitySuggestionId:
+            session.communitySuggestionId ?? gameMeta?.communitySuggestionId,
+          communitySuggestionVerified:
+            session.communitySuggestionVerified ??
+            gameMeta?.communitySuggestionVerified,
+        })
+      ) {
+        existing.communitySuggestionExeName ??= session.exeName;
+      }
+      if (Date.parse(endedOrStartedAt) > Date.parse(existing.lastPlayedAt)) {
+        existing.lastPlayedAt = endedOrStartedAt;
+      }
+      if (!existing.exeNames.includes(session.exeName)) {
+        existing.exeNames.push(session.exeName);
+      }
     }
 
     for (const activeSession of activeSessions) {
@@ -304,84 +402,71 @@ export function MyGamesView() {
             hydratedGameMetadata.get(`community:${activeSession.gameId}`));
       const resolvedSource =
         activeSession.source ?? hydratedMeta?.source ?? null;
-      const summaryKey = gameSummaryKey(activeSession.gameId, resolvedSource);
-      const existing = summaries.get(summaryKey);
+      const igdbId =
+        activeSession.igdbId ??
+        hydratedMeta?.igdbId ??
+        resolveIgdbId(activeSession.gameId, resolvedSource);
+      const summaryKey = resolvedCanonicalGameKey({
+        gameId: activeSession.gameId,
+        source: resolvedSource,
+        igdbId,
+      });
+      let existing = summaries.get(summaryKey);
 
-      if (existing) {
-        existing.totalSeconds += activeSeconds;
-        existing.lastPlayedAt = activeSession.checkpointedAt;
-        existing.communitySuggestionId ??= activeSession.communitySuggestionId;
-        existing.communitySuggestionVerified ??=
-          activeSession.communitySuggestionVerified;
-        existing.communitySuggestionStatus ??=
-          activeSession.communitySuggestionStatus;
-        existing.communitySuggestionNote ??=
-          activeSession.communitySuggestionNote;
-        if (
-          activeSession.communitySuggestionId &&
-          activeSession.communitySuggestionVerified
-        ) {
-          existing.communitySuggestionExeName ??= activeSession.exeName;
-        }
-        if (!existing.exeNames.includes(activeSession.exeName)) {
-          existing.exeNames.push(activeSession.exeName);
-        }
-      } else {
-        summaries.set(summaryKey, {
+      if (!existing) {
+        existing = createSummary({
           gameId: activeSession.gameId,
+          igdbId,
           name: activeSession.gameName || hydratedMeta?.name || "",
           coverUrl: activeSession.coverUrl || hydratedMeta?.coverUrl || "",
           source: resolvedSource,
-          communitySuggestionId: activeSession.communitySuggestionId,
-          communitySuggestionVerified:
-            activeSession.communitySuggestionVerified,
-          communitySuggestionStatus: activeSession.communitySuggestionStatus,
-          communitySuggestionNote: activeSession.communitySuggestionNote,
-          communitySuggestionExeName:
-            activeSession.communitySuggestionId &&
-            activeSession.communitySuggestionVerified
-              ? activeSession.exeName
-              : undefined,
-          totalSeconds: activeSeconds,
-          sessionCount: 0,
-          historyGameKey: null,
           lastPlayedAt: activeSession.checkpointedAt,
-          exeNames: [activeSession.exeName],
+          exeName: activeSession.exeName,
         });
+        summaries.set(summaryKey, existing);
+      }
+      addAlias(existing, activeSession.gameId, activeSession.source);
+      if (activeSession.source !== resolvedSource) {
+        addAlias(existing, activeSession.gameId, resolvedSource);
+      }
+      for (const entry of metadata.get(summaryKey) ?? []) {
+        mergeEntry(existing, entry);
+      }
+      existing.totalSeconds += activeSeconds;
+      existing.lastPlayedAt = activeSession.checkpointedAt;
+      existing.communitySuggestionId ??= activeSession.communitySuggestionId;
+      existing.communitySuggestionVerified ??=
+        activeSession.communitySuggestionVerified;
+      existing.communitySuggestionStatus ??=
+        activeSession.communitySuggestionStatus;
+      existing.communitySuggestionNote ??=
+        activeSession.communitySuggestionNote;
+      if (canSwitchApprovedSuggestionToCommunity(activeSession)) {
+        existing.communitySuggestionExeName ??= activeSession.exeName;
+      }
+      if (!existing.exeNames.includes(activeSession.exeName)) {
+        existing.exeNames.push(activeSession.exeName);
       }
     }
 
-    for (const gameMeta of metadata.values()) {
-      const summaryKey =
-        gameMeta.source === "igdb" || gameMeta.source === "community"
-          ? gameMetadataKey({ id: gameMeta.gameId!, source: gameMeta.source })
-          : `unknown:${gameMeta.gameId}`;
-
-      if (summaries.has(summaryKey)) continue;
-
-      summaries.set(summaryKey, {
-        gameId: gameMeta.gameId!,
-        name: gameMeta.gameName ?? fallbackGameName(gameMeta.exeName),
-        coverUrl: gameMeta.coverUrl ?? "",
-        source: gameMeta.source ?? null,
-        communitySuggestionId: gameMeta.communitySuggestionId,
-        communitySuggestionVerified: gameMeta.communitySuggestionVerified,
-        communitySuggestionStatus: gameMeta.communitySuggestionStatus,
-        communitySuggestionNote: gameMeta.communitySuggestionNote,
-        communitySuggestionExeName:
-          gameMeta.communitySuggestionId && gameMeta.communitySuggestionVerified
-            ? gameMeta.exeName
-            : undefined,
-        communityUpgradeExeName: gameMeta.communityUpgradeGame
-          ? gameMeta.exeName
-          : undefined,
-        communityUpgradeGameName: gameMeta.communityUpgradeGame?.name,
-        totalSeconds: 0,
-        sessionCount: 0,
-        historyGameKey: null,
-        lastPlayedAt: gameMeta.lastCheckedAt,
-        exeNames: [gameMeta.exeName],
-      });
+    for (const [summaryKey, gameEntries] of metadata) {
+      for (const gameMeta of gameEntries) {
+        if (gameMeta.gameId === undefined) continue;
+        let summary = summaries.get(summaryKey);
+        if (!summary) {
+          summary = createSummary({
+            gameId: gameMeta.gameId,
+            igdbId: gameMeta.igdbId,
+            name: gameMeta.gameName ?? fallbackGameName(gameMeta.exeName),
+            coverUrl: gameMeta.coverUrl ?? "",
+            source: gameMeta.source,
+            lastPlayedAt: gameMeta.lastCheckedAt,
+            exeName: gameMeta.exeName,
+          });
+          summaries.set(summaryKey, summary);
+        }
+        mergeEntry(summary, gameMeta);
+      }
     }
 
     return [...summaries.values()].sort(
@@ -393,6 +478,7 @@ export function MyGamesView() {
     blacklist,
     exeCache,
     hydratedGameMetadata,
+    resolveIgdbId,
     sessions,
     userIgnoredProcesses,
   ]);
@@ -508,7 +594,11 @@ export function MyGamesView() {
             >
               {displayedGames.map((game) => (
                 <GameLibraryCard
-                  key={`${game.source ?? "unknown"}:${game.gameId}`}
+                  key={
+                    game.igdbId !== undefined
+                      ? `igdb#${game.igdbId}`
+                      : `${game.source ?? "unknown"}:${game.gameId}`
+                  }
                   game={game}
                   showDurationDays={showDurationDays}
                   view={view}
@@ -517,6 +607,7 @@ export function MyGamesView() {
                       gameId: game.gameId,
                       source: game.source,
                       name: game.name,
+                      aliases: game.aliases,
                     })
                   }
                   onStopTracking={
@@ -528,6 +619,7 @@ export function MyGamesView() {
                             name: game.name,
                             exeNames: game.exeNames,
                             sessionCount: game.sessionCount,
+                            aliases: game.aliases,
                           })
                       : undefined
                   }
@@ -546,6 +638,7 @@ export function MyGamesView() {
               pendingRemoval.gameId,
               pendingRemoval.source,
               removeHistory,
+              pendingRemoval.aliases,
             );
             addToast({
               tone: "success",
@@ -572,6 +665,7 @@ export function MyGamesView() {
               game.source,
               game.exeNames,
               clearHistory,
+              game.aliases,
             )
               .then(() => {
                 addToast({
@@ -644,10 +738,12 @@ function GameLibraryCard({
   const [showRename, setShowRename] = useState(false);
   const [renameName, setRenameName] = useState("");
   const hasActiveSession = useAppStore((state) =>
-    state.activeSessions.some(
-      (session) =>
-        session.gameId === game.gameId &&
-        (game.source ? session.source === game.source : true),
+    state.activeSessions.some((session) =>
+      game.aliases.some(
+        (alias) =>
+          session.gameId === alias.gameId &&
+          (session.source ?? null) === alias.source,
+      ),
     ),
   );
   const canEditCover = game.source === "custom";
@@ -778,6 +874,7 @@ function GameLibraryCard({
           shareSelection.coverUrl,
           result.id,
           false,
+          shareSelection.igdbId,
         );
         markCommunitySuggestionRejected(exeName, result.reviewNote);
         closeShare();
@@ -795,6 +892,7 @@ function GameLibraryCard({
         shareSelection.coverUrl,
         result.id,
         result.verified ?? false,
+        shareSelection.igdbId,
       );
       closeShare();
       addToast({
@@ -838,6 +936,7 @@ function GameLibraryCard({
   const handleAddPlaytime = (durationSeconds: number, endedAt?: string) => {
     addManualSession({
       gameId: game.gameId,
+      igdbId: game.igdbId,
       gameName: game.name,
       coverUrl: game.coverUrl,
       source: game.source,
@@ -861,6 +960,7 @@ function GameLibraryCard({
     try {
       setGamePlaytime({
         gameId: game.gameId,
+        igdbId: game.igdbId,
         gameName: game.name,
         coverUrl: game.coverUrl,
         source: game.source,
@@ -870,6 +970,7 @@ function GameLibraryCard({
         communitySuggestionVerified: game.communitySuggestionVerified,
         communitySuggestionStatus: game.communitySuggestionStatus,
         communitySuggestionNote: game.communitySuggestionNote,
+        aliases: game.aliases,
       });
       addToast({
         tone: "success",
@@ -1116,8 +1217,10 @@ function GameLibraryCard({
 
           {/* Badges top left */}
           <div className="absolute left-2 top-2 z-20 flex flex-col items-start gap-1.5 drop-shadow-md">
-            <SourceBadge source={game.source} />
-            {game.source === "custom" ? (
+            {game.sources.map((source) => (
+              <SourceBadge key={source} source={source} />
+            ))}
+            {game.sources.includes("custom") ? (
               <CommunityApprovalBadge
                 suggestionId={game.communitySuggestionId}
                 verified={game.communitySuggestionVerified}
@@ -1230,7 +1333,7 @@ function GameLibraryCard({
 
           {/* Persistent Community Prompts */}
           {(game.communityUpgradeExeName ||
-            (game.source === "custom" && game.communitySuggestionExeName)) && (
+            game.communitySuggestionExeName) && (
             <div className="mt-3 flex flex-col gap-2 border-t border-border/50 pt-3">
               {game.communityUpgradeExeName ? (
                 <>
@@ -1401,8 +1504,12 @@ function GameLibraryCard({
                 game.name
               )}
             </h2>
-            <SourceBadge source={game.source} />
-            {game.source === "custom" ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {game.sources.map((source) => (
+                <SourceBadge key={source} source={source} />
+              ))}
+            </div>
+            {game.sources.includes("custom") ? (
               <CommunityApprovalBadge
                 suggestionId={game.communitySuggestionId}
                 verified={game.communitySuggestionVerified}
@@ -1422,7 +1529,7 @@ function GameLibraryCard({
           </div>
 
           {(game.communityUpgradeExeName ||
-            (game.source === "custom" && game.communitySuggestionExeName)) && (
+            game.communitySuggestionExeName) && (
             <div className="mt-3 flex gap-2">
               {game.communityUpgradeExeName ? (
                 <>

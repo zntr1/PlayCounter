@@ -1,6 +1,7 @@
-import type { Session } from "@playcounter/shared";
+import type { GameSource, Session } from "@playcounter/shared";
 import { dailyTotals, getSessionGameKey, summaryStats } from "./historyStats";
 import type { AppNotification, NotificationKind } from "./notifications";
+import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 
 const TOTAL_HOURS = [10, 50, 100, 250, 500, 1_000, 2_500, 5_000];
 const MONTH_HOURS = [10, 25, 50, 100, 200];
@@ -21,6 +22,7 @@ export function evaluateMilestones(input: {
   verifiedContributions: number;
   awardedMilestoneIds: string[];
   milestonesInitializedAt: string | null;
+  resolveIgdbId?: GameIdentityResolver;
   now?: Date;
 }): MilestoneEvaluation {
   const now = input.now ?? new Date();
@@ -65,11 +67,30 @@ export function evaluateMilestones(input: {
     string,
     { seconds: number; name: string; coverUrl: string }
   >();
+  const aliasesByGame = new Map<string, Set<string>>();
   for (const [key, seconds] of Object.entries(input.archivedGameSeconds)) {
-    games.set(key, { seconds, name: "A game", coverUrl: "" });
+    const separator = key.indexOf(":");
+    const source = separator >= 0 ? key.slice(0, separator) : "unknown";
+    const gameId = Number(key.slice(separator + 1));
+    const canonicalKey = Number.isFinite(gameId)
+      ? resolvedCanonicalGameKey(
+          { gameId, source: source as GameSource },
+          input.resolveIgdbId,
+        )
+      : key;
+    const game = games.get(canonicalKey) ?? {
+      seconds: 0,
+      name: "A game",
+      coverUrl: "",
+    };
+    game.seconds += seconds;
+    games.set(canonicalKey, game);
+    const aliases = aliasesByGame.get(canonicalKey) ?? new Set<string>();
+    aliases.add(key);
+    aliasesByGame.set(canonicalKey, aliases);
   }
   for (const session of input.sessions) {
-    const key = getSessionGameKey(session);
+    const key = getSessionGameKey(session, input.resolveIgdbId);
     const game = games.get(key) ?? {
       seconds: 0,
       name: session.gameName ?? session.exeName,
@@ -79,7 +100,11 @@ export function evaluateMilestones(input: {
     if (session.gameName) game.name = session.gameName;
     if (session.coverUrl) game.coverUrl = session.coverUrl;
     games.set(key, game);
+    const aliases = aliasesByGame.get(key) ?? new Set<string>();
+    aliases.add(`${session.source ?? "unknown"}:${session.gameId}`);
+    aliasesByGame.set(key, aliases);
   }
+  const equivalentAwardIds = new Map<string, string[]>();
   for (const [key, game] of games) {
     addThresholds(
       reached,
@@ -91,6 +116,14 @@ export function evaluateMilestones(input: {
       createdAt,
       game.coverUrl,
     );
+    for (const threshold of GAME_HOURS) {
+      equivalentAwardIds.set(
+        `milestone:game:${key}:${threshold}`,
+        [...(aliasesByGame.get(key) ?? [])].map(
+          (alias) => `milestone:game:${alias}:${threshold}`,
+        ),
+      );
+    }
   }
 
   addThresholds(
@@ -116,7 +149,16 @@ export function evaluateMilestones(input: {
   );
 
   const awarded = new Set(input.awardedMilestoneIds);
-  const fresh = reached.filter((notification) => !awarded.has(notification.id));
+  for (const [canonicalId, aliasIds] of equivalentAwardIds) {
+    if (aliasIds.some((id) => awarded.has(id))) awarded.add(canonicalId);
+  }
+  const fresh = reached.filter(
+    (notification) =>
+      !awarded.has(notification.id) &&
+      !(equivalentAwardIds.get(notification.id) ?? []).some((id) =>
+        awarded.has(id),
+      ),
+  );
   for (const notification of fresh) awarded.add(notification.id);
   return {
     awardedMilestoneIds: [...awarded],

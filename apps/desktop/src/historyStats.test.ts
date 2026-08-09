@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   bucketSessions,
   dailyTotals,
+  getSessionGameKey,
   historyRange,
   quantileLevel,
   quantileThresholds,
@@ -101,6 +102,39 @@ describe("splitAcrossBoundaries", () => {
 });
 
 describe("range-aware aggregates", () => {
+  it("groups source aliases by their shared IGDB identity", () => {
+    const igdb = session("2026-08-08T10:00:00+02:00", 3600, {
+      id: 1,
+      gameId: 1,
+      source: "igdb",
+    });
+    const community = session("2026-08-08T12:00:00+02:00", 3600, {
+      id: 2,
+      gameId: 7,
+      source: "community",
+    });
+    const resolveIgdbId = (
+      gameId: number,
+      source?: Session["source"] | null,
+    ) =>
+      (source === "igdb" && gameId === 1) ||
+      (source === "community" && gameId === 7)
+        ? 12345
+        : undefined;
+
+    expect(getSessionGameKey(igdb, resolveIgdbId)).toBe("igdb#12345");
+    expect(getSessionGameKey(community, resolveIgdbId)).toBe("igdb#12345");
+    expect(
+      topGames(
+        [igdb, community],
+        () => ({ name: "Game", coverUrl: "" }),
+        8,
+        null,
+        resolveIgdbId,
+      ),
+    ).toMatchObject([{ key: "igdb#12345", seconds: 7200, sessionCount: 2 }]);
+  });
+
   it("assigns sparse sessions directly to their overlapping calendar days", () => {
     const fromMs = new Date("2026-08-01T00:00:00+02:00").getTime();
     const toMs = new Date("2026-08-05T00:00:00+02:00").getTime();

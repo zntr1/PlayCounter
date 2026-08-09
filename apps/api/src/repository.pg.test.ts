@@ -72,6 +72,24 @@ describePg("community review PostgreSQL integration", () => {
     const first = await repo.suggestCommunityGame(payload);
     expect(first.id).toBeTypeOf("number");
     gameIds.push(first.id!);
+    const pendingMatches = await repo.matchProcesses([
+      {
+        key: payload.exeName.toLowerCase(),
+        identifiers: [
+          { platform: "windows", kind: "exe", value: payload.exeName },
+        ],
+      },
+    ]);
+    expect(
+      pendingMatches.get(payload.exeName.toLowerCase())?.pendingCommunityGames,
+    ).toMatchObject([{ id: first.id, igdbId: payload.igdbId }]);
+    expect(await repo.gamesByIds([first.id!])).toContainEqual(
+      expect.objectContaining({
+        id: first.id,
+        source: "community",
+        igdbId: payload.igdbId,
+      }),
+    );
     const secondInstall = randomUUID();
     await repo.suggestCommunityGame({ ...payload, installUuid: secondInstall });
     expect(

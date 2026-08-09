@@ -1,4 +1,5 @@
 import type { Session } from "@playcounter/shared";
+import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 
 export type HistoryFilter = "all" | "today" | "week" | "month";
 
@@ -43,8 +44,11 @@ type ResolvedGame = { name: string; coverUrl: string };
 
 const hourMs = 3_600_000;
 
-export function getSessionGameKey(session: Session) {
-  return `${session.source ?? "unknown"}:${session.gameId}`;
+export function getSessionGameKey(
+  session: Session,
+  resolveIgdbId?: GameIdentityResolver,
+) {
+  return resolvedCanonicalGameKey(session, resolveIgdbId);
 }
 
 function sessionInterval(session: Session): HistoryRange | null {
@@ -199,6 +203,7 @@ function aggregateBoundaries(
   sessions: Session[],
   boundaries: number[],
   descriptors?: Array<{ label: string; tooltip: string }>,
+  resolveIgdbId?: GameIdentityResolver,
 ): HistoryBucket[] {
   const buckets = boundaries.slice(0, -1).map((_, index) => ({
     label: descriptors?.[index]?.label ?? "",
@@ -210,7 +215,7 @@ function aggregateBoundaries(
   const games = buckets.map(() => new Map<string, number>());
 
   for (const session of sessions) {
-    const key = getSessionGameKey(session);
+    const key = getSessionGameKey(session, resolveIgdbId);
     visitBoundaryOverlaps(session, boundaries, (index, seconds) => {
       buckets[index].seconds += seconds;
       buckets[index].sessionCount += 1;
@@ -274,6 +279,7 @@ export function bucketSessions(
   sessions: Session[],
   filter: HistoryFilter,
   nowMs: number,
+  resolveIgdbId?: GameIdentityResolver,
 ) {
   const todayMs = startOfLocalDay(nowMs).getTime();
 
@@ -284,6 +290,7 @@ export function bucketSessions(
       sessions,
       hourlyBoundaries,
       descriptorsForBoundaries(hourlyBoundaries, "hour"),
+      resolveIgdbId,
     );
     return {
       title: "Today",
@@ -308,8 +315,14 @@ export function bucketSessions(
         filter === "week"
           ? fullDescriptors
           : rangeDescriptors(compactBoundaries),
+        resolveIgdbId,
       ),
-      full: aggregateBoundaries(sessions, fullBoundaries, fullDescriptors),
+      full: aggregateBoundaries(
+        sessions,
+        fullBoundaries,
+        fullDescriptors,
+        resolveIgdbId,
+      ),
     };
   }
 
@@ -340,6 +353,7 @@ export function bucketSessions(
     sessions,
     boundaries,
     descriptorsForBoundaries(boundaries, "month"),
+    resolveIgdbId,
   );
   const compactBoundaries =
     full.length <= 6 ? boundaries : groupedBoundaries(boundaries, 6);
@@ -350,6 +364,7 @@ export function bucketSessions(
           sessions,
           compactBoundaries,
           rangeDescriptors(compactBoundaries),
+          resolveIgdbId,
         );
   return { title: "All Time", compact, full };
 }
@@ -415,6 +430,7 @@ export function topGames(
   resolveGame: (session: Session) => ResolvedGame,
   limit = 8,
   range: HistoryRange | null = null,
+  resolveIgdbId?: GameIdentityResolver,
 ): TopGame[] {
   const games = new Map<
     string,
@@ -425,7 +441,7 @@ export function topGames(
     if (!interval) continue;
     const seconds = Math.round(overlapMs(interval, range) / 1000);
     if (seconds <= 0) continue;
-    const key = getSessionGameKey(session);
+    const key = getSessionGameKey(session, resolveIgdbId);
     const existing = games.get(key);
     if (existing) {
       existing.seconds += seconds;

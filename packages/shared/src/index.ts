@@ -2,6 +2,7 @@ export type GameSource = "igdb" | "community" | "custom";
 
 export interface Game {
   id: number;
+  igdbId?: number;
   name: string;
   coverUrl: string;
   source: GameSource;
@@ -129,6 +130,7 @@ export interface GameMetadataResponse {
 export interface Session {
   id: number;
   gameId: number;
+  igdbId?: number;
   gameName?: string;
   coverUrl?: string;
   source?: GameSource;

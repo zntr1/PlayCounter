@@ -88,4 +88,23 @@ describe("milestones", () => {
       "milestone:month:2026-09:10",
     );
   });
+
+  it("merges archived aliases and does not re-award their milestones", () => {
+    const result = evaluateMilestones({
+      sessions: [session(1)],
+      archivedSeconds: 9 * 3600,
+      archivedGameSeconds: { "community:42": 9 * 3600 },
+      verifiedContributions: 0,
+      awardedMilestoneIds: ["milestone:game:community:42:10"],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      resolveIgdbId: () => 12345,
+      now: new Date("2026-08-09T12:00:00.000Z"),
+    });
+    expect(result.notifications.map((item) => item.id)).not.toContain(
+      "milestone:game:igdb#12345:10",
+    );
+    expect(result.awardedMilestoneIds).toContain(
+      "milestone:game:igdb#12345:10",
+    );
+  });
 });

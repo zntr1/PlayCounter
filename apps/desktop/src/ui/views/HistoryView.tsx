@@ -14,7 +14,11 @@ import {
   historyRange,
   type HistoryFilter,
 } from "../../historyStats";
-import { gameMetadataKey, useAppStore } from "../../store";
+import {
+  createGameIdentityResolver,
+  gameMetadataKey,
+  useAppStore,
+} from "../../store";
 import { hydrateGameMetadata } from "../../tracker";
 import { Panel, formatDuration } from "../components";
 import { Button, Input } from "../primitives";
@@ -105,6 +109,10 @@ export function HistoryView() {
     hasCachedHistoryInsights(sessions, nowMs),
   );
   const deferredQuery = useDeferredValue(query);
+  const resolveIgdbId = useMemo(
+    () => createGameIdentityResolver(hydratedGameMetadata, exeCache),
+    [exeCache, hydratedGameMetadata],
+  );
 
   useEffect(() => {
     if (insightsReady) return;
@@ -228,7 +236,7 @@ export function HistoryView() {
       { key: string; name: string; sessionCount: number }
     >();
     for (const session of sessions) {
-      const key = getSessionGameKey(session);
+      const key = getSessionGameKey(session, resolveIgdbId);
       const existing = options.get(key);
       if (existing) existing.sessionCount += 1;
       else {
@@ -242,14 +250,14 @@ export function HistoryView() {
     return [...options.values()].sort((left, right) =>
       left.name.localeCompare(right.name),
     );
-  }, [resolveGame, sessions, showSuggestions]);
+  }, [resolveGame, resolveIgdbId, sessions, showSuggestions]);
 
   const gameFilteredSessions = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase();
     if (!selectedGameKey && !needle) return sessions;
     return sessions.filter((session) => {
       if (selectedGameKey) {
-        return getSessionGameKey(session) === selectedGameKey;
+        return getSessionGameKey(session, resolveIgdbId) === selectedGameKey;
       }
       if (!needle) return true;
       return (
@@ -257,7 +265,7 @@ export function HistoryView() {
         session.exeName.toLowerCase().includes(needle)
       );
     });
-  }, [deferredQuery, resolveGame, selectedGameKey, sessions]);
+  }, [deferredQuery, resolveGame, resolveIgdbId, selectedGameKey, sessions]);
 
   const selectedRange = useMemo(
     () => historyRange(filter, nowMs),
@@ -490,6 +498,7 @@ export function HistoryView() {
           nowMs={nowMs}
           showDurationDays={showDurationDays}
           resolveGame={resolveGame}
+          resolveIgdbId={resolveIgdbId}
           onSelectGame={selectGame}
         />
       ) : (
@@ -560,6 +569,7 @@ export function HistoryView() {
                         key={session.id}
                         session={session}
                         metadata={lookupMetadata(session)}
+                        resolveIgdbId={resolveIgdbId}
                         selectedGameKey={selectedGameKey}
                         onFilterGame={selectGame}
                         onClearGameFilter={clearGameFilter}

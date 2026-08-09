@@ -16,7 +16,10 @@ import {
   useAppStore,
   BUILD_STAGE,
   DEFAULT_API_ENDPOINT,
+  canonicalGameKey,
+  createGameIdentityResolver,
   gameMetadataKey,
+  resolvedCanonicalGameKey,
   type ActiveSession,
   type AmbiguousProcessMatch,
   type ExeCacheEntry,
@@ -76,6 +79,11 @@ type ProcessMatch = {
   startedAt?: string;
 };
 
+export type GameAliasRef = {
+  gameId: number;
+  source: Game["source"] | null;
+};
+
 type IgnoredProcessesResponse = {
   processes: string[];
   userProcesses?: string[];
@@ -97,6 +105,10 @@ let unsubscribeTraySync: (() => void) | undefined;
 let nextSessionSequence = 0;
 let scanInFlight: Promise<void> | undefined;
 let scanQueued = false;
+let canonicalBackfillDone = false;
+let canonicalBackfillInFlight: Promise<boolean> | undefined;
+const canonicalMetadataCheckedIds = new Set<number>();
+const metadataHydrationRequests = new Map<string, Promise<boolean>>();
 
 const launcherBlacklist = [
   "epicgameslauncher.exe",
@@ -119,6 +131,13 @@ export async function initializeTracker() {
     if (state.activeSessions !== previousState.activeSessions) {
       syncTrayNowPlaying();
       scheduleTraySync();
+    }
+    if (
+      state.backendHealth.status === "online" &&
+      previousState.backendHealth.status !== "online" &&
+      !canonicalBackfillDone
+    ) {
+      void backfillCanonicalGameIds();
     }
   });
   logRuntime("tracker state hydrated");
@@ -150,6 +169,8 @@ async function finishTrackerStartup() {
       .setRuntimeError(`Tauri command failed: ${formatError(error)}`);
   }
 
+  await backfillCanonicalGameIds();
+
   void closeStaleSession();
   scheduleBackendHealthChecks();
 
@@ -167,6 +188,10 @@ async function finishTrackerStartup() {
     trayTimer = undefined;
     unsubscribeTraySync?.();
     unsubscribeTraySync = undefined;
+    canonicalBackfillDone = false;
+    canonicalBackfillInFlight = undefined;
+    canonicalMetadataCheckedIds.clear();
+    metadataHydrationRequests.clear();
     initialized = false;
   });
 
@@ -324,11 +349,22 @@ export async function setUserIgnoredProcess(exeName: string, ignored: boolean) {
   void requestProcessScan("after ignored process update");
 }
 
+function matchesGameAlias(
+  value: { gameId: number; source?: Game["source"] },
+  aliases: GameAliasRef[],
+) {
+  return aliases.some(
+    (alias) =>
+      value.gameId === alias.gameId && (value.source ?? null) === alias.source,
+  );
+}
+
 export async function doNotTrackGame(
   gameId: number,
   source: Game["source"] | null,
   exeNames: string[] = [],
   removeHistory = false,
+  aliases: GameAliasRef[] = [{ gameId, source }],
 ) {
   const state = useAppStore.getState();
   const matchingExeNames = [
@@ -339,8 +375,11 @@ export async function doNotTrackGame(
           .filter(
             (entry) =>
               entry.state === "matched" &&
-              entry.gameId === gameId &&
-              (source ? entry.source === source : true),
+              aliases.some(
+                (alias) =>
+                  entry.gameId === alias.gameId &&
+                  (entry.source ?? null) === alias.source,
+              ),
           )
           .map((entry) => entry.exeName),
       ].filter((exeName) => exeName.trim().length > 0),
@@ -350,7 +389,7 @@ export async function doNotTrackGame(
   for (const exeName of matchingExeNames) {
     await setUserIgnoredProcess(exeName, true);
   }
-  untrackGame(gameId, source, removeHistory);
+  untrackGame(gameId, source, removeHistory, aliases);
 }
 
 export async function openUserIgnoredProcessesFolder() {
@@ -384,7 +423,11 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   // the first one seen starts it, and it only ends once none of them is left.
   const matchesByGame = new Map<string, ProcessMatch>();
   for (const match of matches) {
-    const key = activeSessionKey(match.game.id, match.game.source);
+    const key = activeSessionKey(
+      match.game.id,
+      match.game.source,
+      match.game.igdbId,
+    );
     if (!matchesByGame.has(key)) matchesByGame.set(key, match);
   }
   const nextKeys = new Set(matchesByGame.keys());
@@ -939,6 +982,7 @@ function setCommunitySuggestionMarker(
     const exeCache = new Map(state.exeCache);
     exeCache.set(key, {
       ...existing,
+      igdbId: game.igdbId ?? existing.igdbId,
       pendingCommunityGame: verified ? undefined : game,
       communitySuggestionId: game.id,
       communitySuggestionVerified: verified,
@@ -951,6 +995,7 @@ function setCommunitySuggestionMarker(
         session.exeName.toLowerCase() === key && session.source === "custom"
           ? {
               ...session,
+              igdbId: game.igdbId ?? session.igdbId ?? existing.igdbId,
               communitySuggestionId: game.id,
               communitySuggestionVerified: verified,
               communitySuggestionStatus: verified ? "verified" : "pending",
@@ -962,6 +1007,7 @@ function setCommunitySuggestionMarker(
         session.exeName.toLowerCase() === key && session.source === "custom"
           ? {
               ...session,
+              igdbId: game.igdbId ?? session.igdbId ?? existing.igdbId,
               communitySuggestionId: game.id,
               communitySuggestionVerified: verified,
               communitySuggestionStatus: verified ? "verified" : "pending",
@@ -1046,7 +1092,14 @@ export function applyGameMatch(exeName: string, game: Game) {
   const key = exeName.toLowerCase();
   const existing = state.exeCache.get(key);
   if (existing?.state !== "matched") return;
-  if (existing.source === game.source && existing.gameId === game.id) return;
+  const igdbId = game.igdbId ?? existing.igdbId;
+  if (
+    existing.source === game.source &&
+    existing.gameId === game.id &&
+    existing.igdbId === igdbId
+  ) {
+    return;
+  }
 
   const oldGameId = existing.gameId;
   const suggestionId =
@@ -1059,6 +1112,7 @@ export function applyGameMatch(exeName: string, game: Game) {
     exeName: existing.exeName,
     state: "matched",
     gameId: game.id,
+    igdbId,
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: game.source,
@@ -1075,6 +1129,7 @@ export function applyGameMatch(exeName: string, game: Game) {
         ? {
             ...session,
             gameId: game.id,
+            igdbId,
             gameName: game.name,
             coverUrl: game.coverUrl,
             source: game.source,
@@ -1090,6 +1145,7 @@ export function applyGameMatch(exeName: string, game: Game) {
         ? {
             ...session,
             gameId: game.id,
+            igdbId,
             gameName: game.name,
             coverUrl: game.coverUrl,
             source: game.source,
@@ -1179,6 +1235,7 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
   const oldGameId = existing.gameId;
   const communityGame: Game = {
     id: existing.communitySuggestionId,
+    igdbId: existing.igdbId,
     name: existing.gameName ?? exeName,
     coverUrl: existing.coverUrl ?? "",
     source: "community",
@@ -1188,6 +1245,7 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
     exeName: existing.exeName,
     state: "matched",
     gameId: communityGame.id,
+    igdbId: communityGame.igdbId,
     gameName: communityGame.name,
     coverUrl: communityGame.coverUrl,
     source: "community",
@@ -1204,6 +1262,7 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
         ? {
             ...session,
             gameId: communityGame.id,
+            igdbId: communityGame.igdbId,
             gameName: communityGame.name,
             coverUrl: communityGame.coverUrl,
             source: "community",
@@ -1219,6 +1278,7 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
         ? {
             ...session,
             gameId: communityGame.id,
+            igdbId: communityGame.igdbId,
             gameName: communityGame.name,
             coverUrl: communityGame.coverUrl,
             source: "community",
@@ -1331,6 +1391,7 @@ function resolveCachedProcess(
       state: "matched",
       game: {
         id: cached.gameId,
+        igdbId: cached.igdbId,
         name: cached.gameName,
         coverUrl: cached.coverUrl ?? "",
         source: cached.source ?? "igdb",
@@ -1432,6 +1493,7 @@ function backfillTrackedRuntime(exeName: string, game: Game) {
   useAppStore.getState().addSession({
     id: createSessionId(),
     gameId: game.id,
+    igdbId: game.igdbId,
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: game.source,
@@ -1491,6 +1553,7 @@ function cacheMatchResult(exeName: string, game: Game | null) {
     exeName,
     state: "matched",
     gameId: game.id,
+    igdbId: game.igdbId,
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: game.source,
@@ -1503,7 +1566,7 @@ function startSession(
   game: Game,
   startedAtOverride?: string,
 ) {
-  const sessionKey = activeSessionKey(game.id, game.source);
+  const sessionKey = activeSessionKey(game.id, game.source, game.igdbId);
   const alreadyRunning = useAppStore
     .getState()
     .activeSessions.some(
@@ -1524,6 +1587,7 @@ function startSession(
   const session: ActiveSession = {
     id: createSessionId(),
     gameId: game.id,
+    igdbId: game.igdbId,
     gameName: game.name,
     exeName: process.exeName,
     coverUrl: game.coverUrl,
@@ -1551,7 +1615,7 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
   state.removeAmbiguousMatch(ambiguous.exeName);
   // The picked game may already be tracked through one of its other
   // executables; then this exe joins that session instead of adding a second.
-  const sessionKey = activeSessionKey(game.id, game.source);
+  const sessionKey = activeSessionKey(game.id, game.source, game.igdbId);
   const active = useAppStore
     .getState()
     .activeSessions.some(
@@ -1584,6 +1648,7 @@ function addCompletedAmbiguousSession(
   useAppStore.getState().addSession({
     id: createSessionId(),
     gameId: game.id,
+    igdbId: game.igdbId,
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: game.source,
@@ -1615,6 +1680,7 @@ async function endSession(session: ActiveSession, endedAtOverride?: string) {
   useAppStore.getState().addSession({
     id: session.id,
     gameId: session.gameId,
+    igdbId: session.igdbId,
     gameName: session.gameName,
     coverUrl: session.coverUrl,
     source: session.source,
@@ -1731,11 +1797,39 @@ export function persist() {
   const state = useAppStore.getState();
   const result = persistAppState(state);
   if (result.status !== "failed") {
-    useAppStore.setState({
-      recentSessions: result.sessions,
-      notifications: result.notifications,
-      archivedSeconds: result.archivedSeconds,
-      archivedGameSeconds: result.archivedGameSeconds,
+    useAppStore.setState((current) => {
+      const recentSessions = sameArrayItems(
+        current.recentSessions,
+        result.sessions,
+      )
+        ? current.recentSessions
+        : result.sessions;
+      const notifications = sameArrayItems(
+        current.notifications,
+        result.notifications,
+      )
+        ? current.notifications
+        : result.notifications;
+      const archivedGameSeconds = sameNumberRecord(
+        current.archivedGameSeconds,
+        result.archivedGameSeconds,
+      )
+        ? current.archivedGameSeconds
+        : result.archivedGameSeconds;
+      if (
+        recentSessions === current.recentSessions &&
+        notifications === current.notifications &&
+        result.archivedSeconds === current.archivedSeconds &&
+        archivedGameSeconds === current.archivedGameSeconds
+      ) {
+        return current;
+      }
+      return {
+        recentSessions,
+        notifications,
+        archivedSeconds: result.archivedSeconds,
+        archivedGameSeconds,
+      };
     });
   }
   if (result.status === "trimmed") {
@@ -1907,8 +2001,31 @@ export async function pollContributions(reason: string) {
   }
 }
 
+function sameArrayItems<T>(left: readonly T[], right: readonly T[]) {
+  return (
+    left.length === right.length &&
+    left.every((item, index) => item === right[index])
+  );
+}
+
+function sameNumberRecord(
+  left: Readonly<Record<string, number>>,
+  right: Readonly<Record<string, number>>,
+) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every((key) => left[key] === right[key])
+  );
+}
+
 export function evaluateAndStoreMilestones(now = new Date()) {
   const state = useAppStore.getState();
+  const resolveIgdbId = createGameIdentityResolver(
+    state.gameMetadata,
+    state.exeCache,
+  );
   const result = evaluateMilestones({
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
@@ -1916,6 +2033,7 @@ export function evaluateAndStoreMilestones(now = new Date()) {
     verifiedContributions: state.contributionCounts.verified,
     awardedMilestoneIds: state.awardedMilestoneIds,
     milestonesInitializedAt: state.milestonesInitializedAt,
+    resolveIgdbId,
     now,
   });
   useAppStore.setState((current) => ({
@@ -2034,6 +2152,7 @@ export function addSharedCustomGame(
   coverUrl: string,
   communitySuggestionId: number,
   communitySuggestionVerified: boolean,
+  igdbId?: number,
 ) {
   const normalizedGameName = gameName.trim();
   if (!normalizedGameName) return null;
@@ -2044,6 +2163,7 @@ export function addSharedCustomGame(
     // this the second exe would get its own local id and run a second session
     // next to the first one until approval merges them.
     id: sharedCustomGameId(exeName, communitySuggestionId),
+    igdbId,
     name: normalizedGameName,
     coverUrl,
     source: "custom",
@@ -2053,6 +2173,7 @@ export function addSharedCustomGame(
     exeName,
     state: "matched",
     gameId: game.id,
+    igdbId: game.igdbId,
     gameName: game.name,
     coverUrl,
     source: "custom",
@@ -2060,6 +2181,7 @@ export function addSharedCustomGame(
       ? undefined
       : {
           id: communitySuggestionId,
+          igdbId,
           name: game.name,
           coverUrl,
           source: "community",
@@ -2090,6 +2212,7 @@ export function shareTrackedCustomGame(
   coverUrl: string,
   communitySuggestionId: number,
   communitySuggestionVerified: boolean,
+  igdbId?: number,
 ) {
   const key = exeName.toLowerCase();
   const existing = useAppStore.getState().exeCache.get(key);
@@ -2104,6 +2227,7 @@ export function shareTrackedCustomGame(
     coverUrl,
     communitySuggestionId,
     communitySuggestionVerified,
+    igdbId,
   );
   if (!game) return null;
 
@@ -2112,6 +2236,8 @@ export function shareTrackedCustomGame(
       session.exeName.toLowerCase() === key && session.gameId === oldGameId
         ? {
             ...session,
+            gameId: game.id,
+            igdbId: game.igdbId,
             gameName: game.name,
             coverUrl: game.coverUrl,
             communitySuggestionId,
@@ -2127,6 +2253,8 @@ export function shareTrackedCustomGame(
       session.exeName.toLowerCase() === key && session.gameId === oldGameId
         ? {
             ...session,
+            gameId: game.id,
+            igdbId: game.igdbId,
             gameName: game.name,
             coverUrl: game.coverUrl,
             communitySuggestionId,
@@ -2173,6 +2301,7 @@ export function suggestTrackedGameToCommunity(
   coverUrl: string,
   communitySuggestionId: number,
   communitySuggestionVerified: boolean,
+  igdbId?: number,
 ) {
   const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
   if (existing?.state !== "matched") return null;
@@ -2183,11 +2312,13 @@ export function suggestTrackedGameToCommunity(
       coverUrl,
       communitySuggestionId,
       communitySuggestionVerified,
+      igdbId,
     );
   }
 
   const customGame: Game = {
     id: customGameId(exeName),
+    igdbId,
     name: gameName.trim(),
     coverUrl,
     source: "custom",
@@ -2198,6 +2329,7 @@ export function suggestTrackedGameToCommunity(
     exeName,
     {
       id: communitySuggestionId,
+      igdbId,
       name: customGame.name,
       coverUrl,
       source: "community",
@@ -2232,6 +2364,7 @@ export function selectAmbiguousCommunitySuggestion(
   coverUrl: string,
   communitySuggestionId: number,
   communitySuggestionVerified: boolean,
+  igdbId?: number,
 ) {
   const game = addSharedCustomGame(
     exeName,
@@ -2239,6 +2372,7 @@ export function selectAmbiguousCommunitySuggestion(
     coverUrl,
     communitySuggestionId,
     communitySuggestionVerified,
+    igdbId,
   );
   if (!game) return;
   selectAmbiguousMatch(exeName, game);
@@ -2291,20 +2425,23 @@ export function untrackGame(
   gameId: number,
   source: Game["source"] | null,
   removeHistory: boolean,
+  aliases: GameAliasRef[] = [{ gameId, source }],
 ) {
   const state = useAppStore.getState();
   const matchingExeNames = [...state.exeCache.values()]
     .filter(
       (entry) =>
         entry.state === "matched" &&
-        entry.gameId === gameId &&
-        (source ? entry.source === source : true),
+        aliases.some(
+          (alias) =>
+            entry.gameId === alias.gameId &&
+            (entry.source ?? null) === alias.source,
+        ),
     )
     .map((entry) => entry.exeName);
 
   for (const session of state.activeSessions) {
-    if (session.gameId !== gameId) continue;
-    if (source && session.source !== source) continue;
+    if (!matchesGameAlias(session, aliases)) continue;
     removeActiveSession(session);
   }
 
@@ -2315,9 +2452,7 @@ export function untrackGame(
   if (removeHistory) {
     useAppStore.setState((current) => ({
       recentSessions: current.recentSessions.filter((session) => {
-        if (session.gameId !== gameId) return true;
-        if (source && session.source !== source) return true;
-        return false;
+        return !matchesGameAlias(session, aliases);
       }),
     }));
   }
@@ -2335,6 +2470,7 @@ export function untrackGame(
 // start is derived so the session spans the given duration.
 export function addManualSession(params: {
   gameId: number;
+  igdbId?: number;
   gameName: string;
   coverUrl: string;
   source: Game["source"] | null;
@@ -2357,6 +2493,7 @@ export function addManualSession(params: {
   useAppStore.getState().addSession({
     id: createSessionId(),
     gameId: params.gameId,
+    igdbId: params.igdbId,
     gameName: params.gameName,
     coverUrl: params.coverUrl,
     source: params.source ?? undefined,
@@ -2377,6 +2514,7 @@ export function addManualSession(params: {
 
 export function setGamePlaytime(params: {
   gameId: number;
+  igdbId?: number;
   gameName: string;
   coverUrl: string;
   source: Game["source"] | null;
@@ -2386,15 +2524,18 @@ export function setGamePlaytime(params: {
   communitySuggestionVerified?: boolean;
   communitySuggestionStatus?: ContributionStatus;
   communitySuggestionNote?: string;
+  aliases?: GameAliasRef[];
 }) {
   const targetSeconds = Math.max(0, Math.round(params.targetSeconds));
   if (targetSeconds > 0 && targetSeconds < 60) {
     throw new Error("Playtime must be zero or at least one minute");
   }
 
+  const aliases = params.aliases ?? [
+    { gameId: params.gameId, source: params.source },
+  ];
   const matchesGame = (session: { gameId: number; source?: Game["source"] }) =>
-    session.gameId === params.gameId &&
-    (params.source ? session.source === params.source : true);
+    matchesGameAlias(session, aliases);
   const state = useAppStore.getState();
 
   if (state.activeSessions.some(matchesGame)) {
@@ -2406,6 +2547,7 @@ export function setGamePlaytime(params: {
     if (targetSeconds === 0) return;
     addManualSession({
       gameId: params.gameId,
+      igdbId: params.igdbId,
       gameName: params.gameName,
       coverUrl: params.coverUrl,
       source: params.source,
@@ -2453,11 +2595,14 @@ export function removeHistorySession(sessionId: number) {
   persist();
 }
 
-export function removeGameHistory(gameId: number) {
+export function removeGameHistory(
+  gameId: number,
+  aliases: GameAliasRef[] = [{ gameId, source: null }],
+) {
   const previousCount = useAppStore.getState().recentSessions.length;
   useAppStore.setState((state) => ({
     recentSessions: state.recentSessions.filter(
-      (session) => session.gameId !== gameId,
+      (session) => !matchesGameAlias(session, aliases),
     ),
   }));
   const removedCount =
@@ -2472,13 +2617,12 @@ export function removeGameHistory(gameId: number) {
 export function removeGameHistoryBySource(
   gameId: number,
   source: Game["source"] | null,
+  aliases: GameAliasRef[] = [{ gameId, source }],
 ) {
   const previousCount = useAppStore.getState().recentSessions.length;
   useAppStore.setState((state) => ({
     recentSessions: state.recentSessions.filter((session) => {
-      if (session.gameId !== gameId) return true;
-      if (source && session.source !== source) return true;
-      return false;
+      return !matchesGameAlias(session, aliases);
     }),
   }));
   const removedCount =
@@ -2666,16 +2810,39 @@ export async function scanProcessesNow() {
 export async function hydrateGameMetadata(
   gameRefs: Array<{ gameId: number; source?: Game["source"] }>,
 ) {
-  const state = useAppStore.getState();
+  let state = useAppStore.getState();
   if (
     state.backendHealth.status === "offline" ||
     state.backendHealth.status === "reconnecting"
   ) {
     verboseRuntime("game metadata hydration skipped; backend offline");
-    return;
+    return false;
   }
 
-  const refs = gameRefs.filter((ref) => ref.gameId > 0);
+  stampCanonicalIdsFromMetadata([]);
+  state = useAppStore.getState();
+  const refs = gameRefs.filter(
+    (ref) => ref.gameId > 0 && ref.source !== "custom",
+  );
+  for (const entry of state.exeCache.values()) {
+    if (entry.state !== "matched" || entry.igdbId !== undefined) continue;
+    if (
+      (entry.source === "igdb" || entry.source === "community") &&
+      entry.gameId !== undefined &&
+      entry.gameId > 0
+    ) {
+      refs.push({ gameId: entry.gameId, source: entry.source });
+    } else if (
+      entry.source === "custom" &&
+      entry.communitySuggestionId !== undefined &&
+      entry.communitySuggestionId > 0
+    ) {
+      refs.push({
+        gameId: entry.communitySuggestionId,
+        source: "community",
+      });
+    }
+  }
   const missingIds = [
     ...new Set(
       refs
@@ -2683,40 +2850,133 @@ export async function hydrateGameMetadata(
           if (ref.source === "custom") return false;
           if (!ref.source) {
             return (
-              !state.gameMetadata.has(`igdb:${ref.gameId}`) &&
-              !state.gameMetadata.has(`community:${ref.gameId}`)
+              state.gameMetadata.get(`igdb:${ref.gameId}`)?.igdbId ===
+                undefined &&
+              state.gameMetadata.get(`community:${ref.gameId}`)?.igdbId ===
+                undefined &&
+              !canonicalMetadataCheckedIds.has(ref.gameId)
             );
           }
-          return !state.gameMetadata.has(
+          const metadata = state.gameMetadata.get(
             gameMetadataKey({ id: ref.gameId, source: ref.source }),
+          );
+          return (
+            metadata?.igdbId === undefined &&
+            !canonicalMetadataCheckedIds.has(ref.gameId)
           );
         })
         .map((ref) => ref.gameId),
     ),
   ];
-  if (missingIds.length === 0) return;
+  if (missingIds.length === 0) {
+    collapseDuplicateActiveSessions();
+    return true;
+  }
 
-  try {
-    const response = await fetchWithTimeout(
-      `${state.settings.apiEndpoint}/api/games/metadata?ids=${missingIds.join(",")}`,
-      { timeoutMs: API_REQUEST_TIMEOUT_MS },
-    );
-    if (!response.ok)
-      throw new Error(`${response.status} ${response.statusText}`);
+  missingIds.sort((left, right) => left - right);
+  const requestKey = missingIds.join(",");
+  const existingRequest = metadataHydrationRequests.get(requestKey);
+  if (existingRequest) return existingRequest;
 
-    const body = (await response.json()) as GameMetadataResponse;
-    useAppStore
-      .getState()
-      .setGameMetadata(
-        body.games.filter(
-          (game): game is GameMetadata =>
-            game.source === "igdb" || game.source === "community",
-        ),
+  const request = (async () => {
+    try {
+      const response = await fetchWithTimeout(
+        `${state.settings.apiEndpoint}/api/games/metadata?ids=${missingIds.join(",")}`,
+        { timeoutMs: API_REQUEST_TIMEOUT_MS },
       );
-    logRuntime(`game metadata hydrated count=${body.games.length}`);
-    persist();
-  } catch (error) {
-    logRuntime(`game metadata hydration failed: ${formatError(error)}`);
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+
+      const body = (await response.json()) as GameMetadataResponse;
+      const games = body.games.filter(
+        (game): game is GameMetadata =>
+          game.source === "igdb" || game.source === "community",
+      );
+      for (const id of missingIds) canonicalMetadataCheckedIds.add(id);
+      stampCanonicalIdsFromMetadata(games);
+      collapseDuplicateActiveSessions();
+      logRuntime(`game metadata hydrated count=${body.games.length}`);
+      persist();
+      return true;
+    } catch (error) {
+      logRuntime(`game metadata hydration failed: ${formatError(error)}`);
+      return false;
+    }
+  })();
+  metadataHydrationRequests.set(requestKey, request);
+  try {
+    return await request;
+  } finally {
+    if (metadataHydrationRequests.get(requestKey) === request) {
+      metadataHydrationRequests.delete(requestKey);
+    }
+  }
+}
+
+function stampCanonicalIdsFromMetadata(games: GameMetadata[]) {
+  useAppStore.setState((state) => {
+    const gameMetadata = new Map(state.gameMetadata);
+    let changed = false;
+    for (const game of games) {
+      const key = gameMetadataKey(game);
+      const existing = gameMetadata.get(key);
+      if (
+        existing?.id === game.id &&
+        existing.source === game.source &&
+        existing.name === game.name &&
+        existing.coverUrl === game.coverUrl &&
+        existing.igdbId === game.igdbId
+      ) {
+        continue;
+      }
+      gameMetadata.set(key, game);
+      changed = true;
+    }
+
+    const exeCache = new Map(state.exeCache);
+    for (const [key, entry] of exeCache) {
+      if (entry.state !== "matched" || entry.igdbId !== undefined) continue;
+      const metadata =
+        entry.source === "custom" && entry.communitySuggestionId !== undefined
+          ? gameMetadata.get(`community:${entry.communitySuggestionId}`)
+          : entry.gameId !== undefined &&
+              (entry.source === "igdb" || entry.source === "community")
+            ? gameMetadata.get(
+                gameMetadataKey({ id: entry.gameId, source: entry.source }),
+              )
+            : undefined;
+      if (metadata?.igdbId !== undefined) {
+        exeCache.set(key, { ...entry, igdbId: metadata.igdbId });
+        changed = true;
+      }
+    }
+
+    const resolveIgdbId = createGameIdentityResolver(gameMetadata, exeCache);
+    const activeSessions = state.activeSessions.map((session) => {
+      const igdbId =
+        session.igdbId ??
+        resolveIgdbId(session.gameId, session.source) ??
+        undefined;
+      if (igdbId === session.igdbId) return session;
+      changed = true;
+      return { ...session, igdbId };
+    });
+    if (!changed) return state;
+    return { gameMetadata, exeCache, activeSessions };
+  });
+}
+
+async function backfillCanonicalGameIds() {
+  if (canonicalBackfillDone) return true;
+  if (canonicalBackfillInFlight) return canonicalBackfillInFlight;
+  canonicalBackfillInFlight = hydrateGameMetadata([]).then((succeeded) => {
+    if (succeeded) canonicalBackfillDone = true;
+    return succeeded;
+  });
+  try {
+    return await canonicalBackfillInFlight;
+  } finally {
+    canonicalBackfillInFlight = undefined;
   }
 }
 
@@ -2868,12 +3128,18 @@ function isCustomSession(session: Pick<ActiveSession, "source" | "gameId">) {
 // A session belongs to a game, not to an executable: a game started through
 // several executables is one session, and its `exeName` is only the executable
 // that opened it.
-function activeSessionKey(gameId: number, source: ActiveSession["source"]) {
-  return `${source ?? "unknown"}:${gameId}`;
+function activeSessionKey(
+  gameId: number,
+  source: ActiveSession["source"],
+  igdbId?: number,
+) {
+  return canonicalGameKey({ gameId, source, igdbId });
 }
 
-function sessionIdentityKey(session: Pick<ActiveSession, "gameId" | "source">) {
-  return activeSessionKey(session.gameId, session.source);
+function sessionIdentityKey(
+  session: Pick<ActiveSession, "gameId" | "source" | "igdbId">,
+) {
+  return activeSessionKey(session.gameId, session.source, session.igdbId);
 }
 
 function updateActiveSession(session: ActiveSession) {

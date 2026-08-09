@@ -10,7 +10,11 @@ import {
 import { memo, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { getSessionGameKey } from "../../../historyStats";
-import { useAppStore, type Toast } from "../../../store";
+import {
+  useAppStore,
+  type GameIdentityResolver,
+  type Toast,
+} from "../../../store";
 import { removeHistorySession } from "../../../tracker";
 import {
   CommunityApprovalBadge,
@@ -59,6 +63,7 @@ function formatTimeRange(startedAt: string, endedAt: string | null) {
 export const HistorySessionRow = memo(function HistorySessionRow({
   session,
   metadata,
+  resolveIgdbId,
   selectedGameKey,
   onFilterGame,
   onClearGameFilter,
@@ -66,6 +71,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
 }: {
   session: Session;
   metadata?: HistoryRowMetadata;
+  resolveIgdbId: GameIdentityResolver;
   selectedGameKey: string | null;
   onFilterGame: (key: string, name: string) => void;
   onClearGameFilter: () => void;
@@ -90,7 +96,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
     metadata?.gameName ??
     session.exeName.replace(/\.exe$/i, "");
   const coverUrl = session.coverUrl ?? metadata?.coverUrl;
-  const gameKey = getSessionGameKey(session);
+  const gameKey = getSessionGameKey(session, resolveIgdbId);
   const isActiveGameFilter = selectedGameKey === gameKey;
 
   function handleRemove() {

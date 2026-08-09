@@ -29,6 +29,7 @@ export type ProcessSnapshot = {
 export type ActiveSession = {
   id: number;
   gameId: number;
+  igdbId?: number;
   gameName: string;
   exeName: string;
   coverUrl: string;
@@ -54,6 +55,7 @@ export type AmbiguousProcessMatch = {
 
 export type GameMetadata = {
   id: number;
+  igdbId?: number;
   name: string;
   coverUrl: string;
   source: Exclude<GameSource, "custom">;
@@ -63,6 +65,7 @@ export type ExeCacheEntry = {
   exeName: string;
   state: "matched" | "unmatched" | "blacklisted";
   gameId?: number;
+  igdbId?: number;
   gameName?: string;
   coverUrl?: string;
   source?: GameSource;
@@ -88,6 +91,18 @@ export type ExeCacheEntry = {
   // while the app was closed is never credited.
   runningSince?: string;
 };
+
+export function canSwitchApprovedSuggestionToCommunity(value: {
+  source?: GameSource | null;
+  communitySuggestionId?: number;
+  communitySuggestionVerified?: boolean;
+}) {
+  return (
+    value.source === "custom" &&
+    value.communitySuggestionId !== undefined &&
+    value.communitySuggestionVerified === true
+  );
+}
 
 export type ApiRequestLogEntry = {
   id: number;
@@ -512,6 +527,69 @@ export const useAppStore = create<AppState>((set) => ({
 
 export function gameMetadataKey(game: Pick<GameMetadata, "id" | "source">) {
   return `${game.source}:${game.id}`;
+}
+
+export type GameIdentityRef = {
+  gameId: number;
+  source?: GameSource | null;
+  igdbId?: number;
+};
+
+export type GameIdentityResolver = (
+  gameId: number,
+  source?: GameSource | null,
+) => number | undefined;
+
+export function canonicalGameKey(ref: GameIdentityRef) {
+  return ref.igdbId !== undefined
+    ? `igdb#${ref.igdbId}`
+    : `${ref.source ?? "unknown"}:${ref.gameId}`;
+}
+
+export function createGameIdentityResolver(
+  gameMetadata: ReadonlyMap<string, GameMetadata>,
+  exeCache: ReadonlyMap<string, ExeCacheEntry>,
+): GameIdentityResolver {
+  const byPair = new Map<string, number>();
+  const byId = new Map<number, Set<number>>();
+  const add = (
+    gameId: number | undefined,
+    source: GameSource | null | undefined,
+    igdbId: number | undefined,
+  ) => {
+    if (gameId === undefined || igdbId === undefined) return;
+    byPair.set(`${source ?? "unknown"}:${gameId}`, igdbId);
+    const ids = byId.get(gameId) ?? new Set<number>();
+    ids.add(igdbId);
+    byId.set(gameId, ids);
+  };
+
+  for (const game of gameMetadata.values()) {
+    add(game.id, game.source, game.igdbId);
+  }
+  for (const entry of exeCache.values()) {
+    if (entry.state === "matched") {
+      add(entry.gameId, entry.source, entry.igdbId);
+    }
+  }
+
+  return (gameId, source) => {
+    const exact = byPair.get(`${source ?? "unknown"}:${gameId}`);
+    if (exact !== undefined) return exact;
+    if (source) return undefined;
+    const candidates = byId.get(gameId);
+    return candidates?.size === 1 ? [...candidates][0] : undefined;
+  };
+}
+
+export function resolvedCanonicalGameKey(
+  ref: GameIdentityRef,
+  resolveIgdbId?: GameIdentityResolver,
+) {
+  return canonicalGameKey({
+    ...ref,
+    igdbId: ref.igdbId ?? resolveIgdbId?.(ref.gameId, ref.source) ?? undefined,
+  });
 }
 
 export function useIsOffline() {

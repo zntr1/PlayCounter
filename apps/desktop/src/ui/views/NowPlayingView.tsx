@@ -7,7 +7,15 @@ import type {
   Game,
   Session,
 } from "@playcounter/shared";
-import { useAppStore, useIsOffline, type ActiveSession } from "../../store";
+import {
+  createGameIdentityResolver,
+  resolvedCanonicalGameKey,
+  useAppStore,
+  useIsOffline,
+  type ActiveSession,
+  type ExeCacheEntry,
+  type GameIdentityResolver,
+} from "../../store";
 import {
   dismissAmbiguousMatch,
   markCommunitySuggestionRejected,
@@ -28,6 +36,12 @@ export function NowPlayingView() {
   const activeSessions = useAppStore((state) => state.activeSessions);
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
   const recentSessions = useAppStore((state) => state.recentSessions);
+  const exeCache = useAppStore((state) => state.exeCache);
+  const gameMetadata = useAppStore((state) => state.gameMetadata);
+  const resolveIgdbId = useMemo(
+    () => createGameIdentityResolver(gameMetadata, exeCache),
+    [exeCache, gameMetadata],
+  );
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
@@ -91,7 +105,7 @@ export function NowPlayingView() {
       })}
       {activeSessions.map((activeSession) => (
         <HeroSession
-          key={`${activeSession.gameId}:${activeSession.exeName.toLowerCase()}`}
+          key={resolvedCanonicalGameKey(activeSession, resolveIgdbId)}
           session={activeSession}
           elapsedSeconds={Math.max(
             0,
@@ -99,6 +113,8 @@ export function NowPlayingView() {
           )}
           recentSessions={recentSessions}
           showDurationDays={showDurationDays}
+          exeCache={exeCache}
+          resolveIgdbId={resolveIgdbId}
         />
       ))}
     </div>
@@ -110,16 +126,53 @@ function HeroSession({
   elapsedSeconds,
   recentSessions,
   showDurationDays,
+  exeCache,
+  resolveIgdbId,
 }: {
   session: ActiveSession;
   elapsedSeconds: number;
   recentSessions: Session[];
   showDurationDays: boolean;
+  exeCache: ReadonlyMap<string, ExeCacheEntry>;
+  resolveIgdbId: GameIdentityResolver;
 }) {
+  const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
-    (entry) =>
-      entry.gameId === session.gameId && entry.source === session.source,
+    (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
   );
+  const matchingEntries = [...exeCache.values()].filter(
+    (entry) =>
+      entry.state === "matched" &&
+      entry.gameId !== undefined &&
+      resolvedCanonicalGameKey(
+        {
+          gameId: entry.gameId,
+          source: entry.source,
+          igdbId: entry.igdbId,
+        },
+        resolveIgdbId,
+      ) === sessionKey,
+  );
+  const sources = [
+    ...new Set(
+      [session.source, ...matchingEntries.map((entry) => entry.source)].filter(
+        (source): source is NonNullable<typeof source> => Boolean(source),
+      ),
+    ),
+  ].sort((left, right) => {
+    const rank = (source: string) =>
+      source === "igdb" ? 0 : source === "community" ? 1 : 2;
+    return rank(left) - rank(right);
+  });
+  const suggestionEntry = matchingEntries.find(
+    (entry) => entry.communitySuggestionId !== undefined,
+  );
+  const exeNames = [
+    ...new Set([
+      session.exeName,
+      ...matchingEntries.map((entry) => entry.exeName),
+    ]),
+  ];
   const lifetimeSeconds =
     priorSessions.reduce(
       (sum, entry) => sum + (entry.durationSeconds ?? 0),
@@ -162,16 +215,27 @@ function HeroSession({
             {session.gameName}
           </h2>
           <div className="mt-2 flex flex-wrap items-center gap-2.5">
-            <SourceBadge source={session.source} />
-            {session.source === "custom" ? (
+            {sources.map((source) => (
+              <SourceBadge key={source} source={source} />
+            ))}
+            {sources.includes("custom") ? (
               <CommunityApprovalBadge
-                suggestionId={session.communitySuggestionId}
-                verified={session.communitySuggestionVerified}
-                status={session.communitySuggestionStatus}
+                suggestionId={
+                  suggestionEntry?.communitySuggestionId ??
+                  session.communitySuggestionId
+                }
+                verified={
+                  suggestionEntry?.communitySuggestionVerified ??
+                  session.communitySuggestionVerified
+                }
+                status={
+                  suggestionEntry?.communitySuggestionStatus ??
+                  session.communitySuggestionStatus
+                }
               />
             ) : null}
             <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted drop-shadow-sm">
-              {session.exeName}
+              {exeNames.join(", ")}
             </span>
           </div>
 
@@ -356,6 +420,7 @@ function AmbiguousMatchCard({
           selection.coverUrl,
           result.id,
           false,
+          selection.igdbId,
         );
         markCommunitySuggestionRejected(exeName, result.reviewNote);
         setSearchState("saved");
@@ -376,6 +441,7 @@ function AmbiguousMatchCard({
         selection.coverUrl,
         result.id,
         result.verified ?? false,
+        selection.igdbId,
       );
       setSearchState("saved");
       setSearchMessage(
