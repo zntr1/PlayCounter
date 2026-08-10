@@ -13,6 +13,10 @@ const TIER_BORDER: Record<AchievementCatalogItem["tier"], string> = {
   silver: "border-[#9aa5b4]/60",
   gold: "border-[#b98512]/60",
   platinum: "border-[#7fd3e8]/60",
+  diamond: "border-[#3b82f6]/60",
+  master: "border-[#8b5cf6]/60",
+  grandmaster: "border-[#d946ef]/60",
+  legendary: "border-[#f97316]/60",
 };
 
 export function AchievementCard({ item }: { item: AchievementCatalogItem }) {

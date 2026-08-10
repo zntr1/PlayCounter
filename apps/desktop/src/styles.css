@@ -145,6 +145,30 @@
   color: #10323c;
 }
 
+.achievement-badge-diamond {
+  border-color: #3b82f6;
+  background: linear-gradient(to bottom, #bfdbfe, #3b82f6);
+  color: #102a56;
+}
+
+.achievement-badge-master {
+  border-color: #8b5cf6;
+  background: linear-gradient(to bottom, #c4b5fd, #7c3aed);
+  color: #f5f3ff;
+}
+
+.achievement-badge-grandmaster {
+  border-color: #d946ef;
+  background: linear-gradient(to bottom, #f0abfc, #c026d3);
+  color: #fff1ff;
+}
+
+.achievement-badge-legendary {
+  border-color: #f97316;
+  background: linear-gradient(to bottom, #fdba74, #dc2626);
+  color: #fff7ed;
+}
+
 :root[data-theme="light"] .achievement-badge-silver {
   border-color: #7d8999;
   background: linear-gradient(to bottom, #eef2f6, #adb7c4);
@@ -155,6 +179,30 @@
   border-color: #4e9caf;
   background: linear-gradient(to bottom, #eafaff, #99d3e2);
   color: #123b45;
+}
+
+:root[data-theme="light"] .achievement-badge-diamond {
+  border-color: #2563eb;
+  background: linear-gradient(to bottom, #eff6ff, #60a5fa);
+  color: #172554;
+}
+
+:root[data-theme="light"] .achievement-badge-master {
+  border-color: #7c3aed;
+  background: linear-gradient(to bottom, #f5f3ff, #a78bfa);
+  color: #2e1065;
+}
+
+:root[data-theme="light"] .achievement-badge-grandmaster {
+  border-color: #c026d3;
+  background: linear-gradient(to bottom, #fdf4ff, #e879f9);
+  color: #4a044e;
+}
+
+:root[data-theme="light"] .achievement-badge-legendary {
+  border-color: #ea580c;
+  background: linear-gradient(to bottom, #fff7ed, #fb923c);
+  color: #431407;
 }
 
 :root .achievement-badge.achievement-badge-locked {

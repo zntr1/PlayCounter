@@ -375,6 +375,10 @@ export function summarizeAchievements(
     silver: 0,
     gold: 0,
     platinum: 0,
+    diamond: 0,
+    master: 0,
+    grandmaster: 0,
+    legendary: 0,
   };
   for (const item of unlocked) byTier[item.tier] += 1;
   const fixedUnlocked = fixed.filter((item) => item.milestone).length;

@@ -8,7 +8,7 @@ export const TOTAL_HOURS = [10, 50, 100, 250, 500, 1_000, 2_500, 5_000];
 export const MONTH_HOURS = [10, 25, 50, 100, 200];
 export const GAME_HOURS = [10, 25, 50, 100, 250, 500, 1_000];
 export const STREAK_DAYS = [3, 7, 14, 30, 100];
-export const VERIFIED_COUNTS = [1, 5, 10, 25, 50];
+export const VERIFIED_COUNTS = [1, 5, 10, 25, 50, 100, 150, 200];
 
 export type MilestoneCategory =
   | "total"

@@ -7,7 +7,18 @@ import {
   VERIFIED_COUNTS,
 } from "./milestones";
 
-export type AchievementTier = "bronze" | "silver" | "gold" | "platinum";
+export const ACHIEVEMENT_TIERS = [
+  "bronze",
+  "silver",
+  "gold",
+  "platinum",
+  "diamond",
+  "master",
+  "grandmaster",
+  "legendary",
+] as const;
+
+export type AchievementTier = (typeof ACHIEVEMENT_TIERS)[number];
 
 export type AchievementIconName =
   | "trophy"
@@ -24,8 +35,6 @@ export type AchievementArt = {
   frameClassName: string;
   label: string;
 };
-
-const TIERS: AchievementTier[] = ["bronze", "silver", "gold", "platinum"];
 
 export function milestoneThreshold(id: string): number | null {
   const separator = id.lastIndexOf(":");
@@ -87,8 +96,9 @@ function tierForThreshold(
   if (threshold === null) return "bronze";
   const index = thresholds.indexOf(threshold);
   if (index < 0) return "bronze";
+  if (index === thresholds.length - 1) return "legendary";
   return (
-    TIERS[Math.floor((index * TIERS.length) / thresholds.length)] ?? "bronze"
+    ACHIEVEMENT_TIERS[Math.min(index, ACHIEVEMENT_TIERS.length - 2)] ?? "bronze"
   );
 }
 
@@ -118,6 +128,14 @@ function frameClassName(tier: AchievementTier) {
       return "achievement-badge achievement-badge-gold";
     case "platinum":
       return "achievement-badge achievement-badge-platinum";
+    case "diamond":
+      return "achievement-badge achievement-badge-diamond";
+    case "master":
+      return "achievement-badge achievement-badge-master";
+    case "grandmaster":
+      return "achievement-badge achievement-badge-grandmaster";
+    case "legendary":
+      return "achievement-badge achievement-badge-legendary";
   }
 }
 

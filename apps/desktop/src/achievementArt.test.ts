@@ -29,6 +29,10 @@ const TIER_INDEX: Record<AchievementTier, number> = {
   silver: 1,
   gold: 2,
   platinum: 3,
+  diamond: 4,
+  master: 5,
+  grandmaster: 6,
+  legendary: 7,
 };
 
 describe("achievement art", () => {
@@ -59,13 +63,14 @@ describe("achievement art", () => {
     ["milestone-streak", STREAK_DAYS],
     ["milestone-verified", VERIFIED_COUNTS],
   ] satisfies [NotificationKind, number[]][])(
-    "assigns non-decreasing tiers through platinum for %s",
+    "assigns a distinct progression through legendary for %s",
     (kind, thresholds) => {
       const tiers = thresholds.map(
         (threshold) =>
           achievementArt({ id: `${kind}:${threshold}`, kind }).tier,
       );
-      expect(tiers.at(-1)).toBe("platinum");
+      expect(tiers.at(-1)).toBe("legendary");
+      expect(new Set(tiers).size).toBe(thresholds.length);
       expect(tiers.map((tier) => TIER_INDEX[tier])).toEqual(
         [...tiers.map((tier) => TIER_INDEX[tier])].sort((a, b) => a - b),
       );

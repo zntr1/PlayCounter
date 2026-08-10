@@ -226,7 +226,7 @@ describe("achievement catalog", () => {
     );
     const summary = summarizeAchievements(catalog, "2026-08");
     expect(summary).toMatchObject({
-      fixedTotal: 23,
+      fixedTotal: 26,
       fixedUnlocked: 1,
       gameTrophies: 1,
       pastMonthTrophies: 1,

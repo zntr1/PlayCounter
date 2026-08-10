@@ -1,20 +1,18 @@
 import { Check, Trophy } from "lucide-react";
 import { Panel } from "../../components";
 import { AchievementMedal } from "../../AchievementBadge";
+import { ACHIEVEMENT_TIERS } from "../../../achievementArt";
+import { TOTAL_HOURS } from "../../../milestones";
 import {
   type AchievementCatalogItem,
   type AchievementSummaryData,
 } from "./achievementCatalog";
 
-const TIER_SAMPLES = {
-  bronze: { id: "milestone:total:10", kind: "milestone-total" as const },
-  silver: { id: "milestone:total:100", kind: "milestone-total" as const },
-  gold: { id: "milestone:total:500", kind: "milestone-total" as const },
-  platinum: {
-    id: "milestone:total:2500",
-    kind: "milestone-total" as const,
-  },
-};
+const TIER_SAMPLES = TOTAL_HOURS.map((threshold, index) => ({
+  tier: ACHIEVEMENT_TIERS[index],
+  id: `milestone:total:${threshold}`,
+  kind: "milestone-total" as const,
+}));
 
 export function AchievementSummary({
   summary,
@@ -75,34 +73,34 @@ function CollectionSummary({ summary }: { summary: AchievementSummaryData }) {
             />
           ))}
         </div>
-        <div className="mt-5 grid grid-cols-4 gap-2">
-          {(Object.keys(TIER_SAMPLES) as Array<keyof typeof TIER_SAMPLES>).map(
-            (tier) => {
-              const sample = TIER_SAMPLES[tier];
-              return (
-                <div
-                  key={tier}
-                  className="flex min-w-0 items-center gap-2 rounded-lg bg-bg px-2.5 py-2"
-                >
-                  <AchievementMedal
-                    notification={{
-                      ...sample,
-                      title: `${tier} trophy`,
-                    }}
-                    size="sm"
-                  />
-                  <div className="min-w-0">
-                    <div className="font-mono text-sm font-bold tabular-nums text-text">
-                      {summary.byTier[tier]}
-                    </div>
-                    <div className="truncate text-[9px] font-bold uppercase tracking-wider text-text-faint">
-                      {tier}
-                    </div>
+        <div className="mt-5 grid grid-cols-4 gap-2 xl:grid-cols-8">
+          {TIER_SAMPLES.map((sample) => {
+            const tier = sample.tier;
+            if (!tier) return null;
+            return (
+              <div
+                key={tier}
+                className="flex min-w-0 items-center gap-2 rounded-lg bg-bg px-2.5 py-2"
+              >
+                <AchievementMedal
+                  notification={{
+                    id: sample.id,
+                    kind: sample.kind,
+                    title: `${tier} trophy`,
+                  }}
+                  size="sm"
+                />
+                <div className="min-w-0">
+                  <div className="font-mono text-sm font-bold tabular-nums text-text">
+                    {summary.byTier[tier]}
+                  </div>
+                  <div className="truncate text-[9px] font-bold uppercase tracking-wider text-text-faint">
+                    {tier}
                   </div>
                 </div>
-              );
-            },
-          )}
+              </div>
+            );
+          })}
         </div>
         <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-text-muted">
           <span className="rounded-full border border-border bg-surface-hover px-2.5 py-1">
