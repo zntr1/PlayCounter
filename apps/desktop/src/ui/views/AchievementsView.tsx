@@ -1,44 +1,55 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
-  MONTH_HOURS,
-  STREAK_DAYS,
-  TOTAL_HOURS,
-  VERIFIED_COUNTS,
-  milestoneMetrics,
-  parseMilestoneId,
-  type AwardedMilestone,
-  type MilestoneCategory,
-  type MilestoneNotificationKind,
-} from "../../milestones";
-import { displayNotificationTitle } from "../../notifications";
-import { createGameIdentityResolver, useAppStore } from "../../store";
-import { NotificationArt } from "../AchievementBadge";
+  BadgeCheck,
+  CalendarCheck,
+  Flame,
+  Gamepad2,
+  Trophy,
+  type LucideIcon,
+} from "lucide-react";
+import clsx from "clsx";
+import { milestoneMetrics, type MilestoneCategory } from "../../milestones";
+import {
+  createGameIdentityResolver,
+  resolvedCanonicalGameKey,
+  useAppStore,
+} from "../../store";
 import { Panel } from "../components";
+import { AchievementCard } from "./achievements/AchievementCard";
+import { AchievementSummary } from "./achievements/AchievementSummary";
+import { GameLadderRow } from "./achievements/GameLadderRow";
+import { MonthHistoryRow } from "./achievements/MonthHistoryRow";
+import {
+  GROUP_META,
+  buildAchievementCatalog,
+  buildGameLadders,
+  buildMonthHistory,
+  recentUnlocks,
+  summarizeAchievements,
+  type AchievementCatalogItem,
+  type AchievementGroupId,
+} from "./achievements/achievementCatalog";
 
-type CatalogItem = {
-  id: string;
-  category: MilestoneCategory;
-  kind: MilestoneNotificationKind;
-  title: string;
-  threshold: number;
-  coverUrl?: string;
-  currentValue?: number;
-  unit: "hours" | "days" | "contributions";
-  sortLabel?: string;
-  milestone?: AwardedMilestone;
+type CategoryFilter = "all" | AchievementGroupId;
+type StatusFilter = "all" | "unlocked" | "in-progress";
+
+const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
+  total: Trophy,
+  month: CalendarCheck,
+  game: Gamepad2,
+  streak: Flame,
+  verified: BadgeCheck,
 };
 
-const GROUPS: Array<{
-  category: MilestoneCategory;
-  label: string;
-}> = [
-  { category: "total", label: "Total playtime" },
-  { category: "month", label: "Monthly" },
-  { category: "streak", label: "Streaks" },
-  { category: "verified", label: "Contributions" },
+const STATUS_FILTERS: Array<{ id: StatusFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "unlocked", label: "Unlocked" },
+  { id: "in-progress", label: "In progress" },
 ];
 
 export function AchievementsView() {
+  const [category, setCategory] = useState<CategoryFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("all");
   const awardedMilestones = useAppStore((state) => state.awardedMilestones);
   const sessions = useAppStore((state) => state.recentSessions);
   const archivedSeconds = useAppStore((state) => state.archivedSeconds);
@@ -72,291 +83,361 @@ export function AchievementsView() {
       verifiedContributions,
     ],
   );
-  const groups = useMemo(
-    () => buildAchievementCatalog(awardedMilestones, metrics),
-    [awardedMilestones, metrics],
+  const gameLabels = useMemo(() => {
+    const labels = new Map<string, { name: string; coverUrl: string }>();
+    for (const game of gameMetadata.values()) {
+      labels.set(
+        resolvedCanonicalGameKey(
+          {
+            gameId: game.id,
+            source: game.source,
+            igdbId: game.igdbId,
+          },
+          resolveIgdbId,
+        ),
+        { name: game.name, coverUrl: game.coverUrl },
+      );
+    }
+    return labels;
+  }, [gameMetadata, resolveIgdbId]);
+  const catalog = useMemo(
+    () => buildAchievementCatalog(awardedMilestones, metrics, gameLabels),
+    [awardedMilestones, gameLabels, metrics],
+  );
+  const summary = useMemo(
+    () => summarizeAchievements(catalog, metrics.monthKey),
+    [catalog, metrics.monthKey],
+  );
+  const recent = useMemo(() => recentUnlocks(catalog), [catalog]);
+  const monthHistory = useMemo(
+    () => buildMonthHistory(catalog, metrics.monthKey),
+    [catalog, metrics.monthKey],
+  );
+  const gameLadders = useMemo(() => buildGameLadders(catalog), [catalog]);
+  const hiddenGameCount = useMemo(() => {
+    const displayed = new Set(
+      (catalog.get("game") ?? []).map((item) => item.scope),
+    );
+    return [...metrics.games.entries()].filter(
+      ([key, game]) => game.hours > 0 && !displayed.has(key),
+    ).length;
+  }, [catalog, metrics.games]);
+  const visibleCount = GROUP_META.filter(
+    (group) => category === "all" || category === group.id,
+  ).reduce(
+    (count, group) =>
+      count +
+      (catalog.get(group.id) ?? []).filter((item) =>
+        matchesStatus(item, status),
+      ).length,
+    0,
   );
 
   return (
-    <div className="grid gap-6">
-      {GROUPS.map((group) => {
-        const items = groups.get(group.category) ?? [];
-        const unlocked = items.filter((item) => item.milestone).length;
-        return (
-          <Panel key={group.category} className="overflow-hidden">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div>
-                <h2 className="text-lg font-semibold text-text">
-                  {group.label}
-                </h2>
-                {group.category === "month" ? (
-                  <p className="mt-0.5 text-xs text-text-muted">
-                    New monthly goals appear each calendar month.
-                  </p>
-                ) : null}
-              </div>
-              <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-text-muted">
-                {unlocked} / {items.length} unlocked
-              </span>
-            </div>
-            <div className="grid gap-px bg-border/70 sm:grid-cols-2">
-              {items.map((item) => (
-                <AchievementRow key={item.id} item={item} />
-              ))}
-            </div>
-          </Panel>
-        );
-      })}
+    <div className="flex min-w-0 flex-col gap-6">
+      <AchievementSummary summary={summary} recent={recent} />
+
+      <Panel className="sticky top-0 z-30 flex min-w-0 flex-wrap items-center justify-between gap-4 p-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <FilterButton
+            active={category === "all"}
+            onClick={() => setCategory("all")}
+          >
+            All ·{" "}
+            {formatCount(
+              flattenCatalog(catalog).filter((item) => item.milestone).length,
+            )}
+            /{formatCount(flattenCatalog(catalog).length)}
+          </FilterButton>
+          {GROUP_META.map((group) => {
+            const items = catalog.get(group.id) ?? [];
+            return (
+              <FilterButton
+                key={group.id}
+                active={category === group.id}
+                onClick={() => setCategory(group.id)}
+              >
+                {group.shortLabel} ·{" "}
+                {items.filter((item) => item.milestone).length}/{items.length}
+              </FilterButton>
+            );
+          })}
+        </div>
+        <div className="flex items-center rounded-full border border-border bg-bg p-1">
+          {STATUS_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              aria-pressed={status === filter.id}
+              onClick={() => setStatus(filter.id)}
+              className={clsx(
+                "rounded-full px-3 py-1 text-xs font-semibold transition",
+                status === filter.id
+                  ? "bg-surface-hover text-text shadow-sm"
+                  : "text-text-muted hover:text-text",
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+        <p className="sr-only" aria-live="polite">
+          Showing {visibleCount} achievements
+        </p>
+      </Panel>
+
+      <div className="grid gap-6">
+        {GROUP_META.filter(
+          (group) => category === "all" || category === group.id,
+        ).map((group) => {
+          const items = catalog.get(group.id) ?? [];
+          const matching = items.filter((item) => matchesStatus(item, status));
+          if (category === "all" && status !== "all" && matching.length === 0) {
+            return null;
+          }
+          return (
+            <AchievementSection
+              key={group.id}
+              category={group.id}
+              items={items}
+              matching={matching}
+              currentMonthKey={metrics.monthKey}
+              monthHistory={monthHistory}
+              gameLadders={gameLadders}
+              hiddenGameCount={hiddenGameCount}
+              status={status}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-export function buildAchievementCatalog(
-  awardedMilestones: AwardedMilestone[],
-  metrics: ReturnType<typeof milestoneMetrics>,
-) {
-  const catalog = new Map<string, CatalogItem>();
-  const earnedById = new Map<string, AwardedMilestone>();
-  for (const milestone of awardedMilestones) {
-    earnedById.set(milestone.id, milestone);
-    for (const aliasId of milestone.aliasIds ?? []) {
-      earnedById.set(aliasId, milestone);
-    }
-    const parsed = parseMilestoneId(milestone.id);
-    if (!parsed) continue;
-    catalog.set(milestone.id, {
-      id: milestone.id,
-      category: parsed.category,
-      kind: milestone.kind,
-      title: milestone.title,
-      threshold: parsed.threshold,
-      coverUrl: milestone.coverUrl,
-      currentValue: currentValueFor(milestone, metrics),
-      unit: unitFor(parsed.category),
-      sortLabel: parsed.scope,
-      milestone,
-    });
-  }
-
-  const ensure = (item: Omit<CatalogItem, "milestone">) => {
-    const milestone = earnedById.get(item.id);
-    const key = milestone?.id ?? item.id;
-    catalog.set(key, {
-      ...(catalog.get(key) ?? item),
-      ...item,
-      id: key,
-      milestone,
-    });
-  };
-
-  for (const threshold of TOTAL_HOURS) {
-    ensure({
-      id: `milestone:total:${threshold}`,
-      category: "total",
-      kind: "milestone-total",
-      title: `You've played ${threshold.toLocaleString()} hours in total`,
-      threshold,
-      currentValue: metrics.totalHours,
-      unit: "hours",
-    });
-  }
-
-  const currentMonth = monthLabel(metrics.monthKey);
-  for (const threshold of MONTH_HOURS) {
-    ensure({
-      id: `milestone:month:${metrics.monthKey}:${threshold}`,
-      category: "month",
-      kind: "milestone-month",
-      title: `${threshold.toLocaleString()} hours played in ${currentMonth}`,
-      threshold,
-      currentValue: metrics.monthHours,
-      unit: "hours",
-    });
-  }
-
-  for (const threshold of STREAK_DAYS) {
-    ensure({
-      id: `milestone:streak:${threshold}`,
-      category: "streak",
-      kind: "milestone-streak",
-      title: `${threshold.toLocaleString()}-day play streak`,
-      threshold,
-      currentValue: metrics.streakDays,
-      unit: "days",
-    });
-  }
-  for (const threshold of VERIFIED_COUNTS) {
-    ensure({
-      id: `milestone:verified:${threshold}`,
-      category: "verified",
-      kind: "milestone-verified",
-      title:
-        threshold === 1
-          ? "Your first contribution was verified"
-          : `${threshold.toLocaleString()} contributions verified`,
-      threshold,
-      currentValue: metrics.verifiedCount,
-      unit: "contributions",
-    });
-  }
-
-  const result = new Map<MilestoneCategory, CatalogItem[]>();
-  for (const group of GROUPS) {
-    result.set(
-      group.category,
-      [...catalog.values()]
-        .filter((item) => item.category === group.category)
-        .sort(compareCatalogItems),
-    );
-  }
-  return result;
-}
-
-function AchievementRow({ item }: { item: CatalogItem }) {
-  const unlocked = Boolean(item.milestone);
-  const title = item.milestone
-    ? displayNotificationTitle({ ...item.milestone, title: item.title })
-    : item.title;
-  const visual = {
-    id: item.id,
-    kind: item.kind,
-    title,
-    coverUrl: item.coverUrl,
-  };
+function AchievementSection({
+  category,
+  items,
+  matching,
+  currentMonthKey,
+  monthHistory,
+  gameLadders,
+  hiddenGameCount,
+  status,
+}: {
+  category: MilestoneCategory;
+  items: AchievementCatalogItem[];
+  matching: AchievementCatalogItem[];
+  currentMonthKey: string;
+  monthHistory: ReturnType<typeof buildMonthHistory>;
+  gameLadders: ReturnType<typeof buildGameLadders>;
+  hiddenGameCount: number;
+  status: StatusFilter;
+}) {
+  const meta = GROUP_META.find((group) => group.id === category)!;
+  const Icon = GROUP_ICONS[category];
+  const unlocked = items.filter((item) => item.milestone).length;
+  const progress = items.length === 0 ? 0 : (unlocked / items.length) * 100;
 
   return (
-    <article
-      className={`flex min-w-0 gap-4 bg-surface px-5 py-4 ${unlocked ? "" : "opacity-60"}`}
-    >
-      <NotificationArt notification={visual} />
-      <div className="min-w-0">
-        <h3 className="break-words text-sm font-medium text-text">{title}</h3>
-        {item.milestone ? (
-          <time
-            dateTime={item.milestone.awardedAt}
-            className="mt-1 block text-xs text-text-muted"
-          >
-            Reached {new Date(item.milestone.awardedAt).toLocaleString()}
-          </time>
-        ) : (
-          <AchievementProgress
-            currentValue={item.currentValue}
-            threshold={item.threshold}
-            unit={item.unit}
+    <Panel className="overflow-hidden">
+      <div className="border-b border-border px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent">
+              <Icon aria-hidden="true" size={18} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold tracking-tight text-text">
+                {meta.label}
+              </h2>
+              <p className="mt-0.5 text-xs text-text-muted">{meta.caption}</p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full bg-surface-hover px-2.5 py-1 text-xs font-semibold text-text-muted">
+            {unlocked} / {items.length} unlocked
+          </span>
+        </div>
+        <div
+          className="mt-3 h-1 overflow-hidden rounded-full bg-surface-hover"
+          role="progressbar"
+          aria-label={`${meta.label} completion`}
+          aria-valuemin={0}
+          aria-valuemax={items.length}
+          aria-valuenow={unlocked}
+          aria-valuetext={`${unlocked} of ${items.length} unlocked`}
+        >
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
+            style={{ width: `${progress}%` }}
           />
+        </div>
+      </div>
+      <div className="p-4 sm:p-5">
+        {category === "game" ? (
+          <GameSection
+            ladders={gameLadders}
+            hiddenGameCount={hiddenGameCount}
+            status={status}
+          />
+        ) : category === "month" ? (
+          <MonthSection
+            items={matching.filter((item) => item.scope === currentMonthKey)}
+            history={status === "in-progress" ? [] : monthHistory}
+          />
+        ) : matching.length > 0 ? (
+          <CardGrid items={matching} />
+        ) : (
+          <NoFilterResults />
         )}
       </div>
-    </article>
+    </Panel>
   );
 }
 
-function AchievementProgress({
-  currentValue,
-  threshold,
-  unit,
+function MonthSection({
+  items,
+  history,
 }: {
-  currentValue?: number;
-  threshold: number;
-  unit: CatalogItem["unit"];
+  items: AchievementCatalogItem[];
+  history: ReturnType<typeof buildMonthHistory>;
 }) {
-  const current = Math.max(0, currentValue ?? 0);
-  const progress = Math.min(100, (current / threshold) * 100);
   return (
-    <div className="mt-2">
-      <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-text-muted">
-        <span className="font-medium">Progress</span>
-        <span className="shrink-0 font-mono">
-          {progressLabel(current, threshold, unit)}
-        </span>
-      </div>
-      <div
-        className="h-1.5 overflow-hidden rounded-full bg-surface-hover"
-        role="progressbar"
-        aria-label="Achievement progress"
-        aria-valuemin={0}
-        aria-valuemax={threshold}
-        aria-valuenow={Math.min(current, threshold)}
-      >
-        <div
-          className="h-full rounded-full bg-accent transition-[width]"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+    <div className="grid gap-6">
+      {items.length > 0 ? (
+        <div>
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-text-faint">
+            This month
+          </h3>
+          <CardGrid items={items} />
+        </div>
+      ) : null}
+      {history.length > 0 ? (
+        <div>
+          <div className="mb-3 flex items-baseline justify-between gap-4">
+            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-text-faint">
+              Earlier months
+            </h3>
+            <span className="text-xs text-text-faint">
+              Milestones shown; exact past totals are not stored
+            </span>
+          </div>
+          <div className="grid gap-2 lg:grid-cols-2">
+            {history.map((month) => (
+              <MonthHistoryRow key={month.monthKey} month={month} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {items.length === 0 && history.length === 0 ? <NoFilterResults /> : null}
     </div>
   );
 }
 
-function currentValueFor(
-  milestone: AwardedMilestone,
-  metrics: ReturnType<typeof milestoneMetrics>,
-) {
-  const parsed = parseMilestoneId(milestone.id);
-  if (!parsed) return undefined;
-  switch (parsed.category) {
-    case "total":
-      return metrics.totalHours;
-    case "month":
-      return parsed.scope === metrics.monthKey ? metrics.monthHours : undefined;
-    case "game": {
-      for (const id of [milestone.id, ...(milestone.aliasIds ?? [])]) {
-        const candidate = parseMilestoneId(id);
-        if (candidate?.category !== "game") continue;
-        const canonical = metrics.canonicalByAlias.get(candidate.scope);
-        if (canonical) return metrics.games.get(canonical)?.hours;
-      }
-      return undefined;
-    }
-    case "streak":
-      return metrics.streakDays;
-    case "verified":
-      return metrics.verifiedCount;
-  }
-}
-
-function unitFor(category: MilestoneCategory): CatalogItem["unit"] {
-  if (category === "streak") return "days";
-  if (category === "verified") return "contributions";
-  return "hours";
-}
-
-function compareCatalogItems(left: CatalogItem, right: CatalogItem) {
-  const leftParsed = parseMilestoneId(left.id);
-  const rightParsed = parseMilestoneId(right.id);
-  if (left.category === "game") {
-    const byTitle = (left.sortLabel ?? "").localeCompare(
-      right.sortLabel ?? "",
-      undefined,
-      {
-        numeric: true,
-      },
+function GameSection({
+  ladders,
+  hiddenGameCount,
+  status,
+}: {
+  ladders: ReturnType<typeof buildGameLadders>;
+  hiddenGameCount: number;
+  status: StatusFilter;
+}) {
+  const visible = ladders.filter((ladder) => {
+    if (status === "all") return true;
+    if (status === "unlocked")
+      return ladder.rungs.some((rung) => rung.milestone);
+    return ladder.rungs.some(
+      (rung) => !rung.milestone && rung.isNext && rung.ratio > 0,
     );
-    if (byTitle !== 0) return byTitle;
-  }
-  if (left.category === "month") {
-    const byMonth = (rightParsed?.scope ?? "").localeCompare(
-      leftParsed?.scope ?? "",
-    );
-    if (byMonth !== 0) return byMonth;
-  }
-  return left.threshold - right.threshold;
-}
-
-function progressLabel(
-  currentValue: number,
-  threshold: number,
-  unit: CatalogItem["unit"],
-) {
-  const current = Math.max(0, currentValue).toLocaleString(undefined, {
-    maximumFractionDigits: 1,
   });
-  return `${current} / ${threshold.toLocaleString()} ${unit}`;
+
+  if (ladders.length === 0 && status === "all") {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
+        <div className="mb-3 grid h-14 w-14 place-items-center rounded-full bg-surface-hover text-text-faint">
+          <Gamepad2 aria-hidden="true" size={27} />
+        </div>
+        <h3 className="text-base font-bold text-text">No game trophies yet</h3>
+        <p className="mt-1 max-w-sm text-sm text-text-muted">
+          Play a tracked game for 10 hours to start its mastery ladder.
+        </p>
+      </div>
+    );
+  }
+  if (visible.length === 0) return <NoFilterResults />;
+
+  return (
+    <div className="grid gap-3">
+      {visible.map((ladder) => (
+        <GameLadderRow key={ladder.key} ladder={ladder} />
+      ))}
+      {hiddenGameCount > 0 ? (
+        <p className="pt-1 text-center text-xs text-text-faint">
+          +{hiddenGameCount} more tracked{" "}
+          {hiddenGameCount === 1 ? "game" : "games"} will appear as they
+          approach a trophy
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
-function monthLabel(scope: string) {
-  const match = /^(\d{4})-(\d{2})$/.exec(scope);
-  if (!match) return scope;
-  return new Date(Number(match[1]), Number(match[2]) - 1, 1).toLocaleDateString(
-    [],
-    { month: "long", year: "numeric" },
+function CardGrid({ items }: { items: AchievementCatalogItem[] }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      {items.map((item) => (
+        <AchievementCard key={item.id} item={item} />
+      ))}
+    </div>
   );
+}
+
+function NoFilterResults() {
+  return (
+    <div className="rounded-xl border border-dashed border-border py-10 text-center text-sm font-medium text-text-muted">
+      No achievements match this filter.
+    </div>
+  );
+}
+
+function FilterButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={clsx(
+        "rounded-full border px-3 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
+        active
+          ? "border-accent bg-accent text-accent-fg shadow-sm"
+          : "border-border bg-surface text-text-muted hover:border-text-muted/30 hover:text-text",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function matchesStatus(item: AchievementCatalogItem, status: StatusFilter) {
+  if (status === "unlocked") return Boolean(item.milestone);
+  if (status === "in-progress") {
+    return !item.milestone && item.ratio > 0 && item.isNext;
+  }
+  return true;
+}
+
+function flattenCatalog(catalog: ReturnType<typeof buildAchievementCatalog>) {
+  return [...catalog.values()].flat();
+}
+
+function formatCount(value: number) {
+  return value.toLocaleString();
 }

@@ -157,6 +157,13 @@
   color: #123b45;
 }
 
+:root .achievement-badge.achievement-badge-locked {
+  border: 1px dashed rgb(var(--color-border));
+  background: rgb(var(--color-surface-hover));
+  color: rgb(var(--color-text-faint));
+  box-shadow: none;
+}
+
 * {
   box-sizing: border-box;
 }

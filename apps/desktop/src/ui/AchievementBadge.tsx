@@ -46,6 +46,34 @@ export function AchievementBadge({
   );
 }
 
+export function AchievementMedal({
+  notification,
+  locked = false,
+  size = "md",
+}: {
+  notification: AchievementDisplay;
+  locked?: boolean;
+  size?: "sm" | "md" | "lg";
+}) {
+  const art = achievementArt(notification);
+  const Icon = ICONS[art.icon];
+  const dimensions = {
+    sm: { frame: "h-7 w-7", icon: 13 },
+    md: { frame: "h-11 w-11", icon: 19 },
+    lg: { frame: "h-14 w-14", icon: 24 },
+  }[size];
+
+  return (
+    <div
+      role="img"
+      aria-label={`${art.label}${locked ? " (locked)" : ""}`}
+      className={`grid shrink-0 place-items-center rounded-full ${dimensions.frame} ${art.frameClassName} ${locked ? "achievement-badge-locked" : ""}`}
+    >
+      <Icon aria-hidden="true" size={dimensions.icon} strokeWidth={2.25} />
+    </div>
+  );
+}
+
 export function NotificationArt({
   notification,
 }: {

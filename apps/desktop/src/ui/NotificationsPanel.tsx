@@ -1,4 +1,4 @@
-import { CheckCheck, Trash2, Trophy, X } from "lucide-react";
+import { CheckCheck, Trash2, X } from "lucide-react";
 import {
   displayNotificationTitle,
   notificationsForDisplay,
@@ -13,7 +13,6 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
   const counts = useAppStore((state) => state.contributionCounts);
   const dismiss = useAppStore((state) => state.dismissNotification);
   const clear = useAppStore((state) => state.clearNotifications);
-  const setActiveView = useAppStore((state) => state.setActiveView);
   const displayedNotifications = notificationsForDisplay(notifications);
   useEscapeKey(onClose);
 
@@ -93,23 +92,13 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-border p-3">
-        <Button
-          variant="ghost"
-          icon={Trophy}
-          onClick={() => {
-            setActiveView("achievements");
-            onClose();
-          }}
-        >
-          View all achievements
-        </Button>
-        {notifications.length > 0 ? (
+      {notifications.length > 0 ? (
+        <div className="flex justify-end border-t border-border p-3">
           <Button variant="ghost" icon={Trash2} onClick={clear}>
             Clear all
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </Panel>
   );
 }
