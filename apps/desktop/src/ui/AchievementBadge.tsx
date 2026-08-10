@@ -12,6 +12,11 @@ import { useState } from "react";
 import { achievementArt, type AchievementIconName } from "../achievementArt";
 import type { AppNotification } from "../notifications";
 
+type AchievementDisplay = Pick<
+  AppNotification,
+  "id" | "kind" | "title" | "coverUrl"
+>;
+
 const ICONS: Record<AchievementIconName, LucideIcon> = {
   trophy: Trophy,
   calendar: CalendarCheck,
@@ -25,7 +30,7 @@ const ICONS: Record<AchievementIconName, LucideIcon> = {
 export function AchievementBadge({
   notification,
 }: {
-  notification: AppNotification;
+  notification: AchievementDisplay;
 }) {
   const art = achievementArt(notification);
   const Icon = ICONS[art.icon];
@@ -44,7 +49,7 @@ export function AchievementBadge({
 export function NotificationArt({
   notification,
 }: {
-  notification: AppNotification;
+  notification: AchievementDisplay;
 }) {
   const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const coverUrl = notification.coverUrl;

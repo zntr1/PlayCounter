@@ -53,7 +53,7 @@ beforeEach(() => {
     seenContributionStatus: {},
     contributionCounts: { suggested: 0, verified: 0, pending: 0, rejected: 0 },
     notifications: [],
-    awardedMilestoneIds: [],
+    awardedMilestones: [],
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: {},
@@ -85,7 +85,14 @@ describe("contribution identity", () => {
           createdAt: "2026-08-09T00:00:00.000Z",
         },
       ],
-      awardedMilestoneIds: ["milestone:total:10"],
+      awardedMilestones: [
+        {
+          id: "milestone:total:10",
+          kind: "milestone-total",
+          title: "10 hours",
+          awardedAt: "2026-08-09T00:00:00.000Z",
+        },
+      ],
       archivedSeconds: 3600,
     });
 
@@ -98,7 +105,9 @@ describe("contribution identity", () => {
     expect(state.notifications.map((item) => item.id)).toEqual([
       "milestone:total:10",
     ]);
-    expect(state.awardedMilestoneIds).toEqual(["milestone:total:10"]);
+    expect(state.awardedMilestones.map((item) => item.id)).toEqual([
+      "milestone:total:10",
+    ]);
     expect(state.archivedSeconds).toBe(3600);
   });
 

@@ -27,10 +27,11 @@ import {
   type ProcessSnapshot,
 } from "./store";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
-import { evaluateMilestones } from "./milestones";
+import { evaluateMilestones, migrateAwardedMilestones } from "./milestones";
 import {
   contributionKey,
   contributionNotification,
+  notificationEmoji,
   shouldNotifyContributionTransition,
   type AppNotification,
   type ContributionCounts,
@@ -72,7 +73,8 @@ type PersistedState = {
   notifications?: AppNotification[];
   seenContributionStatus?: Record<string, ContributionStatus>;
   contributionCounts?: ContributionCounts;
-  awardedMilestoneIds?: string[];
+  awardedMilestones?: unknown;
+  awardedMilestoneIds?: unknown;
   milestonesInitializedAt?: string;
   archivedSeconds?: number;
   archivedGameSeconds?: Record<string, number>;
@@ -233,6 +235,17 @@ function applyBuildApiEndpoint(settings: Settings): Settings {
 
 function hydrate() {
   const persisted = readPersisted();
+  const shouldPersistAchievementMigration =
+    (!Array.isArray(persisted.awardedMilestones) &&
+      Array.isArray(persisted.awardedMilestoneIds) &&
+      persisted.awardedMilestoneIds.length > 0) ||
+    (Array.isArray(persisted.awardedMilestones) &&
+      persisted.awardedMilestones.some(
+        (value) =>
+          value !== null &&
+          typeof value === "object" &&
+          (value as Record<string, unknown>).backfilled === true,
+      ));
   const settings = applyBuildApiEndpoint({
     ...useAppStore.getState().settings,
     ...persisted.settings,
@@ -275,7 +288,7 @@ function hydrate() {
       pending: 0,
       rejected: 0,
     },
-    awardedMilestoneIds: persisted.awardedMilestoneIds ?? [],
+    awardedMilestones: migrateAwardedMilestones(persisted),
     milestonesInitializedAt: persisted.milestonesInitializedAt ?? null,
     archivedSeconds: Math.max(0, persisted.archivedSeconds ?? 0),
     archivedGameSeconds: sanitizeGameSecondsRecord(
@@ -287,6 +300,7 @@ function hydrate() {
       { signed: true },
     ),
   });
+  if (shouldPersistAchievementMigration) persist();
 }
 
 async function getInstallUuid() {
@@ -2000,12 +2014,14 @@ export async function pollContributions(reason: string) {
     for (const notification of arrived) {
       useAppStore.getState().addToast({
         tone: notification.kind === "suggestion-verified" ? "success" : "info",
+        emoji: notificationEmoji(notification.kind),
         title: notification.title,
         detail: notification.body,
       });
     }
-    persist();
-    evaluateAndStoreMilestones();
+    evaluateAndStoreMilestones({
+      verifiedContributionsAuthoritative: true,
+    });
     logRuntime(`contributions poll ${reason} items=${body.items.length}`);
   } catch (error) {
     verboseRuntime(
@@ -2033,7 +2049,13 @@ function sameNumberRecord(
   );
 }
 
-export function evaluateAndStoreMilestones(now = new Date()) {
+export function evaluateAndStoreMilestones(
+  options: {
+    now?: Date;
+    verifiedContributionsAuthoritative?: boolean;
+  } = {},
+) {
+  const now = options.now ?? new Date();
   const state = useAppStore.getState();
   const resolveIgdbId = createGameIdentityResolver(
     state.gameMetadata,
@@ -2045,15 +2067,19 @@ export function evaluateAndStoreMilestones(now = new Date()) {
     archivedGameSeconds: state.archivedGameSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
     verifiedContributions: state.contributionCounts.verified,
-    awardedMilestoneIds: state.awardedMilestoneIds,
+    awardedMilestones: state.awardedMilestones,
     milestonesInitializedAt: state.milestonesInitializedAt,
+    verifiedContributionsAuthoritative:
+      options.verifiedContributionsAuthoritative,
     resolveIgdbId,
     now,
   });
+  const revoked = new Set(result.revokedMilestoneIds);
   useAppStore.setState((current) => ({
-    awardedMilestoneIds: result.awardedMilestoneIds,
+    awardedMilestones: result.awardedMilestones,
     milestonesInitializedAt: result.milestonesInitializedAt,
     notifications: [...result.notifications, ...current.notifications]
+      .filter((notification) => !revoked.has(notification.id))
       .filter(
         (notification, index, all) =>
           all.findIndex((candidate) => candidate.id === notification.id) ===
@@ -2064,9 +2090,13 @@ export function evaluateAndStoreMilestones(now = new Date()) {
   for (const notification of result.notifications) {
     state.addToast({
       tone: "success",
+      emoji: notificationEmoji(notification.kind),
       title: notification.title,
       detail: notification.body,
     });
+  }
+  if (result.revokedMilestoneIds.length > 0) {
+    logRuntime(`milestones revoked ${result.revokedMilestoneIds.join(", ")}`);
   }
   persist();
 }
@@ -2475,7 +2505,7 @@ export function untrackGame(
   logRuntime(
     `game untracked gameId=${gameId} source=${source ?? "unknown"} exes=${matchingExeNames.length} removeHistory=${removeHistory}`,
   );
-  persist();
+  evaluateAndStoreMilestones();
   void requestProcessScan("after game untrack");
 }
 
@@ -2529,7 +2559,7 @@ export function addManualSession(params: {
   logRuntime(
     `manual session added ${params.gameName} (${params.exeName}) seconds=${durationSeconds}`,
   );
-  persist();
+  evaluateAndStoreMilestones();
 }
 
 export function setGamePlaytime(params: {
@@ -2589,7 +2619,7 @@ export function setGamePlaytime(params: {
   logRuntime(
     `game playtime adjustment set gameId=${params.gameId} source=${params.source ?? "unknown"} recorded=${recordedSeconds} target=${targetSeconds} offset=${adjustmentSeconds}`,
   );
-  persist();
+  evaluateAndStoreMilestones();
 }
 
 export function removeHistorySession(sessionId: number) {
@@ -2602,7 +2632,7 @@ export function removeHistorySession(sessionId: number) {
   const removedCount =
     previousCount - useAppStore.getState().recentSessions.length;
   if (removedCount > 0) logRuntime(`history session removed ${sessionId}`);
-  persist();
+  evaluateAndStoreMilestones();
 }
 
 export function removeGameHistory(
@@ -2622,7 +2652,7 @@ export function removeGameHistory(
     logRuntime(
       `game history removed gameId=${gameId} sessions=${removedCount}`,
     );
-  persist();
+  evaluateAndStoreMilestones();
 }
 
 export function removeGameHistoryBySource(
@@ -2643,7 +2673,7 @@ export function removeGameHistoryBySource(
     logRuntime(
       `game history removed gameId=${gameId} source=${source ?? "unknown"} sessions=${removedCount}`,
     );
-  persist();
+  evaluateAndStoreMilestones();
 }
 
 type FakeHistoryGame = {

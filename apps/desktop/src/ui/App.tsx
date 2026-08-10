@@ -11,6 +11,7 @@ import {
   Play,
   Settings,
   Sun,
+  Trophy,
   Wifi,
   WifiOff,
   X,
@@ -27,6 +28,7 @@ import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
 import { DevToolsView } from "./views/DevToolsView";
 import { HistoryView } from "./views/HistoryView";
+import { AchievementsView } from "./views/AchievementsView";
 import { MyGamesView } from "./views/MyGamesView";
 import { NowPlayingView } from "./views/NowPlayingView";
 import { DiscoveredView } from "./views/DiscoveredView";
@@ -74,6 +76,12 @@ const views: Record<
     icon: BarChart3,
     component: <HistoryView />,
   },
+  achievements: {
+    label: "Achievements",
+    subtitle: "Unlocked achievements and progress toward what comes next",
+    icon: Trophy,
+    component: <AchievementsView />,
+  },
   settings: {
     label: "Settings",
     subtitle: "Configure how PlayCounter runs",
@@ -89,7 +97,7 @@ const views: Record<
 };
 
 const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
-  { label: "Library", items: ["now", "games", "history"] },
+  { label: "Library", items: ["now", "games", "history", "achievements"] },
   { label: "System", items: ["discovered", "settings", "dev"] },
 ];
 
@@ -479,6 +487,14 @@ function ToastCard({
       className={`pointer-events-auto rounded-lg border bg-surface p-3 shadow-raised ${leaving ? "animate-toast-out" : "animate-toast-in"} ${toneClass}`}
     >
       <div className="flex items-start gap-3">
+        {toast.emoji ? (
+          <span
+            aria-hidden="true"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-hover text-xl leading-none"
+          >
+            {toast.emoji}
+          </span>
+        ) : null}
         <div className="min-w-0 flex-1">
           <div className="font-medium text-text break-all">{toast.title}</div>
           {toast.detail ? (

@@ -9,6 +9,7 @@ import type {
 import { create } from "zustand";
 import { gameSecondsKey } from "./gameSeconds";
 import type { AppNotification, ContributionCounts } from "./notifications";
+import type { AwardedMilestone } from "./milestones";
 import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
 import { persistAppState } from "./persistence";
 import { splitStoredSessions } from "./sessionPersistence";
@@ -19,6 +20,7 @@ export type ViewId =
   | "games"
   | "discovered"
   | "history"
+  | "achievements"
   | "settings"
   | "dev";
 
@@ -135,6 +137,7 @@ export type BackendHealth = {
 export type Toast = {
   id: number;
   tone: "success" | "error" | "info";
+  emoji?: string;
   title: string;
   detail?: string;
 };
@@ -165,7 +168,7 @@ type AppState = {
   notifications: AppNotification[];
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
-  awardedMilestoneIds: string[];
+  awardedMilestones: AwardedMilestone[];
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
@@ -321,7 +324,7 @@ export const useAppStore = create<AppState>((set) => ({
   notifications: [],
   seenContributionStatus: {},
   contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
-  awardedMilestoneIds: [],
+  awardedMilestones: [],
   milestonesInitializedAt: null,
   archivedSeconds: 0,
   archivedGameSeconds: {},

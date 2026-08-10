@@ -1,6 +1,10 @@
 import type { Session } from "@playcounter/shared";
 import { describe, expect, it } from "vitest";
-import { evaluateMilestones } from "./milestones";
+import {
+  evaluateMilestones,
+  migrateAwardedMilestones,
+  parseMilestoneId,
+} from "./milestones";
 
 function session(
   hours: number,
@@ -108,9 +112,41 @@ describe("milestones", () => {
       now: new Date("2026-09-10T12:00:00.000Z"),
     });
     expect(august.awardedMilestoneIds).toContain("milestone:month:2026-08:10");
+    expect(
+      august.notifications.find(
+        (notification) => notification.id === "milestone:month:2026-08:10",
+      )?.title,
+    ).toContain("2026");
     expect(september.notifications.map((item) => item.id)).toContain(
       "milestone:month:2026-09:10",
     );
+  });
+
+  it("orders simultaneously reached thresholds from highest to lowest", () => {
+    const result = evaluateMilestones({
+      sessions: [session(1_000)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestoneIds: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-09-30T12:00:00.000Z"),
+    });
+
+    expect(
+      result.notifications
+        .filter((notification) => notification.kind === "milestone-game")
+        .map((notification) => notification.id),
+    ).toEqual([
+      "milestone:game:community:42:1000",
+      "milestone:game:community:42:500",
+      "milestone:game:community:42:250",
+      "milestone:game:community:42:100",
+      "milestone:game:community:42:50",
+      "milestone:game:community:42:25",
+      "milestone:game:community:42:10",
+    ]);
   });
 
   it("merges archived aliases and does not re-award their milestones", () => {
@@ -179,5 +215,267 @@ describe("milestones", () => {
     expect(result.notifications.map((item) => item.id)).toContain(
       "milestone:game:community:99:10",
     );
+  });
+
+  it("records exact award times after achievement tracking is initialized", () => {
+    const now = new Date("2026-08-10T12:34:56.000Z");
+    const result = evaluateMilestones({
+      sessions: [session(10)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now,
+    });
+
+    expect(
+      result.awardedMilestones.find(
+        (milestone) => milestone.id === "milestone:total:10",
+      ),
+    ).toMatchObject({ awardedAt: now.toISOString() });
+    expect(
+      result.awardedMilestones.find(
+        (milestone) => milestone.id === "milestone:total:10",
+      )?.backfilled,
+    ).toBeUndefined();
+  });
+
+  it("dates first-run achievements once without notifying", () => {
+    const now = new Date("2026-08-10T12:00:00.000Z");
+    const result = evaluateMilestones({
+      sessions: [session(10)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [],
+      milestonesInitializedAt: null,
+      now,
+    });
+
+    expect(result.notifications).toEqual([]);
+    expect(result.awardedMilestones.length).toBeGreaterThan(0);
+    expect(
+      result.awardedMilestones.every(
+        (item) => item.awardedAt === now.toISOString() && !item.backfilled,
+      ),
+    ).toBe(true);
+  });
+
+  it("revokes game and total achievements when the only game is adjusted below them", () => {
+    const earned = evaluateMilestones({
+      sessions: [session(20)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-10T12:00:00.000Z"),
+    });
+    const lowered = evaluateMilestones({
+      sessions: [session(20)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: { "community:42": -15 * 3600 },
+      verifiedContributions: 0,
+      awardedMilestones: earned.awardedMilestones,
+      milestonesInitializedAt: earned.milestonesInitializedAt,
+      now: new Date("2026-08-11T12:00:00.000Z"),
+    });
+
+    expect(lowered.revokedMilestoneIds).toEqual(
+      expect.arrayContaining([
+        "milestone:total:10",
+        "milestone:game:community:42:10",
+      ]),
+    );
+    expect(lowered.awardedMilestoneIds).not.toContain("milestone:total:10");
+    expect(lowered.awardedMilestoneIds).not.toContain(
+      "milestone:game:community:42:10",
+    );
+    expect(lowered.notifications).toEqual([]);
+  });
+
+  it("revokes playtime achievements when all history for the only game is deleted", () => {
+    const earned = evaluateMilestones({
+      sessions: [session(20)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-10T12:00:00.000Z"),
+    });
+    const deleted = evaluateMilestones({
+      sessions: [],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: earned.awardedMilestones,
+      milestonesInitializedAt: earned.milestonesInitializedAt,
+      now: new Date("2026-08-11T12:00:00.000Z"),
+    });
+
+    expect(deleted.awardedMilestones.map((item) => item.id)).not.toContain(
+      "milestone:total:10",
+    );
+    expect(deleted.awardedMilestones.map((item) => item.id)).not.toContain(
+      "milestone:game:community:42:10",
+    );
+  });
+
+  it("can award a revoked achievement again with a new timestamp", () => {
+    const earned = evaluateMilestones({
+      sessions: [session(20)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-10T12:00:00.000Z"),
+    });
+    const lowered = evaluateMilestones({
+      sessions: [session(20)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: { "community:42": -15 * 3600 },
+      verifiedContributions: 0,
+      awardedMilestones: earned.awardedMilestones,
+      milestonesInitializedAt: earned.milestonesInitializedAt,
+      now: new Date("2026-08-11T12:00:00.000Z"),
+    });
+    const reearnedAt = new Date("2026-08-12T12:00:00.000Z");
+    const reearned = evaluateMilestones({
+      sessions: [session(20)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: lowered.awardedMilestones,
+      milestonesInitializedAt: lowered.milestonesInitializedAt,
+      now: reearnedAt,
+    });
+
+    expect(
+      reearned.awardedMilestones.find(
+        (item) => item.id === "milestone:game:community:42:10",
+      )?.awardedAt,
+    ).toBe(reearnedAt.toISOString());
+    expect(reearned.notifications.map((item) => item.id)).toContain(
+      "milestone:game:community:42:10",
+    );
+  });
+
+  it("keeps monthly and streak achievements when retained history shrinks", () => {
+    const earned = evaluateMilestones({
+      sessions: [
+        session(10),
+        session(1, "2026-08-08T08:00:00.000Z"),
+        session(1, "2026-08-07T08:00:00.000Z"),
+      ],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-09T12:00:00.000Z"),
+    });
+    const shrunk = evaluateMilestones({
+      sessions: [],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: earned.awardedMilestones,
+      milestonesInitializedAt: earned.milestonesInitializedAt,
+      now: new Date("2026-08-12T12:00:00.000Z"),
+    });
+
+    expect(shrunk.awardedMilestoneIds).toContain("milestone:month:2026-08:10");
+    expect(shrunk.awardedMilestoneIds).toContain("milestone:streak:3");
+  });
+
+  it("revokes verified achievements only with an authoritative server count", () => {
+    const award = {
+      id: "milestone:verified:5",
+      kind: "milestone-verified" as const,
+      title: "5 contributions verified",
+      awardedAt: "2026-08-10T12:00:00.000Z",
+    };
+    const base = {
+      sessions: [],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [award],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-11T12:00:00.000Z"),
+    };
+
+    expect(evaluateMilestones(base).awardedMilestoneIds).toContain(award.id);
+    expect(
+      evaluateMilestones({
+        ...base,
+        verifiedContributionsAuthoritative: true,
+      }).awardedMilestoneIds,
+    ).not.toContain(award.id);
+  });
+
+  it.each([
+    ["milestone:total:10", { category: "total", scope: "", threshold: 10 }],
+    [
+      "milestone:game:community:42:25",
+      { category: "game", scope: "community:42", threshold: 25 },
+    ],
+    [
+      "milestone:month:2026-08:10",
+      { category: "month", scope: "2026-08", threshold: 10 },
+    ],
+    ["not-a-milestone", null],
+  ])("parses milestone id %s", (id, expected) => {
+    expect(parseMilestoneId(id)).toEqual(expected);
+  });
+
+  it("dates legacy ids on migration and keeps that date on later starts", () => {
+    const initializedAt = "2026-08-01T00:00:00.000Z";
+    const firstStart = new Date("2026-08-10T12:00:00.000Z");
+    const migrated = migrateAwardedMilestones({
+      awardedMilestoneIds: ["milestone:total:10", "junk"],
+      milestonesInitializedAt: initializedAt,
+      now: firstStart,
+    });
+    expect(migrated).toEqual([
+      expect.objectContaining({
+        id: "milestone:total:10",
+        awardedAt: firstStart.toISOString(),
+      }),
+    ]);
+    expect(migrated[0].backfilled).toBeUndefined();
+    expect(
+      migrateAwardedMilestones({
+        awardedMilestones: migrated,
+        now: new Date("2026-08-20T12:00:00.000Z"),
+      })[0]?.awardedAt,
+    ).toBe(firstStart.toISOString());
+    const previouslyBackfilled = migrateAwardedMilestones({
+      awardedMilestones: [
+        {
+          ...migrated[0],
+          awardedAt: initializedAt,
+          backfilled: true,
+        },
+      ],
+      now: firstStart,
+    })[0];
+    expect(previouslyBackfilled.awardedAt).toBe(firstStart.toISOString());
+    expect(previouslyBackfilled.backfilled).toBeUndefined();
   });
 });

@@ -53,7 +53,14 @@ function makeState(
       pending: 0,
       rejected: 0,
     },
-    awardedMilestoneIds: [],
+    awardedMilestones: [
+      {
+        id: "milestone:total:10",
+        kind: "milestone-total" as const,
+        title: "You've played 10 hours in total",
+        awardedAt: "2026-08-09T00:00:00.000Z",
+      },
+    ],
     milestonesInitializedAt: null,
     archivedSeconds: 0,
     archivedGameSeconds: {},
@@ -113,6 +120,8 @@ describe("session persistence", () => {
       expect(serialized.playtimeAdjustments).toEqual({
         "community:42": 600,
       });
+      expect(serialized.awardedMilestones).toHaveLength(1);
+      expect(serialized.awardedMilestoneIds).toEqual(["milestone:total:10"]);
     }
     expect(setItem).toHaveBeenCalledTimes(2);
   });
@@ -148,5 +157,7 @@ describe("session persistence", () => {
     expect(serialized.playtimeAdjustments).toEqual({
       "community:42": 600,
     });
+    expect(serialized.awardedMilestones).toHaveLength(1);
+    expect(serialized.awardedMilestoneIds).toEqual(["milestone:total:10"]);
   });
 });

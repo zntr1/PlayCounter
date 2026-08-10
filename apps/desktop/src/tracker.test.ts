@@ -54,6 +54,9 @@ beforeEach(() => {
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: {},
+    notifications: [],
+    awardedMilestones: [],
+    milestonesInitializedAt: null,
     backendHealth: {
       status: "online",
       checkedAt: "2026-08-09T00:00:00.000Z",
@@ -469,5 +472,131 @@ describe("canonical alias actions", () => {
       archivedGameSeconds: {},
       playtimeAdjustments: {},
     });
+  });
+
+  it("revokes the only game's playtime achievements when adjusted to zero", () => {
+    const awardedAt = "2026-08-09T20:00:00.000Z";
+    const playtimeAwards = [
+      {
+        id: "milestone:total:10",
+        kind: "milestone-total" as const,
+        title: "You've played 10 hours in total",
+        awardedAt,
+      },
+      {
+        id: "milestone:game:community:7:10",
+        kind: "milestone-game" as const,
+        title: "10 hours played in Game",
+        awardedAt,
+      },
+      {
+        id: "milestone:month:2026-08:10",
+        kind: "milestone-month" as const,
+        title: "10 hours played in August 2026",
+        awardedAt,
+      },
+    ];
+    useAppStore.setState({
+      recentSessions: [
+        {
+          id: 1,
+          gameId: 7,
+          gameName: "Game",
+          source: "community",
+          exeName: "Game.exe",
+          startedAt: "2026-08-09T00:00:00.000Z",
+          endedAt: "2026-08-09T20:00:00.000Z",
+          durationSeconds: 20 * 3600,
+        },
+      ],
+      awardedMilestones: playtimeAwards,
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      notifications: playtimeAwards.map((award) => ({
+        id: award.id,
+        kind: award.kind,
+        title: award.title,
+        createdAt: award.awardedAt,
+      })),
+      toasts: [],
+    });
+
+    setGamePlaytime({
+      gameId: 7,
+      gameName: "Game",
+      coverUrl: "cover",
+      source: "community",
+      exeName: "Game.exe",
+      targetSeconds: 0,
+    });
+
+    const state = useAppStore.getState();
+    expect(state.awardedMilestones.map((item) => item.id)).toEqual([
+      "milestone:month:2026-08:10",
+    ]);
+    expect(state.notifications.map((item) => item.id)).toEqual([
+      "milestone:month:2026-08:10",
+    ]);
+    expect(state.toasts).toEqual([]);
+  });
+
+  it("revokes playtime achievements after deleting all history", () => {
+    useAppStore.setState({
+      recentSessions: [
+        {
+          id: 1,
+          gameId: 7,
+          gameName: "Game",
+          source: "community",
+          exeName: "Game.exe",
+          startedAt: "2026-08-09T00:00:00.000Z",
+          endedAt: "2026-08-09T20:00:00.000Z",
+          durationSeconds: 20 * 3600,
+        },
+      ],
+      awardedMilestones: [
+        {
+          id: "milestone:total:10",
+          kind: "milestone-total",
+          title: "You've played 10 hours in total",
+          awardedAt: "2026-08-09T20:00:00.000Z",
+        },
+        {
+          id: "milestone:game:community:7:10",
+          kind: "milestone-game",
+          title: "10 hours played in Game",
+          awardedAt: "2026-08-09T20:00:00.000Z",
+        },
+      ],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+    });
+
+    removeGameHistory(7, [{ gameId: 7, source: "community" }]);
+
+    expect(useAppStore.getState().awardedMilestones).toEqual([]);
+  });
+
+  it("awards achievements immediately for a manually added session", () => {
+    useAppStore.setState({
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+    });
+
+    addManualSession({
+      gameId: 7,
+      gameName: "Game",
+      coverUrl: "cover",
+      source: "community",
+      exeName: "Game.exe",
+      durationSeconds: 10 * 3600,
+      endedAt: "2026-08-09T20:00:00.000Z",
+    });
+
+    expect(
+      useAppStore.getState().awardedMilestones.map((item) => item.id),
+    ).toEqual(
+      expect.arrayContaining([
+        "milestone:total:10",
+        "milestone:game:community:7:10",
+      ]),
+    );
   });
 });

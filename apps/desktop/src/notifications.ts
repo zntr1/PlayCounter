@@ -33,6 +33,95 @@ export const EMPTY_CONTRIBUTION_COUNTS: ContributionCounts = {
   rejected: 0,
 };
 
+export function notificationEmoji(kind: NotificationKind) {
+  switch (kind) {
+    case "suggestion-verified":
+      return "✅";
+    case "suggestion-rejected":
+      return "📝";
+    case "milestone-total":
+      return "🏆";
+    case "milestone-month":
+      return "📅";
+    case "milestone-game":
+      return "🎮";
+    case "milestone-streak":
+      return "🔥";
+    case "milestone-verified":
+      return "✅";
+    default:
+      return assertNever(kind);
+  }
+}
+
+export function displayNotificationTitle(
+  notification: Pick<AppNotification, "id" | "kind" | "title">,
+) {
+  if (notification.kind !== "milestone-month") return notification.title;
+
+  const year = /^milestone:month:(\d{4})-\d{2}:/.exec(notification.id)?.[1];
+  if (!year || new RegExp(`\\b${year}\\b`).test(notification.title)) {
+    return notification.title;
+  }
+
+  return `${notification.title} ${year}`;
+}
+
+export function notificationsForDisplay(
+  notifications: readonly AppNotification[],
+): AppNotification[] {
+  const groupOrder = new Map<string, number>();
+  const rows = notifications.map((notification, index) => {
+    const scope = milestoneScope(notification);
+    const timestamp = Date.parse(notification.createdAt);
+    const groupKey = scope
+      ? `${notification.createdAt}:${scope}`
+      : `${notification.createdAt}:notification:${index}`;
+    if (!groupOrder.has(groupKey)) groupOrder.set(groupKey, groupOrder.size);
+
+    return {
+      notification,
+      index,
+      timestamp: Number.isFinite(timestamp) ? timestamp : 0,
+      groupKey,
+      threshold: scope ? notificationThreshold(notification.id) : null,
+    };
+  });
+
+  return rows
+    .sort((left, right) => {
+      if (left.timestamp !== right.timestamp) {
+        return right.timestamp - left.timestamp;
+      }
+
+      const groupDifference =
+        (groupOrder.get(left.groupKey) ?? left.index) -
+        (groupOrder.get(right.groupKey) ?? right.index);
+      if (groupDifference !== 0) return groupDifference;
+
+      if (left.threshold !== null && right.threshold !== null) {
+        return right.threshold - left.threshold;
+      }
+      return left.index - right.index;
+    })
+    .map(({ notification }) => notification);
+}
+
+function milestoneScope(notification: AppNotification) {
+  if (!notification.kind.startsWith("milestone-")) return null;
+  const separator = notification.id.lastIndexOf(":");
+  return separator > 0 ? notification.id.slice(0, separator) : null;
+}
+
+function notificationThreshold(id: string) {
+  const threshold = Number(id.slice(id.lastIndexOf(":") + 1));
+  return Number.isFinite(threshold) ? threshold : null;
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled notification kind: ${String(value)}`);
+}
+
 export function contributionKey(
   contribution: Pick<Contribution, "platform" | "kind" | "value" | "gameId">,
 ) {

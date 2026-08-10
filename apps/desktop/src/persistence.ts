@@ -4,6 +4,7 @@ import type {
   Settings,
 } from "@playcounter/shared";
 import type { AppNotification, ContributionCounts } from "./notifications";
+import type { AwardedMilestone } from "./milestones";
 import { gameSecondsKey } from "./gameSeconds";
 import { normalizeSessions } from "./sessionPersistence";
 
@@ -23,7 +24,7 @@ type PersistableAppState = {
   notifications: AppNotification[];
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
-  awardedMilestoneIds: string[];
+  awardedMilestones: AwardedMilestone[];
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
@@ -43,6 +44,7 @@ export type PersistedPayload = {
   notifications: AppNotification[];
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
+  awardedMilestones?: AwardedMilestone[];
   awardedMilestoneIds: string[];
   milestonesInitializedAt?: string;
   archivedSeconds: number;
@@ -80,7 +82,15 @@ export function createPersistedPayload(
     notifications: state.notifications.slice(0, MAX_STORED_NOTIFICATIONS),
     seenContributionStatus: state.seenContributionStatus,
     contributionCounts: state.contributionCounts,
-    awardedMilestoneIds: state.awardedMilestoneIds,
+    awardedMilestones: state.awardedMilestones,
+    awardedMilestoneIds: [
+      ...new Set(
+        state.awardedMilestones.flatMap((milestone) => [
+          milestone.id,
+          ...(milestone.aliasIds ?? []),
+        ]),
+      ),
+    ],
     milestonesInitializedAt: state.milestonesInitializedAt ?? undefined,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
