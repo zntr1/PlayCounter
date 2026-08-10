@@ -22,6 +22,7 @@ const EXPECTED_ICONS: Record<NotificationKind, AchievementIconName> = {
   "milestone-game": "gamepad",
   "milestone-streak": "flame",
   "milestone-verified": "badge-check",
+  "discovered-review": "list-checks",
 };
 
 const TIER_INDEX: Record<AchievementTier, number> = {
@@ -84,6 +85,18 @@ describe("achievement art", () => {
         kind: "milestone-game",
       }),
     ).toMatchObject({ icon: "gamepad", tier: "bronze" });
+  });
+
+  it("labels the discovered cleanup reminder without achievement wording", () => {
+    expect(
+      achievementArt({
+        id: "discovered-review-backlog",
+        kind: "discovered-review",
+      }),
+    ).toMatchObject({
+      icon: "list-checks",
+      label: "Reminder: apps waiting for review",
+    });
   });
 
   it.each(["milestone:total:", "milestone:total:abc", ""])(

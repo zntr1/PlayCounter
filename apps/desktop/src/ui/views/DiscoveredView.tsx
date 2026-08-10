@@ -34,7 +34,12 @@ import {
   type ExeCacheEntry,
   type ProcessSnapshot,
 } from "../../store";
-import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
+import {
+  countNeedsReview,
+  getDiscoveryStatus,
+  NEEDS_REVIEW_STATUSES,
+  type DiscoveryStatus,
+} from "../../discoveredReview";
 import { ExeIcon } from "../ExeIcon";
 import { Panel, SourceBadge } from "../components";
 import {
@@ -54,14 +59,6 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "../primitives";
-
-type DiscoveryStatus =
-  | "matched"
-  | "custom"
-  | "unmatched"
-  | "ignored"
-  | "userIgnored"
-  | "checking";
 
 // Single floating heart shown briefly after a successful "Add & Share".
 // Lives outside the heavy view so firing it never re-renders the list.
@@ -147,7 +144,11 @@ const discoveryFilters: Array<{
   label: string;
   statuses: DiscoveryStatus[];
 }> = [
-  { id: "review", label: "Needs review", statuses: ["unmatched", "checking"] },
+  {
+    id: "review",
+    label: "Needs review",
+    statuses: [...NEEDS_REVIEW_STATUSES],
+  },
   { id: "tracked", label: "Tracked", statuses: ["matched", "custom"] },
   { id: "ignored", label: "Ignored", statuses: ["userIgnored", "ignored"] },
 ];
@@ -174,34 +175,14 @@ export function useNeedsReviewCount() {
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
 
   return useMemo(() => {
-    // Exes with a pending ambiguity picker are handled in Now Playing; they
-    // are not additionally up for review here.
-    const ambiguousKeys = new Set(
-      ambiguousMatches.map((match) => match.exeName.toLowerCase()),
-    );
-    const byKey = new Map<string, ExeCacheEntry | null>();
-    for (const process of processes) {
-      const key = process.exeName.toLowerCase();
-      byKey.set(key, exeCache.get(key) ?? null);
-    }
-    for (const entry of exeCache.values()) {
-      const key = entry.exeName.toLowerCase();
-      if (!byKey.has(key)) byKey.set(key, entry);
-    }
-
-    let count = 0;
-    for (const [key, entry] of byKey) {
-      if (ambiguousKeys.has(key)) continue;
-      const status = getDiscoveryStatus(
-        entry?.exeName ?? key,
-        entry ?? undefined,
-        ignoredProcesses,
-        userIgnoredProcesses,
-        blacklist,
-      );
-      if (status === "unmatched" || status === "checking") count += 1;
-    }
-    return count;
+    return countNeedsReview({
+      processes,
+      exeCache,
+      ignoredProcesses,
+      userIgnoredProcesses,
+      blacklist,
+      ambiguousMatches,
+    });
   }, [
     processes,
     exeCache,
@@ -210,31 +191,6 @@ export function useNeedsReviewCount() {
     blacklist,
     ambiguousMatches,
   ]);
-}
-
-function getDiscoveryStatus(
-  exeName: string,
-  cacheEntry: ExeCacheEntry | undefined,
-  ignoredProcesses: Set<string>,
-  userIgnoredProcesses: Set<string>,
-  blacklist: Set<string>,
-): DiscoveryStatus {
-  const key = exeName.toLowerCase();
-
-  if (
-    matchesProcessPatternSet(key, userIgnoredProcesses) ||
-    matchesProcessPatternSet(key, blacklist) ||
-    cacheEntry?.state === "blacklisted"
-  ) {
-    return "userIgnored";
-  }
-  if (matchesProcessPatternSet(key, ignoredProcesses)) return "ignored";
-  if (cacheEntry?.state === "matched" && cacheEntry.source === "custom")
-    return "custom";
-  if (cacheEntry?.state === "matched") return "matched";
-  if (cacheEntry?.state === "unmatched") return "unmatched";
-
-  return "checking";
 }
 
 function sortDiscovered(

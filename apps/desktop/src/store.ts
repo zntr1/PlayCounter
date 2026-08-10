@@ -8,6 +8,11 @@ import type {
 } from "@playcounter/shared";
 import { create } from "zustand";
 import { gameSecondsKey } from "./gameSeconds";
+import {
+  anchorDiscoveredReviewReminder,
+  DISCOVERED_REVIEW_REMINDER_ID,
+  type DiscoveredReviewReminder,
+} from "./discoveredReminder";
 import type { AppNotification, ContributionCounts } from "./notifications";
 import type { AwardedMilestone } from "./milestones";
 import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
@@ -166,6 +171,7 @@ type AppState = {
   backendHealth: BackendHealth;
   toasts: Toast[];
   notifications: AppNotification[];
+  discoveredReviewReminder: DiscoveredReviewReminder;
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
   awardedMilestones: AwardedMilestone[];
@@ -200,6 +206,7 @@ type AppState = {
   addToast: (toast: Omit<Toast, "id">) => void;
   dismissToast: (toastId: number) => void;
   addNotification: (notification: AppNotification) => void;
+  setDiscoveredReviewReminder: (reminder: DiscoveredReviewReminder) => void;
   dismissNotification: (notificationId: string) => void;
   clearNotifications: () => void;
   markAllNotificationsRead: () => void;
@@ -322,6 +329,7 @@ export const useAppStore = create<AppState>((set) => ({
   backendHealth: { status: "checking", checkedAt: null, detail: null },
   toasts: [],
   notifications: [],
+  discoveredReviewReminder: null,
   seenContributionStatus: {},
   contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
   awardedMilestones: [],
@@ -454,25 +462,63 @@ export const useAppStore = create<AppState>((set) => ({
     }));
     persistSoon();
   },
+  setDiscoveredReviewReminder: (discoveredReviewReminder) => {
+    set({ discoveredReviewReminder });
+    persistSoon();
+  },
   dismissNotification: (notificationId) => {
-    set((state) => ({
-      notifications: state.notifications.filter(
-        (notification) => notification.id !== notificationId,
-      ),
-    }));
+    const now = new Date().toISOString();
+    set((state) => {
+      const reminderWasPresent =
+        notificationId === DISCOVERED_REVIEW_REMINDER_ID &&
+        state.notifications.some(
+          (notification) => notification.id === DISCOVERED_REVIEW_REMINDER_ID,
+        );
+      return {
+        notifications: state.notifications.filter(
+          (notification) => notification.id !== notificationId,
+        ),
+        discoveredReviewReminder: reminderWasPresent
+          ? anchorDiscoveredReviewReminder(state.discoveredReviewReminder, now)
+          : state.discoveredReviewReminder,
+      };
+    });
     persistSoon();
   },
   clearNotifications: () => {
-    set({ notifications: [] });
+    const now = new Date().toISOString();
+    set((state) => {
+      const reminderWasPresent = state.notifications.some(
+        (notification) => notification.id === DISCOVERED_REVIEW_REMINDER_ID,
+      );
+      return {
+        notifications: [],
+        discoveredReviewReminder: reminderWasPresent
+          ? anchorDiscoveredReviewReminder(state.discoveredReviewReminder, now)
+          : state.discoveredReviewReminder,
+      };
+    });
     persistSoon();
   },
   markAllNotificationsRead: () => {
     const now = new Date().toISOString();
-    set((state) => ({
-      notifications: state.notifications.map((notification) =>
-        notification.readAt ? notification : { ...notification, readAt: now },
-      ),
-    }));
+    set((state) => {
+      const reminder = state.notifications.find(
+        (notification) => notification.id === DISCOVERED_REVIEW_REMINDER_ID,
+      );
+      return {
+        notifications: state.notifications.map((notification) =>
+          notification.readAt ? notification : { ...notification, readAt: now },
+        ),
+        discoveredReviewReminder:
+          reminder && !reminder.readAt
+            ? anchorDiscoveredReviewReminder(
+                state.discoveredReviewReminder,
+                now,
+              )
+            : state.discoveredReviewReminder,
+      };
+    });
     persistSoon();
   },
   rekeyGameSeconds: (from, to) =>
@@ -642,9 +688,9 @@ export function resolvedCanonicalGameKey(
 }
 
 export function useIsOffline() {
-  return useAppStore(
-    (state) =>
-      state.backendHealth.status === "offline" ||
-      state.backendHealth.status === "reconnecting",
-  );
+  return useAppStore((state) => isOfflineStatus(state.backendHealth.status));
+}
+
+export function isOfflineStatus(status: BackendHealthStatus) {
+  return status === "offline" || status === "reconnecting";
 }

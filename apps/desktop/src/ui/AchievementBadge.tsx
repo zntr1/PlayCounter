@@ -4,6 +4,7 @@ import {
   CircleSlash,
   Flame,
   Gamepad2,
+  ListChecks,
   ShieldCheck,
   Trophy,
   type LucideIcon,
@@ -25,6 +26,7 @@ const ICONS: Record<AchievementIconName, LucideIcon> = {
   "badge-check": BadgeCheck,
   "shield-check": ShieldCheck,
   "circle-slash": CircleSlash,
+  "list-checks": ListChecks,
 };
 
 export function AchievementBadge({

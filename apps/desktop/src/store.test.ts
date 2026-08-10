@@ -7,6 +7,10 @@ import {
   useAppStore,
 } from "./store";
 import { MAX_STORED_SESSIONS } from "./sessionPersistence";
+import {
+  DISCOVERED_REVIEW_REMINDER_ID,
+  evaluateDiscoveredReviewReminder,
+} from "./discoveredReminder";
 
 describe("approved community suggestion switch", () => {
   const approvedSuggestion = {
@@ -47,16 +51,140 @@ describe("approved community suggestion switch", () => {
 });
 
 beforeEach(() => {
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { setItem: () => undefined },
+  });
   useAppStore.setState({
     installUuid: null,
     contributionOwnerUuid: null,
     seenContributionStatus: {},
     contributionCounts: { suggested: 0, verified: 0, pending: 0, rejected: 0 },
     notifications: [],
+    discoveredReviewReminder: null,
     awardedMilestones: [],
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: {},
+  });
+});
+
+describe("discovered review reminder attention", () => {
+  const oldReminder = {
+    notifiedAt: "2026-08-01T00:00:00.000Z",
+    notifiedCount: 12,
+  };
+  const unreadCard = {
+    id: DISCOVERED_REVIEW_REMINDER_ID,
+    kind: "discovered-review" as const,
+    title: "🧹 12 apps are waiting for review",
+    createdAt: oldReminder.notifiedAt,
+  };
+
+  it("anchors the cooldown when an unread reminder is read", () => {
+    const before = Date.now();
+    useAppStore.setState({
+      notifications: [unreadCard],
+      discoveredReviewReminder: oldReminder,
+    });
+
+    useAppStore.getState().markAllNotificationsRead();
+
+    const state = useAppStore.getState();
+    const readAt = state.notifications[0]?.readAt;
+    expect(readAt).toBeTruthy();
+    expect(state.discoveredReviewReminder).toEqual({
+      notifiedAt: readAt,
+      notifiedCount: 12,
+    });
+    expect(Date.parse(readAt ?? "")).toBeGreaterThanOrEqual(before);
+  });
+
+  it("does not move the cooldown when an already-read card is viewed again", () => {
+    useAppStore.setState({
+      notifications: [{ ...unreadCard, readAt: "2026-08-02T00:00:00.000Z" }],
+      discoveredReviewReminder: oldReminder,
+    });
+
+    useAppStore.getState().markAllNotificationsRead();
+
+    expect(useAppStore.getState().discoveredReviewReminder).toEqual(
+      oldReminder,
+    );
+  });
+
+  it("anchors dismiss and clear only while the reminder card is present", () => {
+    useAppStore.setState({
+      notifications: [unreadCard],
+      discoveredReviewReminder: oldReminder,
+    });
+    useAppStore.getState().dismissNotification(DISCOVERED_REVIEW_REMINDER_ID);
+    const dismissed = useAppStore.getState().discoveredReviewReminder;
+    expect(Date.parse(dismissed?.notifiedAt ?? "")).toBeGreaterThan(
+      Date.parse(oldReminder.notifiedAt),
+    );
+
+    useAppStore.setState({
+      notifications: [unreadCard],
+      discoveredReviewReminder: oldReminder,
+    });
+    useAppStore.getState().clearNotifications();
+    const cleared = useAppStore.getState().discoveredReviewReminder;
+    expect(Date.parse(cleared?.notifiedAt ?? "")).toBeGreaterThan(
+      Date.parse(oldReminder.notifiedAt),
+    );
+
+    useAppStore.setState({
+      notifications: [],
+      discoveredReviewReminder: oldReminder,
+    });
+    useAppStore.getState().clearNotifications();
+    expect(useAppStore.getState().discoveredReviewReminder).toEqual(
+      oldReminder,
+    );
+  });
+
+  it("does not immediately re-fire when an old unread card is read and dismissed", () => {
+    const overdue = evaluateDiscoveredReviewReminder({
+      count: 12,
+      reminder: oldReminder,
+      cardState: "unread",
+      canFire: true,
+      now: new Date("2026-08-10T00:00:00.000Z"),
+    });
+    expect(overdue.notification).toBeNull();
+
+    useAppStore.setState({
+      notifications: [unreadCard],
+      discoveredReviewReminder: oldReminder,
+    });
+    useAppStore.getState().markAllNotificationsRead();
+    useAppStore.getState().dismissNotification(DISCOVERED_REVIEW_REMINDER_ID);
+    const anchored = useAppStore.getState().discoveredReviewReminder;
+    const nextScan = evaluateDiscoveredReviewReminder({
+      count: 12,
+      reminder: anchored,
+      cardState: "absent",
+      canFire: true,
+      now: new Date(Date.parse(anchored?.notifiedAt ?? "") + 1_000),
+    });
+
+    expect(nextScan.notification).toBeNull();
+  });
+
+  it("upserts a refreshed reminder as unread", () => {
+    useAppStore.setState({
+      notifications: [{ ...unreadCard, readAt: "2026-08-02T00:00:00.000Z" }],
+    });
+
+    useAppStore.getState().addNotification({
+      ...unreadCard,
+      createdAt: "2026-08-03T00:00:00.000Z",
+    });
+
+    expect(useAppStore.getState().notifications).toEqual([
+      { ...unreadCard, createdAt: "2026-08-03T00:00:00.000Z" },
+    ]);
   });
 });
 

@@ -13,6 +13,7 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
   const counts = useAppStore((state) => state.contributionCounts);
   const dismiss = useAppStore((state) => state.dismissNotification);
   const clear = useAppStore((state) => state.clearNotifications);
+  const setActiveView = useAppStore((state) => state.setActiveView);
   const displayedNotifications = notificationsForDisplay(notifications);
   useEscapeKey(onClose);
 
@@ -79,6 +80,26 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
                 <time className="mt-1 block text-[11px] text-text-faint">
                   {new Date(notification.createdAt).toLocaleString()}
                 </time>
+                {notification.action ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const action = notification.action;
+                      if (!action) return;
+                      if (action.view === "discovered") {
+                        window.dispatchEvent(
+                          new CustomEvent("playcounter:discovered-reset"),
+                        );
+                      }
+                      setActiveView(action.view);
+                      onClose();
+                    }}
+                    className="mt-1 text-xs font-medium text-accent transition hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  >
+                    {notification.action.label}
+                    <span aria-hidden="true"> →</span>
+                  </button>
+                ) : null}
               </div>
               <IconButton
                 aria-label="Dismiss notification"

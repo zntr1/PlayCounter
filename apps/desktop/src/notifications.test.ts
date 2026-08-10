@@ -54,6 +54,7 @@ describe("notification emojis", () => {
     ["milestone-game", "🎮"],
     ["milestone-streak", "🔥"],
     ["milestone-verified", "✅"],
+    ["discovered-review", "🧹"],
   ] as const)("uses %s art", (kind, emoji) => {
     expect(notificationEmoji(kind)).toBe(emoji);
   });

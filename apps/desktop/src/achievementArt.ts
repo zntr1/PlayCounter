@@ -27,7 +27,8 @@ export type AchievementIconName =
   | "flame"
   | "badge-check"
   | "shield-check"
-  | "circle-slash";
+  | "circle-slash"
+  | "list-checks";
 
 export type AchievementArt = {
   icon: AchievementIconName;
@@ -84,6 +85,14 @@ export function achievementArt(input: {
       return art("shield-check", "bronze", "verified suggestion", false);
     case "suggestion-rejected":
       return art("circle-slash", "bronze", "reviewed suggestion", false);
+    case "discovered-review":
+      return art(
+        "list-checks",
+        "bronze",
+        "apps waiting for review",
+        false,
+        "Reminder: apps waiting for review",
+      );
     default:
       return assertNever(input.kind);
   }
@@ -107,14 +116,17 @@ function art(
   tier: AchievementTier,
   subject: string,
   achievement = true,
+  label?: string,
 ): AchievementArt {
   return {
     icon,
     tier,
     frameClassName: frameClassName(tier),
-    label: achievement
-      ? `${capitalize(tier)} achievement: ${subject}`
-      : `${capitalize(tier)} badge: ${subject}`,
+    label:
+      label ??
+      (achievement
+        ? `${capitalize(tier)} achievement: ${subject}`
+        : `${capitalize(tier)} badge: ${subject}`),
   };
 }
 

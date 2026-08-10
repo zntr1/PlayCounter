@@ -1,4 +1,5 @@
 import type { Contribution, ContributionStatus } from "@playcounter/shared";
+import type { ViewId } from "./store";
 
 export type NotificationKind =
   | "suggestion-verified"
@@ -7,7 +8,13 @@ export type NotificationKind =
   | "milestone-month"
   | "milestone-game"
   | "milestone-streak"
-  | "milestone-verified";
+  | "milestone-verified"
+  | "discovered-review";
+
+export type NotificationAction = {
+  view: ViewId;
+  label: string;
+};
 
 export type AppNotification = {
   id: string;
@@ -17,6 +24,7 @@ export type AppNotification = {
   coverUrl?: string;
   createdAt: string;
   readAt?: string;
+  action?: NotificationAction;
 };
 
 export type ContributionCounts = {
@@ -49,6 +57,8 @@ export function notificationEmoji(kind: NotificationKind) {
       return "🔥";
     case "milestone-verified":
       return "✅";
+    case "discovered-review":
+      return "🧹";
     default:
       return assertNever(kind);
   }

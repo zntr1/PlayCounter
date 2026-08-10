@@ -46,6 +46,7 @@ function makeState(
     ambiguousMatches: [],
     blacklist: new Set<string>(),
     notifications,
+    discoveredReviewReminder: null,
     seenContributionStatus: {},
     contributionCounts: {
       suggested: 0,
@@ -69,6 +70,27 @@ function makeState(
 }
 
 describe("session persistence", () => {
+  it("persists the discovered review reminder cooldown", () => {
+    const reminder = {
+      notifiedAt: "2026-08-10T00:00:00.000Z",
+      notifiedCount: 12,
+    };
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+
+    persistAppState({
+      ...makeState([]),
+      discoveredReviewReminder: reminder,
+    });
+
+    expect(
+      JSON.parse(setItem.mock.calls[0][1]).discoveredReviewReminder,
+    ).toEqual(reminder);
+  });
+
   it("sorts newest-first and enforces the measured cap", () => {
     const sessions = Array.from(
       { length: MAX_STORED_SESSIONS + 10 },

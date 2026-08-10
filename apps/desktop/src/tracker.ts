@@ -19,6 +19,7 @@ import {
   canonicalGameKey,
   createGameIdentityResolver,
   gameMetadataKey,
+  isOfflineStatus,
   resolvedCanonicalGameKey,
   type ActiveSession,
   type AmbiguousProcessMatch,
@@ -26,6 +27,13 @@ import {
   type GameMetadata,
   type ProcessSnapshot,
 } from "./store";
+import { countNeedsReview } from "./discoveredReview";
+import {
+  DISCOVERED_REVIEW_REMINDER_ID,
+  discoveredReviewReminderText,
+  evaluateDiscoveredReviewReminder,
+  sanitizeDiscoveredReviewReminder,
+} from "./discoveredReminder";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 import { evaluateMilestones, migrateAwardedMilestones } from "./milestones";
 import {
@@ -71,6 +79,7 @@ type PersistedState = {
   activeSessions?: ActiveSession[];
   blacklist?: string[];
   notifications?: AppNotification[];
+  discoveredReviewReminder?: unknown;
   seenContributionStatus?: Record<string, ContributionStatus>;
   contributionCounts?: ContributionCounts;
   awardedMilestones?: unknown;
@@ -281,6 +290,9 @@ function hydrate() {
     ambiguousMatches: persisted.ambiguousMatches ?? [],
     blacklist: new Set(blacklist.map((exe) => exe.toLowerCase())),
     notifications: persisted.notifications ?? [],
+    discoveredReviewReminder: sanitizeDiscoveredReviewReminder(
+      persisted.discoveredReviewReminder,
+    ),
     seenContributionStatus: persisted.seenContributionStatus ?? {},
     contributionCounts: persisted.contributionCounts ?? {
       suggested: 0,
@@ -515,9 +527,42 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   }
 
   accumulateUnmatchedRuntime(runningProcessKeys);
+  syncDiscoveredReviewReminder();
 
   persist();
   logRuntime(`scan complete durationMs=${Date.now() - startedAt}`);
+}
+
+function syncDiscoveredReviewReminder() {
+  const state = useAppStore.getState();
+  const count = countNeedsReview(state);
+  const card = state.notifications.find(
+    (notification) => notification.id === DISCOVERED_REVIEW_REMINDER_ID,
+  );
+  const decision = evaluateDiscoveredReviewReminder({
+    count,
+    reminder: state.discoveredReviewReminder,
+    cardState: !card ? "absent" : card.readAt ? "read" : "unread",
+    canFire: !isOfflineStatus(state.backendHealth.status),
+  });
+
+  if (decision.removeNotificationId) {
+    state.dismissNotification(decision.removeNotificationId);
+  }
+  if (decision.notification) {
+    const text = discoveredReviewReminderText(count);
+    state.addNotification(decision.notification);
+    state.addToast({
+      tone: "info",
+      emoji: notificationEmoji("discovered-review"),
+      title: text.title,
+      detail: text.body,
+    });
+    logRuntime(`discovered review reminder fired count=${count}`);
+  }
+  if (decision.reminderChanged) {
+    state.setDiscoveredReviewReminder(decision.reminder);
+  }
 }
 
 function isIgnoredProcess(
