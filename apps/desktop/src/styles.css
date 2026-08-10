@@ -114,6 +114,49 @@
     0 4px 9px rgb(99 52 28 / 0.16);
 }
 
+.achievement-badge {
+  border: 1px solid;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 2px 6px rgb(0 0 0 / 0.22);
+}
+
+.achievement-badge-bronze {
+  border-color: #b5713f;
+  background: linear-gradient(to bottom, #d08a52, #8d4f26);
+  color: #ffe6d2;
+}
+
+.achievement-badge-silver {
+  border-color: #9aa5b4;
+  background: linear-gradient(to bottom, #cfd6e0, #717c8d);
+  color: #18202b;
+}
+
+.achievement-badge-gold {
+  border-color: #b98512;
+  background: linear-gradient(to bottom, #f0cb5c, #b98512);
+  color: #402900;
+}
+
+.achievement-badge-platinum {
+  border-color: #7fd3e8;
+  background: linear-gradient(to bottom, #d9f4fb, #65abc1);
+  color: #10323c;
+}
+
+:root[data-theme="light"] .achievement-badge-silver {
+  border-color: #7d8999;
+  background: linear-gradient(to bottom, #eef2f6, #adb7c4);
+  color: #242c37;
+}
+
+:root[data-theme="light"] .achievement-badge-platinum {
+  border-color: #4e9caf;
+  background: linear-gradient(to bottom, #eafaff, #99d3e2);
+  color: #123b45;
+}
+
 * {
   box-sizing: border-box;
 }

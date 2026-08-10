@@ -1,5 +1,6 @@
 import { CheckCheck, Trash2, X } from "lucide-react";
 import { useAppStore } from "../store";
+import { NotificationArt } from "./AchievementBadge";
 import { Panel } from "./components";
 import { Button, IconButton, useEscapeKey } from "./primitives";
 
@@ -60,15 +61,7 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
               key={notification.id}
               className="flex gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
             >
-              {notification.coverUrl ? (
-                <img
-                  src={notification.coverUrl}
-                  alt=""
-                  className="h-12 w-9 shrink-0 rounded object-cover"
-                />
-              ) : (
-                <div className="h-12 w-9 shrink-0 rounded bg-surface-hover" />
-              )}
+              <NotificationArt notification={notification} />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-text">
                   {notification.title}

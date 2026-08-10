@@ -67,6 +67,25 @@ describe("milestones", () => {
     expect(second.notifications).toEqual([]);
   });
 
+  it("keeps the game cover on game milestone notifications", () => {
+    const result = evaluateMilestones({
+      sessions: [{ ...session(10), coverUrl: "cover.jpg" }],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestoneIds: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-09T20:00:00.000Z"),
+    });
+
+    expect(
+      result.notifications.find(
+        (notification) => notification.id === "milestone:game:community:42:10",
+      )?.coverUrl,
+    ).toBe("cover.jpg");
+  });
+
   it("uses recurring calendar-month identifiers", () => {
     const august = evaluateMilestones({
       sessions: [session(10, "2026-08-09T08:00:00.000Z")],
