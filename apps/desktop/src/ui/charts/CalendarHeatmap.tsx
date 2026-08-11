@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DailyTotal } from "../../historyStats";
 import { quantileLevel, quantileThresholds } from "../../historyStats";
@@ -133,118 +134,130 @@ export function CalendarHeatmap({
         Daily playtime over the last 52 weeks
       </figcaption>
       <div ref={scrollRef} className="overflow-x-auto pb-2">
-        <div className="min-w-max">
+        {availableWidth === 0 ? (
           <div
-            className="relative ml-8 h-5"
-            style={{ width: weekCount * columnSize }}
+            className="grid min-h-36 place-items-center text-text-faint"
+            role="status"
+            aria-label="Loading activity calendar"
           >
-            {months.map((month) => (
-              <span
-                key={`${month.label}-${month.column}`}
-                className="absolute text-[10px] font-medium text-text-faint"
-                style={{ left: month.column * columnSize }}
-              >
-                {month.label}
-              </span>
-            ))}
+            <Loader2 aria-hidden="true" size={24} className="animate-spin" />
           </div>
-          <div className="flex gap-2">
+        ) : (
+          <div className="min-w-max">
             <div
-              className="grid text-[10px] font-medium text-text-faint"
-              style={{
-                gridTemplateRows: `repeat(7, ${cellSize}px)`,
-                gap: cellGap,
-              }}
+              className="relative ml-8 h-5"
+              style={{ width: weekCount * columnSize }}
             >
-              {weekdayLabels.map((label, index) => (
+              {months.map((month) => (
                 <span
-                  key={label}
-                  style={{ height: cellSize, lineHeight: `${cellSize}px` }}
+                  key={`${month.label}-${month.column}`}
+                  className="absolute text-[10px] font-medium text-text-faint"
+                  style={{ left: month.column * columnSize }}
                 >
-                  {index % 2 === 0 ? label : ""}
+                  {month.label}
                 </span>
               ))}
             </div>
-            <div
-              role="grid"
-              aria-label="Daily playtime calendar"
-              className="grid grid-flow-col"
-              style={{
-                gridTemplateRows: `repeat(7, ${cellSize}px)`,
-                gridAutoColumns: `${cellSize}px`,
-                gap: cellGap,
-              }}
-            >
-              {cells.map((cell, index) => {
-                const level = quantileLevel(
-                  cell.total?.seconds ?? 0,
-                  thresholds,
-                );
-                const background = cell.isOutside
-                  ? "transparent"
-                  : level === 0
-                    ? "rgb(var(--color-surface-hover))"
-                    : heatmapColor(level, thresholds.length)!;
-                return (
-                  <button
-                    key={cell.key}
-                    ref={(element) => {
-                      cellRefs.current[index] = element;
-                    }}
-                    type="button"
-                    role="gridcell"
-                    tabIndex={index === activeIndex ? 0 : -1}
-                    disabled={cell.isOutside}
-                    aria-label={`${formatAccessibleDate(cell.date)}: ${formatDuration(cell.total?.seconds ?? 0, showDurationDays)}`}
-                    className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
-                    style={{ width: cellSize, height: cellSize, background }}
-                    onPointerEnter={(event) => {
-                      if (cell.isOutside) return;
-                      setActiveIndex(index);
-                      tooltip.show(event.currentTarget, content(index));
-                    }}
-                    onPointerLeave={tooltip.hide}
-                    onFocus={(event) => {
-                      if (!cell.isOutside)
+            <div className="flex gap-2">
+              <div
+                className="grid text-[10px] font-medium text-text-faint"
+                style={{
+                  gridTemplateRows: `repeat(7, ${cellSize}px)`,
+                  gap: cellGap,
+                }}
+              >
+                {weekdayLabels.map((label, index) => (
+                  <span
+                    key={label}
+                    style={{ height: cellSize, lineHeight: `${cellSize}px` }}
+                  >
+                    {index % 2 === 0 ? label : ""}
+                  </span>
+                ))}
+              </div>
+              <div
+                role="grid"
+                aria-label="Daily playtime calendar"
+                className="grid grid-flow-col"
+                style={{
+                  gridTemplateRows: `repeat(7, ${cellSize}px)`,
+                  gridAutoColumns: `${cellSize}px`,
+                  gap: cellGap,
+                }}
+              >
+                {cells.map((cell, index) => {
+                  const level = quantileLevel(
+                    cell.total?.seconds ?? 0,
+                    thresholds,
+                  );
+                  const background = cell.isOutside
+                    ? "transparent"
+                    : level === 0
+                      ? "rgb(var(--color-surface-hover))"
+                      : heatmapColor(level, thresholds.length)!;
+                  return (
+                    <button
+                      key={cell.key}
+                      ref={(element) => {
+                        cellRefs.current[index] = element;
+                      }}
+                      type="button"
+                      role="gridcell"
+                      tabIndex={index === activeIndex ? 0 : -1}
+                      disabled={cell.isOutside}
+                      aria-label={`${formatAccessibleDate(cell.date)}: ${formatDuration(cell.total?.seconds ?? 0, showDurationDays)}`}
+                      className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
+                      style={{ width: cellSize, height: cellSize, background }}
+                      onPointerEnter={(event) => {
+                        if (cell.isOutside) return;
+                        setActiveIndex(index);
                         tooltip.show(event.currentTarget, content(index));
-                    }}
-                    onBlur={tooltip.hide}
-                    onKeyDown={(event) => {
-                      const weekday = index % 7;
-                      const move =
-                        event.key === "ArrowUp" && weekday > 0
-                          ? -1
-                          : event.key === "ArrowDown" && weekday < 6
-                            ? 1
-                            : event.key === "ArrowLeft"
-                              ? -7
-                              : event.key === "ArrowRight"
-                                ? 7
-                                : undefined;
-                      if (move !== undefined) {
-                        event.preventDefault();
-                        focusIndex(index + move);
-                      }
-                    }}
-                  />
-                );
-              })}
+                      }}
+                      onPointerLeave={tooltip.hide}
+                      onFocus={(event) => {
+                        if (!cell.isOutside)
+                          tooltip.show(event.currentTarget, content(index));
+                      }}
+                      onBlur={tooltip.hide}
+                      onKeyDown={(event) => {
+                        const weekday = index % 7;
+                        const move =
+                          event.key === "ArrowUp" && weekday > 0
+                            ? -1
+                            : event.key === "ArrowDown" && weekday < 6
+                              ? 1
+                              : event.key === "ArrowLeft"
+                                ? -7
+                                : event.key === "ArrowRight"
+                                  ? 7
+                                  : undefined;
+                        if (move !== undefined) {
+                          event.preventDefault();
+                          focusIndex(index + move);
+                        }
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </div>
+        )}
+      </div>
+      {availableWidth > 0 ? (
+        <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] text-text-faint">
+          <span>Less</span>
+          <span className="h-[11px] w-[11px] rounded-[2px] bg-surface-hover" />
+          {heatmapColors.map((color) => (
+            <span
+              key={color}
+              className="h-[11px] w-[11px] rounded-[2px]"
+              style={{ background: color }}
+            />
+          ))}
+          <span>More</span>
         </div>
-      </div>
-      <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] text-text-faint">
-        <span>Less</span>
-        <span className="h-[11px] w-[11px] rounded-[2px] bg-surface-hover" />
-        {heatmapColors.map((color) => (
-          <span
-            key={color}
-            className="h-[11px] w-[11px] rounded-[2px]"
-            style={{ background: color }}
-          />
-        ))}
-        <span>More</span>
-      </div>
+      ) : null}
       <ChartTooltip state={tooltip.state} onClose={tooltip.hide} />
     </figure>
   );

@@ -282,7 +282,7 @@ export const HistoryInsights = memo(function HistoryInsights({
         <PanelHeading
           id="activity-heading"
           title="Activity calendar"
-          caption="Last 52 weeks · range chips do not apply"
+          caption="Last 52 weeks"
           collapsed={calendarSection.collapsed}
           action={
             <SectionToggle
@@ -320,8 +320,8 @@ export const HistoryInsights = memo(function HistoryInsights({
         >
           <PanelHeading
             id="rhythm-heading"
-            title="When you play"
-            caption="All time · range chips do not apply"
+            title="What time do you usually play"
+            caption="All time"
             collapsed={rhythmSection.collapsed}
             action={
               <SectionToggle
