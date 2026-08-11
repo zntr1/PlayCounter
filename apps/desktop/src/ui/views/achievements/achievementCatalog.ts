@@ -2,6 +2,7 @@ import { achievementArt, type AchievementTier } from "../../../achievementArt";
 import {
   GAME_HOURS,
   MONTH_HOURS,
+  PLAY_STREAK_ACHIEVEMENTS_ENABLED,
   STREAK_DAYS,
   TOTAL_HOURS,
   VERIFIED_COUNTS,
@@ -40,7 +41,7 @@ export type AchievementCatalog = Map<
 
 export type GameLabel = { name: string; coverUrl: string };
 
-export const GROUP_META: Array<{
+const ALL_GROUP_META: Array<{
   id: AchievementGroupId;
   label: string;
   shortLabel: string;
@@ -77,6 +78,10 @@ export const GROUP_META: Array<{
     caption: "Keep returning and make play a ritual.",
   },
 ];
+
+export const GROUP_META = ALL_GROUP_META.filter(
+  (group) => PLAY_STREAK_ACHIEVEMENTS_ENABLED || group.id !== "streak",
+);
 
 type LadderGame = {
   key: string;
@@ -215,17 +220,19 @@ export function buildAchievementCatalog(
     });
   }
 
-  for (const threshold of STREAK_DAYS) {
-    ensure({
-      id: `milestone:streak:${threshold}`,
-      category: "streak",
-      kind: "milestone-streak",
-      title: `${threshold.toLocaleString()}-day play streak`,
-      threshold,
-      currentValue: metrics.streakDays,
-      unit: "days",
-      scope: "",
-    });
+  if (PLAY_STREAK_ACHIEVEMENTS_ENABLED) {
+    for (const threshold of STREAK_DAYS) {
+      ensure({
+        id: `milestone:streak:${threshold}`,
+        category: "streak",
+        kind: "milestone-streak",
+        title: `${threshold.toLocaleString()}-day play streak`,
+        threshold,
+        currentValue: metrics.streakDays,
+        unit: "days",
+        scope: "",
+      });
+    }
   }
 
   for (const threshold of VERIFIED_COUNTS) {

@@ -372,7 +372,7 @@ describe("milestones", () => {
     );
   });
 
-  it("keeps monthly and streak achievements when retained history shrinks", () => {
+  it("keeps monthly and previously awarded streak achievements when retained history shrinks", () => {
     const earned = evaluateMilestones({
       sessions: [
         session(10),
@@ -393,13 +393,43 @@ describe("milestones", () => {
       archivedGameSeconds: {},
       playtimeAdjustments: {},
       verifiedContributions: 0,
-      awardedMilestones: earned.awardedMilestones,
+      awardedMilestones: [
+        ...earned.awardedMilestones,
+        {
+          id: "milestone:streak:3",
+          kind: "milestone-streak",
+          title: "3-day play streak",
+          awardedAt: "2026-08-09T12:00:00.000Z",
+        },
+      ],
       milestonesInitializedAt: earned.milestonesInitializedAt,
       now: new Date("2026-08-12T12:00:00.000Z"),
     });
 
     expect(shrunk.awardedMilestoneIds).toContain("milestone:month:2026-08:10");
     expect(shrunk.awardedMilestoneIds).toContain("milestone:streak:3");
+  });
+
+  it("does not award play streak achievements while they are disabled", () => {
+    const result = evaluateMilestones({
+      sessions: [
+        session(1, "2026-08-08T08:00:00.000Z"),
+        session(1, "2026-08-07T08:00:00.000Z"),
+        session(1, "2026-08-06T08:00:00.000Z"),
+      ],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      awardedMilestones: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-09T12:00:00.000Z"),
+    });
+
+    expect(result.awardedMilestoneIds).not.toContain("milestone:streak:3");
+    expect(result.notifications.map((item) => item.id)).not.toContain(
+      "milestone:streak:3",
+    );
   });
 
   it("revokes verified achievements only with an authoritative server count", () => {

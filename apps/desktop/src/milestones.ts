@@ -10,6 +10,10 @@ export const GAME_HOURS = [10, 25, 50, 100, 250, 500, 1_000];
 export const STREAK_DAYS = [3, 7, 14, 30, 100];
 export const VERIFIED_COUNTS = [1, 5, 10, 25, 50, 100, 150, 200];
 
+// Keep streak records readable for backwards compatibility, but hide the
+// category and do not grant new awards until it is ready to be enabled again.
+export const PLAY_STREAK_ACHIEVEMENTS_ENABLED = false;
+
 export type MilestoneCategory =
   | "total"
   | "month"
@@ -225,15 +229,17 @@ export function evaluateMilestones(
       game.coverUrl,
     );
   }
-  addThresholds(
-    reached,
-    "milestone-streak",
-    "milestone:streak",
-    metrics.streakDays,
-    STREAK_DAYS,
-    (days) => `${days}-day play streak`,
-    createdAt,
-  );
+  if (PLAY_STREAK_ACHIEVEMENTS_ENABLED) {
+    addThresholds(
+      reached,
+      "milestone-streak",
+      "milestone:streak",
+      metrics.streakDays,
+      STREAK_DAYS,
+      (days) => `${days}-day play streak`,
+      createdAt,
+    );
+  }
   addThresholds(
     reached,
     "milestone-verified",

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   GAME_HOURS,
   MONTH_HOURS,
-  STREAK_DAYS,
   TOTAL_HOURS,
   VERIFIED_COUNTS,
   type AwardedMilestone,
@@ -28,13 +27,16 @@ describe("achievement catalog", () => {
 
   it("includes the fixed catalog with progress and an earned item", () => {
     const catalog = buildAchievementCatalog(
-      [award("milestone:total:10", "milestone-total")],
+      [
+        award("milestone:total:10", "milestone-total"),
+        award("milestone:streak:3", "milestone-streak"),
+      ],
       metrics({ totalHours: 12 }),
     );
 
     expect(catalog.get("total")).toHaveLength(TOTAL_HOURS.length);
     expect(catalog.get("month")).toHaveLength(MONTH_HOURS.length);
-    expect(catalog.get("streak")).toHaveLength(STREAK_DAYS.length);
+    expect([...catalog.keys()]).not.toContain("streak");
     expect(catalog.get("verified")).toHaveLength(VERIFIED_COUNTS.length);
     expect(catalog.get("game")).toEqual([]);
     expect(
@@ -162,9 +164,6 @@ describe("achievement catalog", () => {
       ...MONTH_HOURS.map((value) =>
         award(`milestone:month:2026-08:${value}`, "milestone-month"),
       ),
-      ...STREAK_DAYS.map((value) =>
-        award(`milestone:streak:${value}`, "milestone-streak"),
-      ),
       ...VERIFIED_COUNTS.map((value) =>
         award(`milestone:verified:${value}`, "milestone-verified"),
       ),
@@ -226,7 +225,7 @@ describe("achievement catalog", () => {
     );
     const summary = summarizeAchievements(catalog, "2026-08");
     expect(summary).toMatchObject({
-      fixedTotal: 26,
+      fixedTotal: 21,
       fixedUnlocked: 1,
       gameTrophies: 1,
       pastMonthTrophies: 1,

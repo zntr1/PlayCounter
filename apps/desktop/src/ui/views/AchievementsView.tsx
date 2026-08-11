@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
-import { milestoneMetrics, type MilestoneCategory } from "../../milestones";
+import { milestoneMetrics } from "../../milestones";
 import {
   createGameIdentityResolver,
   resolvedCanonicalGameKey,
@@ -225,7 +225,7 @@ function AchievementSection({
   hiddenGameCount,
   status,
 }: {
-  category: MilestoneCategory;
+  category: AchievementGroupId;
   items: AchievementCatalogItem[];
   matching: AchievementCatalogItem[];
   currentMonthKey: string;
