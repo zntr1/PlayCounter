@@ -14,6 +14,7 @@ import {
   resolvedCanonicalGameKey,
   useAppStore,
 } from "../../store";
+import { SectionToggle, useSectionCollapse } from "../CollapsibleSection";
 import { Panel } from "../components";
 import { AchievementCard } from "./achievements/AchievementCard";
 import { AchievementSummary } from "./achievements/AchievementSummary";
@@ -237,10 +238,17 @@ function AchievementSection({
   const Icon = GROUP_ICONS[category];
   const unlocked = items.filter((item) => item.milestone).length;
   const progress = items.length === 0 ? 0 : (unlocked / items.length) * 100;
+  const section = useSectionCollapse(`achievements.${category}`);
+  const bodyId = `achievement-section-${category}`;
 
   return (
     <Panel className="overflow-hidden">
-      <div className="border-b border-border px-5 py-4">
+      <div
+        className={clsx(
+          "px-5 py-4",
+          !section.collapsed && "border-b border-border",
+        )}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
             <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent">
@@ -253,9 +261,17 @@ function AchievementSection({
               <p className="mt-0.5 text-xs text-text-muted">{meta.caption}</p>
             </div>
           </div>
-          <span className="shrink-0 rounded-full bg-surface-hover px-2.5 py-1 text-xs font-semibold text-text-muted">
-            {unlocked} / {items.length} unlocked
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-semibold text-text-muted">
+              {unlocked} / {items.length} unlocked
+            </span>
+            <SectionToggle
+              collapsed={section.collapsed}
+              onToggle={section.toggle}
+              controls={bodyId}
+              label={meta.label}
+            />
+          </div>
         </div>
         <div
           className="mt-3 h-1 overflow-hidden rounded-full bg-surface-hover"
@@ -272,24 +288,26 @@ function AchievementSection({
           />
         </div>
       </div>
-      <div className="p-4 sm:p-5">
-        {category === "game" ? (
-          <GameSection
-            ladders={gameLadders}
-            hiddenGameCount={hiddenGameCount}
-            status={status}
-          />
-        ) : category === "month" ? (
-          <MonthSection
-            items={matching.filter((item) => item.scope === currentMonthKey)}
-            history={status === "in-progress" ? [] : monthHistory}
-          />
-        ) : matching.length > 0 ? (
-          <CardGrid items={matching} />
-        ) : (
-          <NoFilterResults />
-        )}
-      </div>
+      {!section.collapsed ? (
+        <div id={bodyId} className="p-4 sm:p-5">
+          {category === "game" ? (
+            <GameSection
+              ladders={gameLadders}
+              hiddenGameCount={hiddenGameCount}
+              status={status}
+            />
+          ) : category === "month" ? (
+            <MonthSection
+              items={matching.filter((item) => item.scope === currentMonthKey)}
+              history={status === "in-progress" ? [] : monthHistory}
+            />
+          ) : matching.length > 0 ? (
+            <CardGrid items={matching} />
+          ) : (
+            <NoFilterResults />
+          )}
+        </div>
+      ) : null}
     </Panel>
   );
 }

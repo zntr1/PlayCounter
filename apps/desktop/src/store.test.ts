@@ -66,6 +66,27 @@ beforeEach(() => {
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: {},
+    collapsedSections: [],
+  });
+});
+
+describe("section collapse preferences", () => {
+  it("toggles sections independently", () => {
+    useAppStore.getState().toggleSectionCollapsed("history.timeline");
+    expect(useAppStore.getState().collapsedSections).toEqual([
+      "history.timeline",
+    ]);
+
+    useAppStore.getState().toggleSectionCollapsed("achievements.total");
+    expect(useAppStore.getState().collapsedSections).toEqual([
+      "history.timeline",
+      "achievements.total",
+    ]);
+
+    useAppStore.getState().toggleSectionCollapsed("history.timeline");
+    expect(useAppStore.getState().collapsedSections).toEqual([
+      "achievements.total",
+    ]);
   });
 });
 

@@ -66,6 +66,7 @@ function makeState(
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: { "community:42": 600 },
+    collapsedSections: [],
   };
 }
 
@@ -89,6 +90,24 @@ describe("session persistence", () => {
     expect(
       JSON.parse(setItem.mock.calls[0][1]).discoveredReviewReminder,
     ).toEqual(reminder);
+  });
+
+  it("persists collapsed section preferences", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+
+    persistAppState({
+      ...makeState([]),
+      collapsedSections: ["history.timeline", "achievements.total"],
+    });
+
+    expect(JSON.parse(setItem.mock.calls[0][1]).collapsedSections).toEqual([
+      "history.timeline",
+      "achievements.total",
+    ]);
   });
 
   it("sorts newest-first and enforces the measured cap", () => {

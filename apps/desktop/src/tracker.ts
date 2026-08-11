@@ -51,6 +51,7 @@ import {
 } from "./gameSeconds";
 import { nextAdjustmentSeconds } from "./playtimeAdjustments";
 import { persistAppState, readPersistedRecord } from "./persistence";
+import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
 
@@ -88,6 +89,7 @@ type PersistedState = {
   archivedSeconds?: number;
   archivedGameSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
+  collapsedSections?: unknown;
 };
 
 type ProcessMatch = {
@@ -311,6 +313,7 @@ function hydrate() {
       persisted.playtimeAdjustments,
       { signed: true },
     ),
+    collapsedSections: normalizeCollapsedSections(persisted.collapsedSections),
   });
   if (shouldPersistAchievementMigration) persist();
 }

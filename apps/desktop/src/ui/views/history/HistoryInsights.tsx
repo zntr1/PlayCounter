@@ -1,4 +1,5 @@
 import type { Session } from "@playcounter/shared";
+import clsx from "clsx";
 import { Maximize2, X } from "lucide-react";
 import {
   memo,
@@ -26,6 +27,7 @@ import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
 import { TopGamesBars } from "../../charts/TopGamesBars";
 import { addDays } from "../../charts/chartUtils";
 import { Panel, Stat, formatDuration } from "../../components";
+import { SectionToggle, useSectionCollapse } from "../../CollapsibleSection";
 import { IconButton, useEscapeKey } from "../../primitives";
 
 type ResolvedGame = { name: string; coverUrl: string };
@@ -110,14 +112,21 @@ function PanelHeading({
   title,
   caption,
   action,
+  collapsed = false,
 }: {
   id: string;
   title: string;
   caption: string;
   action?: ReactNode;
+  collapsed?: boolean;
 }) {
   return (
-    <div className="mb-5 flex min-w-0 items-start justify-between gap-4">
+    <div
+      className={clsx(
+        "flex min-w-0 items-start justify-between gap-4",
+        collapsed ? "mb-0" : "mb-5",
+      )}
+    >
       <div className="min-w-0">
         <h2
           id={id}
@@ -151,6 +160,10 @@ export const HistoryInsights = memo(function HistoryInsights({
 }) {
   const [expanded, setExpanded] = useState(false);
   const expandButtonRef = useRef<HTMLButtonElement>(null);
+  const playtimeSection = useSectionCollapse("history.playtime");
+  const calendarSection = useSectionCollapse("history.calendar");
+  const rhythmSection = useSectionCollapse("history.rhythm");
+  const topGamesSection = useSectionCollapse("history.topGames");
   const { selectedRange, chart, rangeStats, allTimeStats, rhythm, calendar } =
     useMemo(
       () => getHistoryAnalytics(sessions, filter, nowMs, resolveIgdbId),
@@ -225,29 +238,44 @@ export const HistoryInsights = memo(function HistoryInsights({
           id="playtime-chart-heading"
           title="Playtime over time"
           caption={`${formatDuration(chartTotal, showDurationDays)} logged · ${chart.title}`}
+          collapsed={playtimeSection.collapsed}
           action={
-            <IconButton
-              ref={expandButtonRef}
-              icon={Maximize2}
-              aria-label="Expand playtime chart"
-              onClick={() => setExpanded(true)}
-            />
+            <div className="flex items-center gap-2">
+              {!playtimeSection.collapsed ? (
+                <IconButton
+                  ref={expandButtonRef}
+                  icon={Maximize2}
+                  aria-label="Expand playtime chart"
+                  onClick={() => setExpanded(true)}
+                />
+              ) : null}
+              <SectionToggle
+                collapsed={playtimeSection.collapsed}
+                onToggle={playtimeSection.toggle}
+                controls="playtime-chart-body"
+                label="Playtime over time"
+              />
+            </div>
           }
         />
-        {chart.compact.length === 0 ? (
-          <div className="py-16 text-center text-sm text-text-muted">
-            No sessions in this range.
+        {!playtimeSection.collapsed ? (
+          <div id="playtime-chart-body">
+            {chart.compact.length === 0 ? (
+              <div className="py-16 text-center text-sm text-text-muted">
+                No sessions in this range.
+              </div>
+            ) : (
+              <figure aria-labelledby="playtime-chart-heading">
+                <ColumnChart
+                  buckets={chart.compact}
+                  showDurationDays={showDurationDays}
+                  resolveGameName={resolveGameName}
+                  resolveGameCover={resolveGameCover}
+                />
+              </figure>
+            )}
           </div>
-        ) : (
-          <figure aria-labelledby="playtime-chart-heading">
-            <ColumnChart
-              buckets={chart.compact}
-              showDurationDays={showDurationDays}
-              resolveGameName={resolveGameName}
-              resolveGameCover={resolveGameCover}
-            />
-          </figure>
-        )}
+        ) : null}
       </Panel>
 
       <Panel className="min-w-0 p-5">
@@ -255,56 +283,105 @@ export const HistoryInsights = memo(function HistoryInsights({
           id="activity-heading"
           title="Activity calendar"
           caption="Last 52 weeks · range chips do not apply"
+          collapsed={calendarSection.collapsed}
+          action={
+            <SectionToggle
+              collapsed={calendarSection.collapsed}
+              onToggle={calendarSection.toggle}
+              controls="activity-calendar-body"
+              label="Activity calendar"
+            />
+          }
         />
-        {sessions.length === 0 ? (
-          <div className="py-12 text-center text-sm text-text-muted">
-            Playtime activity will appear here.
+        {!calendarSection.collapsed ? (
+          <div id="activity-calendar-body">
+            {sessions.length === 0 ? (
+              <div className="py-12 text-center text-sm text-text-muted">
+                Playtime activity will appear here.
+              </div>
+            ) : (
+              <CalendarHeatmap
+                totals={calendar}
+                nowMs={nowMs}
+                showDurationDays={showDurationDays}
+                resolveGameName={resolveGameName}
+              />
+            )}
           </div>
-        ) : (
-          <CalendarHeatmap
-            totals={calendar}
-            nowMs={nowMs}
-            showDurationDays={showDurationDays}
-            resolveGameName={resolveGameName}
-          />
-        )}
+        ) : null}
       </Panel>
 
       <div className="grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,2fr)_minmax(520px,3fr)]">
-        <Panel className="min-w-0 p-5">
+        <Panel
+          className={clsx(
+            "min-w-0 p-5",
+            rhythmSection.collapsed && "self-start",
+          )}
+        >
           <PanelHeading
             id="rhythm-heading"
             title="When you play"
             caption="All time · range chips do not apply"
+            collapsed={rhythmSection.collapsed}
+            action={
+              <SectionToggle
+                collapsed={rhythmSection.collapsed}
+                onToggle={rhythmSection.toggle}
+                controls="rhythm-body"
+                label="When you play"
+              />
+            }
           />
-          {sessions.length === 0 ? (
-            <div className="py-12 text-center text-sm text-text-muted">
-              Your play rhythm will appear here.
+          {!rhythmSection.collapsed ? (
+            <div id="rhythm-body">
+              {sessions.length === 0 ? (
+                <div className="py-12 text-center text-sm text-text-muted">
+                  Your play rhythm will appear here.
+                </div>
+              ) : (
+                <RhythmHeatmap
+                  matrix={rhythm}
+                  showDurationDays={showDurationDays}
+                />
+              )}
             </div>
-          ) : (
-            <RhythmHeatmap
-              matrix={rhythm}
-              showDurationDays={showDurationDays}
-            />
-          )}
+          ) : null}
         </Panel>
-        <Panel className="min-w-0 p-5">
+        <Panel
+          className={clsx(
+            "min-w-0 p-5",
+            topGamesSection.collapsed && "self-start",
+          )}
+        >
           <PanelHeading
             id="top-games-heading"
             title="Top games"
             caption={chart.title}
+            collapsed={topGamesSection.collapsed}
+            action={
+              <SectionToggle
+                collapsed={topGamesSection.collapsed}
+                onToggle={topGamesSection.toggle}
+                controls="top-games-body"
+                label="Top games"
+              />
+            }
           />
-          {games.length === 0 ? (
-            <div className="py-12 text-center text-sm text-text-muted">
-              No games in this range.
+          {!topGamesSection.collapsed ? (
+            <div id="top-games-body">
+              {games.length === 0 ? (
+                <div className="py-12 text-center text-sm text-text-muted">
+                  No games in this range.
+                </div>
+              ) : (
+                <TopGamesBars
+                  games={games}
+                  showDurationDays={showDurationDays}
+                  onSelectGame={onSelectGame}
+                />
+              )}
             </div>
-          ) : (
-            <TopGamesBars
-              games={games}
-              showDurationDays={showDurationDays}
-              onSelectGame={onSelectGame}
-            />
-          )}
+          ) : null}
         </Panel>
       </div>
 

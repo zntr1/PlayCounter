@@ -17,6 +17,7 @@ import type { AppNotification, ContributionCounts } from "./notifications";
 import type { AwardedMilestone } from "./milestones";
 import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
 import { persistAppState } from "./persistence";
+import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
 
@@ -179,6 +180,7 @@ type AppState = {
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
+  collapsedSections: string[];
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
@@ -217,6 +219,7 @@ type AppState = {
     clearKeys?: string[],
   ) => void;
   clearGameSeconds: (keys: string[]) => void;
+  toggleSectionCollapsed: (sectionId: string) => void;
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
@@ -337,6 +340,7 @@ export const useAppStore = create<AppState>((set) => ({
   archivedSeconds: 0,
   archivedGameSeconds: {},
   playtimeAdjustments: {},
+  collapsedSections: [],
   cleanup: null,
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
@@ -567,6 +571,15 @@ export const useAppStore = create<AppState>((set) => ({
         playtimeAdjustments,
       };
     }),
+  toggleSectionCollapsed: (sectionId) => {
+    set((state) => ({
+      collapsedSections: toggleCollapsedSection(
+        state.collapsedSections,
+        sectionId,
+      ),
+    }));
+    persistSoon();
+  },
   setCleanup: (cleanup) => set({ cleanup }),
   setLaunchOnStartup: (enabled) => {
     set((state) => ({

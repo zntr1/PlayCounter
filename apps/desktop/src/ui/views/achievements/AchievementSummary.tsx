@@ -1,4 +1,6 @@
+import clsx from "clsx";
 import { Check, Trophy } from "lucide-react";
+import { SectionToggle, useSectionCollapse } from "../../CollapsibleSection";
 import { Panel } from "../../components";
 import { AchievementMedal } from "../../AchievementBadge";
 import { ACHIEVEMENT_TIERS } from "../../../achievementArt";
@@ -116,42 +118,62 @@ function CollectionSummary({ summary }: { summary: AchievementSummaryData }) {
 }
 
 function RecentUnlocks({ items }: { items: AchievementCatalogItem[] }) {
+  const section = useSectionCollapse("achievements.recent");
+
   return (
     <Panel className="overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-        <Check aria-hidden="true" size={15} className="text-success" />
-        <h2 className="text-sm font-semibold text-text">Recently unlocked</h2>
+      <div
+        className={clsx(
+          "flex items-center justify-between gap-2 px-5 py-3",
+          !section.collapsed && "border-b border-border",
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <Check aria-hidden="true" size={15} className="text-success" />
+          <h2 className="text-sm font-semibold text-text">Recently unlocked</h2>
+        </div>
+        <SectionToggle
+          collapsed={section.collapsed}
+          onToggle={section.toggle}
+          controls="recent-unlocks-body"
+          label="Recently unlocked"
+        />
       </div>
-      <div className="grid gap-px bg-border md:grid-cols-3 xl:grid-cols-5">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="flex min-w-0 items-center gap-3 bg-surface px-4 py-3"
-          >
-            <AchievementMedal
-              notification={{
-                id: item.id,
-                kind: item.kind,
-                title: item.title,
-                coverUrl: item.coverUrl,
-              }}
-              size="sm"
-            />
-            <div className="min-w-0">
-              <div className="truncate text-xs font-semibold text-text">
-                {item.title}
+      {!section.collapsed ? (
+        <div
+          id="recent-unlocks-body"
+          className="grid gap-px bg-border md:grid-cols-3 xl:grid-cols-5"
+        >
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="flex min-w-0 items-center gap-3 bg-surface px-4 py-3"
+            >
+              <AchievementMedal
+                notification={{
+                  id: item.id,
+                  kind: item.kind,
+                  title: item.title,
+                  coverUrl: item.coverUrl,
+                }}
+                size="sm"
+              />
+              <div className="min-w-0">
+                <div className="truncate text-xs font-semibold text-text">
+                  {item.title}
+                </div>
+                <time
+                  dateTime={item.milestone!.awardedAt}
+                  title={new Date(item.milestone!.awardedAt).toLocaleString()}
+                  className="mt-0.5 block text-[10px] text-text-faint"
+                >
+                  {relativeTime(item.milestone!.awardedAt)}
+                </time>
               </div>
-              <time
-                dateTime={item.milestone!.awardedAt}
-                title={new Date(item.milestone!.awardedAt).toLocaleString()}
-                className="mt-0.5 block text-[10px] text-text-faint"
-              >
-                {relativeTime(item.milestone!.awardedAt)}
-              </time>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </Panel>
   );
 }

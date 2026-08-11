@@ -20,6 +20,7 @@ import {
   useAppStore,
 } from "../../store";
 import { hydrateGameMetadata } from "../../tracker";
+import { SectionToggle, useSectionCollapse } from "../CollapsibleSection";
 import { Panel, formatDuration } from "../components";
 import { Button, Input } from "../primitives";
 import {
@@ -102,6 +103,7 @@ export function HistoryView() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [visibleCount, setVisibleCount] = useState(25);
+  const timelineSection = useSectionCollapse("history.timeline");
   const viewRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
@@ -506,7 +508,12 @@ export function HistoryView() {
       )}
 
       <Panel className="overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <div
+          className={clsx(
+            "flex flex-wrap items-center justify-between gap-3 px-5 py-4",
+            !timelineSection.collapsed && "border-b border-border",
+          )}
+        >
           <div>
             <h2 className="text-xl font-bold tracking-tight text-text">
               Session Timeline
@@ -517,80 +524,90 @@ export function HistoryView() {
                 : "Completed sessions will appear here."}
             </p>
           </div>
-          <div className="rounded-md border border-border bg-surface-hover px-3 py-1.5 text-sm font-medium text-text-muted">
-            Rendering{" "}
-            <span className="font-mono text-text">
-              {visibleSessions.length}
-            </span>{" "}
-            of{" "}
-            <span className="font-mono text-text">
-              {timelineSessions.length}
-            </span>{" "}
-            matching · {formatSessionCount(sessions.length)} total
+          <div className="flex items-center gap-3">
+            <div className="rounded-md border border-border bg-surface-hover px-3 py-1.5 text-sm font-medium text-text-muted">
+              Showing{" "}
+              <span className="font-mono text-text">
+                {timelineSessions.length}
+              </span>{" "}
+              of{" "}
+              <span className="font-mono text-text">
+                {sessions.length}
+              </span>{" "}
+              sessions
+            </div>
+            <SectionToggle
+              collapsed={timelineSection.collapsed}
+              onToggle={timelineSection.toggle}
+              controls="session-timeline-body"
+              label="Session Timeline"
+            />
           </div>
         </div>
-        <div className="p-4 sm:p-5">
-          {sessions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
-              <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-surface-hover text-text-faint">
-                <Timer size={32} />
+        {!timelineSection.collapsed ? (
+          <div id="session-timeline-body" className="p-4 sm:p-5">
+            {sessions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+                <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-surface-hover text-text-faint">
+                  <Timer size={32} />
+                </div>
+                <h3 className="mb-1 text-lg font-bold text-text">
+                  No History Yet
+                </h3>
+                <p className="text-sm text-text-muted">
+                  Start playing a tracked game to build your timeline.
+                </p>
               </div>
-              <h3 className="mb-1 text-lg font-bold text-text">
-                No History Yet
-              </h3>
-              <p className="text-sm text-text-muted">
-                Start playing a tracked game to build your timeline.
-              </p>
-            </div>
-          ) : groups.length === 0 ? (
-            <div className="py-12 text-center text-sm font-medium text-text-muted">
-              No sessions match your filters.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-8">
-              {groups.map((group) => (
-                <section key={group.label}>
-                  <div className="mb-4 flex items-baseline justify-between px-2">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-bold text-text">
-                        {group.label}
-                      </h3>
-                      <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-text-muted">
-                        {formatSessionCount(group.items.length)}
+            ) : groups.length === 0 ? (
+              <div className="py-12 text-center text-sm font-medium text-text-muted">
+                No sessions match your filters.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-8">
+                {groups.map((group) => (
+                  <section key={group.label}>
+                    <div className="mb-4 flex items-baseline justify-between px-2">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-bold text-text">
+                          {group.label}
+                        </h3>
+                        <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-text-muted">
+                          {formatSessionCount(group.items.length)}
+                        </span>
+                      </div>
+                      <span className="font-mono text-sm font-bold text-text-muted">
+                        {formatDuration(group.seconds, showDurationDays)} shown
                       </span>
                     </div>
-                    <span className="font-mono text-sm font-bold text-text-muted">
-                      {formatDuration(group.seconds, showDurationDays)} shown
-                    </span>
+                    <div className="flex flex-col gap-2">
+                      {group.items.map((session) => (
+                        <HistorySessionRow
+                          key={session.id}
+                          session={session}
+                          metadata={lookupMetadata(session)}
+                          resolveIgdbId={resolveIgdbId}
+                          selectedGameKey={selectedGameKey}
+                          onFilterGame={selectGame}
+                          onClearGameFilter={clearGameFilter}
+                          addToast={addToast}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+                {visibleSessions.length < sortedSessions.length ? (
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={() => setVisibleCount((count) => count + 25)}
+                    >
+                      Show 25 more
+                    </Button>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    {group.items.map((session) => (
-                      <HistorySessionRow
-                        key={session.id}
-                        session={session}
-                        metadata={lookupMetadata(session)}
-                        resolveIgdbId={resolveIgdbId}
-                        selectedGameKey={selectedGameKey}
-                        onFilterGame={selectGame}
-                        onClearGameFilter={clearGameFilter}
-                        addToast={addToast}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-              {visibleSessions.length < sortedSessions.length ? (
-                <div className="flex justify-center">
-                  <Button
-                    onClick={() => setVisibleCount((count) => count + 25)}
-                  >
-                    Show 25 more
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        ) : null}
       </Panel>
     </div>
   );
