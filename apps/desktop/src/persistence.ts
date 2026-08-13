@@ -8,6 +8,11 @@ import type { DiscoveredReviewReminder } from "./discoveredReminder";
 import type { AwardedMilestone } from "./milestones";
 import { gameSecondsKey } from "./gameSeconds";
 import { normalizeSessions } from "./sessionPersistence";
+import type {
+  EmulatorMapping,
+  EmulatorObservation,
+  KnownEmulator,
+} from "./emulators/types";
 
 export const STORAGE_KEY = "playcounter:v1";
 export const MAX_STORED_NOTIFICATIONS = 100;
@@ -21,6 +26,9 @@ type PersistableAppState = {
   recentSessions: Session[];
   activeSessions: unknown[];
   ambiguousMatches: unknown[];
+  emulatorMappings?: ReadonlyMap<string, EmulatorMapping>;
+  emulatorObservations?: EmulatorObservation[];
+  knownEmulators?: ReadonlyMap<string, KnownEmulator>;
   blacklist: ReadonlySet<string>;
   notifications: AppNotification[];
   discoveredReviewReminder: DiscoveredReviewReminder;
@@ -43,6 +51,9 @@ export type PersistedPayload = {
   sessions: Session[];
   activeSessions: unknown[];
   ambiguousMatches: unknown[];
+  emulatorMappings?: EmulatorMapping[];
+  emulatorObservations?: EmulatorObservation[];
+  knownEmulators?: KnownEmulator[];
   blacklist: string[];
   notifications: AppNotification[];
   discoveredReviewReminder?: DiscoveredReviewReminder;
@@ -83,6 +94,15 @@ export function createPersistedPayload(
     sessions: normalizeSessions([...state.recentSessions]),
     activeSessions: state.activeSessions,
     ambiguousMatches: state.ambiguousMatches,
+    emulatorMappings: [...(state.emulatorMappings?.values() ?? [])],
+    knownEmulators: [...(state.knownEmulators?.values() ?? [])],
+    emulatorObservations: (state.emulatorObservations ?? []).filter(
+      (observation) =>
+        observation.kind === "host-notice"
+          ? Boolean(observation.dismissedAt)
+          : observation.state !== "resolving" ||
+            Boolean(observation.trackedSeconds),
+    ),
     blacklist: [...state.blacklist],
     notifications: state.notifications.slice(0, MAX_STORED_NOTIFICATIONS),
     discoveredReviewReminder: state.discoveredReviewReminder ?? undefined,

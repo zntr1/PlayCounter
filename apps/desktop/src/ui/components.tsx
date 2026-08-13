@@ -80,6 +80,29 @@ export function SourceBadge({ source }: { source?: GameSource | null }) {
   );
 }
 
+const emulatorLabels: Record<string, string> = {
+  dosbox: "DOSBox",
+};
+
+export function EmulatorBadge({
+  emulatorId,
+  label,
+}: {
+  emulatorId: string;
+  label?: string;
+}) {
+  const display = label ?? emulatorLabels[emulatorId] ?? emulatorId;
+  return (
+    <span
+      title={`Played through ${display}`}
+      data-emulator-id={emulatorId}
+      className="emulator-badge inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-[11px] font-semibold"
+    >
+      {display}
+    </span>
+  );
+}
+
 export function CommunityApprovalBadge({
   suggestionId,
   verified,

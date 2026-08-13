@@ -5,7 +5,10 @@ import {
   clearLocalCache,
   openUserIgnoredProcessesFolder,
   reloadIgnoredProcesses,
+  setEmulatorIgnored,
 } from "../../tracker";
+import { emulatorAssetUrls } from "../../emulators/assets";
+import { adapterFor } from "../../emulators/registry";
 import { exportLocalData, importLocalData } from "../../backup";
 import { useAppStore, useIsOffline } from "../../store";
 import {
@@ -41,11 +44,14 @@ export function SettingsView() {
   const [confirmImport, setConfirmImport] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [emulatorSyncing, setEmulatorSyncing] = useState<string | null>(null);
   const isOffline = useIsOffline();
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
+  const setEmulatorSetting = useAppStore((state) => state.setEmulatorSetting);
   const setAccentColor = useAppStore((state) => state.setAccentColor);
+  const knownEmulators = useAppStore((state) => state.knownEmulators);
   const ignoredProcessCount = useAppStore(
     (state) => state.ignoredProcesses.size,
   );
@@ -89,6 +95,28 @@ export function SettingsView() {
       setStartupError(formatError(error));
     } finally {
       setStartupSyncing(false);
+    }
+  }
+
+  async function handleEmulatorIgnored(emulatorId: string, ignored: boolean) {
+    setEmulatorSyncing(emulatorId);
+    try {
+      await setEmulatorIgnored(emulatorId, ignored);
+      addToast({
+        tone: "success",
+        title: ignored ? "Emulator ignored" : "Emulator enabled",
+        detail: ignored
+          ? "PlayCounter will hide this emulator and stop detecting games inside it. Existing games and history are kept."
+          : "PlayCounter will detect games inside this emulator again.",
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Emulator setting failed",
+        detail: formatError(error),
+      });
+    } finally {
+      setEmulatorSyncing(null);
     }
   }
 
@@ -173,6 +201,19 @@ export function SettingsView() {
   const progressLabel = installProgress
     ? formatBytesProgress(installProgress)
     : null;
+  const displayedEmulators = new Map(knownEmulators);
+  for (const rawEmulatorId of settings.ignoredEmulatorIds ?? []) {
+    const emulatorId = rawEmulatorId.trim().toLowerCase();
+    if (!emulatorId || displayedEmulators.has(emulatorId)) continue;
+    const adapter = adapterFor(emulatorId);
+    displayedEmulators.set(emulatorId, {
+      emulatorId,
+      label: adapter?.label ?? emulatorId,
+      firstSeenAt: "",
+      lastSeenAt: "",
+      hostExeNames: [],
+    });
+  }
 
   return (
     <div className="grid max-w-4xl gap-5">
@@ -204,6 +245,95 @@ export function SettingsView() {
             </Button>
           </div>
         </SettingsRow>
+      </SettingsPanel>
+
+      <SettingsPanel
+        description="Detect games launched inside supported emulator processes. DOSBox is the first supported adapter."
+        title="Emulators"
+      >
+        <SettingsRow
+          description="Reads bounded process arguments and window titles locally to identify emulator content. Raw paths and titles are never sent to the API."
+          title="Detect emulator games"
+        >
+          <input
+            type="checkbox"
+            checked={settings.emulatorDetection ?? true}
+            onChange={(event) =>
+              setEmulatorSetting("emulatorDetection", event.target.checked)
+            }
+            className="h-5 w-5 accent-accent"
+          />
+        </SettingsRow>
+        <SettingsRow
+          description="Sends only recognized, normalized content identifiers (such as a DOSBox program name) to find IGDB candidates. Folder paths and weak window titles stay local."
+          title="Look up recognized content"
+        >
+          <input
+            type="checkbox"
+            checked={settings.emulatorContentLookup ?? true}
+            disabled={!(settings.emulatorDetection ?? true)}
+            onChange={(event) =>
+              setEmulatorSetting("emulatorContentLookup", event.target.checked)
+            }
+            className="h-5 w-5 accent-accent disabled:opacity-50"
+          />
+        </SettingsRow>
+        {displayedEmulators.size > 0 ? (
+          <div className="grid gap-3 border-t border-border pt-5">
+            <div>
+              <h3 className="font-medium text-text">Detected emulators</h3>
+              <p className="mt-1 text-sm text-text-muted">
+                Ignored emulators are hidden and no games inside them are
+                tracked. Existing games, mappings, and history are preserved.
+              </p>
+            </div>
+            {[...displayedEmulators.values()].map((emulator) => {
+              const ignored = (settings.ignoredEmulatorIds ?? []).some(
+                (id) => id.toLowerCase() === emulator.emulatorId.toLowerCase(),
+              );
+              const imageSrc = emulatorAssetUrls[emulator.emulatorId];
+              return (
+                <div
+                  key={emulator.emulatorId}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-bg/60 p-4"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    {imageSrc ? (
+                      <img
+                        src={imageSrc}
+                        alt=""
+                        className="h-10 w-10 shrink-0 rounded-md object-cover"
+                      />
+                    ) : null}
+                    <div className="min-w-0">
+                      <div className="font-medium text-text">
+                        {emulator.label}
+                      </div>
+                      <div className="truncate text-xs text-text-faint">
+                        {ignored
+                          ? "Ignored and hidden"
+                          : emulator.hostExeNames.join(", ") || "Enabled"}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant={ignored ? "primary" : "secondary"}
+                    loading={emulatorSyncing === emulator.emulatorId}
+                    disabled={
+                      emulatorSyncing !== null ||
+                      !(settings.emulatorDetection ?? true)
+                    }
+                    onClick={() =>
+                      void handleEmulatorIgnored(emulator.emulatorId, !ignored)
+                    }
+                  >
+                    {ignored ? "Enable" : "Ignore"}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </SettingsPanel>
 
       <SettingsPanel

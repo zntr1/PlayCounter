@@ -1,5 +1,6 @@
 import type {
   ContributionStatus,
+  EmulatorLaunchContext,
   Game,
   GameSource,
   Session,
@@ -20,9 +21,16 @@ import { persistAppState } from "./persistence";
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
+import type {
+  EmulatorMapping,
+  EmulatorObservation,
+  KnownEmulator,
+} from "./emulators/types";
 
 export type ViewId =
   | "now"
+  | "emulating"
+  | "dosbox"
   | "games"
   | "discovered"
   | "history"
@@ -33,6 +41,11 @@ export type ViewId =
 export type ProcessSnapshot = {
   exeName: string;
   exePath: string | null;
+  pid?: number;
+  startedAtUnix?: number;
+  emulatorId?: string | null;
+  commandLine?: string[] | null;
+  windowTitle?: string | null;
 };
 
 export type ActiveSession = {
@@ -50,6 +63,7 @@ export type ActiveSession = {
   startedAt: string;
   checkpointedAt: string;
   recoveredFromCheckpoint?: boolean;
+  emulator?: EmulatorLaunchContext;
 };
 
 export type AmbiguousProcessMatch = {
@@ -156,6 +170,9 @@ type AppState = {
   contributionOwnerUuid: string | null;
   activeSessions: ActiveSession[];
   ambiguousMatches: AmbiguousProcessMatch[];
+  emulatorObservations: EmulatorObservation[];
+  emulatorMappings: Map<string, EmulatorMapping>;
+  knownEmulators: Map<string, KnownEmulator>;
   recentSessions: Session[];
   gameMetadata: Map<string, GameMetadata>;
   processes: ProcessSnapshot[];
@@ -190,6 +207,12 @@ type AppState = {
   setActiveSessions: (sessions: ActiveSession[]) => void;
   setAmbiguousMatch: (match: AmbiguousProcessMatch) => void;
   removeAmbiguousMatch: (exeName: string) => void;
+  setEmulatorObservations: (observations: EmulatorObservation[]) => void;
+  setEmulatorObservation: (observation: EmulatorObservation) => void;
+  removeEmulatorObservation: (key: string) => void;
+  setEmulatorMapping: (mapping: EmulatorMapping) => void;
+  removeEmulatorMapping: (contentKey: string) => void;
+  setKnownEmulator: (emulator: KnownEmulator) => void;
   addSession: (session: Session) => void;
   setGameMetadata: (games: GameMetadata[]) => void;
   setProcesses: (processes: ProcessSnapshot[]) => void;
@@ -223,6 +246,11 @@ type AppState = {
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
+  setEmulatorSetting: (
+    key: "emulatorDetection" | "emulatorContentLookup",
+    enabled: boolean,
+  ) => void;
+  setEmulatorIgnoredSetting: (emulatorId: string, ignored: boolean) => void;
   setDevNumber: (
     key: "pollingIntervalSeconds" | "unmatchedRetryDays",
     value: number,
@@ -252,6 +280,9 @@ const defaultSettings: Settings = {
   verboseLogs: false,
   theme: "dark",
   accentColor: null,
+  emulatorDetection: true,
+  emulatorContentLookup: true,
+  ignoredEmulatorIds: [],
 };
 
 let nextRuntimeLogId = 0;
@@ -316,6 +347,9 @@ export const useAppStore = create<AppState>((set) => ({
   contributionOwnerUuid: null,
   activeSessions: [],
   ambiguousMatches: [],
+  emulatorObservations: [],
+  emulatorMappings: new Map(),
+  knownEmulators: new Map(),
   recentSessions: [],
   gameMetadata: new Map(),
   processes: [],
@@ -384,6 +418,55 @@ export const useAppStore = create<AppState>((set) => ({
         (match) => match.exeName.toLowerCase() !== exeName.toLowerCase(),
       ),
     })),
+  setEmulatorObservations: (emulatorObservations) =>
+    set({ emulatorObservations }),
+  setEmulatorObservation: (observation) =>
+    set((state) => {
+      const existing = state.emulatorObservations.some(
+        (candidate) => candidate.key === observation.key,
+      );
+      return {
+        emulatorObservations: existing
+          ? state.emulatorObservations.map((candidate) =>
+              candidate.key === observation.key ? observation : candidate,
+            )
+          : [...state.emulatorObservations, observation],
+      };
+    }),
+  removeEmulatorObservation: (key) =>
+    set((state) => ({
+      emulatorObservations: state.emulatorObservations.filter(
+        (observation) => observation.key !== key,
+      ),
+    })),
+  setEmulatorMapping: (mapping) =>
+    set((state) => {
+      const emulatorMappings = new Map(state.emulatorMappings);
+      emulatorMappings.set(mapping.contentKey, mapping);
+      return { emulatorMappings };
+    }),
+  removeEmulatorMapping: (contentKey) =>
+    set((state) => {
+      const emulatorMappings = new Map(state.emulatorMappings);
+      emulatorMappings.delete(contentKey);
+      return { emulatorMappings };
+    }),
+  setKnownEmulator: (emulator) =>
+    set((state) => {
+      const knownEmulators = new Map(state.knownEmulators);
+      const existing = knownEmulators.get(emulator.emulatorId);
+      knownEmulators.set(emulator.emulatorId, {
+        ...emulator,
+        firstSeenAt: existing?.firstSeenAt ?? emulator.firstSeenAt,
+        hostExeNames: [
+          ...new Set([
+            ...(existing?.hostExeNames ?? []),
+            ...emulator.hostExeNames,
+          ]),
+        ],
+      });
+      return { knownEmulators };
+    }),
   addSession: (session) =>
     set((state) => {
       const { kept, removed } = splitStoredSessions([
@@ -593,6 +676,27 @@ export const useAppStore = create<AppState>((set) => ({
     }));
     persistSoon();
   },
+  setEmulatorSetting: (key, enabled) => {
+    set((state) => ({ settings: { ...state.settings, [key]: enabled } }));
+    persistSoon();
+  },
+  setEmulatorIgnoredSetting: (emulatorId, ignored) => {
+    set((state) => {
+      const key = emulatorId.trim().toLowerCase();
+      const ignoredEmulatorIds = new Set(
+        (state.settings.ignoredEmulatorIds ?? []).map((id) => id.toLowerCase()),
+      );
+      if (ignored) ignoredEmulatorIds.add(key);
+      else ignoredEmulatorIds.delete(key);
+      return {
+        settings: {
+          ...state.settings,
+          ignoredEmulatorIds: [...ignoredEmulatorIds].sort(),
+        },
+      };
+    });
+    persistSoon();
+  },
   setDevNumber: (key, value) => {
     set((state) => ({
       settings: { ...state.settings, [key]: Math.max(1, value) },
@@ -630,7 +734,13 @@ export const useAppStore = create<AppState>((set) => ({
     });
     persistSoon();
   },
-  clearCache: () => set({ exeCache: new Map(), runtimeError: null }),
+  clearCache: () =>
+    set({
+      exeCache: new Map(),
+      emulatorObservations: [],
+      emulatorMappings: new Map(),
+      runtimeError: null,
+    }),
 }));
 
 export function gameMetadataKey(game: Pick<GameMetadata, "id" | "source">) {

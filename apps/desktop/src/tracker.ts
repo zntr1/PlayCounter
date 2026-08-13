@@ -3,6 +3,8 @@ import type {
   Contribution,
   ContributionStatus,
   ContributionsResponse,
+  EmulatorLaunchContext,
+  EmulatorResolveResponse,
   Game,
   GameMetadataResponse,
   MatchProcessesResponse,
@@ -54,6 +56,22 @@ import { persistAppState, readPersistedRecord } from "./persistence";
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
+import { adapterFor } from "./emulators/registry";
+import {
+  accumulateObservationRuntime,
+  creditableSeconds,
+  reconcileEmulatorReadings,
+} from "./emulators/resolve";
+import { GENERIC_IDENTITY_DENYLIST } from "./emulators/signals";
+import { toPublicSnapshots } from "./emulators/publicProjection";
+import type {
+  EmulatorContentObservation,
+  EmulatorMapping,
+  EmulatorObservation,
+  EmulatorRuntimeState,
+  KnownEmulator,
+  RawEmulatorSignals,
+} from "./emulators/types";
 
 const CUSTOM_GAME_ID_BASE = -1_000_000_000;
 const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
@@ -75,6 +93,9 @@ type PersistedState = {
   exeCache?: ExeCacheEntry[];
   gameMetadata?: GameMetadata[];
   ambiguousMatches?: AmbiguousProcessMatch[];
+  emulatorMappings?: EmulatorMapping[];
+  emulatorObservations?: EmulatorObservation[];
+  knownEmulators?: KnownEmulator[];
   sessions?: Session[];
   activeSession?: ActiveSession;
   activeSessions?: ActiveSession[];
@@ -96,6 +117,7 @@ type ProcessMatch = {
   process: ProcessSnapshot;
   game: Game;
   startedAt?: string;
+  emulator?: EmulatorLaunchContext;
 };
 
 export type GameAliasRef = {
@@ -128,6 +150,10 @@ let canonicalBackfillDone = false;
 let canonicalBackfillInFlight: Promise<boolean> | undefined;
 const canonicalMetadataCheckedIds = new Set<number>();
 const metadataHydrationRequests = new Map<string, Promise<boolean>>();
+let emulatorRuntime = new Map<string, EmulatorRuntimeState>();
+let emulatorPrivacy = { userName: "", homeDirName: "" };
+let emulatorLookupUnavailableUntil = 0;
+let lastEmulatorRunningKeys = new Set<string>();
 
 const launcherBlacklist = [
   "epicgameslauncher.exe",
@@ -168,6 +194,7 @@ export async function initializeTracker() {
 
 async function finishTrackerStartup() {
   logRuntime("tracker deferred startup started");
+  await loadEmulatorPrivacyContext();
   await loadIgnoredProcesses();
   scheduleProcessPolling(
     useAppStore.getState().settings.pollingIntervalSeconds,
@@ -211,6 +238,8 @@ async function finishTrackerStartup() {
     canonicalBackfillInFlight = undefined;
     canonicalMetadataCheckedIds.clear();
     metadataHydrationRequests.clear();
+    emulatorRuntime.clear();
+    lastEmulatorRunningKeys.clear();
     initialized = false;
   });
 
@@ -261,9 +290,33 @@ function hydrate() {
     ...useAppStore.getState().settings,
     ...persisted.settings,
     accentColor: normalizeAccentColor(persisted.settings?.accentColor),
+    ignoredEmulatorIds: [
+      ...new Set(
+        (persisted.settings?.ignoredEmulatorIds ?? [])
+          .filter((id): id is string => typeof id === "string")
+          .map((id) => id.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ],
   });
   const blacklist = persisted.blacklist ?? [];
   const exeCache = persisted.exeCache ?? [];
+  const knownEmulators = new Map(
+    (persisted.knownEmulators ?? []).map((emulator) => [
+      emulator.emulatorId,
+      emulator,
+    ]),
+  );
+  for (const mapping of persisted.emulatorMappings ?? []) {
+    if (knownEmulators.has(mapping.emulatorId)) continue;
+    knownEmulators.set(mapping.emulatorId, {
+      emulatorId: mapping.emulatorId,
+      label: mapping.label,
+      firstSeenAt: mapping.decidedAt,
+      lastSeenAt: mapping.lastSeenAt,
+      hostExeNames: [],
+    });
+  }
   logRuntime(
     `hydrate loaded cache=${exeCache.length}, blacklist=${blacklist.length}, sessions=${persisted.sessions?.length ?? 0}`,
   );
@@ -290,6 +343,20 @@ function hydrate() {
     ),
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
+    emulatorMappings: new Map(
+      (persisted.emulatorMappings ?? []).map((mapping) => [
+        mapping.contentKey,
+        mapping,
+      ]),
+    ),
+    knownEmulators,
+    emulatorObservations: (persisted.emulatorObservations ?? []).map(
+      (observation) => {
+        if (observation.kind !== "content") return observation;
+        const { runningSince: _runningSince, ...rest } = observation;
+        return rest;
+      },
+    ),
     blacklist: new Set(blacklist.map((exe) => exe.toLowerCase())),
     notifications: persisted.notifications ?? [],
     discoveredReviewReminder: sanitizeDiscoveredReviewReminder(
@@ -316,6 +383,22 @@ function hydrate() {
     collapsedSections: normalizeCollapsedSections(persisted.collapsedSections),
   });
   if (shouldPersistAchievementMigration) persist();
+}
+
+async function loadEmulatorPrivacyContext() {
+  try {
+    const context = await invoke<{ userName?: string; homeDirName?: string }>(
+      "privacy_context",
+    );
+    emulatorPrivacy = {
+      userName: context.userName ?? "",
+      homeDirName: context.homeDirName ?? "",
+    };
+    logRuntime("emulator privacy context loaded");
+  } catch (error) {
+    emulatorPrivacy = { userName: "", homeDirName: "" };
+    logRuntime(`emulator privacy context unavailable: ${formatError(error)}`);
+  }
 }
 
 async function getInstallUuid() {
@@ -431,7 +514,7 @@ export async function doNotTrackGame(
   for (const exeName of matchingExeNames) {
     await setUserIgnoredProcess(exeName, true);
   }
-  untrackGame(gameId, source, removeHistory, aliases);
+  untrackGameInternal(gameId, source, removeHistory, aliases, "ignore");
 }
 
 export async function openUserIgnoredProcessesFolder() {
@@ -442,20 +525,38 @@ export async function openUserIgnoredProcessesFolder() {
 async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   const startedAt = Date.now();
   const normalized = uniqueProcesses(processes);
-  useAppStore.getState().setProcesses(normalized);
+  const detectionEnabled =
+    useAppStore.getState().settings.emulatorDetection !== false;
+  const ignoredEmulatorIds = new Set(
+    (useAppStore.getState().settings.ignoredEmulatorIds ?? []).map((id) =>
+      id.toLowerCase(),
+    ),
+  );
+  const hostProcesses = detectionEnabled
+    ? normalized.filter(
+        (process) =>
+          Boolean(process.emulatorId) &&
+          !ignoredEmulatorIds.has(process.emulatorId!.toLowerCase()),
+      )
+    : [];
+  const normalProcesses = normalized.filter((process) => !process.emulatorId);
+  const emulatorMatches = detectionEnabled
+    ? await applyEmulatorReadings(hostProcesses)
+    : disableEmulatorDetectionForScan();
+  useAppStore.getState().setProcesses(toPublicSnapshots(normalized));
 
   const state = useAppStore.getState();
-  const ignored = normalized.filter((process) =>
+  const ignored = normalProcesses.filter((process) =>
     isIgnoredProcess(process.exeName, state),
   );
-  const candidates = normalized.filter(
+  const candidates = normalProcesses.filter(
     (process) => !isIgnoredProcess(process.exeName, state),
   );
   logRuntime(
     `scan handling total=${processes.length}, unique=${normalized.length}, ignored=${ignored.length}, candidates=${candidates.length}`,
   );
   verboseRuntime(`scan ignored: ${formatExeSample(ignored)}`);
-  const matches = await resolveProcesses(candidates);
+  const matches = [...(await resolveProcesses(candidates)), ...emulatorMatches];
   logRuntime(`scan resolved matches=${matches.length}`);
 
   const currentSessions = collapseDuplicateActiveSessions();
@@ -478,7 +579,9 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   );
 
   for (const current of currentSessions) {
-    if (nextKeys.has(sessionIdentityKey(current))) {
+    const continuingMatch = matchesByGame.get(sessionIdentityKey(current));
+    if (continuingMatch) {
+      reconcileSessionProvenance(current, continuingMatch);
       checkpointActiveSessionIfDue(current);
       verboseRuntime(
         `scan active session unchanged ${current.gameName} (${current.exeName})`,
@@ -521,7 +624,10 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
 
   for (const [key, match] of matchesByGame) {
     if (!activeKeys.has(key)) {
-      startSession(match.process, match.game, match.startedAt);
+      startSession(match.process, match.game, {
+        startedAt: match.startedAt,
+        emulator: match.emulator,
+      });
     }
   }
 
@@ -576,6 +682,313 @@ function isIgnoredProcess(
     matchesProcessPatternSet(exeName, state.blacklist) ||
     matchesProcessPatternSet(exeName, state.ignoredProcesses)
   );
+}
+
+function disableEmulatorDetectionForScan(): ProcessMatch[] {
+  if (
+    useAppStore.getState().emulatorObservations.length > 0 ||
+    emulatorRuntime.size > 0
+  ) {
+    useAppStore.setState({ emulatorObservations: [] });
+    emulatorRuntime.clear();
+    lastEmulatorRunningKeys.clear();
+  }
+  return [];
+}
+
+function readEmulatorSignals(hosts: ProcessSnapshot[]) {
+  const privateTokens = [emulatorPrivacy.userName, emulatorPrivacy.homeDirName];
+  return hosts.flatMap((process) => {
+    const adapter = adapterFor(process.emulatorId);
+    if (!adapter || !process.emulatorId || process.pid === undefined) return [];
+    const signals: RawEmulatorSignals = {
+      emulatorId: process.emulatorId,
+      exeName: process.exeName,
+      pid: process.pid,
+      startedAtUnix: process.startedAtUnix ?? 0,
+      args: process.commandLine ?? [],
+      windowTitle: process.windowTitle ?? null,
+    };
+    const reading = adapter.read(signals, {
+      denylist: GENERIC_IDENTITY_DENYLIST,
+      privateTokens,
+    });
+    return [
+      {
+        pid: signals.pid,
+        startedAtUnix: signals.startedAtUnix,
+        exeName: signals.exeName,
+        emulatorId: signals.emulatorId,
+        label: adapter.label,
+        reading,
+      },
+    ];
+  });
+}
+
+async function applyEmulatorReadings(
+  hosts: ProcessSnapshot[],
+): Promise<ProcessMatch[]> {
+  const state = useAppStore.getState();
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  for (const host of hosts) {
+    const adapter = adapterFor(host.emulatorId);
+    if (!adapter || !host.emulatorId) continue;
+    state.setKnownEmulator({
+      emulatorId: host.emulatorId,
+      label: adapter.label,
+      firstSeenAt: nowIso,
+      lastSeenAt: nowIso,
+      hostExeNames: [host.exeName],
+    });
+  }
+  const lookupEnabled =
+    state.settings.emulatorContentLookup !== false &&
+    !isOfflineStatus(state.backendHealth.status) &&
+    now >= emulatorLookupUnavailableUntil;
+  const reconciled = reconcileEmulatorReadings({
+    readings: readEmulatorSignals(hosts),
+    observations: state.emulatorObservations,
+    mappings: state.emulatorMappings,
+    runtime: emulatorRuntime,
+    now,
+    lookupEnabled,
+    retryMs: PENDING_COMMUNITY_RETRY_MS,
+  });
+  lastEmulatorRunningKeys = reconciled.runningKeys;
+  useAppStore
+    .getState()
+    .setEmulatorObservations(
+      accumulateObservationRuntime(
+        reconciled.observations,
+        reconciled.runningKeys,
+        now,
+        SESSION_CHECKPOINT_INTERVAL_MS,
+      ),
+    );
+
+  const matches: ProcessMatch[] = [];
+  for (const intent of reconciled.intents) {
+    if (intent.type !== "match") continue;
+    const refreshed = {
+      ...intent.mapping,
+      lastSeenAt: nowIso,
+    };
+    useAppStore.getState().setEmulatorMapping(refreshed);
+    const match = emulatorMappingToMatch(refreshed);
+    if (match) matches.push(match);
+  }
+
+  const resolveIntent = reconciled.intents.find(
+    (intent) => intent.type === "resolve",
+  );
+  if (resolveIntent?.type !== "resolve" || !lookupEnabled) return matches;
+
+  try {
+    const response = await fetchWithTimeout(
+      `${state.settings.apiEndpoint}/api/emulator/resolve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({ items: resolveIntent.items }),
+      },
+    );
+    if (!response.ok) {
+      if (response.status === 404 || response.status === 501) {
+        emulatorLookupUnavailableUntil = Date.now() + 30 * 60_000;
+      }
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const body = (await response.json()) as EmulatorResolveResponse;
+    const results = new Map(body.results.map((result) => [result.key, result]));
+    for (const item of resolveIntent.items) {
+      const result = results.get(item.key);
+      const observation = useAppStore
+        .getState()
+        .emulatorObservations.find(
+          (candidate): candidate is EmulatorContentObservation =>
+            candidate.kind === "content" && candidate.key === item.key,
+        );
+      if (!observation) continue;
+      if (
+        result?.game &&
+        (result.confidence === "curated" || result.confidence === "probable")
+      ) {
+        const match = applyEmulatorResolution(
+          observation.key,
+          result.game,
+          result.confidence,
+          observation.trust,
+        );
+        if (match) matches.push(match);
+        continue;
+      }
+      useAppStore.getState().setEmulatorObservation({
+        ...observation,
+        state: result?.candidates?.length ? "ambiguous" : "unknown",
+        candidates: result?.candidates,
+      });
+    }
+  } catch (error) {
+    for (const item of resolveIntent.items) {
+      const observation = useAppStore
+        .getState()
+        .emulatorObservations.find(
+          (candidate): candidate is EmulatorContentObservation =>
+            candidate.kind === "content" && candidate.key === item.key,
+        );
+      if (observation) {
+        useAppStore.getState().setEmulatorObservation({
+          ...observation,
+          state: "unknown",
+          candidates: undefined,
+        });
+      }
+    }
+    state.addApiRequestLogEntry({
+      endpoint: `${state.settings.apiEndpoint}/api/emulator/resolve`,
+      exeName: `DOSBox: ${resolveIntent.items.length} content token(s)`,
+      status: "error",
+      detail: formatError(error),
+    });
+    verboseRuntime(`emulator resolve unavailable: ${formatError(error)}`);
+  }
+  return matches;
+}
+
+function applyEmulatorResolution(
+  contentKey: string,
+  game: Game,
+  confidence: EmulatorMapping["confidence"],
+  trust: EmulatorMapping["trust"],
+) {
+  const state = useAppStore.getState();
+  const observation = state.emulatorObservations.find(
+    (candidate): candidate is EmulatorContentObservation =>
+      candidate.kind === "content" && candidate.key === contentKey,
+  );
+  if (!observation) return null;
+
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const accumulated = creditableSeconds(observation, now);
+  const emulator = observationLaunchContext(observation);
+  if (
+    accumulated > 0 &&
+    (observation.endedAt || accumulated >= MIN_BACKFILL_SECONDS)
+  ) {
+    const endedAt = observation.endedAt ?? nowIso;
+    useAppStore.getState().addSession({
+      id: createSessionId(),
+      gameId: game.id,
+      igdbId: game.igdbId,
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+      source: game.source,
+      exeName: "",
+      startedAt: new Date(
+        Date.parse(endedAt) - accumulated * 1000,
+      ).toISOString(),
+      endedAt,
+      durationSeconds: accumulated,
+      emulator,
+    });
+  }
+
+  const mapping: EmulatorMapping = {
+    contentKey,
+    emulatorId: observation.emulatorId,
+    label: observation.label,
+    contentKind: observation.contentKind,
+    contentValue: observation.contentValue,
+    display: observation.display,
+    trust,
+    decision: "game",
+    gameId: game.id,
+    igdbId: game.igdbId,
+    gameName: game.name,
+    coverUrl: game.coverUrl,
+    source: game.source,
+    confidence,
+    needsConfirmation: confidence === "probable" || trust === "weak",
+    decidedAt: nowIso,
+    lastSeenAt: nowIso,
+  };
+  state.setEmulatorMapping(mapping);
+  state.removeEmulatorObservation(contentKey);
+  logRuntime(
+    `emulator mapped ${observation.label} ${observation.display} -> ${game.name}`,
+  );
+  return observation.endedAt ? null : emulatorMappingToMatch(mapping, nowIso);
+}
+
+function emulatorMappingToMatch(
+  mapping: EmulatorMapping,
+  startedAt?: string,
+): ProcessMatch | null {
+  if (
+    mapping.decision !== "game" ||
+    mapping.gameId === undefined ||
+    !mapping.gameName
+  ) {
+    return null;
+  }
+  return {
+    process: {
+      exeName: "",
+      exePath: null,
+      emulatorId: mapping.emulatorId,
+    },
+    game: {
+      id: mapping.gameId,
+      igdbId: mapping.igdbId,
+      name: mapping.gameName,
+      coverUrl: mapping.coverUrl ?? "",
+      source: mapping.source ?? "igdb",
+    },
+    startedAt,
+    emulator: mappingLaunchContext(mapping),
+  };
+}
+
+function mappingLaunchContext(mapping: EmulatorMapping): EmulatorLaunchContext {
+  return {
+    emulatorId: mapping.emulatorId,
+    label: mapping.label,
+    contentKey: mapping.contentKey,
+    display: mapping.display,
+    trust: mapping.trust,
+  };
+}
+
+function observationLaunchContext(
+  observation: EmulatorContentObservation,
+): EmulatorLaunchContext {
+  return {
+    emulatorId: observation.emulatorId,
+    label: observation.label,
+    contentKey: observation.key,
+    display: observation.display,
+    trust: observation.trust,
+  };
+}
+
+function reconcileSessionProvenance(
+  session: ActiveSession,
+  match: ProcessMatch,
+) {
+  if (match.emulator) {
+    if (session.emulator?.contentKey !== match.emulator.contentKey) {
+      updateActiveSession({ ...session, emulator: match.emulator });
+    }
+    return;
+  }
+  if (session.emulator) {
+    const { emulator: _emulator, ...native } = session;
+    updateActiveSession({ ...native, exeName: match.process.exeName });
+  }
 }
 
 type CachedResolution =
@@ -1294,6 +1707,221 @@ export async function findGameMatches(exeName: string): Promise<Game[]> {
   return result.ambiguousGames ?? [];
 }
 
+export async function searchEmulatorGames(
+  emulatorId: string,
+  query: string,
+): Promise<Game[]> {
+  const value = query.trim();
+  if (!value) return [];
+  const endpoint = useAppStore
+    .getState()
+    .settings.apiEndpoint.replace(/\/+$/, "");
+  const response = await fetchWithTimeout(
+    `${endpoint}/api/emulator/games/search?emulatorId=${encodeURIComponent(emulatorId)}&query=${encodeURIComponent(value)}`,
+    { timeoutMs: API_REQUEST_TIMEOUT_MS },
+  );
+  if (!response.ok)
+    throw new Error(`${response.status} ${response.statusText}`);
+  return ((await response.json()) as GameMetadataResponse).games.map(
+    (game) => ({
+      ...game,
+      source: game.source ?? "igdb",
+    }),
+  );
+}
+
+export async function selectEmulatorGame(contentKey: string, game: Game) {
+  const state = useAppStore.getState();
+  const existingMapping = state.emulatorMappings.get(contentKey);
+  if (existingMapping) {
+    await endActiveEmulatorRoute(contentKey);
+    state.removeEmulatorMapping(contentKey);
+    state.setEmulatorObservation(observationFromMapping(existingMapping));
+  }
+  const observation = useAppStore
+    .getState()
+    .emulatorObservations.find(
+      (item): item is EmulatorContentObservation =>
+        item.kind === "content" && item.key === contentKey,
+    );
+  const match = applyEmulatorResolution(
+    contentKey,
+    game,
+    "user",
+    observation?.trust ?? existingMapping?.trust ?? "weak",
+  );
+  if (match) {
+    startSession(match.process, match.game, {
+      startedAt: match.startedAt,
+      emulator: match.emulator,
+    });
+  }
+  persist();
+  void requestProcessScan("after emulator game selected");
+}
+
+export async function addCustomEmulatorGame(contentKey: string, name: string) {
+  const gameName = name.trim();
+  if (!gameName) return;
+  await selectEmulatorGame(contentKey, {
+    id: customGameId(contentKey),
+    name: gameName,
+    coverUrl: "",
+    source: "custom",
+  });
+}
+
+export async function ignoreEmulatorContent(contentKey: string) {
+  const state = useAppStore.getState();
+  const mapping = state.emulatorMappings.get(contentKey);
+  const observation = state.emulatorObservations.find(
+    (item): item is EmulatorContentObservation =>
+      item.kind === "content" && item.key === contentKey,
+  );
+  if (!mapping && !observation) return;
+  await endActiveEmulatorRoute(contentKey);
+  const now = new Date().toISOString();
+  state.setEmulatorMapping({
+    contentKey,
+    emulatorId: mapping?.emulatorId ?? observation!.emulatorId,
+    label: mapping?.label ?? observation!.label,
+    contentKind: mapping?.contentKind ?? observation!.contentKind,
+    contentValue: mapping?.contentValue ?? observation!.contentValue,
+    display: mapping?.display ?? observation!.display,
+    trust: mapping?.trust ?? observation!.trust,
+    decision: "ignored",
+    confidence: "user",
+    decidedAt: now,
+    lastSeenAt: mapping?.lastSeenAt ?? now,
+  });
+  state.removeEmulatorObservation(contentKey);
+  persist();
+  void requestProcessScan("after emulator content ignored");
+}
+
+export async function forgetEmulatorMapping(contentKey: string) {
+  const state = useAppStore.getState();
+  const mapping = state.emulatorMappings.get(contentKey);
+  if (!mapping) return;
+  await endActiveEmulatorRoute(contentKey);
+  state.removeEmulatorMapping(contentKey);
+  if (lastEmulatorRunningKeys.has(contentKey)) {
+    state.setEmulatorObservation(observationFromMapping(mapping));
+  }
+  persist();
+  void requestProcessScan("after emulator mapping forgotten");
+}
+
+export async function changeEmulatorMapping(contentKey: string) {
+  const state = useAppStore.getState();
+  const mapping = state.emulatorMappings.get(contentKey);
+  if (!mapping) return;
+  await endActiveEmulatorRoute(contentKey);
+  state.removeEmulatorMapping(contentKey);
+  state.setEmulatorObservation({
+    ...observationFromMapping(mapping),
+    lastCheckedAt: new Date().toISOString(),
+  });
+  persist();
+}
+
+export function confirmEmulatorMapping(contentKey: string) {
+  const state = useAppStore.getState();
+  const mapping = state.emulatorMappings.get(contentKey);
+  if (!mapping || mapping.decision !== "game") return;
+  state.setEmulatorMapping({ ...mapping, needsConfirmation: false });
+  persist();
+}
+
+export function restoreEmulatorContent(contentKey: string) {
+  const state = useAppStore.getState();
+  const mapping = state.emulatorMappings.get(contentKey);
+  if (!mapping || mapping.decision !== "ignored") return;
+  state.removeEmulatorMapping(contentKey);
+  persist();
+  void requestProcessScan("after emulator content restored");
+}
+
+export async function setEmulatorIgnored(emulatorId: string, ignored: boolean) {
+  const key = emulatorId.trim().toLowerCase();
+  if (!key) return;
+  const state = useAppStore.getState();
+  state.setEmulatorIgnoredSetting(key, ignored);
+
+  if (ignored) {
+    state.setEmulatorObservations(
+      state.emulatorObservations.filter(
+        (observation) => observation.emulatorId.toLowerCase() !== key,
+      ),
+    );
+    for (const runtimeKey of [...emulatorRuntime.keys()]) {
+      if (runtimeKey.startsWith(`${key}:`)) emulatorRuntime.delete(runtimeKey);
+    }
+    lastEmulatorRunningKeys = new Set(
+      [...lastEmulatorRunningKeys].filter(
+        (contentKey) => !contentKey.startsWith(`${key}:`),
+      ),
+    );
+    const activeSessions = state.activeSessions.filter(
+      (session) => session.emulator?.emulatorId.toLowerCase() === key,
+    );
+    for (const session of activeSessions) await endSession(session);
+    logRuntime(`emulator ignored ${key}`);
+  } else {
+    logRuntime(`emulator restored ${key}`);
+  }
+
+  persist();
+  void requestProcessScan(`after emulator ${ignored ? "ignore" : "restore"}`);
+}
+
+export function dismissEmulatorHostNotice(key: string) {
+  const state = useAppStore.getState();
+  const notice = state.emulatorObservations.find(
+    (item) => item.kind === "host-notice" && item.key === key,
+  );
+  if (!notice || notice.kind !== "host-notice") return;
+  state.setEmulatorObservation({
+    ...notice,
+    dismissedAt: new Date().toISOString(),
+  });
+  persist();
+}
+
+async function endActiveEmulatorRoute(contentKey: string) {
+  const active = useAppStore
+    .getState()
+    .activeSessions.find(
+      (session) => session.emulator?.contentKey === contentKey,
+    );
+  if (active) await endSession(active);
+}
+
+function observationFromMapping(
+  mapping: EmulatorMapping,
+): EmulatorContentObservation {
+  const now = new Date().toISOString();
+  return {
+    kind: "content",
+    key: mapping.contentKey,
+    emulatorId: mapping.emulatorId,
+    label: mapping.label,
+    hostExeName: "",
+    contentKind: mapping.contentKind,
+    contentValue: mapping.contentValue,
+    display: mapping.display,
+    trust: mapping.trust,
+    shareable:
+      mapping.trust === "recognized" && mapping.contentKind !== "folder",
+    searchHint: mapping.display,
+    state: "unknown",
+    detectedAt: now,
+    runningSince: lastEmulatorRunningKeys.has(mapping.contentKey)
+      ? now
+      : undefined,
+  };
+}
+
 export function convertLocalSuggestionToCommunity(exeName: string) {
   const state = useAppStore.getState();
   const key = exeName.toLowerCase();
@@ -1639,7 +2267,7 @@ function cacheMatchResult(exeName: string, game: Game | null) {
 function startSession(
   process: ProcessSnapshot,
   game: Game,
-  startedAtOverride?: string,
+  options?: string | { startedAt?: string; emulator?: EmulatorLaunchContext },
 ) {
   const sessionKey = activeSessionKey(game.id, game.source, game.igdbId);
   const alreadyRunning = useAppStore
@@ -1655,7 +2283,9 @@ function startSession(
   }
 
   logRuntime(`session starting ${game.name} (${process.exeName})`);
-  const startedAt = startedAtOverride ?? new Date().toISOString();
+  const startedAt =
+    (typeof options === "string" ? options : options?.startedAt) ??
+    new Date().toISOString();
   const cacheEntry = useAppStore
     .getState()
     .exeCache.get(process.exeName.toLowerCase());
@@ -1673,6 +2303,7 @@ function startSession(
     communitySuggestionNote: cacheEntry?.communitySuggestionNote,
     startedAt,
     checkpointedAt: startedAt,
+    emulator: typeof options === "string" ? undefined : options?.emulator,
   };
   useAppStore.setState((state) => ({
     activeSessions: [...state.activeSessions, session],
@@ -1767,6 +2398,7 @@ async function endSession(session: ActiveSession, endedAtOverride?: string) {
     startedAt: session.startedAt,
     endedAt,
     durationSeconds,
+    emulator: session.emulator,
   });
   removeActiveSession(session);
   evaluateAndStoreMilestones();
@@ -2519,6 +3151,16 @@ export function untrackGame(
   removeHistory: boolean,
   aliases: GameAliasRef[] = [{ gameId, source }],
 ) {
+  untrackGameInternal(gameId, source, removeHistory, aliases, "remove");
+}
+
+function untrackGameInternal(
+  gameId: number,
+  source: Game["source"] | null,
+  removeHistory: boolean,
+  aliases: GameAliasRef[],
+  emulatorDisposition: "remove" | "ignore",
+) {
   const state = useAppStore.getState();
   const matchingExeNames = [...state.exeCache.values()]
     .filter(
@@ -2541,6 +3183,38 @@ export function untrackGame(
     state.removeExeCacheEntry(exeName);
   }
 
+  for (const mapping of state.emulatorMappings.values()) {
+    if (
+      mapping.gameId === undefined ||
+      !matchesGameAlias(
+        {
+          gameId: mapping.gameId,
+          source: mapping.source,
+        },
+        aliases,
+      )
+    )
+      continue;
+    state.removeEmulatorObservation(mapping.contentKey);
+    if (emulatorDisposition === "remove") {
+      state.removeEmulatorMapping(mapping.contentKey);
+      continue;
+    }
+    state.setEmulatorMapping({
+      contentKey: mapping.contentKey,
+      emulatorId: mapping.emulatorId,
+      label: mapping.label,
+      contentKind: mapping.contentKind,
+      contentValue: mapping.contentValue,
+      display: mapping.display,
+      trust: mapping.trust,
+      decision: "ignored",
+      confidence: "user",
+      decidedAt: new Date().toISOString(),
+      lastSeenAt: mapping.lastSeenAt,
+    });
+  }
+
   if (removeHistory) {
     useAppStore.setState((current) => ({
       recentSessions: current.recentSessions.filter((session) => {
@@ -2551,9 +3225,10 @@ export function untrackGame(
   }
 
   logRuntime(
-    `game untracked gameId=${gameId} source=${source ?? "unknown"} exes=${matchingExeNames.length} removeHistory=${removeHistory}`,
+    `game untracked gameId=${gameId} source=${source ?? "unknown"} exes=${matchingExeNames.length} emulatorDisposition=${emulatorDisposition} removeHistory=${removeHistory}`,
   );
   evaluateAndStoreMilestones();
+  persist();
   void requestProcessScan("after game untrack");
 }
 
@@ -3301,6 +3976,7 @@ export function renameCustomGame(gameId: number, gameName: string) {
   if (!name) return;
   useAppStore.setState((state) => {
     const exeCache = new Map(state.exeCache);
+    const emulatorMappings = new Map(state.emulatorMappings);
 
     for (const [key, entry] of exeCache) {
       if (
@@ -3312,8 +3988,19 @@ export function renameCustomGame(gameId: number, gameName: string) {
       }
     }
 
+    for (const [key, mapping] of emulatorMappings) {
+      if (
+        mapping.decision === "game" &&
+        mapping.source === "custom" &&
+        mapping.gameId === gameId
+      ) {
+        emulatorMappings.set(key, { ...mapping, gameName: name });
+      }
+    }
+
     return {
       exeCache,
+      emulatorMappings,
       activeSessions: state.activeSessions.map((session) =>
         session.gameId === gameId && isCustomSession(session)
           ? { ...session, gameName: name }
@@ -3333,6 +4020,7 @@ export function renameCustomGame(gameId: number, gameName: string) {
 function updateCustomGameCover(gameId: number, coverUrl: string) {
   useAppStore.setState((state) => {
     const exeCache = new Map(state.exeCache);
+    const emulatorMappings = new Map(state.emulatorMappings);
 
     for (const [key, entry] of exeCache) {
       if (
@@ -3344,8 +4032,19 @@ function updateCustomGameCover(gameId: number, coverUrl: string) {
       }
     }
 
+    for (const [key, mapping] of emulatorMappings) {
+      if (
+        mapping.decision === "game" &&
+        mapping.source === "custom" &&
+        mapping.gameId === gameId
+      ) {
+        emulatorMappings.set(key, { ...mapping, coverUrl });
+      }
+    }
+
     return {
       exeCache,
+      emulatorMappings,
       activeSessions: state.activeSessions.map((session) =>
         session.gameId === gameId && isCustomSession(session)
           ? { ...session, coverUrl }
@@ -3390,7 +4089,12 @@ function createSessionId() {
 function uniqueProcesses(processes: ProcessSnapshot[]) {
   return [
     ...new Map(
-      processes.map((process) => [process.exeName.toLowerCase(), process]),
+      processes.map((process) => [
+        process.emulatorId
+          ? `${process.exeName.toLowerCase()}#${process.pid ?? 0}`
+          : process.exeName.toLowerCase(),
+        process,
+      ]),
     ).values(),
   ].sort((a, b) => a.exeName.localeCompare(b.exeName));
 }

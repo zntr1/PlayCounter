@@ -490,10 +490,11 @@ export function DiscoveredView() {
     const ambiguousKeys = new Set(
       ambiguousMatches.map((match) => match.exeName.toLowerCase()),
     );
+    const nativeProcesses = processes.filter((process) => !process.emulatorId);
     const runningKeys = new Set(
-      processes.map((process) => process.exeName.toLowerCase()),
+      nativeProcesses.map((process) => process.exeName.toLowerCase()),
     );
-    const running = processes
+    const running = nativeProcesses
       .filter((process) => !ambiguousKeys.has(process.exeName.toLowerCase()))
       .map((process): DiscoveredExecutable => {
         const key = process.exeName.toLowerCase();

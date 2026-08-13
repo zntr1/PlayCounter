@@ -9,6 +9,7 @@ export type IgdbGame = {
   id: number;
   name: string;
   platforms?: number[];
+  alternative_names?: Array<{ name?: string }>;
   cover?: { image_id?: string };
   first_release_date?: number;
 };
@@ -132,6 +133,37 @@ export class IgdbClient {
     if (!response.ok) {
       throw new Error(
         `IGDB game search failed: ${response.status} ${await response.text()}`,
+      );
+    }
+
+    return (await response.json()) as IgdbGame[];
+  }
+
+  async findDosGames(query: string, limit = 50): Promise<IgdbGame[]> {
+    if (!this.configured || !this.options.clientId) return [];
+
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) return [];
+
+    const accessToken = await this.getAccessToken();
+    const response = await fetch("https://api.igdb.com/v4/games", {
+      method: "POST",
+      headers: {
+        "Client-ID": this.options.clientId,
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
+      body: [
+        `search "${escapeIgdbString(normalizedQuery)}";`,
+        "fields name,alternative_names.name,cover.image_id,platforms,first_release_date;",
+        "where platforms = (13);",
+        `limit ${Math.max(1, Math.min(100, limit))};`,
+      ].join(" "),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `IGDB DOS game search failed: ${response.status} ${await response.text()}`,
       );
     }
 

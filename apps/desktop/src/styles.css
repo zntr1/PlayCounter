@@ -87,6 +87,18 @@
   background: rgb(var(--color-accent) / 0.15);
 }
 
+.emulator-badge {
+  border-color: rgb(3 79 201);
+  background: rgb(3 79 201);
+  color: rgb(255 255 255);
+}
+
+:root[data-theme="light"] .emulator-badge {
+  border-color: rgb(110 166 255);
+  background: rgb(110 166 255);
+  color: rgb(15 16 20);
+}
+
 :root[data-theme="light"] .top-game-pedestal-1 {
   border-color: #b98512;
   background: linear-gradient(to bottom, #f7d76a, #e4b936);

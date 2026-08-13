@@ -35,6 +35,7 @@ export function countNeedsReview(input: DiscoveryReviewInput) {
   );
   const byKey = new Map<string, ExeCacheEntry | null>();
   for (const process of input.processes) {
+    if (process.emulatorId) continue;
     const key = process.exeName.toLowerCase();
     byKey.set(key, input.exeCache.get(key) ?? null);
   }

@@ -18,6 +18,7 @@ import {
 import { removeHistorySession } from "../../../tracker";
 import {
   CommunityApprovalBadge,
+  EmulatorBadge,
   SourceBadge,
   formatDuration,
 } from "../../components";
@@ -259,6 +260,12 @@ export const HistorySessionRow = memo(function HistorySessionRow({
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="truncate text-base font-bold text-text">{gameName}</h3>
           <SourceBadge source={source} />
+          {session.emulator ? (
+            <EmulatorBadge
+              emulatorId={session.emulator.emulatorId}
+              label={session.emulator.label}
+            />
+          ) : null}
           {session.origin === "manual" ? (
             <span
               title="Entered manually"
@@ -280,7 +287,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           ) : null}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-muted">
-          <span className="truncate">{session.exeName}</span>
+          <span className="truncate">
+            {session.emulator
+              ? `${session.emulator.label} · ${session.emulator.display}`
+              : session.exeName}
+          </span>
           <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <CalendarDays size={13} className="text-text-faint" />

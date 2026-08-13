@@ -30,7 +30,15 @@ impl ProcessScanner for MacOsScanner {
 
             processes
                 .entry(exe_name.to_lowercase())
-                .or_insert(ProcessSnapshot { exe_name, exe_path });
+                .or_insert(ProcessSnapshot {
+                    exe_name,
+                    exe_path,
+                    pid: process.pid().as_u32(),
+                    started_at_unix: process.start_time(),
+                    emulator_id: None,
+                    command_line: None,
+                    window_title: None,
+                });
         }
 
         Ok(processes.into_values().collect())

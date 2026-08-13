@@ -58,6 +58,7 @@ import {
 } from "../../playtimeAdjustments";
 import {
   CommunityApprovalBadge,
+  EmulatorBadge,
   Panel,
   SourceBadge,
   formatDuration,
@@ -115,6 +116,8 @@ type GameSummary = {
   historyGameKey: string | null;
   lastPlayedAt: string;
   exeNames: string[];
+  emulatorLabels: string[];
+  emulatorIds: string[];
 };
 
 type PendingRemoval = {
@@ -129,6 +132,7 @@ type PendingStopTracking = {
   source: GameSource;
   name: string;
   exeNames: string[];
+  emulatorLabels: string[];
   sessionCount: number;
   aliases: GameAliasRef[];
 } | null;
@@ -313,6 +317,8 @@ export function MyGamesView() {
       historyGameKey: params.historyGameKey ?? null,
       lastPlayedAt: params.lastPlayedAt,
       exeNames: [params.exeName],
+      emulatorLabels: [],
+      emulatorIds: [],
     });
 
     for (const session of sessions) {
@@ -401,6 +407,15 @@ export function MyGamesView() {
       if (!existing.exeNames.includes(session.exeName)) {
         existing.exeNames.push(session.exeName);
       }
+      if (session.emulator) {
+        const label = `${session.emulator.label} · ${session.emulator.display}`;
+        if (!existing.emulatorLabels.includes(label)) {
+          existing.emulatorLabels.push(label);
+        }
+        if (!existing.emulatorIds.includes(session.emulator.emulatorId)) {
+          existing.emulatorIds.push(session.emulator.emulatorId);
+        }
+      }
     }
 
     for (const activeSession of activeSessions) {
@@ -463,6 +478,15 @@ export function MyGamesView() {
       }
       if (!existing.exeNames.includes(activeSession.exeName)) {
         existing.exeNames.push(activeSession.exeName);
+      }
+      if (activeSession.emulator) {
+        const label = `${activeSession.emulator.label} · ${activeSession.emulator.display}`;
+        if (!existing.emulatorLabels.includes(label)) {
+          existing.emulatorLabels.push(label);
+        }
+        if (!existing.emulatorIds.includes(activeSession.emulator.emulatorId)) {
+          existing.emulatorIds.push(activeSession.emulator.emulatorId);
+        }
       }
     }
 
@@ -528,7 +552,13 @@ export function MyGamesView() {
   const displayedGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = needle
-      ? games.filter((game) => game.name.toLowerCase().includes(needle))
+      ? games.filter(
+          (game) =>
+            game.name.toLowerCase().includes(needle) ||
+            game.emulatorLabels.some((label) =>
+              label.toLowerCase().includes(needle),
+            ),
+        )
       : games;
 
     const sorted = [...filtered];
@@ -660,6 +690,7 @@ export function MyGamesView() {
                             source: game.source!,
                             name: game.name,
                             exeNames: game.exeNames,
+                            emulatorLabels: game.emulatorLabels,
                             sessionCount: game.sessionCount,
                             aliases: game.aliases,
                           })
@@ -790,7 +821,8 @@ function GameLibraryCard({
   );
   const canEditCover = game.source === "custom";
   // Shown in place of the title while hovering the card.
-  const exeLabel = game.exeNames.filter(Boolean).join(", ");
+  const exeLabel =
+    game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
 
   function submitRename() {
     const name = renameName.trim();
@@ -1262,6 +1294,9 @@ function GameLibraryCard({
             {game.sources.map((source) => (
               <SourceBadge key={source} source={source} />
             ))}
+            {game.emulatorIds.map((emulatorId) => (
+              <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
+            ))}
             {game.sources.includes("custom") ? (
               <CommunityApprovalBadge
                 suggestionId={game.communitySuggestionId}
@@ -1550,6 +1585,9 @@ function GameLibraryCard({
               {game.sources.map((source) => (
                 <SourceBadge key={source} source={source} />
               ))}
+              {game.emulatorIds.map((emulatorId) => (
+                <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
+              ))}
             </div>
             {game.sources.includes("custom") ? (
               <CommunityApprovalBadge
@@ -1566,7 +1604,8 @@ function GameLibraryCard({
             </div>
             <span className="h-1 w-1 rounded-full bg-border" />
             <span className="truncate font-mono">
-              {game.exeNames.join(", ")}
+              {game.exeNames.filter(Boolean).join(", ") ||
+                game.emulatorLabels.join(", ")}
             </span>
           </div>
 
@@ -1783,9 +1822,9 @@ function StopTrackingDialog({
       <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
         <h2 className="text-lg font-semibold text-text">Ignore {game.name}?</h2>
         <p className="mt-2 text-sm text-text-muted">
-          PlayCounter ignores this game&apos;s executable from now on — it will
-          never be tracked again. You can undo this anytime under Discovered
-          &rarr; Ignored.
+          {game.emulatorLabels.length > 0
+            ? "PlayCounter will ignore this local emulator-content mapping from now on. The emulator itself remains detectable."
+            : "PlayCounter ignores this game's executable from now on — it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
         </p>
         {game.sessionCount > 0 ? (
           <p className="mt-2 text-sm text-text-muted">
@@ -1795,7 +1834,8 @@ function StopTrackingDialog({
           </p>
         ) : null}
         <div className="mt-3 rounded-md border border-border bg-bg px-3 py-2 text-xs text-text-faint">
-          {game.exeNames.join(", ")}
+          {game.exeNames.filter(Boolean).join(", ") ||
+            game.emulatorLabels.join(", ")}
         </div>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => onConfirm(false)}>

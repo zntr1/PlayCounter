@@ -38,7 +38,11 @@ import { Button, Input } from "../primitives";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 
 export function NowPlayingView() {
-  const activeSessions = useAppStore((state) => state.activeSessions);
+  const allActiveSessions = useAppStore((state) => state.activeSessions);
+  const activeSessions = useMemo(
+    () => allActiveSessions.filter((session) => !session.emulator),
+    [allActiveSessions],
+  );
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
   const recentSessions = useAppStore((state) => state.recentSessions);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
@@ -268,9 +272,15 @@ function HeroSession({
                 }
               />
             ) : null}
-            <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted drop-shadow-sm">
-              {exeNames.join(", ")}
-            </span>
+            {session.emulator ? (
+              <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
+                {session.emulator.label} · {session.emulator.display}
+              </span>
+            ) : (
+              <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted drop-shadow-sm">
+                {exeNames.join(", ")}
+              </span>
+            )}
           </div>
 
           <div className="mt-auto grid grid-cols-3 gap-3 pt-6">

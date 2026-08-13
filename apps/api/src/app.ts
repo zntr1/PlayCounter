@@ -3,6 +3,7 @@ import rateLimit from "@fastify/rate-limit";
 import type {
   CommunityGameSuggestionPayload,
   ContributionsResponse,
+  EmulatorResolveRequest,
   FeedbackPayload,
   GameMetadataResponse,
   MatchProcessesRequest,
@@ -44,7 +45,30 @@ const matchProcessesSchema = z.object({
     .min(1)
     .max(200),
 });
+const emulatorContentValueSchema = z
+  .string()
+  .trim()
+  .min(2)
+  .max(48)
+  .regex(/^[a-z0-9][a-z0-9 ._+-]*$/);
+const emulatorResolveSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(200),
+        emulatorId: z.enum(["dosbox"]),
+        contentKind: z.enum(["conf", "program"]),
+        contentValue: emulatorContentValueSchema,
+      }),
+    )
+    .min(1)
+    .max(20),
+});
 const communityMetadataQuerySchema = z.object({
+  query: z.string().trim().min(2).max(120),
+});
+const emulatorGameSearchSchema = z.object({
+  emulatorId: z.enum(["dosbox"]),
   query: z.string().trim().min(2).max(120),
 });
 const gameMetadataQuerySchema = z.object({
@@ -148,6 +172,21 @@ export async function buildApp(repository: PlayCounterRepository) {
         };
       }),
     };
+  });
+  app.post("/api/emulator/resolve", async (request) => {
+    const body = emulatorResolveSchema.parse(
+      request.body,
+    ) satisfies EmulatorResolveRequest;
+    return { results: await repository.resolveEmulatorContent(body.items) };
+  });
+  app.get("/api/emulator/games/search", async (request) => {
+    const query = emulatorGameSearchSchema.parse(request.query);
+    return {
+      games: await repository.searchEmulatorGames(
+        query.emulatorId,
+        query.query,
+      ),
+    } satisfies GameMetadataResponse;
   });
   app.get("/api/community/metadata", async (request) => {
     const query = communityMetadataQuerySchema.parse(request.query);

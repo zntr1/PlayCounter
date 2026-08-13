@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bug,
+  Cpu,
   Download,
   Gamepad2,
   Globe,
@@ -21,6 +22,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState, type ReactNode } from "react";
 import { initializeTracker } from "../tracker";
+import { emulatorAssetUrls } from "../emulators/assets";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { NotificationBell } from "./NotificationBell";
 import { SidebarButton } from "./SidebarButton";
@@ -31,6 +33,8 @@ import { HistoryView } from "./views/HistoryView";
 import { AchievementsView } from "./views/AchievementsView";
 import { MyGamesView } from "./views/MyGamesView";
 import { NowPlayingView } from "./views/NowPlayingView";
+import { NowEmulatingView } from "./views/NowEmulatingView";
+import { DosboxView } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
 import {
@@ -50,13 +54,32 @@ import {
 
 const views: Record<
   ViewId,
-  { label: string; subtitle: string; icon: typeof Play; component: ReactNode }
+  {
+    label: string;
+    subtitle: string;
+    icon: typeof Play;
+    imageSrc?: string;
+    component: ReactNode;
+  }
 > = {
   now: {
     label: "Now Playing",
     subtitle: "What you're playing right now",
     icon: Play,
     component: <NowPlayingView />,
+  },
+  emulating: {
+    label: "Now Emulating",
+    subtitle: "Games currently running inside emulators",
+    icon: Play,
+    component: <NowEmulatingView />,
+  },
+  dosbox: {
+    label: "DOSBox",
+    subtitle: "DOS games, mappings, and emulator playtime",
+    icon: Cpu,
+    imageSrc: emulatorAssetUrls.dosbox,
+    component: <DosboxView />,
   },
   games: {
     label: "My Games",
@@ -98,6 +121,7 @@ const views: Record<
 
 const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
   { label: "Library", items: ["now", "games", "history", "achievements"] },
+  { label: "Emulators", items: ["emulating", "dosbox"] },
   { label: "System", items: ["discovered", "settings", "dev"] },
 ];
 
@@ -131,8 +155,53 @@ export function App() {
     (state) => state.ambiguousMatches.length > 0,
   );
   const activeSessionsCount = useAppStore(
-    (state) => state.activeSessions.length,
+    (state) =>
+      state.activeSessions.filter((session) => !session.emulator).length,
   );
+  const knownEmulators = useAppStore((state) => state.knownEmulators);
+  const emulatorDetectionEnabled = useAppStore(
+    (state) => state.settings.emulatorDetection !== false,
+  );
+  const ignoredEmulatorIds = useAppStore(
+    (state) => state.settings.ignoredEmulatorIds ?? [],
+  );
+  const ignoredEmulatorSet = new Set(
+    ignoredEmulatorIds.map((id) => id.toLowerCase()),
+  );
+  const emulatorIsRunning = useAppStore((state) => {
+    if (state.settings.emulatorDetection === false) return false;
+    const ignored = new Set(
+      (state.settings.ignoredEmulatorIds ?? []).map((id) => id.toLowerCase()),
+    );
+    return (
+      state.processes.some(
+        (process) =>
+          process.emulatorId && !ignored.has(process.emulatorId.toLowerCase()),
+      ) ||
+      state.activeSessions.some(
+        (session) =>
+          session.emulator &&
+          !ignored.has(session.emulator.emulatorId.toLowerCase()),
+      )
+    );
+  });
+  const emulatorReviewCount = useAppStore((state) => {
+    const ignored = new Set(
+      (state.settings.ignoredEmulatorIds ?? []).map((id) => id.toLowerCase()),
+    );
+    return (
+      state.emulatorObservations.filter(
+        (item) =>
+          item.kind === "content" &&
+          !ignored.has(item.emulatorId.toLowerCase()),
+      ).length +
+      [...state.emulatorMappings.values()].filter(
+        (mapping) =>
+          mapping.needsConfirmation &&
+          !ignored.has(mapping.emulatorId.toLowerCase()),
+      ).length
+    );
+  });
   const theme = useAppStore((state) => state.settings.theme);
   const setTheme = useAppStore((state) => state.setTheme);
 
@@ -228,8 +297,24 @@ export function App() {
         </div>
         <nav className="flex-1 overflow-auto px-4 pb-4">
           {sidebarSections.map((section) => {
+            if (
+              section.label === "Emulators" &&
+              (!emulatorDetectionEnabled ||
+                [...knownEmulators.keys()].every((id) =>
+                  ignoredEmulatorSet.has(id.toLowerCase()),
+                ))
+            ) {
+              return null;
+            }
             const items = section.items.filter(
-              (item) => item !== "dev" || devToolsEnabled,
+              (item) =>
+                (item !== "dev" || devToolsEnabled) &&
+                (item !== "emulating" ||
+                  emulatorIsRunning ||
+                  activeView === "emulating") &&
+                (item !== "dosbox" ||
+                  (knownEmulators.has("dosbox") &&
+                    !ignoredEmulatorSet.has("dosbox"))),
             );
             if (items.length === 0) return null;
 
@@ -245,16 +330,23 @@ export function App() {
                       <SidebarButton
                         key={item}
                         icon={view.icon}
+                        imageSrc={view.imageSrc}
                         label={view.label}
                         active={activeView === item}
                         badge={
-                          item === "discovered" ? needsReviewCount : undefined
+                          item === "discovered"
+                            ? needsReviewCount
+                            : item === "dosbox"
+                              ? emulatorReviewCount
+                              : undefined
                         }
                         warn={item === "now" ? hasAmbiguousMatch : undefined}
                         isPlaying={
                           item === "now" && !hasAmbiguousMatch
                             ? activeSessionsCount > 0
-                            : undefined
+                            : item === "emulating"
+                              ? emulatorIsRunning
+                              : undefined
                         }
                         onClick={() => {
                           if (item === "discovered" && activeView === item) {

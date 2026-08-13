@@ -6,6 +6,43 @@ export interface Game {
   name: string;
   coverUrl: string;
   source: GameSource;
+  releaseYear?: number;
+}
+
+export type EmulatorContentKind = "conf" | "program" | "folder";
+export type EmulatorSignalTrust = "recognized" | "weak";
+
+export interface EmulatorLaunchContext {
+  emulatorId: string;
+  label: string;
+  contentKey: string;
+  display: string;
+  trust: EmulatorSignalTrust;
+}
+
+export interface EmulatorContentRef {
+  emulatorId: string;
+  contentKind: EmulatorContentKind;
+  contentValue: string;
+}
+
+export interface EmulatorResolveRequest {
+  items: Array<{ key: string } & EmulatorContentRef>;
+}
+
+export type EmulatorResolveConfidence =
+  | "curated"
+  | "probable"
+  | "ambiguous"
+  | "unknown";
+
+export interface EmulatorResolveResponse {
+  results: Array<{
+    key: string;
+    confidence: EmulatorResolveConfidence;
+    game: Game | null;
+    candidates?: Game[];
+  }>;
 }
 
 export type Platform = "windows" | "macos" | "linux";
@@ -143,6 +180,7 @@ export interface Session {
   endedAt: string | null;
   durationSeconds: number | null;
   origin?: "manual";
+  emulator?: EmulatorLaunchContext;
 }
 
 export type FeedbackType = "bug" | "feature" | "other";
@@ -170,4 +208,7 @@ export interface Settings {
   verboseLogs: boolean;
   theme: Theme;
   accentColor: string | null;
+  emulatorDetection?: boolean;
+  emulatorContentLookup?: boolean;
+  ignoredEmulatorIds?: string[];
 }

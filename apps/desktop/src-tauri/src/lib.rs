@@ -1,5 +1,5 @@
 use process::{create_scanner, ProcessSnapshot};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -34,6 +34,13 @@ struct TraySession {
     elapsed_seconds: u64,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PrivacyContext {
+    user_name: String,
+    home_dir_name: String,
+}
+
 #[tauri::command]
 fn install_uuid(app: tauri::AppHandle, existing: Option<String>) -> Result<String, String> {
     session::install_uuid(app, existing)
@@ -45,6 +52,23 @@ async fn scan_processes() -> Result<Vec<ProcessSnapshot>, String> {
         .scan()
         .await
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn privacy_context() -> PrivacyContext {
+    let user_name = std::env::var("USERNAME").unwrap_or_default();
+    let home_dir_name = std::env::var("USERPROFILE")
+        .ok()
+        .and_then(|path| {
+            Path::new(&path)
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+        })
+        .unwrap_or_default();
+    PrivacyContext {
+        user_name,
+        home_dir_name,
+    }
 }
 
 #[tauri::command]
@@ -95,7 +119,9 @@ fn read_text_file(path: String) -> Result<String, String> {
     const MAX_IMPORT_BYTES: u64 = 64 * 1024 * 1024;
 
     let path = PathBuf::from(path);
-    let size = fs::metadata(&path).map_err(|error| error.to_string())?.len();
+    let size = fs::metadata(&path)
+        .map_err(|error| error.to_string())?
+        .len();
     if size > MAX_IMPORT_BYTES {
         return Err("Backup file is too large to import.".to_string());
     }
@@ -197,6 +223,7 @@ pub fn run() {
             open_external_url,
             update_tray_now_playing,
             scan_processes,
+            privacy_context,
             get_exe_icon
         ])
         .setup(|app| {

@@ -7,12 +7,19 @@ use std::error::Error;
 pub struct ProcessSnapshot {
     pub exe_name: String,
     pub exe_path: Option<String>,
+    pub pid: u32,
+    pub started_at_unix: u64,
+    pub emulator_id: Option<&'static str>,
+    pub command_line: Option<Vec<String>>,
+    pub window_title: Option<String>,
 }
 
 #[async_trait]
 pub trait ProcessScanner: Send + Sync {
     async fn scan(&self) -> Result<Vec<ProcessSnapshot>, Box<dyn Error + Send + Sync>>;
 }
+
+mod emulator;
 
 #[cfg(target_os = "windows")]
 mod windows;

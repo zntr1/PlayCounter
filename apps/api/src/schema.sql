@@ -31,6 +31,29 @@ CREATE TABLE IF NOT EXISTS igdb_ambiguous_game_identifiers (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_igdb_ambiguous_identifiers_lookup_key
   ON igdb_ambiguous_game_identifiers (lower(platform), lower(kind), lower(value), game_id);
 
+-- Content identity inside an emulator is deliberately separate from native
+-- process identifiers. Candidate rows may be many-to-one; curated rows are
+-- restricted to one verified game per emulator content token.
+CREATE TABLE IF NOT EXISTS emulator_content_identifiers (
+  emulator_id TEXT NOT NULL,
+  content_kind TEXT NOT NULL CHECK (content_kind IN ('conf', 'program', 'folder')),
+  content_value TEXT NOT NULL,
+  game_id INTEGER NOT NULL REFERENCES igdb_games(id) ON DELETE CASCADE,
+  confidence TEXT NOT NULL DEFAULT 'candidate'
+    CHECK (confidence IN ('curated', 'candidate')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (emulator_id, content_kind, content_value, game_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_emulator_content_lookup_key
+  ON emulator_content_identifiers
+     (lower(emulator_id), lower(content_kind), lower(content_value), game_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_emulator_content_curated_unique
+  ON emulator_content_identifiers
+     (lower(emulator_id), lower(content_kind), lower(content_value))
+  WHERE confidence = 'curated';
+
 -- One row per game, reused across every executable that starts it: a
 -- suggestion for a game that already exists attaches another identifier
 -- instead of creating a second row. `igdb_id` is that identity — names are not

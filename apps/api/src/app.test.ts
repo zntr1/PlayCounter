@@ -63,3 +63,100 @@ describe("community contributions route", () => {
     expect(repository.listContributions).toHaveBeenCalledWith(uuid);
   });
 });
+
+describe("emulator resolution route", () => {
+  it("passes normalized content references to the dedicated repository path", async () => {
+    class EmulatorRepository extends MemoryRepository {
+      override resolveEmulatorContent = vi.fn(async (items) =>
+        items.map((item) => ({
+          key: item.key,
+          confidence: "unknown" as const,
+          game: null,
+        })),
+      );
+    }
+    const repository = new EmulatorRepository();
+    const app = await buildApp(repository);
+    apps.push(app);
+
+    const result = await app.inject({
+      method: "POST",
+      url: "/api/emulator/resolve",
+      payload: {
+        items: [
+          {
+            key: "dosbox:program:doom.exe",
+            emulatorId: "dosbox",
+            contentKind: "program",
+            contentValue: "doom.exe",
+          },
+        ],
+      },
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toEqual({
+      results: [
+        {
+          key: "dosbox:program:doom.exe",
+          confidence: "unknown",
+          game: null,
+        },
+      ],
+    });
+    expect(repository.resolveEmulatorContent).toHaveBeenCalledOnce();
+  });
+
+  it("rejects paths and unsupported emulator identifiers", async () => {
+    const app = await buildApp(new MemoryRepository());
+    apps.push(app);
+    const result = await app.inject({
+      method: "POST",
+      url: "/api/emulator/resolve",
+      payload: {
+        items: [
+          {
+            key: "bad",
+            emulatorId: "dolphin",
+            contentKind: "program",
+            contentValue: "C:\\private\\doom.exe",
+          },
+        ],
+      },
+    });
+    expect(result.statusCode).toBe(400);
+  });
+
+  it("uses the emulator-specific game search", async () => {
+    class EmulatorSearchRepository extends MemoryRepository {
+      override searchEmulatorGames = vi.fn(async () => [
+        {
+          id: 42,
+          igdbId: 9,
+          name: "Doom",
+          coverUrl: "",
+          source: "igdb" as const,
+          releaseYear: 1993,
+        },
+      ]);
+    }
+    const repository = new EmulatorSearchRepository();
+    const app = await buildApp(repository);
+    apps.push(app);
+
+    const result = await app.inject({
+      method: "GET",
+      url: "/api/emulator/games/search?emulatorId=dosbox&query=Doom",
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.json().games[0]).toMatchObject({
+      name: "Doom",
+      releaseYear: 1993,
+    });
+    expect(repository.searchEmulatorGames).toHaveBeenCalledWith(
+      "dosbox",
+      "Doom",
+    );
+  });
+});

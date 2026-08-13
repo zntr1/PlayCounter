@@ -71,6 +71,63 @@ function makeState(
 }
 
 describe("session persistence", () => {
+  it("retains structured emulator provenance on completed sessions", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+    const session: Session = {
+      ...makeSession(7),
+      gameName: "Doom",
+      emulator: {
+        emulatorId: "dosbox",
+        label: "DOSBox",
+        contentKey: "dosbox:program:doom.exe",
+        display: "DOOM.EXE",
+        trust: "recognized",
+      },
+    };
+
+    persistAppState({ ...makeState([session]) });
+
+    expect(JSON.parse(setItem.mock.calls[0][1]).sessions[0].emulator).toEqual({
+      emulatorId: "dosbox",
+      label: "DOSBox",
+      contentKey: "dosbox:program:doom.exe",
+      display: "DOOM.EXE",
+      trust: "recognized",
+    });
+  });
+
+  it("persists known emulators after they stop running", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+
+    persistAppState({
+      ...makeState([]),
+      knownEmulators: new Map([
+        [
+          "dosbox",
+          {
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            firstSeenAt: "2026-08-13T10:00:00.000Z",
+            lastSeenAt: "2026-08-13T11:00:00.000Z",
+            hostExeNames: ["dosbox.exe"],
+          },
+        ],
+      ]),
+    });
+
+    expect(JSON.parse(setItem.mock.calls[0][1]).knownEmulators).toEqual([
+      expect.objectContaining({ emulatorId: "dosbox", label: "DOSBox" }),
+    ]);
+  });
+
   it("persists the discovered review reminder cooldown", () => {
     const reminder = {
       notifiedAt: "2026-08-10T00:00:00.000Z",

@@ -96,6 +96,21 @@ describe("discovered review count", () => {
     expect(countNeedsReview(state)).toBe(0);
   });
 
+  it("routes emulator hosts through content review instead of exe review", () => {
+    const state = input(
+      [
+        {
+          exeName: "dosbox.exe",
+          exePath: null,
+          emulatorId: "dosbox",
+        },
+      ],
+      [],
+    );
+
+    expect(countNeedsReview(state)).toBe(0);
+  });
+
   it("uses the same statuses as the Needs review filter", () => {
     const entries = [
       cacheEntry("unmatched.exe", "unmatched"),

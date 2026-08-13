@@ -3,6 +3,7 @@ import { AlertTriangle, type LucideIcon } from "lucide-react";
 
 type SidebarButtonProps = {
   icon: LucideIcon;
+  imageSrc?: string;
   label: string;
   active: boolean;
   badge?: number;
@@ -13,6 +14,7 @@ type SidebarButtonProps = {
 
 export function SidebarButton({
   icon: Icon,
+  imageSrc,
   label,
   active,
   badge,
@@ -31,14 +33,26 @@ export function SidebarButton({
           : "text-text-muted hover:bg-surface-hover hover:text-text",
       )}
     >
-      <Icon
-        size={18}
-        className={clsx(
-          "shrink-0 transition-transform duration-200",
-          !active && "group-hover:scale-110 group-hover:text-text",
-          active && "scale-105 text-accent",
-        )}
-      />
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt=""
+          className={clsx(
+            "h-[18px] w-[18px] shrink-0 rounded-sm object-cover transition-transform duration-200",
+            !active && "group-hover:scale-110",
+            active && "scale-105",
+          )}
+        />
+      ) : (
+        <Icon
+          size={18}
+          className={clsx(
+            "shrink-0 transition-transform duration-200",
+            !active && "group-hover:scale-110 group-hover:text-text",
+            active && "scale-105 text-accent",
+          )}
+        />
+      )}
       <span className="truncate">{label}</span>
       {badge ? (
         <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-warning px-1.5 text-xs font-bold text-bg shadow-[0_0_10px_rgb(var(--color-warning)/0.3)]">

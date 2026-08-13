@@ -5,6 +5,8 @@ import type {
   CommunityMetadataCandidate,
   ContributionsResponse,
   ContributionStatus,
+  EmulatorResolveRequest,
+  EmulatorResolveResponse,
   FeedbackPayload,
   FeedbackResponse,
   Game,
@@ -82,7 +84,11 @@ export interface PlayCounterRepository {
   ): Promise<Map<string, ProcessMatchResult>>;
   gamesByIds(gameIds: number[]): Promise<Game[]>;
   searchIgdbGames(query: string): Promise<Game[]>;
+  searchEmulatorGames(emulatorId: string, query: string): Promise<Game[]>;
   searchCommunityMetadata(query: string): Promise<CommunityMetadataCandidate[]>;
+  resolveEmulatorContent(
+    items: EmulatorResolveRequest["items"],
+  ): Promise<EmulatorResolveResponse["results"]>;
   suggestCommunityGame(
     suggestion: CommunityGameSuggestionPayload,
   ): Promise<CommunityGameSuggestionResponse>;
@@ -130,8 +136,22 @@ export class MemoryRepository implements PlayCounterRepository {
     return [];
   }
 
+  async searchEmulatorGames(): Promise<Game[]> {
+    return [];
+  }
+
   async searchCommunityMetadata(): Promise<CommunityMetadataCandidate[]> {
     return [];
+  }
+
+  async resolveEmulatorContent(
+    items: EmulatorResolveRequest["items"],
+  ): Promise<EmulatorResolveResponse["results"]> {
+    return items.map((item) => ({
+      key: item.key,
+      confidence: "unknown",
+      game: null,
+    }));
   }
 
   async suggestCommunityGame(): Promise<CommunityGameSuggestionResponse> {
@@ -159,6 +179,13 @@ export class PostgresRepository implements PlayCounterRepository {
   private readonly igdbLookupCache = new Map<
     string,
     { at: number; ambiguousGames?: Game[] }
+  >();
+  private readonly emulatorLookupCache = new Map<
+    string,
+    {
+      at: number;
+      result: EmulatorResolveResponse["results"][number];
+    }
   >();
 
   constructor(connectionString: string, igdb = createIgdbClientFromEnv()) {
@@ -541,6 +568,25 @@ export class PostgresRepository implements PlayCounterRepository {
     return this.persistIgdbGameMetadata(games);
   }
 
+  async searchEmulatorGames(
+    emulatorId: string,
+    query: string,
+  ): Promise<Game[]> {
+    if (!this.igdb.configured || emulatorId !== "dosbox") return [];
+    const normalizedQuery = normalizeIgdbTitle(query);
+    const games = await this.igdb.findDosGames(query, 50);
+    games.sort((left, right) => {
+      const exactRank = (game: IgdbGame) =>
+        [game.name, ...(game.alternative_names ?? []).map((name) => name.name)]
+          .filter((name): name is string => Boolean(name))
+          .some((name) => normalizeIgdbTitle(name) === normalizedQuery)
+          ? 0
+          : 1;
+      return exactRank(left) - exactRank(right);
+    });
+    return this.persistIgdbGameMetadata(games);
+  }
+
   async searchCommunityMetadata(
     query: string,
   ): Promise<CommunityMetadataCandidate[]> {
@@ -564,6 +610,174 @@ export class PostgresRepository implements PlayCounterRepository {
       );
       return [];
     }
+  }
+
+  async resolveEmulatorContent(
+    items: EmulatorResolveRequest["items"],
+  ): Promise<EmulatorResolveResponse["results"]> {
+    if (items.length === 0) return [];
+
+    type EmulatorIdentifierRow = {
+      emulator_id: string;
+      content_kind: string;
+      content_value: string;
+      confidence: "curated" | "candidate";
+      id: number;
+      igdb_id: number | null;
+      name: string;
+      cover_url: string | null;
+    };
+
+    const lookupKeys = [
+      ...new Set(items.map((item) => emulatorContentLookupKey(item))),
+    ];
+    const stored = await this.pool.query<EmulatorIdentifierRow>(
+      `SELECT lower(identifiers.emulator_id) AS emulator_id,
+              lower(identifiers.content_kind) AS content_kind,
+              lower(identifiers.content_value) AS content_value,
+              identifiers.confidence,
+              games.id,
+              games.igdb_id,
+              games.name,
+              games.cover_url
+       FROM emulator_content_identifiers identifiers
+       INNER JOIN igdb_games games ON games.id = identifiers.game_id
+       WHERE lower(identifiers.emulator_id) || ':' ||
+             lower(identifiers.content_kind) || ':' ||
+             lower(identifiers.content_value) = ANY($1::text[])`,
+      [lookupKeys],
+    );
+    const rowsByLookup = new Map<string, EmulatorIdentifierRow[]>();
+    for (const row of stored.rows) {
+      const key = `${row.emulator_id}:${row.content_kind}:${row.content_value}`;
+      const rows = rowsByLookup.get(key) ?? [];
+      rows.push(row);
+      rowsByLookup.set(key, rows);
+    }
+
+    type Resolution = Omit<EmulatorResolveResponse["results"][number], "key">;
+    const resolutions = new Map<string, Resolution>();
+    const uniqueItems = new Map(
+      items.map((item) => [emulatorContentLookupKey(item), item]),
+    );
+    const missing: Array<EmulatorResolveRequest["items"][number]> = [];
+
+    for (const [lookupKey, item] of uniqueItems) {
+      const rows = rowsByLookup.get(lookupKey) ?? [];
+      const curated = rows.find((row) => row.confidence === "curated");
+      if (curated) {
+        resolutions.set(lookupKey, {
+          confidence: "curated",
+          game: emulatorRowToGame(curated),
+        });
+        continue;
+      }
+      const candidates = dedupeGamesByIdentity(
+        rows.map((row) => emulatorRowToGame(row)),
+      );
+      if (candidates.length > 0) {
+        resolutions.set(
+          lookupKey,
+          candidates.length === 1
+            ? { confidence: "probable", game: candidates[0] }
+            : { confidence: "ambiguous", game: null, candidates },
+        );
+        continue;
+      }
+      missing.push(item);
+    }
+
+    let fallbackCount = 0;
+    for (const item of missing) {
+      const lookupKey = emulatorContentLookupKey(item);
+      const cached = this.emulatorLookupCache.get(lookupKey);
+      if (cached && Date.now() - cached.at < igdbLookupMissTtlMs) {
+        const { key: _cachedKey, ...result } = cached.result;
+        resolutions.set(lookupKey, result);
+        continue;
+      }
+      if (
+        !this.igdb.configured ||
+        fallbackCount >= maxIgdbFallbacksPerMatchRequest
+      ) {
+        resolutions.set(lookupKey, { confidence: "unknown", game: null });
+        continue;
+      }
+
+      fallbackCount += 1;
+      const query = emulatorGameSearchQuery(item.contentValue);
+      if (!query) {
+        resolutions.set(lookupKey, { confidence: "unknown", game: null });
+        continue;
+      }
+
+      try {
+        const found = dedupeIgdbGamesByIdentity(
+          await this.igdb.findDosGames(query),
+        );
+        if (found.length === 0) {
+          const result: EmulatorResolveResponse["results"][number] = {
+            key: item.key,
+            confidence: "unknown",
+            game: null,
+          };
+          resolutions.set(lookupKey, result);
+          this.emulatorLookupCache.set(lookupKey, { at: Date.now(), result });
+          continue;
+        }
+
+        const normalizedQuery = normalizeIgdbTitle(query);
+        const exact = found.filter((game) =>
+          [
+            game.name,
+            ...(game.alternative_names ?? []).map((name) => name.name),
+          ]
+            .filter((name): name is string => Boolean(name))
+            .some((name) => normalizeIgdbTitle(name) === normalizedQuery),
+        );
+        const selected = exact.length > 0 ? exact : found.slice(0, 20);
+        const games = dedupeGamesByIdentity(
+          await this.persistIgdbGameMetadata(selected),
+        );
+
+        let resolution: Resolution;
+        if (exact.length === 1) {
+          await this.persistEmulatorCandidates(item, games);
+          resolution = { confidence: "probable", game: games[0] };
+        } else if (exact.length > 1) {
+          await this.persistEmulatorCandidates(item, games);
+          resolution = {
+            confidence: "ambiguous",
+            game: null,
+            candidates: games,
+          };
+        } else {
+          resolution = {
+            confidence: "ambiguous",
+            game: null,
+            candidates: games,
+          };
+          this.emulatorLookupCache.set(lookupKey, {
+            at: Date.now(),
+            result: { key: item.key, ...resolution },
+          });
+        }
+        resolutions.set(lookupKey, resolution);
+      } catch (error) {
+        logger.warn(
+          `[emulator] IGDB lookup failed for ${item.emulatorId}:${item.contentKind}:${JSON.stringify(item.contentValue)}: ${formatError(error)}`,
+        );
+        resolutions.set(lookupKey, { confidence: "unknown", game: null });
+      }
+    }
+
+    return items.map((item) => ({
+      key: item.key,
+      ...(resolutions.get(emulatorContentLookupKey(item)) ?? {
+        confidence: "unknown" as const,
+        game: null,
+      }),
+    }));
   }
 
   async suggestCommunityGame(
@@ -993,6 +1207,26 @@ export class PostgresRepository implements PlayCounterRepository {
     }
     return persisted;
   }
+
+  private async persistEmulatorCandidates(
+    item: EmulatorResolveRequest["items"][number],
+    games: Game[],
+  ) {
+    for (const game of games) {
+      await this.pool.query(
+        `INSERT INTO emulator_content_identifiers
+           (emulator_id, content_kind, content_value, game_id, confidence)
+         VALUES ($1, $2, $3, $4, 'candidate')
+         ON CONFLICT DO NOTHING`,
+        [
+          item.emulatorId.toLowerCase(),
+          item.contentKind.toLowerCase(),
+          item.contentValue.toLowerCase(),
+          game.id,
+        ],
+      );
+    }
+  }
 }
 
 type ProcessMatchCandidate = {
@@ -1121,6 +1355,9 @@ function igdbGameToGame(
         ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg`
         : ""),
     source: "igdb" as const,
+    releaseYear: game.first_release_date
+      ? new Date(game.first_release_date * 1000).getFullYear()
+      : undefined,
   };
 }
 
@@ -1166,6 +1403,62 @@ function logAmbiguousProcessMatches(
 
 function formatError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function emulatorContentLookupKey(
+  item: Pick<
+    EmulatorResolveRequest["items"][number],
+    "emulatorId" | "contentKind" | "contentValue"
+  >,
+) {
+  return `${item.emulatorId}:${item.contentKind}:${item.contentValue}`.toLowerCase();
+}
+
+function emulatorRowToGame(row: {
+  id: number;
+  igdb_id: number | null;
+  name: string;
+  cover_url: string | null;
+}): Game {
+  return {
+    id: row.id,
+    igdbId: row.igdb_id ?? undefined,
+    name: row.name,
+    coverUrl: row.cover_url ?? "",
+    source: "igdb",
+  };
+}
+
+function emulatorGameSearchQuery(contentValue: string) {
+  return contentValue
+    .replace(/\.(?:exe|com|bat|conf)$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeIgdbTitle(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function dedupeIgdbGamesByIdentity(games: IgdbGame[]) {
+  return [...new Map(games.map((game) => [game.id, game])).values()];
+}
+
+function dedupeGamesByIdentity(games: Game[]) {
+  return [
+    ...new Map(
+      games.map((game) => [
+        game.igdbId ? `igdb:${game.igdbId}` : `${game.source}:${game.id}`,
+        game,
+      ]),
+    ).values(),
+  ];
 }
 
 export function createRepository(): PlayCounterRepository {

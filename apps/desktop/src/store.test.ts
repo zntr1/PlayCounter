@@ -90,6 +90,27 @@ describe("section collapse preferences", () => {
   });
 });
 
+describe("ignored emulator settings", () => {
+  it("normalizes, de-duplicates, and restores emulator ids", () => {
+    const originalSettings = useAppStore.getState().settings;
+    try {
+      useAppStore.setState({
+        settings: { ...originalSettings, ignoredEmulatorIds: [] },
+      });
+      useAppStore.getState().setEmulatorIgnoredSetting("DOSBox", true);
+      useAppStore.getState().setEmulatorIgnoredSetting("dosbox", true);
+      expect(useAppStore.getState().settings.ignoredEmulatorIds).toEqual([
+        "dosbox",
+      ]);
+
+      useAppStore.getState().setEmulatorIgnoredSetting("dosbox", false);
+      expect(useAppStore.getState().settings.ignoredEmulatorIds).toEqual([]);
+    } finally {
+      useAppStore.setState({ settings: originalSettings });
+    }
+  });
+});
+
 describe("discovered review reminder attention", () => {
   const oldReminder = {
     notifiedAt: "2026-08-01T00:00:00.000Z",
