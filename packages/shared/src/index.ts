@@ -9,7 +9,12 @@ export interface Game {
   releaseYear?: number;
 }
 
-export type EmulatorContentKind = "conf" | "program" | "folder";
+export type EmulatorContentKind =
+  | "conf"
+  | "program"
+  | "folder"
+  | "rom"
+  | "title_id";
 export type EmulatorSignalTrust = "recognized" | "weak";
 
 export interface EmulatorLaunchContext {
@@ -27,7 +32,7 @@ export interface EmulatorContentRef {
 }
 
 export interface EmulatorResolveRequest {
-  items: Array<{ key: string } & EmulatorContentRef>;
+  items: Array<{ key: string; searchHint?: string } & EmulatorContentRef>;
 }
 
 export type EmulatorResolveConfidence =

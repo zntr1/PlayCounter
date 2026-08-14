@@ -82,6 +82,7 @@ export function SourceBadge({ source }: { source?: GameSource | null }) {
 
 const emulatorLabels: Record<string, string> = {
   dosbox: "DOSBox",
+  dolphin: "Dolphin",
 };
 
 export function EmulatorBadge({

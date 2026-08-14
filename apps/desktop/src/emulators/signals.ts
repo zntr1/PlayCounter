@@ -9,6 +9,8 @@ export const GENERIC_IDENTITY_DENYLIST = new Set([
   "dosbox-x",
   "dosbox_x",
   "dosbox-staging",
+  "dolphin",
+  "dolphin-emu",
   "staging",
   "config",
   "conf",
@@ -83,14 +85,17 @@ export function normalizeToken(raw: string, kind?: EmulatorContentKind) {
     .toLowerCase();
   if (
     token.length < 2 ||
-    token.length > 48 ||
+    token.length > 96 ||
     token.startsWith("-") ||
     /[:\\/]/.test(token) ||
     /^[0-9.]+$/.test(token)
   ) {
     return null;
   }
-  const base = token.replace(/\.(?:exe|com|bat|conf)$/i, "");
+  const base = token.replace(
+    /\.(?:exe|com|bat|conf|elf|dol|gcm|iso|tgc|wbfs|ciso|gcz|wad|dff|wia|rvz|json)$/i,
+    "",
+  );
   const denylist =
     kind === "folder" ? GENERIC_FOLDER_DENYLIST : GENERIC_IDENTITY_DENYLIST;
   if (denylist.has(base)) return null;

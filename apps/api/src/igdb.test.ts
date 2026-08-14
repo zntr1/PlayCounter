@@ -29,4 +29,24 @@ describe("IGDB DOS lookup", () => {
     );
     expect((request[1] as RequestInit).body).toContain("limit 50;");
   });
+
+  it("supports a registry-supplied set of guest platforms", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify([{ id: 2, name: "F-Zero GX" }]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new IgdbClient({ clientId: "client", accessToken: "token" });
+
+    await client.findGamesForPlatforms("F-Zero GX", [5, 21], 25);
+
+    const request = fetchMock.mock.calls[0];
+    expect((request[1] as RequestInit).body).toContain(
+      "where platforms = (5,21);",
+    );
+    expect((request[1] as RequestInit).body).toContain("limit 25;");
+  });
 });

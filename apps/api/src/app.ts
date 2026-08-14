@@ -12,6 +12,10 @@ import Fastify from "fastify";
 import { z, ZodError } from "zod";
 import { logger } from "./logger.js";
 import type { PlayCounterRepository } from "./repository.js";
+import {
+  emulatorResolverDefinitions,
+  supportsEmulatorContent,
+} from "./emulatorResolvers.js";
 
 const platformSchema = z.enum(["windows", "macos", "linux"]);
 const identifierKindSchema = z.enum([
@@ -49,17 +53,56 @@ const emulatorContentValueSchema = z
   .string()
   .trim()
   .min(2)
-  .max(48)
-  .regex(/^[a-z0-9][a-z0-9 ._+-]*$/);
+  .max(96)
+  .refine(
+    (value) =>
+      !/[\\/:\u0000-\u001f\u007f]/.test(value) && /^[\p{L}\p{N}]/u.test(value),
+    "Content identifiers must be path-free normalized values.",
+  );
+const emulatorIdSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .refine(
+    (value) =>
+      emulatorResolverDefinitions.some((definition) => definition.id === value),
+    "Unsupported emulator identifier.",
+  );
+const emulatorContentKindSchema = z.enum([
+  "conf",
+  "program",
+  "folder",
+  "rom",
+  "title_id",
+]);
 const emulatorResolveSchema = z.object({
   items: z
     .array(
-      z.object({
-        key: z.string().min(1).max(200),
-        emulatorId: z.enum(["dosbox"]),
-        contentKind: z.enum(["conf", "program"]),
-        contentValue: emulatorContentValueSchema,
-      }),
+      z
+        .object({
+          key: z.string().min(1).max(200),
+          emulatorId: emulatorIdSchema,
+          contentKind: emulatorContentKindSchema,
+          contentValue: emulatorContentValueSchema,
+          searchHint: z
+            .string()
+            .trim()
+            .min(2)
+            .max(120)
+            .refine(
+              (value) =>
+                !value.includes("\\") && !/[\u0000-\u001f\u007f]/.test(value),
+              "Search hints must be normalized title text.",
+            )
+            .optional(),
+        })
+        .refine(
+          (item) => supportsEmulatorContent(item.emulatorId, item.contentKind),
+          {
+            path: ["contentKind"],
+            message: "Unsupported content kind for this emulator.",
+          },
+        ),
     )
     .min(1)
     .max(20),
@@ -68,7 +111,7 @@ const communityMetadataQuerySchema = z.object({
   query: z.string().trim().min(2).max(120),
 });
 const emulatorGameSearchSchema = z.object({
-  emulatorId: z.enum(["dosbox"]),
+  emulatorId: emulatorIdSchema,
   query: z.string().trim().min(2).max(120),
 });
 const gameMetadataQuerySchema = z.object({

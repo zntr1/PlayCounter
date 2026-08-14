@@ -849,7 +849,7 @@ async function applyEmulatorReadings(
     }
     state.addApiRequestLogEntry({
       endpoint: `${state.settings.apiEndpoint}/api/emulator/resolve`,
-      exeName: `DOSBox: ${resolveIntent.items.length} content token(s)`,
+      exeName: `Emulator: ${resolveIntent.items.length} content token(s)`,
       status: "error",
       detail: formatError(error),
     });

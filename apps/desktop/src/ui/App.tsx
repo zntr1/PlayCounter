@@ -34,7 +34,7 @@ import { AchievementsView } from "./views/AchievementsView";
 import { MyGamesView } from "./views/MyGamesView";
 import { NowPlayingView } from "./views/NowPlayingView";
 import { NowEmulatingView } from "./views/NowEmulatingView";
-import { DosboxView } from "./views/EmulatorsView";
+import { DolphinView, DosboxView } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
 import {
@@ -81,6 +81,13 @@ const views: Record<
     imageSrc: emulatorAssetUrls.dosbox,
     component: <DosboxView />,
   },
+  dolphin: {
+    label: "Dolphin",
+    subtitle: "GameCube and Wii games, mappings, and emulator playtime",
+    icon: Cpu,
+    imageSrc: emulatorAssetUrls.dolphin,
+    component: <DolphinView />,
+  },
   games: {
     label: "My Games",
     subtitle: "Every game PlayCounter has tracked for you",
@@ -121,7 +128,7 @@ const views: Record<
 
 const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
   { label: "Library", items: ["now", "games", "history", "achievements"] },
-  { label: "Emulators", items: ["emulating", "dosbox"] },
+  { label: "Emulators", items: ["emulating", "dosbox", "dolphin"] },
   { label: "System", items: ["discovered", "settings", "dev"] },
 ];
 
@@ -185,23 +192,18 @@ export function App() {
       )
     );
   });
-  const emulatorReviewCount = useAppStore((state) => {
-    const ignored = new Set(
-      (state.settings.ignoredEmulatorIds ?? []).map((id) => id.toLowerCase()),
-    );
-    return (
-      state.emulatorObservations.filter(
-        (item) =>
-          item.kind === "content" &&
-          !ignored.has(item.emulatorId.toLowerCase()),
-      ).length +
-      [...state.emulatorMappings.values()].filter(
-        (mapping) =>
-          mapping.needsConfirmation &&
-          !ignored.has(mapping.emulatorId.toLowerCase()),
-      ).length
-    );
-  });
+  const emulatorObservations = useAppStore(
+    (state) => state.emulatorObservations,
+  );
+  const emulatorMappings = useAppStore((state) => state.emulatorMappings);
+  const emulatorReviewCount = (emulatorId: string) =>
+    emulatorObservations.filter(
+      (item) => item.kind === "content" && item.emulatorId === emulatorId,
+    ).length +
+    [...emulatorMappings.values()].filter(
+      (mapping) =>
+        mapping.emulatorId === emulatorId && mapping.needsConfirmation,
+    ).length;
   const theme = useAppStore((state) => state.settings.theme);
   const setTheme = useAppStore((state) => state.setTheme);
 
@@ -314,7 +316,10 @@ export function App() {
                   activeView === "emulating") &&
                 (item !== "dosbox" ||
                   (knownEmulators.has("dosbox") &&
-                    !ignoredEmulatorSet.has("dosbox"))),
+                    !ignoredEmulatorSet.has("dosbox"))) &&
+                (item !== "dolphin" ||
+                  (knownEmulators.has("dolphin") &&
+                    !ignoredEmulatorSet.has("dolphin"))),
             );
             if (items.length === 0) return null;
 
@@ -336,8 +341,8 @@ export function App() {
                         badge={
                           item === "discovered"
                             ? needsReviewCount
-                            : item === "dosbox"
-                              ? emulatorReviewCount
+                            : item === "dosbox" || item === "dolphin"
+                              ? emulatorReviewCount(item)
                               : undefined
                         }
                         warn={item === "now" ? hasAmbiguousMatch : undefined}

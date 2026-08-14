@@ -7,20 +7,28 @@ pub struct EmulatorHost {
     pub needs_window_title: bool,
 }
 
-pub static EMULATOR_HOSTS: &[EmulatorHost] = &[EmulatorHost {
-    id: "dosbox",
-    exe_names: &[
-        "dosbox.exe",
-        "dosbox.com",
-        "dosbox74.exe",
-        "dosbox-x.exe",
-        "dosbox_x.exe",
-        "dosbox-staging.exe",
-        "dosbox-staging-x64.exe",
-    ],
-    needs_command_line: true,
-    needs_window_title: true,
-}];
+pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
+    EmulatorHost {
+        id: "dosbox",
+        exe_names: &[
+            "dosbox.exe",
+            "dosbox.com",
+            "dosbox74.exe",
+            "dosbox-x.exe",
+            "dosbox_x.exe",
+            "dosbox-staging.exe",
+            "dosbox-staging-x64.exe",
+        ],
+        needs_command_line: true,
+        needs_window_title: true,
+    },
+    EmulatorHost {
+        id: "dolphin",
+        exe_names: &["dolphin.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+    },
+];
 
 pub fn host_for(exe_name: &str) -> Option<&'static EmulatorHost> {
     EMULATOR_HOSTS.iter().find(|host| {
@@ -116,7 +124,9 @@ mod tests {
     #[test]
     fn matches_hosts_exactly_and_case_insensitively() {
         assert_eq!(host_for("DOSBox.exe").map(|host| host.id), Some("dosbox"));
+        assert_eq!(host_for("DOLPHIN.EXE").map(|host| host.id), Some("dolphin"));
         assert!(host_for("notdosbox.exe").is_none());
+        assert!(host_for("dolphin-tool.exe").is_none());
     }
 
     #[test]

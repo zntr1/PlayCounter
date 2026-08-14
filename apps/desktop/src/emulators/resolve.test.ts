@@ -39,6 +39,53 @@ describe("emulator reconciliation", () => {
     expect(
       result.intents.filter((intent) => intent.type === "resolve"),
     ).toHaveLength(1);
+    expect(JSON.stringify(result.intents)).not.toContain("searchHint");
+  });
+
+  it("sends only an explicitly shareable normalized search hint", () => {
+    const result = reconcileEmulatorReadings({
+      readings: [
+        {
+          pid: 12,
+          startedAtUnix: 21,
+          exeName: "dolphin.exe",
+          emulatorId: "dolphin",
+          label: "Dolphin",
+          reading: {
+            state: "content",
+            content: {
+              kind: "title_id",
+              value: "g4op69",
+              display: "The Sims 2: Pets",
+              trust: "recognized",
+              shareable: true,
+              volatile: true,
+              searchHint: "The Sims 2: Pets",
+              shareableSearchHint: true,
+            },
+          },
+        },
+      ],
+      observations: [],
+      mappings: new Map(),
+      runtime: new Map(),
+      now: 1_000,
+      lookupEnabled: true,
+      retryMs: 60_000,
+    });
+
+    expect(result.intents.find((intent) => intent.type === "resolve")).toEqual({
+      type: "resolve",
+      items: [
+        {
+          key: "dolphin:title_id:g4op69",
+          emulatorId: "dolphin",
+          contentKind: "title_id",
+          contentValue: "g4op69",
+          searchHint: "The Sims 2: Pets",
+        },
+      ],
+    });
   });
 
   it("honors local ignored decisions without resolving", () => {

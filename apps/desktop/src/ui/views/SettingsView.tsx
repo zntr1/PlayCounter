@@ -248,7 +248,7 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Detect games launched inside supported emulator processes. DOSBox is the first supported adapter."
+        description="Detect games launched inside supported emulator processes, including DOSBox and Dolphin."
         title="Emulators"
       >
         <SettingsRow
@@ -265,7 +265,7 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
-          description="Sends only recognized, normalized content identifiers (such as a DOSBox program name) to find IGDB candidates. Folder paths and weak window titles stay local."
+          description="Sends only recognized, normalized content identifiers (such as a DOSBox program or Dolphin disc filename) to find IGDB candidates. Folder paths and weak window titles stay local."
           title="Look up recognized content"
         >
           <input

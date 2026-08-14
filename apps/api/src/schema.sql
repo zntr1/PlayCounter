@@ -36,7 +36,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_igdb_ambiguous_identifiers_lookup_key
 -- restricted to one verified game per emulator content token.
 CREATE TABLE IF NOT EXISTS emulator_content_identifiers (
   emulator_id TEXT NOT NULL,
-  content_kind TEXT NOT NULL CHECK (content_kind IN ('conf', 'program', 'folder')),
+  content_kind TEXT NOT NULL
+    CHECK (content_kind IN ('conf', 'program', 'folder', 'rom', 'title_id')),
   content_value TEXT NOT NULL,
   game_id INTEGER NOT NULL REFERENCES igdb_games(id) ON DELETE CASCADE,
   confidence TEXT NOT NULL DEFAULT 'candidate'

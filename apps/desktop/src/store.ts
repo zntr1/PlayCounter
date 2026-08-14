@@ -31,6 +31,7 @@ export type ViewId =
   | "now"
   | "emulating"
   | "dosbox"
+  | "dolphin"
   | "games"
   | "discovered"
   | "history"

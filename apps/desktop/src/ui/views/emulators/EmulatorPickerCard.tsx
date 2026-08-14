@@ -28,6 +28,8 @@ export function EmulatorPickerCard({
     observation.kind === "content" ? (observation.candidates ?? []) : [],
   );
   const [busy, setBusy] = useState(false);
+  const guestPlatformLabel =
+    observation.emulatorId === "dolphin" ? "GameCube / Wii" : "DOS";
 
   if (observation.kind === "host-notice") {
     return (
@@ -36,8 +38,9 @@ export function EmulatorPickerCard({
           {observation.label} is running
         </h2>
         <p className="mt-1 text-sm text-text-muted">
-          PlayCounter could not identify the game inside it yet. Launch the game
-          through a configuration or command that names the DOS program.
+          PlayCounter could not identify the game inside it from the available
+          process details. Start a game in the emulator or launch one with a
+          supported game file or title identifier.
         </p>
         <Button
           className="mt-4"
@@ -77,7 +80,7 @@ export function EmulatorPickerCard({
           </h2>
           <p className="mt-1 text-sm text-text-muted">
             {observation.state === "resolving"
-              ? "Looking for a matching DOS game…"
+              ? `Looking for a matching ${guestPlatformLabel} game…`
               : observation.endedAt
                 ? "The emulator stopped. Choose the game to keep the detected playtime."
                 : "Choose the game once; PlayCounter will remember this content locally."}
@@ -114,7 +117,8 @@ export function EmulatorPickerCard({
                   {game.name}
                 </span>
                 <span className="mt-1 block text-xs text-text-faint">
-                  {game.releaseYear ? `${game.releaseYear} · ` : ""}DOS
+                  {game.releaseYear ? `${game.releaseYear} · ` : ""}
+                  {guestPlatformLabel}
                 </span>
               </span>
             </button>
@@ -129,15 +133,16 @@ export function EmulatorPickerCard({
           onKeyDown={(event) => {
             if (event.key === "Enter") void runSearch();
           }}
-          placeholder="Search DOS games"
+          placeholder={`Search ${guestPlatformLabel} games`}
           className="min-w-64 flex-1"
         />
         <Button loading={busy} onClick={() => void runSearch()}>
-          Search DOS games
+          Search {guestPlatformLabel} games
         </Button>
       </div>
       <p className="mt-2 text-xs text-text-faint">
-        Search is restricted to the DOS platform and returns up to 50 results.
+        Search is restricted to {guestPlatformLabel} and returns up to 50
+        results.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">

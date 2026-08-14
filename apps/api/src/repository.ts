@@ -21,6 +21,7 @@ import {
   type IgdbExecutableMatch,
 } from "./igdb.js";
 import { count, logger } from "./logger.js";
+import { emulatorResolverFor } from "./emulatorResolvers.js";
 
 type ProcessMatchResult = {
   game: Game | null;
@@ -572,9 +573,14 @@ export class PostgresRepository implements PlayCounterRepository {
     emulatorId: string,
     query: string,
   ): Promise<Game[]> {
-    if (!this.igdb.configured || emulatorId !== "dosbox") return [];
+    const definition = emulatorResolverFor(emulatorId);
+    if (!this.igdb.configured || !definition) return [];
     const normalizedQuery = normalizeIgdbTitle(query);
-    const games = await this.igdb.findDosGames(query, 50);
+    const games = await this.igdb.findGamesForPlatforms(
+      query,
+      definition.igdbPlatformIds,
+      50,
+    );
     games.sort((left, right) => {
       const exactRank = (game: IgdbGame) =>
         [game.name, ...(game.alternative_names ?? []).map((name) => name.name)]
@@ -690,6 +696,7 @@ export class PostgresRepository implements PlayCounterRepository {
     let fallbackCount = 0;
     for (const item of missing) {
       const lookupKey = emulatorContentLookupKey(item);
+      const definition = emulatorResolverFor(item.emulatorId);
       const cached = this.emulatorLookupCache.get(lookupKey);
       if (cached && Date.now() - cached.at < igdbLookupMissTtlMs) {
         const { key: _cachedKey, ...result } = cached.result;
@@ -698,6 +705,7 @@ export class PostgresRepository implements PlayCounterRepository {
       }
       if (
         !this.igdb.configured ||
+        !definition ||
         fallbackCount >= maxIgdbFallbacksPerMatchRequest
       ) {
         resolutions.set(lookupKey, { confidence: "unknown", game: null });
@@ -705,7 +713,10 @@ export class PostgresRepository implements PlayCounterRepository {
       }
 
       fallbackCount += 1;
-      const query = emulatorGameSearchQuery(item.contentValue);
+      const query = definition.deriveSearchQuery(
+        item.contentValue,
+        item.searchHint,
+      );
       if (!query) {
         resolutions.set(lookupKey, { confidence: "unknown", game: null });
         continue;
@@ -713,7 +724,10 @@ export class PostgresRepository implements PlayCounterRepository {
 
       try {
         const found = dedupeIgdbGamesByIdentity(
-          await this.igdb.findDosGames(query),
+          await this.igdb.findGamesForPlatforms(
+            query,
+            definition.igdbPlatformIds,
+          ),
         );
         if (found.length === 0) {
           const result: EmulatorResolveResponse["results"][number] = {
@@ -1427,14 +1441,6 @@ function emulatorRowToGame(row: {
     coverUrl: row.cover_url ?? "",
     source: "igdb",
   };
-}
-
-function emulatorGameSearchQuery(contentValue: string) {
-  return contentValue
-    .replace(/\.(?:exe|com|bat|conf)$/i, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function normalizeIgdbTitle(value: string) {

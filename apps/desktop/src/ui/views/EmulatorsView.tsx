@@ -12,46 +12,76 @@ import { Panel, formatDuration } from "../components";
 import { Button } from "../primitives";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
 
+type EmulatorViewProps = {
+  emulatorId: string;
+  label: string;
+  fallbackHostName: string;
+};
+
 export function DosboxView() {
+  return (
+    <EmulatorView
+      emulatorId="dosbox"
+      label="DOSBox"
+      fallbackHostName="DOSBox"
+    />
+  );
+}
+
+export function DolphinView() {
+  return (
+    <EmulatorView
+      emulatorId="dolphin"
+      label="Dolphin"
+      fallbackHostName="dolphin.exe"
+    />
+  );
+}
+
+function EmulatorView({
+  emulatorId,
+  label,
+  fallbackHostName,
+}: EmulatorViewProps) {
   const allMappings = useAppStore((state) => state.emulatorMappings);
   const mappings = useMemo(
     () =>
       [...allMappings.values()].filter(
-        (mapping) => mapping.emulatorId === "dosbox",
+        (mapping) => mapping.emulatorId === emulatorId,
       ),
-    [allMappings],
+    [allMappings, emulatorId],
   );
   const allObservations = useAppStore((state) => state.emulatorObservations);
   const observations = useMemo(
     () =>
       allObservations.filter(
         (observation) =>
-          observation.emulatorId === "dosbox" &&
+          observation.emulatorId === emulatorId &&
           (observation.kind === "content" ||
             (!observation.endedAt && !observation.dismissedAt)),
       ),
-    [allObservations],
+    [allObservations, emulatorId],
   );
   const allSessions = useAppStore((state) => state.recentSessions);
   const sessions = useMemo(
     () =>
       allSessions.filter(
-        (session) => session.emulator?.emulatorId === "dosbox",
+        (session) => session.emulator?.emulatorId === emulatorId,
       ),
-    [allSessions],
+    [allSessions, emulatorId],
   );
   const allActiveSessions = useAppStore((state) => state.activeSessions);
   const activeSessions = useMemo(
     () =>
       allActiveSessions.filter(
-        (session) => session.emulator?.emulatorId === "dosbox",
+        (session) => session.emulator?.emulatorId === emulatorId,
       ),
-    [allActiveSessions],
+    [allActiveSessions, emulatorId],
   );
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
-  const known = useAppStore((state) => state.knownEmulators.get("dosbox"));
+  const known = useAppStore((state) => state.knownEmulators.get(emulatorId));
   const gameMappings = mappings.filter(
     (mapping) => mapping.decision === "game",
   );
@@ -71,15 +101,18 @@ export function DosboxView() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <img
-                src={emulatorAssetUrls.dosbox}
-                alt="DOSBox logo"
-                className="h-12 w-12 rounded-lg object-cover shadow-sm"
-              />
-              <h2 className="text-xl font-semibold text-text">DOSBox</h2>
+              {emulatorAssetUrls[emulatorId] ? (
+                <img
+                  src={emulatorAssetUrls[emulatorId]}
+                  alt={`${label} logo`}
+                  className="h-12 w-12 rounded-lg object-cover shadow-sm"
+                />
+              ) : null}
+              <h2 className="text-xl font-semibold text-text">{label}</h2>
             </div>
             <p className="mt-1 text-sm text-text-muted">
-              Detected executables: {known?.hostExeNames.join(", ") || "DOSBox"}
+              Detected executables:{" "}
+              {known?.hostExeNames.join(", ") || fallbackHostName}
             </p>
           </div>
           <div className="text-sm text-text-muted">
@@ -113,12 +146,12 @@ export function DosboxView() {
         <div className="border-b border-border px-5 py-4">
           <h2 className="font-semibold text-text">Your linked games</h2>
           <p className="mt-1 text-sm text-text-muted">
-            DOSBox games PlayCounter remembers and recognizes automatically.
+            {label} games PlayCounter remembers and recognizes automatically.
           </p>
         </div>
         {gameMappings.length === 0 ? (
           <div className="p-8 text-center text-sm text-text-muted">
-            No recognized DOSBox games yet.
+            No recognized {label} games yet.
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -185,7 +218,7 @@ export function DosboxView() {
       {ignoredMappings.length > 0 ? (
         <Panel className="overflow-hidden">
           <div className="border-b border-border px-5 py-4">
-            <h2 className="font-semibold text-text">Ignored DOSBox content</h2>
+            <h2 className="font-semibold text-text">Ignored {label} content</h2>
             <p className="mt-1 text-sm text-text-muted">
               Restoring an item lets PlayCounter detect and match it again.
             </p>

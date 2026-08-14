@@ -135,7 +135,9 @@ export function reconcileEmulatorReadings(input: {
 
   const intents: EmulatorIntent[] = [];
   const runningKeys = new Set(groups.keys());
-  const resolveItems: Array<{ key: string } & EmulatorContentRef> = [];
+  const resolveItems: Array<
+    { key: string; searchHint?: string } & EmulatorContentRef
+  > = [];
   const nowIso = new Date(input.now).toISOString();
 
   for (const [key, group] of groups) {
@@ -158,6 +160,12 @@ export function reconcileEmulatorReadings(input: {
 
     const existing = observationMap.get(key);
     const previous = existing?.kind === "content" ? existing : undefined;
+    const searchHintBecameShareable = Boolean(
+      group.item.content.shareableSearchHint &&
+      group.item.content.searchHint &&
+      (!previous?.shareableSearchHint ||
+        previous.searchHint !== group.item.content.searchHint),
+    );
     const observation: EmulatorContentObservation = {
       kind: "content",
       key,
@@ -170,12 +178,15 @@ export function reconcileEmulatorReadings(input: {
       trust: group.item.content.trust,
       shareable: group.item.content.shareable,
       searchHint: group.item.content.searchHint,
+      shareableSearchHint: group.item.content.shareableSearchHint,
       state:
         previous?.state ??
         (group.item.content.shareable ? "resolving" : "unknown"),
       candidates: previous?.candidates,
       detectedAt: previous?.detectedAt ?? nowIso,
-      lastCheckedAt: previous?.lastCheckedAt,
+      lastCheckedAt: searchHintBecameShareable
+        ? undefined
+        : previous?.lastCheckedAt,
       runningSince: previous?.runningSince,
       trackedSeconds: previous?.trackedSeconds,
     };
@@ -194,6 +205,9 @@ export function reconcileEmulatorReadings(input: {
         emulatorId: observation.emulatorId,
         contentKind: observation.contentKind,
         contentValue: observation.contentValue,
+        searchHint: observation.shareableSearchHint
+          ? observation.searchHint
+          : undefined,
       });
     }
     observationMap.set(key, observation);
@@ -315,5 +329,6 @@ function observationToSignal(
     shareable: observation.shareable,
     volatile: true,
     searchHint: observation.searchHint,
+    shareableSearchHint: observation.shareableSearchHint,
   };
 }

@@ -140,10 +140,25 @@ export class IgdbClient {
   }
 
   async findDosGames(query: string, limit = 50): Promise<IgdbGame[]> {
+    return this.findGamesForPlatforms(query, [13], limit);
+  }
+
+  async findGamesForPlatforms(
+    query: string,
+    platformIds: readonly number[],
+    limit = 50,
+  ): Promise<IgdbGame[]> {
     if (!this.configured || !this.options.clientId) return [];
 
     const normalizedQuery = query.trim();
-    if (!normalizedQuery) return [];
+    const normalizedPlatformIds = [
+      ...new Set(
+        platformIds.filter(
+          (platformId) => Number.isInteger(platformId) && platformId > 0,
+        ),
+      ),
+    ];
+    if (!normalizedQuery || normalizedPlatformIds.length === 0) return [];
 
     const accessToken = await this.getAccessToken();
     const response = await fetch("https://api.igdb.com/v4/games", {
@@ -156,14 +171,14 @@ export class IgdbClient {
       body: [
         `search "${escapeIgdbString(normalizedQuery)}";`,
         "fields name,alternative_names.name,cover.image_id,platforms,first_release_date;",
-        "where platforms = (13);",
+        `where platforms = (${normalizedPlatformIds.join(",")});`,
         `limit ${Math.max(1, Math.min(100, limit))};`,
       ].join(" "),
     });
 
     if (!response.ok) {
       throw new Error(
-        `IGDB DOS game search failed: ${response.status} ${await response.text()}`,
+        `IGDB platform game search failed: ${response.status} ${await response.text()}`,
       );
     }
 

@@ -117,7 +117,7 @@ describe("emulator resolution route", () => {
         items: [
           {
             key: "bad",
-            emulatorId: "dolphin",
+            emulatorId: "pcsx2",
             contentKind: "program",
             contentValue: "C:\\private\\doom.exe",
           },
@@ -125,6 +125,43 @@ describe("emulator resolution route", () => {
       },
     });
     expect(result.statusCode).toBe(400);
+  });
+
+  it("accepts Dolphin ROM identities and rejects cross-emulator kinds", async () => {
+    const app = await buildApp(new MemoryRepository());
+    apps.push(app);
+    const accepted = await app.inject({
+      method: "POST",
+      url: "/api/emulator/resolve",
+      payload: {
+        items: [
+          {
+            key: "dolphin:rom:metroid prime.rvz",
+            emulatorId: "DOLPHIN",
+            contentKind: "rom",
+            contentValue: "luigi's mansion.rvz",
+            searchHint: "Luigi's Mansion",
+          },
+        ],
+      },
+    });
+    const rejected = await app.inject({
+      method: "POST",
+      url: "/api/emulator/resolve",
+      payload: {
+        items: [
+          {
+            key: "dolphin:program:metroid.exe",
+            emulatorId: "dolphin",
+            contentKind: "program",
+            contentValue: "metroid.exe",
+          },
+        ],
+      },
+    });
+
+    expect(accepted.statusCode).toBe(200);
+    expect(rejected.statusCode).toBe(400);
   });
 
   it("uses the emulator-specific game search", async () => {
@@ -157,6 +194,16 @@ describe("emulator resolution route", () => {
     expect(repository.searchEmulatorGames).toHaveBeenCalledWith(
       "dosbox",
       "Doom",
+    );
+
+    const dolphinResult = await app.inject({
+      method: "GET",
+      url: "/api/emulator/games/search?emulatorId=dolphin&query=Metroid%20Prime",
+    });
+    expect(dolphinResult.statusCode).toBe(200);
+    expect(repository.searchEmulatorGames).toHaveBeenLastCalledWith(
+      "dolphin",
+      "Metroid Prime",
     );
   });
 });

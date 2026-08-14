@@ -22,6 +22,7 @@ export type EmulatorContentSignal = {
   shareable: boolean;
   volatile: boolean;
   searchHint?: string;
+  shareableSearchHint?: boolean;
 };
 
 export type EmulatorReading =
@@ -58,6 +59,7 @@ export type EmulatorContentObservation = {
   trust: EmulatorSignalTrust;
   shareable: boolean;
   searchHint?: string;
+  shareableSearchHint?: boolean;
   state: "resolving" | "ambiguous" | "unknown";
   candidates?: Game[];
   detectedAt: string;
