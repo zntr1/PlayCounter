@@ -121,6 +121,11 @@ export interface CommunityMetadataCandidate {
 
 export interface CommunityMetadataSearchResponse {
   candidates: CommunityMetadataCandidate[];
+  // Optional for compatibility with servers released before metadata search
+  // pagination. When true, nextOffset can be passed back to fetch more of the
+  // same ranked IGDB search without replacing the visible candidates.
+  hasMore?: boolean;
+  nextOffset?: number;
 }
 
 export interface CommunityGameSuggestionPayload {

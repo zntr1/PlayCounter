@@ -110,7 +110,9 @@ const emulatorResolveSchema = z.object({
 });
 const communityMetadataQuerySchema = z.object({
   query: z.string().trim().min(2).max(120),
+  offset: z.coerce.number().int().min(0).max(10_000).optional().default(0),
 });
+const communityMetadataPageSize = 40;
 const emulatorGameSearchSchema = z.object({
   emulatorId: emulatorIdSchema,
   query: z.string().trim().min(2).max(120),
@@ -272,8 +274,18 @@ export async function buildApp(repository: PlayCounterRepository) {
   });
   app.get("/api/community/metadata", async (request) => {
     const query = communityMetadataQuerySchema.parse(request.query);
+    const candidates = await repository.searchCommunityMetadata(
+      query.query,
+      communityMetadataPageSize + 1,
+      query.offset,
+    );
+    const hasMore = candidates.length > communityMetadataPageSize;
     return {
-      candidates: await repository.searchCommunityMetadata(query.query),
+      candidates: candidates.slice(0, communityMetadataPageSize),
+      hasMore,
+      nextOffset: hasMore
+        ? query.offset + communityMetadataPageSize
+        : undefined,
     };
   });
   app.get("/api/community/contributions", async (request) => {

@@ -50,3 +50,23 @@ describe("IGDB DOS lookup", () => {
     expect((request[1] as RequestInit).body).toContain("limit 25;");
   });
 });
+
+describe("IGDB game search", () => {
+  it("supports large paginated result sets", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify([{ id: 1, name: "Need for Speed" }]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new IgdbClient({ clientId: "client", accessToken: "token" });
+
+    await client.searchGames("Need for Speed", 41, 40);
+
+    const request = fetchMock.mock.calls[0];
+    expect((request[1] as RequestInit).body).toContain("limit 41;");
+    expect((request[1] as RequestInit).body).toContain("offset 40;");
+  });
+});

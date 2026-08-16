@@ -55,6 +55,10 @@ import { CommunitySuggestionForm } from "./DiscoveredView";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { gameSecondsKeys } from "../../gameSeconds";
 import {
+  communityMetadataSearchUrl,
+  mergeCommunityMetadataCandidates,
+} from "../../communityMetadataSearch";
+import {
   adjustmentSecondsFor,
   displayTotalSeconds,
 } from "../../playtimeAdjustments";
@@ -827,10 +831,12 @@ function GameLibraryCard({
   const [shareCandidates, setShareCandidates] = useState<
     CommunityMetadataCandidate[]
   >([]);
+  const [shareHasMore, setShareHasMore] = useState(false);
+  const [shareNextOffset, setShareNextOffset] = useState(0);
   const [shareSelection, setShareSelection] =
     useState<CommunityMetadataCandidate | null>(null);
   const [shareState, setShareState] = useState<
-    "idle" | "loading" | "saving" | "saved" | "error"
+    "idle" | "loading" | "loading-more" | "saving" | "saved" | "error"
   >("idle");
   const [shareMessage, setShareMessage] = useState("");
   const [showConvert, setShowConvert] = useState(false);
@@ -930,29 +936,38 @@ function GameLibraryCard({
     setShareOpen(false);
     setShareSearch("");
     setShareCandidates([]);
+    setShareHasMore(false);
+    setShareNextOffset(0);
     setShareSelection(null);
     setShareState("idle");
     setShareMessage("");
   }
 
-  async function searchShareCandidates() {
+  async function searchShareCandidatePage(offset: number, append: boolean) {
     const query = shareSearch.trim();
     if (query.length < 2 || isOffline) return;
 
-    setShareState("loading");
+    setShareState(append ? "loading-more" : "loading");
     setShareMessage("");
-    setShareCandidates([]);
+    if (!append) setShareCandidates([]);
     try {
       const response = await fetch(
-        `${apiEndpoint}/api/community/metadata?query=${encodeURIComponent(query)}`,
+        communityMetadataSearchUrl(apiEndpoint, query, offset),
       );
       if (!response.ok)
         throw new Error(`${response.status} ${response.statusText}`);
       const body = (await response.json()) as CommunityMetadataSearchResponse;
-      setShareCandidates(body.candidates);
+      const candidates = append
+        ? mergeCommunityMetadataCandidates(shareCandidates, body.candidates)
+        : body.candidates;
+      setShareCandidates(candidates);
+      setShareHasMore(Boolean(body.hasMore));
+      setShareNextOffset(body.nextOffset ?? 0);
       setShareMessage(
-        body.candidates.length > 0
-          ? "Pick the exact game this executable belongs to."
+        candidates.length > 0
+          ? body.hasMore
+            ? `${candidates.length} matches shown. Load more to keep looking.`
+            : `All ${candidates.length} matches shown. Pick the exact game this executable belongs to.`
           : "No matching games found.",
       );
       setShareState("idle");
@@ -960,6 +975,15 @@ function GameLibraryCard({
       setShareState("error");
       setShareMessage(formatError(error));
     }
+  }
+
+  function searchShareCandidates() {
+    return searchShareCandidatePage(0, false);
+  }
+
+  function loadMoreShareCandidates() {
+    if (!shareHasMore) return;
+    return searchShareCandidatePage(shareNextOffset, true);
   }
 
   function applyShareCandidate(candidate: CommunityMetadataCandidate) {
@@ -1581,6 +1605,7 @@ function GameLibraryCard({
           <CommunitySuggestionForm
             candidates={shareCandidates}
             exeName={game.exeNames[0] ?? ""}
+            hasMore={shareHasMore}
             message={shareMessage}
             search={shareSearch}
             selection={shareSelection}
@@ -1588,10 +1613,15 @@ function GameLibraryCard({
             isOffline={isOffline}
             onApplyCandidate={applyShareCandidate}
             onCancel={closeShare}
+            onLoadMore={loadMoreShareCandidates}
             onSearch={() => void searchShareCandidates()}
             onSearchChange={(value) => {
               setShareSearch(value);
               setShareSelection(null);
+              setShareCandidates([]);
+              setShareHasMore(false);
+              setShareNextOffset(0);
+              setShareMessage("");
             }}
             onSubmit={() => void submitShareSuggestion()}
           />
@@ -1846,6 +1876,7 @@ function GameLibraryCard({
         <CommunitySuggestionForm
           candidates={shareCandidates}
           exeName={game.exeNames[0] ?? ""}
+          hasMore={shareHasMore}
           message={shareMessage}
           search={shareSearch}
           selection={shareSelection}
@@ -1853,10 +1884,15 @@ function GameLibraryCard({
           isOffline={isOffline}
           onApplyCandidate={applyShareCandidate}
           onCancel={closeShare}
+          onLoadMore={loadMoreShareCandidates}
           onSearch={() => void searchShareCandidates()}
           onSearchChange={(value) => {
             setShareSearch(value);
             setShareSelection(null);
+            setShareCandidates([]);
+            setShareHasMore(false);
+            setShareNextOffset(0);
+            setShareMessage("");
           }}
           onSubmit={() => void submitShareSuggestion()}
         />

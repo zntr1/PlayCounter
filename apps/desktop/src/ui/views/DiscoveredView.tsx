@@ -52,6 +52,10 @@ import {
   type IgnoredProcessSort,
 } from "../discoveredSort";
 import { AnimatedCount, Button, IconButton, Input } from "../primitives";
+import {
+  communityMetadataSearchUrl,
+  mergeCommunityMetadataCandidates,
+} from "../../communityMetadataSearch";
 
 import {
   useContextMenu,
@@ -232,8 +236,10 @@ export function DiscoveredView() {
   const [suggestionCandidates, setSuggestionCandidates] = useState<
     CommunityMetadataCandidate[]
   >([]);
+  const [suggestionHasMore, setSuggestionHasMore] = useState(false);
+  const [suggestionNextOffset, setSuggestionNextOffset] = useState(0);
   const [suggestionState, setSuggestionState] = useState<
-    "idle" | "loading" | "saving" | "saved" | "error"
+    "idle" | "loading" | "loading-more" | "saving" | "saved" | "error"
   >("idle");
   const [suggestionMessage, setSuggestionMessage] = useState("");
   const [filter, setFilter] = useState<FilterId>("review");
@@ -349,30 +355,42 @@ export function DiscoveredView() {
     setSuggestionSelection(null);
     setSuggestionSearch("");
     setSuggestionCandidates([]);
+    setSuggestionHasMore(false);
+    setSuggestionNextOffset(0);
     setSuggestionMessage("");
     setSuggestionState("idle");
   }
 
-  async function searchSuggestionMetadata() {
+  async function searchSuggestionMetadataPage(offset: number, append: boolean) {
     const query = suggestionSearch.trim();
     if (query.length < 2 || isOffline) return;
 
-    setSuggestionCandidates([]);
+    if (!append) setSuggestionCandidates([]);
     setSuggestionMessage("");
-    setSuggestionState("loading");
+    setSuggestionState(append ? "loading-more" : "loading");
 
     try {
       const response = await fetch(
-        `${apiEndpoint}/api/community/metadata?query=${encodeURIComponent(query)}`,
+        communityMetadataSearchUrl(apiEndpoint, query, offset),
       );
       if (!response.ok)
         throw new Error(`${response.status} ${response.statusText}`);
 
       const body = (await response.json()) as CommunityMetadataSearchResponse;
-      setSuggestionCandidates(body.candidates);
+      const candidates = append
+        ? mergeCommunityMetadataCandidates(
+            suggestionCandidates,
+            body.candidates,
+          )
+        : body.candidates;
+      setSuggestionCandidates(candidates);
+      setSuggestionHasMore(Boolean(body.hasMore));
+      setSuggestionNextOffset(body.nextOffset ?? 0);
       setSuggestionMessage(
-        body.candidates.length > 0
-          ? "Pick the exact game to unlock sharing."
+        candidates.length > 0
+          ? body.hasMore
+            ? `${candidates.length} matches shown. Load more to keep looking.`
+            : `All ${candidates.length} matches shown. Pick the exact game to unlock sharing.`
           : "No matching game found.",
       );
       setSuggestionState("idle");
@@ -380,6 +398,15 @@ export function DiscoveredView() {
       setSuggestionState("error");
       setSuggestionMessage(formatError(error));
     }
+  }
+
+  function searchSuggestionMetadata() {
+    return searchSuggestionMetadataPage(0, false);
+  }
+
+  function loadMoreSuggestionMetadata() {
+    if (!suggestionHasMore) return;
+    return searchSuggestionMetadataPage(suggestionNextOffset, true);
   }
 
   function applyMetadataCandidate(candidate: CommunityMetadataCandidate) {
@@ -840,6 +867,7 @@ export function DiscoveredView() {
                     <CommunitySuggestionForm
                       candidates={suggestionCandidates}
                       exeName={activeReviewItem.exeName}
+                      hasMore={suggestionHasMore}
                       message={suggestionMessage}
                       search={suggestionSearch}
                       selection={suggestionSelection}
@@ -849,13 +877,21 @@ export function DiscoveredView() {
                       onCancel={() => {
                         setSuggestionExe(null);
                         setSuggestionSelection(null);
+                        setSuggestionCandidates([]);
+                        setSuggestionHasMore(false);
+                        setSuggestionNextOffset(0);
                         setSuggestionState("idle");
                         setSuggestionMessage("");
                       }}
+                      onLoadMore={loadMoreSuggestionMetadata}
                       onSearch={searchSuggestionMetadata}
                       onSearchChange={(value) => {
                         setSuggestionSearch(value);
                         setSuggestionSelection(null);
+                        setSuggestionCandidates([]);
+                        setSuggestionHasMore(false);
+                        setSuggestionNextOffset(0);
+                        setSuggestionMessage("");
                       }}
                       onSubmit={() =>
                         void submitCommunitySuggestion(activeReviewItem.exeName)
@@ -926,6 +962,7 @@ export function DiscoveredView() {
                     <CommunitySuggestionForm
                       candidates={suggestionCandidates}
                       exeName={executable.exeName}
+                      hasMore={suggestionHasMore}
                       message={suggestionMessage}
                       search={suggestionSearch}
                       selection={suggestionSelection}
@@ -935,13 +972,21 @@ export function DiscoveredView() {
                       onCancel={() => {
                         setSuggestionExe(null);
                         setSuggestionSelection(null);
+                        setSuggestionCandidates([]);
+                        setSuggestionHasMore(false);
+                        setSuggestionNextOffset(0);
                         setSuggestionState("idle");
                         setSuggestionMessage("");
                       }}
+                      onLoadMore={loadMoreSuggestionMetadata}
                       onSearch={searchSuggestionMetadata}
                       onSearchChange={(value) => {
                         setSuggestionSearch(value);
                         setSuggestionSelection(null);
+                        setSuggestionCandidates([]);
+                        setSuggestionHasMore(false);
+                        setSuggestionNextOffset(0);
+                        setSuggestionMessage("");
                       }}
                       onSubmit={() =>
                         void submitCommunitySuggestion(executable.exeName)
@@ -1577,6 +1622,7 @@ function DiscoveredExecutableRow({
 export function CommunitySuggestionForm({
   candidates,
   exeName,
+  hasMore,
   isOffline,
   message,
   search,
@@ -1584,24 +1630,28 @@ export function CommunitySuggestionForm({
   state,
   onApplyCandidate,
   onCancel,
+  onLoadMore,
   onSearch,
   onSearchChange,
   onSubmit,
 }: {
   candidates: CommunityMetadataCandidate[];
   exeName: string;
+  hasMore?: boolean;
   isOffline?: boolean;
   message: string;
   search: string;
   selection: CommunityMetadataCandidate | null;
-  state: "idle" | "loading" | "saving" | "saved" | "error";
+  state: "idle" | "loading" | "loading-more" | "saving" | "saved" | "error";
   onApplyCandidate: (candidate: CommunityMetadataCandidate) => void;
   onCancel: () => void;
+  onLoadMore?: () => void;
   onSearch: () => void;
   onSearchChange: (value: string) => void;
   onSubmit: () => void;
 }) {
-  const busy = state === "loading" || state === "saving";
+  const busy =
+    state === "loading" || state === "loading-more" || state === "saving";
   const canSubmit =
     Boolean(selection?.coverUrl) && !busy && state !== "saved" && !isOffline;
 
@@ -1678,7 +1728,7 @@ export function CommunitySuggestionForm({
                 variant="primary"
                 icon={Search}
                 loading={state === "loading"}
-                disabled={isOffline || search.trim().length < 2}
+                disabled={busy || isOffline || search.trim().length < 2}
                 title={
                   isOffline ? "Database search unavailable offline" : undefined
                 }
@@ -1701,69 +1751,83 @@ export function CommunitySuggestionForm({
                 </div>
               </div>
             ) : candidates.length > 0 ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {candidates.map((candidate) => {
-                  const selected = selection?.igdbId === candidate.igdbId;
-                  const missingCover = !candidate.coverUrl;
+              <div className="flex flex-col gap-5">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                  {candidates.map((candidate) => {
+                    const selected = selection?.igdbId === candidate.igdbId;
+                    const missingCover = !candidate.coverUrl;
 
-                  return (
-                    <button
-                      key={candidate.igdbId}
-                      type="button"
-                      onClick={() => onApplyCandidate(candidate)}
-                      disabled={missingCover}
-                      className={clsx(
-                        "group relative flex flex-col overflow-hidden rounded-lg border text-left transition focus:outline-none focus:ring-2 focus:ring-accent",
-                        selected
-                          ? "border-accent bg-accent/5 ring-1 ring-accent"
-                          : "border-border bg-surface hover:border-text-muted",
-                        missingCover &&
-                          "cursor-not-allowed opacity-60 hover:border-border",
-                      )}
-                    >
-                      <div className="aspect-[3/4] w-full bg-surface-hover">
-                        {candidate.coverUrl ? (
-                          <img
-                            src={candidate.coverUrl}
-                            alt=""
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="grid h-full place-items-center text-text-faint">
-                            <Gamepad2 size={32} className="opacity-50" />
-                          </div>
+                    return (
+                      <button
+                        key={candidate.igdbId}
+                        type="button"
+                        onClick={() => onApplyCandidate(candidate)}
+                        disabled={missingCover}
+                        className={clsx(
+                          "group relative flex flex-col overflow-hidden rounded-lg border text-left transition focus:outline-none focus:ring-2 focus:ring-accent",
+                          selected
+                            ? "border-accent bg-accent/5 ring-1 ring-accent"
+                            : "border-border bg-surface hover:border-text-muted",
+                          missingCover &&
+                            "cursor-not-allowed opacity-60 hover:border-border",
                         )}
-                      </div>
-
-                      <div className="flex flex-1 flex-col p-3">
-                        <span
-                          className="line-clamp-2 text-sm font-medium leading-tight text-text"
-                          title={candidate.name}
-                        >
-                          {candidate.name}
-                        </span>
-                        <div className="mt-auto pt-2 flex items-center justify-between text-xs text-text-faint">
-                          <span>
-                            {missingCover
-                              ? "No cover available"
-                              : `ID: ${candidate.igdbId}`}
-                          </span>
-                          {candidate.releaseYear && (
-                            <span className="shrink-0 rounded-md bg-surface-hover px-1.5 py-0.5">
-                              {candidate.releaseYear}
-                            </span>
+                      >
+                        <div className="aspect-[3/4] w-full bg-surface-hover">
+                          {candidate.coverUrl ? (
+                            <img
+                              src={candidate.coverUrl}
+                              alt=""
+                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="grid h-full place-items-center text-text-faint">
+                              <Gamepad2 size={32} className="opacity-50" />
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      {selected && (
-                        <div className="absolute right-2 top-2 rounded-full bg-accent p-1 text-accent-fg shadow-sm">
-                          <Check size={14} />
+                        <div className="flex flex-1 flex-col p-3">
+                          <span
+                            className="line-clamp-2 text-sm font-medium leading-tight text-text"
+                            title={candidate.name}
+                          >
+                            {candidate.name}
+                          </span>
+                          <div className="mt-auto pt-2 flex items-center justify-between text-xs text-text-faint">
+                            <span>
+                              {missingCover
+                                ? "No cover available"
+                                : `ID: ${candidate.igdbId}`}
+                            </span>
+                            {candidate.releaseYear && (
+                              <span className="shrink-0 rounded-md bg-surface-hover px-1.5 py-0.5">
+                                {candidate.releaseYear}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </button>
-                  );
-                })}
+
+                        {selected && (
+                          <div className="absolute right-2 top-2 rounded-full bg-accent p-1 text-accent-fg shadow-sm">
+                            <Check size={14} />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {hasMore && onLoadMore ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    loading={state === "loading-more"}
+                    disabled={busy || isOffline}
+                    onClick={onLoadMore}
+                    className="mx-auto min-w-40"
+                  >
+                    Load more matches
+                  </Button>
+                ) : null}
               </div>
             ) : (
               <div className="grid h-full place-items-center rounded-md border border-dashed border-border bg-surface p-10 text-center text-text-muted">

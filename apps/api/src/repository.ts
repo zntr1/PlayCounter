@@ -90,7 +90,11 @@ export interface PlayCounterRepository {
   gamesByIds(gameIds: number[]): Promise<Game[]>;
   searchIgdbGames(query: string): Promise<Game[]>;
   searchEmulatorGames(emulatorId: string, query: string): Promise<Game[]>;
-  searchCommunityMetadata(query: string): Promise<CommunityMetadataCandidate[]>;
+  searchCommunityMetadata(
+    query: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<CommunityMetadataCandidate[]>;
   resolveEmulatorContent(
     items: EmulatorResolveRequest["items"],
   ): Promise<EmulatorResolveResponse["results"]>;
@@ -638,11 +642,13 @@ export class PostgresRepository implements PlayCounterRepository {
 
   async searchCommunityMetadata(
     query: string,
+    limit = 10,
+    offset = 0,
   ): Promise<CommunityMetadataCandidate[]> {
     if (!this.igdb.configured) return [];
 
     try {
-      const games = await this.igdb.searchGames(query, 10);
+      const games = await this.igdb.searchGames(query, limit, offset);
       return games.map((game) => ({
         igdbId: game.id,
         name: game.name,

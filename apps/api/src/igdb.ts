@@ -108,7 +108,7 @@ export class IgdbClient {
     return { executableName: match.name, game: match.game };
   }
 
-  async searchGames(query: string, limit = 5): Promise<IgdbGame[]> {
+  async searchGames(query: string, limit = 5, offset = 0): Promise<IgdbGame[]> {
     if (!this.configured || !this.options.clientId) return [];
 
     const normalizedQuery = query.trim();
@@ -126,7 +126,8 @@ export class IgdbClient {
         `search "${escapeIgdbString(normalizedQuery)}";`,
         "fields name,cover.image_id,platforms,first_release_date;",
         "where name != null;",
-        `limit ${Math.max(1, Math.min(10, limit))};`,
+        `limit ${Math.max(1, Math.min(500, limit))};`,
+        `offset ${Math.max(0, Math.min(10_000, offset))};`,
       ].join(" "),
     });
 

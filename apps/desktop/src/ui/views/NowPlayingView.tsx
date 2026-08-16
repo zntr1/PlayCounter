@@ -36,6 +36,10 @@ import {
 } from "../../tracker";
 import { gameSecondsKeys } from "../../gameSeconds";
 import {
+  communityMetadataSearchUrl,
+  mergeCommunityMetadataCandidates,
+} from "../../communityMetadataSearch";
+import {
   adjustmentSecondsFor,
   displayTotalSeconds,
 } from "../../playtimeAdjustments";
@@ -505,11 +509,13 @@ function AmbiguousMatchCard({
   const [searchResults, setSearchResults] = useState<
     CommunityMetadataCandidate[]
   >([]);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchNextOffset, setSearchNextOffset] = useState(0);
   const [selection, setSelection] = useState<CommunityMetadataCandidate | null>(
     null,
   );
   const [searchState, setSearchState] = useState<
-    "idle" | "loading" | "saving" | "saved" | "error"
+    "idle" | "loading" | "loading-more" | "saving" | "saved" | "error"
   >("idle");
   const [searchMessage, setSearchMessage] = useState("");
   const [customEntryOpen, setCustomEntryOpen] = useState(false);
@@ -540,24 +546,31 @@ function AmbiguousMatchCard({
     });
   }
 
-  async function searchIgdb() {
+  async function searchIgdbPage(offset: number, append: boolean) {
     const query = searchQuery.trim();
     if (query.length < 2 || isOffline) return;
 
-    setSearchState("loading");
+    setSearchState(append ? "loading-more" : "loading");
     setSearchMessage("");
-    setSearchResults([]);
+    if (!append) setSearchResults([]);
     try {
       const response = await fetch(
-        `${apiEndpoint}/api/community/metadata?query=${encodeURIComponent(query)}`,
+        communityMetadataSearchUrl(apiEndpoint, query, offset),
       );
       if (!response.ok)
         throw new Error(`${response.status} ${response.statusText}`);
       const body = (await response.json()) as CommunityMetadataSearchResponse;
-      setSearchResults(body.candidates);
+      const results = append
+        ? mergeCommunityMetadataCandidates(searchResults, body.candidates)
+        : body.candidates;
+      setSearchResults(results);
+      setSearchHasMore(Boolean(body.hasMore));
+      setSearchNextOffset(body.nextOffset ?? 0);
       setSearchMessage(
-        body.candidates.length > 0
-          ? "Select the game you launched. PlayCounter will track it as a custom game while the community match is reviewed."
+        results.length > 0
+          ? body.hasMore
+            ? `${results.length} matches shown. Load more to keep looking.`
+            : `All ${results.length} matches shown. Select the game you launched. PlayCounter will track it as a custom game while the community match is reviewed.`
           : "No matching games found.",
       );
       setSearchState("idle");
@@ -565,6 +578,15 @@ function AmbiguousMatchCard({
       setSearchState("error");
       setSearchMessage(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  function searchIgdb() {
+    return searchIgdbPage(0, false);
+  }
+
+  function loadMoreIgdb() {
+    if (!searchHasMore) return;
+    return searchIgdbPage(searchNextOffset, true);
   }
 
   function applyMetadataCandidate(candidate: CommunityMetadataCandidate) {
@@ -666,6 +688,9 @@ function AmbiguousMatchCard({
   function closeSuggestion() {
     setSuggestionOpen(false);
     setSelection(null);
+    setSearchResults([]);
+    setSearchHasMore(false);
+    setSearchNextOffset(0);
     setSearchState("idle");
     setSearchMessage("");
   }
@@ -845,6 +870,7 @@ function AmbiguousMatchCard({
           <CommunitySuggestionForm
             candidates={searchResults}
             exeName={exeName}
+            hasMore={searchHasMore}
             message={searchMessage}
             search={searchQuery}
             selection={selection}
@@ -852,10 +878,15 @@ function AmbiguousMatchCard({
             isOffline={isOffline}
             onApplyCandidate={applyMetadataCandidate}
             onCancel={closeSuggestion}
+            onLoadMore={loadMoreIgdb}
             onSearch={searchIgdb}
             onSearchChange={(value) => {
               setSearchQuery(value);
               setSelection(null);
+              setSearchResults([]);
+              setSearchHasMore(false);
+              setSearchNextOffset(0);
+              setSearchMessage("");
             }}
             onSubmit={() => void submitCommunitySuggestion()}
           />

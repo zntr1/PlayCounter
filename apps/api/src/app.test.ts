@@ -67,6 +67,53 @@ describe("community contributions route", () => {
   });
 });
 
+describe("community metadata route", () => {
+  it("returns a page and exposes the offset for remaining IGDB matches", async () => {
+    class MetadataRepository extends MemoryRepository {
+      override searchCommunityMetadata = vi.fn(
+        async (_query: string, limit = 10, offset = 0) =>
+          Array.from({ length: limit }, (_, index) => ({
+            igdbId: offset + index + 1,
+            name: `Need for Speed ${offset + index + 1}`,
+            coverUrl: "",
+          })),
+      );
+    }
+    const repository = new MetadataRepository();
+    const app = await buildApp(repository);
+    apps.push(app);
+
+    const result = await app.inject({
+      method: "GET",
+      url: "/api/community/metadata?query=Need%20for%20Speed&offset=40",
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toMatchObject({
+      hasMore: true,
+      nextOffset: 80,
+    });
+    expect(result.json().candidates).toHaveLength(40);
+    expect(repository.searchCommunityMetadata).toHaveBeenCalledWith(
+      "Need for Speed",
+      41,
+      40,
+    );
+  });
+
+  it("rejects invalid search offsets", async () => {
+    const app = await buildApp(new MemoryRepository());
+    apps.push(app);
+
+    const result = await app.inject({
+      method: "GET",
+      url: "/api/community/metadata?query=Need%20for%20Speed&offset=-1",
+    });
+
+    expect(result.statusCode).toBe(400);
+  });
+});
+
 describe("identifier report route", () => {
   const uuid = "550e8400-e29b-41d4-a716-446655440000";
 
