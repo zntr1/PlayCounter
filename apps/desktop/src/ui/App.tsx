@@ -593,9 +593,9 @@ function ToastCard({
           </span>
         ) : null}
         <div className="min-w-0 flex-1">
-          <div className="font-medium text-text break-all">{toast.title}</div>
+          <div className="break-words font-medium text-text">{toast.title}</div>
           {toast.detail ? (
-            <div className="mt-1 text-sm text-text-muted break-all">
+            <div className="mt-1 break-words text-sm text-text-muted">
               {toast.detail}
             </div>
           ) : null}
