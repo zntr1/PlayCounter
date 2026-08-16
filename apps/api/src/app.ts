@@ -111,6 +111,11 @@ const emulatorResolveSchema = z.object({
 const communityMetadataQuerySchema = z.object({
   query: z.string().trim().min(2).max(120),
   offset: z.coerce.number().int().min(0).max(10_000).optional().default(0),
+  releaseYear: z.coerce.number().int().min(1950).max(2100).optional(),
+  sort: z
+    .enum(["relevance", "release-desc", "release-asc"])
+    .optional()
+    .default("relevance"),
 });
 const communityMetadataPageSize = 40;
 const emulatorGameSearchSchema = z.object({
@@ -278,6 +283,7 @@ export async function buildApp(repository: PlayCounterRepository) {
       query.query,
       communityMetadataPageSize + 1,
       query.offset,
+      { releaseYear: query.releaseYear, sort: query.sort },
     );
     const hasMore = candidates.length > communityMetadataPageSize;
     return {

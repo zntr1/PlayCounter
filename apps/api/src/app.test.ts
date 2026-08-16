@@ -85,7 +85,7 @@ describe("community metadata route", () => {
 
     const result = await app.inject({
       method: "GET",
-      url: "/api/community/metadata?query=Need%20for%20Speed&offset=40",
+      url: "/api/community/metadata?query=Need%20for%20Speed&offset=40&releaseYear=2015&sort=release-desc",
     });
 
     expect(result.statusCode).toBe(200);
@@ -98,19 +98,22 @@ describe("community metadata route", () => {
       "Need for Speed",
       41,
       40,
+      { releaseYear: 2015, sort: "release-desc" },
     );
   });
 
-  it("rejects invalid search offsets", async () => {
+  it("rejects invalid pagination and release filter values", async () => {
     const app = await buildApp(new MemoryRepository());
     apps.push(app);
 
-    const result = await app.inject({
-      method: "GET",
-      url: "/api/community/metadata?query=Need%20for%20Speed&offset=-1",
-    });
-
-    expect(result.statusCode).toBe(400);
+    for (const url of [
+      "/api/community/metadata?query=Need%20for%20Speed&offset=-1",
+      "/api/community/metadata?query=Need%20for%20Speed&releaseYear=1949",
+      "/api/community/metadata?query=Need%20for%20Speed&sort=popular",
+    ]) {
+      const result = await app.inject({ method: "GET", url });
+      expect(result.statusCode).toBe(400);
+    }
   });
 });
 

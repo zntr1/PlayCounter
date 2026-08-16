@@ -57,6 +57,7 @@ import { gameSecondsKeys } from "../../gameSeconds";
 import {
   communityMetadataSearchUrl,
   mergeCommunityMetadataCandidates,
+  type CommunityMetadataSearchOptions,
 } from "../../communityMetadataSearch";
 import {
   adjustmentSecondsFor,
@@ -943,7 +944,11 @@ function GameLibraryCard({
     setShareMessage("");
   }
 
-  async function searchShareCandidatePage(offset: number, append: boolean) {
+  async function searchShareCandidatePage(
+    offset: number,
+    append: boolean,
+    options: CommunityMetadataSearchOptions,
+  ) {
     const query = shareSearch.trim();
     if (query.length < 2 || isOffline) return;
 
@@ -952,7 +957,7 @@ function GameLibraryCard({
     if (!append) setShareCandidates([]);
     try {
       const response = await fetch(
-        communityMetadataSearchUrl(apiEndpoint, query, offset),
+        communityMetadataSearchUrl(apiEndpoint, query, offset, options),
       );
       if (!response.ok)
         throw new Error(`${response.status} ${response.statusText}`);
@@ -977,13 +982,13 @@ function GameLibraryCard({
     }
   }
 
-  function searchShareCandidates() {
-    return searchShareCandidatePage(0, false);
+  function searchShareCandidates(options: CommunityMetadataSearchOptions) {
+    return searchShareCandidatePage(0, false, options);
   }
 
-  function loadMoreShareCandidates() {
+  function loadMoreShareCandidates(options: CommunityMetadataSearchOptions) {
     if (!shareHasMore) return;
-    return searchShareCandidatePage(shareNextOffset, true);
+    return searchShareCandidatePage(shareNextOffset, true, options);
   }
 
   function applyShareCandidate(candidate: CommunityMetadataCandidate) {
@@ -1614,9 +1619,16 @@ function GameLibraryCard({
             onApplyCandidate={applyShareCandidate}
             onCancel={closeShare}
             onLoadMore={loadMoreShareCandidates}
-            onSearch={() => void searchShareCandidates()}
+            onSearch={(options) => void searchShareCandidates(options)}
             onSearchChange={(value) => {
               setShareSearch(value);
+              setShareSelection(null);
+              setShareCandidates([]);
+              setShareHasMore(false);
+              setShareNextOffset(0);
+              setShareMessage("");
+            }}
+            onSearchOptionsChange={() => {
               setShareSelection(null);
               setShareCandidates([]);
               setShareHasMore(false);
@@ -1885,9 +1897,16 @@ function GameLibraryCard({
           onApplyCandidate={applyShareCandidate}
           onCancel={closeShare}
           onLoadMore={loadMoreShareCandidates}
-          onSearch={() => void searchShareCandidates()}
+          onSearch={(options) => void searchShareCandidates(options)}
           onSearchChange={(value) => {
             setShareSearch(value);
+            setShareSelection(null);
+            setShareCandidates([]);
+            setShareHasMore(false);
+            setShareNextOffset(0);
+            setShareMessage("");
+          }}
+          onSearchOptionsChange={() => {
             setShareSelection(null);
             setShareCandidates([]);
             setShareHasMore(false);

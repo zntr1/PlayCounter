@@ -16,6 +16,17 @@ describe("community metadata pagination", () => {
     );
   });
 
+  it("includes release-year filtering and sorting when requested", () => {
+    expect(
+      communityMetadataSearchUrl("https://api.example", "Need for Speed", 0, {
+        releaseYear: 2015,
+        sort: "release-desc",
+      }),
+    ).toBe(
+      "https://api.example/api/community/metadata?query=Need+for+Speed&releaseYear=2015&sort=release-desc",
+    );
+  });
+
   it("appends pages without duplicating IGDB games", () => {
     expect(
       mergeCommunityMetadataCandidates(

@@ -26,6 +26,11 @@ export type IgdbClientOptions = {
   clientSecret?: string;
 };
 
+export type IgdbGameSearchOptions = {
+  releaseYear?: number;
+  sort?: "relevance" | "release-desc" | "release-asc";
+};
+
 export class IgdbClient {
   private accessToken?: string;
 
@@ -108,11 +113,35 @@ export class IgdbClient {
     return { executableName: match.name, game: match.game };
   }
 
-  async searchGames(query: string, limit = 5, offset = 0): Promise<IgdbGame[]> {
+  async searchGames(
+    query: string,
+    limit = 5,
+    offset = 0,
+    options: IgdbGameSearchOptions = {},
+  ): Promise<IgdbGame[]> {
     if (!this.configured || !this.options.clientId) return [];
 
     const normalizedQuery = query.trim();
     if (!normalizedQuery) return [];
+
+    const where = ["name != null"];
+    if (options.releaseYear !== undefined) {
+      const start = Date.UTC(options.releaseYear, 0, 1) / 1000;
+      const end = Date.UTC(options.releaseYear + 1, 0, 1) / 1000;
+      where.push(`first_release_date >= ${start}`);
+      where.push(`first_release_date < ${end}`);
+    }
+    const requestedLimit = Math.max(1, Math.min(500, limit));
+    const releaseSort =
+      options.sort === "release-desc" || options.sort === "release-asc"
+        ? options.sort
+        : undefined;
+    // IGDB rejects queries that combine `search` and `sort`. To provide a
+    // deterministic release-date order across pages, fetch the complete
+    // searchable result window, sort it locally, then apply the requested
+    // offset and limit.
+    const igdbLimit = releaseSort ? 500 : requestedLimit;
+    const igdbOffset = releaseSort ? 0 : Math.max(0, Math.min(10_000, offset));
 
     const accessToken = await this.getAccessToken();
     const response = await fetch("https://api.igdb.com/v4/games", {
@@ -125,9 +154,9 @@ export class IgdbClient {
       body: [
         `search "${escapeIgdbString(normalizedQuery)}";`,
         "fields name,cover.image_id,platforms,first_release_date;",
-        "where name != null;",
-        `limit ${Math.max(1, Math.min(500, limit))};`,
-        `offset ${Math.max(0, Math.min(10_000, offset))};`,
+        `where ${where.join(" & ")};`,
+        `limit ${igdbLimit};`,
+        `offset ${igdbOffset};`,
       ].join(" "),
     });
 
@@ -137,7 +166,19 @@ export class IgdbClient {
       );
     }
 
-    return (await response.json()) as IgdbGame[];
+    const games = (await response.json()) as IgdbGame[];
+    if (!releaseSort) return games;
+
+    games.sort((left, right) => {
+      const leftDate = left.first_release_date;
+      const rightDate = right.first_release_date;
+      if (leftDate === undefined) return rightDate === undefined ? 0 : 1;
+      if (rightDate === undefined) return -1;
+      return releaseSort === "release-desc"
+        ? rightDate - leftDate
+        : leftDate - rightDate;
+    });
+    return games.slice(offset, offset + requestedLimit);
   }
 
   async findDosGames(query: string, limit = 50): Promise<IgdbGame[]> {

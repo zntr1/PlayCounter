@@ -20,6 +20,7 @@ import pg from "pg";
 import {
   createIgdbClientFromEnv,
   type IgdbGame,
+  type IgdbGameSearchOptions,
   type IgdbClient,
   type IgdbExecutableMatch,
 } from "./igdb.js";
@@ -94,6 +95,7 @@ export interface PlayCounterRepository {
     query: string,
     limit?: number,
     offset?: number,
+    options?: IgdbGameSearchOptions,
   ): Promise<CommunityMetadataCandidate[]>;
   resolveEmulatorContent(
     items: EmulatorResolveRequest["items"],
@@ -644,11 +646,12 @@ export class PostgresRepository implements PlayCounterRepository {
     query: string,
     limit = 10,
     offset = 0,
+    options: IgdbGameSearchOptions = {},
   ): Promise<CommunityMetadataCandidate[]> {
     if (!this.igdb.configured) return [];
 
     try {
-      const games = await this.igdb.searchGames(query, limit, offset);
+      const games = await this.igdb.searchGames(query, limit, offset, options);
       return games.map((game) => ({
         igdbId: game.id,
         name: game.name,

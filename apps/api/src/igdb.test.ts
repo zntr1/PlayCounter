@@ -69,4 +69,56 @@ describe("IGDB game search", () => {
     expect((request[1] as RequestInit).body).toContain("limit 41;");
     expect((request[1] as RequestInit).body).toContain("offset 40;");
   });
+
+  it("filters by first release date", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new IgdbClient({ clientId: "client", accessToken: "token" });
+
+    await client.searchGames("Need for Speed", 41, 0, {
+      releaseYear: 2015,
+      sort: "release-desc",
+    });
+
+    const body = (fetchMock.mock.calls[0][1] as RequestInit).body;
+    expect(body).toContain(
+      "where name != null & first_release_date >= 1420070400 & first_release_date < 1451606400;",
+    );
+    expect(body).not.toContain("sort first_release_date");
+  });
+
+  it("sorts the complete IGDB search window locally before paginating", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify([
+            { id: 1, name: "Unknown date" },
+            { id: 2, name: "Old", first_release_date: 946684800 },
+            { id: 3, name: "New", first_release_date: 1577836800 },
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new IgdbClient({ clientId: "client", accessToken: "token" });
+
+    const games = await client.searchGames("Need for Speed", 2, 0, {
+      sort: "release-desc",
+    });
+
+    expect(games.map((game) => game.name)).toEqual(["New", "Old"]);
+    const body = (fetchMock.mock.calls[0][1] as RequestInit).body;
+    expect(body).toContain("limit 500;");
+    expect(body).toContain("offset 0;");
+    expect(body).not.toContain("sort first_release_date");
+  });
 });

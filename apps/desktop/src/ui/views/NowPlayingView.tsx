@@ -38,6 +38,7 @@ import { gameSecondsKeys } from "../../gameSeconds";
 import {
   communityMetadataSearchUrl,
   mergeCommunityMetadataCandidates,
+  type CommunityMetadataSearchOptions,
 } from "../../communityMetadataSearch";
 import {
   adjustmentSecondsFor,
@@ -546,7 +547,11 @@ function AmbiguousMatchCard({
     });
   }
 
-  async function searchIgdbPage(offset: number, append: boolean) {
+  async function searchIgdbPage(
+    offset: number,
+    append: boolean,
+    options: CommunityMetadataSearchOptions,
+  ) {
     const query = searchQuery.trim();
     if (query.length < 2 || isOffline) return;
 
@@ -555,7 +560,7 @@ function AmbiguousMatchCard({
     if (!append) setSearchResults([]);
     try {
       const response = await fetch(
-        communityMetadataSearchUrl(apiEndpoint, query, offset),
+        communityMetadataSearchUrl(apiEndpoint, query, offset, options),
       );
       if (!response.ok)
         throw new Error(`${response.status} ${response.statusText}`);
@@ -580,13 +585,13 @@ function AmbiguousMatchCard({
     }
   }
 
-  function searchIgdb() {
-    return searchIgdbPage(0, false);
+  function searchIgdb(options: CommunityMetadataSearchOptions) {
+    return searchIgdbPage(0, false, options);
   }
 
-  function loadMoreIgdb() {
+  function loadMoreIgdb(options: CommunityMetadataSearchOptions) {
     if (!searchHasMore) return;
-    return searchIgdbPage(searchNextOffset, true);
+    return searchIgdbPage(searchNextOffset, true, options);
   }
 
   function applyMetadataCandidate(candidate: CommunityMetadataCandidate) {
@@ -882,6 +887,13 @@ function AmbiguousMatchCard({
             onSearch={searchIgdb}
             onSearchChange={(value) => {
               setSearchQuery(value);
+              setSelection(null);
+              setSearchResults([]);
+              setSearchHasMore(false);
+              setSearchNextOffset(0);
+              setSearchMessage("");
+            }}
+            onSearchOptionsChange={() => {
               setSelection(null);
               setSearchResults([]);
               setSearchHasMore(false);

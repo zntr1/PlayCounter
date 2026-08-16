@@ -55,6 +55,8 @@ import { AnimatedCount, Button, IconButton, Input } from "../primitives";
 import {
   communityMetadataSearchUrl,
   mergeCommunityMetadataCandidates,
+  type CommunityMetadataSearchOptions,
+  type CommunityMetadataSort,
 } from "../../communityMetadataSearch";
 
 import {
@@ -361,7 +363,11 @@ export function DiscoveredView() {
     setSuggestionState("idle");
   }
 
-  async function searchSuggestionMetadataPage(offset: number, append: boolean) {
+  async function searchSuggestionMetadataPage(
+    offset: number,
+    append: boolean,
+    options: CommunityMetadataSearchOptions,
+  ) {
     const query = suggestionSearch.trim();
     if (query.length < 2 || isOffline) return;
 
@@ -371,7 +377,7 @@ export function DiscoveredView() {
 
     try {
       const response = await fetch(
-        communityMetadataSearchUrl(apiEndpoint, query, offset),
+        communityMetadataSearchUrl(apiEndpoint, query, offset, options),
       );
       if (!response.ok)
         throw new Error(`${response.status} ${response.statusText}`);
@@ -400,13 +406,13 @@ export function DiscoveredView() {
     }
   }
 
-  function searchSuggestionMetadata() {
-    return searchSuggestionMetadataPage(0, false);
+  function searchSuggestionMetadata(options: CommunityMetadataSearchOptions) {
+    return searchSuggestionMetadataPage(0, false, options);
   }
 
-  function loadMoreSuggestionMetadata() {
+  function loadMoreSuggestionMetadata(options: CommunityMetadataSearchOptions) {
     if (!suggestionHasMore) return;
-    return searchSuggestionMetadataPage(suggestionNextOffset, true);
+    return searchSuggestionMetadataPage(suggestionNextOffset, true, options);
   }
 
   function applyMetadataCandidate(candidate: CommunityMetadataCandidate) {
@@ -893,6 +899,13 @@ export function DiscoveredView() {
                         setSuggestionNextOffset(0);
                         setSuggestionMessage("");
                       }}
+                      onSearchOptionsChange={() => {
+                        setSuggestionSelection(null);
+                        setSuggestionCandidates([]);
+                        setSuggestionHasMore(false);
+                        setSuggestionNextOffset(0);
+                        setSuggestionMessage("");
+                      }}
                       onSubmit={() =>
                         void submitCommunitySuggestion(activeReviewItem.exeName)
                       }
@@ -982,6 +995,13 @@ export function DiscoveredView() {
                       onSearch={searchSuggestionMetadata}
                       onSearchChange={(value) => {
                         setSuggestionSearch(value);
+                        setSuggestionSelection(null);
+                        setSuggestionCandidates([]);
+                        setSuggestionHasMore(false);
+                        setSuggestionNextOffset(0);
+                        setSuggestionMessage("");
+                      }}
+                      onSearchOptionsChange={() => {
                         setSuggestionSelection(null);
                         setSuggestionCandidates([]);
                         setSuggestionHasMore(false);
@@ -1633,6 +1653,7 @@ export function CommunitySuggestionForm({
   onLoadMore,
   onSearch,
   onSearchChange,
+  onSearchOptionsChange,
   onSubmit,
 }: {
   candidates: CommunityMetadataCandidate[];
@@ -1645,13 +1666,28 @@ export function CommunitySuggestionForm({
   state: "idle" | "loading" | "loading-more" | "saving" | "saved" | "error";
   onApplyCandidate: (candidate: CommunityMetadataCandidate) => void;
   onCancel: () => void;
-  onLoadMore?: () => void;
-  onSearch: () => void;
+  onLoadMore?: (options: CommunityMetadataSearchOptions) => void;
+  onSearch: (options: CommunityMetadataSearchOptions) => void;
   onSearchChange: (value: string) => void;
+  onSearchOptionsChange?: () => void;
   onSubmit: () => void;
 }) {
   const busy =
     state === "loading" || state === "loading-more" || state === "saving";
+  const [releaseYearInput, setReleaseYearInput] = useState("");
+  const [sort, setSort] = useState<CommunityMetadataSort>("relevance");
+  const parsedReleaseYear = Number(releaseYearInput);
+  const releaseYearValid =
+    !releaseYearInput ||
+    (/^\d{4}$/.test(releaseYearInput) &&
+      parsedReleaseYear >= 1950 &&
+      parsedReleaseYear <= 2100);
+  const searchOptions: CommunityMetadataSearchOptions = {
+    sort,
+    ...(releaseYearInput && releaseYearValid
+      ? { releaseYear: parsedReleaseYear }
+      : {}),
+  };
   const canSubmit =
     Boolean(selection?.coverUrl) && !busy && state !== "saved" && !isOffline;
 
@@ -1714,7 +1750,12 @@ export function CommunitySuggestionForm({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      if (search.trim().length >= 2 && !isOffline) onSearch();
+                      if (
+                        search.trim().length >= 2 &&
+                        releaseYearValid &&
+                        !isOffline
+                      )
+                        onSearch(searchOptions);
                     }
                   }}
                   disabled={isOffline}
@@ -1728,15 +1769,76 @@ export function CommunitySuggestionForm({
                 variant="primary"
                 icon={Search}
                 loading={state === "loading"}
-                disabled={busy || isOffline || search.trim().length < 2}
+                disabled={
+                  busy ||
+                  isOffline ||
+                  search.trim().length < 2 ||
+                  !releaseYearValid
+                }
                 title={
                   isOffline ? "Database search unavailable offline" : undefined
                 }
-                onClick={onSearch}
+                onClick={() => onSearch(searchOptions)}
                 className="h-10 shrink-0 px-5"
               >
                 Search
               </Button>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
+                Release year
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  value={releaseYearInput}
+                  onChange={(event) => {
+                    setReleaseYearInput(
+                      event.target.value.replace(/\D/g, "").slice(0, 4),
+                    );
+                    onSearchOptionsChange?.();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    if (
+                      search.trim().length >= 2 &&
+                      releaseYearValid &&
+                      !isOffline
+                    )
+                      onSearch(searchOptions);
+                  }}
+                  disabled={busy || isOffline}
+                  placeholder="Any year"
+                  aria-invalid={!releaseYearValid}
+                  className={clsx(
+                    "h-9 w-28",
+                    !releaseYearValid && "border-danger focus:border-danger",
+                  )}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
+                Sort by
+                <select
+                  value={sort}
+                  onChange={(event) => {
+                    setSort(event.target.value as CommunityMetadataSort);
+                    onSearchOptionsChange?.();
+                  }}
+                  disabled={busy || isOffline}
+                  className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+                >
+                  <option value="relevance">IGDB relevance</option>
+                  <option value="release-desc">Newest release</option>
+                  <option value="release-asc">Oldest release</option>
+                </select>
+              </label>
+              {!releaseYearValid ? (
+                <span className="pb-2 text-xs text-danger">
+                  Enter a year from 1950 to 2100.
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -1822,7 +1924,7 @@ export function CommunitySuggestionForm({
                     variant="secondary"
                     loading={state === "loading-more"}
                     disabled={busy || isOffline}
-                    onClick={onLoadMore}
+                    onClick={() => onLoadMore(searchOptions)}
                     className="mx-auto min-w-40"
                   >
                     Load more matches
