@@ -93,6 +93,8 @@ export function AchievementsView() {
             gameId: game.id,
             source: game.source,
             igdbId: game.igdbId,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
           },
           resolveIgdbId,
         ),

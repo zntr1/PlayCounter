@@ -154,6 +154,8 @@ function matchedEntriesByGame(
         gameId: entry.gameId,
         source: entry.source,
         igdbId: entry.igdbId,
+        gameName: entry.gameName,
+        coverUrl: entry.coverUrl,
       },
       resolveIgdbId,
     );
@@ -336,14 +338,24 @@ export function MyGamesView() {
           : (hydratedGameMetadata.get(`igdb:${session.gameId}`) ??
             hydratedGameMetadata.get(`community:${session.gameId}`));
       const resolvedSource = session.source ?? hydratedMeta?.source ?? null;
+      const resolvedIgdbId = resolveIgdbId(
+        session.gameId,
+        resolvedSource,
+        session.gameName,
+      );
       const igdbId =
-        session.igdbId ??
-        hydratedMeta?.igdbId ??
-        resolveIgdbId(session.gameId, resolvedSource);
+        resolvedIgdbId === null
+          ? undefined
+          : (session.igdbId ??
+            hydratedMeta?.igdbId ??
+            resolvedIgdbId ??
+            undefined);
       const summaryKey = resolvedCanonicalGameKey({
         gameId: session.gameId,
         source: resolvedSource,
         igdbId,
+        gameName: session.gameName,
+        coverUrl: session.coverUrl,
       });
       const gameEntries = metadata.get(summaryKey) ?? [];
       const gameMeta =
@@ -438,14 +450,24 @@ export function MyGamesView() {
             hydratedGameMetadata.get(`community:${activeSession.gameId}`));
       const resolvedSource =
         activeSession.source ?? hydratedMeta?.source ?? null;
+      const resolvedIgdbId = resolveIgdbId(
+        activeSession.gameId,
+        resolvedSource,
+        activeSession.gameName,
+      );
       const igdbId =
-        activeSession.igdbId ??
-        hydratedMeta?.igdbId ??
-        resolveIgdbId(activeSession.gameId, resolvedSource);
+        resolvedIgdbId === null
+          ? undefined
+          : (activeSession.igdbId ??
+            hydratedMeta?.igdbId ??
+            resolvedIgdbId ??
+            undefined);
       const summaryKey = resolvedCanonicalGameKey({
         gameId: activeSession.gameId,
         source: resolvedSource,
         igdbId,
+        gameName: activeSession.gameName,
+        coverUrl: activeSession.coverUrl,
       });
       let existing = summaries.get(summaryKey);
 

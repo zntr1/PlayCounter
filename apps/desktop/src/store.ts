@@ -740,6 +740,7 @@ export const useAppStore = create<AppState>((set) => ({
   clearCache: () =>
     set({
       exeCache: new Map(),
+      gameMetadata: new Map(),
       emulatorObservations: [],
       emulatorMappings: new Map(),
       runtimeError: null,
@@ -754,12 +755,46 @@ export type GameIdentityRef = {
   gameId: number;
   source?: GameSource | null;
   igdbId?: number;
+  gameName?: string;
+  coverUrl?: string;
 };
 
 export type GameIdentityResolver = (
   gameId: number,
   source?: GameSource | null,
-) => number | undefined;
+  gameName?: string,
+) => number | null | undefined;
+
+function normalizedIdentityText(value: string | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function identityEvidenceConflicts(
+  left: { gameName?: string; coverUrl?: string },
+  right: { gameName?: string; coverUrl?: string },
+) {
+  const leftName = normalizedIdentityText(left.gameName);
+  const rightName = normalizedIdentityText(right.gameName);
+  if (!leftName || !rightName || leftName === rightName) return false;
+
+  const leftCover = normalizedIdentityText(left.coverUrl);
+  const rightCover = normalizedIdentityText(right.coverUrl);
+  return !leftCover || !rightCover || leftCover !== rightCover;
+}
+
+// A server-side numeric id is only safe to reuse as identity evidence while
+// the local and server metadata still describe the same game. This matters in
+// test environments where resetting the database can issue an old id to a
+// completely different game while desktop state survives the reset.
+export function gameMetadataConflictsWithRef(
+  metadata: Pick<GameMetadata, "name" | "coverUrl">,
+  ref: Pick<GameIdentityRef, "gameName" | "coverUrl">,
+) {
+  return identityEvidenceConflicts(
+    { gameName: metadata.name, coverUrl: metadata.coverUrl },
+    ref,
+  );
+}
 
 export function canonicalGameKey(ref: GameIdentityRef) {
   return ref.igdbId !== undefined
@@ -771,35 +806,102 @@ export function createGameIdentityResolver(
   gameMetadata: ReadonlyMap<string, GameMetadata>,
   exeCache: ReadonlyMap<string, ExeCacheEntry>,
 ): GameIdentityResolver {
-  const byPair = new Map<string, number>();
+  type IdentityEvidence = {
+    igdbId?: number;
+    gameName?: string;
+    coverUrl?: string;
+  };
+  const evidenceByPair = new Map<string, IdentityEvidence[]>();
+  const byPair = new Map<string, Set<number>>();
   const byId = new Map<number, Set<number>>();
   const add = (
     gameId: number | undefined,
     source: GameSource | null | undefined,
     igdbId: number | undefined,
+    gameName?: string,
+    coverUrl?: string,
   ) => {
-    if (gameId === undefined || igdbId === undefined) return;
-    byPair.set(`${source ?? "unknown"}:${gameId}`, igdbId);
+    if (gameId === undefined) return;
+    const pair = `${source ?? "unknown"}:${gameId}`;
+    const evidence = evidenceByPair.get(pair) ?? [];
+    evidence.push({ igdbId, gameName, coverUrl });
+    evidenceByPair.set(pair, evidence);
+    if (igdbId === undefined) return;
+    const pairIds = byPair.get(pair) ?? new Set<number>();
+    pairIds.add(igdbId);
+    byPair.set(pair, pairIds);
     const ids = byId.get(gameId) ?? new Set<number>();
     ids.add(igdbId);
     byId.set(gameId, ids);
   };
 
   for (const game of gameMetadata.values()) {
-    add(game.id, game.source, game.igdbId);
+    add(game.id, game.source, game.igdbId, game.name, game.coverUrl);
   }
   for (const entry of exeCache.values()) {
     if (entry.state === "matched") {
-      add(entry.gameId, entry.source, entry.igdbId);
+      add(
+        entry.gameId,
+        entry.source,
+        entry.igdbId,
+        entry.gameName,
+        entry.coverUrl,
+      );
     }
   }
 
-  return (gameId, source) => {
-    const exact = byPair.get(`${source ?? "unknown"}:${gameId}`);
-    if (exact !== undefined) return exact;
+  const conflictedPairs = new Set<string>();
+  for (const [pair, evidence] of evidenceByPair) {
+    if ((byPair.get(pair)?.size ?? 0) > 1) {
+      conflictedPairs.add(pair);
+      continue;
+    }
+    if (
+      evidence.some((left, index) =>
+        evidence
+          .slice(index + 1)
+          .some((right) => identityEvidenceConflicts(left, right)),
+      )
+    ) {
+      conflictedPairs.add(pair);
+    }
+  }
+  const conflictedIds = new Set(
+    [...conflictedPairs].map((pair) =>
+      Number(pair.slice(pair.lastIndexOf(":") + 1)),
+    ),
+  );
+
+  const evidenceMatchesName = (pair: string, gameName: string | undefined) => {
+    const expectedName = normalizedIdentityText(gameName);
+    if (!expectedName) return true;
+    const knownNames = (evidenceByPair.get(pair) ?? [])
+      .map((evidence) => normalizedIdentityText(evidence.gameName))
+      .filter(Boolean);
+    return knownNames.length === 0 || knownNames.includes(expectedName);
+  };
+
+  return (gameId, source, gameName) => {
+    const pair = `${source ?? "unknown"}:${gameId}`;
+    if (conflictedPairs.has(pair)) return null;
+    const exact = byPair.get(pair);
+    if (exact?.size === 1) {
+      return evidenceMatchesName(pair, gameName) ? [...exact][0] : null;
+    }
+    if (exact && exact.size > 1) return null;
     if (source) return undefined;
+    if (conflictedIds.has(gameId)) return null;
     const candidates = byId.get(gameId);
-    return candidates?.size === 1 ? [...candidates][0] : undefined;
+    if (candidates?.size !== 1) return undefined;
+    if (gameName) {
+      const matchingPair = [...evidenceByPair.keys()].some(
+        (candidate) =>
+          candidate.endsWith(`:${gameId}`) &&
+          evidenceMatchesName(candidate, gameName),
+      );
+      if (!matchingPair) return null;
+    }
+    return [...candidates][0];
   };
 }
 
@@ -807,9 +909,16 @@ export function resolvedCanonicalGameKey(
   ref: GameIdentityRef,
   resolveIgdbId?: GameIdentityResolver,
 ) {
+  const resolvedIgdbId = resolveIgdbId?.(ref.gameId, ref.source, ref.gameName);
   return canonicalGameKey({
     ...ref,
-    igdbId: ref.igdbId ?? resolveIgdbId?.(ref.gameId, ref.source) ?? undefined,
+    // null means the resolver found contradictory metadata for this local
+    // pair. In that case even a previously stamped id is unsafe and the
+    // source/id pair remains isolated until authoritative data repairs it.
+    igdbId:
+      resolvedIgdbId === null
+        ? undefined
+        : (ref.igdbId ?? resolvedIgdbId ?? undefined),
   });
 }
 

@@ -413,4 +413,103 @@ describe("canonical game identity", () => {
       ),
     ).toBe("igdb#12345");
   });
+
+  it("isolates a cached game when a reset database reuses its numeric id", () => {
+    const resolveIgdbId = createGameIdentityResolver(
+      new Map([
+        [
+          "community:31",
+          {
+            id: 31,
+            igdbId: 378504,
+            name: "Higher or Lower: Spotify Edition",
+            coverUrl: "spotify-cover",
+            source: "community" as const,
+          },
+        ],
+      ]),
+      new Map([
+        [
+          "project_plague-wingdk-shipping.exe",
+          {
+            exeName: "Project_Plague-WinGDK-Shipping.exe",
+            state: "matched" as const,
+            gameId: 31,
+            igdbId: 378504,
+            gameName: "Wuchang: Fallen Feathers",
+            coverUrl: "wuchang-cover",
+            source: "community" as const,
+            lastCheckedAt: "2026-07-09T00:00:00.000Z",
+          },
+        ],
+        [
+          "spotify.exe",
+          {
+            exeName: "Spotify.exe",
+            state: "matched" as const,
+            gameId: -1444898014,
+            igdbId: 378504,
+            gameName: "Higher or Lower: Spotify Edition",
+            coverUrl: "spotify-cover",
+            source: "custom" as const,
+            lastCheckedAt: "2026-08-16T00:00:00.000Z",
+          },
+        ],
+      ]),
+    );
+
+    expect(
+      resolvedCanonicalGameKey(
+        {
+          gameId: 31,
+          igdbId: 378504,
+          gameName: "Wuchang: Fallen Feathers",
+          coverUrl: "wuchang-cover",
+          source: "community",
+        },
+        resolveIgdbId,
+      ),
+    ).toBe("community:31");
+    expect(
+      resolvedCanonicalGameKey(
+        {
+          gameId: -1444898014,
+          igdbId: 378504,
+          gameName: "Higher or Lower: Spotify Edition",
+          coverUrl: "spotify-cover",
+          source: "custom",
+        },
+        resolveIgdbId,
+      ),
+    ).toBe("igdb#378504");
+  });
+
+  it("does not reinterpret named history from stale metadata alone", () => {
+    const resolveIgdbId = createGameIdentityResolver(
+      new Map([
+        [
+          "community:31",
+          {
+            id: 31,
+            igdbId: 378504,
+            name: "Higher or Lower: Spotify Edition",
+            coverUrl: "spotify-cover",
+            source: "community" as const,
+          },
+        ],
+      ]),
+      new Map(),
+    );
+
+    expect(
+      resolvedCanonicalGameKey(
+        {
+          gameId: 31,
+          gameName: "Wuchang: Fallen Feathers",
+          source: "community",
+        },
+        resolveIgdbId,
+      ),
+    ).toBe("community:31");
+  });
 });

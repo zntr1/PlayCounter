@@ -5,7 +5,12 @@ vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: (value: string) => value,
   invoke: invokeMock,
 }));
-import { useAppStore, type ExeCacheEntry } from "./store";
+import {
+  createGameIdentityResolver,
+  resolvedCanonicalGameKey,
+  useAppStore,
+  type ExeCacheEntry,
+} from "./store";
 import {
   addManualSession,
   applyGameMatch,
@@ -373,6 +378,93 @@ describe("game metadata hydration", () => {
     persist();
 
     expect(useAppStore.getState().recentSessions).toBe(sessions);
+  });
+
+  it("repairs a cached game corrupted by a reused server id", async () => {
+    const reusedGameId = 310031;
+    const wrongIgdbId = 378504;
+    const wuchangSession: Session = {
+      id: 31,
+      gameId: reusedGameId,
+      igdbId: wrongIgdbId,
+      gameName: "Wuchang: Fallen Feathers",
+      coverUrl: "wuchang-cover",
+      source: "community",
+      exeName: "Project_Plague-WinGDK-Shipping.exe",
+      startedAt: "2026-08-08T00:00:00.000Z",
+      endedAt: "2026-08-08T01:00:00.000Z",
+      durationSeconds: 3600,
+    };
+    useAppStore.setState({
+      gameMetadata: new Map([
+        [
+          `community:${reusedGameId}`,
+          {
+            id: reusedGameId,
+            igdbId: wrongIgdbId,
+            name: "Higher or Lower: Spotify Edition",
+            coverUrl: "spotify-cover",
+            source: "community",
+          },
+        ],
+      ]),
+      exeCache: new Map([
+        [
+          "project_plague-wingdk-shipping.exe",
+          entry({
+            exeName: "Project_Plague-WinGDK-Shipping.exe",
+            gameId: reusedGameId,
+            igdbId: wrongIgdbId,
+            gameName: "Wuchang: Fallen Feathers",
+            coverUrl: "wuchang-cover",
+            source: "community",
+          }),
+        ],
+      ]),
+      activeSessions: [
+        {
+          id: wuchangSession.id,
+          gameId: wuchangSession.gameId,
+          igdbId: wuchangSession.igdbId,
+          gameName: wuchangSession.gameName!,
+          coverUrl: wuchangSession.coverUrl!,
+          source: wuchangSession.source,
+          exeName: wuchangSession.exeName,
+          startedAt: wuchangSession.startedAt,
+          checkpointedAt: wuchangSession.startedAt,
+        },
+      ],
+      recentSessions: [wuchangSession],
+    });
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({ games: [] }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await hydrateGameMetadata([]);
+
+    const state = useAppStore.getState();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain(`ids=${reusedGameId}`);
+    expect(state.gameMetadata.has(`community:${reusedGameId}`)).toBe(false);
+    expect(
+      state.exeCache.get("project_plague-wingdk-shipping.exe")?.igdbId,
+    ).toBeUndefined();
+    expect(state.activeSessions[0].igdbId).toBeUndefined();
+    expect(state.recentSessions[0].igdbId).toBeUndefined();
+
+    const resolveIgdbId = createGameIdentityResolver(
+      state.gameMetadata,
+      state.exeCache,
+    );
+    expect(
+      resolvedCanonicalGameKey(state.recentSessions[0], resolveIgdbId),
+    ).toBe(`community:${reusedGameId}`);
   });
 });
 

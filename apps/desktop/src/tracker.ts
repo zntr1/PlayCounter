@@ -23,6 +23,7 @@ import {
   DEFAULT_API_ENDPOINT,
   canonicalGameKey,
   createGameIdentityResolver,
+  gameMetadataConflictsWithRef,
   gameMetadataKey,
   isOfflineStatus,
   resolvedCanonicalGameKey,
@@ -3711,9 +3712,19 @@ export async function scanProcessesNow() {
 }
 
 export async function hydrateGameMetadata(
-  gameRefs: Array<{ gameId: number; source?: Game["source"] }>,
+  gameRefs: Array<{
+    gameId: number;
+    source?: Game["source"];
+    gameName?: string;
+    coverUrl?: string;
+  }>,
 ) {
   let state = useAppStore.getState();
+  // Repair contradictory persisted metadata before checking connectivity. A
+  // local test database may have been reset while the app was closed, and the
+  // stale canonical id must not merge games even when startup is offline.
+  stampCanonicalIdsFromMetadata([]);
+  state = useAppStore.getState();
   if (
     state.backendHealth.status === "offline" ||
     state.backendHealth.status === "reconnecting"
@@ -3722,8 +3733,6 @@ export async function hydrateGameMetadata(
     return false;
   }
 
-  stampCanonicalIdsFromMetadata([]);
-  state = useAppStore.getState();
   const refs = gameRefs.filter(
     (ref) => ref.gameId > 0 && ref.source !== "custom",
   );
@@ -3764,8 +3773,14 @@ export async function hydrateGameMetadata(
             gameMetadataKey({ id: ref.gameId, source: ref.source }),
           );
           return (
-            metadata?.igdbId === undefined &&
-            !canonicalMetadataCheckedIds.has(ref.gameId)
+            metadataConflictsWithLocalCache(
+              ref.gameId,
+              ref.source,
+              metadata,
+              state.exeCache,
+            ) ||
+            (metadata?.igdbId === undefined &&
+              !canonicalMetadataCheckedIds.has(ref.gameId))
           );
         })
         .map((ref) => ref.gameId),
@@ -3796,7 +3811,8 @@ export async function hydrateGameMetadata(
           game.source === "igdb" || game.source === "community",
       );
       for (const id of missingIds) canonicalMetadataCheckedIds.add(id);
-      stampCanonicalIdsFromMetadata(games);
+      const checkedRefs = refs.filter((ref) => missingIds.includes(ref.gameId));
+      stampCanonicalIdsFromMetadata(games, checkedRefs);
       collapseDuplicateActiveSessions();
       logRuntime(`game metadata hydrated count=${body.games.length}`);
       persist();
@@ -3816,10 +3832,49 @@ export async function hydrateGameMetadata(
   }
 }
 
-function stampCanonicalIdsFromMetadata(games: GameMetadata[]) {
+function metadataConflictsWithLocalCache(
+  gameId: number,
+  source: Game["source"] | undefined,
+  metadata: GameMetadata | undefined,
+  exeCache: ReadonlyMap<string, ExeCacheEntry>,
+) {
+  if (!metadata || !source) return false;
+  return [...exeCache.values()].some((entry) => {
+    if (entry.state !== "matched") return false;
+    const referencesMetadata =
+      entry.source === source && entry.gameId === gameId
+        ? true
+        : source === "community" &&
+          entry.source === "custom" &&
+          entry.communitySuggestionId === gameId;
+    return (
+      referencesMetadata &&
+      gameMetadataConflictsWithRef(metadata, {
+        gameName: entry.gameName,
+        coverUrl: entry.coverUrl,
+      })
+    );
+  });
+}
+
+function stampCanonicalIdsFromMetadata(
+  games: GameMetadata[],
+  authoritativeRefs: Array<{
+    gameId: number;
+    source?: Game["source"];
+  }> = [],
+) {
   useAppStore.setState((state) => {
     const gameMetadata = new Map(state.gameMetadata);
     let changed = false;
+    for (const ref of authoritativeRefs) {
+      if (ref.source !== "igdb" && ref.source !== "community") continue;
+      const key = gameMetadataKey({ id: ref.gameId, source: ref.source });
+      const returned = games.some(
+        (game) => game.id === ref.gameId && game.source === ref.source,
+      );
+      if (!returned && gameMetadata.delete(key)) changed = true;
+    }
     for (const game of games) {
       const key = gameMetadataKey(game);
       const existing = gameMetadata.get(key);
@@ -3838,7 +3893,7 @@ function stampCanonicalIdsFromMetadata(games: GameMetadata[]) {
 
     const exeCache = new Map(state.exeCache);
     for (const [key, entry] of exeCache) {
-      if (entry.state !== "matched" || entry.igdbId !== undefined) continue;
+      if (entry.state !== "matched") continue;
       const metadata =
         entry.source === "custom" && entry.communitySuggestionId !== undefined
           ? gameMetadata.get(`community:${entry.communitySuggestionId}`)
@@ -3848,24 +3903,63 @@ function stampCanonicalIdsFromMetadata(games: GameMetadata[]) {
                 gameMetadataKey({ id: entry.gameId, source: entry.source }),
               )
             : undefined;
-      if (metadata?.igdbId !== undefined) {
+      if (
+        metadata &&
+        gameMetadataConflictsWithRef(metadata, {
+          gameName: entry.gameName,
+          coverUrl: entry.coverUrl,
+        })
+      ) {
+        if (entry.igdbId !== undefined) {
+          const { igdbId: _staleIgdbId, ...repaired } = entry;
+          exeCache.set(key, repaired);
+          changed = true;
+        }
+      } else if (entry.igdbId === undefined && metadata?.igdbId !== undefined) {
         exeCache.set(key, { ...entry, igdbId: metadata.igdbId });
         changed = true;
       }
     }
 
     const resolveIgdbId = createGameIdentityResolver(gameMetadata, exeCache);
-    const activeSessions = state.activeSessions.map((session) => {
+    let activeSessionsChanged = false;
+    const repairedActiveSessions = state.activeSessions.map((session) => {
+      const resolvedIgdbId = resolveIgdbId(
+        session.gameId,
+        session.source,
+        session.gameName,
+      );
       const igdbId =
-        session.igdbId ??
-        resolveIgdbId(session.gameId, session.source) ??
-        undefined;
+        resolvedIgdbId === null
+          ? undefined
+          : (session.igdbId ?? resolvedIgdbId ?? undefined);
       if (igdbId === session.igdbId) return session;
       changed = true;
+      activeSessionsChanged = true;
       return { ...session, igdbId };
     });
+    const activeSessions = activeSessionsChanged
+      ? repairedActiveSessions
+      : state.activeSessions;
+    let recentSessionsChanged = false;
+    const repairedRecentSessions = state.recentSessions.map((session) => {
+      if (session.igdbId === undefined) return session;
+      const resolvedIgdbId = resolveIgdbId(
+        session.gameId,
+        session.source,
+        session.gameName,
+      );
+      if (resolvedIgdbId !== null) return session;
+      changed = true;
+      recentSessionsChanged = true;
+      const { igdbId: _staleIgdbId, ...repaired } = session;
+      return repaired;
+    });
+    const recentSessions = recentSessionsChanged
+      ? repairedRecentSessions
+      : state.recentSessions;
     if (!changed) return state;
-    return { gameMetadata, exeCache, activeSessions };
+    return { gameMetadata, exeCache, activeSessions, recentSessions };
   });
 }
 

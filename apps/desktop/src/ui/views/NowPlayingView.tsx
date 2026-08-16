@@ -195,6 +195,8 @@ function HeroSession({
           gameId: entry.gameId,
           source: entry.source,
           igdbId: entry.igdbId,
+          gameName: entry.gameName,
+          coverUrl: entry.coverUrl,
         },
         resolveIgdbId,
       ) === sessionKey,
