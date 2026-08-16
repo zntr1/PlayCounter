@@ -46,7 +46,7 @@ export function notificationEmoji(kind: NotificationKind) {
     case "suggestion-verified":
       return "✅";
     case "suggestion-rejected":
-      return "📝";
+      return "➖";
     case "milestone-total":
       return "🏆";
     case "milestone-month":
@@ -67,6 +67,21 @@ export function notificationEmoji(kind: NotificationKind) {
 export function displayNotificationTitle(
   notification: Pick<AppNotification, "id" | "kind" | "title">,
 ) {
+  if (notification.kind === "suggestion-verified") {
+    const title = notification.title.replace(
+      / was verified$/i,
+      " suggestion approved",
+    );
+    return title.startsWith("👍") ? title : `👍 ${title}`;
+  }
+
+  if (notification.kind === "suggestion-rejected") {
+    const title = notification.title
+      .replace(/^📝\s*/, "")
+      .replace(/ suggestion was reviewed$/i, " suggestion not approved");
+    return title.startsWith("➖") ? title : `➖ ${title}`;
+  }
+
   if (notification.kind !== "milestone-month") return notification.title;
 
   const year = /^milestone:month:(\d{4})-\d{2}:/.exec(notification.id)?.[1];
@@ -148,18 +163,18 @@ export function contributionNotification(
     ? {
         id: `suggestion-verified:${key}`,
         kind: "suggestion-verified",
-        title: `${contribution.gameName} was verified`,
-        body: `Thanks for helping PlayCounter recognize ${contribution.value}.`,
+        title: `${contribution.gameName} suggestion approved`,
+        body: `Suggested executable: ${contribution.value}\n\nThanks for helping PlayCounter recognize it.`,
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
       }
     : {
         id: `suggestion-rejected:${key}`,
         kind: "suggestion-rejected",
-        title: `${contribution.gameName} suggestion was reviewed`,
-        body:
-          contribution.reviewNote ??
-          `The ${contribution.value} suggestion was not accepted.`,
+        title: `${contribution.gameName} suggestion not approved`,
+        body: contribution.reviewNote
+          ? `Suggested executable: ${contribution.value}\n\nFeedback: ${contribution.reviewNote}`
+          : `Suggested executable: ${contribution.value}\n\nThis executable was not approved for this game.`,
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
       };

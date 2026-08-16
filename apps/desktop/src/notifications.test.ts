@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  contributionNotification,
   displayNotificationTitle,
   notificationEmoji,
   notificationsForDisplay,
@@ -24,6 +25,66 @@ describe("contribution transitions", () => {
 });
 
 describe("notification titles", () => {
+  it("makes an approved suggestion explicit", () => {
+    const notification = contributionNotification({
+      platform: "windows",
+      kind: "exe",
+      value: "game.exe",
+      gameId: 42,
+      gameName: "Test Game",
+      coverUrl: "",
+      status: "verified",
+      createdAt: "2026-08-15T00:00:00.000Z",
+    });
+
+    expect(notification?.title).toBe("Test Game suggestion approved");
+    expect(notification?.body).toBe(
+      "Suggested executable: game.exe\n\nThanks for helping PlayCounter recognize it.",
+    );
+    expect(notification && displayNotificationTitle(notification)).toBe(
+      "👍 Test Game suggestion approved",
+    );
+  });
+
+  it("makes a suggestion that was not approved explicit", () => {
+    const notification = contributionNotification({
+      platform: "windows",
+      kind: "exe",
+      value: "game.exe",
+      gameId: 42,
+      gameName: "Test Game",
+      coverUrl: "",
+      status: "rejected",
+      reviewNote: "not a game",
+      createdAt: "2026-08-15T00:00:00.000Z",
+    });
+
+    expect(notification?.title).toBe("Test Game suggestion not approved");
+    expect(notification?.body).toBe(
+      "Suggested executable: game.exe\n\nFeedback: not a game",
+    );
+    expect(notification && displayNotificationTitle(notification)).toBe(
+      "➖ Test Game suggestion not approved",
+    );
+  });
+
+  it("clarifies legacy suggestion notification titles", () => {
+    expect(
+      displayNotificationTitle({
+        id: "suggestion-verified:test",
+        kind: "suggestion-verified",
+        title: "Test Game was verified",
+      }),
+    ).toBe("👍 Test Game suggestion approved");
+    expect(
+      displayNotificationTitle({
+        id: "suggestion-rejected:test",
+        kind: "suggestion-rejected",
+        title: "Test Game suggestion was reviewed",
+      }),
+    ).toBe("➖ Test Game suggestion not approved");
+  });
+
   it("restores the year on legacy monthly milestone titles", () => {
     expect(
       displayNotificationTitle({
@@ -48,7 +109,7 @@ describe("notification titles", () => {
 describe("notification emojis", () => {
   it.each([
     ["suggestion-verified", "✅"],
-    ["suggestion-rejected", "📝"],
+    ["suggestion-rejected", "➖"],
     ["milestone-total", "🏆"],
     ["milestone-month", "📅"],
     ["milestone-game", "🎮"],

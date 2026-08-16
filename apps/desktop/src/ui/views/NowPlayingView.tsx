@@ -1,5 +1,11 @@
-import { Flag, Gamepad2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Flag,
+  Gamepad2,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
@@ -100,27 +106,6 @@ export function NowPlayingView() {
 
   return (
     <div className="grid gap-4">
-      {ambiguousMatches.map((match) => {
-        const elapsedSeconds = Math.max(
-          0,
-          Math.floor(
-            ((match.endedAt ? Date.parse(match.endedAt) : now) -
-              Date.parse(match.detectedAt)) /
-              1000,
-          ),
-        );
-
-        return (
-          <AmbiguousMatchCard
-            key={match.exeName.toLowerCase()}
-            exeName={match.exeName}
-            candidates={match.candidates}
-            elapsedSeconds={elapsedSeconds}
-            ended={Boolean(match.endedAt)}
-            flagReason={match.flagReason}
-          />
-        );
-      })}
       {activeSessions.map((activeSession) => (
         <HeroSession
           key={resolvedCanonicalGameKey(activeSession, resolveIgdbId)}
@@ -137,6 +122,40 @@ export function NowPlayingView() {
           playtimeAdjustments={playtimeAdjustments}
         />
       ))}
+      {ambiguousMatches.length > 0 ? (
+        <section className="grid gap-3">
+          <div className="flex items-center gap-2 px-1 pt-1">
+            <AlertTriangle size={14} className="shrink-0 text-warning" />
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-text-faint">
+              Needs your input
+            </h3>
+            <span className="rounded-full border border-warning-border bg-warning-tint px-1.5 text-[11px] font-semibold tabular-nums text-warning">
+              {ambiguousMatches.length}
+            </span>
+          </div>
+          {ambiguousMatches.map((match) => {
+            const elapsedSeconds = Math.max(
+              0,
+              Math.floor(
+                ((match.endedAt ? Date.parse(match.endedAt) : now) -
+                  Date.parse(match.detectedAt)) /
+                  1000,
+              ),
+            );
+
+            return (
+              <AmbiguousMatchCard
+                key={match.exeName.toLowerCase()}
+                exeName={match.exeName}
+                candidates={match.candidates}
+                elapsedSeconds={elapsedSeconds}
+                ended={Boolean(match.endedAt)}
+                flagReason={match.flagReason}
+              />
+            );
+          })}
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -376,6 +395,92 @@ function formatClock(seconds: number) {
   return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+function formatAgo(seconds: number) {
+  if (seconds < 60) return "just now";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours > 0 ? `${hours}h ${minutes}m ago` : `${minutes}m ago`;
+}
+
+// Single line under the headline of a clarification card: which executable it
+// is about, how long it has been waiting, and why it needs a manual decision.
+function MatchMeta({
+  exeName,
+  ended,
+  elapsedSeconds,
+  note,
+}: {
+  exeName?: string;
+  ended: boolean;
+  elapsedSeconds: number;
+  note?: string;
+}) {
+  return (
+    <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
+      {exeName ? (
+        <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted">
+          {exeName}
+        </span>
+      ) : null}
+      {ended ? (
+        <span
+          title="This time is not saved yet. Choosing a game assigns it."
+          className="rounded-md border border-warning-border bg-warning-tint px-2 py-0.5 font-medium tabular-nums text-warning"
+        >
+          Closed · {formatClock(elapsedSeconds)} unsaved
+        </span>
+      ) : (
+        <span className="text-text-faint">
+          Detected {formatAgo(elapsedSeconds)}
+        </span>
+      )}
+      {note ? (
+        <>
+          <span aria-hidden className="text-text-faint">
+            ·
+          </span>
+          <span className="text-warning">{note}</span>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function FooterAction({
+  children,
+  onClick,
+  title,
+  emphasis = false,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  title: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={`rounded px-2 py-1 font-medium transition ${
+        emphasis
+          ? "text-warning hover:bg-warning-tint"
+          : "text-text-muted hover:bg-surface-hover hover:text-text"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FooterSeparator() {
+  return (
+    <span aria-hidden className="text-text-faint">
+      ·
+    </span>
+  );
+}
+
 function AmbiguousMatchCard({
   exeName,
   candidates,
@@ -407,6 +512,7 @@ function AmbiguousMatchCard({
   const [searchMessage, setSearchMessage] = useState("");
   const [customEntryOpen, setCustomEntryOpen] = useState(false);
   const [customName, setCustomName] = useState("");
+  const [candidatesExpanded, setCandidatesExpanded] = useState(false);
   const orderedCandidates = useMemo(
     () =>
       [...candidates].sort(
@@ -415,6 +521,11 @@ function AmbiguousMatchCard({
       ),
     [candidates],
   );
+  // The community verified this executable name as non-game software, so the
+  // card leads with "not a game" and keeps the database matches folded away.
+  const reportedNotAGame = flagReason === "not_a_game";
+  const showCandidates =
+    candidates.length > 0 && (!reportedNotAGame || candidatesExpanded);
 
   function submitCustomGame() {
     const name = customName.trim();
@@ -569,164 +680,163 @@ function AmbiguousMatchCard({
 
   return (
     <section className="relative overflow-hidden rounded-xl border border-warning-border bg-surface shadow-raised">
-      <div className="p-6">
-        <div>
-          <div className="min-w-0 flex-1">
+      <div className="p-5">
+        {reportedNotAGame ? (
+          <>
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-warning-border bg-warning-tint px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-warning">
+              <AlertTriangle size={12} />
+              Probably not a game
+            </div>
+            <h2 className="break-words text-2xl font-bold text-text">
+              Is <span className="font-mono">{exeName}</span> a game?
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-text-muted">
+              Other players reported that {exeName} is not a game, so
+              PlayCounter no longer matches it automatically
+              {candidates.length === 1
+                ? ` — even though it still matches ${candidates[0].name}`
+                : candidates.length > 1
+                  ? ` — even though it still matches ${candidates.length} games`
+                  : ""}
+              .
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button
+                variant="primary"
+                onClick={() => void handleNegativeReport()}
+              >
+                No, it&apos;s not a game
+              </Button>
+              {candidates.length > 0 ? (
+                <Button
+                  variant="secondary"
+                  icon={candidatesExpanded ? ChevronUp : ChevronDown}
+                  onClick={() => setCandidatesExpanded((open) => !open)}
+                >
+                  {candidatesExpanded
+                    ? "Hide possible matches"
+                    : "Yes, show me the matches"}
+                </Button>
+              ) : null}
+            </div>
+            <MatchMeta ended={ended} elapsedSeconds={elapsedSeconds} />
+          </>
+        ) : (
+          <>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-warning-border bg-warning-tint px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-warning">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
               Choose a match
             </div>
-            <h2 className="truncate text-3xl font-bold text-text">
+            <h2 className="break-words text-2xl font-bold text-text">
               {candidates.length === 1
                 ? `Did you launch ${candidates[0].name}?`
                 : "Which game did you launch?"}
             </h2>
-            <div className="mt-2 flex flex-wrap items-center gap-2.5">
-              <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted drop-shadow-sm">
-                {exeName}
-              </span>
-              <span className="text-sm text-text-muted">
-                {candidates.length === 1
-                  ? `PlayCounter found this possible match for ${exeName}. Select it to ${ended ? "save this time" : "start tracking"}.`
-                  : `PlayCounter found several possible matches for ${exeName}. Select the game you opened.`}
-              </span>
-            </div>
-            {flagReason ? (
-              <p className="mt-3 text-sm text-warning">
-                {flagReason === "not_a_game"
-                  ? "This executable name is also used by non-game software, so PlayCounter will not choose automatically."
-                  : "This executable name is known to be ambiguous, so PlayCounter will not choose automatically."}
-              </p>
-            ) : null}
+            <MatchMeta
+              exeName={exeName}
+              ended={ended}
+              elapsedSeconds={elapsedSeconds}
+              note={
+                flagReason === "ambiguous"
+                  ? "Shared executable name — PlayCounter will not pick for you"
+                  : undefined
+              }
+            />
             {ended ? (
-              <p className="mt-3 text-sm text-warning">
-                The app has closed, but this time can still be saved once you
-                choose the right game.
+              <p className="mt-2 text-sm text-text-muted">
+                {exeName} has closed. Pick the right game to save this time.
               </p>
             ) : null}
+          </>
+        )}
 
-            <div className="mt-6 inline-block">
-              <HeroStat
-                label={ended ? "Time to save" : "Waiting to assign"}
-                value={formatClock(elapsedSeconds)}
-                accent
-              />
+        {showCandidates ? (
+          <div className="mt-5 border-t border-border pt-5">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-faint">
+              {candidates.length === 1 ? "Possible match" : "Possible matches"}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {orderedCandidates.map((game) => (
+                <GameCandidateButton
+                  key={`${game.source}:${game.id}`}
+                  exeName={exeName}
+                  game={game}
+                />
+              ))}
             </div>
           </div>
-        </div>
+        ) : null}
 
-        <div className="mt-8 border-t border-border pt-6">
-          <div className="mb-4 text-xs font-semibold uppercase tracking-wide text-text-faint">
-            {candidates.length === 1 ? "Possible match" : "Possible matches"}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {orderedCandidates.map((game) => (
-              <GameCandidateButton
-                key={`${game.source}:${game.id}`}
-                exeName={exeName}
-                game={game}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-warning-border/70 bg-warning-tint/40 p-4">
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-            <div>
-              <div className="text-sm font-medium text-text">
-                Don&apos;t recognize {exeName} as a game?
-              </div>
-              <p className="mt-1 text-sm text-text-muted">
-                Report it if you know it is a launcher, tool, system process, or
-                another non-game app. If you are not sure, dismiss it without
-                sending a report. Ignored processes can be restored under
-                Discovered.
-              </p>
-            </div>
-            <div className="grid shrink-0 gap-2 sm:grid-cols-2">
-              <Button
-                variant="secondary"
-                className="h-auto flex-col gap-0.5 px-4 py-2.5"
+        <div className="mt-5 flex flex-wrap items-center gap-x-0.5 gap-y-1 border-t border-border pt-3 text-xs">
+          {!reportedNotAGame ? (
+            <>
+              <FooterAction
+                emphasis
+                title={`Report ${exeName} as a launcher, tool, system process or other non-game app. It stops being tracked here and the report is reviewed by the community.`}
                 onClick={() => void handleNegativeReport()}
               >
-                <span>This is not a game</span>
-                <span className="text-xs font-normal text-text-muted">
-                  Report and ignore
-                </span>
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-auto flex-col gap-0.5 px-4 py-2.5"
-                onClick={() => void handleDismiss()}
-              >
-                <span>Dismiss and ignore</span>
-                <span className="text-xs font-normal text-text-faint">
-                  Only on this PC
-                </span>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 rounded-lg border border-border bg-surface-hover/30 p-4">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <div className="text-sm font-medium text-text">
-                Game not listed?
-              </div>
-              <p className="mt-1 text-sm text-text-muted">
-                {isOffline
-                  ? "Database search is unavailable offline. Add the game as a custom game for now."
-                  : "Search for another game, add it as a custom game, and send the executable match for community review."}
-              </p>
-            </div>
-            {!isOffline ? (
-              <Button
-                variant="primary"
+                Not a game
+              </FooterAction>
+              <FooterSeparator />
+            </>
+          ) : null}
+          {!isOffline ? (
+            <>
+              <FooterAction
+                title="Search the database for the game this executable belongs to and send the match for community review."
                 onClick={() => {
                   setSuggestionOpen(true);
                   setSearchMessage("");
                 }}
               >
-                Find another game
-              </Button>
-            ) : null}
-          </div>
-          {customEntryOpen || isOffline ? (
-            <form
-              className="mt-3 flex items-center gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                submitCustomGame();
-              }}
-            >
-              <Input
-                value={customName}
-                onChange={(event) => setCustomName(event.target.value)}
-                maxLength={120}
-                autoFocus={customEntryOpen}
-                placeholder="Game name..."
-                className="h-9 min-w-0 flex-1"
-              />
-              <Button
-                variant="secondary"
-                type="submit"
-                disabled={!customName.trim()}
-                className="h-9 shrink-0"
-              >
-                Add as Custom
-              </Button>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCustomEntryOpen(true)}
-              className="mt-2 text-xs text-text-faint underline-offset-2 transition hover:text-text-muted hover:underline"
-            >
-              Add as custom game instead (only on this PC)
-            </button>
-          )}
+                Search another game
+              </FooterAction>
+              <FooterSeparator />
+            </>
+          ) : null}
+          <FooterAction
+            title="Track it under a name you type yourself. Stays on this PC only."
+            onClick={() => setCustomEntryOpen((open) => !open)}
+          >
+            Add as custom game
+          </FooterAction>
+          <FooterSeparator />
+          <FooterAction
+            title="Hide it on this PC without sending a report. You can restore it under Discovered."
+            onClick={() => void handleDismiss()}
+          >
+            Ignore on this PC
+          </FooterAction>
         </div>
+
+        {customEntryOpen || isOffline ? (
+          <form
+            className="mt-3 flex items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitCustomGame();
+            }}
+          >
+            <Input
+              value={customName}
+              onChange={(event) => setCustomName(event.target.value)}
+              maxLength={120}
+              autoFocus={customEntryOpen}
+              placeholder={
+                isOffline ? "Offline — add the game by name..." : "Game name..."
+              }
+              className="h-9 min-w-0 flex-1"
+            />
+            <Button
+              variant="secondary"
+              type="submit"
+              disabled={!customName.trim()}
+              className="h-9 shrink-0"
+            >
+              Add as Custom
+            </Button>
+          </form>
+        ) : null}
       </div>
       {suggestionOpen ? (
         <div className="border-t border-border p-6">
