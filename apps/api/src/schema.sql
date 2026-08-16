@@ -149,6 +149,59 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_community_submissions_unique
 CREATE INDEX IF NOT EXISTS idx_community_submissions_install
   ON community_identifier_submissions (install_uuid);
 
+-- Anonymous negative match evidence. Reports never affect matching directly;
+-- an operator promotes a reviewed executable to problematic_game_identifiers.
+CREATE TABLE IF NOT EXISTS community_identifier_reports (
+  id BIGSERIAL PRIMARY KEY,
+  platform TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  value TEXT NOT NULL,
+  game_id INTEGER,
+  game_source TEXT CHECK (game_source IN ('igdb', 'community')),
+  reason TEXT NOT NULL CHECK (reason = 'not_a_game'),
+  install_uuid TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'verified', 'rejected')),
+  review_note TEXT,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT identifier_report_game_identity
+    CHECK ((game_id IS NULL) = (game_source IS NULL)),
+  CONSTRAINT identifier_report_canonical_case
+    CHECK (
+      platform = lower(platform)
+      AND kind = lower(kind)
+      AND value = lower(value)
+    ),
+  CONSTRAINT identifier_report_install_unique
+    UNIQUE (platform, kind, value, install_uuid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_identifier_reports_pending
+  ON community_identifier_reports (value)
+  WHERE status = 'pending';
+
+-- Verified non-unique executable names always use the ambiguity picker. Their
+-- legitimate candidate rows remain in the IGDB/community identifier tables.
+CREATE TABLE IF NOT EXISTS problematic_game_identifiers (
+  platform TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  value TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT 'not_a_game'
+    CHECK (reason IN ('not_a_game', 'ambiguous')),
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (platform, kind, value),
+  CONSTRAINT problematic_identifier_canonical_case
+    CHECK (
+      platform = lower(platform)
+      AND kind = lower(kind)
+      AND value = lower(value)
+    )
+);
+
 CREATE TABLE IF NOT EXISTS live_sessions (
   install_uuid TEXT NOT NULL,
   game_id INTEGER NOT NULL,

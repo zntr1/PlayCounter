@@ -10,6 +10,9 @@ import type {
   FeedbackPayload,
   FeedbackResponse,
   Game,
+  IdentifierFlagReason,
+  IdentifierReportPayload,
+  IdentifierReportResponse,
   MatchProcessRequestItem,
   ProcessIdentifier,
 } from "@playcounter/shared";
@@ -27,6 +30,7 @@ type ProcessMatchResult = {
   game: Game | null;
   identifier?: ProcessIdentifier;
   ambiguousGames?: Game[];
+  flaggedIdentifier?: { reason: IdentifierFlagReason };
   pendingCommunityGame?: Game;
   pendingCommunityGames?: Game[];
   communityGameAliases?: CommunityGameAlias[];
@@ -93,6 +97,9 @@ export interface PlayCounterRepository {
   suggestCommunityGame(
     suggestion: CommunityGameSuggestionPayload,
   ): Promise<CommunityGameSuggestionResponse>;
+  reportIdentifier(
+    report: IdentifierReportPayload,
+  ): Promise<IdentifierReportResponse>;
   listContributions(installUuid: string): Promise<ContributionsResponse>;
   createFeedback(payload: FeedbackPayload): Promise<FeedbackResponse>;
 }
@@ -159,6 +166,10 @@ export class MemoryRepository implements PlayCounterRepository {
     return { id: -1, verified: false };
   }
 
+  async reportIdentifier(): Promise<IdentifierReportResponse> {
+    return { status: "recorded", flagged: false };
+  }
+
   async listContributions(): Promise<ContributionsResponse> {
     return {
       items: [],
@@ -214,6 +225,7 @@ export class PostgresRepository implements PlayCounterRepository {
       { game: Game; identifier: ProcessIdentifier; priority: number }
     >();
     const ambiguousMatches = new Map<string, Game[]>();
+    const flaggedProcesses = new Map<string, IdentifierFlagReason>();
     const pendingCommunityMatches = new Map<string, Game[]>();
 
     const igdb = await this.pool.query(
@@ -248,6 +260,24 @@ export class PostgresRepository implements PlayCounterRepository {
              lower(igdb_ambiguous_game_identifiers.kind) || ':' ||
              lower(igdb_ambiguous_game_identifiers.value) = ANY($1::text[])`,
       [[...new Set(lookupKeys)]],
+    );
+
+    const problematic = await this.pool.query<{
+      platform: string;
+      kind: string;
+      value: string;
+      reason: IdentifierFlagReason;
+    }>(
+      `SELECT platform, kind, value, reason
+       FROM problematic_game_identifiers
+       WHERE platform || ':' || kind || ':' || value = ANY($1::text[])`,
+      [[...new Set(lookupKeys)]],
+    );
+    const flaggedLookups = new Map<string, IdentifierFlagReason>(
+      problematic.rows.map((row) => [
+        `${row.platform}:${row.kind}:${row.value}`,
+        row.reason,
+      ]),
     );
 
     logger.info(
@@ -318,11 +348,15 @@ export class PostgresRepository implements PlayCounterRepository {
     addStoredRows(community.rows, "community");
 
     for (const [lookupKey, games] of storedGamesByLookup) {
+      const flagReason = flaggedLookups.get(lookupKey);
       for (const candidate of candidatesForLookup(candidates, lookupKey)) {
-        if (games.length === 1) {
+        if (!flagReason && games.length === 1) {
           setBestProcessMatch(matches, candidate, games[0]);
         } else if (!ambiguousMatches.has(candidate.processKey)) {
           ambiguousMatches.set(candidate.processKey, games);
+          if (flagReason) {
+            flaggedProcesses.set(candidate.processKey, flagReason);
+          }
         }
       }
     }
@@ -386,6 +420,7 @@ export class PostgresRepository implements PlayCounterRepository {
           matches,
           ambiguousMatches,
           pendingCommunityMatches,
+          flaggedProcesses,
         ),
       );
     }
@@ -427,6 +462,7 @@ export class PostgresRepository implements PlayCounterRepository {
         const result = await this.findAndPersistIgdbWindowsExe(
           candidate.identifier.value,
           requestedBy,
+          flaggedLookups.has(candidate.lookupKey),
         );
         if (!result) {
           logger.info(
@@ -443,6 +479,12 @@ export class PostgresRepository implements PlayCounterRepository {
               matchingCandidate.processKey,
               result.ambiguousGames,
             );
+            const fallbackFlag = flaggedLookups.get(
+              matchingCandidate.lookupKey,
+            );
+            if (fallbackFlag) {
+              flaggedProcesses.set(matchingCandidate.processKey, fallbackFlag);
+            }
           }
           continue;
         }
@@ -465,6 +507,7 @@ export class PostgresRepository implements PlayCounterRepository {
         matches,
         ambiguousMatches,
         pendingCommunityMatches,
+        flaggedProcesses,
       ),
     );
   }
@@ -1008,6 +1051,46 @@ export class PostgresRepository implements PlayCounterRepository {
     }
   }
 
+  async reportIdentifier(
+    report: IdentifierReportPayload,
+  ): Promise<IdentifierReportResponse> {
+    const exeName = report.exeName.trim().toLowerCase();
+    const upserted = await this.pool.query<{ inserted: boolean }>(
+      `INSERT INTO community_identifier_reports
+         (platform, kind, value, game_id, game_source, reason, install_uuid)
+       VALUES ('windows', 'exe', $1, $2, $3, $4, $5)
+       ON CONFLICT ON CONSTRAINT identifier_report_install_unique
+       DO UPDATE SET reason = excluded.reason,
+                     game_id = excluded.game_id,
+                     game_source = excluded.game_source,
+                     updated_at = now()
+       WHERE community_identifier_reports.status = 'pending'
+       RETURNING (xmax = 0) AS inserted`,
+      [
+        exeName,
+        report.gameId ?? null,
+        report.gameSource ?? null,
+        report.reason,
+        report.installUuid,
+      ],
+    );
+    const flagged = await this.pool.query(
+      `SELECT 1 FROM problematic_game_identifiers
+       WHERE platform = 'windows' AND kind = 'exe' AND value = $1`,
+      [exeName],
+    );
+    const row = upserted.rows[0];
+    return {
+      status:
+        row === undefined
+          ? "already_reviewed"
+          : row.inserted
+            ? "recorded"
+            : "duplicate",
+      flagged: (flagged.rowCount ?? 0) > 0,
+    };
+  }
+
   async listContributions(installUuid: string): Promise<ContributionsResponse> {
     const result = await this.pool.query<{
       platform: string;
@@ -1096,6 +1179,7 @@ export class PostgresRepository implements PlayCounterRepository {
   private async findAndPersistIgdbWindowsExe(
     exeName: string,
     requestedBy: string[],
+    flagged = false,
   ) {
     if (!this.igdb.configured) {
       logger.info(
@@ -1138,13 +1222,14 @@ export class PostgresRepository implements PlayCounterRepository {
       return null;
     }
 
-    if (igdbMatch.ambiguousGames) {
+    if (igdbMatch.ambiguousGames || flagged) {
       const ambiguousGames = await this.persistIgdbGameMetadata(
-        igdbMatch.ambiguousGames,
+        igdbMatch.ambiguousGames ?? [igdbMatch.game],
       );
       // Persist the candidate set so future requests resolve it from the
-      // stored-database merge (together with any later community entry)
-      // instead of repeating this lookup.
+      // stored-database merge instead of repeating this lookup. A verified
+      // problematic identifier takes this path even for one exact IGDB game;
+      // it must never recreate a high-confidence one-to-one mapping.
       for (const game of ambiguousGames) {
         await this.pool.query(
           `INSERT INTO igdb_ambiguous_game_identifiers (platform, kind, value, game_id)
@@ -1328,13 +1413,21 @@ function stripProcessMatchPriority(
   >,
   ambiguousMatches = new Map<string, Game[]>(),
   pendingCommunityMatches = new Map<string, Game[]>(),
+  flaggedProcesses = new Map<string, IdentifierFlagReason>(),
 ) {
   const results = new Map<string, ProcessMatchResult>();
   for (const [key, match] of matches) {
     results.set(key, { game: match.game, identifier: match.identifier });
   }
   for (const [key, ambiguousGames] of ambiguousMatches) {
-    if (!results.has(key)) results.set(key, { game: null, ambiguousGames });
+    if (!results.has(key)) {
+      const flagReason = flaggedProcesses.get(key);
+      results.set(key, {
+        game: null,
+        ambiguousGames,
+        ...(flagReason ? { flaggedIdentifier: { reason: flagReason } } : {}),
+      });
+    }
   }
   for (const [key, pendingCommunityGames] of pendingCommunityMatches) {
     const existing: ProcessMatchResult = results.get(key) ?? { game: null };

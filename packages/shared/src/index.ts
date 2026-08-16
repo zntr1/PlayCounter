@@ -87,12 +87,17 @@ export interface CommunityGameAlias {
   mergedFromGameIds: number[];
 }
 
+export type IdentifierFlagReason = "not_a_game" | "ambiguous";
+
 export interface MatchProcessesResponse {
   matches: Array<{
     key: string;
     game: Game | null;
     matchedIdentifier?: ProcessIdentifier;
     ambiguousGames?: Game[];
+    // Verified problematic identifiers always use the picker, even when only
+    // one candidate exists, so a shared executable name is never auto-applied.
+    flaggedIdentifier?: { reason: IdentifierFlagReason };
     pendingCommunityGame?: Game;
     // All unverified suggestions for the matched identifiers. Newer servers
     // always include this array (including when empty), which lets the desktop
@@ -138,6 +143,24 @@ export interface CommunityGameSuggestionResponse {
   // Set instead of id/verified when the suggested game is already a known
   // IGDB match for the exe — the client applies it directly, no review needed.
   igdbGame?: Game;
+}
+
+export type IdentifierReportReason = "not_a_game";
+
+export interface IdentifierReportPayload {
+  exeName: string;
+  reason: IdentifierReportReason;
+  // Omitted when the report comes from an ambiguity picker where no game has
+  // been selected yet.
+  gameId?: number;
+  gameSource?: "igdb" | "community";
+  // Required as the per-install idempotency key for community evidence.
+  installUuid: string;
+}
+
+export interface IdentifierReportResponse {
+  status: "recorded" | "duplicate" | "already_reviewed";
+  flagged: boolean;
 }
 
 export type ContributionStatus = "pending" | "verified" | "rejected";

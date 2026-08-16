@@ -1,10 +1,11 @@
-import { Gamepad2 } from "lucide-react";
+import { Flag, Gamepad2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type {
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
   CommunityMetadataSearchResponse,
   Game,
+  IdentifierFlagReason,
   Session,
 } from "@playcounter/shared";
 import {
@@ -15,13 +16,17 @@ import {
   type ActiveSession,
   type ExeCacheEntry,
   type GameIdentityResolver,
+  type Toast,
 } from "../../store";
 import {
   dismissAmbiguousMatch,
   markCommunitySuggestionRejected,
+  reportNegativeMatch,
   selectAmbiguousCommunitySuggestion,
   selectAmbiguousCustomGame,
   selectAmbiguousMatch,
+  type LocalProcessIgnoreOutcome,
+  type NegativeReportOutcome,
 } from "../../tracker";
 import { gameSecondsKeys } from "../../gameSeconds";
 import {
@@ -34,7 +39,8 @@ import {
   SourceBadge,
   formatDuration,
 } from "../components";
-import { Button, Input } from "../primitives";
+import { Button, IconButton, Input } from "../primitives";
+import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 
 export function NowPlayingView() {
@@ -111,6 +117,7 @@ export function NowPlayingView() {
             candidates={match.candidates}
             elapsedSeconds={elapsedSeconds}
             ended={Boolean(match.endedAt)}
+            flagReason={match.flagReason}
           />
         );
       })}
@@ -153,6 +160,9 @@ function HeroSession({
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
 }) {
+  const addToast = useAppStore((state) => state.addToast);
+  const setActiveView = useAppStore((state) => state.setActiveView);
+  const [reportOpen, setReportOpen] = useState(false);
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
@@ -217,9 +227,25 @@ function HeroSession({
     adjustmentSecondsFor(playtimeAdjustments, keys),
   );
   const lifetimeSessionCount = priorSessions.length + 1;
+  const canReport = session.source === "igdb" || session.source === "community";
+
+  async function handleNegativeReport() {
+    setReportOpen(false);
+    const outcome = await reportNegativeMatch(session.exeName);
+    notifyNegativeReportOutcome(session.exeName, outcome, addToast);
+  }
 
   return (
     <section className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-raised">
+      {canReport ? (
+        <IconButton
+          icon={Flag}
+          aria-label={`Report wrong match for ${session.gameName}`}
+          title="Report wrong match"
+          onClick={() => setReportOpen(true)}
+          className="absolute right-4 top-4 z-30 bg-bg/90 text-text-muted shadow-raised hover:bg-warning hover:text-white"
+        />
+      ) : null}
       {session.coverUrl ? (
         <div aria-hidden className="absolute inset-0">
           <img
@@ -297,6 +323,23 @@ function HeroSession({
           </div>
         </div>
       </div>
+      {reportOpen ? (
+        <ReportWrongMatchDialog
+          exeName={session.exeName}
+          onCancel={() => setReportOpen(false)}
+          onDifferentGame={() => {
+            setReportOpen(false);
+            setActiveView("games");
+            addToast({
+              tone: "info",
+              title: "Choose the correct match",
+              detail:
+                "Open this game's menu and choose Check for Matches, or suggest the correct game.",
+            });
+          }}
+          onNotAGame={() => void handleNegativeReport()}
+        />
+      ) : null}
     </section>
   );
 }
@@ -338,11 +381,13 @@ function AmbiguousMatchCard({
   candidates,
   elapsedSeconds,
   ended,
+  flagReason,
 }: {
   exeName: string;
   candidates: Game[];
   elapsedSeconds: number;
   ended: boolean;
+  flagReason?: IdentifierFlagReason;
 }) {
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const installUuid = useAppStore((state) => state.installUuid);
@@ -512,27 +557,47 @@ function AmbiguousMatchCard({
     setSearchMessage("");
   }
 
+  async function handleNegativeReport() {
+    const outcome = await reportNegativeMatch(exeName);
+    notifyNegativeReportOutcome(exeName, outcome, addToast);
+  }
+
+  async function handleDismiss() {
+    const outcome = await dismissAmbiguousMatch(exeName);
+    notifyDismissOutcome(exeName, outcome, addToast);
+  }
+
   return (
     <section className="relative overflow-hidden rounded-xl border border-warning-border bg-surface shadow-raised">
       <div className="p-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div>
           <div className="min-w-0 flex-1">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-warning-border bg-warning-tint px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-warning">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
               Choose a match
             </div>
             <h2 className="truncate text-3xl font-bold text-text">
-              Which game did you launch?
+              {candidates.length === 1
+                ? `Did you launch ${candidates[0].name}?`
+                : "Which game did you launch?"}
             </h2>
             <div className="mt-2 flex flex-wrap items-center gap-2.5">
               <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted drop-shadow-sm">
                 {exeName}
               </span>
               <span className="text-sm text-text-muted">
-                has multiple possible matches. Choose the game you opened to{" "}
-                {ended ? "save this time" : "start tracking"}.
+                {candidates.length === 1
+                  ? `PlayCounter found this possible match for ${exeName}. Select it to ${ended ? "save this time" : "start tracking"}.`
+                  : `PlayCounter found several possible matches for ${exeName}. Select the game you opened.`}
               </span>
             </div>
+            {flagReason ? (
+              <p className="mt-3 text-sm text-warning">
+                {flagReason === "not_a_game"
+                  ? "This executable name is also used by non-game software, so PlayCounter will not choose automatically."
+                  : "This executable name is known to be ambiguous, so PlayCounter will not choose automatically."}
+              </p>
+            ) : null}
             {ended ? (
               <p className="mt-3 text-sm text-warning">
                 The app has closed, but this time can still be saved once you
@@ -548,33 +613,11 @@ function AmbiguousMatchCard({
               />
             </div>
           </div>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              void dismissAmbiguousMatch(exeName)
-                .then(() =>
-                  addToast({
-                    tone: "success",
-                    title: "Process ignored",
-                    detail: `${exeName} was added to your ignored process list.`,
-                  }),
-                )
-                .catch((error) =>
-                  addToast({
-                    tone: "error",
-                    title: "Could not ignore process",
-                    detail: formatError(error),
-                  }),
-                )
-            }
-          >
-            Ignore app
-          </Button>
         </div>
 
         <div className="mt-8 border-t border-border pt-6">
           <div className="mb-4 text-xs font-semibold uppercase tracking-wide text-text-faint">
-            Possible matches
+            {candidates.length === 1 ? "Possible match" : "Possible matches"}
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {orderedCandidates.map((game) => (
@@ -584,6 +627,44 @@ function AmbiguousMatchCard({
                 game={game}
               />
             ))}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-lg border border-warning-border/70 bg-warning-tint/40 p-4">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+            <div>
+              <div className="text-sm font-medium text-text">
+                Don&apos;t recognize {exeName} as a game?
+              </div>
+              <p className="mt-1 text-sm text-text-muted">
+                Report it if you know it is a launcher, tool, system process, or
+                another non-game app. If you are not sure, dismiss it without
+                sending a report. Ignored processes can be restored under
+                Discovered.
+              </p>
+            </div>
+            <div className="grid shrink-0 gap-2 sm:grid-cols-2">
+              <Button
+                variant="secondary"
+                className="h-auto flex-col gap-0.5 px-4 py-2.5"
+                onClick={() => void handleNegativeReport()}
+              >
+                <span>This is not a game</span>
+                <span className="text-xs font-normal text-text-muted">
+                  Report and ignore
+                </span>
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-auto flex-col gap-0.5 px-4 py-2.5"
+                onClick={() => void handleDismiss()}
+              >
+                <span>Dismiss and ignore</span>
+                <span className="text-xs font-normal text-text-faint">
+                  Only on this PC
+                </span>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -672,6 +753,67 @@ function AmbiguousMatchCard({
   );
 }
 
+function notifyNegativeReportOutcome(
+  exeName: string,
+  outcome: NegativeReportOutcome,
+  addToast: (toast: Omit<Toast, "id">) => void,
+) {
+  if (!outcome.localBlockApplied) {
+    addToast({
+      tone: "error",
+      title: "Could not block process",
+      detail: `${exeName} could not be blocked on this PC.`,
+    });
+    return;
+  }
+  if (!outcome.ignoreFileUpdated) {
+    addToast({
+      tone: "error",
+      title: "Process blocked locally",
+      detail: `${exeName} will not be tracked, but the ignored-processes file could not be updated.`,
+    });
+    return;
+  }
+  if (outcome.report === "failed" || outcome.report === "skipped") {
+    addToast({
+      tone: "info",
+      title: "Fixed on this PC",
+      detail: "The community report could not be sent.",
+    });
+    return;
+  }
+  addToast({
+    tone: "success",
+    title: "Wrong match reported",
+    detail:
+      outcome.report === "already_reviewed"
+        ? `${exeName} is no longer tracked here. Your earlier report was already reviewed.`
+        : `${exeName} is no longer tracked here. Your report is queued for review.`,
+  });
+}
+
+function notifyDismissOutcome(
+  exeName: string,
+  outcome: LocalProcessIgnoreOutcome,
+  addToast: (toast: Omit<Toast, "id">) => void,
+) {
+  if (!outcome.localBlockApplied) {
+    addToast({
+      tone: "error",
+      title: "Could not ignore process",
+      detail: `${exeName} could not be ignored on this PC.`,
+    });
+    return;
+  }
+  addToast({
+    tone: outcome.ignoreFileUpdated ? "success" : "info",
+    title: "Process dismissed",
+    detail: outcome.ignoreFileUpdated
+      ? `${exeName} was ignored on this PC. No community report was sent.`
+      : `${exeName} is hidden locally, but the ignored-processes file could not be updated. No report was sent.`,
+  });
+}
+
 function formatError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -694,6 +836,7 @@ function GameCandidateButton({
   return (
     <button
       type="button"
+      aria-label={`Track ${exeName} as ${game.name}`}
       onClick={() => {
         selectAmbiguousMatch(exeName, game);
         addToast({
@@ -717,6 +860,9 @@ function GameCandidateButton({
         <div className="truncate font-semibold text-text">{game.name}</div>
         <div className="mt-2">
           <SourceBadge source={game.source} />
+        </div>
+        <div className="mt-3 text-xs font-semibold text-accent">
+          Select this game
         </div>
       </div>
     </button>

@@ -3,6 +3,7 @@ import type {
   EmulatorLaunchContext,
   Game,
   GameSource,
+  IdentifierFlagReason,
   Session,
   Settings,
   Theme,
@@ -75,6 +76,7 @@ export type AmbiguousProcessMatch = {
   endedAt?: string;
   // When the candidates were last fetched; gates re-querying the match API.
   lastCheckedAt?: string;
+  flagReason?: IdentifierFlagReason;
 };
 
 export type GameMetadata = {

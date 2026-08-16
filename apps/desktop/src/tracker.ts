@@ -7,6 +7,9 @@ import type {
   EmulatorResolveResponse,
   Game,
   GameMetadataResponse,
+  IdentifierFlagReason,
+  IdentifierReportPayload,
+  IdentifierReportResponse,
   MatchProcessesResponse,
   Platform,
   ProcessIdentifier,
@@ -124,6 +127,22 @@ export type GameAliasRef = {
   gameId: number;
   source: Game["source"] | null;
 };
+
+export type GameMatchLookup = {
+  games: Game[];
+  flaggedIdentifier?: { reason: IdentifierFlagReason };
+};
+
+export type NegativeReportOutcome = {
+  localBlockApplied: boolean;
+  ignoreFileUpdated: boolean;
+  report: IdentifierReportResponse["status"] | "failed" | "skipped";
+};
+
+export type LocalProcessIgnoreOutcome = Pick<
+  NegativeReportOutcome,
+  "localBlockApplied" | "ignoreFileUpdated"
+>;
 
 type IgnoredProcessesResponse = {
   processes: string[];
@@ -1105,7 +1124,11 @@ async function resolveProcesses(
     for (const process of queryProcesses) {
       const result = resultsByExe.get(processCacheKey(process));
       if (result?.ambiguousGames?.length) {
-        cacheAmbiguousMatch(process, result.ambiguousGames);
+        cacheAmbiguousMatch(
+          process,
+          result.ambiguousGames,
+          result.flaggedIdentifier?.reason,
+        );
         continue;
       }
       const game = result?.game ?? null;
@@ -1675,7 +1698,9 @@ export function applyKnownGameMatch(exeName: string, game: Game) {
 // Manual "check for matches": runs the exe through the normal match pipeline
 // and returns every database candidate found. Pending (unverified)
 // suggestions are deliberately not offered.
-export async function findGameMatches(exeName: string): Promise<Game[]> {
+export async function findGameMatches(
+  exeName: string,
+): Promise<GameMatchLookup> {
   const state = useAppStore.getState();
   const process: ProcessSnapshot = { exeName, exePath: null };
   const response = await fetchWithTimeout(
@@ -1702,9 +1727,17 @@ export async function findGameMatches(exeName: string): Promise<Game[]> {
   const result = body.matches.find(
     (match) => match.key.toLowerCase() === processCacheKey(process),
   );
-  if (!result) return [];
-  if (result.game && result.game.source !== "custom") return [result.game];
-  return result.ambiguousGames ?? [];
+  if (!result) return { games: [] };
+  if (result.game && result.game.source !== "custom") {
+    return {
+      games: [result.game],
+      flaggedIdentifier: result.flaggedIdentifier,
+    };
+  }
+  return {
+    games: result.ambiguousGames ?? [],
+    flaggedIdentifier: result.flaggedIdentifier,
+  };
 }
 
 export async function searchEmulatorGames(
@@ -2055,7 +2088,11 @@ function cachePendingCommunityMatch(exeName: string, game: Game) {
   logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
 }
 
-function cacheAmbiguousMatch(process: ProcessSnapshot, candidates: Game[]) {
+function cacheAmbiguousMatch(
+  process: ProcessSnapshot,
+  candidates: Game[],
+  flagReason?: IdentifierFlagReason,
+) {
   const state = useAppStore.getState();
   const existing = state.ambiguousMatches.find(
     (match) => match.exeName.toLowerCase() === process.exeName.toLowerCase(),
@@ -2067,6 +2104,7 @@ function cacheAmbiguousMatch(process: ProcessSnapshot, candidates: Game[]) {
     detectedAt: existing?.detectedAt ?? new Date().toISOString(),
     endedAt: undefined,
     lastCheckedAt: new Date().toISOString(),
+    flagReason,
   });
   state.addApiRequestLogEntry({
     endpoint: state.settings.apiEndpoint,
@@ -2368,12 +2406,112 @@ function addCompletedAmbiguousSession(
   );
 }
 
-export async function dismissAmbiguousMatch(exeName: string) {
+async function submitIdentifierReport(
+  exeName: string,
+  gameIdentity?: Pick<IdentifierReportPayload, "gameId" | "gameSource">,
+): Promise<NegativeReportOutcome["report"]> {
   const state = useAppStore.getState();
+  if (!state.installUuid) return "skipped";
+
+  const endpoint = `${state.settings.apiEndpoint}/api/community/identifier-reports`;
+  try {
+    const payload: IdentifierReportPayload = {
+      exeName,
+      reason: "not_a_game",
+      installUuid: state.installUuid,
+      ...gameIdentity,
+    };
+    const response = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      timeoutMs: API_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const result = (await response.json()) as IdentifierReportResponse;
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName,
+      status: "unmatched",
+      detail: `Negative match report ${result.status}`,
+    });
+    return result.status;
+  } catch (error) {
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName,
+      status: "error",
+      detail: formatError(error),
+    });
+    logRuntime(
+      `negative match report failed ${exeName}: ${formatError(error)}`,
+    );
+    return "failed";
+  }
+}
+
+export async function reportNegativeMatch(
+  exeName: string,
+): Promise<NegativeReportOutcome> {
+  const key = exeName.toLowerCase();
+  const state = useAppStore.getState();
+  const existing = state.exeCache.get(key);
+  const existingSource =
+    existing?.state === "matched" ? (existing.source ?? "igdb") : undefined;
+  const gameIdentity =
+    existing?.state === "matched" &&
+    existing.gameId !== undefined &&
+    (existingSource === "igdb" || existingSource === "community")
+      ? { gameId: existing.gameId, gameSource: existingSource }
+      : undefined;
+
+  const localOutcome = await ignoreProcessLocally(exeName);
+  const report = await submitIdentifierReport(exeName, gameIdentity);
+  void requestProcessScan("after negative match report");
+  logRuntime(`negative match handled ${exeName}`);
+  return { ...localOutcome, report };
+}
+
+async function ignoreProcessLocally(
+  exeName: string,
+): Promise<LocalProcessIgnoreOutcome> {
+  const key = exeName.toLowerCase();
+  const state = useAppStore.getState();
+  // The in-app block is synchronous and is deliberately kept even when the
+  // user-ignore file update succeeds. It prevents a running process from
+  // racing the async IPC call and being matched again on the next scan.
+  state.toggleBlacklist(exeName, true);
+  for (const session of state.activeSessions.filter(
+    (candidate) => candidate.exeName.toLowerCase() === key,
+  )) {
+    removeActiveSession(session);
+  }
+  state.removeExeCacheEntry(exeName);
   state.removeAmbiguousMatch(exeName);
-  await setUserIgnoredProcess(exeName, true);
-  logRuntime(`ambiguous match ignored as not a game ${exeName}`);
   persist();
+
+  let ignoreFileUpdated = false;
+  try {
+    await setUserIgnoredProcess(exeName, true);
+    ignoreFileUpdated = true;
+  } catch (error) {
+    logRuntime(
+      `local process ignore-file update failed ${exeName}: ${formatError(error)}`,
+    );
+  }
+  return {
+    localBlockApplied: useAppStore.getState().blacklist.has(key),
+    ignoreFileUpdated,
+  };
+}
+
+export async function dismissAmbiguousMatch(exeName: string) {
+  const outcome = await ignoreProcessLocally(exeName);
+  void requestProcessScan("after ambiguous match dismissed");
+  logRuntime(`ambiguous match dismissed and ignored locally ${exeName}`);
+  return outcome;
 }
 
 async function endSession(session: ActiveSession, endedAtOverride?: string) {

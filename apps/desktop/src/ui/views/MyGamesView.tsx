@@ -24,6 +24,7 @@ import {
   acceptCommunityUpgrade,
   addManualSession,
   applyGameMatch,
+  applyKnownGameMatch,
   clearCustomGameCover,
   convertLocalSuggestionToCommunity,
   dismissCommunityUpgrade,
@@ -33,6 +34,7 @@ import {
   hydrateGameMetadata,
   markCommunitySuggestionRejected,
   renameCustomGame,
+  reportNegativeMatch,
   setGamePlaytime,
   setCustomGameCover,
   suggestTrackedGameToCommunity,
@@ -73,6 +75,7 @@ import {
   useContextMenu,
   useEscapeKey,
 } from "../primitives";
+import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import type {
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
@@ -80,6 +83,7 @@ import type {
   ContributionStatus,
   Game,
   GameSource,
+  IdentifierFlagReason,
 } from "@playcounter/shared";
 
 type SortKey = "recent" | "playtime" | "name" | "sessions";
@@ -792,6 +796,7 @@ function GameLibraryCard({
   const [showAddPlaytime, setShowAddPlaytime] = useState(false);
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const installUuid = useAppStore((state) => state.installUuid);
   const isOffline = useIsOffline();
@@ -850,7 +855,7 @@ function GameLibraryCard({
   }
 
   const handleApplyMatch = (match: Game) => {
-    applyGameMatch(game.exeNames[0], match);
+    applyKnownGameMatch(game.exeNames[0], match);
     addToast({
       tone: "success",
       title: "Match applied",
@@ -858,6 +863,46 @@ function GameLibraryCard({
     });
     setShowMatchCheck(false);
   };
+
+  async function handleNegativeReport() {
+    const exeName = game.exeNames[0];
+    if (!exeName) return;
+    setReportOpen(false);
+    setShowMatchCheck(false);
+    const outcome = await reportNegativeMatch(exeName);
+    if (!outcome.localBlockApplied) {
+      addToast({
+        tone: "error",
+        title: "Could not block process",
+        detail: `${exeName} could not be blocked on this PC.`,
+      });
+      return;
+    }
+    if (!outcome.ignoreFileUpdated) {
+      addToast({
+        tone: "error",
+        title: "Process blocked locally",
+        detail: `${exeName} will not be tracked, but the ignored-processes file could not be updated.`,
+      });
+      return;
+    }
+    if (outcome.report === "failed" || outcome.report === "skipped") {
+      addToast({
+        tone: "info",
+        title: "Fixed on this PC",
+        detail: "The community report could not be sent.",
+      });
+      return;
+    }
+    addToast({
+      tone: "success",
+      title: "Wrong match reported",
+      detail:
+        outcome.report === "already_reviewed"
+          ? `${exeName} is no longer tracked here. Your earlier report was already reviewed.`
+          : `${exeName} is no longer tracked here. Your report is queued for review.`,
+    });
+  }
 
   function closeShare() {
     setShareOpen(false);
@@ -1184,7 +1229,7 @@ function GameLibraryCard({
                 icon={Flag}
                 onClick={() => {
                   contextMenu.close();
-                  setShareOpen(true);
+                  setReportOpen(true);
                 }}
               >
                 Report Wrong Match
@@ -1334,7 +1379,7 @@ function GameLibraryCard({
                 icon={Flag}
                 aria-label={`Report wrong match for ${game.name}`}
                 title="Report wrong match"
-                onClick={() => setShareOpen(true)}
+                onClick={() => setReportOpen(true)}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
             ) : null}
@@ -1496,6 +1541,18 @@ function GameLibraryCard({
             game={game}
             onCancel={() => setShowMatchCheck(false)}
             onApply={handleApplyMatch}
+            onReportNotAGame={() => void handleNegativeReport()}
+          />
+        ) : null}
+        {reportOpen ? (
+          <ReportWrongMatchDialog
+            exeName={game.exeNames[0] ?? ""}
+            onCancel={() => setReportOpen(false)}
+            onDifferentGame={() => {
+              setReportOpen(false);
+              setShareOpen(true);
+            }}
+            onNotAGame={() => void handleNegativeReport()}
           />
         ) : null}
         {shareOpen ? (
@@ -1749,6 +1806,18 @@ function GameLibraryCard({
           game={game}
           onCancel={() => setShowMatchCheck(false)}
           onApply={handleApplyMatch}
+          onReportNotAGame={() => void handleNegativeReport()}
+        />
+      ) : null}
+      {reportOpen ? (
+        <ReportWrongMatchDialog
+          exeName={game.exeNames[0] ?? ""}
+          onCancel={() => setReportOpen(false)}
+          onDifferentGame={() => {
+            setReportOpen(false);
+            setShareOpen(true);
+          }}
+          onNotAGame={() => void handleNegativeReport()}
         />
       ) : null}
       {shareOpen ? (
@@ -2265,10 +2334,12 @@ function MatchCheckDialog({
   game,
   onCancel,
   onApply,
+  onReportNotAGame,
 }: {
   game: GameSummary;
   onCancel: () => void;
   onApply: (match: Game) => void;
+  onReportNotAGame: () => void;
 }) {
   useEscapeKey(onCancel);
   const exeName = game.exeNames[0] ?? "";
@@ -2276,6 +2347,9 @@ function MatchCheckDialog({
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<Game[]>([]);
   const [selection, setSelection] = useState<Game | null>(null);
+  const [flaggedIdentifier, setFlaggedIdentifier] = useState<{
+    reason: IdentifierFlagReason;
+  }>();
 
   const isCurrentMatch = (match: Game) =>
     match.source === game.source && match.id === game.gameId;
@@ -2284,9 +2358,11 @@ function MatchCheckDialog({
     let cancelled = false;
     void (async () => {
       try {
-        const games = await findGameMatches(exeName);
+        const { games, flaggedIdentifier: flag } =
+          await findGameMatches(exeName);
         if (cancelled) return;
         setCandidates(games);
+        setFlaggedIdentifier(flag);
         // A single combined IGDB/community result is preselected so applying
         // is one click — unless it is what the exe already uses. An ambiguous
         // set requires an explicit pick.
@@ -2324,6 +2400,14 @@ function MatchCheckDialog({
           </span>{" "}
           in the IGDB and community databases.
         </p>
+
+        {flaggedIdentifier ? (
+          <div className="mt-4 rounded-md border border-warning-border bg-warning-tint p-3 text-sm text-warning">
+            {flaggedIdentifier.reason === "not_a_game"
+              ? "This executable name is also used by non-game software, so PlayCounter no longer chooses a game automatically."
+              : "This executable name is ambiguous, so PlayCounter no longer chooses a game automatically."}
+          </div>
+        ) : null}
 
         <div className="mt-4 max-h-80 overflow-y-auto">
           {state === "loading" ? (
@@ -2402,6 +2486,9 @@ function MatchCheckDialog({
             {game.source === "custom"
               ? "Keep custom game"
               : "Keep current match"}
+          </Button>
+          <Button variant="secondary" onClick={onReportNotAGame}>
+            This is not a game
           </Button>
         </div>
       </div>

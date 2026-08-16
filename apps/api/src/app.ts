@@ -6,6 +6,7 @@ import type {
   EmulatorResolveRequest,
   FeedbackPayload,
   GameMetadataResponse,
+  IdentifierReportPayload,
   MatchProcessesRequest,
 } from "@playcounter/shared";
 import Fastify from "fastify";
@@ -149,6 +150,43 @@ const communityGameSuggestionSchema = z.object({
   igdbId: z.number().int().positive().optional(),
   installUuid: z.string().uuid().optional(),
 });
+const windowsExecutableNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(260)
+  .refine(
+    (value) => !/[\\/]/.test(value),
+    "Executable names must be a file name, not a path.",
+  )
+  .refine(
+    (value) => !/[\u0000-\u001f\u007f]/.test(value),
+    "Executable names must not contain control characters.",
+  )
+  .refine(
+    (value) => !/[<>:\"|?*]/.test(value),
+    "Executable names contain unsupported characters.",
+  )
+  .refine(
+    (value) => value !== "." && value !== "..",
+    "Executable names must be a real file name.",
+  )
+  .transform((value) => value.toLowerCase());
+const identifierReportSchema = z
+  .object({
+    exeName: windowsExecutableNameSchema,
+    reason: z.literal("not_a_game"),
+    gameId: z.number().int().positive().optional(),
+    gameSource: z.enum(["igdb", "community"]).optional(),
+    installUuid: z.string().uuid(),
+  })
+  .refine(
+    (body) => (body.gameId === undefined) === (body.gameSource === undefined),
+    {
+      path: ["gameSource"],
+      message: "gameId and gameSource must be sent together.",
+    },
+  );
 const contributionsQuerySchema = z.object({
   installUuid: z.string().uuid(),
 });
@@ -209,6 +247,7 @@ export async function buildApp(repository: PlayCounterRepository) {
           game: match?.game ?? null,
           matchedIdentifier: match?.identifier,
           ambiguousGames: match?.ambiguousGames,
+          flaggedIdentifier: match?.flaggedIdentifier,
           pendingCommunityGame: match?.pendingCommunityGame,
           pendingCommunityGames: match?.pendingCommunityGames ?? [],
           communityGameAliases: match?.communityGameAliases,
@@ -260,6 +299,12 @@ export async function buildApp(repository: PlayCounterRepository) {
       request.body,
     ) satisfies CommunityGameSuggestionPayload;
     return repository.suggestCommunityGame(body);
+  });
+  app.post("/api/community/identifier-reports", async (request) => {
+    const body = identifierReportSchema.parse(
+      request.body,
+    ) satisfies IdentifierReportPayload;
+    return repository.reportIdentifier(body);
   });
   app.post("/api/feedback", async (request) => {
     const body = feedbackSchema.parse(request.body) satisfies FeedbackPayload;

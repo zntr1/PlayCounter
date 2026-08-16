@@ -1,14 +1,22 @@
 import type { Contribution, Game, Session } from "@playcounter/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => ({
+  convertFileSrc: (value: string) => value,
+  invoke: invokeMock,
+}));
 import { useAppStore, type ExeCacheEntry } from "./store";
 import {
   addManualSession,
   applyGameMatch,
   applyCommunitySuggestionOutcome,
   applyContributionMarkers,
+  dismissAmbiguousMatch,
   hydrateGameMetadata,
+  findGameMatches,
   persist,
   removeGameHistory,
+  reportNegativeMatch,
   setGamePlaytime,
   untrackGame,
 } from "./tracker";
@@ -42,6 +50,19 @@ function contribution(overrides: Partial<Contribution> = {}): Contribution {
 }
 
 beforeEach(() => {
+  vi.stubGlobal("window", globalThis);
+  invokeMock.mockReset();
+  invokeMock.mockImplementation(async (command: string) => {
+    if (command === "set_user_ignored_process") {
+      return {
+        processes: ["game.exe"],
+        userProcesses: ["game.exe"],
+        userFilePath: "ignored-processes.txt",
+      };
+    }
+    if (command === "scan_processes") return [];
+    return undefined;
+  });
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
     value: { setItem: vi.fn(), getItem: vi.fn(() => null) },
@@ -49,11 +70,16 @@ beforeEach(() => {
   useAppStore.setState({
     exeCache: new Map(),
     activeSessions: [],
+    ambiguousMatches: [],
     recentSessions: [],
     gameMetadata: new Map(),
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: {},
+    blacklist: new Set(),
+    ignoredProcesses: new Set(),
+    userIgnoredProcesses: new Set(),
+    installUuid: null,
     notifications: [],
     awardedMilestones: [],
     milestonesInitializedAt: null,
@@ -67,6 +93,222 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("negative match reports", () => {
+  const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+  const activeSession = {
+    id: 10,
+    gameId: 42,
+    gameName: "Wrong game",
+    exeName: "Game.exe",
+    coverUrl: "cover",
+    source: "igdb" as const,
+    startedAt: "2026-08-09T10:00:00.000Z",
+    checkpointedAt: "2026-08-09T10:01:00.000Z",
+  };
+  const historySession: Session = {
+    id: 11,
+    gameId: 42,
+    gameName: "Wrong game",
+    exeName: "Game.exe",
+    coverUrl: "cover",
+    source: "igdb",
+    startedAt: "2026-08-08T10:00:00.000Z",
+    endedAt: "2026-08-08T10:01:00.000Z",
+    durationSeconds: 60,
+  };
+
+  function seedMatchedGame() {
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([
+        [
+          "game.exe",
+          entry({
+            gameId: 42,
+            gameName: "Wrong game",
+            source: "igdb",
+          }),
+        ],
+      ]),
+      activeSessions: [activeSession],
+      recentSessions: [historySession],
+    });
+  }
+
+  it("blocks locally, stops the active session, and sends mapped evidence", async () => {
+    seedMatchedGame();
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({ status: "recorded", flagged: false }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await reportNegativeMatch("Game.exe");
+
+    expect(outcome).toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+      report: "recorded",
+    });
+    expect(useAppStore.getState().blacklist.has("game.exe")).toBe(true);
+    expect(useAppStore.getState().exeCache.has("game.exe")).toBe(false);
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(useAppStore.getState().recentSessions).toEqual([historySession]);
+    expect(invokeMock).toHaveBeenCalledWith("set_user_ignored_process", {
+      exeName: "Game.exe",
+      ignored: true,
+    });
+    const reportRequest = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith("/api/community/identifier-reports"),
+    );
+    expect(reportRequest).toBeDefined();
+    expect(JSON.parse(String(reportRequest?.[1]?.body))).toEqual({
+      exeName: "Game.exe",
+      reason: "not_a_game",
+      installUuid,
+      gameId: 42,
+      gameSource: "igdb",
+    });
+  });
+
+  it("keeps the local block and report when the ignore-file write fails", async () => {
+    seedMatchedGame();
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "set_user_ignored_process") {
+        throw new Error("file locked");
+      }
+      if (command === "scan_processes") {
+        return [{ exeName: "Game.exe", exePath: null }];
+      }
+      return undefined;
+    });
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/api/community/identifier-reports")) {
+        return {
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          json: async () => ({ status: "recorded", flagged: false }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({
+          matches: [
+            {
+              key: "game.exe",
+              game: {
+                id: 42,
+                name: "Wrong game",
+                coverUrl: "",
+                source: "igdb",
+              },
+            },
+          ],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await reportNegativeMatch("Game.exe");
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("scan_processes"),
+    );
+
+    expect(outcome).toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: false,
+      report: "recorded",
+    });
+    expect(useAppStore.getState().blacklist.has("game.exe")).toBe(true);
+    expect(useAppStore.getState().exeCache.has("game.exe")).toBe(false);
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith("/api/match-processes"),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("dismisses and ignores an uncertain picker without sending a report", async () => {
+    useAppStore.setState({
+      installUuid,
+      ambiguousMatches: [
+        {
+          exeName: "Game.exe",
+          exePath: null,
+          candidates: [
+            {
+              id: 42,
+              name: "Possible game",
+              coverUrl: "",
+              source: "igdb",
+            },
+          ],
+          detectedAt: "2026-08-09T10:00:00.000Z",
+        },
+      ],
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await dismissAmbiguousMatch("Game.exe");
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("scan_processes"),
+    );
+
+    expect(outcome).toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+    });
+    expect(useAppStore.getState().ambiguousMatches).toEqual([]);
+    expect(useAppStore.getState().blacklist.has("game.exe")).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns flag metadata from a manual match lookup", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        matches: [
+          {
+            key: "game.exe",
+            game: null,
+            ambiguousGames: [
+              {
+                id: 42,
+                name: "Possible game",
+                coverUrl: "",
+                source: "igdb",
+              },
+            ],
+            flaggedIdentifier: { reason: "not_a_game" },
+          },
+        ],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(findGameMatches("Game.exe")).resolves.toEqual({
+      games: [
+        {
+          id: 42,
+          name: "Possible game",
+          coverUrl: "",
+          source: "igdb",
+        },
+      ],
+      flaggedIdentifier: { reason: "not_a_game" },
+    });
+  });
 });
 
 describe("game metadata hydration", () => {

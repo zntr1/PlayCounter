@@ -1,4 +1,7 @@
-import type { ContributionsResponse } from "@playcounter/shared";
+import type {
+  ContributionsResponse,
+  IdentifierReportResponse,
+} from "@playcounter/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 import { MemoryRepository } from "./repository.js";
@@ -61,6 +64,100 @@ describe("community contributions route", () => {
     expect(result.statusCode).toBe(200);
     expect(result.json()).toEqual(response);
     expect(repository.listContributions).toHaveBeenCalledWith(uuid);
+  });
+});
+
+describe("identifier report route", () => {
+  const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+  it("validates identity fields and executable file names", async () => {
+    const app = await buildApp(new MemoryRepository());
+    apps.push(app);
+    const invalidPayloads = [
+      { exeName: "ai.exe", reason: "not_a_game" },
+      {
+        exeName: "ai.exe",
+        reason: "not_a_game",
+        installUuid: "not-a-uuid",
+      },
+      {
+        exeName: "ai.exe",
+        reason: "unknown",
+        installUuid: uuid,
+      },
+      ...[
+        "C:\\Games\\ai.exe",
+        "../ai.exe",
+        "sub/dir/ai.exe",
+        "ai\u0000.exe",
+        "ai\nexe",
+        "*",
+        ".",
+      ].map((exeName) => ({
+        exeName,
+        reason: "not_a_game",
+        installUuid: uuid,
+      })),
+    ];
+
+    for (const payload of invalidPayloads) {
+      const result = await app.inject({
+        method: "POST",
+        url: "/api/community/identifier-reports",
+        payload,
+      });
+      expect(result.statusCode).toBe(400);
+    }
+  });
+
+  it("normalizes and forwards reports with or without a game identity", async () => {
+    const response: IdentifierReportResponse = {
+      status: "recorded",
+      flagged: false,
+    };
+    class ReportRepository extends MemoryRepository {
+      override reportIdentifier = vi.fn(async () => response);
+    }
+    const repository = new ReportRepository();
+    const app = await buildApp(repository);
+    apps.push(app);
+
+    const matched = await app.inject({
+      method: "POST",
+      url: "/api/community/identifier-reports",
+      payload: {
+        exeName: "  AI.EXE  ",
+        reason: "not_a_game",
+        gameId: 42,
+        gameSource: "igdb",
+        installUuid: uuid,
+      },
+    });
+    const ambiguous = await app.inject({
+      method: "POST",
+      url: "/api/community/identifier-reports",
+      payload: {
+        exeName: "launcher",
+        reason: "not_a_game",
+        installUuid: uuid,
+      },
+    });
+
+    expect(matched.statusCode).toBe(200);
+    expect(ambiguous.statusCode).toBe(200);
+    expect(matched.json()).toEqual(response);
+    expect(repository.reportIdentifier).toHaveBeenNthCalledWith(1, {
+      exeName: "ai.exe",
+      reason: "not_a_game",
+      gameId: 42,
+      gameSource: "igdb",
+      installUuid: uuid,
+    });
+    expect(repository.reportIdentifier).toHaveBeenNthCalledWith(2, {
+      exeName: "launcher",
+      reason: "not_a_game",
+      installUuid: uuid,
+    });
   });
 });
 
