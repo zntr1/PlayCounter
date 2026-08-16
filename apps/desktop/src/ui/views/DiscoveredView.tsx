@@ -125,7 +125,6 @@ const statusLabels: Record<DiscoveryStatus, string> = {
   unmatched: "Not recognized",
   ignored: "Ignored by PlayCounter",
   userIgnored: "Ignored by you",
-  checking: "Checking…",
 };
 
 const statusClasses: Record<DiscoveryStatus, string> = {
@@ -134,7 +133,6 @@ const statusClasses: Record<DiscoveryStatus, string> = {
   unmatched: "bg-surface-hover text-text-muted",
   ignored: "bg-surface-hover text-text-faint",
   userIgnored: "bg-warning-tint text-warning",
-  checking: "bg-community-tint text-community",
 };
 
 type FilterId = "review" | "tracked" | "ignored";
@@ -158,7 +156,6 @@ const IGNORED_PAGE_SIZE = 50;
 const statusToTone: Record<DiscoveryStatus, DiscoveryGroup["tone"]> = {
   matched: "local",
   unmatched: "review",
-  checking: "review",
   custom: "local",
   userIgnored: "userIgnored",
   ignored: "systemIgnored",
@@ -200,10 +197,9 @@ function sortDiscovered(
   const order: Record<DiscoveryStatus, number> = {
     matched: 0,
     custom: 1,
-    checking: 2,
-    unmatched: 3,
-    userIgnored: 4,
-    ignored: 5,
+    unmatched: 2,
+    userIgnored: 3,
+    ignored: 4,
   };
 
   return (
@@ -496,23 +492,27 @@ export function DiscoveredView() {
     );
     const running = nativeProcesses
       .filter((process) => !ambiguousKeys.has(process.exeName.toLowerCase()))
-      .map((process): DiscoveredExecutable => {
+      .flatMap((process): DiscoveredExecutable[] => {
         const key = process.exeName.toLowerCase();
         const cacheEntry = exeCache.get(key) ?? null;
+        const status = getDiscoveryStatus(
+          process.exeName,
+          cacheEntry ?? undefined,
+          ignoredProcesses,
+          userIgnoredProcesses,
+          blacklist,
+        );
+        if (!status) return [];
 
-        return {
-          ...process,
-          key,
-          isRunning: true,
-          cacheEntry,
-          status: getDiscoveryStatus(
-            process.exeName,
-            cacheEntry ?? undefined,
-            ignoredProcesses,
-            userIgnoredProcesses,
-            blacklist,
-          ),
-        };
+        return [
+          {
+            ...process,
+            key,
+            isRunning: true,
+            cacheEntry,
+            status,
+          },
+        ];
       });
     const savedByKey = new Map<string, ExeCacheEntry | null>();
     for (const entry of exeCache.values()) {
@@ -528,24 +528,30 @@ export function DiscoveredView() {
       }
     }
 
-    const saved = [...savedByKey].map(([key, entry]): DiscoveredExecutable => {
-      const exeName = entry?.exeName ?? key;
-
-      return {
-        exeName,
-        exePath: null,
-        key,
-        isRunning: false,
-        cacheEntry: entry,
-        status: getDiscoveryStatus(
+    const saved = [...savedByKey].flatMap(
+      ([key, entry]): DiscoveredExecutable[] => {
+        const exeName = entry?.exeName ?? key;
+        const status = getDiscoveryStatus(
           exeName,
           entry ?? undefined,
           ignoredProcesses,
           userIgnoredProcesses,
           blacklist,
-        ),
-      };
-    });
+        );
+        if (!status) return [];
+
+        return [
+          {
+            exeName,
+            exePath: null,
+            key,
+            isRunning: false,
+            cacheEntry: entry,
+            status,
+          },
+        ];
+      },
+    );
 
     return [
       {
@@ -1048,11 +1054,6 @@ function TriageWizardCard({
               of {queueLength} remaining
             </span>
           </div>
-          {executable.status === "checking" && (
-            <span className="inline-flex items-center rounded-full bg-community-tint px-2.5 py-1 text-xs font-medium text-community">
-              Checking database...
-            </span>
-          )}
         </div>
 
         <div className="mt-3">
@@ -1478,13 +1479,6 @@ function DiscoveredExecutableRow({
                 />
               </div>
             </>
-          ) : executable.status === "checking" ? (
-            <IconButton
-              icon={EyeOff}
-              title="Ignore this executable"
-              disabled={isPending}
-              onClick={onIgnore}
-            />
           ) : null}
         </div>
       </div>
@@ -1564,9 +1558,7 @@ function DiscoveredExecutableRow({
           </>
         ) : null}
 
-        {!isOffline &&
-        (executable.status === "unmatched" ||
-          executable.status === "checking") ? (
+        {!isOffline && executable.status === "unmatched" ? (
           <ContextMenuItem
             icon={RotateCcw}
             onClick={() => {

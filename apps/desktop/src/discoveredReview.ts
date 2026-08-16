@@ -10,12 +10,10 @@ export type DiscoveryStatus =
   | "custom"
   | "unmatched"
   | "ignored"
-  | "userIgnored"
-  | "checking";
+  | "userIgnored";
 
 export const NEEDS_REVIEW_STATUSES = [
   "unmatched",
-  "checking",
 ] as const satisfies readonly DiscoveryStatus[];
 
 export type DiscoveryReviewInput = {
@@ -54,6 +52,7 @@ export function countNeedsReview(input: DiscoveryReviewInput) {
       input.userIgnoredProcesses,
       input.blacklist,
     );
+    if (!status) continue;
     if (
       NEEDS_REVIEW_STATUSES.includes(
         status as (typeof NEEDS_REVIEW_STATUSES)[number],
@@ -71,7 +70,7 @@ export function getDiscoveryStatus(
   ignoredProcesses: Set<string>,
   userIgnoredProcesses: Set<string>,
   blacklist: Set<string>,
-): DiscoveryStatus {
+): DiscoveryStatus | null {
   const key = exeName.toLowerCase();
 
   if (
@@ -88,5 +87,7 @@ export function getDiscoveryStatus(
   if (cacheEntry?.state === "matched") return "matched";
   if (cacheEntry?.state === "unmatched") return "unmatched";
 
-  return "checking";
+  // An executable without a cache result is still being checked (or its
+  // lookup failed). It must not enter Discovered until it has been classified.
+  return null;
 }

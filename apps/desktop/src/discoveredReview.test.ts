@@ -36,7 +36,7 @@ function input(
 }
 
 describe("discovered review count", () => {
-  it("counts only unmatched and checking executables", () => {
+  it("counts only checked executables that need review", () => {
     const processes = [
       { exeName: "checking.exe", exePath: null },
       { exeName: "unmatched.exe", exePath: null },
@@ -58,7 +58,22 @@ describe("discovered review count", () => {
       },
     );
 
-    expect(countNeedsReview(state)).toBe(2);
+    expect(countNeedsReview(state)).toBe(1);
+  });
+
+  it("does not expose a process before its database check completes", () => {
+    const state = input([{ exeName: "subnautica.exe", exePath: null }]);
+
+    expect(
+      getDiscoveryStatus(
+        "subnautica.exe",
+        state.exeCache.get("subnautica.exe"),
+        state.ignoredProcesses,
+        state.userIgnoredProcesses,
+        state.blacklist,
+      ),
+    ).toBeNull();
+    expect(countNeedsReview(state)).toBe(0);
   });
 
   it("excludes ambiguous matches and de-duplicates cached running executables", () => {
