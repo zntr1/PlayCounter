@@ -67,6 +67,8 @@ beforeEach(() => {
     archivedGameSeconds: {},
     playtimeAdjustments: {},
     collapsedSections: [],
+    ignoredProcesses: new Set(),
+    userIgnoredProcesses: new Set(),
   });
 });
 

@@ -13,8 +13,12 @@ import type {
   IdentifierFlagReason,
   IdentifierReportPayload,
   IdentifierReportResponse,
+  IgnoredProcessReportPayload,
+  IgnoredProcessReportResponse,
   MatchProcessRequestItem,
+  Platform,
   ProcessIdentifier,
+  ProcessIdentifierKind,
 } from "@playcounter/shared";
 import pg from "pg";
 import {
@@ -78,6 +82,12 @@ const identifierPriority: Record<string, number> = {
   "linux:desktop_id": 40,
   "linux:executable_name": 50,
 };
+
+const ignoredProcessKinds = {
+  windows: "exe",
+  macos: "process_name",
+  linux: "executable_name",
+} as const satisfies Record<Platform, ProcessIdentifierKind>;
 const maxIgdbFallbacksPerMatchRequest = 5;
 // How long a failed IGDB live lookup is remembered. Clients poll match-processes
 // continuously while an exe runs, and without this every poll from every client
@@ -106,6 +116,9 @@ export interface PlayCounterRepository {
   reportIdentifier(
     report: IdentifierReportPayload,
   ): Promise<IdentifierReportResponse>;
+  reportIgnoredProcess(
+    report: IgnoredProcessReportPayload,
+  ): Promise<IgnoredProcessReportResponse>;
   listContributions(installUuid: string): Promise<ContributionsResponse>;
   createFeedback(payload: FeedbackPayload): Promise<FeedbackResponse>;
 }
@@ -174,6 +187,10 @@ export class MemoryRepository implements PlayCounterRepository {
 
   async reportIdentifier(): Promise<IdentifierReportResponse> {
     return { status: "recorded", flagged: false };
+  }
+
+  async reportIgnoredProcess(): Promise<IgnoredProcessReportResponse> {
+    return { status: "recorded" };
   }
 
   async listContributions(): Promise<ContributionsResponse> {
@@ -1097,6 +1114,33 @@ export class PostgresRepository implements PlayCounterRepository {
             ? "recorded"
             : "duplicate",
       flagged: (flagged.rowCount ?? 0) > 0,
+    };
+  }
+
+  async reportIgnoredProcess(
+    report: IgnoredProcessReportPayload,
+  ): Promise<IgnoredProcessReportResponse> {
+    const platform = report.platform;
+    const kind = ignoredProcessKinds[platform];
+    const value = report.exeName.trim().toLowerCase();
+    const upserted = await this.pool.query<{ inserted: boolean }>(
+      `INSERT INTO community_ignored_process_reports
+         (platform, kind, value, install_uuid)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT ON CONSTRAINT ignored_report_install_unique
+       DO UPDATE SET updated_at = now()
+       WHERE community_ignored_process_reports.status = 'pending'
+       RETURNING (xmax = 0) AS inserted`,
+      [platform, kind, value, report.installUuid],
+    );
+    const row = upserted.rows[0];
+    return {
+      status:
+        row === undefined
+          ? "already_reviewed"
+          : row.inserted
+            ? "recorded"
+            : "duplicate",
     };
   }
 

@@ -1,6 +1,6 @@
 export function matchesProcessPatternSet(
   exeName: string,
-  patterns: Set<string>,
+  patterns: ReadonlySet<string>,
 ) {
   const key = exeName.toLowerCase();
   if (patterns.has(key)) return true;

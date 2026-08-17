@@ -10,6 +10,9 @@ import type {
   IdentifierFlagReason,
   IdentifierReportPayload,
   IdentifierReportResponse,
+  IgnoredProcessReportPayload,
+  IgnoredProcessReportResponse,
+  IgnoredProcessReportStatus,
   MatchProcessesResponse,
   Platform,
   ProcessIdentifier,
@@ -41,6 +44,7 @@ import {
   sanitizeDiscoveredReviewReminder,
 } from "./discoveredReminder";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
+import { currentPlatform } from "./platform";
 import { evaluateMilestones, migrateAwardedMilestones } from "./milestones";
 import {
   contributionKey,
@@ -145,6 +149,19 @@ export type LocalProcessIgnoreOutcome = Pick<
   "localBlockApplied" | "ignoreFileUpdated"
 >;
 
+export type IgnoredProcessSuggestionResult =
+  | {
+      kind: "suggested";
+      status: IgnoredProcessReportStatus;
+    }
+  | { kind: "not_eligible"; reason: "matched_game" | "ambiguous_picker" }
+  | { kind: "skipped"; reason: "offline" | "no_install_uuid" }
+  | { kind: "failed" };
+
+export type IgnoredProcessSuggestionOutcome = LocalProcessIgnoreOutcome & {
+  suggestion: IgnoredProcessSuggestionResult;
+};
+
 type IgnoredProcessesResponse = {
   processes: string[];
   userProcesses?: string[];
@@ -156,6 +173,10 @@ type IgnoredProcessesResponse = {
 // the whole time a custom game is running. Not persisted; a restart re-checks
 // once, which is what the startup approval recheck does anyway.
 const communityUpgradeCheckedAt = new Map<string, number>();
+const ignoredProcessSuggestionRequests = new Map<
+  string,
+  Promise<IgnoredProcessSuggestionOutcome>
+>();
 
 let initialized = false;
 let backendHealthTimer: number | undefined;
@@ -321,6 +342,15 @@ function hydrate() {
   });
   const blacklist = persisted.blacklist ?? [];
   const exeCache = persisted.exeCache ?? [];
+  const exeCacheMap = new Map(
+    exeCache.map((entry) => {
+      const { runningSince: _runningSince, ...rest } = entry;
+      return [
+        entry.exeName.toLowerCase(),
+        inferSuggestionStatus(rest),
+      ] as const;
+    }),
+  );
   const knownEmulators = new Map(
     (persisted.knownEmulators ?? []).map((emulator) => [
       emulator.emulatorId,
@@ -344,14 +374,9 @@ function hydrate() {
     installUuid: persisted.installUuid ?? null,
     contributionOwnerUuid: persisted.contributionOwnerUuid ?? null,
     settings,
-    exeCache: new Map(
-      exeCache.map((entry) => {
-        // Drop any open running window: runtime while the app was closed cannot
-        // be observed and must not be credited. Accumulated time is kept.
-        const { runningSince: _r, ...rest } = entry;
-        return [entry.exeName.toLowerCase(), inferSuggestionStatus(rest)];
-      }),
-    ),
+    // Open running windows were removed while constructing exeCacheMap above;
+    // runtime while the app was closed must never be credited.
+    exeCache: exeCacheMap,
     gameMetadata: new Map(
       (persisted.gameMetadata ?? []).map((game) => [
         gameMetadataKey(game),
@@ -2506,6 +2531,96 @@ async function ignoreProcessLocally(
     localBlockApplied: useAppStore.getState().blacklist.has(key),
     ignoreFileUpdated,
   };
+}
+
+export function suggestIgnoredProcess(
+  exeName: string,
+): Promise<IgnoredProcessSuggestionOutcome> {
+  const key = exeName.toLowerCase();
+  const existing = ignoredProcessSuggestionRequests.get(key);
+  if (existing) return existing;
+  const request = runIgnoredProcessSuggestion(exeName, key).finally(() => {
+    ignoredProcessSuggestionRequests.delete(key);
+  });
+  ignoredProcessSuggestionRequests.set(key, request);
+  return request;
+}
+
+async function runIgnoredProcessSuggestion(
+  exeName: string,
+  key: string,
+): Promise<IgnoredProcessSuggestionOutcome> {
+  const state = useAppStore.getState();
+  const cached = state.exeCache.get(key);
+  const hasPicker = state.ambiguousMatches.some(
+    (match) => match.exeName.toLowerCase() === key,
+  );
+  const blocked: IgnoredProcessSuggestionResult | null =
+    cached?.state === "matched"
+      ? { kind: "not_eligible", reason: "matched_game" }
+      : hasPicker
+        ? { kind: "not_eligible", reason: "ambiguous_picker" }
+        : isOfflineStatus(state.backendHealth.status)
+          ? { kind: "skipped", reason: "offline" }
+          : !state.installUuid
+            ? { kind: "skipped", reason: "no_install_uuid" }
+            : null;
+
+  const local = await ignoreProcessLocally(exeName);
+  void requestProcessScan("after ignored process suggestion");
+  const suggestion =
+    blocked ??
+    (await submitIgnoredProcessReport(exeName, state.installUuid as string));
+  logRuntime(
+    `ignored process suggestion handled ${exeName} result=${suggestion.kind}`,
+  );
+  return { ...local, suggestion };
+}
+
+async function submitIgnoredProcessReport(
+  exeName: string,
+  installUuid: string,
+): Promise<IgnoredProcessSuggestionResult> {
+  const state = useAppStore.getState();
+  const endpoint = `${state.settings.apiEndpoint}/api/community/ignored-processes`;
+  try {
+    const payload: IgnoredProcessReportPayload = {
+      exeName,
+      platform: currentPlatform(),
+      installUuid,
+    };
+    const response = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      timeoutMs: API_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const result = (await response.json()) as IgnoredProcessReportResponse;
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName,
+      status: "unmatched",
+      detail: `Ignored process suggestion ${result.status}`,
+    });
+    return {
+      kind: "suggested",
+      status: result.status,
+    };
+  } catch (error) {
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName,
+      status: "error",
+      detail: formatError(error),
+    });
+    logRuntime(
+      `ignored process suggestion failed ${exeName}: ${formatError(error)}`,
+    );
+    return { kind: "failed" };
+  }
 }
 
 export async function dismissAmbiguousMatch(exeName: string) {

@@ -19,6 +19,7 @@ import {
   dismissAmbiguousMatch,
   hydrateGameMetadata,
   findGameMatches,
+  suggestIgnoredProcess,
   persist,
   removeGameHistory,
   reportNegativeMatch,
@@ -56,6 +57,10 @@ function contribution(overrides: Partial<Contribution> = {}): Contribution {
 
 beforeEach(() => {
   vi.stubGlobal("window", globalThis);
+  vi.stubGlobal("navigator", {
+    userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+    platform: "Win32",
+  });
   invokeMock.mockReset();
   invokeMock.mockImplementation(async (command: string) => {
     if (command === "set_user_ignored_process") {
@@ -93,6 +98,190 @@ beforeEach(() => {
       checkedAt: "2026-08-09T00:00:00.000Z",
       detail: null,
     },
+  });
+});
+
+describe("ignored process suggestions", () => {
+  const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+
+  it("user-ignores locally and sends minimal, platform-scoped evidence", async () => {
+    const cached = entry({
+      exeName: "Service.exe",
+      state: "unmatched",
+      gameId: undefined,
+      gameName: undefined,
+    });
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([["service.exe", cached]]),
+    });
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({ status: "recorded" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const outcome = await suggestIgnoredProcess("Service.exe");
+
+    expect(outcome).toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+      suggestion: {
+        kind: "suggested",
+        status: "recorded",
+      },
+    });
+    expect(invokeMock).toHaveBeenCalledWith("set_user_ignored_process", {
+      exeName: "Service.exe",
+      ignored: true,
+    });
+    expect(useAppStore.getState().blacklist.has("service.exe")).toBe(true);
+    expect(useAppStore.getState().exeCache.has("service.exe")).toBe(false);
+    expect(globalThis.localStorage.setItem).toHaveBeenCalled();
+    const request = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith("/api/community/ignored-processes"),
+    );
+    expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+      exeName: "Service.exe",
+      platform: "windows",
+      installUuid,
+    });
+  });
+
+  it("protects matched games and pickers", async () => {
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([["game.exe", entry({ source: "igdb" })]]),
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(suggestIgnoredProcess("Game.exe")).resolves.toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+      suggestion: { kind: "not_eligible", reason: "matched_game" },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    useAppStore.setState({
+      blacklist: new Set(),
+      ambiguousMatches: [
+        {
+          exeName: "Picker.exe",
+          exePath: null,
+          candidates: [],
+          detectedAt: "2026-08-16T20:00:00.000Z",
+        },
+      ],
+    });
+    await expect(suggestIgnoredProcess("Picker.exe")).resolves.toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+      suggestion: { kind: "not_eligible", reason: "ambiguous_picker" },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("still user-ignores locally when suggestions are unavailable offline", async () => {
+    useAppStore.setState({
+      installUuid,
+      backendHealth: {
+        status: "offline",
+        checkedAt: "2026-08-16T20:00:00.000Z",
+        detail: "unreachable",
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(suggestIgnoredProcess("Service.exe")).resolves.toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+      suggestion: { kind: "skipped", reason: "offline" },
+    });
+    expect(invokeMock).toHaveBeenCalledWith("set_user_ignored_process", {
+      exeName: "Service.exe",
+      ignored: true,
+    });
+    expect(useAppStore.getState().blacklist.has("service.exe")).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the local user-ignore when submitting the suggestion fails", async () => {
+    useAppStore.setState({ installUuid });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+      })),
+    );
+
+    await expect(suggestIgnoredProcess("Service.exe")).resolves.toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+      suggestion: { kind: "failed" },
+    });
+    expect(useAppStore.getState().blacklist.has("service.exe")).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith("set_user_ignored_process", {
+      exeName: "Service.exe",
+      ignored: true,
+    });
+  });
+
+  it("still submits the suggestion when the user ignore file cannot be updated", async () => {
+    useAppStore.setState({ installUuid });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "set_user_ignored_process") throw new Error("locked");
+      if (command === "scan_processes") return [];
+      return undefined;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({ status: "recorded" }),
+      })),
+    );
+
+    await expect(suggestIgnoredProcess("Service.exe")).resolves.toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: false,
+      suggestion: {
+        kind: "suggested",
+        status: "recorded",
+      },
+    });
+    expect(useAppStore.getState().blacklist.has("service.exe")).toBe(true);
+  });
+
+  it("shares one in-flight request between concurrent callers", async () => {
+    useAppStore.setState({ installUuid });
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetchMock = vi.fn(async () => {
+      await gate;
+      return {
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({ status: "recorded" }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = suggestIgnoredProcess("Service.exe");
+    const second = suggestIgnoredProcess("Service.exe");
+    release();
+    const [left, right] = await Promise.all([first, second]);
+    expect(left).toEqual(right);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

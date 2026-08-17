@@ -1,6 +1,7 @@
 import type {
   ContributionsResponse,
   IdentifierReportResponse,
+  IgnoredProcessReportResponse,
 } from "@playcounter/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
@@ -208,6 +209,78 @@ describe("identifier report route", () => {
       reason: "not_a_game",
       installUuid: uuid,
     });
+  });
+});
+
+describe("ignored process routes", () => {
+  const uuid = "550e8400-e29b-41d4-a716-446655440000";
+
+  it("normalizes and forwards system-ignore suggestions", async () => {
+    const response: IgnoredProcessReportResponse = {
+      status: "recorded",
+    };
+    class IgnoreRepository extends MemoryRepository {
+      override reportIgnoredProcess = vi.fn(async () => response);
+    }
+    const repository = new IgnoreRepository();
+    const app = await buildApp(repository);
+    apps.push(app);
+
+    const result = await app.inject({
+      method: "POST",
+      url: "/api/community/ignored-processes",
+      payload: {
+        exeName: "  SERVICE.EXE  ",
+        platform: "windows",
+        installUuid: uuid,
+      },
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toEqual(response);
+    expect(repository.reportIgnoredProcess).toHaveBeenCalledWith({
+      exeName: "service.exe",
+      platform: "windows",
+      installUuid: uuid,
+    });
+  });
+
+  it("rejects invalid or over-broad system-ignore suggestions", async () => {
+    const app = await buildApp(new MemoryRepository());
+    apps.push(app);
+    const payloads = [
+      { exeName: "ai.exe", platform: "windows" },
+      { exeName: "ai.exe", platform: "unknown", installUuid: uuid },
+      { exeName: "ai.exe", platform: "windows", installUuid: "bad" },
+      ...["ai*.exe", "ai?.exe", "C:\\Games\\ai.exe", "ai\n.exe", "."].map(
+        (exeName) => ({ exeName, platform: "windows", installUuid: uuid }),
+      ),
+      {
+        exeName: "ai.exe",
+        platform: "windows",
+        installUuid: uuid,
+        gameId: 42,
+      },
+    ];
+    for (const payload of payloads) {
+      const result = await app.inject({
+        method: "POST",
+        url: "/api/community/ignored-processes",
+        payload,
+      });
+      expect(result.statusCode).toBe(400);
+    }
+  });
+
+  it("does not expose reviewed suggestions as a distributed ignore list", async () => {
+    const app = await buildApp(new MemoryRepository());
+    apps.push(app);
+
+    const result = await app.inject({
+      method: "GET",
+      url: "/api/community/ignored-processes",
+    });
+    expect(result.statusCode).toBe(404);
   });
 });
 

@@ -7,6 +7,7 @@ import type {
   FeedbackPayload,
   GameMetadataResponse,
   IdentifierReportPayload,
+  IgnoredProcessReportPayload,
   MatchProcessesRequest,
 } from "@playcounter/shared";
 import Fastify from "fastify";
@@ -194,6 +195,13 @@ const identifierReportSchema = z
       message: "gameId and gameSource must be sent together.",
     },
   );
+const ignoredProcessReportSchema = z
+  .object({
+    exeName: windowsExecutableNameSchema,
+    platform: platformSchema,
+    installUuid: z.string().uuid(),
+  })
+  .strict();
 const contributionsQuerySchema = z.object({
   installUuid: z.string().uuid(),
 });
@@ -221,6 +229,7 @@ export async function buildApp(repository: PlayCounterRepository) {
     "/api/session-end",
     "/api/stats",
     "/api/community/contributions",
+    "/api/community/ignored-processes",
   ];
   app.addHook("onResponse", (request, reply, done) => {
     const isQuiet =
@@ -323,6 +332,12 @@ export async function buildApp(repository: PlayCounterRepository) {
       request.body,
     ) satisfies IdentifierReportPayload;
     return repository.reportIdentifier(body);
+  });
+  app.post("/api/community/ignored-processes", async (request) => {
+    const body = ignoredProcessReportSchema.parse(
+      request.body,
+    ) satisfies IgnoredProcessReportPayload;
+    return repository.reportIgnoredProcess(body);
   });
   app.post("/api/feedback", async (request) => {
     const body = feedbackSchema.parse(request.body) satisfies FeedbackPayload;

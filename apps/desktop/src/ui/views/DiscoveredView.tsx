@@ -5,6 +5,7 @@ import {
   EyeOff,
   Gamepad2,
   RotateCcw,
+  Share2,
   Search,
   Send,
   SkipForward,
@@ -23,16 +24,19 @@ import {
   addCustomGame,
   addSharedCustomGame,
   applyKnownGameMatch,
+  suggestIgnoredProcess,
   markCommunitySuggestionRejected,
   recheckExecutable,
   scanProcessesNow,
   setUserIgnoredProcess,
+  type IgnoredProcessSuggestionOutcome,
 } from "../../tracker";
 import {
   useAppStore,
   useIsOffline,
   type ExeCacheEntry,
   type ProcessSnapshot,
+  type Toast,
 } from "../../store";
 import {
   countNeedsReview,
@@ -320,6 +324,21 @@ export function DiscoveredView() {
         detail: formatError(error),
       });
       return false;
+    } finally {
+      setPendingExe(null);
+    }
+  }
+
+  async function suggestIgnore(exeName: string) {
+    if (pendingExe) return false;
+    setPendingExe(exeName.toLowerCase());
+    try {
+      const outcome = await suggestIgnoredProcess(exeName);
+      notifyIgnoredProcessSuggestionOutcome(exeName, outcome, addToast);
+      if (outcome.suggestion.kind === "suggested") {
+        showHeart();
+      }
+      return outcome.localBlockApplied;
     } finally {
       setPendingExe(null);
     }
@@ -851,6 +870,13 @@ export function DiscoveredView() {
                       );
                       if (ignored) setActiveReviewKey(nextKey);
                     }}
+                    onSuggestIgnore={async () => {
+                      const nextKey = nextReviewKeyAfter(activeReviewItem.key);
+                      const suggested = await suggestIgnore(
+                        activeReviewItem.exeName,
+                      );
+                      if (suggested) setActiveReviewKey(nextKey);
+                    }}
                     isOffline={isOffline}
                     onRecheck={() => {
                       if (isOffline) return;
@@ -951,6 +977,9 @@ export function DiscoveredView() {
                     onCustomGameNameChange={setCustomGameName}
                     onIgnore={() =>
                       void updateUserIgnored(executable.exeName, true)
+                    }
+                    onSuggestIgnore={() =>
+                      void suggestIgnore(executable.exeName)
                     }
                     isOffline={isOffline}
                     onRecheck={() => {
@@ -1055,6 +1084,70 @@ export function DiscoveredView() {
   );
 }
 
+function notifyIgnoredProcessSuggestionOutcome(
+  exeName: string,
+  outcome: IgnoredProcessSuggestionOutcome,
+  addToast: (toast: Omit<Toast, "id">) => void,
+) {
+  if (!outcome.localBlockApplied) {
+    addToast({
+      tone: "error",
+      title: "Could not ignore process",
+      detail: `${exeName} could not be ignored on this PC.`,
+    });
+    return;
+  }
+  if (!outcome.ignoreFileUpdated) {
+    addToast({
+      tone: "error",
+      title: "Ignored until restart",
+      detail:
+        outcome.suggestion.kind === "suggested"
+          ? `${exeName} is blocked now, but the user ignore file could not be updated. The suggestion was still sent.`
+          : `${exeName} is blocked now, but the user ignore file could not be updated. The suggestion was not sent.`,
+    });
+    return;
+  }
+  if (outcome.suggestion.kind === "not_eligible") {
+    addToast({
+      tone: "info",
+      title: "Ignored locally",
+      detail:
+        outcome.suggestion.reason === "matched_game"
+          ? `${exeName} is user-ignored, but it was matched to a game so no system-ignore suggestion was sent.`
+          : `${exeName} is user-ignored, but it had a game choice open so no system-ignore suggestion was sent.`,
+    });
+    return;
+  }
+  if (outcome.suggestion.kind === "skipped") {
+    addToast({
+      tone: "info",
+      title: "Ignored locally",
+      detail:
+        outcome.suggestion.reason === "offline"
+          ? `${exeName} is user-ignored. The system-ignore suggestion needs a connection and was not sent.`
+          : `${exeName} is user-ignored. The system-ignore suggestion is unavailable right now.`,
+    });
+    return;
+  }
+  if (outcome.suggestion.kind === "failed") {
+    addToast({
+      tone: "info",
+      title: "Ignored locally",
+      detail: `${exeName} is user-ignored, but the system-ignore suggestion failed.`,
+    });
+    return;
+  }
+  addToast({
+    tone: "success",
+    title: "Ignored & suggested",
+    detail:
+      outcome.suggestion.status === "already_reviewed"
+        ? `${exeName} is now user-ignored here. Its earlier suggestion was already reviewed.`
+        : `${exeName} is now user-ignored here and queued for admin review. System ignore lists are updated manually.`,
+  });
+}
+
 function TriageWizardCard({
   executable,
   reviewOptions,
@@ -1068,6 +1161,7 @@ function TriageWizardCard({
   onCancelCustomGame,
   onCustomGameNameChange,
   onIgnore,
+  onSuggestIgnore,
   onRecheck,
   onSaveCustomGame,
   onStartCustomGame,
@@ -1087,6 +1181,7 @@ function TriageWizardCard({
   onCancelCustomGame: () => void;
   onCustomGameNameChange: (value: string) => void;
   onIgnore: () => void;
+  onSuggestIgnore: () => void;
   onRecheck: () => void;
   onSaveCustomGame: () => void;
   onStartCustomGame: () => void;
@@ -1305,7 +1400,7 @@ function TriageWizardCard({
           </form>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Button
             variant="primary"
             icon={Send}
@@ -1339,6 +1434,22 @@ function TriageWizardCard({
             Ignore
           </Button>
           <Button
+            variant="secondary"
+            icon={Share2}
+            loading={isPending}
+            disabled={isPending || isRetrying || isCustomGameEntryOpen}
+            aria-busy={isPending}
+            title={
+              isOffline
+                ? "User-ignore here; the system-ignore suggestion requires a connection"
+                : "User-ignore here and suggest this file name for admin review"
+            }
+            onClick={onSuggestIgnore}
+            className="h-12 w-full text-sm"
+          >
+            Suggest Ignore
+          </Button>
+          <Button
             variant="ghost"
             icon={SkipForward}
             disabled={isPending || isRetrying || isCustomGameEntryOpen}
@@ -1365,6 +1476,7 @@ function DiscoveredExecutableRow({
   onCancelCustomGame,
   onCustomGameNameChange,
   onIgnore,
+  onSuggestIgnore,
   onRecheck,
   onSaveCustomGame,
   onStartCustomGame,
@@ -1384,6 +1496,7 @@ function DiscoveredExecutableRow({
   onCancelCustomGame: () => void;
   onCustomGameNameChange: (value: string) => void;
   onIgnore: () => void;
+  onSuggestIgnore: () => void;
   onRecheck: () => void;
   onSaveCustomGame: () => void;
   onStartCustomGame: () => void;
@@ -1542,6 +1655,18 @@ function DiscoveredExecutableRow({
                   disabled={isRetrying || isPending}
                   onClick={onIgnore}
                 />
+                <IconButton
+                  icon={Share2}
+                  title={
+                    isOffline
+                      ? "User-ignore here; the system-ignore suggestion requires a connection"
+                      : "User-ignore here and suggest this executable for the system ignore list"
+                  }
+                  aria-label={`Suggest ignoring ${executable.exeName}`}
+                  aria-busy={isPending}
+                  disabled={isRetrying || isPending}
+                  onClick={onSuggestIgnore}
+                />
               </div>
             </>
           ) : null}
@@ -1595,11 +1720,12 @@ function DiscoveredExecutableRow({
         <ContextMenuItem icon={Copy} onClick={handleCopyExe}>
           Copy Executable Name
         </ContextMenuItem>
-        {allowTrackingChanges ? (
+        {allowTrackingChanges &&
+        (executable.status === "userIgnored" ||
+          executable.status === "unmatched") ? (
           <>
             <ContextMenuSeparator />
-            {executable.status === "ignored" ||
-            executable.status === "userIgnored" ? (
+            {executable.status === "userIgnored" ? (
               <ContextMenuItem
                 icon={Undo2}
                 onClick={() => {
@@ -1609,17 +1735,28 @@ function DiscoveredExecutableRow({
               >
                 Restore Executable
               </ContextMenuItem>
-            ) : (
-              <ContextMenuItem
-                icon={EyeOff}
-                onClick={() => {
-                  onIgnore();
-                  contextMenu.close();
-                }}
-              >
-                Ignore Executable
-              </ContextMenuItem>
-            )}
+            ) : executable.status === "unmatched" ? (
+              <>
+                <ContextMenuItem
+                  icon={EyeOff}
+                  onClick={() => {
+                    onIgnore();
+                    contextMenu.close();
+                  }}
+                >
+                  Ignore Executable
+                </ContextMenuItem>
+                <ContextMenuItem
+                  icon={Share2}
+                  onClick={() => {
+                    onSuggestIgnore();
+                    contextMenu.close();
+                  }}
+                >
+                  Suggest System Ignore
+                </ContextMenuItem>
+              </>
+            ) : null}
           </>
         ) : null}
 

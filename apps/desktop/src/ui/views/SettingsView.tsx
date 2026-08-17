@@ -375,7 +375,7 @@ export function SettingsView() {
         title="Discovery"
       >
         <SettingsRow
-          description="Built-in OS defaults and your user ignore file are skipped before matching."
+          description="Built-in OS defaults and your user ignore file are skipped before matching. Suggest Ignore immediately user-ignores the process here and sends only the file name, platform, and anonymous install id for admin review. Reviewed suggestions never change the system list automatically."
           title="Ignored processes"
         >
           <Button

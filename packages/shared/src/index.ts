@@ -168,6 +168,22 @@ export interface IdentifierReportResponse {
   flagged: boolean;
 }
 
+export interface IgnoredProcessReportPayload {
+  exeName: string;
+  platform: Platform;
+  // Used only as an anonymous, per-install idempotency key.
+  installUuid: string;
+}
+
+export type IgnoredProcessReportStatus =
+  | "recorded"
+  | "duplicate"
+  | "already_reviewed";
+
+export interface IgnoredProcessReportResponse {
+  status: IgnoredProcessReportStatus;
+}
+
 export type ContributionStatus = "pending" | "verified" | "rejected";
 
 export interface Contribution {

@@ -202,6 +202,41 @@ CREATE TABLE IF NOT EXISTS problematic_game_identifiers (
     )
 );
 
+-- Anonymous, install-deduplicated evidence for review. Kept separate from
+-- wrong-match reports so the two signals can never overwrite one another.
+CREATE TABLE IF NOT EXISTS community_ignored_process_reports (
+  id BIGSERIAL PRIMARY KEY,
+  platform TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  value TEXT NOT NULL,
+  install_uuid TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'verified', 'rejected')),
+  review_note TEXT,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT ignored_report_canonical_case
+    CHECK (platform = lower(platform) AND kind = lower(kind) AND value = lower(value)),
+  CONSTRAINT ignored_report_platform_kind
+    CHECK ((platform, kind) IN
+      (('windows', 'exe'), ('macos', 'process_name'), ('linux', 'executable_name'))),
+  CONSTRAINT ignored_report_exact_name
+    CHECK (
+      value = btrim(value)
+      AND length(value) BETWEEN 1 AND 260
+      AND value !~ '[*?]'
+      AND value !~ '[/\\]'
+      AND value !~ '[[:cntrl:]]'
+    ),
+  CONSTRAINT ignored_report_install_unique
+    UNIQUE (platform, kind, value, install_uuid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ignored_process_reports_pending
+  ON community_ignored_process_reports (platform, value)
+  WHERE status = 'pending';
+
 CREATE TABLE IF NOT EXISTS live_sessions (
   install_uuid TEXT NOT NULL,
   game_id INTEGER NOT NULL,

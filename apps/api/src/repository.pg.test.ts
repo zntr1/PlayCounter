@@ -16,11 +16,12 @@ describePg("community review PostgreSQL integration", () => {
 
   beforeAll(async () => {
     const result = await pool.query<{ exists: boolean }>(
-      `SELECT to_regclass('problematic_game_identifiers') IS NOT NULL AS exists`,
+      `SELECT to_regclass('problematic_game_identifiers') IS NOT NULL
+          AND to_regclass('community_ignored_process_reports') IS NOT NULL AS exists`,
     );
     if (!result.rows[0]?.exists) {
       throw new Error(
-        "PGTEST_URL must point to a database with migration 014 applied",
+        "PGTEST_URL must point to a database with migration 015 applied",
       );
     }
   });
@@ -32,6 +33,10 @@ describePg("community review PostgreSQL integration", () => {
   afterEach(async () => {
     if (identifierValues.length > 0) {
       const values = identifierValues.splice(0);
+      await pool.query(
+        "DELETE FROM community_ignored_process_reports WHERE value = ANY($1::text[])",
+        [values],
+      );
       await pool.query(
         "DELETE FROM community_identifier_reports WHERE value = ANY($1::text[])",
         [values],
@@ -354,6 +359,78 @@ describePg("community review PostgreSQL integration", () => {
       status: "verified",
       review_note: "Reviewed",
     });
+  });
+
+  it("keeps system-ignore suggestions separate and install-deduplicated", async () => {
+    const repo = repository();
+    const exe = identifierValue("SharedIgnore");
+    const installUuid = randomUUID();
+
+    expect(
+      await repo.reportIgnoredProcess({
+        exeName: exe.toUpperCase(),
+        platform: "windows",
+        installUuid,
+      }),
+    ).toEqual({ status: "recorded" });
+    expect(
+      await repo.reportIgnoredProcess({
+        exeName: exe.toLowerCase(),
+        platform: "windows",
+        installUuid,
+      }),
+    ).toEqual({ status: "duplicate" });
+    await repo.reportIdentifier({
+      exeName: exe,
+      reason: "not_a_game",
+      installUuid,
+    });
+
+    const counts = await pool.query<{
+      ignore_count: string;
+      wrong_match_count: string;
+    }>(
+      `SELECT
+         (SELECT count(*)::text FROM community_ignored_process_reports
+          WHERE value = $1) AS ignore_count,
+         (SELECT count(*)::text FROM community_identifier_reports
+          WHERE value = $1) AS wrong_match_count`,
+      [exe.toLowerCase()],
+    );
+    expect(counts.rows[0]).toEqual({
+      ignore_count: "1",
+      wrong_match_count: "1",
+    });
+
+    await pool.query(
+      `UPDATE community_ignored_process_reports
+       SET status = 'verified', review_note = 'Reviewed' WHERE value = $1`,
+      [exe.toLowerCase()],
+    );
+    expect(
+      await repo.reportIgnoredProcess({
+        exeName: exe,
+        platform: "windows",
+        installUuid,
+      }),
+    ).toEqual({ status: "already_reviewed" });
+  });
+
+  it("rejects patterns, paths, and unsupported platform-kind pairs", async () => {
+    for (const [platform, kind, value] of [
+      ["windows", "exe", "overlay*.exe"],
+      ["windows", "exe", "folder/app.exe"],
+      ["windows", "process_name", "service.exe"],
+    ]) {
+      await expect(
+        pool.query(
+          `INSERT INTO community_ignored_process_reports
+             (platform, kind, value, install_uuid)
+           VALUES ($1, $2, $3, $4)`,
+          [platform, kind, value, randomUUID()],
+        ),
+      ).rejects.toMatchObject({ code: "23514" });
+    }
   });
 
   it("forces one stored IGDB candidate into the picker when flagged", async () => {
