@@ -99,6 +99,9 @@ jobs:
   build-desktop-windows:
     name: Build Windows desktop
     runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write
     needs:
       - detect-desktop-version
       - deploy-api
@@ -132,13 +135,85 @@ jobs:
       - name: Check desktop version sync
         run: node scripts/ci/check-desktop-version-sync.mjs
 
-      - name: Build desktop distributables
+      - name: Build desktop executable
+        run: |
+          pnpm --filter @playcounter/shared build
+          corepack pnpm --filter @playcounter/desktop exec tauri build --ci --no-bundle
+
+      - name: Log in to Azure for Artifact Signing
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign PlayCounter executable
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_ARTIFACT_SIGNING_PROFILE }}
+          files: ${{ github.workspace }}\apps\desktop\src-tauri\target\release\playcounter.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: PlayCounter
+          description-url: https://playcounter.app
+          exclude-environment-credential: true
+          exclude-azure-cli-credential: false
+
+      - name: Bundle signed desktop executable
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
+        run: corepack pnpm --filter @playcounter/desktop exec tauri bundle --ci --bundles nsis
+
+      - name: Sign NSIS installer
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_ARTIFACT_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\apps\desktop\src-tauri\target\release\bundle\nsis
+          files-folder-filter: exe
+          files-folder-recurse: false
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: PlayCounter Installer
+          description-url: https://playcounter.app
+          exclude-environment-credential: true
+          exclude-azure-cli-credential: false
+
+      - name: Regenerate updater signature and verify Authenticode
+        shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         run: |
-          pnpm --filter @playcounter/shared build
-          corepack pnpm --filter @playcounter/desktop tauri:build:prod
+          $ErrorActionPreference = "Stop"
+          $target = Join-Path $env:GITHUB_WORKSPACE "apps\desktop\src-tauri\target\release"
+          $application = Join-Path $target "playcounter.exe"
+          $installers = @(Get-ChildItem -LiteralPath (Join-Path $target "bundle\nsis") -Filter "*-setup.exe" -File)
+
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)."
+          }
+
+          corepack pnpm --filter @playcounter/desktop exec tauri signer sign $installers[0].FullName
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to regenerate the Tauri updater signature."
+          }
+
+          foreach ($file in @($application, $installers[0].FullName)) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file
+            if ($signature.Status -ne "Valid") {
+              throw "Invalid Authenticode signature for ${file}: $($signature.Status) ($($signature.StatusMessage))"
+            }
+
+            Write-Host "Verified $file"
+            Write-Host "Publisher: $($signature.SignerCertificate.Subject)"
+          }
 
       - name: Upload Windows bundle artifact
         uses: actions/upload-artifact@v4
