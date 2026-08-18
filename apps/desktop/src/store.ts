@@ -249,6 +249,7 @@ type AppState = {
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
+  setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setEmulatorSetting: (
     key: "emulatorDetection" | "emulatorContentLookup",
     enabled: boolean,
@@ -277,6 +278,7 @@ export const BUILD_STAGE: Stage =
 const defaultSettings: Settings = {
   launchOnStartup: true,
   showDurationDays: false,
+  autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
   apiEndpoint: DEFAULT_API_ENDPOINT,
@@ -676,6 +678,12 @@ export const useAppStore = create<AppState>((set) => ({
   setShowDurationDays: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, showDurationDays: enabled },
+    }));
+    persistSoon();
+  },
+  setAutoShareIgnoredProcesses: (enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, autoShareIgnoredProcesses: enabled },
     }));
     persistSoon();
   },

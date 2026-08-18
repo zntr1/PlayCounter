@@ -251,6 +251,7 @@ export type Theme = "dark" | "light";
 export interface Settings {
   launchOnStartup: boolean;
   showDurationDays: boolean;
+  autoShareIgnoredProcesses: boolean;
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;
   apiEndpoint: string;

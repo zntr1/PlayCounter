@@ -19,6 +19,7 @@ import {
   dismissAmbiguousMatch,
   hydrateGameMetadata,
   findGameMatches,
+  ignoreDiscoveredProcess,
   suggestIgnoredProcess,
   persist,
   removeGameHistory,
@@ -114,6 +115,10 @@ describe("ignored process suggestions", () => {
     useAppStore.setState({
       installUuid,
       exeCache: new Map([["service.exe", cached]]),
+      settings: {
+        ...useAppStore.getState().settings,
+        autoShareIgnoredProcesses: true,
+      },
     });
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
       ok: true,
@@ -123,7 +128,7 @@ describe("ignored process suggestions", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const outcome = await suggestIgnoredProcess("Service.exe");
+    const outcome = await ignoreDiscoveredProcess("Service.exe");
 
     expect(outcome).toEqual({
       localBlockApplied: true,
@@ -148,6 +153,30 @@ describe("ignored process suggestions", () => {
       platform: "windows",
       installUuid,
     });
+  });
+
+  it("only user-ignores locally when automatic sharing is disabled", async () => {
+    useAppStore.setState({
+      installUuid,
+      settings: {
+        ...useAppStore.getState().settings,
+        autoShareIgnoredProcesses: false,
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(ignoreDiscoveredProcess("Service.exe")).resolves.toEqual({
+      localBlockApplied: true,
+      ignoreFileUpdated: true,
+      suggestion: { kind: "disabled" },
+    });
+    expect(invokeMock).toHaveBeenCalledWith("set_user_ignored_process", {
+      exeName: "Service.exe",
+      ignored: true,
+    });
+    expect(useAppStore.getState().blacklist.has("service.exe")).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("protects matched games and pickers", async () => {

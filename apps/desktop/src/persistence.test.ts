@@ -23,6 +23,7 @@ function makeSession(index: number): Session {
 const settings: Settings = {
   launchOnStartup: true,
   showDurationDays: false,
+  autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
   apiEndpoint: "http://localhost",

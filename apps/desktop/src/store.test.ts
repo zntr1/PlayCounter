@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   canSwitchApprovedSuggestionToCommunity,
   canonicalGameKey,
@@ -53,7 +53,7 @@ describe("approved community suggestion switch", () => {
 beforeEach(() => {
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
-    value: { setItem: () => undefined },
+    value: { setItem: vi.fn() },
   });
   useAppStore.setState({
     installUuid: null,
@@ -89,6 +89,23 @@ describe("section collapse preferences", () => {
     expect(useAppStore.getState().collapsedSections).toEqual([
       "achievements.total",
     ]);
+  });
+});
+
+describe("ignored process sharing preference", () => {
+  it("updates and persists automatic sharing", async () => {
+    const originalSettings = useAppStore.getState().settings;
+    try {
+      useAppStore.getState().setAutoShareIgnoredProcesses(true);
+
+      expect(useAppStore.getState().settings.autoShareIgnoredProcesses).toBe(
+        true,
+      );
+      await Promise.resolve();
+      expect(globalThis.localStorage.setItem).toHaveBeenCalled();
+    } finally {
+      useAppStore.setState({ settings: originalSettings });
+    }
   });
 });
 

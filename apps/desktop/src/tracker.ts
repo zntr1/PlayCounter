@@ -154,6 +154,7 @@ export type IgnoredProcessSuggestionResult =
       kind: "suggested";
       status: IgnoredProcessReportStatus;
     }
+  | { kind: "disabled" }
   | { kind: "not_eligible"; reason: "matched_game" | "ambiguous_picker" }
   | { kind: "skipped"; reason: "offline" | "no_install_uuid" }
   | { kind: "failed" };
@@ -2531,6 +2532,19 @@ async function ignoreProcessLocally(
     localBlockApplied: useAppStore.getState().blacklist.has(key),
     ignoreFileUpdated,
   };
+}
+
+export async function ignoreDiscoveredProcess(
+  exeName: string,
+): Promise<IgnoredProcessSuggestionOutcome> {
+  if (useAppStore.getState().settings.autoShareIgnoredProcesses) {
+    return suggestIgnoredProcess(exeName);
+  }
+
+  const local = await ignoreProcessLocally(exeName);
+  void requestProcessScan("after process ignored");
+  logRuntime(`process ignored locally ${exeName}`);
+  return { ...local, suggestion: { kind: "disabled" } };
 }
 
 export function suggestIgnoredProcess(

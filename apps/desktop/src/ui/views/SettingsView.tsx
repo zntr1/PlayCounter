@@ -49,6 +49,9 @@ export function SettingsView() {
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
+  const setAutoShareIgnoredProcesses = useAppStore(
+    (state) => state.setAutoShareIgnoredProcesses,
+  );
   const setEmulatorSetting = useAppStore((state) => state.setEmulatorSetting);
   const setAccentColor = useAppStore((state) => state.setAccentColor);
   const knownEmulators = useAppStore((state) => state.knownEmulators);
@@ -375,7 +378,20 @@ export function SettingsView() {
         title="Discovery"
       >
         <SettingsRow
-          description="Built-in OS defaults and your user ignore file are skipped before matching. Suggest Ignore immediately user-ignores the process here and sends only the file name, platform, and anonymous install id for admin review. Reviewed suggestions never change the system list automatically."
+          description="When enabled, ignoring an unrecognized process also sends its file name, platform, and anonymous install ID for admin review to improve PlayCounter for all!"
+          title="Automatically share ignored processes"
+        >
+          <input
+            type="checkbox"
+            checked={settings.autoShareIgnoredProcesses}
+            onChange={(event) =>
+              setAutoShareIgnoredProcesses(event.target.checked)
+            }
+            className="h-5 w-5 accent-accent"
+          />
+        </SettingsRow>
+        <SettingsRow
+          description="Built-in OS defaults and your user ignore file are skipped before matching."
           title="Ignored processes"
         >
           <Button
