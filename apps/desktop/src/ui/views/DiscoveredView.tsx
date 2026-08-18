@@ -235,7 +235,10 @@ export function DiscoveredView() {
   const [pendingExe, setPendingExe] = useState<string | null>(null);
   const [customGameExe, setCustomGameExe] = useState<string | null>(null);
   const [customGameName, setCustomGameName] = useState("");
-  const [suggestionExe, setSuggestionExe] = useState<string | null>(null);
+  const [suggestionTarget, setSuggestionTarget] = useState<{
+    key: string;
+    exeName: string;
+  } | null>(null);
   const [suggestionSelection, setSuggestionSelection] =
     useState<CommunityMetadataCandidate | null>(null);
   const [suggestionSearch, setSuggestionSearch] = useState("");
@@ -372,7 +375,7 @@ export function DiscoveredView() {
       return;
     }
     const key = exeName.toLowerCase();
-    setSuggestionExe(key);
+    setSuggestionTarget({ key, exeName });
     setSuggestionSelection(null);
     setSuggestionSearch("");
     setSuggestionCandidates([]);
@@ -380,6 +383,16 @@ export function DiscoveredView() {
     setSuggestionNextOffset(0);
     setSuggestionMessage("");
     setSuggestionState("idle");
+  }
+
+  function closeCommunitySuggestion() {
+    setSuggestionTarget(null);
+    setSuggestionSelection(null);
+    setSuggestionCandidates([]);
+    setSuggestionHasMore(false);
+    setSuggestionNextOffset(0);
+    setSuggestionState("idle");
+    setSuggestionMessage("");
   }
 
   async function searchSuggestionMetadataPage(
@@ -471,7 +484,7 @@ export function DiscoveredView() {
       if (result.igdbGame) {
         applyKnownGameMatch(exeName, result.igdbGame);
         setSuggestionState("saved");
-        setSuggestionExe(null);
+        setSuggestionTarget(null);
         setSuggestionSelection(null);
         setSuggestionCandidates([]);
         addToast({
@@ -494,7 +507,7 @@ export function DiscoveredView() {
         );
         markCommunitySuggestionRejected(exeName, result.reviewNote);
         setSuggestionState("saved");
-        setSuggestionExe(null);
+        setSuggestionTarget(null);
         setSuggestionSelection(null);
         setSuggestionCandidates([]);
         addToast({
@@ -517,7 +530,7 @@ export function DiscoveredView() {
       setSuggestionMessage(
         `Added to your library and shared as community game #${result.id}.`,
       );
-      setSuggestionExe(null);
+      setSuggestionTarget(null);
       setSuggestionSelection(null);
       setSuggestionCandidates([]);
       addToast({
@@ -895,48 +908,6 @@ export function DiscoveredView() {
                     onSkip={handleSkip}
                     onSelectReview={(key) => setActiveReviewKey(key)}
                   />
-                  {suggestionExe === activeReviewItem.key ? (
-                    <CommunitySuggestionForm
-                      candidates={suggestionCandidates}
-                      exeName={activeReviewItem.exeName}
-                      hasMore={suggestionHasMore}
-                      message={suggestionMessage}
-                      search={suggestionSearch}
-                      selection={suggestionSelection}
-                      state={suggestionState}
-                      isOffline={isOffline}
-                      onApplyCandidate={applyMetadataCandidate}
-                      onCancel={() => {
-                        setSuggestionExe(null);
-                        setSuggestionSelection(null);
-                        setSuggestionCandidates([]);
-                        setSuggestionHasMore(false);
-                        setSuggestionNextOffset(0);
-                        setSuggestionState("idle");
-                        setSuggestionMessage("");
-                      }}
-                      onLoadMore={loadMoreSuggestionMetadata}
-                      onSearch={searchSuggestionMetadata}
-                      onSearchChange={(value) => {
-                        setSuggestionSearch(value);
-                        setSuggestionSelection(null);
-                        setSuggestionCandidates([]);
-                        setSuggestionHasMore(false);
-                        setSuggestionNextOffset(0);
-                        setSuggestionMessage("");
-                      }}
-                      onSearchOptionsChange={() => {
-                        setSuggestionSelection(null);
-                        setSuggestionCandidates([]);
-                        setSuggestionHasMore(false);
-                        setSuggestionNextOffset(0);
-                        setSuggestionMessage("");
-                      }}
-                      onSubmit={() =>
-                        void submitCommunitySuggestion(activeReviewItem.exeName)
-                      }
-                    />
-                  ) : null}
                 </div>
               </div>
             ) : (
@@ -1000,48 +971,6 @@ export function DiscoveredView() {
                     allowTrackingChanges={filter !== "tracked"}
                     unmatchedRetryDays={unmatchedRetryDays}
                   />
-                  {suggestionExe === executable.key ? (
-                    <CommunitySuggestionForm
-                      candidates={suggestionCandidates}
-                      exeName={executable.exeName}
-                      hasMore={suggestionHasMore}
-                      message={suggestionMessage}
-                      search={suggestionSearch}
-                      selection={suggestionSelection}
-                      state={suggestionState}
-                      isOffline={isOffline}
-                      onApplyCandidate={applyMetadataCandidate}
-                      onCancel={() => {
-                        setSuggestionExe(null);
-                        setSuggestionSelection(null);
-                        setSuggestionCandidates([]);
-                        setSuggestionHasMore(false);
-                        setSuggestionNextOffset(0);
-                        setSuggestionState("idle");
-                        setSuggestionMessage("");
-                      }}
-                      onLoadMore={loadMoreSuggestionMetadata}
-                      onSearch={searchSuggestionMetadata}
-                      onSearchChange={(value) => {
-                        setSuggestionSearch(value);
-                        setSuggestionSelection(null);
-                        setSuggestionCandidates([]);
-                        setSuggestionHasMore(false);
-                        setSuggestionNextOffset(0);
-                        setSuggestionMessage("");
-                      }}
-                      onSearchOptionsChange={() => {
-                        setSuggestionSelection(null);
-                        setSuggestionCandidates([]);
-                        setSuggestionHasMore(false);
-                        setSuggestionNextOffset(0);
-                        setSuggestionMessage("");
-                      }}
-                      onSubmit={() =>
-                        void submitCommunitySuggestion(executable.exeName)
-                      }
-                    />
-                  ) : null}
                 </Fragment>
               ))}
               {filter === "ignored" && ignoredPagination.pageCount > 1 ? (
@@ -1080,6 +1009,41 @@ export function DiscoveredView() {
           )}
         </div>
       </Panel>
+      {suggestionTarget ? (
+        <CommunitySuggestionForm
+          key={suggestionTarget.key}
+          candidates={suggestionCandidates}
+          exeName={suggestionTarget.exeName}
+          hasMore={suggestionHasMore}
+          message={suggestionMessage}
+          search={suggestionSearch}
+          selection={suggestionSelection}
+          state={suggestionState}
+          isOffline={isOffline}
+          onApplyCandidate={applyMetadataCandidate}
+          onCancel={closeCommunitySuggestion}
+          onLoadMore={loadMoreSuggestionMetadata}
+          onSearch={searchSuggestionMetadata}
+          onSearchChange={(value) => {
+            setSuggestionSearch(value);
+            setSuggestionSelection(null);
+            setSuggestionCandidates([]);
+            setSuggestionHasMore(false);
+            setSuggestionNextOffset(0);
+            setSuggestionMessage("");
+          }}
+          onSearchOptionsChange={() => {
+            setSuggestionSelection(null);
+            setSuggestionCandidates([]);
+            setSuggestionHasMore(false);
+            setSuggestionNextOffset(0);
+            setSuggestionMessage("");
+          }}
+          onSubmit={() =>
+            void submitCommunitySuggestion(suggestionTarget.exeName)
+          }
+        />
+      ) : null}
     </div>
   );
 }

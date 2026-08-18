@@ -73,8 +73,10 @@ export function NowPlayingView() {
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
+  const addToast = useAppStore((state) => state.addToast);
   const setActiveView = useAppStore((state) => state.setActiveView);
   const [now, setNow] = useState(() => Date.now());
+  const [reportTarget, setReportTarget] = useState<ActiveSession | null>(null);
   const hasActivity = activeSessions.length > 0 || ambiguousMatches.length > 0;
 
   useEffect(() => {
@@ -82,86 +84,112 @@ export function NowPlayingView() {
     return () => clearInterval(timer);
   }, []);
 
-  if (!hasActivity) {
-    return (
-      <Panel className="grid min-h-[360px] place-items-center p-8 text-center">
-        <div>
-          <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full border border-border bg-surface-hover text-text-faint">
-            <Gamepad2 size={28} />
-          </div>
-          <h2 className="text-2xl font-semibold text-text">No game detected</h2>
-          <p className="mt-2 text-text-muted">
-            Start a game and it will appear here automatically.
-          </p>
-          <p className="mt-4 max-w-md text-sm text-text-faint">
-            Game not showing up? Review unmatched processes{" "}
-            <button
-              type="button"
-              onClick={() => setActiveView("discovered")}
-              className="font-medium text-accent transition hover:text-accent-hover"
-            >
-              here
-            </button>
-            .
-          </p>
-        </div>
-      </Panel>
-    );
+  async function handleNegativeReport(session: ActiveSession) {
+    setReportTarget(null);
+    const outcome = await reportNegativeMatch(session.exeName);
+    notifyNegativeReportOutcome(session.exeName, outcome, addToast);
   }
 
   return (
-    <div className="grid gap-4">
-      {activeSessions.map((activeSession) => (
-        <HeroSession
-          key={resolvedCanonicalGameKey(activeSession, resolveIgdbId)}
-          session={activeSession}
-          elapsedSeconds={Math.max(
-            0,
-            Math.floor((now - Date.parse(activeSession.startedAt)) / 1000),
-          )}
-          recentSessions={recentSessions}
-          showDurationDays={showDurationDays}
-          exeCache={exeCache}
-          resolveIgdbId={resolveIgdbId}
-          archivedGameSeconds={archivedGameSeconds}
-          playtimeAdjustments={playtimeAdjustments}
-        />
-      ))}
-      {ambiguousMatches.length > 0 ? (
-        <section className="grid gap-3">
-          <div className="flex items-center gap-2 px-1 pt-1">
-            <AlertTriangle size={14} className="shrink-0 text-warning" />
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-text-faint">
-              Needs your input
-            </h3>
-            <span className="rounded-full border border-warning-border bg-warning-tint px-1.5 text-[11px] font-semibold tabular-nums text-warning">
-              {ambiguousMatches.length}
-            </span>
+    <>
+      {!hasActivity ? (
+        <Panel className="grid min-h-[360px] place-items-center p-8 text-center">
+          <div>
+            <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-full border border-border bg-surface-hover text-text-faint">
+              <Gamepad2 size={28} />
+            </div>
+            <h2 className="text-2xl font-semibold text-text">
+              No game detected
+            </h2>
+            <p className="mt-2 text-text-muted">
+              Start a game and it will appear here automatically.
+            </p>
+            <p className="mt-4 max-w-md text-sm text-text-faint">
+              Game not showing up? Review unmatched processes{" "}
+              <button
+                type="button"
+                onClick={() => setActiveView("discovered")}
+                className="font-medium text-accent transition hover:text-accent-hover"
+              >
+                here
+              </button>
+              .
+            </p>
           </div>
-          {ambiguousMatches.map((match) => {
-            const elapsedSeconds = Math.max(
-              0,
-              Math.floor(
-                ((match.endedAt ? Date.parse(match.endedAt) : now) -
-                  Date.parse(match.detectedAt)) /
-                  1000,
-              ),
-            );
+        </Panel>
+      ) : (
+        <div className="grid gap-4">
+          {activeSessions.map((activeSession) => (
+            <HeroSession
+              key={resolvedCanonicalGameKey(activeSession, resolveIgdbId)}
+              session={activeSession}
+              elapsedSeconds={Math.max(
+                0,
+                Math.floor((now - Date.parse(activeSession.startedAt)) / 1000),
+              )}
+              recentSessions={recentSessions}
+              showDurationDays={showDurationDays}
+              exeCache={exeCache}
+              resolveIgdbId={resolveIgdbId}
+              archivedGameSeconds={archivedGameSeconds}
+              playtimeAdjustments={playtimeAdjustments}
+              onReport={() => setReportTarget(activeSession)}
+            />
+          ))}
+          {ambiguousMatches.length > 0 ? (
+            <section className="grid gap-3">
+              <div className="flex items-center gap-2 px-1 pt-1">
+                <AlertTriangle size={14} className="shrink-0 text-warning" />
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-text-faint">
+                  Needs your input
+                </h3>
+                <span className="rounded-full border border-warning-border bg-warning-tint px-1.5 text-[11px] font-semibold tabular-nums text-warning">
+                  {ambiguousMatches.length}
+                </span>
+              </div>
+              {ambiguousMatches.map((match) => {
+                const elapsedSeconds = Math.max(
+                  0,
+                  Math.floor(
+                    ((match.endedAt ? Date.parse(match.endedAt) : now) -
+                      Date.parse(match.detectedAt)) /
+                      1000,
+                  ),
+                );
 
-            return (
-              <AmbiguousMatchCard
-                key={match.exeName.toLowerCase()}
-                exeName={match.exeName}
-                candidates={match.candidates}
-                elapsedSeconds={elapsedSeconds}
-                ended={Boolean(match.endedAt)}
-                flagReason={match.flagReason}
-              />
-            );
-          })}
-        </section>
+                return (
+                  <AmbiguousMatchCard
+                    key={match.exeName.toLowerCase()}
+                    exeName={match.exeName}
+                    candidates={match.candidates}
+                    elapsedSeconds={elapsedSeconds}
+                    ended={Boolean(match.endedAt)}
+                    flagReason={match.flagReason}
+                  />
+                );
+              })}
+            </section>
+          ) : null}
+        </div>
+      )}
+      {reportTarget ? (
+        <ReportWrongMatchDialog
+          exeName={reportTarget.exeName}
+          onCancel={() => setReportTarget(null)}
+          onDifferentGame={() => {
+            setReportTarget(null);
+            setActiveView("games");
+            addToast({
+              tone: "info",
+              title: "Choose the correct match",
+              detail:
+                "Open this game's menu and choose Check for Matches, or suggest the correct game.",
+            });
+          }}
+          onNotAGame={() => void handleNegativeReport(reportTarget)}
+        />
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -174,6 +202,7 @@ function HeroSession({
   resolveIgdbId,
   archivedGameSeconds,
   playtimeAdjustments,
+  onReport,
 }: {
   session: ActiveSession;
   elapsedSeconds: number;
@@ -183,10 +212,8 @@ function HeroSession({
   resolveIgdbId: GameIdentityResolver;
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
+  onReport: () => void;
 }) {
-  const addToast = useAppStore((state) => state.addToast);
-  const setActiveView = useAppStore((state) => state.setActiveView);
-  const [reportOpen, setReportOpen] = useState(false);
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
@@ -255,12 +282,6 @@ function HeroSession({
   const lifetimeSessionCount = priorSessions.length + 1;
   const canReport = session.source === "igdb" || session.source === "community";
 
-  async function handleNegativeReport() {
-    setReportOpen(false);
-    const outcome = await reportNegativeMatch(session.exeName);
-    notifyNegativeReportOutcome(session.exeName, outcome, addToast);
-  }
-
   return (
     <section className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-raised">
       {canReport ? (
@@ -268,7 +289,7 @@ function HeroSession({
           icon={Flag}
           aria-label={`Report wrong match for ${session.gameName}`}
           title="Report wrong match"
-          onClick={() => setReportOpen(true)}
+          onClick={onReport}
           className="absolute right-4 top-4 z-30 bg-bg/90 text-text-muted shadow-raised hover:bg-warning hover:text-white"
         />
       ) : null}
@@ -349,23 +370,6 @@ function HeroSession({
           </div>
         </div>
       </div>
-      {reportOpen ? (
-        <ReportWrongMatchDialog
-          exeName={session.exeName}
-          onCancel={() => setReportOpen(false)}
-          onDifferentGame={() => {
-            setReportOpen(false);
-            setActiveView("games");
-            addToast({
-              tone: "info",
-              title: "Choose the correct match",
-              detail:
-                "Open this game's menu and choose Check for Matches, or suggest the correct game.",
-            });
-          }}
-          onNotAGame={() => void handleNegativeReport()}
-        />
-      ) : null}
     </section>
   );
 }
