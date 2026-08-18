@@ -135,6 +135,7 @@ export type GameAliasRef = {
 
 export type GameMatchLookup = {
   games: Game[];
+  pendingCommunityGameIds?: number[];
   flaggedIdentifier?: { reason: IdentifierFlagReason };
 };
 
@@ -1723,8 +1724,12 @@ export function applyKnownGameMatch(exeName: string, game: Game) {
 }
 
 // Manual "check for matches": runs the exe through the normal match pipeline
-// and returns every database candidate found. Pending (unverified)
-// suggestions are deliberately not offered.
+// and returns every database candidate found. Pending community identifiers are
+// included because this is an explicit user choice, and because an earlier
+// community match can otherwise become impossible to restore after the user
+// submits a different-game correction for the same executable. The custom
+// entry's own current suggestion is not an alternative, though: offering it
+// here would present the in-review correction as a normal community match.
 export async function findGameMatches(
   exeName: string,
 ): Promise<GameMatchLookup> {
@@ -1755,14 +1760,41 @@ export async function findGameMatches(
     (match) => match.key.toLowerCase() === processCacheKey(process),
   );
   if (!result) return { games: [] };
-  if (result.game && result.game.source !== "custom") {
-    return {
-      games: [result.game],
-      flaggedIdentifier: result.flaggedIdentifier,
-    };
+
+  const resolvedGames = [
+    ...(result.game && result.game.source !== "custom" ? [result.game] : []),
+    ...(result.ambiguousGames ?? []),
+  ];
+  const pendingCommunityGames =
+    result.pendingCommunityGames ??
+    (result.pendingCommunityGame ? [result.pendingCommunityGame] : []);
+  const current = state.exeCache.get(exeName.toLowerCase());
+  const currentSuggestionId =
+    current?.state === "matched" && current.source === "custom"
+      ? current.communitySuggestionId
+      : undefined;
+  const gamesByIdentity = new Map<string, Game>();
+  for (const game of [...resolvedGames, ...pendingCommunityGames]) {
+    if (
+      game.source === "community" &&
+      currentSuggestionId !== undefined &&
+      game.id === currentSuggestionId
+    ) {
+      continue;
+    }
+    gamesByIdentity.set(`${game.source}:${game.id}`, game);
   }
+  const pendingCommunityGameIds = [
+    ...new Set(
+      pendingCommunityGames
+        .filter((game) => game.id !== currentSuggestionId)
+        .map((game) => game.id),
+    ),
+  ];
+
   return {
-    games: result.ambiguousGames ?? [],
+    games: [...gamesByIdentity.values()],
+    ...(pendingCommunityGameIds.length > 0 ? { pendingCommunityGameIds } : {}),
     flaggedIdentifier: result.flaggedIdentifier,
   };
 }

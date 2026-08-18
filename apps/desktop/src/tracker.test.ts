@@ -25,6 +25,7 @@ import {
   removeGameHistory,
   reportNegativeMatch,
   setGamePlaytime,
+  suggestTrackedGameToCommunity,
   untrackGame,
 } from "./tracker";
 
@@ -530,6 +531,167 @@ describe("negative match reports", () => {
         },
       ],
       flaggedIdentifier: { reason: "not_a_game" },
+    });
+  });
+
+  it("returns pending community alternatives so a mistaken correction can be reverted", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        matches: [
+          {
+            key: "palworld.exe",
+            game: null,
+            pendingCommunityGames: [
+              {
+                id: 42,
+                igdbId: 100,
+                name: "Palworld",
+                coverUrl: "palworld.jpg",
+                source: "community",
+              },
+              {
+                id: 84,
+                igdbId: 200,
+                name: "Warcraft III",
+                coverUrl: "warcraft.jpg",
+                source: "community",
+              },
+            ],
+          },
+        ],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(findGameMatches("Palworld.exe")).resolves.toEqual({
+      games: [
+        {
+          id: 42,
+          igdbId: 100,
+          name: "Palworld",
+          coverUrl: "palworld.jpg",
+          source: "community",
+        },
+        {
+          id: 84,
+          igdbId: 200,
+          name: "Warcraft III",
+          coverUrl: "warcraft.jpg",
+          source: "community",
+        },
+      ],
+      pendingCommunityGameIds: [42, 84],
+    });
+  });
+
+  it("does not offer the current in-review correction as a community match", async () => {
+    useAppStore.setState({
+      exeCache: new Map([
+        [
+          "palworld.exe",
+          entry({
+            exeName: "Palworld.exe",
+            gameId: -123,
+            igdbId: 200,
+            gameName: "Warcraft III: The Frozen Throne",
+            coverUrl: "warcraft.jpg",
+            communitySuggestionId: 84,
+            communitySuggestionVerified: false,
+            communitySuggestionStatus: "pending",
+          }),
+        ],
+      ]),
+    });
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => ({
+        matches: [
+          {
+            key: "palworld.exe",
+            game: {
+              id: 42,
+              igdbId: 100,
+              name: "Palworld",
+              coverUrl: "palworld.jpg",
+              source: "community",
+            },
+            pendingCommunityGames: [
+              {
+                id: 84,
+                igdbId: 200,
+                name: "Warcraft III: The Frozen Throne",
+                coverUrl: "warcraft.jpg",
+                source: "community",
+              },
+            ],
+          },
+        ],
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(findGameMatches("Palworld.exe")).resolves.toEqual({
+      games: [
+        {
+          id: 42,
+          igdbId: 100,
+          name: "Palworld",
+          coverUrl: "palworld.jpg",
+          source: "community",
+        },
+      ],
+    });
+  });
+
+  it("locally switches an in-review correction back to an earlier community candidate", () => {
+    useAppStore.setState({
+      exeCache: new Map([
+        [
+          "palworld.exe",
+          entry({
+            exeName: "Palworld.exe",
+            gameId: -123,
+            igdbId: 200,
+            gameName: "Warcraft III",
+            coverUrl: "warcraft.jpg",
+            communitySuggestionId: 84,
+            communitySuggestionVerified: false,
+            communitySuggestionStatus: "pending",
+          }),
+        ],
+      ]),
+    });
+
+    suggestTrackedGameToCommunity(
+      "Palworld.exe",
+      "Palworld",
+      "palworld.jpg",
+      42,
+      false,
+      100,
+    );
+
+    expect(useAppStore.getState().exeCache.get("palworld.exe")).toMatchObject({
+      state: "matched",
+      source: "custom",
+      igdbId: 100,
+      gameName: "Palworld",
+      coverUrl: "palworld.jpg",
+      communitySuggestionId: 42,
+      communitySuggestionVerified: false,
+      communitySuggestionStatus: "pending",
+      pendingCommunityGame: {
+        id: 42,
+        igdbId: 100,
+        name: "Palworld",
+        coverUrl: "palworld.jpg",
+        source: "community",
+      },
     });
   });
 });

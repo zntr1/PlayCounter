@@ -25,12 +25,14 @@ import {
   type Toast,
 } from "../../store";
 import {
+  applyKnownGameMatch,
   dismissAmbiguousMatch,
   markCommunitySuggestionRejected,
   reportNegativeMatch,
   selectAmbiguousCommunitySuggestion,
   selectAmbiguousCustomGame,
   selectAmbiguousMatch,
+  suggestTrackedGameToCommunity,
   type LocalProcessIgnoreOutcome,
   type NegativeReportOutcome,
 } from "../../tracker";
@@ -77,6 +79,9 @@ export function NowPlayingView() {
   const setActiveView = useAppStore((state) => state.setActiveView);
   const [now, setNow] = useState(() => Date.now());
   const [reportTarget, setReportTarget] = useState<ActiveSession | null>(null);
+  const [correctionExeName, setCorrectionExeName] = useState<string | null>(
+    null,
+  );
   const hasActivity = activeSessions.length > 0 || ambiguousMatches.length > 0;
 
   useEffect(() => {
@@ -175,21 +180,204 @@ export function NowPlayingView() {
       {reportTarget ? (
         <ReportWrongMatchDialog
           exeName={reportTarget.exeName}
+          gameName={reportTarget.gameName}
           onCancel={() => setReportTarget(null)}
           onDifferentGame={() => {
+            setCorrectionExeName(reportTarget.exeName);
             setReportTarget(null);
-            setActiveView("games");
-            addToast({
-              tone: "info",
-              title: "Choose the correct match",
-              detail:
-                "Open this game's menu and choose Check for Matches, or suggest the correct game.",
-            });
           }}
           onNotAGame={() => void handleNegativeReport(reportTarget)}
         />
       ) : null}
+      {correctionExeName ? (
+        <TrackedGameCorrectionDialog
+          exeName={correctionExeName}
+          onClose={() => setCorrectionExeName(null)}
+        />
+      ) : null}
     </>
+  );
+}
+
+function TrackedGameCorrectionDialog({
+  exeName,
+  onClose,
+}: {
+  exeName: string;
+  onClose: () => void;
+}) {
+  const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  const installUuid = useAppStore((state) => state.installUuid);
+  const addToast = useAppStore((state) => state.addToast);
+  const isOffline = useIsOffline();
+  const [search, setSearch] = useState("");
+  const [candidates, setCandidates] = useState<CommunityMetadataCandidate[]>(
+    [],
+  );
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [selection, setSelection] = useState<CommunityMetadataCandidate | null>(
+    null,
+  );
+  const [state, setState] = useState<
+    "idle" | "loading" | "loading-more" | "saving" | "saved" | "error"
+  >("idle");
+  const [message, setMessage] = useState("");
+
+  function resetResults() {
+    setSelection(null);
+    setCandidates([]);
+    setHasMore(false);
+    setNextOffset(0);
+    setMessage("");
+  }
+
+  async function searchCandidatePage(
+    offset: number,
+    append: boolean,
+    options: CommunityMetadataSearchOptions,
+  ) {
+    const query = search.trim();
+    if (query.length < 2 || isOffline) return;
+
+    setState(append ? "loading-more" : "loading");
+    setMessage("");
+    if (!append) setCandidates([]);
+    try {
+      const response = await fetch(
+        communityMetadataSearchUrl(apiEndpoint, query, offset, options),
+      );
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+      const body = (await response.json()) as CommunityMetadataSearchResponse;
+      const nextCandidates = append
+        ? mergeCommunityMetadataCandidates(candidates, body.candidates)
+        : body.candidates;
+      setCandidates(nextCandidates);
+      setHasMore(Boolean(body.hasMore));
+      setNextOffset(body.nextOffset ?? 0);
+      setMessage(
+        nextCandidates.length > 0
+          ? body.hasMore
+            ? `${nextCandidates.length} matches shown. Load more to keep looking.`
+            : `All ${nextCandidates.length} matches shown. Pick the exact game this executable belongs to.`
+          : "No matching games found.",
+      );
+      setState("idle");
+    } catch (error) {
+      setState("error");
+      setMessage(formatError(error));
+    }
+  }
+
+  function applyCandidate(candidate: CommunityMetadataCandidate) {
+    if (!candidate.coverUrl) {
+      setSelection(null);
+      setMessage(
+        `${candidate.name} has no cover art. Pick a result with cover art.`,
+      );
+      return;
+    }
+
+    setSelection(candidate);
+    setMessage(`Selected ${candidate.name} from the database.`);
+  }
+
+  async function submitSuggestion() {
+    if (!selection?.coverUrl) return;
+
+    setState("saving");
+    setMessage("");
+    try {
+      const response = await fetch(`${apiEndpoint}/api/community/suggestions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          exeName,
+          name: selection.name,
+          coverUrl: selection.coverUrl,
+          igdbId: selection.igdbId,
+          installUuid: installUuid ?? undefined,
+        }),
+      });
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+
+      const result = (await response.json()) as CommunityGameSuggestionResponse;
+      if (result.igdbGame) {
+        applyKnownGameMatch(exeName, result.igdbGame);
+        onClose();
+        addToast({
+          tone: "success",
+          title: "Correct match applied",
+          detail: `${exeName} is now tracked as ${result.igdbGame.name}.`,
+        });
+        return;
+      }
+      if (result.rejected) {
+        if (result.id === undefined) throw new Error("Unexpected response");
+        suggestTrackedGameToCommunity(
+          exeName,
+          selection.name,
+          selection.coverUrl,
+          result.id,
+          false,
+          selection.igdbId,
+        );
+        markCommunitySuggestionRejected(exeName, result.reviewNote);
+        onClose();
+        addToast({
+          tone: "info",
+          title: "Suggestion already reviewed",
+          detail: result.reviewNote ?? "This suggestion was not accepted.",
+        });
+        return;
+      }
+      if (result.id === undefined) throw new Error("Unexpected response");
+      suggestTrackedGameToCommunity(
+        exeName,
+        selection.name,
+        selection.coverUrl,
+        result.id,
+        result.verified ?? false,
+        selection.igdbId,
+      );
+      onClose();
+      addToast({
+        tone: "success",
+        title: "Correct game submitted",
+        detail: `${exeName} now uses ${selection.name} while the community match is reviewed.`,
+      });
+    } catch (error) {
+      setState("error");
+      setMessage(formatError(error));
+    }
+  }
+
+  return (
+    <CommunitySuggestionForm
+      candidates={candidates}
+      exeName={exeName}
+      hasMore={hasMore}
+      message={message}
+      search={search}
+      selection={selection}
+      state={state}
+      title="Choose the correct game"
+      isOffline={isOffline}
+      onApplyCandidate={applyCandidate}
+      onCancel={onClose}
+      onLoadMore={(options) => {
+        if (hasMore) void searchCandidatePage(nextOffset, true, options);
+      }}
+      onSearch={(options) => void searchCandidatePage(0, false, options)}
+      onSearchChange={(value) => {
+        setSearch(value);
+        resetResults();
+      }}
+      onSearchOptionsChange={resetResults}
+      onSubmit={() => void submitSuggestion()}
+    />
   );
 }
 

@@ -1700,6 +1700,7 @@ export function CommunitySuggestionForm({
   search,
   selection,
   state,
+  title = "Suggest community game",
   onApplyCandidate,
   onCancel,
   onLoadMore,
@@ -1716,6 +1717,7 @@ export function CommunitySuggestionForm({
   search: string;
   selection: CommunityMetadataCandidate | null;
   state: "idle" | "loading" | "loading-more" | "saving" | "saved" | "error";
+  title?: string;
   onApplyCandidate: (candidate: CommunityMetadataCandidate) => void;
   onCancel: () => void;
   onLoadMore?: (options: CommunityMetadataSearchOptions) => void;
@@ -1761,7 +1763,7 @@ export function CommunitySuggestionForm({
       <div className="flex max-h-[85vh] w-full max-w-4xl animate-toast-in flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-raised">
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-surface px-5 py-4">
           <div className="min-w-0">
-            <h2 className="font-semibold text-text">Suggest community game</h2>
+            <h2 className="font-semibold text-text">{title}</h2>
             <p className="mt-1 truncate text-sm text-text-muted">
               Link the correct game to{" "}
               <span

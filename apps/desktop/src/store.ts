@@ -130,6 +130,20 @@ export function canSwitchApprovedSuggestionToCommunity(value: {
   );
 }
 
+export function canSuggestCustomGameToCommunity(value: {
+  source?: GameSource | null;
+  exeName?: string | null;
+  communitySuggestionId?: number;
+  communitySuggestionStatus?: ContributionStatus;
+}) {
+  return (
+    value.source === "custom" &&
+    Boolean(value.exeName) &&
+    (value.communitySuggestionId === undefined ||
+      value.communitySuggestionStatus === "rejected")
+  );
+}
+
 export type ApiRequestLogEntry = {
   id: number;
   at: string;

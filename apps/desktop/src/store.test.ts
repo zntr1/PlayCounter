@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  canSuggestCustomGameToCommunity,
   canSwitchApprovedSuggestionToCommunity,
   canonicalGameKey,
   createGameIdentityResolver,
@@ -11,6 +12,32 @@ import {
   DISCOVERED_REVIEW_REMINDER_ID,
   evaluateDiscoveredReviewReminder,
 } from "./discoveredReminder";
+
+describe("custom game community suggestion eligibility", () => {
+  it("allows a new suggestion after the previous one was rejected", () => {
+    expect(
+      canSuggestCustomGameToCommunity({
+        source: "custom",
+        exeName: "Palworld.exe",
+        communitySuggestionId: 84,
+        communitySuggestionStatus: "rejected",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not allow duplicate actions while a suggestion is pending or approved", () => {
+    for (const status of ["pending", "verified"] as const) {
+      expect(
+        canSuggestCustomGameToCommunity({
+          source: "custom",
+          exeName: "Palworld.exe",
+          communitySuggestionId: 84,
+          communitySuggestionStatus: status,
+        }),
+      ).toBe(false);
+    }
+  });
+});
 
 describe("approved community suggestion switch", () => {
   const approvedSuggestion = {

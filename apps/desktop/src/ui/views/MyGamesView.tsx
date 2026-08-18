@@ -42,6 +42,7 @@ import {
   type GameAliasRef,
 } from "../../tracker";
 import {
+  canSuggestCustomGameToCommunity,
   canSwitchApprovedSuggestionToCommunity,
   createGameIdentityResolver,
   gameMetadataKey,
@@ -854,6 +855,21 @@ function GameLibraryCard({
     ),
   );
   const canEditCover = game.source === "custom";
+  const primaryExeName = game.exeNames[0];
+  const primaryExeEntry = useAppStore((state) =>
+    primaryExeName
+      ? state.exeCache.get(primaryExeName.toLowerCase())
+      : undefined,
+  );
+  const canSuggestToCommunity = canSuggestCustomGameToCommunity({
+    source: primaryExeEntry?.source ?? game.source,
+    exeName: primaryExeName,
+    communitySuggestionId:
+      primaryExeEntry?.communitySuggestionId ?? game.communitySuggestionId,
+    communitySuggestionStatus:
+      primaryExeEntry?.communitySuggestionStatus ??
+      game.communitySuggestionStatus,
+  });
   // Shown in place of the title while hovering the card.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
@@ -883,8 +899,21 @@ function GameLibraryCard({
     setShowConvert(false);
   }
 
-  const handleApplyMatch = (match: Game) => {
-    applyKnownGameMatch(game.exeNames[0], match);
+  const handleApplyMatch = (match: Game, pendingCommunity: boolean) => {
+    const exeName = game.exeNames[0];
+    if (!exeName) return;
+    if (pendingCommunity && match.source === "community") {
+      suggestTrackedGameToCommunity(
+        exeName,
+        match.name,
+        match.coverUrl,
+        match.id,
+        false,
+        match.igdbId,
+      );
+    } else {
+      applyKnownGameMatch(exeName, match);
+    }
     addToast({
       tone: "success",
       title: "Match applied",
@@ -1263,7 +1292,7 @@ function GameLibraryCard({
           >
             Check for Matches
           </ContextMenuItem>
-          {game.source === "custom" && !game.communitySuggestionId ? (
+          {canSuggestToCommunity ? (
             <ContextMenuItem
               icon={Send}
               onClick={() => {
@@ -1413,9 +1442,7 @@ function GameLibraryCard({
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
             ) : null}
-            {game.source === "custom" &&
-            game.exeNames[0] &&
-            !game.communitySuggestionId ? (
+            {canSuggestToCommunity ? (
               <IconButton
                 icon={Send}
                 aria-label={`Suggest ${game.name} to the community`}
@@ -1598,6 +1625,7 @@ function GameLibraryCard({
         {reportOpen ? (
           <ReportWrongMatchDialog
             exeName={game.exeNames[0] ?? ""}
+            gameName={game.name}
             onCancel={() => setReportOpen(false)}
             onDifferentGame={() => {
               setReportOpen(false);
@@ -1876,6 +1904,7 @@ function GameLibraryCard({
       {reportOpen ? (
         <ReportWrongMatchDialog
           exeName={game.exeNames[0] ?? ""}
+          gameName={game.name}
           onCancel={() => setReportOpen(false)}
           onDifferentGame={() => {
             setReportOpen(false);
@@ -2415,7 +2444,7 @@ function MatchCheckDialog({
 }: {
   game: GameSummary;
   onCancel: () => void;
-  onApply: (match: Game) => void;
+  onApply: (match: Game, pendingCommunity: boolean) => void;
   onReportNotAGame: () => void;
 }) {
   useEscapeKey(onCancel);
@@ -2424,10 +2453,15 @@ function MatchCheckDialog({
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<Game[]>([]);
   const [selection, setSelection] = useState<Game | null>(null);
+  const [pendingCommunityGameIds, setPendingCommunityGameIds] = useState<
+    ReadonlySet<number>
+  >(new Set());
   const [flaggedIdentifier, setFlaggedIdentifier] = useState<{
     reason: IdentifierFlagReason;
   }>();
 
+  const isPendingCommunityMatch = (match: Game) =>
+    match.source === "community" && pendingCommunityGameIds.has(match.id);
   const isCurrentMatch = (match: Game) =>
     match.source === game.source && match.id === game.gameId;
 
@@ -2435,10 +2469,15 @@ function MatchCheckDialog({
     let cancelled = false;
     void (async () => {
       try {
-        const { games, flaggedIdentifier: flag } =
-          await findGameMatches(exeName);
+        const {
+          games,
+          pendingCommunityGameIds: pendingIds,
+          flaggedIdentifier: flag,
+        } = await findGameMatches(exeName);
         if (cancelled) return;
+        const pendingIdSet = new Set(pendingIds ?? []);
         setCandidates(games);
+        setPendingCommunityGameIds(pendingIdSet);
         setFlaggedIdentifier(flag);
         // A single combined IGDB/community result is preselected so applying
         // is one click — unless it is what the exe already uses. An ambiguous
@@ -2554,7 +2593,8 @@ function MatchCheckDialog({
             variant="primary"
             disabled={!selection || isCurrentMatch(selection)}
             onClick={() => {
-              if (selection) onApply(selection);
+              if (selection)
+                onApply(selection, isPendingCommunityMatch(selection));
             }}
           >
             Apply match
