@@ -40,6 +40,7 @@ type PersistableAppState = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   collapsedSections: string[];
+  autoDetectedGameKeys: string[];
 };
 
 export type PersistedPayload = {
@@ -66,6 +67,7 @@ export type PersistedPayload = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   collapsedSections?: string[];
+  autoDetectedGameKeys?: string[];
 };
 
 export type PersistedProjection = Pick<
@@ -122,6 +124,7 @@ export function createPersistedPayload(
     archivedGameSeconds: state.archivedGameSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
     collapsedSections: state.collapsedSections,
+    autoDetectedGameKeys: [...new Set(state.autoDetectedGameKeys)],
   };
 }
 

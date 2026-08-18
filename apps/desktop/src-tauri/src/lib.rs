@@ -14,6 +14,7 @@ use tauri::{
 };
 
 mod ignored_processes;
+mod notification_overlay;
 mod process;
 mod session;
 
@@ -199,7 +200,12 @@ pub fn run() {
             icon: Mutex::new(None),
             status_item: Mutex::new(None),
         })
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .manage(notification_overlay::OverlayState::default())
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_denylist(&[notification_overlay::OVERLAY_LABEL])
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_main_window(app);
         }))
@@ -224,7 +230,13 @@ pub fn run() {
             update_tray_now_playing,
             scan_processes,
             privacy_context,
-            get_exe_icon
+            get_exe_icon,
+            notification_overlay::notification_overlay_prepare,
+            notification_overlay::notification_overlay_show,
+            notification_overlay::notification_overlay_hide,
+            notification_overlay::notification_overlay_close,
+            notification_overlay::notification_overlay_ready,
+            notification_overlay::notification_overlay_finished
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
@@ -241,6 +253,9 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            if window.label() != notification_overlay::MAIN_LABEL {
+                return;
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();

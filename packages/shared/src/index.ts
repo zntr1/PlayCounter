@@ -261,4 +261,10 @@ export interface Settings {
   emulatorDetection?: boolean;
   emulatorContentLookup?: boolean;
   ignoredEmulatorIds?: string[];
+  desktopOverlaysEnabled?: boolean;
+  overlayFirstDetections?: boolean;
+  overlaySessionStarts?: boolean;
+  overlaySessionSummaries?: boolean;
+  overlayMilestones?: boolean;
+  overlayDiscoveries?: boolean;
 }

@@ -68,6 +68,7 @@ function makeState(
     archivedGameSeconds: {},
     playtimeAdjustments: { "community:42": 600 },
     collapsedSections: [],
+    autoDetectedGameKeys: [],
   };
 }
 
@@ -165,6 +166,24 @@ describe("session persistence", () => {
     expect(JSON.parse(setItem.mock.calls[0][1]).collapsedSections).toEqual([
       "history.timeline",
       "achievements.total",
+    ]);
+  });
+
+  it("persists de-duplicated automatic detection aliases", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+
+    persistAppState({
+      ...makeState([]),
+      autoDetectedGameKeys: ["igdb#42", "community:7", "igdb#42"],
+    });
+
+    expect(JSON.parse(setItem.mock.calls[0][1]).autoDetectedGameKeys).toEqual([
+      "igdb#42",
+      "community:7",
     ]);
   });
 

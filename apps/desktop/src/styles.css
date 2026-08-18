@@ -235,6 +235,216 @@ body {
   color: rgb(var(--color-text));
 }
 
+html[data-window="notification-overlay"],
+html[data-window="notification-overlay"] body,
+html[data-window="notification-overlay"] #overlay-root {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.desktop-overlay-card {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 150px;
+  gap: 14px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-border) / 0.8);
+  border-radius: 18px;
+  padding: 15px;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgb(var(--color-accent) / 0.15),
+      transparent 42%
+    ),
+    linear-gradient(
+      145deg,
+      rgb(var(--color-surface) / 0.98),
+      rgb(var(--color-bg) / 0.96)
+    );
+  box-shadow:
+    0 18px 55px rgb(0 0 0 / 0.42),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+  contain: layout paint;
+  pointer-events: none;
+  transition:
+    transform 300ms cubic-bezier(0.2, 0.9, 0.25, 1),
+    opacity 220ms ease;
+}
+
+.desktop-overlay-card-compact {
+  min-height: 112px;
+  margin-top: 20px;
+}
+
+.desktop-overlay-card-celebration {
+  border-left: 3px solid rgb(var(--color-accent));
+}
+
+.overlay-card-enter {
+  opacity: 0;
+  transform: translate3d(24px, 0, 0) scale(0.985);
+  will-change: transform, opacity;
+}
+
+.overlay-card-hold {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.overlay-card-exit {
+  opacity: 0;
+  transform: translate3d(12px, 0, 0) scale(0.99);
+  will-change: transform, opacity;
+}
+
+.desktop-overlay-cover {
+  width: 78px;
+  height: 112px;
+  flex: 0 0 auto;
+  align-self: center;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-border) / 0.7);
+  border-radius: 11px;
+  background: rgb(var(--color-surface-hover));
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.25);
+}
+
+.desktop-overlay-card-compact .desktop-overlay-cover {
+  width: 58px;
+  height: 82px;
+}
+
+.desktop-overlay-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.desktop-overlay-cover-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgb(var(--color-accent) / 0.22), transparent 60%),
+    rgb(var(--color-surface-hover));
+}
+
+.desktop-overlay-cover-fallback span,
+.desktop-overlay-mark {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(var(--color-accent) / 0.55);
+  border-radius: 10px;
+  color: rgb(var(--color-accent));
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.desktop-overlay-cover-fallback span {
+  width: 38px;
+  height: 38px;
+}
+
+.desktop-overlay-mark {
+  width: 34px;
+  height: 34px;
+}
+
+.desktop-overlay-kicker {
+  color: rgb(var(--color-accent));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.desktop-overlay-metric,
+.desktop-overlay-live {
+  border: 1px solid rgb(var(--color-accent) / 0.35);
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgb(var(--color-accent) / 0.12);
+  color: rgb(var(--color-accent));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.desktop-overlay-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: rgb(var(--color-success));
+}
+
+.desktop-overlay-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.desktop-overlay-glints {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.desktop-overlay-glints i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--color-accent));
+  opacity: 0.7;
+  animation: overlay-glint 2.2s ease-in-out infinite;
+}
+
+.desktop-overlay-glints i:nth-child(1) {
+  right: 50px;
+  top: 24px;
+}
+.desktop-overlay-glints i:nth-child(2) {
+  right: 92px;
+  top: 54px;
+  animation-delay: 420ms;
+}
+.desktop-overlay-glints i:nth-child(3) {
+  right: 28px;
+  top: 88px;
+  animation-delay: 820ms;
+}
+
+@keyframes overlay-glint {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  45% {
+    opacity: 0.8;
+    transform: scale(1.65);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-overlay-card {
+    transition-duration: 120ms;
+  }
+  .desktop-overlay-glints {
+    display: none;
+  }
+}
+
 button,
 input,
 select {

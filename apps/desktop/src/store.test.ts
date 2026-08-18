@@ -94,8 +94,82 @@ beforeEach(() => {
     archivedGameSeconds: {},
     playtimeAdjustments: {},
     collapsedSections: [],
+    autoDetectedGameKeys: [],
     ignoredProcesses: new Set(),
     userIgnoredProcesses: new Set(),
+    settings: {
+      ...useAppStore.getState().settings,
+      desktopOverlaysEnabled: false,
+      overlayFirstDetections: true,
+      overlaySessionStarts: false,
+      overlaySessionSummaries: true,
+      overlayMilestones: true,
+      overlayDiscoveries: false,
+    },
+  });
+});
+
+describe("desktop overlay settings", () => {
+  it("defaults the master off and keeps only high-signal children on", () => {
+    expect(useAppStore.getState().settings).toMatchObject({
+      desktopOverlaysEnabled: false,
+      overlayFirstDetections: true,
+      overlaySessionStarts: false,
+      overlaySessionSummaries: true,
+      overlayMilestones: true,
+      overlayDiscoveries: false,
+    });
+  });
+});
+
+describe("automatic detection identity", () => {
+  it("records every alias on the first detection", () => {
+    expect(
+      useAppStore
+        .getState()
+        .recordAutomaticDetection(["igdb#900", "community:41"]),
+    ).toBe(true);
+    expect(useAppStore.getState().autoDetectedGameKeys).toEqual([
+      "igdb#900",
+      "community:41",
+    ]);
+  });
+
+  it("widens partially overlapping aliases without reporting another first", async () => {
+    useAppStore.setState({ autoDetectedGameKeys: ["community:41"] });
+    expect(
+      useAppStore
+        .getState()
+        .recordAutomaticDetection(["igdb#900", "community:41"]),
+    ).toBe(false);
+    expect(useAppStore.getState().autoDetectedGameKeys).toContain("igdb#900");
+    await Promise.resolve();
+    expect(globalThis.localStorage.setItem).toHaveBeenCalled();
+
+    expect(
+      useAppStore.getState().recordAutomaticDetection(["igdb#900", "igdb:900"]),
+    ).toBe(false);
+  });
+
+  it("records detections independently from the overlay master", () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, desktopOverlaysEnabled: false },
+    }));
+    expect(useAppStore.getState().recordAutomaticDetection(["custom:-1"])).toBe(
+      true,
+    );
+    expect(useAppStore.getState().autoDetectedGameKeys).toEqual(["custom:-1"]);
+  });
+
+  it("carries a known local identity forward when a game is rekeyed", () => {
+    useAppStore.setState({ autoDetectedGameKeys: ["custom:-1"] });
+    useAppStore
+      .getState()
+      .carryAutoDetectedGameKey("custom:-1", "community:42");
+    expect(useAppStore.getState().autoDetectedGameKeys).toEqual([
+      "custom:-1",
+      "community:42",
+    ]);
   });
 });
 

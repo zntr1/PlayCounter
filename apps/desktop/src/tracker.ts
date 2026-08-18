@@ -25,6 +25,7 @@ import {
   BUILD_STAGE,
   DEFAULT_API_ENDPOINT,
   canonicalGameKey,
+  autoDetectionKeys,
   createGameIdentityResolver,
   gameMetadataConflictsWithRef,
   gameMetadataKey,
@@ -45,7 +46,12 @@ import {
 } from "./discoveredReminder";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 import { currentPlatform } from "./platform";
-import { evaluateMilestones, migrateAwardedMilestones } from "./milestones";
+import {
+  evaluateMilestones,
+  milestoneMetrics,
+  migrateAwardedMilestones,
+  parseMilestoneId,
+} from "./milestones";
 import {
   contributionKey,
   contributionNotification,
@@ -64,6 +70,14 @@ import { persistAppState, readPersistedRecord } from "./persistence";
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
+import {
+  armDesktopOverlays,
+  disposeDesktopOverlays,
+  emitOverlayEvent,
+  initializeDesktopOverlays,
+  noteDiscoveredExecutable,
+} from "./desktopOverlayBridge";
+import { milestoneMetricLabel, pickTopMilestone } from "./desktopOverlays";
 import { adapterFor } from "./emulators/registry";
 import {
   accumulateObservationRuntime,
@@ -119,6 +133,7 @@ type PersistedState = {
   archivedGameSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
   collapsedSections?: unknown;
+  autoDetectedGameKeys?: string[];
 };
 
 type ProcessMatch = {
@@ -213,6 +228,7 @@ export async function initializeTracker() {
   logRuntime("tracker initialize started");
 
   hydrate();
+  initializeDesktopOverlays();
   syncTrayNowPlaying();
   scheduleTraySync();
   unsubscribeTraySync = useAppStore.subscribe((state, previousState) => {
@@ -283,6 +299,7 @@ async function finishTrackerStartup() {
     metadataHydrationRequests.clear();
     emulatorRuntime.clear();
     lastEmulatorRunningKeys.clear();
+    disposeDesktopOverlays();
     initialized = false;
   });
 
@@ -292,6 +309,7 @@ async function finishTrackerStartup() {
       evaluateAndStoreMilestones();
       await recheckPendingCommunityApprovals("startup");
       await requestProcessScan("startup");
+      armDesktopOverlays();
     })();
   }, 1_500);
   if (identityResolved) {
@@ -328,7 +346,8 @@ function hydrate() {
           value !== null &&
           typeof value === "object" &&
           (value as Record<string, unknown>).backfilled === true,
-      ));
+      )) ||
+    !Array.isArray(persisted.autoDetectedGameKeys);
   const settings = applyBuildApiEndpoint({
     ...useAppStore.getState().settings,
     ...persisted.settings,
@@ -353,6 +372,50 @@ function hydrate() {
       ] as const;
     }),
   );
+  const gameMetadataMap = new Map(
+    (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
+  );
+  const hydratedSessions = normalizeSessions(
+    (persisted.sessions ?? []).map(inferSuggestionStatus),
+  );
+  const autoDetectedGameKeys = (() => {
+    if (Array.isArray(persisted.autoDetectedGameKeys)) {
+      return [
+        ...new Set(
+          persisted.autoDetectedGameKeys.filter(
+            (key): key is string => typeof key === "string" && Boolean(key),
+          ),
+        ),
+      ];
+    }
+    const keys = new Set<string>();
+    const resolver = createGameIdentityResolver(gameMetadataMap, exeCacheMap);
+    for (const session of hydratedSessions) {
+      for (const key of autoDetectionKeys(session, resolver)) keys.add(key);
+    }
+    for (const entry of exeCacheMap.values()) {
+      if (entry.state !== "matched" || entry.gameId === undefined) continue;
+      for (const key of autoDetectionKeys(
+        {
+          gameId: entry.gameId,
+          source: entry.source,
+          igdbId: entry.igdbId,
+          gameName: entry.gameName,
+          coverUrl: entry.coverUrl,
+        },
+        resolver,
+      )) {
+        keys.add(key);
+      }
+    }
+    for (const key of Object.keys(persisted.archivedGameSeconds ?? {})) {
+      keys.add(key);
+    }
+    for (const key of Object.keys(persisted.playtimeAdjustments ?? {})) {
+      keys.add(key);
+    }
+    return [...keys];
+  })();
   const knownEmulators = new Map(
     (persisted.knownEmulators ?? []).map((emulator) => [
       emulator.emulatorId,
@@ -379,15 +442,8 @@ function hydrate() {
     // Open running windows were removed while constructing exeCacheMap above;
     // runtime while the app was closed must never be credited.
     exeCache: exeCacheMap,
-    gameMetadata: new Map(
-      (persisted.gameMetadata ?? []).map((game) => [
-        gameMetadataKey(game),
-        game,
-      ]),
-    ),
-    recentSessions: normalizeSessions(
-      (persisted.sessions ?? []).map(inferSuggestionStatus),
-    ),
+    gameMetadata: gameMetadataMap,
+    recentSessions: hydratedSessions,
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
     emulatorMappings: new Map(
@@ -428,6 +484,7 @@ function hydrate() {
       { signed: true },
     ),
     collapsedSections: normalizeCollapsedSections(persisted.collapsedSections),
+    autoDetectedGameKeys,
   });
   if (shouldPersistAchievementMigration) persist();
 }
@@ -639,7 +696,13 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     logRuntime(
       `scan match ended; ending active session ${current.gameName} (${current.exeName})`,
     );
-    await endSession(current, recoveredSessionEndAt(current));
+    await endSession(
+      current,
+      recoveredSessionEndAt(current),
+      current.recoveredFromCheckpoint
+        ? "recovered-checkpoint"
+        : "process-ended",
+    );
   }
 
   for (const ambiguous of currentAmbiguous) {
@@ -674,6 +737,7 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
       startSession(match.process, match.game, {
         startedAt: match.startedAt,
         emulator: match.emulator,
+        origin: "automatic",
       });
     }
   }
@@ -1395,6 +1459,9 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
     useAppStore
       .getState()
       .rekeyGameSeconds(`custom:${staleId}`, `custom:${canonicalId}`);
+    useAppStore
+      .getState()
+      .carryAutoDetectedGameKey(`custom:${staleId}`, `custom:${canonicalId}`);
   }
 
   logRuntime(
@@ -1698,10 +1765,10 @@ export function applyGameMatch(exeName: string, game: Game) {
   }));
 
   if (oldGameId !== undefined) {
-    state.rekeyGameSeconds(
-      `${existing.source ?? "unknown"}:${oldGameId}`,
-      `${game.source}:${game.id}`,
-    );
+    const from = `${existing.source ?? "unknown"}:${oldGameId}`;
+    const to = `${game.source}:${game.id}`;
+    state.rekeyGameSeconds(from, to);
+    state.carryAutoDetectedGameKey(from, to);
   }
 
   logRuntime(`game match applied ${existing.exeName} -> ${game.name}`);
@@ -1846,6 +1913,7 @@ export async function selectEmulatorGame(contentKey: string, game: Game) {
     startSession(match.process, match.game, {
       startedAt: match.startedAt,
       emulator: match.emulator,
+      origin: "manual",
     });
   }
   persist();
@@ -1957,7 +2025,9 @@ export async function setEmulatorIgnored(emulatorId: string, ignored: boolean) {
     const activeSessions = state.activeSessions.filter(
       (session) => session.emulator?.emulatorId.toLowerCase() === key,
     );
-    for (const session of activeSessions) await endSession(session);
+    for (const session of activeSessions) {
+      await endSession(session, undefined, "settings-change");
+    }
     logRuntime(`emulator ignored ${key}`);
   } else {
     logRuntime(`emulator restored ${key}`);
@@ -1986,7 +2056,7 @@ async function endActiveEmulatorRoute(contentKey: string) {
     .activeSessions.find(
       (session) => session.emulator?.contentKey === contentKey,
     );
-  if (active) await endSession(active);
+  if (active) await endSession(active, undefined, "route-change");
 }
 
 function observationFromMapping(
@@ -2086,10 +2156,10 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
     ),
   }));
   if (oldGameId !== undefined) {
-    state.rekeyGameSeconds(
-      `custom:${oldGameId}`,
-      `community:${communityGame.id}`,
-    );
+    const from = `custom:${oldGameId}`;
+    const to = `community:${communityGame.id}`;
+    state.rekeyGameSeconds(from, to);
+    state.carryAutoDetectedGameKey(from, to);
   }
 
   logRuntime(`local suggestion converted to community ${exeName}`);
@@ -2325,6 +2395,7 @@ function cacheMatchResult(exeName: string, game: Game | null) {
       status: "unmatched",
       detail: "No game returned",
     });
+    if (!existing) noteDiscoveredExecutable(exeName);
     state.setExeCacheEntry({
       exeName,
       state: "unmatched",
@@ -2361,11 +2432,17 @@ function cacheMatchResult(exeName: string, game: Game | null) {
   });
 }
 
+type StartSessionOptions = {
+  startedAt?: string;
+  emulator?: EmulatorLaunchContext;
+  origin: "automatic" | "manual";
+};
+
 function startSession(
   process: ProcessSnapshot,
   game: Game,
-  options?: string | { startedAt?: string; emulator?: EmulatorLaunchContext },
-) {
+  options: StartSessionOptions,
+): ActiveSession | null {
   const sessionKey = activeSessionKey(game.id, game.source, game.igdbId);
   const alreadyRunning = useAppStore
     .getState()
@@ -2376,13 +2453,11 @@ function startSession(
     verboseRuntime(
       `session already open for ${game.name}; ${process.exeName} joins it`,
     );
-    return;
+    return null;
   }
 
   logRuntime(`session starting ${game.name} (${process.exeName})`);
-  const startedAt =
-    (typeof options === "string" ? options : options?.startedAt) ??
-    new Date().toISOString();
+  const startedAt = options.startedAt ?? new Date().toISOString();
   const cacheEntry = useAppStore
     .getState()
     .exeCache.get(process.exeName.toLowerCase());
@@ -2400,11 +2475,37 @@ function startSession(
     communitySuggestionNote: cacheEntry?.communitySuggestionNote,
     startedAt,
     checkpointedAt: startedAt,
-    emulator: typeof options === "string" ? undefined : options?.emulator,
+    emulator: options.emulator,
   };
   useAppStore.setState((state) => ({
     activeSessions: [...state.activeSessions, session],
   }));
+  if (options.origin === "automatic") {
+    const state = useAppStore.getState();
+    const resolver = createGameIdentityResolver(
+      state.gameMetadata,
+      state.exeCache,
+    );
+    const firstAutoDetection = state.recordAutomaticDetection(
+      autoDetectionKeys(
+        {
+          gameId: game.id,
+          source: game.source,
+          igdbId: game.igdbId,
+          gameName: game.name,
+          coverUrl: game.coverUrl,
+        },
+        resolver,
+      ),
+    );
+    emitOverlayEvent({
+      type: "session-started",
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+      firstAutoDetection,
+    });
+  }
+  return session;
 }
 
 export function selectAmbiguousMatch(exeName: string, game: Game) {
@@ -2431,7 +2532,7 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
       startSession(
         { exeName: ambiguous.exeName, exePath: ambiguous.exePath },
         game,
-        ambiguous.detectedAt,
+        { startedAt: ambiguous.detectedAt, origin: "manual" },
       );
     }
   }
@@ -2676,7 +2777,18 @@ export async function dismissAmbiguousMatch(exeName: string) {
   return outcome;
 }
 
-async function endSession(session: ActiveSession, endedAtOverride?: string) {
+type SessionEndReason =
+  | "process-ended"
+  | "recovered-checkpoint"
+  | "stale-timeout"
+  | "settings-change"
+  | "route-change";
+
+async function endSession(
+  session: ActiveSession,
+  endedAtOverride?: string,
+  reason: SessionEndReason = "process-ended",
+) {
   logRuntime(`session ending ${session.gameName} (${session.exeName})`);
   const endedAt = endedAtOverride ?? new Date().toISOString();
   const durationSeconds = Math.max(
@@ -2701,7 +2813,21 @@ async function endSession(session: ActiveSession, endedAtOverride?: string) {
     emulator: session.emulator,
   });
   removeActiveSession(session);
-  evaluateAndStoreMilestones();
+  const freshMilestones = evaluateAndStoreMilestones();
+  if (reason === "process-ended") {
+    const top = pickTopMilestone(freshMilestones);
+    emitOverlayEvent({
+      type: "session-ended",
+      gameName: session.gameName,
+      coverUrl: session.coverUrl,
+      durationSeconds,
+      totalSeconds: currentGameTotalSeconds(session),
+      milestoneTitle: top?.title,
+      milestoneMetric: top ? milestoneMetricLabel(top.id) : undefined,
+      milestoneGameScoped:
+        top !== null && parseMilestoneId(top.id)?.category === "game",
+    });
+  }
   logRuntime(
     `session ended ${session.gameName} durationSeconds=${durationSeconds}`,
   );
@@ -2719,7 +2845,7 @@ async function closeStaleSession() {
       `stale session check ${active.gameName} (${active.exeName}) activeAgeMs=${ageMs}`,
     );
     if (ageMs > 4 * 60 * 60 * 1000) {
-      await endSession(active, active.checkpointedAt);
+      await endSession(active, active.checkpointedAt, "stale-timeout");
     }
   }
 }
@@ -3079,6 +3205,25 @@ export function evaluateAndStoreMilestones(
     logRuntime(`milestones revoked ${result.revokedMilestoneIds.join(", ")}`);
   }
   persist();
+  return result.notifications;
+}
+
+function currentGameTotalSeconds(session: ActiveSession) {
+  const state = useAppStore.getState();
+  const resolver = createGameIdentityResolver(
+    state.gameMetadata,
+    state.exeCache,
+  );
+  const metrics = milestoneMetrics({
+    sessions: state.recentSessions,
+    archivedSeconds: state.archivedSeconds,
+    archivedGameSeconds: state.archivedGameSeconds,
+    playtimeAdjustments: state.playtimeAdjustments,
+    verifiedContributions: state.contributionCounts.verified,
+    resolveIgdbId: resolver,
+  });
+  const key = resolvedCanonicalGameKey(session, resolver);
+  return Math.round((metrics.games.get(key)?.hours ?? 0) * 3_600);
 }
 
 export function applyContributionMarkers(

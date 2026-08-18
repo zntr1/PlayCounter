@@ -20,6 +20,8 @@ import {
 import { Panel } from "../components";
 import { Button, useEscapeKey } from "../primitives";
 import { DEFAULT_ACCENT_COLOR } from "../../theme";
+import { currentPlatform } from "../../platform";
+import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 
 type UpdateStatus =
   | "idle"
@@ -53,6 +55,9 @@ export function SettingsView() {
     (state) => state.setAutoShareIgnoredProcesses,
   );
   const setEmulatorSetting = useAppStore((state) => state.setEmulatorSetting);
+  const setDesktopOverlaySetting = useAppStore(
+    (state) => state.setDesktopOverlaySetting,
+  );
   const setAccentColor = useAppStore((state) => state.setAccentColor);
   const knownEmulators = useAppStore((state) => state.knownEmulators);
   const ignoredProcessCount = useAppStore(
@@ -249,6 +254,126 @@ export function SettingsView() {
           </div>
         </SettingsRow>
       </SettingsPanel>
+
+      {currentPlatform() !== "macos" ? (
+        <SettingsPanel
+          description="Show stylish PlayCounter overlays while you play."
+          title="Notifications"
+        >
+          <SettingsRow
+            description="Display PlayCounter's own lightweight cards, even while the app is in the tray."
+            title="Show desktop overlays"
+          >
+            <input
+              type="checkbox"
+              checked={settings.desktopOverlaysEnabled === true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "desktopOverlaysEnabled",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent"
+            />
+          </SettingsRow>
+          <p className="-mt-3 text-xs text-text-faint">
+            Overlays stay hidden while the PlayCounter window is open and
+            focused.
+          </p>
+          <SettingsRow
+            description="Celebrate the first time PlayCounter recognizes a game automatically."
+            title="First-time detections"
+          >
+            <input
+              type="checkbox"
+              checked={settings.overlayFirstDetections !== false}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayFirstDetections",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
+            description="Show a small confirmation whenever automatic tracking begins."
+            title="Every game start"
+          >
+            <input
+              type="checkbox"
+              checked={settings.overlaySessionStarts === true}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlaySessionStarts",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
+            description="Show a recap after sessions lasting at least 10 minutes."
+            title="Session summaries"
+          >
+            <input
+              type="checkbox"
+              checked={settings.overlaySessionSummaries !== false}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlaySessionSummaries",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
+            description="Celebrate newly unlocked playtime milestones."
+            title="Milestones"
+          >
+            <input
+              type="checkbox"
+              checked={settings.overlayMilestones !== false}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayMilestones",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
+            description="Let you know when PlayCounter finds something new to review. Only apps found while this is on are included."
+            title="New discoveries"
+          >
+            <input
+              type="checkbox"
+              checked={settings.overlayDiscoveries === true}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayDiscoveries",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          {settings.desktopOverlaysEnabled === true ? (
+            <div className="flex justify-end border-t border-border pt-4">
+              <Button variant="secondary" onClick={previewDesktopOverlay}>
+                Preview overlay
+              </Button>
+            </div>
+          ) : null}
+        </SettingsPanel>
+      ) : null}
 
       <SettingsPanel
         description="Detect games launched inside supported emulator processes, including DOSBox and Dolphin."

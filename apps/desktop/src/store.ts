@@ -179,6 +179,14 @@ export type Toast = {
   detail?: string;
 };
 
+export type DesktopOverlaySettingKey =
+  | "desktopOverlaysEnabled"
+  | "overlayFirstDetections"
+  | "overlaySessionStarts"
+  | "overlaySessionSummaries"
+  | "overlayMilestones"
+  | "overlayDiscoveries";
+
 type AppState = {
   activeView: ViewId;
   historyQuery: string;
@@ -215,6 +223,7 @@ type AppState = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   collapsedSections: string[];
+  autoDetectedGameKeys: string[];
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
@@ -268,6 +277,12 @@ type AppState = {
     key: "emulatorDetection" | "emulatorContentLookup",
     enabled: boolean,
   ) => void;
+  setDesktopOverlaySetting: (
+    key: DesktopOverlaySettingKey,
+    enabled: boolean,
+  ) => void;
+  recordAutomaticDetection: (keys: string[]) => boolean;
+  carryAutoDetectedGameKey: (from: string, to: string) => void;
   setEmulatorIgnoredSetting: (emulatorId: string, ignored: boolean) => void;
   setDevNumber: (
     key: "pollingIntervalSeconds" | "unmatchedRetryDays",
@@ -302,6 +317,12 @@ const defaultSettings: Settings = {
   emulatorDetection: true,
   emulatorContentLookup: true,
   ignoredEmulatorIds: [],
+  desktopOverlaysEnabled: false,
+  overlayFirstDetections: true,
+  overlaySessionStarts: false,
+  overlaySessionSummaries: true,
+  overlayMilestones: true,
+  overlayDiscoveries: false,
 };
 
 let nextRuntimeLogId = 0;
@@ -394,6 +415,7 @@ export const useAppStore = create<AppState>((set) => ({
   archivedGameSeconds: {},
   playtimeAdjustments: {},
   collapsedSections: [],
+  autoDetectedGameKeys: [],
   cleanup: null,
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
@@ -705,6 +727,42 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({ settings: { ...state.settings, [key]: enabled } }));
     persistSoon();
   },
+  setDesktopOverlaySetting: (key, enabled) => {
+    set((state) => ({ settings: { ...state.settings, [key]: enabled } }));
+    persistSoon();
+  },
+  recordAutomaticDetection: (keys) => {
+    const supplied = [...new Set(keys.filter(Boolean))];
+    let isFirst = false;
+    let changed = false;
+    set((state) => {
+      const known = new Set(state.autoDetectedGameKeys);
+      isFirst = supplied.length > 0 && !supplied.some((key) => known.has(key));
+      for (const key of supplied) {
+        if (known.has(key)) continue;
+        known.add(key);
+        changed = true;
+      }
+      return changed ? { autoDetectedGameKeys: [...known] } : {};
+    });
+    if (changed) persistSoon();
+    return isFirst;
+  },
+  carryAutoDetectedGameKey: (from, to) => {
+    let changed = false;
+    set((state) => {
+      if (
+        from === to ||
+        !state.autoDetectedGameKeys.includes(from) ||
+        state.autoDetectedGameKeys.includes(to)
+      ) {
+        return {};
+      }
+      changed = true;
+      return { autoDetectedGameKeys: [...state.autoDetectedGameKeys, to] };
+    });
+    if (changed) persistSoon();
+  },
   setEmulatorIgnoredSetting: (emulatorId, ignored) => {
     set((state) => {
       const key = emulatorId.trim().toLowerCase();
@@ -942,6 +1000,18 @@ export function resolvedCanonicalGameKey(
         ? undefined
         : (ref.igdbId ?? resolvedIgdbId ?? undefined),
   });
+}
+
+export function autoDetectionKeys(
+  ref: GameIdentityRef,
+  resolveIgdbId?: GameIdentityResolver,
+) {
+  return [
+    ...new Set([
+      resolvedCanonicalGameKey(ref, resolveIgdbId),
+      `${ref.source ?? "unknown"}:${ref.gameId}`,
+    ]),
+  ];
 }
 
 export function useIsOffline() {
