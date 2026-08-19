@@ -54,4 +54,22 @@ describe("tour definitions", () => {
       "history",
     );
   });
+
+  it("documents the My Games context-menu action groups", () => {
+    const guide = TOURS.find((tour) => tour.id === "game-actions")!;
+    expect(guide.demoGame).toBe(true);
+    expect(guide.steps.map((step) => step.id)).toEqual([
+      "intro",
+      "open-menu",
+      "history",
+      "playtime",
+      "matches",
+      "wrong-match",
+      "copy",
+      "remove",
+    ]);
+    expect(
+      guide.steps.slice(2).every((step) => step.backTo === "open-menu"),
+    ).toBe(true);
+  });
 });

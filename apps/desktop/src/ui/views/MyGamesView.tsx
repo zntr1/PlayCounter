@@ -158,14 +158,19 @@ function makeTourDemoGame(
   addedSeconds: number,
   addedSessions: number,
   showSourceBadges: boolean,
+  source: GameSource | null = null,
 ): GameSummary {
   const totalSeconds = 7_200 + addedSeconds;
   return {
     gameId: TOUR_DEMO_GAME.gameId,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
-    source: null,
-    sources: showSourceBadges ? ["community", "igdb", "custom"] : [],
+    source,
+    sources: showSourceBadges
+      ? ["community", "igdb", "custom"]
+      : source
+        ? [source]
+        : [],
     aliases: [],
     totalSeconds,
     sessionSeconds: totalSeconds,
@@ -699,6 +704,7 @@ export function MyGamesView() {
         demoPlaytime.addedSeconds,
         demoPlaytime.addedSessions,
         tourDemo.tourId === "source-badges",
+        tourDemo.tourId === "game-actions" ? "community" : null,
       ),
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
@@ -949,10 +955,12 @@ function GameLibraryCard({
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
-  const showDemoAdjustMenu = useAppStore(
+  const showDemoContextMenu = useAppStore(
     (state) =>
-      state.activeTour?.tourId === "log-playtime" &&
-      state.activeTour.stepIndex === 5,
+      (state.activeTour?.tourId === "log-playtime" &&
+        state.activeTour.stepIndex === 5) ||
+      (state.activeTour?.tourId === "game-actions" &&
+        state.activeTour.stepIndex >= 2),
   );
   const contextMenu = useContextMenu();
   const cardRef = useRef<HTMLElement | null>(null);
@@ -985,7 +993,7 @@ function GameLibraryCard({
 
   useEffect(() => {
     if (!demo) return;
-    if (!showDemoAdjustMenu) {
+    if (!showDemoContextMenu) {
       contextMenu.close();
       return;
     }
@@ -998,7 +1006,7 @@ function GameLibraryCard({
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [demo, showDemoAdjustMenu]);
+  }, [demo, showDemoContextMenu]);
   const hasActiveSession = useAppStore((state) =>
     state.activeSessions.some((session) =>
       game.aliases.some(
@@ -1451,7 +1459,11 @@ function GameLibraryCard({
       dataTour={demo ? "demo-context-menu" : undefined}
       focusFirstItem={demo}
     >
-      <ContextMenuItem icon={History} onClick={handleShowHistory}>
+      <ContextMenuItem
+        dataTour={demo ? "demo-menu-show-history" : undefined}
+        icon={History}
+        onClick={handleShowHistory}
+      >
         Show History
       </ContextMenuItem>
       <ContextMenuItem
@@ -1478,6 +1490,7 @@ function GameLibraryCard({
         <>
           <ContextMenuSeparator />
           <ContextMenuItem
+            dataTour={demo ? "demo-menu-check-matches" : undefined}
             icon={Search}
             onClick={() => {
               contextMenu.close();
@@ -1488,6 +1501,7 @@ function GameLibraryCard({
           </ContextMenuItem>
           {canSuggestToCommunity ? (
             <ContextMenuItem
+              dataTour={demo ? "demo-menu-suggest-community" : undefined}
               icon={Send}
               onClick={() => {
                 contextMenu.close();
@@ -1500,6 +1514,7 @@ function GameLibraryCard({
           {game.source === "igdb" || game.source === "community" ? (
             <>
               <ContextMenuItem
+                dataTour={demo ? "demo-menu-report-match" : undefined}
                 icon={Flag}
                 onClick={() => {
                   contextMenu.close();
@@ -1509,6 +1524,7 @@ function GameLibraryCard({
                 Report Wrong Match
               </ContextMenuItem>
               <ContextMenuItem
+                dataTour={demo ? "demo-menu-convert-custom" : undefined}
                 icon={Gamepad2}
                 onClick={() => {
                   contextMenu.close();
@@ -1526,6 +1542,7 @@ function GameLibraryCard({
         <>
           <ContextMenuSeparator />
           <ContextMenuItem
+            dataTour={demo ? "demo-menu-rename" : undefined}
             icon={Pencil}
             onClick={() => {
               contextMenu.close();
@@ -1536,6 +1553,7 @@ function GameLibraryCard({
             Rename Game
           </ContextMenuItem>
           <ContextMenuItem
+            dataTour={demo ? "demo-menu-set-cover" : undefined}
             icon={ImagePlus}
             onClick={() => {
               contextMenu.close();
@@ -1545,28 +1563,42 @@ function GameLibraryCard({
             Set Cover
           </ContextMenuItem>
           <ContextMenuItem
+            dataTour={demo ? "demo-menu-paste-cover" : undefined}
             icon={Clipboard}
             onClick={() => void handlePasteCover()}
           >
             Paste Cover
           </ContextMenuItem>
           {game.coverUrl ? (
-            <ContextMenuItem icon={Trash2} onClick={handleClearCover}>
+            <ContextMenuItem
+              dataTour={demo ? "demo-menu-delete-cover" : undefined}
+              icon={Trash2}
+              onClick={handleClearCover}
+            >
               Delete Cover
             </ContextMenuItem>
           ) : null}
         </>
       ) : null}
       <ContextMenuSeparator />
-      <ContextMenuItem icon={Copy} onClick={handleCopyName}>
+      <ContextMenuItem
+        dataTour={demo ? "demo-menu-copy-name" : undefined}
+        icon={Copy}
+        onClick={handleCopyName}
+      >
         Copy Game Name
       </ContextMenuItem>
-      <ContextMenuItem icon={Copy} onClick={handleCopyExe}>
+      <ContextMenuItem
+        dataTour={demo ? "demo-menu-copy-exe" : undefined}
+        icon={Copy}
+        onClick={handleCopyExe}
+      >
         Copy Executable Name
       </ContextMenuItem>
       <ContextMenuSeparator />
       {onStopTracking ? (
         <ContextMenuItem
+          dataTour={demo ? "demo-menu-ignore" : undefined}
           icon={Ban}
           onClick={() => {
             onStopTracking();
@@ -1577,6 +1609,7 @@ function GameLibraryCard({
         </ContextMenuItem>
       ) : null}
       <ContextMenuItem
+        dataTour={demo ? "demo-menu-remove" : undefined}
         icon={Trash2}
         danger
         onClick={() => {
