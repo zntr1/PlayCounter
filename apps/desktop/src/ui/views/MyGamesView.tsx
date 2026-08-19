@@ -93,8 +93,9 @@ import type {
 } from "@playcounter/shared";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
+import { compareMyGames, type MyGamesSortKey } from "../myGamesSort";
 
-type SortKey = "recent" | "playtime" | "name" | "sessions";
+type SortKey = MyGamesSortKey;
 type ViewMode = "grid" | "list";
 
 const sortOptions: Array<{ key: SortKey; label: string }> = [
@@ -130,6 +131,7 @@ type GameSummary = {
   sessionCount: number;
   historyGameKey: string | null;
   lastPlayedAt: string;
+  activeStartedAt?: string;
   exeNames: string[];
   emulatorLabels: string[];
   emulatorIds: string[];
@@ -583,6 +585,13 @@ export function MyGamesView() {
       }
       existing.sessionSeconds += activeSeconds;
       existing.lastPlayedAt = activeSession.checkpointedAt;
+      if (
+        existing.activeStartedAt === undefined ||
+        Date.parse(activeSession.startedAt) >
+          Date.parse(existing.activeStartedAt)
+      ) {
+        existing.activeStartedAt = activeSession.startedAt;
+      }
       existing.communitySuggestionId ??= activeSession.communitySuggestionId;
       existing.communitySuggestionVerified ??=
         activeSession.communitySuggestionVerified;
@@ -679,19 +688,7 @@ export function MyGamesView() {
       : games;
 
     const sorted = [...filtered];
-    sorted.sort((left, right) => {
-      switch (sortKey) {
-        case "playtime":
-          return right.totalSeconds - left.totalSeconds;
-        case "name":
-          return left.name.localeCompare(right.name);
-        case "sessions":
-          return right.sessionCount - left.sessionCount;
-        case "recent":
-        default:
-          return Date.parse(right.lastPlayedAt) - Date.parse(left.lastPlayedAt);
-      }
-    });
+    sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
   }, [games, query, sortKey]);
   const demoGames = useMemo(() => {
