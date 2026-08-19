@@ -182,6 +182,7 @@ export function reconcileEmulatorReadings(input: {
       state:
         previous?.state ??
         (group.item.content.shareable ? "resolving" : "unknown"),
+      autoResolve: previous?.autoResolve,
       candidates: previous?.candidates,
       detectedAt: previous?.detectedAt ?? nowIso,
       lastCheckedAt: searchHintBecameShareable
@@ -195,6 +196,7 @@ export function reconcileEmulatorReadings(input: {
       : Number.NEGATIVE_INFINITY;
     if (
       observation.shareable &&
+      observation.autoResolve !== false &&
       input.lookupEnabled &&
       input.now - checkedAt >= input.retryMs
     ) {

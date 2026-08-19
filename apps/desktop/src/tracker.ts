@@ -985,7 +985,8 @@ async function applyEmulatorReadings(
       if (!observation) continue;
       if (
         result?.game &&
-        (result.confidence === "curated" || result.confidence === "probable")
+        (result.confidence === "curated" || result.confidence === "probable") &&
+        observation.autoResolve !== false
       ) {
         const match = applyEmulatorResolution(
           observation.key,
@@ -2040,6 +2041,7 @@ export async function changeEmulatorMapping(contentKey: string) {
   state.removeEmulatorMapping(contentKey);
   state.setEmulatorObservation({
     ...observationFromMapping(mapping),
+    autoResolve: false,
     lastCheckedAt: new Date().toISOString(),
   });
   persist();

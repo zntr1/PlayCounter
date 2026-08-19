@@ -61,6 +61,8 @@ export type EmulatorContentObservation = {
   searchHint?: string;
   shareableSearchHint?: boolean;
   state: "resolving" | "ambiguous" | "unknown";
+  /** False while the user is deliberately choosing a replacement game. */
+  autoResolve?: boolean;
   candidates?: Game[];
   detectedAt: string;
   lastCheckedAt?: string;

@@ -114,6 +114,42 @@ describe("emulator reconciliation", () => {
     expect(result.intents).toEqual([]);
   });
 
+  it("keeps a manually opened replacement picker from resolving again", () => {
+    const observation = {
+      kind: "content" as const,
+      key: "dosbox:program:doom.exe",
+      emulatorId: "dosbox",
+      label: "DOSBox",
+      hostExeName: "dosbox.exe",
+      contentKind: "program" as const,
+      contentValue: "doom.exe",
+      display: "DOOM.EXE",
+      trust: "recognized" as const,
+      shareable: true,
+      state: "unknown" as const,
+      autoResolve: false,
+      detectedAt: new Date(0).toISOString(),
+    };
+    const result = reconcileEmulatorReadings({
+      readings: [contentReading],
+      observations: [observation],
+      mappings: new Map(),
+      runtime: new Map(),
+      now: 120_000,
+      lookupEnabled: true,
+      retryMs: 60_000,
+    });
+
+    expect(result.intents.some((intent) => intent.type === "resolve")).toBe(
+      false,
+    );
+    expect(result.observations[0]).toMatchObject({
+      key: observation.key,
+      state: "unknown",
+      autoResolve: false,
+    });
+  });
+
   it("accumulates unresolved runtime across checkpoints and stop", () => {
     const observation = {
       kind: "content" as const,
