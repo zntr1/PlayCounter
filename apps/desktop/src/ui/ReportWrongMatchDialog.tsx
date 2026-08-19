@@ -20,13 +20,12 @@ export function ReportWrongMatchDialog({
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
       <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-5 shadow-raised">
         <h2 className="break-words text-lg font-semibold text-text">
-          What is {label}?
+          What is '{label}'?
         </h2>
         <p className="mt-2 text-sm text-text-muted">
           {gameName ? (
             <>
-              PlayCounter is tracking it as <strong>{gameName}</strong> - that
-              looks wrong.
+              PlayCounter is tracking it as <strong>{gameName}</strong> - why do you want to report it?
             </>
           ) : (
             <>PlayCounter matched it to a game - is that wrong?</>
@@ -51,7 +50,7 @@ export function ReportWrongMatchDialog({
             <span>It isn&apos;t a game at all</span>
             <span className="text-xs font-normal text-text-muted">
               A tool, launcher, or background app. Stops tracking it, ignores{" "}
-              {label} on this PC, and sends an anonymous report.
+              {label} on this PC, and sends an anonymous report to improve PlayCounter.
             </span>
           </Button>
           <Button variant="ghost" onClick={onCancel}>

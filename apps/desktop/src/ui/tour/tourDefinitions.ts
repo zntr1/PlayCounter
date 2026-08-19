@@ -467,14 +467,14 @@ export const TOURS: TourDefinition[] = [
         view: "games",
         anchor: a("demo-source-community"),
         title: "Community",
-        body: "The PlayCounter community database links file names to the right games. Players send in matches that are missing, those get reviewed, and once approved everyone's PlayCounter recognizes the file automatically.",
+        body: "The PlayCounter community database links file names to the right games. Users can suggest/share matches that are missing and when those get reviewed and approved, everyone's PlayCounter recognizes the file automatically from now on.",
       },
       {
         id: "igdb",
         view: "games",
         anchor: a("demo-source-igdb"),
         title: "IGDB",
-        body: "IGDB is a large public game database. It's where most names and covers come from.\n\nIt doesn't know every release, though - especially older, regional, or unusual ones. When IGDB is wrong or missing something, Community entries fill the gap.",
+        body: "IGDB is a large public game database. It's where most names and covers come from.\n\nIt doesn't know every release, though - especially older, regional, or unusual ones. When IGDB is wrong or missing something, PlayCounter Community entries fill the gap.",
       },
       {
         id: "custom",
