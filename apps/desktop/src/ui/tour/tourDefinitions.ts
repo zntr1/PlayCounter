@@ -188,9 +188,8 @@ export const TOURS: TourDefinition[] = [
     id: "game-actions",
     version: 1,
     kind: "guide",
-    title: "Use My Games actions",
-    description:
-      "Learn what Show History, Check for Matches, and other card actions do.",
+    title: "Manage a game in your library",
+    description: "Everything in a game's right-click menu.",
     duration: "2 min",
     demoGame: true,
     steps: [
@@ -199,7 +198,7 @@ export const TOURS: TourDefinition[] = [
         view: "games",
         anchor: a("demo-game-card"),
         title: "More actions for every game",
-        body: "Each card in My Games has a right-click menu for reviewing history, correcting playtime or detection, and managing the library. We'll use this temporary sample, so none of your games or data can change.",
+        body: "Every card in My Games has a right-click menu. It's where you fix playtime, correct a wrong match, or get rid of a game.\n\nWe'll use a sample card, so nothing in your library can change.",
       },
       {
         id: "open-menu",
@@ -213,7 +212,7 @@ export const TOURS: TourDefinition[] = [
         },
         skipTo: "history",
         title: "Right-click the sample card",
-        body: "The available items depend on how PlayCounter identified the game. Right-click this card to see the actions for a known database match.",
+        body: "Which items you get depends on where the game came from. This sample is a community match, so you see what a matched game offers. A game you added yourself has a few different items.",
       },
       {
         id: "history",
@@ -221,8 +220,8 @@ export const TOURS: TourDefinition[] = [
         anchor: a("demo-menu-show-history"),
         retreatWhenMissing: a("demo-context-menu"),
         backTo: "open-menu",
-        title: "Show only this game's history",
-        body: "Show History opens My History with this game selected, making it easy to review its sessions and charts. It only changes the current view - no history is edited.",
+        title: "See only this game's sessions",
+        body: "Show History jumps to My History with this game already filtered. Nothing is changed - it's just a different view.",
       },
       {
         id: "playtime",
@@ -231,8 +230,8 @@ export const TOURS: TourDefinition[] = [
         additionalAnchors: [a("demo-menu-adjust-playtime")],
         retreatWhenMissing: a("demo-context-menu"),
         backTo: "open-menu",
-        title: "Repair missing playtime",
-        body: "Log missed session creates a dated History entry. Adjust total playtime changes the lifetime total without inventing or deleting sessions - useful when importing a total from a launcher.",
+        title: "Add playtime that's missing",
+        body: "Log missed session adds one session with the date and length you enter. Adjust total playtime changes only the lifetime number - useful when you carry a total over from a launcher.",
       },
       {
         id: "matches",
@@ -240,8 +239,8 @@ export const TOURS: TourDefinition[] = [
         anchor: a("demo-menu-check-matches"),
         retreatWhenMissing: a("demo-context-menu"),
         backTo: "open-menu",
-        title: "Check the databases again",
-        body: "Check for Matches looks up the executable name in the IGDB and Community databases again. Use it when a better match may have been added or a custom game can now be identified automatically.",
+        title: "Look the game up again",
+        body: "'Check for Matches' searches IGDB and the Community database for this file name one more time. Worth trying when a game wasn't found before - a match may have been added since, and a custom game can turn into a real one.",
       },
       {
         id: "wrong-match",
@@ -251,7 +250,7 @@ export const TOURS: TourDefinition[] = [
         retreatWhenMissing: a("demo-context-menu"),
         backTo: "open-menu",
         title: "Fix a wrong match",
-        body: "Report Wrong Match sends the bad executable match for review and helps you choose the correct outcome. Convert to Custom Game keeps this executable under a name you control on this PC.",
+        body: "Report Wrong Match asks what the app really is - a different game, or no game at all - and sends that in for review. Convert to Custom Game keeps it here under a name you pick yourself.",
       },
       {
         id: "copy",
@@ -260,8 +259,8 @@ export const TOURS: TourDefinition[] = [
         additionalAnchors: [a("demo-menu-copy-exe")],
         retreatWhenMissing: a("demo-context-menu"),
         backTo: "open-menu",
-        title: "Copy useful details",
-        body: "Copy Game Name and Copy Executable Name put either value on the clipboard - handy for troubleshooting or feedback. Custom games also show actions here for sharing, renaming, and changing their cover.",
+        title: "Copy a name",
+        body: "Copy Game Name and Copy File Name put the name on your clipboard - useful when you report a problem to us.",
       },
       {
         id: "remove",
@@ -270,7 +269,7 @@ export const TOURS: TourDefinition[] = [
         retreatWhenMissing: a("demo-context-menu"),
         backTo: "open-menu",
         title: "Remove is not the same as ignore",
-        body: "Remove from Library takes the game out of My Games and lets you choose whether to keep its History. Ignore Game, when available, additionally tells PlayCounter not to track that executable again.",
+        body: "Remove from Library takes the game out of My Games and asks whether to keep its sessions. It comes back the next time you play it.\n\nIgnore Game does the same, and blocks the file on top - so PlayCounter never picks it up again.",
       },
     ],
   },
@@ -279,7 +278,7 @@ export const TOURS: TourDefinition[] = [
     version: 1,
     kind: "guide",
     title: "Fix an unrecognized game",
-    description: "Review and match an executable PlayCounter found.",
+    description: "Review and match an app PlayCounter found.",
     duration: "1 min",
     steps: [
       {
@@ -335,7 +334,7 @@ export const TOURS: TourDefinition[] = [
         view: "now",
         anchor: a("nav-now"),
         title: "Ambiguous names",
-        body: "When one file name could be several games, Now Playing asks which one you started. This happens, when multiple different games use the same name for its executable file.",
+        body: "When one file name could be several games, Now Playing asks which one you started. That happens when different games ship a program file with the same name.",
       },
     ],
   },
@@ -541,30 +540,29 @@ export const TOURS: TourDefinition[] = [
     version: 1,
     kind: "guide",
     title: "Understand game badges",
-    description:
-      "Learn where Community, IGDB, and Custom game data comes from.",
+    description: "Learn how PlayCounter recognized each of your games.",
     duration: "1 min",
     demoGame: true,
     steps: [
       {
         id: "intro",
         view: "games",
-        title: "Where does game information come from?",
-        body: "Badges tell you which source PlayCounter used for a game. We'll show all three on the temporary World of Warcraft card - nothing is added to your library.",
+        title: "How was this game recognized?",
+        body: "A badge tells you how PlayCounter connected the file you started to a game. There are three ways, and we'll show all of them on this sample card - nothing is added to your library.",
       },
       {
         id: "community",
         view: "games",
         anchor: a("demo-source-community"),
         title: "Community",
-        body: "The PlayCounter community database links file names to the right games. Users can suggest/share matches that are missing and when those get reviewed and approved, everyone's PlayCounter recognizes the file automatically from now on.",
+        body: "The PlayCounter community database links file names to the right games. You can share a match that's missing - once it's reviewed and approved, everyone's PlayCounter recognizes that file automatically.",
       },
       {
         id: "igdb",
         view: "games",
         anchor: a("demo-source-igdb"),
         title: "IGDB",
-        body: "IGDB is a large public game database. It's where most names and covers come from.\n\nIt doesn't know every release, though - especially older, regional, or unusual ones. When IGDB is wrong or missing something, PlayCounter Community entries fill the gap.",
+        body: "IGDB is a large public game database. Some of its entries record the name of the game's .exe file - bg3.exe for Baldur's Gate 3, for example. When it's there, PlayCounter finds the game right away.\n\nPlenty of entries don't have it, though. That's the gap the Community database fills.",
       },
       {
         id: "custom",

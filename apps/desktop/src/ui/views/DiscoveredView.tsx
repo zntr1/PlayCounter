@@ -1682,7 +1682,7 @@ function DiscoveredExecutableRow({
           </ContextMenuItem>
         )}
         <ContextMenuItem icon={Copy} onClick={handleCopyExe}>
-          Copy Executable Name
+          Copy File Name
         </ContextMenuItem>
         {allowTrackingChanges &&
         (executable.status === "userIgnored" ||

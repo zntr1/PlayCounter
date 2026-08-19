@@ -1593,7 +1593,7 @@ function GameLibraryCard({
         icon={Copy}
         onClick={handleCopyExe}
       >
-        Copy Executable Name
+        Copy File Name
       </ContextMenuItem>
       <ContextMenuSeparator />
       {onStopTracking ? (
