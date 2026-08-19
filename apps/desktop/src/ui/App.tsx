@@ -20,7 +20,13 @@ import {
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { initializeTracker } from "../tracker";
 import { emulatorAssetUrls } from "../emulators/assets";
 import { FeedbackDialog } from "./FeedbackDialog";
@@ -140,6 +146,7 @@ const STORAGE_KEY = "playcounter:v1";
 let startupPreferenceSynced = false;
 
 export function App() {
+  const contentRef = useRef<HTMLDivElement>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [startupUpdate, setStartupUpdate] = useState<UpdateCheckResult | null>(
     null,
@@ -150,6 +157,9 @@ export function App() {
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
+  const activeTourId = useAppStore(
+    (state) => state.activeTour?.tourId ?? null,
+  );
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
@@ -207,6 +217,13 @@ export function App() {
     ).length;
   const theme = useAppStore((state) => state.settings.theme);
   const setTheme = useAppStore((state) => state.setTheme);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    content.scrollTop = 0;
+    content.scrollLeft = 0;
+  }, [activeTourId, activeView]);
 
   useEffect(() => {
     void initializeTracker();
@@ -478,6 +495,7 @@ export function App() {
         ) : null}
         <div className="relative min-h-0 flex-1">
           <div
+            ref={contentRef}
             data-tour="content"
             className="absolute inset-0 overflow-auto px-7 py-6"
           >
