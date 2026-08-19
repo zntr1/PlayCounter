@@ -62,7 +62,7 @@ export function HelpButton() {
         />
       </span>
       {open ? (
-        <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-xl border border-border bg-surface shadow-raised">
+        <div className="absolute right-0 top-11 z-50 w-[420px] max-w-[calc(100vw-32px)] overflow-hidden rounded-xl border border-border bg-surface shadow-raised">
           <div className="border-b border-border px-4 py-3">
             <div className="font-semibold text-text">Help & tutorials</div>
             <div className="mt-0.5 text-xs text-text-muted">
@@ -86,7 +86,7 @@ export function HelpButton() {
                     <span className="block text-sm font-medium text-text">
                       {tour.title}
                     </span>
-                    <span className="block truncate text-xs text-text-muted">
+                    <span className="block text-xs leading-relaxed text-text-muted">
                       {tour.description}
                     </span>
                   </span>
