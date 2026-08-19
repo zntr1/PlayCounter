@@ -48,6 +48,11 @@ fn install_uuid(app: tauri::AppHandle, existing: Option<String>) -> Result<Strin
 }
 
 #[tauri::command]
+fn adopt_install_uuid(app: tauri::AppHandle, value: String) -> Result<String, String> {
+    session::adopt_install_uuid(app, value)
+}
+
+#[tauri::command]
 async fn scan_processes() -> Result<Vec<ProcessSnapshot>, String> {
     create_scanner()
         .scan()
@@ -219,6 +224,7 @@ pub fn run() {
         ))
         .invoke_handler(tauri::generate_handler![
             install_uuid,
+            adopt_install_uuid,
             ignored_processes,
             set_user_ignored_process,
             save_custom_cover,

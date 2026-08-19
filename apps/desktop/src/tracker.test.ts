@@ -17,11 +17,13 @@ import {
   applyCommunitySuggestionOutcome,
   applyContributionMarkers,
   dismissAmbiguousMatch,
+  evaluateAndStoreMilestones,
   hydrateGameMetadata,
   findGameMatches,
   ignoreDiscoveredProcess,
   suggestIgnoredProcess,
   persist,
+  pollContributions,
   removeGameHistory,
   reportNegativeMatch,
   setGamePlaytime,
@@ -92,14 +94,126 @@ beforeEach(() => {
     ignoredProcesses: new Set(),
     userIgnoredProcesses: new Set(),
     installUuid: null,
+    contributionOwnerUuid: null,
+    seenContributionStatus: {},
+    contributionCounts: {
+      suggested: 0,
+      verified: 0,
+      pending: 0,
+      rejected: 0,
+    },
     notifications: [],
+    toasts: [],
     awardedMilestones: [],
     milestonesInitializedAt: null,
+    suppressStartupNotificationsOnce: false,
+    suppressContributionNotificationsOnce: false,
     backendHealth: {
       status: "online",
       checkedAt: "2026-08-09T00:00:00.000Z",
       detail: null,
     },
+  });
+});
+
+describe("post-import notification baseline", () => {
+  it("records reached achievements without delivering notifications", () => {
+    useAppStore.setState({
+      recentSessions: [
+        {
+          id: 1,
+          gameId: 7,
+          gameName: "Game",
+          source: "community",
+          exeName: "Game.exe",
+          startedAt: "2026-08-09T00:00:00.000Z",
+          endedAt: "2026-08-09T10:00:00.000Z",
+          durationSeconds: 10 * 3600,
+        },
+      ],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      notifications: [],
+      toasts: [],
+    });
+
+    const delivered = evaluateAndStoreMilestones({
+      now: new Date("2026-08-19T00:00:00.000Z"),
+      suppressNotifications: true,
+    });
+
+    expect(delivered).toEqual([]);
+    expect(
+      useAppStore.getState().awardedMilestones.map((item) => item.id),
+    ).toEqual(expect.arrayContaining(["milestone:total:10"]));
+    expect(useAppStore.getState().notifications).toEqual([]);
+    expect(useAppStore.getState().toasts).toEqual([]);
+  });
+
+  it("baselines contribution transitions and achievements silently", async () => {
+    const verified = contribution({
+      status: "verified",
+      reviewNote: undefined,
+      reviewedAt: "2026-08-18T00:00:00.000Z",
+    });
+    useAppStore.setState({
+      installUuid: "550e8400-e29b-41d4-a716-446655440000",
+      seenContributionStatus: {},
+      contributionCounts: {
+        suggested: 0,
+        verified: 0,
+        pending: 0,
+        rejected: 0,
+      },
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      suppressContributionNotificationsOnce: true,
+      notifications: [],
+      toasts: [],
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({
+          items: [verified],
+          counts: { suggested: 1, verified: 1, pending: 0, rejected: 0 },
+        }),
+      })),
+    );
+
+    await pollContributions("interval");
+
+    const state = useAppStore.getState();
+    expect(Object.values(state.seenContributionStatus)).toEqual(["verified"]);
+    expect(state.contributionCounts.verified).toBe(1);
+    expect(state.suppressContributionNotificationsOnce).toBe(false);
+    expect(state.awardedMilestones.map((item) => item.id)).toContain(
+      "milestone:verified:1",
+    );
+    expect(state.notifications).toEqual([]);
+    expect(state.toasts).toEqual([]);
+  });
+
+  it("keeps the contribution baseline pending while the API is offline", async () => {
+    useAppStore.setState({
+      installUuid: "550e8400-e29b-41d4-a716-446655440000",
+      suppressContributionNotificationsOnce: true,
+      backendHealth: {
+        status: "offline",
+        checkedAt: "2026-08-19T00:00:00.000Z",
+        detail: "offline",
+      },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await pollContributions("startup");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useAppStore.getState().suppressContributionNotificationsOnce).toBe(
+      true,
+    );
   });
 });
 

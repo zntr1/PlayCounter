@@ -40,6 +40,7 @@ import {
 import { countNeedsReview } from "./discoveredReview";
 import {
   DISCOVERED_REVIEW_REMINDER_ID,
+  DISCOVERED_REVIEW_REMINDER_THRESHOLD,
   discoveredReviewReminderText,
   evaluateDiscoveredReviewReminder,
   sanitizeDiscoveredReviewReminder,
@@ -137,6 +138,8 @@ type PersistedState = {
   collapsedSections?: unknown;
   tours?: unknown;
   autoDetectedGameKeys?: string[];
+  suppressStartupNotificationsOnce?: boolean;
+  suppressContributionNotificationsOnce?: boolean;
 };
 
 type ProcessMatch = {
@@ -308,10 +311,24 @@ async function finishTrackerStartup() {
 
   window.setTimeout(() => {
     void (async () => {
-      if (identityResolved) await pollContributions("startup");
-      evaluateAndStoreMilestones();
+      const suppressStartupNotifications =
+        useAppStore.getState().suppressStartupNotificationsOnce;
+      if (identityResolved) {
+        await pollContributions("startup", {
+          suppressNotifications: suppressStartupNotifications,
+        });
+      }
+      evaluateAndStoreMilestones({
+        suppressNotifications: suppressStartupNotifications,
+      });
       await recheckPendingCommunityApprovals("startup");
       await requestProcessScan("startup");
+      if (suppressStartupNotifications) {
+        baselineDiscoveredReviewReminder();
+        useAppStore.setState({ suppressStartupNotificationsOnce: false });
+        persist();
+        logRuntime("post-import notification baseline completed");
+      }
       armDesktopOverlays();
     })();
   }, 1_500);
@@ -492,6 +509,10 @@ function hydrate() {
       persisted.tours,
       TOURS.map((tour) => tour.id),
     ),
+    suppressStartupNotificationsOnce:
+      persisted.suppressStartupNotificationsOnce === true,
+    suppressContributionNotificationsOnce:
+      persisted.suppressContributionNotificationsOnce === true,
   });
   if (shouldPersistAchievementMigration) persist();
 }
@@ -763,6 +784,10 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
 function syncDiscoveredReviewReminder() {
   const state = useAppStore.getState();
   const count = countNeedsReview(state);
+  if (state.suppressStartupNotificationsOnce) {
+    baselineDiscoveredReviewReminder(count);
+    return;
+  }
   const card = state.notifications.find(
     (notification) => notification.id === DISCOVERED_REVIEW_REMINDER_ID,
   );
@@ -790,6 +815,20 @@ function syncDiscoveredReviewReminder() {
   if (decision.reminderChanged) {
     state.setDiscoveredReviewReminder(decision.reminder);
   }
+}
+
+function baselineDiscoveredReviewReminder(
+  count = countNeedsReview(useAppStore.getState()),
+) {
+  useAppStore.setState({
+    discoveredReviewReminder:
+      count >= DISCOVERED_REVIEW_REMINDER_THRESHOLD
+        ? {
+            notifiedAt: new Date().toISOString(),
+            notifiedCount: count,
+          }
+        : null,
+  });
 }
 
 function isIgnoredProcess(
@@ -3054,8 +3093,14 @@ async function recheckPendingCommunityApprovals(reason: string) {
   persist();
 }
 
-export async function pollContributions(reason: string) {
+export async function pollContributions(
+  reason: string,
+  options: { suppressNotifications?: boolean } = {},
+) {
   const state = useAppStore.getState();
+  const suppressNotifications =
+    options.suppressNotifications ||
+    state.suppressContributionNotificationsOnce;
   const installUuid = state.installUuid;
   if (!installUuid) return;
   if (
@@ -3089,6 +3134,7 @@ export async function pollContributions(reason: string) {
       seenContributionStatus[key] = contribution.status;
     }
 
+    const delivered = suppressNotifications ? [] : arrived;
     useAppStore.setState((current) => {
       const exeCache = applyContributionMarkers(current.exeCache, body.items);
       const updateSession = <T extends ActiveSession | Session>(
@@ -3109,7 +3155,7 @@ export async function pollContributions(reason: string) {
           communitySuggestionNote: contribution.reviewNote,
         };
       };
-      const notifications = [...arrived, ...current.notifications].filter(
+      const notifications = [...delivered, ...current.notifications].filter(
         (notification, index, all) =>
           all.findIndex((candidate) => candidate.id === notification.id) ===
           index,
@@ -3121,10 +3167,11 @@ export async function pollContributions(reason: string) {
         seenContributionStatus,
         contributionCounts: body.counts,
         notifications: notifications.slice(0, 100),
+        suppressContributionNotificationsOnce: false,
       };
     });
 
-    for (const notification of arrived) {
+    for (const notification of delivered) {
       useAppStore.getState().addToast({
         tone: notification.kind === "suggestion-verified" ? "success" : "info",
         emoji: notificationEmoji(notification.kind),
@@ -3134,6 +3181,7 @@ export async function pollContributions(reason: string) {
     }
     evaluateAndStoreMilestones({
       verifiedContributionsAuthoritative: true,
+      suppressNotifications,
     });
     logRuntime(`contributions poll ${reason} items=${body.items.length}`);
   } catch (error) {
@@ -3166,6 +3214,7 @@ export function evaluateAndStoreMilestones(
   options: {
     now?: Date;
     verifiedContributionsAuthoritative?: boolean;
+    suppressNotifications?: boolean;
   } = {},
 ) {
   const now = options.now ?? new Date();
@@ -3188,10 +3237,11 @@ export function evaluateAndStoreMilestones(
     now,
   });
   const revoked = new Set(result.revokedMilestoneIds);
+  const delivered = options.suppressNotifications ? [] : result.notifications;
   useAppStore.setState((current) => ({
     awardedMilestones: result.awardedMilestones,
     milestonesInitializedAt: result.milestonesInitializedAt,
-    notifications: [...result.notifications, ...current.notifications]
+    notifications: [...delivered, ...current.notifications]
       .filter((notification) => !revoked.has(notification.id))
       .filter(
         (notification, index, all) =>
@@ -3200,7 +3250,7 @@ export function evaluateAndStoreMilestones(
       )
       .slice(0, 100),
   }));
-  for (const notification of result.notifications) {
+  for (const notification of delivered) {
     state.addToast({
       tone: "success",
       emoji: notificationEmoji(notification.kind),
@@ -3212,7 +3262,7 @@ export function evaluateAndStoreMilestones(
     logRuntime(`milestones revoked ${result.revokedMilestoneIds.join(", ")}`);
   }
   persist();
-  return result.notifications;
+  return delivered;
 }
 
 function currentGameTotalSeconds(session: ActiveSession) {

@@ -13,7 +13,7 @@ import {
 } from "./sessionPersistence";
 
 const BACKUP_FORMAT = "playcounter-backup";
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
 
 type BackupEnvelope = {
   format: typeof BACKUP_FORMAT;
@@ -27,11 +27,44 @@ type BackupEnvelope = {
 // that produced the backup. Importing it would resurrect phantom "now playing"
 // sessions on the target machine, so we drop it on import.
 const TRANSIENT_KEYS = ["activeSessions", "activeSession", "ambiguousMatches"];
+const DEVICE_LOCAL_KEYS = ["blacklist"];
+const NOTIFICATION_STATE_KEYS = [
+  "notifications",
+  "discoveredReviewReminder",
+  "suppressStartupNotificationsOnce",
+  "suppressContributionNotificationsOnce",
+];
 
 const JSON_FILTER = [{ name: "PlayCounter backup", extensions: ["json"] }];
 
 function readPersistedRaw(): Record<string, unknown> {
   return readPersistedRecord();
+}
+
+/**
+ * Backups transfer durable user data, not machine-local ignore decisions or
+ * notification delivery state. Achievement and contribution acknowledgement
+ * markers remain in the payload so importing a current backup does not turn
+ * already processed events into new ones.
+ */
+export function createTransferData(
+  source: Record<string, unknown>,
+): Record<string, unknown> {
+  const data = { ...source };
+  for (const key of TRANSIENT_KEYS) delete data[key];
+  for (const key of DEVICE_LOCAL_KEYS) delete data[key];
+  for (const key of NOTIFICATION_STATE_KEYS) delete data[key];
+
+  if (Array.isArray(data.exeCache)) {
+    data.exeCache = data.exeCache.filter(
+      (value) =>
+        !value ||
+        typeof value !== "object" ||
+        (value as { state?: unknown }).state !== "blacklisted",
+    );
+  }
+
+  return data;
 }
 
 function defaultExportName() {
@@ -53,7 +86,7 @@ export async function exportLocalData(): Promise<ExportResult> {
     version: BACKUP_VERSION,
     app: "PlayCounter",
     exportedAt: new Date().toISOString(),
-    data: readPersistedRaw(),
+    data: createTransferData(readPersistedRaw()),
   };
 
   await invoke("write_text_file", {
@@ -67,7 +100,7 @@ export type ImportResult =
   | { cancelled: true }
   | { imported: true; backupPath: string | null; sessions: number };
 
-function parseEnvelope(raw: string): BackupEnvelope["data"] {
+function parseEnvelope(raw: string): BackupEnvelope {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -79,13 +112,24 @@ function parseEnvelope(raw: string): BackupEnvelope["data"] {
     !parsed ||
     typeof parsed !== "object" ||
     (parsed as { format?: unknown }).format !== BACKUP_FORMAT ||
+    typeof (parsed as { version?: unknown }).version !== "number" ||
+    !Number.isInteger((parsed as { version: number }).version) ||
+    (parsed as { version: number }).version < 1 ||
     typeof (parsed as { data?: unknown }).data !== "object" ||
-    (parsed as { data?: unknown }).data === null
+    (parsed as { data?: unknown }).data === null ||
+    Array.isArray((parsed as { data?: unknown }).data)
   ) {
     throw new Error("This is not a PlayCounter backup file.");
   }
 
-  return (parsed as BackupEnvelope).data;
+  const envelope = parsed as BackupEnvelope;
+  if (envelope.version > BACKUP_VERSION) {
+    throw new Error(
+      `This backup was created by a newer PlayCounter version (backup format ${envelope.version}). Update PlayCounter before importing it.`,
+    );
+  }
+
+  return envelope;
 }
 
 /**
@@ -100,9 +144,12 @@ export async function importLocalData(): Promise<ImportResult> {
   if (!path || typeof path !== "string") return { cancelled: true };
 
   const raw = await invoke<string>("read_text_file", { path });
-  const data = parseEnvelope(raw);
-
-  for (const key of TRANSIENT_KEYS) delete data[key];
+  const envelope = parseEnvelope(raw);
+  const data = createTransferData(envelope.data);
+  data.notifications = [];
+  data.discoveredReviewReminder = null;
+  data.suppressStartupNotificationsOnce = true;
+  data.suppressContributionNotificationsOnce = true;
 
   if (Array.isArray(data.sessions)) {
     const persistableCount = filterPersistableSessions(
@@ -123,7 +170,7 @@ export async function importLocalData(): Promise<ImportResult> {
       version: BACKUP_VERSION,
       app: "PlayCounter",
       exportedAt: new Date().toISOString(),
-      data: readPersistedRaw(),
+      data: createTransferData(readPersistedRaw()),
     };
     backupPath = await invoke<string>("backup_local_data", {
       contents: JSON.stringify(envelope, null, 2),
@@ -134,6 +181,20 @@ export async function importLocalData(): Promise<ImportResult> {
     data.sessions = normalizeSessions(data.sessions as Session[]);
   }
   writePersistedRecord(data);
+  if (typeof data.installUuid === "string") {
+    try {
+      const installUuid = await invoke<string>("adopt_install_uuid", {
+        value: data.installUuid,
+      });
+      data.installUuid = installUuid;
+      data.contributionOwnerUuid = installUuid;
+      writePersistedRecord(data);
+    } catch (error) {
+      if (existing === null) localStorage.removeItem(STORAGE_KEY);
+      else localStorage.setItem(STORAGE_KEY, existing);
+      throw error;
+    }
+  }
 
   const sessions = Array.isArray(data.sessions) ? data.sessions.length : 0;
   // Re-hydrate the whole app from the freshly written storage.

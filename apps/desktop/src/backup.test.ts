@@ -1,0 +1,199 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { invokeMock, openMock, saveMock, reloadMock } = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+  openMock: vi.fn(),
+  saveMock: vi.fn(),
+  reloadMock: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  open: openMock,
+  save: saveMock,
+}));
+
+import { createTransferData, exportLocalData, importLocalData } from "./backup";
+import { STORAGE_KEY } from "./persistence";
+
+const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+
+function backup(data: Record<string, unknown>, version = 2) {
+  return JSON.stringify({
+    format: "playcounter-backup",
+    version,
+    app: "PlayCounter",
+    exportedAt: "2026-08-19T00:00:00.000Z",
+    data,
+  });
+}
+
+function installLocalStorage(initial: string | null) {
+  const values = new Map<string, string>();
+  if (initial !== null) values.set(STORAGE_KEY, initial);
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+      removeItem: vi.fn((key: string) => values.delete(key)),
+    },
+  });
+  return values;
+}
+
+beforeEach(() => {
+  invokeMock.mockReset();
+  openMock.mockReset();
+  saveMock.mockReset();
+  reloadMock.mockReset();
+  vi.stubGlobal("window", { location: { reload: reloadMock } });
+});
+
+describe("backup transfer data", () => {
+  it("keeps durable progress but excludes notifications and ignored processes", () => {
+    const result = createTransferData({
+      sessions: [{ id: 1 }],
+      settings: { theme: "light" },
+      awardedMilestones: [{ id: "milestone:total:10" }],
+      seenContributionStatus: { contribution: "verified" },
+      notifications: [{ id: "old-notification" }],
+      discoveredReviewReminder: {
+        notifiedAt: "2026-08-18T00:00:00.000Z",
+        notifiedCount: 10,
+      },
+      blacklist: ["ignored.exe"],
+      activeSessions: [{ id: 2 }],
+      ambiguousMatches: [{ exeName: "game.exe" }],
+      exeCache: [
+        { exeName: "ignored.exe", state: "blacklisted" },
+        { exeName: "game.exe", state: "matched" },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      sessions: [{ id: 1 }],
+      settings: { theme: "light" },
+      awardedMilestones: [{ id: "milestone:total:10" }],
+      seenContributionStatus: { contribution: "verified" },
+      exeCache: [{ exeName: "game.exe", state: "matched" }],
+    });
+    expect(result).not.toHaveProperty("notifications");
+    expect(result).not.toHaveProperty("discoveredReviewReminder");
+    expect(result).not.toHaveProperty("blacklist");
+    expect(result).not.toHaveProperty("activeSessions");
+    expect(result).not.toHaveProperty("ambiguousMatches");
+  });
+
+  it("exports version 2 without notification or ignore state", async () => {
+    installLocalStorage(
+      JSON.stringify({
+        installUuid,
+        notifications: [{ id: "old-notification" }],
+        blacklist: ["ignored.exe"],
+        sessions: [],
+      }),
+    );
+    saveMock.mockResolvedValue("backup.json");
+    invokeMock.mockResolvedValue(undefined);
+
+    await expect(exportLocalData()).resolves.toEqual({ path: "backup.json" });
+
+    const write = invokeMock.mock.calls.find(
+      ([command]) => command === "write_text_file",
+    );
+    const envelope = JSON.parse(write?.[1]?.contents as string);
+    expect(envelope.version).toBe(2);
+    expect(envelope.data.installUuid).toBe(installUuid);
+    expect(envelope.data).not.toHaveProperty("notifications");
+    expect(envelope.data).not.toHaveProperty("blacklist");
+  });
+});
+
+describe("backup import", () => {
+  it("adopts the contribution identity and starts with a silent notification baseline", async () => {
+    const existing = JSON.stringify({
+      installUuid: "11111111-1111-4111-8111-111111111111",
+      sessions: [],
+    });
+    const values = installLocalStorage(existing);
+    openMock.mockResolvedValue("backup.json");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "read_text_file") {
+        return backup(
+          {
+            installUuid,
+            contributionOwnerUuid: installUuid,
+            sessions: [],
+            settings: { theme: "light" },
+            awardedMilestones: [{ id: "milestone:total:10" }],
+            seenContributionStatus: { contribution: "verified" },
+            notifications: [{ id: "old-notification" }],
+            blacklist: ["ignored.exe"],
+            exeCache: [
+              { exeName: "ignored.exe", state: "blacklisted" },
+              { exeName: "game.exe", state: "matched" },
+            ],
+          },
+          1,
+        );
+      }
+      if (command === "backup_local_data") return "automatic-backup.json";
+      if (command === "adopt_install_uuid") return installUuid;
+      return undefined;
+    });
+
+    await expect(importLocalData()).resolves.toMatchObject({ imported: true });
+
+    expect(invokeMock).toHaveBeenCalledWith("adopt_install_uuid", {
+      value: installUuid,
+    });
+    const imported = JSON.parse(values.get(STORAGE_KEY) ?? "{}");
+    expect(imported).toMatchObject({
+      installUuid,
+      contributionOwnerUuid: installUuid,
+      notifications: [],
+      suppressStartupNotificationsOnce: true,
+      suppressContributionNotificationsOnce: true,
+      awardedMilestones: [{ id: "milestone:total:10" }],
+      seenContributionStatus: { contribution: "verified" },
+      exeCache: [{ exeName: "game.exe", state: "matched" }],
+    });
+    expect(imported).not.toHaveProperty("blacklist");
+    expect(reloadMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a newer backup format before changing local data", async () => {
+    const existing = JSON.stringify({ sessions: [{ id: 1 }] });
+    const values = installLocalStorage(existing);
+    openMock.mockResolvedValue("backup.json");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "read_text_file") return backup({}, 99);
+      return undefined;
+    });
+
+    await expect(importLocalData()).rejects.toThrow(
+      "created by a newer PlayCounter version",
+    );
+    expect(values.get(STORAGE_KEY)).toBe(existing);
+    expect(reloadMock).not.toHaveBeenCalled();
+  });
+
+  it("restores the previous local snapshot if UUID adoption fails", async () => {
+    const existing = JSON.stringify({ sessions: [{ id: 1 }] });
+    const values = installLocalStorage(existing);
+    openMock.mockResolvedValue("backup.json");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "read_text_file") {
+        return backup({ installUuid, sessions: [] });
+      }
+      if (command === "backup_local_data") return "automatic-backup.json";
+      if (command === "adopt_install_uuid") throw new Error("disk locked");
+      return undefined;
+    });
+
+    await expect(importLocalData()).rejects.toThrow("disk locked");
+    expect(values.get(STORAGE_KEY)).toBe(existing);
+    expect(reloadMock).not.toHaveBeenCalled();
+  });
+});

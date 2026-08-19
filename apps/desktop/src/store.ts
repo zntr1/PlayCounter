@@ -240,6 +240,8 @@ type AppState = {
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
   tourProgress: TourProgress;
+  suppressStartupNotificationsOnce: boolean;
+  suppressContributionNotificationsOnce: boolean;
   activeTour: ActiveTour | null;
   demoResetToken: number;
   helpMenuOpen: boolean;
@@ -443,6 +445,8 @@ export const useAppStore = create<AppState>((set) => ({
   collapsedSections: [],
   autoDetectedGameKeys: [],
   tourProgress: defaultTourProgress(),
+  suppressStartupNotificationsOnce: false,
+  suppressContributionNotificationsOnce: false,
   activeTour: null,
   demoResetToken: 0,
   helpMenuOpen: false,
