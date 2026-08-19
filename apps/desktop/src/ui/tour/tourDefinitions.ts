@@ -136,8 +136,6 @@ export const TOURS: TourDefinition[] = [
         skipTo: "alternative",
         title: "Right-click the sample card",
         body: "Every game card has a right-click menu with advanced actions.",
-        keyboardHint:
-          "Keyboard: focus the card and press Shift+F10 or the Menu key.",
       },
       {
         id: "pick-item",

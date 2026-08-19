@@ -420,20 +420,38 @@ function TourRunner() {
     } else {
       cardRef.current?.focus({ preventScroll: true });
     }
-    if (step.interactive) return;
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") endTour("dismissed");
-      if (["Enter", " ", "ArrowRight"].includes(event.key)) {
+
+    const handleArrowNavigation = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight") {
         event.preventDefault();
-        advance();
-      }
-      if (event.key === "ArrowLeft") {
+        event.stopImmediatePropagation();
+        if (step.interactive && !step.manualAdvance) skipInteractive();
+        else advance();
+      } else if (event.key === "ArrowLeft") {
         event.preventDefault();
+        event.stopImmediatePropagation();
         back();
       }
     };
+
+    window.addEventListener("keydown", handleArrowNavigation, true);
+    if (step.interactive) {
+      return () =>
+        window.removeEventListener("keydown", handleArrowNavigation, true);
+    }
+
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") endTour("dismissed");
+      if (["Enter", " "].includes(event.key)) {
+        event.preventDefault();
+        advance();
+      }
+    };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("keydown", handleArrowNavigation, true);
+      window.removeEventListener("keydown", handler);
+    };
   }, [active.stepIndex, endTour, step, tour]);
 
   if (!tour || !step) return null;

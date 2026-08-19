@@ -1592,21 +1592,6 @@ function GameLibraryCard({
   const demoCardProps = demo
     ? {
         "data-tour": "demo-game-card",
-        tabIndex: 0,
-        onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
-          if (
-            event.key === "ContextMenu" ||
-            (event.shiftKey && event.key === "F10") ||
-            event.key === "Enter"
-          ) {
-            event.preventDefault();
-            const rect = event.currentTarget.getBoundingClientRect();
-            contextMenu.openAt({
-              x: rect.left + rect.width / 2,
-              y: rect.top + Math.min(rect.height / 2, 160),
-            });
-          }
-        },
       }
     : {};
 
