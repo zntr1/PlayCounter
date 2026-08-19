@@ -313,12 +313,12 @@ export function SettingsView() {
       {currentPlatform() !== "macos" ? (
         <SettingsPanel
           dataTour="settings-notifications"
-          description="Show stylish PlayCounter overlays while you play."
-          title="Notifications"
+          description="Short popups on your desktop while you play. They disappear on their own."
+          title="Desktop popups"
         >
           <SettingsRow
-            description="Display PlayCounter's own lightweight cards, even while the app is in the tray."
-            title="Show desktop overlays"
+            description="Works even when PlayCounter is only running in the tray."
+            title="Show desktop popups"
           >
             <input
               type="checkbox"
@@ -333,11 +333,10 @@ export function SettingsView() {
             />
           </SettingsRow>
           <p className="-mt-3 text-xs text-text-faint">
-            Overlays stay hidden while the PlayCounter window is open and
-            focused.
+            Popups stay hidden while the PlayCounter window is open and focused.
           </p>
           <SettingsRow
-            description="Celebrate the first time PlayCounter recognizes a game automatically."
+            description="Popup when PlayCounter recognizes a game for the first time."
             title="First-time detections"
           >
             <input
@@ -354,7 +353,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Show a small confirmation whenever automatic tracking begins."
+            description="Popup each time tracking starts."
             title="Every game start"
           >
             <input
@@ -371,7 +370,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Show a recap after sessions lasting at least 10 minutes."
+            description="Popup after sessions of 10 minutes or more."
             title="Session summaries"
           >
             <input
@@ -388,7 +387,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Celebrate newly unlocked playtime milestones."
+            description="Popup when you unlock a new playtime milestone."
             title="Milestones"
           >
             <input
@@ -405,7 +404,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Let you know when PlayCounter finds something new to review. Only apps found while this is on are included."
+            description="Popup when PlayCounter finds an app it does not know. Only apps found while this is on are included."
             title="New discoveries"
           >
             <input
@@ -424,7 +423,7 @@ export function SettingsView() {
           {settings.desktopOverlaysEnabled === true ? (
             <div className="flex justify-end border-t border-border pt-4">
               <Button variant="secondary" onClick={previewDesktopOverlay}>
-                Preview overlay
+                Preview popup
               </Button>
             </div>
           ) : null}
@@ -433,11 +432,11 @@ export function SettingsView() {
 
       <SettingsPanel
         dataTour="settings-emulators"
-        description="Detect games launched inside supported emulator processes, including DOSBox and Dolphin."
+        description="Detect the game running inside a supported emulator, including DOSBox and Dolphin."
         title="Emulators"
       >
         <SettingsRow
-          description="Reads bounded process arguments and window titles locally to identify emulator content. Raw paths and titles are never sent to the API."
+          description="Reads the emulator's window title and start-up options on this PC to work out which game is loaded. Full paths and window titles never leave your PC."
           title="Detect emulator games"
         >
           <input
@@ -450,7 +449,7 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
-          description="Sends only recognized, normalized content identifiers (such as a DOSBox program or Dolphin disc filename) to find IGDB candidates. Folder paths and weak window titles stay local."
+          description="Sends the recognized game name or disc ID (such as a DOSBox program or a Dolphin disc file) to look it up in the database. Folder paths and unclear window titles stay on this PC."
           title="Look up recognized content"
         >
           <input
@@ -522,13 +521,13 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Tune how PlayCounter discovers executables and retries unknown apps."
+        description="Tune how PlayCounter finds apps and retries unknown ones."
         title="Discovery"
       >
         <SettingsRow
           dataTour="settings-sharing"
-          description="When enabled, ignoring an unrecognized process also sends its file name, platform, and anonymous install ID for admin review to improve PlayCounter for all!"
-          title="Automatically share ignored processes"
+          description="When you ignore an app PlayCounter does not recognize, it sends the file name, your platform, and an anonymous install ID. Playtime and game history are never sent."
+          title="Share apps you ignore"
         >
           <input
             type="checkbox"
@@ -540,8 +539,8 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
-          description="Built-in OS defaults and your user ignore file are skipped before matching."
-          title="Ignored processes"
+          description="Apps in this list are skipped before PlayCounter tries to match them. Built-in system defaults plus your own file."
+          title="Ignored apps"
         >
           <Button
             icon={RotateCcw}
@@ -552,8 +551,8 @@ export function SettingsView() {
                 await reloadIgnoredProcesses();
                 addToast({
                   tone: "success",
-                  title: "Ignored processes reloaded",
-                  detail: "The process list was refreshed and scanned again.",
+                  title: "Ignore list reloaded",
+                  detail: "PlayCounter read the list again and rescanned.",
                 });
               } catch (error) {
                 addToast({
@@ -643,7 +642,7 @@ export function SettingsView() {
         title="Maintenance"
       >
         <SettingsRow
-          description="Clears cached executable matches and errors. Your play history is not deleted."
+          description="Clears cached matches and errors. Your play history is not deleted."
           title="Reset local cache"
         >
           <div className="flex shrink-0 justify-end">
@@ -727,7 +726,7 @@ export function SettingsView() {
             addToast({
               tone: "success",
               title: "Local cache reset",
-              detail: "Cached executable matches were cleared.",
+              detail: "Cached matches were cleared.",
             });
           }}
         />

@@ -310,7 +310,7 @@ function TrackedGameCorrectionDialog({
         nextCandidates.length > 0
           ? body.hasMore
             ? `${nextCandidates.length} matches shown. Load more to keep looking.`
-            : `All ${nextCandidates.length} matches shown. Pick the exact game this executable belongs to.`
+            : `All ${nextCandidates.length} matches shown. Pick the game you started.`
           : "No matching games found.",
       );
       setState("idle");
@@ -984,7 +984,7 @@ function AmbiguousMatchCard({
                 variant="primary"
                 onClick={() => void handleNegativeReport()}
               >
-                No, it&apos;s not a game
+                No, this isn&apos;t a game
               </Button>
               {candidates.length > 0 ? (
                 <Button
@@ -994,7 +994,7 @@ function AmbiguousMatchCard({
                 >
                   {candidatesExpanded
                     ? "Hide possible matches"
-                    : "Yes, show me the matches"}
+                    : "Show possible matches"}
                 </Button>
               ) : null}
             </div>
@@ -1010,13 +1010,12 @@ function AmbiguousMatchCard({
               Is <span className="font-mono">{exeName}</span> a game?
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-text-muted">
-              PlayCounter detected this process, but its file name is also used
-              by{" "}
+              PlayCounter found this app running.{" "}
               {candidates.length === 1
-                ? "a game"
-                : `${candidates.length} games`}{" "}
-              in the database. It can&apos;t tell whether you launched a game or
-              whether this is another app.
+                ? "A game in the database uses"
+                : `${candidates.length} games in the database use`}{" "}
+              the same file name, and other apps might use it too - so
+              PlayCounter won&apos;t guess. Tell it once and it will remember.
             </p>
             <MatchMeta
               exeName={exeName}
@@ -1024,7 +1023,7 @@ function AmbiguousMatchCard({
               elapsedSeconds={elapsedSeconds}
               note={
                 flagReason === "ambiguous"
-                  ? "Shared executable name - PlayCounter will not pick for you"
+                  ? "Several games use this file name, so PlayCounter won't guess."
                   : undefined
               }
             />
@@ -1048,7 +1047,7 @@ function AmbiguousMatchCard({
               {!reportedNotAGame ? (
                 <Button
                   variant="secondary"
-                  title={`Stop tracking ${exeName} and report it as a launcher, tool, system process, or other non-game app.`}
+                  title={`Stop tracking ${exeName} and report it as a launcher, tool, or other app that is not a game.`}
                   onClick={() => void handleNegativeReport()}
                 >
                   No, this isn&apos;t a game
@@ -1071,13 +1070,13 @@ function AmbiguousMatchCard({
           {!isOffline ? (
             <>
               <FooterAction
-                title="Search the database for the game this executable belongs to and send the match for community review."
+                title="Search the database and send the match in for review."
                 onClick={() => {
                   setSuggestionOpen(true);
                   setSearchMessage("");
                 }}
               >
-                Search another game
+                Search for the right game
               </FooterAction>
               <FooterSeparator />
             </>
@@ -1172,16 +1171,17 @@ function notifyNegativeReportOutcome(
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
-      title: "Could not block process",
-      detail: `${exeName} could not be blocked on this PC.`,
+      title: `Could not ignore ${exeName}`,
+      detail: "PlayCounter could not ignore it on this PC. Try again.",
     });
     return;
   }
   if (!outcome.ignoreFileUpdated) {
     addToast({
       tone: "error",
-      title: "Process blocked locally",
-      detail: `${exeName} will not be tracked, but the ignored-processes file could not be updated.`,
+      title: `${exeName} ignored`,
+      detail:
+        "It comes back when you restart PlayCounter - the ignore file could not be saved.",
     });
     return;
   }
@@ -1211,17 +1211,17 @@ function notifyDismissOutcome(
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
-      title: "Could not ignore process",
-      detail: `${exeName} could not be ignored on this PC.`,
+      title: `Could not ignore ${exeName}`,
+      detail: "PlayCounter could not ignore it on this PC. Try again.",
     });
     return;
   }
   addToast({
     tone: outcome.ignoreFileUpdated ? "success" : "info",
-    title: "Process dismissed",
+    title: `${exeName} ignored`,
     detail: outcome.ignoreFileUpdated
-      ? `${exeName} was ignored on this PC. No community report was sent.`
-      : `${exeName} is hidden locally, but the ignored-processes file could not be updated. No report was sent.`,
+      ? "Only on this PC. Nothing was reported."
+      : "It comes back when you restart PlayCounter - the ignore file could not be saved.",
   });
 }
 

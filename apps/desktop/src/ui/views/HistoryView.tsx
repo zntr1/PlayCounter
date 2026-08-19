@@ -445,7 +445,7 @@ export function HistoryView() {
                   selectGame(match.key, match.name);
                 }
               }}
-              placeholder="Search games or executables..."
+              placeholder="Search games or file names..."
               className="w-full rounded-full bg-surface py-2 pl-9 pr-16 text-sm"
             />
             {query || selectedGameKey ? (
@@ -519,7 +519,7 @@ export function HistoryView() {
         >
           <div>
             <h2 className="text-xl font-bold tracking-tight text-text">
-              Session Timeline
+              Session timeline
             </h2>
             <p className="mt-0.5 text-sm text-text-muted">
               {sessions[0]
@@ -540,7 +540,7 @@ export function HistoryView() {
               collapsed={timelineSection.collapsed}
               onToggle={timelineSection.toggle}
               controls="session-timeline-body"
-              label="Session Timeline"
+              label="Session timeline"
             />
           </div>
         </div>
@@ -552,7 +552,7 @@ export function HistoryView() {
                   <Timer size={32} />
                 </div>
                 <h3 className="mb-1 text-lg font-bold text-text">
-                  No History Yet
+                  No history yet
                 </h3>
                 <p className="text-sm text-text-muted">
                   Start playing a tracked game to build your timeline.

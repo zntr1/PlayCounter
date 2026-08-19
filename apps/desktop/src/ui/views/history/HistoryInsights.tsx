@@ -320,7 +320,7 @@ export const HistoryInsights = memo(function HistoryInsights({
         >
           <PanelHeading
             id="rhythm-heading"
-            title="What time do you usually play"
+            title="When you play"
             caption="All time"
             collapsed={rhythmSection.collapsed}
             action={

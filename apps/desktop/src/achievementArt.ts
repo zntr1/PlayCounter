@@ -79,10 +79,10 @@ export function achievementArt(input: {
       return art(
         "badge-check",
         tierForThreshold(VERIFIED_COUNTS, threshold),
-        "verified contributions",
+        "approved suggestions",
       );
     case "suggestion-verified":
-      return art("shield-check", "bronze", "verified suggestion", false);
+      return art("shield-check", "bronze", "approved suggestion", false);
     case "suggestion-rejected":
       return art("circle-slash", "bronze", "reviewed suggestion", false);
     case "discovered-review":

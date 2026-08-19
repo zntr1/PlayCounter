@@ -164,7 +164,7 @@ export function contributionNotification(
         id: `suggestion-verified:${key}`,
         kind: "suggestion-verified",
         title: `${contribution.gameName} suggestion approved`,
-        body: `Suggested executable: ${contribution.value}\n\nThanks for helping PlayCounter recognize it.`,
+        body: `Suggested file: ${contribution.value}\n\nThanks for helping PlayCounter recognize it.`,
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
       }
@@ -173,8 +173,8 @@ export function contributionNotification(
         kind: "suggestion-rejected",
         title: `${contribution.gameName} suggestion not approved`,
         body: contribution.reviewNote
-          ? `Suggested executable: ${contribution.value}\n\nFeedback: ${contribution.reviewNote}`
-          : `Suggested executable: ${contribution.value}\n\nThis executable was not approved for this game.`,
+          ? `Suggested file: ${contribution.value}\n\nFeedback: ${contribution.reviewNote}`
+          : `${contribution.value} wasn't accepted for this game.\n\nIf you think it's still right, or you picked the wrong game, you can suggest it again.`,
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
       };

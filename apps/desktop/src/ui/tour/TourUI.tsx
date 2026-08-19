@@ -66,7 +66,7 @@ export function HelpButton() {
           <div className="border-b border-border px-4 py-3">
             <div className="font-semibold text-text">Help & tutorials</div>
             <div className="mt-0.5 text-xs text-text-muted">
-              Learn the basics or practise a common task.
+              Learn the basics or practice a common task.
             </div>
           </div>
           <div className="grid gap-1 p-2">
@@ -557,13 +557,15 @@ function TourRunner() {
               className="w-full"
               onClick={continueWithPersonalization}
             >
-              Personalize PlayCounter (recommended)
+              Personalize PlayCounter (1 min)
             </Button>
             <div className="flex items-center justify-between gap-2">
               <Button onClick={back}>Back</Button>
               <div className="flex gap-2">
-                <Button onClick={() => endTour("completed")}>Finish</Button>
                 <Button onClick={openGuides}>View other guides</Button>
+                <Button variant="ghost" onClick={() => endTour("completed")}>
+                  Finish
+                </Button>
               </div>
             </div>
           </div>

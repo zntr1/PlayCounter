@@ -39,7 +39,7 @@ describe("notification titles", () => {
 
     expect(notification?.title).toBe("Test Game suggestion approved");
     expect(notification?.body).toBe(
-      "Suggested executable: game.exe\n\nThanks for helping PlayCounter recognize it.",
+      "Suggested file: game.exe\n\nThanks for helping PlayCounter recognize it.",
     );
     expect(notification && displayNotificationTitle(notification)).toBe(
       "👍 Test Game suggestion approved",
@@ -61,7 +61,7 @@ describe("notification titles", () => {
 
     expect(notification?.title).toBe("Test Game suggestion not approved");
     expect(notification?.body).toBe(
-      "Suggested executable: game.exe\n\nFeedback: not a game",
+      "Suggested file: game.exe\n\nFeedback: not a game",
     );
     expect(notification && displayNotificationTitle(notification)).toBe(
       "➖ Test Game suggestion not approved",

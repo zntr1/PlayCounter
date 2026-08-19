@@ -69,7 +69,7 @@ export function CustomCoverInput({
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-label={`Set cover for ${gameName}`}
-        title="Set cover"
+        title="Click to choose a file, drag an image here, or press Ctrl+V while hovering"
         onClick={() => inputRef.current?.click()}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -143,7 +143,7 @@ export function CustomCoverInput({
 
         {busy ? (
           <div className="absolute inset-0 grid place-items-center bg-bg/70 text-xs font-medium text-text">
-            Saving
+            Saving…
           </div>
         ) : null}
 

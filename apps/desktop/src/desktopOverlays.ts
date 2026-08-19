@@ -142,28 +142,27 @@ function overlayCopy(
     return event.exeCount === 1
       ? {
           kicker: "NEW APP FOUND",
-          title: "Something new is running.",
-          body: "Review it in Discovered when ready.",
+          title: "PlayCounter doesn't know this one",
+          body: "Open Discovered to sort it out.",
         }
       : {
           kicker: "NEW APPS FOUND",
           title: `${event.exeCount} new apps found`,
-          body: "Review them in Discovered when ready.",
+          body: "Open Discovered to sort them out.",
         };
   }
   if (event.type === "session-started") {
     return kind === "first-detection"
       ? {
-          kicker: "FIRST AUTO-DETECTION",
+          kicker: "NEW GAME DETECTED",
           title: event.gameName,
-          body: "PlayCounter found it automatically. Tracking starts now.",
+          body: "Found automatically. Tracking starts now.",
           status: "live",
           coverUrl: event.coverUrl,
         }
       : {
           kicker: "TRACKING STARTED",
           title: event.gameName,
-          body: "Your playtime is being tracked.",
           status: "live",
           coverUrl: event.coverUrl,
         };
@@ -212,7 +211,7 @@ export function milestoneMetricLabel(id: string) {
   if (!parsed) return undefined;
   const unit =
     parsed.category === "verified"
-      ? "VERIFIED"
+      ? "APPROVED"
       : parsed.category === "streak"
         ? "DAYS"
         : "HRS";

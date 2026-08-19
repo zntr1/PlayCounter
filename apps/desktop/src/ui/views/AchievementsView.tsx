@@ -379,7 +379,7 @@ function GameSection({
         </div>
         <h3 className="text-base font-bold text-text">No game trophies yet</h3>
         <p className="mt-1 max-w-sm text-sm text-text-muted">
-          Play a tracked game for 10 hours to start its mastery ladder.
+          Play any tracked game for 10 hours to unlock its first trophy.
         </p>
       </div>
     );

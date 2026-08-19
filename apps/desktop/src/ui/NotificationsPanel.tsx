@@ -32,15 +32,17 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="border-b border-border bg-surface-hover/40 px-4 py-3">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-faint">
-          Your contributions
+        <div className="mb-2 flex items-baseline justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-text-faint">
+          <span>Your contributions</span>
+          <span className="font-mono normal-case text-text-muted">
+            {counts.suggested} sent
+          </span>
         </div>
-        <div className="grid grid-cols-4 gap-2 text-center">
+        <div className="grid grid-cols-3 gap-2 text-center">
           {[
-            ["Suggested", counts.suggested],
-            ["Verified", counts.verified],
-            ["Pending", counts.pending],
-            ["Rejected", counts.rejected],
+            ["Approved", counts.verified],
+            ["Waiting", counts.pending],
+            ["Not approved", counts.rejected],
           ].map(([label, value]) => (
             <div
               key={label}

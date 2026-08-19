@@ -1095,16 +1095,17 @@ function GameLibraryCard({
     if (!outcome.localBlockApplied) {
       addToast({
         tone: "error",
-        title: "Could not block process",
-        detail: `${exeName} could not be blocked on this PC.`,
+        title: `Could not ignore ${exeName}`,
+        detail: "PlayCounter could not ignore it on this PC. Try again.",
       });
       return;
     }
     if (!outcome.ignoreFileUpdated) {
       addToast({
         tone: "error",
-        title: "Process blocked locally",
-        detail: `${exeName} will not be tracked, but the ignored-processes file could not be updated.`,
+        title: `${exeName} ignored`,
+        detail:
+          "It comes back when you restart PlayCounter - the ignore file could not be saved.",
       });
       return;
     }
@@ -1165,7 +1166,7 @@ function GameLibraryCard({
         candidates.length > 0
           ? body.hasMore
             ? `${candidates.length} matches shown. Load more to keep looking.`
-            : `All ${candidates.length} matches shown. Pick the exact game this executable belongs to.`
+            : `All ${candidates.length} matches shown. Pick the right game.`
           : "No matching games found.",
       );
       setShareState("idle");
@@ -1275,7 +1276,7 @@ function GameLibraryCard({
     addToast({
       tone: "success",
       title: "Copied",
-      detail: "Executable name copied to clipboard.",
+      detail: "File name copied to clipboard.",
     });
     contextMenu.close();
   };
@@ -1809,7 +1810,7 @@ function GameLibraryCard({
                   </div>
                   <Button
                     variant="primary"
-                    title="Track this game as the approved community game from now on"
+                    title="Switch to the community game and track it from now on"
                     onClick={() => {
                       convertLocalSuggestionToCommunity(
                         game.communitySuggestionExeName!,
@@ -2249,7 +2250,7 @@ function StopTrackingDialog({
         <p className="mt-2 text-sm text-text-muted">
           {game.emulatorLabels.length > 0
             ? "PlayCounter will ignore this local emulator-content mapping from now on. The emulator itself remains detectable."
-            : "PlayCounter ignores this game's executable from now on - it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
+            : "PlayCounter ignores this game's file from now on - it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
         </p>
         {game.sessionCount > 0 ? (
           <p className="mt-2 text-sm text-text-muted">
@@ -2299,9 +2300,9 @@ function RemoveGameDialog({
           Remove {game.name} from library?
         </h2>
         <p className="mt-2 text-sm text-text-muted">
-          Removes the game and its executable link, and stops an active session.
-          If the game runs again it will be re-detected - use Ignore Game to
-          block it for good.
+          The game and its file match are removed, and a running session stops.
+          PlayCounter will detect it again the next time you play - use Ignore
+          game if you want it gone for good.
         </p>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
@@ -2775,8 +2776,8 @@ function MatchCheckDialog({
         {flaggedIdentifier ? (
           <div className="mt-4 rounded-md border border-warning-border bg-warning-tint p-3 text-sm text-warning">
             {flaggedIdentifier.reason === "not_a_game"
-              ? "This executable name is also used by non-game software, so PlayCounter no longer chooses a game automatically."
-              : "This executable name is ambiguous, so PlayCounter no longer chooses a game automatically."}
+              ? "Apps that are not games use this file name too, so PlayCounter no longer picks a game automatically."
+              : "Several games use this file name, so PlayCounter no longer picks a game automatically."}
           </div>
         ) : null}
 

@@ -122,10 +122,10 @@ export function NowEmulatingView() {
       ))}
       {sessions.length === 0 && observations.length === 0 ? (
         <Panel className="p-5">
-          <h2 className="font-semibold text-text">Emulator detected</h2>
+          <h2 className="font-semibold text-text">Emulator running</h2>
           <p className="mt-1 text-sm text-text-muted">
-            Waiting for recognizable game content from{" "}
-            {runningHosts[0]?.exeName}.
+            {runningHosts[0]?.exeName} is running. PlayCounter is watching for a
+            game to load.
           </p>
         </Panel>
       ) : null}

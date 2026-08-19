@@ -111,7 +111,7 @@ function EmulatorView({
               <h2 className="text-xl font-semibold text-text">{label}</h2>
             </div>
             <p className="mt-1 text-sm text-text-muted">
-              Detected executables:{" "}
+              Detected files:{" "}
               {known?.hostExeNames.join(", ") || fallbackHostName}
             </p>
           </div>
@@ -220,7 +220,7 @@ function EmulatorView({
           <div className="border-b border-border px-5 py-4">
             <h2 className="font-semibold text-text">Ignored {label} content</h2>
             <p className="mt-1 text-sm text-text-muted">
-              Restoring an item lets PlayCounter detect and match it again.
+              Restore an item to let PlayCounter detect it again.
             </p>
           </div>
           <div className="divide-y divide-border">

@@ -248,8 +248,8 @@ export function evaluateMilestones(
     VERIFIED_COUNTS,
     (count) =>
       count === 1
-        ? "Your first contribution was verified"
-        : `${count} contributions verified`,
+        ? "Your first suggestion was approved"
+        : `${count} suggestions approved`,
     createdAt,
   );
 
@@ -519,8 +519,8 @@ function genericMilestoneTitle(parsed: {
       return `${threshold}-day play streak`;
     case "verified":
       return parsed.threshold === 1
-        ? "Your first contribution was verified"
-        : `${threshold} contributions verified`;
+        ? "Your first suggestion was approved"
+        : `${threshold} suggestions approved`;
   }
 }
 

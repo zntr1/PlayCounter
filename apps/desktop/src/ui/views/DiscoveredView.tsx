@@ -328,7 +328,7 @@ export function DiscoveredView() {
       if (!ignored && blacklist.has(key)) toggleBlacklist(exeName, false);
       addToast({
         tone: "success",
-        title: ignored ? "Process ignored" : "Process restored",
+        title: ignored ? `${exeName} ignored` : `${exeName} restored`,
         detail: ignored
           ? `${exeName} will no longer be matched or tracked.`
           : `${exeName} can be matched again on the next scan.`,
@@ -443,7 +443,7 @@ export function DiscoveredView() {
           ? body.hasMore
             ? `${candidates.length} matches shown. Load more to keep looking.`
             : `All ${candidates.length} matches shown. Pick the exact game to unlock sharing.`
-          : "No matching game found.",
+          : "No matching games found.",
       );
       setSuggestionState("idle");
     } catch (error) {
@@ -636,13 +636,14 @@ export function DiscoveredView() {
       {
         id: "running",
         title: "Running now",
-        description: "Apps from the latest process scan.",
+        description: "Apps from the latest scan.",
         executables: running.sort(sortDiscovered),
       },
       {
         id: "saved",
         title: "Not running",
-        description: "Previously discovered apps kept for cleanup and review.",
+        description:
+          "Apps PlayCounter saw earlier. They stay here until you decide.",
         executables: saved.sort(sortDiscovered),
       },
     ];
@@ -751,7 +752,7 @@ export function DiscoveredView() {
   function showTutorialProcessNotice() {
     addToast({
       tone: "info",
-      title: "Tutorial process",
+      title: "Tutorial app",
       detail: `${TOUR_DEMO_GAME.exeName} exists only inside this guide. Nothing was changed or saved.`,
     });
   }
@@ -867,7 +868,7 @@ export function DiscoveredView() {
           ) : null}
           {filter === "ignored" ? (
             <select
-              aria-label="Sort ignored processes"
+              aria-label="Sort ignored apps"
               value={ignoredSort}
               onChange={(event) => {
                 setIgnoredSort(event.target.value as IgnoredProcessSort);
@@ -968,16 +969,16 @@ export function DiscoveredView() {
                   <CheckCircle size={32} />
                 </div>
                 <h3 className="mb-1 text-lg font-semibold text-text">
-                  You're all caught up!
+                  You're all caught up.
                 </h3>
                 <p className="text-sm text-text-muted">
-                  There are no new executables to review right now.
+                  Nothing new to review right now.
                 </p>
               </div>
             )
           ) : filteredExecutables.length === 0 ? (
             <div className="rounded-md border border-dashed border-border bg-surface px-4 py-10 text-center text-sm text-text-muted">
-              Nothing here right now.
+              No apps match your filters.
             </div>
           ) : (
             <>
@@ -1103,67 +1104,31 @@ function notifyIgnoredProcessSuggestionOutcome(
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
-      title: "Could not ignore process",
-      detail: `${exeName} could not be ignored on this PC.`,
+      title: `Could not ignore ${exeName}`,
+      detail: "PlayCounter could not ignore it on this PC. Try again.",
     });
     return;
   }
   if (!outcome.ignoreFileUpdated) {
     addToast({
       tone: "error",
-      title: "Ignored until restart",
+      title: `${exeName} ignored`,
       detail:
-        outcome.suggestion.kind === "suggested"
-          ? `${exeName} is blocked now, but the user ignore file could not be updated. The suggestion was still sent.`
-          : `${exeName} is blocked now, but the user ignore file could not be updated. The suggestion was not sent.`,
+        "It comes back when you restart PlayCounter - the ignore file could not be saved.",
     });
     return;
   }
-  if (outcome.suggestion.kind === "disabled") {
-    addToast({
-      tone: "success",
-      title: "Process ignored",
-      detail: `${exeName} will no longer be matched or tracked.`,
-    });
-    return;
-  }
-  if (outcome.suggestion.kind === "not_eligible") {
-    addToast({
-      tone: "info",
-      title: "Ignored locally",
-      detail:
-        outcome.suggestion.reason === "matched_game"
-          ? `${exeName} is user-ignored, but it was matched to a game so no system-ignore suggestion was sent.`
-          : `${exeName} is user-ignored, but it had a game choice open so no system-ignore suggestion was sent.`,
-    });
-    return;
-  }
-  if (outcome.suggestion.kind === "skipped") {
-    addToast({
-      tone: "info",
-      title: "Ignored locally",
-      detail:
-        outcome.suggestion.reason === "offline"
-          ? `${exeName} is user-ignored. The system-ignore suggestion needs a connection and was not sent.`
-          : `${exeName} is user-ignored. The system-ignore suggestion is unavailable right now.`,
-    });
-    return;
-  }
-  if (outcome.suggestion.kind === "failed") {
-    addToast({
-      tone: "info",
-      title: "Ignored locally",
-      detail: `${exeName} is user-ignored, but the system-ignore suggestion failed.`,
-    });
+  if (outcome.suggestion.kind !== "suggested") {
+    addToast({ tone: "success", title: `${exeName} ignored` });
     return;
   }
   addToast({
     tone: "success",
-    title: "Ignored & suggested",
+    title: `${exeName} ignored`,
     detail:
       outcome.suggestion.status === "already_reviewed"
-        ? `${exeName} is now user-ignored here. Its earlier suggestion was already reviewed.`
-        : `${exeName} is now user-ignored here and queued for admin review. System ignore lists are updated manually.`,
+        ? "Someone already suggested this one for review."
+        : "Also sent for review, so other players do not see it either.",
   });
 }
 
@@ -1271,8 +1236,8 @@ function TriageWizardCard({
                   setActiveSuggestionIndex(0);
                 }
               }}
-              placeholder="Find a process in this queue..."
-              aria-label="Find a process in the review queue"
+              placeholder="Search this queue..."
+              aria-label="Search the review queue"
               aria-expanded={reviewSuggestions.length > 0}
               aria-controls="review-process-suggestions"
               aria-autocomplete="list"
@@ -1531,7 +1496,7 @@ function DiscoveredExecutableRow({
     addToast({
       tone: "success",
       title: "Copied",
-      detail: "Executable name copied to clipboard.",
+      detail: "File name copied to clipboard.",
     });
     contextMenu.close();
   };
@@ -1662,7 +1627,7 @@ function DiscoveredExecutableRow({
                 />
                 <IconButton
                   icon={EyeOff}
-                  title="Ignore this executable"
+                  title="Ignore this app"
                   disabled={isRetrying || isPending}
                   onClick={onIgnore}
                 />
