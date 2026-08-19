@@ -70,6 +70,8 @@ import { persistAppState, readPersistedRecord } from "./persistence";
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
+import { TOURS } from "./ui/tour/tourDefinitions";
+import { normalizeTourProgress } from "./ui/tour/tourState";
 import {
   armDesktopOverlays,
   disposeDesktopOverlays,
@@ -133,6 +135,7 @@ type PersistedState = {
   archivedGameSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
   collapsedSections?: unknown;
+  tours?: unknown;
   autoDetectedGameKeys?: string[];
 };
 
@@ -485,6 +488,10 @@ function hydrate() {
     ),
     collapsedSections: normalizeCollapsedSections(persisted.collapsedSections),
     autoDetectedGameKeys,
+    tourProgress: normalizeTourProgress(
+      persisted.tours,
+      TOURS.map((tour) => tour.id),
+    ),
   });
   if (shouldPersistAchievementMigration) persist();
 }
@@ -1142,7 +1149,7 @@ async function resolveProcesses(
     }
     // An unresolved ambiguity has no exe cache entry and would otherwise be
     // re-queried on every scan; the stored candidates keep driving the UI. A
-    // matched cache entry always wins — the ambiguity is stale then (e.g. the
+    // matched cache entry always wins - the ambiguity is stale then (e.g. the
     // exe was added as a custom game while the picker was open) and gets
     // dropped so the picker disappears and the match tracks normally.
     const ambiguous = ambiguousByKey.get(processCacheKey(process));
@@ -1292,7 +1299,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
     const body = (await response.json()) as MatchProcessesResponse;
     for (const result of body.matches) {
       const aliases = result.communityGameAliases;
-      // The surviving game can be the match or one of the picker candidates —
+      // The surviving game can be the match or one of the picker candidates -
       // an exe that IGDB and the community both map is ambiguous by design.
       const communityGames = [
         result.game,
@@ -1332,7 +1339,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
 // forever (a matched entry is never re-queried) and run a second session next
 // to the executable that already uses the surviving id. The server names the
 // retired ids for the game it just matched, so this only moves entries the
-// server itself declared to be the same game — a different game that happens
+// server itself declared to be the same game - a different game that happens
 // to share the title stays an upgrade offer for the user to decide.
 function applyMergedCommunityGame(
   exeName: string,
@@ -1384,7 +1391,7 @@ function survivorOfRetiredGame(
     ?.gameId;
 }
 
-// Whether a community game is the one this entry suggested itself — directly,
+// Whether a community game is the one this entry suggested itself - directly,
 // or because the suggestion's id was retired when that game absorbed it.
 function isOwnCommunitySuggestion(
   entry: ExeCacheEntry,
@@ -1776,7 +1783,7 @@ export function applyGameMatch(exeName: string, game: Game) {
   void requestProcessScan("after game match applied");
 }
 
-// Applies a database game directly to an exe — used when a community
+// Applies a database game directly to an exe - used when a community
 // suggestion turned out to be an already-known IGDB match. Handles both
 // unmatched exes (Discovered) and already matched ones (library).
 export function applyKnownGameMatch(exeName: string, game: Game) {
@@ -3443,7 +3450,7 @@ export function shareTrackedCustomGame(
   return game;
 }
 
-// Demotes a wrongly matched igdb/community game to a local custom game — the
+// Demotes a wrongly matched igdb/community game to a local custom game - the
 // escape hatch when the real game exists in no database (e.g. an own tool or
 // unlisted title). Purely local; the shared mapping stays untouched.
 export function convertToCustomGame(exeName: string, gameName: string) {
@@ -3462,7 +3469,7 @@ export function convertToCustomGame(exeName: string, gameName: string) {
 
 // Suggests the correct game for a tracked exe to the community. Custom games
 // are shared as-is; for igdb/community games this is the "report wrong match"
-// path — the exe is retagged locally as a shared custom game carrying the
+// path - the exe is retagged locally as a shared custom game carrying the
 // suggested metadata and the awaiting-approval marker.
 export function suggestTrackedGameToCommunity(
   exeName: string,
@@ -3512,7 +3519,7 @@ export function suggestTrackedGameToCommunity(
   return customGame;
 }
 
-// Resolves an ambiguity picker with a locally created custom game — the
+// Resolves an ambiguity picker with a locally created custom game - the
 // offline-friendly escape hatch when none of the candidates fit and the
 // community search is not available or not wanted. Runs through the regular
 // ambiguous selection so the runtime since detection is credited.
@@ -4362,7 +4369,7 @@ function inferSuggestionStatus<
   };
 }
 
-// One game, one session — regardless of how many of its executables run. Of
+// One game, one session - regardless of how many of its executables run. Of
 // several sessions on the same game the earliest wins; the others cover the
 // same playtime and would double-count it.
 function dedupeSessionsByGame(sessions: ActiveSession[]) {
@@ -4589,7 +4596,7 @@ function updateCustomGameCover(gameId: number, coverUrl: string) {
           : session,
       ),
       // Recorded sessions drive the library card's cover, so they must
-      // follow too — otherwise a cleared/changed cover keeps showing.
+      // follow too - otherwise a cleared/changed cover keeps showing.
       recentSessions: state.recentSessions.map((session) =>
         session.gameId === gameId && isCustomSession(session)
           ? { ...session, coverUrl }

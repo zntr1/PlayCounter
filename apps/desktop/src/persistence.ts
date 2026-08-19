@@ -13,6 +13,7 @@ import type {
   EmulatorObservation,
   KnownEmulator,
 } from "./emulators/types";
+import { defaultTourProgress, type TourProgress } from "./ui/tour/tourState";
 
 export const STORAGE_KEY = "playcounter:v1";
 export const MAX_STORED_NOTIFICATIONS = 100;
@@ -41,6 +42,7 @@ type PersistableAppState = {
   playtimeAdjustments: Record<string, number>;
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
+  tourProgress?: TourProgress;
 };
 
 export type PersistedPayload = {
@@ -68,6 +70,7 @@ export type PersistedPayload = {
   playtimeAdjustments: Record<string, number>;
   collapsedSections?: string[];
   autoDetectedGameKeys?: string[];
+  tours?: TourProgress;
 };
 
 export type PersistedProjection = Pick<
@@ -125,6 +128,7 @@ export function createPersistedPayload(
     playtimeAdjustments: state.playtimeAdjustments,
     collapsedSections: state.collapsedSections,
     autoDetectedGameKeys: [...new Set(state.autoDetectedGameKeys)],
+    tours: state.tourProgress ?? defaultTourProgress(),
   };
 }
 

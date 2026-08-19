@@ -54,7 +54,13 @@ import {
 } from "../components";
 import { Button, IconButton, Input } from "../primitives";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
+import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
+import { findTour } from "../tour/tourDefinitions";
 import { CommunitySuggestionForm } from "./DiscoveredView";
+
+const TOUR_NOW_PLAYING_SESSION_ID = -1;
+const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
+const EMPTY_SECONDS: Record<string, number> = {};
 
 export function NowPlayingView() {
   const allActiveSessions = useAppStore((state) => state.activeSessions);
@@ -77,17 +83,49 @@ export function NowPlayingView() {
   );
   const addToast = useAppStore((state) => state.addToast);
   const setActiveView = useAppStore((state) => state.setActiveView);
+  const activeTour = useAppStore((state) => state.activeTour);
   const [now, setNow] = useState(() => Date.now());
+  const [tourSessionStartedAt, setTourSessionStartedAt] = useState(() =>
+    new Date(Date.now() - 137_000).toISOString(),
+  );
   const [reportTarget, setReportTarget] = useState<ActiveSession | null>(null);
   const [correctionExeName, setCorrectionExeName] = useState<string | null>(
     null,
   );
-  const hasActivity = activeSessions.length > 0 || ambiguousMatches.length > 0;
+  const activeTourStep = activeTour
+    ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
+    : undefined;
+  const showTourSession =
+    activeTour?.tourId === "core" && activeTourStep?.id === "now";
+  const tourSession = useMemo<ActiveSession>(
+    () => ({
+      id: TOUR_NOW_PLAYING_SESSION_ID,
+      gameId: TOUR_DEMO_GAME.gameId,
+      gameName: TOUR_DEMO_GAME.name,
+      exeName: TOUR_DEMO_GAME.exeName,
+      coverUrl: TOUR_DEMO_GAME.coverUrl,
+      startedAt: tourSessionStartedAt,
+      checkpointedAt: tourSessionStartedAt,
+    }),
+    [tourSessionStartedAt],
+  );
+  const displayedActiveSessions = showTourSession
+    ? [tourSession]
+    : activeSessions;
+  const displayedAmbiguousMatches = showTourSession ? [] : ambiguousMatches;
+  const hasActivity =
+    displayedActiveSessions.length > 0 || displayedAmbiguousMatches.length > 0;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (showTourSession) {
+      setTourSessionStartedAt(new Date(Date.now() - 137_000).toISOString());
+    }
+  }, [showTourSession]);
 
   async function handleNegativeReport(session: ActiveSession) {
     setReportTarget(null);
@@ -124,35 +162,47 @@ export function NowPlayingView() {
         </Panel>
       ) : (
         <div className="grid gap-4">
-          {activeSessions.map((activeSession) => (
-            <HeroSession
-              key={resolvedCanonicalGameKey(activeSession, resolveIgdbId)}
-              session={activeSession}
-              elapsedSeconds={Math.max(
-                0,
-                Math.floor((now - Date.parse(activeSession.startedAt)) / 1000),
-              )}
-              recentSessions={recentSessions}
-              showDurationDays={showDurationDays}
-              exeCache={exeCache}
-              resolveIgdbId={resolveIgdbId}
-              archivedGameSeconds={archivedGameSeconds}
-              playtimeAdjustments={playtimeAdjustments}
-              onReport={() => setReportTarget(activeSession)}
-            />
-          ))}
-          {ambiguousMatches.length > 0 ? (
+          {displayedActiveSessions.map((activeSession) => {
+            const isTourSession =
+              activeSession.id === TOUR_NOW_PLAYING_SESSION_ID;
+
+            return (
+              <HeroSession
+                key={resolvedCanonicalGameKey(activeSession, resolveIgdbId)}
+                session={activeSession}
+                elapsedSeconds={Math.max(
+                  0,
+                  Math.floor(
+                    (now - Date.parse(activeSession.startedAt)) / 1000,
+                  ),
+                )}
+                recentSessions={isTourSession ? [] : recentSessions}
+                showDurationDays={showDurationDays}
+                exeCache={isTourSession ? EMPTY_EXE_CACHE : exeCache}
+                resolveIgdbId={resolveIgdbId}
+                archivedGameSeconds={
+                  isTourSession ? EMPTY_SECONDS : archivedGameSeconds
+                }
+                playtimeAdjustments={
+                  isTourSession ? EMPTY_SECONDS : playtimeAdjustments
+                }
+                onReport={() => setReportTarget(activeSession)}
+                tutorial={isTourSession}
+              />
+            );
+          })}
+          {displayedAmbiguousMatches.length > 0 ? (
             <section className="grid gap-3">
               <div className="flex items-center gap-2 px-1 pt-1">
                 <AlertTriangle size={14} className="shrink-0 text-warning" />
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-text-faint">
-                  Needs your input
+                  Game detection needs review
                 </h3>
                 <span className="rounded-full border border-warning-border bg-warning-tint px-1.5 text-[11px] font-semibold tabular-nums text-warning">
-                  {ambiguousMatches.length}
+                  {displayedAmbiguousMatches.length}
                 </span>
               </div>
-              {ambiguousMatches.map((match) => {
+              {displayedAmbiguousMatches.map((match) => {
                 const elapsedSeconds = Math.max(
                   0,
                   Math.floor(
@@ -391,6 +441,7 @@ function HeroSession({
   archivedGameSeconds,
   playtimeAdjustments,
   onReport,
+  tutorial = false,
 }: {
   session: ActiveSession;
   elapsedSeconds: number;
@@ -401,6 +452,7 @@ function HeroSession({
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   onReport: () => void;
+  tutorial?: boolean;
 }) {
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
@@ -471,7 +523,10 @@ function HeroSession({
   const canReport = session.source === "igdb" || session.source === "community";
 
   return (
-    <section className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-raised">
+    <section
+      className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
+      data-tour={tutorial ? "now-playing-demo" : undefined}
+    >
       {canReport ? (
         <IconButton
           icon={Flag}
@@ -918,9 +973,9 @@ function AmbiguousMatchCard({
               Other players reported that {exeName} is not a game, so
               PlayCounter no longer matches it automatically
               {candidates.length === 1
-                ? ` — even though it still matches ${candidates[0].name}`
+                ? ` - even though it still matches ${candidates[0].name}`
                 : candidates.length > 1
-                  ? ` — even though it still matches ${candidates.length} games`
+                  ? ` - even though it still matches ${candidates.length} games`
                   : ""}
               .
             </p>
@@ -949,35 +1004,56 @@ function AmbiguousMatchCard({
           <>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-warning-border bg-warning-tint px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-warning">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
-              Choose a match
+              Unidentified process
             </div>
             <h2 className="break-words text-2xl font-bold text-text">
-              {candidates.length === 1
-                ? `Did you launch ${candidates[0].name}?`
-                : "Which game did you launch?"}
+              Is <span className="font-mono">{exeName}</span> a game?
             </h2>
+            <p className="mt-2 max-w-2xl text-sm text-text-muted">
+              PlayCounter detected this process, but its file name is also used
+              by{" "}
+              {candidates.length === 1
+                ? "a game"
+                : `${candidates.length} games`}{" "}
+              in the database. It can&apos;t tell whether you launched a game or
+              whether this is another app.
+            </p>
             <MatchMeta
               exeName={exeName}
               ended={ended}
               elapsedSeconds={elapsedSeconds}
               note={
                 flagReason === "ambiguous"
-                  ? "Shared executable name — PlayCounter will not pick for you"
+                  ? "Shared executable name - PlayCounter will not pick for you"
                   : undefined
               }
             />
-            {ended ? (
-              <p className="mt-2 text-sm text-text-muted">
-                {exeName} has closed. Pick the right game to save this time.
-              </p>
-            ) : null}
           </>
         )}
 
         {showCandidates ? (
           <div className="mt-5 border-t border-border pt-5">
-            <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-faint">
-              {candidates.length === 1 ? "Possible match" : "Possible matches"}
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-text-faint">
+                  {candidates.length === 1
+                    ? "Did you launch this game?"
+                    : "Did you launch one of these games?"}
+                </div>
+                <p className="mt-1 text-xs text-text-muted">
+                  Select it to{" "}
+                  {ended ? "save this activity" : "start tracking it"}.
+                </p>
+              </div>
+              {!reportedNotAGame ? (
+                <Button
+                  variant="secondary"
+                  title={`Stop tracking ${exeName} and report it as a launcher, tool, system process, or other non-game app.`}
+                  onClick={() => void handleNegativeReport()}
+                >
+                  No, this isn&apos;t a game
+                </Button>
+              ) : null}
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {orderedCandidates.map((game) => (
@@ -992,18 +1068,6 @@ function AmbiguousMatchCard({
         ) : null}
 
         <div className="mt-5 flex flex-wrap items-center gap-x-0.5 gap-y-1 border-t border-border pt-3 text-xs">
-          {!reportedNotAGame ? (
-            <>
-              <FooterAction
-                emphasis
-                title={`Report ${exeName} as a launcher, tool, system process or other non-game app. It stops being tracked here and the report is reviewed by the community.`}
-                onClick={() => void handleNegativeReport()}
-              >
-                Not a game
-              </FooterAction>
-              <FooterSeparator />
-            </>
-          ) : null}
           {!isOffline ? (
             <>
               <FooterAction
@@ -1047,7 +1111,7 @@ function AmbiguousMatchCard({
               maxLength={120}
               autoFocus={customEntryOpen}
               placeholder={
-                isOffline ? "Offline — add the game by name..." : "Game name..."
+                isOffline ? "Offline - add the game by name..." : "Game name..."
               }
               className="h-9 min-w-0 flex-1"
             />

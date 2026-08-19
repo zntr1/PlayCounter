@@ -27,6 +27,14 @@ import type {
   EmulatorObservation,
   KnownEmulator,
 } from "./emulators/types";
+import { findTour } from "./ui/tour/tourDefinitions";
+import { stepView } from "./ui/tour/tourNavigation";
+import {
+  defaultTourProgress,
+  markTourCompleted,
+  markWelcomeSeen,
+  type TourProgress,
+} from "./ui/tour/tourState";
 
 export type ViewId =
   | "now"
@@ -187,6 +195,13 @@ export type DesktopOverlaySettingKey =
   | "overlayMilestones"
   | "overlayDiscoveries";
 
+export type ActiveTour = {
+  tourId: string;
+  stepIndex: number;
+  returnView: ViewId;
+  enteredStepAt: number;
+};
+
 type AppState = {
   activeView: ViewId;
   historyQuery: string;
@@ -224,9 +239,20 @@ type AppState = {
   playtimeAdjustments: Record<string, number>;
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
+  tourProgress: TourProgress;
+  activeTour: ActiveTour | null;
+  demoResetToken: number;
+  helpMenuOpen: boolean;
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
+  startTour: (tourId: string) => void;
+  goToTourStep: (index: number, resetDemo?: boolean) => void;
+  endTour: (outcome: "completed" | "dismissed") => void;
+  finishTourAndOpenHelp: () => void;
+  setHelpMenuOpen: (open: boolean) => void;
+  markTourWelcomeSeen: () => void;
+  resetTourProgress: () => void;
   setHistoryQuery: (query: string) => void;
   setHistoryGameKey: (key: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
@@ -317,9 +343,9 @@ const defaultSettings: Settings = {
   emulatorDetection: true,
   emulatorContentLookup: true,
   ignoredEmulatorIds: [],
-  desktopOverlaysEnabled: false,
+  desktopOverlaysEnabled: true,
   overlayFirstDetections: true,
-  overlaySessionStarts: false,
+  overlaySessionStarts: true,
   overlaySessionSummaries: true,
   overlayMilestones: true,
   overlayDiscoveries: false,
@@ -416,9 +442,93 @@ export const useAppStore = create<AppState>((set) => ({
   playtimeAdjustments: {},
   collapsedSections: [],
   autoDetectedGameKeys: [],
+  tourProgress: defaultTourProgress(),
+  activeTour: null,
+  demoResetToken: 0,
+  helpMenuOpen: false,
   cleanup: null,
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
+  startTour: (tourId) => {
+    const tour = findTour(tourId);
+    if (!tour) return;
+    set((state) => {
+      const activeTour = {
+        tourId,
+        stepIndex: 0,
+        returnView: state.activeView,
+        enteredStepAt: Date.now(),
+      };
+      return {
+        activeTour,
+        activeView: stepView(tour.steps[0], state.activeView, state.activeView),
+        demoResetToken: state.demoResetToken + 1,
+        helpMenuOpen: false,
+      };
+    });
+  },
+  goToTourStep: (index, resetDemo = false) =>
+    set((state) => {
+      if (!state.activeTour) return state;
+      const tour = findTour(state.activeTour.tourId);
+      const step = tour?.steps[index];
+      if (!tour || !step) return state;
+      return {
+        activeTour: {
+          ...state.activeTour,
+          stepIndex: index,
+          enteredStepAt: Date.now(),
+        },
+        activeView: stepView(
+          step,
+          state.activeView,
+          state.activeTour.returnView,
+        ),
+        demoResetToken: state.demoResetToken + (resetDemo ? 1 : 0),
+      };
+    }),
+  endTour: (outcome) => {
+    set((state) => {
+      if (!state.activeTour) return state;
+      const tour = findTour(state.activeTour.tourId);
+      return {
+        activeView: state.activeTour.returnView,
+        activeTour: null,
+        demoResetToken: state.demoResetToken + 1,
+        helpMenuOpen: false,
+        tourProgress:
+          outcome === "completed" && tour
+            ? markTourCompleted(state.tourProgress, tour.id, tour.version)
+            : state.tourProgress,
+      };
+    });
+    persistSoon();
+  },
+  finishTourAndOpenHelp: () => {
+    set((state) => {
+      if (!state.activeTour) return state;
+      const tour = findTour(state.activeTour.tourId);
+      return {
+        activeView: state.activeTour.returnView,
+        activeTour: null,
+        demoResetToken: state.demoResetToken + 1,
+        helpMenuOpen: true,
+        tourProgress: tour
+          ? markTourCompleted(state.tourProgress, tour.id, tour.version)
+          : state.tourProgress,
+      };
+    });
+    persistSoon();
+  },
+  setHelpMenuOpen: (helpMenuOpen) => set({ helpMenuOpen }),
+  markTourWelcomeSeen: () => {
+    set((state) => ({ tourProgress: markWelcomeSeen(state.tourProgress) }));
+    persistSoon();
+  },
+  resetTourProgress: () => {
+    set({ tourProgress: defaultTourProgress(), helpMenuOpen: false });
+    persistSoon();
+  },
   setHistoryQuery: (historyQuery) => set({ historyQuery }),
   setHistoryGameKey: (historyGameKey) => set({ historyGameKey }),
   adoptInstallIdentity: (installUuid) =>

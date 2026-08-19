@@ -57,8 +57,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_emulator_content_curated_unique
 
 -- One row per game, reused across every executable that starts it: a
 -- suggestion for a game that already exists attaches another identifier
--- instead of creating a second row. `igdb_id` is that identity — names are not
--- unique (remakes, re-releases) — and is NULL only for rows predating it and
+-- instead of creating a second row. `igdb_id` is that identity - names are not
+-- unique (remakes, re-releases) - and is NULL only for rows predating it and
 -- for suggestions from clients that do not send it yet. `verified` is only
 -- kept for older deployed clients; matching reads the per-identifier flag.
 CREATE TABLE IF NOT EXISTS community_games (

@@ -91,6 +91,8 @@ import type {
   GameSource,
   IdentifierFlagReason,
 } from "@playcounter/shared";
+import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
+import { emitTourEvent, useTourDemo } from "../tour/TourUI";
 
 type SortKey = "recent" | "playtime" | "name" | "sessions";
 type ViewMode = "grid" | "list";
@@ -101,6 +103,9 @@ const sortOptions: Array<{ key: SortKey; label: string }> = [
   { key: "name", label: "Name" },
   { key: "sessions", label: "Sessions" },
 ];
+
+const GTA_V_TOUR_COVER =
+  "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.webp";
 
 type GameSummary = {
   gameId: number;
@@ -146,6 +151,77 @@ type PendingStopTracking = {
   sessionCount: number;
   aliases: GameAliasRef[];
 } | null;
+
+function makeTourDemoGame(
+  addedSeconds: number,
+  addedSessions: number,
+  showSourceBadges: boolean,
+): GameSummary {
+  const totalSeconds = 7_200 + addedSeconds;
+  return {
+    gameId: TOUR_DEMO_GAME.gameId,
+    name: TOUR_DEMO_GAME.name,
+    coverUrl: TOUR_DEMO_GAME.coverUrl,
+    source: null,
+    sources: showSourceBadges ? ["community", "igdb", "custom"] : [],
+    aliases: [],
+    totalSeconds,
+    sessionSeconds: totalSeconds,
+    archivedSeconds: 0,
+    adjustmentSeconds: 0,
+    recordedSeconds: totalSeconds,
+    sessionCount: 3 + addedSessions,
+    historyGameKey: null,
+    lastPlayedAt: new Date().toISOString(),
+    exeNames: [TOUR_DEMO_GAME.exeName],
+    emulatorLabels: [],
+    emulatorIds: [],
+  };
+}
+
+function makeCoreTourDemoGames(): GameSummary[] {
+  const now = Date.now();
+  return [
+    {
+      gameId: TOUR_DEMO_GAME.gameId,
+      name: TOUR_DEMO_GAME.name,
+      coverUrl: TOUR_DEMO_GAME.coverUrl,
+      source: "community",
+      sources: ["community"],
+      aliases: [],
+      totalSeconds: 894_720,
+      sessionSeconds: 894_720,
+      archivedSeconds: 0,
+      adjustmentSeconds: 0,
+      recordedSeconds: 894_720,
+      sessionCount: 127,
+      historyGameKey: null,
+      lastPlayedAt: new Date(now - 3_600_000).toISOString(),
+      exeNames: [TOUR_DEMO_GAME.exeName],
+      emulatorLabels: [],
+      emulatorIds: [],
+    },
+    {
+      gameId: -2,
+      name: "Grand Theft Auto V",
+      coverUrl: GTA_V_TOUR_COVER,
+      source: "igdb",
+      sources: ["igdb"],
+      aliases: [],
+      totalSeconds: 310_320,
+      sessionSeconds: 310_320,
+      archivedSeconds: 0,
+      adjustmentSeconds: 0,
+      recordedSeconds: 310_320,
+      sessionCount: 46,
+      historyGameKey: null,
+      lastPlayedAt: new Date(now - 86_400_000).toISOString(),
+      exeNames: ["GTA5.exe"],
+      emulatorLabels: [],
+      emulatorIds: [],
+    },
+  ];
+}
 
 function matchedEntriesByGame(
   entries: ExeCacheEntry[],
@@ -207,6 +283,11 @@ function activeDurationSeconds(activeSession: ActiveSession) {
 }
 
 export function MyGamesView() {
+  const tourDemo = useTourDemo();
+  const [demoPlaytime, setDemoPlaytime] = useState({
+    addedSeconds: 0,
+    addedSessions: 0,
+  });
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval>(null);
   const [pendingStopTracking, setPendingStopTracking] =
     useState<PendingStopTracking>(null);
@@ -240,6 +321,10 @@ export function MyGamesView() {
       })),
     );
   }, [sessions]);
+
+  useEffect(() => {
+    setDemoPlaytime({ addedSeconds: 0, addedSessions: 0 });
+  }, [tourDemo.active, tourDemo.resetToken]);
 
   const games = useMemo(() => {
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
@@ -609,21 +694,44 @@ export function MyGamesView() {
     });
     return sorted;
   }, [games, query, sortKey]);
+  const demoGames = useMemo(() => {
+    if (!tourDemo.active) return [];
+    if (tourDemo.tourId === "core") return makeCoreTourDemoGames();
+    return [
+      makeTourDemoGame(
+        demoPlaytime.addedSeconds,
+        demoPlaytime.addedSessions,
+        tourDemo.tourId === "source-badges",
+      ),
+    ];
+  }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
+  const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
+  const libraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
+  const visibleGames = isCoreTourDemo
+    ? demoGames
+    : [...demoGames, ...displayedGames];
+
+  const demoNotice = () =>
+    addToast({
+      tone: "info",
+      title: "Tutorial game",
+      detail: "The sample exists only for this guide - nothing was saved.",
+    });
 
   return (
     <div className="grid gap-5">
-      {games.length === 0 ? (
+      {libraryGames.length === 0 ? (
         <Panel className="px-4 py-12 text-center text-sm text-text-muted">
           No discovered games have completed a session yet.
         </Panel>
       ) : (
         <>
-          <Panel className="overflow-hidden">
+          <Panel dataTour="games-toolbar" className="overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4">
               <div>
                 <h2 className="font-semibold text-text">Library</h2>
                 <p className="mt-1 text-sm text-text-muted">
-                  {displayedGames.length} of {games.length} tracked games
+                  {visibleGames.length} of {libraryGames.length} tracked games
                 </p>
               </div>
               <div className="flex items-center gap-1 rounded-md border border-border bg-bg p-1">
@@ -684,52 +792,74 @@ export function MyGamesView() {
             </div>
           </Panel>
 
-          {displayedGames.length === 0 ? (
+          {visibleGames.length === 0 ? (
             <Panel className="px-4 py-12 text-center text-sm text-text-muted">
               No games match &ldquo;{query}&rdquo;.
             </Panel>
           ) : (
             <div
+              data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
               className={
                 view === "grid"
                   ? "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]"
                   : "grid gap-3"
               }
             >
-              {displayedGames.map((game) => (
-                <GameLibraryCard
-                  key={
-                    game.igdbId !== undefined
-                      ? `igdb#${game.igdbId}`
-                      : `${game.source ?? "unknown"}:${game.gameId}`
-                  }
-                  game={game}
-                  showDurationDays={showDurationDays}
-                  view={view}
-                  onRemove={() =>
-                    setPendingRemoval({
-                      gameId: game.gameId,
-                      source: game.source,
-                      name: game.name,
-                      aliases: game.aliases,
-                    })
-                  }
-                  onStopTracking={
-                    game.source
-                      ? () =>
-                          setPendingStopTracking({
-                            gameId: game.gameId,
-                            source: game.source!,
-                            name: game.name,
-                            exeNames: game.exeNames,
-                            emulatorLabels: game.emulatorLabels,
-                            sessionCount: game.sessionCount,
-                            aliases: game.aliases,
-                          })
-                      : undefined
-                  }
-                />
-              ))}
+              {visibleGames.map((game) => {
+                const isDemo = game.gameId < 0;
+                return (
+                  <GameLibraryCard
+                    key={
+                      isDemo
+                        ? `tour-demo-${game.gameId}-${tourDemo.resetToken}`
+                        : game.igdbId !== undefined
+                          ? `igdb#${game.igdbId}`
+                          : `${game.source ?? "unknown"}:${game.gameId}`
+                    }
+                    game={game}
+                    demo={isDemo}
+                    onDemoPlaytimeLogged={
+                      isDemo && tourDemo.tourId === "log-playtime"
+                        ? (durationSeconds) =>
+                            setDemoPlaytime((current) => ({
+                              addedSeconds:
+                                current.addedSeconds + durationSeconds,
+                              addedSessions: current.addedSessions + 1,
+                            }))
+                        : undefined
+                    }
+                    showDurationDays={showDurationDays}
+                    view={view}
+                    onRemove={
+                      isDemo
+                        ? demoNotice
+                        : () =>
+                            setPendingRemoval({
+                              gameId: game.gameId,
+                              source: game.source,
+                              name: game.name,
+                              aliases: game.aliases,
+                            })
+                    }
+                    onStopTracking={
+                      isDemo
+                        ? undefined
+                        : game.source
+                          ? () =>
+                              setPendingStopTracking({
+                                gameId: game.gameId,
+                                source: game.source!,
+                                name: game.name,
+                                exeNames: game.exeNames,
+                                emulatorLabels: game.emulatorLabels,
+                                sessionCount: game.sessionCount,
+                                aliases: game.aliases,
+                              })
+                          : undefined
+                    }
+                  />
+                );
+              })}
             </div>
           )}
         </>
@@ -803,12 +933,16 @@ function GameLibraryCard({
   view,
   onRemove,
   onStopTracking,
+  onDemoPlaytimeLogged,
+  demo = false,
 }: {
   game: GameSummary;
   showDurationDays: boolean;
   view: ViewMode;
   onRemove: () => void;
   onStopTracking?: () => void;
+  onDemoPlaytimeLogged?: (durationSeconds: number) => void;
+  demo?: boolean;
 }) {
   const averageSeconds = Math.round(
     game.sessionSeconds / Math.max(1, game.sessionCount),
@@ -818,7 +952,13 @@ function GameLibraryCard({
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
+  const showDemoAdjustMenu = useAppStore(
+    (state) =>
+      state.activeTour?.tourId === "log-playtime" &&
+      state.activeTour.stepIndex === 5,
+  );
   const contextMenu = useContextMenu();
+  const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
   const [showAddPlaytime, setShowAddPlaytime] = useState(false);
@@ -845,6 +985,23 @@ function GameLibraryCard({
   const [convertName, setConvertName] = useState("");
   const [showRename, setShowRename] = useState(false);
   const [renameName, setRenameName] = useState("");
+
+  useEffect(() => {
+    if (!demo) return;
+    if (!showDemoAdjustMenu) {
+      contextMenu.close();
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      const rect = cardRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      contextMenu.openAt({
+        x: rect.left + rect.width / 2,
+        y: rect.top + Math.min(rect.height / 2, 160),
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [demo, showDemoAdjustMenu]);
   const hasActiveSession = useAppStore((state) =>
     state.activeSessions.some((session) =>
       game.aliases.some(
@@ -873,6 +1030,13 @@ function GameLibraryCard({
   // Shown in place of the title while hovering the card.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
+
+  const demoNotice = () =>
+    addToast({
+      tone: "info",
+      title: "Tutorial game",
+      detail: "The sample exists only for this guide - nothing was saved.",
+    });
 
   function submitRename() {
     const name = renameName.trim();
@@ -1106,6 +1270,7 @@ function GameLibraryCard({
   }
 
   const handleCopyExe = () => {
+    if (demo) return demoNotice();
     navigator.clipboard.writeText(game.exeNames[0]);
     addToast({
       tone: "success",
@@ -1116,6 +1281,7 @@ function GameLibraryCard({
   };
 
   const handleCopyName = () => {
+    if (demo) return demoNotice();
     navigator.clipboard.writeText(game.name);
     addToast({
       tone: "success",
@@ -1126,6 +1292,7 @@ function GameLibraryCard({
   };
 
   const handleShowHistory = () => {
+    if (demo) return demoNotice();
     setHistoryQuery(game.name);
     setHistoryGameKey(game.historyGameKey);
     setActiveView("history");
@@ -1133,6 +1300,17 @@ function GameLibraryCard({
   };
 
   const handleAddPlaytime = (durationSeconds: number, endedAt: string) => {
+    if (demo) {
+      setShowAddPlaytime(false);
+      onDemoPlaytimeLogged?.(durationSeconds);
+      addToast({
+        tone: "success",
+        title: "Tutorial session added",
+        detail: `${formatDuration(durationSeconds, showDurationDays)} was added to the sample. It now shows ${formatDuration(game.totalSeconds + durationSeconds, showDurationDays)} across ${game.sessionCount + 1} sessions. Nothing was saved.`,
+      });
+      emitTourEvent("mygames.demo-session-logged");
+      return;
+    }
     addManualSession({
       gameId: game.gameId,
       igdbId: game.igdbId,
@@ -1156,6 +1334,11 @@ function GameLibraryCard({
   };
 
   const handleAdjustPlaytime = (targetSeconds: number) => {
+    if (demo) {
+      setShowAdjustPlaytime(false);
+      demoNotice();
+      return;
+    }
     try {
       setGamePlaytime({
         gameId: game.gameId,
@@ -1253,16 +1436,28 @@ function GameLibraryCard({
     contextMenu.close();
   }
 
+  function openDemoMenu(element: HTMLElement) {
+    const card = element.closest("article") ?? element;
+    const rect = card.getBoundingClientRect();
+    contextMenu.openAt({
+      x: rect.left + rect.width / 2,
+      y: rect.top + Math.min(rect.height / 2, 160),
+    });
+  }
+
   const renderContextMenu = () => (
     <ContextMenu
       open={contextMenu.open}
       position={contextMenu.position}
       onClose={contextMenu.close}
+      dataTour={demo ? "demo-context-menu" : undefined}
+      focusFirstItem={demo}
     >
       <ContextMenuItem icon={History} onClick={handleShowHistory}>
         Show History
       </ContextMenuItem>
       <ContextMenuItem
+        dataTour={demo ? "demo-menu-log-session" : undefined}
         icon={ClockPlus}
         onClick={() => {
           contextMenu.close();
@@ -1272,6 +1467,7 @@ function GameLibraryCard({
         Log missed session
       </ContextMenuItem>
       <ContextMenuItem
+        dataTour={demo ? "demo-menu-adjust-playtime" : undefined}
         icon={Clock3}
         onClick={() => {
           contextMenu.close();
@@ -1395,10 +1591,33 @@ function GameLibraryCard({
     </ContextMenu>
   );
 
+  const demoCardProps = demo
+    ? {
+        "data-tour": "demo-game-card",
+        tabIndex: 0,
+        onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => {
+          if (
+            event.key === "ContextMenu" ||
+            (event.shiftKey && event.key === "F10") ||
+            event.key === "Enter"
+          ) {
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+            contextMenu.openAt({
+              x: rect.left + rect.width / 2,
+              y: rect.top + Math.min(rect.height / 2, 160),
+            });
+          }
+        },
+      }
+    : {};
+
   if (!isList) {
     return (
       <article
+        ref={cardRef}
         {...contextMenu.props}
+        {...demoCardProps}
         className="group flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover"
       >
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
@@ -1417,7 +1636,12 @@ function GameLibraryCard({
           {/* Badges top left */}
           <div className="absolute left-2 top-2 z-20 flex flex-col items-start gap-1.5 drop-shadow-md">
             {game.sources.map((source) => (
-              <SourceBadge key={source} source={source} />
+              <span
+                key={source}
+                data-tour={demo ? `demo-source-${source}` : undefined}
+              >
+                <SourceBadge source={source} />
+              </span>
             ))}
             {game.emulatorIds.map((emulatorId) => (
               <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
@@ -1465,7 +1689,11 @@ function GameLibraryCard({
               icon={ClockPlus}
               aria-label={`Log a missed session for ${game.name}`}
               title="Log missed session"
-              onClick={() => setShowAddPlaytime(true)}
+              onClick={(event) =>
+                demo
+                  ? openDemoMenu(event.currentTarget)
+                  : setShowAddPlaytime(true)
+              }
               className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
             />
             {onStopTracking ? (
@@ -1515,7 +1743,10 @@ function GameLibraryCard({
               game.name
             )}
           </h2>
-          <div className="mt-1 flex items-baseline gap-1.5">
+          <div
+            data-tour={demo ? "demo-playtime-result" : undefined}
+            className="mt-1 flex items-baseline gap-1.5"
+          >
             <span className="font-mono text-lg font-bold tracking-tight text-text">
               {formatDuration(game.totalSeconds, showDurationDays)}
             </span>
@@ -1602,6 +1833,7 @@ function GameLibraryCard({
         {showAddPlaytime ? (
           <AddPlaytimeDialog
             game={game}
+            demo={demo}
             onCancel={() => setShowAddPlaytime(false)}
             onConfirm={handleAddPlaytime}
           />
@@ -1695,7 +1927,9 @@ function GameLibraryCard({
   // List View
   return (
     <article
+      ref={cardRef}
       {...contextMenu.props}
+      {...demoCardProps}
       className="group rounded-xl border border-border bg-surface shadow-raised transition hover:border-accent/40"
     >
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
@@ -1732,7 +1966,12 @@ function GameLibraryCard({
             </h2>
             <div className="flex flex-wrap items-center gap-1.5">
               {game.sources.map((source) => (
-                <SourceBadge key={source} source={source} />
+                <span
+                  key={source}
+                  data-tour={demo ? `demo-source-${source}` : undefined}
+                >
+                  <SourceBadge source={source} />
+                </span>
               ))}
               {game.emulatorIds.map((emulatorId) => (
                 <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
@@ -1794,7 +2033,7 @@ function GameLibraryCard({
               ) : (
                 <Button
                   variant="secondary"
-                  title="Your community suggestion was approved — track this game as the community game from now on"
+                  title="Your community suggestion was approved - track this game as the community game from now on"
                   onClick={() => {
                     convertLocalSuggestionToCommunity(
                       game.communitySuggestionExeName!,
@@ -1807,7 +2046,7 @@ function GameLibraryCard({
                   }}
                   className="border-success-border bg-success-tint px-3 py-1 text-xs text-success"
                 >
-                  Suggestion approved — switch to community version
+                  Suggestion approved - switch to community version
                 </Button>
               )}
             </div>
@@ -1815,7 +2054,13 @@ function GameLibraryCard({
         </div>
 
         <div className="flex items-center gap-6 pr-2">
-          <div className="hidden grid-cols-3 gap-6 sm:grid">
+          <div
+            data-tour={demo ? "demo-playtime-result" : undefined}
+            className={clsx(
+              "grid-cols-3 gap-6",
+              demo ? "grid" : "hidden sm:grid",
+            )}
+          >
             <div className="text-right">
               <div className="text-[11px] font-medium uppercase tracking-wide text-text-faint">
                 Playtime
@@ -1847,7 +2092,11 @@ function GameLibraryCard({
               icon={ClockPlus}
               aria-label={`Log a missed session for ${game.name}`}
               title="Log missed session"
-              onClick={() => setShowAddPlaytime(true)}
+              onClick={(event) =>
+                demo
+                  ? openDemoMenu(event.currentTarget)
+                  : setShowAddPlaytime(true)
+              }
             />
             {onStopTracking ? (
               <IconButton
@@ -1881,6 +2130,7 @@ function GameLibraryCard({
       {showAddPlaytime ? (
         <AddPlaytimeDialog
           game={game}
+          demo={demo}
           onCancel={() => setShowAddPlaytime(false)}
           onConfirm={handleAddPlaytime}
         />
@@ -1999,7 +2249,7 @@ function StopTrackingDialog({
         <p className="mt-2 text-sm text-text-muted">
           {game.emulatorLabels.length > 0
             ? "PlayCounter will ignore this local emulator-content mapping from now on. The emulator itself remains detectable."
-            : "PlayCounter ignores this game's executable from now on — it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
+            : "PlayCounter ignores this game's executable from now on - it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
         </p>
         {game.sessionCount > 0 ? (
           <p className="mt-2 text-sm text-text-muted">
@@ -2050,7 +2300,7 @@ function RemoveGameDialog({
         </h2>
         <p className="mt-2 text-sm text-text-muted">
           Removes the game and its executable link, and stops an active session.
-          If the game runs again it will be re-detected — use Ignore Game to
+          If the game runs again it will be re-detected - use Ignore Game to
           block it for good.
         </p>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
@@ -2081,10 +2331,12 @@ function localDateTimeValue(date: Date) {
 
 function AddPlaytimeDialog({
   game,
+  demo,
   onCancel,
   onConfirm,
 }: {
   game: GameSummary;
+  demo?: boolean;
   onCancel: () => void;
   onConfirm: (durationSeconds: number, endedAt: string) => void;
 }) {
@@ -2109,12 +2361,14 @@ function AddPlaytimeDialog({
 
   return createPortal(
     <div
+      data-tour={demo ? "demo-log-session-backdrop" : undefined}
       className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
     >
       <div
+        data-tour={demo ? "demo-log-session-dialog" : undefined}
         role="dialog"
         aria-modal="true"
         aria-labelledby="log-session-title"
@@ -2219,6 +2473,7 @@ function AddPlaytimeDialog({
 
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
             <Button
+              data-tour={demo ? "demo-log-session-confirm" : undefined}
               variant="primary"
               icon={ClockPlus}
               onClick={handleSubmit}
@@ -2480,7 +2735,7 @@ function MatchCheckDialog({
         setPendingCommunityGameIds(pendingIdSet);
         setFlaggedIdentifier(flag);
         // A single combined IGDB/community result is preselected so applying
-        // is one click — unless it is what the exe already uses. An ambiguous
+        // is one click - unless it is what the exe already uses. An ambiguous
         // set requires an explicit pick.
         setSelection(
           games.length === 1 &&

@@ -161,12 +161,17 @@ export function useContextMenu() {
   };
 
   const close = () => setOpen(false);
+  const openAt = (nextPosition: { x: number; y: number }) => {
+    setPosition(nextPosition);
+    setOpen(true);
+  };
 
   return {
     props: { onContextMenu },
     open,
     position,
     close,
+    openAt,
   };
 }
 
@@ -175,11 +180,15 @@ export function ContextMenu({
   position,
   onClose,
   children,
+  dataTour,
+  focusFirstItem,
 }: {
   open: boolean;
   position: { x: number; y: number };
   onClose: () => void;
   children: ReactNode;
+  dataTour?: string;
+  focusFirstItem?: boolean;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState(position);
@@ -202,6 +211,12 @@ export function ContextMenu({
       if (menuRef.current && menuRef.current.contains(e.target as Node)) {
         return;
       }
+      // Tutorial controls own their transition and cleanup. Closing a guided
+      // menu on mousedown here would trigger its retreat rule before the
+      // Skip/Back/Exit click can run.
+      if (e.target instanceof Element && e.target.closest("[data-tour-card]")) {
+        return;
+      }
       onClose();
     };
     const handleKeyDown = (e: globalThis.KeyboardEvent) => {
@@ -218,11 +233,20 @@ export function ContextMenu({
     };
   }, [open, position, onClose]);
 
+  useEffect(() => {
+    if (open && focusFirstItem) {
+      window.setTimeout(() =>
+        menuRef.current?.querySelector("button")?.focus(),
+      );
+    }
+  }, [focusFirstItem, open]);
+
   if (!open) return null;
 
   return createPortal(
     <div
       ref={menuRef}
+      data-tour={dataTour}
       className="fixed z-50 min-w-40 animate-fade-in overflow-hidden rounded-md border border-border bg-surface py-1 shadow-raised"
       style={{
         top: adjustedPosition.y,
@@ -245,14 +269,17 @@ export function ContextMenuItem({
   danger,
   onClick,
   children,
+  dataTour,
 }: {
   icon?: LucideIcon;
   danger?: boolean;
   onClick: () => void;
   children: ReactNode;
+  dataTour?: string;
 }) {
   return (
     <button
+      data-tour={dataTour}
       type="button"
       className={clsx(
         "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors",

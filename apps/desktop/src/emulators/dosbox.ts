@@ -143,7 +143,7 @@ export function readDosboxTitle(
   }
 
   const survivors = trimmed
-    .split(/\s(?:-|—|\|)\s/)
+    .split(/\s(?:-|-|\|)\s/)
     .map((segment) => segment.trim())
     .filter(Boolean)
     .filter(

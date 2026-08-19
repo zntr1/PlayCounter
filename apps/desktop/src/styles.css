@@ -592,3 +592,35 @@ select {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+/* Guided tour overlay */
+.tour-spotlight {
+  position: fixed;
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.62);
+  pointer-events: none;
+}
+
+.tour-ring {
+  position: fixed;
+  border: 2px solid rgb(var(--color-accent));
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 4px rgb(var(--color-accent) / 0.2),
+    0 0 24px rgb(var(--color-accent) / 0.35);
+  pointer-events: none;
+  animation: tour-ring-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes tour-ring-pulse {
+  50% {
+    box-shadow:
+      0 0 0 7px rgb(var(--color-accent) / 0.12),
+      0 0 30px rgb(var(--color-accent) / 0.42);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-ring {
+    animation: none;
+  }
+}

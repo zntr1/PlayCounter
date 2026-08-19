@@ -311,7 +311,7 @@ export class PostgresRepository implements PlayCounterRepository {
     // Verified community entries are always checked alongside the IGDB
     // database: a community entry for an exe that IGDB also maps is usually a
     // correction, so both candidates go to the picker instead of IGDB winning
-    // silently. Verification is per identifier — a game can be reached through
+    // silently. Verification is per identifier - a game can be reached through
     // several executables, and each of them is reviewed on its own.
     const community = await this.pool.query(
       `SELECT lower(community_game_identifiers.platform) AS platform,
@@ -536,8 +536,8 @@ export class PostgresRepository implements PlayCounterRepository {
   }
 
   // Tells the client which retired community ids belong to the games named in
-  // a result. A client that still holds one of those ids — as a cached match,
-  // or as the id of its own pending suggestion — can then move to the
+  // a result. A client that still holds one of those ids - as a cached match,
+  // or as the id of its own pending suggestion - can then move to the
   // surviving game, without guessing from the name, which two games can share.
   //
   // Every community game in the result is covered, not just the match: an exe
@@ -873,7 +873,7 @@ export class PostgresRepository implements PlayCounterRepository {
     const submittedBy = suggestion.installUuid ?? null;
 
     // If IGDB already maps this exe to the suggested game (directly or as an
-    // ambiguous candidate), there is nothing to review — tell the client to
+    // ambiguous candidate), there is nothing to review - tell the client to
     // apply the IGDB match instead of filing a redundant suggestion.
     const knownIgdb = await this.pool.query<{
       id: number;
@@ -958,14 +958,14 @@ export class PostgresRepository implements PlayCounterRepository {
       }
 
       // Which game this suggestion belongs to is decided once, here, and every
-      // step below works off that id — the identity rule must not be repeated
+      // step below works off that id - the identity rule must not be repeated
       // in several queries that could disagree.
       //
       // The picked IGDB metadata is the identity. Name and cover art together
       // are the fallback: two games can share a title, but not a title and an
       // IGDB cover image. It carries suggestions from clients released before
       // igdb ids were sent, and lets a suggestion that has one adopt a row
-      // that predates them — but never a row already identified as a
+      // that predates them - but never a row already identified as a
       // different game.
       const knownGame = await client.query<{
         id: number;
@@ -1040,7 +1040,7 @@ export class PostgresRepository implements PlayCounterRepository {
       }
 
       // The new identifier always starts unverified, even on a game that is
-      // already live — otherwise any exe could be published without review.
+      // already live - otherwise any exe could be published without review.
       const inserted = await client.query<IdentifierReviewRow>(
         `INSERT INTO community_game_identifiers
            (platform, kind, value, game_id, verified, status)

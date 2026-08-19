@@ -99,9 +99,9 @@ beforeEach(() => {
     userIgnoredProcesses: new Set(),
     settings: {
       ...useAppStore.getState().settings,
-      desktopOverlaysEnabled: false,
+      desktopOverlaysEnabled: true,
       overlayFirstDetections: true,
-      overlaySessionStarts: false,
+      overlaySessionStarts: true,
       overlaySessionSummaries: true,
       overlayMilestones: true,
       overlayDiscoveries: false,
@@ -110,11 +110,11 @@ beforeEach(() => {
 });
 
 describe("desktop overlay settings", () => {
-  it("defaults the master off and keeps only high-signal children on", () => {
+  it("defaults notifications on except for new discoveries", () => {
     expect(useAppStore.getState().settings).toMatchObject({
-      desktopOverlaysEnabled: false,
+      desktopOverlaysEnabled: true,
       overlayFirstDetections: true,
-      overlaySessionStarts: false,
+      overlaySessionStarts: true,
       overlaySessionSummaries: true,
       overlayMilestones: true,
       overlayDiscoveries: false,

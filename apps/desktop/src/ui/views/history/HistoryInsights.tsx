@@ -195,7 +195,7 @@ export const HistoryInsights = memo(function HistoryInsights({
     ? new Date(
         `${allTimeStats.busiestDay.dateKey}T00:00:00`,
       ).toLocaleDateString([], { month: "short", day: "numeric" })
-    : "—";
+    : "-";
 
   return (
     <div className="grid min-w-0 gap-6">
@@ -233,7 +233,7 @@ export const HistoryInsights = memo(function HistoryInsights({
         />
       </div>
 
-      <Panel className="min-w-0 p-5">
+      <Panel dataTour="history-playtime-chart" className="min-w-0 p-5">
         <PanelHeading
           id="playtime-chart-heading"
           title="Playtime over time"

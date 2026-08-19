@@ -113,7 +113,7 @@ export function readDolphinTitle(
   }
 
   const segments = trimmed
-    .split(/\s(?:-|—|\|)\s/)
+    .split(/\s(?:-|-|\|)\s/)
     .map((segment) => segment.trim())
     .filter(Boolean);
   const dolphinIndex = segments.findIndex((segment) =>

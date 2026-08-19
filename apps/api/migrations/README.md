@@ -12,19 +12,19 @@ CI runs the migrate step against the target environment's `DATABASE_URL`
 
 ## Rule: migrations must be backward compatible (expand / contract)
 
-Because migrations run before the new API rolls out — and during a rollout the
-old and new API run against the same schema — every migration must keep the
+Because migrations run before the new API rolls out - and during a rollout the
+old and new API run against the same schema - every migration must keep the
 **currently deployed** API working. Never break a running client or API.
 
 Use the expand/contract pattern across releases:
 
-1. **Expand** — add the new shape, additively:
+1. **Expand** - add the new shape, additively:
    - Add columns as `NULL` or with a `DEFAULT`; never `NOT NULL` without a default.
    - Add new tables/indexes.
    - Backfill data in the same or a follow-up migration.
-2. **Migrate code** — ship API + desktop that write/read the new shape while
+2. **Migrate code** - ship API + desktop that write/read the new shape while
    still tolerating the old shape.
-3. **Contract** — only in a *later* release, once nothing reads the old shape:
+3. **Contract** - only in a *later* release, once nothing reads the old shape:
    drop columns/tables, add constraints, rename via add-copy-drop.
 
 ### Do not, in a single release

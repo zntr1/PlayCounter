@@ -4,9 +4,11 @@ import type { ContributionStatus, GameSource } from "@playcounter/shared";
 export function Panel({
   children,
   className = "",
-}: PropsWithChildren<{ className?: string }>) {
+  dataTour,
+}: PropsWithChildren<{ className?: string; dataTour?: string }>) {
   return (
     <section
+      data-tour={dataTour}
       className={`rounded-lg border border-border bg-surface shadow-raised ${className}`}
     >
       {children}

@@ -196,7 +196,7 @@ function ListGame({
   const content = (
     <>
       <span className="text-center font-mono text-[11px] font-bold text-text-faint">
-        {game.key ? rank + 1 : "—"}
+        {game.key ? rank + 1 : "-"}
       </span>
       <GameCover game={game} className="h-6 w-5" />
       <span className="min-w-0">

@@ -73,6 +73,29 @@ function makeState(
 }
 
 describe("session persistence", () => {
+  it("persists tutorial progress with local data", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+
+    persistAppState({
+      ...makeState([]),
+      tourProgress: {
+        version: 1,
+        welcomeVersion: 1,
+        completed: { core: 1 },
+      },
+    });
+
+    expect(JSON.parse(setItem.mock.calls[0][1]).tours).toEqual({
+      version: 1,
+      welcomeVersion: 1,
+      completed: { core: 1 },
+    });
+  });
+
   it("retains structured emulator provenance on completed sessions", () => {
     const setItem = vi.fn();
     Object.defineProperty(globalThis, "localStorage", {

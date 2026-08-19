@@ -361,7 +361,10 @@ export function HistoryView() {
 
   return (
     <div ref={viewRef} className="flex min-w-0 flex-col gap-6">
-      <Panel className="history-toolbar sticky top-0 z-30 flex min-w-0 flex-wrap items-center justify-between gap-4 bg-surface p-4">
+      <Panel
+        dataTour="history-toolbar"
+        className="history-toolbar sticky top-0 z-30 flex min-w-0 flex-wrap items-center justify-between gap-4 bg-surface p-4"
+      >
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           {historyFilters.map((entry) => (
             <button
@@ -530,10 +533,7 @@ export function HistoryView() {
               <span className="font-mono text-text">
                 {timelineSessions.length}
               </span>{" "}
-              of{" "}
-              <span className="font-mono text-text">
-                {sessions.length}
-              </span>{" "}
+              of <span className="font-mono text-text">{sessions.length}</span>{" "}
               sessions
             </div>
             <SectionToggle

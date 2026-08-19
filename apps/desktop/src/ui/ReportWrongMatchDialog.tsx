@@ -25,7 +25,7 @@ export function ReportWrongMatchDialog({
         <p className="mt-2 text-sm text-text-muted">
           {gameName ? (
             <>
-              PlayCounter is tracking it as <strong>{gameName}</strong> — that
+              PlayCounter is tracking it as <strong>{gameName}</strong> - that
               looks wrong.
             </>
           ) : (

@@ -33,7 +33,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_community_games_igdb_id
 -- Existing rows have no igdb_id yet, so the group is name plus cover art: the
 -- cover URL carries the IGDB image id of the metadata that was picked, which
 -- makes two rows the same game far more reliably than the name alone. Rows
--- without a cover are never merged — nothing there proves they are the same
+-- without a cover are never merged - nothing there proves they are the same
 -- game, and the merge cannot be undone.
 CREATE TEMP TABLE community_game_canonicals ON COMMIT DROP AS
 SELECT games.id AS game_id,

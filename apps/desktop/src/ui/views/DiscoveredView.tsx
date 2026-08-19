@@ -55,6 +55,7 @@ import {
   type IgnoredProcessSort,
 } from "../discoveredSort";
 import { AnimatedCount, Button, IconButton, Input } from "../primitives";
+import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import {
   communityMetadataSearchUrl,
   mergeCommunityMetadataCandidates,
@@ -110,6 +111,17 @@ type DiscoveredExecutable = ProcessSnapshot & {
   isRunning: boolean;
   status: DiscoveryStatus;
   cacheEntry: ExeCacheEntry | null;
+  isTutorial?: boolean;
+};
+
+const TOUR_DISCOVERED_EXECUTABLE: DiscoveredExecutable = {
+  key: `playcounter-tour:${TOUR_DEMO_GAME.exeName.toLowerCase()}`,
+  exeName: TOUR_DEMO_GAME.exeName,
+  exePath: TOUR_DEMO_GAME.exePath,
+  isRunning: true,
+  status: "unmatched",
+  cacheEntry: null,
+  isTutorial: true,
 };
 
 type DiscoverySection = {
@@ -231,6 +243,9 @@ function unmatchedRetryAt(cacheEntry: ExeCacheEntry | null, retryDays: number) {
 }
 
 export function DiscoveredView() {
+  const isFixDetectionTour = useAppStore(
+    (state) => state.activeTour?.tourId === "fix-detection",
+  );
   const [pendingExe, setPendingExe] = useState<string | null>(null);
   const [customGameExe, setCustomGameExe] = useState<string | null>(null);
   const [customGameName, setCustomGameName] = useState("");
@@ -647,6 +662,9 @@ export function DiscoveredView() {
         .sort(sortDiscovered),
     [discoverySections],
   );
+  const availableExecutables = isFixDetectionTour
+    ? [TOUR_DISCOVERED_EXECUTABLE, ...allExecutables]
+    : allExecutables;
   const activeFilter =
     discoveryFilters.find((entry) => entry.id === filter) ??
     discoveryFilters[0];
@@ -662,7 +680,7 @@ export function DiscoveredView() {
       matchedName.toLowerCase().includes(needle)
     );
   };
-  const searchable = allExecutables.filter(matchesSearch);
+  const searchable = availableExecutables.filter(matchesSearch);
   const matchingExecutables = filterRunningExecutables(
     searchable.filter((executable) =>
       activeFilter.statuses.includes(executable.status),
@@ -670,7 +688,7 @@ export function DiscoveredView() {
     filter,
     runningOnly,
   );
-  const filteredExecutables =
+  const filteredExecutablesBase =
     filter === "ignored"
       ? sortIgnoredExecutables(matchingExecutables, ignoredSort, [
           ...userIgnoredProcesses,
@@ -679,6 +697,15 @@ export function DiscoveredView() {
       : filter === "review"
         ? sortReviewExecutables(matchingExecutables)
         : matchingExecutables;
+  const filteredExecutables =
+    isFixDetectionTour && filter === "review"
+      ? [
+          TOUR_DISCOVERED_EXECUTABLE,
+          ...filteredExecutablesBase.filter(
+            (executable) => executable.key !== TOUR_DISCOVERED_EXECUTABLE.key,
+          ),
+        ]
+      : filteredExecutablesBase;
   const runningCount = searchable.filter(
     (executable) => executable.isRunning && executable.status === "userIgnored",
   ).length;
@@ -719,6 +746,14 @@ export function DiscoveredView() {
     if (remaining.length === 0) return null;
     if (currentIndex < 0) return remaining[0].key;
     return remaining[Math.min(currentIndex, remaining.length - 1)].key;
+  }
+
+  function showTutorialProcessNotice() {
+    addToast({
+      tone: "info",
+      title: "Tutorial process",
+      detail: `${TOUR_DEMO_GAME.exeName} exists only inside this guide. Nothing was changed or saved.`,
+    });
   }
 
   return (
@@ -767,7 +802,10 @@ export function DiscoveredView() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+        <div
+          data-tour="discovered-filters"
+          className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3"
+        >
           {discoveryFilters.map((entry) => {
             const count = filterRunningExecutables(
               searchable.filter((executable) =>
@@ -875,6 +913,10 @@ export function DiscoveredView() {
                     }}
                     onCustomGameNameChange={setCustomGameName}
                     onIgnore={async () => {
+                      if (activeReviewItem.isTutorial) {
+                        showTutorialProcessNotice();
+                        return;
+                      }
                       const nextKey = nextReviewKeyAfter(activeReviewItem.key);
                       const ignored = await ignoreExecutable(
                         activeReviewItem.exeName,
@@ -883,26 +925,45 @@ export function DiscoveredView() {
                     }}
                     isOffline={isOffline}
                     onRecheck={() => {
+                      if (activeReviewItem.isTutorial) {
+                        showTutorialProcessNotice();
+                        return;
+                      }
                       if (isOffline) return;
                       setRetryingExe(activeReviewItem.key);
                       void recheckExecutable(activeReviewItem.exeName);
                     }}
-                    onSaveCustomGame={() =>
-                      saveCustomGame(activeReviewItem.exeName)
-                    }
-                    onStartCustomGame={() =>
-                      startCustomGameEntry(activeReviewItem.exeName)
-                    }
-                    onSuggest={() =>
-                      startCommunitySuggestion(activeReviewItem.exeName)
-                    }
+                    onSaveCustomGame={() => {
+                      if (activeReviewItem.isTutorial) {
+                        showTutorialProcessNotice();
+                        return;
+                      }
+                      saveCustomGame(activeReviewItem.exeName);
+                    }}
+                    onStartCustomGame={() => {
+                      if (activeReviewItem.isTutorial) {
+                        showTutorialProcessNotice();
+                        return;
+                      }
+                      startCustomGameEntry(activeReviewItem.exeName);
+                    }}
+                    onSuggest={() => {
+                      if (activeReviewItem.isTutorial) {
+                        showTutorialProcessNotice();
+                        return;
+                      }
+                      startCommunitySuggestion(activeReviewItem.exeName);
+                    }}
                     onSkip={handleSkip}
                     onSelectReview={(key) => setActiveReviewKey(key)}
                   />
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface px-4 py-16 text-center">
+              <div
+                data-tour="discovered-wizard"
+                className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface px-4 py-16 text-center"
+              >
                 <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-success/10 text-success">
                   <CheckCircle size={32} />
                 </div>
@@ -1159,7 +1220,10 @@ function TriageWizardCard({
   }
 
   return (
-    <div className="animate-fade-in overflow-hidden rounded-xl border border-border bg-surface shadow-md">
+    <div
+      data-tour="discovered-wizard"
+      className="animate-fade-in overflow-hidden rounded-xl border border-border bg-surface shadow-md"
+    >
       <div className="border-b border-border bg-surface-hover/30 px-6 py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -1296,6 +1360,11 @@ function TriageWizardCard({
               {executable.exeName}
             </h3>
           </div>
+          {executable.isTutorial ? (
+            <span className="rounded-full border border-accent/30 bg-accent-tint px-2.5 py-1 text-xs font-semibold text-accent">
+              Tutorial sample · not saved
+            </span>
+          ) : null}
           <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
             <span
               className={clsx(
@@ -1358,6 +1427,7 @@ function TriageWizardCard({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Button
+            data-tour="discovered-add-share"
             variant="primary"
             icon={Send}
             disabled={
@@ -1372,6 +1442,7 @@ function TriageWizardCard({
             Add & Share
           </Button>
           <Button
+            data-tour="discovered-add-custom"
             variant="secondary"
             icon={Gamepad2}
             disabled={isPending || isRetrying || isCustomGameEntryOpen}
@@ -1381,6 +1452,7 @@ function TriageWizardCard({
             Add as Custom
           </Button>
           <Button
+            data-tour="discovered-ignore"
             variant="secondary"
             icon={EyeOff}
             disabled={isPending || isRetrying || isCustomGameEntryOpen}
@@ -1390,6 +1462,7 @@ function TriageWizardCard({
             Ignore
           </Button>
           <Button
+            data-tour="discovered-skip"
             variant="ghost"
             icon={SkipForward}
             disabled={isPending || isRetrying || isCustomGameEntryOpen}

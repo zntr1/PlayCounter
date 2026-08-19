@@ -10,6 +10,7 @@ type SidebarButtonProps = {
   warn?: boolean;
   isPlaying?: boolean;
   onClick: () => void;
+  dataTour?: string;
 };
 
 export function SidebarButton({
@@ -21,9 +22,11 @@ export function SidebarButton({
   warn,
   isPlaying,
   onClick,
+  dataTour,
 }: SidebarButtonProps) {
   return (
     <button
+      data-tour={dataTour}
       type="button"
       onClick={onClick}
       className={clsx(

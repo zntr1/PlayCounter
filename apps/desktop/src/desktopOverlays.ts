@@ -156,7 +156,7 @@ function overlayCopy(
       ? {
           kicker: "FIRST AUTO-DETECTION",
           title: event.gameName,
-          body: "Nice — PlayCounter found it automatically. Tracking starts now.",
+          body: "PlayCounter found it automatically. Tracking starts now.",
           status: "live",
           coverUrl: event.coverUrl,
         }

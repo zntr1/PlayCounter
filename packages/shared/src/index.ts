@@ -79,8 +79,8 @@ export interface MatchProcessesRequest {
 }
 
 // Community game ids that were merged into `gameId` and no longer exist. A
-// client still holding one of them — as a cached match or as the id of its own
-// pending suggestion — is holding a retired id for this exact game and can
+// client still holding one of them - as a cached match or as the id of its own
+// pending suggestion - is holding a retired id for this exact game and can
 // move over. Any other id is a different game.
 export interface CommunityGameAlias {
   gameId: number;
@@ -104,7 +104,7 @@ export interface MatchProcessesResponse {
     // distinguish a rejected suggestion from one hidden behind another match.
     // The singular field remains for older clients and discovery UI.
     pendingCommunityGames?: Game[];
-    // Covers every community game named in this result — the match, the
+    // Covers every community game named in this result - the match, the
     // ambiguous candidates and pending suggestions. Community and IGDB
     // entries for one exe deliberately end up in the picker, so a merged game
     // often appears only as a candidate.
@@ -146,7 +146,7 @@ export interface CommunityGameSuggestionResponse {
   rejected?: boolean;
   reviewNote?: string;
   // Set instead of id/verified when the suggested game is already a known
-  // IGDB match for the exe — the client applies it directly, no review needed.
+  // IGDB match for the exe - the client applies it directly, no review needed.
   igdbGame?: Game;
 }
 

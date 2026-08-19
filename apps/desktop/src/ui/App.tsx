@@ -37,6 +37,7 @@ import { NowEmulatingView } from "./views/NowEmulatingView";
 import { DolphinView, DosboxView } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
+import { HelpButton, TourOverlay, WelcomePrompt } from "./tour/TourUI";
 import {
   BUILD_STAGE,
   useAppStore,
@@ -284,7 +285,10 @@ export function App() {
 
   return (
     <main className="flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg">
-      <aside className="flex w-[260px] flex-col border-r border-border bg-surface/50 shadow-sidebar backdrop-blur-xl">
+      <aside
+        data-tour="sidebar"
+        className="flex w-[260px] flex-col border-r border-border bg-surface/50 shadow-sidebar backdrop-blur-xl"
+      >
         <div className="flex items-center justify-center gap-3 px-4 py-8">
           <img
             src="/icon.png"
@@ -338,6 +342,7 @@ export function App() {
                         imageSrc={view.imageSrc}
                         label={view.label}
                         active={activeView === item}
+                        dataTour={`nav-${item}`}
                         badge={
                           item === "discovered"
                             ? needsReviewCount
@@ -382,7 +387,10 @@ export function App() {
         </div>
       </aside>
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-border bg-surface px-7">
+        <header
+          data-tour="header"
+          className="flex h-16 items-center justify-between border-b border-border bg-surface px-7"
+        >
           <div>
             <h1 className="text-xl font-semibold tracking-normal text-text">
               {views[activeView].label}
@@ -392,6 +400,7 @@ export function App() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <HelpButton />
             <NotificationBell />
             <IconButton
               aria-label={
@@ -468,7 +477,10 @@ export function App() {
           </div>
         ) : null}
         <div className="relative min-h-0 flex-1">
-          <div className="absolute inset-0 overflow-auto px-7 py-6">
+          <div
+            data-tour="content"
+            className="absolute inset-0 overflow-auto px-7 py-6"
+          >
             {views[activeView].component}
           </div>
           {/* Scroll Fade Overlay */}
@@ -479,6 +491,8 @@ export function App() {
         <FeedbackDialog onClose={() => setFeedbackOpen(false)} />
       ) : null}
       <ToastViewport />
+      <WelcomePrompt />
+      <TourOverlay />
     </main>
   );
 }

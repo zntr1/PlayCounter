@@ -1,4 +1,10 @@
-import { Download, FolderOpen, RotateCcw, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  Download,
+  FolderOpen,
+  RotateCcw,
+  Upload,
+} from "lucide-react";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
 import {
@@ -22,6 +28,7 @@ import { Button, useEscapeKey } from "../primitives";
 import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
+import { TutorialSettingsPanel } from "../tour/TourUI";
 
 type UpdateStatus =
   | "idle"
@@ -226,6 +233,54 @@ export function SettingsView() {
   return (
     <div className="grid max-w-4xl gap-5">
       <SettingsPanel
+        dataTour="settings-general"
+        description="Control background behavior and how playtimes are shown."
+        title="General"
+      >
+        <SettingsRow
+          description="Strongly recommended. PlayCounter starts when you sign in so it can detect every game session; if disabled, tracking only works after you open the app manually."
+          title="Launch on startup"
+        >
+          <input
+            type="checkbox"
+            checked={settings.launchOnStartup}
+            disabled={startupSyncing}
+            onChange={(event) =>
+              void handleLaunchOnStartupChange(event.target.checked)
+            }
+            className="h-5 w-5 accent-accent disabled:opacity-50"
+          />
+        </SettingsRow>
+        {!settings.launchOnStartup && !startupSyncing ? (
+          <div className="flex items-start gap-3 rounded-lg border border-danger-border bg-danger-tint px-4 py-3 text-sm text-danger">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+            <div>
+              <div className="font-semibold">Auto-start is disabled</div>
+              <p className="mt-1 leading-5">
+                This is not recommended. PlayCounter cannot detect or record
+                sessions until you open it manually.
+              </p>
+            </div>
+          </div>
+        ) : null}
+        {startupError ? (
+          <p className="break-words text-sm text-danger">{startupError}</p>
+        ) : null}
+        <SettingsRow
+          description="Shows long playtimes as days and hours instead of total hours."
+          title="Show days in playtime"
+        >
+          <input
+            type="checkbox"
+            checked={settings.showDurationDays}
+            onChange={(event) => setShowDurationDays(event.target.checked)}
+            className="h-5 w-5 accent-accent"
+          />
+        </SettingsRow>
+      </SettingsPanel>
+
+      <SettingsPanel
+        dataTour="settings-appearance"
         description="Personalize PlayCounter's interactive controls and highlights."
         title="Appearance"
       >
@@ -257,6 +312,7 @@ export function SettingsView() {
 
       {currentPlatform() !== "macos" ? (
         <SettingsPanel
+          dataTour="settings-notifications"
           description="Show stylish PlayCounter overlays while you play."
           title="Notifications"
         >
@@ -376,6 +432,7 @@ export function SettingsView() {
       ) : null}
 
       <SettingsPanel
+        dataTour="settings-emulators"
         description="Detect games launched inside supported emulator processes, including DOSBox and Dolphin."
         title="Emulators"
       >
@@ -465,44 +522,11 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Control background behavior and how playtimes are shown."
-        title="General"
-      >
-        <SettingsRow
-          description="Starts PlayCounter when you sign in and keeps it available from the tray."
-          title="Launch on startup"
-        >
-          <input
-            type="checkbox"
-            checked={settings.launchOnStartup}
-            disabled={startupSyncing}
-            onChange={(event) =>
-              void handleLaunchOnStartupChange(event.target.checked)
-            }
-            className="h-5 w-5 accent-accent disabled:opacity-50"
-          />
-        </SettingsRow>
-        {startupError ? (
-          <p className="break-words text-sm text-danger">{startupError}</p>
-        ) : null}
-        <SettingsRow
-          description="Shows long playtimes as days and hours instead of total hours."
-          title="Show days in playtime"
-        >
-          <input
-            type="checkbox"
-            checked={settings.showDurationDays}
-            onChange={(event) => setShowDurationDays(event.target.checked)}
-            className="h-5 w-5 accent-accent"
-          />
-        </SettingsRow>
-      </SettingsPanel>
-
-      <SettingsPanel
         description="Tune how PlayCounter discovers executables and retries unknown apps."
         title="Discovery"
       >
         <SettingsRow
+          dataTour="settings-sharing"
           description="When enabled, ignoring an unrecognized process also sends its file name, platform, and anonymous install ID for admin review to improve PlayCounter for all!"
           title="Automatically share ignored processes"
         >
@@ -577,26 +601,12 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Manual recovery actions for stale local tracking state."
-        title="Maintenance"
-      >
-        <SettingsRow
-          description="Clears cached executable matches and errors. Your play history is not deleted."
-          title="Reset local cache"
-        >
-          <div className="flex shrink-0 justify-end">
-            <Button variant="danger" onClick={() => setConfirmResetCache(true)}>
-              Reset cache
-            </Button>
-          </div>
-        </SettingsRow>
-      </SettingsPanel>
-
-      <SettingsPanel
+        dataTour="settings-backup"
         description="Move your play history and game cache to another PC. Backups are plain JSON files."
         title="Backup & transfer"
       >
         <SettingsRow
+          dataTour="settings-backup-export"
           description="Save all local data (play history, game cache, settings) to a JSON file you can copy to another PC."
           title="Export data"
         >
@@ -611,6 +621,7 @@ export function SettingsView() {
           </div>
         </SettingsRow>
         <SettingsRow
+          dataTour="settings-backup-import"
           description="Replace all local data with a backup file. Your current data is backed up automatically first."
           title="Import data"
         >
@@ -627,6 +638,31 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
+        dataTour="settings-maintenance"
+        description="Manual recovery actions for stale local tracking state."
+        title="Maintenance"
+      >
+        <SettingsRow
+          description="Clears cached executable matches and errors. Your play history is not deleted."
+          title="Reset local cache"
+        >
+          <div className="flex shrink-0 justify-end">
+            <Button variant="danger" onClick={() => setConfirmResetCache(true)}>
+              Reset cache
+            </Button>
+          </div>
+        </SettingsRow>
+      </SettingsPanel>
+
+      <SettingsPanel
+        description="Tutorials and task guides are available from the Help menu in the top-right corner."
+        title="Help & tutorials"
+      >
+        <TutorialSettingsPanel />
+      </SettingsPanel>
+
+      <SettingsPanel
+        dataTour="settings-updates"
         description="Check and install updates from the configured release feed."
         title="Updates"
       >
@@ -704,13 +740,15 @@ function SettingsPanel({
   title,
   description,
   children,
+  dataTour,
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
+  dataTour?: string;
 }) {
   return (
-    <Panel className="overflow-hidden">
+    <Panel dataTour={dataTour} className="overflow-hidden">
       <div className="border-b border-border px-5 py-4">
         <h2 className="font-semibold text-text">{title}</h2>
         <p className="mt-1 text-sm text-text-muted">{description}</p>
@@ -725,14 +763,17 @@ function SettingsRow({
   description,
   children,
   className,
+  dataTour,
 }: {
   title: string;
   description: string;
   children: React.ReactNode;
   className?: string;
+  dataTour?: string;
 }) {
   return (
     <div
+      data-tour={dataTour}
       className={`flex items-start justify-between gap-5 ${className ?? ""}`}
     >
       <div className="min-w-0">
