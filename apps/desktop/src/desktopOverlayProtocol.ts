@@ -9,6 +9,8 @@ export type DesktopOverlayMessage = {
   id: string;
   sequence: number;
   kind: DesktopOverlayKind;
+  /** Processes whose game window should receive a launch notification. */
+  targetPids?: number[];
   priority: number;
   kicker: string;
   title: string;

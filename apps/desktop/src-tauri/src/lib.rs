@@ -238,6 +238,7 @@ pub fn run() {
             privacy_context,
             get_exe_icon,
             notification_overlay::notification_overlay_prepare,
+            notification_overlay::notification_overlay_wait_for_game_window,
             notification_overlay::notification_overlay_show,
             notification_overlay::notification_overlay_hide,
             notification_overlay::notification_overlay_close,

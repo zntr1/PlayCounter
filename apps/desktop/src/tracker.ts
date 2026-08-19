@@ -696,14 +696,26 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   // A game can run under several executables at once (launcher, anti-cheat
   // wrapper, client). They all resolve to the same game and share one session:
   // the first one seen starts it, and it only ends once none of them is left.
-  const matchesByGame = new Map<string, ProcessMatch>();
+  const matchesByGame = new Map<
+    string,
+    { primary: ProcessMatch; targetPids: number[] }
+  >();
   for (const match of matches) {
     const key = activeSessionKey(
       match.game.id,
       match.game.source,
       match.game.igdbId,
     );
-    if (!matchesByGame.has(key)) matchesByGame.set(key, match);
+    const pid = match.process.pid;
+    const grouped = matchesByGame.get(key);
+    if (!grouped) {
+      matchesByGame.set(key, {
+        primary: match,
+        targetPids: pid === undefined ? [] : [pid],
+      });
+    } else if (pid !== undefined && !grouped.targetPids.includes(pid)) {
+      grouped.targetPids.push(pid);
+    }
   }
   const nextKeys = new Set(matchesByGame.keys());
   const runningProcessKeys = new Set(
@@ -711,9 +723,9 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   );
 
   for (const current of currentSessions) {
-    const continuingMatch = matchesByGame.get(sessionIdentityKey(current));
-    if (continuingMatch) {
-      reconcileSessionProvenance(current, continuingMatch);
+    const continuingGroup = matchesByGame.get(sessionIdentityKey(current));
+    if (continuingGroup) {
+      reconcileSessionProvenance(current, continuingGroup.primary);
       checkpointActiveSessionIfDue(current);
       verboseRuntime(
         `scan active session unchanged ${current.gameName} (${current.exeName})`,
@@ -760,12 +772,14 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     activeAfterEnds.map((session) => sessionIdentityKey(session)),
   );
 
-  for (const [key, match] of matchesByGame) {
+  for (const [key, group] of matchesByGame) {
     if (!activeKeys.has(key)) {
+      const match = group.primary;
       startSession(match.process, match.game, {
         startedAt: match.startedAt,
         emulator: match.emulator,
         origin: "automatic",
+        targetPids: group.targetPids,
       });
     }
   }
@@ -2482,6 +2496,7 @@ type StartSessionOptions = {
   startedAt?: string;
   emulator?: EmulatorLaunchContext;
   origin: "automatic" | "manual";
+  targetPids?: number[];
 };
 
 function startSession(
@@ -2549,6 +2564,9 @@ function startSession(
       gameName: game.name,
       coverUrl: game.coverUrl,
       firstAutoDetection,
+      targetPids:
+        options.targetPids ??
+        (process.pid === undefined ? undefined : [process.pid]),
     });
   }
   return session;

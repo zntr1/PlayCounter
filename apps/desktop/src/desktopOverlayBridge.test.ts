@@ -57,8 +57,9 @@ afterEach(() => {
 });
 
 async function flush() {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 6; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 function showCalls() {
@@ -186,6 +187,72 @@ describe("desktop overlay bridge", () => {
     clearDesktopOverlays();
     resolveVisible(false);
     await flush();
+    expect(showCalls()).toHaveLength(0);
+  });
+
+  it("waits for the launched game window before showing on its monitor", async () => {
+    let markWindowReady!: (ready: boolean) => void;
+    invokeMock.mockImplementation((command) =>
+      command === "notification_overlay_wait_for_game_window"
+        ? new Promise<boolean>((resolve) => (markWindowReady = resolve))
+        : Promise.resolve(undefined),
+    );
+    useAppStore.setState((state) => ({
+      settings: {
+        ...state.settings,
+        desktopOverlaysEnabled: true,
+        overlaySessionStarts: true,
+      },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+    emitOverlayEvent({
+      type: "session-started",
+      gameName: "Game",
+      firstAutoDetection: false,
+      targetPids: [4242, 4343],
+    });
+    await flush();
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "notification_overlay_wait_for_game_window",
+      { targetPids: [4242, 4343] },
+    );
+    expect(showCalls()).toHaveLength(0);
+
+    markWindowReady(true);
+    await flush();
+    expect(showCalls()).toHaveLength(1);
+    expect(showCalls()[0]?.[1]).toMatchObject({
+      payload: { targetPids: [4242, 4343] },
+    });
+  });
+
+  it("does not show a launch card when no game window becomes ready", async () => {
+    invokeMock.mockImplementation((command) =>
+      Promise.resolve(
+        command === "notification_overlay_wait_for_game_window"
+          ? false
+          : undefined,
+      ),
+    );
+    useAppStore.setState((state) => ({
+      settings: {
+        ...state.settings,
+        desktopOverlaysEnabled: true,
+        overlaySessionStarts: true,
+      },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+    emitOverlayEvent({
+      type: "session-started",
+      gameName: "Game",
+      firstAutoDetection: false,
+      targetPids: [4242],
+    });
+    await flush();
+
     expect(showCalls()).toHaveLength(0);
   });
 });

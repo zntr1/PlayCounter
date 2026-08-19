@@ -22,6 +22,8 @@ pub struct OverlayPayload {
     id: String,
     sequence: u64,
     kind: String,
+    #[serde(default)]
+    target_pids: Vec<u32>,
     priority: i32,
     kicker: String,
     title: String,
@@ -101,6 +103,10 @@ fn sanitize(mut payload: OverlayPayload) -> OverlayPayload {
     payload.theme = truncate(payload.theme, 16);
     payload.accent_color = truncate_optional(payload.accent_color, 16);
     payload.duration_ms = payload.duration_ms.clamp(500, 15_000);
+    payload.target_pids.retain(|pid| *pid > 0);
+    payload.target_pids.sort_unstable();
+    payload.target_pids.dedup();
+    payload.target_pids.truncate(16);
     payload
 }
 
@@ -139,7 +145,18 @@ mod imp {
         Ok(window)
     }
 
-    fn selected_monitor(app: &tauri::AppHandle) -> Result<tauri::Monitor, String> {
+    fn selected_monitor(
+        app: &tauri::AppHandle,
+        target_pids: &[u32],
+    ) -> Result<tauri::Monitor, String> {
+        if let Some((x, y)) = process_window_center(target_pids) {
+            if let Some(monitor) = app
+                .monitor_from_point(x, y)
+                .map_err(|error| error.to_string())?
+            {
+                return Ok(monitor);
+            }
+        }
         if let Some((x, y)) = foreground_window_center() {
             if let Some(monitor) = app
                 .monitor_from_point(x, y)
@@ -164,8 +181,9 @@ mod imp {
     fn position_window(
         app: &tauri::AppHandle,
         window: &tauri::WebviewWindow,
+        payload: &OverlayPayload,
     ) -> Result<(), String> {
-        let monitor = selected_monitor(app)?;
+        let monitor = selected_monitor(app, &payload.target_pids)?;
         let area = monitor.work_area();
         let rect = overlay_rect(
             PhysRect {
@@ -195,7 +213,7 @@ mod imp {
         payload: OverlayPayload,
     ) -> Result<(), String> {
         let window = ensure_window(app)?;
-        position_window(app, &window)?;
+        position_window(app, &window, &payload)?;
         *state.current_id.lock().map_err(|error| error.to_string())? = Some(payload.id.clone());
         if state.ready.load(Ordering::Acquire) {
             app.emit_to(OVERLAY_LABEL, SHOW_EVENT, payload)
@@ -272,6 +290,112 @@ mod imp {
     }
 
     #[cfg(target_os = "windows")]
+    pub async fn wait_for_game_window(target_pids: Vec<u32>) -> bool {
+        const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(250);
+        const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+        const REQUIRED_READY_POLLS: u8 = 6;
+
+        if target_pids.is_empty() {
+            return true;
+        }
+
+        let started = std::time::Instant::now();
+        let mut ready_polls = 0;
+        while started.elapsed() < TIMEOUT {
+            if process_window_center(&target_pids).is_some() {
+                ready_polls += 1;
+                if ready_polls >= REQUIRED_READY_POLLS {
+                    return true;
+                }
+            } else {
+                ready_polls = 0;
+            }
+            tokio::time::sleep(POLL_INTERVAL).await;
+        }
+        false
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    pub async fn wait_for_game_window(_target_pids: Vec<u32>) -> bool {
+        true
+    }
+
+    #[cfg(target_os = "windows")]
+    fn process_window_center(target_pids: &[u32]) -> Option<(f64, f64)> {
+        use windows_sys::Win32::{
+            Foundation::{BOOL, HWND, LPARAM, RECT},
+            UI::WindowsAndMessaging::{
+                EnumWindows, GetWindowRect, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+            },
+        };
+
+        struct SearchContext {
+            target_pids: Vec<u32>,
+            best_center: Option<(f64, f64)>,
+            best_area: i64,
+        }
+
+        unsafe extern "system" fn visit_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            let context = &mut *(lparam as *mut SearchContext);
+            if IsWindowVisible(hwnd) == 0 || IsIconic(hwnd) != 0 {
+                return 1;
+            }
+
+            let mut window_pid = 0;
+            GetWindowThreadProcessId(hwnd, &mut window_pid);
+            if !context.target_pids.contains(&window_pid) {
+                return 1;
+            }
+
+            let mut rect = RECT {
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+            };
+            if GetWindowRect(hwnd, &mut rect) == 0
+                || rect.right <= rect.left
+                || rect.bottom <= rect.top
+            {
+                return 1;
+            }
+
+            let width = i64::from(rect.right) - i64::from(rect.left);
+            let height = i64::from(rect.bottom) - i64::from(rect.top);
+            if width < 200 || height < 120 {
+                return 1;
+            }
+            let area = width * height;
+            if area > context.best_area {
+                context.best_area = area;
+                context.best_center = Some((
+                    f64::from(rect.left + (rect.right - rect.left) / 2),
+                    f64::from(rect.top + (rect.bottom - rect.top) / 2),
+                ));
+            }
+            1
+        }
+
+        let mut context = SearchContext {
+            target_pids: target_pids.to_vec(),
+            best_center: None,
+            best_area: 0,
+        };
+        unsafe {
+            EnumWindows(
+                Some(visit_window),
+                &mut context as *mut SearchContext as LPARAM,
+            );
+        }
+        context.best_center
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn process_window_center(_target_pids: &[u32]) -> Option<(f64, f64)> {
+        None
+    }
+
+    #[cfg(target_os = "windows")]
     fn foreground_window_center() -> Option<(f64, f64)> {
         use windows_sys::Win32::Foundation::RECT;
         use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
@@ -336,6 +460,9 @@ mod imp {
     ) -> Result<(), String> {
         Err(UNSUPPORTED.to_string())
     }
+    pub async fn wait_for_game_window(_target_pids: Vec<u32>) -> bool {
+        false
+    }
 }
 
 fn main_only(window: &tauri::Window) -> Result<(), String> {
@@ -364,6 +491,20 @@ pub fn notification_overlay_prepare(
 ) -> Result<(), String> {
     main_only(&window)?;
     imp::prepare(&app)
+}
+
+#[tauri::command]
+pub async fn notification_overlay_wait_for_game_window(
+    window: tauri::Window,
+    target_pids: Vec<u32>,
+) -> Result<bool, String> {
+    main_only(&window)?;
+    let mut target_pids = target_pids;
+    target_pids.retain(|pid| *pid > 0);
+    target_pids.sort_unstable();
+    target_pids.dedup();
+    target_pids.truncate(16);
+    Ok(imp::wait_for_game_window(target_pids).await)
 }
 
 #[tauri::command(async)]

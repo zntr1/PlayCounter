@@ -39,8 +39,8 @@ export const DISCOVERY_BURST_MS = 30_000;
 export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 
 const HOLD_MS: Record<DesktopOverlayKind, number> = {
-  "session-start": 2_800,
-  "first-detection": 4_200,
+  "session-start": 5_000,
+  "first-detection": 5_000,
   "session-summary": 4_200,
   discovery: 4_200,
   milestone: 4_800,
@@ -60,6 +60,7 @@ export type OverlayEvent =
       gameName: string;
       coverUrl?: string;
       firstAutoDetection: boolean;
+      targetPids?: number[];
     }
   | {
       type: "session-ended";
@@ -120,6 +121,7 @@ export function buildOverlayMessage(
     id: `${kind}:${context.nowMs}:${sequence}`,
     sequence,
     kind,
+    targetPids: event.type === "session-started" ? event.targetPids : undefined,
     priority: OVERLAY_PRIORITY[kind],
     ...copy,
     theme: context.theme,

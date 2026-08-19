@@ -126,6 +126,31 @@ describe("desktop overlay policy", () => {
     ).toBeNull();
   });
 
+  it("keeps the launched process on session-start cards for monitor targeting", () => {
+    const card = buildOverlayMessage(
+      "session-start",
+      {
+        type: "session-started",
+        gameName: "Game",
+        firstAutoDetection: false,
+        targetPids: [4242, 4343],
+      },
+      {
+        nowMs: 100,
+        theme: "dark",
+        accentColor: null,
+        reducedMotion: false,
+      },
+    );
+
+    expect(card.targetPids).toEqual([4242, 4343]);
+    expect(card.durationMs).toBe(5_000);
+  });
+
+  it("keeps first-detection launch cards visible for five seconds", () => {
+    expect(message("first-detection", 100).durationMs).toBe(5_000);
+  });
+
   it("orders priority first, then newest, then sequence", () => {
     const old = message("session-start", 1);
     const newer = message("session-start", 2);

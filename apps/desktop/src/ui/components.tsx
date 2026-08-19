@@ -63,10 +63,10 @@ const sourceBadgeLabels: Record<GameSource, string> = {
 };
 
 const sourceBadgeTooltips: Record<GameSource, string> = {
-  igdb: "Verified game metadata from the Internet Game Database",
+  igdb: "The game was matched by metadata from the Internet Game Database (IGDB)",
   community:
-    "Game metadata submitted and verified by the PlayCounter community",
-  custom: "Custom game metadata created by you, stored only on this PC",
+    "The game was matched by metadata submitted and verified by the PlayCounter community",
+  custom: "Custom game created by you, stored only on this PC",
 };
 
 export function SourceBadge({ source }: { source?: GameSource | null }) {

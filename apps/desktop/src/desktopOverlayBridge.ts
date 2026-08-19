@@ -198,15 +198,27 @@ export function emitOverlayEvent(event: TrackerOverlayEvent) {
   if (!state || state.disposed || !state.armed) return;
   const store = useAppStore.getState();
   if (store.settings.desktopOverlaysEnabled !== true) return;
-  const kind = overlayGate(event, store.settings);
-  if (!kind) return;
-  const message = buildOverlayMessage(kind, event, renderContext());
+  if (!overlayGate(event, store.settings)) return;
   const generation = state.generation;
 
   void (async () => {
+    if (
+      event.type === "session-started" &&
+      event.targetPids &&
+      event.targetPids.length > 0
+    ) {
+      const ready = await safeInvoke<boolean>(
+        "notification_overlay_wait_for_game_window",
+        { targetPids: event.targetPids },
+      );
+      if (ready !== true) return;
+    }
     if (await mainWindowIsActive()) return;
     if (!currentBridge(state, generation)) return;
-    if (useAppStore.getState().settings.desktopOverlaysEnabled !== true) return;
+    const settings = useAppStore.getState().settings;
+    const kind = overlayGate(event, settings);
+    if (!kind) return;
+    const message = buildOverlayMessage(kind, event, renderContext());
     state.queue.push(message);
   })().catch((error) => console.warn("desktop overlay routing failed", error));
 }
