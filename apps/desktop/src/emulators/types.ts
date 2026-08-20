@@ -1,9 +1,18 @@
 import type {
   EmulatorContentKind,
+  EmulatorContentSuggestionStatus,
   EmulatorSignalTrust,
   Game,
   GameSource,
 } from "@playcounter/shared";
+
+export type EmulatorMappingShare = {
+  status: EmulatorContentSuggestionStatus;
+  gameId: number;
+  submittedAt: string;
+  reviewNote?: string;
+  curatedGameName?: string;
+};
 
 export type RawEmulatorSignals = {
   emulatorId: string;
@@ -14,6 +23,8 @@ export type RawEmulatorSignals = {
   windowTitle: string | null;
 };
 
+export type EmulatorDetectionSource = "window_title" | "launch_arguments";
+
 export type EmulatorContentSignal = {
   kind: EmulatorContentKind;
   value: string;
@@ -21,6 +32,7 @@ export type EmulatorContentSignal = {
   trust: EmulatorSignalTrust;
   shareable: boolean;
   volatile: boolean;
+  detectionSource?: EmulatorDetectionSource;
   searchHint?: string;
   shareableSearchHint?: boolean;
 };
@@ -58,6 +70,7 @@ export type EmulatorContentObservation = {
   display: string;
   trust: EmulatorSignalTrust;
   shareable: boolean;
+  detectionSource?: EmulatorDetectionSource;
   searchHint?: string;
   shareableSearchHint?: boolean;
   state: "resolving" | "ambiguous" | "unknown";
@@ -103,6 +116,12 @@ export type EmulatorMapping = {
   source?: GameSource;
   confidence: "curated" | "probable" | "user";
   needsConfirmation?: boolean;
+  /** Privacy decision captured when this mapping was created. */
+  shareable?: boolean;
+  /** How the emulator exposed this content identity. Missing on legacy rows. */
+  detectionSource?: EmulatorDetectionSource;
+  /** Only server-confirmed submission outcomes are persisted. */
+  share?: EmulatorMappingShare;
   decidedAt: string;
   lastSeenAt: string;
 };

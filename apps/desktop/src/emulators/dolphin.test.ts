@@ -22,6 +22,7 @@ describe("Dolphin adapter", () => {
       value,
       trust: "recognized",
       volatile: false,
+      detectionSource: "launch_arguments",
     });
   });
 
@@ -65,6 +66,7 @@ describe("Dolphin adapter", () => {
       volatile: true,
       searchHint: "The Sims 2: Pets",
       shareableSearchHint: true,
+      detectionSource: "window_title",
     });
     expect(
       readDolphinTitle("Super Mario Galaxy | Dolphin 2603 | Vulkan | HLE"),
@@ -73,6 +75,7 @@ describe("Dolphin adapter", () => {
       value: "super mario galaxy",
       trust: "weak",
       volatile: true,
+      detectionSource: "window_title",
     });
   });
 
@@ -139,6 +142,7 @@ describe("Dolphin adapter", () => {
         shareable: true,
         searchHint: "The Sims 2: Pets",
         shareableSearchHint: true,
+        detectionSource: "window_title",
       },
     });
   });

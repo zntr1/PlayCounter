@@ -4,6 +4,7 @@ import type {
   ContributionStatus,
   ContributionsResponse,
   EmulatorLaunchContext,
+  EmulatorContentSuggestionResponse,
   EmulatorResolveResponse,
   Game,
   GameMetadataResponse,
@@ -87,11 +88,19 @@ import {
   creditableSeconds,
   reconcileEmulatorReadings,
 } from "./emulators/resolve";
-import { GENERIC_IDENTITY_DENYLIST } from "./emulators/signals";
+import {
+  GENERIC_IDENTITY_DENYLIST,
+  isShareableToken,
+} from "./emulators/signals";
+import {
+  isShareableEmulatorMapping,
+  type EmulatorShareContext,
+} from "./emulators/share";
 import { toPublicSnapshots } from "./emulators/publicProjection";
 import type {
   EmulatorContentObservation,
   EmulatorMapping,
+  EmulatorMappingShare,
   EmulatorObservation,
   EmulatorRuntimeState,
   KnownEmulator,
@@ -216,7 +225,9 @@ const canonicalMetadataCheckedIds = new Set<number>();
 const metadataHydrationRequests = new Map<string, Promise<boolean>>();
 let emulatorRuntime = new Map<string, EmulatorRuntimeState>();
 let emulatorPrivacy = { userName: "", homeDirName: "" };
+let emulatorPrivacyReady = false;
 let emulatorLookupUnavailableUntil = 0;
+let emulatorSharingUnavailableUntil = 0;
 let lastEmulatorRunningKeys = new Set<string>();
 
 const launcherBlacklist = [
@@ -526,9 +537,11 @@ async function loadEmulatorPrivacyContext() {
       userName: context.userName ?? "",
       homeDirName: context.homeDirName ?? "",
     };
+    emulatorPrivacyReady = true;
     logRuntime("emulator privacy context loaded");
   } catch (error) {
     emulatorPrivacy = { userName: "", homeDirName: "" };
+    emulatorPrivacyReady = false;
     logRuntime(`emulator privacy context unavailable: ${formatError(error)}`);
   }
 }
@@ -1077,6 +1090,7 @@ function applyEmulatorResolution(
     contentValue: observation.contentValue,
     display: observation.display,
     trust,
+    detectionSource: observation.detectionSource,
     decision: "game",
     gameId: game.id,
     igdbId: game.igdbId,
@@ -1085,6 +1099,7 @@ function applyEmulatorResolution(
     source: game.source,
     confidence,
     needsConfirmation: confidence === "probable" || trust === "weak",
+    shareable: observation.shareable,
     decidedAt: nowIso,
     lastSeenAt: nowIso,
   };
@@ -1950,6 +1965,103 @@ export async function searchEmulatorGames(
   );
 }
 
+export type EmulatorShareOutcome =
+  | { kind: "shared"; share: EmulatorMappingShare }
+  | {
+      kind: "skipped";
+      reason: "not-shareable" | "offline" | "no-install-id";
+    }
+  | { kind: "unavailable" }
+  | { kind: "failed"; error: string };
+
+export function emulatorShareRuntimeContext(): EmulatorShareContext {
+  const state = useAppStore.getState();
+  return {
+    privateTokens: [emulatorPrivacy.userName, emulatorPrivacy.homeDirName],
+    privacyReady: emulatorPrivacyReady,
+    installUuid: state.installUuid,
+    offline: isOfflineStatus(state.backendHealth.status),
+    serverUnavailable: Date.now() < emulatorSharingUnavailableUntil,
+  };
+}
+
+export async function shareEmulatorMapping(
+  contentKey: string,
+): Promise<EmulatorShareOutcome> {
+  const state = useAppStore.getState();
+  const mapping = state.emulatorMappings.get(contentKey);
+  const context = emulatorShareRuntimeContext();
+  if (!mapping || !isShareableEmulatorMapping(mapping, context)) {
+    return { kind: "skipped", reason: "not-shareable" };
+  }
+  if (context.offline) return { kind: "skipped", reason: "offline" };
+  if (!context.installUuid) {
+    return { kind: "skipped", reason: "no-install-id" };
+  }
+  if (context.serverUnavailable) return { kind: "unavailable" };
+  const existingShare =
+    mapping.share?.gameId === mapping.gameId ? mapping.share : undefined;
+  if (existingShare?.status === "rejected") {
+    return { kind: "shared", share: existingShare };
+  }
+
+  const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/emulator/suggestions`;
+  try {
+    const response = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      timeoutMs: API_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify({
+        emulatorId: mapping.emulatorId,
+        contentKind: mapping.contentKind,
+        contentValue: mapping.contentValue,
+        gameId: mapping.gameId,
+        installUuid: context.installUuid,
+      }),
+    });
+    if (response.status === 404 || response.status === 501) {
+      emulatorSharingUnavailableUntil = Date.now() + 30 * 60_000;
+      return { kind: "unavailable" };
+    }
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const body = (await response.json()) as EmulatorContentSuggestionResponse;
+    if (
+      body.status !== "pending" &&
+      body.status !== "rejected" &&
+      body.status !== "already_curated"
+    ) {
+      throw new Error("Invalid emulator suggestion response.");
+    }
+    const share: EmulatorMappingShare = {
+      status: body.status,
+      gameId: mapping.gameId!,
+      submittedAt: new Date().toISOString(),
+      reviewNote: body.reviewNote,
+      curatedGameName: body.game?.name,
+    };
+    useAppStore.getState().setEmulatorMapping({ ...mapping, share });
+    persist();
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName: `Emulator: ${mapping.emulatorId} ${mapping.contentKind}`,
+      status: "matched",
+      detail: body.status,
+    });
+    return { kind: "shared", share };
+  } catch (error) {
+    const detail = formatError(error);
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName: `Emulator: ${mapping.emulatorId} ${mapping.contentKind}`,
+      status: "error",
+      detail,
+    });
+    return { kind: "failed", error: detail };
+  }
+}
+
 export async function selectEmulatorGame(contentKey: string, game: Game) {
   const state = useAppStore.getState();
   const existingMapping = state.emulatorMappings.get(contentKey);
@@ -1983,6 +2095,10 @@ export async function selectEmulatorGame(contentKey: string, game: Game) {
         source: game.source,
         confidence: "user",
         needsConfirmation: existingMapping.trust === "weak",
+        share:
+          existingMapping.share?.gameId === game.id
+            ? existingMapping.share
+            : undefined,
         decidedAt: nowIso,
         lastSeenAt: nowIso,
       });
@@ -2056,6 +2172,9 @@ export async function ignoreEmulatorContent(contentKey: string) {
     contentValue: mapping?.contentValue ?? observation!.contentValue,
     display: mapping?.display ?? observation!.display,
     trust: mapping?.trust ?? observation!.trust,
+    detectionSource:
+      mapping?.detectionSource ?? observation?.detectionSource,
+    shareable: mapping?.shareable ?? observation?.shareable,
     decision: "ignored",
     confidence: "user",
     decidedAt: now,
@@ -2167,8 +2286,20 @@ function observationFromMapping(
     contentValue: mapping.contentValue,
     display: mapping.display,
     trust: mapping.trust,
+    detectionSource: mapping.detectionSource,
     shareable:
-      mapping.trust === "recognized" && mapping.contentKind !== "folder",
+      mapping.shareable === false ||
+      (mapping.shareable === undefined && !emulatorPrivacyReady)
+        ? false
+        : isShareableToken({
+            value: mapping.contentValue,
+            kind: mapping.contentKind,
+            trust: mapping.trust,
+            privateTokens: [
+              emulatorPrivacy.userName,
+              emulatorPrivacy.homeDirName,
+            ],
+          }),
     searchHint: mapping.display,
     state: "unknown",
     detectedAt: now,
@@ -3762,6 +3893,7 @@ function untrackGameInternal(
       contentValue: mapping.contentValue,
       display: mapping.display,
       trust: mapping.trust,
+      detectionSource: mapping.detectionSource,
       decision: "ignored",
       confidence: "user",
       decidedAt: new Date().toISOString(),

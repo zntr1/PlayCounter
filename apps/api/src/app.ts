@@ -3,6 +3,7 @@ import rateLimit from "@fastify/rate-limit";
 import type {
   CommunityGameSuggestionPayload,
   ContributionsResponse,
+  EmulatorContentSuggestionPayload,
   EmulatorResolveRequest,
   FeedbackPayload,
   GameMetadataResponse,
@@ -109,6 +110,25 @@ const emulatorResolveSchema = z.object({
     .min(1)
     .max(20),
 });
+const emulatorSuggestionSchema = z
+  .object({
+    emulatorId: emulatorIdSchema,
+    contentKind: emulatorContentKindSchema.refine(
+      (kind) => kind !== "folder",
+      "Folder identities are local-only.",
+    ),
+    contentValue: emulatorContentValueSchema,
+    gameId: z.number().int().positive(),
+    installUuid: z.string().uuid(),
+  })
+  .strict()
+  .refine(
+    (body) => supportsEmulatorContent(body.emulatorId, body.contentKind),
+    {
+      path: ["contentKind"],
+      message: "Unsupported content kind for this emulator.",
+    },
+  );
 const communityMetadataQuerySchema = z.object({
   query: z.string().trim().min(2).max(120),
   offset: z.coerce.number().int().min(0).max(10_000).optional().default(0),
@@ -276,6 +296,12 @@ export async function buildApp(repository: PlayCounterRepository) {
       request.body,
     ) satisfies EmulatorResolveRequest;
     return { results: await repository.resolveEmulatorContent(body.items) };
+  });
+  app.post("/api/emulator/suggestions", async (request) => {
+    const body = emulatorSuggestionSchema.parse(
+      request.body,
+    ) satisfies EmulatorContentSuggestionPayload;
+    return repository.suggestEmulatorContent(body);
   });
   app.get("/api/emulator/games/search", async (request) => {
     const query = emulatorGameSearchSchema.parse(request.query);

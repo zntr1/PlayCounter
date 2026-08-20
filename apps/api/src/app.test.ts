@@ -68,6 +68,77 @@ describe("community contributions route", () => {
   });
 });
 
+describe("emulator suggestion route", () => {
+  const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+
+  it("forwards exactly a privacy-bounded emulator mapping", async () => {
+    class SuggestionRepository extends MemoryRepository {
+      override suggestEmulatorContent = vi.fn(async () => ({
+        status: "pending" as const,
+      }));
+    }
+    const repository = new SuggestionRepository();
+    const app = await buildApp(repository);
+    apps.push(app);
+    const payload = {
+      emulatorId: "dosbox",
+      contentKind: "program",
+      contentValue: "doom3.exe",
+      gameId: 42,
+      installUuid,
+    };
+
+    const result = await app.inject({
+      method: "POST",
+      url: "/api/emulator/suggestions",
+      payload,
+    });
+
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toEqual({ status: "pending" });
+    expect(repository.suggestEmulatorContent).toHaveBeenCalledWith(payload);
+    expect(
+      Object.keys(repository.suggestEmulatorContent.mock.calls[0][0]).sort(),
+    ).toEqual([
+      "contentKind",
+      "contentValue",
+      "emulatorId",
+      "gameId",
+      "installUuid",
+    ]);
+  });
+
+  it("rejects private, unsupported, custom, and expanded payloads", async () => {
+    const app = await buildApp(new MemoryRepository());
+    apps.push(app);
+    const base = {
+      emulatorId: "dosbox",
+      contentKind: "program",
+      contentValue: "doom3.exe",
+      gameId: 42,
+      installUuid,
+    };
+    const invalid = [
+      { ...base, display: "private window title" },
+      { ...base, contentKind: "folder" },
+      { ...base, contentKind: "rom" },
+      { ...base, contentValue: "C:\\Games\\doom3.exe" },
+      { ...base, gameId: -1_000_000_001 },
+      { ...base, installUuid: "not-a-uuid" },
+      { ...base, emulatorId: "pcsx2" },
+    ];
+
+    for (const payload of invalid) {
+      const result = await app.inject({
+        method: "POST",
+        url: "/api/emulator/suggestions",
+        payload,
+      });
+      expect(result.statusCode).toBe(400);
+    }
+  });
+});
+
 describe("community metadata route", () => {
   it("returns a page and exposes the offset for remaining IGDB matches", async () => {
     class MetadataRepository extends MemoryRepository {

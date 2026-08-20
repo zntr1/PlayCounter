@@ -12,6 +12,7 @@ import {
 import type {
   EmulatorAdapter,
   EmulatorContentSignal,
+  EmulatorDetectionSource,
   EmulatorReadContext,
   EmulatorReading,
   RawEmulatorSignals,
@@ -23,6 +24,7 @@ type ParsedSignal = {
   display: string;
   trust: EmulatorSignalTrust;
   volatile: boolean;
+  detectionSource: EmulatorDetectionSource;
   searchHint?: string;
 };
 
@@ -31,6 +33,7 @@ function parsedSignal(
   kind: EmulatorContentKind,
   trust: EmulatorSignalTrust,
   volatile: boolean,
+  detectionSource: EmulatorDetectionSource,
 ): ParsedSignal | null {
   const value = normalizeToken(raw, kind);
   if (!value) return null;
@@ -40,6 +43,7 @@ function parsedSignal(
     display: prettyDisplay(basename(raw) || value),
     trust,
     volatile,
+    detectionSource,
   };
 }
 
@@ -62,13 +66,25 @@ export function readDosboxCommandLine(args: string[]): ParsedSignal | null {
       .replace(/\.conf$/i, "")
       .replace(/^dosbox[_-]/i, "")
       .replace(/[_-](?:single|settings|base)$/i, "");
-    const parsed = parsedSignal(value, "conf", "recognized", false);
+    const parsed = parsedSignal(
+      value,
+      "conf",
+      "recognized",
+      false,
+      "launch_arguments",
+    );
     if (parsed) return parsed;
   }
 
   for (const arg of args) {
     if (!/\.(?:exe|com|bat)$/i.test(stripQuotes(arg))) continue;
-    const parsed = parsedSignal(arg, "program", "recognized", false);
+    const parsed = parsedSignal(
+      arg,
+      "program",
+      "recognized",
+      false,
+      "launch_arguments",
+    );
     if (parsed) return parsed;
   }
 
@@ -94,14 +110,26 @@ export function readDosboxCommandLine(args: string[]): ParsedSignal | null {
     ) {
       continue;
     }
-    const parsed = parsedSignal(first, "program", "recognized", false);
+    const parsed = parsedSignal(
+      first,
+      "program",
+      "recognized",
+      false,
+      "launch_arguments",
+    );
     if (parsed) return parsed;
   }
 
   for (const command of commands) {
     const mount = /^\s*mount\s+[a-z]\s+(.+)$/i.exec(stripQuotes(command));
     if (!mount) continue;
-    const parsed = parsedSignal(mount[1], "folder", "recognized", false);
+    const parsed = parsedSignal(
+      mount[1],
+      "folder",
+      "recognized",
+      false,
+      "launch_arguments",
+    );
     if (parsed) return { ...parsed, searchHint: parsed.value };
   }
   for (const arg of args) {
@@ -113,7 +141,13 @@ export function readDosboxCommandLine(args: string[]): ParsedSignal | null {
     ) {
       continue;
     }
-    const parsed = parsedSignal(value, "folder", "recognized", false);
+    const parsed = parsedSignal(
+      value,
+      "folder",
+      "recognized",
+      false,
+      "launch_arguments",
+    );
     if (parsed) return { ...parsed, searchHint: parsed.value };
   }
   return null;
@@ -139,7 +173,13 @@ export function readDosboxTitle(
   );
   if (classic) {
     if (classic[1].toLowerCase() === "dosbox") return { idle: true };
-    return parsedSignal(classic[1], "program", "recognized", true);
+    return parsedSignal(
+      classic[1],
+      "program",
+      "recognized",
+      true,
+      "window_title",
+    );
   }
 
   const survivors = trimmed
@@ -155,7 +195,13 @@ export function readDosboxTitle(
         ),
     );
   if (survivors.length !== 1) return null;
-  return parsedSignal(survivors[0], "program", "weak", true);
+  return parsedSignal(
+    survivors[0],
+    "program",
+    "weak",
+    true,
+    "window_title",
+  );
 }
 
 function finalizeSignal(

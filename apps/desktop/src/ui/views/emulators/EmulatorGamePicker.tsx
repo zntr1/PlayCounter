@@ -1,6 +1,13 @@
 import type { Game, GameSource } from "@playcounter/shared";
 import clsx from "clsx";
-import { ChevronDown, ChevronUp, Gamepad2, Search, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Gamepad2,
+  Search,
+  Send,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useIsOffline } from "../../../store";
 import { searchEmulatorGames } from "../../../tracker";
@@ -67,6 +74,9 @@ export function EmulatorGamePicker({
   variant,
   busy,
   onSelect,
+  onSelectAndShare,
+  shareDisabled,
+  shareDisabledReason,
   onSelectCustom,
 }: {
   emulatorId: string;
@@ -78,6 +88,9 @@ export function EmulatorGamePicker({
   variant: "card" | "dialog";
   busy: boolean;
   onSelect: (game: Game) => void;
+  onSelectAndShare?: (game: Game) => void;
+  shareDisabled?: boolean;
+  shareDisabledReason?: string;
   onSelectCustom: (name: string) => void;
 }) {
   const isOffline = useIsOffline();
@@ -99,6 +112,21 @@ export function EmulatorGamePicker({
     onSelect(game);
   };
 
+  const selectAndShare = onSelectAndShare
+    ? (game: Game) => {
+        if (
+          busy ||
+          shareDisabled ||
+          (currentGame &&
+            currentGame.id === game.id &&
+            currentGame.source === game.source)
+        ) {
+          return;
+        }
+        onSelectAndShare(game);
+      }
+    : undefined;
+
   const openCustomWith = (value = "") => {
     setCustomName(value);
     setCustomOpen(true);
@@ -118,6 +146,9 @@ export function EmulatorGamePicker({
             currentGame={currentGame}
             busy={busy}
             onSelect={select}
+            onSelectAndShare={selectAndShare}
+            shareDisabled={shareDisabled}
+            shareDisabledReason={shareDisabledReason}
           />
         </section>
       ) : null}
@@ -226,6 +257,9 @@ export function EmulatorGamePicker({
               currentGame={currentGame}
               busy={busy}
               onSelect={select}
+              onSelectAndShare={selectAndShare}
+              shareDisabled={shareDisabled}
+              shareDisabledReason={shareDisabledReason}
             />
           </section>
         ) : (
@@ -290,6 +324,9 @@ function GameGrid({
   currentGame,
   busy,
   onSelect,
+  onSelectAndShare,
+  shareDisabled,
+  shareDisabledReason,
 }: {
   games: Game[];
   contentDisplay: string;
@@ -297,6 +334,9 @@ function GameGrid({
   currentGame?: { id: number; source?: GameSource };
   busy: boolean;
   onSelect: (game: Game) => void;
+  onSelectAndShare?: (game: Game) => void;
+  shareDisabled?: boolean;
+  shareDisabledReason?: string;
 }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -304,7 +344,7 @@ function GameGrid({
         const current =
           currentGame?.id === game.id && currentGame.source === game.source;
         const content = (
-          <>
+          <div className="flex min-w-0 items-center gap-3 p-3">
             {game.coverUrl ? (
               <img
                 src={game.coverUrl}
@@ -328,20 +368,41 @@ function GameGrid({
                 {platformLabel}
               </span>
               <span className="mt-2 block text-xs font-medium text-accent">
-                {current ? "Currently linked" : "Select this game"}
+                {current
+                  ? "Currently linked"
+                  : onSelectAndShare
+                    ? "Database game"
+                    : "Select this game"}
               </span>
             </span>
-          </>
+          </div>
         );
         const className = clsx(
-          "flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition",
+          "min-w-0 overflow-hidden rounded-xl border text-left transition",
           current
             ? "border-border bg-surface-hover/60 opacity-75"
-            : "border-border bg-bg hover:border-accent/50 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+            : "border-border bg-bg",
         );
         return current ? (
           <div key={`${game.source}:${game.id}`} className={className}>
             {content}
+          </div>
+        ) : onSelectAndShare ? (
+          <div key={`${game.source}:${game.id}`} className={className}>
+            {content}
+            <div className="border-t border-border bg-surface/40 p-2">
+              <Button
+                variant="primary"
+                icon={Send}
+                disabled={busy || shareDisabled}
+                title={shareDisabled ? shareDisabledReason : undefined}
+                aria-label={`Add ${contentDisplay} as ${game.name} and share the match`}
+                className="w-full min-w-0 px-2 text-xs font-semibold"
+                onClick={() => onSelectAndShare(game)}
+              >
+                Add &amp; Share
+              </Button>
+            </div>
           </div>
         ) : (
           <button
@@ -349,7 +410,10 @@ function GameGrid({
             type="button"
             disabled={busy}
             aria-label={`Track ${contentDisplay} as ${game.name}`}
-            className={className}
+            className={clsx(
+              className,
+              "hover:border-accent/50 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+            )}
             onClick={() => onSelect(game)}
           >
             {content}

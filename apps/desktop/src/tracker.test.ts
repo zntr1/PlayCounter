@@ -28,6 +28,7 @@ import {
   removeGameHistory,
   reportNegativeMatch,
   selectEmulatorGame,
+  shareEmulatorMapping,
   setGamePlaytime,
   suggestTrackedGameToCommunity,
   untrackGame,
@@ -1450,6 +1451,12 @@ describe("emulator mapping replacement", () => {
       coverUrl: "old-cover",
       source: "igdb",
       confidence: "user",
+      shareable: true,
+      share: {
+        status: "pending",
+        gameId: 1,
+        submittedAt: "2026-08-20T09:00:00.000Z",
+      },
       decidedAt: "2026-08-20T09:00:00.000Z",
       lastSeenAt: "2026-08-20T10:00:00.000Z",
     };
@@ -1545,8 +1552,104 @@ describe("emulator mapping replacement", () => {
       durationSeconds: 180,
     });
     expect(state.emulatorMappings.get(contentKey)?.gameName).toBe("New game");
+    expect(state.emulatorMappings.get(contentKey)?.share).toBeUndefined();
     expect(
       state.emulatorObservations.some((item) => item.key === contentKey),
     ).toBe(false);
+  });
+});
+
+describe("emulator mapping sharing", () => {
+  it("sends only the normalized identity, game id and install id", async () => {
+    const contentKey = "dosbox:program:doom3.exe";
+    useAppStore.setState({
+      installUuid: "550e8400-e29b-41d4-a716-446655440000",
+      emulatorMappings: new Map([
+        [
+          contentKey,
+          {
+            contentKey,
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            contentKind: "program",
+            contentValue: "doom3.exe",
+            display: "Private presentation title",
+            trust: "recognized",
+            decision: "game",
+            gameId: 42,
+            gameName: "Doom 3",
+            source: "igdb",
+            confidence: "user",
+            shareable: true,
+            decidedAt: "2026-08-20T09:00:00.000Z",
+            lastSeenAt: "2026-08-20T10:00:00.000Z",
+          },
+        ],
+      ]),
+    });
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response(JSON.stringify({ status: "pending" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await shareEmulatorMapping(contentKey)).toMatchObject({
+      kind: "shared",
+      share: { status: "pending", gameId: 42 },
+    });
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0][1] as RequestInit).body),
+    );
+    expect(Object.keys(body).sort()).toEqual([
+      "contentKind",
+      "contentValue",
+      "emulatorId",
+      "gameId",
+      "installUuid",
+    ]);
+    expect(body).not.toHaveProperty("display");
+    expect(body).toMatchObject({
+      emulatorId: "dosbox",
+      contentKind: "program",
+      contentValue: "doom3.exe",
+      gameId: 42,
+    });
+  });
+
+  it("does not request sharing for local-only mappings", async () => {
+    const contentKey = "dosbox:folder:private";
+    useAppStore.setState({
+      installUuid: "550e8400-e29b-41d4-a716-446655440000",
+      emulatorMappings: new Map([
+        [
+          contentKey,
+          {
+            contentKey,
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            contentKind: "folder",
+            contentValue: "private",
+            display: "Private",
+            trust: "recognized",
+            decision: "game",
+            gameId: 42,
+            gameName: "Game",
+            source: "igdb",
+            confidence: "user",
+            shareable: false,
+            decidedAt: "2026-08-20T09:00:00.000Z",
+            lastSeenAt: "2026-08-20T10:00:00.000Z",
+          },
+        ],
+      ]),
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await shareEmulatorMapping(contentKey)).toEqual({
+      kind: "skipped",
+      reason: "not-shareable",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

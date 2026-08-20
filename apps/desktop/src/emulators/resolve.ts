@@ -61,6 +61,7 @@ export function reconcileEmulatorReadings(input: {
           shareable:
             mapping.trust === "recognized" && mapping.contentKind !== "folder",
           volatile: true,
+          detectionSource: mapping.detectionSource,
         },
       });
     } else if (observation?.kind === "content") {
@@ -152,7 +153,14 @@ export function reconcileEmulatorReadings(input: {
       mapping.gameId !== undefined &&
       mapping.gameName
     ) {
-      intents.push({ type: "match", mapping });
+      intents.push({
+        type: "match",
+        mapping: {
+          ...mapping,
+          detectionSource:
+            group.item.content.detectionSource ?? mapping.detectionSource,
+        },
+      });
       if (observationMap.delete(key))
         intents.push({ type: "drop-observation", key });
       continue;
@@ -177,6 +185,8 @@ export function reconcileEmulatorReadings(input: {
       display: group.item.content.display,
       trust: group.item.content.trust,
       shareable: group.item.content.shareable,
+      detectionSource:
+        group.item.content.detectionSource ?? previous?.detectionSource,
       searchHint: group.item.content.searchHint,
       shareableSearchHint: group.item.content.shareableSearchHint,
       state:
@@ -330,6 +340,7 @@ function observationToSignal(
     trust: observation.trust,
     shareable: observation.shareable,
     volatile: true,
+    detectionSource: observation.detectionSource,
     searchHint: observation.searchHint,
     shareableSearchHint: observation.shareableSearchHint,
   };

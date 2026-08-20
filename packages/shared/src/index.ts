@@ -50,6 +50,25 @@ export interface EmulatorResolveResponse {
   }>;
 }
 
+export interface EmulatorContentSuggestionPayload extends EmulatorContentRef {
+  /** Server-local igdb_games.id. Local custom games use negative ids. */
+  gameId: number;
+  /** Anonymous per-install idempotency key. */
+  installUuid: string;
+}
+
+export type EmulatorContentSuggestionStatus =
+  | "pending"
+  | "rejected"
+  | "already_curated";
+
+export interface EmulatorContentSuggestionResponse {
+  status: EmulatorContentSuggestionStatus;
+  /** The currently curated game, if this identity already has one. */
+  game?: Game;
+  reviewNote?: string;
+}
+
 export type Platform = "windows" | "macos" | "linux";
 
 export type ProcessIdentifierKind =

@@ -1,8 +1,11 @@
 import type { EmulatorContentObservation } from "../../../emulators/types";
 import { describe, expect, it } from "vitest";
 import {
+  emulatorDetectionSourceLabel,
   emulatorPickerCopy,
   emulatorPickerPhase,
+  canShareEmulatorObservation,
+  emulatorShareStatusChip,
   guestPlatformLabel,
 } from "./emulatorPickerModel";
 
@@ -27,6 +30,14 @@ function observation(
 }
 
 describe("emulator picker model", () => {
+  it("labels the actual emulator detection source", () => {
+    expect(emulatorDetectionSourceLabel("window_title")).toBe("Window Title");
+    expect(emulatorDetectionSourceLabel("launch_arguments")).toBe(
+      "Launch Arguments",
+    );
+    expect(emulatorDetectionSourceLabel()).toBeNull();
+  });
+
   it("uses a helpful guest-platform label", () => {
     expect(guestPlatformLabel("dolphin")).toBe("GameCube / Wii");
     expect(guestPlatformLabel("dosbox")).toBe("DOS");
@@ -56,5 +67,33 @@ describe("emulator picker model", () => {
     );
     expect(stopped.tone).toBe("warning");
     expect(stopped.description).toContain("stopped");
+  });
+
+  it("only offers sharing for privacy-safe observations", () => {
+    expect(canShareEmulatorObservation(observation())).toBe(true);
+    expect(canShareEmulatorObservation(observation({ shareable: false }))).toBe(
+      false,
+    );
+    expect(
+      canShareEmulatorObservation(observation({ contentKind: "folder" })),
+    ).toBe(false);
+  });
+
+  it("labels persisted review outcomes", () => {
+    expect(emulatorShareStatusChip()).toBeNull();
+    expect(
+      emulatorShareStatusChip({
+        status: "pending",
+        gameId: 1,
+        submittedAt: "2026-08-20T10:00:00.000Z",
+      })?.label,
+    ).toBe("In review");
+    expect(
+      emulatorShareStatusChip({
+        status: "already_curated",
+        gameId: 1,
+        submittedAt: "2026-08-20T10:00:00.000Z",
+      })?.tone,
+    ).toBe("success");
   });
 });

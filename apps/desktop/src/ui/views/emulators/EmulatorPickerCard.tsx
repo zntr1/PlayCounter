@@ -3,12 +3,13 @@ import { AlertTriangle, Gamepad2, Loader2, Radio, Timer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { creditableSeconds } from "../../../emulators/resolve";
 import type { EmulatorObservation } from "../../../emulators/types";
-import { useAppStore } from "../../../store";
+import { useAppStore, useIsOffline } from "../../../store";
 import {
   addCustomEmulatorGame,
   dismissEmulatorHostNotice,
   ignoreEmulatorContent,
   selectEmulatorGame,
+  shareEmulatorMapping,
 } from "../../../tracker";
 import { Panel, formatDuration } from "../../components";
 import { Button } from "../../primitives";
@@ -16,6 +17,7 @@ import { EmulatorGamePicker } from "./EmulatorGamePicker";
 import {
   emulatorPickerCopy,
   emulatorPickerPhase,
+  canShareEmulatorObservation,
   guestPlatformLabel,
 } from "./emulatorPickerModel";
 
@@ -26,6 +28,8 @@ export function EmulatorPickerCard({
 }) {
   const addToast = useAppStore((state) => state.addToast);
   const [busy, setBusy] = useState(false);
+  const installUuid = useAppStore((state) => state.installUuid);
+  const offline = useIsOffline();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -70,11 +74,24 @@ export function EmulatorPickerCard({
   const pendingSeconds = creditableSeconds(observation, now);
   const phase = emulatorPickerPhase(observation);
 
-  async function applyGame(game: Game) {
+  async function applyGame(game: Game, share: boolean) {
     if (busy || observation.kind !== "content") return;
     setBusy(true);
     try {
       await selectEmulatorGame(observation.key, game);
+      const shareOutcome = share
+        ? await shareEmulatorMapping(observation.key)
+        : null;
+      const shareDetail =
+        shareOutcome?.kind === "shared"
+          ? shareOutcome.share.status === "already_curated"
+            ? " Already in the shared database."
+            : shareOutcome.share.status === "rejected"
+              ? ` Not accepted${shareOutcome.share.reviewNote ? `: ${shareOutcome.share.reviewNote}` : "."}`
+              : " Submitted for review."
+          : shareOutcome
+            ? " The local link works; sharing can be retried from the emulator page."
+            : "";
       addToast({
         tone: "success",
         title: observation.endedAt
@@ -83,7 +100,7 @@ export function EmulatorPickerCard({
         detail:
           observation.endedAt && pendingSeconds >= 60
             ? `${formatDuration(pendingSeconds)} of detected playtime was saved.`
-            : `${observation.display} is now linked on this PC.`,
+            : `${observation.display} is now linked on this PC.${shareDetail}`,
       });
     } catch (error) {
       addToast({
@@ -168,7 +185,20 @@ export function EmulatorPickerCard({
           suggested={observation.candidates}
           variant="card"
           busy={busy}
-          onSelect={(game) => void applyGame(game)}
+          onSelect={(game) => void applyGame(game, false)}
+          onSelectAndShare={
+            canShareEmulatorObservation(observation)
+              ? (game) => void applyGame(game, true)
+              : undefined
+          }
+          shareDisabled={offline || !installUuid}
+          shareDisabledReason={
+            offline
+              ? "Community sharing requires a connection."
+              : !installUuid
+                ? "PlayCounter is still starting up."
+                : undefined
+          }
           onSelectCustom={(name) => void applyCustom(name)}
         />
       </div>

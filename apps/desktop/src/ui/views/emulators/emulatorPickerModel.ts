@@ -1,4 +1,16 @@
-import type { EmulatorContentObservation } from "../../../emulators/types";
+import type {
+  EmulatorContentObservation,
+  EmulatorDetectionSource,
+  EmulatorMappingShare,
+} from "../../../emulators/types";
+
+export function emulatorDetectionSourceLabel(
+  source?: EmulatorDetectionSource,
+) {
+  if (source === "window_title") return "Window Title";
+  if (source === "launch_arguments") return "Launch Arguments";
+  return null;
+}
 
 export function guestPlatformLabel(emulatorId: string) {
   if (emulatorId === "dolphin") return "GameCube / Wii";
@@ -41,4 +53,25 @@ export function emulatorPickerCopy(
           : "PlayCounter could not identify it. Search once — the choice is remembered on this PC.",
     tone: "accent" as const,
   };
+}
+
+export function canShareEmulatorObservation(
+  observation: EmulatorContentObservation,
+) {
+  return observation.shareable && observation.contentKind !== "folder";
+}
+
+export function emulatorShareStatusChip(share?: EmulatorMappingShare) {
+  if (!share) return null;
+  if (share.status === "already_curated") {
+    return { label: "In the shared database", tone: "success" as const };
+  }
+  if (share.status === "rejected") {
+    return {
+      label: "Not accepted",
+      tone: "warning" as const,
+      hint: share.reviewNote,
+    };
+  }
+  return { label: "In review", tone: "info" as const };
 }

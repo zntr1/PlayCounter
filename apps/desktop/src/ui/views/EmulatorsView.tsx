@@ -2,16 +2,23 @@ import { Gamepad2, Repeat2, RotateCcw, Unlink } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   confirmEmulatorMapping,
+  emulatorShareRuntimeContext,
   forgetEmulatorMapping,
   restoreEmulatorContent,
+  shareEmulatorMapping,
 } from "../../tracker";
-import { useAppStore } from "../../store";
+import { useAppStore, useIsOffline } from "../../store";
 import { emulatorAssetUrls } from "../../emulators/assets";
 import type { EmulatorMapping } from "../../emulators/types";
+import { emulatorShareControl } from "../../emulators/share";
 import { Panel, SourceBadge, formatDuration } from "../components";
 import { Button, Modal } from "../primitives";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
 import { EmulatorLinkedGameDialog } from "./emulators/EmulatorLinkedGameDialog";
+import {
+  emulatorDetectionSourceLabel,
+  emulatorShareStatusChip,
+} from "./emulators/emulatorPickerModel";
 
 type EmulatorViewProps = {
   emulatorId: string;
@@ -291,6 +298,52 @@ function LinkedGameRow({
   onChange: () => void;
   onForget: () => void;
 }) {
+  const detectionSource = emulatorDetectionSourceLabel(
+    mapping.detectionSource,
+  );
+  const addToast = useAppStore((state) => state.addToast);
+  const installUuid = useAppStore((state) => state.installUuid);
+  const offline = useIsOffline();
+  const [sharing, setSharing] = useState(false);
+  const shareChip = emulatorShareStatusChip(
+    mapping.share?.gameId === mapping.gameId ? mapping.share : undefined,
+  );
+  const shareControl = emulatorShareControl(mapping, {
+    ...emulatorShareRuntimeContext(),
+    installUuid,
+    offline,
+  });
+
+  async function share() {
+    if (!shareControl.visible || shareControl.disabled || sharing) return;
+    setSharing(true);
+    const outcome = await shareEmulatorMapping(mapping.contentKey);
+    setSharing(false);
+    if (outcome.kind === "shared") {
+      addToast({
+        tone: outcome.share.status === "rejected" ? "info" : "success",
+        title:
+          outcome.share.status === "already_curated"
+            ? "Match is in the shared database"
+            : outcome.share.status === "rejected"
+              ? "Match was not accepted"
+              : "Match submitted for review",
+        detail:
+          outcome.share.reviewNote ??
+          "Your local emulator link remains unchanged.",
+      });
+    } else {
+      addToast({
+        tone: "error",
+        title: "Could not share match",
+        detail:
+          outcome.kind === "failed"
+            ? outcome.error
+            : "Your local emulator link remains unchanged.",
+      });
+    }
+  }
+
   return (
     <div className="grid gap-4 px-5 py-4 sm:grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
       {mapping.coverUrl ? (
@@ -318,12 +371,32 @@ function LinkedGameRow({
           <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-text-muted">
             {mapping.confidence === "user" ? "Chosen by you" : "Auto-matched"}
           </span>
+          {shareChip ? (
+            <span
+              title={shareChip.hint}
+              className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${
+                shareChip.tone === "success"
+                  ? "border-success-border bg-success-tint text-success"
+                  : shareChip.tone === "warning"
+                    ? "border-warning-border bg-warning-tint text-warning"
+                    : "border-border bg-surface-hover text-text-muted"
+              }`}
+            >
+              {shareChip.label}
+            </span>
+          ) : !shareControl.visible ? (
+            <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-text-faint">
+              Stays on this PC
+            </span>
+          ) : null}
         </div>
         <div
           className="mt-1 truncate text-sm text-text-muted"
           title={mapping.display}
         >
-          Recognized from{" "}
+          {detectionSource
+            ? `Recognized by ${detectionSource}: `
+            : "Recognized from "}
           <span className="font-mono text-text">{mapping.display}</span>
         </div>
         <div className="mt-1 text-xs text-text-faint">
@@ -338,6 +411,16 @@ function LinkedGameRow({
         ) : null}
       </div>
       <div className="flex flex-wrap gap-2 sm:col-start-2 lg:col-start-auto">
+        {shareControl.visible ? (
+          <Button
+            variant="secondary"
+            disabled={shareControl.disabled || sharing}
+            title={shareControl.reason}
+            onClick={() => void share()}
+          >
+            {sharing ? "Sharing…" : shareControl.label}
+          </Button>
+        ) : null}
         {mapping.needsConfirmation ? (
           <Button
             variant="primary"

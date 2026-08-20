@@ -5,6 +5,8 @@ import type {
   CommunityMetadataCandidate,
   ContributionsResponse,
   ContributionStatus,
+  EmulatorContentSuggestionPayload,
+  EmulatorContentSuggestionResponse,
   EmulatorResolveRequest,
   EmulatorResolveResponse,
   FeedbackPayload,
@@ -110,6 +112,9 @@ export interface PlayCounterRepository {
   resolveEmulatorContent(
     items: EmulatorResolveRequest["items"],
   ): Promise<EmulatorResolveResponse["results"]>;
+  suggestEmulatorContent(
+    suggestion: EmulatorContentSuggestionPayload,
+  ): Promise<EmulatorContentSuggestionResponse>;
   suggestCommunityGame(
     suggestion: CommunityGameSuggestionPayload,
   ): Promise<CommunityGameSuggestionResponse>;
@@ -179,6 +184,10 @@ export class MemoryRepository implements PlayCounterRepository {
       confidence: "unknown",
       game: null,
     }));
+  }
+
+  async suggestEmulatorContent(): Promise<EmulatorContentSuggestionResponse> {
+    return { status: "pending" };
   }
 
   async suggestCommunityGame(): Promise<CommunityGameSuggestionResponse> {
@@ -861,6 +870,101 @@ export class PostgresRepository implements PlayCounterRepository {
         game: null,
       }),
     }));
+  }
+
+  async suggestEmulatorContent(
+    suggestion: EmulatorContentSuggestionPayload,
+  ): Promise<EmulatorContentSuggestionResponse> {
+    const emulatorId = suggestion.emulatorId.trim().toLowerCase();
+    const contentKind = suggestion.contentKind.trim().toLowerCase();
+    const contentValue = suggestion.contentValue.trim().toLowerCase();
+    const client = await this.pool.connect();
+
+    try {
+      await client.query("BEGIN");
+      type EmulatorGameRow = {
+        id: number;
+        igdb_id: number | null;
+        name: string;
+        cover_url: string | null;
+      };
+      const knownGame = await client.query<EmulatorGameRow>(
+        `SELECT id, igdb_id, name, cover_url
+         FROM igdb_games
+         WHERE id = $1`,
+        [suggestion.gameId],
+      );
+      if (!knownGame.rows[0]) {
+        throw Object.assign(new Error("Unknown game."), { statusCode: 400 });
+      }
+
+      const curated = await client.query<EmulatorGameRow>(
+        `SELECT games.id, games.igdb_id, games.name, games.cover_url
+         FROM emulator_content_identifiers identifiers
+         INNER JOIN igdb_games games ON games.id = identifiers.game_id
+         WHERE lower(identifiers.emulator_id) = $1
+           AND lower(identifiers.content_kind) = $2
+           AND lower(identifiers.content_value) = $3
+           AND identifiers.confidence = 'curated'
+         LIMIT 1`,
+        [emulatorId, contentKind, contentValue],
+      );
+      const curatedGame = curated.rows[0]
+        ? emulatorRowToGame(curated.rows[0])
+        : undefined;
+      if (curatedGame?.id === suggestion.gameId) {
+        await client.query("COMMIT");
+        return { status: "already_curated", game: curatedGame };
+      }
+
+      const stored = await client.query<{
+        status: "pending" | "approved" | "rejected";
+        review_note: string | null;
+      }>(
+        `INSERT INTO emulator_content_suggestions
+           (emulator_id, content_kind, content_value, game_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (emulator_id, content_kind, content_value, game_id)
+         DO UPDATE SET updated_at = now()
+         RETURNING status, review_note`,
+        [emulatorId, contentKind, contentValue, suggestion.gameId],
+      );
+      await client.query(
+        `INSERT INTO emulator_content_submissions
+           (emulator_id, content_kind, content_value, game_id, install_uuid)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT DO NOTHING`,
+        [
+          emulatorId,
+          contentKind,
+          contentValue,
+          suggestion.gameId,
+          suggestion.installUuid,
+        ],
+      );
+      await client.query("COMMIT");
+
+      const review = stored.rows[0];
+      if (review.status === "approved") {
+        logger.warn(
+          `[emulator] Approved suggestion has no matching curated identifier: ${emulatorId}:${contentKind}:${JSON.stringify(contentValue)} -> game #${suggestion.gameId}.`,
+        );
+      }
+      const status = review.status === "rejected" ? "rejected" : "pending";
+      logger.info(
+        `[emulator] Suggestion ${emulatorId}:${contentKind}:${JSON.stringify(contentValue)} -> game #${suggestion.gameId}: ${status}.`,
+      );
+      return {
+        status,
+        game: curatedGame,
+        reviewNote: review.review_note ?? undefined,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async suggestCommunityGame(

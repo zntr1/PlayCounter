@@ -11,6 +11,7 @@ import {
 import type {
   EmulatorAdapter,
   EmulatorContentSignal,
+  EmulatorDetectionSource,
   EmulatorReadContext,
   EmulatorReading,
   RawEmulatorSignals,
@@ -24,6 +25,7 @@ type ParsedSignal = {
   volatile: boolean;
   searchHint?: string;
   shareableSearchHint?: boolean;
+  detectionSource: EmulatorDetectionSource;
 };
 
 const DOLPHIN_CONTENT_EXTENSION =
@@ -39,6 +41,7 @@ function parseNandTitleId(raw: string): ParsedSignal | null {
     display: value.toUpperCase(),
     trust: "recognized",
     volatile: false,
+    detectionSource: "launch_arguments",
   };
 }
 
@@ -53,6 +56,7 @@ function parseContentFile(raw: string): ParsedSignal | null {
     display: fileName,
     trust: "recognized",
     volatile: false,
+    detectionSource: "launch_arguments",
     searchHint: fileName.replace(DOLPHIN_CONTENT_EXTENSION, ""),
   };
 }
@@ -136,6 +140,7 @@ export function readDolphinTitle(
       display: gameTitle,
       trust: "recognized",
       volatile: true,
+      detectionSource: "window_title",
       searchHint: gameTitle,
       shareableSearchHint:
         gameTitle.length >= 2 &&
@@ -162,6 +167,7 @@ export function readDolphinTitle(
     display: candidates[0],
     trust: "weak",
     volatile: true,
+    detectionSource: "window_title",
     searchHint: candidates[0],
   };
 }

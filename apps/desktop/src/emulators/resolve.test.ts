@@ -20,6 +20,7 @@ const contentReading = {
       trust: "recognized" as const,
       shareable: true,
       volatile: true,
+      detectionSource: "window_title" as const,
     },
   },
 };
@@ -36,6 +37,9 @@ describe("emulator reconciliation", () => {
       retryMs: 60_000,
     });
     expect(result.runningKeys).toEqual(new Set(["dosbox:program:doom.exe"]));
+    expect(result.observations[0]).toMatchObject({
+      detectionSource: "window_title",
+    });
     expect(
       result.intents.filter((intent) => intent.type === "resolve"),
     ).toHaveLength(1);

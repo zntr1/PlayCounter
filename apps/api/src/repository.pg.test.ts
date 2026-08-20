@@ -17,11 +17,13 @@ describePg("community review PostgreSQL integration", () => {
   beforeAll(async () => {
     const result = await pool.query<{ exists: boolean }>(
       `SELECT to_regclass('problematic_game_identifiers') IS NOT NULL
-          AND to_regclass('community_ignored_process_reports') IS NOT NULL AS exists`,
+          AND to_regclass('community_ignored_process_reports') IS NOT NULL
+          AND to_regclass('emulator_content_suggestions') IS NOT NULL
+          AND to_regclass('emulator_content_submissions') IS NOT NULL AS exists`,
     );
     if (!result.rows[0]?.exists) {
       throw new Error(
-        "PGTEST_URL must point to a database with migration 015 applied",
+        "PGTEST_URL must point to a database with migration 017 applied",
       );
     }
   });
@@ -33,6 +35,14 @@ describePg("community review PostgreSQL integration", () => {
   afterEach(async () => {
     if (identifierValues.length > 0) {
       const values = identifierValues.splice(0);
+      await pool.query(
+        "DELETE FROM emulator_content_identifiers WHERE content_value = ANY($1::text[])",
+        [values],
+      );
+      await pool.query(
+        "DELETE FROM emulator_content_suggestions WHERE content_value = ANY($1::text[])",
+        [values],
+      );
       await pool.query(
         "DELETE FROM community_ignored_process_reports WHERE value = ANY($1::text[])",
         [values],
@@ -102,6 +112,67 @@ describePg("community review PostgreSQL integration", () => {
     igdbGameIds.push(result.rows[0].id);
     return { id: result.rows[0].id, igdbId, name };
   }
+
+  it("keeps emulator suggestions out of matching until atomic approval", async () => {
+    const repo = repository();
+    const game = await createIgdbGame();
+    const contentValue = identifierValue("emulator");
+    const payload = {
+      emulatorId: "dosbox",
+      contentKind: "program" as const,
+      contentValue,
+      gameId: game.id,
+      installUuid: randomUUID(),
+    };
+
+    expect(await repo.suggestEmulatorContent(payload)).toEqual({
+      status: "pending",
+      game: undefined,
+      reviewNote: undefined,
+    });
+    expect(await repo.suggestEmulatorContent(payload)).toMatchObject({
+      status: "pending",
+    });
+    const beforeApproval = await repo.resolveEmulatorContent([
+      { key: "test", ...payload },
+    ]);
+    expect(beforeApproval[0]).toMatchObject({
+      confidence: "unknown",
+      game: null,
+    });
+    expect(
+      await pool.query(
+        `SELECT count(*)::int AS count FROM emulator_content_submissions
+         WHERE content_value = $1`,
+        [contentValue.toLowerCase()],
+      ),
+    ).toMatchObject({ rows: [{ count: 1 }] });
+
+    await pool.query(
+      `WITH approved AS (
+         UPDATE emulator_content_suggestions
+         SET status = 'approved', reviewed_at = now(), updated_at = now()
+         WHERE emulator_id = $1 AND content_kind = $2
+           AND content_value = $3 AND game_id = $4 AND status = 'pending'
+         RETURNING emulator_id, content_kind, content_value, game_id
+       )
+       INSERT INTO emulator_content_identifiers
+         (emulator_id, content_kind, content_value, game_id, confidence)
+       SELECT emulator_id, content_kind, content_value, game_id, 'curated'
+       FROM approved
+       ON CONFLICT (emulator_id, content_kind, content_value, game_id)
+       DO UPDATE SET confidence = 'curated'`,
+      ["dosbox", "program", contentValue.toLowerCase(), game.id],
+    );
+
+    expect(await repo.suggestEmulatorContent(payload)).toMatchObject({
+      status: "already_curated",
+      game: { id: game.id, name: game.name },
+    });
+    expect(
+      await repo.resolveEmulatorContent([{ key: "test", ...payload }]),
+    ).toMatchObject([{ confidence: "curated", game: { id: game.id } }]);
+  });
 
   it("attributes duplicate submissions and preserves a rejected re-submission", async () => {
     const repo = repository();

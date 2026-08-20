@@ -17,16 +17,29 @@ describe("DOSBox adapter", () => {
         "-conf",
         "C:\\DOS\\dosbox_DOOM.conf",
       ]),
-    ).toMatchObject({ kind: "conf", value: "doom", trust: "recognized" });
+    ).toMatchObject({
+      kind: "conf",
+      value: "doom",
+      trust: "recognized",
+      detectionSource: "launch_arguments",
+    });
   });
 
   it("recognizes positional programs and -c launch commands", () => {
     expect(
       readDosboxCommandLine(["dosbox.exe", "C:\\GAMES\\DOOM.EXE"]),
-    ).toMatchObject({ kind: "program", value: "doom.exe" });
+    ).toMatchObject({
+      kind: "program",
+      value: "doom.exe",
+      detectionSource: "launch_arguments",
+    });
     expect(
       readDosboxCommandLine(["dosbox.exe", "-c", "DUKE3D.EXE -nosound"]),
-    ).toMatchObject({ kind: "program", value: "duke3d.exe" });
+    ).toMatchObject({
+      kind: "program",
+      value: "duke3d.exe",
+      detectionSource: "launch_arguments",
+    });
   });
 
   it("uses the classic Program title to follow content changes", () => {
@@ -34,7 +47,12 @@ describe("DOSBox adapter", () => {
       readDosboxTitle(
         "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip 0, Program: DOOM",
       ),
-    ).toMatchObject({ kind: "program", value: "doom", trust: "recognized" });
+    ).toMatchObject({
+      kind: "program",
+      value: "doom",
+      trust: "recognized",
+      detectionSource: "window_title",
+    });
   });
 
   it("keeps weak titles and private tokens local", () => {
