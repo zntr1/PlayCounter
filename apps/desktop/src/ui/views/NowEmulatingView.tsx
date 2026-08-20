@@ -73,7 +73,7 @@ export function NowEmulatingView() {
             No emulator is running
           </h2>
           <p className="mt-2 text-text-muted">
-            Supported emulator activity will appear here automatically.
+            When you start a game in a supported emulator, it shows up here.
           </p>
         </div>
       </Panel>

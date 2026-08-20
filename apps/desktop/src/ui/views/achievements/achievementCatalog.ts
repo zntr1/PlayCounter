@@ -58,7 +58,7 @@ const ALL_GROUP_META: Array<{
     id: "emulator",
     label: "Emulator contributions",
     shortLabel: "Emulators",
-    caption: "Teach PlayCounter which games hide inside emulator files.",
+    caption: "Help PlayCounter recognize the games you play in emulators.",
   },
   {
     id: "total",

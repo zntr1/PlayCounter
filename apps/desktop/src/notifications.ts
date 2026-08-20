@@ -212,7 +212,7 @@ export function emulatorContributionNotification(
         id: `suggestion-verified:${key}`,
         kind: "suggestion-verified",
         title: `${contribution.gameName} suggestion approved`,
-        body: `Detected in ${emulatorLabel}: ${contribution.contentValue}\n\nOther players' emulators will recognize it now.`,
+        body: `Detected in ${emulatorLabel}: ${contribution.contentValue}\n\nEveryone's PlayCounter recognizes it now.`,
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
         action,
@@ -223,7 +223,7 @@ export function emulatorContributionNotification(
         title: `${contribution.gameName} suggestion not approved`,
         body: contribution.reviewNote
           ? `Detected in ${emulatorLabel}: ${contribution.contentValue}\n\nFeedback: ${contribution.reviewNote}`
-          : `${contribution.contentValue} wasn't accepted as ${contribution.gameName}.\n\nYour local link still works. If it is the wrong game, link the content to the right one and share that match.`,
+          : `${contribution.contentValue} wasn't accepted as ${contribution.gameName}.\n\nYour own link still works. If it is the wrong game, pick the right one and share it again.`,
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
         action,

@@ -131,14 +131,14 @@ function EmulatorView({
               <h2 className="text-xl font-semibold text-text">{label}</h2>
             </div>
             <p className="mt-1 text-sm text-text-muted">
-              Detected files:{" "}
+              Emulator files:{" "}
               {known?.hostExeNames.join(", ") || fallbackHostName}
             </p>
           </div>
           <div className="text-sm text-text-muted">
             {activeSessions.length > 0
-              ? `${activeSessions.length} game${activeSessions.length === 1 ? "" : "s"} active`
-              : "Not currently emulating"}
+              ? `${activeSessions.length} game${activeSessions.length === 1 ? "" : "s"} running`
+              : "No game running right now"}
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -154,7 +154,7 @@ function EmulatorView({
           />
           <SmallMetric label="Sessions" value={String(sessions.length)} />
           <SmallMetric label="Games" value={String(games.size)} />
-          <SmallMetric label="Ignored content" value={String(ignoredCount)} />
+          <SmallMetric label="Ignored games" value={String(ignoredCount)} />
         </div>
       </Panel>
 
@@ -178,8 +178,8 @@ function EmulatorView({
               No recognized {label} games yet
             </div>
             <div>
-              Start a game in {label} and pick it once - it is recognized
-              automatically afterwards.
+              Start a game in {label} and pick it once. PlayCounter recognizes
+              it automatically from then on.
             </div>
           </div>
         ) : (
@@ -202,9 +202,9 @@ function EmulatorView({
       {ignoredMappings.length > 0 ? (
         <Panel className="overflow-hidden">
           <div className="border-b border-border px-5 py-4">
-            <h2 className="font-semibold text-text">Ignored {label} content</h2>
+            <h2 className="font-semibold text-text">Ignored {label} games</h2>
             <p className="mt-1 text-sm text-text-muted">
-              Restore an item to let PlayCounter detect it again.
+              Restore a game to let PlayCounter detect it again.
             </p>
           </div>
           <div className="divide-y divide-border">
@@ -239,7 +239,7 @@ function EmulatorView({
           size="sm"
           labelId="detect-emulator-game-again"
           eyebrow={`${forgetting.label} library`}
-          title={`Detect ${forgetting.display} again?`}
+          title={`Forget which game ${forgetting.display} is?`}
           icon={Unlink}
           onClose={forgettingBusy ? () => undefined : () => setForgetting(null)}
           footer={
@@ -263,15 +263,15 @@ function EmulatorView({
                     .then(() => {
                       addToast({
                         tone: "info",
-                        title: `${item.display} will be detected again`,
-                        detail: "Recorded playtime remains in History.",
+                        title: `PlayCounter will ask about ${item.display} again`,
+                        detail: "Recorded playtime stays in History.",
                       });
                       setForgetting(null);
                     })
                     .catch((error) => {
                       addToast({
                         tone: "error",
-                        title: "Could not remove linked game",
+                        title: "Could not forget this game",
                         detail:
                           error instanceof Error
                             ? error.message
@@ -281,15 +281,14 @@ function EmulatorView({
                     });
                 }}
               >
-                Detect again
+                Forget game
               </Button>
             </div>
           }
         >
           <p className="text-sm leading-6 text-text-muted">
-            This removes the local link. If the emulator is running, PlayCounter
-            will detect the content again now; otherwise it happens next time.
-            Recorded playtime stays in History.
+            PlayCounter asks you again the next time it shows up - right away if
+            the emulator is running. Recorded playtime stays in History.
           </p>
         </Modal>
       ) : null}
@@ -333,12 +332,12 @@ function LinkedGameRow({
         tone: "success",
         title:
           outcome.share.status === "already_curated"
-            ? "Already in the shared database"
-            : "Match submitted for review",
+            ? "Already in the Community database"
+            : "Match sent for review",
         detail:
           outcome.share.status === "pending"
-            ? "You'll get a notification when it's reviewed."
-            : "Your local emulator link remains unchanged.",
+            ? "You'll get a notification once it's reviewed."
+            : "Nothing changed on this PC.",
       });
     } else {
       addToast({
@@ -347,7 +346,7 @@ function LinkedGameRow({
         detail:
           outcome.kind === "failed"
             ? outcome.error
-            : "Your local emulator link remains unchanged.",
+            : "Nothing changed on this PC.",
       });
     }
   }
@@ -377,7 +376,9 @@ function LinkedGameRow({
             </span>
           ) : null}
           <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-text-muted">
-            {mapping.confidence === "user" ? "Chosen by you" : "Auto-matched"}
+            {mapping.confidence === "user"
+              ? "Chosen by you"
+              : "Found automatically"}
           </span>
           {shareBadgeStatus ? (
             <CommunityApprovalBadge
@@ -406,8 +407,7 @@ function LinkedGameRow({
         </div>
         {mapping.needsConfirmation ? (
           <p className="mt-2 text-xs text-text-faint">
-            Tracking is already active. Confirming only hides future review
-            warnings.
+            PlayCounter already tracks this game. Confirm to remove this note.
           </p>
         ) : null}
       </div>
@@ -434,7 +434,7 @@ function LinkedGameRow({
           Change game
         </Button>
         <Button variant="ghost" icon={RotateCcw} onClick={onForget}>
-          Detect again
+          Forget game
         </Button>
       </div>
     </div>

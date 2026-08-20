@@ -47,14 +47,14 @@ export function EmulatorPickerCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold uppercase tracking-wider text-warning">
-              Emulator running
+              No game detected
             </div>
             <h2 className="mt-1 font-semibold text-text">
               {observation.label} is running
             </h2>
             <p className="mt-1 text-sm text-text-muted">
-              PlayCounter could not identify the game inside it. Start a game in
-              the emulator or launch one with a supported file or title.
+              PlayCounter cannot tell which game is loaded. Start a game in the
+              emulator - it shows up here as soon as PlayCounter recognizes it.
             </p>
             <Button
               className="mt-3"
@@ -85,12 +85,12 @@ export function EmulatorPickerCard({
       const shareDetail =
         shareOutcome?.kind === "shared"
           ? shareOutcome.share.status === "already_curated"
-            ? " Already in the shared database."
+            ? " Already in the Community database."
             : shareOutcome.share.status === "rejected"
-              ? " This match was already reviewed; feedback is in Notifications and your local link still works."
-              : " Submitted for review. You'll get a notification when it's reviewed."
+              ? " This match was reviewed before. The reason is in Notifications - your own link still works."
+              : " Sent for review. You'll get a notification once it's reviewed."
           : shareOutcome
-            ? " The local link works; sharing can be retried from the emulator page."
+            ? " The link works. You can share it later from the emulator page."
             : "";
       addToast({
         tone: "success",
@@ -99,7 +99,7 @@ export function EmulatorPickerCard({
           : `Now tracking ${game.name}`,
         detail:
           observation.endedAt && pendingSeconds >= 60
-            ? `${formatDuration(pendingSeconds)} of detected playtime was saved.`
+            ? `Saved ${formatDuration(pendingSeconds)} of playtime.`
             : `${observation.display} is now linked on this PC.${shareDetail}`,
       });
     } catch (error) {
@@ -124,8 +124,8 @@ export function EmulatorPickerCard({
           : `Now tracking ${name}`,
         detail:
           observation.endedAt && pendingSeconds >= 60
-            ? `${formatDuration(pendingSeconds)} of detected playtime was saved.`
-            : "The custom link stays on this PC.",
+            ? `Saved ${formatDuration(pendingSeconds)} of playtime.`
+            : "This name stays on this PC.",
       });
     } catch (error) {
       addToast({
@@ -194,7 +194,7 @@ export function EmulatorPickerCard({
           shareDisabled={offline || !installUuid}
           shareDisabledReason={
             offline
-              ? "Community sharing requires a connection."
+              ? "Sharing needs an internet connection."
               : !installUuid
                 ? "PlayCounter is still starting up."
                 : undefined
@@ -204,23 +204,23 @@ export function EmulatorPickerCard({
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-border bg-bg/40 px-5 py-3">
         <p className="text-xs text-text-faint">
-          Your choice is remembered locally for this content.
+          Your choice is remembered on this PC.
         </p>
         <Button
           variant="ghost"
           disabled={busy}
-          title="Stops tracking this content. Restore it under Ignored content."
+          title="PlayCounter stops tracking this game. You can restore it under Ignored games."
           onClick={() => {
             void ignoreEmulatorContent(observation.key).then(() =>
               addToast({
                 tone: "info",
                 title: `${observation.display} is no longer tracked`,
-                detail: "You can undo this under Ignored content.",
+                detail: "You can restore it under Ignored games.",
               }),
             );
           }}
         >
-          Do not track
+          Don't track this
         </Button>
       </div>
     </Panel>

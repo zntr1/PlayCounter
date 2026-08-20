@@ -53,7 +53,7 @@ export function emulatorShareControl(
     return {
       ...base,
       disabled: true,
-      reason: "Sharing needs a connection.",
+      reason: "Sharing needs an internet connection.",
     };
   }
   if (!context.installUuid) {

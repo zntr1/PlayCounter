@@ -196,15 +196,16 @@ export function EmulatorGamePicker({
           </Button>
         </form>
         <p className="mt-2 text-xs text-text-faint">
-          Searches IGDB for {platformLabel} titles, up to 50 results.
+          Searches the IGDB game database for {platformLabel} games. Up to 50
+          results.
         </p>
       </section>
 
       <div role="status" aria-live="polite">
         {isOffline ? (
           <StatePanel tone="warning">
-            Database search is unavailable offline. You can still add a custom
-            game.
+            Search needs an internet connection. You can still add the game by
+            name.
           </StatePanel>
         ) : search.state === "loading" ? (
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-busy>
@@ -233,7 +234,7 @@ export function EmulatorGamePicker({
               No {platformLabel} game found for “{search.lastQuery}”.
             </div>
             <div className="mt-1">
-              Check the spelling, try the English title, or add it as a custom
+              Check the spelling, try the English name, or add it as a custom
               game.
             </div>
             <Button
@@ -371,7 +372,7 @@ function GameGrid({
                 {current
                   ? "Currently linked"
                   : onSelectAndShare
-                    ? "Database game"
+                    ? "From the database"
                     : "Select this game"}
               </span>
             </span>

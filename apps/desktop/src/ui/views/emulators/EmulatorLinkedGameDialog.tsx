@@ -147,5 +147,5 @@ function replacementDetail(
 ) {
   const link = `${display} is now tracked as ${gameName}.`;
   if (sessionCount === 0) return link;
-  return `${link} ${sessionCount} existing ${sessionCount === 1 ? "session was" : "sessions were"} moved with the link.`;
+  return `${link} ${sessionCount} earlier ${sessionCount === 1 ? "session was" : "sessions were"} moved over too.`;
 }

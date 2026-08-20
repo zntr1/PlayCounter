@@ -31,9 +31,9 @@ function observation(
 
 describe("emulator picker model", () => {
   it("labels the actual emulator detection source", () => {
-    expect(emulatorDetectionSourceLabel("window_title")).toBe("Window Title");
+    expect(emulatorDetectionSourceLabel("window_title")).toBe("window title");
     expect(emulatorDetectionSourceLabel("launch_arguments")).toBe(
-      "Launch Arguments",
+      "start-up options",
     );
     expect(emulatorDetectionSourceLabel()).toBeNull();
   });

@@ -2863,10 +2863,10 @@ function MatchCheckDialog({
       footer={footer}
     >
       <p className="text-sm leading-6 text-text-muted">
-        Compare{" "}
-        <span className="font-mono font-medium text-text">{exeName}</span> with
-        IGDB and approved community matches. Applying a choice changes only this
-        PC.
+        Looks{" "}
+        <span className="font-mono font-medium text-text">{exeName}</span> up in
+        IGDB and in approved community matches. Picking one changes it on this PC
+        only.
       </p>
 
       {flaggedIdentifier ? (
@@ -2884,7 +2884,8 @@ function MatchCheckDialog({
         {isOffline ? (
           <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
             <div className="flex items-center gap-2 font-medium">
-              <WifiOff size={17} /> Checking the database needs a connection.
+              <WifiOff size={17} /> Checking the database needs an internet
+              connection.
             </div>
             <Button
               className="mt-3"
@@ -2984,7 +2985,7 @@ function MatchCheckDialog({
                       ) : null}
                       {isPendingCommunityMatch(match) ? (
                         <span
-                          title="This community suggestion is still under review. It is tracked locally until approved."
+                          title="Someone suggested this match and it is still being reviewed. Until it is approved, it only counts on this PC."
                           className="rounded border border-warning-border bg-warning-tint px-1.5 py-0.5 text-[11px] font-medium text-warning"
                         >
                           In review
