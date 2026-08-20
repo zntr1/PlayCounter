@@ -57,6 +57,7 @@ import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { findTour } from "../tour/tourDefinitions";
 import { CommunitySuggestionForm } from "./DiscoveredView";
+import { matchCandidatePriority } from "./matchCheckModel";
 
 const TOUR_NOW_PLAYING_SESSION_ID = -1;
 const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
@@ -773,7 +774,7 @@ function AmbiguousMatchCard({
     () =>
       [...candidates].sort(
         (left, right) =>
-          ambiguousCandidatePriority(left) - ambiguousCandidatePriority(right),
+          matchCandidatePriority(left) - matchCandidatePriority(right),
       ),
     [candidates],
   );
@@ -1227,12 +1228,6 @@ function notifyDismissOutcome(
 
 function formatError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
-}
-
-function ambiguousCandidatePriority(game: Game) {
-  if (game.source === "community") return 0;
-  if (game.source === "igdb") return 1;
-  return 2;
 }
 
 function GameCandidateButton({

@@ -1,9 +1,11 @@
 import clsx from "clsx";
 import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
   Ban,
   CalendarDays,
   Clipboard,
+  Check,
   Clock3,
   ClockPlus,
   Copy,
@@ -13,11 +15,13 @@ import {
   ImagePlus,
   LayoutGrid,
   List,
+  Loader2,
   Pencil,
   RotateCcw,
   Search,
   Send,
   Trash2,
+  WifiOff,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -78,9 +82,15 @@ import {
   ContextMenuSeparator,
   IconButton,
   Input,
+  Modal,
   useContextMenu,
   useEscapeKey,
 } from "../primitives";
+import {
+  initialMatchSelection,
+  isSameGame,
+  sortMatchCandidates,
+} from "./matchCheckModel";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import type {
   CommunityGameSuggestionResponse,
@@ -1868,6 +1878,14 @@ function GameLibraryCard({
             onCancel={() => setShowMatchCheck(false)}
             onApply={handleApplyMatch}
             onReportNotAGame={() => void handleNegativeReport()}
+            onSearchCommunity={
+              canSuggestToCommunity
+                ? () => {
+                    setShowMatchCheck(false);
+                    setShareOpen(true);
+                  }
+                : undefined
+            }
           />
         ) : null}
         {reportOpen ? (
@@ -2165,6 +2183,14 @@ function GameLibraryCard({
           onCancel={() => setShowMatchCheck(false)}
           onApply={handleApplyMatch}
           onReportNotAGame={() => void handleNegativeReport()}
+          onSearchCommunity={
+            canSuggestToCommunity
+              ? () => {
+                  setShowMatchCheck(false);
+                  setShareOpen(true);
+                }
+              : undefined
+          }
         />
       ) : null}
       {reportOpen ? (
@@ -2712,15 +2738,18 @@ function MatchCheckDialog({
   onCancel,
   onApply,
   onReportNotAGame,
+  onSearchCommunity,
 }: {
   game: GameSummary;
   onCancel: () => void;
   onApply: (match: Game, pendingCommunity: boolean) => void;
   onReportNotAGame: () => void;
+  onSearchCommunity?: () => void;
 }) {
-  useEscapeKey(onCancel);
+  const isOffline = useIsOffline();
   const exeName = game.exeNames[0] ?? "";
   const [state, setState] = useState<"loading" | "error" | "done">("loading");
+  const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<Game[]>([]);
   const [selection, setSelection] = useState<Game | null>(null);
@@ -2730,14 +2759,18 @@ function MatchCheckDialog({
   const [flaggedIdentifier, setFlaggedIdentifier] = useState<{
     reason: IdentifierFlagReason;
   }>();
+  const [confirmNotAGame, setConfirmNotAGame] = useState(false);
 
   const isPendingCommunityMatch = (match: Game) =>
     match.source === "community" && pendingCommunityGameIds.has(match.id);
   const isCurrentMatch = (match: Game) =>
-    match.source === game.source && match.id === game.gameId;
+    isSameGame(match, { id: game.gameId, source: game.source });
 
   useEffect(() => {
+    if (isOffline) return;
     let cancelled = false;
+    setState("loading");
+    setError("");
     void (async () => {
       try {
         const {
@@ -2747,18 +2780,13 @@ function MatchCheckDialog({
         } = await findGameMatches(exeName);
         if (cancelled) return;
         const pendingIdSet = new Set(pendingIds ?? []);
-        setCandidates(games);
+        setCandidates(sortMatchCandidates(games));
         setPendingCommunityGameIds(pendingIdSet);
         setFlaggedIdentifier(flag);
         // A single combined IGDB/community result is preselected so applying
         // is one click - unless it is what the exe already uses. An ambiguous
         // set requires an explicit pick.
-        setSelection(
-          games.length === 1 &&
-            !(games[0].source === game.source && games[0].id === game.gameId)
-            ? games[0]
-            : null,
-        );
+        setSelection(initialMatchSelection(games, game));
         setState("done");
       } catch (err) {
         if (cancelled) return;
@@ -2769,119 +2797,234 @@ function MatchCheckDialog({
     return () => {
       cancelled = true;
     };
-  }, [exeName, game.gameId, game.source]);
+  }, [attempt, exeName, game.gameId, game.source, isOffline]);
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">
-          Check matches for {game.name}
-        </h2>
-        <p className="mt-2 text-sm text-text-muted">
-          Looks up{" "}
-          <span
-            className="inline-block max-w-full truncate align-bottom font-medium text-text"
-            title={exeName}
-          >
-            {exeName}
-          </span>{" "}
-          in the IGDB and community databases.
+  const footer = (
+    <div className="grid gap-3">
+      {selection ? (
+        <p className="text-xs text-text-muted">
+          <strong className="text-text">{selection.name}</strong> will be used
+          for {exeName} on this PC.
         </p>
+      ) : null}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button variant="ghost" onClick={onCancel}>
+          {game.source === "custom" ? "Keep custom game" : "Keep current match"}
+        </Button>
+        <Button
+          variant="primary"
+          icon={Check}
+          disabled={!selection || isOffline || isCurrentMatch(selection)}
+          onClick={() => {
+            if (selection && !isCurrentMatch(selection))
+              onApply(selection, isPendingCommunityMatch(selection));
+          }}
+        >
+          Use this match
+        </Button>
+      </div>
+      <div className="border-t border-border pt-3">
+        {confirmNotAGame ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm text-danger">
+              Report and stop tracking {exeName}?
+            </span>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setConfirmNotAGame(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={onReportNotAGame}>
+                Report
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            className="text-danger"
+            onClick={() => setConfirmNotAGame(true)}
+          >
+            This is not a game
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 
-        {flaggedIdentifier ? (
-          <div className="mt-4 rounded-md border border-warning-border bg-warning-tint p-3 text-sm text-warning">
+  return (
+    <Modal
+      size="md"
+      labelId="match-check-title"
+      eyebrow="Database match"
+      title={`Check matches for ${game.name}`}
+      subtitle={exeName}
+      icon={state === "loading" && !isOffline ? Loader2 : Search}
+      onClose={onCancel}
+      footer={footer}
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        Compare{" "}
+        <span className="font-mono font-medium text-text">{exeName}</span> with
+        IGDB and approved community matches. Applying a choice changes only this
+        PC.
+      </p>
+
+      {flaggedIdentifier ? (
+        <div className="mt-4 flex gap-3 rounded-xl border border-warning-border bg-warning-tint p-4 text-sm text-warning">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <span>
             {flaggedIdentifier.reason === "not_a_game"
               ? "Apps that are not games use this file name too, so PlayCounter no longer picks a game automatically."
               : "Several games use this file name, so PlayCounter no longer picks a game automatically."}
+          </span>
+        </div>
+      ) : null}
+
+      <div className="mt-5" role="status" aria-live="polite">
+        {isOffline ? (
+          <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
+            <div className="flex items-center gap-2 font-medium">
+              <WifiOff size={17} /> Checking the database needs a connection.
+            </div>
+            <Button
+              className="mt-3"
+              variant="secondary"
+              onClick={() => setAttempt((value) => value + 1)}
+            >
+              Try again
+            </Button>
           </div>
-        ) : null}
-
-        <div className="mt-4 max-h-80 overflow-y-auto">
-          {state === "loading" ? (
-            <div className="rounded-md border border-dashed border-border bg-bg p-8 text-center text-sm text-text-muted">
-              Checking databases...
+        ) : state === "loading" ? (
+          <div className="grid gap-2" aria-busy>
+            {Array.from({ length: 3 }, (_, index) => (
+              <div
+                key={index}
+                className="h-[88px] animate-pulse rounded-xl border border-border bg-surface-hover"
+              />
+            ))}
+            <span className="sr-only">
+              Checking IGDB and community databases…
+            </span>
+          </div>
+        ) : state === "error" ? (
+          <div className="rounded-xl border border-danger-border bg-danger-tint p-5 text-sm text-danger">
+            <div className="font-medium">Match check failed</div>
+            <div className="mt-1">{error}</div>
+            <Button
+              className="mt-3"
+              variant="secondary"
+              onClick={() => setAttempt((value) => value + 1)}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : candidates.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-bg/60 p-6 text-center text-sm text-text-muted">
+            <div className="font-medium text-text">
+              No database match for {exeName}.
             </div>
-          ) : state === "error" ? (
-            <div className="rounded-md border border-border bg-bg p-4 text-sm text-text-muted">
-              Match check failed: {error}
+            {game.source === "custom" ? (
+              <div className="mt-1">{game.name} stays a custom game.</div>
+            ) : null}
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Button
+                variant="secondary"
+                icon={RotateCcw}
+                onClick={() => setAttempt((value) => value + 1)}
+              >
+                Check again
+              </Button>
+              {onSearchCommunity ? (
+                <Button
+                  variant="primary"
+                  icon={Search}
+                  onClick={onSearchCommunity}
+                >
+                  Search the database
+                </Button>
+              ) : null}
             </div>
-          ) : candidates.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border bg-bg p-8 text-center text-sm text-text-muted">
-              No database match found.
-              {game.source === "custom"
-                ? ` ${game.name} stays a custom game.`
-                : ""}
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              {candidates.map((match) => {
-                const selected =
-                  selection?.id === match.id &&
-                  selection.source === match.source;
-                return (
-                  <button
-                    key={`${match.source}:${match.id}`}
-                    type="button"
-                    onClick={() => setSelection(selected ? null : match)}
-                    className={clsx(
-                      "flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition",
-                      selected
-                        ? "border-accent bg-surface-hover"
-                        : "border-border bg-surface hover:border-accent/40 hover:bg-surface-hover",
-                    )}
-                  >
-                    {match.coverUrl ? (
-                      <img
-                        src={match.coverUrl}
-                        alt=""
-                        className="h-16 w-12 shrink-0 rounded bg-surface-hover object-cover"
-                      />
-                    ) : (
-                      <div className="h-16 w-12 shrink-0 rounded bg-surface-hover" />
-                    )}
-                    <div className="min-w-0">
-                      <div className="truncate font-semibold text-text">
-                        {match.name}
-                      </div>
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <SourceBadge source={match.source} />
-                        {isCurrentMatch(match) ? (
-                          <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
-                            Current match
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <Button
-            variant="primary"
-            disabled={!selection || isCurrentMatch(selection)}
-            onClick={() => {
-              if (selection)
-                onApply(selection, isPendingCommunityMatch(selection));
-            }}
-          >
-            Apply match
-          </Button>
-          <Button variant="ghost" onClick={onCancel}>
-            {game.source === "custom"
-              ? "Keep custom game"
-              : "Keep current match"}
-          </Button>
-          <Button variant="secondary" onClick={onReportNotAGame}>
-            This is not a game
-          </Button>
-        </div>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            {candidates.map((match) => {
+              const selected = selection ? isSameGame(selection, match) : false;
+              const current = isCurrentMatch(match);
+              const content = (
+                <>
+                  {match.coverUrl ? (
+                    <img
+                      src={match.coverUrl}
+                      alt=""
+                      className="h-16 w-12 shrink-0 rounded-md bg-surface-hover object-cover"
+                    />
+                  ) : (
+                    <span className="grid h-16 w-12 shrink-0 place-items-center rounded-md bg-surface-hover text-text-faint">
+                      <Gamepad2 size={20} />
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className="block truncate font-semibold text-text"
+                      title={match.name}
+                    >
+                      {match.name}
+                    </span>
+                    <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <SourceBadge source={match.source} />
+                      {match.releaseYear ? (
+                        <span className="text-xs text-text-faint">
+                          {match.releaseYear}
+                        </span>
+                      ) : null}
+                      {current ? (
+                        <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
+                          Current match
+                        </span>
+                      ) : null}
+                      {isPendingCommunityMatch(match) ? (
+                        <span
+                          title="This community suggestion is still under review. It is tracked locally until approved."
+                          className="rounded border border-warning-border bg-warning-tint px-1.5 py-0.5 text-[11px] font-medium text-warning"
+                        >
+                          In review
+                        </span>
+                      ) : null}
+                    </span>
+                  </span>
+                  {selected ? (
+                    <Check size={18} className="shrink-0 text-accent" />
+                  ) : null}
+                </>
+              );
+              const className = clsx(
+                "flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition",
+                current
+                  ? "border-border bg-surface-hover/60 opacity-75"
+                  : selected
+                    ? "border-accent bg-accent/10 ring-1 ring-accent"
+                    : "border-border bg-bg hover:border-accent/40 hover:bg-surface-hover",
+              );
+              return current ? (
+                <div key={`${match.source}:${match.id}`} className={className}>
+                  {content}
+                </div>
+              ) : (
+                <button
+                  key={`${match.source}:${match.id}`}
+                  type="button"
+                  aria-pressed={selected}
+                  className={className}
+                  onClick={() => setSelection(selected ? null : match)}
+                >
+                  {content}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 }
 

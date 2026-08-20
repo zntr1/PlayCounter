@@ -1,16 +1,23 @@
 import type { Game } from "@playcounter/shared";
-import { useState } from "react";
+import { AlertTriangle, Gamepad2, Loader2, Radio, Timer } from "lucide-react";
+import { useEffect, useState } from "react";
+import { creditableSeconds } from "../../../emulators/resolve";
+import type { EmulatorObservation } from "../../../emulators/types";
+import { useAppStore } from "../../../store";
 import {
   addCustomEmulatorGame,
   dismissEmulatorHostNotice,
   ignoreEmulatorContent,
-  searchEmulatorGames,
   selectEmulatorGame,
 } from "../../../tracker";
-import { useAppStore } from "../../../store";
-import type { EmulatorObservation } from "../../../emulators/types";
-import { Panel } from "../../components";
-import { Button, Input } from "../../primitives";
+import { Panel, formatDuration } from "../../components";
+import { Button } from "../../primitives";
+import { EmulatorGamePicker } from "./EmulatorGamePicker";
+import {
+  emulatorPickerCopy,
+  emulatorPickerPhase,
+  guestPlatformLabel,
+} from "./emulatorPickerModel";
 
 export function EmulatorPickerCard({
   observation,
@@ -18,148 +25,172 @@ export function EmulatorPickerCard({
   observation: EmulatorObservation;
 }) {
   const addToast = useAppStore((state) => state.addToast);
-  const [query, setQuery] = useState(
-    observation.kind === "content"
-      ? (observation.searchHint ?? observation.display)
-      : "",
-  );
-  const [customName, setCustomName] = useState("");
-  const [results, setResults] = useState<Game[]>(
-    observation.kind === "content" ? (observation.candidates ?? []) : [],
-  );
   const [busy, setBusy] = useState(false);
-  const guestPlatformLabel =
-    observation.emulatorId === "dolphin" ? "GameCube / Wii" : "DOS";
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (observation.kind !== "content" || !observation.runningSince) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [observation]);
 
   if (observation.kind === "host-notice") {
     return (
-      <Panel className="border-warning-border p-5">
-        <h2 className="font-semibold text-text">
-          {observation.label} is running
-        </h2>
-        <p className="mt-1 text-sm text-text-muted">
-          PlayCounter could not identify the game inside it from the available
-          process details. Start a game in the emulator or launch one with a
-          supported game file or title identifier.
-        </p>
-        <Button
-          className="mt-4"
-          variant="ghost"
-          onClick={() => dismissEmulatorHostNotice(observation.key)}
-        >
-          Dismiss
-        </Button>
+      <Panel className="overflow-hidden border-warning-border">
+        <div className="flex items-start gap-4 p-5">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-warning-border bg-warning-tint text-warning">
+            <AlertTriangle size={20} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold uppercase tracking-wider text-warning">
+              Emulator running
+            </div>
+            <h2 className="mt-1 font-semibold text-text">
+              {observation.label} is running
+            </h2>
+            <p className="mt-1 text-sm text-text-muted">
+              PlayCounter could not identify the game inside it. Start a game in
+              the emulator or launch one with a supported file or title.
+            </p>
+            <Button
+              className="mt-3"
+              variant="ghost"
+              onClick={() => dismissEmulatorHostNotice(observation.key)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
       </Panel>
     );
   }
 
-  async function runSearch() {
+  const platformLabel = guestPlatformLabel(observation.emulatorId);
+  const copy = emulatorPickerCopy(observation, platformLabel);
+  const pendingSeconds = creditableSeconds(observation, now);
+  const phase = emulatorPickerPhase(observation);
+
+  async function applyGame(game: Game) {
+    if (busy || observation.kind !== "content") return;
     setBusy(true);
     try {
-      setResults(await searchEmulatorGames(observation.emulatorId, query));
+      await selectEmulatorGame(observation.key, game);
+      addToast({
+        tone: "success",
+        title: observation.endedAt
+          ? `${game.name} added to History`
+          : `Now tracking ${game.name}`,
+        detail:
+          observation.endedAt && pendingSeconds >= 60
+            ? `${formatDuration(pendingSeconds)} of detected playtime was saved.`
+            : `${observation.display} is now linked on this PC.`,
+      });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Game search failed",
+        title: "Could not link game",
         detail: error instanceof Error ? error.message : String(error),
       });
-    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyCustom(name: string) {
+    if (busy || observation.kind !== "content") return;
+    setBusy(true);
+    try {
+      await addCustomEmulatorGame(observation.key, name);
+      addToast({
+        tone: "success",
+        title: observation.endedAt
+          ? `${name} added to History`
+          : `Now tracking ${name}`,
+        detail:
+          observation.endedAt && pendingSeconds >= 60
+            ? `${formatDuration(pendingSeconds)} of detected playtime was saved.`
+            : "The custom link stays on this PC.",
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Could not add custom game",
+        detail: error instanceof Error ? error.message : String(error),
+      });
       setBusy(false);
     }
   }
 
   return (
-    <Panel className="border-accent/30 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wide text-accent">
-            {observation.label} content detected
+    <Panel
+      className={`overflow-hidden ${copy.tone === "warning" ? "border-warning-border" : "border-accent/30"}`}
+    >
+      <div className="border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface p-5">
+        <div className="flex items-start gap-4">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent/10 text-accent">
+            <Gamepad2 size={20} />
           </div>
-          <h2 className="mt-1 text-xl font-semibold text-text">
-            {observation.display}
-          </h2>
-          <p className="mt-1 text-sm text-text-muted">
-            {observation.state === "resolving"
-              ? `Looking for a matching ${guestPlatformLabel} game…`
-              : observation.endedAt
-                ? "The emulator stopped. Choose the game to keep the detected playtime."
-                : "Choose the game once; PlayCounter will remember this content locally."}
-          </p>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-semibold uppercase tracking-wider text-accent">
+              {copy.eyebrow}
+            </div>
+            <h2
+              className="mt-1 break-words text-xl font-semibold text-text"
+              title={copy.headline}
+            >
+              {copy.headline}
+            </h2>
+            <p className="mt-1 text-sm text-text-muted">{copy.description}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {observation.runningSince ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-tint px-2.5 py-1 text-xs font-medium text-success">
+                  <Radio size={13} className="animate-pulse" /> Tracking now
+                </span>
+              ) : null}
+              {pendingSeconds >= 60 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-warning-border bg-warning-tint px-2.5 py-1 text-xs font-medium text-warning">
+                  <Timer size={13} /> {formatDuration(pendingSeconds)} waiting
+                  to be saved
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {phase === "resolving" ? (
+            <Loader2 size={20} className="shrink-0 animate-spin text-accent" />
+          ) : null}
         </div>
+      </div>
+      <div className="p-5">
+        <EmulatorGamePicker
+          emulatorId={observation.emulatorId}
+          platformLabel={platformLabel}
+          contentDisplay={observation.display}
+          initialQuery={observation.searchHint ?? observation.display}
+          suggested={observation.candidates}
+          variant="card"
+          busy={busy}
+          onSelect={(game) => void applyGame(game)}
+          onSelectCustom={(name) => void applyCustom(name)}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-3 border-t border-border bg-bg/40 px-5 py-3">
+        <p className="text-xs text-text-faint">
+          Your choice is remembered locally for this content.
+        </p>
         <Button
           variant="ghost"
-          onClick={() => void ignoreEmulatorContent(observation.key)}
+          disabled={busy}
+          title="Stops tracking this content. Restore it under Ignored content."
+          onClick={() => {
+            void ignoreEmulatorContent(observation.key).then(() =>
+              addToast({
+                tone: "info",
+                title: `${observation.display} is no longer tracked`,
+                detail: "You can undo this under Ignored content.",
+              }),
+            );
+          }}
         >
           Do not track
-        </Button>
-      </div>
-
-      {results.length > 0 ? (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {results.map((game) => (
-            <button
-              key={`${game.source}:${game.id}`}
-              type="button"
-              onClick={() => void selectEmulatorGame(observation.key, game)}
-              className="flex items-center gap-3 rounded-lg border border-border bg-bg p-3 text-left transition hover:border-accent/50 hover:bg-surface-hover"
-            >
-              {game.coverUrl ? (
-                <img
-                  src={game.coverUrl}
-                  alt=""
-                  className="h-16 w-12 shrink-0 rounded object-cover"
-                />
-              ) : (
-                <div className="h-16 w-12 shrink-0 rounded bg-surface-hover" />
-              )}
-              <span className="min-w-0">
-                <span className="block truncate font-medium text-text">
-                  {game.name}
-                </span>
-                <span className="mt-1 block text-xs text-text-faint">
-                  {game.releaseYear ? `${game.releaseYear} · ` : ""}
-                  {guestPlatformLabel}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") void runSearch();
-          }}
-          placeholder={`Search ${guestPlatformLabel} games`}
-          className="min-w-64 flex-1"
-        />
-        <Button loading={busy} onClick={() => void runSearch()}>
-          Search {guestPlatformLabel} games
-        </Button>
-      </div>
-      <p className="mt-2 text-xs text-text-faint">
-        Search is restricted to {guestPlatformLabel} and returns up to 50
-        results.
-      </p>
-
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
-        <Input
-          value={customName}
-          onChange={(event) => setCustomName(event.target.value)}
-          placeholder="Or enter a custom game name"
-          className="min-w-64 flex-1"
-        />
-        <Button
-          variant="secondary"
-          disabled={!customName.trim()}
-          onClick={() =>
-            void addCustomEmulatorGame(observation.key, customName)
-          }
-        >
-          Add custom game
         </Button>
       </div>
     </Panel>

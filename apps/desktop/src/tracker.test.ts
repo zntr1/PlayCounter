@@ -1,4 +1,5 @@
 import type { Contribution, Game, Session } from "@playcounter/shared";
+import type { EmulatorMapping } from "./emulators/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({
@@ -26,6 +27,7 @@ import {
   pollContributions,
   removeGameHistory,
   reportNegativeMatch,
+  selectEmulatorGame,
   setGamePlaytime,
   suggestTrackedGameToCommunity,
   untrackGame,
@@ -85,6 +87,8 @@ beforeEach(() => {
     exeCache: new Map(),
     activeSessions: [],
     ambiguousMatches: [],
+    emulatorMappings: new Map(),
+    emulatorObservations: [],
     recentSessions: [],
     gameMetadata: new Map(),
     archivedSeconds: 0,
@@ -1426,5 +1430,123 @@ describe("canonical alias actions", () => {
         "milestone:game:community:7:10",
       ]),
     );
+  });
+});
+
+describe("emulator mapping replacement", () => {
+  it("moves active and completed sessions for the same content to the new game", async () => {
+    const contentKey = "dosbox:program:game.exe";
+    const mapping: EmulatorMapping = {
+      contentKey,
+      emulatorId: "dosbox",
+      label: "DOSBox",
+      contentKind: "program",
+      contentValue: "GAME.EXE",
+      display: "GAME.EXE",
+      trust: "recognized",
+      decision: "game",
+      gameId: 1,
+      gameName: "Old game",
+      coverUrl: "old-cover",
+      source: "igdb",
+      confidence: "user",
+      decidedAt: "2026-08-20T09:00:00.000Z",
+      lastSeenAt: "2026-08-20T10:00:00.000Z",
+    };
+    useAppStore.setState({
+      emulatorMappings: new Map([[contentKey, mapping]]),
+      emulatorObservations: [],
+      activeSessions: [
+        {
+          id: 100,
+          gameId: 1,
+          gameName: "Old game",
+          exeName: "",
+          coverUrl: "old-cover",
+          source: "igdb",
+          startedAt: "2026-08-20T10:00:00.000Z",
+          checkpointedAt: "2026-08-20T10:01:00.000Z",
+          emulator: {
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            contentKey,
+            display: "GAME.EXE",
+            trust: "recognized",
+          },
+        },
+      ],
+      recentSessions: [
+        {
+          id: 101,
+          gameId: 1,
+          gameName: "Old game",
+          exeName: "",
+          coverUrl: "old-cover",
+          source: "igdb",
+          startedAt: "2026-08-19T10:00:00.000Z",
+          endedAt: "2026-08-19T10:06:00.000Z",
+          durationSeconds: 360,
+          emulator: {
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            contentKey,
+            display: "GAME.EXE",
+            trust: "recognized",
+          },
+        },
+        {
+          id: 102,
+          gameId: 1,
+          gameName: "Old game",
+          exeName: "",
+          coverUrl: "old-cover",
+          source: "igdb",
+          startedAt: "2026-08-18T10:00:00.000Z",
+          endedAt: "2026-08-18T10:03:00.000Z",
+          durationSeconds: 180,
+          emulator: {
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            contentKey: "dosbox:program:other.exe",
+            display: "OTHER.EXE",
+            trust: "recognized",
+          },
+        },
+      ],
+    });
+
+    await selectEmulatorGame(contentKey, {
+      id: 2,
+      name: "New game",
+      coverUrl: "new-cover",
+      source: "igdb",
+    });
+
+    const state = useAppStore.getState();
+    expect(state.activeSessions).toHaveLength(1);
+    expect(state.activeSessions[0]).toMatchObject({
+      id: 100,
+      gameId: 2,
+      gameName: "New game",
+      coverUrl: "new-cover",
+      startedAt: "2026-08-20T10:00:00.000Z",
+      checkpointedAt: "2026-08-20T10:01:00.000Z",
+    });
+    expect(state.recentSessions[0]).toMatchObject({
+      id: 101,
+      gameId: 2,
+      gameName: "New game",
+      durationSeconds: 360,
+    });
+    expect(state.recentSessions[1]).toMatchObject({
+      id: 102,
+      gameId: 1,
+      gameName: "Old game",
+      durationSeconds: 180,
+    });
+    expect(state.emulatorMappings.get(contentKey)?.gameName).toBe("New game");
+    expect(
+      state.emulatorObservations.some((item) => item.key === contentKey),
+    ).toBe(false);
   });
 });

@@ -1954,9 +1954,55 @@ export async function selectEmulatorGame(contentKey: string, game: Game) {
   const state = useAppStore.getState();
   const existingMapping = state.emulatorMappings.get(contentKey);
   if (existingMapping) {
-    await endActiveEmulatorRoute(contentKey);
-    state.removeEmulatorMapping(contentKey);
-    state.setEmulatorObservation(observationFromMapping(existingMapping));
+    const nowIso = new Date().toISOString();
+    const updateSession = <T extends ActiveSession | Session>(session: T): T =>
+      session.emulator?.contentKey === contentKey
+        ? {
+            ...session,
+            gameId: game.id,
+            igdbId: game.igdbId,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
+            source: game.source,
+            communitySuggestionId: undefined,
+            communitySuggestionVerified: undefined,
+            communitySuggestionStatus: undefined,
+            communitySuggestionNote: undefined,
+          }
+        : session;
+
+    useAppStore.setState((current) => {
+      const emulatorMappings = new Map(current.emulatorMappings);
+      emulatorMappings.set(contentKey, {
+        ...existingMapping,
+        decision: "game",
+        gameId: game.id,
+        igdbId: game.igdbId,
+        gameName: game.name,
+        coverUrl: game.coverUrl,
+        source: game.source,
+        confidence: "user",
+        needsConfirmation: existingMapping.trust === "weak",
+        decidedAt: nowIso,
+        lastSeenAt: nowIso,
+      });
+      return {
+        emulatorMappings,
+        activeSessions: dedupeSessionsByGame(
+          current.activeSessions.map(updateSession),
+        ),
+        recentSessions: current.recentSessions.map(updateSession),
+        emulatorObservations: current.emulatorObservations.filter(
+          (item) => item.key !== contentKey,
+        ),
+      };
+    });
+    logRuntime(
+      `emulator remapped ${existingMapping.label} ${existingMapping.display} -> ${game.name}; linked sessions reassigned`,
+    );
+    persist();
+    void requestProcessScan("after emulator game replaced");
+    return;
   }
   const observation = useAppStore
     .getState()
@@ -1968,7 +2014,7 @@ export async function selectEmulatorGame(contentKey: string, game: Game) {
     contentKey,
     game,
     "user",
-    observation?.trust ?? existingMapping?.trust ?? "weak",
+    observation?.trust ?? "weak",
   );
   if (match) {
     startSession(match.process, match.game, {
@@ -2031,20 +2077,6 @@ export async function forgetEmulatorMapping(contentKey: string) {
   }
   persist();
   void requestProcessScan("after emulator mapping forgotten");
-}
-
-export async function changeEmulatorMapping(contentKey: string) {
-  const state = useAppStore.getState();
-  const mapping = state.emulatorMappings.get(contentKey);
-  if (!mapping) return;
-  await endActiveEmulatorRoute(contentKey);
-  state.removeEmulatorMapping(contentKey);
-  state.setEmulatorObservation({
-    ...observationFromMapping(mapping),
-    autoResolve: false,
-    lastCheckedAt: new Date().toISOString(),
-  });
-  persist();
 }
 
 export function confirmEmulatorMapping(contentKey: string) {

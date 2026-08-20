@@ -8,9 +8,10 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
   type MouseEvent,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, type LucideIcon } from "lucide-react";
+import { Loader2, X, type LucideIcon } from "lucide-react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -148,6 +149,143 @@ export function useEscapeKey(onClose: () => void) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+}
+
+export type ModalSize = "sm" | "md" | "wide";
+
+const modalSizes: Record<ModalSize, string> = {
+  sm: "max-w-md",
+  md: "max-w-lg",
+  wide: "max-w-4xl",
+};
+
+export function useDialogFocus(containerRef: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const focusableSelector =
+      'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    const preferred = container.querySelector<HTMLElement>("[data-autofocus]");
+    (preferred ?? container).focus();
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const focusable = [
+        ...container!.querySelectorAll<HTMLElement>(focusableSelector),
+      ].filter((element) => element.offsetParent !== null);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        container!.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (document.activeElement === container) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    container.addEventListener("keydown", handleKeyDown);
+    return () => {
+      container.removeEventListener("keydown", handleKeyDown);
+      requestAnimationFrame(() => {
+        if (document.activeElement === document.body) previous?.focus?.();
+      });
+    };
+  }, [containerRef]);
+}
+
+export function Modal({
+  size = "md",
+  labelId,
+  eyebrow,
+  title,
+  subtitle,
+  icon: Icon,
+  onClose,
+  footer,
+  children,
+}: {
+  size?: ModalSize;
+  labelId: string;
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  icon?: LucideIcon;
+  onClose: () => void;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEscapeKey(onClose);
+  useDialogFocus(panelRef);
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelId}
+        tabIndex={-1}
+        className={`flex max-h-[90vh] w-full ${modalSizes[size]} animate-toast-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised outline-none`}
+      >
+        <div className="shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-4 sm:px-6">
+          <div className="flex items-start gap-3">
+            {Icon ? (
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent/10 text-accent">
+                <Icon size={20} />
+              </div>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              {eyebrow ? (
+                <div className="text-xs font-semibold uppercase tracking-wider text-accent">
+                  {eyebrow}
+                </div>
+              ) : null}
+              <h2
+                id={labelId}
+                className="mt-0.5 text-lg font-semibold text-text"
+              >
+                {title}
+              </h2>
+              {subtitle ? (
+                <p
+                  className="mt-1 truncate text-sm text-text-muted"
+                  title={subtitle}
+                >
+                  {subtitle}
+                </p>
+              ) : null}
+            </div>
+            <IconButton icon={X} aria-label="Close" onClick={onClose} />
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+          {children}
+        </div>
+        {footer ? (
+          <div className="shrink-0 border-t border-border bg-surface px-5 py-4 sm:px-6">
+            {footer}
+          </div>
+        ) : null}
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 export function useContextMenu() {

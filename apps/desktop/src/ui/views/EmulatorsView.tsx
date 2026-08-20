@@ -1,16 +1,17 @@
-import { Gamepad2 } from "lucide-react";
-import { useMemo } from "react";
+import { Gamepad2, Repeat2, RotateCcw, Unlink } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
-  changeEmulatorMapping,
   confirmEmulatorMapping,
   forgetEmulatorMapping,
   restoreEmulatorContent,
 } from "../../tracker";
 import { useAppStore } from "../../store";
 import { emulatorAssetUrls } from "../../emulators/assets";
-import { Panel, formatDuration } from "../components";
-import { Button } from "../primitives";
+import type { EmulatorMapping } from "../../emulators/types";
+import { Panel, SourceBadge, formatDuration } from "../components";
+import { Button, Modal } from "../primitives";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
+import { EmulatorLinkedGameDialog } from "./emulators/EmulatorLinkedGameDialog";
 
 type EmulatorViewProps = {
   emulatorId: string;
@@ -82,6 +83,10 @@ function EmulatorView({
     (state) => state.settings.showDurationDays,
   );
   const known = useAppStore((state) => state.knownEmulators.get(emulatorId));
+  const addToast = useAppStore((state) => state.addToast);
+  const [changing, setChanging] = useState<EmulatorMapping | null>(null);
+  const [forgetting, setForgetting] = useState<EmulatorMapping | null>(null);
+  const [forgettingBusy, setForgettingBusy] = useState(false);
   const gameMappings = mappings.filter(
     (mapping) => mapping.decision === "game",
   );
@@ -150,66 +155,30 @@ function EmulatorView({
           </p>
         </div>
         {gameMappings.length === 0 ? (
-          <div className="p-8 text-center text-sm text-text-muted">
-            No recognized {label} games yet.
+          <div className="grid place-items-center gap-2 p-8 text-center text-sm text-text-muted">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-surface-hover text-text-faint">
+              <Gamepad2 size={20} />
+            </div>
+            <div className="font-medium text-text">
+              No recognized {label} games yet
+            </div>
+            <div>
+              Start a game in {label} and pick it once - it is recognized
+              automatically afterwards.
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-border">
             {gameMappings.map((mapping) => (
-              <div
+              <LinkedGameRow
                 key={mapping.contentKey}
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Gamepad2 size={16} className="text-text-faint" />
-                    <div className="truncate font-medium text-text">
-                      {mapping.gameName}
-                    </div>
-                  </div>
-                  <div className="mt-1 truncate text-sm text-text-muted">
-                    Recognized from{" "}
-                    <span className="font-mono text-text">
-                      {mapping.display}
-                    </span>
-                    {mapping.needsConfirmation
-                      ? " · please check this once"
-                      : ""}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {mapping.needsConfirmation ? (
-                    <Button
-                      variant="primary"
-                      onClick={() => confirmEmulatorMapping(mapping.contentKey)}
-                    >
-                      Looks right
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      void changeEmulatorMapping(mapping.contentKey)
-                    }
-                  >
-                    Choose different game
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() =>
-                      void forgetEmulatorMapping(mapping.contentKey)
-                    }
-                  >
-                    Detect again
-                  </Button>
-                </div>
-                {mapping.needsConfirmation ? (
-                  <p className="w-full text-xs text-text-faint">
-                    Tracking is already active. “Looks right” only confirms this
-                    local mapping and hides future review warnings.
-                  </p>
-                ) : null}
-              </div>
+                mapping={mapping}
+                onChange={() => setChanging(mapping)}
+                onForget={() => {
+                  setForgettingBusy(false);
+                  setForgetting(mapping);
+                }}
+              />
             ))}
           </div>
         )}
@@ -243,6 +212,147 @@ function EmulatorView({
           </div>
         </Panel>
       ) : null}
+
+      {changing ? (
+        <EmulatorLinkedGameDialog
+          mapping={changing}
+          onClose={() => setChanging(null)}
+        />
+      ) : null}
+      {forgetting ? (
+        <Modal
+          size="sm"
+          labelId="detect-emulator-game-again"
+          eyebrow={`${forgetting.label} library`}
+          title={`Detect ${forgetting.display} again?`}
+          icon={Unlink}
+          onClose={forgettingBusy ? () => undefined : () => setForgetting(null)}
+          footer={
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                data-autofocus
+                variant="ghost"
+                disabled={forgettingBusy}
+                onClick={() => setForgetting(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                icon={RotateCcw}
+                loading={forgettingBusy}
+                onClick={() => {
+                  const item = forgetting;
+                  setForgettingBusy(true);
+                  void forgetEmulatorMapping(item.contentKey)
+                    .then(() => {
+                      addToast({
+                        tone: "info",
+                        title: `${item.display} will be detected again`,
+                        detail: "Recorded playtime remains in History.",
+                      });
+                      setForgetting(null);
+                    })
+                    .catch((error) => {
+                      addToast({
+                        tone: "error",
+                        title: "Could not remove linked game",
+                        detail:
+                          error instanceof Error
+                            ? error.message
+                            : String(error),
+                      });
+                      setForgettingBusy(false);
+                    });
+                }}
+              >
+                Detect again
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-sm leading-6 text-text-muted">
+            This removes the local link. If the emulator is running, PlayCounter
+            will detect the content again now; otherwise it happens next time.
+            Recorded playtime stays in History.
+          </p>
+        </Modal>
+      ) : null}
+    </div>
+  );
+}
+
+function LinkedGameRow({
+  mapping,
+  onChange,
+  onForget,
+}: {
+  mapping: EmulatorMapping;
+  onChange: () => void;
+  onForget: () => void;
+}) {
+  return (
+    <div className="grid gap-4 px-5 py-4 sm:grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
+      {mapping.coverUrl ? (
+        <img
+          src={mapping.coverUrl}
+          alt=""
+          className="hidden h-14 w-10 rounded object-cover sm:block"
+        />
+      ) : (
+        <div className="hidden h-14 w-10 place-items-center rounded bg-surface-hover text-text-faint sm:grid">
+          <Gamepad2 size={18} />
+        </div>
+      )}
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="truncate font-medium text-text">
+            {mapping.gameName}
+          </div>
+          <SourceBadge source={mapping.source} />
+          {mapping.needsConfirmation ? (
+            <span className="rounded border border-warning-border bg-warning-tint px-1.5 py-0.5 text-[11px] font-medium text-warning">
+              Check this once
+            </span>
+          ) : null}
+          <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-text-muted">
+            {mapping.confidence === "user" ? "Chosen by you" : "Auto-matched"}
+          </span>
+        </div>
+        <div
+          className="mt-1 truncate text-sm text-text-muted"
+          title={mapping.display}
+        >
+          Recognized from{" "}
+          <span className="font-mono text-text">{mapping.display}</span>
+        </div>
+        <div className="mt-1 text-xs text-text-faint">
+          Linked {new Date(mapping.decidedAt).toLocaleDateString()} · Last seen{" "}
+          {new Date(mapping.lastSeenAt).toLocaleDateString()}
+        </div>
+        {mapping.needsConfirmation ? (
+          <p className="mt-2 text-xs text-text-faint">
+            Tracking is already active. Confirming only hides future review
+            warnings.
+          </p>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap gap-2 sm:col-start-2 lg:col-start-auto">
+        {mapping.needsConfirmation ? (
+          <Button
+            variant="primary"
+            onClick={() => confirmEmulatorMapping(mapping.contentKey)}
+          >
+            Looks right
+          </Button>
+        ) : null}
+        <Button variant="secondary" icon={Repeat2} onClick={onChange}>
+          Change game
+        </Button>
+        <Button variant="ghost" icon={RotateCcw} onClick={onForget}>
+          Detect again
+        </Button>
+      </div>
     </div>
   );
 }
