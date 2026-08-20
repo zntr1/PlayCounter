@@ -11,6 +11,9 @@ import { Button, IconButton, useEscapeKey } from "./primitives";
 export function NotificationsPanel({ onClose }: { onClose: () => void }) {
   const notifications = useAppStore((state) => state.notifications);
   const counts = useAppStore((state) => state.contributionCounts);
+  const emulatorCounts = useAppStore(
+    (state) => state.emulatorContributionCounts,
+  );
   const dismiss = useAppStore((state) => state.dismissNotification);
   const clear = useAppStore((state) => state.clearNotifications);
   const setActiveView = useAppStore((state) => state.setActiveView);
@@ -55,6 +58,33 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
+        {emulatorCounts.suggested > 0 ? (
+          <>
+            <div className="mb-2 mt-4 flex items-baseline justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-text-faint">
+              <span>Emulator matches</span>
+              <span className="font-mono normal-case text-text-muted">
+                {emulatorCounts.suggested} sent
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                ["Approved", emulatorCounts.verified],
+                ["Waiting", emulatorCounts.pending],
+                ["Not approved", emulatorCounts.rejected],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-md border border-border bg-surface px-1 py-2"
+                >
+                  <div className="font-mono text-base font-semibold text-text">
+                    {value}
+                  </div>
+                  <div className="text-[10px] text-text-faint">{label}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">

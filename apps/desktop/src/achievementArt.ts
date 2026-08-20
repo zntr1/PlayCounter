@@ -1,5 +1,6 @@
 import type { NotificationKind } from "./notifications";
 import {
+  EMULATOR_VERIFIED_COUNTS,
   GAME_HOURS,
   MONTH_HOURS,
   STREAK_DAYS,
@@ -26,6 +27,7 @@ export type AchievementIconName =
   | "gamepad"
   | "flame"
   | "badge-check"
+  | "joystick"
   | "shield-check"
   | "circle-slash"
   | "list-checks";
@@ -80,6 +82,12 @@ export function achievementArt(input: {
         "badge-check",
         tierForThreshold(VERIFIED_COUNTS, threshold),
         "approved suggestions",
+      );
+    case "milestone-emulator":
+      return art(
+        "joystick",
+        tierForThreshold(EMULATOR_VERIFIED_COUNTS, threshold),
+        "approved emulator matches",
       );
     case "suggestion-verified":
       return art("shield-check", "bronze", "approved suggestion", false);

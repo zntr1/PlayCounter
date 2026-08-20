@@ -1,4 +1,11 @@
-import type { Contribution, ContributionStatus } from "@playcounter/shared";
+import type {
+  Contribution,
+  ContributionCounts,
+  ContributionStatus,
+  EmulatorContribution,
+} from "@playcounter/shared";
+import { contentKey } from "./emulators/signals";
+import type { EmulatorMapping } from "./emulators/types";
 import type { ViewId } from "./store";
 
 export type NotificationKind =
@@ -9,6 +16,7 @@ export type NotificationKind =
   | "milestone-game"
   | "milestone-streak"
   | "milestone-verified"
+  | "milestone-emulator"
   | "discovered-review";
 
 export type NotificationAction = {
@@ -25,13 +33,6 @@ export type AppNotification = {
   createdAt: string;
   readAt?: string;
   action?: NotificationAction;
-};
-
-export type ContributionCounts = {
-  suggested: number;
-  verified: number;
-  pending: number;
-  rejected: number;
 };
 
 export const EMPTY_CONTRIBUTION_COUNTS: ContributionCounts = {
@@ -57,6 +58,8 @@ export function notificationEmoji(kind: NotificationKind) {
       return "🔥";
     case "milestone-verified":
       return "✅";
+    case "milestone-emulator":
+      return "🕹️";
     case "discovered-review":
       return "🧹";
     default:
@@ -178,6 +181,69 @@ export function contributionNotification(
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
       };
+}
+
+export function emulatorContributionKey(
+  contribution: Pick<
+    EmulatorContribution,
+    "emulatorId" | "contentKind" | "contentValue" | "gameId"
+  >,
+) {
+  return `emulator:${contentKey(contribution)}:${contribution.gameId}`;
+}
+
+export function emulatorContributionNotification(
+  contribution: EmulatorContribution,
+  emulatorLabel: string,
+  now = new Date().toISOString(),
+): AppNotification | null {
+  if (contribution.status === "pending") return null;
+  const key = emulatorContributionKey(contribution);
+  const action =
+    contribution.emulatorId === "dosbox" ||
+    contribution.emulatorId === "dolphin"
+      ? {
+          view: contribution.emulatorId as ViewId,
+          label: `Open ${emulatorLabel}`,
+        }
+      : undefined;
+  return contribution.status === "verified"
+    ? {
+        id: `suggestion-verified:${key}`,
+        kind: "suggestion-verified",
+        title: `${contribution.gameName} suggestion approved`,
+        body: `Detected in ${emulatorLabel}: ${contribution.contentValue}\n\nOther players' emulators will recognize it now.`,
+        coverUrl: contribution.coverUrl,
+        createdAt: contribution.reviewedAt ?? now,
+        action,
+      }
+    : {
+        id: `suggestion-rejected:${key}`,
+        kind: "suggestion-rejected",
+        title: `${contribution.gameName} suggestion not approved`,
+        body: contribution.reviewNote
+          ? `Detected in ${emulatorLabel}: ${contribution.contentValue}\n\nFeedback: ${contribution.reviewNote}`
+          : `${contribution.contentValue} wasn't accepted as ${contribution.gameName}.\n\nYour local link still works. If it is the wrong game, link the content to the right one and share that match.`,
+        coverUrl: contribution.coverUrl,
+        createdAt: contribution.reviewedAt ?? now,
+        action,
+      };
+}
+
+export function seedEmulatorSeenStatus(
+  seen: Record<string, ContributionStatus>,
+  mappings: Iterable<EmulatorMapping>,
+): Record<string, ContributionStatus> | null {
+  let merged: Record<string, ContributionStatus> | null = null;
+  for (const mapping of mappings) {
+    const share = mapping.share;
+    if (!share || share.status === "already_curated") continue;
+    const key = emulatorContributionKey({ ...mapping, gameId: share.gameId });
+    if (Object.prototype.hasOwnProperty.call(seen, key)) continue;
+    merged ??= { ...seen };
+    merged[key] = share.status;
+  }
+  return merged;
 }
 
 export function shouldNotifyContributionTransition(

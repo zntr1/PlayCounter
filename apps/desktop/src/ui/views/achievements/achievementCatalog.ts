@@ -1,5 +1,6 @@
 import { achievementArt, type AchievementTier } from "../../../achievementArt";
 import {
+  EMULATOR_VERIFIED_COUNTS,
   GAME_HOURS,
   MONTH_HOURS,
   PLAY_STREAK_ACHIEVEMENTS_ENABLED,
@@ -52,6 +53,12 @@ const ALL_GROUP_META: Array<{
     label: "Community contributions",
     shortLabel: "Contributions",
     caption: "Help PlayCounter recognize more games for everyone.",
+  },
+  {
+    id: "emulator",
+    label: "Emulator contributions",
+    shortLabel: "Emulators",
+    caption: "Teach PlayCounter which games hide inside emulator files.",
   },
   {
     id: "total",
@@ -251,6 +258,22 @@ export function buildAchievementCatalog(
     });
   }
 
+  for (const threshold of EMULATOR_VERIFIED_COUNTS) {
+    ensure({
+      id: `milestone:emulator:${threshold}`,
+      category: "emulator",
+      kind: "milestone-emulator",
+      title:
+        threshold === 1
+          ? "Your first emulator match was approved"
+          : `${threshold.toLocaleString()} emulator matches approved`,
+      threshold,
+      currentValue: metrics.verifiedEmulatorCount,
+      unit: "contributions",
+      scope: "",
+    });
+  }
+
   const ladderGames = selectLadderGames(awardedMilestones, metrics, gameLabels);
   ladderGames.forEach((game, ladderOrder) => {
     for (const threshold of GAME_HOURS) {
@@ -374,6 +397,7 @@ export function summarizeAchievements(
       item.category === "total" ||
       item.category === "streak" ||
       item.category === "verified" ||
+      item.category === "emulator" ||
       (item.category === "month" && item.scope === currentMonthKey),
   );
   const unlocked = items.filter((item) => item.milestone);
@@ -532,6 +556,8 @@ function currentValueFor(
       return metrics.streakDays;
     case "verified":
       return metrics.verifiedCount;
+    case "emulator":
+      return metrics.verifiedEmulatorCount;
   }
 }
 
@@ -602,7 +628,9 @@ function groupRank(category: MilestoneCategory) {
 
 function unitFor(category: MilestoneCategory): AchievementUnit {
   if (category === "streak") return "days";
-  if (category === "verified") return "contributions";
+  if (category === "verified" || category === "emulator") {
+    return "contributions";
+  }
   return "hours";
 }
 

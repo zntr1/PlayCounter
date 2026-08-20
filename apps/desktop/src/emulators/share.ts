@@ -29,7 +29,7 @@ export type EmulatorShareControl =
   | { visible: false }
   | {
       visible: true;
-      action: "share" | "check-status";
+      action: "share";
       label: string;
       disabled: boolean;
       reason?: string;
@@ -42,14 +42,12 @@ export function emulatorShareControl(
   if (!isShareableEmulatorMapping(mapping, context)) return { visible: false };
   const share =
     mapping.share?.gameId === mapping.gameId ? mapping.share : undefined;
-  if (share?.status === "already_curated" || share?.status === "rejected") {
-    return { visible: false };
-  }
+  if (share) return { visible: false };
 
   const base = {
     visible: true as const,
-    action: share ? ("check-status" as const) : ("share" as const),
-    label: share ? "Check status" : "Share match",
+    action: "share" as const,
+    label: "Share match",
   };
   if (context.offline) {
     return {

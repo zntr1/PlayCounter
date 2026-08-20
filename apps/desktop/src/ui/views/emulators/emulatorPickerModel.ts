@@ -1,12 +1,11 @@
+import type { ContributionStatus } from "@playcounter/shared";
 import type {
   EmulatorContentObservation,
   EmulatorDetectionSource,
   EmulatorMappingShare,
 } from "../../../emulators/types";
 
-export function emulatorDetectionSourceLabel(
-  source?: EmulatorDetectionSource,
-) {
+export function emulatorDetectionSourceLabel(source?: EmulatorDetectionSource) {
   if (source === "window_title") return "Window Title";
   if (source === "launch_arguments") return "Launch Arguments";
   return null;
@@ -61,17 +60,9 @@ export function canShareEmulatorObservation(
   return observation.shareable && observation.contentKind !== "folder";
 }
 
-export function emulatorShareStatusChip(share?: EmulatorMappingShare) {
-  if (!share) return null;
-  if (share.status === "already_curated") {
-    return { label: "In the shared database", tone: "success" as const };
-  }
-  if (share.status === "rejected") {
-    return {
-      label: "Not accepted",
-      tone: "warning" as const,
-      hint: share.reviewNote,
-    };
-  }
-  return { label: "In review", tone: "info" as const };
+export function emulatorShareBadgeStatus(
+  share?: EmulatorMappingShare,
+): ContributionStatus | null {
+  if (!share || share.status === "rejected") return null;
+  return share.status === "pending" ? "pending" : "verified";
 }

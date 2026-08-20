@@ -5,7 +5,7 @@ import {
   emulatorPickerCopy,
   emulatorPickerPhase,
   canShareEmulatorObservation,
-  emulatorShareStatusChip,
+  emulatorShareBadgeStatus,
   guestPlatformLabel,
 } from "./emulatorPickerModel";
 
@@ -79,21 +79,28 @@ describe("emulator picker model", () => {
     ).toBe(false);
   });
 
-  it("labels persisted review outcomes", () => {
-    expect(emulatorShareStatusChip()).toBeNull();
+  it("maps persisted review outcomes to the standard badge", () => {
+    expect(emulatorShareBadgeStatus()).toBeNull();
     expect(
-      emulatorShareStatusChip({
+      emulatorShareBadgeStatus({
         status: "pending",
         gameId: 1,
         submittedAt: "2026-08-20T10:00:00.000Z",
-      })?.label,
-    ).toBe("In review");
+      }),
+    ).toBe("pending");
     expect(
-      emulatorShareStatusChip({
+      emulatorShareBadgeStatus({
         status: "already_curated",
         gameId: 1,
         submittedAt: "2026-08-20T10:00:00.000Z",
-      })?.tone,
-    ).toBe("success");
+      }),
+    ).toBe("verified");
+    expect(
+      emulatorShareBadgeStatus({
+        status: "rejected",
+        gameId: 1,
+        submittedAt: "2026-08-20T10:00:00.000Z",
+      }),
+    ).toBeNull();
   });
 });

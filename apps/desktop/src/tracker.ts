@@ -1,6 +1,7 @@
 import type {
   CommunityGameAlias,
   Contribution,
+  ContributionCounts,
   ContributionStatus,
   ContributionsResponse,
   EmulatorLaunchContext,
@@ -57,10 +58,12 @@ import {
 import {
   contributionKey,
   contributionNotification,
+  emulatorContributionKey,
+  emulatorContributionNotification,
   notificationEmoji,
+  seedEmulatorSeenStatus,
   shouldNotifyContributionTransition,
   type AppNotification,
-  type ContributionCounts,
 } from "./notifications";
 import {
   gameSecondsKey,
@@ -138,6 +141,7 @@ type PersistedState = {
   discoveredReviewReminder?: unknown;
   seenContributionStatus?: Record<string, ContributionStatus>;
   contributionCounts?: ContributionCounts;
+  emulatorContributionCounts?: ContributionCounts;
   awardedMilestones?: unknown;
   awardedMilestoneIds?: unknown;
   milestonesInitializedAt?: string;
@@ -367,7 +371,7 @@ function applyBuildApiEndpoint(settings: Settings): Settings {
 
 function hydrate() {
   const persisted = readPersisted();
-  const shouldPersistAchievementMigration =
+  let shouldPersistAchievementMigration =
     (!Array.isArray(persisted.awardedMilestones) &&
       Array.isArray(persisted.awardedMilestoneIds) &&
       persisted.awardedMilestoneIds.length > 0) ||
@@ -463,6 +467,43 @@ function hydrate() {
       hostExeNames: [],
     });
   }
+  const emulatorMappings = new Map(
+    (persisted.emulatorMappings ?? []).map((mapping) => {
+      const rawShare = mapping.share as
+        | (EmulatorMappingShare & { reviewNote?: unknown })
+        | undefined;
+      const validStatus =
+        rawShare?.status === "pending" ||
+        rawShare?.status === "verified" ||
+        rawShare?.status === "rejected" ||
+        rawShare?.status === "already_curated";
+      const share =
+        validStatus &&
+        typeof rawShare?.gameId === "number" &&
+        rawShare.gameId > 0 &&
+        typeof rawShare.submittedAt === "string"
+          ? {
+              status: rawShare.status,
+              gameId: rawShare.gameId,
+              submittedAt: rawShare.submittedAt,
+              ...(typeof rawShare.curatedGameName === "string"
+                ? { curatedGameName: rawShare.curatedGameName }
+                : {}),
+            }
+          : undefined;
+      if (rawShare && (!share || "reviewNote" in rawShare)) {
+        shouldPersistAchievementMigration = true;
+      }
+      return [mapping.contentKey, { ...mapping, share }] as const;
+    }),
+  );
+  const persistedSeenContributionStatus =
+    persisted.seenContributionStatus ?? {};
+  const seededSeenContributionStatus = seedEmulatorSeenStatus(
+    persistedSeenContributionStatus,
+    emulatorMappings.values(),
+  );
+  if (seededSeenContributionStatus) shouldPersistAchievementMigration = true;
   logRuntime(
     `hydrate loaded cache=${exeCache.length}, blacklist=${blacklist.length}, sessions=${persisted.sessions?.length ?? 0}`,
   );
@@ -477,12 +518,7 @@ function hydrate() {
     recentSessions: hydratedSessions,
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
-    emulatorMappings: new Map(
-      (persisted.emulatorMappings ?? []).map((mapping) => [
-        mapping.contentKey,
-        mapping,
-      ]),
-    ),
+    emulatorMappings,
     knownEmulators,
     emulatorObservations: (persisted.emulatorObservations ?? []).map(
       (observation) => {
@@ -496,8 +532,15 @@ function hydrate() {
     discoveredReviewReminder: sanitizeDiscoveredReviewReminder(
       persisted.discoveredReviewReminder,
     ),
-    seenContributionStatus: persisted.seenContributionStatus ?? {},
+    seenContributionStatus:
+      seededSeenContributionStatus ?? persistedSeenContributionStatus,
     contributionCounts: persisted.contributionCounts ?? {
+      suggested: 0,
+      verified: 0,
+      pending: 0,
+      rejected: 0,
+    },
+    emulatorContributionCounts: persisted.emulatorContributionCounts ?? {
       suggested: 0,
       verified: 0,
       pending: 0,
@@ -2038,10 +2081,49 @@ export async function shareEmulatorMapping(
       status: body.status,
       gameId: mapping.gameId!,
       submittedAt: new Date().toISOString(),
-      reviewNote: body.reviewNote,
       curatedGameName: body.game?.name,
     };
     useAppStore.getState().setEmulatorMapping({ ...mapping, share });
+    if (share.status !== "already_curated") {
+      const seenStatus: ContributionStatus = share.status;
+      const key = emulatorContributionKey({
+        emulatorId: mapping.emulatorId,
+        contentKind: mapping.contentKind,
+        contentValue: mapping.contentValue,
+        gameId: share.gameId,
+      });
+      useAppStore.setState((current) => ({
+        seenContributionStatus: {
+          ...current.seenContributionStatus,
+          [key]: seenStatus,
+        },
+      }));
+      if (share.status === "rejected") {
+        const notification = emulatorContributionNotification(
+          {
+            emulatorId: mapping.emulatorId,
+            contentKind: mapping.contentKind,
+            contentValue: mapping.contentValue,
+            gameId: share.gameId,
+            gameName: mapping.gameName ?? "Emulator game",
+            coverUrl: mapping.coverUrl ?? "",
+            status: "rejected",
+            reviewNote: body.reviewNote,
+            createdAt: share.submittedAt,
+          },
+          mapping.label,
+        );
+        if (notification) {
+          useAppStore.getState().addNotification(notification);
+          useAppStore.getState().addToast({
+            tone: "info",
+            emoji: notificationEmoji(notification.kind),
+            title: notification.title,
+            detail: notification.body,
+          });
+        }
+      }
+    }
     persist();
     state.addApiRequestLogEntry({
       endpoint,
@@ -2172,8 +2254,7 @@ export async function ignoreEmulatorContent(contentKey: string) {
     contentValue: mapping?.contentValue ?? observation!.contentValue,
     display: mapping?.display ?? observation!.display,
     trust: mapping?.trust ?? observation!.trust,
-    detectionSource:
-      mapping?.detectionSource ?? observation?.detectionSource,
+    detectionSource: mapping?.detectionSource ?? observation?.detectionSource,
     shareable: mapping?.shareable ?? observation?.shareable,
     decision: "ignored",
     confidence: "user",
@@ -3295,6 +3376,7 @@ export async function pollContributions(
   }
 
   try {
+    const pollStartedAt = Date.now();
     const params = new URLSearchParams({ installUuid });
     const response = await fetchWithTimeout(
       `${state.settings.apiEndpoint}/api/community/contributions?${params}`,
@@ -3315,6 +3397,23 @@ export async function pollContributions(
         if (notification) arrived.push(notification);
       }
       seenContributionStatus[key] = contribution.status;
+    }
+    const emulator = body.emulator;
+    if (emulator) {
+      for (const contribution of emulator.items) {
+        const key = emulatorContributionKey(contribution);
+        if (
+          shouldNotifyContributionTransition(previous[key], contribution.status)
+        ) {
+          const notification = emulatorContributionNotification(
+            contribution,
+            adapterFor(contribution.emulatorId)?.label ??
+              contribution.emulatorId,
+          );
+          if (notification) arrived.push(notification);
+        }
+        seenContributionStatus[key] = contribution.status;
+      }
     }
 
     const delivered = suppressNotifications ? [] : arrived;
@@ -3343,12 +3442,60 @@ export async function pollContributions(
           all.findIndex((candidate) => candidate.id === notification.id) ===
           index,
       );
+      let emulatorMappings = current.emulatorMappings;
+      if (emulator) {
+        emulatorMappings = new Map(current.emulatorMappings);
+        const serverItems = new Map(
+          emulator.items.map((item) => [emulatorContributionKey(item), item]),
+        );
+        for (const [key, mapping] of emulatorMappings) {
+          const share =
+            mapping.share?.gameId === mapping.gameId
+              ? mapping.share
+              : undefined;
+          const serverKey =
+            mapping.gameId === undefined
+              ? null
+              : emulatorContributionKey({
+                  emulatorId: mapping.emulatorId,
+                  contentKind: mapping.contentKind,
+                  contentValue: mapping.contentValue,
+                  gameId: mapping.gameId,
+                });
+          const contribution = serverKey
+            ? serverItems.get(serverKey)
+            : undefined;
+          if (contribution) {
+            emulatorMappings.set(key, {
+              ...mapping,
+              share: {
+                status: contribution.status,
+                gameId: contribution.gameId,
+                submittedAt: share?.submittedAt ?? contribution.createdAt,
+              },
+            });
+          } else if (
+            share &&
+            share.status !== "already_curated" &&
+            Date.parse(share.submittedAt) < pollStartedAt
+          ) {
+            emulatorMappings.set(key, { ...mapping, share: undefined });
+          }
+        }
+      }
       return {
         exeCache,
         activeSessions: current.activeSessions.map(updateSession),
         recentSessions: current.recentSessions.map(updateSession),
-        seenContributionStatus,
+        emulatorMappings,
+        seenContributionStatus: {
+          ...current.seenContributionStatus,
+          ...seenContributionStatus,
+        },
         contributionCounts: body.counts,
+        emulatorContributionCounts: emulator
+          ? emulator.counts
+          : current.emulatorContributionCounts,
         notifications: notifications.slice(0, 100),
         suppressContributionNotificationsOnce: false,
       };
@@ -3364,9 +3511,12 @@ export async function pollContributions(
     }
     evaluateAndStoreMilestones({
       verifiedContributionsAuthoritative: true,
+      emulatorContributionsAuthoritative: Boolean(emulator),
       suppressNotifications,
     });
-    logRuntime(`contributions poll ${reason} items=${body.items.length}`);
+    logRuntime(
+      `contributions poll ${reason} items=${body.items.length} emulator=${emulator?.items.length ?? "unknown"}`,
+    );
   } catch (error) {
     verboseRuntime(
       `contributions poll ${reason} failed: ${formatError(error)}`,
@@ -3397,6 +3547,7 @@ export function evaluateAndStoreMilestones(
   options: {
     now?: Date;
     verifiedContributionsAuthoritative?: boolean;
+    emulatorContributionsAuthoritative?: boolean;
     suppressNotifications?: boolean;
   } = {},
 ) {
@@ -3412,10 +3563,13 @@ export function evaluateAndStoreMilestones(
     archivedGameSeconds: state.archivedGameSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
     verifiedContributions: state.contributionCounts.verified,
+    verifiedEmulatorContributions: state.emulatorContributionCounts.verified,
     awardedMilestones: state.awardedMilestones,
     milestonesInitializedAt: state.milestonesInitializedAt,
     verifiedContributionsAuthoritative:
       options.verifiedContributionsAuthoritative,
+    emulatorContributionsAuthoritative:
+      options.emulatorContributionsAuthoritative,
     resolveIgdbId,
     now,
   });

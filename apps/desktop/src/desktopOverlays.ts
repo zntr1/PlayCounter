@@ -212,7 +212,7 @@ export function milestoneMetricLabel(id: string) {
   const parsed = parseMilestoneId(id);
   if (!parsed) return undefined;
   const unit =
-    parsed.category === "verified"
+    parsed.category === "verified" || parsed.category === "emulator"
       ? "APPROVED"
       : parsed.category === "streak"
         ? "DAYS"

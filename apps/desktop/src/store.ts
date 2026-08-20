@@ -1,4 +1,5 @@
 import type {
+  ContributionCounts,
   ContributionStatus,
   EmulatorLaunchContext,
   Game,
@@ -15,7 +16,7 @@ import {
   DISCOVERED_REVIEW_REMINDER_ID,
   type DiscoveredReviewReminder,
 } from "./discoveredReminder";
-import type { AppNotification, ContributionCounts } from "./notifications";
+import type { AppNotification } from "./notifications";
 import type { AwardedMilestone } from "./milestones";
 import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
 import { persistAppState } from "./persistence";
@@ -232,6 +233,7 @@ type AppState = {
   discoveredReviewReminder: DiscoveredReviewReminder;
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
+  emulatorContributionCounts: ContributionCounts;
   awardedMilestones: AwardedMilestone[];
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
@@ -437,6 +439,7 @@ export const useAppStore = create<AppState>((set) => ({
   discoveredReviewReminder: null,
   seenContributionStatus: {},
   contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
+  emulatorContributionCounts: EMPTY_CONTRIBUTION_COUNTS,
   awardedMilestones: [],
   milestonesInitializedAt: null,
   archivedSeconds: 0,
@@ -540,11 +543,20 @@ export const useAppStore = create<AppState>((set) => ({
       if (state.contributionOwnerUuid === installUuid) {
         return { installUuid, contributionOwnerUuid: installUuid };
       }
+      const emulatorMappings = new Map(state.emulatorMappings);
+      for (const [key, mapping] of emulatorMappings) {
+        if (!mapping.share || mapping.share.status === "already_curated") {
+          continue;
+        }
+        emulatorMappings.set(key, { ...mapping, share: undefined });
+      }
       return {
         installUuid,
         contributionOwnerUuid: installUuid,
         seenContributionStatus: {},
         contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
+        emulatorContributionCounts: EMPTY_CONTRIBUTION_COUNTS,
+        emulatorMappings,
         notifications: state.notifications.filter(
           (notification) => !notification.kind.startsWith("suggestion-"),
         ),

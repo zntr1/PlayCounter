@@ -218,13 +218,30 @@ export interface Contribution {
   createdAt: string;
 }
 
+export interface ContributionCounts {
+  suggested: number;
+  verified: number;
+  pending: number;
+  rejected: number;
+}
+
+export interface EmulatorContribution extends EmulatorContentRef {
+  gameId: number;
+  gameName: string;
+  coverUrl: string;
+  status: ContributionStatus;
+  reviewNote?: string;
+  reviewedAt?: string;
+  createdAt: string;
+}
+
 export interface ContributionsResponse {
   items: Contribution[];
-  counts: {
-    suggested: number;
-    verified: number;
-    pending: number;
-    rejected: number;
+  counts: ContributionCounts;
+  /** Absent on API builds released before emulator contributions. */
+  emulator?: {
+    items: EmulatorContribution[];
+    counts: ContributionCounts;
   };
 }
 

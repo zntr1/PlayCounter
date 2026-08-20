@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   contributionNotification,
   displayNotificationTitle,
+  emulatorContributionKey,
+  emulatorContributionNotification,
   notificationEmoji,
   notificationsForDisplay,
+  seedEmulatorSeenStatus,
   shouldNotifyContributionTransition,
 } from "./notifications";
 import type { AppNotification } from "./notifications";
@@ -115,9 +118,79 @@ describe("notification emojis", () => {
     ["milestone-game", "🎮"],
     ["milestone-streak", "🔥"],
     ["milestone-verified", "✅"],
+    ["milestone-emulator", "🕹️"],
     ["discovered-review", "🧹"],
   ] as const)("uses %s art", (kind, emoji) => {
     expect(notificationEmoji(kind)).toBe(emoji);
+  });
+});
+
+describe("emulator contribution notifications", () => {
+  const contribution = {
+    emulatorId: "dosbox",
+    contentKind: "program" as const,
+    contentValue: "doom.exe",
+    gameId: 42,
+    gameName: "Doom",
+    coverUrl: "cover",
+    status: "verified" as const,
+    createdAt: "2026-08-15T00:00:00.000Z",
+  };
+
+  it("uses a namespaced key and the standard suggestion notification", () => {
+    expect(emulatorContributionKey(contribution)).toBe(
+      "emulator:dosbox:program:doom.exe:42",
+    );
+    expect(
+      emulatorContributionNotification(contribution, "DOSBox"),
+    ).toMatchObject({
+      id: "suggestion-verified:emulator:dosbox:program:doom.exe:42",
+      kind: "suggestion-verified",
+      action: { view: "dosbox", label: "Open DOSBox" },
+    });
+  });
+
+  it("puts moderator feedback in the rejection notification", () => {
+    expect(
+      emulatorContributionNotification(
+        {
+          ...contribution,
+          status: "rejected",
+          reviewNote: "Wrong disc id",
+        },
+        "DOSBox",
+      )?.body,
+    ).toContain("Feedback: Wrong disc id");
+  });
+
+  it("seeds only missing emulator statuses from persisted shares", () => {
+    const mapping = {
+      contentKey: "dosbox:program:doom.exe",
+      emulatorId: "dosbox",
+      label: "DOSBox",
+      contentKind: "program" as const,
+      contentValue: "doom.exe",
+      display: "DOOM.EXE",
+      trust: "recognized" as const,
+      decision: "game" as const,
+      gameId: 42,
+      confidence: "user" as const,
+      decidedAt: "2026-08-15T00:00:00.000Z",
+      lastSeenAt: "2026-08-15T00:00:00.000Z",
+      share: {
+        status: "pending" as const,
+        gameId: 42,
+        submittedAt: "2026-08-15T00:00:00.000Z",
+      },
+    };
+    const regular = { "windows:exe:game.exe:1": "verified" as const };
+    const seeded = seedEmulatorSeenStatus(regular, [mapping]);
+    expect(seeded).toEqual({
+      ...regular,
+      "emulator:dosbox:program:doom.exe:42": "pending",
+    });
+    expect(regular).toEqual({ "windows:exe:game.exe:1": "verified" });
+    expect(seedEmulatorSeenStatus(seeded!, [mapping])).toBeNull();
   });
 });
 

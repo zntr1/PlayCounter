@@ -1,9 +1,10 @@
 import type {
+  ContributionCounts,
   ContributionStatus,
   Session,
   Settings,
 } from "@playcounter/shared";
-import type { AppNotification, ContributionCounts } from "./notifications";
+import type { AppNotification } from "./notifications";
 import type { DiscoveredReviewReminder } from "./discoveredReminder";
 import type { AwardedMilestone } from "./milestones";
 import { gameSecondsKey } from "./gameSeconds";
@@ -35,6 +36,7 @@ type PersistableAppState = {
   discoveredReviewReminder: DiscoveredReviewReminder;
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
+  emulatorContributionCounts?: ContributionCounts;
   awardedMilestones: AwardedMilestone[];
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
@@ -64,6 +66,7 @@ export type PersistedPayload = {
   discoveredReviewReminder?: DiscoveredReviewReminder;
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
+  emulatorContributionCounts?: ContributionCounts;
   awardedMilestones?: AwardedMilestone[];
   awardedMilestoneIds: string[];
   milestonesInitializedAt?: string;
@@ -117,6 +120,12 @@ export function createPersistedPayload(
     discoveredReviewReminder: state.discoveredReviewReminder ?? undefined,
     seenContributionStatus: state.seenContributionStatus,
     contributionCounts: state.contributionCounts,
+    emulatorContributionCounts: state.emulatorContributionCounts ?? {
+      suggested: 0,
+      verified: 0,
+      pending: 0,
+      rejected: 0,
+    },
     awardedMilestones: state.awardedMilestones,
     awardedMilestoneIds: [
       ...new Set(

@@ -165,6 +165,21 @@ describePg("community review PostgreSQL integration", () => {
       ["dosbox", "program", contentValue.toLowerCase(), game.id],
     );
 
+    expect(await repo.listContributions(payload.installUuid)).toMatchObject({
+      emulator: {
+        items: [
+          {
+            emulatorId: "dosbox",
+            contentKind: "program",
+            contentValue: contentValue.toLowerCase(),
+            gameId: game.id,
+            status: "verified",
+          },
+        ],
+        counts: { suggested: 1, verified: 1, pending: 0, rejected: 0 },
+      },
+    });
+
     expect(await repo.suggestEmulatorContent(payload)).toMatchObject({
       status: "already_curated",
       game: { id: game.id, name: game.name },

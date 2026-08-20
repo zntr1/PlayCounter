@@ -48,6 +48,22 @@ describe("community contributions route", () => {
         },
       ],
       counts: { suggested: 1, verified: 0, pending: 0, rejected: 1 },
+      emulator: {
+        items: [
+          {
+            emulatorId: "dosbox",
+            contentKind: "program",
+            contentValue: "doom.exe",
+            gameId: 43,
+            gameName: "Doom",
+            coverUrl: "https://images.igdb.com/doom.jpg",
+            status: "verified",
+            reviewedAt: "2026-08-09T10:00:00.000Z",
+            createdAt: "2026-08-08T10:00:00.000Z",
+          },
+        ],
+        counts: { suggested: 1, verified: 1, pending: 0, rejected: 0 },
+      },
     };
     class ContributionsRepository extends MemoryRepository {
       override listContributions = vi.fn(async () => response);

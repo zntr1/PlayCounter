@@ -361,6 +361,12 @@ describe("contribution identity", () => {
         pending: 0,
         rejected: 0,
       },
+      emulatorContributionCounts: {
+        suggested: 2,
+        verified: 1,
+        pending: 1,
+        rejected: 0,
+      },
       notifications: [
         {
           id: "suggestion-verified:test",
@@ -392,6 +398,7 @@ describe("contribution identity", () => {
     expect(state.contributionOwnerUuid).toBe("new");
     expect(state.seenContributionStatus).toEqual({});
     expect(state.contributionCounts.suggested).toBe(0);
+    expect(state.emulatorContributionCounts.suggested).toBe(0);
     expect(state.notifications.map((item) => item.id)).toEqual([
       "milestone:total:10",
     ]);

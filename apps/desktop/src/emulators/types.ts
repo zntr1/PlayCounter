@@ -1,16 +1,15 @@
 import type {
   EmulatorContentKind,
-  EmulatorContentSuggestionStatus,
+  ContributionStatus,
   EmulatorSignalTrust,
   Game,
   GameSource,
 } from "@playcounter/shared";
 
 export type EmulatorMappingShare = {
-  status: EmulatorContentSuggestionStatus;
+  status: ContributionStatus | "already_curated";
   gameId: number;
   submittedAt: string;
-  reviewNote?: string;
   curatedGameName?: string;
 };
 

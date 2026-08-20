@@ -1291,6 +1291,84 @@ export class PostgresRepository implements PlayCounterRepository {
     };
     for (const row of result.rows) counts[row.status] += 1;
 
+    const emulatorResult = await this.pool.query<{
+      emulator_id: string;
+      content_kind: string;
+      content_value: string;
+      game_id: number;
+      game_name: string;
+      cover_url: string | null;
+      suggestion_status: "pending" | "approved" | "rejected";
+      review_note: string | null;
+      reviewed_at: Date | null;
+      created_at: Date;
+      curated: boolean;
+    }>(
+      `SELECT suggestions.emulator_id,
+              suggestions.content_kind,
+              suggestions.content_value,
+              suggestions.game_id,
+              games.name AS game_name,
+              games.cover_url,
+              suggestions.status AS suggestion_status,
+              suggestions.review_note,
+              suggestions.reviewed_at,
+              submissions.created_at,
+              (curated.game_id IS NOT NULL) AS curated
+       FROM emulator_content_submissions submissions
+       INNER JOIN emulator_content_suggestions suggestions
+         ON (suggestions.emulator_id, suggestions.content_kind,
+             suggestions.content_value, suggestions.game_id)
+          = (submissions.emulator_id, submissions.content_kind,
+             submissions.content_value, submissions.game_id)
+       INNER JOIN igdb_games games ON games.id = suggestions.game_id
+       LEFT JOIN emulator_content_identifiers curated
+         ON lower(curated.emulator_id) = suggestions.emulator_id
+        AND lower(curated.content_kind) = suggestions.content_kind
+        AND lower(curated.content_value) = suggestions.content_value
+        AND curated.game_id = suggestions.game_id
+        AND curated.confidence = 'curated'
+       WHERE submissions.install_uuid = $1
+       ORDER BY submissions.created_at DESC, submissions.id DESC`,
+      [installUuid],
+    );
+    const emulatorItems = emulatorResult.rows.map((row) => {
+      if (row.suggestion_status === "approved" && !row.curated) {
+        logger.warn(
+          `[emulator] Approved suggestion has no matching curated identifier: ${row.emulator_id}:${row.content_kind}:${JSON.stringify(row.content_value)} -> game #${row.game_id}.`,
+        );
+      }
+      const status: ContributionStatus = row.curated
+        ? "verified"
+        : row.suggestion_status === "rejected"
+          ? "rejected"
+          : "pending";
+      return {
+        emulatorId: row.emulator_id,
+        contentKind: row.content_kind as
+          | "conf"
+          | "program"
+          | "folder"
+          | "rom"
+          | "title_id",
+        contentValue: row.content_value,
+        gameId: row.game_id,
+        gameName: row.game_name,
+        coverUrl: row.cover_url ?? "",
+        status,
+        reviewNote: row.review_note ?? undefined,
+        reviewedAt: row.reviewed_at?.toISOString(),
+        createdAt: row.created_at.toISOString(),
+      };
+    });
+    const emulatorCounts = {
+      suggested: emulatorItems.length,
+      verified: 0,
+      pending: 0,
+      rejected: 0,
+    };
+    for (const item of emulatorItems) emulatorCounts[item.status] += 1;
+
     return {
       items: result.rows.map((row) => ({
         platform: row.platform as "windows" | "macos" | "linux",
@@ -1314,6 +1392,7 @@ export class PostgresRepository implements PlayCounterRepository {
         createdAt: row.created_at.toISOString(),
       })),
       counts,
+      emulator: { items: emulatorItems, counts: emulatorCounts },
     };
   }
 

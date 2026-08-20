@@ -10,14 +10,22 @@ import {
 import { useAppStore, useIsOffline } from "../../store";
 import { emulatorAssetUrls } from "../../emulators/assets";
 import type { EmulatorMapping } from "../../emulators/types";
-import { emulatorShareControl } from "../../emulators/share";
-import { Panel, SourceBadge, formatDuration } from "../components";
+import {
+  emulatorShareControl,
+  isShareableEmulatorMapping,
+} from "../../emulators/share";
+import {
+  CommunityApprovalBadge,
+  Panel,
+  SourceBadge,
+  formatDuration,
+} from "../components";
 import { Button, Modal } from "../primitives";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
 import { EmulatorLinkedGameDialog } from "./emulators/EmulatorLinkedGameDialog";
 import {
   emulatorDetectionSourceLabel,
-  emulatorShareStatusChip,
+  emulatorShareBadgeStatus,
 } from "./emulators/emulatorPickerModel";
 
 type EmulatorViewProps = {
@@ -298,39 +306,39 @@ function LinkedGameRow({
   onChange: () => void;
   onForget: () => void;
 }) {
-  const detectionSource = emulatorDetectionSourceLabel(
-    mapping.detectionSource,
-  );
+  const detectionSource = emulatorDetectionSourceLabel(mapping.detectionSource);
   const addToast = useAppStore((state) => state.addToast);
   const installUuid = useAppStore((state) => state.installUuid);
   const offline = useIsOffline();
   const [sharing, setSharing] = useState(false);
-  const shareChip = emulatorShareStatusChip(
-    mapping.share?.gameId === mapping.gameId ? mapping.share : undefined,
-  );
-  const shareControl = emulatorShareControl(mapping, {
+  const share =
+    mapping.share?.gameId === mapping.gameId ? mapping.share : undefined;
+  const shareBadgeStatus = emulatorShareBadgeStatus(share);
+  const shareContext = {
     ...emulatorShareRuntimeContext(),
     installUuid,
     offline,
-  });
+  };
+  const shareable = isShareableEmulatorMapping(mapping, shareContext);
+  const shareControl = emulatorShareControl(mapping, shareContext);
 
-  async function share() {
+  async function submitShare() {
     if (!shareControl.visible || shareControl.disabled || sharing) return;
     setSharing(true);
     const outcome = await shareEmulatorMapping(mapping.contentKey);
     setSharing(false);
     if (outcome.kind === "shared") {
+      if (outcome.share.status === "rejected") return;
       addToast({
-        tone: outcome.share.status === "rejected" ? "info" : "success",
+        tone: "success",
         title:
           outcome.share.status === "already_curated"
-            ? "Match is in the shared database"
-            : outcome.share.status === "rejected"
-              ? "Match was not accepted"
-              : "Match submitted for review",
+            ? "Already in the shared database"
+            : "Match submitted for review",
         detail:
-          outcome.share.reviewNote ??
-          "Your local emulator link remains unchanged.",
+          outcome.share.status === "pending"
+            ? "You'll get a notification when it's reviewed."
+            : "Your local emulator link remains unchanged.",
       });
     } else {
       addToast({
@@ -371,20 +379,13 @@ function LinkedGameRow({
           <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-text-muted">
             {mapping.confidence === "user" ? "Chosen by you" : "Auto-matched"}
           </span>
-          {shareChip ? (
-            <span
-              title={shareChip.hint}
-              className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${
-                shareChip.tone === "success"
-                  ? "border-success-border bg-success-tint text-success"
-                  : shareChip.tone === "warning"
-                    ? "border-warning-border bg-warning-tint text-warning"
-                    : "border-border bg-surface-hover text-text-muted"
-              }`}
-            >
-              {shareChip.label}
-            </span>
-          ) : !shareControl.visible ? (
+          {shareBadgeStatus ? (
+            <CommunityApprovalBadge
+              suggestionId={mapping.gameId}
+              status={shareBadgeStatus}
+            />
+          ) : null}
+          {!shareable ? (
             <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-text-faint">
               Stays on this PC
             </span>
@@ -416,7 +417,7 @@ function LinkedGameRow({
             variant="secondary"
             disabled={shareControl.disabled || sharing}
             title={shareControl.reason}
-            onClick={() => void share()}
+            onClick={() => void submitShare()}
           >
             {sharing ? "Sharing…" : shareControl.label}
           </Button>

@@ -6,6 +6,7 @@ import {
   type AchievementTier,
 } from "./achievementArt";
 import {
+  EMULATOR_VERIFIED_COUNTS,
   GAME_HOURS,
   MONTH_HOURS,
   STREAK_DAYS,
@@ -22,6 +23,7 @@ const EXPECTED_ICONS: Record<NotificationKind, AchievementIconName> = {
   "milestone-game": "gamepad",
   "milestone-streak": "flame",
   "milestone-verified": "badge-check",
+  "milestone-emulator": "joystick",
   "discovered-review": "list-checks",
 };
 
@@ -44,6 +46,7 @@ describe("achievement art", () => {
     ["milestone:game:igdb#12345:250", 250],
     ["milestone:streak:7", 7],
     ["milestone:verified:1", 1],
+    ["milestone:emulator:3", 3],
   ])("parses the threshold from %s", (id, threshold) => {
     expect(milestoneThreshold(id)).toBe(threshold);
   });
@@ -63,6 +66,7 @@ describe("achievement art", () => {
     ["milestone-game", GAME_HOURS],
     ["milestone-streak", STREAK_DAYS],
     ["milestone-verified", VERIFIED_COUNTS],
+    ["milestone-emulator", EMULATOR_VERIFIED_COUNTS],
   ] satisfies [NotificationKind, number[]][])(
     "assigns a distinct progression through legendary for %s",
     (kind, thresholds) => {

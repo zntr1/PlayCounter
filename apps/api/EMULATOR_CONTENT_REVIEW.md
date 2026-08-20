@@ -4,6 +4,18 @@ Manual picks wait in `emulator_content_suggestions`; matching never reads that
 table. Only an explicitly curated `emulator_content_identifiers` row is served
 automatically. Anonymous install counts are advisory and never auto-approve.
 
+## What the submitter sees
+
+The desktop polls review outcomes through the normal community contribution
+feed. Approval and rejection are delivered once through PlayCounter's standard
+notifications; rejected matches do not keep a permanent status badge.
+
+Keep rejected suggestion rows and set `status = 'rejected'`: deleting a row
+prevents the submitter from receiving the decision. A rejected content/game
+tuple remains closed, so posting it again returns the existing rejection rather
+than reopening moderation. Revocation must both reject the suggestion and
+delete its curated identifier, as shown below.
+
 ## Queue
 
 ```sql

@@ -459,6 +459,48 @@ describe("milestones", () => {
     ).not.toContain(award.id);
   });
 
+  it("tracks emulator approvals separately and revokes them only authoritatively", () => {
+    const earned = evaluateMilestones({
+      sessions: [],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      verifiedEmulatorContributions: 1,
+      awardedMilestones: [],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-10T12:00:00.000Z"),
+    });
+    expect(earned.notifications.map((item) => item.id)).toContain(
+      "milestone:emulator:1",
+    );
+    expect(earned.awardedMilestoneIds).not.toContain("milestone:verified:1");
+
+    const base = {
+      sessions: [],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      verifiedEmulatorContributions: 0,
+      awardedMilestones: earned.awardedMilestones,
+      milestonesInitializedAt: earned.milestonesInitializedAt,
+      now: new Date("2026-08-11T12:00:00.000Z"),
+    };
+    expect(
+      evaluateMilestones({
+        ...base,
+        verifiedContributionsAuthoritative: true,
+      }).awardedMilestoneIds,
+    ).toContain("milestone:emulator:1");
+    expect(
+      evaluateMilestones({
+        ...base,
+        emulatorContributionsAuthoritative: true,
+      }).awardedMilestoneIds,
+    ).not.toContain("milestone:emulator:1");
+  });
+
   it.each([
     ["milestone:total:10", { category: "total", scope: "", threshold: 10 }],
     [
@@ -469,6 +511,7 @@ describe("milestones", () => {
       "milestone:month:2026-08:10",
       { category: "month", scope: "2026-08", threshold: 10 },
     ],
+    ["milestone:emulator:3", { category: "emulator", scope: "", threshold: 3 }],
     ["not-a-milestone", null],
   ])("parses milestone id %s", (id, expected) => {
     expect(parseMilestoneId(id)).toEqual(expected);

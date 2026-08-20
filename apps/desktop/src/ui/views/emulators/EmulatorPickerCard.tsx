@@ -87,8 +87,8 @@ export function EmulatorPickerCard({
           ? shareOutcome.share.status === "already_curated"
             ? " Already in the shared database."
             : shareOutcome.share.status === "rejected"
-              ? ` Not accepted${shareOutcome.share.reviewNote ? `: ${shareOutcome.share.reviewNote}` : "."}`
-              : " Submitted for review."
+              ? " This match was already reviewed; feedback is in Notifications and your local link still works."
+              : " Submitted for review. You'll get a notification when it's reviewed."
           : shareOutcome
             ? " The local link works; sharing can be retried from the emulator page."
             : "";

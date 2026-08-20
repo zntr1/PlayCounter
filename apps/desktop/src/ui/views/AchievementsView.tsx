@@ -4,6 +4,7 @@ import {
   CalendarCheck,
   Flame,
   Gamepad2,
+  Joystick,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
   game: Gamepad2,
   streak: Flame,
   verified: BadgeCheck,
+  emulator: Joystick,
 };
 
 const STATUS_FILTERS: Array<{ id: StatusFilter; label: string }> = [
@@ -59,6 +61,9 @@ export function AchievementsView() {
   const verifiedContributions = useAppStore(
     (state) => state.contributionCounts.verified,
   );
+  const verifiedEmulatorContributions = useAppStore(
+    (state) => state.emulatorContributionCounts.verified,
+  );
   const gameMetadata = useAppStore((state) => state.gameMetadata);
   const exeCache = useAppStore((state) => state.exeCache);
   const resolveIgdbId = useMemo(
@@ -73,6 +78,7 @@ export function AchievementsView() {
         archivedGameSeconds,
         playtimeAdjustments,
         verifiedContributions,
+        verifiedEmulatorContributions,
         resolveIgdbId,
       }),
     [
@@ -82,6 +88,7 @@ export function AchievementsView() {
       resolveIgdbId,
       sessions,
       verifiedContributions,
+      verifiedEmulatorContributions,
     ],
   );
   const gameLabels = useMemo(() => {

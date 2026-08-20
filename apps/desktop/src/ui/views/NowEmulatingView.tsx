@@ -1,7 +1,8 @@
-import { Cpu, Gamepad2 } from "lucide-react";
+import { Cpu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useAppStore } from "../../store";
-import { Panel, SourceBadge } from "../components";
+import { createGameIdentityResolver, useAppStore } from "../../store";
+import { Panel } from "../components";
+import { ActiveGameHero } from "./ActiveGameHero";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
 
 export function NowEmulatingView() {
@@ -13,6 +14,18 @@ export function NowEmulatingView() {
     [ignoredEmulatorIds],
   );
   const allSessions = useAppStore((state) => state.activeSessions);
+  const recentSessions = useAppStore((state) => state.recentSessions);
+  const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
+  const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
+  const exeCache = useAppStore((state) => state.exeCache);
+  const gameMetadata = useAppStore((state) => state.gameMetadata);
+  const resolveIgdbId = useMemo(
+    () => createGameIdentityResolver(gameMetadata, exeCache),
+    [exeCache, gameMetadata],
+  );
+  const showDurationDays = useAppStore(
+    (state) => state.settings.showDurationDays,
+  );
   const sessions = useMemo(
     () =>
       allSessions.filter(
@@ -73,52 +86,21 @@ export function NowEmulatingView() {
         <EmulatorPickerCard key={observation.key} observation={observation} />
       ))}
       {sessions.map((session) => (
-        <section
+        <ActiveGameHero
           key={session.id}
-          className="relative overflow-hidden rounded-xl border border-border bg-surface p-6 shadow-raised"
-        >
-          <div className="flex items-center gap-5">
-            {session.coverUrl ? (
-              <img
-                src={session.coverUrl}
-                alt=""
-                className="h-32 w-24 rounded-lg object-cover shadow-raised"
-              />
-            ) : (
-              <div className="grid h-32 w-24 place-items-center rounded-lg bg-surface-hover text-text-faint">
-                <Gamepad2 size={28} />
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="inline-flex items-center gap-2 rounded-full border border-success-border bg-success-tint px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-success">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-                Now emulating
-              </div>
-              <h2 className="mt-3 truncate text-3xl font-bold text-text">
-                {session.gameName}
-              </h2>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {session.source ? (
-                  <SourceBadge source={session.source} />
-                ) : null}
-                <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">
-                  {session.emulator?.label} · {session.emulator?.display}
-                </span>
-              </div>
-              <div className="mt-5 font-mono text-3xl font-semibold tabular-nums text-accent">
-                {formatClock(
-                  Math.max(
-                    0,
-                    Math.floor((now - Date.parse(session.startedAt)) / 1000),
-                  ),
-                )}
-              </div>
-              <div className="mt-1 text-xs uppercase tracking-wide text-text-faint">
-                Current session
-              </div>
-            </div>
-          </div>
-        </section>
+          session={session}
+          elapsedSeconds={Math.max(
+            0,
+            Math.floor((now - Date.parse(session.startedAt)) / 1000),
+          )}
+          recentSessions={recentSessions}
+          showDurationDays={showDurationDays}
+          exeCache={exeCache}
+          resolveIgdbId={resolveIgdbId}
+          archivedGameSeconds={archivedGameSeconds}
+          playtimeAdjustments={playtimeAdjustments}
+          statusLabel="Now emulating"
+        />
       ))}
       {sessions.length === 0 && observations.length === 0 ? (
         <Panel className="p-5">
@@ -131,13 +113,4 @@ export function NowEmulatingView() {
       ) : null}
     </div>
   );
-}
-
-function formatClock(seconds: number) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  const mm = String(minutes).padStart(2, "0");
-  const ss = String(secs).padStart(2, "0");
-  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  EMULATOR_VERIFIED_COUNTS,
   GAME_HOURS,
   MONTH_HOURS,
   TOTAL_HOURS,
@@ -167,6 +168,9 @@ describe("achievement catalog", () => {
       ...VERIFIED_COUNTS.map((value) =>
         award(`milestone:verified:${value}`, "milestone-verified"),
       ),
+      ...EMULATOR_VERIFIED_COUNTS.map((value) =>
+        award(`milestone:emulator:${value}`, "milestone-emulator"),
+      ),
     ];
     const complete = buildAchievementCatalog(allAwards, metrics());
     expect([...complete.values()].flat().filter((item) => item.isNext)).toEqual(
@@ -225,7 +229,7 @@ describe("achievement catalog", () => {
     );
     const summary = summarizeAchievements(catalog, "2026-08");
     expect(summary).toMatchObject({
-      fixedTotal: 21,
+      fixedTotal: 29,
       fixedUnlocked: 1,
       gameTrophies: 1,
       pastMonthTrophies: 1,
@@ -293,6 +297,7 @@ function metrics(overrides: Partial<MilestoneMetrics> = {}): MilestoneMetrics {
     monthHours: 0,
     streakDays: 0,
     verifiedCount: 0,
+    verifiedEmulatorCount: 0,
     games: new Map(),
     canonicalByAlias: new Map(),
     ...overrides,

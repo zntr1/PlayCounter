@@ -9,6 +9,7 @@ export const MONTH_HOURS = [10, 25, 50, 100, 200];
 export const GAME_HOURS = [10, 25, 50, 100, 250, 500, 1_000];
 export const STREAK_DAYS = [3, 7, 14, 30, 100];
 export const VERIFIED_COUNTS = [1, 5, 10, 25, 50, 100, 150, 200];
+export const EMULATOR_VERIFIED_COUNTS = [1, 3, 5, 10, 25, 50, 100, 150];
 
 // Keep streak records readable for backwards compatibility, but hide the
 // category and do not grant new awards until it is ready to be enabled again.
@@ -19,7 +20,8 @@ export type MilestoneCategory =
   | "month"
   | "game"
   | "streak"
-  | "verified";
+  | "verified"
+  | "emulator";
 
 export type MilestoneNotificationKind = Extract<
   NotificationKind,
@@ -42,6 +44,7 @@ export type MilestoneMetrics = {
   monthHours: number;
   streakDays: number;
   verifiedCount: number;
+  verifiedEmulatorCount: number;
   games: Map<string, { hours: number; name: string; coverUrl: string }>;
   canonicalByAlias: Map<string, string>;
 };
@@ -60,6 +63,7 @@ type MilestoneInput = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   verifiedContributions: number;
+  verifiedEmulatorContributions?: number;
   resolveIgdbId?: GameIdentityResolver;
   now?: Date;
 };
@@ -72,7 +76,11 @@ export function parseMilestoneId(id: string): {
   const parts = id.split(":");
   if (parts[0] !== "milestone" || parts.length < 3) return null;
   const category = parts[1] as MilestoneCategory;
-  if (!["total", "month", "game", "streak", "verified"].includes(category)) {
+  if (
+    !["total", "month", "game", "streak", "verified", "emulator"].includes(
+      category,
+    )
+  ) {
     return null;
   }
   const threshold = Number(parts.at(-1));
@@ -177,6 +185,10 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
     monthHours: monthSeconds / 3600,
     streakDays: summaryStats(input.sessions, now.getTime()).currentStreakDays,
     verifiedCount: Math.max(0, input.verifiedContributions),
+    verifiedEmulatorCount: Math.max(
+      0,
+      input.verifiedEmulatorContributions ?? 0,
+    ),
     games: visibleGames,
     canonicalByAlias,
   };
@@ -188,6 +200,7 @@ export function evaluateMilestones(
     awardedMilestoneIds?: string[];
     milestonesInitializedAt: string | null;
     verifiedContributionsAuthoritative?: boolean;
+    emulatorContributionsAuthoritative?: boolean;
   },
 ): MilestoneEvaluation {
   const now = input.now ?? new Date();
@@ -206,6 +219,18 @@ export function evaluateMilestones(
         month: "long",
         year: "numeric",
       })}`,
+    createdAt,
+  );
+  addThresholds(
+    reached,
+    "milestone-emulator",
+    "milestone:emulator",
+    metrics.verifiedEmulatorCount,
+    EMULATOR_VERIFIED_COUNTS,
+    (count) =>
+      count === 1
+        ? "Your first emulator match was approved"
+        : `${count} emulator matches approved`,
     createdAt,
   );
   addThresholds(
@@ -282,6 +307,11 @@ export function evaluateMilestones(
       input.verifiedContributionsAuthoritative
     ) {
       revoke = metrics.verifiedCount < parsed.threshold;
+    } else if (
+      parsed.category === "emulator" &&
+      input.emulatorContributionsAuthoritative
+    ) {
+      revoke = metrics.verifiedEmulatorCount < parsed.threshold;
     }
     if (!revoke) return true;
     revokedIds.add(milestone.id);
@@ -521,6 +551,10 @@ function genericMilestoneTitle(parsed: {
       return parsed.threshold === 1
         ? "Your first suggestion was approved"
         : `${threshold} suggestions approved`;
+    case "emulator":
+      return parsed.threshold === 1
+        ? "Your first emulator match was approved"
+        : `${threshold} emulator matches approved`;
   }
 }
 

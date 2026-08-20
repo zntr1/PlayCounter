@@ -64,29 +64,24 @@ describe("emulator mapping sharing", () => {
     expect(
       emulatorShareControl(mapping(), { ...baseContext, offline: true }),
     ).toMatchObject({ visible: true, disabled: true });
-    expect(
-      emulatorShareControl(
-        mapping({
-          share: {
-            status: "pending",
-            gameId: 42,
-            submittedAt: "2026-08-20T10:00:00.000Z",
-          },
-        }),
-        baseContext,
-      ),
-    ).toMatchObject({ visible: true, action: "check-status" });
-    expect(
-      emulatorShareControl(
-        mapping({
-          share: {
-            status: "already_curated",
-            gameId: 42,
-            submittedAt: "2026-08-20T10:00:00.000Z",
-          },
-        }),
-        baseContext,
-      ),
-    ).toEqual({ visible: false });
+    for (const status of [
+      "pending",
+      "verified",
+      "rejected",
+      "already_curated",
+    ] as const) {
+      expect(
+        emulatorShareControl(
+          mapping({
+            share: {
+              status,
+              gameId: 42,
+              submittedAt: "2026-08-20T10:00:00.000Z",
+            },
+          }),
+          baseContext,
+        ),
+      ).toEqual({ visible: false });
+    }
   });
 });

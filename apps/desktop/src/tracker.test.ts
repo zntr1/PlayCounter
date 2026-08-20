@@ -62,6 +62,29 @@ function contribution(overrides: Partial<Contribution> = {}): Contribution {
   };
 }
 
+function emulatorMapping(
+  overrides: Partial<EmulatorMapping> = {},
+): EmulatorMapping {
+  return {
+    contentKey: "dosbox:program:doom3.exe",
+    emulatorId: "dosbox",
+    label: "DOSBox",
+    contentKind: "program",
+    contentValue: "doom3.exe",
+    display: "Private presentation title",
+    trust: "recognized",
+    decision: "game",
+    gameId: 42,
+    gameName: "Doom 3",
+    source: "igdb",
+    confidence: "user",
+    shareable: true,
+    decidedAt: "2026-08-20T09:00:00.000Z",
+    lastSeenAt: "2026-08-20T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.stubGlobal("window", globalThis);
   vi.stubGlobal("navigator", {
@@ -102,6 +125,12 @@ beforeEach(() => {
     contributionOwnerUuid: null,
     seenContributionStatus: {},
     contributionCounts: {
+      suggested: 0,
+      verified: 0,
+      pending: 0,
+      rejected: 0,
+    },
+    emulatorContributionCounts: {
       suggested: 0,
       verified: 0,
       pending: 0,
@@ -218,6 +247,159 @@ describe("post-import notification baseline", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(useAppStore.getState().suppressContributionNotificationsOnce).toBe(
       true,
+    );
+  });
+});
+
+describe("emulator contribution polling", () => {
+  const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+  const contentKey = "dosbox:program:doom.exe";
+  const mapping: EmulatorMapping = {
+    contentKey,
+    emulatorId: "dosbox",
+    label: "DOSBox",
+    contentKind: "program",
+    contentValue: "doom.exe",
+    display: "DOOM.EXE",
+    trust: "recognized",
+    decision: "game",
+    gameId: 42,
+    gameName: "Doom",
+    coverUrl: "cover",
+    source: "igdb",
+    confidence: "user",
+    shareable: true,
+    share: {
+      status: "pending",
+      gameId: 42,
+      submittedAt: "2026-08-20T10:00:00.000Z",
+    },
+    decidedAt: "2026-08-20T10:00:00.000Z",
+    lastSeenAt: "2026-08-20T10:00:00.000Z",
+  };
+
+  it("notifies, reconciles state, and awards the separate ladder", async () => {
+    useAppStore.setState({
+      installUuid,
+      emulatorMappings: new Map([[contentKey, mapping]]),
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+    });
+    const status = { current: "verified" as "verified" | "rejected" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({
+          items: [],
+          counts: { suggested: 0, verified: 0, pending: 0, rejected: 0 },
+          emulator: {
+            items: [
+              {
+                emulatorId: "dosbox",
+                contentKind: "program",
+                contentValue: "doom.exe",
+                gameId: 42,
+                gameName: "Doom",
+                coverUrl: "cover",
+                status: status.current,
+                reviewNote:
+                  status.current === "rejected" ? "Wrong game" : undefined,
+                reviewedAt: "2026-08-21T10:00:00.000Z",
+                createdAt: "2026-08-20T10:00:00.000Z",
+              },
+            ],
+            counts: {
+              suggested: 1,
+              verified: status.current === "verified" ? 1 : 0,
+              pending: 0,
+              rejected: status.current === "rejected" ? 1 : 0,
+            },
+          },
+        }),
+      })),
+    );
+
+    await pollContributions("emulator-test");
+    let state = useAppStore.getState();
+    expect(state.emulatorContributionCounts.verified).toBe(1);
+    expect(state.emulatorMappings.get(contentKey)?.share?.status).toBe(
+      "verified",
+    );
+    expect(
+      state.notifications.filter((item) => item.kind === "suggestion-verified"),
+    ).toHaveLength(1);
+    expect(state.awardedMilestones.map((item) => item.id)).toContain(
+      "milestone:emulator:1",
+    );
+    expect(state.awardedMilestones.map((item) => item.id)).not.toContain(
+      "milestone:verified:1",
+    );
+
+    await pollContributions("emulator-repeat");
+    expect(
+      useAppStore
+        .getState()
+        .notifications.filter((item) => item.kind === "suggestion-verified"),
+    ).toHaveLength(1);
+
+    status.current = "rejected";
+    await pollContributions("emulator-rejected");
+    state = useAppStore.getState();
+    expect(state.emulatorMappings.get(contentKey)?.share?.status).toBe(
+      "rejected",
+    );
+    expect(
+      state.notifications.some((item) => item.kind === "suggestion-rejected"),
+    ).toBe(true);
+    expect(state.awardedMilestones.map((item) => item.id)).not.toContain(
+      "milestone:emulator:1",
+    );
+  });
+
+  it("preserves emulator state when an older API omits the block", async () => {
+    useAppStore.setState({
+      installUuid,
+      emulatorMappings: new Map([[contentKey, mapping]]),
+      emulatorContributionCounts: {
+        suggested: 1,
+        verified: 1,
+        pending: 0,
+        rejected: 0,
+      },
+      awardedMilestones: [
+        {
+          id: "milestone:emulator:1",
+          kind: "milestone-emulator",
+          title: "Your first emulator match was approved",
+          awardedAt: "2026-08-20T10:00:00.000Z",
+        },
+      ],
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({
+          items: [],
+          counts: { suggested: 0, verified: 0, pending: 0, rejected: 0 },
+        }),
+      })),
+    );
+
+    await pollContributions("legacy-api");
+
+    const state = useAppStore.getState();
+    expect(state.emulatorContributionCounts.verified).toBe(1);
+    expect(state.emulatorMappings.get(contentKey)?.share?.status).toBe(
+      "pending",
+    );
+    expect(state.awardedMilestones.map((item) => item.id)).toContain(
+      "milestone:emulator:1",
     );
   });
 });
@@ -1564,28 +1746,7 @@ describe("emulator mapping sharing", () => {
     const contentKey = "dosbox:program:doom3.exe";
     useAppStore.setState({
       installUuid: "550e8400-e29b-41d4-a716-446655440000",
-      emulatorMappings: new Map([
-        [
-          contentKey,
-          {
-            contentKey,
-            emulatorId: "dosbox",
-            label: "DOSBox",
-            contentKind: "program",
-            contentValue: "doom3.exe",
-            display: "Private presentation title",
-            trust: "recognized",
-            decision: "game",
-            gameId: 42,
-            gameName: "Doom 3",
-            source: "igdb",
-            confidence: "user",
-            shareable: true,
-            decidedAt: "2026-08-20T09:00:00.000Z",
-            lastSeenAt: "2026-08-20T10:00:00.000Z",
-          },
-        ],
-      ]),
+      emulatorMappings: new Map([[contentKey, emulatorMapping()]]),
     });
     const fetchMock = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
@@ -1614,6 +1775,42 @@ describe("emulator mapping sharing", () => {
       contentValue: "doom3.exe",
       gameId: 42,
     });
+  });
+
+  it("delivers an already-rejected response through standard notifications", async () => {
+    const contentKey = "dosbox:program:doom3.exe";
+    useAppStore.setState({
+      installUuid: "550e8400-e29b-41d4-a716-446655440000",
+      emulatorMappings: new Map([[contentKey, emulatorMapping()]]),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              status: "rejected",
+              reviewNote: "Wrong executable",
+            }),
+            { status: 200 },
+          ),
+      ),
+    );
+
+    expect(await shareEmulatorMapping(contentKey)).toMatchObject({
+      kind: "shared",
+      share: { status: "rejected" },
+    });
+    const state = useAppStore.getState();
+    expect(state.notifications).toEqual([
+      expect.objectContaining({
+        kind: "suggestion-rejected",
+        body: expect.stringContaining("Feedback: Wrong executable"),
+      }),
+    ]);
+    expect(state.toasts).toEqual([
+      expect.objectContaining({ title: "Doom 3 suggestion not approved" }),
+    ]);
   });
 
   it("does not request sharing for local-only mappings", async () => {

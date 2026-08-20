@@ -55,6 +55,12 @@ function makeState(
       pending: 0,
       rejected: 0,
     },
+    emulatorContributionCounts: {
+      suggested: 2,
+      verified: 1,
+      pending: 1,
+      rejected: 0,
+    },
     awardedMilestones: [
       {
         id: "milestone:total:10",
@@ -89,10 +95,17 @@ describe("session persistence", () => {
       },
     });
 
-    expect(JSON.parse(setItem.mock.calls[0][1]).tours).toEqual({
+    const payload = JSON.parse(setItem.mock.calls[0][1]);
+    expect(payload.tours).toEqual({
       version: 1,
       welcomeVersion: 1,
       completed: { core: 1 },
+    });
+    expect(payload.emulatorContributionCounts).toEqual({
+      suggested: 2,
+      verified: 1,
+      pending: 1,
+      rejected: 0,
     });
   });
 
