@@ -249,8 +249,8 @@ export function buildAchievementCatalog(
       kind: "milestone-verified",
       title:
         threshold === 1
-          ? "Your first contribution was verified"
-          : `${threshold.toLocaleString()} contributions verified`,
+          ? "Your first contribution was approved"
+          : `${threshold.toLocaleString()} contributions approved`,
       threshold,
       currentValue: metrics.verifiedCount,
       unit: "contributions",

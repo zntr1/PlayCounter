@@ -273,8 +273,8 @@ export function evaluateMilestones(
     VERIFIED_COUNTS,
     (count) =>
       count === 1
-        ? "Your first suggestion was approved"
-        : `${count} suggestions approved`,
+        ? "Your first contribution was approved"
+        : `${count} contributions approved`,
     createdAt,
   );
 
@@ -549,8 +549,8 @@ function genericMilestoneTitle(parsed: {
       return `${threshold}-day play streak`;
     case "verified":
       return parsed.threshold === 1
-        ? "Your first suggestion was approved"
-        : `${threshold} suggestions approved`;
+        ? "Your first contribution was approved"
+        : `${threshold} contributions approved`;
     case "emulator":
       return parsed.threshold === 1
         ? "Your first emulator match was approved"

@@ -436,7 +436,7 @@ describe("milestones", () => {
     const award = {
       id: "milestone:verified:5",
       kind: "milestone-verified" as const,
-      title: "5 suggestions approved",
+      title: "5 contributions approved",
       awardedAt: "2026-08-10T12:00:00.000Z",
     };
     const base = {
