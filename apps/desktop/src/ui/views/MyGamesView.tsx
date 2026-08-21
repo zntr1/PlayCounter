@@ -104,6 +104,10 @@ import type {
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
 import { compareMyGames, type MyGamesSortKey } from "../myGamesSort";
+import {
+  isTourDemoLibraryGame,
+  type LibraryGameKind,
+} from "../libraryGameKind";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = "grid" | "list";
@@ -119,6 +123,7 @@ const GTA_V_TOUR_COVER =
   "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.webp";
 
 type GameSummary = {
+  kind: LibraryGameKind;
   gameId: number;
   igdbId?: number;
   name: string;
@@ -172,6 +177,7 @@ function makeTourDemoGame(
 ): GameSummary {
   const totalSeconds = 7_200 + addedSeconds;
   return {
+    kind: "tour-demo",
     gameId: TOUR_DEMO_GAME.gameId,
     name: TOUR_DEMO_GAME.name,
     coverUrl: TOUR_DEMO_GAME.coverUrl,
@@ -200,6 +206,7 @@ function makeCoreTourDemoGames(): GameSummary[] {
   const now = Date.now();
   return [
     {
+      kind: "tour-demo",
       gameId: TOUR_DEMO_GAME.gameId,
       name: TOUR_DEMO_GAME.name,
       coverUrl: TOUR_DEMO_GAME.coverUrl,
@@ -219,6 +226,7 @@ function makeCoreTourDemoGames(): GameSummary[] {
       emulatorIds: [],
     },
     {
+      kind: "tour-demo",
       gameId: -2,
       name: "Grand Theft Auto V",
       coverUrl: GTA_V_TOUR_COVER,
@@ -415,6 +423,7 @@ export function MyGamesView() {
       exeName: string;
       historyGameKey?: string | null;
     }): GameSummary => ({
+      kind: "tracked",
       gameId: params.gameId,
       igdbId: params.igdbId,
       name: params.name,
@@ -819,7 +828,7 @@ export function MyGamesView() {
               }
             >
               {visibleGames.map((game) => {
-                const isDemo = game.gameId < 0;
+                const isDemo = isTourDemoLibraryGame(game);
                 return (
                   <GameLibraryCard
                     key={
