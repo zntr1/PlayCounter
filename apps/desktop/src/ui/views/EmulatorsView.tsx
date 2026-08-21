@@ -21,12 +21,21 @@ import {
   formatDuration,
 } from "../components";
 import { Button, Modal } from "../primitives";
+import {
+  emulatorTourDemoActive,
+  TOUR_DEMO_EMULATOR,
+  TOUR_DEMO_EMULATOR_STATS,
+  tourDemoEmulatorMapping,
+} from "../tour/tourDemoGame";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
 import { EmulatorLinkedGameDialog } from "./emulators/EmulatorLinkedGameDialog";
 import {
   emulatorDetectionSourceLabel,
   emulatorShareBadgeStatus,
 } from "./emulators/emulatorPickerModel";
+
+const DEMO_ACTION_REASON =
+  "Sample row - actions are switched off during the guide.";
 
 type EmulatorViewProps = {
   emulatorId: string;
@@ -98,6 +107,8 @@ function EmulatorView({
     (state) => state.settings.showDurationDays,
   );
   const known = useAppStore((state) => state.knownEmulators.get(emulatorId));
+  const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
+  const demo = emulatorTourDemoActive(activeTourId, emulatorId);
   const addToast = useAppStore((state) => state.addToast);
   const [changing, setChanging] = useState<EmulatorMapping | null>(null);
   const [forgetting, setForgetting] = useState<EmulatorMapping | null>(null);
@@ -114,6 +125,23 @@ function EmulatorView({
       new Set(sessions.map((session) => `${session.source}:${session.gameId}`)),
     [sessions],
   );
+  const demoMapping = useMemo(() => tourDemoEmulatorMapping(), []);
+  const displayedObservations = demo ? [] : observations;
+  const displayedGameMappings = demo ? [demoMapping] : gameMappings;
+  const displayedIgnoredMappings = demo ? [] : ignoredMappings;
+  const displayedIgnoredCount = demo
+    ? TOUR_DEMO_EMULATOR_STATS.ignored
+    : ignoredCount;
+  const displayedSessionCount = demo
+    ? TOUR_DEMO_EMULATOR_STATS.sessions
+    : sessions.length;
+  const displayedGameCount = demo ? TOUR_DEMO_EMULATOR_STATS.games : games.size;
+  const displayedPlaytimeSeconds = demo
+    ? TOUR_DEMO_EMULATOR_STATS.playtimeSeconds
+    : sessions.reduce(
+        (sum, session) => sum + (session.durationSeconds ?? 0),
+        0,
+      );
 
   return (
     <div className="grid gap-5">
@@ -132,33 +160,34 @@ function EmulatorView({
             </div>
             <p className="mt-1 text-sm text-text-muted">
               Emulator files:{" "}
-              {known?.hostExeNames.join(", ") || fallbackHostName}
+              {demo
+                ? TOUR_DEMO_EMULATOR.hostExeName
+                : known?.hostExeNames.join(", ") || fallbackHostName}
             </p>
           </div>
           <div className="text-sm text-text-muted">
-            {activeSessions.length > 0
-              ? `${activeSessions.length} game${activeSessions.length === 1 ? "" : "s"} running`
-              : "No game running right now"}
+            {demo
+              ? "1 game running"
+              : activeSessions.length > 0
+                ? `${activeSessions.length} game${activeSessions.length === 1 ? "" : "s"} running`
+                : "No game running right now"}
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-4">
           <SmallMetric
             label="Playtime"
-            value={formatDuration(
-              sessions.reduce(
-                (sum, session) => sum + (session.durationSeconds ?? 0),
-                0,
-              ),
-              showDurationDays,
-            )}
+            value={formatDuration(displayedPlaytimeSeconds, showDurationDays)}
           />
-          <SmallMetric label="Sessions" value={String(sessions.length)} />
-          <SmallMetric label="Games" value={String(games.size)} />
-          <SmallMetric label="Ignored games" value={String(ignoredCount)} />
+          <SmallMetric label="Sessions" value={String(displayedSessionCount)} />
+          <SmallMetric label="Games" value={String(displayedGameCount)} />
+          <SmallMetric
+            label="Ignored games"
+            value={String(displayedIgnoredCount)}
+          />
         </div>
       </Panel>
 
-      {observations.map((observation) => (
+      {displayedObservations.map((observation) => (
         <EmulatorPickerCard key={observation.key} observation={observation} />
       ))}
 
@@ -169,7 +198,7 @@ function EmulatorView({
             {label} games PlayCounter remembers and recognizes automatically.
           </p>
         </div>
-        {gameMappings.length === 0 ? (
+        {displayedGameMappings.length === 0 ? (
           <div className="grid place-items-center gap-2 p-8 text-center text-sm text-text-muted">
             <div className="grid h-11 w-11 place-items-center rounded-xl bg-surface-hover text-text-faint">
               <Gamepad2 size={20} />
@@ -184,22 +213,27 @@ function EmulatorView({
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {gameMappings.map((mapping) => (
+            {displayedGameMappings.map((mapping) => (
               <LinkedGameRow
                 key={mapping.contentKey}
                 mapping={mapping}
-                onChange={() => setChanging(mapping)}
-                onForget={() => {
-                  setForgettingBusy(false);
-                  setForgetting(mapping);
-                }}
+                demo={demo}
+                onChange={demo ? undefined : () => setChanging(mapping)}
+                onForget={
+                  demo
+                    ? undefined
+                    : () => {
+                        setForgettingBusy(false);
+                        setForgetting(mapping);
+                      }
+                }
               />
             ))}
           </div>
         )}
       </Panel>
 
-      {ignoredMappings.length > 0 ? (
+      {displayedIgnoredMappings.length > 0 ? (
         <Panel className="overflow-hidden">
           <div className="border-b border-border px-5 py-4">
             <h2 className="font-semibold text-text">Ignored {label} games</h2>
@@ -208,7 +242,7 @@ function EmulatorView({
             </p>
           </div>
           <div className="divide-y divide-border">
-            {ignoredMappings.map((mapping) => (
+            {displayedIgnoredMappings.map((mapping) => (
               <div
                 key={mapping.contentKey}
                 className="flex items-center justify-between gap-4 px-5 py-3"
@@ -228,13 +262,13 @@ function EmulatorView({
         </Panel>
       ) : null}
 
-      {changing ? (
+      {!demo && changing ? (
         <EmulatorLinkedGameDialog
           mapping={changing}
           onClose={() => setChanging(null)}
         />
       ) : null}
-      {forgetting ? (
+      {!demo && forgetting ? (
         <Modal
           size="sm"
           labelId="detect-emulator-game-again"
@@ -298,12 +332,14 @@ function EmulatorView({
 
 function LinkedGameRow({
   mapping,
+  demo = false,
   onChange,
   onForget,
 }: {
   mapping: EmulatorMapping;
-  onChange: () => void;
-  onForget: () => void;
+  demo?: boolean;
+  onChange?: () => void;
+  onForget?: () => void;
 }) {
   const detectionSource = emulatorDetectionSourceLabel(mapping.detectionSource);
   const addToast = useAppStore((state) => state.addToast);
@@ -318,10 +354,21 @@ function LinkedGameRow({
     installUuid,
     offline,
   };
-  const shareable = isShareableEmulatorMapping(mapping, shareContext);
-  const shareControl = emulatorShareControl(mapping, shareContext);
+  const shareable = demo
+    ? true
+    : isShareableEmulatorMapping(mapping, shareContext);
+  const shareControl = demo
+    ? ({
+        visible: true,
+        action: "share",
+        label: "Share match",
+        disabled: true,
+        reason: DEMO_ACTION_REASON,
+      } as const)
+    : emulatorShareControl(mapping, shareContext);
 
   async function submitShare() {
+    if (demo) return;
     if (!shareControl.visible || shareControl.disabled || sharing) return;
     setSharing(true);
     const outcome = await shareEmulatorMapping(mapping.contentKey);
@@ -352,7 +399,10 @@ function LinkedGameRow({
   }
 
   return (
-    <div className="grid gap-4 px-5 py-4 sm:grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
+    <div
+      className="grid gap-4 px-5 py-4 sm:grid-cols-[auto_minmax(0,1fr)] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center"
+      data-tour={demo ? "demo-emulator-linked" : undefined}
+    >
       {mapping.coverUrl ? (
         <img
           src={mapping.coverUrl}
@@ -371,7 +421,10 @@ function LinkedGameRow({
           </div>
           <SourceBadge source={mapping.source} />
           {mapping.needsConfirmation ? (
-            <span className="rounded border border-warning-border bg-warning-tint px-1.5 py-0.5 text-[11px] font-medium text-warning">
+            <span
+              className="rounded border border-warning-border bg-warning-tint px-1.5 py-0.5 text-[11px] font-medium text-warning"
+              data-tour={demo ? "demo-emulator-check-badge" : undefined}
+            >
               Check this once
             </span>
           ) : null}
@@ -411,13 +464,16 @@ function LinkedGameRow({
           </p>
         ) : null}
       </div>
-      <div className="flex flex-wrap gap-2 sm:col-start-2 lg:col-start-auto">
+      <div
+        className="flex flex-wrap gap-2 sm:col-start-2 lg:col-start-auto"
+        data-tour={demo ? "demo-emulator-actions" : undefined}
+      >
         {shareControl.visible ? (
           <Button
             variant="secondary"
             disabled={shareControl.disabled || sharing}
             title={shareControl.reason}
-            onClick={() => void submitShare()}
+            onClick={demo ? undefined : () => void submitShare()}
           >
             {sharing ? "Sharing…" : shareControl.label}
           </Button>
@@ -425,15 +481,34 @@ function LinkedGameRow({
         {mapping.needsConfirmation ? (
           <Button
             variant="primary"
-            onClick={() => confirmEmulatorMapping(mapping.contentKey)}
+            disabled={demo}
+            title={demo ? DEMO_ACTION_REASON : undefined}
+            data-tour={demo ? "demo-emulator-confirm" : undefined}
+            onClick={
+              demo
+                ? undefined
+                : () => confirmEmulatorMapping(mapping.contentKey)
+            }
           >
             Looks right
           </Button>
         ) : null}
-        <Button variant="secondary" icon={Repeat2} onClick={onChange}>
+        <Button
+          variant="secondary"
+          icon={Repeat2}
+          disabled={demo}
+          title={demo ? DEMO_ACTION_REASON : undefined}
+          onClick={demo ? undefined : onChange}
+        >
           Change game
         </Button>
-        <Button variant="ghost" icon={RotateCcw} onClick={onForget}>
+        <Button
+          variant="ghost"
+          icon={RotateCcw}
+          disabled={demo}
+          title={demo ? DEMO_ACTION_REASON : undefined}
+          onClick={demo ? undefined : onForget}
+        >
           Forget game
         </Button>
       </div>

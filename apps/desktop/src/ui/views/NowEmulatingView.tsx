@@ -1,9 +1,20 @@
 import { Cpu } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { createGameIdentityResolver, useAppStore } from "../../store";
+import {
+  createGameIdentityResolver,
+  useAppStore,
+  type ExeCacheEntry,
+} from "../../store";
 import { Panel } from "../components";
+import {
+  emulatorTourDemoActive,
+  tourDemoEmulatorSession,
+} from "../tour/tourDemoGame";
 import { ActiveGameHero } from "./ActiveGameHero";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
+
+const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
+const EMPTY_SECONDS: Record<string, number> = {};
 
 export function NowEmulatingView() {
   const ignoredEmulatorIds = useAppStore(
@@ -26,6 +37,8 @@ export function NowEmulatingView() {
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
+  const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
+  const demo = emulatorTourDemoActive(activeTourId);
   const sessions = useMemo(
     () =>
       allSessions.filter(
@@ -48,6 +61,9 @@ export function NowEmulatingView() {
     [allObservations, ignored],
   );
   const [now, setNow] = useState(() => Date.now());
+  const [demoStartedAt, setDemoStartedAt] = useState(() =>
+    new Date(Date.now() - 1_421_000).toISOString(),
+  );
   const runningHosts = processes.filter(
     (process) =>
       process.emulatorId && !ignored.has(process.emulatorId.toLowerCase()),
@@ -57,6 +73,32 @@ export function NowEmulatingView() {
     const timer = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (demo) {
+      setDemoStartedAt(new Date(Date.now() - 1_421_000).toISOString());
+    }
+  }, [demo]);
+
+  if (demo) {
+    return (
+      <ActiveGameHero
+        session={tourDemoEmulatorSession(demoStartedAt)}
+        elapsedSeconds={Math.max(
+          0,
+          Math.floor((now - Date.parse(demoStartedAt)) / 1000),
+        )}
+        recentSessions={[]}
+        showDurationDays={showDurationDays}
+        exeCache={EMPTY_EXE_CACHE}
+        resolveIgdbId={resolveIgdbId}
+        archivedGameSeconds={EMPTY_SECONDS}
+        playtimeAdjustments={EMPTY_SECONDS}
+        statusLabel="Now emulating"
+        tourAnchor="demo-emulator-now"
+      />
+    );
+  }
 
   if (
     sessions.length === 0 &&

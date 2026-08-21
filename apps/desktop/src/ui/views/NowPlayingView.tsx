@@ -172,7 +172,7 @@ export function NowPlayingView() {
                 }
                 onReport={() => setReportTarget(activeSession)}
                 statusLabel="Now playing"
-                tutorial={isTourSession}
+                tourAnchor={isTourSession ? "now-playing-demo" : undefined}
               />
             );
           })}

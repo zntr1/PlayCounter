@@ -29,7 +29,7 @@ type ActiveGameHeroProps = {
   playtimeAdjustments: Record<string, number>;
   statusLabel: "Now playing" | "Now emulating";
   onReport?: () => void;
-  tutorial?: boolean;
+  tourAnchor?: string;
 };
 
 export function ActiveGameHero({
@@ -43,7 +43,7 @@ export function ActiveGameHero({
   playtimeAdjustments,
   statusLabel,
   onReport,
-  tutorial = false,
+  tourAnchor,
 }: ActiveGameHeroProps) {
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
@@ -118,7 +118,7 @@ export function ActiveGameHero({
   return (
     <section
       className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
-      data-tour={tutorial ? "now-playing-demo" : undefined}
+      data-tour={tourAnchor}
     >
       {canReport ? (
         <IconButton

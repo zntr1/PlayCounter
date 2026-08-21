@@ -4,12 +4,12 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { useAppStore } from "../../store";
 import { Button, IconButton } from "../primitives";
+import { tourCardPosition, type TourTargetRect } from "./tourCardPosition";
 import { CORE_TOUR_ID, TOURS, findTour } from "./tourDefinitions";
 import { backStepIndex, nextStepIndex } from "./tourNavigation";
 import { shouldShowWelcome } from "./tourState";
@@ -211,8 +211,6 @@ function ModalFrame({
   );
 }
 
-type TargetRect = { top: number; left: number; width: number; height: number };
-
 export function TourOverlay() {
   const active = useAppStore((state) => state.activeTour);
   if (!active) return null;
@@ -227,9 +225,10 @@ function TourRunner() {
   const openGuides = useAppStore((state) => state.finishTourAndOpenHelp);
   const tour = findTour(active.tourId);
   const step = tour?.steps[active.stepIndex];
-  const [rect, setRect] = useState<TargetRect | null>(null);
-  const [additionalRects, setAdditionalRects] = useState<TargetRect[]>([]);
+  const [rect, setRect] = useState<TourTargetRect | null>(null);
+  const [additionalRects, setAdditionalRects] = useState<TourTargetRect[]>([]);
   const [missing, setMissing] = useState(false);
+  const [cardHeight, setCardHeight] = useState(260);
   const cardRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
 
@@ -264,6 +263,15 @@ function TourRunner() {
     });
     return () => cancelAnimationFrame(frame);
   }, [step]);
+
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const measure = () => setCardHeight(card.scrollHeight);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [missing, step]);
 
   useEffect(() => {
     if (!step) {
@@ -481,7 +489,10 @@ function TourRunner() {
     startTour("settings");
   };
   const isLast = active.stepIndex === tour.steps.length - 1;
-  const style = cardPosition(rect, step.cardPlacement);
+  const style = tourCardPosition(rect, step.cardPlacement, cardHeight, {
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
   const hasOwnBackdrop = step.id === "fill-dialog";
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
 
@@ -610,7 +621,7 @@ function TourRunner() {
   );
 }
 
-function sameRects(left: TargetRect[], right: TargetRect[]) {
+function sameRects(left: TourTargetRect[], right: TourTargetRect[]) {
   return (
     left.length === right.length &&
     left.every(
@@ -621,50 +632,6 @@ function sameRects(left: TargetRect[], right: TargetRect[]) {
         rect.height === right[index].height,
     )
   );
-}
-
-function cardPosition(
-  rect: TargetRect | null,
-  preferredPlacement?: "below",
-): CSSProperties {
-  if (!rect)
-    return { top: "50%", left: "50%", transform: "translate(-50%, -50%)" };
-  const width = 390;
-  const gap = 16;
-  const edge = 16;
-  const minimumCardHeight = 220;
-
-  if (preferredPlacement === "below") {
-    const top = rect.top + rect.height + gap;
-    if (top + minimumCardHeight <= window.innerHeight - edge) {
-      const left = Math.min(
-        window.innerWidth - width - edge,
-        Math.max(edge, rect.left + (rect.width - width) / 2),
-      );
-      return {
-        top,
-        left,
-        maxHeight: window.innerHeight - top - edge,
-      };
-    }
-  }
-
-  let left = Math.min(
-    window.innerWidth - width - edge,
-    Math.max(edge, rect.left + rect.width + gap),
-  );
-  let top = Math.min(window.innerHeight - 260, Math.max(edge, rect.top));
-  if (left < rect.left + rect.width && rect.left - width - gap >= edge)
-    left = rect.left - width - gap;
-  if (window.innerWidth < 700) {
-    left = edge;
-    top = Math.max(edge, window.innerHeight - 300);
-  }
-  return {
-    top,
-    left,
-    maxHeight: Math.max(minimumCardHeight, window.innerHeight - top - edge),
-  };
 }
 
 export function TutorialSettingsPanel() {

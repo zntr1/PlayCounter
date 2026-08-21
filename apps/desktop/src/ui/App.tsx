@@ -45,6 +45,7 @@ import { DolphinView, DosboxView } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
 import { HelpButton, TourOverlay, WelcomePrompt } from "./tour/TourUI";
+import { emulatorTourDemoActive } from "./tour/tourDemoGame";
 import { shouldShowWelcome } from "./tour/tourState";
 import {
   BUILD_STAGE,
@@ -240,6 +241,9 @@ export function App() {
       (mapping) =>
         mapping.emulatorId === emulatorId && mapping.needsConfirmation,
     ).length;
+  const emulatorTourDemo = emulatorTourDemoActive(activeTourId);
+  const sidebarEmulatorBadge = (item: "dosbox" | "dolphin") =>
+    emulatorTourDemo && item === "dolphin" ? 1 : emulatorReviewCount(item);
   const theme = useAppStore((state) => state.settings.theme);
   const setTheme = useAppStore((state) => state.setTheme);
 
@@ -378,6 +382,7 @@ export function App() {
           {sidebarSections.map((section) => {
             if (
               section.label === "Emulators" &&
+              !emulatorTourDemo &&
               (!emulatorDetectionEnabled ||
                 [...knownEmulators.keys()].every((id) =>
                   ignoredEmulatorSet.has(id.toLowerCase()),
@@ -389,19 +394,27 @@ export function App() {
               (item) =>
                 (item !== "dev" || devToolsEnabled) &&
                 (item !== "emulating" ||
+                  emulatorTourDemo ||
                   emulatorIsRunning ||
                   activeView === "emulating") &&
                 (item !== "dosbox" ||
                   (knownEmulators.has("dosbox") &&
                     !ignoredEmulatorSet.has("dosbox"))) &&
                 (item !== "dolphin" ||
+                  emulatorTourDemo ||
                   (knownEmulators.has("dolphin") &&
                     !ignoredEmulatorSet.has("dolphin"))),
             );
             if (items.length === 0) return null;
 
             return (
-              <div key={section.label} className="mb-6">
+              <div
+                key={section.label}
+                className="mb-6"
+                data-tour={
+                  section.label === "Emulators" ? "nav-emulators" : undefined
+                }
+              >
                 <div className="px-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-text-muted/70">
                   {section.label}
                 </div>
@@ -420,7 +433,7 @@ export function App() {
                           item === "discovered"
                             ? needsReviewCount
                             : item === "dosbox" || item === "dolphin"
-                              ? emulatorReviewCount(item)
+                              ? sidebarEmulatorBadge(item)
                               : undefined
                         }
                         warn={item === "now" ? hasAmbiguousMatch : undefined}
@@ -428,7 +441,7 @@ export function App() {
                           item === "now" && !hasAmbiguousMatch
                             ? activeSessionsCount > 0
                             : item === "emulating"
-                              ? emulatorIsRunning
+                              ? emulatorTourDemo || emulatorIsRunning
                               : undefined
                         }
                         onClick={() => {
