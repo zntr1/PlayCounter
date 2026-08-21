@@ -31,6 +31,7 @@ import { initializeTracker } from "../tracker";
 import { emulatorAssetUrls } from "../emulators/assets";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { NotificationBell } from "./NotificationBell";
+import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
 import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
@@ -44,6 +45,7 @@ import { DolphinView, DosboxView } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
 import { HelpButton, TourOverlay, WelcomePrompt } from "./tour/TourUI";
+import { shouldShowWelcome } from "./tour/tourState";
 import {
   BUILD_STAGE,
   useAppStore,
@@ -58,6 +60,13 @@ import {
   type InstallProgress,
   type UpdateCheckResult,
 } from "../updater";
+import {
+  decideReleaseNotesDisplay,
+  findUnseenReleaseNotes,
+  isEmptyDisplayNotes,
+  parseManifestNotes,
+  toDisplayNotes,
+} from "../releaseNotes";
 
 const views: Record<
   ViewId,
@@ -154,11 +163,27 @@ export function App() {
   const [installProgress, setInstallProgress] =
     useState<InstallProgress | null>(null);
   const [installingUpdate, setInstallingUpdate] = useState(false);
+  const [startupNotesOpen, setStartupNotesOpen] = useState(false);
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
-  const activeTourId = useAppStore(
-    (state) => state.activeTour?.tourId ?? null,
+  const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
+  const tourProgress = useAppStore((state) => state.tourProgress);
+  const lastSeenReleaseNotesVersion = useAppStore(
+    (state) => state.lastSeenReleaseNotesVersion,
+  );
+  const hadPersistedStateOnStartup = useAppStore(
+    (state) => state.hadPersistedStateOnStartup,
+  );
+  const currentNotesOpen = useAppStore((state) => state.currentNotesOpen);
+  const markReleaseNotesSeen = useAppStore(
+    (state) => state.markReleaseNotesSeen,
+  );
+  const openCurrentReleaseNotes = useAppStore(
+    (state) => state.openCurrentReleaseNotes,
+  );
+  const closeCurrentReleaseNotes = useAppStore(
+    (state) => state.closeCurrentReleaseNotes,
   );
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
@@ -265,7 +290,29 @@ export function App() {
     if (!devToolsEnabled && activeView === "dev") setActiveView("now");
   }, [activeView, devToolsEnabled, setActiveView]);
 
+  useEffect(() => {
+    const decision = decideReleaseNotesDisplay({
+      version: appVersion,
+      lastSeenVersion: lastSeenReleaseNotesVersion,
+      hadPersistedState: hadPersistedStateOnStartup,
+      blocked: activeTourId !== null || shouldShowWelcome(tourProgress),
+    });
+    if (decision.action === "show") openCurrentReleaseNotes();
+    if (decision.action === "mark-seen") {
+      markReleaseNotesSeen(decision.version);
+    }
+  }, [
+    activeTourId,
+    appVersion,
+    hadPersistedStateOnStartup,
+    lastSeenReleaseNotesVersion,
+    markReleaseNotesSeen,
+    openCurrentReleaseNotes,
+    tourProgress,
+  ]);
+
   async function handleInstallStartupUpdate() {
+    setStartupNotesOpen(false);
     setInstallingUpdate(true);
     setInstallProgress(null);
 
@@ -279,6 +326,15 @@ export function App() {
       setInstallingUpdate(false);
     }
   }
+
+  const startupDisplayNotes =
+    startupUpdate?.status === "available"
+      ? parseManifestNotes(startupUpdate.notes)
+      : parseManifestNotes(null);
+  const installedReleaseNotes = findUnseenReleaseNotes(
+    appVersion,
+    lastSeenReleaseNotesVersion,
+  );
 
   async function openExternalUrl(url: string, label: string) {
     try {
@@ -481,6 +537,15 @@ export function App() {
                 : ""}
             </span>
             <div className="flex shrink-0 items-center gap-2">
+              {!isEmptyDisplayNotes(startupDisplayNotes) ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => setStartupNotesOpen(true)}
+                  className="px-3 py-1.5"
+                >
+                  What's new
+                </Button>
+              ) : null}
               <Button
                 variant="primary"
                 icon={Download}
@@ -507,6 +572,54 @@ export function App() {
       </section>
       {feedbackOpen ? (
         <FeedbackDialog onClose={() => setFeedbackOpen(false)} />
+      ) : null}
+      {currentNotesOpen && appVersion && installedReleaseNotes.length > 0 ? (
+        <ReleaseNotesDialog
+          version={appVersion}
+          eyebrow="New update"
+          sections={installedReleaseNotes.map((note) => ({
+            version: note.version,
+            notes: toDisplayNotes(note),
+          }))}
+          onClose={() => closeCurrentReleaseNotes(appVersion)}
+          footer={
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                data-autofocus
+                onClick={() => closeCurrentReleaseNotes(appVersion)}
+              >
+                Got it
+              </Button>
+            </div>
+          }
+        />
+      ) : null}
+      {startupNotesOpen && startupUpdate?.status === "available" ? (
+        <ReleaseNotesDialog
+          version={startupUpdate.version}
+          eyebrow="Update available"
+          sections={[
+            {
+              version: startupUpdate.version,
+              notes: startupDisplayNotes,
+            },
+          ]}
+          onClose={() => setStartupNotesOpen(false)}
+          footer={
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                icon={Download}
+                loading={installingUpdate}
+                data-autofocus
+                onClick={() => void handleInstallStartupUpdate()}
+              >
+                {installingUpdate ? "Installing…" : "Install update"}
+              </Button>
+            </div>
+          }
+        />
       ) : null}
       <ToastViewport />
       <WelcomePrompt />

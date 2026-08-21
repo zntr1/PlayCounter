@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Session } from "@playcounter/shared";
 import {
@@ -33,6 +34,7 @@ const NOTIFICATION_STATE_KEYS = [
   "discoveredReviewReminder",
   "suppressStartupNotificationsOnce",
   "suppressContributionNotificationsOnce",
+  "lastSeenReleaseNotesVersion",
 ];
 
 const JSON_FILTER = [{ name: "PlayCounter backup", extensions: ["json"] }];
@@ -179,6 +181,11 @@ export async function importLocalData(): Promise<ImportResult> {
 
   if (Array.isArray(data.sessions)) {
     data.sessions = normalizeSessions(data.sessions as Session[]);
+  }
+  try {
+    data.lastSeenReleaseNotesVersion = await getVersion();
+  } catch {
+    delete data.lastSeenReleaseNotesVersion;
   }
   writePersistedRecord(data);
   if (typeof data.installUuid === "string") {

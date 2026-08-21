@@ -5,6 +5,7 @@ import {
   RotateCcw,
   Upload,
 } from "lucide-react";
+import { getVersion } from "@tauri-apps/api/app";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
 import {
@@ -29,6 +30,12 @@ import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { TutorialSettingsPanel } from "../tour/TourUI";
+import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
+import {
+  findReleaseNote,
+  isEmptyDisplayNotes,
+  parseManifestNotes,
+} from "../../releaseNotes";
 
 type UpdateStatus =
   | "idle"
@@ -46,6 +53,8 @@ export function SettingsView() {
   const [installProgress, setInstallProgress] =
     useState<InstallProgress | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
   const [startupSyncing, setStartupSyncing] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [reloadingIgnored, setReloadingIgnored] = useState(false);
@@ -74,6 +83,15 @@ export function SettingsView() {
     (state) => state.userIgnoredProcessesPath,
   );
   const addToast = useAppStore((state) => state.addToast);
+  const openCurrentReleaseNotes = useAppStore(
+    (state) => state.openCurrentReleaseNotes,
+  );
+
+  useEffect(() => {
+    void getVersion()
+      .then(setAppVersion)
+      .catch(() => setAppVersion(null));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +170,7 @@ export function SettingsView() {
   }
 
   async function handleInstallUpdate() {
+    setUpdateNotesOpen(false);
     setUpdateStatus("installing");
     setInstallProgress(null);
     setUpdateError(null);
@@ -216,6 +235,11 @@ export function SettingsView() {
   const progressLabel = installProgress
     ? formatBytesProgress(installProgress)
     : null;
+  const installedReleaseNote = findReleaseNote(appVersion);
+  const availableDisplayNotes =
+    updateResult?.status === "available"
+      ? parseManifestNotes(updateResult.notes)
+      : parseManifestNotes(null);
   const displayedEmulators = new Map(knownEmulators);
   for (const rawEmulatorId of settings.ignoredEmulatorIds ?? []) {
     const emulatorId = rawEmulatorId.trim().toLowerCase();
@@ -665,6 +689,23 @@ export function SettingsView() {
         description="Check and install updates from the configured release feed."
         title="Updates"
       >
+        <SettingsRow
+          title="Release notes"
+          description="See what changed in the version you're running."
+        >
+          <Button
+            variant="secondary"
+            disabled={!installedReleaseNote}
+            title={
+              installedReleaseNote
+                ? undefined
+                : "No release notes for this version"
+            }
+            onClick={openCurrentReleaseNotes}
+          >
+            View
+          </Button>
+        </SettingsRow>
         <div className="flex items-start justify-between gap-5">
           <div className="min-w-0">
             <h3 className="font-medium text-text">App updates</h3>
@@ -683,6 +724,16 @@ export function SettingsView() {
             ) : null}
           </div>
           <div className="flex shrink-0 gap-2">
+            {updateResult?.status === "available" &&
+            !isEmptyDisplayNotes(availableDisplayNotes) ? (
+              <Button
+                variant="secondary"
+                onClick={() => setUpdateNotesOpen(true)}
+                disabled={updateStatus === "installing"}
+              >
+                What's new
+              </Button>
+            ) : null}
             {updateStatus === "available" || updateStatus === "installing" ? (
               <Button
                 variant="primary"
@@ -708,6 +759,35 @@ export function SettingsView() {
           </div>
         </div>
       </SettingsPanel>
+      {updateNotesOpen && updateResult?.status === "available" ? (
+        <ReleaseNotesDialog
+          version={updateResult.version}
+          eyebrow="Update available"
+          sections={[
+            {
+              version: updateResult.version,
+              notes: availableDisplayNotes,
+            },
+          ]}
+          onClose={() => setUpdateNotesOpen(false)}
+          footer={
+            <div className="flex justify-end">
+              <Button
+                variant="primary"
+                icon={Download}
+                loading={updateStatus === "installing"}
+                disabled={isOffline}
+                data-autofocus
+                onClick={() => void handleInstallUpdate()}
+              >
+                {updateStatus === "installing"
+                  ? "Installing…"
+                  : "Install update"}
+              </Button>
+            </div>
+          }
+        />
+      ) : null}
       {confirmImport ? (
         <ImportDataDialog
           onCancel={() => setConfirmImport(false)}

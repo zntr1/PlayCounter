@@ -75,10 +75,33 @@ function makeState(
     playtimeAdjustments: { "community:42": 600 },
     collapsedSections: [],
     autoDetectedGameKeys: [],
+    lastSeenReleaseNotesVersion: null,
   };
 }
 
 describe("session persistence", () => {
+  it("persists the last acknowledged release notes version when present", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+
+    persistAppState({
+      ...makeState([]),
+      lastSeenReleaseNotesVersion: "1.1.5",
+    });
+    expect(
+      JSON.parse(setItem.mock.calls[0][1]).lastSeenReleaseNotesVersion,
+    ).toBe("1.1.5");
+
+    setItem.mockClear();
+    persistAppState(makeState([]));
+    expect(JSON.parse(setItem.mock.calls[0][1])).not.toHaveProperty(
+      "lastSeenReleaseNotesVersion",
+    );
+  });
+
   it("persists tutorial progress with local data", () => {
     const setItem = vi.fn();
     Object.defineProperty(globalThis, "localStorage", {

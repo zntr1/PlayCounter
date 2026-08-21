@@ -45,6 +45,7 @@ type PersistableAppState = {
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
   tourProgress?: TourProgress;
+  lastSeenReleaseNotesVersion: string | null;
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
 };
@@ -76,6 +77,7 @@ export type PersistedPayload = {
   collapsedSections?: string[];
   autoDetectedGameKeys?: string[];
   tours?: TourProgress;
+  lastSeenReleaseNotesVersion?: string;
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
 };
@@ -142,6 +144,7 @@ export function createPersistedPayload(
     collapsedSections: state.collapsedSections,
     autoDetectedGameKeys: [...new Set(state.autoDetectedGameKeys)],
     tours: state.tourProgress ?? defaultTourProgress(),
+    lastSeenReleaseNotesVersion: state.lastSeenReleaseNotesVersion ?? undefined,
     suppressStartupNotificationsOnce:
       state.suppressStartupNotificationsOnce || undefined,
     suppressContributionNotificationsOnce:

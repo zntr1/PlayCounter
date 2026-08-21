@@ -18,6 +18,10 @@ const tauriConfig = JSON.parse(
   await readFile("apps/desktop/src-tauri/tauri.conf.json", "utf8"),
 );
 const version = tauriConfig.version;
+const releaseNotesPath = resolve(
+  process.cwd(),
+  process.env.PLAYCOUNTER_RELEASE_NOTES ?? "apps/desktop/src/releaseNotes.json",
+);
 
 if (!version || typeof version !== "string") {
   throw new Error("Missing version in apps/desktop/src-tauri/tauri.conf.json");
@@ -43,7 +47,7 @@ if (macOsArm64Artifact) {
 
 const manifest = {
   version,
-  notes: "",
+  notes: await readReleaseNotes(version),
   pub_date: new Date().toISOString(),
   platforms,
 };
@@ -51,8 +55,36 @@ const manifest = {
 await mkdir(dirname(latestPath), { recursive: true });
 await writeFile(latestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 process.stdout.write(
-  `Created ${latestPath} for ${Object.keys(platforms).join(", ")}\n`,
+  `Created ${latestPath} for ${Object.keys(platforms).join(", ")} (${manifest.notes ? "release notes attached" : "no release notes"})\n`,
 );
+
+async function readReleaseNotes(releaseVersion) {
+  try {
+    const catalog = JSON.parse(await readFile(releaseNotesPath, "utf8"));
+    if (!Array.isArray(catalog)) return "";
+    const entry = catalog.find(
+      (candidate) =>
+        candidate &&
+        typeof candidate === "object" &&
+        candidate.version === releaseVersion,
+    );
+    if (
+      !entry ||
+      typeof entry.headline !== "string" ||
+      !entry.headline.trim() ||
+      !Array.isArray(entry.highlights)
+    ) {
+      return "";
+    }
+    const highlights = entry.highlights
+      .filter((highlight) => typeof highlight === "string" && highlight.trim())
+      .map((highlight) => `• ${highlight.trim()}`);
+    if (highlights.length === 0) return "";
+    return [entry.headline.trim(), ...highlights].join("\n").slice(0, 4_000);
+  } catch {
+    return "";
+  }
+}
 
 async function listFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

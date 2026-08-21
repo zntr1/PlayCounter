@@ -242,6 +242,9 @@ type AppState = {
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
   tourProgress: TourProgress;
+  lastSeenReleaseNotesVersion: string | null;
+  hadPersistedStateOnStartup: boolean;
+  currentNotesOpen: boolean;
   suppressStartupNotificationsOnce: boolean;
   suppressContributionNotificationsOnce: boolean;
   activeTour: ActiveTour | null;
@@ -257,6 +260,9 @@ type AppState = {
   setHelpMenuOpen: (open: boolean) => void;
   markTourWelcomeSeen: () => void;
   resetTourProgress: () => void;
+  markReleaseNotesSeen: (version: string) => void;
+  openCurrentReleaseNotes: () => void;
+  closeCurrentReleaseNotes: (version: string) => void;
   setHistoryQuery: (query: string) => void;
   setHistoryGameKey: (key: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
@@ -409,7 +415,7 @@ function persistSoon() {
   });
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   activeView: "now",
   historyQuery: "",
   historyGameKey: null,
@@ -448,6 +454,9 @@ export const useAppStore = create<AppState>((set) => ({
   collapsedSections: [],
   autoDetectedGameKeys: [],
   tourProgress: defaultTourProgress(),
+  lastSeenReleaseNotesVersion: null,
+  hadPersistedStateOnStartup: false,
+  currentNotesOpen: false,
   suppressStartupNotificationsOnce: false,
   suppressContributionNotificationsOnce: false,
   activeTour: null,
@@ -535,6 +544,16 @@ export const useAppStore = create<AppState>((set) => ({
   resetTourProgress: () => {
     set({ tourProgress: defaultTourProgress(), helpMenuOpen: false });
     persistSoon();
+  },
+  markReleaseNotesSeen: (version) => {
+    if (get().lastSeenReleaseNotesVersion === version) return;
+    set({ lastSeenReleaseNotesVersion: version });
+    persistSoon();
+  },
+  openCurrentReleaseNotes: () => set({ currentNotesOpen: true }),
+  closeCurrentReleaseNotes: (version) => {
+    set({ currentNotesOpen: false });
+    get().markReleaseNotesSeen(version);
   },
   setHistoryQuery: (historyQuery) => set({ historyQuery }),
   setHistoryGameKey: (historyGameKey) => set({ historyGameKey }),

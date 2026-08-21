@@ -71,7 +71,11 @@ import {
   sanitizeGameSecondsRecord,
 } from "./gameSeconds";
 import { nextAdjustmentSeconds } from "./playtimeAdjustments";
-import { persistAppState, readPersistedRecord } from "./persistence";
+import {
+  persistAppState,
+  readPersistedRecord,
+  STORAGE_KEY,
+} from "./persistence";
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
@@ -150,6 +154,7 @@ type PersistedState = {
   playtimeAdjustments?: Record<string, number>;
   collapsedSections?: unknown;
   tours?: unknown;
+  lastSeenReleaseNotesVersion?: unknown;
   autoDetectedGameKeys?: string[];
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
@@ -370,6 +375,7 @@ function applyBuildApiEndpoint(settings: Settings): Settings {
 }
 
 function hydrate() {
+  const hadPersistedStateOnStartup = localStorage.getItem(STORAGE_KEY) !== null;
   const persisted = readPersisted();
   let shouldPersistAchievementMigration =
     (!Array.isArray(persisted.awardedMilestones) &&
@@ -563,6 +569,12 @@ function hydrate() {
       persisted.tours,
       TOURS.map((tour) => tour.id),
     ),
+    lastSeenReleaseNotesVersion:
+      typeof persisted.lastSeenReleaseNotesVersion === "string" &&
+      persisted.lastSeenReleaseNotesVersion.trim()
+        ? persisted.lastSeenReleaseNotesVersion.trim()
+        : null,
+    hadPersistedStateOnStartup,
     suppressStartupNotificationsOnce:
       persisted.suppressStartupNotificationsOnce === true,
     suppressContributionNotificationsOnce:
