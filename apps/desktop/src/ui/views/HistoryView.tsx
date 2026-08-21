@@ -1,6 +1,6 @@
 import type { GameSource, Session } from "@playcounter/shared";
 import clsx from "clsx";
-import { ChevronDown, Search, Timer, X } from "lucide-react";
+import { ChevronDown, Search, Timer, Trash2, X } from "lucide-react";
 import {
   useCallback,
   useDeferredValue,
@@ -19,10 +19,10 @@ import {
   gameMetadataKey,
   useAppStore,
 } from "../../store";
-import { hydrateGameMetadata } from "../../tracker";
+import { hydrateGameMetadata, removeHistorySession } from "../../tracker";
 import { SectionToggle, useSectionCollapse } from "../CollapsibleSection";
 import { Panel, formatDuration } from "../components";
-import { Button, Input } from "../primitives";
+import { Button, Input, Modal } from "../primitives";
 import {
   hasCachedHistoryInsights,
   HistoryInsights,
@@ -103,9 +103,11 @@ export function HistoryView() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [visibleCount, setVisibleCount] = useState(25);
+  const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
   const timelineSection = useSectionCollapse("history.timeline");
   const viewRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const timelineBodyRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
   const [insightsReady, setInsightsReady] = useState(() =>
     hasCachedHistoryInsights(sessions, nowMs),
@@ -358,6 +360,80 @@ export function HistoryView() {
     },
     [setQuery, setSelectedGameKey],
   );
+  const pendingDeletionGame = pendingDeletion
+    ? resolveGame(pendingDeletion)
+    : null;
+  const focusTimelineSession = useCallback((sessionId: number | null) => {
+    if (sessionId === null) return;
+    window.requestAnimationFrame(() => {
+      const rows = timelineBodyRef.current?.querySelectorAll<HTMLElement>(
+        "[data-history-session-row]",
+      );
+      const row = rows
+        ? [...rows].find(
+            (entry) => entry.dataset.historySessionId === String(sessionId),
+          )
+        : undefined;
+      row?.focus({ preventScroll: true });
+      row?.scrollIntoView({ block: "nearest" });
+    });
+  }, []);
+  const cancelDeletion = useCallback(() => {
+    const sessionId = pendingDeletion?.id ?? null;
+    setPendingDeletion(null);
+    focusTimelineSession(sessionId);
+  }, [focusTimelineSession, pendingDeletion]);
+  const focusSessionFromTimelineClick = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      if (event.button !== 0) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (
+        target.closest("button, a, input, select, textarea, [role='button']")
+      ) {
+        return;
+      }
+      const group = target.closest("[data-history-session-group]");
+      const row =
+        target.closest<HTMLElement>("[data-history-session-row]") ??
+        group?.querySelector<HTMLElement>("[data-history-session-row]") ??
+        timelineBodyRef.current?.querySelector<HTMLElement>(
+          "[data-history-session-row]",
+        );
+      if (!row) return;
+      event.preventDefault();
+      row.focus({ preventScroll: true });
+    },
+    [],
+  );
+  const confirmDeletion = useCallback(() => {
+    if (!pendingDeletion || !pendingDeletionGame) return;
+    const rows = timelineBodyRef.current
+      ? [
+          ...timelineBodyRef.current.querySelectorAll<HTMLElement>(
+            "[data-history-session-row]",
+          ),
+        ]
+      : [];
+    const deletedIndex = rows.findIndex(
+      (row) => row.dataset.historySessionId === String(pendingDeletion.id),
+    );
+    const nextRow =
+      deletedIndex >= 0
+        ? (rows[deletedIndex + 1] ?? rows[deletedIndex - 1])
+        : undefined;
+    const nextSessionId = nextRow?.dataset.historySessionId
+      ? Number(nextRow.dataset.historySessionId)
+      : null;
+    removeHistorySession(pendingDeletion.id);
+    addToast({
+      tone: "success",
+      title: "Session removed",
+      detail: `${pendingDeletionGame.name} was removed from history.`,
+    });
+    setPendingDeletion(null);
+    focusTimelineSession(nextSessionId);
+  }, [addToast, focusTimelineSession, pendingDeletion, pendingDeletionGame]);
 
   return (
     <div ref={viewRef} className="flex min-w-0 flex-col gap-6">
@@ -510,106 +586,199 @@ export function HistoryView() {
         <HistoryInsightsPlaceholder />
       )}
 
-      <Panel className="overflow-hidden">
-        <div
-          className={clsx(
-            "flex flex-wrap items-center justify-between gap-3 px-5 py-4",
-            !timelineSection.collapsed && "border-b border-border",
-          )}
-        >
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-text">
-              Session timeline
-            </h2>
-            <p className="mt-0.5 text-sm text-text-muted">
-              {sessions[0]
-                ? `Last session ${formatStartTime(sessions[0].startedAt)}`
-                : "Completed sessions will appear here."}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-md border border-border bg-surface-hover px-3 py-1.5 text-sm font-medium text-text-muted">
-              Showing{" "}
-              <span className="font-mono text-text">
-                {timelineSessions.length}
-              </span>{" "}
-              of <span className="font-mono text-text">{sessions.length}</span>{" "}
-              sessions
+      <div onMouseDownCapture={focusSessionFromTimelineClick}>
+        <Panel className="overflow-hidden">
+          <div
+            className={clsx(
+              "flex flex-wrap items-center justify-between gap-3 px-5 py-4",
+              !timelineSection.collapsed && "border-b border-border",
+            )}
+          >
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-text">
+                Session timeline
+              </h2>
+              <p className="mt-0.5 text-sm text-text-muted">
+                {sessions[0]
+                  ? `Last session ${formatStartTime(sessions[0].startedAt)}`
+                  : "Completed sessions will appear here."}
+              </p>
             </div>
-            <SectionToggle
-              collapsed={timelineSection.collapsed}
-              onToggle={timelineSection.toggle}
-              controls="session-timeline-body"
-              label="Session timeline"
-            />
+            <div className="flex items-center gap-3">
+              <div className="rounded-md border border-border bg-surface-hover px-3 py-1.5 text-sm font-medium text-text-muted">
+                Showing{" "}
+                <span className="font-mono text-text">
+                  {timelineSessions.length}
+                </span>{" "}
+                of{" "}
+                <span className="font-mono text-text">{sessions.length}</span>{" "}
+                sessions
+              </div>
+              <SectionToggle
+                collapsed={timelineSection.collapsed}
+                onToggle={timelineSection.toggle}
+                controls="session-timeline-body"
+                label="Session timeline"
+              />
+            </div>
           </div>
-        </div>
-        {!timelineSection.collapsed ? (
-          <div id="session-timeline-body" className="p-4 sm:p-5">
-            {sessions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
-                <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-surface-hover text-text-faint">
-                  <Timer size={32} />
+          {!timelineSection.collapsed ? (
+            <div
+              ref={timelineBodyRef}
+              id="session-timeline-body"
+              className="p-4 sm:p-5"
+            >
+              {sessions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+                  <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-surface-hover text-text-faint">
+                    <Timer size={32} />
+                  </div>
+                  <h3 className="mb-1 text-lg font-bold text-text">
+                    No history yet
+                  </h3>
+                  <p className="text-sm text-text-muted">
+                    Start playing a tracked game to build your timeline.
+                  </p>
                 </div>
-                <h3 className="mb-1 text-lg font-bold text-text">
-                  No history yet
-                </h3>
-                <p className="text-sm text-text-muted">
-                  Start playing a tracked game to build your timeline.
-                </p>
-              </div>
-            ) : groups.length === 0 ? (
-              <div className="py-12 text-center text-sm font-medium text-text-muted">
-                No sessions match your filters.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-8">
-                {groups.map((group) => (
-                  <section key={group.label}>
-                    <div className="mb-4 flex items-baseline justify-between px-2">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-bold text-text">
-                          {group.label}
-                        </h3>
-                        <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-text-muted">
-                          {formatSessionCount(group.items.length)}
+              ) : groups.length === 0 ? (
+                <div className="py-12 text-center text-sm font-medium text-text-muted">
+                  No sessions match your filters.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-8">
+                  {groups.map((group) => (
+                    <section key={group.label} data-history-session-group>
+                      <div className="mb-4 flex items-baseline justify-between px-2">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-bold text-text">
+                            {group.label}
+                          </h3>
+                          <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-text-muted">
+                            {formatSessionCount(group.items.length)}
+                          </span>
+                        </div>
+                        <span className="font-mono text-sm font-bold text-text-muted">
+                          {formatDuration(group.seconds, showDurationDays)}{" "}
+                          shown
                         </span>
                       </div>
-                      <span className="font-mono text-sm font-bold text-text-muted">
-                        {formatDuration(group.seconds, showDurationDays)} shown
-                      </span>
+                      <div className="flex flex-col gap-2">
+                        {group.items.map((session) => (
+                          <HistorySessionRow
+                            key={session.id}
+                            session={session}
+                            metadata={lookupMetadata(session)}
+                            resolveIgdbId={resolveIgdbId}
+                            selectedGameKey={selectedGameKey}
+                            onFilterGame={selectGame}
+                            onClearGameFilter={clearGameFilter}
+                            onRequestDelete={setPendingDeletion}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                  {visibleSessions.length < sortedSessions.length ? (
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={() => setVisibleCount((count) => count + 25)}
+                      >
+                        Show 25 more
+                      </Button>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      {group.items.map((session) => (
-                        <HistorySessionRow
-                          key={session.id}
-                          session={session}
-                          metadata={lookupMetadata(session)}
-                          resolveIgdbId={resolveIgdbId}
-                          selectedGameKey={selectedGameKey}
-                          onFilterGame={selectGame}
-                          onClearGameFilter={clearGameFilter}
-                          addToast={addToast}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                ))}
-                {visibleSessions.length < sortedSessions.length ? (
-                  <div className="flex justify-center">
-                    <Button
-                      onClick={() => setVisibleCount((count) => count + 25)}
-                    >
-                      Show 25 more
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-        ) : null}
-      </Panel>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </Panel>
+      </div>
+      {pendingDeletion && pendingDeletionGame ? (
+        <DeleteSessionDialog
+          session={pendingDeletion}
+          gameName={pendingDeletionGame.name}
+          coverUrl={pendingDeletionGame.coverUrl}
+          showDurationDays={showDurationDays}
+          onCancel={cancelDeletion}
+          onConfirm={confirmDeletion}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function DeleteSessionDialog({
+  session,
+  gameName,
+  coverUrl,
+  showDurationDays,
+  onCancel,
+  onConfirm,
+}: {
+  session: Session;
+  gameName: string;
+  coverUrl: string;
+  showDurationDays: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      size="sm"
+      labelId="delete-history-session-title"
+      eyebrow="My History"
+      title="Delete this session?"
+      subtitle={gameName}
+      icon={Trash2}
+      onClose={onCancel}
+      footer={
+        <form
+          className="flex justify-end gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onConfirm();
+          }}
+        >
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="danger" icon={Trash2} data-autofocus>
+            Delete session
+          </Button>
+        </form>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        This permanently removes the session from your play history. This action
+        cannot be undone.
+      </p>
+      <div className="mt-4 flex items-stretch gap-4 rounded-lg border border-border bg-surface-hover p-4">
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={`${gameName} cover`}
+            className="h-[88px] w-16 shrink-0 rounded-md object-cover shadow-sm"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            className="grid h-[88px] w-16 shrink-0 place-items-center rounded-md border border-border bg-surface text-text-faint shadow-sm"
+          >
+            <Timer size={22} />
+          </div>
+        )}
+        <dl className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-center gap-x-4 gap-y-3 text-sm">
+          <dt className="text-text-faint">Started</dt>
+          <dd className="text-right font-medium text-text">
+            {formatStartTime(session.startedAt)}
+          </dd>
+          <dt className="text-text-faint">Playtime</dt>
+          <dd className="text-right font-mono font-bold text-text">
+            {formatDuration(session.durationSeconds ?? 0, showDurationDays)}
+          </dd>
+        </dl>
+      </div>
+    </Modal>
   );
 }
 

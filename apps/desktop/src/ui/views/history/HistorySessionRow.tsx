@@ -10,12 +10,7 @@ import {
 import { memo, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { getSessionGameKey } from "../../../historyStats";
-import {
-  useAppStore,
-  type GameIdentityResolver,
-  type Toast,
-} from "../../../store";
-import { removeHistorySession } from "../../../tracker";
+import { useAppStore, type GameIdentityResolver } from "../../../store";
 import {
   CommunityApprovalBadge,
   EmulatorBadge,
@@ -68,7 +63,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   selectedGameKey,
   onFilterGame,
   onClearGameFilter,
-  addToast,
+  onRequestDelete,
 }: {
   session: Session;
   metadata?: HistoryRowMetadata;
@@ -76,7 +71,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   selectedGameKey: string | null;
   onFilterGame: (key: string, name: string) => void;
   onClearGameFilter: () => void;
-  addToast: (toast: Omit<Toast, "id">) => void;
+  onRequestDelete: (session: Session) => void;
 }) {
   const contextMenu = useContextMenu();
   const rowRef = useRef<HTMLElement>(null);
@@ -100,14 +95,9 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   const gameKey = getSessionGameKey(session, resolveIgdbId);
   const isActiveGameFilter = selectedGameKey === gameKey;
 
-  function handleRemove() {
-    removeHistorySession(session.id);
-    addToast({
-      tone: "success",
-      title: "Session removed",
-      detail: `${gameName} was removed from history.`,
-    });
+  function requestDelete() {
     contextMenu.close();
+    onRequestDelete(session);
   }
 
   function handleFilterForGame() {
@@ -136,6 +126,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
     ) {
       return;
     }
+    rowRef.current?.focus({ preventScroll: true });
     cancelFilterHold();
     event.preventDefault();
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -163,6 +154,32 @@ export const HistorySessionRow = memo(function HistorySessionRow({
     };
   }
 
+  function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Delete" || event.key === "Del") {
+      event.preventDefault();
+      requestDelete();
+      return;
+    }
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+
+    event.preventDefault();
+    const timeline = event.currentTarget.closest("#session-timeline-body");
+    const rows = timeline?.querySelectorAll<HTMLElement>(
+      "[data-history-session-row]",
+    );
+    if (!rows) return;
+    const currentIndex = [...rows].indexOf(event.currentTarget);
+    if (currentIndex < 0) return;
+    const nextIndex = Math.min(
+      Math.max(currentIndex + (event.key === "ArrowDown" ? 1 : -1), 0),
+      rows.length - 1,
+    );
+    const nextRow = rows[nextIndex];
+    nextRow?.focus({ preventScroll: true });
+    nextRow?.scrollIntoView({ block: "nearest" });
+  }
+
   function handlePointerMove(event: ReactPointerEvent<HTMLElement>) {
     const hold = holdRef.current;
     if (!hold || hold.pointerId !== event.pointerId) return;
@@ -187,6 +204,10 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   return (
     <article
       ref={rowRef}
+      tabIndex={0}
+      data-history-session-row
+      data-history-session-id={session.id}
+      aria-label={`${gameName}, session on ${formatSessionDate(session.startedAt)}`}
       onContextMenu={(event) => {
         cancelFilterHold();
         contextMenu.props.onContextMenu(event);
@@ -196,7 +217,8 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       onPointerUp={cancelFilterHold}
       onPointerCancel={cancelFilterHold}
       onLostPointerCapture={cancelFilterHold}
-      className="group relative grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-accent/40 hover:shadow-raised"
+      onKeyDown={handleKeyDown}
+      className="group relative grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl border border-border bg-surface px-4 py-3 outline-none transition hover:border-accent/40 hover:shadow-raised focus:border-accent/60 focus:ring-2 focus:ring-accent/40"
     >
       {holdPosition ? (
         <span
@@ -316,8 +338,8 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           icon={Trash2}
           intent="danger"
           aria-label={`Remove history entry for ${gameName}`}
-          onClick={handleRemove}
-          className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100"
+          onClick={requestDelete}
+          className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100 group-focus-within:grid group-focus-within:opacity-100"
         />
       </div>
       <ContextMenu
@@ -328,7 +350,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
         <ContextMenuItem icon={Filter} onClick={handleFilterForGame}>
           Filter for this game
         </ContextMenuItem>
-        <ContextMenuItem icon={Trash2} danger onClick={handleRemove}>
+        <ContextMenuItem icon={Trash2} danger onClick={requestDelete}>
           Delete Session
         </ContextMenuItem>
       </ContextMenu>
