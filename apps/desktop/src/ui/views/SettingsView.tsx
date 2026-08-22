@@ -468,11 +468,11 @@ export function SettingsView() {
       {currentPlatform() === "windows" ? (
         <SettingsPanel
           dataTour="settings-launcher"
-          description="Optional direct game launching for the games PlayCounter has tracked on this PC."
+          description="Optional direct game launching for games PlayCounter has tracked on this PC."
           title="Start games from PlayCounter"
         >
           <SettingsRow
-            description="Remember game program files on this PC and show Play actions in My Games. This is off by default."
+            description="Remember local game program files and show Play actions in My Games. Off by default."
             title="Enable direct game launching"
           >
             <input
@@ -484,9 +484,21 @@ export function SettingsView() {
               className="h-5 w-5 accent-accent"
             />
           </SettingsRow>
-          <SettingsRow
-            description="Navigate the main menu and game cards with the D-pad or left stick, scroll views with the right stick, press A to enter or select, and B to go back. Search and advanced actions use mouse and keyboard. Hold Select/View + RB for two seconds to bring My Games forward."
-            title="Controller navigation"
+     
+          <div className="rounded-lg border border-border bg-bg/40 px-4 py-3 text-xs leading-5 text-text-muted">
+            PlayCounter starts the selected <code>.exe</code> directly. Games
+            that require Steam, Epic, another launcher, special arguments, or
+            administrator approval may need their normal shortcut. Learned paths
+            stay on this device and are excluded from backups.
+          </div>
+               <SettingsRow
+            description="Let PlayCounter react to controller inputs."
+            title={
+              <span className="flex items-center gap-2">
+                <Gamepad2 size={17} className="text-accent" />
+                Controller navigation
+              </span>
+            }
           >
             <input
               type="checkbox"
@@ -501,12 +513,6 @@ export function SettingsView() {
               className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
-          <div className="rounded-lg border border-border bg-bg/40 px-4 py-3 text-xs leading-5 text-text-muted">
-            PlayCounter starts the selected <code>.exe</code> directly. Games
-            that require Steam, Epic, another launcher, special arguments, or
-            administrator approval may need their normal shortcut. Learned paths
-            stay on this device and are excluded from backups.
-          </div>
           <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
             <span className="text-xs text-text-faint">
               {launchTargetCount} saved launch{" "}
@@ -930,7 +936,7 @@ function SettingsRow({
   className,
   dataTour,
 }: {
-  title: string;
+  title: React.ReactNode;
   description: string;
   children: React.ReactNode;
   className?: string;

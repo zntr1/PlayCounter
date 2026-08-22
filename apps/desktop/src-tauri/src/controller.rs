@@ -28,6 +28,7 @@ const BUTTON_B: u16 = 0x2000;
 #[serde(rename_all = "camelCase")]
 pub enum ControllerAction {
     Reveal,
+    ToggleLibraryView,
     Up,
     Down,
     Left,
@@ -50,6 +51,7 @@ pub struct ControllerMachine {
     previous_buttons: u16,
     chord_started_at: Option<u64>,
     chord_fired: bool,
+    view_tap_candidate: bool,
     reveal_cooldown_until: u64,
     held_direction: Option<ControllerAction>,
     direction_repeat_at: u64,
@@ -70,6 +72,18 @@ impl ControllerMachine {
         now_ms: u64,
     ) -> Vec<ControllerAction> {
         let mut actions = Vec::new();
+        let view_down = buttons & BUTTON_VIEW != 0;
+        let view_was_down = self.previous_buttons & BUTTON_VIEW != 0;
+        if view_down && !view_was_down {
+            self.view_tap_candidate = buttons & BUTTON_RIGHT_SHOULDER == 0;
+        }
+        if buttons & BUTTON_RIGHT_SHOULDER != 0 {
+            self.view_tap_candidate = false;
+        }
+        if !view_down && view_was_down && self.view_tap_candidate {
+            actions.push(ControllerAction::ToggleLibraryView);
+            self.view_tap_candidate = false;
+        }
         let reveal_chord = BUTTON_VIEW | BUTTON_RIGHT_SHOULDER;
         let chord_held = buttons & reveal_chord == reveal_chord;
         if chord_held {
@@ -293,7 +307,7 @@ mod tests {
             vec![ControllerAction::Reveal]
         );
         assert!(machine.update(chord, (0, 0), 0, 2_200).is_empty());
-        machine.update(0, (0, 0), 0, 2_300);
+        assert!(machine.update(0, (0, 0), 0, 2_300).is_empty());
         machine.update(chord, (0, 0), 0, 2_400);
         assert!(machine.update(chord, (0, 0), 0, 4_000).is_empty());
         assert_eq!(
@@ -315,6 +329,25 @@ mod tests {
             machine.update(BUTTON_B, (0, 0), 0, 300),
             vec![ControllerAction::Back]
         );
+    }
+
+    #[test]
+    fn view_tap_fires_on_release_without_conflicting_with_the_reveal_chord() {
+        let mut machine = ControllerMachine::default();
+        assert!(machine.update(BUTTON_VIEW, (0, 0), 0, 0).is_empty());
+        assert!(machine.update(BUTTON_VIEW, (0, 0), 0, 400).is_empty());
+        assert_eq!(
+            machine.update(0, (0, 0), 0, 416),
+            vec![ControllerAction::ToggleLibraryView]
+        );
+
+        let chord = BUTTON_VIEW | BUTTON_RIGHT_SHOULDER;
+        assert!(machine.update(chord, (0, 0), 0, 500).is_empty());
+        assert_eq!(
+            machine.update(chord, (0, 0), 0, 2_500),
+            vec![ControllerAction::Reveal]
+        );
+        assert!(machine.update(0, (0, 0), 0, 2_516).is_empty());
     }
 
     #[test]

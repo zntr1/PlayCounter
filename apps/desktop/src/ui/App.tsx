@@ -716,6 +716,7 @@ function ControllerModeFooter() {
         <ControllerHint button="A" label="Select" />
         <ControllerHint button="B" label="Back" />
         <ControllerHint button="RIGHT_STICK" label="Scroll" />
+        <ControllerHint button="VIEW" label="Card size" />
         <div
           className="flex min-w-0 items-center gap-1.5"
           aria-label="Hold View plus right bumper for two seconds to bring PlayCounter forward"

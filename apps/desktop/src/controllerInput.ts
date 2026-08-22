@@ -1,5 +1,6 @@
 export type ControllerAction =
   | "reveal"
+  | "toggleLibraryView"
   | "up"
   | "down"
   | "left"

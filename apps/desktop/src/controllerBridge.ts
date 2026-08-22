@@ -12,6 +12,8 @@ import {
 type ControllerEvent = { action: ControllerAction; at: number };
 
 export const CONTROLLER_MODE_EVENT = "playcounter:controller-mode";
+export const CONTROLLER_LIBRARY_VIEW_EVENT =
+  "playcounter:controller-library-view";
 
 type ControllerBridgeState = {
   armed: boolean;
@@ -308,6 +310,13 @@ function handleControllerEvent(
   if (event.action === "reveal") {
     useAppStore.getState().setActiveView("games");
     globalThis.requestAnimationFrame?.(() => focusFirstItemWhenReady(state));
+    return;
+  }
+
+  if (event.action === "toggleLibraryView") {
+    if (useAppStore.getState().activeView === "games") {
+      window.dispatchEvent(new CustomEvent(CONTROLLER_LIBRARY_VIEW_EVENT));
+    }
     return;
   }
 

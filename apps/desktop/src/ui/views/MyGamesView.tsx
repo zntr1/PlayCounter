@@ -11,6 +11,7 @@ import {
   Flag,
   FolderSearch,
   Gamepad2,
+  Grid2X2,
   History,
   ImagePlus,
   LayoutGrid,
@@ -116,9 +117,10 @@ import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 import { XboxButtonGlyph } from "../XboxButtonGlyph";
 import { launchErrorMessage, launchTargetsForGame } from "../../gameLaunch";
 import { currentPlatform } from "../../platform";
+import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 
 type SortKey = MyGamesSortKey;
-type ViewMode = "grid" | "list";
+type ViewMode = "grid" | "large" | "list";
 
 const sortOptions: Array<{ key: SortKey; label: string }> = [
   { key: "recent", label: "Last played" },
@@ -361,6 +363,26 @@ export function MyGamesView() {
   useEffect(() => {
     setDemoPlaytime({ addedSeconds: 0, addedSessions: 0 });
   }, [tourDemo.active, tourDemo.resetToken]);
+
+  useEffect(() => {
+    const toggleControllerCardSize = () => {
+      setView((current) => (current === "large" ? "grid" : "large"));
+      requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>('[data-controller-selected="true"]')
+          ?.scrollIntoView({ block: "center", inline: "nearest" });
+      });
+    };
+    window.addEventListener(
+      CONTROLLER_LIBRARY_VIEW_EVENT,
+      toggleControllerCardSize,
+    );
+    return () =>
+      window.removeEventListener(
+        CONTROLLER_LIBRARY_VIEW_EVENT,
+        toggleControllerCardSize,
+      );
+  }, []);
 
   useEffect(() => {
     if (tourDemo.active || !gameLaunchingEnabled) return;
@@ -776,6 +798,7 @@ export function MyGamesView() {
                 <button
                   type="button"
                   aria-label="Grid view"
+                  title="Standard cards"
                   onClick={() => setView("grid")}
                   className={clsx(
                     "grid h-8 w-8 place-items-center rounded transition",
@@ -788,7 +811,22 @@ export function MyGamesView() {
                 </button>
                 <button
                   type="button"
+                  aria-label="Large card view"
+                  title="Large cards"
+                  onClick={() => setView("large")}
+                  className={clsx(
+                    "grid h-8 w-8 place-items-center rounded transition",
+                    view === "large"
+                      ? "bg-accent text-accent-fg"
+                      : "text-text-muted hover:bg-surface-hover hover:text-text",
+                  )}
+                >
+                  <Grid2X2 size={16} />
+                </button>
+                <button
+                  type="button"
                   aria-label="List view"
+                  title="List"
                   onClick={() => setView("list")}
                   className={clsx(
                     "grid h-8 w-8 place-items-center rounded transition",
@@ -837,11 +875,14 @@ export function MyGamesView() {
           ) : (
             <div
               data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
-              className={
-                view === "grid"
-                  ? "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]"
-                  : "grid gap-3"
-              }
+              className={clsx(
+                "grid",
+                view === "grid" &&
+                  "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
+                view === "large" &&
+                  "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
+                view === "list" && "gap-3",
+              )}
             >
               {visibleGames.map((game) => {
                 const isDemo = isTourDemoLibraryGame(game);
@@ -986,6 +1027,7 @@ function GameLibraryCard({
     game.sessionSeconds / Math.max(1, game.sessionCount),
   );
   const isList = view === "list";
+  const isLarge = view === "large";
   const addToast = useAppStore((state) => state.addToast);
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
@@ -2004,9 +2046,17 @@ function GameLibraryCard({
         />
 
         {/* Info Panel Below Cover */}
-        <div className="flex flex-1 flex-col border-t border-border bg-surface p-3">
+        <div
+          className={clsx(
+            "flex flex-1 flex-col border-t border-border bg-surface",
+            isLarge ? "p-4" : "p-3",
+          )}
+        >
           <h2
-            className="truncate text-[15px] font-semibold text-text"
+            className={clsx(
+              "truncate font-semibold text-text",
+              isLarge ? "text-lg" : "text-[15px]",
+            )}
             title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
           >
             {exeLabel ? (
@@ -2026,7 +2076,12 @@ function GameLibraryCard({
             data-tour={demo ? "demo-playtime-result" : undefined}
             className="mt-1 flex items-baseline gap-1.5"
           >
-            <span className="font-mono text-lg font-bold tracking-tight text-text">
+            <span
+              className={clsx(
+                "font-mono font-bold tracking-tight text-text",
+                isLarge ? "text-xl" : "text-lg",
+              )}
+            >
               {formatDuration(game.totalSeconds, showDurationDays)}
             </span>
             <span className="text-[11px] font-medium text-text-muted">in</span>
