@@ -43,6 +43,7 @@ import {
   markCommunitySuggestionRejected,
   renameCustomGame,
   reportNegativeMatch,
+  scanProcessesNow,
   chooseLaunchTarget,
   setGamePlaytime,
   setCustomGameCover,
@@ -1006,6 +1007,46 @@ export function MyGamesView() {
   );
 }
 
+function LaunchStartingOverlay({
+  gameName,
+  detected,
+  compact = false,
+}: {
+  gameName: string;
+  detected: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="absolute inset-0 z-[70] flex items-center justify-center rounded-xl bg-bg/85 p-4 backdrop-blur-sm"
+    >
+      <div
+        className={clsx(
+          "flex items-center rounded-xl border border-accent/50 bg-surface/95 text-center shadow-raised",
+          compact ? "gap-3 px-4 py-2.5" : "flex-col gap-3 px-6 py-5",
+        )}
+      >
+        <Loader2
+          size={compact ? 20 : 30}
+          className="shrink-0 animate-spin text-accent"
+        />
+        <div className={compact ? "text-left" : undefined}>
+          <div className="max-w-64 truncate text-sm font-bold text-text">
+            Starting {gameName}…
+          </div>
+          <div className="mt-1 text-xs text-text-muted">
+            {detected
+              ? "Game detected · finishing startup"
+              : "Waiting for Windows to open the game"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GameLibraryCard({
   game,
   showDurationDays,
@@ -1097,6 +1138,23 @@ function GameLibraryCard({
       ),
     ),
   );
+  useEffect(() => {
+    if (!launching || hasActiveSession) return;
+    const timeout = window.setTimeout(() => {
+      setLaunching(false);
+      addToast({
+        tone: "info",
+        title: "Launch request sent",
+        detail: `${game.name} has not appeared in PlayCounter yet. It may still be starting or waiting on its own launcher.`,
+      });
+    }, 8_000);
+    return () => window.clearTimeout(timeout);
+  }, [addToast, game.name, hasActiveSession, launching]);
+  useEffect(() => {
+    if (!launching || !hasActiveSession) return;
+    const timeout = window.setTimeout(() => setLaunching(false), 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [hasActiveSession, launching]);
   const launchTargets = useAppStore((state) => state.launchTargets);
   const exeCache = useAppStore((state) => state.exeCache);
   const launcherEnabled = useAppStore(
@@ -1587,8 +1645,13 @@ function GameLibraryCard({
       return;
     }
     setLaunching(true);
+    let keepLaunchFeedback = false;
     try {
       const outcome = await launchGame(target);
+      keepLaunchFeedback = true;
+      void scanProcessesNow().catch((error) =>
+        console.warn("post-launch process scan failed", error),
+      );
       if (outcome === "busy") {
         addToast({
           tone: "info",
@@ -1600,7 +1663,7 @@ function GameLibraryCard({
       const message = launchErrorMessage(error, game.name);
       addToast({ tone: "error", ...message });
     } finally {
-      setLaunching(false);
+      if (!keepLaunchFeedback) setLaunching(false);
     }
   }
 
@@ -1664,6 +1727,7 @@ function GameLibraryCard({
                 <ContextMenuItem
                   key={target.exeName.toLowerCase()}
                   icon={Play}
+                  disabled={hasActiveSession || launching}
                   title={
                     hasActiveSession
                       ? "Already running"
@@ -1871,10 +1935,13 @@ function GameLibraryCard({
         {...contextMenu.props}
         {...demoCardProps}
         data-controller-item={controllerNavigable ? "game-card" : undefined}
+        aria-busy={launching}
         tabIndex={controllerNavigable ? -1 : undefined}
         aria-label={
           controllerNavigable
-            ? `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
+            ? launching
+              ? `${game.name}, starting`
+              : `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
             : undefined
         }
         className="game-library-card group relative flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-200 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -1885,8 +1952,15 @@ function GameLibraryCard({
             tabIndex={-1}
             aria-hidden="true"
             data-controller-launch="game"
+            disabled={launching}
             className="hidden"
             onClick={() => void handleLaunch()}
+          />
+        ) : null}
+        {launching ? (
+          <LaunchStartingOverlay
+            gameName={game.name}
+            detected={hasActiveSession}
           />
         ) : null}
         {controllerNavigable ? (
@@ -1943,8 +2017,10 @@ function GameLibraryCard({
             {launchTourDemo ||
             (!demo && canLaunchExecutables && primaryLaunchTarget) ? (
               <IconButton
-                icon={Play}
-                aria-label={`Play ${game.name}`}
+                icon={launching ? Loader2 : Play}
+                aria-label={
+                  launching ? `Starting ${game.name}` : `Play ${game.name}`
+                }
                 title={
                   hasActiveSession
                     ? "Already running"
@@ -1953,8 +2029,12 @@ function GameLibraryCard({
                       : "Play"
                 }
                 data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+                disabled={hasActiveSession || launching}
                 onClick={() => void handleLaunch()}
-                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+                className={clsx(
+                  "bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg",
+                  launching && "[&>svg]:animate-spin",
+                )}
               />
             ) : null}
             {game.source && game.exeNames[0] ? (
@@ -2247,10 +2327,13 @@ function GameLibraryCard({
       {...contextMenu.props}
       {...demoCardProps}
       data-controller-item={controllerNavigable ? "game-card" : undefined}
+      aria-busy={launching}
       tabIndex={controllerNavigable ? -1 : undefined}
       aria-label={
         controllerNavigable
-          ? `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
+          ? launching
+            ? `${game.name}, starting`
+            : `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
           : undefined
       }
       className="game-library-card group relative rounded-xl border border-border bg-surface shadow-raised transition duration-200 hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -2261,8 +2344,16 @@ function GameLibraryCard({
           tabIndex={-1}
           aria-hidden="true"
           data-controller-launch="game"
+          disabled={launching}
           className="hidden"
           onClick={() => void handleLaunch()}
+        />
+      ) : null}
+      {launching ? (
+        <LaunchStartingOverlay
+          gameName={game.name}
+          detected={hasActiveSession}
+          compact
         />
       ) : null}
       {controllerNavigable ? (
@@ -2435,8 +2526,10 @@ function GameLibraryCard({
             {launchTourDemo ||
             (!demo && canLaunchExecutables && primaryLaunchTarget) ? (
               <IconButton
-                icon={Play}
-                aria-label={`Play ${game.name}`}
+                icon={launching ? Loader2 : Play}
+                aria-label={
+                  launching ? `Starting ${game.name}` : `Play ${game.name}`
+                }
                 title={
                   hasActiveSession
                     ? "Already running"
@@ -2445,7 +2538,9 @@ function GameLibraryCard({
                       : "Play"
                 }
                 data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+                disabled={hasActiveSession || launching}
                 onClick={() => void handleLaunch()}
+                className={launching ? "[&>svg]:animate-spin" : undefined}
               />
             ) : null}
             <IconButton
