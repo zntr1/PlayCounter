@@ -22,6 +22,7 @@ import type {
   Settings,
 } from "@playcounter/shared";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   useAppStore,
   BUILD_STAGE,
@@ -37,8 +38,16 @@ import {
   type AmbiguousProcessMatch,
   type ExeCacheEntry,
   type GameMetadata,
+  type LaunchTarget,
+  type LaunchTargetOwner,
   type ProcessSnapshot,
 } from "./store";
+import {
+  isWindowsExecutablePath,
+  launchErrorKind,
+  launchFileBaseName,
+  matchesTrackedExeName,
+} from "./gameLaunch";
 import { countNeedsReview } from "./discoveredReview";
 import {
   DISCOVERED_REVIEW_REMINDER_ID,
@@ -132,6 +141,7 @@ type PersistedState = {
   contributionOwnerUuid?: string;
   settings?: Partial<Settings>;
   exeCache?: ExeCacheEntry[];
+  launchTargets?: LaunchTarget[];
   gameMetadata?: GameMetadata[];
   ambiguousMatches?: AmbiguousProcessMatch[];
   emulatorMappings?: EmulatorMapping[];
@@ -413,6 +423,32 @@ function hydrate() {
       ] as const;
     }),
   );
+  const launchTargets = new Map<string, LaunchTarget>();
+  for (const value of persisted.launchTargets ?? []) {
+    if (!value || typeof value !== "object") continue;
+    const target = value as Partial<LaunchTarget>;
+    const owner = target.owner as Partial<LaunchTargetOwner> | undefined;
+    const source = owner?.source;
+    if (
+      typeof target.exeName !== "string" ||
+      !target.exeName.trim() ||
+      !isWindowsExecutablePath(target.path) ||
+      typeof owner?.gameId !== "number" ||
+      !Number.isFinite(owner.gameId) ||
+      (source !== undefined &&
+        source !== null &&
+        source !== "igdb" &&
+        source !== "community" &&
+        source !== "custom")
+    ) {
+      continue;
+    }
+    launchTargets.set(target.exeName.toLowerCase(), {
+      exeName: target.exeName,
+      path: target.path,
+      owner: { gameId: owner.gameId, source: source ?? null },
+    });
+  }
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
   );
@@ -520,6 +556,7 @@ function hydrate() {
     // Open running windows were removed while constructing exeCacheMap above;
     // runtime while the app was closed must never be credited.
     exeCache: exeCacheMap,
+    launchTargets,
     gameMetadata: gameMetadataMap,
     recentSessions: hydratedSessions,
     activeSessions: normalizePersistedActiveSessions(persisted),
@@ -722,6 +759,81 @@ export async function openUserIgnoredProcessesFolder() {
   await invoke("open_user_ignored_processes_folder");
 }
 
+function recordLaunchTargets(matches: ProcessMatch[]) {
+  const state = useAppStore.getState();
+  for (const { process, game } of matches) {
+    if (!process.exeName || !isWindowsExecutablePath(process.exePath)) continue;
+    const owner: LaunchTargetOwner = {
+      gameId: game.id,
+      source: game.source ?? null,
+    };
+    const existing = state.launchTargets.get(process.exeName.toLowerCase());
+    if (
+      existing?.path === process.exePath &&
+      existing.owner.gameId === owner.gameId &&
+      existing.owner.source === owner.source
+    ) {
+      continue;
+    }
+    state.setLaunchTarget({
+      exeName: process.exeName,
+      path: process.exePath,
+      owner,
+    });
+  }
+}
+
+export async function launchGame(
+  target: Pick<LaunchTarget, "exeName" | "path">,
+) {
+  logRuntime(`game launch requested ${target.exeName}`);
+  try {
+    await invoke("launch_executable", { path: target.path });
+    logRuntime(`game launch started ${target.exeName}`);
+  } catch (error) {
+    if (launchErrorKind(error) === "notFound") {
+      useAppStore.getState().removeLaunchTarget(target.exeName);
+      persist();
+    }
+    logRuntime(`game launch failed ${target.exeName}: ${formatError(error)}`);
+    throw error;
+  }
+}
+
+export function forgetLaunchTarget(exeName: string) {
+  useAppStore.getState().removeLaunchTarget(exeName);
+  logRuntime(`launch target forgotten ${exeName}`);
+  persist();
+}
+
+export async function chooseLaunchTarget(
+  exeNames: string[],
+  owner: LaunchTargetOwner,
+): Promise<LaunchTarget | null> {
+  const selected = await open({
+    multiple: false,
+    directory: false,
+    filters: [{ name: "Program", extensions: ["exe"] }],
+  });
+  if (typeof selected !== "string") return null;
+  if (!isWindowsExecutablePath(selected)) {
+    throw new Error("Pick an .exe file with a full Windows path.");
+  }
+  if (!matchesTrackedExeName(selected, exeNames)) {
+    const expected = exeNames.filter(Boolean).join(" or ");
+    throw new Error(`Pick the file named ${expected || "the tracked .exe file"}.`);
+  }
+  const baseName = launchFileBaseName(selected);
+  const exeName =
+    exeNames.find((candidate) => candidate.toLowerCase() === baseName.toLowerCase()) ??
+    baseName;
+  const target = { exeName, path: selected, owner };
+  useAppStore.getState().setLaunchTarget(target);
+  logRuntime(`launch target selected ${exeName}`);
+  persist();
+  return target;
+}
+
 async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   const startedAt = Date.now();
   const normalized = uniqueProcesses(processes);
@@ -757,6 +869,7 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   );
   verboseRuntime(`scan ignored: ${formatExeSample(ignored)}`);
   const matches = [...(await resolveProcesses(candidates)), ...emulatorMatches];
+  recordLaunchTargets(matches);
   logRuntime(`scan resolved matches=${matches.length}`);
 
   const currentSessions = collapseDuplicateActiveSessions();
@@ -2838,6 +2951,13 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
   if (!ambiguous) return;
 
   cacheMatchResult(ambiguous.exeName, game);
+  if (isWindowsExecutablePath(ambiguous.exePath)) {
+    state.setLaunchTarget({
+      exeName: ambiguous.exeName,
+      path: ambiguous.exePath,
+      owner: { gameId: game.id, source: game.source ?? null },
+    });
+  }
   state.removeAmbiguousMatch(ambiguous.exeName);
   // The picked game may already be tracked through one of its other
   // executables; then this exe joins that session instead of adding a second.
@@ -2971,6 +3091,7 @@ async function ignoreProcessLocally(
     removeActiveSession(session);
   }
   state.removeExeCacheEntry(exeName);
+  state.removeLaunchTarget(exeName);
   state.removeAmbiguousMatch(exeName);
   persist();
 
@@ -3991,6 +4112,7 @@ export function untrackCustomGame(exeName: string) {
   }
 
   state.removeExeCacheEntry(exeName);
+  state.removeLaunchTarget(exeName);
   logRuntime(`custom game untracked ${exeName}`);
   persist();
   void requestProcessScan("after custom game untrack");
@@ -4032,6 +4154,7 @@ function untrackGameInternal(
 
   for (const exeName of matchingExeNames) {
     state.removeExeCacheEntry(exeName);
+    state.removeLaunchTarget(exeName);
   }
 
   for (const mapping of state.emulatorMappings.values()) {
@@ -4425,6 +4548,7 @@ export function clearLocalLibrary() {
     recentSessions: [],
     gameMetadata: new Map(),
     exeCache: new Map(),
+    launchTargets: new Map(),
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: {},

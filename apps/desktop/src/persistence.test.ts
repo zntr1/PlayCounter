@@ -41,6 +41,7 @@ function makeState(
     contributionOwnerUuid: null,
     settings,
     exeCache: new Map(),
+    launchTargets: new Map(),
     gameMetadata: new Map(),
     recentSessions,
     activeSessions: [],
@@ -80,6 +81,36 @@ function makeState(
 }
 
 describe("session persistence", () => {
+  it("persists launch targets as machine-local records", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+
+    persistAppState({
+      ...makeState([]),
+      launchTargets: new Map([
+        [
+          "game.exe",
+          {
+            exeName: "Game.exe",
+            path: String.raw`C:\Games\Game.exe`,
+            owner: { gameId: 42, source: "igdb" },
+          },
+        ],
+      ]),
+    });
+
+    expect(JSON.parse(setItem.mock.calls[0][1]).launchTargets).toEqual([
+      {
+        exeName: "Game.exe",
+        path: String.raw`C:\Games\Game.exe`,
+        owner: { gameId: 42, source: "igdb" },
+      },
+    ]);
+  });
+
   it("persists the last acknowledged release notes version when present", () => {
     const setItem = vi.fn();
     Object.defineProperty(globalThis, "localStorage", {

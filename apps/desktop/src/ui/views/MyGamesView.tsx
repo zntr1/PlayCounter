@@ -9,6 +9,7 @@ import {
   ClockPlus,
   Copy,
   Flag,
+  FolderSearch,
   Gamepad2,
   History,
   ImagePlus,
@@ -16,6 +17,7 @@ import {
   List,
   Loader2,
   Pencil,
+  Play,
   RotateCcw,
   Search,
   Send,
@@ -33,11 +35,14 @@ import {
   dismissCommunityUpgrade,
   doNotTrackGame,
   findGameMatches,
+  forgetLaunchTarget,
+  launchGame,
   convertToCustomGame,
   hydrateGameMetadata,
   markCommunitySuggestionRejected,
   renameCustomGame,
   reportNegativeMatch,
+  chooseLaunchTarget,
   setGamePlaytime,
   setCustomGameCover,
   suggestTrackedGameToCommunity,
@@ -107,6 +112,11 @@ import {
   type LibraryGameKind,
 } from "../libraryGameKind";
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
+import {
+  launchErrorMessage,
+  launchTargetsForGame,
+} from "../../gameLaunch";
+import { currentPlatform } from "../../platform";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = "grid" | "list";
@@ -1034,13 +1044,28 @@ function GameLibraryCard({
       ),
     ),
   );
+  const launchTargets = useAppStore((state) => state.launchTargets);
+  const exeCache = useAppStore((state) => state.exeCache);
+  const canLaunchExecutables = currentPlatform() === "windows";
+  const canConfigureLaunch =
+    canLaunchExecutables &&
+    game.exeNames.some((exeName) => /\.exe$/i.test(exeName));
+  const ownedLaunchTargets = useMemo(
+    () =>
+      launchTargetsForGame({
+        exeNames: game.exeNames,
+        aliases: game.aliases,
+        launchTargets,
+        exeCache,
+      }),
+    [exeCache, game.aliases, game.exeNames, launchTargets],
+  );
+  const primaryLaunchTarget = ownedLaunchTargets[0];
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
-  const primaryExeEntry = useAppStore((state) =>
-    primaryExeName
-      ? state.exeCache.get(primaryExeName.toLowerCase())
-      : undefined,
-  );
+  const primaryExeEntry = primaryExeName
+    ? exeCache.get(primaryExeName.toLowerCase())
+    : undefined;
   const canSuggestToCommunity = canSuggestCustomGameToCommunity({
     source: primaryExeEntry?.source ?? game.source,
     exeName: primaryExeName,
@@ -1469,6 +1494,50 @@ function GameLibraryCard({
     });
   }
 
+  async function handleLaunch(target = primaryLaunchTarget) {
+    contextMenu.close();
+    if (!target || hasActiveSession) return;
+    try {
+      await launchGame(target);
+    } catch (error) {
+      const message = launchErrorMessage(error, game.name);
+      addToast({ tone: "error", ...message });
+    }
+  }
+
+  async function handleSetLaunchFile() {
+    contextMenu.close();
+    try {
+      const target = await chooseLaunchTarget(game.exeNames, {
+        gameId: game.gameId,
+        source: game.source,
+      });
+      if (!target) return;
+      addToast({
+        tone: "success",
+        title: "Launch file saved",
+        detail: `${game.name} can now be started from My Games.`,
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Launch file not set",
+        detail: formatError(error),
+      });
+    }
+  }
+
+  function handleForgetLaunchFile() {
+    contextMenu.close();
+    if (!primaryLaunchTarget) return;
+    forgetLaunchTarget(primaryLaunchTarget.exeName);
+    addToast({
+      tone: "info",
+      title: "Launch file forgotten",
+      detail: `Start ${game.name} once, or set its launch file again.`,
+    });
+  }
+
   const renderContextMenu = () => (
     <ContextMenu
       open={contextMenu.open}
@@ -1477,6 +1546,42 @@ function GameLibraryCard({
       dataTour={demo ? "demo-context-menu" : undefined}
       focusFirstItem={demo}
     >
+      {!demo && canConfigureLaunch ? (
+        <>
+          {ownedLaunchTargets.length > 0
+            ? ownedLaunchTargets.map((target) => (
+                <ContextMenuItem
+                  key={target.exeName.toLowerCase()}
+                  icon={Play}
+                  disabled={hasActiveSession}
+                  title={hasActiveSession ? "Already running" : undefined}
+                  onClick={() => void handleLaunch(target)}
+                >
+                  {ownedLaunchTargets.length > 1
+                    ? `Play (${target.exeName})`
+                    : "Play"}
+                </ContextMenuItem>
+              ))
+            : null}
+          <ContextMenuItem
+            icon={FolderSearch}
+            onClick={() => void handleSetLaunchFile()}
+          >
+            {ownedLaunchTargets.length > 0
+              ? "Change launch file…"
+              : "Set launch file…"}
+          </ContextMenuItem>
+          {ownedLaunchTargets.length > 0 ? (
+            <ContextMenuItem
+              icon={Trash2}
+              onClick={handleForgetLaunchFile}
+            >
+              Forget launch file
+            </ContextMenuItem>
+          ) : null}
+          <ContextMenuSeparator />
+        </>
+      ) : null}
       <ContextMenuItem
         dataTour={demo ? "demo-menu-show-history" : undefined}
         icon={History}
@@ -1691,6 +1796,16 @@ function GameLibraryCard({
 
           {/* Hover Actions - Top Right (constructive first, destructive last) */}
           <div className="game-card-hover-actions absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
+            {!demo && canLaunchExecutables && primaryLaunchTarget ? (
+              <IconButton
+                icon={Play}
+                aria-label={`Play ${game.name}`}
+                title={hasActiveSession ? "Already running" : "Play"}
+                disabled={hasActiveSession}
+                onClick={() => void handleLaunch()}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+            ) : null}
             {game.source && game.exeNames[0] ? (
               <IconButton
                 icon={Search}
@@ -2122,6 +2237,15 @@ function GameLibraryCard({
           </div>
 
           <div className="flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+            {!demo && canLaunchExecutables && primaryLaunchTarget ? (
+              <IconButton
+                icon={Play}
+                aria-label={`Play ${game.name}`}
+                title={hasActiveSession ? "Already running" : "Play"}
+                disabled={hasActiveSession}
+                onClick={() => void handleLaunch()}
+              />
+            ) : null}
             <IconButton
               icon={ClockPlus}
               aria-label={`Log a missed session for ${game.name}`}

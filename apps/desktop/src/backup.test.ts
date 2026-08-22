@@ -69,6 +69,13 @@ describe("backup transfer data", () => {
         notifiedCount: 10,
       },
       blacklist: ["ignored.exe"],
+      launchTargets: [
+        {
+          exeName: "game.exe",
+          path: String.raw`C:\Users\player\Games\game.exe`,
+          owner: { gameId: 42, source: "igdb" },
+        },
+      ],
       activeSessions: [{ id: 2 }],
       ambiguousMatches: [{ exeName: "game.exe" }],
       exeCache: [
@@ -88,6 +95,7 @@ describe("backup transfer data", () => {
     expect(result).not.toHaveProperty("lastSeenReleaseNotesVersion");
     expect(result).not.toHaveProperty("discoveredReviewReminder");
     expect(result).not.toHaveProperty("blacklist");
+    expect(result).not.toHaveProperty("launchTargets");
     expect(result).not.toHaveProperty("activeSessions");
     expect(result).not.toHaveProperty("ambiguousMatches");
   });

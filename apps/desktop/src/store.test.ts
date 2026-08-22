@@ -97,6 +97,7 @@ beforeEach(() => {
     autoDetectedGameKeys: [],
     ignoredProcesses: new Set(),
     userIgnoredProcesses: new Set(),
+    launchTargets: new Map(),
     settings: {
       ...useAppStore.getState().settings,
       desktopOverlaysEnabled: true,
@@ -106,6 +107,28 @@ beforeEach(() => {
       overlayMilestones: true,
       overlayDiscoveries: false,
     },
+  });
+});
+
+describe("launch target state", () => {
+  it("keys targets case-insensitively and clears them with the cache", () => {
+    useAppStore.getState().setLaunchTarget({
+      exeName: "Game.exe",
+      path: String.raw`C:\Games\Game.exe`,
+      owner: { gameId: 42, source: "igdb" },
+    });
+    expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(true);
+
+    useAppStore.getState().removeLaunchTarget("GAME.EXE");
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
+
+    useAppStore.getState().setLaunchTarget({
+      exeName: "Game.exe",
+      path: String.raw`C:\Games\Game.exe`,
+      owner: { gameId: 42, source: "igdb" },
+    });
+    useAppStore.getState().clearCache();
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
   });
 });
 

@@ -428,12 +428,16 @@ export function ContextMenuSeparator() {
 export function ContextMenuItem({
   icon: Icon,
   danger,
+  disabled,
+  title,
   onClick,
   children,
   dataTour,
 }: {
   icon?: LucideIcon;
   danger?: boolean;
+  disabled?: boolean;
+  title?: string;
   onClick: () => void;
   children: ReactNode;
   dataTour?: string;
@@ -442,8 +446,11 @@ export function ContextMenuItem({
     <button
       data-tour={dataTour}
       type="button"
+      disabled={disabled}
+      title={title}
       className={clsx(
         "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors",
+        disabled && "cursor-not-allowed opacity-50",
         danger
           ? "text-danger hover:bg-danger-tint"
           : "text-text hover:bg-surface-hover",

@@ -14,6 +14,7 @@ use tauri::{
 };
 
 mod ignored_processes;
+mod launch;
 mod notification_overlay;
 mod process;
 mod session;
@@ -237,6 +238,7 @@ pub fn run() {
             scan_processes,
             privacy_context,
             get_exe_icon,
+            launch::launch_executable,
             notification_overlay::notification_overlay_prepare,
             notification_overlay::notification_overlay_wait_for_game_window,
             notification_overlay::notification_overlay_show,

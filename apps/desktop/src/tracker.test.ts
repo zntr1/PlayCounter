@@ -23,11 +23,14 @@ import {
   hydrateGameMetadata,
   findGameMatches,
   ignoreDiscoveredProcess,
+  launchGame,
   suggestIgnoredProcess,
   persist,
   pollContributions,
   removeGameHistory,
   reportNegativeMatch,
+  scanProcessesNow,
+  selectAmbiguousMatch,
   selectEmulatorGame,
   shareEmulatorMapping,
   setGamePlaytime,
@@ -110,6 +113,7 @@ beforeEach(() => {
   });
   useAppStore.setState({
     exeCache: new Map(),
+    launchTargets: new Map(),
     activeSessions: [],
     ambiguousMatches: [],
     emulatorMappings: new Map(),
@@ -148,6 +152,91 @@ beforeEach(() => {
       checkedAt: "2026-08-09T00:00:00.000Z",
       detail: null,
     },
+  });
+});
+
+describe("game launching", () => {
+  const target = {
+    exeName: "Game.exe",
+    path: String.raw`C:\Games\Game.exe`,
+    owner: { gameId: 42, source: "igdb" as const },
+  };
+
+  it("invokes the native launcher", async () => {
+    await launchGame(target);
+    expect(invokeMock).toHaveBeenCalledWith("launch_executable", {
+      path: target.path,
+    });
+  });
+
+  it("forgets only genuinely missing targets", async () => {
+    useAppStore.getState().setLaunchTarget(target);
+    invokeMock.mockRejectedValueOnce({ kind: "notFound", message: "Gone" });
+    await expect(launchGame(target)).rejects.toMatchObject({ kind: "notFound" });
+    expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(false);
+
+    useAppStore.getState().setLaunchTarget(target);
+    invokeMock.mockRejectedValueOnce({
+      kind: "unreadable",
+      message: "Drive unavailable",
+    });
+    await expect(launchGame(target)).rejects.toMatchObject({
+      kind: "unreadable",
+    });
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(target);
+  });
+
+  it("captures a resolved process path without churning identical scans", async () => {
+    useAppStore.setState({
+      exeCache: new Map([
+        ["game.exe", entry({ gameId: 42, source: "igdb" })],
+      ]),
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "Game.exe",
+            exePath: String.raw`C:\Games\Game.exe`,
+            pid: 123,
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+    const first = useAppStore.getState().launchTargets.get("game.exe");
+    expect(first).toEqual(target);
+    await scanProcessesNow();
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toBe(first);
+  });
+
+  it("captures an ambiguous executable for only the selected local game", () => {
+    useAppStore.setState({
+      ambiguousMatches: [
+        {
+          exeName: "Mixtape.exe",
+          exePath: String.raw`C:\Games\Mixtape.exe`,
+          candidates: [],
+          detectedAt: "2026-08-20T10:00:00.000Z",
+          endedAt: "2026-08-20T10:01:00.000Z",
+        },
+      ],
+    });
+
+    selectAmbiguousMatch("Mixtape.exe", {
+      id: 7,
+      name: "Mixtape",
+      coverUrl: "cover",
+      source: "igdb",
+    });
+
+    expect(useAppStore.getState().launchTargets.get("mixtape.exe")).toEqual({
+      exeName: "Mixtape.exe",
+      path: String.raw`C:\Games\Mixtape.exe`,
+      owner: { gameId: 7, source: "igdb" },
+    });
   });
 });
 

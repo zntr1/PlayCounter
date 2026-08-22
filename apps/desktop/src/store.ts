@@ -127,6 +127,17 @@ export type ExeCacheEntry = {
   runningSince?: string;
 };
 
+export type LaunchTargetOwner = {
+  gameId: number;
+  source: GameSource | null;
+};
+
+export type LaunchTarget = {
+  exeName: string;
+  path: string;
+  owner: LaunchTargetOwner;
+};
+
 export function canSwitchApprovedSuggestionToCommunity(value: {
   source?: GameSource | null;
   communitySuggestionId?: number;
@@ -223,6 +234,7 @@ type AppState = {
   userIgnoredProcesses: Set<string>;
   userIgnoredProcessesPath: string | null;
   exeCache: Map<string, ExeCacheEntry>;
+  launchTargets: Map<string, LaunchTarget>;
   apiRequestLog: ApiRequestLogEntry[];
   runtimeLog: RuntimeLogEntry[];
   blacklist: Set<string>;
@@ -286,6 +298,8 @@ type AppState = {
   ) => void;
   setExeCacheEntry: (entry: ExeCacheEntry) => void;
   removeExeCacheEntry: (exeName: string) => void;
+  setLaunchTarget: (target: LaunchTarget) => void;
+  removeLaunchTarget: (exeName: string) => void;
   addApiRequestLogEntry: (entry: Omit<ApiRequestLogEntry, "id" | "at">) => void;
   addRuntimeLogEntry: (message: string) => void;
   setRuntimeError: (error: string | null) => void;
@@ -435,6 +449,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   userIgnoredProcesses: new Set(),
   userIgnoredProcessesPath: null,
   exeCache: new Map(),
+  launchTargets: new Map(),
   apiRequestLog: [],
   runtimeLog: [],
   blacklist: new Set(),
@@ -702,6 +717,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       exeCache.delete(exeName.toLowerCase());
       return { exeCache };
     }),
+  setLaunchTarget: (target) =>
+    set((state) => {
+      const launchTargets = new Map(state.launchTargets);
+      launchTargets.set(target.exeName.toLowerCase(), target);
+      return { launchTargets };
+    }),
+  removeLaunchTarget: (exeName) =>
+    set((state) => {
+      const launchTargets = new Map(state.launchTargets);
+      launchTargets.delete(exeName.toLowerCase());
+      return { launchTargets };
+    }),
   addApiRequestLogEntry: (entry) =>
     set((state) => ({
       apiRequestLog: [
@@ -965,6 +992,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearCache: () =>
     set({
       exeCache: new Map(),
+      launchTargets: new Map(),
       gameMetadata: new Map(),
       emulatorObservations: [],
       emulatorMappings: new Map(),
