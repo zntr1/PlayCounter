@@ -1,6 +1,6 @@
 import type { Session } from "@playcounter/shared";
 import clsx from "clsx";
-import { Maximize2, X } from "lucide-react";
+import { BarChart3, Maximize2 } from "lucide-react";
 import {
   memo,
   type ReactNode,
@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import type { GameIdentityResolver } from "../../../store";
 import {
   bucketSessions,
@@ -28,7 +27,7 @@ import { TopGamesBars } from "../../charts/TopGamesBars";
 import { addDays } from "../../charts/chartUtils";
 import { Panel, Stat, formatDuration } from "../../components";
 import { SectionToggle, useSectionCollapse } from "../../CollapsibleSection";
-import { IconButton, useEscapeKey } from "../../primitives";
+import { IconButton, Modal } from "../../primitives";
 
 type ResolvedGame = { name: string; coverUrl: string };
 
@@ -420,83 +419,27 @@ function ChartDialog({
   resolveGameCover: (key: string | null) => string | null;
   onClose: () => void;
 }) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  useEscapeKey(onClose);
-  useEffect(() => {
-    closeRef.current?.focus();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = [
-        ...dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        ),
-      ];
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable.at(-1)!;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[60] grid place-items-center bg-black/60 px-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+  return (
+    <Modal
+      size="full"
+      labelId="expanded-chart-title"
+      eyebrow="Insights"
+      title={title}
+      subtitle={`${formatDuration(total, showDurationDays)} logged`}
+      icon={BarChart3}
+      onClose={onClose}
+      bodyClassName="flex overflow-hidden"
     >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="expanded-chart-title"
-        className="flex h-[80vh] w-[calc(100vw-3rem)] max-w-none flex-col rounded-lg border border-border bg-surface p-6 shadow-raised"
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2
-              id="expanded-chart-title"
-              className="text-sm font-bold uppercase tracking-wider text-text-faint"
-            >
-              {title}
-            </h2>
-            <p className="mt-1 text-sm text-text-muted">
-              {formatDuration(total, showDurationDays)} logged
-            </p>
-          </div>
-          <IconButton
-            ref={closeRef}
-            icon={X}
-            aria-label="Close chart"
-            onClick={onClose}
-          />
-        </div>
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-          <ColumnChart
-            buckets={buckets}
-            showDurationDays={showDurationDays}
-            resolveGameName={resolveGameName}
-            resolveGameCover={resolveGameCover}
-            className="min-w-[720px]"
-            height={500}
-          />
-        </div>
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+        <ColumnChart
+          buckets={buckets}
+          showDurationDays={showDurationDays}
+          resolveGameName={resolveGameName}
+          resolveGameCover={resolveGameCover}
+          className="min-w-[720px]"
+          height={500}
+        />
       </div>
-    </div>,
-    document.body,
+    </Modal>
   );
 }

@@ -76,6 +76,16 @@ export default {
           "0%": { opacity: "1", transform: "translateX(0) scale(1)" },
           "100%": { opacity: "0", transform: "translateX(16px) scale(0.98)" },
         },
+        "modal-in": {
+          "0%": {
+            opacity: "0",
+            transform: "translateY(8px) scale(0.98)",
+          },
+          "100%": {
+            opacity: "1",
+            transform: "translateY(0) scale(1)",
+          },
+        },
         // Single heart: pop in, float up slightly, fade away.
         "heart-float": {
           "0%": { opacity: "0", transform: "translate(-50%, -50%) scale(0.6)" },
@@ -91,6 +101,7 @@ export default {
         "fade-in": "fade-in 200ms ease-out",
         "toast-in": "toast-in 220ms ease-out",
         "toast-out": "toast-out 260ms ease-in forwards",
+        "modal-in": "modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1)",
         "heart-float": "heart-float 1.4s ease-out forwards",
       },
       gridTemplateColumns: {

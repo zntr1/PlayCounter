@@ -9,8 +9,8 @@ import {
   Send,
   SkipForward,
   Undo2,
-  X,
   Copy,
+  X,
 } from "lucide-react";
 import type {
   CommunityGameSuggestionResponse,
@@ -54,7 +54,7 @@ import {
   sortReviewExecutables,
   type IgnoredProcessSort,
 } from "../discoveredSort";
-import { AnimatedCount, Button, IconButton, Input } from "../primitives";
+import { AnimatedCount, Button, IconButton, Input, Modal } from "../primitives";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import {
   communityMetadataSearchUrl,
@@ -1783,116 +1783,71 @@ export function CommunitySuggestionForm({
   const canSubmit =
     Boolean(selection?.coverUrl) && !busy && state !== "saved" && !isOffline;
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 sm:p-6"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-    >
-      <div className="flex max-h-[85vh] w-full max-w-4xl animate-toast-in flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-raised">
-        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-surface px-5 py-4">
-          <div className="min-w-0">
-            <h2 className="font-semibold text-text">{title}</h2>
-            <p className="mt-1 truncate text-sm text-text-muted">
-              Link the correct game to{" "}
-              <span
-                className="inline-block max-w-full truncate align-bottom font-medium text-text"
-                title={exeName}
-              >
-                {exeName}
-              </span>
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onCancel}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-text-muted transition hover:bg-surface-hover hover:text-text"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        <form
-          className="flex min-h-0 flex-1 flex-col bg-bg"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (isOffline) return;
-            onSubmit();
-          }}
+  const footer = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className={clsx(
+          "text-sm",
+          state === "error"
+            ? "text-danger"
+            : state === "saved"
+              ? "text-success"
+              : "text-text-muted",
+        )}
+      >
+        {isOffline
+          ? "Database search is unavailable offline."
+          : message || (!selection ? "Select a result to continue." : "")}
+      </div>
+      <div className="flex shrink-0 justify-end gap-3">
+        <Button variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          form="community-suggestion-form"
+          variant="primary"
+          icon={Send}
+          disabled={!canSubmit}
         >
-          <div className="flex shrink-0 flex-col gap-3 border-b border-border p-5">
-            <div className="flex items-center gap-2">
-              <div className="relative h-10 min-w-0 flex-1">
-                <span className="pointer-events-none absolute inset-y-0 left-0 grid w-10 place-items-center text-text-faint">
-                  <Search size={16} />
-                </span>
-                <Input
-                  value={search}
-                  onChange={(event) => onSearchChange(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      if (
-                        search.trim().length >= 2 &&
-                        releaseYearValid &&
-                        !isOffline
-                      )
-                        onSearch(searchOptions);
-                    }
-                  }}
-                  disabled={isOffline}
-                  maxLength={120}
-                  autoFocus
-                  placeholder="Search by the exact game title..."
-                  className="h-10 w-full pl-10 text-base"
-                />
-              </div>
-              <Button
-                variant="primary"
-                icon={Search}
-                loading={state === "loading"}
-                disabled={
-                  busy ||
-                  isOffline ||
-                  search.trim().length < 2 ||
-                  !releaseYearValid
-                }
-                title={
-                  isOffline ? "Database search unavailable offline" : undefined
-                }
-                onClick={() => onSearch(searchOptions)}
-                className="h-10 shrink-0 px-5"
-              >
-                Search
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
-                Release year
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  value={releaseYearInput}
-                  onChange={(event) => {
-                    setReleaseYearInput(
-                      event.target.value.replace(/\D/g, "").slice(0, 4),
-                    );
-                    onSearchOptionsChange?.();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter") return;
+          {state === "saving" ? "Adding…" : "Add and share"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <Modal
+      size="wide"
+      labelId="community-suggestion-dialog-title"
+      eyebrow="Community"
+      title={title}
+      subtitle={`Link the correct game to ${exeName}`}
+      icon={Send}
+      onClose={onCancel}
+      bodyClassName="flex overflow-hidden p-0 sm:p-0"
+      footer={footer}
+    >
+      <form
+        id="community-suggestion-form"
+        className="flex min-h-0 flex-1 flex-col bg-bg"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (isOffline) return;
+          onSubmit();
+        }}
+      >
+        <div className="flex shrink-0 flex-col gap-3 border-b border-border p-5">
+          <div className="flex items-center gap-2">
+            <div className="relative h-10 min-w-0 flex-1">
+              <span className="pointer-events-none absolute inset-y-0 left-0 grid w-10 place-items-center text-text-faint">
+                <Search size={16} />
+              </span>
+              <Input
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
                     event.preventDefault();
                     if (
                       search.trim().length >= 2 &&
@@ -1900,180 +1855,198 @@ export function CommunitySuggestionForm({
                       !isOffline
                     )
                       onSearch(searchOptions);
-                  }}
-                  disabled={busy || isOffline}
-                  placeholder="Any year"
-                  aria-invalid={!releaseYearValid}
-                  className={clsx(
-                    "h-9 w-28",
-                    !releaseYearValid && "border-danger focus:border-danger",
-                  )}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
-                Sort by
-                <select
-                  value={sort}
-                  onChange={(event) => {
-                    setSort(event.target.value as CommunityMetadataSort);
-                    onSearchOptionsChange?.();
-                  }}
-                  disabled={busy || isOffline}
-                  className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
-                >
-                  <option value="relevance">IGDB relevance</option>
-                  <option value="release-desc">Newest release</option>
-                  <option value="release-asc">Oldest release</option>
-                </select>
-              </label>
-              {!releaseYearValid ? (
-                <span className="pb-2 text-xs text-danger">
-                  Enter a year from 1950 to 2100.
-                </span>
-              ) : null}
+                  }
+                }}
+                disabled={isOffline}
+                maxLength={120}
+                data-autofocus
+                placeholder="Search by the exact game title..."
+                className="h-10 w-full pl-10 text-base"
+              />
             </div>
+            <Button
+              variant="primary"
+              icon={Search}
+              loading={state === "loading"}
+              disabled={
+                busy ||
+                isOffline ||
+                search.trim().length < 2 ||
+                !releaseYearValid
+              }
+              title={
+                isOffline ? "Database search unavailable offline" : undefined
+              }
+              onClick={() => onSearch(searchOptions)}
+              className="h-10 shrink-0 px-5"
+            >
+              Search
+            </Button>
           </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
+              Release year
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                value={releaseYearInput}
+                onChange={(event) => {
+                  setReleaseYearInput(
+                    event.target.value.replace(/\D/g, "").slice(0, 4),
+                  );
+                  onSearchOptionsChange?.();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  if (
+                    search.trim().length >= 2 &&
+                    releaseYearValid &&
+                    !isOffline
+                  )
+                    onSearch(searchOptions);
+                }}
+                disabled={busy || isOffline}
+                placeholder="Any year"
+                aria-invalid={!releaseYearValid}
+                className={clsx(
+                  "h-9 w-28",
+                  !releaseYearValid && "border-danger focus:border-danger",
+                )}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
+              Sort by
+              <select
+                value={sort}
+                onChange={(event) => {
+                  setSort(event.target.value as CommunityMetadataSort);
+                  onSearchOptionsChange?.();
+                }}
+                disabled={busy || isOffline}
+                className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+              >
+                <option value="relevance">IGDB relevance</option>
+                <option value="release-desc">Newest release</option>
+                <option value="release-asc">Oldest release</option>
+              </select>
+            </label>
+            {!releaseYearValid ? (
+              <span className="pb-2 text-xs text-danger">
+                Enter a year from 1950 to 2100.
+              </span>
+            ) : null}
+          </div>
+        </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-5">
-            {state === "loading" ? (
-              <div className="grid h-full place-items-center rounded-md border border-dashed border-border bg-surface p-10 text-center text-sm text-text-muted">
-                <div className="flex flex-col items-center gap-3">
-                  <span className="animate-spin text-text-faint">
-                    <Search size={24} />
-                  </span>
-                  Searching database...
-                </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {state === "loading" ? (
+            <div className="grid h-full place-items-center rounded-md border border-dashed border-border bg-surface p-10 text-center text-sm text-text-muted">
+              <div className="flex flex-col items-center gap-3">
+                <span className="animate-spin text-text-faint">
+                  <Search size={24} />
+                </span>
+                Searching database...
               </div>
-            ) : candidates.length > 0 ? (
-              <div className="flex flex-col gap-5">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {candidates.map((candidate) => {
-                    const selected = selection?.igdbId === candidate.igdbId;
-                    const missingCover = !candidate.coverUrl;
+            </div>
+          ) : candidates.length > 0 ? (
+            <div className="flex flex-col gap-5">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {candidates.map((candidate) => {
+                  const selected = selection?.igdbId === candidate.igdbId;
+                  const missingCover = !candidate.coverUrl;
 
-                    return (
-                      <button
-                        key={candidate.igdbId}
-                        type="button"
-                        onClick={() => onApplyCandidate(candidate)}
-                        disabled={missingCover}
-                        className={clsx(
-                          "group relative flex flex-col overflow-hidden rounded-lg border text-left transition focus:outline-none focus:ring-2 focus:ring-accent",
-                          selected
-                            ? "border-accent bg-accent/5 ring-1 ring-accent"
-                            : "border-border bg-surface hover:border-text-muted",
-                          missingCover &&
-                            "cursor-not-allowed opacity-60 hover:border-border",
+                  return (
+                    <button
+                      key={candidate.igdbId}
+                      type="button"
+                      onClick={() => onApplyCandidate(candidate)}
+                      disabled={missingCover}
+                      className={clsx(
+                        "group relative flex flex-col overflow-hidden rounded-lg border text-left transition focus:outline-none focus:ring-2 focus:ring-accent",
+                        selected
+                          ? "border-accent bg-accent/5 ring-1 ring-accent"
+                          : "border-border bg-surface hover:border-text-muted",
+                        missingCover &&
+                          "cursor-not-allowed opacity-60 hover:border-border",
+                      )}
+                    >
+                      <div className="aspect-[3/4] w-full bg-surface-hover">
+                        {candidate.coverUrl ? (
+                          <img
+                            src={candidate.coverUrl}
+                            alt=""
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="grid h-full place-items-center text-text-faint">
+                            <Gamepad2 size={32} className="opacity-50" />
+                          </div>
                         )}
-                      >
-                        <div className="aspect-[3/4] w-full bg-surface-hover">
-                          {candidate.coverUrl ? (
-                            <img
-                              src={candidate.coverUrl}
-                              alt=""
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="grid h-full place-items-center text-text-faint">
-                              <Gamepad2 size={32} className="opacity-50" />
-                            </div>
+                      </div>
+
+                      <div className="flex flex-1 flex-col p-3">
+                        <span
+                          className="line-clamp-2 text-sm font-medium leading-tight text-text"
+                          title={candidate.name}
+                        >
+                          {candidate.name}
+                        </span>
+                        <div className="mt-auto pt-2 flex items-center justify-between text-xs text-text-faint">
+                          <span>
+                            {missingCover
+                              ? "No cover available"
+                              : `ID: ${candidate.igdbId}`}
+                          </span>
+                          {candidate.releaseYear && (
+                            <span className="shrink-0 rounded-md bg-surface-hover px-1.5 py-0.5">
+                              {candidate.releaseYear}
+                            </span>
                           )}
                         </div>
+                      </div>
 
-                        <div className="flex flex-1 flex-col p-3">
-                          <span
-                            className="line-clamp-2 text-sm font-medium leading-tight text-text"
-                            title={candidate.name}
-                          >
-                            {candidate.name}
-                          </span>
-                          <div className="mt-auto pt-2 flex items-center justify-between text-xs text-text-faint">
-                            <span>
-                              {missingCover
-                                ? "No cover available"
-                                : `ID: ${candidate.igdbId}`}
-                            </span>
-                            {candidate.releaseYear && (
-                              <span className="shrink-0 rounded-md bg-surface-hover px-1.5 py-0.5">
-                                {candidate.releaseYear}
-                              </span>
-                            )}
-                          </div>
+                      {selected && (
+                        <div className="absolute right-2 top-2 rounded-full bg-accent p-1 text-accent-fg shadow-sm">
+                          <Check size={14} />
                         </div>
-
-                        {selected && (
-                          <div className="absolute right-2 top-2 rounded-full bg-accent p-1 text-accent-fg shadow-sm">
-                            <Check size={14} />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                {hasMore && onLoadMore ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    loading={state === "loading-more"}
-                    disabled={busy || isOffline}
-                    onClick={() => onLoadMore(searchOptions)}
-                    className="mx-auto min-w-40"
-                  >
-                    Load more matches
-                  </Button>
-                ) : null}
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            ) : (
-              <div className="grid h-full place-items-center rounded-md border border-dashed border-border bg-surface p-10 text-center text-text-muted">
-                <div className="max-w-sm">
-                  <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-surface-hover">
-                    <Search size={20} className="text-text-faint" />
-                  </div>
-                  <h3 className="mb-2 font-medium text-text">
-                    No game selected
-                  </h3>
-                  <p className="text-sm">
-                    Search the database using the field above to find and select
-                    the correct game metadata for this executable.
-                  </p>
+              {hasMore && onLoadMore ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={state === "loading-more"}
+                  disabled={busy || isOffline}
+                  onClick={() => onLoadMore(searchOptions)}
+                  className="mx-auto min-w-40"
+                >
+                  Load more matches
+                </Button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="grid h-full place-items-center rounded-md border border-dashed border-border bg-surface p-10 text-center text-text-muted">
+              <div className="max-w-sm">
+                <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-surface-hover">
+                  <Search size={20} className="text-text-faint" />
                 </div>
+                <h3 className="mb-2 font-medium text-text">No game selected</h3>
+                <p className="text-sm">
+                  Search the database using the field above to find and select
+                  the correct game metadata for this executable.
+                </p>
               </div>
-            )}
-          </div>
-
-          <div className="flex shrink-0 items-center justify-between border-t border-border bg-surface px-5 py-4">
-            <div
-              className={clsx(
-                "text-sm",
-                state === "error"
-                  ? "text-danger"
-                  : state === "saved"
-                    ? "text-success"
-                    : "text-text-muted",
-              )}
-            >
-              {isOffline
-                ? "Database search is unavailable offline."
-                : message || (!selection ? "Select a result to continue." : "")}
             </div>
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                icon={Send}
-                disabled={!canSubmit}
-              >
-                {state === "saving" ? "Adding…" : "Add and share"}
-              </Button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+          )}
+        </div>
+      </form>
+    </Modal>
   );
 }
 

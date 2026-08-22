@@ -151,12 +151,13 @@ export function useEscapeKey(onClose: () => void) {
   }, [onClose]);
 }
 
-export type ModalSize = "sm" | "md" | "wide";
+export type ModalSize = "sm" | "md" | "wide" | "full";
 
 const modalSizes: Record<ModalSize, string> = {
   sm: "max-w-md",
   md: "max-w-lg",
   wide: "max-w-4xl",
+  full: "h-[80vh] max-w-none",
 };
 
 export function useDialogFocus(containerRef: RefObject<HTMLElement | null>) {
@@ -210,8 +211,12 @@ export function Modal({
   title,
   subtitle,
   icon: Icon,
+  iconSpin = false,
   onClose,
   footer,
+  bodyClassName,
+  dataTour,
+  backdropDataTour,
   children,
 }: {
   size?: ModalSize;
@@ -220,8 +225,12 @@ export function Modal({
   title: string;
   subtitle?: string;
   icon?: LucideIcon;
+  iconSpin?: boolean;
   onClose: () => void;
   footer?: ReactNode;
+  bodyClassName?: string;
+  dataTour?: string;
+  backdropDataTour?: string;
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -230,6 +239,7 @@ export function Modal({
 
   return createPortal(
     <div
+      data-tour={backdropDataTour}
       className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -237,29 +247,37 @@ export function Modal({
     >
       <div
         ref={panelRef}
+        data-tour={dataTour}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
         tabIndex={-1}
-        className={`flex max-h-[90vh] w-full ${modalSizes[size]} animate-toast-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised outline-none`}
+        className={clsx(
+          "flex max-h-[90vh] w-full animate-modal-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised outline-none motion-reduce:animate-none",
+          modalSizes[size],
+        )}
       >
-        <div className="shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-4 sm:px-6">
+        <div className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
           <div className="flex items-start gap-3">
             {Icon ? (
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent/10 text-accent">
-                <Icon size={20} />
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
+                <Icon
+                  size={21}
+                  className={
+                    iconSpin
+                      ? "animate-spin motion-reduce:animate-none"
+                      : undefined
+                  }
+                />
               </div>
             ) : null}
             <div className="min-w-0 flex-1">
               {eyebrow ? (
-                <div className="text-xs font-semibold uppercase tracking-wider text-accent">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
                   {eyebrow}
                 </div>
               ) : null}
-              <h2
-                id={labelId}
-                className="mt-0.5 text-lg font-semibold text-text"
-              >
+              <h2 id={labelId} className="mt-0.5 text-xl font-bold text-text">
                 {title}
               </h2>
               {subtitle ? (
@@ -274,7 +292,12 @@ export function Modal({
             <IconButton icon={X} aria-label="Close" onClick={onClose} />
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+        <div
+          className={clsx(
+            "min-h-0 flex-1 overflow-y-auto p-5 sm:p-6",
+            bodyClassName,
+          )}
+        >
           {children}
         </div>
         {footer ? (

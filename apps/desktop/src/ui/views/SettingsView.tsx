@@ -1,6 +1,8 @@
 import {
   AlertTriangle,
+  DatabaseZap,
   Download,
+  FolderInput,
   FolderOpen,
   RotateCcw,
   Upload,
@@ -25,7 +27,7 @@ import {
   type UpdateCheckResult,
 } from "../../updater";
 import { Panel } from "../components";
-import { Button, useEscapeKey } from "../primitives";
+import { Button, Modal } from "../primitives";
 import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
@@ -871,16 +873,16 @@ function ResetCacheDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  useEscapeKey(onCancel);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">Reset local cache?</h2>
-        <p className="mt-2 text-sm text-text-muted">
-          This clears cached executable matches and transient errors. Play
-          history, settings, and ignored-process files stay intact.
-        </p>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+    <Modal
+      size="sm"
+      labelId="reset-cache-dialog-title"
+      eyebrow="Settings"
+      title="Reset local cache?"
+      icon={DatabaseZap}
+      onClose={onCancel}
+      footer={
+        <div className="grid gap-2 sm:grid-cols-2">
           <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
@@ -888,8 +890,13 @@ function ResetCacheDialog({
             Reset cache
           </Button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        This clears cached executable matches and transient errors. Play
+        history, settings, and ignored-process files stay intact.
+      </p>
+    </Modal>
   );
 }
 
@@ -900,26 +907,31 @@ function ImportDataDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  useEscapeKey(onCancel);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">Import backup?</h2>
-        <p className="mt-2 text-sm text-text-muted">
-          This replaces your current play history, game cache, and settings with
-          the contents of the backup file. Your current data is saved to a
-          backup file first, and PlayCounter reloads when the import finishes.
-        </p>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+    <Modal
+      size="sm"
+      labelId="import-data-dialog-title"
+      eyebrow="Settings"
+      title="Import backup?"
+      icon={FolderInput}
+      onClose={onCancel}
+      footer={
+        <div className="grid gap-2 sm:grid-cols-2">
           <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="secondary" onClick={onConfirm}>
+          <Button variant="primary" icon={FolderOpen} onClick={onConfirm}>
             Choose file
           </Button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        This replaces your current play history, game cache, and settings with
+        the contents of the backup file. Your current data is saved to a backup
+        file first, and PlayCounter reloads when the import finishes.
+      </p>
+    </Modal>
   );
 }
 

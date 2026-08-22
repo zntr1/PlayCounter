@@ -1,5 +1,4 @@
 import clsx from "clsx";
-import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   Ban,
@@ -84,7 +83,6 @@ import {
   Input,
   Modal,
   useContextMenu,
-  useEscapeKey,
 } from "../primitives";
 import {
   initialMatchSelection,
@@ -108,6 +106,10 @@ import {
   isTourDemoLibraryGame,
   type LibraryGameKind,
 } from "../libraryGameKind";
+import {
+  CommunityLevelUpButton,
+  LevelUpCelebration,
+} from "../CommunityLevelUpButton";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = "grid" | "list";
@@ -742,6 +744,7 @@ export function MyGamesView() {
 
   return (
     <div className="grid gap-5">
+      <LevelUpCelebration />
       {libraryGames.length === 0 ? (
         <Panel className="px-4 py-12 text-center text-sm text-text-muted">
           No discovered games have completed a session yet.
@@ -1749,6 +1752,25 @@ function GameLibraryCard({
               className="bg-bg text-text-muted shadow-raised border-bg hover:!bg-danger-solid hover:!border-danger-solid hover:!text-white"
             />
           </div>
+
+          {game.communitySuggestionExeName && !game.communityUpgradeExeName ? (
+            <div className="absolute inset-x-2 bottom-2 z-30 drop-shadow-lg">
+              <CommunityLevelUpButton
+                gameName={game.name}
+                variant="cover-card"
+                onLevelUp={() => {
+                  convertLocalSuggestionToCommunity(
+                    game.communitySuggestionExeName!,
+                  );
+                  addToast({
+                    tone: "success",
+                    title: "Community match applied",
+                    detail: `${game.name} now uses the approved community match.`,
+                  });
+                }}
+              />
+            </div>
+          ) : null}
         </div>
         <input
           ref={coverInputRef}
@@ -1798,71 +1820,43 @@ function GameLibraryCard({
           </div>
 
           {/* Persistent Community Prompts */}
-          {(game.communityUpgradeExeName ||
-            game.communitySuggestionExeName) && (
+          {game.communityUpgradeExeName ? (
             <div className="mt-3 flex flex-col gap-2 border-t border-border/50 pt-3">
-              {game.communityUpgradeExeName ? (
-                <>
-                  <div
-                    className="truncate text-[11px] font-semibold text-success"
-                    title={`Found in database: ${game.communityUpgradeGameName}`}
-                  >
-                    Match found: {game.communityUpgradeGameName}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="primary"
-                      title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
-                      onClick={() => {
-                        acceptCommunityUpgrade(game.communityUpgradeExeName!);
-                        addToast({
-                          tone: "success",
-                          title: "Match applied",
-                          detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
-                        });
-                      }}
-                      className="flex-1 px-0 py-1 text-[11px]"
-                    >
-                      Use match
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      title="Keep the custom game and never show this match again"
-                      onClick={() =>
-                        dismissCommunityUpgrade(game.communityUpgradeExeName!)
-                      }
-                      className="px-2 py-1 text-[11px]"
-                    >
-                      Keep custom
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="text-[11px] font-semibold text-success">
-                    Your community suggestion was approved
-                  </div>
-                  <Button
-                    variant="primary"
-                    title="Switch to the community game and track it from now on"
-                    onClick={() => {
-                      convertLocalSuggestionToCommunity(
-                        game.communitySuggestionExeName!,
-                      );
-                      addToast({
-                        tone: "success",
-                        title: "Community match applied",
-                        detail: `${game.name} now uses the approved community match.`,
-                      });
-                    }}
-                    className="w-full py-1 text-[11px]"
-                  >
-                    Switch to community version
-                  </Button>
-                </>
-              )}
+              <div
+                className="truncate text-[11px] font-semibold text-success"
+                title={`Found in database: ${game.communityUpgradeGameName}`}
+              >
+                Match found: {game.communityUpgradeGameName}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
+                  onClick={() => {
+                    acceptCommunityUpgrade(game.communityUpgradeExeName!);
+                    addToast({
+                      tone: "success",
+                      title: "Match applied",
+                      detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
+                    });
+                  }}
+                  className="flex-1 px-0 py-1 text-[11px]"
+                >
+                  Use match
+                </Button>
+                <Button
+                  variant="secondary"
+                  title="Keep the custom game and never show this match again"
+                  onClick={() =>
+                    dismissCommunityUpgrade(game.communityUpgradeExeName!)
+                  }
+                  className="px-2 py-1 text-[11px]"
+                >
+                  Keep custom
+                </Button>
+              </div>
             </div>
-          )}
+          ) : null}
         </div>
         {renderContextMenu()}
         {showAddPlaytime ? (
@@ -1943,7 +1937,8 @@ function GameLibraryCard({
         ) : null}
         {showConvert ? (
           <GameNameDialog
-            title={`Convert ${game.name} to a custom game`}
+            title="Convert to a custom game"
+            subtitle={game.name}
             description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
             confirmLabel="Convert to custom"
             name={convertName}
@@ -1954,7 +1949,8 @@ function GameLibraryCard({
         ) : null}
         {showRename ? (
           <GameNameDialog
-            title={`Rename ${game.name}`}
+            title="Rename game"
+            subtitle={game.name}
             description="Changes the display name of this custom game everywhere, including recorded sessions."
             confirmLabel="Rename"
             name={renameName}
@@ -1976,7 +1972,7 @@ function GameLibraryCard({
       className="group rounded-xl border border-border bg-surface shadow-raised transition hover:border-accent/40"
     >
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
-        <div className="w-[72px] shrink-0">
+        <div className="relative w-[72px] shrink-0">
           {game.coverUrl ? (
             <img
               src={game.coverUrl}
@@ -1988,6 +1984,24 @@ function GameLibraryCard({
               No cover
             </div>
           )}
+          {game.communitySuggestionExeName && !game.communityUpgradeExeName ? (
+            <div className="absolute inset-x-1 bottom-1 z-20 drop-shadow-md">
+              <CommunityLevelUpButton
+                gameName={game.name}
+                variant="cover-list"
+                onLevelUp={() => {
+                  convertLocalSuggestionToCommunity(
+                    game.communitySuggestionExeName!,
+                  );
+                  addToast({
+                    tone: "success",
+                    title: "Community match applied",
+                    detail: `${game.name} now uses the approved community match.`,
+                  });
+                }}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="min-w-0 py-1">
@@ -2040,60 +2054,37 @@ function GameLibraryCard({
             </span>
           </div>
 
-          {(game.communityUpgradeExeName ||
-            game.communitySuggestionExeName) && (
+          {game.communityUpgradeExeName ? (
             <div className="mt-3 flex gap-2">
-              {game.communityUpgradeExeName ? (
-                <>
-                  <Button
-                    variant="secondary"
-                    title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
-                    onClick={() => {
-                      acceptCommunityUpgrade(game.communityUpgradeExeName!);
-                      addToast({
-                        tone: "success",
-                        title: "Match applied",
-                        detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
-                      });
-                    }}
-                    className="max-w-64 border-success-border bg-success-tint px-3 py-1 text-xs text-success"
-                  >
-                    <span className="truncate">
-                      Use match: {game.communityUpgradeGameName}
-                    </span>
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    title="Keep the custom game and never show this match again"
-                    onClick={() =>
-                      dismissCommunityUpgrade(game.communityUpgradeExeName!)
-                    }
-                    className="px-3 py-1 text-xs"
-                  >
-                    Keep custom
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="secondary"
-                  title="Your community suggestion was approved - track this game as the community game from now on"
-                  onClick={() => {
-                    convertLocalSuggestionToCommunity(
-                      game.communitySuggestionExeName!,
-                    );
-                    addToast({
-                      tone: "success",
-                      title: "Community match applied",
-                      detail: `${game.name} now uses the approved community match.`,
-                    });
-                  }}
-                  className="border-success-border bg-success-tint px-3 py-1 text-xs text-success"
-                >
-                  Suggestion approved - switch to community version
-                </Button>
-              )}
+              <Button
+                variant="secondary"
+                title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
+                onClick={() => {
+                  acceptCommunityUpgrade(game.communityUpgradeExeName!);
+                  addToast({
+                    tone: "success",
+                    title: "Match applied",
+                    detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
+                  });
+                }}
+                className="max-w-64 border-success-border bg-success-tint px-3 py-1 text-xs text-success"
+              >
+                <span className="truncate">
+                  Use match: {game.communityUpgradeGameName}
+                </span>
+              </Button>
+              <Button
+                variant="secondary"
+                title="Keep the custom game and never show this match again"
+                onClick={() =>
+                  dismissCommunityUpgrade(game.communityUpgradeExeName!)
+                }
+                className="px-3 py-1 text-xs"
+              >
+                Keep custom
+              </Button>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div className="flex items-center gap-6 pr-2">
@@ -2248,7 +2239,8 @@ function GameLibraryCard({
       ) : null}
       {showConvert ? (
         <GameNameDialog
-          title={`Convert ${game.name} to a custom game`}
+          title="Convert to a custom game"
+          subtitle={game.name}
           description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
           confirmLabel="Convert to custom"
           name={convertName}
@@ -2259,7 +2251,8 @@ function GameLibraryCard({
       ) : null}
       {showRename ? (
         <GameNameDialog
-          title={`Rename ${game.name}`}
+          title="Rename game"
+          subtitle={game.name}
           description="Changes the display name of this custom game everywhere, including recorded sessions."
           confirmLabel="Rename"
           name={renameName}
@@ -2292,28 +2285,17 @@ function StopTrackingDialog({
   onCancel: () => void;
   onConfirm: (clearHistory: boolean) => void;
 }) {
-  useEscapeKey(onCancel);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">Ignore {game.name}?</h2>
-        <p className="mt-2 text-sm text-text-muted">
-          {game.emulatorLabels.length > 0
-            ? "PlayCounter will ignore this local emulator-content mapping from now on. The emulator itself remains detectable."
-            : "PlayCounter ignores this game's file from now on - it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
-        </p>
-        {game.sessionCount > 0 ? (
-          <p className="mt-2 text-sm text-text-muted">
-            {game.sessionCount} completed{" "}
-            {game.sessionCount === 1 ? "session" : "sessions"} can be kept in My
-            History or cleared now.
-          </p>
-        ) : null}
-        <div className="mt-3 rounded-md border border-border bg-bg px-3 py-2 text-xs text-text-faint">
-          {game.exeNames.filter(Boolean).join(", ") ||
-            game.emulatorLabels.join(", ")}
-        </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+    <Modal
+      size="sm"
+      labelId="stop-tracking-dialog-title"
+      eyebrow="My Games"
+      title="Ignore this game?"
+      subtitle={game.name}
+      icon={Ban}
+      onClose={onCancel}
+      footer={
+        <div className="grid gap-2 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
             Ignore game
           </Button>
@@ -2324,12 +2306,29 @@ function StopTrackingDialog({
           >
             Ignore + clear history
           </Button>
-          <Button variant="ghost" onClick={onCancel}>
+          <Button variant="ghost" onClick={onCancel} data-autofocus>
             Cancel
           </Button>
         </div>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        {game.emulatorLabels.length > 0
+          ? "PlayCounter will ignore this local emulator-content mapping from now on. The emulator itself remains detectable."
+          : "PlayCounter ignores this game's file from now on - it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
+      </p>
+      {game.sessionCount > 0 ? (
+        <p className="mt-2 text-sm leading-6 text-text-muted">
+          {game.sessionCount} completed{" "}
+          {game.sessionCount === 1 ? "session" : "sessions"} can be kept in My
+          History or cleared now.
+        </p>
+      ) : null}
+      <div className="mt-4 rounded-xl border border-border bg-bg px-3 py-2 text-xs text-text-faint">
+        {game.exeNames.filter(Boolean).join(", ") ||
+          game.emulatorLabels.join(", ")}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -2342,19 +2341,17 @@ function RemoveGameDialog({
   onCancel: () => void;
   onConfirm: (removeHistory: boolean) => void;
 }) {
-  useEscapeKey(onCancel);
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">
-          Remove {game.name} from library?
-        </h2>
-        <p className="mt-2 text-sm text-text-muted">
-          The game and its file match are removed, and a running session stops.
-          PlayCounter will detect it again the next time you play - use Ignore
-          game if you want it gone for good.
-        </p>
-        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+    <Modal
+      size="sm"
+      labelId="remove-game-dialog-title"
+      eyebrow="My Games"
+      title="Remove from library?"
+      subtitle={game.name}
+      icon={Trash2}
+      onClose={onCancel}
+      footer={
+        <div className="grid gap-2 sm:grid-cols-3">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
             Remove
           </Button>
@@ -2365,8 +2362,14 @@ function RemoveGameDialog({
             Cancel
           </Button>
         </div>
-      </div>
-    </div>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        The game and its file match are removed, and a running session stops.
+        PlayCounter will detect it again the next time you play — use Ignore
+        game if you want it gone for good.
+      </p>
+    </Modal>
   );
 }
 
@@ -2391,7 +2394,6 @@ function AddPlaytimeDialog({
   onCancel: () => void;
   onConfirm: (durationSeconds: number, endedAt: string) => void;
 }) {
-  useEscapeKey(onCancel);
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [dateValue, setDateValue] = useState(() =>
@@ -2410,136 +2412,103 @@ function AddPlaytimeDialog({
     onConfirm(durationSeconds, parsedDate.toISOString());
   };
 
-  return createPortal(
-    <div
-      data-tour={demo ? "demo-log-session-backdrop" : undefined}
-      className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-    >
-      <div
-        data-tour={demo ? "demo-log-session-dialog" : undefined}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="log-session-title"
-        className="max-h-[90vh] w-full max-w-md animate-toast-in overflow-y-auto rounded-2xl border border-border bg-surface shadow-raised"
-      >
-        <div className="border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5">
-          <div className="flex items-start gap-3.5">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
-              <ClockPlus size={21} />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-                History
-              </div>
-              <h2
-                id="log-session-title"
-                className="mt-0.5 text-xl font-bold text-text"
-              >
-                Log a missed session
-              </h2>
-              <p
-                className="mt-1 truncate text-sm text-text-muted"
-                title={game.name}
-              >
-                {game.name}
-              </p>
-            </div>
-          </div>
+  return (
+    <Modal
+      size="sm"
+      labelId="log-session-title"
+      eyebrow="History"
+      title="Log a missed session"
+      subtitle={game.name}
+      icon={ClockPlus}
+      onClose={onCancel}
+      dataTour={demo ? "demo-log-session-dialog" : undefined}
+      backdropDataTour={demo ? "demo-log-session-backdrop" : undefined}
+      footer={
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            data-tour={demo ? "demo-log-session-confirm" : undefined}
+            variant="primary"
+            icon={ClockPlus}
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+          >
+            Log session
+          </Button>
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
         </div>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        Use this when PlayCounter missed a session you actually played. Choose
+        how long you played and when the session ended.
+      </p>
 
-        <div className="p-5">
-          <p className="text-sm leading-6 text-text-muted">
-            Use this when PlayCounter missed a session you actually played.
-            Choose how long you played and when the session ended.
+      <div className="mt-4 flex gap-3 rounded-xl border border-accent/20 bg-accent-tint px-3.5 py-3 text-sm">
+        <History size={17} className="mt-0.5 shrink-0 text-accent" />
+        <div>
+          <div className="font-semibold text-text">Added to History</div>
+          <p className="mt-0.5 leading-5 text-text-muted">
+            This session will affect dates, streaks, and other play stats.
           </p>
-
-          <div className="mt-4 flex gap-3 rounded-xl border border-accent/20 bg-accent-tint px-3.5 py-3 text-sm">
-            <History size={17} className="mt-0.5 shrink-0 text-accent" />
-            <div>
-              <div className="font-semibold text-text">Added to History</div>
-              <p className="mt-0.5 leading-5 text-text-muted">
-                This session will affect dates, streaks, and other play stats.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-xl border border-border bg-bg/60 p-4">
-            <div className="mb-3">
-              <h3 className="text-sm font-semibold text-text">
-                Session length
-              </h3>
-              <p className="mt-0.5 text-xs text-text-faint">
-                Enter the time you played in this session.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-                Hours
-                <Input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={hours}
-                  onChange={(event) => setHours(event.target.value)}
-                  placeholder="0"
-                  autoFocus
-                />
-              </label>
-              <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-                Minutes
-                <Input
-                  type="number"
-                  min={0}
-                  max={59}
-                  inputMode="numeric"
-                  value={minutes}
-                  onChange={(event) => setMinutes(event.target.value)}
-                  placeholder="0"
-                />
-              </label>
-            </div>
-
-            <label className="mt-4 grid gap-1.5 text-xs font-medium text-text-muted">
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarDays size={13} />
-                When did the session end?
-              </span>
-              <Input
-                type="datetime-local"
-                value={dateValue}
-                max={localDateTimeValue(new Date())}
-                onChange={(event) => setDateValue(event.target.value)}
-                className="w-full"
-              />
-            </label>
-          </div>
-
-          <p className="mt-3 text-xs leading-5 text-text-faint">
-            Only know the game&apos;s total time? Use Adjust total playtime
-            instead. It will not create a History entry.
-          </p>
-
-          <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            <Button
-              data-tour={demo ? "demo-log-session-confirm" : undefined}
-              variant="primary"
-              icon={ClockPlus}
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-            >
-              Log session
-            </Button>
-            <Button variant="ghost" onClick={onCancel}>
-              Cancel
-            </Button>
-          </div>
         </div>
       </div>
-    </div>,
-    document.body,
+
+      <div className="mt-5 rounded-xl border border-border bg-bg/60 p-4">
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-text">Session length</h3>
+          <p className="mt-0.5 text-xs text-text-faint">
+            Enter the time you played in this session.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+            Hours
+            <Input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={hours}
+              onChange={(event) => setHours(event.target.value)}
+              placeholder="0"
+              data-autofocus
+            />
+          </label>
+          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+            Minutes
+            <Input
+              type="number"
+              min={0}
+              max={59}
+              inputMode="numeric"
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+              placeholder="0"
+            />
+          </label>
+        </div>
+
+        <label className="mt-4 grid gap-1.5 text-xs font-medium text-text-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDays size={13} />
+            When did the session end?
+          </span>
+          <Input
+            type="datetime-local"
+            value={dateValue}
+            max={localDateTimeValue(new Date())}
+            onChange={(event) => setDateValue(event.target.value)}
+            className="w-full"
+          />
+        </label>
+      </div>
+
+      <p className="mt-3 text-xs leading-5 text-text-faint">
+        Only know the game&apos;s total time? Use Adjust total playtime instead.
+        It will not create a History entry.
+      </p>
+    </Modal>
   );
 }
 
@@ -2554,7 +2523,6 @@ function AdjustPlaytimeDialog({
   onCancel: () => void;
   onConfirm: (targetSeconds: number) => void;
 }) {
-  useEscapeKey(onCancel);
   const [hours, setHours] = useState(() =>
     Math.floor(game.totalSeconds / 3600).toString(),
   );
@@ -2573,172 +2541,143 @@ function AdjustPlaytimeDialog({
     ? (hoursNumber * 60 + minutesNumber) * 60
     : 0;
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="adjust-playtime-title"
-        className="max-h-[90vh] w-full max-w-md animate-toast-in overflow-y-auto rounded-2xl border border-border bg-surface shadow-raised"
-      >
-        <div className="border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5">
-          <div className="flex items-start gap-3.5">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
-              <Clock3 size={21} />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-                Library total
-              </div>
-              <h2
-                id="adjust-playtime-title"
-                className="mt-0.5 text-xl font-bold text-text"
-              >
-                Adjust total playtime
-              </h2>
-              <p
-                className="mt-1 truncate text-sm text-text-muted"
-                title={game.name}
-              >
-                {game.name}
-              </p>
-            </div>
+  return (
+    <Modal
+      size="sm"
+      labelId="adjust-playtime-title"
+      eyebrow="Library total"
+      title="Adjust total playtime"
+      subtitle={game.name}
+      icon={Clock3}
+      onClose={onCancel}
+      footer={
+        <>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              variant="primary"
+              icon={Clock3}
+              type="submit"
+              form="adjust-playtime-form"
+              disabled={!valuesValid || disabled}
+            >
+              Save total
+            </Button>
+            <Button type="button" variant="ghost" onClick={onCancel}>
+              Cancel
+            </Button>
           </div>
-        </div>
-
-        <div className="p-5">
-          <p className="text-sm leading-6 text-text-muted">
-            Already played this game before using PlayCounter? Enter the full
-            playtime shown by Steam or another launcher. You can also use this
-            to correct a total that is wrong.
-          </p>
-
-          <div className="mt-4 flex gap-3 rounded-xl border border-border bg-bg/60 px-3.5 py-3 text-sm">
-            <History size={17} className="mt-0.5 shrink-0 text-text-faint" />
-            <div>
-              <div className="font-semibold text-text">
-                History stays unchanged
-              </div>
-              <p className="mt-0.5 leading-5 text-text-muted">
-                No session is added, edited, or removed.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 overflow-hidden rounded-xl border border-border bg-bg/60 text-sm">
-            <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-text-muted">
-              <span>Time from sessions</span>
-              <span className="font-mono font-medium text-text">
-                {formatDuration(game.recordedSeconds)}
-              </span>
-            </div>
-            {game.adjustmentSeconds !== 0 ? (
-              <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-text-muted">
-                <span>Current adjustment</span>
-                <span className="font-mono font-medium text-text">
-                  {game.adjustmentSeconds > 0 ? "+" : "−"}
-                  {formatDuration(Math.abs(game.adjustmentSeconds))}
-                </span>
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between gap-3 border-t border-accent/20 bg-accent-tint px-4 py-3">
-              <span className="font-semibold text-text">Current total</span>
-              <span className="font-mono text-base font-bold text-accent">
-                {formatDuration(game.totalSeconds)}
-              </span>
-            </div>
-          </div>
-
-          {disabled ? (
-            <div className="mt-4 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
-              Stop the active session before changing the total.
-            </div>
+          {game.adjustmentSeconds !== 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              icon={RotateCcw}
+              className="mt-2 w-full"
+              disabled={disabled}
+              onClick={() => onConfirm(game.recordedSeconds)}
+            >
+              Reset to recorded time
+            </Button>
           ) : null}
+        </>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        Already played this game before using PlayCounter? Enter the full
+        playtime shown by Steam or another launcher. You can also use this to
+        correct a total that is wrong.
+      </p>
 
-          <form
-            className="mt-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (valuesValid && !disabled) onConfirm(targetSeconds);
-            }}
-          >
-            <div className="rounded-xl border border-border bg-bg/60 p-4">
-              <div className="mb-3">
-                <h3 className="text-sm font-semibold text-text">New total</h3>
-                <p className="mt-0.5 text-xs text-text-faint">
-                  Enter the full total, not only the hours that are missing.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-                  Hours
-                  <Input
-                    type="number"
-                    min={0}
-                    step={1}
-                    inputMode="numeric"
-                    value={hours}
-                    onChange={(event) => setHours(event.target.value)}
-                    autoFocus
-                  />
-                </label>
-                <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-                  Minutes
-                  <Input
-                    type="number"
-                    min={0}
-                    max={59}
-                    step={1}
-                    inputMode="numeric"
-                    value={minutes}
-                    onChange={(event) => setMinutes(event.target.value)}
-                  />
-                </label>
-              </div>
-            </div>
-
-            {valuesValid && targetSeconds < game.recordedSeconds ? (
-              <div className="mt-3 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
-                This total is lower than your recorded sessions. Those sessions
-                will still stay in History.
-              </div>
-            ) : null}
-
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <Button
-                variant="primary"
-                icon={Clock3}
-                type="submit"
-                disabled={!valuesValid || disabled}
-              >
-                Save total
-              </Button>
-              <Button type="button" variant="ghost" onClick={onCancel}>
-                Cancel
-              </Button>
-            </div>
-            {game.adjustmentSeconds !== 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                icon={RotateCcw}
-                className="mt-2 w-full"
-                disabled={disabled}
-                onClick={() => onConfirm(game.recordedSeconds)}
-              >
-                Reset to recorded time
-              </Button>
-            ) : null}
-          </form>
+      <div className="mt-4 flex gap-3 rounded-xl border border-border bg-bg/60 px-3.5 py-3 text-sm">
+        <History size={17} className="mt-0.5 shrink-0 text-text-faint" />
+        <div>
+          <div className="font-semibold text-text">History stays unchanged</div>
+          <p className="mt-0.5 leading-5 text-text-muted">
+            No session is added, edited, or removed.
+          </p>
         </div>
       </div>
-    </div>,
-    document.body,
+
+      <div className="mt-5 overflow-hidden rounded-xl border border-border bg-bg/60 text-sm">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-text-muted">
+          <span>Time from sessions</span>
+          <span className="font-mono font-medium text-text">
+            {formatDuration(game.recordedSeconds)}
+          </span>
+        </div>
+        {game.adjustmentSeconds !== 0 ? (
+          <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-text-muted">
+            <span>Current adjustment</span>
+            <span className="font-mono font-medium text-text">
+              {game.adjustmentSeconds > 0 ? "+" : "−"}
+              {formatDuration(Math.abs(game.adjustmentSeconds))}
+            </span>
+          </div>
+        ) : null}
+        <div className="flex items-center justify-between gap-3 border-t border-accent/20 bg-accent-tint px-4 py-3">
+          <span className="font-semibold text-text">Current total</span>
+          <span className="font-mono text-base font-bold text-accent">
+            {formatDuration(game.totalSeconds)}
+          </span>
+        </div>
+      </div>
+
+      {disabled ? (
+        <div className="mt-4 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
+          Stop the active session before changing the total.
+        </div>
+      ) : null}
+
+      <form
+        id="adjust-playtime-form"
+        className="mt-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (valuesValid && !disabled) onConfirm(targetSeconds);
+        }}
+      >
+        <div className="rounded-xl border border-border bg-bg/60 p-4">
+          <div className="mb-3">
+            <h3 className="text-sm font-semibold text-text">New total</h3>
+            <p className="mt-0.5 text-xs text-text-faint">
+              Enter the full total, not only the hours that are missing.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+              Hours
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                inputMode="numeric"
+                value={hours}
+                onChange={(event) => setHours(event.target.value)}
+                data-autofocus
+              />
+            </label>
+            <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+              Minutes
+              <Input
+                type="number"
+                min={0}
+                max={59}
+                step={1}
+                inputMode="numeric"
+                value={minutes}
+                onChange={(event) => setMinutes(event.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+
+        {valuesValid && targetSeconds < game.recordedSeconds ? (
+          <div className="mt-3 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
+            This total is lower than your recorded sessions. Those sessions will
+            still stay in History.
+          </div>
+        ) : null}
+      </form>
+    </Modal>
   );
 }
 
@@ -2868,14 +2807,14 @@ function MatchCheckDialog({
       title={`Check matches for ${game.name}`}
       subtitle={exeName}
       icon={state === "loading" && !isOffline ? Loader2 : Search}
+      iconSpin={state === "loading" && !isOffline}
       onClose={onCancel}
       footer={footer}
     >
       <p className="text-sm leading-6 text-text-muted">
-        Looks{" "}
-        <span className="font-mono font-medium text-text">{exeName}</span> up in
-        IGDB and in approved community matches. Picking one changes it on this PC
-        only.
+        Looks <span className="font-mono font-medium text-text">{exeName}</span>{" "}
+        up in IGDB and in approved community matches. Picking one changes it on
+        this PC only.
       </p>
 
       {flaggedIdentifier ? (
@@ -3040,6 +2979,7 @@ function MatchCheckDialog({
 
 function GameNameDialog({
   title,
+  subtitle,
   description,
   confirmLabel,
   name,
@@ -3048,6 +2988,7 @@ function GameNameDialog({
   onConfirm,
 }: {
   title: string;
+  subtitle: string;
   description: string;
   confirmLabel: string;
   name: string;
@@ -3055,43 +2996,53 @@ function GameNameDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  useEscapeKey(onCancel);
-  return createPortal(
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-5 shadow-raised">
-        <h2 className="text-lg font-semibold text-text">{title}</h2>
-        <p className="mt-2 text-sm text-text-muted">{description}</p>
+  return (
+    <Modal
+      size="sm"
+      labelId="game-name-dialog-title"
+      eyebrow="Custom game"
+      title={title}
+      subtitle={subtitle}
+      icon={Pencil}
+      onClose={onCancel}
+      footer={
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            variant="primary"
+            type="submit"
+            form="game-name-form"
+            disabled={!name.trim()}
+          >
+            {confirmLabel}
+          </Button>
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
+      <p className="mt-2 text-sm text-text-muted">{description}</p>
 
-        <form
-          className="mt-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onConfirm();
-          }}
-        >
-          <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-            Game name
-            <Input
-              value={name}
-              onChange={(event) => onNameChange(event.target.value)}
-              maxLength={120}
-              autoFocus
-              placeholder="Game name..."
-            />
-          </label>
-
-          <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            <Button variant="primary" type="submit" disabled={!name.trim()}>
-              {confirmLabel}
-            </Button>
-            <Button variant="ghost" onClick={onCancel}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body,
+      <form
+        id="game-name-form"
+        className="mt-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onConfirm();
+        }}
+      >
+        <label className="grid gap-1.5 text-xs font-medium text-text-muted">
+          Game name
+          <Input
+            value={name}
+            onChange={(event) => onNameChange(event.target.value)}
+            maxLength={120}
+            data-autofocus
+            placeholder="Game name..."
+          />
+        </label>
+      </form>
+    </Modal>
   );
 }
 

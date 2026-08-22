@@ -624,3 +624,113 @@ select {
     animation: none;
   }
 }
+
+/* Approved community suggestions get a small, celebratory level-up moment. */
+.level-up-cta {
+  opacity: 1;
+  color: rgb(var(--color-success));
+  border-color: rgb(var(--color-success-border));
+  background-color: rgb(var(--color-surface));
+  background-image: linear-gradient(
+    115deg,
+    rgb(var(--color-surface)) 0%,
+    rgb(var(--color-success-tint)) 52%,
+    rgb(var(--color-surface)) 100%
+  );
+  box-shadow:
+    0 8px 22px -10px rgb(0 0 0 / 0.9),
+    0 0 0 1px rgb(var(--color-success) / 0.12);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.level-up-cta::after {
+  position: absolute;
+  inset: -50% auto -50% -35%;
+  width: 26%;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.55),
+    transparent
+  );
+  transform: translateX(-180%) rotate(14deg);
+  animation: level-up-sheen 3.2s ease-in-out infinite;
+}
+
+.level-up-cta:hover {
+  border-color: rgb(var(--color-success) / 0.62);
+  box-shadow:
+    0 10px 26px -14px rgb(var(--color-success) / 0.9),
+    0 0 0 3px rgb(var(--color-success) / 0.1);
+  transform: translateY(-1px);
+}
+
+.level-up-cta:focus-visible {
+  outline: 2px solid rgb(var(--color-success));
+  outline-offset: 2px;
+}
+
+.level-up-arrow {
+  animation: level-up-arrow 1.55s ease-in-out infinite;
+}
+
+.level-up-celebration {
+  animation: level-up-celebration 1.35s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+@keyframes level-up-sheen {
+  0%,
+  58% {
+    transform: translateX(-180%) rotate(14deg);
+  }
+  82%,
+  100% {
+    transform: translateX(650%) rotate(14deg);
+  }
+}
+
+@keyframes level-up-arrow {
+  0%,
+  100% {
+    transform: translateY(1px);
+  }
+  45% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes level-up-celebration {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.82);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.04);
+  }
+  34%,
+  78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-15px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .level-up-cta::after,
+  .level-up-arrow,
+  .level-up-celebration {
+    animation: none;
+  }
+
+  .level-up-cta:hover {
+    transform: none;
+  }
+}
