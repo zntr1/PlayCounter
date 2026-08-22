@@ -11,6 +11,8 @@ const DIRECTION_INITIAL_REPEAT_MS: u64 = 350;
 const DIRECTION_REPEAT_MS: u64 = 120;
 const SCROLL_REPEAT_MS: u64 = 16;
 const REVEAL_FOCUS_GRACE_MS: u64 = 3_000;
+const KNOWN_CONTROLLER_RETRY_MS: u64 = 100;
+const NEW_CONTROLLER_PROBE_MS: u64 = 2_000;
 const STICK_DEAD_ZONE: i16 = 16_000;
 const SCROLL_DEAD_ZONE: i16 = 12_000;
 const BUTTON_DPAD_UP: u16 = 0x0001;
@@ -93,17 +95,31 @@ impl ControllerMachine {
             actions.push(ControllerAction::Back);
         }
 
-        let direction = if buttons & BUTTON_DPAD_UP != 0 || stick.1 > STICK_DEAD_ZONE {
+        let dpad_direction = if buttons & BUTTON_DPAD_UP != 0 {
             Some(ControllerAction::Up)
-        } else if buttons & BUTTON_DPAD_DOWN != 0 || stick.1 < -STICK_DEAD_ZONE {
+        } else if buttons & BUTTON_DPAD_DOWN != 0 {
             Some(ControllerAction::Down)
-        } else if buttons & BUTTON_DPAD_LEFT != 0 || stick.0 < -STICK_DEAD_ZONE {
+        } else if buttons & BUTTON_DPAD_LEFT != 0 {
             Some(ControllerAction::Left)
-        } else if buttons & BUTTON_DPAD_RIGHT != 0 || stick.0 > STICK_DEAD_ZONE {
+        } else if buttons & BUTTON_DPAD_RIGHT != 0 {
             Some(ControllerAction::Right)
         } else {
             None
         };
+        let stick_direction = if stick.1 > STICK_DEAD_ZONE {
+            Some(ControllerAction::Up)
+        } else if stick.1 < -STICK_DEAD_ZONE {
+            Some(ControllerAction::Down)
+        } else if stick.0 < -STICK_DEAD_ZONE {
+            Some(ControllerAction::Left)
+        } else if stick.0 > STICK_DEAD_ZONE {
+            Some(ControllerAction::Right)
+        } else {
+            None
+        };
+        // A deliberate D-pad press wins over analog-stick drift or a stick
+        // that has not quite returned to its dead zone yet.
+        let direction = dpad_direction.or(stick_direction);
 
         match (self.held_direction, direction) {
             (_, None) => {
@@ -170,73 +186,6 @@ pub fn controller_watch_stop(watcher: tauri::State<'_, ControllerWatcher>) {
     watcher.generation.fetch_add(1, Ordering::SeqCst);
 }
 
-#[tauri::command]
-pub fn show_windows_onscreen_keyboard() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        fn shell_open(path: &std::path::Path) -> Result<(), isize> {
-            use std::os::windows::ffi::OsStrExt;
-            use windows_sys::Win32::UI::{
-                Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOWNORMAL,
-            };
-
-            let operation = "open".encode_utf16().chain(Some(0)).collect::<Vec<_>>();
-            let file = path
-                .as_os_str()
-                .encode_wide()
-                .chain(Some(0))
-                .collect::<Vec<_>>();
-            let result = unsafe {
-                ShellExecuteW(
-                    std::ptr::null_mut(),
-                    operation.as_ptr(),
-                    file.as_ptr(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    SW_SHOWNORMAL,
-                )
-            } as isize;
-            if result > 32 {
-                Ok(())
-            } else {
-                Err(result)
-            }
-        }
-
-        let windows_dir = std::env::var_os("WINDIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| std::path::PathBuf::from(r"C:\Windows"));
-        let osk = windows_dir.join("System32").join("osk.exe");
-        let osk_error = match shell_open(&osk) {
-            Ok(()) => return Ok(()),
-            Err(error) => error,
-        };
-
-        let common_files = std::env::var_os("CommonProgramW6432")
-            .or_else(|| std::env::var_os("CommonProgramFiles"));
-        if let Some(common_files) = common_files {
-            let tabtip = std::path::PathBuf::from(common_files)
-                .join("microsoft shared")
-                .join("ink")
-                .join("TabTip.exe");
-            if tabtip.is_file() {
-                return shell_open(&tabtip).map_err(|error| {
-                    format!(
-                        "Windows rejected both on-screen keyboards (OSK code {osk_error}, touch keyboard code {error})."
-                    )
-                });
-            }
-        }
-        Err(format!(
-            "Windows rejected the on-screen keyboard (ShellExecute code {osk_error}); the touch keyboard was not found."
-        ))
-    }
-    #[cfg(not(windows))]
-    {
-        Err("The Windows on-screen keyboard is only available on Windows.".to_string())
-    }
-}
-
 #[cfg(windows)]
 async fn watch_controllers(
     app: tauri::AppHandle,
@@ -248,6 +197,7 @@ async fn watch_controllers(
     let started = std::time::Instant::now();
     let mut machines = std::array::from_fn::<_, 4, _>(|_| ControllerMachine::default());
     let mut next_probe_at = [0_u64; 4];
+    let mut seen_connected = [false; 4];
     let mut focus_grace_until = 0_u64;
     while current_generation.load(Ordering::SeqCst) == generation {
         let now_ms = started.elapsed().as_millis() as u64;
@@ -260,9 +210,15 @@ async fn watch_controllers(
             let result = unsafe { XInputGetState(slot as u32, &mut state) };
             if result != 0 {
                 machines[slot].reset();
-                next_probe_at[slot] = now_ms + 2_000;
+                next_probe_at[slot] = now_ms
+                    + if seen_connected[slot] {
+                        KNOWN_CONTROLLER_RETRY_MS
+                    } else {
+                        NEW_CONTROLLER_PROBE_MS
+                    };
                 continue;
             }
+            seen_connected[slot] = true;
             next_probe_at[slot] = now_ms;
             let actions = machines[slot].update(
                 state.Gamepad.wButtons,
@@ -377,6 +333,19 @@ mod tests {
         assert_eq!(
             machine.update(BUTTON_DPAD_RIGHT, (0, 0), 0, 470),
             vec![ControllerAction::Right]
+        );
+    }
+
+    #[test]
+    fn dpad_takes_priority_over_an_active_stick() {
+        let mut machine = ControllerMachine::default();
+        assert_eq!(
+            machine.update(BUTTON_DPAD_RIGHT, (0, STICK_DEAD_ZONE + 1), 0, 0),
+            vec![ControllerAction::Right]
+        );
+        assert_eq!(
+            machine.update(0, (0, STICK_DEAD_ZONE + 1), 0, 16),
+            vec![ControllerAction::Up]
         );
     }
 

@@ -113,6 +113,7 @@ import {
   type LibraryGameKind,
 } from "../libraryGameKind";
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
+import { XboxButtonGlyph } from "../XboxButtonGlyph";
 import { launchErrorMessage, launchTargetsForGame } from "../../gameLaunch";
 import { currentPlatform } from "../../platform";
 
@@ -808,7 +809,6 @@ export function MyGamesView() {
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
                 />
                 <Input
-                  data-controller-item="library-search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search games..."
@@ -1850,9 +1850,10 @@ function GameLibraryCard({
         {controllerNavigable ? (
           <span className="pointer-events-none absolute left-1/2 top-3 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
             <Gamepad2 size={14} />
-            {primaryLaunchTarget
-              ? "Selected · A to play"
-              : "Selected · A for info"}
+            <span>Selected</span>
+            <span aria-hidden="true">·</span>
+            <XboxButtonGlyph button="A" size="small" />
+            <span>{primaryLaunchTarget ? "Play" : "Info"}</span>
           </span>
         ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
@@ -2212,9 +2213,10 @@ function GameLibraryCard({
       {controllerNavigable ? (
         <span className="pointer-events-none absolute left-1/2 top-2 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
           <Gamepad2 size={14} />
-          {primaryLaunchTarget
-            ? "Selected · A to play"
-            : "Selected · A for info"}
+          <span>Selected</span>
+          <span aria-hidden="true">·</span>
+          <XboxButtonGlyph button="A" size="small" />
+          <span>{primaryLaunchTarget ? "Play" : "Info"}</span>
         </span>
       ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">

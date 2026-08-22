@@ -208,7 +208,7 @@ export const TOURS: TourDefinition[] = [
         anchor: a("settings-launcher"),
         scrollIntoView: true,
         title: "Optional controller navigation",
-        body: "Enable Controller navigation for an Xbox-compatible controller. Use the D-pad or left stick across menus, game cards, buttons, and dialogs; use the right stick to scroll, A to select, and B to go back. A on a text or search field opens an on-screen keyboard. Hold Select/View + RB for two seconds to bring PlayCounter forward on My Games. It only controls PlayCounter while this option is enabled.",
+        body: "Enable Controller navigation for an Xbox-compatible controller. Use the D-pad or left stick across the main menu and game cards, the right stick to scroll, A to enter or select, and B to go back. Search and advanced actions remain available with mouse and keyboard. Hold Select/View + RB for two seconds to bring PlayCounter forward on My Games. It only controls PlayCounter while this option is enabled.",
       },
     ],
   },

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  isFirstVisualRow,
   isLeftmostVisualItem,
   nextControllerIndex,
   type ControllerItemRect,
@@ -43,10 +42,7 @@ describe("controller grid navigation", () => {
     expect(nextControllerIndex(cardsAndHeader, 2, "right")).toBe(3);
   });
 
-  it("recognizes first-row and left-edge card boundaries", () => {
-    expect(isFirstVisualRow(grid, 0)).toBe(true);
-    expect(isFirstVisualRow(grid, 1)).toBe(true);
-    expect(isFirstVisualRow(grid, 2)).toBe(false);
+  it("recognizes left-edge card boundaries", () => {
     expect(isLeftmostVisualItem(grid, 0)).toBe(true);
     expect(isLeftmostVisualItem(grid, 1)).toBe(false);
     expect(isLeftmostVisualItem(grid, 2)).toBe(true);

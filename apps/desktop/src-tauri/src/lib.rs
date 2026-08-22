@@ -244,7 +244,6 @@ pub fn run() {
             launch::verify_launch_paths,
             controller::controller_watch_start,
             controller::controller_watch_stop,
-            controller::show_windows_onscreen_keyboard,
             notification_overlay::notification_overlay_prepare,
             notification_overlay::notification_overlay_wait_for_game_window,
             notification_overlay::notification_overlay_show,

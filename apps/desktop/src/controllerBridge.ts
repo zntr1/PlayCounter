@@ -3,7 +3,6 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
 import {
-  isFirstVisualRow,
   isLeftmostVisualItem,
   nextControllerIndex,
   type ControllerAction,
@@ -245,21 +244,6 @@ function activateItem(item: HTMLElement | undefined) {
     focusOpenedDialogWhenReady();
     return;
   }
-  if (isTextEntry(item)) {
-    item.focus();
-    void invoke("show_windows_onscreen_keyboard").catch((error) => {
-      console.warn("Windows on-screen keyboard failed to open", error);
-      useAppStore.getState().addToast({
-        tone: "error",
-        title: "Keyboard could not open",
-        detail:
-          typeof error === "string" && error.trim()
-            ? error
-            : "Windows could not start its on-screen keyboard.",
-      });
-    });
-    return;
-  }
   if (item instanceof HTMLSelectElement && "showPicker" in item) {
     try {
       item.showPicker();
@@ -288,16 +272,6 @@ function focusOpenedDialogWhenReady(attempt = 0) {
       focusOpenedDialogWhenReady(attempt + 1);
     }
   });
-}
-
-function isTextEntry(
-  item: HTMLElement,
-): item is HTMLInputElement | HTMLTextAreaElement {
-  if (item instanceof HTMLTextAreaElement) return true;
-  if (!(item instanceof HTMLInputElement)) return false;
-  return ["text", "search", "email", "url", "tel", "password"].includes(
-    item.type,
-  );
 }
 
 function scrollCurrentView(direction: "scrollUp" | "scrollDown") {
@@ -362,6 +336,10 @@ function handleControllerEvent(
     '[data-controller-content="true"]',
   );
   if (contentRoot && document.activeElement === contentRoot) {
+    if (event.action === "left") {
+      focusActiveNavigationItem();
+      return;
+    }
     const preferred = preferredControllerItem(
       items.filter((item) => contentRoot.contains(item)),
     );
@@ -405,32 +383,14 @@ function handleControllerEvent(
     }
 
     if (contentItems.includes(selected)) {
-      const search = contentItems.find(
-        (item) =>
-          item.getAttribute("data-controller-item") === "library-search",
-      );
       const gameCards = contentItems.filter(
         (item) => item.getAttribute("data-controller-item") === "game-card",
       );
-      if (selected === search) {
-        if (event.action === "left") focusActiveNavigationItem();
-        else if (event.action === "down" && gameCards[0])
-          focusItem(gameCards[0]);
-        return;
-      }
       if (gameCards.includes(selected)) {
         const cardIndex = gameCards.indexOf(selected);
         const cardRects: ControllerItemRect[] = gameCards.map((item) =>
           item.getBoundingClientRect(),
         );
-        if (
-          event.action === "up" &&
-          search &&
-          isFirstVisualRow(cardRects, cardIndex)
-        ) {
-          focusItem(search);
-          return;
-        }
         if (
           event.action === "left" &&
           isLeftmostVisualItem(cardRects, cardIndex)

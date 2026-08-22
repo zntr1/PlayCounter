@@ -60,16 +60,6 @@ export function nextControllerIndex(
   return best;
 }
 
-export function isFirstVisualRow(
-  rects: readonly ControllerItemRect[],
-  current: number,
-) {
-  if (current < 0 || current >= rects.length) return false;
-  const firstTop = Math.min(...rects.map((rect) => rect.top));
-  const origin = rects[current];
-  return origin.top <= firstTop + Math.max(8, origin.height * 0.25);
-}
-
 export function isLeftmostVisualItem(
   rects: readonly ControllerItemRect[],
   current: number,

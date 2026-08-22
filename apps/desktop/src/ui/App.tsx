@@ -37,6 +37,7 @@ import { FeedbackDialog } from "./FeedbackDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
+import { XboxButtonGlyph, type XboxControl } from "./XboxButtonGlyph";
 import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
 import { DevToolsView } from "./views/DevToolsView";
@@ -631,7 +632,7 @@ export function App() {
               aria-hidden="true"
               className="controller-scroll-focus-indicator pointer-events-none absolute right-5 top-5 z-40 flex items-center gap-2 rounded-full border border-accent/60 bg-bg/95 px-3 py-2 text-xs font-semibold text-accent shadow-raised backdrop-blur"
             >
-              <ControllerKey>R STICK</ControllerKey>
+              <XboxButtonGlyph button="RIGHT_STICK" size="small" />
               <span>Scrolling this view</span>
             </div>
           ) : null}
@@ -711,14 +712,17 @@ function ControllerModeFooter() {
         <span>Controller mode</span>
       </div>
       <div className="flex min-w-0 items-center justify-end gap-5 whitespace-nowrap">
-        <ControllerHint button="D-PAD" label="Navigate" />
+        <ControllerHint button="DPAD" label="Navigate" />
         <ControllerHint button="A" label="Select" />
         <ControllerHint button="B" label="Back" />
-        <ControllerHint button="R STICK" label="Scroll" />
-        <div className="flex min-w-0 items-center gap-1.5">
-          <ControllerKey>SELECT</ControllerKey>
+        <ControllerHint button="RIGHT_STICK" label="Scroll" />
+        <div
+          className="flex min-w-0 items-center gap-1.5"
+          aria-label="Hold View plus right bumper for two seconds to bring PlayCounter forward"
+        >
+          <XboxButtonGlyph button="VIEW" />
           <span className="text-text-faint">+</span>
-          <ControllerKey>RB</ControllerKey>
+          <XboxButtonGlyph button="RB" />
           <span className="truncate text-text-faint">
             Hold 2 sec · Bring PlayCounter forward
           </span>
@@ -728,19 +732,29 @@ function ControllerModeFooter() {
   );
 }
 
-function ControllerHint({ button, label }: { button: string; label: string }) {
-  return (
-    <span className="flex items-center gap-2">
-      <ControllerKey>{button}</ControllerKey>
-      <span>{label}</span>
-    </span>
-  );
-}
+const controllerNames: Record<XboxControl, string> = {
+  A: "A",
+  B: "B",
+  DPAD: "D-pad",
+  RIGHT_STICK: "Right stick",
+  VIEW: "View",
+  RB: "Right bumper",
+};
 
-function ControllerKey({ children }: { children: ReactNode }) {
+function ControllerHint({
+  button,
+  label,
+}: {
+  button: XboxControl;
+  label: string;
+}) {
   return (
-    <span className="inline-grid min-w-6 place-items-center rounded border border-border bg-bg px-1.5 py-0.5 font-mono text-[10px] font-bold leading-4 text-text shadow-sm">
-      {children}
+    <span
+      className="flex items-center gap-2"
+      aria-label={`${controllerNames[button]}: ${label}`}
+    >
+      <XboxButtonGlyph button={button} />
+      <span>{label}</span>
     </span>
   );
 }

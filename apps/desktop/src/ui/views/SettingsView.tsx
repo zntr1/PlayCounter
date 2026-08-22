@@ -485,7 +485,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Navigate the whole app with the D-pad or left stick, scroll with the right stick, press A to select, and B to go back. Hold Select/View + RB for two seconds to bring My Games forward."
+            description="Navigate the main menu and game cards with the D-pad or left stick, scroll views with the right stick, press A to enter or select, and B to go back. Search and advanced actions use mouse and keyboard. Hold Select/View + RB for two seconds to bring My Games forward."
             title="Controller navigation"
           >
             <input
