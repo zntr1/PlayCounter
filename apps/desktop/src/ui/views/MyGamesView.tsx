@@ -14,6 +14,7 @@ import {
   Grid2X2,
   History,
   ImagePlus,
+  Info,
   LayoutGrid,
   List,
   Loader2,
@@ -305,6 +306,44 @@ function formatGameActivity(game: GameSummary) {
   return game.sessionCount > 0
     ? `Last played ${formatLastPlayed(game.lastPlayedAt)}`
     : `Added ${formatLastPlayed(game.lastPlayedAt)}`;
+}
+
+function playButtonState(
+  gameName: string,
+  launching: boolean,
+  hasActiveSession: boolean,
+  launchBlocked: boolean,
+) {
+  if (launching) {
+    return {
+      ariaLabel: `Starting ${gameName}`,
+      title: "Starting…",
+      disabled: true,
+      loading: true,
+    };
+  }
+  if (hasActiveSession) {
+    return {
+      ariaLabel: `${gameName} is already running`,
+      title: "Already running",
+      disabled: true,
+      loading: false,
+    };
+  }
+  if (launchBlocked) {
+    return {
+      ariaLabel: `Play ${gameName} (unavailable — another game is starting)`,
+      title: "Another game is starting",
+      disabled: true,
+      loading: false,
+    };
+  }
+  return {
+    ariaLabel: `Play ${gameName}`,
+    title: "Play",
+    disabled: false,
+    loading: false,
+  };
 }
 
 function activeDurationSeconds(activeSession: ActiveSession) {
@@ -1218,6 +1257,19 @@ function GameLibraryCard({
     [exeCache, game.aliases, game.exeNames, launchTargets],
   );
   const primaryLaunchTarget = ownedLaunchTargets[0];
+  const showPlayButton =
+    launchTourDemo ||
+    (!demo && canLaunchExecutables && Boolean(primaryLaunchTarget));
+  const showLaunchFooter =
+    showPlayButton || (!demo && canLaunchExecutables && canConfigureLaunch);
+  const showLaunchNote = !showLaunchFooter && !demo && canLaunchExecutables;
+  const playState = playButtonState(
+    game.name,
+    launching,
+    hasActiveSession,
+    launchBlocked,
+  );
+  const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && canLaunchExecutables;
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
@@ -2021,8 +2073,7 @@ function GameLibraryCard({
         {controllerNavigable ? (
           <span className="pointer-events-none absolute left-1/2 top-3 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
             <Gamepad2 size={14} />
-            <span>Selected</span>
-            <span aria-hidden="true">·</span>
+
             <XboxButtonGlyph button="A" size="small" />
             <span>{primaryLaunchTarget ? "Play" : "Info"}</span>
           </span>
@@ -2069,31 +2120,6 @@ function GameLibraryCard({
               launchTourDemo && "translate-x-0 opacity-100",
             )}
           >
-            {launchTourDemo ||
-            (!demo && canLaunchExecutables && primaryLaunchTarget) ? (
-              <IconButton
-                icon={launching ? Loader2 : Play}
-                aria-label={
-                  launching ? `Starting ${game.name}` : `Play ${game.name}`
-                }
-                title={
-                  hasActiveSession
-                    ? "Already running"
-                    : launching
-                      ? "Starting…"
-                      : launchBlocked
-                        ? "Another game is starting"
-                        : "Play"
-                }
-                data-tour={launchTourDemo ? "demo-launch-play" : undefined}
-                disabled={hasActiveSession || launching || launchBlocked}
-                onClick={() => void handleLaunch()}
-                className={clsx(
-                  "bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg",
-                  launching && "[&>svg]:animate-spin",
-                )}
-              />
-            ) : null}
             {game.source && game.exeNames[0] ? (
               <IconButton
                 icon={Search}
@@ -2211,7 +2237,7 @@ function GameLibraryCard({
           </h2>
           <div
             data-tour={demo ? "demo-playtime-result" : undefined}
-            className="mt-1 flex items-baseline gap-1.5"
+            className="mt-1 flex min-w-0 items-baseline gap-1.5"
           >
             <span
               className={clsx(
@@ -2226,10 +2252,11 @@ function GameLibraryCard({
               type="button"
               disabled={game.sessionCount === 0}
               onClick={handleShowHistory}
-              className="text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent disabled:no-underline"
+              className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent disabled:no-underline"
               aria-label={`Show ${game.sessionCount} session${game.sessionCount === 1 ? "" : "s"} for ${game.name} in history`}
             >
-              {game.sessionCount} session{game.sessionCount !== 1 ? "s" : ""}
+              {game.sessionCount} session
+              {game.sessionCount !== 1 ? "s" : ""}
             </button>
           </div>
 
@@ -2272,6 +2299,67 @@ function GameLibraryCard({
             </div>
           ) : null}
         </div>
+        {showLaunchFooter ? (
+          <button
+            type="button"
+            aria-label={
+              showPlayButton
+                ? playState.ariaLabel
+                : `Set launch file for ${game.name}`
+            }
+            title={showPlayButton ? playState.title : "Set launch file…"}
+            data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+            disabled={showPlayButton && playState.disabled}
+            onClick={() =>
+              showPlayButton ? void handleLaunch() : void handleSetLaunchFile()
+            }
+            className={clsx(
+              "flex shrink-0 items-center justify-center gap-2 border-t font-semibold transition disabled:cursor-not-allowed",
+              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+              !showPlayButton
+                ? "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
+                : playButtonRunning
+                  ? "border-success-border bg-success-tint text-success disabled:opacity-100"
+                  : "border-accent/30 bg-accent-tint text-accent hover:bg-accent hover:text-accent-fg",
+            )}
+          >
+            {!showPlayButton ? (
+              <>
+                <FolderSearch size={isLarge ? 16 : 14} />
+                Start manually once
+              </>
+            ) : playButtonRunning ? (
+              <>
+                <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-success opacity-50 duration-1000" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+                </span>
+                Running
+              </>
+            ) : playState.loading ? (
+              <>
+                <Loader2 size={isLarge ? 16 : 14} className="animate-spin" />
+                Starting…
+              </>
+            ) : (
+              <>
+                <Play size={isLarge ? 16 : 14} />
+                Play
+              </>
+            )}
+          </button>
+        ) : showLaunchNote ? (
+          <div
+            title="PlayCounter can't launch this game directly"
+            className={clsx(
+              "flex shrink-0 items-center justify-center gap-2 border-t border-border text-text-faint",
+              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+            )}
+          >
+            <Info size={isLarge ? 16 : 14} />
+            Not launchable
+          </div>
+        ) : null}
         {renderContextMenu()}
         {showAddPlaytime ? (
           <AddPlaytimeDialog
@@ -2416,8 +2504,6 @@ function GameLibraryCard({
       {controllerNavigable ? (
         <span className="pointer-events-none absolute left-1/2 top-2 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
           <Gamepad2 size={14} />
-          <span>Selected</span>
-          <span aria-hidden="true">·</span>
           <XboxButtonGlyph button="A" size="small" />
           <span>{primaryLaunchTarget ? "Play" : "Info"}</span>
         </span>
@@ -2540,7 +2626,7 @@ function GameLibraryCard({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-6 pr-2">
+        <div className="flex items-center gap-3 pr-2 lg:gap-6">
           <div
             data-tour={demo ? "demo-playtime-result" : undefined}
             className={clsx(
@@ -2574,34 +2660,39 @@ function GameLibraryCard({
             </div>
           </div>
 
+          {showPlayButton ? (
+            <IconButton
+              aria-label={playState.ariaLabel}
+              title={playState.title}
+              data-tour={launchTourDemo ? "demo-launch-play" : undefined}
+              disabled={playState.disabled}
+              onClick={() => void handleLaunch()}
+              className={clsx(
+                "shrink-0",
+                playButtonRunning
+                  ? "border-success-border bg-success-tint disabled:opacity-100"
+                  : "border-accent/30 bg-accent-tint text-accent hover:border-accent hover:bg-accent hover:text-accent-fg",
+              )}
+            >
+              {playButtonRunning ? (
+                <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-success opacity-50 duration-1000" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+                </span>
+              ) : playState.loading ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Play size={15} />
+              )}
+            </IconButton>
+          ) : null}
+
           <div
             className={clsx(
               "flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
               launchTourDemo && "opacity-100",
             )}
           >
-            {launchTourDemo ||
-            (!demo && canLaunchExecutables && primaryLaunchTarget) ? (
-              <IconButton
-                icon={launching ? Loader2 : Play}
-                aria-label={
-                  launching ? `Starting ${game.name}` : `Play ${game.name}`
-                }
-                title={
-                  hasActiveSession
-                    ? "Already running"
-                    : launching
-                      ? "Starting…"
-                      : launchBlocked
-                        ? "Another game is starting"
-                        : "Play"
-                }
-                data-tour={launchTourDemo ? "demo-launch-play" : undefined}
-                disabled={hasActiveSession || launching || launchBlocked}
-                onClick={() => void handleLaunch()}
-                className={launching ? "[&>svg]:animate-spin" : undefined}
-              />
-            ) : null}
             <IconButton
               icon={ClockPlus}
               aria-label={`Log a missed session for ${game.name}`}

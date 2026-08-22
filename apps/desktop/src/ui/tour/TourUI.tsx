@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
 import { Button, IconButton } from "../primitives";
 import { tourCardPosition, type TourTargetRect } from "./tourCardPosition";
@@ -112,11 +113,17 @@ export function WelcomePrompt() {
   const [ready, setReady] = useState(false);
   const [helpImprove, setHelpImprove] = useState(true);
   const progress = useAppStore((state) => state.tourProgress);
+  const gameLaunchingEnabled = useAppStore(
+    (state) => state.settings.gameLaunchingEnabled === true,
+  );
+  const [enableLauncher, setEnableLauncher] = useState(gameLaunchingEnabled);
   const markSeen = useAppStore((state) => state.markTourWelcomeSeen);
   const startTour = useAppStore((state) => state.startTour);
+  const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
   const setAutoShareIgnoredProcesses = useAppStore(
     (state) => state.setAutoShareIgnoredProcesses,
   );
+  const launcherAvailable = currentPlatform() === "windows";
 
   useEffect(() => {
     const timer = window.setTimeout(() => setReady(true), 1200);
@@ -125,65 +132,97 @@ export function WelcomePrompt() {
   const visible = ready && shouldShowWelcome(progress);
 
   useEffect(() => {
-    if (visible) setHelpImprove(true);
-  }, [visible]);
+    if (visible) {
+      setHelpImprove(true);
+      setEnableLauncher(gameLaunchingEnabled);
+    }
+  }, [gameLaunchingEnabled, visible]);
 
   if (!visible) return null;
 
   const close = () => {
     setAutoShareIgnoredProcesses(helpImprove);
+    if (launcherAvailable) {
+      setLauncherSetting("gameLaunchingEnabled", enableLauncher);
+    }
     markSeen();
   };
   return createPortal(
     <ModalFrame onEscape={close}>
-      <div className="w-[440px] max-w-[calc(100vw-32px)] rounded-2xl border border-border bg-surface p-6 shadow-raised">
-        <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-accent-tint text-accent">
-          <CircleHelp size={23} />
+      <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised">
+        <div className="shrink-0 px-6 pt-6">
+          <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-accent-tint text-accent">
+            <CircleHelp size={23} />
+          </div>
+          <h2 className="text-xl font-semibold text-text">
+            Welcome to PlayCounter
+          </h2>
+          <p className="mt-2 leading-6 text-text-muted">
+            PlayCounter watches for games you launch and tracks how long you
+            play, no matter where they came from. A quick tour shows you around.
+          </p>
         </div>
-        <h2 className="text-xl font-semibold text-text">
-          Welcome to PlayCounter
-        </h2>
-        <p className="mt-2 leading-6 text-text-muted">
-          PlayCounter watches for games you launch and tracks how long you play,
-          no matter where they came from. A quick tour shows you around.
-        </p>
-        <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
-          <input
-            type="checkbox"
-            checked={helpImprove}
-            onChange={(event) => setHelpImprove(event.target.checked)}
-            className="mt-1 h-5 w-5 shrink-0 accent-accent"
-          />
-          <span>
-            <span className="block font-semibold text-text">
-              Help improve PlayCounter
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
+            <input
+              type="checkbox"
+              checked={helpImprove}
+              onChange={(event) => setHelpImprove(event.target.checked)}
+              className="mt-1 h-5 w-5 shrink-0 accent-accent"
+            />
+            <span>
+              <span className="block font-semibold text-text">
+                Help improve PlayCounter
+              </span>
+              <span className="mt-1 block text-sm leading-5 text-text-muted">
+                When you ignore an unrecognized process, share its executable
+                name, platform, and anonymous install ID for community review.
+                Playtime and game history are never included. You can change
+                this anytime in Settings.
+              </span>
             </span>
-            <span className="mt-1 block text-sm leading-5 text-text-muted">
-              When you ignore an unrecognized process, share its executable
-              name, platform, and anonymous install ID for community review.
-              Playtime and game history are never included. You can change this
-              anytime in Settings.
-            </span>
-          </span>
-        </label>
-        <div className="mt-6 grid gap-1">
-          <Button
-            variant="primary"
-            className="w-full py-2.5"
-            onClick={() => {
-              close();
-              startTour(CORE_TOUR_ID);
-            }}
-          >
-            Take the tour
-          </Button>
-          <Button
-            variant="ghost"
-            className="mx-auto px-2 py-1 text-xs text-text-faint"
-            onClick={close}
-          >
-            Maybe later
-          </Button>
+          </label>
+          {launcherAvailable ? (
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
+              <input
+                type="checkbox"
+                checked={enableLauncher}
+                onChange={(event) => setEnableLauncher(event.target.checked)}
+                className="mt-1 h-5 w-5 shrink-0 accent-accent"
+              />
+              <span>
+                <span className="block font-semibold text-text">
+                  Use PlayCounter as a launcher
+                </span>
+                <span className="mt-1 block text-sm leading-5 text-text-muted">
+                  Show Play buttons for games PlayCounter can start directly.
+                  This is optional, and you can turn it off anytime in Settings
+                  if you don't need it or find it annoying.
+                </span>
+              </span>
+            </label>
+          ) : null}
+        </div>
+        <div className="shrink-0 px-6 pb-6 pt-2">
+          <div className="grid gap-1">
+            <Button
+              variant="primary"
+              className="w-full py-2.5"
+              onClick={() => {
+                close();
+                startTour(CORE_TOUR_ID);
+              }}
+            >
+              Take the tour
+            </Button>
+            <Button
+              variant="ghost"
+              className="mx-auto px-2 py-1 text-xs text-text-faint"
+              onClick={close}
+            >
+              Maybe later
+            </Button>
+          </div>
         </div>
       </div>
     </ModalFrame>,

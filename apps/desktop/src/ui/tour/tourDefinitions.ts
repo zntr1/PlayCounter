@@ -148,7 +148,7 @@ export const TOURS: TourDefinition[] = [
         view: "games",
         anchor: a("demo-launch-play"),
         title: "PlayCounter learns launch files locally",
-        body: "Start a game normally once and PlayCounter remembers that file to launch the game next time.",
+        body: "Start a game normally once and after that, you can use PlayCounter to launch that game.",
       },
       {
         id: "set-forget",
