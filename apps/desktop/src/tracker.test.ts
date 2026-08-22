@@ -17,6 +17,7 @@ import {
   applyGameMatch,
   applyCommunitySuggestionOutcome,
   applyContributionMarkers,
+  clearLocalLibrary,
   dismissAmbiguousMatch,
   evaluateAndStoreMilestones,
   hydrateGameMetadata,
@@ -147,6 +148,126 @@ beforeEach(() => {
       checkedAt: "2026-08-09T00:00:00.000Z",
       detail: null,
     },
+  });
+});
+
+describe("local library reset", () => {
+  it("clears every library data source and preserves app identity and preferences", () => {
+    const settings = useAppStore.getState().settings;
+    const completedSession: Session = {
+      id: 1,
+      gameId: 42,
+      gameName: "Doom 3",
+      coverUrl: "cover",
+      source: "igdb",
+      exeName: "Doom3.exe",
+      startedAt: "2026-08-20T09:00:00.000Z",
+      endedAt: "2026-08-20T10:00:00.000Z",
+      durationSeconds: 3600,
+    };
+
+    useAppStore.setState({
+      installUuid: "install-id",
+      settings,
+      blacklist: new Set(["ignored.exe"]),
+      contributionCounts: {
+        suggested: 2,
+        verified: 1,
+        pending: 0,
+        rejected: 1,
+      },
+      knownEmulators: new Map([
+        [
+          "dosbox",
+          {
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            firstSeenAt: "2026-08-20T09:00:00.000Z",
+            lastSeenAt: "2026-08-20T10:00:00.000Z",
+            hostExeNames: ["dosbox.exe"],
+          },
+        ],
+      ]),
+      exeCache: new Map([["doom3.exe", entry({ gameId: 42, source: "igdb" })]]),
+      recentSessions: [completedSession],
+      activeSessions: [
+        {
+          id: 2,
+          gameId: 42,
+          gameName: "Doom 3",
+          coverUrl: "cover",
+          source: "igdb",
+          exeName: "Doom3.exe",
+          startedAt: "2026-08-20T11:00:00.000Z",
+          checkpointedAt: "2026-08-20T11:00:00.000Z",
+        },
+      ],
+      ambiguousMatches: [
+        {
+          exeName: "game.exe",
+          exePath: null,
+          candidates: [],
+          detectedAt: "2026-08-20T11:00:00.000Z",
+        },
+      ],
+      emulatorMappings: new Map([
+        ["dosbox:program:doom3.exe", emulatorMapping()],
+      ]),
+      emulatorObservations: [
+        {
+          kind: "host-notice",
+          key: "dosbox:host",
+          emulatorId: "dosbox",
+          label: "DOSBox",
+          hostExeName: "dosbox.exe",
+          reason: "no-signal",
+          detectedAt: "2026-08-20T11:00:00.000Z",
+        },
+      ],
+      gameMetadata: new Map([
+        [
+          "igdb:42",
+          {
+            id: 42,
+            name: "Doom 3",
+            coverUrl: "cover",
+            source: "igdb",
+          },
+        ],
+      ]),
+      archivedSeconds: 7200,
+      archivedGameSeconds: { "igdb:42": 7200 },
+      playtimeAdjustments: { "igdb:42": 600 },
+      autoDetectedGameKeys: ["igdb:42"],
+    });
+
+    expect(clearLocalLibrary()).toEqual({
+      matches: 1,
+      sessions: 1,
+      activeSessions: 1,
+      emulatorMappings: 1,
+    });
+
+    const state = useAppStore.getState();
+    expect(state).toMatchObject({
+      installUuid: "install-id",
+      settings,
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      autoDetectedGameKeys: [],
+    });
+    expect(state.blacklist).toEqual(new Set(["ignored.exe"]));
+    expect(state.contributionCounts).toMatchObject({ verified: 1 });
+    expect(state.knownEmulators.has("dosbox")).toBe(true);
+    expect(state.exeCache.size).toBe(0);
+    expect(state.recentSessions).toEqual([]);
+    expect(state.activeSessions).toEqual([]);
+    expect(state.ambiguousMatches).toEqual([]);
+    expect(state.emulatorMappings.size).toBe(0);
+    expect(state.emulatorObservations).toEqual([]);
+    expect(state.gameMetadata.size).toBe(0);
+    expect(globalThis.localStorage.setItem).toHaveBeenCalled();
   });
 });
 

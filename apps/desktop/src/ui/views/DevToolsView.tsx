@@ -1,12 +1,33 @@
-import { Database, Trash2 } from "lucide-react";
+import { Database, Library, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useAppStore } from "../../store";
-import { clearFakeHistory, seedFakeHistory } from "../../tracker";
+import {
+  clearFakeHistory,
+  clearLocalLibrary,
+  seedFakeHistory,
+} from "../../tracker";
 import { Panel } from "../components";
-import { Button } from "../primitives";
+import { Button, Modal } from "../primitives";
 
 export function DevToolsView() {
+  const [confirmClearLibrary, setConfirmClearLibrary] = useState(false);
   const settings = useAppStore((state) => state.settings);
   const recentSessions = useAppStore((state) => state.recentSessions);
+  const exeCache = useAppStore((state) => state.exeCache);
+  const hasLocalLibraryData = useAppStore(
+    (state) =>
+      state.recentSessions.length > 0 ||
+      state.activeSessions.length > 0 ||
+      state.ambiguousMatches.length > 0 ||
+      state.exeCache.size > 0 ||
+      state.gameMetadata.size > 0 ||
+      state.emulatorMappings.size > 0 ||
+      state.emulatorObservations.length > 0 ||
+      state.archivedSeconds > 0 ||
+      Object.keys(state.archivedGameSeconds).length > 0 ||
+      Object.keys(state.playtimeAdjustments).length > 0 ||
+      state.autoDetectedGameKeys.length > 0,
+  );
   const runtimeLog = useAppStore((state) => state.runtimeLog);
   const setDevNumber = useAppStore((state) => state.setDevNumber);
   const setApiEndpoint = useAppStore((state) => state.setApiEndpoint);
@@ -15,7 +36,6 @@ export function DevToolsView() {
   const fakeSessionCount = recentSessions.filter((session) =>
     session.exeName.startsWith("playcounter-fake-"),
   ).length;
-
   function handleSeedFakeHistory() {
     seedFakeHistory();
     addToast({
@@ -100,6 +120,35 @@ export function DevToolsView() {
           </div>
         </div>
       </Panel>
+      <Panel className="grid gap-4 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-medium text-text">Local library</h2>
+            <p className="mt-1 text-sm text-text-muted">
+              Reset games, history, playtime, and cached matches for an empty
+              library test. Settings, ignored processes, and install identity
+              stay intact.
+            </p>
+            <p className="mt-2 text-sm text-text-muted">
+              Cached matches:{" "}
+              <span className="font-mono text-text">{exeCache.size}</span>
+              {" · "}sessions:{" "}
+              <span className="font-mono text-text">
+                {recentSessions.length}
+              </span>
+            </p>
+          </div>
+          <Button
+            className="shrink-0"
+            icon={Trash2}
+            variant="danger"
+            onClick={() => setConfirmClearLibrary(true)}
+            disabled={!hasLocalLibraryData}
+          >
+            Clear library
+          </Button>
+        </div>
+      </Panel>
       <Panel className="overflow-hidden">
         <div className="border-b border-border px-4 py-3 font-medium">
           Runtime log
@@ -120,6 +169,45 @@ export function DevToolsView() {
           ))}
         </div>
       </Panel>
+      {confirmClearLibrary ? (
+        <Modal
+          size="sm"
+          labelId="clear-local-library-title"
+          eyebrow="Developer tool"
+          title="Clear the local library?"
+          icon={Library}
+          onClose={() => setConfirmClearLibrary(false)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setConfirmClearLibrary(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                data-autofocus
+                onClick={() => {
+                  const cleared = clearLocalLibrary();
+                  setConfirmClearLibrary(false);
+                  addToast({
+                    tone: "success",
+                    title: "Local library cleared",
+                    detail: `${cleared.sessions} sessions and ${cleared.matches} cached matches were removed.`,
+                  });
+                }}
+              >
+                Clear library
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-sm text-text-muted">
+            This permanently removes local games, completed and active sessions,
+            archived playtime, executable matches, and emulator game mappings. A
+            game that is currently running can be detected again on the next
+            scan.
+          </p>
+        </Modal>
+      ) : null}
     </div>
   );
 }

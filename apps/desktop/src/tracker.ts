@@ -4404,6 +4404,40 @@ export function clearFakeHistory() {
   persist();
 }
 
+// Developer-only reset for testing an empty installation's library without
+// changing app preferences, install identity, contribution state, or ignored
+// processes. Active sessions are intentionally discarded instead of being
+// finalized so a reset cannot immediately recreate cards through History.
+export function clearLocalLibrary() {
+  const state = useAppStore.getState();
+  const cleared = {
+    matches: state.exeCache.size,
+    sessions: state.recentSessions.length,
+    activeSessions: state.activeSessions.length,
+    emulatorMappings: state.emulatorMappings.size,
+  };
+
+  useAppStore.setState({
+    activeSessions: [],
+    ambiguousMatches: [],
+    emulatorObservations: [],
+    emulatorMappings: new Map(),
+    recentSessions: [],
+    gameMetadata: new Map(),
+    exeCache: new Map(),
+    archivedSeconds: 0,
+    archivedGameSeconds: {},
+    playtimeAdjustments: {},
+    autoDetectedGameKeys: [],
+  });
+
+  logRuntime(
+    `local library cleared matches=${cleared.matches} sessions=${cleared.sessions} active=${cleared.activeSessions} emulatorMappings=${cleared.emulatorMappings}`,
+  );
+  evaluateAndStoreMilestones({ suppressNotifications: true });
+  return cleared;
+}
+
 function isFakeHistorySession(session: Session) {
   return (
     session.exeName.startsWith(FAKE_HISTORY_EXE_PREFIX) ||
