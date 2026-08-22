@@ -1039,7 +1039,7 @@ function GameLibraryCard({
       (state.activeTour?.tourId === "game-actions" &&
         state.activeTour.stepIndex >= 2) ||
       (state.activeTour?.tourId === "launch-games" &&
-        state.activeTour.stepIndex === 4),
+        state.activeTour.stepIndex === 3),
   );
   const activeTour = useAppStore((state) => state.activeTour);
   const contextMenu = useContextMenu();

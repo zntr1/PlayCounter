@@ -820,7 +820,7 @@ export async function launchGame(
   target: Pick<LaunchTarget, "exeName" | "path">,
 ): Promise<LaunchOutcome> {
   if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
-    throw new Error("Enable 'Start games from PlayCounter' in Settings first.");
+    throw new Error("Enable 'Launch games directly' in Settings first.");
   }
   const key = target.path.toLowerCase();
   const now = Date.now();

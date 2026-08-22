@@ -128,25 +128,13 @@ describe("tour definitions", () => {
       "intro",
       "enable",
       "learned",
-      "try-it",
       "set-forget",
       "limits",
-      "tracking",
-      "stale",
       "privacy",
       "controller",
     ]);
-    expect(guide.steps.find((step) => step.id === "try-it")?.advanceOn).toEqual(
-      {
-        type: "event",
-        name: "mygames.demo-launch-attempted",
-      },
-    );
-    expect(guide.steps.find((step) => step.id === "stale")?.body).toContain(
-      "Temp folders",
-    );
     expect(
       guide.steps.find((step) => step.id === "controller")?.body,
-    ).toContain("Select/View + RB");
+    ).toContain("View + RB");
   });
 });

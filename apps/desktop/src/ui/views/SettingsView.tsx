@@ -468,12 +468,12 @@ export function SettingsView() {
       {currentPlatform() === "windows" ? (
         <SettingsPanel
           dataTour="settings-launcher"
-          description="Optional direct game launching for games PlayCounter has tracked on this PC."
-          title="Start games from PlayCounter"
+          description="Let PlayCounter start games it already tracks on this PC, and optionally navigate with a controller."
+          title="Game launching"
         >
           <SettingsRow
             description="Remember local game program files and show Play actions in My Games. Off by default."
-            title="Enable direct game launching"
+            title="Launch games directly"
           >
             <input
               type="checkbox"
@@ -484,15 +484,15 @@ export function SettingsView() {
               className="h-5 w-5 accent-accent"
             />
           </SettingsRow>
-     
+
           <div className="rounded-lg border border-border bg-bg/40 px-4 py-3 text-xs leading-5 text-text-muted">
             PlayCounter starts the selected <code>.exe</code> directly. Games
             that require Steam, Epic, another launcher, special arguments, or
             administrator approval may need their normal shortcut. Learned paths
             stay on this device and are excluded from backups.
           </div>
-               <SettingsRow
-            description="Let PlayCounter react to controller inputs."
+          <SettingsRow
+            description="Navigate PlayCounter with an controller. Requires direct game launching turned on."
             title={
               <span className="flex items-center gap-2">
                 <Gamepad2 size={17} className="text-accent" />
