@@ -303,4 +303,6 @@ export interface Settings {
   overlaySessionSummaries?: boolean;
   overlayMilestones?: boolean;
   overlayDiscoveries?: boolean;
+  gameLaunchingEnabled?: boolean;
+  controllerNavigationEnabled?: boolean;
 }

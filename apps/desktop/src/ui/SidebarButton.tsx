@@ -11,6 +11,7 @@ type SidebarButtonProps = {
   isPlaying?: boolean;
   onClick: () => void;
   dataTour?: string;
+  controllerEnabled?: boolean;
 };
 
 export function SidebarButton({
@@ -23,10 +24,15 @@ export function SidebarButton({
   isPlaying,
   onClick,
   dataTour,
+  controllerEnabled = false,
 }: SidebarButtonProps) {
   return (
     <button
       data-tour={dataTour}
+      data-controller-item={controllerEnabled ? "navigation" : undefined}
+      data-controller-active-view={
+        active && controllerEnabled ? "true" : undefined
+      }
       type="button"
       onClick={onClick}
       className={clsx(

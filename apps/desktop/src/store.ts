@@ -300,6 +300,7 @@ type AppState = {
   removeExeCacheEntry: (exeName: string) => void;
   setLaunchTarget: (target: LaunchTarget) => void;
   removeLaunchTarget: (exeName: string) => void;
+  forgetAllLaunchTargets: () => void;
   addApiRequestLogEntry: (entry: Omit<ApiRequestLogEntry, "id" | "at">) => void;
   addRuntimeLogEntry: (message: string) => void;
   setRuntimeError: (error: string | null) => void;
@@ -329,6 +330,10 @@ type AppState = {
   ) => void;
   setDesktopOverlaySetting: (
     key: DesktopOverlaySettingKey,
+    enabled: boolean,
+  ) => void;
+  setLauncherSetting: (
+    key: "gameLaunchingEnabled" | "controllerNavigationEnabled",
     enabled: boolean,
   ) => void;
   recordAutomaticDetection: (keys: string[]) => boolean;
@@ -373,6 +378,8 @@ const defaultSettings: Settings = {
   overlaySessionSummaries: true,
   overlayMilestones: true,
   overlayDiscoveries: false,
+  gameLaunchingEnabled: false,
+  controllerNavigationEnabled: false,
 };
 
 let nextRuntimeLogId = 0;
@@ -729,6 +736,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       launchTargets.delete(exeName.toLowerCase());
       return { launchTargets };
     }),
+  forgetAllLaunchTargets: () => {
+    set({ launchTargets: new Map() });
+    persistSoon();
+  },
   addApiRequestLogEntry: (entry) =>
     set((state) => ({
       apiRequestLog: [
@@ -901,6 +912,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setDesktopOverlaySetting: (key, enabled) => {
     set((state) => ({ settings: { ...state.settings, [key]: enabled } }));
+    persistSoon();
+  },
+  setLauncherSetting: (key, enabled) => {
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        [key]:
+          key === "controllerNavigationEnabled" && enabled
+            ? state.settings.gameLaunchingEnabled === true
+            : enabled,
+        ...(key === "gameLaunchingEnabled" && !enabled
+          ? { controllerNavigationEnabled: false }
+          : {}),
+      },
+    }));
     persistSoon();
   },
   recordAutomaticDetection: (keys) => {

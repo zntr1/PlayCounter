@@ -293,6 +293,7 @@ export function Modal({
           </div>
         </div>
         <div
+          data-controller-scroll
           className={clsx(
             "min-h-0 flex-1 overflow-y-auto p-5 sm:p-6",
             bodyClassName,

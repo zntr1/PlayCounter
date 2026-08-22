@@ -43,10 +43,15 @@ import {
   type ProcessSnapshot,
 } from "./store";
 import {
+  isVolatileLaunchPath,
   isWindowsExecutablePath,
   launchErrorKind,
   launchFileBaseName,
   matchesTrackedExeName,
+  shouldForgetLaunchTarget,
+  shouldForgetOnLaunchError,
+  type LaunchOutcome,
+  type LaunchPathReport,
 } from "./gameLaunch";
 import { countNeedsReview } from "./discoveredReview";
 import {
@@ -98,6 +103,11 @@ import {
   noteDiscoveredExecutable,
 } from "./desktopOverlayBridge";
 import { milestoneMetricLabel, pickTopMilestone } from "./desktopOverlays";
+import {
+  armControllerBridge,
+  disposeControllerBridge,
+  initializeControllerBridge,
+} from "./controllerBridge";
 import { adapterFor } from "./emulators/registry";
 import {
   accumulateObservationRuntime,
@@ -248,6 +258,11 @@ let emulatorPrivacyReady = false;
 let emulatorLookupUnavailableUntil = 0;
 let emulatorSharingUnavailableUntil = 0;
 let lastEmulatorRunningKeys = new Set<string>();
+const launchInFlight = new Map<string, number>();
+let launchVerificationInFlight: Promise<number> | undefined;
+let lastLaunchVerificationAt = 0;
+const LAUNCH_REENTRY_GUARD_MS = 3_000;
+const LAUNCH_VERIFICATION_THROTTLE_MS = 5 * 60 * 1_000;
 
 const launcherBlacklist = [
   "epicgameslauncher.exe",
@@ -265,6 +280,7 @@ export async function initializeTracker() {
 
   hydrate();
   initializeDesktopOverlays();
+  initializeControllerBridge();
   syncTrayNowPlaying();
   scheduleTraySync();
   unsubscribeTraySync = useAppStore.subscribe((state, previousState) => {
@@ -335,7 +351,11 @@ async function finishTrackerStartup() {
     metadataHydrationRequests.clear();
     emulatorRuntime.clear();
     lastEmulatorRunningKeys.clear();
+    launchInFlight.clear();
+    launchVerificationInFlight = undefined;
+    lastLaunchVerificationAt = 0;
     disposeDesktopOverlays();
+    disposeControllerBridge();
     initialized = false;
   });
 
@@ -353,6 +373,7 @@ async function finishTrackerStartup() {
       });
       await recheckPendingCommunityApprovals("startup");
       await requestProcessScan("startup");
+      await verifyLaunchTargets("startup");
       if (suppressStartupNotifications) {
         baselineDiscoveredReviewReminder();
         useAppStore.setState({ suppressStartupNotificationsOnce: false });
@@ -360,6 +381,7 @@ async function finishTrackerStartup() {
         logRuntime("post-import notification baseline completed");
       }
       armDesktopOverlays();
+      armControllerBridge();
     })();
   }, 1_500);
   if (identityResolved) {
@@ -399,7 +421,7 @@ function hydrate() {
           (value as Record<string, unknown>).backfilled === true,
       )) ||
     !Array.isArray(persisted.autoDetectedGameKeys);
-  const settings = applyBuildApiEndpoint({
+  const loadedSettings = applyBuildApiEndpoint({
     ...useAppStore.getState().settings,
     ...persisted.settings,
     accentColor: normalizeAccentColor(persisted.settings?.accentColor),
@@ -412,6 +434,10 @@ function hydrate() {
       ),
     ],
   });
+  const settings: Settings =
+    loadedSettings.gameLaunchingEnabled === true
+      ? loadedSettings
+      : { ...loadedSettings, controllerNavigationEnabled: false };
   const blacklist = persisted.blacklist ?? [];
   const exeCache = persisted.exeCache ?? [];
   const exeCacheMap = new Map(
@@ -760,13 +786,20 @@ export async function openUserIgnoredProcessesFolder() {
 }
 
 function recordLaunchTargets(matches: ProcessMatch[]) {
-  const state = useAppStore.getState();
+  if (useAppStore.getState().settings.gameLaunchingEnabled !== true) return;
   for (const { process, game } of matches) {
-    if (!process.exeName || !isWindowsExecutablePath(process.exePath)) continue;
+    if (
+      !process.exeName ||
+      !isWindowsExecutablePath(process.exePath) ||
+      isVolatileLaunchPath(process.exePath)
+    ) {
+      continue;
+    }
     const owner: LaunchTargetOwner = {
       gameId: game.id,
       source: game.source ?? null,
     };
+    const state = useAppStore.getState();
     const existing = state.launchTargets.get(process.exeName.toLowerCase());
     if (
       existing?.path === process.exePath &&
@@ -785,19 +818,88 @@ function recordLaunchTargets(matches: ProcessMatch[]) {
 
 export async function launchGame(
   target: Pick<LaunchTarget, "exeName" | "path">,
-) {
+): Promise<LaunchOutcome> {
+  if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
+    throw new Error("Enable 'Start games from PlayCounter' in Settings first.");
+  }
+  const key = target.path.toLowerCase();
+  const now = Date.now();
+  const guardedUntil = launchInFlight.get(key);
+  if (guardedUntil !== undefined && guardedUntil > now) return "busy";
+  launchInFlight.set(key, Number.POSITIVE_INFINITY);
   logRuntime(`game launch requested ${target.exeName}`);
   try {
     await invoke("launch_executable", { path: target.path });
     logRuntime(`game launch started ${target.exeName}`);
+    launchInFlight.set(key, Date.now() + LAUNCH_REENTRY_GUARD_MS);
+    return "launched";
   } catch (error) {
-    if (launchErrorKind(error) === "notFound") {
-      useAppStore.getState().removeLaunchTarget(target.exeName);
-      persist();
+    launchInFlight.delete(key);
+    if (shouldForgetOnLaunchError(launchErrorKind(error))) {
+      const current = useAppStore
+        .getState()
+        .launchTargets.get(target.exeName.toLowerCase());
+      if (current?.path === target.path) {
+        useAppStore.getState().removeLaunchTarget(target.exeName);
+        persist();
+      }
     }
     logRuntime(`game launch failed ${target.exeName}: ${formatError(error)}`);
     throw error;
   }
+}
+
+export async function verifyLaunchTargets(reason: string): Promise<number> {
+  if (useAppStore.getState().settings.gameLaunchingEnabled !== true) return 0;
+  try {
+    if (currentPlatform() !== "windows") return 0;
+  } catch {
+    return 0;
+  }
+  if (launchVerificationInFlight) return launchVerificationInFlight;
+  const targets = [...useAppStore.getState().launchTargets.values()];
+  if (targets.length === 0) return 0;
+
+  launchVerificationInFlight = (async () => {
+    const reports = await invoke<LaunchPathReport[]>("verify_launch_paths", {
+      paths: [...new Set(targets.map((target) => target.path))],
+    });
+    const stalePaths = new Set(
+      reports
+        .filter((report) => shouldForgetLaunchTarget(report.status))
+        .map((report) => report.path.toLowerCase()),
+    );
+    let pruned = 0;
+    for (const target of [...useAppStore.getState().launchTargets.values()]) {
+      if (!stalePaths.has(target.path.toLowerCase())) continue;
+      useAppStore.getState().removeLaunchTarget(target.exeName);
+      pruned += 1;
+    }
+    if (pruned > 0) persist();
+    lastLaunchVerificationAt = Date.now();
+    logRuntime(
+      `launch targets verified reason=${reason} checked=${targets.length} pruned=${pruned}`,
+    );
+    return pruned;
+  })();
+  try {
+    return await launchVerificationInFlight;
+  } catch (error) {
+    logRuntime(`launch target verification failed: ${formatError(error)}`);
+    return 0;
+  } finally {
+    launchVerificationInFlight = undefined;
+  }
+}
+
+export function verifyLaunchTargetsThrottled(reason = "my-games") {
+  if (
+    Date.now() - lastLaunchVerificationAt < LAUNCH_VERIFICATION_THROTTLE_MS ||
+    launchVerificationInFlight
+  ) {
+    return launchVerificationInFlight ?? Promise.resolve(0);
+  }
+  return verifyLaunchTargets(reason);
 }
 
 export function forgetLaunchTarget(exeName: string) {
@@ -821,16 +923,27 @@ export async function chooseLaunchTarget(
   }
   if (!matchesTrackedExeName(selected, exeNames)) {
     const expected = exeNames.filter(Boolean).join(" or ");
-    throw new Error(`Pick the file named ${expected || "the tracked .exe file"}.`);
+    throw new Error(
+      `Pick the file named ${expected || "the tracked .exe file"}.`,
+    );
   }
   const baseName = launchFileBaseName(selected);
   const exeName =
-    exeNames.find((candidate) => candidate.toLowerCase() === baseName.toLowerCase()) ??
-    baseName;
+    exeNames.find(
+      (candidate) => candidate.toLowerCase() === baseName.toLowerCase(),
+    ) ?? baseName;
   const target = { exeName, path: selected, owner };
   useAppStore.getState().setLaunchTarget(target);
   logRuntime(`launch target selected ${exeName}`);
   persist();
+  if (isVolatileLaunchPath(selected)) {
+    useAppStore.getState().addToast({
+      tone: "info",
+      title: "Temporary launch file",
+      detail:
+        "This file is in a temporary folder and may disappear. Choose an installed copy if one is available.",
+    });
+  }
   return target;
 }
 
@@ -2951,7 +3064,11 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
   if (!ambiguous) return;
 
   cacheMatchResult(ambiguous.exeName, game);
-  if (isWindowsExecutablePath(ambiguous.exePath)) {
+  if (
+    state.settings.gameLaunchingEnabled === true &&
+    isWindowsExecutablePath(ambiguous.exePath) &&
+    !isVolatileLaunchPath(ambiguous.exePath)
+  ) {
     state.setLaunchTarget({
       exeName: ambiguous.exeName,
       path: ambiguous.exePath,

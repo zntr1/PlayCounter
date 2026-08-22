@@ -28,6 +28,10 @@ import {
   type ReactNode,
 } from "react";
 import { initializeTracker } from "../tracker";
+import {
+  CONTROLLER_MODE_EVENT,
+  deactivateControllerMode,
+} from "../controllerBridge";
 import { emulatorAssetUrls } from "../emulators/assets";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { NotificationBell } from "./NotificationBell";
@@ -157,7 +161,9 @@ let startupPreferenceSynced = false;
 
 export function App() {
   const contentRef = useRef<HTMLDivElement>(null);
+  const controllerModeRef = useRef(false);
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [controllerModeActive, setControllerModeActive] = useState(false);
   const [startupUpdate, setStartupUpdate] = useState<UpdateCheckResult | null>(
     null,
   );
@@ -253,6 +259,37 @@ export function App() {
     content.scrollTop = 0;
     content.scrollLeft = 0;
   }, [activeTourId, activeView]);
+
+  useEffect(() => {
+    const handleControllerMode = (event: Event) => {
+      const detail = (event as CustomEvent<{ active?: boolean }>).detail;
+      const active = detail?.active === true;
+      controllerModeRef.current = active;
+      setControllerModeActive(active);
+      if (active) {
+        document.documentElement.setAttribute("data-controller-mode", "true");
+      } else {
+        document.documentElement.removeAttribute("data-controller-mode");
+      }
+    };
+    const leaveControllerMode = (event: Event) => {
+      if (event.type === "keydown" && !event.isTrusted) return;
+      if (!controllerModeRef.current) return;
+      deactivateControllerMode();
+    };
+
+    window.addEventListener(CONTROLLER_MODE_EVENT, handleControllerMode);
+    window.addEventListener("pointermove", leaveControllerMode, true);
+    window.addEventListener("pointerdown", leaveControllerMode, true);
+    window.addEventListener("keydown", leaveControllerMode, true);
+    return () => {
+      window.removeEventListener(CONTROLLER_MODE_EVENT, handleControllerMode);
+      window.removeEventListener("pointermove", leaveControllerMode, true);
+      window.removeEventListener("pointerdown", leaveControllerMode, true);
+      window.removeEventListener("keydown", leaveControllerMode, true);
+      document.documentElement.removeAttribute("data-controller-mode");
+    };
+  }, []);
 
   useEffect(() => {
     void initializeTracker();
@@ -378,7 +415,7 @@ export function App() {
             </div>
           </div>
         </div>
-        <nav className="flex-1 overflow-auto px-4 pb-4">
+        <nav data-controller-scroll className="flex-1 overflow-auto px-4 pb-4">
           {sidebarSections.map((section) => {
             if (
               section.label === "Emulators" &&
@@ -428,6 +465,9 @@ export function App() {
                         imageSrc={view.imageSrc}
                         label={view.label}
                         active={activeView === item}
+                        controllerEnabled={
+                          item !== "discovered" && item !== "dev"
+                        }
                         dataTour={`nav-${item}`}
                         badge={
                           item === "discovered"
@@ -472,7 +512,10 @@ export function App() {
           />
         </div>
       </aside>
-      <section className="flex min-w-0 flex-1 flex-col">
+      <section
+        data-controller-mode={controllerModeActive ? "true" : undefined}
+        className="flex min-w-0 flex-1 flex-col"
+      >
         <header
           data-tour="header"
           className="flex h-16 items-center justify-between border-b border-border bg-surface px-7"
@@ -575,13 +618,27 @@ export function App() {
           <div
             ref={contentRef}
             data-tour="content"
-            className="absolute inset-0 overflow-auto px-7 py-6"
+            data-controller-scroll
+            data-controller-content="true"
+            tabIndex={-1}
+            aria-label={`${views[activeView].label} content`}
+            className="controller-content absolute inset-0 overflow-auto px-7 py-6"
           >
             {views[activeView].component}
           </div>
+          {controllerModeActive ? (
+            <div
+              aria-hidden="true"
+              className="controller-scroll-focus-indicator pointer-events-none absolute right-5 top-5 z-40 flex items-center gap-2 rounded-full border border-accent/60 bg-bg/95 px-3 py-2 text-xs font-semibold text-accent shadow-raised backdrop-blur"
+            >
+              <ControllerKey>R STICK</ControllerKey>
+              <span>Scrolling this view</span>
+            </div>
+          ) : null}
           {/* Scroll Fade Overlay */}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-bg to-transparent" />
         </div>
+        {controllerModeActive ? <ControllerModeFooter /> : null}
       </section>
       {feedbackOpen ? (
         <FeedbackDialog onClose={() => setFeedbackOpen(false)} />
@@ -638,6 +695,53 @@ export function App() {
       <WelcomePrompt />
       <TourOverlay />
     </main>
+  );
+}
+
+function ControllerModeFooter() {
+  return (
+    <div
+      aria-label="Controller mode controls"
+      className="flex h-[49px] shrink-0 items-center justify-between gap-6 overflow-hidden border-t border-border/50 bg-surface/30 px-7 text-xs font-medium text-text-muted backdrop-blur-xl"
+    >
+      <div className="flex shrink-0 items-center gap-2 font-semibold text-accent">
+        <span className="grid h-7 w-7 place-items-center rounded-full border border-accent/40 bg-accent/10 shadow-[0_0_12px_rgb(var(--color-accent)/0.22)]">
+          <Gamepad2 size={15} strokeWidth={2.4} />
+        </span>
+        <span>Controller mode</span>
+      </div>
+      <div className="flex min-w-0 items-center justify-end gap-5 whitespace-nowrap">
+        <ControllerHint button="D-PAD" label="Navigate" />
+        <ControllerHint button="A" label="Select" />
+        <ControllerHint button="B" label="Back" />
+        <ControllerHint button="R STICK" label="Scroll" />
+        <div className="flex min-w-0 items-center gap-1.5">
+          <ControllerKey>SELECT</ControllerKey>
+          <span className="text-text-faint">+</span>
+          <ControllerKey>RB</ControllerKey>
+          <span className="truncate text-text-faint">
+            Hold 2 sec · Bring PlayCounter forward
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ControllerHint({ button, label }: { button: string; label: string }) {
+  return (
+    <span className="flex items-center gap-2">
+      <ControllerKey>{button}</ControllerKey>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function ControllerKey({ children }: { children: ReactNode }) {
+  return (
+    <span className="inline-grid min-w-6 place-items-center rounded border border-border bg-bg px-1.5 py-0.5 font-mono text-[10px] font-bold leading-4 text-text shadow-sm">
+      {children}
+    </span>
   );
 }
 

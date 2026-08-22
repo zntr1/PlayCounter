@@ -4,7 +4,9 @@ import {
   Download,
   FolderInput,
   FolderOpen,
+  Gamepad2,
   RotateCcw,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
@@ -61,6 +63,8 @@ export function SettingsView() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [reloadingIgnored, setReloadingIgnored] = useState(false);
   const [confirmResetCache, setConfirmResetCache] = useState(false);
+  const [confirmForgetLaunchFiles, setConfirmForgetLaunchFiles] =
+    useState(false);
   const [confirmImport, setConfirmImport] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -76,6 +80,11 @@ export function SettingsView() {
   const setDesktopOverlaySetting = useAppStore(
     (state) => state.setDesktopOverlaySetting,
   );
+  const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
+  const forgetAllLaunchTargets = useAppStore(
+    (state) => state.forgetAllLaunchTargets,
+  );
+  const launchTargetCount = useAppStore((state) => state.launchTargets.size);
   const setAccentColor = useAppStore((state) => state.setAccentColor);
   const knownEmulators = useAppStore((state) => state.knownEmulators);
   const ignoredProcessCount = useAppStore(
@@ -456,6 +465,65 @@ export function SettingsView() {
         </SettingsPanel>
       ) : null}
 
+      {currentPlatform() === "windows" ? (
+        <SettingsPanel
+          dataTour="settings-launcher"
+          description="Optional direct game launching for the games PlayCounter has tracked on this PC."
+          title="Start games from PlayCounter"
+        >
+          <SettingsRow
+            description="Remember game program files on this PC and show Play actions in My Games. This is off by default."
+            title="Enable direct game launching"
+          >
+            <input
+              type="checkbox"
+              checked={settings.gameLaunchingEnabled === true}
+              onChange={(event) =>
+                setLauncherSetting("gameLaunchingEnabled", event.target.checked)
+              }
+              className="h-5 w-5 accent-accent"
+            />
+          </SettingsRow>
+          <SettingsRow
+            description="Navigate the whole app with the D-pad or left stick, scroll with the right stick, press A to select, and B to go back. Hold Select/View + RB for two seconds to bring My Games forward."
+            title="Controller navigation"
+          >
+            <input
+              type="checkbox"
+              checked={settings.controllerNavigationEnabled === true}
+              disabled={settings.gameLaunchingEnabled !== true}
+              onChange={(event) =>
+                setLauncherSetting(
+                  "controllerNavigationEnabled",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <div className="rounded-lg border border-border bg-bg/40 px-4 py-3 text-xs leading-5 text-text-muted">
+            PlayCounter starts the selected <code>.exe</code> directly. Games
+            that require Steam, Epic, another launcher, special arguments, or
+            administrator approval may need their normal shortcut. Learned paths
+            stay on this device and are excluded from backups.
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+            <span className="text-xs text-text-faint">
+              {launchTargetCount} saved launch{" "}
+              {launchTargetCount === 1 ? "file" : "files"}
+            </span>
+            <Button
+              variant="secondary"
+              icon={Trash2}
+              disabled={launchTargetCount === 0}
+              onClick={() => setConfirmForgetLaunchFiles(true)}
+            >
+              Forget all launch files
+            </Button>
+          </div>
+        </SettingsPanel>
+      ) : null}
+
       <SettingsPanel
         dataTour="settings-emulators"
         description="Detect the game running inside a supported emulator, including DOSBox and Dolphin."
@@ -813,6 +881,22 @@ export function SettingsView() {
           }}
         />
       ) : null}
+      {confirmForgetLaunchFiles ? (
+        <ForgetLaunchFilesDialog
+          count={launchTargetCount}
+          onCancel={() => setConfirmForgetLaunchFiles(false)}
+          onConfirm={() => {
+            forgetAllLaunchTargets();
+            setConfirmForgetLaunchFiles(false);
+            addToast({
+              tone: "success",
+              title: "Launch files forgotten",
+              detail:
+                "PlayCounter removed the saved program paths from this PC.",
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -895,6 +979,43 @@ function ResetCacheDialog({
       <p className="text-sm leading-6 text-text-muted">
         This clears cached executable matches and transient errors. Play
         history, settings, and ignored-process files stay intact.
+      </p>
+    </Modal>
+  );
+}
+
+function ForgetLaunchFilesDialog({
+  count,
+  onCancel,
+  onConfirm,
+}: {
+  count: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      size="sm"
+      labelId="forget-launch-files-dialog-title"
+      eyebrow="Direct game launching"
+      title="Forget saved launch files?"
+      icon={Gamepad2}
+      onClose={onCancel}
+      footer={
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button variant="secondary" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="danger" icon={Trash2} onClick={onConfirm}>
+            Forget {count || "all"}
+          </Button>
+        </div>
+      }
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        This removes {count} saved program {count === 1 ? "path" : "paths"}.
+        Play history and game matches stay intact. PlayCounter can learn stable
+        paths again the next time it tracks those games while launching is on.
       </p>
     </Modal>
   );

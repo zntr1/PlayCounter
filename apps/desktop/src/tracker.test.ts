@@ -36,6 +36,7 @@ import {
   setGamePlaytime,
   suggestTrackedGameToCommunity,
   untrackGame,
+  verifyLaunchTargets,
 } from "./tracker";
 
 function entry(overrides: Partial<ExeCacheEntry> = {}): ExeCacheEntry {
@@ -152,6 +153,11 @@ beforeEach(() => {
       checkedAt: "2026-08-09T00:00:00.000Z",
       detail: null,
     },
+    settings: {
+      ...useAppStore.getState().settings,
+      gameLaunchingEnabled: true,
+      controllerNavigationEnabled: false,
+    },
   });
 });
 
@@ -163,8 +169,20 @@ describe("game launching", () => {
   };
 
   it("invokes the native launcher", async () => {
-    await launchGame(target);
+    const firstTarget = {
+      ...target,
+      path: String.raw`C:\Games\First.exe`,
+    };
+    await launchGame(firstTarget);
     expect(invokeMock).toHaveBeenCalledWith("launch_executable", {
+      path: firstTarget.path,
+    });
+  });
+
+  it("requires the launcher feature to be enabled", async () => {
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+    await expect(launchGame(target)).rejects.toThrow("Enable");
+    expect(invokeMock).not.toHaveBeenCalledWith("launch_executable", {
       path: target.path,
     });
   });
@@ -172,7 +190,9 @@ describe("game launching", () => {
   it("forgets only genuinely missing targets", async () => {
     useAppStore.getState().setLaunchTarget(target);
     invokeMock.mockRejectedValueOnce({ kind: "notFound", message: "Gone" });
-    await expect(launchGame(target)).rejects.toMatchObject({ kind: "notFound" });
+    await expect(launchGame(target)).rejects.toMatchObject({
+      kind: "notFound",
+    });
     expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(false);
 
     useAppStore.getState().setLaunchTarget(target);
@@ -183,14 +203,41 @@ describe("game launching", () => {
     await expect(launchGame(target)).rejects.toMatchObject({
       kind: "unreadable",
     });
-    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(target);
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(
+      target,
+    );
+
+    invokeMock.mockRejectedValueOnce({
+      kind: "notAFile",
+      message: "Not a program",
+    });
+    await expect(launchGame(target)).rejects.toMatchObject({
+      kind: "notAFile",
+    });
+    expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(false);
+  });
+
+  it("suppresses concurrent launch requests", async () => {
+    const raceTarget = {
+      ...target,
+      exeName: "Race.exe",
+      path: String.raw`C:\Games\Race.exe`,
+    };
+    let finishLaunch!: () => void;
+    invokeMock.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (finishLaunch = resolve)),
+    );
+
+    const first = launchGame(raceTarget);
+    await expect(launchGame(raceTarget)).resolves.toBe("busy");
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    finishLaunch();
+    await expect(first).resolves.toBe("launched");
   });
 
   it("captures a resolved process path without churning identical scans", async () => {
     useAppStore.setState({
-      exeCache: new Map([
-        ["game.exe", entry({ gameId: 42, source: "igdb" })],
-      ]),
+      exeCache: new Map([["game.exe", entry({ gameId: 42, source: "igdb" })]]),
     });
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "scan_processes") {
@@ -210,6 +257,85 @@ describe("game launching", () => {
     expect(first).toEqual(target);
     await scanProcessesNow();
     expect(useAppStore.getState().launchTargets.get("game.exe")).toBe(first);
+  });
+
+  it("does not learn executable paths from temporary folders", async () => {
+    useAppStore.setState({
+      exeCache: new Map([
+        ["gg5.exe", entry({ exeName: "gg5.exe", gameId: 42, source: "igdb" })],
+      ]),
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "gg5.exe",
+            exePath: String.raw`C:\Users\Me\AppData\Local\Temp\extract\gg5.exe`,
+            pid: 123,
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+    expect(useAppStore.getState().launchTargets.has("gg5.exe")).toBe(false);
+  });
+
+  it("does not learn executable paths while launching is disabled", async () => {
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+    useAppStore.setState({
+      exeCache: new Map([["game.exe", entry({ gameId: 42, source: "igdb" })]]),
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "Game.exe",
+            exePath: target.path,
+            pid: 123,
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
+  });
+
+  it("prunes verified missing targets but keeps inaccessible ones", async () => {
+    const inaccessible = {
+      ...target,
+      exeName: "NetworkGame.exe",
+      path: String.raw`Z:\Games\NetworkGame.exe`,
+    };
+    useAppStore.getState().setLaunchTarget(target);
+    useAppStore.getState().setLaunchTarget(inaccessible);
+    invokeMock.mockResolvedValueOnce([
+      { path: target.path, status: "missing" },
+      { path: inaccessible.path, status: "unreadable" },
+    ]);
+
+    await expect(verifyLaunchTargets("test")).resolves.toBe(1);
+    expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(false);
+    expect(useAppStore.getState().launchTargets.get("networkgame.exe")).toEqual(
+      inaccessible,
+    );
+  });
+
+  it("does not verify saved paths while launching is disabled", async () => {
+    useAppStore.getState().setLaunchTarget(target);
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+
+    await expect(verifyLaunchTargets("test-disabled")).resolves.toBe(0);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "verify_launch_paths",
+      expect.anything(),
+    );
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(
+      target,
+    );
   });
 
   it("captures an ambiguous executable for only the selected local game", () => {

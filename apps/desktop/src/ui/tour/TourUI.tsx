@@ -10,13 +10,18 @@ import { createPortal } from "react-dom";
 import { useAppStore } from "../../store";
 import { Button, IconButton } from "../primitives";
 import { tourCardPosition, type TourTargetRect } from "./tourCardPosition";
-import { CORE_TOUR_ID, TOURS, findTour } from "./tourDefinitions";
+import {
+  CORE_TOUR_ID,
+  TOURS,
+  findTour,
+  type TourEventName,
+} from "./tourDefinitions";
 import { backStepIndex, nextStepIndex } from "./tourNavigation";
 import { shouldShowWelcome } from "./tourState";
 
 const TOUR_EVENT = "playcounter:tour-event";
 
-export function emitTourEvent(name: "mygames.demo-session-logged") {
+export function emitTourEvent(name: TourEventName) {
   window.dispatchEvent(new CustomEvent(TOUR_EVENT, { detail: { name } }));
 }
 

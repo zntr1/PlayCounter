@@ -23,6 +23,23 @@ pub struct LaunchError {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum LaunchPathStatus {
+    Ok,
+    Missing,
+    NotAFile,
+    Unreadable,
+    Invalid,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaunchPathReport {
+    pub path: String,
+    pub status: LaunchPathStatus,
+}
+
 impl LaunchError {
     fn new(kind: LaunchErrorKind, message: impl Into<String>) -> Self {
         Self {
@@ -82,7 +99,7 @@ fn resolve_launch_target(raw: &str) -> Result<(PathBuf, Option<PathBuf>), Launch
             LaunchErrorKind::NotAFile,
             format!("{} is not a program file.", path.display()),
         )),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Err(LaunchError::new(
+        Err(error) if is_definitely_missing(&error) => Err(LaunchError::new(
             LaunchErrorKind::NotFound,
             format!("PlayCounter no longer finds {}.", path.display()),
         )),
@@ -93,9 +110,17 @@ fn resolve_launch_target(raw: &str) -> Result<(PathBuf, Option<PathBuf>), Launch
     }
 }
 
+fn is_definitely_missing(error: &io::Error) -> bool {
+    match error.raw_os_error() {
+        Some(2 | 3 | 15 | 123 | 267) => true,
+        Some(_) => false,
+        None => error.kind() == io::ErrorKind::NotFound,
+    }
+}
+
 #[cfg_attr(not(windows), allow(dead_code))]
 fn map_spawn_error(error: io::Error) -> LaunchError {
-    if error.kind() == io::ErrorKind::NotFound {
+    if is_definitely_missing(&error) {
         return LaunchError::new(LaunchErrorKind::NotFound, "The game file no longer exists.");
     }
     if error.raw_os_error() == Some(740) {
@@ -138,6 +163,37 @@ pub async fn launch_executable(path: String) -> Result<(), LaunchError> {
         .map_err(|error| LaunchError::new(LaunchErrorKind::SpawnFailed, error.to_string()))?
 }
 
+#[cfg(windows)]
+fn verify_launch_path(path: String) -> LaunchPathReport {
+    let status = match validate_launch_path(&path) {
+        Err(_) => LaunchPathStatus::Invalid,
+        Ok(validated) => match fs::metadata(validated) {
+            Ok(metadata) if metadata.is_file() => LaunchPathStatus::Ok,
+            Ok(_) => LaunchPathStatus::NotAFile,
+            Err(error) if is_definitely_missing(&error) => LaunchPathStatus::Missing,
+            Err(_) => LaunchPathStatus::Unreadable,
+        },
+    };
+    LaunchPathReport { path, status }
+}
+
+#[cfg(not(windows))]
+fn verify_launch_path(path: String) -> LaunchPathReport {
+    LaunchPathReport {
+        path,
+        status: LaunchPathStatus::Unreadable,
+    }
+}
+
+#[tauri::command]
+pub async fn verify_launch_paths(paths: Vec<String>) -> Vec<LaunchPathReport> {
+    tauri::async_runtime::spawn_blocking(move || {
+        paths.into_iter().map(verify_launch_path).collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,6 +230,12 @@ mod tests {
             map_spawn_error(io::Error::from(io::ErrorKind::PermissionDenied)).kind,
             LaunchErrorKind::SpawnFailed
         );
+        for code in [2, 3, 15, 123, 267] {
+            assert!(is_definitely_missing(&io::Error::from_raw_os_error(code)));
+        }
+        for code in [5, 21, 53, 1231] {
+            assert!(!is_definitely_missing(&io::Error::from_raw_os_error(code)));
+        }
     }
 
     #[test]
@@ -184,6 +246,33 @@ mod tests {
                 .kind,
             LaunchErrorKind::NotFound
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn verifies_missing_directory_and_invalid_targets() {
+        assert_eq!(
+            verify_launch_path(r"C:\playcounter-missing\Game.exe".to_string()).status,
+            LaunchPathStatus::Missing
+        );
+        assert_eq!(
+            verify_launch_path("Game.exe".to_string()).status,
+            LaunchPathStatus::Invalid
+        );
+        let directory = std::env::temp_dir().join(format!(
+            "playcounter-launch-directory-{}-{}.exe",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&directory).unwrap();
+        assert_eq!(
+            verify_launch_path(directory.to_string_lossy().to_string()).status,
+            LaunchPathStatus::NotAFile
+        );
+        fs::remove_dir(directory).unwrap();
     }
 
     #[cfg(not(windows))]

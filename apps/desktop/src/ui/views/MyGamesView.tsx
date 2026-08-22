@@ -47,6 +47,7 @@ import {
   setCustomGameCover,
   suggestTrackedGameToCommunity,
   untrackGame,
+  verifyLaunchTargetsThrottled,
   type GameAliasRef,
 } from "../../tracker";
 import {
@@ -112,10 +113,7 @@ import {
   type LibraryGameKind,
 } from "../libraryGameKind";
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
-import {
-  launchErrorMessage,
-  launchTargetsForGame,
-} from "../../gameLaunch";
+import { launchErrorMessage, launchTargetsForGame } from "../../gameLaunch";
 import { currentPlatform } from "../../platform";
 
 type SortKey = MyGamesSortKey;
@@ -337,6 +335,9 @@ export function MyGamesView() {
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
+  const gameLaunchingEnabled = useAppStore(
+    (state) => state.settings.gameLaunchingEnabled === true,
+  );
   const userIgnoredProcesses = useAppStore(
     (state) => state.userIgnoredProcesses,
   );
@@ -359,6 +360,11 @@ export function MyGamesView() {
   useEffect(() => {
     setDemoPlaytime({ addedSeconds: 0, addedSessions: 0 });
   }, [tourDemo.active, tourDemo.resetToken]);
+
+  useEffect(() => {
+    if (tourDemo.active || !gameLaunchingEnabled) return;
+    void verifyLaunchTargetsThrottled("my-games");
+  }, [gameLaunchingEnabled, tourDemo.active]);
 
   const games = useMemo(() => {
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
@@ -802,6 +808,7 @@ export function MyGamesView() {
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
                 />
                 <Input
+                  data-controller-item="library-search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search games..."
@@ -988,8 +995,11 @@ function GameLibraryCard({
       (state.activeTour?.tourId === "log-playtime" &&
         state.activeTour.stepIndex === 5) ||
       (state.activeTour?.tourId === "game-actions" &&
-        state.activeTour.stepIndex >= 2),
+        state.activeTour.stepIndex >= 2) ||
+      (state.activeTour?.tourId === "launch-games" &&
+        state.activeTour.stepIndex === 4),
   );
+  const activeTour = useAppStore((state) => state.activeTour);
   const contextMenu = useContextMenu();
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -1018,6 +1028,7 @@ function GameLibraryCard({
   const [convertName, setConvertName] = useState("");
   const [showRename, setShowRename] = useState(false);
   const [renameName, setRenameName] = useState("");
+  const [launching, setLaunching] = useState(false);
 
   useEffect(() => {
     if (!demo) return;
@@ -1046,7 +1057,12 @@ function GameLibraryCard({
   );
   const launchTargets = useAppStore((state) => state.launchTargets);
   const exeCache = useAppStore((state) => state.exeCache);
-  const canLaunchExecutables = currentPlatform() === "windows";
+  const launcherEnabled = useAppStore(
+    (state) => state.settings.gameLaunchingEnabled === true,
+  );
+  const canLaunchExecutables =
+    currentPlatform() === "windows" && launcherEnabled;
+  const launchTourDemo = demo && activeTour?.tourId === "launch-games";
   const canConfigureLaunch =
     canLaunchExecutables &&
     game.exeNames.some((exeName) => /\.exe$/i.test(exeName));
@@ -1061,6 +1077,7 @@ function GameLibraryCard({
     [exeCache, game.aliases, game.exeNames, launchTargets],
   );
   const primaryLaunchTarget = ownedLaunchTargets[0];
+  const controllerNavigable = !demo && canLaunchExecutables;
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
   const primaryExeEntry = primaryExeName
@@ -1496,12 +1513,52 @@ function GameLibraryCard({
 
   async function handleLaunch(target = primaryLaunchTarget) {
     contextMenu.close();
-    if (!target || hasActiveSession) return;
+    if (launchTourDemo) {
+      emitTourEvent("mygames.demo-launch-attempted");
+      demoNotice();
+      return;
+    }
+    if (!target) {
+      addToast({
+        tone: "info",
+        title: "No launch file saved",
+        detail: canConfigureLaunch
+          ? `Start ${game.name} normally once, or set its launch file from the right-click menu.`
+          : `${game.name} does not have a Windows .exe that PlayCounter can launch directly. Use its normal launcher.`,
+      });
+      return;
+    }
+    if (hasActiveSession) {
+      addToast({
+        tone: "info",
+        title: `${game.name} is already running`,
+        detail: "PlayCounter is already tracking this game.",
+      });
+      return;
+    }
+    if (launching) {
+      addToast({
+        tone: "info",
+        title: `${game.name} is starting`,
+        detail: "PlayCounter already sent the launch request.",
+      });
+      return;
+    }
+    setLaunching(true);
     try {
-      await launchGame(target);
+      const outcome = await launchGame(target);
+      if (outcome === "busy") {
+        addToast({
+          tone: "info",
+          title: `${game.name} is starting`,
+          detail: "PlayCounter already sent the launch request.",
+        });
+      }
     } catch (error) {
       const message = launchErrorMessage(error, game.name);
       addToast({ tone: "error", ...message });
+    } finally {
+      setLaunching(false);
     }
   }
 
@@ -1546,6 +1603,18 @@ function GameLibraryCard({
       dataTour={demo ? "demo-context-menu" : undefined}
       focusFirstItem={demo}
     >
+      {launchTourDemo ? (
+        <>
+          <ContextMenuItem
+            dataTour="demo-menu-launch-file"
+            icon={FolderSearch}
+            onClick={demoNotice}
+          >
+            Set or change launch file…
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      ) : null}
       {!demo && canConfigureLaunch ? (
         <>
           {ownedLaunchTargets.length > 0
@@ -1553,8 +1622,13 @@ function GameLibraryCard({
                 <ContextMenuItem
                   key={target.exeName.toLowerCase()}
                   icon={Play}
-                  disabled={hasActiveSession}
-                  title={hasActiveSession ? "Already running" : undefined}
+                  title={
+                    hasActiveSession
+                      ? "Already running"
+                      : launching
+                        ? "Starting…"
+                        : undefined
+                  }
                   onClick={() => void handleLaunch(target)}
                 >
                   {ownedLaunchTargets.length > 1
@@ -1572,10 +1646,7 @@ function GameLibraryCard({
               : "Set launch file…"}
           </ContextMenuItem>
           {ownedLaunchTargets.length > 0 ? (
-            <ContextMenuItem
-              icon={Trash2}
-              onClick={handleForgetLaunchFile}
-            >
+            <ContextMenuItem icon={Trash2} onClick={handleForgetLaunchFile}>
               Forget launch file
             </ContextMenuItem>
           ) : null}
@@ -1757,8 +1828,33 @@ function GameLibraryCard({
         ref={cardRef}
         {...contextMenu.props}
         {...demoCardProps}
-        className="game-library-card group flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover"
+        data-controller-item={controllerNavigable ? "game-card" : undefined}
+        tabIndex={controllerNavigable ? -1 : undefined}
+        aria-label={
+          controllerNavigable
+            ? `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
+            : undefined
+        }
+        className="game-library-card group relative flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-200 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
       >
+        {controllerNavigable ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            data-controller-launch="game"
+            className="hidden"
+            onClick={() => void handleLaunch()}
+          />
+        ) : null}
+        {controllerNavigable ? (
+          <span className="pointer-events-none absolute left-1/2 top-3 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
+            <Gamepad2 size={14} />
+            {primaryLaunchTarget
+              ? "Selected · A to play"
+              : "Selected · A for info"}
+          </span>
+        ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
           {game.coverUrl ? (
             <img
@@ -1795,13 +1891,25 @@ function GameLibraryCard({
           </div>
 
           {/* Hover Actions - Top Right (constructive first, destructive last) */}
-          <div className="game-card-hover-actions absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
-            {!demo && canLaunchExecutables && primaryLaunchTarget ? (
+          <div
+            className={clsx(
+              "game-card-hover-actions absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100",
+              launchTourDemo && "translate-x-0 opacity-100",
+            )}
+          >
+            {launchTourDemo ||
+            (!demo && canLaunchExecutables && primaryLaunchTarget) ? (
               <IconButton
                 icon={Play}
                 aria-label={`Play ${game.name}`}
-                title={hasActiveSession ? "Already running" : "Play"}
-                disabled={hasActiveSession}
+                title={
+                  hasActiveSession
+                    ? "Already running"
+                    : launching
+                      ? "Starting…"
+                      : "Play"
+                }
+                data-tour={launchTourDemo ? "demo-launch-play" : undefined}
                 onClick={() => void handleLaunch()}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
@@ -2082,8 +2190,33 @@ function GameLibraryCard({
       ref={cardRef}
       {...contextMenu.props}
       {...demoCardProps}
-      className="game-library-card group rounded-xl border border-border bg-surface shadow-raised transition hover:border-accent/40"
+      data-controller-item={controllerNavigable ? "game-card" : undefined}
+      tabIndex={controllerNavigable ? -1 : undefined}
+      aria-label={
+        controllerNavigable
+          ? `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
+          : undefined
+      }
+      className="game-library-card group relative rounded-xl border border-border bg-surface shadow-raised transition duration-200 hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
     >
+      {controllerNavigable ? (
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          data-controller-launch="game"
+          className="hidden"
+          onClick={() => void handleLaunch()}
+        />
+      ) : null}
+      {controllerNavigable ? (
+        <span className="pointer-events-none absolute left-1/2 top-2 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
+          <Gamepad2 size={14} />
+          {primaryLaunchTarget
+            ? "Selected · A to play"
+            : "Selected · A for info"}
+        </span>
+      ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
           {game.coverUrl ? (
@@ -2236,13 +2369,25 @@ function GameLibraryCard({
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-            {!demo && canLaunchExecutables && primaryLaunchTarget ? (
+          <div
+            className={clsx(
+              "flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
+              launchTourDemo && "opacity-100",
+            )}
+          >
+            {launchTourDemo ||
+            (!demo && canLaunchExecutables && primaryLaunchTarget) ? (
               <IconButton
                 icon={Play}
                 aria-label={`Play ${game.name}`}
-                title={hasActiveSession ? "Already running" : "Play"}
-                disabled={hasActiveSession}
+                title={
+                  hasActiveSession
+                    ? "Already running"
+                    : launching
+                      ? "Starting…"
+                      : "Play"
+                }
+                data-tour={launchTourDemo ? "demo-launch-play" : undefined}
                 onClick={() => void handleLaunch()}
               />
             ) : null}
@@ -2490,8 +2635,8 @@ function RemoveGameDialog({
     >
       <p className="text-sm leading-6 text-text-muted">
         The game and its file match are removed, and a running session stops.
-        PlayCounter will detect it again the next time you play, use Ignore
-        game if you want it gone for good.
+        PlayCounter will detect it again the next time you play, use Ignore game
+        if you want it gone for good.
       </p>
     </Modal>
   );

@@ -25,6 +25,20 @@ export type LaunchErrorKind =
   | "unsupported"
   | "spawnFailed";
 
+export type LaunchPathStatus =
+  | "ok"
+  | "missing"
+  | "notAFile"
+  | "unreadable"
+  | "invalid";
+
+export type LaunchPathReport = {
+  path: string;
+  status: LaunchPathStatus;
+};
+
+export type LaunchOutcome = "launched" | "busy";
+
 const launchErrorKinds = new Set<LaunchErrorKind>([
   "invalidPath",
   "notAFile",
@@ -49,7 +63,25 @@ export function isWindowsExecutablePath(
   const baseName = launchFileBaseName(value);
   if (!baseName || baseName.toLowerCase() === ".exe") return false;
   if (!baseName.toLowerCase().endsWith(".exe")) return false;
-  return /^[a-z]:[\\/]/i.test(value) || /^\\\\[^\\/]+[\\/][^\\/]+[\\/]/.test(value);
+  return (
+    /^[a-z]:[\\/]/i.test(value) || /^\\\\[^\\/]+[\\/][^\\/]+[\\/]/.test(value)
+  );
+}
+
+export function isVolatileLaunchPath(path: string) {
+  if (!isWindowsExecutablePath(path)) return false;
+  return path
+    .replaceAll("/", "\\")
+    .split("\\")
+    .some((segment) => /^(temp|tmp)$/i.test(segment));
+}
+
+export function shouldForgetLaunchTarget(status: LaunchPathStatus) {
+  return status === "missing" || status === "notAFile" || status === "invalid";
+}
+
+export function shouldForgetOnLaunchError(kind: LaunchErrorKind | null) {
+  return kind === "notFound" || kind === "notAFile" || kind === "invalidPath";
 }
 
 export function matchesTrackedExeName(
@@ -110,16 +142,30 @@ export function primaryLaunchTarget(
 }
 
 export function launchErrorKind(error: unknown): LaunchErrorKind | null {
+  if (typeof error === "string") {
+    try {
+      return launchErrorKind(JSON.parse(error));
+    } catch {
+      return null;
+    }
+  }
   if (!error || typeof error !== "object") return null;
   const kind = (error as { kind?: unknown }).kind;
-  return typeof kind === "string" && launchErrorKinds.has(kind as LaunchErrorKind)
+  return typeof kind === "string" &&
+    launchErrorKinds.has(kind as LaunchErrorKind)
     ? (kind as LaunchErrorKind)
     : null;
 }
 
 function errorDetail(error: unknown) {
   if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
+  if (typeof error === "string") {
+    try {
+      return errorDetail(JSON.parse(error));
+    } catch {
+      return error;
+    }
+  }
   if (error && typeof error === "object") {
     const message = (error as { message?: unknown }).message;
     if (typeof message === "string" && message.trim()) return message;
@@ -154,6 +200,11 @@ export function launchErrorMessage(error: unknown, gameName: string) {
       return {
         title: "Only available on Windows",
         detail: "Starting games from the library works on Windows.",
+      };
+    case "spawnFailed":
+      return {
+        title: `${gameName} could not be started`,
+        detail,
       };
     default:
       return { title: `${gameName} could not be started`, detail };

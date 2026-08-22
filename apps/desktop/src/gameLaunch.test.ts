@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   isWindowsExecutablePath,
+  isVolatileLaunchPath,
   launchErrorKind,
   launchErrorMessage,
   launchFileBaseName,
   launchTargetsForGame,
   matchesTrackedExeName,
   resolveLaunchOwner,
+  shouldForgetLaunchTarget,
+  shouldForgetOnLaunchError,
   type LaunchTargetLike,
 } from "./gameLaunch";
 
@@ -20,8 +23,12 @@ describe("game launch helpers", () => {
   it("accepts only absolute Windows executable paths", () => {
     expect(isWindowsExecutablePath(String.raw`C:\Games\Game.exe`)).toBe(true);
     expect(isWindowsExecutablePath("c:/games/GAME.EXE")).toBe(true);
-    expect(isWindowsExecutablePath(String.raw`\\nas\share\Game.exe`)).toBe(true);
-    expect(isWindowsExecutablePath("/home/u/.wine/drive_c/Game.exe")).toBe(false);
+    expect(isWindowsExecutablePath(String.raw`\\nas\share\Game.exe`)).toBe(
+      true,
+    );
+    expect(isWindowsExecutablePath("/home/u/.wine/drive_c/Game.exe")).toBe(
+      false,
+    );
     expect(isWindowsExecutablePath(String.raw`C:\Games\Game.bat`)).toBe(false);
     expect(isWindowsExecutablePath("Game.exe")).toBe(false);
     expect(isWindowsExecutablePath(null)).toBe(false);
@@ -35,9 +42,31 @@ describe("game launch helpers", () => {
     );
   });
 
+  it("recognizes volatile Temp paths without rejecting installed folders", () => {
+    expect(
+      isVolatileLaunchPath(String.raw`C:\Users\Me\AppData\Local\Temp\gg5.exe`),
+    ).toBe(true);
+    expect(
+      isVolatileLaunchPath(String.raw`C:\Games\Temporary Heroes\game.exe`),
+    ).toBe(false);
+  });
+
+  it("forgets only definitive stale path states", () => {
+    expect(shouldForgetLaunchTarget("missing")).toBe(true);
+    expect(shouldForgetLaunchTarget("notAFile")).toBe(true);
+    expect(shouldForgetLaunchTarget("invalid")).toBe(true);
+    expect(shouldForgetLaunchTarget("unreadable")).toBe(false);
+    expect(shouldForgetOnLaunchError("notFound")).toBe(true);
+    expect(shouldForgetOnLaunchError("unreadable")).toBe(false);
+    expect(shouldForgetOnLaunchError("spawnFailed")).toBe(false);
+  });
+
   it("uses the current matched cache owner", () => {
     const cache = new Map([
-      ["mixtape.exe", { state: "matched", gameId: 9, source: "custom" as const }],
+      [
+        "mixtape.exe",
+        { state: "matched", gameId: 9, source: "custom" as const },
+      ],
     ]);
     expect(resolveLaunchOwner("mixtape.exe", target, cache)).toEqual({
       gameId: 9,
@@ -75,7 +104,10 @@ describe("game launch helpers", () => {
   it("moves ownership on rematch without rewriting the target", () => {
     const launchTargets = new Map([["mixtape.exe", target]]);
     const exeCache = new Map([
-      ["mixtape.exe", { state: "matched", gameId: 9, source: "custom" as const }],
+      [
+        "mixtape.exe",
+        { state: "matched", gameId: 9, source: "custom" as const },
+      ],
     ]);
     expect(
       launchTargetsForGame({
@@ -98,11 +130,21 @@ describe("game launch helpers", () => {
   it("formats structured and unstructured launch errors", () => {
     expect(launchErrorKind({ kind: "notFound" })).toBe("notFound");
     expect(launchErrorKind(new Error("nope"))).toBeNull();
-    expect(launchErrorMessage({ kind: "notFound", message: "Gone." }, "Game"))
-      .toMatchObject({ title: "Game file not found" });
+    expect(
+      launchErrorMessage({ kind: "notFound", message: "Gone." }, "Game"),
+    ).toMatchObject({ title: "Game file not found" });
     expect(launchErrorMessage(new Error("Blocked"), "Game")).toEqual({
       title: "Game could not be started",
       detail: "Blocked",
     });
+    expect(
+      launchErrorKind(JSON.stringify({ kind: "notFound", message: "Gone" })),
+    ).toBe("notFound");
+    expect(
+      launchErrorMessage(
+        JSON.stringify({ kind: "spawnFailed", message: "Denied" }),
+        "Game",
+      ),
+    ).toEqual({ title: "Game could not be started", detail: "Denied" });
   });
 });

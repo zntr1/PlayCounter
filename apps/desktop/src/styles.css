@@ -87,6 +87,45 @@
   background: rgb(var(--color-accent) / 0.15);
 }
 
+/* Controller focus is explicit because gamepad-driven HTMLElement.focus()
+   does not reliably activate the browser's :focus-visible heuristic. */
+[data-controller-selected="true"]:not(.game-library-card) {
+  position: relative;
+  z-index: 30;
+  outline: 5px solid rgb(var(--color-accent));
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 8px rgb(var(--color-bg) / 0.88),
+    0 0 24px rgb(var(--color-accent) / 0.72);
+}
+
+.controller-scroll-focus-indicator {
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+[data-controller-mode="true"] .controller-content:focus {
+  outline: none;
+  box-shadow: inset -3px 0 0 rgb(var(--color-accent));
+}
+
+[data-controller-mode="true"]
+  .controller-content:focus
+  ~ .controller-scroll-focus-indicator {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-controller-mode="true"]
+  .controller-content:focus::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-accent));
+  border-color: rgb(var(--color-bg));
+  box-shadow: 0 0 10px rgb(var(--color-accent) / 0.75);
+}
+
 .emulator-badge {
   border-color: rgb(3 79 201);
   background: rgb(3 79 201);
@@ -226,6 +265,11 @@
 
 * {
   box-sizing: border-box;
+}
+
+:root[data-controller-mode="true"],
+:root[data-controller-mode="true"] * {
+  cursor: none !important;
 }
 
 body {

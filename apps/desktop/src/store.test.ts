@@ -106,11 +106,20 @@ beforeEach(() => {
       overlaySessionSummaries: true,
       overlayMilestones: true,
       overlayDiscoveries: false,
+      gameLaunchingEnabled: false,
+      controllerNavigationEnabled: false,
     },
   });
 });
 
 describe("launch target state", () => {
+  it("defaults launcher control to off", () => {
+    expect(useAppStore.getState().settings).toMatchObject({
+      gameLaunchingEnabled: false,
+      controllerNavigationEnabled: false,
+    });
+  });
+
   it("keys targets case-insensitively and clears them with the cache", () => {
     useAppStore.getState().setLaunchTarget({
       exeName: "Game.exe",
@@ -129,6 +138,30 @@ describe("launch target state", () => {
     });
     useAppStore.getState().clearCache();
     expect(useAppStore.getState().launchTargets.size).toBe(0);
+  });
+
+  it("keeps launching opt-in and turns controller control off with it", () => {
+    useAppStore
+      .getState()
+      .setLauncherSetting("controllerNavigationEnabled", true);
+    expect(useAppStore.getState().settings.controllerNavigationEnabled).toBe(
+      false,
+    );
+
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
+    useAppStore
+      .getState()
+      .setLauncherSetting("controllerNavigationEnabled", true);
+    expect(useAppStore.getState().settings).toMatchObject({
+      gameLaunchingEnabled: true,
+      controllerNavigationEnabled: true,
+    });
+
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+    expect(useAppStore.getState().settings).toMatchObject({
+      gameLaunchingEnabled: false,
+      controllerNavigationEnabled: false,
+    });
   });
 });
 

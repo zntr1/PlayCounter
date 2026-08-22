@@ -2,7 +2,12 @@ import type { ViewId } from "../../store";
 
 export type TourAdvance =
   | { type: "anchor-present"; selector: string }
-  | { type: "event"; name: "mygames.demo-session-logged" };
+  | {
+      type: "event";
+      name: "mygames.demo-session-logged" | "mygames.demo-launch-attempted";
+    };
+
+export type TourEventName = Extract<TourAdvance, { type: "event" }>["name"];
 
 export type TourStep = {
   id: string;
@@ -105,6 +110,105 @@ export const TOURS: TourDefinition[] = [
         anchor: a("help"),
         title: "You're set up",
         body: "One thing left worth doing: startup, popups, and appearance are worth a look before you start playing.",
+      },
+    ],
+  },
+  {
+    id: "launch-games",
+    version: 1,
+    kind: "guide",
+    title: "Start games from PlayCounter",
+    description:
+      "Enable direct launching, learn its limits, and try the controller flow.",
+    duration: "2 min",
+    demoGame: true,
+    steps: [
+      {
+        id: "intro",
+        view: "settings",
+        anchor: a("settings-launcher"),
+        scrollIntoView: true,
+        title: "PlayCounter can also start games",
+        body: "This is optional and off by default. When you enable it, PlayCounter remembers program files it sees for tracked Windows games and adds Play buttons in My Games. Tracking works exactly as before when it is off.",
+      },
+      {
+        id: "enable",
+        view: "settings",
+        anchor: a("settings-launcher"),
+        interactive: true,
+        manualAdvance: true,
+        persistentInteraction: true,
+        scrollIntoView: true,
+        allow: [a("settings-launcher")],
+        title: "Choose whether to enable it",
+        body: "Turn on direct game launching if you want PlayCounter to remember local .exe paths. The choice is real and saved immediately; you can leave it off and still continue this guide.",
+      },
+      {
+        id: "learned",
+        view: "games",
+        anchor: a("demo-launch-play"),
+        title: "Launch files are learned locally",
+        body: "After the feature is enabled, start a game normally once. PlayCounter can then remember that program file for this PC and show a Play button on its card. This sample card lets you practice without starting anything.",
+      },
+      {
+        id: "try-it",
+        view: "games",
+        anchor: a("demo-launch-play"),
+        interactive: true,
+        allow: [a("demo-launch-play")],
+        advanceOn: {
+          type: "event",
+          name: "mygames.demo-launch-attempted",
+        },
+        title: "Try the Play button",
+        body: "Press Play on the sample. A real card starts the saved program directly; this tutorial button only shows an explanation.",
+      },
+      {
+        id: "set-forget",
+        view: "games",
+        anchor: a("demo-menu-launch-file"),
+        retreatWhenMissing: a("demo-context-menu"),
+        backTo: "try-it",
+        title: "Correct or forget a launch file",
+        body: "Use the right-click menu to set a different .exe. If a saved file is deleted or moved, PlayCounter removes the broken Play option and tells you; you can then start the game normally once or choose its new file.",
+      },
+      {
+        id: "limits",
+        view: "settings",
+        anchor: a("settings-launcher"),
+        scrollIntoView: true,
+        title: "Some games still need their launcher",
+        body: "PlayCounter starts the .exe directly. Games that require Steam, Epic, special launch arguments, administrator approval, or anti-cheat bootstrap steps may work only from their usual launcher or shortcut.",
+      },
+      {
+        id: "tracking",
+        view: "games",
+        anchor: a("demo-game-card"),
+        title: "Launching does not invent playtime",
+        body: "Pressing Play only starts the program. The normal process scan still detects the running game, begins a session, and stops it when the game closes. No playtime is credited merely because you pressed the button.",
+      },
+      {
+        id: "stale",
+        view: "games",
+        anchor: a("demo-game-card"),
+        title: "Temporary files are not learned",
+        body: "Installers and self-extracting games sometimes run from Temp folders that Windows clears after a restart. PlayCounter will not learn those paths automatically. Missing saved files are quietly cleaned up; if one disappears just before you press Play, you get a clear error and the broken option is removed.",
+      },
+      {
+        id: "privacy",
+        view: "settings",
+        anchor: a("settings-launcher"),
+        scrollIntoView: true,
+        title: "Paths stay on this PC",
+        body: "Saved launch paths never leave this device and are excluded from exported backups. Turning the feature off hides Play actions without deleting the saved paths. Use Forget all launch files whenever you want to clear them; this does not remove games or play history.",
+      },
+      {
+        id: "controller",
+        view: "settings",
+        anchor: a("settings-launcher"),
+        scrollIntoView: true,
+        title: "Optional controller navigation",
+        body: "Enable Controller navigation for an Xbox-compatible controller. Use the D-pad or left stick across menus, game cards, buttons, and dialogs; use the right stick to scroll, A to select, and B to go back. A on a text or search field opens an on-screen keyboard. Hold Select/View + RB for two seconds to bring PlayCounter forward on My Games. It only controls PlayCounter while this option is enabled.",
       },
     ],
   },

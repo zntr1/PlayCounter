@@ -13,6 +13,7 @@ use tauri::{
     Emitter, Manager, Wry,
 };
 
+mod controller;
 mod ignored_processes;
 mod launch;
 mod notification_overlay;
@@ -206,6 +207,7 @@ pub fn run() {
             icon: Mutex::new(None),
             status_item: Mutex::new(None),
         })
+        .manage(controller::ControllerWatcher::default())
         .manage(notification_overlay::OverlayState::default())
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -239,6 +241,10 @@ pub fn run() {
             privacy_context,
             get_exe_icon,
             launch::launch_executable,
+            launch::verify_launch_paths,
+            controller::controller_watch_start,
+            controller::controller_watch_stop,
+            controller::show_windows_onscreen_keyboard,
             notification_overlay::notification_overlay_prepare,
             notification_overlay::notification_overlay_wait_for_game_window,
             notification_overlay::notification_overlay_show,
