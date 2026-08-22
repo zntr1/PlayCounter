@@ -25,7 +25,7 @@ import {
   Trash2,
   WifiOff,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   acceptCommunityUpgrade,
   addManualSession,
@@ -330,6 +330,8 @@ export function MyGamesView() {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [view, setView] = useState<ViewMode>("grid");
+  const launchLockRef = useRef<string | null>(null);
+  const [launchingGameKey, setLaunchingGameKey] = useState<string | null>(null);
   const sessions = useAppStore((state) => state.recentSessions);
   const activeSessions = useAppStore((state) => state.activeSessions);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
@@ -351,6 +353,19 @@ export function MyGamesView() {
     () => createGameIdentityResolver(hydratedGameMetadata, exeCache),
     [exeCache, hydratedGameMetadata],
   );
+
+  const acquireLaunchLock = useCallback((gameKey: string) => {
+    if (launchLockRef.current !== null) return false;
+    launchLockRef.current = gameKey;
+    setLaunchingGameKey(gameKey);
+    return true;
+  }, []);
+
+  const releaseLaunchLock = useCallback((gameKey: string) => {
+    if (launchLockRef.current !== gameKey) return;
+    launchLockRef.current = null;
+    setLaunchingGameKey(null);
+  }, []);
 
   useEffect(() => {
     void hydrateGameMetadata(
@@ -887,15 +902,18 @@ export function MyGamesView() {
             >
               {visibleGames.map((game) => {
                 const isDemo = isTourDemoLibraryGame(game);
+                const cardKey = isDemo
+                  ? `tour-demo-${game.gameId}-${tourDemo.resetToken}`
+                  : game.igdbId !== undefined
+                    ? `igdb#${game.igdbId}`
+                    : `${game.source ?? "unknown"}:${game.gameId}`;
                 return (
                   <GameLibraryCard
-                    key={
-                      isDemo
-                        ? `tour-demo-${game.gameId}-${tourDemo.resetToken}`
-                        : game.igdbId !== undefined
-                          ? `igdb#${game.igdbId}`
-                          : `${game.source ?? "unknown"}:${game.gameId}`
-                    }
+                    key={cardKey}
+                    launchKey={cardKey}
+                    launchBlocked={launchingGameKey !== null}
+                    onAcquireLaunch={acquireLaunchLock}
+                    onReleaseLaunch={releaseLaunchLock}
                     game={game}
                     demo={isDemo}
                     onDemoPlaytimeLogged={
@@ -1049,6 +1067,10 @@ function LaunchStartingOverlay({
 
 function GameLibraryCard({
   game,
+  launchKey,
+  launchBlocked,
+  onAcquireLaunch,
+  onReleaseLaunch,
   showDurationDays,
   view,
   onRemove,
@@ -1057,6 +1079,10 @@ function GameLibraryCard({
   demo = false,
 }: {
   game: GameSummary;
+  launchKey: string;
+  launchBlocked: boolean;
+  onAcquireLaunch: (gameKey: string) => boolean;
+  onReleaseLaunch: (gameKey: string) => void;
   showDurationDays: boolean;
   view: ViewMode;
   onRemove: () => void;
@@ -1142,6 +1168,7 @@ function GameLibraryCard({
     if (!launching || hasActiveSession) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
+      onReleaseLaunch(launchKey);
       addToast({
         tone: "info",
         title: "Launch request sent",
@@ -1149,12 +1176,26 @@ function GameLibraryCard({
       });
     }, 8_000);
     return () => window.clearTimeout(timeout);
-  }, [addToast, game.name, hasActiveSession, launching]);
+  }, [
+    addToast,
+    game.name,
+    hasActiveSession,
+    launchKey,
+    launching,
+    onReleaseLaunch,
+  ]);
   useEffect(() => {
     if (!launching || !hasActiveSession) return;
-    const timeout = window.setTimeout(() => setLaunching(false), 10_000);
+    const timeout = window.setTimeout(() => {
+      setLaunching(false);
+      onReleaseLaunch(launchKey);
+    }, 10_000);
     return () => window.clearTimeout(timeout);
-  }, [hasActiveSession, launching]);
+  }, [hasActiveSession, launchKey, launching, onReleaseLaunch]);
+  useEffect(
+    () => () => onReleaseLaunch(launchKey),
+    [launchKey, onReleaseLaunch],
+  );
   const launchTargets = useAppStore((state) => state.launchTargets);
   const exeCache = useAppStore((state) => state.exeCache);
   const launcherEnabled = useAppStore(
@@ -1636,11 +1677,19 @@ function GameLibraryCard({
       });
       return;
     }
-    if (launching) {
+    if (launching || launchBlocked) {
       addToast({
         tone: "info",
-        title: `${game.name} is starting`,
-        detail: "PlayCounter already sent the launch request.",
+        title: "A game is already starting",
+        detail: "Wait for PlayCounter to finish the current launch first.",
+      });
+      return;
+    }
+    if (!onAcquireLaunch(launchKey)) {
+      addToast({
+        tone: "info",
+        title: "A game is already starting",
+        detail: "Wait for PlayCounter to finish the current launch first.",
       });
       return;
     }
@@ -1648,22 +1697,26 @@ function GameLibraryCard({
     let keepLaunchFeedback = false;
     try {
       const outcome = await launchGame(target);
-      keepLaunchFeedback = true;
-      void scanProcessesNow().catch((error) =>
-        console.warn("post-launch process scan failed", error),
-      );
       if (outcome === "busy") {
         addToast({
           tone: "info",
           title: `${game.name} is starting`,
           detail: "PlayCounter already sent the launch request.",
         });
+        return;
       }
+      keepLaunchFeedback = true;
+      void scanProcessesNow().catch((error) =>
+        console.warn("post-launch process scan failed", error),
+      );
     } catch (error) {
       const message = launchErrorMessage(error, game.name);
       addToast({ tone: "error", ...message });
     } finally {
-      if (!keepLaunchFeedback) setLaunching(false);
+      if (!keepLaunchFeedback) {
+        setLaunching(false);
+        onReleaseLaunch(launchKey);
+      }
     }
   }
 
@@ -1727,13 +1780,15 @@ function GameLibraryCard({
                 <ContextMenuItem
                   key={target.exeName.toLowerCase()}
                   icon={Play}
-                  disabled={hasActiveSession || launching}
+                  disabled={hasActiveSession || launching || launchBlocked}
                   title={
                     hasActiveSession
                       ? "Already running"
                       : launching
                         ? "Starting…"
-                        : undefined
+                        : launchBlocked
+                          ? "Another game is starting"
+                          : undefined
                   }
                   onClick={() => void handleLaunch(target)}
                 >
@@ -1952,7 +2007,7 @@ function GameLibraryCard({
             tabIndex={-1}
             aria-hidden="true"
             data-controller-launch="game"
-            disabled={launching}
+            disabled={launching || launchBlocked}
             className="hidden"
             onClick={() => void handleLaunch()}
           />
@@ -2026,10 +2081,12 @@ function GameLibraryCard({
                     ? "Already running"
                     : launching
                       ? "Starting…"
-                      : "Play"
+                      : launchBlocked
+                        ? "Another game is starting"
+                        : "Play"
                 }
                 data-tour={launchTourDemo ? "demo-launch-play" : undefined}
-                disabled={hasActiveSession || launching}
+                disabled={hasActiveSession || launching || launchBlocked}
                 onClick={() => void handleLaunch()}
                 className={clsx(
                   "bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg",
@@ -2344,7 +2401,7 @@ function GameLibraryCard({
           tabIndex={-1}
           aria-hidden="true"
           data-controller-launch="game"
-          disabled={launching}
+          disabled={launching || launchBlocked}
           className="hidden"
           onClick={() => void handleLaunch()}
         />
@@ -2535,10 +2592,12 @@ function GameLibraryCard({
                     ? "Already running"
                     : launching
                       ? "Starting…"
-                      : "Play"
+                      : launchBlocked
+                        ? "Another game is starting"
+                        : "Play"
                 }
                 data-tour={launchTourDemo ? "demo-launch-play" : undefined}
-                disabled={hasActiveSession || launching}
+                disabled={hasActiveSession || launching || launchBlocked}
                 onClick={() => void handleLaunch()}
                 className={launching ? "[&>svg]:animate-spin" : undefined}
               />
