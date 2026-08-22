@@ -36,13 +36,13 @@ export function ReportWrongMatchDialog({
         {gameName ? (
           <>
             PlayCounter is tracking <span className="font-mono">{label}</span>{" "}
-            as <strong className="text-text">{gameName}</strong> — what&apos;s
+            as <strong className="text-text">{gameName}</strong> - what&apos;s
             wrong?
           </>
         ) : (
           <>
             PlayCounter matched <span className="font-mono">{label}</span> to a
-            game — is that wrong?
+            game - is that wrong?
           </>
         )}
       </p>

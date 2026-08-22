@@ -674,12 +674,32 @@ select {
   outline-offset: 2px;
 }
 
-.level-up-arrow {
-  animation: level-up-arrow 1.55s ease-in-out infinite;
+/* Treat the cover CTA as its own hover target, not as a card hover. */
+.game-library-card:has(.level-up-cta:hover) {
+  border-color: rgb(var(--color-border));
+  box-shadow: var(--shadow-raised);
+  transform: none;
 }
 
-.level-up-celebration {
-  animation: level-up-celebration 1.35s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+.game-library-card:has(.level-up-cta:hover) .game-card-cover-image {
+  transform: scale(1);
+}
+
+.game-library-card:has(.level-up-cta:hover) .game-card-hover-actions {
+  opacity: 0;
+  transform: translateX(0.5rem);
+}
+
+.game-library-card:has(.level-up-cta:hover) .game-card-name-default {
+  display: inline;
+}
+
+.game-library-card:has(.level-up-cta:hover) .game-card-name-exe {
+  display: none;
+}
+
+.level-up-arrow {
+  animation: level-up-arrow 1.55s ease-in-out infinite;
 }
 
 @keyframes level-up-sheen {
@@ -703,30 +723,9 @@ select {
   }
 }
 
-@keyframes level-up-celebration {
-  0% {
-    opacity: 0;
-    transform: translateY(22px) scale(0.82);
-  }
-  20% {
-    opacity: 1;
-    transform: translateY(-4px) scale(1.04);
-  }
-  34%,
-  78% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-15px) scale(0.96);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .level-up-cta::after,
-  .level-up-arrow,
-  .level-up-celebration {
+  .level-up-arrow {
     animation: none;
   }
 

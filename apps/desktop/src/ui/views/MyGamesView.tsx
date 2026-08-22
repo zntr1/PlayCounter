@@ -106,10 +106,7 @@ import {
   isTourDemoLibraryGame,
   type LibraryGameKind,
 } from "../libraryGameKind";
-import {
-  CommunityLevelUpButton,
-  LevelUpCelebration,
-} from "../CommunityLevelUpButton";
+import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = "grid" | "list";
@@ -744,7 +741,6 @@ export function MyGamesView() {
 
   return (
     <div className="grid gap-5">
-      <LevelUpCelebration />
       {libraryGames.length === 0 ? (
         <Panel className="px-4 py-12 text-center text-sm text-text-muted">
           No discovered games have completed a session yet.
@@ -1656,14 +1652,14 @@ function GameLibraryCard({
         ref={cardRef}
         {...contextMenu.props}
         {...demoCardProps}
-        className="group flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover"
+        className="game-library-card group flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover"
       >
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
           {game.coverUrl ? (
             <img
               src={game.coverUrl}
               alt=""
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="game-card-cover-image h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="grid h-full place-items-center text-xs text-text-faint">
@@ -1694,7 +1690,7 @@ function GameLibraryCard({
           </div>
 
           {/* Hover Actions - Top Right (constructive first, destructive last) */}
-          <div className="absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
+          <div className="game-card-hover-actions absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100">
             {game.source && game.exeNames[0] ? (
               <IconButton
                 icon={Search}
@@ -1791,8 +1787,10 @@ function GameLibraryCard({
           >
             {exeLabel ? (
               <>
-                <span className="group-hover:hidden">{game.name}</span>
-                <span className="hidden font-mono text-[13px] group-hover:inline">
+                <span className="game-card-name-default group-hover:hidden">
+                  {game.name}
+                </span>
+                <span className="game-card-name-exe hidden font-mono text-[13px] group-hover:inline">
                   {exeLabel}
                 </span>
               </>
@@ -1969,7 +1967,7 @@ function GameLibraryCard({
       ref={cardRef}
       {...contextMenu.props}
       {...demoCardProps}
-      className="group rounded-xl border border-border bg-surface shadow-raised transition hover:border-accent/40"
+      className="game-library-card group rounded-xl border border-border bg-surface shadow-raised transition hover:border-accent/40"
     >
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
@@ -2012,8 +2010,10 @@ function GameLibraryCard({
             >
               {exeLabel ? (
                 <>
-                  <span className="group-hover:hidden">{game.name}</span>
-                  <span className="hidden font-mono text-sm group-hover:inline">
+                  <span className="game-card-name-default group-hover:hidden">
+                    {game.name}
+                  </span>
+                  <span className="game-card-name-exe hidden font-mono text-sm group-hover:inline">
                     {exeLabel}
                   </span>
                 </>
@@ -2366,7 +2366,7 @@ function RemoveGameDialog({
     >
       <p className="text-sm leading-6 text-text-muted">
         The game and its file match are removed, and a running session stops.
-        PlayCounter will detect it again the next time you play — use Ignore
+        PlayCounter will detect it again the next time you play, use Ignore
         game if you want it gone for good.
       </p>
     </Modal>
