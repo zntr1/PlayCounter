@@ -1,10 +1,13 @@
 import {
+  AlertTriangle,
   BarChart3,
   Bug,
+  Check,
   Cpu,
   Download,
   Gamepad2,
   Globe,
+  Info,
   ListChecks,
   LoaderCircle,
   MessageSquarePlus,
@@ -817,7 +820,10 @@ function ToastViewport() {
   const dismissToast = useAppStore((state) => state.dismissToast);
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-50 grid w-80 gap-2">
+    <div
+      aria-label="Notifications"
+      className="pointer-events-none fixed bottom-5 right-5 z-50 grid w-[min(22rem,calc(100vw-2.5rem))] gap-3"
+    >
       {toasts.map((toast) => (
         <ToastCard
           key={toast.id}
@@ -849,30 +855,47 @@ function ToastCard({
     return () => window.clearTimeout(removeTimer);
   }, [leaving, onDismiss]);
 
-  const toneClass =
+  const presentation =
     toast.tone === "success"
-      ? "border-success-border"
+      ? {
+          icon: Check,
+          label: "Success",
+          toneClass: "app-toast-success",
+        }
       : toast.tone === "error"
-        ? "border-danger-border"
-        : "border-info-border";
+        ? {
+            icon: AlertTriangle,
+            label: "Something went wrong",
+            toneClass: "app-toast-error",
+          }
+        : {
+            icon: Info,
+            label: "Heads up",
+            toneClass: "app-toast-info",
+          };
+  const ToneIcon = presentation.icon;
 
   return (
-    <div
-      className={`pointer-events-auto rounded-lg border bg-surface p-3 shadow-raised ${leaving ? "animate-toast-out" : "animate-toast-in"} ${toneClass}`}
+    <article
+      aria-atomic="true"
+      aria-live={toast.tone === "error" ? "assertive" : "polite"}
+      className={`app-toast pointer-events-auto ${presentation.toneClass} ${leaving ? "animate-toast-out" : "animate-toast-in"}`}
     >
-      <div className="flex items-start gap-3">
-        {toast.emoji ? (
-          <span
-            aria-hidden="true"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-hover text-xl leading-none"
-          >
-            {toast.emoji}
-          </span>
-        ) : null}
+      <div className="flex items-start gap-3.5 p-3.5">
+        <span aria-hidden="true" className="app-toast-symbol">
+          {toast.emoji ? (
+            <span className="text-xl leading-none">{toast.emoji}</span>
+          ) : (
+            <ToneIcon size={18} strokeWidth={2.4} />
+          )}
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="break-words font-medium text-text">{toast.title}</div>
+          <div className="app-toast-kicker">{presentation.label}</div>
+          <div className="mt-0.5 break-words text-sm font-semibold leading-5 text-text">
+            {toast.title}
+          </div>
           {toast.detail ? (
-            <div className="mt-1 break-words text-sm text-text-muted">
+            <div className="mt-1 break-words text-xs leading-[1.45] text-text-muted">
               {toast.detail}
             </div>
           ) : null}
@@ -881,12 +904,13 @@ function ToastCard({
           type="button"
           aria-label="Dismiss notification"
           onClick={() => setLeaving(true)}
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-text-muted transition hover:bg-surface-hover hover:text-text"
+          className="app-toast-dismiss grid h-7 w-7 shrink-0 place-items-center rounded-lg text-text-muted transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <X size={14} />
         </button>
       </div>
-    </div>
+      <div aria-hidden="true" className="app-toast-progress" />
+    </article>
   );
 }
 
