@@ -1,5 +1,7 @@
 import type {
   CommunityGameAlias,
+  CommunitySuggestionCancelPayload,
+  CommunitySuggestionCancelResponse,
   Contribution,
   ContributionCounts,
   ContributionStatus,
@@ -28,6 +30,7 @@ import {
   BUILD_STAGE,
   DEFAULT_API_ENDPOINT,
   canonicalGameKey,
+  canCancelCommunitySuggestion,
   autoDetectionKeys,
   createGameIdentityResolver,
   gameMetadataConflictsWithRef,
@@ -257,6 +260,11 @@ let emulatorPrivacy = { userName: "", homeDirName: "" };
 let emulatorPrivacyReady = false;
 let emulatorLookupUnavailableUntil = 0;
 let emulatorSharingUnavailableUntil = 0;
+let communityCancelUnavailableUntil = 0;
+const communitySuggestionCancelGuard = new Map<
+  string,
+  { exeName: string; gameId: number }
+>();
 let lastEmulatorRunningKeys = new Set<string>();
 const launchInFlight = new Map<string, number>();
 let launchVerificationInFlight: Promise<number> | undefined;
@@ -1921,6 +1929,51 @@ function setCommunitySuggestionRejected(exeName: string, note?: string) {
   });
   logRuntime(`community suggestion rejected ${exeName}`);
   persist();
+}
+
+function communitySuggestionIdentityKey(exeName: string, gameId: number) {
+  return `${exeName.toLowerCase()}::${gameId}`;
+}
+
+function clearCommunitySuggestionMarker(exeName: string, gameId: number) {
+  const key = exeName.toLowerCase();
+  useAppStore.setState((state) => {
+    const existing = state.exeCache.get(key);
+    if (
+      existing?.state !== "matched" ||
+      existing.source !== "custom" ||
+      existing.communitySuggestionId !== gameId
+    ) {
+      return {};
+    }
+
+    const exeCache = new Map(state.exeCache);
+    exeCache.set(key, {
+      ...existing,
+      pendingCommunityGame: undefined,
+      communitySuggestionId: undefined,
+      communitySuggestionVerified: undefined,
+      communitySuggestionStatus: undefined,
+      communitySuggestionNote: undefined,
+    });
+    const clearSession = <T extends ActiveSession | Session>(session: T): T =>
+      session.exeName.toLowerCase() === key &&
+      session.source === "custom" &&
+      session.communitySuggestionId === gameId
+        ? {
+            ...session,
+            communitySuggestionId: undefined,
+            communitySuggestionVerified: undefined,
+            communitySuggestionStatus: undefined,
+            communitySuggestionNote: undefined,
+          }
+        : session;
+    return {
+      exeCache,
+      activeSessions: state.activeSessions.map(clearSession),
+      recentSessions: state.recentSessions.map(clearSession),
+    };
+  });
 }
 
 export function markCommunitySuggestionRejected(
@@ -3669,6 +3722,35 @@ export async function pollContributions(
     const delivered = suppressNotifications ? [] : arrived;
     useAppStore.setState((current) => {
       const exeCache = applyContributionMarkers(current.exeCache, body.items);
+      for (const [identityKey, guard] of communitySuggestionCancelGuard) {
+        const exeKey = guard.exeName.toLowerCase();
+        const stillPending = body.items.some(
+          (item) =>
+            item.value.toLowerCase() === exeKey &&
+            item.gameId === guard.gameId &&
+            item.status === "pending",
+        );
+        if (!stillPending) {
+          communitySuggestionCancelGuard.delete(identityKey);
+          continue;
+        }
+
+        const entry = exeCache.get(exeKey);
+        if (
+          entry?.state === "matched" &&
+          entry.source === "custom" &&
+          entry.communitySuggestionId === guard.gameId
+        ) {
+          exeCache.set(exeKey, {
+            ...entry,
+            pendingCommunityGame: undefined,
+            communitySuggestionId: undefined,
+            communitySuggestionVerified: undefined,
+            communitySuggestionStatus: undefined,
+            communitySuggestionNote: undefined,
+          });
+        }
+      }
       const updateSession = <T extends ActiveSession | Session>(
         session: T,
       ): T => {
@@ -3970,6 +4052,10 @@ export function addSharedCustomGame(
   const normalizedGameName = gameName.trim();
   if (!normalizedGameName) return null;
 
+  communitySuggestionCancelGuard.delete(
+    communitySuggestionIdentityKey(exeName, communitySuggestionId),
+  );
+
   const game: Game = {
     // Every executable suggested for the same game shares the suggestion id,
     // so they share one local game while the suggestion is pending. Without
@@ -4102,6 +4188,104 @@ export function convertToCustomGame(exeName: string, gameName: string) {
     source: "custom",
   });
   logRuntime(`converted to custom game ${exeName} -> ${normalizedGameName}`);
+}
+
+export type CommunitySuggestionCancelOutcome =
+  | { kind: "cancelled" }
+  | { kind: "not-pending" }
+  | { kind: "not-owner" }
+  | { kind: "offline" }
+  | { kind: "unavailable" }
+  | { kind: "failed"; error: string };
+
+export async function cancelCommunitySuggestion(
+  exeName: string,
+  expectedGameId: number,
+): Promise<CommunitySuggestionCancelOutcome> {
+  const state = useAppStore.getState();
+  const existing = state.exeCache.get(exeName.toLowerCase());
+  if (
+    existing?.state !== "matched" ||
+    existing.communitySuggestionId !== expectedGameId ||
+    !canCancelCommunitySuggestion({
+      source: existing.source,
+      exeName: existing.exeName,
+      communitySuggestionId: existing.communitySuggestionId,
+      communitySuggestionVerified: existing.communitySuggestionVerified,
+      communitySuggestionStatus: existing.communitySuggestionStatus,
+    })
+  ) {
+    return { kind: "not-pending" };
+  }
+  if (isOfflineStatus(state.backendHealth.status)) {
+    return { kind: "offline" };
+  }
+  if (!state.installUuid) {
+    return { kind: "failed", error: "No install identity available." };
+  }
+  if (Date.now() < communityCancelUnavailableUntil) {
+    return { kind: "unavailable" };
+  }
+
+  const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions/cancel`;
+  const payload: CommunitySuggestionCancelPayload = {
+    exeName: existing.exeName,
+    gameId: expectedGameId,
+    installUuid: state.installUuid,
+  };
+  try {
+    const response = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      timeoutMs: API_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify(payload),
+    });
+    if (response.status === 404 || response.status === 501) {
+      communityCancelUnavailableUntil = Date.now() + 30 * 60_000;
+      return { kind: "unavailable" };
+    }
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+
+    const body = (await response.json()) as CommunitySuggestionCancelResponse;
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName: existing.exeName,
+      status: "matched",
+      detail: `Suggestion cancel ${body.status}`,
+    });
+    if (body.status === "cancelled" || body.status === "not_found") {
+      communitySuggestionCancelGuard.set(
+        communitySuggestionIdentityKey(existing.exeName, expectedGameId),
+        { exeName: existing.exeName, gameId: expectedGameId },
+      );
+      clearCommunitySuggestionMarker(existing.exeName, expectedGameId);
+      logRuntime(
+        `community suggestion cancelled ${existing.exeName} -> ${expectedGameId}`,
+      );
+      persist();
+      return { kind: "cancelled" };
+    }
+    if (body.status === "not_owner") {
+      return { kind: "not-owner" };
+    }
+
+    void pollContributions("after suggestion cancel not-pending");
+    return { kind: "not-pending" };
+  } catch (error) {
+    const detail = formatError(error);
+    state.addApiRequestLogEntry({
+      endpoint,
+      exeName: existing.exeName,
+      status: "error",
+      detail,
+    });
+    logRuntime(
+      `community suggestion cancel failed ${existing.exeName}: ${detail}`,
+    );
+    return { kind: "failed", error: detail };
+  }
 }
 
 // Suggests the correct game for a tracked exe to the community. Custom games

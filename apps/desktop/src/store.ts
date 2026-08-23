@@ -164,6 +164,58 @@ export function canSuggestCustomGameToCommunity(value: {
   );
 }
 
+export function canCancelCommunitySuggestion(value: {
+  source?: GameSource | null;
+  exeName?: string | null;
+  communitySuggestionId?: number;
+  communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+}) {
+  if (
+    value.source !== "custom" ||
+    !value.exeName ||
+    value.communitySuggestionId === undefined
+  ) {
+    return false;
+  }
+
+  const status =
+    value.communitySuggestionStatus ??
+    (value.communitySuggestionVerified ? "verified" : "pending");
+  return status === "pending";
+}
+
+export type PendingCommunitySuggestionTarget = {
+  exeName: string;
+  gameId: number;
+};
+
+export function findPendingCommunitySuggestionEntry(
+  exeNames: readonly string[],
+  exeCache: ReadonlyMap<string, ExeCacheEntry>,
+): PendingCommunitySuggestionTarget | null {
+  for (const exeName of exeNames) {
+    const entry = exeCache.get(exeName.toLowerCase());
+    if (
+      entry?.state === "matched" &&
+      canCancelCommunitySuggestion({
+        source: entry.source,
+        exeName: entry.exeName,
+        communitySuggestionId: entry.communitySuggestionId,
+        communitySuggestionVerified: entry.communitySuggestionVerified,
+        communitySuggestionStatus: entry.communitySuggestionStatus,
+      })
+    ) {
+      return {
+        exeName: entry.exeName,
+        gameId: entry.communitySuggestionId!,
+      };
+    }
+  }
+
+  return null;
+}
+
 export type ApiRequestLogEntry = {
   id: number;
   at: string;

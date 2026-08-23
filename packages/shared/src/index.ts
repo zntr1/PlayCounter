@@ -169,6 +169,22 @@ export interface CommunityGameSuggestionResponse {
   igdbGame?: Game;
 }
 
+export interface CommunitySuggestionCancelPayload {
+  exeName: string;
+  gameId: number;
+  installUuid: string;
+}
+
+export type CommunitySuggestionCancelStatus =
+  | "cancelled"
+  | "not_found"
+  | "not_pending"
+  | "not_owner";
+
+export interface CommunitySuggestionCancelResponse {
+  status: CommunitySuggestionCancelStatus;
+}
+
 export type IdentifierReportReason = "not_a_game";
 
 export interface IdentifierReportPayload {

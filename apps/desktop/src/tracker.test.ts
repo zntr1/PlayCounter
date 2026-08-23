@@ -17,6 +17,7 @@ import {
   applyGameMatch,
   applyCommunitySuggestionOutcome,
   applyContributionMarkers,
+  cancelCommunitySuggestion,
   clearLocalLibrary,
   dismissAmbiguousMatch,
   evaluateAndStoreMilestones,
@@ -2184,5 +2185,303 @@ describe("emulator mapping sharing", () => {
       reason: "not-shareable",
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("community suggestion cancellation", () => {
+  const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+
+  function pendingEntry(
+    exeName: string,
+    suggestionId: number,
+    gameId = -suggestionId,
+  ) {
+    return entry({
+      exeName,
+      gameId,
+      gameName: "Pending Game",
+      communitySuggestionId: suggestionId,
+      communitySuggestionVerified: false,
+      communitySuggestionStatus: "pending",
+      pendingCommunityGame: {
+        id: suggestionId,
+        name: "Pending Game",
+        coverUrl: "cover",
+        source: "community",
+      },
+    });
+  }
+
+  function contributionsResponse(items: Contribution[]) {
+    return new Response(
+      JSON.stringify({
+        items,
+        counts: {
+          suggested: items.length,
+          verified: items.filter((item) => item.status === "verified").length,
+          pending: items.filter((item) => item.status === "pending").length,
+          rejected: items.filter((item) => item.status === "rejected").length,
+        },
+      }),
+      { status: 200 },
+    );
+  }
+
+  it("clears only the exact pending marker and preserves local game data", async () => {
+    const activeSession = {
+      id: 1,
+      gameId: -42,
+      gameName: "Pending Game",
+      exeName: "Mine.exe",
+      coverUrl: "cover",
+      source: "custom" as const,
+      startedAt: "2026-08-23T10:00:00.000Z",
+      checkpointedAt: "2026-08-23T10:01:00.000Z",
+      communitySuggestionId: 42,
+      communitySuggestionStatus: "pending" as const,
+    };
+    const recentSession: Session = {
+      id: 2,
+      gameId: -42,
+      gameName: "Pending Game",
+      exeName: "Mine.exe",
+      coverUrl: "cover",
+      source: "custom",
+      startedAt: "2026-08-22T10:00:00.000Z",
+      endedAt: "2026-08-22T11:00:00.000Z",
+      durationSeconds: 3600,
+      communitySuggestionId: 42,
+      communitySuggestionStatus: "pending",
+    };
+    const sibling = pendingEntry("Sibling.exe", 84, -84);
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([
+        ["mine.exe", pendingEntry("Mine.exe", 42)],
+        ["sibling.exe", sibling],
+      ]),
+      activeSessions: [activeSession],
+      recentSessions: [recentSession],
+    });
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Promise.resolve(
+          new Response(JSON.stringify({ status: "cancelled" }), {
+            status: 200,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(cancelCommunitySuggestion("Mine.exe", 42)).resolves.toEqual({
+      kind: "cancelled",
+    });
+
+    const state = useAppStore.getState();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(
+      JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)),
+    ).toEqual({ exeName: "Mine.exe", gameId: 42, installUuid });
+    expect(state.exeCache.get("mine.exe")).toMatchObject({
+      gameId: -42,
+      gameName: "Pending Game",
+      source: "custom",
+    });
+    expect(
+      state.exeCache.get("mine.exe")?.communitySuggestionId,
+    ).toBeUndefined();
+    expect(state.exeCache.get("sibling.exe")).toBe(sibling);
+    expect(state.activeSessions[0]).toMatchObject({
+      gameId: -42,
+      gameName: "Pending Game",
+    });
+    expect(state.activeSessions[0].communitySuggestionId).toBeUndefined();
+    expect(state.recentSessions[0].durationSeconds).toBe(3600);
+    expect(state.recentSessions[0].communitySuggestionId).toBeUndefined();
+  });
+
+  it("does not send a request when the captured game identity is stale", async () => {
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([["mine.exe", pendingEntry("Mine.exe", 43)]]),
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(cancelCommunitySuggestion("Mine.exe", 42)).resolves.toEqual({
+      kind: "not-pending",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("suppresses stale pending polls until the server confirms absence", async () => {
+    const pending = contribution({
+      value: "Race.exe",
+      gameId: 142,
+      gameName: "Pending Game",
+      status: "pending",
+      reviewNote: undefined,
+    });
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([["race.exe", pendingEntry("Race.exe", 142)]]),
+    });
+
+    let resolveOldPoll!: (response: Response) => void;
+    const oldPoll = new Promise<Response>((resolve) => {
+      resolveOldPoll = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => oldPoll)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "cancelled" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(contributionsResponse([pending]))
+      .mockResolvedValueOnce(contributionsResponse([]))
+      .mockResolvedValueOnce(contributionsResponse([pending]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const inFlightPoll = pollContributions("before cancel");
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await cancelCommunitySuggestion("Race.exe", 142);
+    resolveOldPoll(contributionsResponse([pending]));
+    await inFlightPoll;
+    expect(
+      useAppStore.getState().exeCache.get("race.exe")?.communitySuggestionId,
+    ).toBeUndefined();
+
+    await pollContributions("eventually consistent");
+    expect(
+      useAppStore.getState().exeCache.get("race.exe")?.communitySuggestionId,
+    ).toBeUndefined();
+
+    await pollContributions("cancel observed");
+    expect(
+      useAppStore.getState().exeCache.get("race.exe")?.communitySuggestionId,
+    ).toBeUndefined();
+
+    await pollContributions("new pending row");
+    expect(
+      useAppStore.getState().exeCache.get("race.exe")?.communitySuggestionId,
+    ).toBe(142);
+  });
+
+  it("lets an exact successful re-suggestion retire the stale-poll guard", async () => {
+    const pending = contribution({
+      value: "Again.exe",
+      gameId: 242,
+      gameName: "Pending Game",
+      status: "pending",
+      reviewNote: undefined,
+    });
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([["again.exe", pendingEntry("Again.exe", 242)]]),
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "cancelled" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(contributionsResponse([pending]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await cancelCommunitySuggestion("Again.exe", 242);
+    suggestTrackedGameToCommunity(
+      "Again.exe",
+      "Pending Game",
+      "cover",
+      242,
+      false,
+    );
+    await pollContributions("after re-suggestion");
+
+    expect(
+      useAppStore.getState().exeCache.get("again.exe")
+        ?.communitySuggestionStatus,
+    ).toBe("pending");
+  });
+
+  it("handles idempotent, ownership, and no-longer-pending responses", async () => {
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([["missing.exe", pendingEntry("Missing.exe", 442)]]),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ status: "not_found" }), {
+            status: 200,
+          }),
+      ),
+    );
+    await expect(
+      cancelCommunitySuggestion("Missing.exe", 442),
+    ).resolves.toEqual({ kind: "cancelled" });
+    expect(
+      useAppStore.getState().exeCache.get("missing.exe")?.communitySuggestionId,
+    ).toBeUndefined();
+
+    useAppStore.setState({
+      exeCache: new Map([["owned.exe", pendingEntry("Owned.exe", 443)]]),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ status: "not_owner" }), {
+            status: 200,
+          }),
+      ),
+    );
+    await expect(cancelCommunitySuggestion("Owned.exe", 443)).resolves.toEqual({
+      kind: "not-owner",
+    });
+    expect(
+      useAppStore.getState().exeCache.get("owned.exe")?.communitySuggestionId,
+    ).toBe(443);
+
+    useAppStore.setState({
+      exeCache: new Map([["reviewed.exe", pendingEntry("Reviewed.exe", 444)]]),
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "not_pending" }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(contributionsResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      cancelCommunitySuggestion("Reviewed.exe", 444),
+    ).resolves.toEqual({ kind: "not-pending" });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(
+      useAppStore.getState().exeCache.get("reviewed.exe")
+        ?.communitySuggestionId,
+    ).toBe(444);
+  });
+
+  it("memoizes an older server that does not support cancellation", async () => {
+    useAppStore.setState({
+      installUuid,
+      exeCache: new Map([
+        ["legacy-one.exe", pendingEntry("Legacy-One.exe", 342)],
+        ["legacy-two.exe", pendingEntry("Legacy-Two.exe", 343)],
+      ]),
+    });
+    const fetchMock = vi.fn(async () => new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      cancelCommunitySuggestion("Legacy-One.exe", 342),
+    ).resolves.toEqual({ kind: "unavailable" });
+    await expect(
+      cancelCommunitySuggestion("Legacy-Two.exe", 343),
+    ).resolves.toEqual({ kind: "unavailable" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

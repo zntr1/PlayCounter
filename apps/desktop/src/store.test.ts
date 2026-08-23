@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  canCancelCommunitySuggestion,
   canSuggestCustomGameToCommunity,
   canSwitchApprovedSuggestionToCommunity,
   canonicalGameKey,
   createGameIdentityResolver,
+  findPendingCommunitySuggestionEntry,
   resolvedCanonicalGameKey,
   useAppStore,
 } from "./store";
@@ -36,6 +38,96 @@ describe("custom game community suggestion eligibility", () => {
         }),
       ).toBe(false);
     }
+  });
+
+  it("only allows cancellation while a custom game suggestion is pending", () => {
+    expect(
+      canCancelCommunitySuggestion({
+        source: "custom",
+        exeName: "Palworld.exe",
+        communitySuggestionId: 84,
+        communitySuggestionStatus: "pending",
+      }),
+    ).toBe(true);
+    expect(
+      canCancelCommunitySuggestion({
+        source: "custom",
+        exeName: "Legacy.exe",
+        communitySuggestionId: 85,
+        communitySuggestionVerified: false,
+      }),
+    ).toBe(true);
+
+    for (const status of ["verified", "rejected"] as const) {
+      expect(
+        canCancelCommunitySuggestion({
+          source: "custom",
+          exeName: "Palworld.exe",
+          communitySuggestionId: 84,
+          communitySuggestionStatus: status,
+        }),
+      ).toBe(false);
+    }
+    expect(
+      canCancelCommunitySuggestion({
+        source: "custom",
+        exeName: "Palworld.exe",
+      }),
+    ).toBe(false);
+    expect(
+      canCancelCommunitySuggestion({
+        source: "community",
+        exeName: "Palworld.exe",
+        communitySuggestionId: 84,
+        communitySuggestionStatus: "pending",
+      }),
+    ).toBe(false);
+  });
+
+  it("finds the exact pending executable on a grouped library card", () => {
+    const exeCache = new Map([
+      [
+        "primary.exe",
+        {
+          exeName: "Primary.exe",
+          state: "matched" as const,
+          source: "custom" as const,
+          lastCheckedAt: "2026-08-23T00:00:00.000Z",
+        },
+      ],
+      [
+        "pending.exe",
+        {
+          exeName: "Pending.exe",
+          state: "matched" as const,
+          source: "custom" as const,
+          communitySuggestionId: 42,
+          communitySuggestionStatus: "pending" as const,
+          lastCheckedAt: "2026-08-23T00:00:00.000Z",
+        },
+      ],
+      [
+        "later.exe",
+        {
+          exeName: "Later.exe",
+          state: "matched" as const,
+          source: "custom" as const,
+          communitySuggestionId: 84,
+          communitySuggestionStatus: "pending" as const,
+          lastCheckedAt: "2026-08-23T00:00:00.000Z",
+        },
+      ],
+    ]);
+
+    expect(
+      findPendingCommunitySuggestionEntry(
+        ["Primary.exe", "Pending.exe", "Later.exe"],
+        exeCache,
+      ),
+    ).toEqual({ exeName: "Pending.exe", gameId: 42 });
+    expect(
+      findPendingCommunitySuggestionEntry(["Primary.exe"], exeCache),
+    ).toBeNull();
   });
 });
 

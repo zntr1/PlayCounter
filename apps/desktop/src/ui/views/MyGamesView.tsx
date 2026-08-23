@@ -32,6 +32,7 @@ import {
   addManualSession,
   applyGameMatch,
   applyKnownGameMatch,
+  cancelCommunitySuggestion,
   clearCustomGameCover,
   convertLocalSuggestionToCommunity,
   dismissCommunityUpgrade,
@@ -57,12 +58,14 @@ import {
   canSuggestCustomGameToCommunity,
   canSwitchApprovedSuggestionToCommunity,
   createGameIdentityResolver,
+  findPendingCommunitySuggestionEntry,
   gameMetadataKey,
   resolvedCanonicalGameKey,
   useAppStore,
   useIsOffline,
   type ActiveSession,
   type ExeCacheEntry,
+  type PendingCommunitySuggestionTarget,
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
@@ -99,6 +102,7 @@ import {
   sortMatchCandidates,
 } from "./matchCheckModel";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
+import { CancelCommunitySuggestionDialog } from "../CancelCommunitySuggestionDialog";
 import type {
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
@@ -1156,6 +1160,8 @@ function GameLibraryCard({
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [cancelSuggestionTarget, setCancelSuggestionTarget] =
+    useState<PendingCommunitySuggestionTarget | null>(null);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const installUuid = useAppStore((state) => state.installUuid);
   const isOffline = useIsOffline();
@@ -1276,6 +1282,10 @@ function GameLibraryCard({
   const primaryExeEntry = primaryExeName
     ? exeCache.get(primaryExeName.toLowerCase())
     : undefined;
+  const pendingCommunitySuggestion = useMemo(
+    () => findPendingCommunitySuggestionEntry(game.exeNames, exeCache),
+    [exeCache, game.exeNames],
+  );
   const canSuggestToCommunity = canSuggestCustomGameToCommunity({
     source: primaryExeEntry?.source ?? game.source,
     exeName: primaryExeName,
@@ -1526,6 +1536,54 @@ function GameLibraryCard({
       setShareState("error");
       setShareMessage(formatError(error));
     }
+  }
+
+  function handleCancelSuggestion(target: PendingCommunitySuggestionTarget) {
+    setCancelSuggestionTarget(null);
+    void cancelCommunitySuggestion(target.exeName, target.gameId).then(
+      (outcome) => {
+        if (outcome.kind === "cancelled") {
+          addToast({
+            tone: "success",
+            title: "Suggestion cancelled",
+            detail: `${game.name} is back to a private custom game. You can suggest it again anytime.`,
+          });
+        } else if (outcome.kind === "not-pending") {
+          addToast({
+            tone: "info",
+            title: "Suggestion changed",
+            detail:
+              "This suggestion is no longer pending and could not be cancelled.",
+          });
+        } else if (outcome.kind === "not-owner") {
+          addToast({
+            tone: "info",
+            title: "Can't cancel automatically",
+            detail:
+              "PlayCounter can't verify this suggestion as yours, so it remains in review.",
+          });
+        } else if (outcome.kind === "unavailable") {
+          addToast({
+            tone: "info",
+            title: "Not available yet",
+            detail:
+              "This server does not support cancelling suggestions yet. Try again later.",
+          });
+        } else if (outcome.kind === "offline") {
+          addToast({
+            tone: "error",
+            title: "You're offline",
+            detail: "Reconnect and try cancelling again.",
+          });
+        } else {
+          addToast({
+            tone: "error",
+            title: "Could not cancel suggestion",
+            detail: outcome.error,
+          });
+        }
+      },
+    );
   }
 
   const handleCopyExe = () => {
@@ -1906,7 +1964,17 @@ function GameLibraryCard({
           >
             Check for Matches
           </ContextMenuItem>
-          {canSuggestToCommunity ? (
+          {pendingCommunitySuggestion ? (
+            <ContextMenuItem
+              icon={RotateCcw}
+              onClick={() => {
+                contextMenu.close();
+                setCancelSuggestionTarget(pendingCommunitySuggestion);
+              }}
+            >
+              Cancel Suggestion
+            </ContextMenuItem>
+          ) : canSuggestToCommunity ? (
             <ContextMenuItem
               dataTour={demo ? "demo-menu-suggest-community" : undefined}
               icon={Send}
@@ -2129,7 +2197,17 @@ function GameLibraryCard({
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
             ) : null}
-            {canSuggestToCommunity ? (
+            {pendingCommunitySuggestion ? (
+              <IconButton
+                icon={RotateCcw}
+                aria-label={`Cancel community suggestion for ${game.name}`}
+                title="Cancel suggestion"
+                onClick={() =>
+                  setCancelSuggestionTarget(pendingCommunitySuggestion)
+                }
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+            ) : canSuggestToCommunity ? (
               <IconButton
                 icon={Send}
                 aria-label={`Suggest ${game.name} to the community`}
@@ -2403,6 +2481,15 @@ function GameLibraryCard({
               setShareOpen(true);
             }}
             onNotAGame={() => void handleNegativeReport()}
+          />
+        ) : null}
+        {cancelSuggestionTarget ? (
+          <CancelCommunitySuggestionDialog
+            gameName={game.name}
+            exeName={cancelSuggestionTarget.exeName}
+            isOffline={isOffline}
+            onCancel={() => setCancelSuggestionTarget(null)}
+            onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
           />
         ) : null}
         {shareOpen ? (
@@ -2774,6 +2861,15 @@ function GameLibraryCard({
             setShareOpen(true);
           }}
           onNotAGame={() => void handleNegativeReport()}
+        />
+      ) : null}
+      {cancelSuggestionTarget ? (
+        <CancelCommunitySuggestionDialog
+          gameName={game.name}
+          exeName={cancelSuggestionTarget.exeName}
+          isOffline={isOffline}
+          onCancel={() => setCancelSuggestionTarget(null)}
+          onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
         />
       ) : null}
       {shareOpen ? (
