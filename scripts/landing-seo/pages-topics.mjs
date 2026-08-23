@@ -1241,7 +1241,7 @@ export const topicPages = [
     ],
     asideTitle: "Verify, then install",
     asideBody:
-      "The client and API are open source under MIT, and releases ship with published checksums so you can check the installer before running it.",
+      "The desktop client is open source under MIT, and releases ship with published checksums so you can check the installer before running it.",
     ctaBody:
       "Download the current release from GitHub, verify the checksum if you want to, and let PlayCounter build your playtime record locally.",
   },

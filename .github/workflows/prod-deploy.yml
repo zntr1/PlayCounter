@@ -52,50 +52,6 @@ jobs:
           echo "changed=${changed}" >> "${GITHUB_OUTPUT}"
           echo "Desktop version: ${current}; changed: ${changed}"
 
-  deploy-api:
-    name: Build and deploy API
-    runs-on: ubuntu-latest
-    environment: production
-    needs:
-      - detect-desktop-version
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build API
-        run: |
-          pnpm --filter @playcounter/shared build
-          pnpm --filter @playcounter/api build
-
-      - name: Run database migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm --filter @playcounter/api db:migrate
-
-      - name: Package API
-        run: node scripts/ci/package-api.mjs
-
-      - name: Deploy API to Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .deploy/api/playcounter-api.zip
-
   build-desktop-windows:
     name: Build Windows desktop
     runs-on: windows-latest
@@ -104,7 +60,6 @@ jobs:
       id-token: write
     needs:
       - detect-desktop-version
-      - deploy-api
     if: needs.detect-desktop-version.outputs.version_changed == 'true'
     steps:
       - name: Check out repository
@@ -375,4 +330,4 @@ jobs:
             https://www.virustotal.com/gui/file/${{ steps.artifact.outputs.sha }}
 
             ---
-            PlayCounter is open source - both the client and the server it talks to live in this repository.
+            PlayCounter's desktop client is open source. Its production matching backend is maintained separately.

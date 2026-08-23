@@ -31,12 +31,17 @@ install. macOS and Linux are planned.
 | :-----------------------------------------------------------------------: | :---------------------------------------------------------------------------------: |
 | ![PlayCounter library with game cover art](docs/screenshots/my-games.png) | ![PlayCounter session history with game cover art](docs/screenshots/my-history.png) |
 
-## Why it's open source
+## Why the desktop client is open source
 
 PlayCounter watches your running processes to know when a game starts and stops.
-That only works if you trust it. So the entire client **and** the server it talks
-to are open: you can read exactly what is collected, what leaves your machine, and
-what does not. Nothing is hidden.
+That only works if you trust it. The complete desktop client is open so you can
+inspect the process scanner, local storage, and every network request the app
+makes. Public contracts document the data exchanged with the matching service.
+
+The production API, database migrations, ingestion pipeline, and operational
+deployment code are maintained privately. This does not change the MIT rights
+for backend versions that were already published. The exact historical boundary
+and the current public/private split are documented in [BACKEND.md](./BACKEND.md).
 
 ## Privacy
 
@@ -63,13 +68,11 @@ what does not. Nothing is hidden.
 
 This is a pnpm + Turborepo monorepo:
 
-| Path                | Description                                                                     |
-| ------------------- | ------------------------------------------------------------------------------- |
-| `apps/desktop`      | Tauri 2 + React 19 + TypeScript desktop app (Rust process scanner)              |
-| `apps/api`          | Fastify API: executable matching, community suggestions, metadata, and feedback |
-| `packages/shared`   | Shared TypeScript API and model contracts                                       |
-| `scripts/igdb-seed` | IGDB-based game/executable seeding scripts                                      |
-| `landing`           | Marketing landing page                                                          |
+| Path              | Description                                                        |
+| ----------------- | ------------------------------------------------------------------ |
+| `apps/desktop`    | Tauri 2 + React 19 + TypeScript desktop app (Rust process scanner) |
+| `packages/shared` | Public TypeScript API and local model contracts                    |
+| `landing`         | Marketing landing page                                             |
 
 ## Getting started
 
@@ -88,21 +91,18 @@ Run the desktop app in dev mode:
 pnpm desktop:dev
 ```
 
-Run the API in dev mode:
-
-```bash
-pnpm api:dev
-```
-
 Build the desktop app:
 
 ```bash
 pnpm desktop:build
 ```
 
-> The API uses an in-memory sample catalog unless `DATABASE_URL` (Postgres) is set.
-> Copy `apps/.env.example` to `apps/.env` for environment configuration.
+The production client uses the matching service at `api.playcounter.app`.
+Desktop tests mock that boundary and do not require access to the private
+backend repository.
 
 ## License
 
-[MIT](./LICENSE) © zntr1
+[MIT](./LICENSE) © zntr1. The license covers the files in the current public
+repository. Previously published backend copies retain the MIT rights documented
+in [BACKEND.md](./BACKEND.md).

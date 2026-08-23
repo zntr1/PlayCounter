@@ -16,12 +16,6 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "turbo dev",
-    "api:dev": "corepack pnpm --filter @playcounter/api dev",
-    "db:migrate": "corepack pnpm --filter @playcounter/api db:migrate",
-    "db:seed": "corepack pnpm --filter @playcounter/igdb-seed dev",
-    "db:seed-all-windows-exes": "corepack pnpm --filter @playcounter/igdb-seed seed-all-windows-exes",
-    "db:add-game-by-id": "corepack pnpm --filter @playcounter/igdb-seed add-game-by-id",
-    "db:add-community-game": "corepack pnpm --filter @playcounter/igdb-seed add-community-game",
     "desktop:version": "node scripts/ci/sync-desktop-version.mjs",
     "desktop:dev": "scripts\\dev-desktop.cmd",
     "desktop:build": "scripts\\build-desktop.cmd",

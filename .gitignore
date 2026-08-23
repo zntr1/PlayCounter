@@ -7,7 +7,6 @@ AGENTS.md
 # Environment & secrets
 .env
 .env.*
-!apps/.env.example
 !apps/desktop/.env.example
 !apps/desktop/.env.test
 !apps/desktop/.env.production
