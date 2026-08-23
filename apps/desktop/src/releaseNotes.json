@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.1.8",
+    "releasedAt": "2026-08-23",
+    "headline": "Launch your games from PlayCounter and navigate from the couch.",
+    "highlights": [
+      "On Windows, you can now launch tracked games directly from My Games. PlayCounter learns local program files as you play, or you can choose one yourself; saved paths never leave your PC.",
+      "Optional controller navigation lets you browse PlayCounter and start games with Xbox-style button guidance, including a shortcut to bring the app to the front.",
+      "My Games now includes a larger card layout, clearer Play actions, launch progress feedback, and protection against starting multiple games at once.",
+      "Pending community game suggestions can now be cancelled without removing your private game, playtime, or history. Suggestions supported by other players remain in review.",
+      "Dialogs, tours, contribution controls, and wording have been refined for a more consistent and natural experience."
+    ]
+  },
+  {
     "version": "1.1.7",
     "releasedAt": "2026-08-21",
     "headline": "Community-powered emulator matching gets smarter.",
