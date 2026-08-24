@@ -76,6 +76,13 @@ describe("backup transfer data", () => {
           owner: { gameId: 42, source: "igdb" },
         },
       ],
+      manualLaunchTargets: [
+        {
+          exeName: "Launcher.exe",
+          path: String.raw`C:\Users\player\Games\Launcher.exe`,
+          owner: { gameId: 42, source: "igdb" },
+        },
+      ],
       activeSessions: [{ id: 2 }],
       ambiguousMatches: [{ exeName: "game.exe" }],
       exeCache: [
@@ -96,6 +103,7 @@ describe("backup transfer data", () => {
     expect(result).not.toHaveProperty("discoveredReviewReminder");
     expect(result).not.toHaveProperty("blacklist");
     expect(result).not.toHaveProperty("launchTargets");
+    expect(result).not.toHaveProperty("manualLaunchTargets");
     expect(result).not.toHaveProperty("activeSessions");
     expect(result).not.toHaveProperty("ambiguousMatches");
   });

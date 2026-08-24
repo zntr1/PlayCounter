@@ -1,11 +1,16 @@
 import type { Contribution, Game, Session } from "@playcounter/shared";
 import type { EmulatorMapping } from "./emulators/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
+const { invokeMock, openMock } = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+  openMock: vi.fn(),
+}));
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: (value: string) => value,
   invoke: invokeMock,
 }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock }));
+import { findManualLaunchTarget, manualLaunchTargetKey } from "./gameLaunch";
 import {
   createGameIdentityResolver,
   resolvedCanonicalGameKey,
@@ -18,9 +23,11 @@ import {
   applyCommunitySuggestionOutcome,
   applyContributionMarkers,
   cancelCommunitySuggestion,
+  chooseLaunchTarget,
   clearLocalLibrary,
   dismissAmbiguousMatch,
   evaluateAndStoreMilestones,
+  forgetManualLaunchTarget,
   hydrateGameMetadata,
   findGameMatches,
   ignoreDiscoveredProcess,
@@ -98,6 +105,7 @@ beforeEach(() => {
     platform: "Win32",
   });
   invokeMock.mockReset();
+  openMock.mockReset();
   invokeMock.mockImplementation(async (command: string) => {
     if (command === "set_user_ignored_process") {
       return {
@@ -116,6 +124,7 @@ beforeEach(() => {
   useAppStore.setState({
     exeCache: new Map(),
     launchTargets: new Map(),
+    manualLaunchTargets: new Map(),
     activeSessions: [],
     ambiguousMatches: [],
     emulatorMappings: new Map(),
@@ -169,6 +178,72 @@ describe("game launching", () => {
     owner: { gameId: 42, source: "igdb" as const },
   };
 
+  it("accepts a differently-named manual launcher", async () => {
+    openMock.mockResolvedValueOnce(String.raw`C:\Games\Launcher.exe`);
+
+    await expect(
+      chooseLaunchTarget(["Game.exe"], target.owner),
+    ).resolves.toMatchObject({
+      exeName: "Launcher.exe",
+      path: String.raw`C:\Games\Launcher.exe`,
+    });
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
+    expect(
+      useAppStore
+        .getState()
+        .manualLaunchTargets.get(manualLaunchTargetKey(target.owner)),
+    ).toMatchObject({ exeName: "Launcher.exe" });
+  });
+
+  it("keeps identical launcher basenames independent between games", async () => {
+    const secondOwner = { gameId: 84, source: "igdb" as const };
+    openMock
+      .mockResolvedValueOnce(String.raw`C:\First\Launcher.exe`)
+      .mockResolvedValueOnce(String.raw`D:\Second\Launcher.exe`);
+
+    await chooseLaunchTarget(["Game.exe"], target.owner);
+    await chooseLaunchTarget(["OtherGame.exe"], secondOwner);
+
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(2);
+    expect(
+      useAppStore
+        .getState()
+        .manualLaunchTargets.get(manualLaunchTargetKey(target.owner))?.path,
+    ).toBe(String.raw`C:\First\Launcher.exe`);
+    expect(
+      useAppStore
+        .getState()
+        .manualLaunchTargets.get(manualLaunchTargetKey(secondOwner))?.path,
+    ).toBe(String.raw`D:\Second\Launcher.exe`);
+  });
+
+  it("replaces and forgets a manual launcher stored under an older alias", async () => {
+    const oldOwner = { gameId: -1, source: "custom" as const };
+    const aliases = [oldOwner, target.owner];
+    useAppStore.getState().setManualLaunchTarget({
+      exeName: "OldLauncher.exe",
+      path: String.raw`C:\Games\OldLauncher.exe`,
+      owner: oldOwner,
+    });
+    openMock.mockResolvedValueOnce(String.raw`C:\Games\NewLauncher.exe`);
+
+    await chooseLaunchTarget(["Game.exe"], target.owner, aliases);
+    const selected = findManualLaunchTarget(
+      aliases,
+      useAppStore.getState().manualLaunchTargets,
+    );
+    expect(selected?.path).toBe(String.raw`C:\Games\NewLauncher.exe`);
+    expect(
+      useAppStore
+        .getState()
+        .manualLaunchTargets.has(manualLaunchTargetKey(oldOwner)),
+    ).toBe(false);
+
+    if (!selected) throw new Error("Expected a manual launcher");
+    forgetManualLaunchTarget(selected.owner);
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
+  });
+
   it("invokes the native launcher", async () => {
     const firstTarget = {
       ...target,
@@ -216,6 +291,25 @@ describe("game launching", () => {
       kind: "notAFile",
     });
     expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(false);
+  });
+
+  it("forgets a failed manual launcher without removing the auto target", async () => {
+    const manual = {
+      ...target,
+      exeName: "Launcher.exe",
+      path: String.raw`C:\Games\Launcher.exe`,
+    };
+    useAppStore.getState().setLaunchTarget(target);
+    useAppStore.getState().setManualLaunchTarget(manual);
+    invokeMock.mockRejectedValueOnce({ kind: "notFound", message: "Gone" });
+
+    await expect(launchGame(manual)).rejects.toMatchObject({
+      kind: "notFound",
+    });
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(
+      target,
+    );
   });
 
   it("suppresses concurrent launch requests", async () => {
@@ -322,6 +416,26 @@ describe("game launching", () => {
     expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(false);
     expect(useAppStore.getState().launchTargets.get("networkgame.exe")).toEqual(
       inaccessible,
+    );
+  });
+
+  it("prunes stale manual launchers independently", async () => {
+    const manual = {
+      ...target,
+      exeName: "Launcher.exe",
+      path: String.raw`C:\Games\Launcher.exe`,
+    };
+    useAppStore.getState().setLaunchTarget(target);
+    useAppStore.getState().setManualLaunchTarget(manual);
+    invokeMock.mockResolvedValueOnce([
+      { path: target.path, status: "ok" },
+      { path: manual.path, status: "missing" },
+    ]);
+
+    await expect(verifyLaunchTargets("manual-test")).resolves.toBe(1);
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(
+      target,
     );
   });
 
@@ -455,6 +569,16 @@ describe("local library reset", () => {
       archivedGameSeconds: { "igdb:42": 7200 },
       playtimeAdjustments: { "igdb:42": 600 },
       autoDetectedGameKeys: ["igdb:42"],
+      manualLaunchTargets: new Map([
+        [
+          "42:igdb",
+          {
+            exeName: "Launcher.exe",
+            path: String.raw`C:\Games\Launcher.exe`,
+            owner: { gameId: 42, source: "igdb" },
+          },
+        ],
+      ]),
     });
 
     expect(clearLocalLibrary()).toEqual({
@@ -474,6 +598,7 @@ describe("local library reset", () => {
       autoDetectedGameKeys: [],
     });
     expect(state.blacklist).toEqual(new Set(["ignored.exe"]));
+    expect(state.manualLaunchTargets.size).toBe(0);
     expect(state.contributionCounts).toMatchObject({ verified: 1 });
     expect(state.knownEmulators.has("dosbox")).toBe(true);
     expect(state.exeCache.size).toBe(0);
@@ -1689,6 +1814,11 @@ describe("canonical alias actions", () => {
         ],
       ]),
     });
+    useAppStore.getState().setManualLaunchTarget({
+      exeName: "Launcher.exe",
+      path: String.raw`C:\Games\Launcher.exe`,
+      owner: aliases[1],
+    });
 
     setGamePlaytime({
       gameId: 1,
@@ -1709,6 +1839,7 @@ describe("canonical alias actions", () => {
     expect(useAppStore.getState().exeCache.size).toBe(0);
     expect(useAppStore.getState().recentSessions).toEqual([]);
     expect(useAppStore.getState().playtimeAdjustments).toEqual({});
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
   });
 
   it("stores an archive-aware adjustment without inventing a session", () => {

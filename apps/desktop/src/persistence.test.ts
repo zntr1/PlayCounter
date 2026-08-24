@@ -42,6 +42,7 @@ function makeState(
     settings,
     exeCache: new Map(),
     launchTargets: new Map(),
+    manualLaunchTargets: new Map(),
     gameMetadata: new Map(),
     recentSessions,
     activeSessions: [],
@@ -108,6 +109,28 @@ describe("session persistence", () => {
         path: String.raw`C:\Games\Game.exe`,
         owner: { gameId: 42, source: "igdb" },
       },
+    ]);
+  });
+
+  it("persists game-owned manual launcher overrides separately", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+    const target = {
+      exeName: "Launcher.exe",
+      path: String.raw`C:\Games\Launcher.exe`,
+      owner: { gameId: 42, source: "igdb" as const },
+    };
+
+    persistAppState({
+      ...makeState([]),
+      manualLaunchTargets: new Map([["42:igdb", target]]),
+    });
+
+    expect(JSON.parse(setItem.mock.calls[0][1]).manualLaunchTargets).toEqual([
+      target,
     ]);
   });
 

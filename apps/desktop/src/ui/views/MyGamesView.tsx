@@ -39,6 +39,7 @@ import {
   doNotTrackGame,
   findGameMatches,
   forgetLaunchTarget,
+  forgetManualLaunchTarget,
   launchGame,
   convertToCustomGame,
   hydrateGameMetadata,
@@ -121,7 +122,11 @@ import {
 } from "../libraryGameKind";
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 import { XboxButtonGlyph } from "../XboxButtonGlyph";
-import { launchErrorMessage, launchTargetsForGame } from "../../gameLaunch";
+import {
+  findManualLaunchTarget,
+  launchErrorMessage,
+  launchTargetsForGame,
+} from "../../gameLaunch";
 import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 
@@ -1242,6 +1247,7 @@ function GameLibraryCard({
     [launchKey, onReleaseLaunch],
   );
   const launchTargets = useAppStore((state) => state.launchTargets);
+  const manualLaunchTargets = useAppStore((state) => state.manualLaunchTargets);
   const exeCache = useAppStore((state) => state.exeCache);
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
@@ -1252,7 +1258,11 @@ function GameLibraryCard({
   const canConfigureLaunch =
     canLaunchExecutables &&
     game.exeNames.some((exeName) => /\.exe$/i.test(exeName));
-  const ownedLaunchTargets = useMemo(
+  const manualTarget = useMemo(
+    () => findManualLaunchTarget(game.aliases, manualLaunchTargets),
+    [game.aliases, manualLaunchTargets],
+  );
+  const autoLaunchTargets = useMemo(
     () =>
       launchTargetsForGame({
         exeNames: game.exeNames,
@@ -1262,6 +1272,16 @@ function GameLibraryCard({
       }),
     [exeCache, game.aliases, game.exeNames, launchTargets],
   );
+  const ownedLaunchTargets = useMemo(() => {
+    if (!manualTarget) return autoLaunchTargets;
+    const manualKey = manualTarget.exeName.toLowerCase();
+    return [
+      manualTarget,
+      ...autoLaunchTargets.filter(
+        (target) => target.exeName.toLowerCase() !== manualKey,
+      ),
+    ];
+  }, [autoLaunchTargets, manualTarget]);
   const primaryLaunchTarget = ownedLaunchTargets[0];
   const showPlayButton =
     launchTourDemo ||
@@ -1833,10 +1853,14 @@ function GameLibraryCard({
   async function handleSetLaunchFile() {
     contextMenu.close();
     try {
-      const target = await chooseLaunchTarget(game.exeNames, {
-        gameId: game.gameId,
-        source: game.source,
-      });
+      const target = await chooseLaunchTarget(
+        game.exeNames,
+        {
+          gameId: game.gameId,
+          source: game.source,
+        },
+        game.aliases,
+      );
       if (!target) return;
       addToast({
         tone: "success",
@@ -1855,7 +1879,11 @@ function GameLibraryCard({
   function handleForgetLaunchFile() {
     contextMenu.close();
     if (!primaryLaunchTarget) return;
-    forgetLaunchTarget(primaryLaunchTarget.exeName);
+    if (manualTarget && primaryLaunchTarget === manualTarget) {
+      forgetManualLaunchTarget(manualTarget.owner);
+    } else {
+      forgetLaunchTarget(primaryLaunchTarget.exeName);
+    }
     addToast({
       tone: "info",
       title: "Launch file forgotten",

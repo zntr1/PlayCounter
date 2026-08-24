@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  findManualLaunchTarget,
   isWindowsExecutablePath,
   isVolatileLaunchPath,
   launchErrorKind,
@@ -7,6 +8,7 @@ import {
   launchFileBaseName,
   launchTargetsForGame,
   matchesTrackedExeName,
+  manualLaunchTargetKey,
   resolveLaunchOwner,
   shouldForgetLaunchTarget,
   shouldForgetOnLaunchError,
@@ -40,6 +42,26 @@ describe("game launch helpers", () => {
     expect(matchesTrackedExeName("c:/games/Launcher.exe", ["Game.exe"])).toBe(
       false,
     );
+  });
+
+  it("keys manual targets by game owner and resolves them through aliases", () => {
+    const oldOwner = { gameId: -7, source: "custom" as const };
+    const currentOwner = { gameId: 7, source: "community" as const };
+    const manualTarget = {
+      exeName: "Launcher.exe",
+      path: String.raw`C:\Games\Launcher.exe`,
+      owner: oldOwner,
+    };
+    const targets = new Map([[manualLaunchTargetKey(oldOwner), manualTarget]]);
+
+    expect(manualLaunchTargetKey({ gameId: 7, source: null })).toBe("7:null");
+    expect(
+      manualLaunchTargetKey({ gameId: 7, source: undefined } as never),
+    ).toBe("7:null");
+    expect(findManualLaunchTarget([currentOwner, oldOwner], targets)).toBe(
+      manualTarget,
+    );
+    expect(findManualLaunchTarget([currentOwner], targets)).toBeUndefined();
   });
 
   it("recognizes volatile Temp paths without rejecting installed folders", () => {

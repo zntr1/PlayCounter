@@ -25,6 +25,7 @@ type PersistableAppState = {
   settings: Settings;
   exeCache: ReadonlyMap<string, unknown>;
   launchTargets?: ReadonlyMap<string, unknown>;
+  manualLaunchTargets?: ReadonlyMap<string, unknown>;
   gameMetadata: ReadonlyMap<string, unknown>;
   recentSessions: Session[];
   activeSessions: unknown[];
@@ -57,6 +58,7 @@ export type PersistedPayload = {
   settings: Settings;
   exeCache: unknown[];
   launchTargets?: unknown[];
+  manualLaunchTargets?: unknown[];
   gameMetadata: unknown[];
   sessions: Session[];
   activeSessions: unknown[];
@@ -107,6 +109,7 @@ export function createPersistedPayload(
     settings: state.settings,
     exeCache: [...state.exeCache.values()],
     launchTargets: [...(state.launchTargets?.values() ?? [])],
+    manualLaunchTargets: [...(state.manualLaunchTargets?.values() ?? [])],
     gameMetadata: [...state.gameMetadata.values()],
     sessions: normalizeSessions([...state.recentSessions]),
     activeSessions: state.activeSessions,

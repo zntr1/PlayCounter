@@ -29,6 +29,7 @@ import type {
   KnownEmulator,
 } from "./emulators/types";
 import { findTour } from "./ui/tour/tourDefinitions";
+import { manualLaunchTargetKey } from "./gameLaunch";
 import { stepView } from "./ui/tour/tourNavigation";
 import {
   defaultTourProgress,
@@ -287,6 +288,7 @@ type AppState = {
   userIgnoredProcessesPath: string | null;
   exeCache: Map<string, ExeCacheEntry>;
   launchTargets: Map<string, LaunchTarget>;
+  manualLaunchTargets: Map<string, LaunchTarget>;
   apiRequestLog: ApiRequestLogEntry[];
   runtimeLog: RuntimeLogEntry[];
   blacklist: Set<string>;
@@ -352,6 +354,11 @@ type AppState = {
   removeExeCacheEntry: (exeName: string) => void;
   setLaunchTarget: (target: LaunchTarget) => void;
   removeLaunchTarget: (exeName: string) => void;
+  setManualLaunchTarget: (
+    target: LaunchTarget,
+    aliases?: readonly LaunchTargetOwner[],
+  ) => void;
+  removeManualLaunchTarget: (owner: LaunchTargetOwner) => void;
   forgetAllLaunchTargets: () => void;
   addApiRequestLogEntry: (entry: Omit<ApiRequestLogEntry, "id" | "at">) => void;
   addRuntimeLogEntry: (message: string) => void;
@@ -509,6 +516,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   userIgnoredProcessesPath: null,
   exeCache: new Map(),
   launchTargets: new Map(),
+  manualLaunchTargets: new Map(),
   apiRequestLog: [],
   runtimeLog: [],
   blacklist: new Set(),
@@ -788,8 +796,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       launchTargets.delete(exeName.toLowerCase());
       return { launchTargets };
     }),
+  setManualLaunchTarget: (target, aliases = [target.owner]) =>
+    set((state) => {
+      const manualLaunchTargets = new Map(state.manualLaunchTargets);
+      for (const alias of aliases) {
+        manualLaunchTargets.delete(manualLaunchTargetKey(alias));
+      }
+      manualLaunchTargets.set(manualLaunchTargetKey(target.owner), target);
+      return { manualLaunchTargets };
+    }),
+  removeManualLaunchTarget: (owner) =>
+    set((state) => {
+      const manualLaunchTargets = new Map(state.manualLaunchTargets);
+      manualLaunchTargets.delete(manualLaunchTargetKey(owner));
+      return { manualLaunchTargets };
+    }),
   forgetAllLaunchTargets: () => {
-    set({ launchTargets: new Map() });
+    set({ launchTargets: new Map(), manualLaunchTargets: new Map() });
     persistSoon();
   },
   addApiRequestLogEntry: (entry) =>

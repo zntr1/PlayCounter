@@ -92,6 +92,21 @@ export function matchesTrackedExeName(
   return exeNames.some((exeName) => exeName.toLowerCase() === baseName);
 }
 
+export function manualLaunchTargetKey(owner: LaunchOwner) {
+  return `${owner.gameId}:${owner.source ?? "null"}`;
+}
+
+export function findManualLaunchTarget(
+  aliases: readonly LaunchOwner[],
+  manualLaunchTargets: ReadonlyMap<string, LaunchTargetLike>,
+) {
+  for (const alias of aliases) {
+    const target = manualLaunchTargets.get(manualLaunchTargetKey(alias));
+    if (target) return target;
+  }
+  return undefined;
+}
+
 export function resolveLaunchOwner(
   exeKey: string,
   target: LaunchTargetLike,

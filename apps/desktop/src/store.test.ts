@@ -10,6 +10,7 @@ import {
   useAppStore,
 } from "./store";
 import { MAX_STORED_SESSIONS } from "./sessionPersistence";
+import { manualLaunchTargetKey } from "./gameLaunch";
 import {
   DISCOVERED_REVIEW_REMINDER_ID,
   evaluateDiscoveredReviewReminder,
@@ -190,6 +191,7 @@ beforeEach(() => {
     ignoredProcesses: new Set(),
     userIgnoredProcesses: new Set(),
     launchTargets: new Map(),
+    manualLaunchTargets: new Map(),
     settings: {
       ...useAppStore.getState().settings,
       desktopOverlaysEnabled: true,
@@ -230,6 +232,75 @@ describe("launch target state", () => {
     });
     useAppStore.getState().clearCache();
     expect(useAppStore.getState().launchTargets.size).toBe(0);
+  });
+
+  it("stores manual targets by owner and replaces every alias atomically", () => {
+    const oldOwner = { gameId: -1, source: "custom" as const };
+    const currentOwner = { gameId: 42, source: "community" as const };
+    const aliases = [oldOwner, currentOwner];
+    useAppStore.getState().setManualLaunchTarget({
+      exeName: "OldLauncher.exe",
+      path: String.raw`C:\Games\OldLauncher.exe`,
+      owner: oldOwner,
+    });
+
+    useAppStore.getState().setManualLaunchTarget(
+      {
+        exeName: "Launcher.exe",
+        path: String.raw`D:\Games\Launcher.exe`,
+        owner: currentOwner,
+      },
+      aliases,
+    );
+
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(1);
+    expect(
+      useAppStore
+        .getState()
+        .manualLaunchTargets.has(manualLaunchTargetKey(oldOwner)),
+    ).toBe(false);
+    expect(
+      useAppStore
+        .getState()
+        .manualLaunchTargets.get(manualLaunchTargetKey(currentOwner)),
+    ).toMatchObject({ exeName: "Launcher.exe" });
+  });
+
+  it("allows different games to use the same launcher basename", () => {
+    const firstOwner = { gameId: 1, source: "igdb" as const };
+    const secondOwner = { gameId: 2, source: "igdb" as const };
+    for (const [owner, path] of [
+      [firstOwner, String.raw`C:\First\Launcher.exe`],
+      [secondOwner, String.raw`D:\Second\Launcher.exe`],
+    ] as const) {
+      useAppStore.getState().setManualLaunchTarget({
+        exeName: "Launcher.exe",
+        path,
+        owner,
+      });
+    }
+
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(2);
+  });
+
+  it("keeps manual choices on cache reset but clears them when explicitly forgotten", () => {
+    const owner = { gameId: 42, source: "igdb" as const };
+    useAppStore.getState().setManualLaunchTarget({
+      exeName: "Launcher.exe",
+      path: String.raw`C:\Games\Launcher.exe`,
+      owner,
+    });
+    useAppStore.getState().clearCache();
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(1);
+
+    useAppStore.getState().setLaunchTarget({
+      exeName: "Game.exe",
+      path: String.raw`C:\Games\Game.exe`,
+      owner,
+    });
+    useAppStore.getState().forgetAllLaunchTargets();
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
   });
 
   it("keeps launching opt-in and turns controller control off with it", () => {

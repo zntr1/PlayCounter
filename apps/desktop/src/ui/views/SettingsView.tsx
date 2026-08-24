@@ -84,7 +84,9 @@ export function SettingsView() {
   const forgetAllLaunchTargets = useAppStore(
     (state) => state.forgetAllLaunchTargets,
   );
-  const launchTargetCount = useAppStore((state) => state.launchTargets.size);
+  const launchTargetCount = useAppStore(
+    (state) => state.launchTargets.size + state.manualLaunchTargets.size,
+  );
   const setAccentColor = useAppStore((state) => state.setAccentColor);
   const knownEmulators = useAppStore((state) => state.knownEmulators);
   const ignoredProcessCount = useAppStore(

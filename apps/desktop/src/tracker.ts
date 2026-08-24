@@ -50,7 +50,7 @@ import {
   isWindowsExecutablePath,
   launchErrorKind,
   launchFileBaseName,
-  matchesTrackedExeName,
+  manualLaunchTargetKey,
   shouldForgetLaunchTarget,
   shouldForgetOnLaunchError,
   type LaunchOutcome,
@@ -155,6 +155,7 @@ type PersistedState = {
   settings?: Partial<Settings>;
   exeCache?: ExeCacheEntry[];
   launchTargets?: LaunchTarget[];
+  manualLaunchTargets?: LaunchTarget[];
   gameMetadata?: GameMetadata[];
   ambiguousMatches?: AmbiguousProcessMatch[];
   emulatorMappings?: EmulatorMapping[];
@@ -457,9 +458,8 @@ function hydrate() {
       ] as const;
     }),
   );
-  const launchTargets = new Map<string, LaunchTarget>();
-  for (const value of persisted.launchTargets ?? []) {
-    if (!value || typeof value !== "object") continue;
+  function persistedLaunchTarget(value: unknown): LaunchTarget | null {
+    if (!value || typeof value !== "object") return null;
     const target = value as Partial<LaunchTarget>;
     const owner = target.owner as Partial<LaunchTargetOwner> | undefined;
     const source = owner?.source;
@@ -475,13 +475,25 @@ function hydrate() {
         source !== "community" &&
         source !== "custom")
     ) {
-      continue;
+      return null;
     }
-    launchTargets.set(target.exeName.toLowerCase(), {
+    return {
       exeName: target.exeName,
       path: target.path,
       owner: { gameId: owner.gameId, source: source ?? null },
-    });
+    };
+  }
+  const launchTargets = new Map<string, LaunchTarget>();
+  for (const value of persisted.launchTargets ?? []) {
+    const target = persistedLaunchTarget(value);
+    if (target) launchTargets.set(target.exeName.toLowerCase(), target);
+  }
+  const manualLaunchTargets = new Map<string, LaunchTarget>();
+  for (const value of persisted.manualLaunchTargets ?? []) {
+    const target = persistedLaunchTarget(value);
+    if (target) {
+      manualLaunchTargets.set(manualLaunchTargetKey(target.owner), target);
+    }
   }
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
@@ -591,6 +603,7 @@ function hydrate() {
     // runtime while the app was closed must never be credited.
     exeCache: exeCacheMap,
     launchTargets,
+    manualLaunchTargets,
     gameMetadata: gameMetadataMap,
     recentSessions: hydratedSessions,
     activeSessions: normalizePersistedActiveSessions(persisted),
@@ -825,7 +838,7 @@ function recordLaunchTargets(matches: ProcessMatch[]) {
 }
 
 export async function launchGame(
-  target: Pick<LaunchTarget, "exeName" | "path">,
+  target: Pick<LaunchTarget, "exeName" | "path" | "owner">,
 ): Promise<LaunchOutcome> {
   if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
     throw new Error("Enable 'Launch games directly' in Settings first.");
@@ -844,12 +857,23 @@ export async function launchGame(
   } catch (error) {
     launchInFlight.delete(key);
     if (shouldForgetOnLaunchError(launchErrorKind(error))) {
-      const current = useAppStore
-        .getState()
-        .launchTargets.get(target.exeName.toLowerCase());
-      if (current?.path === target.path) {
-        useAppStore.getState().removeLaunchTarget(target.exeName);
+      const state = useAppStore.getState();
+      const exeKey = target.exeName.toLowerCase();
+      const manual = state.manualLaunchTargets.get(
+        manualLaunchTargetKey(target.owner),
+      );
+      if (
+        manual?.path === target.path &&
+        manual.exeName.toLowerCase() === exeKey
+      ) {
+        state.removeManualLaunchTarget(target.owner);
         persist();
+      } else {
+        const current = state.launchTargets.get(exeKey);
+        if (current?.path === target.path) {
+          state.removeLaunchTarget(target.exeName);
+          persist();
+        }
       }
     }
     logRuntime(`game launch failed ${target.exeName}: ${formatError(error)}`);
@@ -865,7 +889,11 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
     return 0;
   }
   if (launchVerificationInFlight) return launchVerificationInFlight;
-  const targets = [...useAppStore.getState().launchTargets.values()];
+  const state = useAppStore.getState();
+  const targets = [
+    ...state.launchTargets.values(),
+    ...state.manualLaunchTargets.values(),
+  ];
   if (targets.length === 0) return 0;
 
   launchVerificationInFlight = (async () => {
@@ -881,6 +909,13 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
     for (const target of [...useAppStore.getState().launchTargets.values()]) {
       if (!stalePaths.has(target.path.toLowerCase())) continue;
       useAppStore.getState().removeLaunchTarget(target.exeName);
+      pruned += 1;
+    }
+    for (const target of [
+      ...useAppStore.getState().manualLaunchTargets.values(),
+    ]) {
+      if (!stalePaths.has(target.path.toLowerCase())) continue;
+      useAppStore.getState().removeManualLaunchTarget(target.owner);
       pruned += 1;
     }
     if (pruned > 0) persist();
@@ -916,9 +951,18 @@ export function forgetLaunchTarget(exeName: string) {
   persist();
 }
 
+export function forgetManualLaunchTarget(owner: LaunchTargetOwner) {
+  useAppStore.getState().removeManualLaunchTarget(owner);
+  logRuntime(
+    `manual launch target forgotten gameId=${owner.gameId} source=${owner.source ?? "unknown"}`,
+  );
+  persist();
+}
+
 export async function chooseLaunchTarget(
   exeNames: string[],
   owner: LaunchTargetOwner,
+  aliases: readonly LaunchTargetOwner[] = [owner],
 ): Promise<LaunchTarget | null> {
   const selected = await open({
     multiple: false,
@@ -929,19 +973,13 @@ export async function chooseLaunchTarget(
   if (!isWindowsExecutablePath(selected)) {
     throw new Error("Pick an .exe file with a full Windows path.");
   }
-  if (!matchesTrackedExeName(selected, exeNames)) {
-    const expected = exeNames.filter(Boolean).join(" or ");
-    throw new Error(
-      `Pick the file named ${expected || "the tracked .exe file"}.`,
-    );
-  }
   const baseName = launchFileBaseName(selected);
   const exeName =
     exeNames.find(
       (candidate) => candidate.toLowerCase() === baseName.toLowerCase(),
     ) ?? baseName;
   const target = { exeName, path: selected, owner };
-  useAppStore.getState().setLaunchTarget(target);
+  useAppStore.getState().setManualLaunchTarget(target, aliases);
   logRuntime(`launch target selected ${exeName}`);
   persist();
   if (isVolatileLaunchPath(selected)) {
@@ -4414,6 +4452,12 @@ export function untrackCustomGame(exeName: string) {
 
   state.removeExeCacheEntry(exeName);
   state.removeLaunchTarget(exeName);
+  if (existing.gameId !== undefined) {
+    state.removeManualLaunchTarget({
+      gameId: existing.gameId,
+      source: existing.source ?? null,
+    });
+  }
   logRuntime(`custom game untracked ${exeName}`);
   persist();
   void requestProcessScan("after custom game untrack");
@@ -4456,6 +4500,10 @@ function untrackGameInternal(
   for (const exeName of matchingExeNames) {
     state.removeExeCacheEntry(exeName);
     state.removeLaunchTarget(exeName);
+  }
+
+  for (const alias of aliases) {
+    state.removeManualLaunchTarget(alias);
   }
 
   for (const mapping of state.emulatorMappings.values()) {
@@ -4850,6 +4898,7 @@ export function clearLocalLibrary() {
     gameMetadata: new Map(),
     exeCache: new Map(),
     launchTargets: new Map(),
+    manualLaunchTargets: new Map(),
     archivedSeconds: 0,
     archivedGameSeconds: {},
     playtimeAdjustments: {},
