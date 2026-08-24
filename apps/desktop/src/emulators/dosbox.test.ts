@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  discoverDosboxLaunchTarget,
   dosboxAdapter,
   readDosboxCommandLine,
   readDosboxTitle,
@@ -40,6 +41,70 @@ describe("DOSBox adapter", () => {
       value: "duke3d.exe",
       detectionSource: "launch_arguments",
     });
+  });
+
+  it("discovers a full program or game-specific config launch target", () => {
+    expect(
+      discoverDosboxLaunchTarget([
+        "-conf",
+        String.raw`C:\DOS\dosbox_settings.conf`,
+        String.raw`D:\Games\Doom\DOOM.EXE`,
+        "-exit",
+      ]),
+    ).toEqual({
+      target: {
+        kind: "file",
+        filePath: String.raw`D:\Games\Doom\DOOM.EXE`,
+      },
+      source: "launch_arguments",
+    });
+    expect(
+      discoverDosboxLaunchTarget([
+        "-conf",
+        String.raw`C:\DOS\dosbox_settings.conf`,
+        "-conf",
+        String.raw`D:\Games\Doom\dosbox_DOOM.conf`,
+      ]),
+    ).toEqual({
+      target: {
+        kind: "file",
+        filePath: String.raw`D:\Games\Doom\dosbox_DOOM.conf`,
+      },
+      source: "launch_arguments",
+    });
+  });
+
+  it("resolves relative programs against the DOSBox process working directory", () => {
+    expect(
+      discoverDosboxLaunchTarget(
+        ["WOLF3D.EXE", "--exit"],
+        String.raw`C:\Users\phili\Downloads\dosbox\wolf3d`,
+      ),
+    ).toEqual({
+      target: {
+        kind: "file",
+        filePath: String.raw`C:\Users\phili\Downloads\dosbox\wolf3d\WOLF3D.EXE`,
+      },
+      source: "launch_arguments",
+    });
+  });
+
+  it("identifies DOSBox launch files for reusable target correlation", () => {
+    expect(
+      dosboxAdapter.launch?.identifyTarget(
+        { kind: "file", filePath: String.raw`D:\Games\Doom\DOOM.EXE` },
+        context,
+      ),
+    ).toMatchObject({ kind: "program", value: "doom.exe" });
+    expect(
+      dosboxAdapter.launch?.identifyTarget(
+        {
+          kind: "file",
+          filePath: String.raw`D:\Games\Doom\dosbox_DOOM.conf`,
+        },
+        context,
+      ),
+    ).toMatchObject({ kind: "conf", value: "doom" });
   });
 
   it("uses the classic Program title to follow content changes", () => {

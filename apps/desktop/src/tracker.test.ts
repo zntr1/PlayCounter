@@ -684,6 +684,128 @@ describe("game launching", () => {
     });
   });
 
+  it("uses the existing mapping while a PlayCounter-launched DOSBox game is still starting", async () => {
+    const contentKey = "dosbox:program:doom";
+    const filePath = String.raw`D:\Games\Doom\DOOM.EXE`;
+    const mapping = emulatorMapping({
+      contentKey,
+      emulatorId: "dosbox",
+      label: "DOSBox",
+      contentKind: "program",
+      contentValue: "doom",
+      display: "DOOM",
+      gameName: "Doom",
+    });
+    useAppStore.setState({
+      emulatorMappings: new Map([[contentKey, mapping]]),
+      emulatorAutoLaunchTargets: new Map([
+        [
+          contentKey,
+          {
+            contentKey,
+            emulatorId: "dosbox",
+            filePath,
+            setAt: "2026-08-24T00:00:00.000Z",
+          },
+        ],
+      ]),
+      emulatorObservations: [
+        {
+          kind: "content",
+          key: "dosbox:program:doom.exe",
+          emulatorId: "dosbox",
+          label: "DOSBox",
+          hostExeName: "DOSBox.exe",
+          contentKind: "program",
+          contentValue: "doom.exe",
+          display: "DOOM.EXE",
+          trust: "recognized",
+          shareable: true,
+          state: "unknown",
+          detectedAt: "2026-08-24T00:00:00.000Z",
+        },
+      ],
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "DOSBox.exe",
+            exePath: String.raw`C:\Emulators\DOSBox.exe`,
+            pid: 123,
+            startedAtUnix: 10,
+            emulatorId: "dosbox",
+            commandLine: [filePath, "-exit"],
+            windowTitle: null,
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+
+    expect(useAppStore.getState().emulatorObservations).toEqual([]);
+    expect(useAppStore.getState().activeSessions).toHaveLength(1);
+    expect(useAppStore.getState().activeSessions[0]).toMatchObject({
+      gameName: "Doom",
+      emulator: {
+        emulatorId: "dosbox",
+        contentKey,
+      },
+    });
+  });
+
+  it("learns a relative DOSBox program from the process working directory", async () => {
+    const contentKey = "dosbox:program:wolf3d";
+    const workingDirectory = String.raw`C:\Users\phili\Downloads\dosbox\wolf3d`;
+    const filePath = `${workingDirectory}\\WOLF3D.EXE`;
+    useAppStore.setState({
+      emulatorMappings: new Map([
+        [
+          contentKey,
+          emulatorMapping({
+            contentKey,
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            contentKind: "program",
+            contentValue: "wolf3d",
+            display: "WOLF3D",
+            gameName: "Wolfenstein 3D",
+          }),
+        ],
+      ]),
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "DOSBox.exe",
+            exePath: String.raw`C:\Program Files (x86)\DOSBox-0.74-3\DOSBox.exe`,
+            pid: 123,
+            startedAtUnix: 10,
+            emulatorId: "dosbox",
+            commandLine: ["WOLF3D.EXE", "--exit"],
+            workingDirectory,
+            windowTitle:
+              "DOSBox 0.74-3, Cpu speed: max 100% cycles, Frameskip 0, Program: WOLF3D",
+          },
+        ];
+      }
+      if (command === "verify_emulator_content_paths") {
+        return [{ path: filePath, status: "ok" }];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+
+    expect(
+      useAppStore.getState().emulatorAutoLaunchTargets.get(contentKey),
+    ).toMatchObject({ filePath });
+    expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
+  });
+
   it("does not learn executable paths from temporary folders", async () => {
     useAppStore.setState({
       exeCache: new Map([

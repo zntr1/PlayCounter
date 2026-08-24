@@ -21,12 +21,27 @@ use std::process::{Command, Stdio};
 const DOLPHIN_EXTENSIONS: &[&str] = &[
     "elf", "dol", "gcm", "iso", "tgc", "wbfs", "ciso", "gcz", "wad", "dff", "wia", "rvz", "json",
 ];
+const DOSBOX_EXTENSIONS: &[&str] = &["conf", "exe", "com", "bat"];
 
 struct EmulatorLaunchAdapter {
     id: &'static str,
+    label: &'static str,
     extensions: &'static [&'static str],
     arguments: fn(&Path) -> Vec<OsString>,
     is_idle: fn(&ProcessSnapshot) -> bool,
+}
+
+fn dosbox_arguments(content_path: &Path) -> Vec<OsString> {
+    let path = content_path.as_os_str().to_os_string();
+    if content_path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("conf"))
+    {
+        vec![OsString::from("-conf"), path, OsString::from("-exit")]
+    } else {
+        vec![path, OsString::from("-exit")]
+    }
 }
 
 fn dolphin_arguments(content_path: &Path) -> Vec<OsString> {
@@ -68,12 +83,33 @@ fn is_dolphin_idle(process: &ProcessSnapshot) -> bool {
                 .all(|character| character.is_ascii_alphanumeric() || ".-_".contains(character)))
 }
 
-static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[EmulatorLaunchAdapter {
-    id: "dolphin",
-    extensions: DOLPHIN_EXTENSIONS,
-    arguments: dolphin_arguments,
-    is_idle: is_dolphin_idle,
-}];
+fn is_dosbox_idle(process: &ProcessSnapshot) -> bool {
+    let Some(title) = process.window_title.as_deref() else {
+        return false;
+    };
+    title
+        .to_ascii_lowercase()
+        .rsplit_once("program:")
+        .map(|(_, program)| program.trim() == "dosbox")
+        .unwrap_or(false)
+}
+
+static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
+    EmulatorLaunchAdapter {
+        id: "dosbox",
+        label: "DOSBox",
+        extensions: DOSBOX_EXTENSIONS,
+        arguments: dosbox_arguments,
+        is_idle: is_dosbox_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "dolphin",
+        label: "Dolphin",
+        extensions: DOLPHIN_EXTENSIONS,
+        arguments: dolphin_arguments,
+        is_idle: is_dolphin_idle,
+    },
+];
 
 fn launch_adapter_for(emulator_id: &str) -> Option<&'static EmulatorLaunchAdapter> {
     EMULATOR_LAUNCH_ADAPTERS
@@ -261,7 +297,7 @@ fn plan_emulator_launch(
             "The selected program is not a supported emulator binary.",
         )
     })?;
-    if host.id != request.emulator_id || !exe_name.to_ascii_lowercase().ends_with(".exe") {
+    if host.id != request.emulator_id {
         return Err(LaunchError::new(
             LaunchErrorKind::InvalidPath,
             "The selected program does not match the requested emulator.",
@@ -273,7 +309,10 @@ fn plan_emulator_launch(
     if !has_supported_extension(adapter, &request.content_path) {
         return Err(LaunchError::new(
             LaunchErrorKind::InvalidPath,
-            "The selected file type is not supported by Dolphin.",
+            format!(
+                "The selected file type is not supported by {}.",
+                adapter.label
+            ),
         ));
     }
     verify_file(&content_path, "emulator content")?;
@@ -500,6 +539,7 @@ mod tests {
             started_at_unix: 1,
             emulator_id: Some("dolphin"),
             command_line: None,
+            working_directory: None,
             window_title: Some("Dolphin 2606".to_string()),
             open_files: None,
         };
@@ -510,6 +550,56 @@ mod tests {
         }));
         assert!(!is_dolphin_idle(&ProcessSnapshot {
             open_files: Some(vec![r"C:\Games\The Sims 2.rvz".to_string()]),
+            ..idle
+        }));
+    }
+
+    #[test]
+    fn builds_dosbox_program_and_config_launches() {
+        let adapter = launch_adapter_for("dosbox").expect("DOSBox adapter");
+        assert!(has_supported_extension(adapter, r"C:\Games\Doom\DOOM.EXE"));
+        assert!(has_supported_extension(
+            adapter,
+            r"C:\Games\Doom\dosbox_DOOM.conf"
+        ));
+        assert!(!has_supported_extension(
+            adapter,
+            r"C:\Games\Doom\README.TXT"
+        ));
+        assert_eq!(
+            (adapter.arguments)(Path::new(r"C:\Games\Doom\DOOM.EXE")),
+            vec![
+                OsString::from(r"C:\Games\Doom\DOOM.EXE"),
+                OsString::from("-exit")
+            ]
+        );
+        assert_eq!(
+            (adapter.arguments)(Path::new(r"C:\Games\Doom\dosbox_DOOM.conf")),
+            vec![
+                OsString::from("-conf"),
+                OsString::from(r"C:\Games\Doom\dosbox_DOOM.conf"),
+                OsString::from("-exit")
+            ]
+        );
+
+        let idle = ProcessSnapshot {
+            exe_name: "DOSBox.exe".to_string(),
+            exe_path: None,
+            pid: 1,
+            started_at_unix: 1,
+            emulator_id: Some("dosbox"),
+            command_line: None,
+            working_directory: None,
+            window_title: Some(
+                "DOSBox 0.74-3, Cpu speed: max 100% cycles, Program: DOSBOX".to_string(),
+            ),
+            open_files: None,
+        };
+        assert!(is_dosbox_idle(&idle));
+        assert!(!is_dosbox_idle(&ProcessSnapshot {
+            window_title: Some(
+                "DOSBox 0.74-3, Cpu speed: max 100% cycles, Program: DOOM".to_string(),
+            ),
             ..idle
         }));
     }
@@ -552,6 +642,7 @@ mod tests {
             started_at_unix: 1,
             emulator_id: Some("dolphin"),
             command_line: None,
+            working_directory: None,
             window_title: None,
             open_files: None,
         }]);
@@ -603,6 +694,7 @@ mod tests {
             started_at_unix: 1,
             emulator_id: Some("dolphin"),
             command_line: None,
+            working_directory: None,
             window_title: Some("Dolphin 2606".to_string()),
             open_files: None,
         };

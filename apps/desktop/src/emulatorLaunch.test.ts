@@ -44,9 +44,30 @@ describe("emulator launch helpers", () => {
     ).toBe(false);
     expect(isValidEmulatorBinaryPath("dolphin", "Dolphin.exe")).toBe(false);
     expect(
+      isValidEmulatorBinaryPath("dosbox", String.raw`C:\Emulators\DOSBox.exe`),
+    ).toBe(true);
+    expect(
       isValidEmulatorBinaryPath(
         "dosbox",
-        String.raw`C:\Emulators\DOSBox.exe`,
+        String.raw`C:\Emulators\DOSBox-X.exe`,
+      ),
+    ).toBe(true);
+  });
+
+  it("validates DOSBox game and configuration files", () => {
+    expect(
+      isValidEmulatorContentPath("dosbox", String.raw`D:\Games\Doom\DOOM.EXE`),
+    ).toBe(true);
+    expect(
+      isValidEmulatorContentPath(
+        "dosbox",
+        String.raw`D:\Games\Doom\dosbox_DOOM.conf`,
+      ),
+    ).toBe(true);
+    expect(
+      isValidEmulatorContentPath(
+        "dosbox",
+        String.raw`D:\Games\Doom\README.TXT`,
       ),
     ).toBe(false);
   });

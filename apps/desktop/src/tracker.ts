@@ -1229,11 +1229,13 @@ export async function chooseEmulatorBinary(
   const selected = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: adapter.label, extensions: ["exe"] }],
+    filters: [{ name: adapter.label, extensions: ["exe", "com"] }],
   });
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorBinaryPath(emulatorId, selected)) {
-    throw new Error(`Pick the ${adapter.label} .exe with a full Windows path.`);
+    throw new Error(
+      `Pick a supported ${adapter.label} program with a full Windows path.`,
+    );
   }
   const entry = {
     emulatorId,
@@ -1628,6 +1630,7 @@ function rawEmulatorSignals(
     pid: process.pid,
     startedAtUnix: process.startedAtUnix ?? 0,
     args: process.commandLine ?? [],
+    workingDirectory: process.workingDirectory ?? null,
     windowTitle: process.windowTitle ?? null,
     openFiles: process.openFiles ?? [],
   };

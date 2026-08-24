@@ -13,6 +13,7 @@ import type {
   EmulatorAdapter,
   EmulatorContentSignal,
   EmulatorDetectionSource,
+  EmulatorLaunchDiscovery,
   EmulatorReadContext,
   EmulatorReading,
   RawEmulatorSignals,
@@ -27,6 +28,9 @@ type ParsedSignal = {
   detectionSource: EmulatorDetectionSource;
   searchHint?: string;
 };
+
+const DOSBOX_PROGRAM_EXTENSION = /\.(?:exe|com|bat)$/i;
+const DOSBOX_CONF_EXTENSION = /\.conf$/i;
 
 function parsedSignal(
   raw: string,
@@ -47,54 +51,41 @@ function parsedSignal(
   };
 }
 
-export function readDosboxCommandLine(args: string[]): ParsedSignal | null {
-  const confs: Array<{ raw: string; secondary: boolean }> = [];
+function parseDosboxConf(raw: string): ParsedSignal | null {
+  const value = basename(raw)
+    .replace(/\.conf$/i, "")
+    .replace(/^dosbox[_-]/i, "")
+    .replace(/[_-](?:single|settings|base)$/i, "");
+  return parsedSignal(value, "conf", "recognized", false, "launch_arguments");
+}
+
+function parseDosboxProgram(raw: string): ParsedSignal | null {
+  if (!DOSBOX_PROGRAM_EXTENSION.test(stripQuotes(raw))) return null;
+  return parsedSignal(raw, "program", "recognized", false, "launch_arguments");
+}
+
+function dosboxConfArguments(args: string[]) {
+  const confs: Array<{ path: string; secondary: boolean }> = [];
   for (let index = 0; index < args.length - 1; index += 1) {
     if (args[index]?.toLowerCase() !== "-conf") continue;
-    const raw = basename(args[index + 1] ?? "");
+    const path = stripQuotes(args[index + 1] ?? "").trim();
+    const fileName = basename(path);
+    if (!DOSBOX_CONF_EXTENSION.test(fileName)) continue;
     confs.push({
-      raw,
-      secondary:
-        /(?:[_-](?:single|settings|base))?\.conf$/i.test(raw) &&
-        /[_-](?:single|settings|base)\.conf$/i.test(raw),
+      path,
+      secondary: /[_-](?:single|settings|base)\.conf$/i.test(fileName),
     });
   }
-  for (const conf of [...confs].sort(
+  return confs.sort(
     (left, right) => Number(left.secondary) - Number(right.secondary),
-  )) {
-    const value = conf.raw
-      .replace(/\.conf$/i, "")
-      .replace(/^dosbox[_-]/i, "")
-      .replace(/[_-](?:single|settings|base)$/i, "");
-    const parsed = parsedSignal(
-      value,
-      "conf",
-      "recognized",
-      false,
-      "launch_arguments",
-    );
-    if (parsed) return parsed;
-  }
+  );
+}
 
-  for (const arg of args) {
-    if (!/\.(?:exe|com|bat)$/i.test(stripQuotes(arg))) continue;
-    const parsed = parsedSignal(
-      arg,
-      "program",
-      "recognized",
-      false,
-      "launch_arguments",
-    );
-    if (parsed) return parsed;
-  }
-
-  const commands: string[] = [];
+function dosboxCommandPrograms(args: string[]) {
+  const programs: string[] = [];
   for (let index = 0; index < args.length - 1; index += 1) {
-    if (args[index]?.toLowerCase() === "-c")
-      commands.push(args[index + 1] ?? "");
-  }
-  for (const command of commands.reverse()) {
-    const trimmed = stripQuotes(command).trim();
+    if (args[index]?.toLowerCase() !== "-c") continue;
+    const trimmed = stripQuotes(args[index + 1] ?? "").trim();
     const first = /^"([^"]+)"|^([^\s;&|]+)/
       .exec(trimmed)
       ?.slice(1)
@@ -110,16 +101,93 @@ export function readDosboxCommandLine(args: string[]): ParsedSignal | null {
     ) {
       continue;
     }
-    const parsed = parsedSignal(
-      first,
-      "program",
-      "recognized",
-      false,
-      "launch_arguments",
-    );
+    if (parseDosboxProgram(first)) programs.push(first);
+  }
+  return programs;
+}
+
+function positionalDosboxPrograms(args: string[]) {
+  return args
+    .map((arg) => stripQuotes(arg).trim())
+    .filter((arg) => !arg.startsWith("-") && Boolean(parseDosboxProgram(arg)));
+}
+
+function resolveWindowsLaunchPath(
+  raw: string,
+  workingDirectory?: string | null,
+) {
+  const path = stripQuotes(raw).trim().replaceAll("/", "\\");
+  if (/^(?:[a-z]:\\|\\\\)/i.test(path)) return path;
+  const cwd = workingDirectory?.trim().replaceAll("/", "\\");
+  if (!cwd || !/^[a-z]:\\/i.test(cwd)) return null;
+  const combined = path.startsWith("\\")
+    ? `${cwd.slice(0, 2)}${path}`
+    : `${cwd.replace(/\\+$/, "")}\\${path}`;
+  const drive = combined.slice(0, 2);
+  const segments: string[] = [];
+  for (const segment of combined.slice(2).split(/\\+/)) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      segments.pop();
+      continue;
+    }
+    segments.push(segment);
+  }
+  return `${drive}\\${segments.join("\\")}`;
+}
+
+export function discoverDosboxLaunchTarget(
+  args: string[],
+  workingDirectory?: string | null,
+): EmulatorLaunchDiscovery | null {
+  const program = [
+    ...positionalDosboxPrograms(args),
+    ...dosboxCommandPrograms(args),
+  ]
+    .map((path) => resolveWindowsLaunchPath(path, workingDirectory))
+    .find((path): path is string => Boolean(path));
+  if (program) {
+    return {
+      target: { kind: "file", filePath: program },
+      source: "launch_arguments",
+    };
+  }
+  const conf = dosboxConfArguments(args)
+    .map((item) => ({
+      ...item,
+      path: resolveWindowsLaunchPath(item.path, workingDirectory),
+    }))
+    .find((item): item is typeof item & { path: string } => Boolean(item.path));
+  return conf
+    ? {
+        target: { kind: "file", filePath: conf.path },
+        source: "launch_arguments",
+      }
+    : null;
+}
+
+export function readDosboxCommandLine(args: string[]): ParsedSignal | null {
+  for (const arg of positionalDosboxPrograms(args)) {
+    const parsed = parseDosboxProgram(arg);
     if (parsed) return parsed;
   }
 
+  const commandPrograms = dosboxCommandPrograms(args);
+  for (const program of [...commandPrograms].reverse()) {
+    const parsed = parseDosboxProgram(program);
+    if (parsed) return parsed;
+  }
+
+  for (const conf of dosboxConfArguments(args)) {
+    const parsed = parseDosboxConf(conf.path);
+    if (parsed) return parsed;
+  }
+
+  const commands: string[] = [];
+  for (let index = 0; index < args.length - 1; index += 1) {
+    if (args[index]?.toLowerCase() === "-c")
+      commands.push(args[index + 1] ?? "");
+  }
   for (const command of commands) {
     const mount = /^\s*mount\s+[a-z]\s+(.+)$/i.exec(stripQuotes(command));
     if (!mount) continue;
@@ -195,13 +263,7 @@ export function readDosboxTitle(
         ),
     );
   if (survivors.length !== 1) return null;
-  return parsedSignal(
-    survivors[0],
-    "program",
-    "weak",
-    true,
-    "window_title",
-  );
+  return parsedSignal(survivors[0], "program", "weak", true, "window_title");
 }
 
 function finalizeSignal(
@@ -222,6 +284,26 @@ function finalizeSignal(
 export const dosboxAdapter: EmulatorAdapter = {
   id: "dosbox",
   label: "DOSBox",
+  launch: {
+    targetKinds: ["file"],
+    fileExtensions: ["conf", "exe", "com", "bat"],
+    isValidContentFile: (fileName) =>
+      DOSBOX_CONF_EXTENSION.test(fileName) ||
+      DOSBOX_PROGRAM_EXTENSION.test(fileName),
+    identifyTarget: (target, context) => {
+      const parsed = DOSBOX_CONF_EXTENSION.test(target.filePath)
+        ? parseDosboxConf(target.filePath)
+        : parseDosboxProgram(target.filePath);
+      return parsed ? finalizeSignal(parsed, context) : null;
+    },
+    discoverTarget: (signals) =>
+      discoverDosboxLaunchTarget(signals.args, signals.workingDirectory),
+    validateTargetForMapping: (_mapping, target) =>
+      DOSBOX_CONF_EXTENSION.test(target.filePath) ||
+      DOSBOX_PROGRAM_EXTENSION.test(target.filePath)
+        ? { valid: true, association: "proven" }
+        : { valid: false, reason: "unsupported-content-file" },
+  },
   read(
     signals: RawEmulatorSignals,
     context: EmulatorReadContext,

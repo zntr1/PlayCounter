@@ -37,6 +37,7 @@ impl ProcessScanner for LinuxScanner {
                     started_at_unix: process.start_time(),
                     emulator_id: None,
                     command_line: None,
+                    working_directory: None,
                     window_title: None,
                     open_files: None,
                 });

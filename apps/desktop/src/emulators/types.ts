@@ -20,6 +20,7 @@ export type RawEmulatorSignals = {
   pid: number;
   startedAtUnix: number;
   args: string[];
+  workingDirectory?: string | null;
   windowTitle: string | null;
   openFiles?: string[];
 };

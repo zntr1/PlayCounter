@@ -11,6 +11,7 @@ pub struct ProcessSnapshot {
     pub started_at_unix: u64,
     pub emulator_id: Option<&'static str>,
     pub command_line: Option<Vec<String>>,
+    pub working_directory: Option<String>,
     pub window_title: Option<String>,
     pub open_files: Option<Vec<String>>,
 }

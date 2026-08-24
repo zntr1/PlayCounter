@@ -52,8 +52,18 @@ export function isValidEmulatorBinaryPath(
 ): path is string {
   if (!isAbsoluteWindowsPath(path)) return false;
   const baseName = launchFileBaseName(path).toLowerCase();
-  if (!baseName.endsWith(".exe")) return false;
   if (emulatorId === "dolphin") return baseName === "dolphin.exe";
+  if (emulatorId === "dosbox") {
+    return [
+      "dosbox.exe",
+      "dosbox.com",
+      "dosbox74.exe",
+      "dosbox-x.exe",
+      "dosbox_x.exe",
+      "dosbox-staging.exe",
+      "dosbox-staging-x64.exe",
+    ].includes(baseName);
+  }
   return false;
 }
 
@@ -62,9 +72,11 @@ export function isValidEmulatorContentPath(
   path: string | null | undefined,
 ): path is string {
   if (!isAbsoluteWindowsPath(path)) return false;
-  return adapterFor(emulatorId)?.launch?.isValidContentFile(
-    launchFileBaseName(path),
-  ) === true;
+  return (
+    adapterFor(emulatorId)?.launch?.isValidContentFile(
+      launchFileBaseName(path),
+    ) === true
+  );
 }
 
 export function emulatorTargetCompatibility(
@@ -72,7 +84,10 @@ export function emulatorTargetCompatibility(
   filePath: string,
 ) {
   const adapter = adapterFor(mapping.emulatorId);
-  if (!adapter?.launch || !isValidEmulatorContentPath(mapping.emulatorId, filePath)) {
+  if (
+    !adapter?.launch ||
+    !isValidEmulatorContentPath(mapping.emulatorId, filePath)
+  ) {
     return { valid: false, reason: "unsupported-content-file" } as const;
   }
   return adapter.launch.validateTargetForMapping(mapping, {
@@ -111,7 +126,10 @@ export function emulatorLaunchErrorMessage(error: unknown, gameName: string) {
   const kind: LaunchErrorKind | null = launchErrorKind(error);
   switch (kind) {
     case "notFound":
-      return { title: "Launch file not found", detail: `${detail} Set it again.` };
+      return {
+        title: "Launch file not found",
+        detail: `${detail} Set it again.`,
+      };
     case "notAFile":
       return { title: "That is not a file", detail: `${detail} Set it again.` };
     case "unreadable":
@@ -119,7 +137,8 @@ export function emulatorLaunchErrorMessage(error: unknown, gameName: string) {
     case "invalidPath":
       return {
         title: "Launch file is not valid",
-        detail: "Choose a supported emulator or content file with a full Windows path.",
+        detail:
+          "Choose a supported emulator or content file with a full Windows path.",
       };
     case "unsupported":
       return { title: "Emulator launching is unavailable", detail };

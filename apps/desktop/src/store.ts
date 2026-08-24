@@ -63,6 +63,7 @@ export type ProcessSnapshot = {
   startedAtUnix?: number;
   emulatorId?: string | null;
   commandLine?: string[] | null;
+  workingDirectory?: string | null;
   windowTitle?: string | null;
   openFiles?: string[] | null;
 };

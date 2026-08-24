@@ -10,6 +10,7 @@ describe("emulator public projection", () => {
         emulatorId: "dosbox",
         pid: 1,
         commandLine: ["secret"],
+        workingDirectory: String.raw`C:\Private`,
         windowTitle: "secret",
         openFiles: [String.raw`C:\Private\Game.rvz`],
       },
@@ -24,6 +25,7 @@ describe("emulator public projection", () => {
     ]);
     expect(result).toHaveLength(1);
     expect(result[0]).not.toHaveProperty("commandLine");
+    expect(result[0]).not.toHaveProperty("workingDirectory");
     expect(result[0]).not.toHaveProperty("windowTitle");
     expect(result[0]).not.toHaveProperty("openFiles");
   });
