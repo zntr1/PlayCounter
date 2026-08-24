@@ -1,5 +1,7 @@
 export type MyGamesSortKey = "recent" | "playtime" | "name" | "sessions";
 
+export const LAST_PLAYED_PROMOTION_DELAY_MS = 30_000;
+
 export type MyGamesSortValue = {
   gameId: number;
   source: string | null;
@@ -20,6 +22,15 @@ function stableIdentityOrder(left: MyGamesSortValue, right: MyGamesSortValue) {
     (left.source ?? "").localeCompare(right.source ?? "") ||
     left.gameId - right.gameId
   );
+}
+
+export function shouldPromoteActiveGame(
+  startedAt: string,
+  nowMs: number,
+  delayMs = LAST_PLAYED_PROMOTION_DELAY_MS,
+) {
+  const startedAtMs = Date.parse(startedAt);
+  return Number.isFinite(startedAtMs) && nowMs - startedAtMs >= delayMs;
 }
 
 export function compareMyGames(

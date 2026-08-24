@@ -115,7 +115,12 @@ import type {
 } from "@playcounter/shared";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
-import { compareMyGames, type MyGamesSortKey } from "../myGamesSort";
+import {
+  LAST_PLAYED_PROMOTION_DELAY_MS,
+  compareMyGames,
+  shouldPromoteActiveGame,
+  type MyGamesSortKey,
+} from "../myGamesSort";
 import {
   isTourDemoLibraryGame,
   type LibraryGameKind,
@@ -378,6 +383,7 @@ export function MyGamesView() {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [view, setView] = useState<ViewMode>("grid");
+  const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
   const launchLockRef = useRef<string | null>(null);
   const [launchingGameKey, setLaunchingGameKey] = useState<string | null>(null);
   const sessions = useAppStore((state) => state.recentSessions);
@@ -452,6 +458,28 @@ export function MyGamesView() {
     if (tourDemo.active || !gameLaunchingEnabled) return;
     void verifyLaunchTargetsThrottled("my-games");
   }, [gameLaunchingEnabled, tourDemo.active]);
+
+  useEffect(() => {
+    const nowMs = Date.now();
+    const nextPromotionAt = activeSessions.reduce<number | null>(
+      (nearest, session) => {
+        const promotionAt =
+          Date.parse(session.startedAt) + LAST_PLAYED_PROMOTION_DELAY_MS;
+        if (!Number.isFinite(promotionAt) || promotionAt <= nowMs) {
+          return nearest;
+        }
+        return nearest === null ? promotionAt : Math.min(nearest, promotionAt);
+      },
+      null,
+    );
+    if (nextPromotionAt === null) return;
+
+    const timer = window.setTimeout(
+      () => setRecentSortNow(Date.now()),
+      Math.max(0, nextPromotionAt - nowMs) + 10,
+    );
+    return () => window.clearTimeout(timer);
+  }, [activeSessions, recentSortNow]);
 
   const games = useMemo(() => {
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
@@ -657,6 +685,10 @@ export function MyGamesView() {
       if (isIgnored(activeSession.exeName)) continue;
 
       const activeSeconds = activeDurationSeconds(activeSession);
+      const promoteForRecentSort = shouldPromoteActiveGame(
+        activeSession.startedAt,
+        recentSortNow,
+      );
       const hydratedMeta =
         activeSession.source === "igdb" || activeSession.source === "community"
           ? hydratedGameMetadata.get(
@@ -688,6 +720,15 @@ export function MyGamesView() {
         gameName: activeSession.gameName,
         coverUrl: activeSession.coverUrl,
       });
+      const gameEntries = metadata.get(summaryKey) ?? [];
+      const previousLibraryTimestamp = gameEntries.reduce<string | null>(
+        (latest, entry) =>
+          latest === null ||
+          Date.parse(entry.lastCheckedAt) > Date.parse(latest)
+            ? entry.lastCheckedAt
+            : latest,
+        null,
+      );
       let existing = summaries.get(summaryKey);
 
       if (!existing) {
@@ -697,7 +738,10 @@ export function MyGamesView() {
           name: activeSession.gameName || hydratedMeta?.name || "",
           coverUrl: activeSession.coverUrl || hydratedMeta?.coverUrl || "",
           source: resolvedSource,
-          lastPlayedAt: activeSession.checkpointedAt,
+          lastPlayedAt:
+            promoteForRecentSort || previousLibraryTimestamp === null
+              ? activeSession.checkpointedAt
+              : previousLibraryTimestamp,
           exeName: activeSession.exeName,
         });
         summaries.set(summaryKey, existing);
@@ -706,17 +750,19 @@ export function MyGamesView() {
       if (activeSession.source !== resolvedSource) {
         addAlias(existing, activeSession.gameId, resolvedSource);
       }
-      for (const entry of metadata.get(summaryKey) ?? []) {
+      for (const entry of gameEntries) {
         mergeEntry(existing, entry);
       }
       existing.sessionSeconds += activeSeconds;
-      existing.lastPlayedAt = activeSession.checkpointedAt;
-      if (
-        existing.activeStartedAt === undefined ||
-        Date.parse(activeSession.startedAt) >
-          Date.parse(existing.activeStartedAt)
-      ) {
-        existing.activeStartedAt = activeSession.startedAt;
+      if (promoteForRecentSort) {
+        existing.lastPlayedAt = activeSession.checkpointedAt;
+        if (
+          existing.activeStartedAt === undefined ||
+          Date.parse(activeSession.startedAt) >
+            Date.parse(existing.activeStartedAt)
+        ) {
+          existing.activeStartedAt = activeSession.startedAt;
+        }
       }
       existing.communitySuggestionId ??= activeSession.communitySuggestionId;
       existing.communitySuggestionVerified ??=
@@ -796,6 +842,7 @@ export function MyGamesView() {
     exeCache,
     hydratedGameMetadata,
     playtimeAdjustments,
+    recentSortNow,
     resolveIgdbId,
     sessions,
     userIgnoredProcesses,
