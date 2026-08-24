@@ -147,6 +147,7 @@ import {
 import { toPublicSnapshots } from "./emulators/publicProjection";
 import type {
   EmulatorContentObservation,
+  EmulatorContentSignal,
   EmulatorMapping,
   EmulatorMappingShare,
   EmulatorObservation,
@@ -180,6 +181,7 @@ type PersistedState = {
   emulatorManualBinaries?: EmulatorBinaryEntry[];
   emulatorAutoLaunchTargets?: EmulatorLaunchTarget[];
   emulatorManualLaunchTargets?: EmulatorLaunchTarget[];
+  emulatorLaunchCandidates?: EmulatorLaunchCandidate[];
   gameMetadata?: GameMetadata[];
   ambiguousMatches?: AmbiguousProcessMatch[];
   emulatorMappings?: EmulatorMapping[];
@@ -540,7 +542,9 @@ function hydrate() {
       setAt: entry.setAt,
     };
   }
-  function persistedEmulatorTarget(value: unknown): EmulatorLaunchTarget | null {
+  function persistedEmulatorTarget(
+    value: unknown,
+  ): EmulatorLaunchTarget | null {
     if (!value || typeof value !== "object") return null;
     const target = value as Partial<EmulatorLaunchTarget>;
     if (
@@ -590,6 +594,24 @@ function hydrate() {
     persisted.emulatorManualLaunchTargets,
     persistedEmulatorTarget,
     (target) => target.contentKey,
+  );
+  const emulatorLaunchCandidates = hydrateMap(
+    persisted.emulatorLaunchCandidates,
+    (value) => {
+      const target = persistedEmulatorTarget(value);
+      if (!target || !value || typeof value !== "object") return null;
+      const displayName = (value as Partial<EmulatorLaunchCandidate>)
+        .displayName;
+      if (
+        typeof displayName !== "string" ||
+        !displayName.trim() ||
+        displayName !== launchFileBaseName(target.filePath)
+      ) {
+        return null;
+      }
+      return { ...target, displayName };
+    },
+    (candidate) => candidate.contentKey,
   );
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
@@ -681,6 +703,30 @@ function hydrate() {
       return [mapping.contentKey, { ...mapping, share }] as const;
     }),
   );
+  for (const [key, candidate] of [...emulatorLaunchCandidates]) {
+    const mapping = emulatorMappings.get(key);
+    if (!mapping || mapping.decision !== "game") continue;
+    const compatibility = emulatorTargetCompatibility(
+      mapping,
+      candidate.filePath,
+    );
+    if (!compatibility.valid || compatibility.association !== "proven") {
+      continue;
+    }
+    if (
+      !emulatorAutoLaunchTargets.has(key) &&
+      !emulatorManualLaunchTargets.has(key)
+    ) {
+      emulatorAutoLaunchTargets.set(key, {
+        contentKey: candidate.contentKey,
+        emulatorId: candidate.emulatorId,
+        filePath: candidate.filePath,
+        setAt: candidate.setAt,
+      });
+    }
+    emulatorLaunchCandidates.delete(key);
+    shouldPersistAchievementMigration = true;
+  }
   const persistedSeenContributionStatus =
     persisted.seenContributionStatus ?? {};
   const seededSeenContributionStatus = seedEmulatorSeenStatus(
@@ -707,7 +753,7 @@ function hydrate() {
     emulatorManualBinaries,
     emulatorAutoLaunchTargets,
     emulatorManualLaunchTargets,
-    emulatorLaunchCandidates: new Map(),
+    emulatorLaunchCandidates,
     gameMetadata: gameMetadataMap,
     recentSessions: hydratedSessions,
     activeSessions: normalizePersistedActiveSessions(persisted),
@@ -1005,6 +1051,7 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
   const contentTargets = [
     ...state.emulatorAutoLaunchTargets.values(),
     ...state.emulatorManualLaunchTargets.values(),
+    ...state.emulatorLaunchCandidates.values(),
   ];
   if (
     normalTargets.length === 0 &&
@@ -1084,8 +1131,20 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
       ...useAppStore.getState().emulatorManualLaunchTargets.values(),
     ]) {
       if (!staleContentPaths.has(target.filePath.toLowerCase())) continue;
-      useAppStore.getState().removeEmulatorManualLaunchTarget(target.contentKey);
+      useAppStore
+        .getState()
+        .removeEmulatorManualLaunchTarget(target.contentKey);
       pruned += 1;
+    }
+    const currentCandidates = [
+      ...useAppStore.getState().emulatorLaunchCandidates.values(),
+    ];
+    const validCandidates = currentCandidates.filter(
+      (candidate) => !staleContentPaths.has(candidate.filePath.toLowerCase()),
+    );
+    if (validCandidates.length !== currentCandidates.length) {
+      useAppStore.getState().setEmulatorLaunchCandidates(validCandidates);
+      pruned += currentCandidates.length - validCandidates.length;
     }
     if (pruned > 0) persist();
     lastLaunchVerificationAt = Date.now();
@@ -1176,7 +1235,11 @@ export async function chooseEmulatorBinary(
   if (!isValidEmulatorBinaryPath(emulatorId, selected)) {
     throw new Error(`Pick the ${adapter.label} .exe with a full Windows path.`);
   }
-  const entry = { emulatorId, exePath: selected, setAt: new Date().toISOString() };
+  const entry = {
+    emulatorId,
+    exePath: selected,
+    setAt: new Date().toISOString(),
+  };
   useAppStore.getState().setEmulatorManualBinary(entry);
   logRuntime(`manual emulator binary selected emulator=${emulatorId}`);
   return entry;
@@ -1196,12 +1259,17 @@ export async function chooseEmulatorLaunchFile(
     multiple: false,
     directory: false,
     filters: [
-      { name: `${adapter.label} content`, extensions: [...adapter.launch.fileExtensions] },
+      {
+        name: `${adapter.label} content`,
+        extensions: [...adapter.launch.fileExtensions],
+      },
     ],
   });
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorContentPath(mapping.emulatorId, selected)) {
-    throw new Error(`Pick a supported ${adapter.label} game file with a full Windows path.`);
+    throw new Error(
+      `Pick a supported ${adapter.label} game file with a full Windows path.`,
+    );
   }
   const compatibility = emulatorTargetCompatibility(mapping, selected);
   if (!compatibility.valid) {
@@ -1218,6 +1286,13 @@ export async function chooseEmulatorLaunchFile(
     setAt: new Date().toISOString(),
   };
   useAppStore.getState().setEmulatorManualLaunchTarget(target);
+  useAppStore
+    .getState()
+    .setEmulatorLaunchCandidates(
+      [...useAppStore.getState().emulatorLaunchCandidates.values()].filter(
+        (candidate) => candidate.contentKey !== mapping.contentKey,
+      ),
+    );
   logRuntime(
     `manual emulator launch target selected emulator=${mapping.emulatorId} contentKey=${mapping.contentKey}`,
   );
@@ -1229,7 +1304,10 @@ export function confirmEmulatorLaunchCandidate(contentKeyValue: string) {
   const candidate = state.emulatorLaunchCandidates.get(contentKeyValue);
   const mapping = state.emulatorMappings.get(contentKeyValue);
   if (!candidate || !mapping || mapping.decision !== "game") return null;
-  const compatibility = emulatorTargetCompatibility(mapping, candidate.filePath);
+  const compatibility = emulatorTargetCompatibility(
+    mapping,
+    candidate.filePath,
+  );
   if (!compatibility.valid) return null;
   const target: EmulatorLaunchTarget = {
     contentKey: candidate.contentKey,
@@ -1253,6 +1331,11 @@ export function forgetEmulatorLaunchTarget(contentKeyValue: string) {
   const state = useAppStore.getState();
   state.removeEmulatorManualLaunchTarget(contentKeyValue);
   state.removeEmulatorAutoLaunchTarget(contentKeyValue);
+  state.setEmulatorLaunchCandidates(
+    [...state.emulatorLaunchCandidates.values()].filter(
+      (candidate) => candidate.contentKey !== contentKeyValue,
+    ),
+  );
   logRuntime(`emulator launch target forgotten contentKey=${contentKeyValue}`);
 }
 
@@ -1273,7 +1356,8 @@ export async function launchEmulatorGame(
     state.emulatorAutoLaunchTargets,
     state.emulatorManualLaunchTargets,
   );
-  if (!binary) throw new Error(`Set the ${mapping.label} program in Settings first.`);
+  if (!binary)
+    throw new Error(`Set the ${mapping.label} program in Settings first.`);
   if (!target) throw new Error("Set this emulator game's launch file first.");
 
   const now = Date.now();
@@ -1533,7 +1617,9 @@ function disableEmulatorDetectionForScan(): ProcessMatch[] {
   return [];
 }
 
-function rawEmulatorSignals(process: ProcessSnapshot): RawEmulatorSignals | null {
+function rawEmulatorSignals(
+  process: ProcessSnapshot,
+): RawEmulatorSignals | null {
   if (!process.emulatorId || process.pid === undefined) return null;
   return {
     emulatorId: process.emulatorId,
@@ -1543,19 +1629,111 @@ function rawEmulatorSignals(process: ProcessSnapshot): RawEmulatorSignals | null
     startedAtUnix: process.startedAtUnix ?? 0,
     args: process.commandLine ?? [],
     windowTitle: process.windowTitle ?? null,
+    openFiles: process.openFiles ?? [],
   };
 }
 
-function readEmulatorSignals(hosts: ProcessSnapshot[]) {
+type KnownTargetAssociations = {
+  byPath: Map<string, EmulatorMapping | null>;
+  byAlias: Map<string, EmulatorMapping | null>;
+};
+
+function uniqueMappingSet(
+  values: Map<string, EmulatorMapping | null>,
+  key: string,
+  mapping: EmulatorMapping,
+) {
+  if (!values.has(key)) {
+    values.set(key, mapping);
+    return;
+  }
+  const existing = values.get(key);
+  if (existing?.contentKey !== mapping.contentKey) values.set(key, null);
+}
+
+function knownTargetAssociations(
+  privateTokens: readonly string[],
+): KnownTargetAssociations {
+  const state = useAppStore.getState();
+  const context = {
+    denylist: GENERIC_IDENTITY_DENYLIST,
+    privateTokens,
+  };
+  const byPath = new Map<string, EmulatorMapping | null>();
+  const byAlias = new Map<string, EmulatorMapping | null>();
+  for (const mapping of state.emulatorMappings.values()) {
+    if (mapping.decision !== "game") continue;
+    const adapter = adapterFor(mapping.emulatorId);
+    const target = resolveEmulatorLaunchTarget(
+      mapping.contentKey,
+      state.emulatorAutoLaunchTargets,
+      state.emulatorManualLaunchTargets,
+    );
+    if (!adapter?.launch || !target) continue;
+    const pathKey = `${mapping.emulatorId}:${target.filePath.toLowerCase()}`;
+    uniqueMappingSet(byPath, pathKey, mapping);
+    const identity = adapter.launch.identifyTarget(
+      { kind: "file", filePath: target.filePath },
+      context,
+    );
+    if (!identity) continue;
+    const alias = contentKey({
+      emulatorId: mapping.emulatorId,
+      contentKind: identity.kind,
+      contentValue: identity.value,
+    });
+    if (alias !== mapping.contentKey) uniqueMappingSet(byAlias, alias, mapping);
+  }
+  return { byPath, byAlias };
+}
+
+function mappedTargetSignal(
+  mapping: EmulatorMapping,
+  fallback: EmulatorContentSignal | undefined,
+): EmulatorContentSignal {
+  return {
+    kind: mapping.contentKind,
+    value: mapping.contentValue,
+    display: mapping.display,
+    trust: mapping.trust,
+    shareable:
+      mapping.shareable ??
+      (mapping.trust === "recognized" && mapping.contentKind !== "folder"),
+    volatile: fallback?.volatile ?? false,
+    detectionSource: mapping.detectionSource ?? fallback?.detectionSource,
+    searchHint: fallback?.searchHint,
+    shareableSearchHint: fallback?.shareableSearchHint,
+  };
+}
+
+function readEmulatorSignals(
+  hosts: ProcessSnapshot[],
+  associations: KnownTargetAssociations,
+) {
   const privateTokens = [emulatorPrivacy.userName, emulatorPrivacy.homeDirName];
   return hosts.flatMap((process) => {
     const adapter = adapterFor(process.emulatorId);
     const signals = rawEmulatorSignals(process);
     if (!adapter || !signals) return [];
-    const reading = adapter.read(signals, {
+    const rawReading = adapter.read(signals, {
       denylist: GENERIC_IDENTITY_DENYLIST,
       privateTokens,
     });
+    const discovery = adapter.launch?.discoverTarget(signals);
+    const mapping = discovery
+      ? associations.byPath.get(
+          `${signals.emulatorId}:${discovery.target.filePath.toLowerCase()}`,
+        )
+      : undefined;
+    const reading = mapping
+      ? {
+          state: "content" as const,
+          content: mappedTargetSignal(
+            mapping,
+            rawReading.state === "content" ? rawReading.content : undefined,
+          ),
+        }
+      : rawReading;
     return [
       {
         pid: signals.pid,
@@ -1574,7 +1752,6 @@ async function learnEmulatorContentTargets(
   nowIso: string,
 ) {
   if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
-    useAppStore.getState().setEmulatorLaunchCandidates([]);
     return;
   }
   const discoveries: Array<{
@@ -1627,14 +1804,12 @@ async function learnEmulatorContentTargets(
         emulatorId: signals.emulatorId,
         filePath: discovery.target.filePath,
         displayName: launchFileBaseName(discovery.target.filePath),
-        pid: signals.pid,
         setAt: nowIso,
       },
     });
   }
 
   if (discoveries.length === 0) {
-    useAppStore.getState().setEmulatorLaunchCandidates([]);
     return;
   }
   const reports = await invoke<LaunchPathReport[]>(
@@ -1655,7 +1830,7 @@ async function learnEmulatorContentTargets(
       .filter((report) => report.status === "ok")
       .map((report) => report.path.toLowerCase()),
   );
-  const candidates: EmulatorLaunchCandidate[] = [];
+  const candidates = new Map(useAppStore.getState().emulatorLaunchCandidates);
   for (const discovery of discoveries) {
     if (!validPaths.has(discovery.candidate.filePath.toLowerCase())) continue;
     if (discovery.association === "proven") {
@@ -1668,11 +1843,19 @@ async function learnEmulatorContentTargets(
       logRuntime(
         `emulator launch target learned emulator=${discovery.candidate.emulatorId} contentKey=${discovery.candidate.contentKey}`,
       );
+      candidates.delete(discovery.candidate.contentKey);
     } else {
-      candidates.push(discovery.candidate);
+      const existing = candidates.get(discovery.candidate.contentKey);
+      candidates.set(
+        discovery.candidate.contentKey,
+        existing?.filePath.toLowerCase() ===
+          discovery.candidate.filePath.toLowerCase()
+          ? existing
+          : discovery.candidate,
+      );
     }
   }
-  useAppStore.getState().setEmulatorLaunchCandidates(candidates);
+  useAppStore.getState().setEmulatorLaunchCandidates([...candidates.values()]);
 }
 
 async function applyEmulatorReadings(
@@ -1710,9 +1893,18 @@ async function applyEmulatorReadings(
     state.settings.emulatorContentLookup !== false &&
     !isOfflineStatus(state.backendHealth.status) &&
     now >= emulatorLookupUnavailableUntil;
+  const privateTokens = [emulatorPrivacy.userName, emulatorPrivacy.homeDirName];
+  const associations = knownTargetAssociations(privateTokens);
+  for (const runtime of emulatorRuntime.values()) {
+    if (!runtime.lastContentKey) continue;
+    const mapped = associations.byAlias.get(runtime.lastContentKey);
+    if (mapped) runtime.lastContentKey = mapped.contentKey;
+  }
   const reconciled = reconcileEmulatorReadings({
-    readings: readEmulatorSignals(hosts),
-    observations: state.emulatorObservations,
+    readings: readEmulatorSignals(hosts, associations),
+    observations: state.emulatorObservations.filter(
+      (observation) => !associations.byAlias.get(observation.key),
+    ),
     mappings: state.emulatorMappings,
     runtime: emulatorRuntime,
     now,

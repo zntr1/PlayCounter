@@ -3,7 +3,7 @@ use crate::{
         is_absolute_windows_path, is_definitely_missing, map_spawn_error, LaunchError,
         LaunchErrorKind, LaunchPathReport, LaunchPathStatus,
     },
-    process::{self, ProcessScanner},
+    process::{self, ProcessScanner, ProcessSnapshot},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,6 +12,7 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
     sync::Mutex,
+    time::Duration,
 };
 
 #[cfg(windows)]
@@ -25,19 +26,53 @@ struct EmulatorLaunchAdapter {
     id: &'static str,
     extensions: &'static [&'static str],
     arguments: fn(&Path) -> Vec<OsString>,
+    is_idle: fn(&ProcessSnapshot) -> bool,
 }
 
 fn dolphin_arguments(content_path: &Path) -> Vec<OsString> {
-    vec![OsString::from(format!(
-        "--exec={}",
-        content_path.to_string_lossy()
-    ))]
+    vec![
+        OsString::from("--batch"),
+        OsString::from(format!("--exec={}", content_path.to_string_lossy())),
+    ]
+}
+
+fn is_dolphin_idle(process: &ProcessSnapshot) -> bool {
+    if process
+        .open_files
+        .as_ref()
+        .is_some_and(|files| !files.is_empty())
+    {
+        return false;
+    }
+    let Some(title) = process.window_title.as_deref().map(str::trim) else {
+        return false;
+    };
+    let mut parts = title.split_whitespace();
+    if !parts
+        .next()
+        .is_some_and(|part| part.eq_ignore_ascii_case("dolphin"))
+    {
+        return false;
+    }
+    let mut remainder = parts.collect::<Vec<_>>();
+    if remainder
+        .first()
+        .is_some_and(|part| part.eq_ignore_ascii_case("emulator"))
+    {
+        remainder.remove(0);
+    }
+    remainder.is_empty()
+        || (remainder.len() == 1
+            && remainder[0]
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || ".-_".contains(character)))
 }
 
 static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[EmulatorLaunchAdapter {
     id: "dolphin",
     extensions: DOLPHIN_EXTENSIONS,
     arguments: dolphin_arguments,
+    is_idle: is_dolphin_idle,
 }];
 
 fn launch_adapter_for(emulator_id: &str) -> Option<&'static EmulatorLaunchAdapter> {
@@ -110,6 +145,29 @@ impl Drop for GuardLease<'_> {
 
 trait EmulatorProcessSpawner: Send + Sync {
     fn spawn(&self, plan: &EmulatorLaunchPlan) -> Result<(), io::Error>;
+}
+
+trait EmulatorHostCloser: Send + Sync {
+    fn request_close(&self, pids: &HashSet<u32>) -> Result<usize, io::Error>;
+}
+
+struct NativeHostCloser;
+
+#[cfg(windows)]
+impl EmulatorHostCloser for NativeHostCloser {
+    fn request_close(&self, pids: &HashSet<u32>) -> Result<usize, io::Error> {
+        Ok(process::emulator::request_close_windows(pids))
+    }
+}
+
+#[cfg(not(windows))]
+impl EmulatorHostCloser for NativeHostCloser {
+    fn request_close(&self, _pids: &HashSet<u32>) -> Result<usize, io::Error> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Closing emulator windows is only supported on Windows.",
+        ))
+    }
 }
 
 struct NativeSpawner;
@@ -244,6 +302,7 @@ async fn launch_with_dependencies(
     guard: &EmulatorLaunchGuard,
     scanner: &dyn ProcessScanner,
     spawner: &dyn EmulatorProcessSpawner,
+    closer: &dyn EmulatorHostCloser,
 ) -> Result<EmulatorLaunchOutcome, LaunchError> {
     let plan = plan_emulator_launch(&request)?;
     let Some(_lease) = guard.try_acquire(&plan.emulator_id) else {
@@ -255,12 +314,56 @@ async fn launch_with_dependencies(
             format!("Could not verify whether the emulator is already running: {error}"),
         )
     })?;
-    let instance_count = processes
+    let matching_processes = processes
         .iter()
         .filter(|process| process.emulator_id == Some(plan.emulator_id.as_str()))
-        .count();
+        .collect::<Vec<_>>();
+    let instance_count = matching_processes.len();
     if instance_count > 0 {
-        return Ok(EmulatorLaunchOutcome::HostRunning { instance_count });
+        let adapter = launch_adapter_for(&plan.emulator_id).expect("validated launch adapter");
+        if matching_processes
+            .iter()
+            .any(|process| !(adapter.is_idle)(process))
+        {
+            return Ok(EmulatorLaunchOutcome::HostRunning { instance_count });
+        }
+
+        let idle_pids = matching_processes
+            .iter()
+            .map(|process| process.pid)
+            .collect::<HashSet<_>>();
+        let posted = closer.request_close(&idle_pids).map_err(|error| {
+            LaunchError::new(
+                LaunchErrorKind::Unreadable,
+                format!("Could not close the idle emulator window: {error}"),
+            )
+        })?;
+        if posted == 0 {
+            return Ok(EmulatorLaunchOutcome::HostRunning { instance_count });
+        }
+
+        let mut remaining_count = instance_count;
+        for _ in 0..30 {
+            let remaining = scanner.scan().await.map_err(|error| {
+                LaunchError::new(
+                    LaunchErrorKind::Unreadable,
+                    format!("Could not verify whether the emulator closed: {error}"),
+                )
+            })?;
+            remaining_count = remaining
+                .iter()
+                .filter(|process| process.emulator_id == Some(plan.emulator_id.as_str()))
+                .count();
+            if remaining_count == 0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        if remaining_count > 0 {
+            return Ok(EmulatorLaunchOutcome::HostRunning {
+                instance_count: remaining_count,
+            });
+        }
     }
     spawner.spawn(&plan).map_err(map_spawn_error)?;
     Ok(EmulatorLaunchOutcome::Spawned)
@@ -272,7 +375,14 @@ pub async fn launch_emulator_content(
     guard: tauri::State<'_, EmulatorLaunchGuard>,
 ) -> Result<EmulatorLaunchOutcome, LaunchError> {
     let scanner = process::create_scanner();
-    launch_with_dependencies(request, guard.inner(), scanner.as_ref(), &NativeSpawner).await
+    launch_with_dependencies(
+        request,
+        guard.inner(),
+        scanner.as_ref(),
+        &NativeSpawner,
+        &NativeHostCloser,
+    )
+    .await
 }
 
 fn verify_content_path(request: EmulatorContentPathRequest) -> LaunchPathReport {
@@ -317,7 +427,10 @@ mod tests {
     use async_trait::async_trait;
     use std::{
         error::Error,
-        sync::atomic::{AtomicUsize, Ordering},
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
     };
 
     struct FakeScanner(Vec<ProcessSnapshot>);
@@ -339,16 +452,66 @@ mod tests {
         }
     }
 
+    struct FakeCloser {
+        posted: usize,
+        state: Option<Arc<Mutex<Vec<ProcessSnapshot>>>>,
+    }
+
+    impl EmulatorHostCloser for FakeCloser {
+        fn request_close(&self, _pids: &HashSet<u32>) -> Result<usize, io::Error> {
+            if let Some(state) = &self.state {
+                state.lock().unwrap().clear();
+            }
+            Ok(self.posted)
+        }
+    }
+
+    struct SharedScanner(Arc<Mutex<Vec<ProcessSnapshot>>>);
+
+    #[async_trait]
+    impl ProcessScanner for SharedScanner {
+        async fn scan(&self) -> Result<Vec<ProcessSnapshot>, Box<dyn Error + Send + Sync>> {
+            Ok(self.0.lock().unwrap().clone())
+        }
+    }
+
     #[test]
     fn validates_dolphin_extensions_and_guard_reentry() {
         let adapter = launch_adapter_for("dolphin").expect("Dolphin adapter");
         assert!(has_supported_extension(adapter, r"C:\Games\Game.RVZ"));
         assert!(!has_supported_extension(adapter, r"C:\Games\save.sav"));
+        assert_eq!(
+            (adapter.arguments)(Path::new(r"C:\Games\Game.RVZ")),
+            vec![
+                OsString::from("--batch"),
+                OsString::from(r"--exec=C:\Games\Game.RVZ")
+            ]
+        );
         let guard = EmulatorLaunchGuard::default();
         let first = guard.try_acquire("dolphin").expect("first lease");
         assert!(guard.try_acquire("dolphin").is_none());
         drop(first);
         assert!(guard.try_acquire("dolphin").is_some());
+
+        let idle = ProcessSnapshot {
+            exe_name: "Dolphin.exe".to_string(),
+            exe_path: None,
+            pid: 1,
+            started_at_unix: 1,
+            emulator_id: Some("dolphin"),
+            command_line: None,
+            window_title: Some("Dolphin 2606".to_string()),
+            open_files: None,
+        };
+        assert!(is_dolphin_idle(&idle));
+        assert!(!is_dolphin_idle(&ProcessSnapshot {
+            window_title: Some("The Sims 2 | Dolphin 2606".to_string()),
+            ..idle.clone()
+        }));
+        assert!(!is_dolphin_idle(&ProcessSnapshot {
+            open_files: Some(vec![r"C:\Games\The Sims 2.rvz".to_string()]),
+            ..idle
+        }));
     }
 
     #[cfg(windows)]
@@ -390,20 +553,77 @@ mod tests {
             emulator_id: Some("dolphin"),
             command_line: None,
             window_title: None,
+            open_files: None,
         }]);
         assert_eq!(
-            launch_with_dependencies(request.clone(), &guard, &running, &spawner)
-                .await
-                .unwrap(),
+            launch_with_dependencies(
+                request.clone(),
+                &guard,
+                &running,
+                &spawner,
+                &FakeCloser {
+                    posted: 0,
+                    state: None,
+                },
+            )
+            .await
+            .unwrap(),
             EmulatorLaunchOutcome::HostRunning { instance_count: 1 }
         );
         assert_eq!(spawner.0.load(Ordering::SeqCst), 0);
 
         let clear = FakeScanner(vec![]);
         assert_eq!(
-            launch_with_dependencies(request, &guard, &clear, &spawner)
-                .await
-                .unwrap(),
+            launch_with_dependencies(
+                request,
+                &guard,
+                &clear,
+                &spawner,
+                &FakeCloser {
+                    posted: 0,
+                    state: None,
+                },
+            )
+            .await
+            .unwrap(),
+            EmulatorLaunchOutcome::Spawned
+        );
+        assert_eq!(spawner.0.load(Ordering::SeqCst), 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn closes_an_idle_host_before_spawning() {
+        let (request, dir) = test_request();
+        let process = ProcessSnapshot {
+            exe_name: "Dolphin.exe".to_string(),
+            exe_path: Some(request.exe_path.clone()),
+            pid: 7,
+            started_at_unix: 1,
+            emulator_id: Some("dolphin"),
+            command_line: None,
+            window_title: Some("Dolphin 2606".to_string()),
+            open_files: None,
+        };
+        let state = Arc::new(Mutex::new(vec![process]));
+        let scanner = SharedScanner(Arc::clone(&state));
+        let closer = FakeCloser {
+            posted: 1,
+            state: Some(state),
+        };
+        let spawner = FakeSpawner::default();
+
+        assert_eq!(
+            launch_with_dependencies(
+                request,
+                &EmulatorLaunchGuard::default(),
+                &scanner,
+                &spawner,
+                &closer,
+            )
+            .await
+            .unwrap(),
             EmulatorLaunchOutcome::Spawned
         );
         assert_eq!(spawner.0.load(Ordering::SeqCst), 1);

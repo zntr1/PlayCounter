@@ -47,6 +47,9 @@ impl ProcessScanner for WindowsScanner {
                         .needs_command_line
                         .then(|| emulator::sanitize_args(process.cmd())),
                     window_title: None,
+                    open_files: (host.id == "dolphin")
+                        .then(|| emulator::open_content_files(pid))
+                        .filter(|paths| !paths.is_empty()),
                 });
                 continue;
             }
@@ -61,6 +64,7 @@ impl ProcessScanner for WindowsScanner {
                     emulator_id: None,
                     command_line: None,
                     window_title: None,
+                    open_files: None,
                 });
         }
 

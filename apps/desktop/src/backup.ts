@@ -36,6 +36,7 @@ const DEVICE_LOCAL_KEYS = [
   "emulatorManualBinaries",
   "emulatorAutoLaunchTargets",
   "emulatorManualLaunchTargets",
+  "emulatorLaunchCandidates",
 ];
 const NOTIFICATION_STATE_KEYS = [
   "notifications",

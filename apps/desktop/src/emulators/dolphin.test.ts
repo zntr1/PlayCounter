@@ -29,6 +29,26 @@ describe("Dolphin adapter", () => {
     expect(discoverDolphinLaunchTarget(["--exec=memory-card.raw"])).toBeNull();
   });
 
+  it("discovers a game opened later through Dolphin's file handle", () => {
+    expect(
+      discoverDolphinLaunchTarget([], [
+        String.raw`D:\GameCube\The Sims 2.rvz`,
+      ]),
+    ).toEqual({
+      target: {
+        kind: "file",
+        filePath: String.raw`D:\GameCube\The Sims 2.rvz`,
+      },
+      source: "open_file_handle",
+    });
+    expect(
+      discoverDolphinLaunchTarget([], [
+        String.raw`D:\GameCube\Disc 1.rvz`,
+        String.raw`D:\GameCube\Disc 2.rvz`,
+      ]),
+    ).toBeNull();
+  });
+
   it.each([
     [
       ["--exec=C:\\Games\\Super Mario Sunshine.rvz"],

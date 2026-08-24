@@ -152,16 +152,25 @@ describe("session persistence", () => {
       filePath: String.raw`D:\Games\The Sims 2.rvz`,
       setAt: "2026-08-24T00:00:00.000Z",
     };
+    const candidate = {
+      ...target,
+      contentKey: "dolphin:title_id:g4op69",
+      displayName: "The Sims 2.rvz",
+    };
 
     persistAppState({
       ...makeState([]),
       emulatorAutoBinaries: new Map([["dolphin", binary]]),
       emulatorManualLaunchTargets: new Map([[target.contentKey, target]]),
+      emulatorLaunchCandidates: new Map([
+        [candidate.contentKey, candidate],
+      ]),
     });
 
     const payload = JSON.parse(setItem.mock.calls[0][1]);
     expect(payload.emulatorAutoBinaries).toEqual([binary]);
     expect(payload.emulatorManualLaunchTargets).toEqual([target]);
+    expect(payload.emulatorLaunchCandidates).toEqual([candidate]);
   });
 
   it("persists the last acknowledged release notes version when present", () => {

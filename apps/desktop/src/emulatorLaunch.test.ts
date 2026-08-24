@@ -105,7 +105,7 @@ describe("emulator launch helpers", () => {
     ).toBe(manualTarget);
   });
 
-  it("proves filename mappings and asks once for title-ID mappings", () => {
+  it("proves filename and live Dolphin title-ID mappings", () => {
     expect(
       emulatorTargetCompatibility(
         mapping("rom", "the sims 2.rvz"),
@@ -123,6 +123,6 @@ describe("emulator launch helpers", () => {
         mapping("title_id", "g4op69"),
         String.raw`D:\Games\The Sims 2 Pets.rvz`,
       ),
-    ).toEqual({ valid: true, association: "requires_confirmation" });
+    ).toEqual({ valid: true, association: "proven" });
   });
 });

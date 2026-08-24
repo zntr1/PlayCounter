@@ -64,6 +64,7 @@ export type ProcessSnapshot = {
   emulatorId?: string | null;
   commandLine?: string[] | null;
   windowTitle?: string | null;
+  openFiles?: string[] | null;
 };
 
 export type ActiveSession = {
@@ -918,12 +919,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     persistSoon();
   },
-  setEmulatorLaunchCandidates: (candidates) =>
-    set({
-      emulatorLaunchCandidates: new Map(
+  setEmulatorLaunchCandidates: (candidates) => {
+    let changed = false;
+    set((state) => {
+      const emulatorLaunchCandidates = new Map(
         candidates.map((candidate) => [candidate.contentKey, candidate]),
-      ),
-    }),
+      );
+      if (
+        emulatorLaunchCandidates.size === state.emulatorLaunchCandidates.size &&
+        [...emulatorLaunchCandidates].every(([key, candidate]) => {
+          const current = state.emulatorLaunchCandidates.get(key);
+          return (
+            current?.emulatorId === candidate.emulatorId &&
+            current.filePath === candidate.filePath &&
+            current.displayName === candidate.displayName &&
+            current.setAt === candidate.setAt
+          );
+        })
+      ) {
+        return state;
+      }
+      changed = true;
+      return { emulatorLaunchCandidates };
+    });
+    if (changed) persistSoon();
+  },
   forgetAllLaunchTargets: () => {
     set({
       launchTargets: new Map(),

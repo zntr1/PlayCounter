@@ -32,6 +32,7 @@ type PersistableAppState = {
   emulatorManualBinaries?: ReadonlyMap<string, unknown>;
   emulatorAutoLaunchTargets?: ReadonlyMap<string, unknown>;
   emulatorManualLaunchTargets?: ReadonlyMap<string, unknown>;
+  emulatorLaunchCandidates?: ReadonlyMap<string, unknown>;
   gameMetadata: ReadonlyMap<string, unknown>;
   recentSessions: Session[];
   activeSessions: unknown[];
@@ -70,6 +71,7 @@ export type PersistedPayload = {
   emulatorManualBinaries?: unknown[];
   emulatorAutoLaunchTargets?: unknown[];
   emulatorManualLaunchTargets?: unknown[];
+  emulatorLaunchCandidates?: unknown[];
   gameMetadata: unknown[];
   sessions: Session[];
   activeSessions: unknown[];
@@ -133,6 +135,9 @@ export function createPersistedPayload(
     ],
     emulatorManualLaunchTargets: [
       ...(state.emulatorManualLaunchTargets?.values() ?? []),
+    ],
+    emulatorLaunchCandidates: [
+      ...(state.emulatorLaunchCandidates?.values() ?? []),
     ],
     gameMetadata: [...state.gameMetadata.values()],
     sessions: normalizeSessions([...state.recentSessions]),

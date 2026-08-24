@@ -21,6 +21,7 @@ export type RawEmulatorSignals = {
   startedAtUnix: number;
   args: string[];
   windowTitle: string | null;
+  openFiles?: string[];
 };
 
 export type EmulatorDetectionSource = "window_title" | "launch_arguments";
@@ -67,7 +68,7 @@ export type EmulatorFileLaunchTarget = {
 
 export type EmulatorLaunchDiscovery = {
   target: EmulatorFileLaunchTarget;
-  source: "launch_arguments";
+  source: "launch_arguments" | "open_file_handle";
 };
 
 export type EmulatorTargetCompatibility =
@@ -78,6 +79,10 @@ export interface EmulatorLaunchCapability {
   targetKinds: readonly ["file"];
   fileExtensions: readonly string[];
   isValidContentFile(fileName: string): boolean;
+  identifyTarget(
+    target: EmulatorFileLaunchTarget,
+    context: EmulatorReadContext,
+  ): EmulatorContentSignal | null;
   discoverTarget(signals: RawEmulatorSignals): EmulatorLaunchDiscovery | null;
   validateTargetForMapping(
     mapping: EmulatorMapping,

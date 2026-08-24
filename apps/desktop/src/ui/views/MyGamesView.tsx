@@ -2042,8 +2042,8 @@ function GameLibraryCard({
       if (outcome.kind === "hostRunning") {
         addToast({
           tone: "info",
-          title: `${mapping.label} is already running`,
-          detail: `Close ${mapping.label} first so PlayCounter can start ${game.name} with the correct game file.`,
+          title: `${mapping.label} is still busy`,
+          detail: `Stop the current emulated game first. PlayCounter only replaces ${mapping.label} automatically when it is safely idle.`,
         });
         return;
       }
@@ -2740,6 +2740,26 @@ function GameLibraryCard({
             </div>
           ) : null}
         </div>
+        {primaryEmulatorCandidate && primaryEmulatorMapping ? (
+          <button
+            type="button"
+            title={`Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping.label} game file for ${game.name}`}
+            onClick={() =>
+              handleConfirmEmulatorCandidate(primaryEmulatorMapping)
+            }
+            className="flex items-center gap-2 border-t border-warning-border bg-warning-tint px-3 py-2 text-left text-warning transition hover:brightness-110"
+          >
+            <AlertTriangle size={14} className="shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-[10px] font-bold uppercase tracking-wide">
+                Action required
+              </span>
+              <span className="block truncate text-xs">
+                Confirm {primaryEmulatorCandidate.displayName} to enable Play
+              </span>
+            </span>
+          </button>
+        ) : null}
         {showLaunchFooter ? (
           <button
             type="button"
@@ -2747,7 +2767,7 @@ function GameLibraryCard({
               showPlayButton
                 ? playState.ariaLabel
                 : primaryEmulatorCandidate
-                  ? `Confirm detected launch file for ${game.name}`
+                  ? `Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping?.label ?? "emulator"} game file for ${game.name}`
                   : gameEmulatorMappings.length > 1
                     ? `Choose an emulator launch option for ${game.name}`
                     : `Set launch file for ${game.name}`
@@ -2756,7 +2776,7 @@ function GameLibraryCard({
               showPlayButton
                 ? playState.title
                 : primaryEmulatorCandidate
-                  ? "Use detected game file"
+                  ? `Confirm ${primaryEmulatorCandidate.displayName} for ${game.name}`
                   : gameEmulatorMappings.length > 1
                     ? "Choose emulator game…"
                     : "Set launch file…"
@@ -2776,12 +2796,21 @@ function GameLibraryCard({
           >
             {!showPlayButton ? (
               <>
-                <FolderSearch size={isLarge ? 16 : 14} />
-                {primaryEmulatorCandidate
-                  ? "Use detected file"
-                  : gameEmulatorMappings.length > 1
-                    ? "Choose emulator game"
-                    : "Set launch file"}
+                {primaryEmulatorCandidate ? (
+                  <>
+                    <Check size={isLarge ? 16 : 14} className="shrink-0" />
+                    <span className="min-w-0 truncate">
+                      Use {primaryEmulatorCandidate.displayName}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <FolderSearch size={isLarge ? 16 : 14} />
+                    {gameEmulatorMappings.length > 1
+                      ? "Choose emulator game"
+                      : "Set launch file"}
+                  </>
+                )}
               </>
             ) : playButtonRunning ? (
               <>
@@ -3056,6 +3085,22 @@ function GameLibraryCard({
                 game.emulatorLabels.join(", ")}
             </span>
           </div>
+
+          {primaryEmulatorCandidate && primaryEmulatorMapping ? (
+            <button
+              type="button"
+              title={`Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping.label} game file for ${game.name}`}
+              onClick={() =>
+                handleConfirmEmulatorCandidate(primaryEmulatorMapping)
+              }
+              className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md border border-warning-border bg-warning-tint px-2 py-1 text-xs font-medium text-warning transition hover:brightness-110"
+            >
+              <AlertTriangle size={13} className="shrink-0" />
+              <span className="truncate">
+                Action required: confirm {primaryEmulatorCandidate.displayName}
+              </span>
+            </button>
+          ) : null}
 
           {game.communityUpgradeExeName ? (
             <div className="mt-3 flex gap-2">

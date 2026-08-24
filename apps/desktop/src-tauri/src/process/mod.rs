@@ -12,6 +12,7 @@ pub struct ProcessSnapshot {
     pub emulator_id: Option<&'static str>,
     pub command_line: Option<Vec<String>>,
     pub window_title: Option<String>,
+    pub open_files: Option<Vec<String>>,
 }
 
 #[async_trait]

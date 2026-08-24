@@ -79,10 +79,24 @@ function dolphinContentArgument(args: string[]) {
 
 export function discoverDolphinLaunchTarget(
   args: string[],
+  openFiles: string[] = [],
 ): EmulatorLaunchDiscovery | null {
   const filePath = dolphinContentArgument(args);
-  return filePath
-    ? { target: { kind: "file", filePath }, source: "launch_arguments" }
+  if (filePath) {
+    return { target: { kind: "file", filePath }, source: "launch_arguments" };
+  }
+  const uniqueOpenFiles = [
+    ...new Map(
+      openFiles
+        .filter((path) => DOLPHIN_CONTENT_EXTENSION.test(basename(path)))
+        .map((path) => [path.toLowerCase(), path]),
+    ).values(),
+  ];
+  return uniqueOpenFiles.length === 1
+    ? {
+        target: { kind: "file", filePath: uniqueOpenFiles[0] },
+        source: "open_file_handle",
+      }
     : null;
 }
 
@@ -231,15 +245,22 @@ export const dolphinAdapter: EmulatorAdapter = {
       "rvz",
       "json",
     ],
-    isValidContentFile: (fileName) =>
-      DOLPHIN_CONTENT_EXTENSION.test(fileName),
-    discoverTarget: (signals) => discoverDolphinLaunchTarget(signals.args),
+    isValidContentFile: (fileName) => DOLPHIN_CONTENT_EXTENSION.test(fileName),
+    identifyTarget: (target, context) => {
+      const parsed = parseContentFile(target.filePath);
+      return parsed ? finalizeSignal(parsed, context) : null;
+    },
+    discoverTarget: (signals) =>
+      discoverDolphinLaunchTarget(signals.args, signals.openFiles),
     validateTargetForMapping: (mapping, target) => {
       if (!DOLPHIN_CONTENT_EXTENSION.test(basename(target.filePath))) {
         return { valid: false, reason: "unsupported-content-file" };
       }
       if (mapping.contentKind === "title_id") {
-        return { valid: true, association: "requires_confirmation" };
+        // A detected target comes from Dolphin's own launch arguments or from
+        // the single supported content file held open by that same process.
+        // That live process association is stronger than a filename/ID match.
+        return { valid: true, association: "proven" };
       }
       const value = normalizeToken(basename(target.filePath), "rom");
       return value === mapping.contentValue

@@ -22,7 +22,6 @@ export type EmulatorLaunchTarget = {
 };
 
 export type EmulatorLaunchCandidate = EmulatorLaunchTarget & {
-  pid: number;
   displayName: string;
 };
 

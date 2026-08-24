@@ -4,6 +4,7 @@ type Snapshot = {
   emulatorId?: string | null;
   commandLine?: string[] | null;
   windowTitle?: string | null;
+  openFiles?: string[] | null;
   [key: string]: unknown;
 };
 
@@ -12,6 +13,7 @@ export function toPublicSnapshots<T extends Snapshot>(snapshots: T[]): T[] {
     const {
       commandLine: _commandLine,
       windowTitle: _windowTitle,
+      openFiles: _openFiles,
       ...safe
     } = snapshot;
     return safe as T;

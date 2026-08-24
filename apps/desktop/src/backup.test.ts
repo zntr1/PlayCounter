@@ -107,6 +107,13 @@ describe("backup transfer data", () => {
           filePath: String.raw`D:\Games\other.rvz`,
         },
       ],
+      emulatorLaunchCandidates: [
+        {
+          contentKey: "dolphin:title_id:g4op69",
+          filePath: String.raw`D:\Games\The Sims 2.rvz`,
+          displayName: "The Sims 2.rvz",
+        },
+      ],
       activeSessions: [{ id: 2 }],
       ambiguousMatches: [{ exeName: "game.exe" }],
       exeCache: [
@@ -132,6 +139,7 @@ describe("backup transfer data", () => {
     expect(result).not.toHaveProperty("emulatorManualBinaries");
     expect(result).not.toHaveProperty("emulatorAutoLaunchTargets");
     expect(result).not.toHaveProperty("emulatorManualLaunchTargets");
+    expect(result).not.toHaveProperty("emulatorLaunchCandidates");
     expect(result).not.toHaveProperty("activeSessions");
     expect(result).not.toHaveProperty("ambiguousMatches");
   });

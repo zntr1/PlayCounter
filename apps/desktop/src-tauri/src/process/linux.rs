@@ -38,6 +38,7 @@ impl ProcessScanner for LinuxScanner {
                     emulator_id: None,
                     command_line: None,
                     window_title: None,
+                    open_files: None,
                 });
         }
 

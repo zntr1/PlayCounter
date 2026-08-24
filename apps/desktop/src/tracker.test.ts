@@ -542,13 +542,146 @@ describe("game launching", () => {
 
     await scanProcessesNow();
 
-    expect(useAppStore.getState().emulatorAutoBinaries.get("dolphin")).toMatchObject({
+    expect(
+      useAppStore.getState().emulatorAutoBinaries.get("dolphin"),
+    ).toMatchObject({
       exePath,
     });
     expect(
       useAppStore.getState().emulatorAutoLaunchTargets.get(contentKey),
     ).toMatchObject({ filePath });
     expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
+  });
+
+  it("learns the file opened later in Dolphin without a redundant confirmation", async () => {
+    const contentKey = "dolphin:title_id:g4op69";
+    useAppStore.setState({
+      emulatorMappings: new Map([
+        [
+          contentKey,
+          emulatorMapping({
+            contentKey,
+            emulatorId: "dolphin",
+            label: "Dolphin",
+            contentKind: "title_id",
+            contentValue: "g4op69",
+            display: "The Sims 2: Pets",
+          }),
+        ],
+      ]),
+    });
+    const filePath = String.raw`D:\Games\The Sims 2 Pets.rvz`;
+    let running = true;
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return running
+          ? [
+              {
+                exeName: "Dolphin.exe",
+                exePath: String.raw`C:\Emulators\Dolphin.exe`,
+                pid: 123,
+                startedAtUnix: 10,
+                emulatorId: "dolphin",
+                commandLine: [],
+                windowTitle:
+                  "Dolphin 2606 | JIT64 SC | Vulkan | HLE | The Sims 2: Pets (G4OP69)",
+                openFiles: [filePath],
+              },
+            ]
+          : [];
+      }
+      if (command === "verify_emulator_content_paths") {
+        return [{ path: filePath, status: "ok" }];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+
+    expect(
+      useAppStore.getState().emulatorAutoLaunchTargets.get(contentKey),
+    ).toMatchObject({ filePath });
+    expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
+
+    running = false;
+    await scanProcessesNow();
+    expect(
+      useAppStore.getState().emulatorAutoLaunchTargets.get(contentKey),
+    ).toMatchObject({ filePath });
+    expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
+  });
+
+  it("uses the existing mapping while a PlayCounter-launched Dolphin window is still starting", async () => {
+    const contentKey = "dolphin:title_id:g4op69";
+    const filePath = String.raw`D:\Games\Sims 2, The - Pets (Europe) (En,Fr,De).rvz`;
+    const mapping = emulatorMapping({
+      contentKey,
+      emulatorId: "dolphin",
+      label: "Dolphin",
+      contentKind: "title_id",
+      contentValue: "g4op69",
+      display: "The Sims 2: Pets",
+      gameName: "The Sims 2: Pets",
+    });
+    useAppStore.setState({
+      emulatorMappings: new Map([[contentKey, mapping]]),
+      emulatorAutoLaunchTargets: new Map([
+        [
+          contentKey,
+          {
+            contentKey,
+            emulatorId: "dolphin",
+            filePath,
+            setAt: "2026-08-24T00:00:00.000Z",
+          },
+        ],
+      ]),
+      emulatorObservations: [
+        {
+          kind: "content",
+          key: "dolphin:rom:sims 2, the - pets (europe) (en,fr,de).rvz",
+          emulatorId: "dolphin",
+          label: "Dolphin",
+          hostExeName: "Dolphin.exe",
+          contentKind: "rom",
+          contentValue: "sims 2, the - pets (europe) (en,fr,de).rvz",
+          display: "Sims 2, The - Pets (Europe) (En,Fr,De).rvz",
+          trust: "recognized",
+          shareable: true,
+          state: "unknown",
+          detectedAt: "2026-08-24T00:00:00.000Z",
+        },
+      ],
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "Dolphin.exe",
+            exePath: String.raw`C:\Emulators\Dolphin.exe`,
+            pid: 123,
+            startedAtUnix: 10,
+            emulatorId: "dolphin",
+            commandLine: ["--batch", `--exec=${filePath}`],
+            windowTitle: null,
+            openFiles: [filePath],
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+
+    expect(useAppStore.getState().emulatorObservations).toEqual([]);
+    expect(useAppStore.getState().activeSessions).toHaveLength(1);
+    expect(useAppStore.getState().activeSessions[0]).toMatchObject({
+      gameName: "The Sims 2: Pets",
+      emulator: {
+        emulatorId: "dolphin",
+        contentKey,
+      },
+    });
   });
 
   it("does not learn executable paths from temporary folders", async () => {
