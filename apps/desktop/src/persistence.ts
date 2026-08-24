@@ -5,6 +5,7 @@ import type {
   Settings,
 } from "@playcounter/shared";
 import type { AppNotification } from "./notifications";
+import type { InstallPresenceMarker } from "./installPresence";
 import type { DiscoveredReviewReminder } from "./discoveredReminder";
 import type { AwardedMilestone } from "./milestones";
 import { gameSecondsKey } from "./gameSeconds";
@@ -21,6 +22,7 @@ export const MAX_STORED_NOTIFICATIONS = 100;
 
 type PersistableAppState = {
   installUuid: string | null;
+  installPresenceMarker: InstallPresenceMarker | null;
   contributionOwnerUuid: string | null;
   settings: Settings;
   exeCache: ReadonlyMap<string, unknown>;
@@ -54,6 +56,7 @@ type PersistableAppState = {
 
 export type PersistedPayload = {
   installUuid?: string;
+  installPresenceMarker?: InstallPresenceMarker;
   contributionOwnerUuid?: string;
   settings: Settings;
   exeCache: unknown[];
@@ -105,6 +108,7 @@ export function createPersistedPayload(
 ): PersistedPayload {
   return {
     installUuid: state.installUuid ?? undefined,
+    installPresenceMarker: state.installPresenceMarker ?? undefined,
     contributionOwnerUuid: state.contributionOwnerUuid ?? undefined,
     settings: state.settings,
     exeCache: [...state.exeCache.values()],

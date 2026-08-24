@@ -17,6 +17,7 @@ import type {
   IgnoredProcessReportPayload,
   IgnoredProcessReportResponse,
   IgnoredProcessReportStatus,
+  InstallPresencePayload,
   MatchProcessesResponse,
   Platform,
   ProcessIdentifier,
@@ -65,6 +66,10 @@ import {
   sanitizeDiscoveredReviewReminder,
 } from "./discoveredReminder";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
+import {
+  reportInstallPresence,
+  sanitizeInstallPresenceMarker,
+} from "./installPresence";
 import { currentPlatform } from "./platform";
 import {
   evaluateMilestones,
@@ -151,6 +156,7 @@ export const PENDING_COMMUNITY_RETRY_MS = 5 * 60 * 1000;
 
 type PersistedState = {
   installUuid?: string;
+  installPresenceMarker?: unknown;
   contributionOwnerUuid?: string;
   settings?: Partial<Settings>;
   exeCache?: ExeCacheEntry[];
@@ -251,6 +257,7 @@ let trayTimer: number | undefined;
 let unsubscribeTraySync: (() => void) | undefined;
 let nextSessionSequence = 0;
 let scanInFlight: Promise<void> | undefined;
+let installPresencePingInFlight: Promise<void> | undefined;
 let scanQueued = false;
 let canonicalBackfillDone = false;
 let canonicalBackfillInFlight: Promise<boolean> | undefined;
@@ -362,6 +369,7 @@ async function finishTrackerStartup() {
     lastEmulatorRunningKeys.clear();
     launchInFlight.clear();
     launchVerificationInFlight = undefined;
+    installPresencePingInFlight = undefined;
     lastLaunchVerificationAt = 0;
     disposeDesktopOverlays();
     disposeControllerBridge();
@@ -597,6 +605,9 @@ function hydrate() {
   );
   useAppStore.setState({
     installUuid: persisted.installUuid ?? null,
+    installPresenceMarker: sanitizeInstallPresenceMarker(
+      persisted.installPresenceMarker,
+    ),
     contributionOwnerUuid: persisted.contributionOwnerUuid ?? null,
     settings,
     // Open running windows were removed while constructing exeCacheMap above;
@@ -3512,7 +3523,7 @@ function scheduleBackendHealthChecks() {
   logRuntime("backend health checks scheduled");
 }
 
-async function checkBackendHealth() {
+export async function checkBackendHealth() {
   const state = useAppStore.getState();
   const endpoint = state.settings.apiEndpoint.replace(/\/+$/, "");
   if (
@@ -3535,12 +3546,49 @@ async function checkBackendHealth() {
     if (body.ok !== true) throw new Error("Health check returned not ok");
 
     setBackendHealth("online", "Backend health check passed");
+    await sendInstallPresenceIfDue();
   } catch (error) {
     const detail =
       error instanceof DOMException && error.name === "AbortError"
         ? "Health check timed out"
         : formatError(error);
     setBackendHealth("offline", detail);
+  }
+}
+
+async function sendInstallPresenceIfDue() {
+  if (installPresencePingInFlight) return installPresencePingInFlight;
+
+  installPresencePingInFlight = (async () => {
+    const state = useAppStore.getState();
+    const marker = await reportInstallPresence({
+      installUuid: state.installUuid,
+      apiEndpoint: state.settings.apiEndpoint,
+      marker: state.installPresenceMarker,
+      request: async (endpoint, payload) => {
+        const response = await fetchWithTimeout(
+          `${endpoint}/api/install-presence`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payload satisfies InstallPresencePayload),
+            timeoutMs: API_REQUEST_TIMEOUT_MS,
+          },
+        );
+        return { ok: response.ok, status: response.status };
+      },
+    });
+    if (marker && marker !== state.installPresenceMarker) {
+      useAppStore.getState().setInstallPresenceMarker(marker);
+      persist();
+      logRuntime(`install presence marker updated kind=${marker.kind}`);
+    }
+  })();
+
+  try {
+    await installPresencePingInFlight;
+  } finally {
+    installPresencePingInFlight = undefined;
   }
 }
 

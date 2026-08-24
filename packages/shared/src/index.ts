@@ -298,6 +298,10 @@ export interface FeedbackResponse {
   id: number;
 }
 
+export interface InstallPresencePayload {
+  installUuid: string;
+}
+
 export type Theme = "dark" | "light";
 
 export interface Settings {

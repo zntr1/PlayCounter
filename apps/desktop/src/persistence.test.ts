@@ -38,6 +38,7 @@ function makeState(
 ) {
   return {
     installUuid: null,
+    installPresenceMarker: null,
     contributionOwnerUuid: null,
     settings,
     exeCache: new Map(),

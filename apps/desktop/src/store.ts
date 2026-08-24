@@ -17,6 +17,7 @@ import {
   type DiscoveredReviewReminder,
 } from "./discoveredReminder";
 import type { AppNotification } from "./notifications";
+import type { InstallPresenceMarker } from "./installPresence";
 import type { AwardedMilestone } from "./milestones";
 import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
 import { persistAppState } from "./persistence";
@@ -294,6 +295,7 @@ type AppState = {
   blacklist: Set<string>;
   runtimeError: string | null;
   backendHealth: BackendHealth;
+  installPresenceMarker: InstallPresenceMarker | null;
   toasts: Toast[];
   notifications: AppNotification[];
   discoveredReviewReminder: DiscoveredReviewReminder;
@@ -364,6 +366,7 @@ type AppState = {
   addRuntimeLogEntry: (message: string) => void;
   setRuntimeError: (error: string | null) => void;
   setBackendHealth: (health: BackendHealth) => void;
+  setInstallPresenceMarker: (marker: InstallPresenceMarker) => void;
   addToast: (toast: Omit<Toast, "id">) => void;
   dismissToast: (toastId: number) => void;
   addNotification: (notification: AppNotification) => void;
@@ -522,6 +525,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   blacklist: new Set(),
   runtimeError: null,
   backendHealth: { status: "checking", checkedAt: null, detail: null },
+  installPresenceMarker: null,
   toasts: [],
   notifications: [],
   discoveredReviewReminder: null,
@@ -831,6 +835,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
   setRuntimeError: (runtimeError) => set({ runtimeError }),
   setBackendHealth: (backendHealth) => set({ backendHealth }),
+  setInstallPresenceMarker: (installPresenceMarker) =>
+    set({ installPresenceMarker }),
   addToast: (toast) =>
     set((state) => ({
       toasts: [{ ...toast, id: nextToastId++ }, ...state.toasts].slice(0, 5),

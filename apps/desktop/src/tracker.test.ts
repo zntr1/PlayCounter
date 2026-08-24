@@ -23,6 +23,7 @@ import {
   applyCommunitySuggestionOutcome,
   applyContributionMarkers,
   cancelCommunitySuggestion,
+  checkBackendHealth,
   chooseLaunchTarget,
   clearLocalLibrary,
   dismissAmbiguousMatch,
@@ -138,6 +139,7 @@ beforeEach(() => {
     ignoredProcesses: new Set(),
     userIgnoredProcesses: new Set(),
     installUuid: null,
+    installPresenceMarker: null,
     contributionOwnerUuid: null,
     seenContributionStatus: {},
     contributionCounts: {
@@ -168,6 +170,81 @@ beforeEach(() => {
       gameLaunchingEnabled: true,
       controllerNavigationEnabled: false,
     },
+  });
+});
+
+describe("install presence wiring", () => {
+  const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+  const apiEndpoint = "https://api.playcounter.test";
+
+  it("reports presence after a successful health check and persists the marker", async () => {
+    useAppStore.setState({
+      installUuid,
+      installPresenceMarker: null,
+      settings: { ...useAppStore.getState().settings, apiEndpoint },
+    });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, _init?: RequestInit) => {
+        if (String(input).endsWith("/health")) {
+          return {
+            ok: true,
+            status: 200,
+            statusText: "OK",
+            json: async () => ({ ok: true }),
+          } as Response;
+        }
+        return { ok: true, status: 204, statusText: "No Content" } as Response;
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await checkBackendHealth();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const presenceCall = fetchMock.mock.calls[1];
+    expect(String(presenceCall[0])).toBe(`${apiEndpoint}/api/install-presence`);
+    expect(JSON.parse(String(presenceCall[1]?.body))).toEqual({ installUuid });
+    expect(useAppStore.getState().installPresenceMarker).toMatchObject({
+      endpoint: apiEndpoint,
+      installUuid,
+      kind: "success",
+    });
+    expect(globalThis.localStorage.setItem).toHaveBeenCalled();
+  });
+
+  it("keeps a fresh marker quiet but bypasses it for a changed endpoint", async () => {
+    useAppStore.setState({
+      installUuid,
+      installPresenceMarker: {
+        endpoint: apiEndpoint,
+        installUuid,
+        sentAt: new Date().toISOString(),
+        kind: "success",
+      },
+      settings: { ...useAppStore.getState().settings, apiEndpoint },
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      status: String(input).endsWith("/health") ? 200 : 204,
+      statusText: "OK",
+      json: async () => ({ ok: true }),
+    })) as ReturnType<typeof vi.fn>;
+    vi.stubGlobal("fetch", fetchMock);
+
+    await checkBackendHealth();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    useAppStore.setState({
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://other.playcounter.test",
+      },
+    });
+    await checkBackendHealth();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[2][0])).toBe(
+      "https://other.playcounter.test/api/install-presence",
+    );
   });
 });
 
