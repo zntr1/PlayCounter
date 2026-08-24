@@ -31,6 +31,11 @@ import type {
 } from "./emulators/types";
 import { findTour } from "./ui/tour/tourDefinitions";
 import { manualLaunchTargetKey } from "./gameLaunch";
+import type {
+  EmulatorBinaryEntry,
+  EmulatorLaunchCandidate,
+  EmulatorLaunchTarget,
+} from "./emulatorLaunch";
 import { stepView } from "./ui/tour/tourNavigation";
 import {
   defaultTourProgress,
@@ -290,6 +295,11 @@ type AppState = {
   exeCache: Map<string, ExeCacheEntry>;
   launchTargets: Map<string, LaunchTarget>;
   manualLaunchTargets: Map<string, LaunchTarget>;
+  emulatorAutoBinaries: Map<string, EmulatorBinaryEntry>;
+  emulatorManualBinaries: Map<string, EmulatorBinaryEntry>;
+  emulatorAutoLaunchTargets: Map<string, EmulatorLaunchTarget>;
+  emulatorManualLaunchTargets: Map<string, EmulatorLaunchTarget>;
+  emulatorLaunchCandidates: Map<string, EmulatorLaunchCandidate>;
   apiRequestLog: ApiRequestLogEntry[];
   runtimeLog: RuntimeLogEntry[];
   blacklist: Set<string>;
@@ -361,6 +371,15 @@ type AppState = {
     aliases?: readonly LaunchTargetOwner[],
   ) => void;
   removeManualLaunchTarget: (owner: LaunchTargetOwner) => void;
+  setEmulatorAutoBinary: (entry: EmulatorBinaryEntry) => void;
+  removeEmulatorAutoBinary: (emulatorId: string) => void;
+  setEmulatorManualBinary: (entry: EmulatorBinaryEntry) => void;
+  removeEmulatorManualBinary: (emulatorId: string) => void;
+  setEmulatorAutoLaunchTarget: (target: EmulatorLaunchTarget) => void;
+  removeEmulatorAutoLaunchTarget: (contentKey: string) => void;
+  setEmulatorManualLaunchTarget: (target: EmulatorLaunchTarget) => void;
+  removeEmulatorManualLaunchTarget: (contentKey: string) => void;
+  setEmulatorLaunchCandidates: (candidates: EmulatorLaunchCandidate[]) => void;
   forgetAllLaunchTargets: () => void;
   addApiRequestLogEntry: (entry: Omit<ApiRequestLogEntry, "id" | "at">) => void;
   addRuntimeLogEntry: (message: string) => void;
@@ -520,6 +539,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   exeCache: new Map(),
   launchTargets: new Map(),
   manualLaunchTargets: new Map(),
+  emulatorAutoBinaries: new Map(),
+  emulatorManualBinaries: new Map(),
+  emulatorAutoLaunchTargets: new Map(),
+  emulatorManualLaunchTargets: new Map(),
+  emulatorLaunchCandidates: new Map(),
   apiRequestLog: [],
   runtimeLog: [],
   blacklist: new Set(),
@@ -815,8 +839,101 @@ export const useAppStore = create<AppState>((set, get) => ({
       manualLaunchTargets.delete(manualLaunchTargetKey(owner));
       return { manualLaunchTargets };
     }),
+  setEmulatorAutoBinary: (entry) => {
+    set((state) => {
+      if (state.emulatorAutoBinaries.has(entry.emulatorId)) return state;
+      const emulatorAutoBinaries = new Map(state.emulatorAutoBinaries);
+      emulatorAutoBinaries.set(entry.emulatorId, entry);
+      return { emulatorAutoBinaries };
+    });
+    persistSoon();
+  },
+  removeEmulatorAutoBinary: (emulatorId) => {
+    set((state) => {
+      const emulatorAutoBinaries = new Map(state.emulatorAutoBinaries);
+      emulatorAutoBinaries.delete(emulatorId);
+      return { emulatorAutoBinaries };
+    });
+    persistSoon();
+  },
+  setEmulatorManualBinary: (entry) => {
+    set((state) => {
+      const emulatorManualBinaries = new Map(state.emulatorManualBinaries);
+      emulatorManualBinaries.set(entry.emulatorId, entry);
+      return { emulatorManualBinaries };
+    });
+    persistSoon();
+  },
+  removeEmulatorManualBinary: (emulatorId) => {
+    set((state) => {
+      const emulatorManualBinaries = new Map(state.emulatorManualBinaries);
+      emulatorManualBinaries.delete(emulatorId);
+      return { emulatorManualBinaries };
+    });
+    persistSoon();
+  },
+  setEmulatorAutoLaunchTarget: (target) => {
+    set((state) => {
+      if (
+        state.emulatorAutoLaunchTargets.has(target.contentKey) ||
+        state.emulatorManualLaunchTargets.has(target.contentKey)
+      ) {
+        return state;
+      }
+      const emulatorAutoLaunchTargets = new Map(
+        state.emulatorAutoLaunchTargets,
+      );
+      emulatorAutoLaunchTargets.set(target.contentKey, target);
+      return { emulatorAutoLaunchTargets };
+    });
+    persistSoon();
+  },
+  removeEmulatorAutoLaunchTarget: (contentKey) => {
+    set((state) => {
+      const emulatorAutoLaunchTargets = new Map(
+        state.emulatorAutoLaunchTargets,
+      );
+      emulatorAutoLaunchTargets.delete(contentKey);
+      return { emulatorAutoLaunchTargets };
+    });
+    persistSoon();
+  },
+  setEmulatorManualLaunchTarget: (target) => {
+    set((state) => {
+      const emulatorManualLaunchTargets = new Map(
+        state.emulatorManualLaunchTargets,
+      );
+      emulatorManualLaunchTargets.set(target.contentKey, target);
+      return { emulatorManualLaunchTargets };
+    });
+    persistSoon();
+  },
+  removeEmulatorManualLaunchTarget: (contentKey) => {
+    set((state) => {
+      const emulatorManualLaunchTargets = new Map(
+        state.emulatorManualLaunchTargets,
+      );
+      emulatorManualLaunchTargets.delete(contentKey);
+      return { emulatorManualLaunchTargets };
+    });
+    persistSoon();
+  },
+  setEmulatorLaunchCandidates: (candidates) =>
+    set({
+      emulatorLaunchCandidates: new Map(
+        candidates.map((candidate) => [candidate.contentKey, candidate]),
+      ),
+    }),
   forgetAllLaunchTargets: () => {
-    set({ launchTargets: new Map(), manualLaunchTargets: new Map() });
+    set({
+      launchTargets: new Map(),
+      manualLaunchTargets: new Map(),
+      emulatorAutoBinaries: new Map(),
+      emulatorManualBinaries: new Map(),
+      emulatorAutoLaunchTargets: new Map(),
+      emulatorManualLaunchTargets: new Map(),
+      emulatorLaunchCandidates: new Map(),
+    });
     persistSoon();
   },
   addApiRequestLogEntry: (entry) =>

@@ -192,6 +192,11 @@ beforeEach(() => {
     userIgnoredProcesses: new Set(),
     launchTargets: new Map(),
     manualLaunchTargets: new Map(),
+    emulatorAutoBinaries: new Map(),
+    emulatorManualBinaries: new Map(),
+    emulatorAutoLaunchTargets: new Map(),
+    emulatorManualLaunchTargets: new Map(),
+    emulatorLaunchCandidates: new Map(),
     settings: {
       ...useAppStore.getState().settings,
       desktopOverlaysEnabled: true,
@@ -301,6 +306,35 @@ describe("launch target state", () => {
     useAppStore.getState().forgetAllLaunchTargets();
     expect(useAppStore.getState().launchTargets.size).toBe(0);
     expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
+  });
+
+  it("keeps learned emulator paths sticky and lets manual choices win", () => {
+    const automatic = {
+      emulatorId: "dolphin",
+      exePath: String.raw`C:\Auto\Dolphin.exe`,
+      setAt: "auto",
+    };
+    useAppStore.getState().setEmulatorAutoBinary(automatic);
+    useAppStore.getState().setEmulatorAutoBinary({
+      ...automatic,
+      exePath: String.raw`C:\Other\Dolphin.exe`,
+    });
+    expect(useAppStore.getState().emulatorAutoBinaries.get("dolphin")).toBe(
+      automatic,
+    );
+
+    useAppStore.getState().setEmulatorManualBinary({
+      ...automatic,
+      exePath: String.raw`D:\Manual\Dolphin.exe`,
+      setAt: "manual",
+    });
+    useAppStore.getState().clearCache();
+    expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(1);
+    expect(useAppStore.getState().emulatorManualBinaries.size).toBe(1);
+
+    useAppStore.getState().forgetAllLaunchTargets();
+    expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(0);
+    expect(useAppStore.getState().emulatorManualBinaries.size).toBe(0);
   });
 
   it("keeps launching opt-in and turns controller control off with it", () => {

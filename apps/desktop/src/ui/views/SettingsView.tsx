@@ -13,7 +13,9 @@ import { getVersion } from "@tauri-apps/api/app";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
 import {
+  chooseEmulatorBinary,
   clearLocalCache,
+  forgetEmulatorManualBinary,
   openUserIgnoredProcessesFolder,
   reloadIgnoredProcesses,
   setEmulatorIgnored,
@@ -35,6 +37,8 @@ import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { TutorialSettingsPanel } from "../tour/TourUI";
 import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
+import { resolveEmulatorBinary } from "../../emulatorLaunch";
+import { launchFileBaseName } from "../../gameLaunch";
 import {
   findReleaseNote,
   isEmptyDisplayNotes,
@@ -85,7 +89,19 @@ export function SettingsView() {
     (state) => state.forgetAllLaunchTargets,
   );
   const launchTargetCount = useAppStore(
-    (state) => state.launchTargets.size + state.manualLaunchTargets.size,
+    (state) =>
+      state.launchTargets.size +
+      state.manualLaunchTargets.size +
+      state.emulatorAutoBinaries.size +
+      state.emulatorManualBinaries.size +
+      state.emulatorAutoLaunchTargets.size +
+      state.emulatorManualLaunchTargets.size,
+  );
+  const emulatorAutoBinaries = useAppStore(
+    (state) => state.emulatorAutoBinaries,
+  );
+  const emulatorManualBinaries = useAppStore(
+    (state) => state.emulatorManualBinaries,
   );
   const setAccentColor = useAppStore((state) => state.setAccentColor);
   const knownEmulators = useAppStore((state) => state.knownEmulators);
@@ -164,6 +180,33 @@ export function SettingsView() {
     } finally {
       setEmulatorSyncing(null);
     }
+  }
+
+  async function handleChooseEmulatorBinary(emulatorId: string) {
+    try {
+      const binary = await chooseEmulatorBinary(emulatorId);
+      if (!binary) return;
+      addToast({
+        tone: "success",
+        title: "Emulator program saved",
+        detail: `${launchFileBaseName(binary.exePath)} can now be used to start emulator games.`,
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Emulator program not set",
+        detail: formatError(error),
+      });
+    }
+  }
+
+  function handleForgetEmulatorBinary(emulatorId: string, label: string) {
+    forgetEmulatorManualBinary(emulatorId);
+    addToast({
+      tone: "info",
+      title: "Emulator program forgotten",
+      detail: `PlayCounter will learn ${label} again when it sees it running.`,
+    });
   }
 
   async function handleCheckForUpdate() {
@@ -488,10 +531,11 @@ export function SettingsView() {
           </SettingsRow>
 
           <div className="rounded-lg border border-border bg-bg/40 px-4 py-3 text-xs leading-5 text-text-muted">
-            PlayCounter starts the selected <code>.exe</code> directly. Games
-            that require Steam, Epic, another launcher, special arguments, or
-            administrator approval may need their normal shortcut. Learned paths
-            stay on this device and are excluded from backups.
+            PlayCounter starts a selected game <code>.exe</code> directly, or
+            passes a saved game file to a supported emulator. Launcher-managed
+            games and administrator approval may still require their normal
+            shortcut. Learned paths stay on this device and are excluded from
+            backups.
           </div>
           <SettingsRow
             description="Navigate PlayCounter with an controller. Requires direct game launching turned on."
@@ -574,10 +618,19 @@ export function SettingsView() {
               </p>
             </div>
             {[...displayedEmulators.values()].map((emulator) => {
+              const adapter = adapterFor(emulator.emulatorId);
               const ignored = (settings.ignoredEmulatorIds ?? []).some(
                 (id) => id.toLowerCase() === emulator.emulatorId.toLowerCase(),
               );
               const imageSrc = emulatorAssetUrls[emulator.emulatorId];
+              const binary = resolveEmulatorBinary(
+                emulator.emulatorId,
+                emulatorAutoBinaries,
+                emulatorManualBinaries,
+              );
+              const hasManualBinary = emulatorManualBinaries.has(
+                emulator.emulatorId,
+              );
               return (
                 <div
                   key={emulator.emulatorId}
@@ -600,21 +653,62 @@ export function SettingsView() {
                           ? "Ignored and hidden"
                           : emulator.hostExeNames.join(", ") || "Enabled"}
                       </div>
+                      {adapter?.launch ? (
+                        <div
+                          className="mt-1 truncate text-xs text-text-muted"
+                          title={binary?.exePath}
+                        >
+                          Launch program: {binary
+                            ? `${launchFileBaseName(binary.exePath)}${
+                                hasManualBinary ? " (selected)" : " (detected)"
+                              }`
+                            : "not set"}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
-                  <Button
-                    variant={ignored ? "primary" : "secondary"}
-                    loading={emulatorSyncing === emulator.emulatorId}
-                    disabled={
-                      emulatorSyncing !== null ||
-                      !(settings.emulatorDetection ?? true)
-                    }
-                    onClick={() =>
-                      void handleEmulatorIgnored(emulator.emulatorId, !ignored)
-                    }
-                  >
-                    {ignored ? "Enable" : "Ignore"}
-                  </Button>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {adapter?.launch ? (
+                      <>
+                        <Button
+                          variant="secondary"
+                          icon={FolderOpen}
+                          onClick={() =>
+                            void handleChooseEmulatorBinary(emulator.emulatorId)
+                          }
+                        >
+                          {binary ? "Change program" : "Set program"}
+                        </Button>
+                        {hasManualBinary ? (
+                          <Button
+                            variant="secondary"
+                            icon={RotateCcw}
+                            onClick={() =>
+                              handleForgetEmulatorBinary(
+                                emulator.emulatorId,
+                                emulator.label,
+                              )
+                            }
+                          >
+                            Use detected
+                          </Button>
+                        ) : null}
+                      </>
+                    ) : null}
+                    <Button
+                      variant={ignored ? "primary" : "secondary"}
+                      loading={emulatorSyncing === emulator.emulatorId}
+                      disabled={
+                        emulatorSyncing !== null ||
+                        !(settings.emulatorDetection ?? true)
+                      }
+                      onClick={() =>
+                        void handleEmulatorIgnored(emulator.emulatorId, !ignored)
+                      }
+                    >
+                      {ignored ? "Enable" : "Ignore"}
+                    </Button>
+                  </div>
                 </div>
               );
             })}

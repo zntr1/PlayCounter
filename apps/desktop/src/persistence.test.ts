@@ -135,6 +135,35 @@ describe("session persistence", () => {
     ]);
   });
 
+  it("persists emulator binaries and game files as device-local records", () => {
+    const setItem = vi.fn();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { setItem },
+    });
+    const binary = {
+      emulatorId: "dolphin",
+      exePath: String.raw`C:\Emulators\Dolphin.exe`,
+      setAt: "2026-08-24T00:00:00.000Z",
+    };
+    const target = {
+      emulatorId: "dolphin",
+      contentKey: "dolphin:rom:the sims 2.rvz",
+      filePath: String.raw`D:\Games\The Sims 2.rvz`,
+      setAt: "2026-08-24T00:00:00.000Z",
+    };
+
+    persistAppState({
+      ...makeState([]),
+      emulatorAutoBinaries: new Map([["dolphin", binary]]),
+      emulatorManualLaunchTargets: new Map([[target.contentKey, target]]),
+    });
+
+    const payload = JSON.parse(setItem.mock.calls[0][1]);
+    expect(payload.emulatorAutoBinaries).toEqual([binary]);
+    expect(payload.emulatorManualLaunchTargets).toEqual([target]);
+  });
+
   it("persists the last acknowledged release notes version when present", () => {
     const setItem = vi.fn();
     Object.defineProperty(globalThis, "localStorage", {

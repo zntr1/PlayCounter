@@ -26,7 +26,14 @@ import {
   Trash2,
   WifiOff,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   acceptCommunityUpgrade,
   addManualSession,
@@ -40,7 +47,10 @@ import {
   findGameMatches,
   forgetLaunchTarget,
   forgetManualLaunchTarget,
+  forgetEmulatorLaunchTarget,
+  confirmEmulatorLaunchCandidate,
   launchGame,
+  launchEmulatorGame,
   convertToCustomGame,
   hydrateGameMetadata,
   markCommunitySuggestionRejected,
@@ -48,6 +58,7 @@ import {
   reportNegativeMatch,
   scanProcessesNow,
   chooseLaunchTarget,
+  chooseEmulatorLaunchFile,
   setGamePlaytime,
   setCustomGameCover,
   suggestTrackedGameToCommunity,
@@ -132,6 +143,11 @@ import {
   launchErrorMessage,
   launchTargetsForGame,
 } from "../../gameLaunch";
+import {
+  emulatorLaunchErrorMessage,
+  resolveEmulatorLaunchTarget,
+} from "../../emulatorLaunch";
+import { adapterFor } from "../../emulators/registry";
 import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 
@@ -176,6 +192,7 @@ type GameSummary = {
   exeNames: string[];
   emulatorLabels: string[];
   emulatorIds: string[];
+  emulatorContentKeys: string[];
 };
 
 type PendingRemoval = {
@@ -225,6 +242,7 @@ function makeTourDemoGame(
     exeNames: [TOUR_DEMO_GAME.exeName],
     emulatorLabels: [],
     emulatorIds: [],
+    emulatorContentKeys: [],
   };
 }
 
@@ -250,6 +268,7 @@ function makeCoreTourDemoGames(): GameSummary[] {
       exeNames: [TOUR_DEMO_GAME.exeName],
       emulatorLabels: [],
       emulatorIds: [],
+      emulatorContentKeys: [],
     },
     {
       kind: "tour-demo",
@@ -270,6 +289,7 @@ function makeCoreTourDemoGames(): GameSummary[] {
       exeNames: ["GTA5.exe"],
       emulatorLabels: [],
       emulatorIds: [],
+      emulatorContentKeys: [],
     },
   ];
 }
@@ -392,6 +412,7 @@ export function MyGamesView() {
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
+  const emulatorMappings = useAppStore((state) => state.emulatorMappings);
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
@@ -572,6 +593,7 @@ export function MyGamesView() {
       exeNames: [params.exeName],
       emulatorLabels: [],
       emulatorIds: [],
+      emulatorContentKeys: [],
     });
 
     for (const session of sessions) {
@@ -808,6 +830,52 @@ export function MyGamesView() {
       }
     }
 
+    for (const mapping of emulatorMappings.values()) {
+      if (
+        mapping.decision !== "game" ||
+        mapping.gameId === undefined ||
+        !adapterFor(mapping.emulatorId)?.launch
+      ) {
+        continue;
+      }
+      const source = mapping.source ?? null;
+      const summaryKey = resolvedCanonicalGameKey(
+        {
+          gameId: mapping.gameId,
+          source,
+          igdbId: mapping.igdbId,
+          gameName: mapping.gameName,
+          coverUrl: mapping.coverUrl,
+        },
+        resolveIgdbId,
+      );
+      let summary = summaries.get(summaryKey);
+      if (!summary) {
+        summary = createSummary({
+          gameId: mapping.gameId,
+          igdbId: mapping.igdbId,
+          name: mapping.gameName ?? mapping.display,
+          coverUrl: mapping.coverUrl ?? "",
+          source,
+          lastPlayedAt: mapping.lastSeenAt,
+          exeName: "",
+          historyGameKey: summaryKey,
+        });
+        summaries.set(summaryKey, summary);
+      }
+      addAlias(summary, mapping.gameId, source);
+      if (!summary.emulatorContentKeys.includes(mapping.contentKey)) {
+        summary.emulatorContentKeys.push(mapping.contentKey);
+      }
+      if (!summary.emulatorIds.includes(mapping.emulatorId)) {
+        summary.emulatorIds.push(mapping.emulatorId);
+      }
+      const label = `${mapping.label} · ${mapping.display}`;
+      if (!summary.emulatorLabels.includes(label)) {
+        summary.emulatorLabels.push(label);
+      }
+    }
+
     const consumedKeys = new Set<string>();
     for (const summary of summaries.values()) {
       const keys = gameSecondsKeys(summary.aliases).filter((key) => {
@@ -840,6 +908,7 @@ export function MyGamesView() {
     archivedGameSeconds,
     blacklist,
     exeCache,
+    emulatorMappings,
     hydratedGameMetadata,
     playtimeAdjustments,
     recentSortNow,
@@ -1295,6 +1364,16 @@ function GameLibraryCard({
   );
   const launchTargets = useAppStore((state) => state.launchTargets);
   const manualLaunchTargets = useAppStore((state) => state.manualLaunchTargets);
+  const emulatorMappings = useAppStore((state) => state.emulatorMappings);
+  const emulatorAutoLaunchTargets = useAppStore(
+    (state) => state.emulatorAutoLaunchTargets,
+  );
+  const emulatorManualLaunchTargets = useAppStore(
+    (state) => state.emulatorManualLaunchTargets,
+  );
+  const emulatorLaunchCandidates = useAppStore(
+    (state) => state.emulatorLaunchCandidates,
+  );
   const exeCache = useAppStore((state) => state.exeCache);
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
@@ -1330,11 +1409,38 @@ function GameLibraryCard({
     ];
   }, [autoLaunchTargets, manualTarget]);
   const primaryLaunchTarget = ownedLaunchTargets[0];
+  const gameEmulatorMappings = useMemo(
+    () =>
+      game.emulatorContentKeys.flatMap((contentKey) => {
+        const mapping = emulatorMappings.get(contentKey);
+        return mapping?.decision === "game" && adapterFor(mapping.emulatorId)?.launch
+          ? [mapping]
+          : [];
+      }),
+    [emulatorMappings, game.emulatorContentKeys],
+  );
+  const primaryEmulatorMapping =
+    gameEmulatorMappings.length === 1 ? gameEmulatorMappings[0] : undefined;
+  const primaryEmulatorTarget = primaryEmulatorMapping
+    ? resolveEmulatorLaunchTarget(
+        primaryEmulatorMapping.contentKey,
+        emulatorAutoLaunchTargets,
+        emulatorManualLaunchTargets,
+      )
+    : undefined;
+  const primaryEmulatorCandidate = primaryEmulatorMapping
+    ? emulatorLaunchCandidates.get(primaryEmulatorMapping.contentKey)
+    : undefined;
   const showPlayButton =
     launchTourDemo ||
-    (!demo && canLaunchExecutables && Boolean(primaryLaunchTarget));
+    (!demo &&
+      canLaunchExecutables &&
+      Boolean(primaryLaunchTarget || primaryEmulatorTarget));
   const showLaunchFooter =
-    showPlayButton || (!demo && canLaunchExecutables && canConfigureLaunch);
+    showPlayButton ||
+    (!demo &&
+      canLaunchExecutables &&
+      (canConfigureLaunch || gameEmulatorMappings.length > 0));
   const showLaunchNote = !showLaunchFooter && !demo && canLaunchExecutables;
   const playState = playButtonState(
     game.name,
@@ -1344,6 +1450,9 @@ function GameLibraryCard({
   );
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && canLaunchExecutables;
+  const hasPrimaryLaunchTarget = Boolean(
+    primaryLaunchTarget || primaryEmulatorTarget,
+  );
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
   const primaryExeEntry = primaryExeName
@@ -1897,6 +2006,138 @@ function GameLibraryCard({
     }
   }
 
+  async function handleEmulatorLaunch(
+    mapping: (typeof gameEmulatorMappings)[number],
+  ) {
+    contextMenu.close();
+    if (hasActiveSession) {
+      addToast({
+        tone: "info",
+        title: `${game.name} is already running`,
+        detail: "PlayCounter is already tracking this game.",
+      });
+      return;
+    }
+    if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
+      addToast({
+        tone: "info",
+        title: "A game is already starting",
+        detail: "Wait for PlayCounter to finish the current launch first.",
+      });
+      return;
+    }
+
+    setLaunching(true);
+    let keepLaunchFeedback = false;
+    try {
+      const outcome = await launchEmulatorGame(mapping);
+      if (outcome.kind === "busy") {
+        addToast({
+          tone: "info",
+          title: `${game.name} is starting`,
+          detail: "PlayCounter already sent the launch request.",
+        });
+        return;
+      }
+      if (outcome.kind === "hostRunning") {
+        addToast({
+          tone: "info",
+          title: `${mapping.label} is already running`,
+          detail: `Close ${mapping.label} first so PlayCounter can start ${game.name} with the correct game file.`,
+        });
+        return;
+      }
+      keepLaunchFeedback = true;
+      void scanProcessesNow().catch((error) =>
+        console.warn("post-launch process scan failed", error),
+      );
+    } catch (error) {
+      addToast({ tone: "error", ...emulatorLaunchErrorMessage(error, game.name) });
+    } finally {
+      if (!keepLaunchFeedback) {
+        setLaunching(false);
+        onReleaseLaunch(launchKey);
+      }
+    }
+  }
+
+  async function handleSetEmulatorLaunchFile(
+    mapping: (typeof gameEmulatorMappings)[number],
+  ) {
+    contextMenu.close();
+    try {
+      const target = await chooseEmulatorLaunchFile(mapping);
+      if (!target) return;
+      addToast({
+        tone: "success",
+        title: "Launch file saved",
+        detail: `${game.name} can now be started with ${mapping.label}.`,
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Launch file not set",
+        detail: formatError(error),
+      });
+    }
+  }
+
+  function handleConfirmEmulatorCandidate(
+    mapping: (typeof gameEmulatorMappings)[number],
+  ) {
+    contextMenu.close();
+    const target = confirmEmulatorLaunchCandidate(mapping.contentKey);
+    addToast(
+      target
+        ? {
+            tone: "success",
+            title: "Detected launch file confirmed",
+            detail: `${game.name} can now be started with ${mapping.label}.`,
+          }
+        : {
+            tone: "error",
+            title: "Detected file is no longer available",
+            detail: `Start ${game.name} again or select its game file manually.`,
+          },
+    );
+  }
+
+  function handleForgetEmulatorLaunchFile(
+    mapping: (typeof gameEmulatorMappings)[number],
+  ) {
+    contextMenu.close();
+    forgetEmulatorLaunchTarget(mapping.contentKey);
+    addToast({
+      tone: "info",
+      title: "Launch file forgotten",
+      detail: `Start ${game.name} once or select its game file again.`,
+    });
+  }
+
+  function handlePreferredLaunch() {
+    if (primaryLaunchTarget) {
+      void handleLaunch(primaryLaunchTarget);
+    } else if (primaryEmulatorMapping && primaryEmulatorTarget) {
+      void handleEmulatorLaunch(primaryEmulatorMapping);
+    } else {
+      void handleLaunch();
+    }
+  }
+
+  function handleLaunchFooterClick(element: HTMLElement) {
+    if (showPlayButton) {
+      handlePreferredLaunch();
+    } else if (primaryEmulatorMapping && primaryEmulatorCandidate) {
+      handleConfirmEmulatorCandidate(primaryEmulatorMapping);
+    } else if (primaryEmulatorMapping) {
+      void handleSetEmulatorLaunchFile(primaryEmulatorMapping);
+    } else if (gameEmulatorMappings.length > 1) {
+      openDemoMenu(element);
+    } else {
+      void handleSetLaunchFile();
+    }
+  }
+
   async function handleSetLaunchFile() {
     contextMenu.close();
     try {
@@ -1996,6 +2237,53 @@ function GameLibraryCard({
               Forget launch file
             </ContextMenuItem>
           ) : null}
+          <ContextMenuSeparator />
+        </>
+      ) : null}
+      {!demo && canLaunchExecutables && gameEmulatorMappings.length > 0 ? (
+        <>
+          {gameEmulatorMappings.map((mapping) => {
+            const target = resolveEmulatorLaunchTarget(
+              mapping.contentKey,
+              emulatorAutoLaunchTargets,
+              emulatorManualLaunchTargets,
+            );
+            const candidate = emulatorLaunchCandidates.get(mapping.contentKey);
+            return (
+              <Fragment key={mapping.contentKey}>
+                {target ? (
+                  <ContextMenuItem
+                    icon={Play}
+                    disabled={hasActiveSession || launching || launchBlocked}
+                    onClick={() => void handleEmulatorLaunch(mapping)}
+                  >
+                    Play with {mapping.label} · {mapping.display}
+                  </ContextMenuItem>
+                ) : candidate ? (
+                  <ContextMenuItem
+                    icon={Check}
+                    onClick={() => handleConfirmEmulatorCandidate(mapping)}
+                  >
+                    Use detected {candidate.displayName}
+                  </ContextMenuItem>
+                ) : null}
+                <ContextMenuItem
+                  icon={FolderSearch}
+                  onClick={() => void handleSetEmulatorLaunchFile(mapping)}
+                >
+                  {target ? "Change" : "Set"} {mapping.label} game file…
+                </ContextMenuItem>
+                {target ? (
+                  <ContextMenuItem
+                    icon={Trash2}
+                    onClick={() => handleForgetEmulatorLaunchFile(mapping)}
+                  >
+                    Forget {mapping.label} game file
+                  </ContextMenuItem>
+                ) : null}
+              </Fragment>
+            );
+          })}
           <ContextMenuSeparator />
         </>
       ) : null}
@@ -2191,7 +2479,7 @@ function GameLibraryCard({
           controllerNavigable
             ? launching
               ? `${game.name}, starting`
-              : `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
+              : `${game.name}, ${hasPrimaryLaunchTarget ? "press A to play" : "no launch file saved"}`
             : undefined
         }
         className="game-library-card group relative flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-200 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -2204,7 +2492,7 @@ function GameLibraryCard({
             data-controller-launch="game"
             disabled={launching || launchBlocked}
             className="hidden"
-            onClick={() => void handleLaunch()}
+            onClick={handlePreferredLaunch}
           />
         ) : null}
         {launching ? (
@@ -2218,7 +2506,7 @@ function GameLibraryCard({
             <Gamepad2 size={14} />
 
             <XboxButtonGlyph button="A" size="small" />
-            <span>{primaryLaunchTarget ? "Play" : "Info"}</span>
+            <span>{hasPrimaryLaunchTarget ? "Play" : "Info"}</span>
           </span>
         ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
@@ -2458,14 +2746,24 @@ function GameLibraryCard({
             aria-label={
               showPlayButton
                 ? playState.ariaLabel
-                : `Set launch file for ${game.name}`
+                : primaryEmulatorCandidate
+                  ? `Confirm detected launch file for ${game.name}`
+                  : gameEmulatorMappings.length > 1
+                    ? `Choose an emulator launch option for ${game.name}`
+                    : `Set launch file for ${game.name}`
             }
-            title={showPlayButton ? playState.title : "Set launch file…"}
+            title={
+              showPlayButton
+                ? playState.title
+                : primaryEmulatorCandidate
+                  ? "Use detected game file"
+                  : gameEmulatorMappings.length > 1
+                    ? "Choose emulator game…"
+                    : "Set launch file…"
+            }
             data-tour={launchTourDemo ? "demo-launch-play" : undefined}
             disabled={showPlayButton && playState.disabled}
-            onClick={() =>
-              showPlayButton ? void handleLaunch() : void handleSetLaunchFile()
-            }
+            onClick={(event) => handleLaunchFooterClick(event.currentTarget)}
             className={clsx(
               "flex shrink-0 items-center justify-center gap-2 border-t font-semibold transition disabled:cursor-not-allowed",
               isLarge ? "h-12 text-sm" : "h-10 text-xs",
@@ -2479,7 +2777,11 @@ function GameLibraryCard({
             {!showPlayButton ? (
               <>
                 <FolderSearch size={isLarge ? 16 : 14} />
-                Start manually once
+                {primaryEmulatorCandidate
+                  ? "Use detected file"
+                  : gameEmulatorMappings.length > 1
+                    ? "Choose emulator game"
+                    : "Set launch file"}
               </>
             ) : playButtonRunning ? (
               <>
@@ -2640,7 +2942,7 @@ function GameLibraryCard({
         controllerNavigable
           ? launching
             ? `${game.name}, starting`
-            : `${game.name}, ${primaryLaunchTarget ? "press A to play" : "no launch file saved"}`
+            : `${game.name}, ${hasPrimaryLaunchTarget ? "press A to play" : "no launch file saved"}`
           : undefined
       }
       className="game-library-card group relative rounded-xl border border-border bg-surface shadow-raised transition duration-200 hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -2653,7 +2955,7 @@ function GameLibraryCard({
           data-controller-launch="game"
           disabled={launching || launchBlocked}
           className="hidden"
-          onClick={() => void handleLaunch()}
+          onClick={handlePreferredLaunch}
         />
       ) : null}
       {launching ? (
@@ -2667,7 +2969,7 @@ function GameLibraryCard({
         <span className="pointer-events-none absolute left-1/2 top-2 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
           <Gamepad2 size={14} />
           <XboxButtonGlyph button="A" size="small" />
-          <span>{primaryLaunchTarget ? "Play" : "Info"}</span>
+          <span>{hasPrimaryLaunchTarget ? "Play" : "Info"}</span>
         </span>
       ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
@@ -2828,7 +3130,7 @@ function GameLibraryCard({
               title={playState.title}
               data-tour={launchTourDemo ? "demo-launch-play" : undefined}
               disabled={playState.disabled}
-              onClick={() => void handleLaunch()}
+              onClick={handlePreferredLaunch}
               className={clsx(
                 "shrink-0",
                 playButtonRunning

@@ -83,6 +83,30 @@ describe("backup transfer data", () => {
           owner: { gameId: 42, source: "igdb" },
         },
       ],
+      emulatorAutoBinaries: [
+        {
+          emulatorId: "dolphin",
+          exePath: String.raw`C:\Emulators\Dolphin.exe`,
+        },
+      ],
+      emulatorManualBinaries: [
+        {
+          emulatorId: "dolphin",
+          exePath: String.raw`D:\Portable\Dolphin.exe`,
+        },
+      ],
+      emulatorAutoLaunchTargets: [
+        {
+          contentKey: "dolphin:rom:game.rvz",
+          filePath: String.raw`D:\Games\game.rvz`,
+        },
+      ],
+      emulatorManualLaunchTargets: [
+        {
+          contentKey: "dolphin:title_id:abc123",
+          filePath: String.raw`D:\Games\other.rvz`,
+        },
+      ],
       activeSessions: [{ id: 2 }],
       ambiguousMatches: [{ exeName: "game.exe" }],
       exeCache: [
@@ -104,6 +128,10 @@ describe("backup transfer data", () => {
     expect(result).not.toHaveProperty("blacklist");
     expect(result).not.toHaveProperty("launchTargets");
     expect(result).not.toHaveProperty("manualLaunchTargets");
+    expect(result).not.toHaveProperty("emulatorAutoBinaries");
+    expect(result).not.toHaveProperty("emulatorManualBinaries");
+    expect(result).not.toHaveProperty("emulatorAutoLaunchTargets");
+    expect(result).not.toHaveProperty("emulatorManualLaunchTargets");
     expect(result).not.toHaveProperty("activeSessions");
     expect(result).not.toHaveProperty("ambiguousMatches");
   });

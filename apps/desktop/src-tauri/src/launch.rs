@@ -41,7 +41,7 @@ pub struct LaunchPathReport {
 }
 
 impl LaunchError {
-    fn new(kind: LaunchErrorKind, message: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: LaunchErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
             message: message.into(),
@@ -49,7 +49,7 @@ impl LaunchError {
     }
 }
 
-fn is_absolute_windows_path(path: &str) -> bool {
+pub(crate) fn is_absolute_windows_path(path: &str) -> bool {
     let bytes = path.as_bytes();
     let drive_absolute = bytes.len() >= 3
         && bytes[0].is_ascii_alphabetic()
@@ -110,7 +110,7 @@ fn resolve_launch_target(raw: &str) -> Result<(PathBuf, Option<PathBuf>), Launch
     }
 }
 
-fn is_definitely_missing(error: &io::Error) -> bool {
+pub(crate) fn is_definitely_missing(error: &io::Error) -> bool {
     match error.raw_os_error() {
         Some(2 | 3 | 15 | 123 | 267) => true,
         Some(_) => false,
@@ -119,7 +119,7 @@ fn is_definitely_missing(error: &io::Error) -> bool {
 }
 
 #[cfg_attr(not(windows), allow(dead_code))]
-fn map_spawn_error(error: io::Error) -> LaunchError {
+pub(crate) fn map_spawn_error(error: io::Error) -> LaunchError {
     if is_definitely_missing(&error) {
         return LaunchError::new(LaunchErrorKind::NotFound, "The game file no longer exists.");
     }

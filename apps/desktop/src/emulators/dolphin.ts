@@ -12,6 +12,7 @@ import type {
   EmulatorAdapter,
   EmulatorContentSignal,
   EmulatorDetectionSource,
+  EmulatorLaunchDiscovery,
   EmulatorReadContext,
   EmulatorReading,
   RawEmulatorSignals,
@@ -61,6 +62,30 @@ function parseContentFile(raw: string): ParsedSignal | null {
   };
 }
 
+function dolphinContentArgument(args: string[]) {
+  for (let index = 0; index < args.length; index += 1) {
+    const raw = optionValue(args, index, ["--exec"], "-e");
+    if (raw === null) continue;
+    const path = stripQuotes(raw).trim();
+    if (DOLPHIN_CONTENT_EXTENSION.test(basename(path))) return path;
+  }
+  for (const arg of args) {
+    if (arg.startsWith("-")) continue;
+    const path = stripQuotes(arg).trim();
+    if (DOLPHIN_CONTENT_EXTENSION.test(basename(path))) return path;
+  }
+  return null;
+}
+
+export function discoverDolphinLaunchTarget(
+  args: string[],
+): EmulatorLaunchDiscovery | null {
+  const filePath = dolphinContentArgument(args);
+  return filePath
+    ? { target: { kind: "file", filePath }, source: "launch_arguments" }
+    : null;
+}
+
 function optionValue(
   args: string[],
   index: number,
@@ -92,19 +117,8 @@ export function readDolphinCommandLine(args: string[]): ParsedSignal | null {
     }
   }
 
-  for (let index = 0; index < args.length; index += 1) {
-    const raw = optionValue(args, index, ["--exec"], "-e");
-    if (raw === null) continue;
-    const parsed = parseContentFile(raw);
-    if (parsed) return parsed;
-  }
-
-  for (const arg of args) {
-    if (arg.startsWith("-")) continue;
-    const parsed = parseContentFile(arg);
-    if (parsed) return parsed;
-  }
-  return null;
+  const contentPath = dolphinContentArgument(args);
+  return contentPath ? parseContentFile(contentPath) : null;
 }
 
 export function readDolphinTitle(
@@ -200,6 +214,39 @@ function finalizeSignal(
 export const dolphinAdapter: EmulatorAdapter = {
   id: "dolphin",
   label: "Dolphin",
+  launch: {
+    targetKinds: ["file"],
+    fileExtensions: [
+      "elf",
+      "dol",
+      "gcm",
+      "iso",
+      "tgc",
+      "wbfs",
+      "ciso",
+      "gcz",
+      "wad",
+      "dff",
+      "wia",
+      "rvz",
+      "json",
+    ],
+    isValidContentFile: (fileName) =>
+      DOLPHIN_CONTENT_EXTENSION.test(fileName),
+    discoverTarget: (signals) => discoverDolphinLaunchTarget(signals.args),
+    validateTargetForMapping: (mapping, target) => {
+      if (!DOLPHIN_CONTENT_EXTENSION.test(basename(target.filePath))) {
+        return { valid: false, reason: "unsupported-content-file" };
+      }
+      if (mapping.contentKind === "title_id") {
+        return { valid: true, association: "requires_confirmation" };
+      }
+      const value = normalizeToken(basename(target.filePath), "rom");
+      return value === mapping.contentValue
+        ? { valid: true, association: "proven" }
+        : { valid: false, reason: "content-name-mismatch" };
+    },
+  },
   read(
     signals: RawEmulatorSignals,
     context: EmulatorReadContext,

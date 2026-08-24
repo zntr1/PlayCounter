@@ -19,7 +19,7 @@ pub trait ProcessScanner: Send + Sync {
     async fn scan(&self) -> Result<Vec<ProcessSnapshot>, Box<dyn Error + Send + Sync>>;
 }
 
-mod emulator;
+pub(crate) mod emulator;
 
 #[cfg(target_os = "windows")]
 mod windows;

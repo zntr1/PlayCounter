@@ -14,6 +14,7 @@ use tauri::{
 };
 
 mod controller;
+mod emulator_launch;
 mod ignored_processes;
 mod launch;
 mod notification_overlay;
@@ -208,6 +209,7 @@ pub fn run() {
             status_item: Mutex::new(None),
         })
         .manage(controller::ControllerWatcher::default())
+        .manage(emulator_launch::EmulatorLaunchGuard::default())
         .manage(notification_overlay::OverlayState::default())
         .plugin(
             tauri_plugin_window_state::Builder::default()
@@ -242,6 +244,8 @@ pub fn run() {
             get_exe_icon,
             launch::launch_executable,
             launch::verify_launch_paths,
+            emulator_launch::launch_emulator_content,
+            emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,
             controller::controller_watch_stop,
             notification_overlay::notification_overlay_prepare,

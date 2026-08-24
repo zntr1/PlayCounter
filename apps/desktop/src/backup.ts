@@ -28,7 +28,15 @@ type BackupEnvelope = {
 // that produced the backup. Importing it would resurrect phantom "now playing"
 // sessions on the target machine, so we drop it on import.
 const TRANSIENT_KEYS = ["activeSessions", "activeSession", "ambiguousMatches"];
-const DEVICE_LOCAL_KEYS = ["blacklist", "launchTargets", "manualLaunchTargets"];
+const DEVICE_LOCAL_KEYS = [
+  "blacklist",
+  "launchTargets",
+  "manualLaunchTargets",
+  "emulatorAutoBinaries",
+  "emulatorManualBinaries",
+  "emulatorAutoLaunchTargets",
+  "emulatorManualLaunchTargets",
+];
 const NOTIFICATION_STATE_KEYS = [
   "notifications",
   "discoveredReviewReminder",

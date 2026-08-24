@@ -24,6 +24,7 @@ import {
   applyContributionMarkers,
   cancelCommunitySuggestion,
   checkBackendHealth,
+  chooseEmulatorLaunchFile,
   chooseLaunchTarget,
   clearLocalLibrary,
   dismissAmbiguousMatch,
@@ -33,6 +34,7 @@ import {
   findGameMatches,
   ignoreDiscoveredProcess,
   launchGame,
+  launchEmulatorGame,
   suggestIgnoredProcess,
   persist,
   pollContributions,
@@ -126,6 +128,11 @@ beforeEach(() => {
     exeCache: new Map(),
     launchTargets: new Map(),
     manualLaunchTargets: new Map(),
+    emulatorAutoBinaries: new Map(),
+    emulatorManualBinaries: new Map(),
+    emulatorAutoLaunchTargets: new Map(),
+    emulatorManualLaunchTargets: new Map(),
+    emulatorLaunchCandidates: new Map(),
     activeSessions: [],
     ambiguousMatches: [],
     emulatorMappings: new Map(),
@@ -332,6 +339,69 @@ describe("game launching", () => {
     });
   });
 
+  it("launches a Dolphin game with the resolved emulator and content files", async () => {
+    const contentKey = "dolphin:rom:the sims 2.rvz";
+    const mapping = emulatorMapping({
+      contentKey,
+      emulatorId: "dolphin",
+      label: "Dolphin",
+      contentKind: "rom",
+      contentValue: "the sims 2.rvz",
+      display: "The Sims 2.rvz",
+    });
+    const binary = {
+      emulatorId: "dolphin",
+      exePath: String.raw`C:\Emulators\Dolphin.exe`,
+      setAt: "2026-08-24T00:00:00.000Z",
+    };
+    const content = {
+      emulatorId: "dolphin",
+      contentKey,
+      filePath: String.raw`D:\Games\The Sims 2.rvz`,
+      setAt: "2026-08-24T00:00:00.000Z",
+    };
+    useAppStore.setState({
+      emulatorMappings: new Map([[contentKey, mapping]]),
+      emulatorAutoBinaries: new Map([["dolphin", binary]]),
+      emulatorAutoLaunchTargets: new Map([[contentKey, content]]),
+    });
+    invokeMock.mockResolvedValueOnce({ kind: "spawned" });
+
+    await expect(launchEmulatorGame(mapping)).resolves.toEqual({
+      kind: "spawned",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("launch_emulator_content", {
+      request: {
+        emulatorId: "dolphin",
+        exePath: binary.exePath,
+        contentPath: content.filePath,
+      },
+    });
+  });
+
+  it("stores a manually selected Dolphin game file", async () => {
+    const mapping = emulatorMapping({
+      contentKey: "dolphin:title_id:g4op69",
+      emulatorId: "dolphin",
+      label: "Dolphin",
+      contentKind: "title_id",
+      contentValue: "g4op69",
+      display: "The Sims 2: Pets",
+    });
+    openMock.mockResolvedValueOnce(String.raw`D:\Games\The Sims 2 Pets.rvz`);
+
+    await expect(chooseEmulatorLaunchFile(mapping)).resolves.toMatchObject({
+      contentKey: mapping.contentKey,
+      emulatorId: "dolphin",
+      filePath: String.raw`D:\Games\The Sims 2 Pets.rvz`,
+    });
+    expect(
+      useAppStore
+        .getState()
+        .emulatorManualLaunchTargets.get(mapping.contentKey),
+    ).toMatchObject({ filePath: String.raw`D:\Games\The Sims 2 Pets.rvz` });
+  });
+
   it("requires the launcher feature to be enabled", async () => {
     useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
     await expect(launchGame(target)).rejects.toThrow("Enable");
@@ -429,6 +499,56 @@ describe("game launching", () => {
     expect(first).toEqual(target);
     await scanProcessesNow();
     expect(useAppStore.getState().launchTargets.get("game.exe")).toBe(first);
+  });
+
+  it("learns Dolphin.exe and an exact ISO path from a running game", async () => {
+    const contentKey = "dolphin:rom:the sims 2.rvz";
+    useAppStore.setState({
+      emulatorMappings: new Map([
+        [
+          contentKey,
+          emulatorMapping({
+            contentKey,
+            emulatorId: "dolphin",
+            label: "Dolphin",
+            contentKind: "rom",
+            contentValue: "the sims 2.rvz",
+            display: "The Sims 2.rvz",
+          }),
+        ],
+      ]),
+    });
+    const exePath = String.raw`C:\Emulators\Dolphin.exe`;
+    const filePath = String.raw`D:\Games\The Sims 2.rvz`;
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "Dolphin.exe",
+            exePath,
+            pid: 123,
+            startedAtUnix: 10,
+            emulatorId: "dolphin",
+            commandLine: [`--exec=${filePath}`],
+            windowTitle: null,
+          },
+        ];
+      }
+      if (command === "verify_emulator_content_paths") {
+        return [{ path: filePath, status: "ok" }];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+
+    expect(useAppStore.getState().emulatorAutoBinaries.get("dolphin")).toMatchObject({
+      exePath,
+    });
+    expect(
+      useAppStore.getState().emulatorAutoLaunchTargets.get(contentKey),
+    ).toMatchObject({ filePath });
+    expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
   });
 
   it("does not learn executable paths from temporary folders", async () => {

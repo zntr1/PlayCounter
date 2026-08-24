@@ -52,20 +52,27 @@ export function launchFileBaseName(path: string) {
   return path.split(/[\\/]/).filter(Boolean).at(-1) ?? "";
 }
 
-export function isWindowsExecutablePath(
+export function isAbsoluteWindowsPath(
   path: string | null | undefined,
 ): path is string {
   if (typeof path !== "string") return false;
   const value = path.trim();
   if (!value || value.includes("\0")) return false;
-  const segments = value.split(/[\\/]/);
-  if (segments.includes("..")) return false;
-  const baseName = launchFileBaseName(value);
-  if (!baseName || baseName.toLowerCase() === ".exe") return false;
-  if (!baseName.toLowerCase().endsWith(".exe")) return false;
+  if (value.split(/[\\/]/).includes("..")) return false;
   return (
     /^[a-z]:[\\/]/i.test(value) || /^\\\\[^\\/]+[\\/][^\\/]+[\\/]/.test(value)
   );
+}
+
+export function isWindowsExecutablePath(
+  path: string | null | undefined,
+): path is string {
+  if (!isAbsoluteWindowsPath(path)) return false;
+  const value = path.trim();
+  const baseName = launchFileBaseName(value);
+  if (!baseName || baseName.toLowerCase() === ".exe") return false;
+  if (!baseName.toLowerCase().endsWith(".exe")) return false;
+  return true;
 }
 
 export function isVolatileLaunchPath(path: string) {

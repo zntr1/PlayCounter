@@ -16,6 +16,7 @@ export type EmulatorMappingShare = {
 export type RawEmulatorSignals = {
   emulatorId: string;
   exeName: string;
+  exePath?: string | null;
   pid: number;
   startedAtUnix: number;
   args: string[];
@@ -56,6 +57,32 @@ export interface EmulatorAdapter {
     signals: RawEmulatorSignals,
     context: EmulatorReadContext,
   ): EmulatorReading;
+  launch?: EmulatorLaunchCapability;
+}
+
+export type EmulatorFileLaunchTarget = {
+  kind: "file";
+  filePath: string;
+};
+
+export type EmulatorLaunchDiscovery = {
+  target: EmulatorFileLaunchTarget;
+  source: "launch_arguments";
+};
+
+export type EmulatorTargetCompatibility =
+  | { valid: true; association: "proven" | "requires_confirmation" }
+  | { valid: false; reason: string };
+
+export interface EmulatorLaunchCapability {
+  targetKinds: readonly ["file"];
+  fileExtensions: readonly string[];
+  isValidContentFile(fileName: string): boolean;
+  discoverTarget(signals: RawEmulatorSignals): EmulatorLaunchDiscovery | null;
+  validateTargetForMapping(
+    mapping: EmulatorMapping,
+    target: EmulatorFileLaunchTarget,
+  ): EmulatorTargetCompatibility;
 }
 
 export type EmulatorContentObservation = {
