@@ -409,6 +409,31 @@ html[data-window="notification-overlay"] #overlay-root {
   letter-spacing: 0.16em;
 }
 
+.desktop-overlay-session-duration {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.desktop-overlay-session-duration span {
+  color: rgb(var(--color-text-muted));
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.desktop-overlay-session-duration strong {
+  color: rgb(var(--color-accent));
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-shadow: 0 0 24px rgb(var(--color-accent) / 0.2);
+  white-space: nowrap;
+}
+
 .desktop-overlay-metric,
 .desktop-overlay-live {
   border: 1px solid rgb(var(--color-accent) / 0.35);

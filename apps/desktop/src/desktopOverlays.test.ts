@@ -144,11 +144,26 @@ describe("desktop overlay policy", () => {
     );
 
     expect(card.targetPids).toEqual([4242, 4343]);
-    expect(card.durationMs).toBe(5_000);
   });
 
-  it("keeps first-detection launch cards visible for five seconds", () => {
-    expect(message("first-detection", 100).durationMs).toBe(5_000);
+  it.each([
+    "session-start",
+    "first-detection",
+    "session-summary",
+    "discovery",
+    "milestone",
+  ] satisfies DesktopOverlayKind[])(
+    "keeps %s cards visible for ten seconds",
+    (kind) => {
+      expect(message(kind, 100).durationMs).toBe(10_000);
+    },
+  );
+
+  it("makes session duration the sole playtime value in summary cards", () => {
+    const card = message("session-summary", 100);
+
+    expect(card.metric).toBe("11m");
+    expect(card.body).toBeUndefined();
   });
 
   it("orders priority first, then newest, then sequence", () => {

@@ -37,6 +37,7 @@ export function DesktopNotificationOverlay({
   const celebration =
     message.kind === "first-detection" || message.kind === "milestone";
   const compact = message.kind === "session-start";
+  const sessionSummary = message.kind === "session-summary";
   const phaseClass =
     phase === "enter"
       ? "overlay-card-enter"
@@ -75,25 +76,32 @@ export function DesktopNotificationOverlay({
           <div className="mt-1 truncate text-[17px] font-semibold leading-tight text-text">
             {message.title}
           </div>
-          {message.body ? (
+          {sessionSummary && message.metric ? (
+            <div className="desktop-overlay-session-duration">
+              <span>SESSION TIME</span>
+              <strong>{message.metric}</strong>
+            </div>
+          ) : message.body ? (
             <div className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-text-muted">
               {message.body}
             </div>
           ) : null}
         </div>
-        <div className="flex shrink-0 self-center pl-2">
-          {message.metric ? (
-            <span className="desktop-overlay-metric">{message.metric}</span>
-          ) : message.status === "live" ? (
-            <span className="desktop-overlay-live">
-              <i /> LIVE
-            </span>
-          ) : (
-            <span className="desktop-overlay-mark" aria-hidden="true">
-              P
-            </span>
-          )}
-        </div>
+        {!sessionSummary ? (
+          <div className="flex shrink-0 self-center pl-2">
+            {message.metric ? (
+              <span className="desktop-overlay-metric">{message.metric}</span>
+            ) : message.status === "live" ? (
+              <span className="desktop-overlay-live">
+                <i /> LIVE
+              </span>
+            ) : (
+              <span className="desktop-overlay-mark" aria-hidden="true">
+                P
+              </span>
+            )}
+          </div>
+        ) : null}
       </article>
     </div>
   );

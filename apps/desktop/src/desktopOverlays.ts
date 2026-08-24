@@ -39,11 +39,11 @@ export const DISCOVERY_BURST_MS = 30_000;
 export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 
 const HOLD_MS: Record<DesktopOverlayKind, number> = {
-  "session-start": 5_000,
-  "first-detection": 5_000,
-  "session-summary": 4_200,
-  discovery: 4_200,
-  milestone: 4_800,
+  "session-start": 10_000,
+  "first-detection": 10_000,
+  "session-summary": 10_000,
+  discovery: 10_000,
+  milestone: 10_000,
 };
 
 const TTL_MS: Record<DesktopOverlayKind, number> = {
@@ -186,7 +186,6 @@ function overlayCopy(
     return {
       kicker: "SESSION SAVED",
       title: event.gameName,
-      body: `${formatDuration(event.totalSeconds)} total playtime`,
       metric: formatDuration(event.durationSeconds),
       coverUrl: event.coverUrl,
     };
