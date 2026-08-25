@@ -288,7 +288,7 @@ describe("launch target state", () => {
     expect(useAppStore.getState().manualLaunchTargets.size).toBe(2);
   });
 
-  it("keeps manual choices on cache reset but clears them when explicitly forgotten", () => {
+  it("forgets regular executable paths without clearing emulator paths", () => {
     const owner = { gameId: 42, source: "igdb" as const };
     useAppStore.getState().setManualLaunchTarget({
       exeName: "Launcher.exe",
@@ -303,9 +303,17 @@ describe("launch target state", () => {
       path: String.raw`C:\Games\Game.exe`,
       owner,
     });
-    useAppStore.getState().forgetAllLaunchTargets();
+    useAppStore.getState().setEmulatorAutoBinary({
+      emulatorId: "dolphin",
+      exePath: String.raw`C:\Emulators\Dolphin.exe`,
+      setAt: "auto",
+    });
+
+    useAppStore.getState().forgetExecutableLaunchTargets();
+
     expect(useAppStore.getState().launchTargets.size).toBe(0);
     expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(1);
   });
 
   it("keeps learned emulator paths sticky and lets manual choices win", () => {
@@ -332,9 +340,42 @@ describe("launch target state", () => {
     expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(1);
     expect(useAppStore.getState().emulatorManualBinaries.size).toBe(1);
 
-    useAppStore.getState().forgetAllLaunchTargets();
+    const owner = { gameId: 42, source: "igdb" as const };
+    useAppStore.getState().setLaunchTarget({
+      exeName: "Game.exe",
+      path: String.raw`C:\Games\Game.exe`,
+      owner,
+    });
+    useAppStore.getState().setEmulatorAutoLaunchTarget({
+      contentKey: "dolphin:rom:game.rvz",
+      emulatorId: "dolphin",
+      filePath: String.raw`D:\Games\Game.rvz`,
+      setAt: "auto",
+    });
+    useAppStore.getState().setEmulatorManualLaunchTarget({
+      contentKey: "dolphin:title_id:game",
+      emulatorId: "dolphin",
+      filePath: String.raw`D:\Games\Other Game.rvz`,
+      setAt: "manual",
+    });
+    useAppStore.getState().setEmulatorLaunchCandidates([
+      {
+        contentKey: "dolphin:rom:candidate.rvz",
+        emulatorId: "dolphin",
+        filePath: String.raw`D:\Games\Candidate.rvz`,
+        displayName: "Candidate.rvz",
+        setAt: "candidate",
+      },
+    ]);
+
+    useAppStore.getState().forgetEmulatorLaunchTargets();
+
     expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(0);
     expect(useAppStore.getState().emulatorManualBinaries.size).toBe(0);
+    expect(useAppStore.getState().emulatorAutoLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorManualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
+    expect(useAppStore.getState().launchTargets.size).toBe(1);
   });
 
   it("keeps launching opt-in and turns controller control off with it", () => {

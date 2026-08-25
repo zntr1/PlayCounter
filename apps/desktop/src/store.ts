@@ -382,7 +382,8 @@ type AppState = {
   setEmulatorManualLaunchTarget: (target: EmulatorLaunchTarget) => void;
   removeEmulatorManualLaunchTarget: (contentKey: string) => void;
   setEmulatorLaunchCandidates: (candidates: EmulatorLaunchCandidate[]) => void;
-  forgetAllLaunchTargets: () => void;
+  forgetExecutableLaunchTargets: () => void;
+  forgetEmulatorLaunchTargets: () => void;
   addApiRequestLogEntry: (entry: Omit<ApiRequestLogEntry, "id" | "at">) => void;
   addRuntimeLogEntry: (message: string) => void;
   setRuntimeError: (error: string | null) => void;
@@ -945,10 +946,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     if (changed) persistSoon();
   },
-  forgetAllLaunchTargets: () => {
+  forgetExecutableLaunchTargets: () => {
     set({
       launchTargets: new Map(),
       manualLaunchTargets: new Map(),
+    });
+    persistSoon();
+  },
+  forgetEmulatorLaunchTargets: () => {
+    set({
       emulatorAutoBinaries: new Map(),
       emulatorManualBinaries: new Map(),
       emulatorAutoLaunchTargets: new Map(),

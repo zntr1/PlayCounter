@@ -53,6 +53,8 @@ type UpdateStatus =
   | "installing"
   | "error";
 
+type LaunchFileForgetScope = "executables" | "emulators";
+
 export function SettingsView() {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>("idle");
   const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(
@@ -68,7 +70,7 @@ export function SettingsView() {
   const [reloadingIgnored, setReloadingIgnored] = useState(false);
   const [confirmResetCache, setConfirmResetCache] = useState(false);
   const [confirmForgetLaunchFiles, setConfirmForgetLaunchFiles] =
-    useState(false);
+    useState<LaunchFileForgetScope | null>(null);
   const [confirmImport, setConfirmImport] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -85,17 +87,22 @@ export function SettingsView() {
     (state) => state.setDesktopOverlaySetting,
   );
   const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
-  const forgetAllLaunchTargets = useAppStore(
-    (state) => state.forgetAllLaunchTargets,
+  const forgetExecutableLaunchTargets = useAppStore(
+    (state) => state.forgetExecutableLaunchTargets,
   );
-  const launchTargetCount = useAppStore(
+  const forgetEmulatorLaunchTargets = useAppStore(
+    (state) => state.forgetEmulatorLaunchTargets,
+  );
+  const executableLaunchTargetCount = useAppStore(
+    (state) => state.launchTargets.size + state.manualLaunchTargets.size,
+  );
+  const emulatorLaunchTargetCount = useAppStore(
     (state) =>
-      state.launchTargets.size +
-      state.manualLaunchTargets.size +
       state.emulatorAutoBinaries.size +
       state.emulatorManualBinaries.size +
       state.emulatorAutoLaunchTargets.size +
-      state.emulatorManualLaunchTargets.size,
+      state.emulatorManualLaunchTargets.size +
+      state.emulatorLaunchCandidates.size,
   );
   const emulatorAutoBinaries = useAppStore(
     (state) => state.emulatorAutoBinaries,
@@ -559,19 +566,45 @@ export function SettingsView() {
               className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
-          <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
-            <span className="text-xs text-text-faint">
-              {launchTargetCount} saved launch{" "}
-              {launchTargetCount === 1 ? "file" : "files"}
-            </span>
-            <Button
-              variant="secondary"
-              icon={Trash2}
-              disabled={launchTargetCount === 0}
-              onClick={() => setConfirmForgetLaunchFiles(true)}
-            >
-              Forget all launch files
-            </Button>
+          <div className="grid gap-3 border-t border-border pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-text">
+                  Regular game executables
+                </div>
+                <div className="mt-0.5 text-xs text-text-faint">
+                  {executableLaunchTargetCount} saved <code>.exe</code>{" "}
+                  {executableLaunchTargetCount === 1 ? "path" : "paths"}
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                icon={Trash2}
+                disabled={executableLaunchTargetCount === 0}
+                onClick={() => setConfirmForgetLaunchFiles("executables")}
+              >
+                Forget game executables
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-3">
+              <div>
+                <div className="text-sm font-medium text-text">
+                  Emulator launch files
+                </div>
+                <div className="mt-0.5 text-xs text-text-faint">
+                  {emulatorLaunchTargetCount} saved emulator or content{" "}
+                  {emulatorLaunchTargetCount === 1 ? "path" : "paths"}
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                icon={Trash2}
+                disabled={emulatorLaunchTargetCount === 0}
+                onClick={() => setConfirmForgetLaunchFiles("emulators")}
+              >
+                Forget emulator files
+              </Button>
+            </div>
           </div>
         </SettingsPanel>
       ) : null}
@@ -985,17 +1018,31 @@ export function SettingsView() {
       ) : null}
       {confirmForgetLaunchFiles ? (
         <ForgetLaunchFilesDialog
-          count={launchTargetCount}
-          onCancel={() => setConfirmForgetLaunchFiles(false)}
+          scope={confirmForgetLaunchFiles}
+          count={
+            confirmForgetLaunchFiles === "executables"
+              ? executableLaunchTargetCount
+              : emulatorLaunchTargetCount
+          }
+          onCancel={() => setConfirmForgetLaunchFiles(null)}
           onConfirm={() => {
-            forgetAllLaunchTargets();
-            setConfirmForgetLaunchFiles(false);
-            addToast({
-              tone: "success",
-              title: "Launch files forgotten",
-              detail:
-                "PlayCounter removed the saved program paths from this PC.",
-            });
+            if (confirmForgetLaunchFiles === "executables") {
+              forgetExecutableLaunchTargets();
+              addToast({
+                tone: "success",
+                title: "Game executable paths forgotten",
+                detail:
+                  "Emulator programs and content files were left untouched.",
+              });
+            } else {
+              forgetEmulatorLaunchTargets();
+              addToast({
+                tone: "success",
+                title: "Emulator launch files forgotten",
+                detail: "Regular game executable paths were left untouched.",
+              });
+            }
+            setConfirmForgetLaunchFiles(null);
           }}
         />
       ) : null}
@@ -1087,20 +1134,27 @@ function ResetCacheDialog({
 }
 
 function ForgetLaunchFilesDialog({
+  scope,
   count,
   onCancel,
   onConfirm,
 }: {
+  scope: LaunchFileForgetScope;
   count: number;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const emulatorFiles = scope === "emulators";
   return (
     <Modal
       size="sm"
       labelId="forget-launch-files-dialog-title"
       eyebrow="Direct game launching"
-      title="Forget saved launch files?"
+      title={
+        emulatorFiles
+          ? "Forget emulator launch files?"
+          : "Forget regular game executables?"
+      }
       icon={Gamepad2}
       onClose={onCancel}
       footer={
@@ -1115,9 +1169,11 @@ function ForgetLaunchFilesDialog({
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        This removes {count} saved program {count === 1 ? "path" : "paths"}.
-        Play history and game matches stay intact. PlayCounter can learn stable
-        paths again the next time it tracks those games while launching is on.
+        {emulatorFiles
+          ? `This removes ${count} saved emulator program and content ${count === 1 ? "path" : "paths"}, including files such as ISO, RVZ, and DOSBox programs. Regular game executable paths stay intact.`
+          : `This removes ${count} saved executable ${count === 1 ? "path" : "paths"} for regular games. Emulator programs and content files stay intact.`}{" "}
+        Play history and game matches are not changed. PlayCounter can learn
+        stable paths again while launching is on.
       </p>
     </Modal>
   );
