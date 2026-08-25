@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.1.9",
+    "releasedAt": "2026-08-25",
+    "headline": "Launch your Dolphin and DOSBox games straight from PlayCounter.",
+    "highlights": [
+      "On Windows, tracked Dolphin and DOSBox games can now be launched from My Games or their emulator page.",
+      "PlayCounter can learn emulator programs and game files as you play, or you can choose them yourself when a path cannot be detected.",
+      "Emulator launch files now have their own controls in Settings, so you can change an emulator program or forget emulator paths without affecting regular game executables.",
+      "A manually selected executable can now launch a regular game even when its filename differs from the one PlayCounter originally tracked.",
+      "Games sorted by Last Played no longer jump as you click Play, and refreshed session notifications are clearer and remain visible longer."
+    ]
+  },
+  {
     "version": "1.1.8",
     "releasedAt": "2026-08-23",
     "headline": "Launch your games from PlayCounter and navigate from the couch.",
