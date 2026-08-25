@@ -28,6 +28,60 @@ type EffectiveContent = Omit<ReadingInput, "reading"> & {
   content: EmulatorContentSignal;
 };
 
+function dosboxIdentityStem(value: string) {
+  return value.replace(/\.(?:exe|com|bat|conf)$/i, "");
+}
+
+function isEquivalentDosboxStartupIdentity(
+  previous: EmulatorObservation | undefined,
+  current: EffectiveContent,
+): previous is EmulatorContentObservation {
+  if (
+    previous?.kind !== "content" ||
+    previous.emulatorId !== "dosbox" ||
+    current.emulatorId !== "dosbox" ||
+    previous.trust !== "recognized" ||
+    current.content.trust !== "recognized" ||
+    !["program", "conf"].includes(previous.contentKind) ||
+    !["program", "conf"].includes(current.content.kind)
+  ) {
+    return false;
+  }
+  return (
+    dosboxIdentityStem(previous.contentValue) ===
+    dosboxIdentityStem(current.content.value)
+  );
+}
+
+function migrateDosboxStartupObservation(
+  stale: EmulatorContentObservation,
+  key: string,
+  current: EffectiveContent,
+): EmulatorContentObservation {
+  return {
+    ...stale,
+    key,
+    emulatorId: current.emulatorId,
+    label: current.label,
+    hostExeName: current.exeName,
+    contentKind: current.content.kind,
+    contentValue: current.content.value,
+    display: current.content.display,
+    trust: current.content.trust,
+    shareable: current.content.shareable,
+    detectionSource: current.content.detectionSource,
+    searchHint: current.content.searchHint,
+    shareableSearchHint: current.content.shareableSearchHint,
+    state:
+      stale.autoResolve === false || !current.content.shareable
+        ? "unknown"
+        : "resolving",
+    candidates: undefined,
+    lastCheckedAt: undefined,
+    endedAt: undefined,
+  };
+}
+
 export function reconcileEmulatorReadings(input: {
   readings: ReadingInput[];
   observations: readonly EmulatorObservation[];
@@ -136,6 +190,38 @@ export function reconcileEmulatorReadings(input: {
 
   const intents: EmulatorIntent[] = [];
   const runningKeys = new Set(groups.keys());
+  for (const [key, group] of groups) {
+    const staleAliases = [...observationMap.entries()].filter(
+      ([observationKey, observation]) =>
+        observationKey !== key &&
+        !runningKeys.has(observationKey) &&
+        isEquivalentDosboxStartupIdentity(observation, group.item),
+    );
+    if (staleAliases.length === 0) continue;
+
+    const current = observationMap.get(key);
+    for (const [observationKey] of staleAliases) {
+      observationMap.delete(observationKey);
+    }
+    if (current?.kind !== "content") {
+      const stale = staleAliases
+        .map(([, observation]) => observation)
+        .filter(
+          (observation): observation is EmulatorContentObservation =>
+            observation.kind === "content",
+        )
+        .sort(
+          (left, right) =>
+            Date.parse(left.detectedAt) - Date.parse(right.detectedAt),
+        )[0];
+      if (stale) {
+        observationMap.set(
+          key,
+          migrateDosboxStartupObservation(stale, key, group.item),
+        );
+      }
+    }
+  }
   const resolveItems: Array<
     { key: string; searchHint?: string } & EmulatorContentRef
   > = [];

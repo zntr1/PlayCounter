@@ -1341,6 +1341,54 @@ export function forgetEmulatorLaunchTarget(contentKeyValue: string) {
   logRuntime(`emulator launch target forgotten contentKey=${contentKeyValue}`);
 }
 
+function isEmulatorLaunchGuarded(emulatorId: string) {
+  const guardedUntil = emulatorLaunchInFlight.get(emulatorId);
+  return guardedUntil !== undefined && guardedUntil > Date.now();
+}
+
+export function resetEmulatorLaunchGuardForTests() {
+  emulatorLaunchInFlight.clear();
+}
+
+async function dispatchEmulatorLaunch(
+  emulatorId: string,
+  request: { emulatorId: string; exePath: string; contentPath: string },
+  logContext?: string,
+): Promise<EmulatorLaunchOutcome> {
+  if (isEmulatorLaunchGuarded(emulatorId)) return { kind: "busy" };
+  emulatorLaunchInFlight.set(emulatorId, Number.POSITIVE_INFINITY);
+  const suffix = logContext ? ` ${logContext}` : "";
+  logRuntime(`emulator launch requested emulator=${emulatorId}${suffix}`);
+  try {
+    const outcome = await invoke<EmulatorLaunchOutcome>(
+      "launch_emulator_content",
+      { request },
+    );
+    if (outcome.kind === "spawned") {
+      emulatorLaunchInFlight.set(
+        emulatorId,
+        Date.now() + LAUNCH_REENTRY_GUARD_MS,
+      );
+      logRuntime(`emulator launch started emulator=${emulatorId}${suffix}`);
+    } else {
+      emulatorLaunchInFlight.delete(emulatorId);
+      logRuntime(
+        `emulator launch outcome=${outcome.kind} emulator=${emulatorId}${suffix}`,
+      );
+    }
+    return outcome;
+  } catch (error) {
+    emulatorLaunchInFlight.delete(emulatorId);
+    if (shouldForgetEmulatorOnLaunchError(error)) {
+      void verifyLaunchTargets("emulator-launch-error");
+    }
+    logRuntime(
+      `emulator launch failed emulator=${emulatorId}${suffix}: ${formatError(error)}`,
+    );
+    throw error;
+  }
+}
+
 export async function launchEmulatorGame(
   mapping: EmulatorMapping,
 ): Promise<EmulatorLaunchOutcome> {
@@ -1362,46 +1410,60 @@ export async function launchEmulatorGame(
     throw new Error(`Set the ${mapping.label} program in Settings first.`);
   if (!target) throw new Error("Set this emulator game's launch file first.");
 
-  const now = Date.now();
-  const guardedUntil = emulatorLaunchInFlight.get(mapping.emulatorId);
-  if (guardedUntil !== undefined && guardedUntil > now) return { kind: "busy" };
-  emulatorLaunchInFlight.set(mapping.emulatorId, Number.POSITIVE_INFINITY);
-  logRuntime(
-    `emulator launch requested emulator=${mapping.emulatorId} contentKey=${mapping.contentKey}`,
+  return dispatchEmulatorLaunch(
+    mapping.emulatorId,
+    {
+      emulatorId: mapping.emulatorId,
+      exePath: binary.exePath,
+      contentPath: target.filePath,
+    },
+    `contentKey=${mapping.contentKey}`,
   );
-  try {
-    const outcome = await invoke<EmulatorLaunchOutcome>(
-      "launch_emulator_content",
-      {
-        request: {
-          emulatorId: mapping.emulatorId,
-          exePath: binary.exePath,
-          contentPath: target.filePath,
-        },
-      },
-    );
-    if (outcome.kind === "spawned") {
-      emulatorLaunchInFlight.set(
-        mapping.emulatorId,
-        Date.now() + LAUNCH_REENTRY_GUARD_MS,
-      );
-      logRuntime(
-        `emulator launch started emulator=${mapping.emulatorId} contentKey=${mapping.contentKey}`,
-      );
-    } else {
-      emulatorLaunchInFlight.delete(mapping.emulatorId);
-    }
-    return outcome;
-  } catch (error) {
-    emulatorLaunchInFlight.delete(mapping.emulatorId);
-    if (shouldForgetEmulatorOnLaunchError(error)) {
-      void verifyLaunchTargets("emulator-launch-error");
-    }
-    logRuntime(
-      `emulator launch failed emulator=${mapping.emulatorId} contentKey=${mapping.contentKey}: ${formatError(error)}`,
-    );
-    throw error;
+}
+
+export async function startEmulatorGame(
+  emulatorId: string,
+): Promise<EmulatorLaunchOutcome | null> {
+  const state = useAppStore.getState();
+  if (state.settings.gameLaunchingEnabled !== true) {
+    throw new Error("Enable 'Launch games directly' in Settings first.");
   }
+  const adapter = adapterFor(emulatorId);
+  if (!adapter?.launch) throw new Error("This emulator is not launchable yet.");
+  const binary = resolveEmulatorBinary(
+    emulatorId,
+    state.emulatorAutoBinaries,
+    state.emulatorManualBinaries,
+  );
+  if (!binary) {
+    throw new Error(
+      `Start ${adapter.label} once so PlayCounter can find its program automatically, or set its program in Settings.`,
+    );
+  }
+  if (isEmulatorLaunchGuarded(emulatorId)) return { kind: "busy" };
+
+  const selected = await open({
+    multiple: false,
+    directory: false,
+    filters: [
+      {
+        name: `${adapter.label} content`,
+        extensions: [...adapter.launch.fileExtensions],
+      },
+    ],
+  });
+  if (typeof selected !== "string") return null;
+  if (!isValidEmulatorContentPath(emulatorId, selected)) {
+    throw new Error(
+      `Pick a supported ${adapter.label} game file with a full Windows path.`,
+    );
+  }
+
+  return dispatchEmulatorLaunch(emulatorId, {
+    emulatorId,
+    exePath: binary.exePath,
+    contentPath: selected,
+  });
 }
 
 async function handleProcessSnapshot(processes: ProcessSnapshot[]) {

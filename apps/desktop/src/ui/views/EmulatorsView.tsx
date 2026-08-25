@@ -1,15 +1,20 @@
-import { Gamepad2, Repeat2, RotateCcw, Unlink } from "lucide-react";
+import { Gamepad2, Play, Repeat2, RotateCcw, Unlink } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   confirmEmulatorMapping,
   emulatorShareRuntimeContext,
   forgetEmulatorMapping,
   restoreEmulatorContent,
+  scanProcessesNow,
   shareEmulatorMapping,
+  startEmulatorGame,
 } from "../../tracker";
 import { useAppStore, useIsOffline } from "../../store";
 import { emulatorAssetUrls } from "../../emulators/assets";
+import { adapterFor } from "../../emulators/registry";
 import type { EmulatorMapping } from "../../emulators/types";
+import { emulatorLaunchErrorMessage } from "../../emulatorLaunch";
+import { currentPlatform } from "../../platform";
 import {
   emulatorShareControl,
   isShareableEmulatorMapping,
@@ -108,8 +113,12 @@ function EmulatorView({
   );
   const known = useAppStore((state) => state.knownEmulators.get(emulatorId));
   const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
+  const gameLaunchingEnabled = useAppStore(
+    (state) => state.settings.gameLaunchingEnabled === true,
+  );
   const demo = emulatorTourDemoActive(activeTourId, emulatorId);
   const addToast = useAppStore((state) => state.addToast);
+  const [starting, setStarting] = useState(false);
   const [changing, setChanging] = useState<EmulatorMapping | null>(null);
   const [forgetting, setForgetting] = useState<EmulatorMapping | null>(null);
   const [forgettingBusy, setForgettingBusy] = useState(false);
@@ -142,6 +151,50 @@ function EmulatorView({
         (sum, session) => sum + (session.durationSeconds ?? 0),
         0,
       );
+  const platform = currentPlatform();
+  const launchable = adapterFor(emulatorId)?.launch !== undefined;
+  const canStartGame = platform === "windows";
+  const startDisabledReason =
+    platform !== "windows"
+      ? "Direct launching is only available on Windows."
+      : undefined;
+
+  async function handleStartGame() {
+    if (starting) return;
+    setStarting(true);
+    try {
+      const outcome = await startEmulatorGame(emulatorId);
+      if (!outcome) return;
+      if (outcome.kind === "busy") {
+        addToast({
+          tone: "info",
+          title: `${label} is starting`,
+          detail: "PlayCounter already sent the launch request.",
+        });
+        return;
+      }
+      if (outcome.kind === "hostRunning") {
+        addToast({
+          tone: "info",
+          title: `${label} is still busy`,
+          detail: `Stop the current emulated game first. PlayCounter only replaces ${label} automatically when it is safely idle.`,
+        });
+        return;
+      }
+      addToast({
+        tone: "success",
+        title: `${label} is starting`,
+        detail: "PlayCounter will recognize the game once it loads.",
+      });
+      void scanProcessesNow().catch((error) =>
+        console.warn("post-launch process scan failed", error),
+      );
+    } catch (error) {
+      addToast({ tone: "error", ...emulatorLaunchErrorMessage(error, label) });
+    } finally {
+      setStarting(false);
+    }
+  }
 
   return (
     <div className="grid gap-5">
@@ -165,12 +218,26 @@ function EmulatorView({
                 : known?.hostExeNames.join(", ") || fallbackHostName}
             </p>
           </div>
-          <div className="text-sm text-text-muted">
-            {demo
-              ? "1 game running"
-              : activeSessions.length > 0
-                ? `${activeSessions.length} game${activeSessions.length === 1 ? "" : "s"} running`
-                : "No game running right now"}
+          <div className="flex flex-col items-end gap-3">
+            <div className="text-sm text-text-muted">
+              {demo
+                ? "1 game running"
+                : activeSessions.length > 0
+                  ? `${activeSessions.length} game${activeSessions.length === 1 ? "" : "s"} running`
+                  : "No game running right now"}
+            </div>
+            {launchable && gameLaunchingEnabled ? (
+              <Button
+                variant="secondary"
+                icon={Play}
+                disabled={demo || !canStartGame || starting}
+                loading={starting}
+                title={demo ? DEMO_ACTION_REASON : startDisabledReason}
+                onClick={demo ? undefined : () => void handleStartGame()}
+              >
+                Start game
+              </Button>
+            ) : null}
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -207,8 +274,9 @@ function EmulatorView({
               No recognized {label} games yet
             </div>
             <div>
-              Start a game in {label} and pick it once. PlayCounter recognizes
-              it automatically from then on.
+              {gameLaunchingEnabled
+                ? "Use Start game and pick a file once. PlayCounter recognizes it automatically from then on."
+                : `Start a game in ${label} and pick it once. PlayCounter recognizes it automatically from then on.`}
             </div>
           </div>
         ) : (

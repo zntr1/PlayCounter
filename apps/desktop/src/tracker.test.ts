@@ -35,6 +35,7 @@ import {
   ignoreDiscoveredProcess,
   launchGame,
   launchEmulatorGame,
+  resetEmulatorLaunchGuardForTests,
   suggestIgnoredProcess,
   persist,
   pollContributions,
@@ -44,6 +45,7 @@ import {
   selectAmbiguousMatch,
   selectEmulatorGame,
   shareEmulatorMapping,
+  startEmulatorGame,
   setGamePlaytime,
   suggestTrackedGameToCommunity,
   untrackGame,
@@ -109,6 +111,7 @@ beforeEach(() => {
   });
   invokeMock.mockReset();
   openMock.mockReset();
+  resetEmulatorLaunchGuardForTests();
   invokeMock.mockImplementation(async (command: string) => {
     if (command === "set_user_ignored_process") {
       return {
@@ -163,6 +166,7 @@ beforeEach(() => {
     },
     notifications: [],
     toasts: [],
+    runtimeLog: [],
     awardedMilestones: [],
     milestonesInitializedAt: null,
     suppressStartupNotificationsOnce: false,
@@ -376,6 +380,181 @@ describe("game launching", () => {
         exePath: binary.exePath,
         contentPath: content.filePath,
       },
+    });
+  });
+
+  describe("starting an emulator game directly", () => {
+    const binary = {
+      emulatorId: "dolphin",
+      exePath: String.raw`C:\Emulators\Dolphin.exe`,
+      setAt: "2026-08-24T00:00:00.000Z",
+    };
+    const pickedFile = String.raw`D:\Games\The Sims 2.rvz`;
+
+    function configureDolphin() {
+      useAppStore.setState({
+        emulatorAutoBinaries: new Map([["dolphin", binary]]),
+      });
+    }
+
+    function configureMappedDolphinGame() {
+      const contentKey = "dolphin:rom:other-game.rvz";
+      const mapping = emulatorMapping({
+        contentKey,
+        emulatorId: "dolphin",
+        label: "Dolphin",
+        contentKind: "rom",
+        contentValue: "other-game.rvz",
+        display: "Other Game.rvz",
+      });
+      useAppStore.setState({
+        emulatorAutoBinaries: new Map([["dolphin", binary]]),
+        emulatorAutoLaunchTargets: new Map([
+          [
+            contentKey,
+            {
+              emulatorId: "dolphin",
+              contentKey,
+              filePath: String.raw`D:\Games\Other Game.rvz`,
+              setAt: "2026-08-24T00:00:00.000Z",
+            },
+          ],
+        ]),
+      });
+      return mapping;
+    }
+
+    it("returns busy before opening the picker when the emulator is guarded", async () => {
+      const mapping = configureMappedDolphinGame();
+      let finishLaunch!: (outcome: {
+        kind: "hostRunning";
+        instanceCount: number;
+      }) => void;
+      invokeMock.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishLaunch = resolve;
+          }),
+      );
+
+      const first = launchEmulatorGame(mapping);
+      await expect(startEmulatorGame("dolphin")).resolves.toEqual({
+        kind: "busy",
+      });
+      expect(openMock).not.toHaveBeenCalled();
+
+      finishLaunch({ kind: "hostRunning", instanceCount: 1 });
+      await first;
+    });
+
+    it("requires direct launching to be enabled", async () => {
+      useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+
+      await expect(startEmulatorGame("dolphin")).rejects.toThrow("Enable");
+      expect(openMock).not.toHaveBeenCalled();
+    });
+
+    it("requires the emulator program before opening the picker", async () => {
+      await expect(startEmulatorGame("dolphin")).rejects.toThrow(
+        "Start Dolphin once so PlayCounter can find its program automatically",
+      );
+      expect(openMock).not.toHaveBeenCalled();
+    });
+
+    it("re-checks the guard after the picker closes", async () => {
+      const mapping = configureMappedDolphinGame();
+      let concurrentLaunch!: ReturnType<typeof launchEmulatorGame>;
+      let finishLaunch!: (outcome: {
+        kind: "hostRunning";
+        instanceCount: number;
+      }) => void;
+      invokeMock.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishLaunch = resolve;
+          }),
+      );
+      openMock.mockImplementationOnce(() => {
+        concurrentLaunch = launchEmulatorGame(mapping);
+        return Promise.resolve(pickedFile);
+      });
+
+      await expect(startEmulatorGame("dolphin")).resolves.toEqual({
+        kind: "busy",
+      });
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+
+      finishLaunch({ kind: "hostRunning", instanceCount: 1 });
+      await concurrentLaunch;
+    });
+
+    it("rejects an unsupported file type", async () => {
+      configureDolphin();
+      openMock.mockResolvedValueOnce(String.raw`D:\Games\notes.txt`);
+
+      await expect(startEmulatorGame("dolphin")).rejects.toThrow(
+        "Pick a supported Dolphin game file",
+      );
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "launch_emulator_content",
+        expect.anything(),
+      );
+    });
+
+    it("returns null without launching when the picker is cancelled", async () => {
+      configureDolphin();
+      openMock.mockResolvedValueOnce(null);
+
+      await expect(startEmulatorGame("dolphin")).resolves.toBeNull();
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "launch_emulator_content",
+        expect.anything(),
+      );
+    });
+
+    it("starts a game directly from a picked file", async () => {
+      configureDolphin();
+      openMock.mockResolvedValueOnce(pickedFile);
+      invokeMock.mockResolvedValueOnce({ kind: "spawned" });
+
+      await expect(startEmulatorGame("dolphin")).resolves.toEqual({
+        kind: "spawned",
+      });
+      expect(openMock).toHaveBeenCalledWith({
+        multiple: false,
+        directory: false,
+        filters: [
+          {
+            name: "Dolphin content",
+            extensions: expect.arrayContaining(["rvz", "iso"]),
+          },
+        ],
+      });
+      expect(invokeMock).toHaveBeenCalledWith("launch_emulator_content", {
+        request: {
+          emulatorId: "dolphin",
+          exePath: binary.exePath,
+          contentPath: pickedFile,
+        },
+      });
+    });
+
+    it("does not record the picked path in runtime diagnostics", async () => {
+      configureDolphin();
+      openMock.mockResolvedValueOnce(pickedFile);
+      invokeMock.mockResolvedValueOnce({ kind: "spawned" });
+
+      await startEmulatorGame("dolphin");
+
+      const messages = useAppStore
+        .getState()
+        .runtimeLog.map((entry) => entry.message);
+      expect(messages.some((message) => message.includes(pickedFile))).toBe(
+        false,
+      );
+      expect(
+        messages.some((message) => message.includes("emulator=dolphin")),
+      ).toBe(true);
     });
   });
 

@@ -154,6 +154,134 @@ describe("emulator reconciliation", () => {
     });
   });
 
+  it.each([
+    {
+      initialKind: "program" as const,
+      initialValue: "doom.exe",
+      initialKey: "dosbox:program:doom.exe",
+    },
+    {
+      initialKind: "conf" as const,
+      initialValue: "doom",
+      initialKey: "dosbox:conf:doom",
+    },
+  ])(
+    "retires an equivalent DOSBox $initialKind startup picker when the title resolves",
+    ({ initialKind, initialValue, initialKey }) => {
+      const runtime = new Map<string, EmulatorRuntimeState>();
+      const initial = reconcileEmulatorReadings({
+        readings: [
+          {
+            ...contentReading,
+            reading: {
+              state: "content" as const,
+              content: {
+                ...contentReading.reading.content,
+                kind: initialKind,
+                value: initialValue,
+              },
+            },
+          },
+        ],
+        observations: [],
+        mappings: new Map(),
+        runtime,
+        now: 1_000,
+        lookupEnabled: true,
+        retryMs: 60_000,
+      });
+      expect(initial.observations).toHaveLength(1);
+      expect(initial.observations[0]).toMatchObject({ key: initialKey });
+      runtime.clear();
+
+      const resolvedKey = "dosbox:program:doom";
+      const mapping: EmulatorMapping = {
+        contentKey: resolvedKey,
+        emulatorId: "dosbox",
+        label: "DOSBox",
+        contentKind: "program",
+        contentValue: "doom",
+        display: "DOOM",
+        trust: "recognized",
+        decision: "game",
+        gameId: 42,
+        gameName: "Doom",
+        source: "igdb",
+        confidence: "curated",
+        decidedAt: new Date(0).toISOString(),
+        lastSeenAt: new Date(0).toISOString(),
+      };
+      const resolved = reconcileEmulatorReadings({
+        readings: [
+          {
+            ...contentReading,
+            reading: {
+              state: "content" as const,
+              content: {
+                ...contentReading.reading.content,
+                value: "doom",
+                display: "DOOM",
+              },
+            },
+          },
+        ],
+        observations: initial.observations.map((observation) => ({
+          ...observation,
+          endedAt: new Date(1_500).toISOString(),
+        })),
+        mappings: new Map([[resolvedKey, mapping]]),
+        runtime,
+        now: 2_000,
+        lookupEnabled: true,
+        retryMs: 60_000,
+      });
+
+      expect(resolved.observations).toEqual([]);
+      expect(resolved.intents).toContainEqual({
+        type: "match",
+        mapping: { ...mapping, detectionSource: "window_title" },
+      });
+    },
+  );
+
+  it("keeps a genuinely different DOSBox game available for resolution", () => {
+    const runtime = new Map<string, EmulatorRuntimeState>();
+    const initial = reconcileEmulatorReadings({
+      readings: [contentReading],
+      observations: [],
+      mappings: new Map(),
+      runtime,
+      now: 1_000,
+      lookupEnabled: true,
+      retryMs: 60_000,
+    });
+    const switched = reconcileEmulatorReadings({
+      readings: [
+        {
+          ...contentReading,
+          reading: {
+            state: "content" as const,
+            content: {
+              ...contentReading.reading.content,
+              value: "duke3d",
+              display: "DUKE3D",
+            },
+          },
+        },
+      ],
+      observations: initial.observations,
+      mappings: new Map(),
+      runtime,
+      now: 2_000,
+      lookupEnabled: true,
+      retryMs: 60_000,
+    });
+
+    expect(switched.observations.map((observation) => observation.key)).toEqual(
+      ["dosbox:program:doom.exe", "dosbox:program:duke3d"],
+    );
+  });
+
   it("accumulates unresolved runtime across checkpoints and stop", () => {
     const observation = {
       kind: "content" as const,
