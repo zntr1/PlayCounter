@@ -5,6 +5,7 @@ import {
   HardDrive,
   LibraryBig,
   RefreshCw,
+  Share2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -29,6 +30,7 @@ import { Panel, ProviderBadge, formatDuration } from "../components";
 import { Button } from "../primitives";
 
 type Phase = "detecting" | "ready" | "scanning" | "importing" | "done";
+type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
 
 let importerSessionBackedUp = false;
 
@@ -96,6 +98,9 @@ export function ImportLibraryView() {
     "unknown" | "supported" | "unsupported"
   >(importerSession.capability);
   const [error, setError] = useState<string | null>(importerSession.error);
+  const [activeImportGroup, setActiveImportGroup] =
+    useState<ImportGroupKey>("ready");
+  const [addingExternalId, setAddingExternalId] = useState<string | null>(null);
 
   useEffect(() => {
     importerSession = {
@@ -163,6 +168,7 @@ export function ImportLibraryView() {
 
   async function scanAccount() {
     if (accountId === null) return;
+    setActiveImportGroup("ready");
     setPhase("scanning");
     setError(null);
     setScan(null);
@@ -182,6 +188,14 @@ export function ImportLibraryView() {
       if (lookup.capability === "supported") {
         const byKey = new Map(lookup.games.map((game) => [game.key, game]));
         setResolved(byKey);
+        setActiveImportGroup(
+          initialImportGroup(
+            result.games,
+            byKey,
+            existingImports,
+            ignoredProcesses,
+          ),
+        );
         setSelected(
           new Set(
             result.games
@@ -190,6 +204,11 @@ export function ImportLibraryView() {
                   isImportable(
                     game,
                     byKey.get(libraryEntryKey(providerId, game.externalId)),
+                  ) &&
+                  !requiresExecutableChoice(
+                    game,
+                    byKey.get(libraryEntryKey(providerId, game.externalId)),
+                    ignoredProcesses,
                   ) &&
                   !existingImports.has(
                     libraryEntryKey(providerId, game.externalId),
@@ -211,30 +230,18 @@ export function ImportLibraryView() {
     setPhase("importing");
     setError(null);
     try {
-      const missingExecutable = scan.games.find((game) => {
-        if (!selected.has(game.externalId)) return false;
-        const match = resolved.get(
-          libraryEntryKey(providerId, game.externalId),
-        );
-        return (
-          requiresExecutableChoice(game, match, ignoredProcesses) &&
-          !manualExecutables[game.externalId]
-        );
-      });
-      if (missingExecutable) {
-        const match = resolved.get(
-          libraryEntryKey(providerId, missingExecutable.externalId),
-        );
-        throw new Error(
-          `Choose the game executable for ${match?.game?.name ?? missingExecutable.name ?? missingExecutable.externalId}.`,
-        );
-      }
       const commits = scan.games.flatMap((game) => {
         if (!selected.has(game.externalId)) return [];
         const match = resolved.get(
           libraryEntryKey(providerId, game.externalId),
         );
-        if (!match) return [];
+        if (
+          !match ||
+          existingImports.has(libraryEntryKey(providerId, game.externalId)) ||
+          requiresExecutableChoice(game, match, ignoredProcesses)
+        ) {
+          return [];
+        }
         const executable = game.executables.find(
           (item) => item.relativePath === manualExecutables[game.externalId],
         );
@@ -248,16 +255,18 @@ export function ImportLibraryView() {
       });
       if (commits.length === 0)
         throw new Error("Select at least one importable game.");
-      if (!importerSessionBackedUp) {
-        await invoke("backup_local_data", {
-          contents: localStorage.getItem(STORAGE_KEY) ?? "{}",
-        });
-        importerSessionBackedUp = true;
-      }
+      await backupImporterDataOnce();
       const result = await runLibraryImport(commits);
       const failedShares = result.shareOutcomes.filter(
         ({ outcome }) => outcome.kind === "failed",
       ).length;
+      const importedIds = new Set(
+        commits.map((commit) => commit.entry.externalId),
+      );
+      setSelected(
+        (current) => new Set([...current].filter((id) => !importedIds.has(id))),
+      );
+      setActiveImportGroup("imported");
       setPhase("done");
       addToast({
         tone: "success",
@@ -273,14 +282,65 @@ export function ImportLibraryView() {
     }
   }
 
-  const selectedCount = selected.size;
-  const missingExecutableCount =
+  async function addAndShareGame(game: ScannedLibraryGame) {
+    const match = resolved.get(libraryEntryKey(providerId, game.externalId));
+    const selectedExecutable = game.executables.find(
+      (item) => item.relativePath === manualExecutables[game.externalId],
+    );
+    if (!match || !selectedExecutable) return;
+
+    const commit = buildSteamImportCommit({
+      scanned: game,
+      resolved: match,
+      selectedExecutable,
+      ignoredProcesses,
+    });
+    if (!commit) return;
+
+    setAddingExternalId(game.externalId);
+    setError(null);
+    try {
+      await backupImporterDataOnce();
+      const result = await runLibraryImport([commit]);
+      const shareFailed = result.shareOutcomes.some(
+        ({ outcome }) => outcome.kind === "failed",
+      );
+      setSelected((current) => {
+        const next = new Set(current);
+        next.delete(game.externalId);
+        return next;
+      });
+      addToast({
+        tone: "success",
+        title: `${match.game?.name ?? game.name ?? "Game"} added to My Games`,
+        detail: shareFailed
+          ? "The game was added locally, but sharing the executable needs an online retry."
+          : "The executable was submitted as a community suggestion.",
+      });
+    } catch (cause) {
+      setError(formatError(cause));
+    } finally {
+      setAddingExternalId(null);
+    }
+  }
+
+  async function backupImporterDataOnce() {
+    if (importerSessionBackedUp) return;
+    await invoke("backup_local_data", {
+      contents: localStorage.getItem(STORAGE_KEY) ?? "{}",
+    });
+    importerSessionBackedUp = true;
+  }
+
+  const selectedCount =
     scan?.games.filter((game) => {
-      if (!selected.has(game.externalId)) return false;
-      const match = resolved.get(libraryEntryKey(providerId, game.externalId));
+      const key = libraryEntryKey(providerId, game.externalId);
+      const match = resolved.get(key);
       return (
-        requiresExecutableChoice(game, match, ignoredProcesses) &&
-        !manualExecutables[game.externalId]
+        selected.has(game.externalId) &&
+        !existingImports.has(key) &&
+        isImportable(game, match) &&
+        !requiresExecutableChoice(game, match, ignoredProcesses)
       );
     }).length ?? 0;
   const importableCount = useMemo(
@@ -293,6 +353,59 @@ export function ImportLibraryView() {
       ).length ?? 0,
     [resolved, scan],
   );
+  const importGroups = useMemo(() => {
+    const groups: Array<{
+      key: ImportGroupKey;
+      label: string;
+      description: string;
+      games: ScannedLibraryGame[];
+    }> = [
+      {
+        key: "ready",
+        label: "Ready to import",
+        description: "No additional choices required.",
+        games: [] as ScannedLibraryGame[],
+      },
+      {
+        key: "attention",
+        label: "Needs attention",
+        description:
+          "Choose the executable, then add the game and share the mapping as a community suggestion.",
+        games: [] as ScannedLibraryGame[],
+      },
+      {
+        key: "unavailable",
+        label: "Unavailable right now",
+        description: "Missing metadata or importable Steam activity.",
+        games: [] as ScannedLibraryGame[],
+      },
+      {
+        key: "imported",
+        label: "Imported",
+        description: "Games already available in My Games.",
+        games: [] as ScannedLibraryGame[],
+      },
+    ];
+
+    for (const game of scan?.games ?? []) {
+      const key = libraryEntryKey(providerId, game.externalId);
+      const match = resolved.get(key);
+      if (existingImports.has(key)) {
+        groups[3].games.push(game);
+      } else if (!isImportable(game, match)) {
+        groups[2].games.push(game);
+      } else if (requiresExecutableChoice(game, match, ignoredProcesses)) {
+        groups[1].games.push(game);
+      } else {
+        groups[0].games.push(game);
+      }
+    }
+
+    return groups;
+  }, [existingImports, ignoredProcesses, providerId, resolved, scan]);
+  const activeImportGroupDetails =
+    importGroups.find((group) => group.key === activeImportGroup) ??
+    importGroups[0];
 
   if (phase === "detecting") {
     return <LoadingPanel label="Looking for a local Steam installation…" />;
@@ -409,85 +522,129 @@ export function ImportLibraryView() {
                 importable
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  setSelected(
-                    new Set(
-                      scan.games
-                        .filter((game) =>
-                          isImportable(
-                            game,
-                            resolved.get(
-                              libraryEntryKey(providerId, game.externalId),
-                            ),
-                          ),
-                        )
-                        .map((game) => game.externalId),
-                    ),
-                  )
-                }
-              >
-                Select all
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={selectedCount === 0}
-                onClick={() => setSelected(new Set())}
-              >
-                Select none
-              </Button>
-              <Button
-                variant="primary"
-                icon={Download}
-                loading={phase === "importing"}
-                disabled={
-                  selectedCount === 0 ||
-                  capability !== "supported" ||
-                  missingExecutableCount > 0
-                }
-                title={
-                  missingExecutableCount > 0
-                    ? `Choose ${missingExecutableCount} game executable${missingExecutableCount === 1 ? "" : "s"} below.`
-                    : undefined
-                }
-                onClick={() => void importSelected()}
-              >
-                Import {selectedCount || "selected"}
-              </Button>
-            </div>
+            {activeImportGroup === "ready" ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    setSelected(
+                      new Set(
+                        importGroups[0].games.map((game) => game.externalId),
+                      ),
+                    )
+                  }
+                >
+                  Select all
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={selectedCount === 0}
+                  onClick={() => setSelected(new Set())}
+                >
+                  Select none
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={Download}
+                  loading={phase === "importing"}
+                  disabled={selectedCount === 0 || capability !== "supported"}
+                  onClick={() => void importSelected()}
+                >
+                  Import {selectedCount || "selected"}
+                </Button>
+              </div>
+            ) : null}
           </div>
-          <div className="divide-y divide-border">
-            {scan.games.map((game) => (
-              <ImportRow
-                key={game.externalId}
-                game={game}
-                resolved={resolved.get(
-                  libraryEntryKey(providerId, game.externalId),
+          <div>
+            <div
+              role="tablist"
+              aria-label="Import readiness"
+              className="flex flex-wrap gap-1 border-b border-border bg-surface-hover/40 px-5 pt-3"
+            >
+              {importGroups.map((group) => {
+                const isActive = group.key === activeImportGroup;
+                return (
+                  <button
+                    key={group.key}
+                    id={`import-tab-${group.key}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls={`import-panel-${group.key}`}
+                    disabled={group.games.length === 0}
+                    onClick={() => setActiveImportGroup(group.key)}
+                    className={`-mb-px flex items-center gap-2 rounded-t-md border px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "border-border border-b-surface bg-surface text-text"
+                        : "border-transparent text-text-muted hover:bg-surface-hover hover:text-text"
+                    } disabled:cursor-not-allowed disabled:opacity-40`}
+                  >
+                    <span>{group.label}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        isActive
+                          ? "bg-accent/15 text-accent"
+                          : "bg-surface-hover text-text-muted"
+                      }`}
+                    >
+                      {group.games.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <section
+              id={`import-panel-${activeImportGroupDetails.key}`}
+              role="tabpanel"
+              aria-labelledby={`import-tab-${activeImportGroupDetails.key}`}
+            >
+              <p className="border-b border-border px-5 py-3 text-xs text-text-muted">
+                {activeImportGroupDetails.description}
+              </p>
+              <div className="divide-y divide-border">
+                {activeImportGroupDetails.games.length > 0 ? (
+                  activeImportGroupDetails.games.map((game) => (
+                    <ImportRow
+                      key={game.externalId}
+                      game={game}
+                      resolved={resolved.get(
+                        libraryEntryKey(providerId, game.externalId),
+                      )}
+                      selected={selected.has(game.externalId)}
+                      alreadyImported={existingImports.has(
+                        libraryEntryKey(providerId, game.externalId),
+                      )}
+                      showSelection={activeImportGroupDetails.key === "ready"}
+                      showAddAndShare={
+                        activeImportGroupDetails.key === "attention"
+                      }
+                      addingAndSharing={addingExternalId === game.externalId}
+                      manualExecutable={manualExecutables[game.externalId]}
+                      ignoredProcesses={ignoredProcesses}
+                      onAddAndShare={() => void addAndShareGame(game)}
+                      onManualExecutable={(relativePath) =>
+                        setManualExecutables((current) => ({
+                          ...current,
+                          [game.externalId]: relativePath,
+                        }))
+                      }
+                      onSelected={(checked) =>
+                        setSelected((current) => {
+                          const next = new Set(current);
+                          if (checked) next.add(game.externalId);
+                          else next.delete(game.externalId);
+                          return next;
+                        })
+                      }
+                    />
+                  ))
+                ) : (
+                  <p className="px-5 py-8 text-center text-sm text-text-muted">
+                    No games in this category.
+                  </p>
                 )}
-                selected={selected.has(game.externalId)}
-                alreadyImported={existingImports.has(
-                  libraryEntryKey(providerId, game.externalId),
-                )}
-                manualExecutable={manualExecutables[game.externalId]}
-                ignoredProcesses={ignoredProcesses}
-                onManualExecutable={(relativePath) =>
-                  setManualExecutables((current) => ({
-                    ...current,
-                    [game.externalId]: relativePath,
-                  }))
-                }
-                onSelected={(checked) =>
-                  setSelected((current) => {
-                    const next = new Set(current);
-                    if (checked) next.add(game.externalId);
-                    else next.delete(game.externalId);
-                    return next;
-                  })
-                }
-              />
-            ))}
+              </div>
+            </section>
           </div>
         </Panel>
       ) : null}
@@ -514,8 +671,12 @@ function ImportRow({
   resolved,
   selected,
   alreadyImported,
+  showSelection,
+  showAddAndShare,
+  addingAndSharing,
   manualExecutable,
   ignoredProcesses,
+  onAddAndShare,
   onManualExecutable,
   onSelected,
 }: {
@@ -523,8 +684,12 @@ function ImportRow({
   resolved?: ResolvedLibraryGame;
   selected: boolean;
   alreadyImported: boolean;
+  showSelection: boolean;
+  showAddAndShare: boolean;
+  addingAndSharing: boolean;
   manualExecutable?: string;
   ignoredProcesses: ReadonlySet<string>;
+  onAddAndShare: () => void;
   onManualExecutable: (value: string) => void;
   onSelected: (checked: boolean) => void;
 }) {
@@ -544,14 +709,18 @@ function ImportRow({
   );
   return (
     <article className="flex items-start gap-4 px-5 py-4">
-      <input
-        type="checkbox"
-        className="mt-1 h-4 w-4 accent-[rgb(var(--color-accent))]"
-        checked={selected}
-        disabled={!importable}
-        onChange={(event) => onSelected(event.target.checked)}
-        aria-label={`Import ${resolved?.game?.name ?? game.name ?? game.externalId}`}
-      />
+      {showSelection ? (
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 accent-[rgb(var(--color-accent))]"
+          checked={selected}
+          disabled={!importable}
+          onChange={(event) => onSelected(event.target.checked)}
+          aria-label={`Import ${resolved?.game?.name ?? game.name ?? game.externalId}`}
+        />
+      ) : (
+        <span className="w-4 shrink-0" aria-hidden="true" />
+      )}
       {resolved?.game?.coverUrl ? (
         <img
           src={resolved.game.coverUrl}
@@ -596,26 +765,41 @@ function ImportRow({
             <span>No known executable</span>
           )}
         </div>
-        {showExeChoice ? (
-          <label className="mt-3 block max-w-xl text-xs text-text-muted">
-            Choose the game executable. The mapping remains scoped to this Steam
-            installation and does not become a global decision.
-            <select
-              value={manualExecutable ?? ""}
-              onChange={(event) => onManualExecutable(event.target.value)}
-              className="mt-1 block w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
-            >
-              <option value="">Select an executable…</option>
-              {candidates.map((candidate) => (
-                <option
-                  key={candidate.relativePath}
-                  value={candidate.relativePath}
-                >
-                  {candidate.relativePath}
-                </option>
-              ))}
-            </select>
-          </label>
+        {showAddAndShare && showExeChoice ? (
+          <div className="mt-3 max-w-2xl text-xs text-text-muted">
+            <p>
+              Choose the executable PlayCounter should track. Add and Share
+              imports the game locally and submits this mapping for community
+              review; it is not globally approved automatically.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select
+                aria-label={`Executable for ${resolved?.game?.name ?? game.name ?? game.externalId}`}
+                value={manualExecutable ?? ""}
+                onChange={(event) => onManualExecutable(event.target.value)}
+                className="min-w-64 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
+              >
+                <option value="">Select an executable…</option>
+                {candidates.map((candidate) => (
+                  <option
+                    key={candidate.relativePath}
+                    value={candidate.relativePath}
+                  >
+                    {candidate.relativePath}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="primary"
+                icon={Share2}
+                loading={addingAndSharing}
+                disabled={!manualExecutable}
+                onClick={onAddAndShare}
+              >
+                Add and Share
+              </Button>
+            </div>
+          </div>
         ) : null}
       </div>
     </article>
@@ -662,6 +846,40 @@ function isImportable(
     resolved.game?.igdbId !== undefined &&
     (game.playtimeSeconds > 0 || game.lastPlayedUnix !== undefined)
   );
+}
+
+function initialImportGroup(
+  games: readonly ScannedLibraryGame[],
+  resolved: ReadonlyMap<string, ResolvedLibraryGame>,
+  existingImports: ReadonlyMap<string, unknown>,
+  ignoredProcesses: ReadonlySet<string>,
+): ImportGroupKey {
+  let hasAttention = false;
+  let hasUnavailable = false;
+  let hasImported = false;
+
+  for (const game of games) {
+    const key = libraryEntryKey("steam", game.externalId);
+    if (existingImports.has(key)) {
+      hasImported = true;
+      continue;
+    }
+    const match = resolved.get(key);
+    if (!isImportable(game, match)) {
+      hasUnavailable = true;
+      continue;
+    }
+    if (requiresExecutableChoice(game, match, ignoredProcesses)) {
+      hasAttention = true;
+      continue;
+    }
+    return "ready";
+  }
+
+  if (hasAttention) return "attention";
+  if (hasUnavailable) return "unavailable";
+  if (hasImported) return "imported";
+  return "ready";
 }
 
 function LoadingPanel({ label }: { label: string }) {
