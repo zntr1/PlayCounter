@@ -1529,6 +1529,9 @@ function GameLibraryCard({
     ];
   }, [autoLaunchTargets, manualTarget]);
   const primaryLaunchTarget = ownedLaunchTargets[0];
+  const steamImportEntry = game.libraryImports.find(
+    (entry) => entry.provider === "steam",
+  );
   const steamLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "steam" && entry.installed,
   );
@@ -2312,13 +2315,13 @@ function GameLibraryCard({
   }
 
   async function handleOpenInSteam() {
-    if (!steamLaunchEntry) return;
+    if (!steamImportEntry) return;
     contextMenu.close();
     try {
       const provider = await import("../../library/providers").then((module) =>
         module.loadLibraryProvider("steam"),
       );
-      await provider.launch(steamLaunchEntry.externalId, "store");
+      await provider.launch(steamImportEntry.externalId, "store");
     } catch (error) {
       addToast({
         tone: "error",
@@ -2468,15 +2471,17 @@ function GameLibraryCard({
           <ContextMenuSeparator />
         </>
       ) : null}
-      {!demo && steamLaunchEntry && canLaunchExecutables ? (
+      {!demo && steamImportEntry && canLaunchExecutables ? (
         <>
-          <ContextMenuItem
-            icon={Play}
-            disabled={hasActiveSession || launching || launchBlocked}
-            onClick={() => void handleSteamLaunch()}
-          >
-            Play in Steam
-          </ContextMenuItem>
+          {steamLaunchEntry ? (
+            <ContextMenuItem
+              icon={Play}
+              disabled={hasActiveSession || launching || launchBlocked}
+              onClick={() => void handleSteamLaunch()}
+            >
+              Play in Steam
+            </ContextMenuItem>
+          ) : null}
           <ContextMenuItem
             icon={ExternalLink}
             onClick={() => void handleOpenInSteam()}

@@ -123,6 +123,26 @@ describe("library import", () => {
     });
   });
 
+  it("path-scopes an ambiguous known executable missed by the local scan", () => {
+    const commit = buildSteamImportCommit({
+      scanned: { ...scanned, executables: [] },
+      resolved: {
+        ...resolved,
+        executables: [{ ...resolved.executables[0], ambiguous: true }],
+      },
+    });
+
+    expect(commit?.exeCacheEntries).toEqual([]);
+    expect(commit?.scopedLinks).toEqual([
+      expect.objectContaining({
+        exeName: "cs2.exe",
+        pathPrefix: String.raw`c:\steamlibrary\steamapps\common\counter-strike global offensive`,
+        source: "igdb",
+        externalId: "730",
+      }),
+    ]);
+  });
+
   it("ranks known game executables and removes installer noise", () => {
     const candidates = importExeCandidates(
       scanned.executables,

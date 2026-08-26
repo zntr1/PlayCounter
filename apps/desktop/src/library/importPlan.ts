@@ -68,7 +68,11 @@ export function buildSteamImportCommit(input: {
           toScopedLink(name, installPath, scanned.externalId, game, now),
         );
       }
-    } else if (installPath && localByName.has(name.toLowerCase())) {
+    } else if (installPath) {
+      // The provider identity and install root make an otherwise ambiguous
+      // basename safe locally. Do not require the bounded filesystem scan to
+      // rediscover the file: large game folders can hit that scan's entry cap
+      // before a deeply nested executable (for example CS2's cs2.exe) is seen.
       scopedLinks.push(
         toScopedLink(name, installPath, scanned.externalId, game, now),
       );
