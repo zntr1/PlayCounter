@@ -16,6 +16,21 @@ function newestFirst(left: string, right: string) {
   return Date.parse(right) - Date.parse(left);
 }
 
+export function mergeLastPlayedEvidence(
+  current: string,
+  candidate: string,
+  currentIsPlayEvidence: boolean,
+) {
+  const candidateTime = Date.parse(candidate);
+  if (!Number.isFinite(candidateTime)) return current;
+  if (!currentIsPlayEvidence) return candidate;
+
+  const currentTime = Date.parse(current);
+  return !Number.isFinite(currentTime) || candidateTime > currentTime
+    ? candidate
+    : current;
+}
+
 function stableIdentityOrder(left: MyGamesSortValue, right: MyGamesSortValue) {
   return (
     left.name.localeCompare(right.name) ||

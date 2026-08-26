@@ -139,6 +139,7 @@ import { emitTourEvent, useTourDemo } from "../tour/TourUI";
 import {
   LAST_PLAYED_PROMOTION_DELAY_MS,
   compareMyGames,
+  mergeLastPlayedEvidence,
   shouldPromoteActiveGame,
   type MyGamesSortKey,
 } from "../myGamesSort";
@@ -563,6 +564,7 @@ export function MyGamesView() {
       resolveIgdbId,
     );
     const summaries = new Map<string, GameSummary>();
+    const summariesWithPlayEvidence = new Set<string>();
 
     const addAlias = (
       summary: GameSummary,
@@ -757,6 +759,7 @@ export function MyGamesView() {
       if (Date.parse(endedOrStartedAt) > Date.parse(existing.lastPlayedAt)) {
         existing.lastPlayedAt = endedOrStartedAt;
       }
+      summariesWithPlayEvidence.add(summaryKey);
       if (!existing.exeNames.includes(session.exeName)) {
         existing.exeNames.push(session.exeName);
       }
@@ -846,6 +849,7 @@ export function MyGamesView() {
       existing.sessionSeconds += activeSeconds;
       if (promoteForRecentSort) {
         existing.lastPlayedAt = activeSession.checkpointedAt;
+        summariesWithPlayEvidence.add(summaryKey);
         if (
           existing.activeStartedAt === undefined ||
           Date.parse(activeSession.startedAt) >
@@ -913,6 +917,14 @@ export function MyGamesView() {
           historyGameKey: summaryKey,
         });
         summaries.set(summaryKey, summary);
+      }
+      if (entry.providerLastPlayedAt) {
+        summary.lastPlayedAt = mergeLastPlayedEvidence(
+          summary.lastPlayedAt,
+          entry.providerLastPlayedAt,
+          summariesWithPlayEvidence.has(summaryKey),
+        );
+        summariesWithPlayEvidence.add(summaryKey);
       }
       if (
         !summary.aliases.some(
