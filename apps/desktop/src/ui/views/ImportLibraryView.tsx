@@ -432,6 +432,13 @@ export function ImportLibraryView() {
                 Select all
               </Button>
               <Button
+                variant="secondary"
+                disabled={selectedCount === 0}
+                onClick={() => setSelected(new Set())}
+              >
+                Select none
+              </Button>
+              <Button
                 variant="primary"
                 icon={Download}
                 loading={phase === "importing"}
