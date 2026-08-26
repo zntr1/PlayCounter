@@ -182,6 +182,7 @@ type GameSummary = {
   coverUrl: string;
   source: GameSource | null;
   sources: GameSource[];
+  hasExplicitIdentifierSource?: boolean;
   aliases: GameAliasRef[];
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
@@ -549,6 +550,7 @@ export function MyGamesView() {
           gameName: link.gameName,
           coverUrl: link.coverUrl,
           source: link.source,
+          identifierSource: link.identifierSource,
           pendingCommunityGame: link.pendingCommunityGame,
           communitySuggestionId: link.communitySuggestionId,
           communitySuggestionVerified: link.communitySuggestionVerified,
@@ -566,6 +568,7 @@ export function MyGamesView() {
       summary: GameSummary,
       gameId: number,
       source: GameSource | null | undefined,
+      identifierSource?: GameSource | null,
     ) => {
       const normalizedSource = source ?? null;
       if (
@@ -576,8 +579,14 @@ export function MyGamesView() {
       ) {
         summary.aliases.push({ gameId, source: normalizedSource });
       }
-      if (source && !summary.sources.includes(source)) {
-        summary.sources.push(source);
+      const badgeSource =
+        identifierSource === undefined
+          ? summary.hasExplicitIdentifierSource
+            ? null
+            : source
+          : identifierSource;
+      if (badgeSource && !summary.sources.includes(badgeSource)) {
+        summary.sources.push(badgeSource);
         summary.sources.sort(
           (left, right) => sourceRank(left) - sourceRank(right),
         );
@@ -593,7 +602,14 @@ export function MyGamesView() {
 
     const mergeEntry = (summary: GameSummary, entry: ExeCacheEntry) => {
       if (entry.gameId !== undefined) {
-        addAlias(summary, entry.gameId, entry.source);
+        if (
+          entry.identifierSource !== undefined &&
+          !summary.hasExplicitIdentifierSource
+        ) {
+          summary.sources = [];
+          summary.hasExplicitIdentifierSource = true;
+        }
+        addAlias(summary, entry.gameId, entry.source, entry.identifierSource);
       }
       summary.igdbId ??= entry.igdbId;
       if (!summary.exeNames.includes(entry.exeName)) {

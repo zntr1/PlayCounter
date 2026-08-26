@@ -34,6 +34,8 @@ export type ScopedExeLink = {
   pathPrefix: string;
   gameId: number;
   source: GameSource;
+  /** Provenance of the executable mapping, separate from game identity. */
+  identifierSource?: GameSource;
   igdbId: number;
   gameName: string;
   coverUrl: string;

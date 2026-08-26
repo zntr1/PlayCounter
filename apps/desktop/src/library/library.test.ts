@@ -54,6 +54,16 @@ const resolved: ResolvedLibraryGame = {
   ],
 };
 
+const communityExecutable: ResolvedLibraryGame = {
+  ...resolved,
+  executables: [
+    {
+      ...resolved.executables[0],
+      provenance: "community",
+    },
+  ],
+};
+
 describe("library import", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -67,6 +77,25 @@ describe("library import", () => {
     expect(commit?.scopedLinks[0]).toMatchObject({
       exeName: "cs2.exe",
       igdbId: 1942,
+    });
+  });
+
+  it("keeps executable provenance separate from IGDB game identity", () => {
+    const commit = buildSteamImportCommit({
+      scanned,
+      resolved: communityExecutable,
+      now: "now",
+    });
+
+    expect(commit?.exeCacheEntries[0]).toMatchObject({
+      gameId: resolved.game?.id,
+      source: "igdb",
+      identifierSource: "community",
+    });
+    expect(commit?.scopedLinks[0]).toMatchObject({
+      gameId: resolved.game?.id,
+      source: "igdb",
+      identifierSource: "community",
     });
   });
 

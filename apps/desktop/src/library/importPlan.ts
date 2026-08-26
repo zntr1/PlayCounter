@@ -40,7 +40,11 @@ export function buildSteamImportCommit(input: {
 
   const executableEvidence = new Map<
     string,
-    { name: string; pathScopedOnly: boolean }
+    {
+      name: string;
+      pathScopedOnly: boolean;
+      identifierSource: "igdb" | "community";
+    }
   >();
   for (const executable of knownWindows) {
     const name = executable.value.trim();
@@ -56,16 +60,36 @@ export function buildSteamImportCommit(input: {
         Boolean(existing?.pathScopedOnly) ||
         Boolean(executable.ambiguous) ||
         !executable.verified,
+      identifierSource:
+        existing?.identifierSource === "igdb" ||
+        executable.provenance === "igdb"
+          ? "igdb"
+          : "community",
     });
   }
   for (const executable of executableEvidence.values()) {
     const name = executable.name;
     linked.add(name);
     if (!executable.pathScopedOnly) {
-      exeCacheEntries.push(toExeCache(name, scanned.externalId, game, now));
+      exeCacheEntries.push(
+        toExeCache(
+          name,
+          scanned.externalId,
+          game,
+          executable.identifierSource,
+          now,
+        ),
+      );
       if (installPath && localByName.has(name.toLowerCase())) {
         scopedLinks.push(
-          toScopedLink(name, installPath, scanned.externalId, game, now),
+          toScopedLink(
+            name,
+            installPath,
+            scanned.externalId,
+            game,
+            executable.identifierSource,
+            now,
+          ),
         );
       }
     } else if (installPath) {
@@ -74,7 +98,14 @@ export function buildSteamImportCommit(input: {
       // rediscover the file: large game folders can hit that scan's entry cap
       // before a deeply nested executable (for example CS2's cs2.exe) is seen.
       scopedLinks.push(
-        toScopedLink(name, installPath, scanned.externalId, game, now),
+        toScopedLink(
+          name,
+          installPath,
+          scanned.externalId,
+          game,
+          executable.identifierSource,
+          now,
+        ),
       );
     }
   }
@@ -136,6 +167,7 @@ function toExeCache(
   exeName: string,
   externalId: string,
   game: GameMetadata,
+  identifierSource: "igdb" | "community",
   now: string,
 ): ExeCacheEntry {
   return {
@@ -146,6 +178,7 @@ function toExeCache(
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: game.source,
+    identifierSource,
     libraryProvider: "steam",
     libraryExternalId: externalId,
     lastCheckedAt: now,
@@ -157,6 +190,7 @@ function toScopedLink(
   pathPrefix: string,
   externalId: string,
   game: GameMetadata,
+  identifierSource: "igdb" | "community",
   now: string,
 ): ScopedExeLink {
   return {
@@ -164,6 +198,7 @@ function toScopedLink(
     pathPrefix,
     gameId: game.id,
     source: game.source,
+    identifierSource,
     igdbId: game.igdbId!,
     gameName: game.name,
     coverUrl: game.coverUrl,
@@ -187,6 +222,7 @@ function toCustomExeCache(
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: "custom",
+    identifierSource: "custom",
     lastCheckedAt: now,
     shareState: "unshared",
     libraryProvider: "steam",
@@ -206,6 +242,7 @@ function toCustomScopedLink(
     pathPrefix,
     gameId: scopedLocalGameId(exeName, pathPrefix),
     source: "custom",
+    identifierSource: "custom",
     igdbId: game.igdbId!,
     gameName: game.name,
     coverUrl: game.coverUrl,

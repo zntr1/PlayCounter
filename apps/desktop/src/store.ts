@@ -122,6 +122,8 @@ export type ExeCacheEntry = {
   gameName?: string;
   coverUrl?: string;
   source?: GameSource;
+  /** Provenance of the executable mapping, separate from game identity. */
+  identifierSource?: GameSource;
   pendingCommunityGame?: Game;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
