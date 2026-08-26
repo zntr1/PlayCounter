@@ -37,6 +37,14 @@ import type {
   EmulatorLaunchTarget,
 } from "./emulatorLaunch";
 import { stepView } from "./ui/tour/tourNavigation";
+import type {
+  LibraryImportEntry,
+  LibraryInstallEntry,
+  ScopedExeLink,
+} from "./library/types";
+import { libraryEntryKey } from "./library/types";
+import { scopedExeLinkKey } from "./library/scopedLinks";
+import { listLocalLinks, type LocalLinkRef } from "./localLinks";
 import {
   defaultTourProgress,
   markTourCompleted,
@@ -50,6 +58,7 @@ export type ViewId =
   | "dosbox"
   | "dolphin"
   | "games"
+  | "import"
   | "discovered"
   | "history"
   | "achievements"
@@ -118,6 +127,9 @@ export type ExeCacheEntry = {
   communitySuggestionVerified?: boolean;
   communitySuggestionStatus?: ContributionStatus;
   communitySuggestionNote?: string;
+  shareState?: "unshared" | "failed";
+  libraryProvider?: LibraryImportEntry["provider"];
+  libraryExternalId?: string;
   communityUpgradeGame?: Game;
   dismissedCommunityUpgradeGameId?: number;
   // IGDB and community ids come from separate sequences and can collide, so a
@@ -195,6 +207,7 @@ export function canCancelCommunitySuggestion(value: {
 }
 
 export type PendingCommunitySuggestionTarget = {
+  ref: LocalLinkRef;
   exeName: string;
   gameId: number;
 };
@@ -202,9 +215,12 @@ export type PendingCommunitySuggestionTarget = {
 export function findPendingCommunitySuggestionEntry(
   exeNames: readonly string[],
   exeCache: ReadonlyMap<string, ExeCacheEntry>,
+  scopedExeLinks: ReadonlyMap<string, ScopedExeLink> = new Map(),
 ): PendingCommunitySuggestionTarget | null {
+  const wanted = new Set(exeNames.map((exeName) => exeName.toLowerCase()));
   for (const exeName of exeNames) {
-    const entry = exeCache.get(exeName.toLowerCase());
+    const key = exeName.toLowerCase();
+    const entry = exeCache.get(key);
     if (
       entry?.state === "matched" &&
       canCancelCommunitySuggestion({
@@ -216,6 +232,26 @@ export function findPendingCommunitySuggestionEntry(
       })
     ) {
       return {
+        ref: { kind: "exe", key },
+        exeName: entry.exeName,
+        gameId: entry.communitySuggestionId!,
+      };
+    }
+  }
+  for (const entry of listLocalLinks(exeCache, scopedExeLinks)) {
+    if (
+      entry.ref.kind === "scoped" &&
+      wanted.has(entry.exeName.toLowerCase()) &&
+      canCancelCommunitySuggestion({
+        source: entry.source,
+        exeName: entry.exeName,
+        communitySuggestionId: entry.communitySuggestionId,
+        communitySuggestionVerified: entry.communitySuggestionVerified,
+        communitySuggestionStatus: entry.communitySuggestionStatus,
+      })
+    ) {
+      return {
+        ref: entry.ref,
         exeName: entry.exeName,
         gameId: entry.communitySuggestionId!,
       };
@@ -275,7 +311,7 @@ export type ActiveTour = {
   enteredStepAt: number;
 };
 
-type AppState = {
+export type AppState = {
   activeView: ViewId;
   historyQuery: string;
   historyGameKey: string | null;
@@ -295,6 +331,9 @@ type AppState = {
   userIgnoredProcesses: Set<string>;
   userIgnoredProcessesPath: string | null;
   exeCache: Map<string, ExeCacheEntry>;
+  libraryImports: Map<string, LibraryImportEntry>;
+  libraryInstalls: Map<string, LibraryInstallEntry>;
+  scopedExeLinks: Map<string, ScopedExeLink>;
   launchTargets: Map<string, LaunchTarget>;
   manualLaunchTargets: Map<string, LaunchTarget>;
   emulatorAutoBinaries: Map<string, EmulatorBinaryEntry>;
@@ -366,6 +405,19 @@ type AppState = {
   ) => void;
   setExeCacheEntry: (entry: ExeCacheEntry) => void;
   removeExeCacheEntry: (exeName: string) => void;
+  setLibraryImport: (entry: LibraryImportEntry) => void;
+  removeLibraryImport: (
+    provider: LibraryImportEntry["provider"],
+    externalId: string,
+  ) => void;
+  setLibraryInstall: (entry: LibraryInstallEntry) => void;
+  removeLibraryInstall: (
+    provider: LibraryInstallEntry["provider"],
+    externalId: string,
+  ) => void;
+  setScopedExeLink: (entry: ScopedExeLink) => void;
+  removeScopedExeLink: (key: string) => void;
+  clearLibraryData: () => void;
   setLaunchTarget: (target: LaunchTarget) => void;
   removeLaunchTarget: (exeName: string) => void;
   setManualLaunchTarget: (
@@ -484,6 +536,14 @@ function addSessionsToArchive(
   return { archivedSeconds, archivedGameSeconds };
 }
 
+export function foldSessionsIntoArchive(
+  archivedSeconds: number,
+  archivedGameSeconds: Record<string, number>,
+  sessions: Session[],
+) {
+  return addSessionsToArchive(archivedSeconds, archivedGameSeconds, sessions);
+}
+
 function persistSoon() {
   queueMicrotask(() => {
     const state = useAppStore.getState();
@@ -540,6 +600,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   userIgnoredProcesses: new Set(),
   userIgnoredProcessesPath: null,
   exeCache: new Map(),
+  libraryImports: new Map(),
+  libraryInstalls: new Map(),
+  scopedExeLinks: new Map(),
   launchTargets: new Map(),
   manualLaunchTargets: new Map(),
   emulatorAutoBinaries: new Map(),
@@ -807,7 +870,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => {
       const exeCache = new Map(state.exeCache);
       exeCache.set(entry.exeName.toLowerCase(), entry);
-      return { exeCache };
+      if (entry.state !== "matched") return { exeCache };
+      let libraryImports = state.libraryImports;
+      for (const [key, imported] of state.libraryImports) {
+        const sameGame =
+          (entry.igdbId !== undefined && entry.igdbId === imported.igdbId) ||
+          (entry.gameId === imported.gameId &&
+            entry.source === imported.source);
+        if (
+          !sameGame ||
+          imported.linkedExeNames.some(
+            (exeName) => exeName.toLowerCase() === entry.exeName.toLowerCase(),
+          )
+        ) {
+          continue;
+        }
+        if (libraryImports === state.libraryImports) {
+          libraryImports = new Map(state.libraryImports);
+        }
+        libraryImports.set(key, {
+          ...imported,
+          linkedExeNames: [...imported.linkedExeNames, entry.exeName],
+        });
+      }
+      return { exeCache, libraryImports };
     }),
   removeExeCacheEntry: (exeName) =>
     set((state) => {
@@ -815,6 +901,79 @@ export const useAppStore = create<AppState>((set, get) => ({
       exeCache.delete(exeName.toLowerCase());
       return { exeCache };
     }),
+  setLibraryImport: (entry) => {
+    set((state) => {
+      const libraryImports = new Map(state.libraryImports);
+      libraryImports.set(
+        libraryEntryKey(entry.provider, entry.externalId),
+        entry,
+      );
+      return { libraryImports };
+    });
+    persistSoon();
+  },
+  removeLibraryImport: (provider, externalId) => {
+    set((state) => {
+      const key = libraryEntryKey(provider, externalId);
+      const libraryImports = new Map(state.libraryImports);
+      const libraryInstalls = new Map(state.libraryInstalls);
+      const scopedExeLinks = new Map(state.scopedExeLinks);
+      libraryImports.delete(key);
+      libraryInstalls.delete(key);
+      for (const [linkKey, link] of scopedExeLinks) {
+        if (link.provider === provider && link.externalId === externalId) {
+          scopedExeLinks.delete(linkKey);
+        }
+      }
+      return { libraryImports, libraryInstalls, scopedExeLinks };
+    });
+    persistSoon();
+  },
+  setLibraryInstall: (entry) => {
+    set((state) => {
+      const libraryInstalls = new Map(state.libraryInstalls);
+      libraryInstalls.set(
+        libraryEntryKey(entry.provider, entry.externalId),
+        entry,
+      );
+      return { libraryInstalls };
+    });
+    persistSoon();
+  },
+  removeLibraryInstall: (provider, externalId) => {
+    set((state) => {
+      const libraryInstalls = new Map(state.libraryInstalls);
+      libraryInstalls.delete(libraryEntryKey(provider, externalId));
+      return { libraryInstalls };
+    });
+    persistSoon();
+  },
+  setScopedExeLink: (entry) => {
+    const key = scopedExeLinkKey(entry.exeName, entry.pathPrefix);
+    if (!key) return;
+    set((state) => {
+      const scopedExeLinks = new Map(state.scopedExeLinks);
+      scopedExeLinks.set(key, entry);
+      return { scopedExeLinks };
+    });
+    persistSoon();
+  },
+  removeScopedExeLink: (key) => {
+    set((state) => {
+      const scopedExeLinks = new Map(state.scopedExeLinks);
+      scopedExeLinks.delete(key);
+      return { scopedExeLinks };
+    });
+    persistSoon();
+  },
+  clearLibraryData: () => {
+    set({
+      libraryImports: new Map(),
+      libraryInstalls: new Map(),
+      scopedExeLinks: new Map(),
+    });
+    persistSoon();
+  },
   setLaunchTarget: (target) =>
     set((state) => {
       const launchTargets = new Map(state.launchTargets);
@@ -1245,6 +1404,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       exeCache: new Map(),
       launchTargets: new Map(),
       gameMetadata: new Map(),
+      libraryImports: new Map(),
+      libraryInstalls: new Map(),
+      scopedExeLinks: new Map(),
       emulatorObservations: [],
       emulatorMappings: new Map(),
       runtimeError: null,
@@ -1309,6 +1471,7 @@ export function canonicalGameKey(ref: GameIdentityRef) {
 export function createGameIdentityResolver(
   gameMetadata: ReadonlyMap<string, GameMetadata>,
   exeCache: ReadonlyMap<string, ExeCacheEntry>,
+  libraryImports: ReadonlyMap<string, LibraryImportEntry> = new Map(),
 ): GameIdentityResolver {
   type IdentityEvidence = {
     igdbId?: number;
@@ -1352,6 +1515,9 @@ export function createGameIdentityResolver(
         entry.coverUrl,
       );
     }
+  }
+  for (const entry of libraryImports.values()) {
+    add(entry.gameId, entry.source, entry.igdbId, entry.name, entry.coverUrl);
   }
 
   const conflictedPairs = new Set<string>();

@@ -114,6 +114,28 @@ describe("backup transfer data", () => {
           displayName: "The Sims 2.rvz",
         },
       ],
+      libraryImports: [
+        {
+          provider: "steam",
+          externalId: "730",
+          igdbId: 1942,
+          providerSeconds: 7_200,
+        },
+      ],
+      libraryInstalls: [
+        {
+          provider: "steam",
+          externalId: "730",
+          installPath: String.raw`C:\Steam\common\CS2`,
+        },
+      ],
+      scopedExeLinks: [
+        {
+          provider: "steam",
+          externalId: "730",
+          pathPrefix: String.raw`C:\Steam\common\CS2`,
+        },
+      ],
       activeSessions: [{ id: 2 }],
       ambiguousMatches: [{ exeName: "game.exe" }],
       exeCache: [
@@ -128,6 +150,14 @@ describe("backup transfer data", () => {
       awardedMilestones: [{ id: "milestone:total:10" }],
       seenContributionStatus: { contribution: "verified" },
       exeCache: [{ exeName: "game.exe", state: "matched" }],
+      libraryImports: [
+        {
+          provider: "steam",
+          externalId: "730",
+          igdbId: 1942,
+          providerSeconds: 7_200,
+        },
+      ],
     });
     expect(result).not.toHaveProperty("notifications");
     expect(result).not.toHaveProperty("lastSeenReleaseNotesVersion");
@@ -140,6 +170,8 @@ describe("backup transfer data", () => {
     expect(result).not.toHaveProperty("emulatorAutoLaunchTargets");
     expect(result).not.toHaveProperty("emulatorManualLaunchTargets");
     expect(result).not.toHaveProperty("emulatorLaunchCandidates");
+    expect(result).not.toHaveProperty("libraryInstalls");
+    expect(result).not.toHaveProperty("scopedExeLinks");
     expect(result).not.toHaveProperty("activeSessions");
     expect(result).not.toHaveProperty("ambiguousMatches");
   });

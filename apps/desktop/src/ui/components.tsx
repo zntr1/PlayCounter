@@ -1,5 +1,9 @@
 import type { PropsWithChildren } from "react";
-import type { ContributionStatus, GameSource } from "@playcounter/shared";
+import type {
+  ContributionStatus,
+  GameSource,
+  LibraryProviderId,
+} from "@playcounter/shared";
 
 export function Panel({
   children,
@@ -64,7 +68,8 @@ const sourceBadgeLabels: Record<GameSource, string> = {
 
 const sourceBadgeTooltips: Record<GameSource, string> = {
   igdb: "IGDB has this file name on record for the game.",
-  community: "A PlayCounter user linked this file name to the game, and it was approved.",
+  community:
+    "A PlayCounter user linked this file name to the game, and it was approved.",
   custom: "You linked this file name to the game yourself. Stays on this PC.",
 };
 
@@ -77,6 +82,17 @@ export function SourceBadge({ source }: { source?: GameSource | null }) {
       className={`inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium ${sourceBadgeStyles[source]}`}
     >
       {sourceBadgeLabels[source]}
+    </span>
+  );
+}
+
+export function ProviderBadge({ provider }: { provider: LibraryProviderId }) {
+  return (
+    <span
+      title="Imported from your local Steam library"
+      className="inline-flex shrink-0 items-center rounded border border-[#66c0f4]/40 bg-[#1b2838] px-1.5 py-0.5 text-[11px] font-semibold text-[#66c0f4]"
+    >
+      {provider === "steam" ? "Steam" : provider}
     </span>
   );
 }

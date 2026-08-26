@@ -50,6 +50,9 @@ and the current public/private split are documented in [BACKEND.md](./BACKEND.md
   Windows this is the executable filename, never its full path.
 - Feedback and community game submissions are only sent when you choose those
   actions. No PlayCounter account is required.
+- The on-demand Steam importer reads local Steam files and sends only AppIDs
+  from the selected local account for metadata resolution; account names,
+  playtime, and install paths are not uploaded.
 - A blacklist lets you exclude any executable from tracking.
 
 ## Features
@@ -59,6 +62,8 @@ and the current public/private split are documented in [BACKEND.md](./BACKEND.md
 - Track anything you choose, not just games (any process on your PC)
 - Automatic executable-to-game matching against the API
 - Local play-session tracking with recent history and manual session entry
+- Selective local Steam-library import with playtime floors, deduplication,
+  Steam launch actions, and provider-neutral plumbing for future importers
 - Current / "now playing" view with a system-tray indicator
 - Community suggestions and one-time local choices for unknown or ambiguous exes
 - Configurable polling and unmatched-retry intervals plus an executable blacklist

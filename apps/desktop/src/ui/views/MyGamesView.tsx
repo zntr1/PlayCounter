@@ -8,6 +8,7 @@ import {
   Clock3,
   ClockPlus,
   Copy,
+  ExternalLink,
   Flag,
   FolderSearch,
   Gamepad2,
@@ -38,6 +39,7 @@ import {
   acceptCommunityUpgrade,
   addManualSession,
   applyGameMatch,
+  applyLocalLinkGameMatch,
   applyKnownGameMatch,
   cancelCommunitySuggestion,
   clearCustomGameCover,
@@ -62,6 +64,7 @@ import {
   setGamePlaytime,
   setCustomGameCover,
   suggestTrackedGameToCommunity,
+  submitLocalLinkToCommunity,
   untrackGame,
   verifyLaunchTargetsThrottled,
   type GameAliasRef,
@@ -89,12 +92,19 @@ import {
 } from "../../communityMetadataSearch";
 import {
   adjustmentSecondsFor,
-  displayTotalSeconds,
+  effectiveTotalSeconds,
 } from "../../playtimeAdjustments";
+import {
+  providerFloorRecord,
+  providerFloors,
+} from "../../library/playtimeFloor";
+import { libraryEntryKey } from "../../library/types";
+import { listLocalLinks } from "../../localLinks";
 import {
   CommunityApprovalBadge,
   EmulatorBadge,
   Panel,
+  ProviderBadge,
   SourceBadge,
   formatDuration,
 } from "../components";
@@ -193,6 +203,12 @@ type GameSummary = {
   emulatorLabels: string[];
   emulatorIds: string[];
   emulatorContentKeys: string[];
+  libraryImports: Array<{
+    provider: "steam";
+    externalId: string;
+    installed: boolean;
+  }>;
+  providerFloorSeconds: number;
 };
 
 type PendingRemoval = {
@@ -200,6 +216,7 @@ type PendingRemoval = {
   source: GameSource | null;
   name: string;
   aliases: GameAliasRef[];
+  libraryImports: GameSummary["libraryImports"];
 } | null;
 
 type PendingStopTracking = {
@@ -243,6 +260,8 @@ function makeTourDemoGame(
     emulatorLabels: [],
     emulatorIds: [],
     emulatorContentKeys: [],
+    libraryImports: [],
+    providerFloorSeconds: 0,
   };
 }
 
@@ -269,6 +288,8 @@ function makeCoreTourDemoGames(): GameSummary[] {
       emulatorLabels: [],
       emulatorIds: [],
       emulatorContentKeys: [],
+      libraryImports: [],
+      providerFloorSeconds: 0,
     },
     {
       kind: "tour-demo",
@@ -290,6 +311,8 @@ function makeCoreTourDemoGames(): GameSummary[] {
       emulatorLabels: [],
       emulatorIds: [],
       emulatorContentKeys: [],
+      libraryImports: [],
+      providerFloorSeconds: 0,
     },
   ];
 }
@@ -411,6 +434,9 @@ export function MyGamesView() {
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
+  const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
+  const libraryImports = useAppStore((state) => state.libraryImports);
+  const libraryInstalls = useAppStore((state) => state.libraryInstalls);
   const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
   const emulatorMappings = useAppStore((state) => state.emulatorMappings);
   const showDurationDays = useAppStore(
@@ -424,9 +450,15 @@ export function MyGamesView() {
   );
   const blacklist = useAppStore((state) => state.blacklist);
   const addToast = useAppStore((state) => state.addToast);
+  const removeLibraryImport = useAppStore((state) => state.removeLibraryImport);
   const resolveIgdbId = useMemo(
-    () => createGameIdentityResolver(hydratedGameMetadata, exeCache),
-    [exeCache, hydratedGameMetadata],
+    () =>
+      createGameIdentityResolver(
+        hydratedGameMetadata,
+        exeCache,
+        libraryImports,
+      ),
+    [exeCache, hydratedGameMetadata, libraryImports],
   );
 
   const acquireLaunchLock = useCallback((gameKey: string) => {
@@ -507,7 +539,25 @@ export function MyGamesView() {
     const isIgnored = (exeName: string) =>
       matchesProcessPatternSet(exeName, ignoredExeNames);
     const metadata = matchedEntriesByGame(
-      [...exeCache.values()].filter((entry) => !isIgnored(entry.exeName)),
+      [
+        ...exeCache.values(),
+        ...[...scopedExeLinks.values()].map<ExeCacheEntry>((link) => ({
+          exeName: link.exeName,
+          state: "matched",
+          gameId: link.gameId,
+          igdbId: link.igdbId,
+          gameName: link.gameName,
+          coverUrl: link.coverUrl,
+          source: link.source,
+          pendingCommunityGame: link.pendingCommunityGame,
+          communitySuggestionId: link.communitySuggestionId,
+          communitySuggestionVerified: link.communitySuggestionVerified,
+          communitySuggestionStatus: link.communitySuggestionStatus,
+          communitySuggestionNote: link.communitySuggestionNote,
+          shareState: link.shareState,
+          lastCheckedAt: link.setAt,
+        })),
+      ].filter((entry) => !isIgnored(entry.exeName)),
       resolveIgdbId,
     );
     const summaries = new Map<string, GameSummary>();
@@ -590,10 +640,12 @@ export function MyGamesView() {
       sessionCount: 0,
       historyGameKey: params.historyGameKey ?? null,
       lastPlayedAt: params.lastPlayedAt,
-      exeNames: [params.exeName],
+      exeNames: params.exeName ? [params.exeName] : [],
       emulatorLabels: [],
       emulatorIds: [],
       emulatorContentKeys: [],
+      libraryImports: [],
+      providerFloorSeconds: 0,
     });
 
     for (const session of sessions) {
@@ -830,6 +882,57 @@ export function MyGamesView() {
       }
     }
 
+    for (const entry of libraryImports.values()) {
+      const summaryKey = `igdb#${entry.igdbId}`;
+      let summary = summaries.get(summaryKey);
+      if (!summary) {
+        summary = createSummary({
+          gameId: entry.gameId,
+          igdbId: entry.igdbId,
+          name: entry.name,
+          coverUrl: entry.coverUrl,
+          source: null,
+          lastPlayedAt: entry.providerLastPlayedAt ?? entry.importedAt,
+          exeName: entry.linkedExeNames[0] ?? "",
+          historyGameKey: summaryKey,
+        });
+        summaries.set(summaryKey, summary);
+      }
+      if (
+        !summary.aliases.some(
+          (alias) =>
+            alias.gameId === entry.gameId && alias.source === entry.source,
+        )
+      ) {
+        summary.aliases.push({ gameId: entry.gameId, source: entry.source });
+      }
+      if (summary.source === null) {
+        summary.gameId = entry.gameId;
+        summary.source = entry.source;
+      }
+      summary.igdbId = entry.igdbId;
+      summary.name ||= entry.name;
+      summary.coverUrl ||= entry.coverUrl;
+      for (const exeName of entry.linkedExeNames) {
+        if (!summary.exeNames.includes(exeName)) summary.exeNames.push(exeName);
+      }
+      if (
+        !summary.libraryImports.some(
+          (item) =>
+            item.provider === entry.provider &&
+            item.externalId === entry.externalId,
+        )
+      ) {
+        summary.libraryImports.push({
+          provider: entry.provider,
+          externalId: entry.externalId,
+          installed: libraryInstalls.has(
+            libraryEntryKey(entry.provider, entry.externalId),
+          ),
+        });
+      }
+    }
+
     for (const mapping of emulatorMappings.values()) {
       if (
         mapping.decision !== "game" ||
@@ -877,6 +980,9 @@ export function MyGamesView() {
     }
 
     const consumedKeys = new Set<string>();
+    const floorByGame = providerFloorRecord(
+      providerFloors(libraryImports.values()),
+    );
     for (const summary of summaries.values()) {
       const keys = gameSecondsKeys(summary.aliases).filter((key) => {
         if (consumedKeys.has(key)) return false;
@@ -893,9 +999,15 @@ export function MyGamesView() {
       );
       summary.recordedSeconds =
         summary.sessionSeconds + summary.archivedSeconds;
-      summary.totalSeconds = displayTotalSeconds(
+      const summaryKey =
+        summary.igdbId === undefined
+          ? `${summary.source ?? "unknown"}:${summary.gameId}`
+          : `igdb#${summary.igdbId}`;
+      summary.providerFloorSeconds = floorByGame[summaryKey] ?? 0;
+      summary.totalSeconds = effectiveTotalSeconds(
         summary.recordedSeconds,
         summary.adjustmentSeconds,
+        summary.providerFloorSeconds,
       );
     }
 
@@ -910,9 +1022,12 @@ export function MyGamesView() {
     exeCache,
     emulatorMappings,
     hydratedGameMetadata,
+    libraryImports,
+    libraryInstalls,
     playtimeAdjustments,
     recentSortNow,
     resolveIgdbId,
+    scopedExeLinks,
     sessions,
     userIgnoredProcesses,
   ]);
@@ -1101,6 +1216,7 @@ export function MyGamesView() {
                               source: game.source,
                               name: game.name,
                               aliases: game.aliases,
+                              libraryImports: game.libraryImports,
                             })
                     }
                     onStopTracking={
@@ -1131,6 +1247,9 @@ export function MyGamesView() {
           game={pendingRemoval}
           onCancel={() => setPendingRemoval(null)}
           onConfirm={(removeHistory) => {
+            for (const entry of pendingRemoval.libraryImports) {
+              removeLibraryImport(entry.provider, entry.externalId);
+            }
             untrackGame(
               pendingRemoval.gameId,
               pendingRemoval.source,
@@ -1375,6 +1494,7 @@ function GameLibraryCard({
     (state) => state.emulatorLaunchCandidates,
   );
   const exeCache = useAppStore((state) => state.exeCache);
+  const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
@@ -1409,11 +1529,15 @@ function GameLibraryCard({
     ];
   }, [autoLaunchTargets, manualTarget]);
   const primaryLaunchTarget = ownedLaunchTargets[0];
+  const steamLaunchEntry = game.libraryImports.find(
+    (entry) => entry.provider === "steam" && entry.installed,
+  );
   const gameEmulatorMappings = useMemo(
     () =>
       game.emulatorContentKeys.flatMap((contentKey) => {
         const mapping = emulatorMappings.get(contentKey);
-        return mapping?.decision === "game" && adapterFor(mapping.emulatorId)?.launch
+        return mapping?.decision === "game" &&
+          adapterFor(mapping.emulatorId)?.launch
           ? [mapping]
           : [];
       }),
@@ -1435,45 +1559,90 @@ function GameLibraryCard({
     launchTourDemo ||
     (!demo &&
       canLaunchExecutables &&
-      Boolean(primaryLaunchTarget || primaryEmulatorTarget));
+      Boolean(
+        primaryLaunchTarget || primaryEmulatorTarget || steamLaunchEntry,
+      ));
   const showLaunchFooter =
     showPlayButton ||
     (!demo &&
       canLaunchExecutables &&
       (canConfigureLaunch || gameEmulatorMappings.length > 0));
   const showLaunchNote = !showLaunchFooter && !demo && canLaunchExecutables;
-  const playState = playButtonState(
+  const basePlayState = playButtonState(
     game.name,
     launching,
     hasActiveSession,
     launchBlocked,
   );
+  const playState =
+    steamLaunchEntry && !primaryLaunchTarget && !primaryEmulatorTarget
+      ? {
+          ...basePlayState,
+          ariaLabel: `Play ${game.name} in Steam`,
+          title: "Play in Steam",
+        }
+      : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && canLaunchExecutables;
   const hasPrimaryLaunchTarget = Boolean(
-    primaryLaunchTarget || primaryEmulatorTarget,
+    primaryLaunchTarget || primaryEmulatorTarget || steamLaunchEntry,
   );
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
   const primaryExeEntry = primaryExeName
     ? exeCache.get(primaryExeName.toLowerCase())
     : undefined;
+  const primaryLocalLink = useMemo(
+    () =>
+      listLocalLinks(exeCache, scopedExeLinks).find(
+        (link) =>
+          game.exeNames.some(
+            (exeName) => exeName.toLowerCase() === link.exeName.toLowerCase(),
+          ) &&
+          game.aliases.some(
+            (alias) =>
+              alias.gameId === link.gameId && alias.source === link.source,
+          ),
+      ),
+    [exeCache, game.aliases, game.exeNames, scopedExeLinks],
+  );
+  const shareTarget = primaryLocalLink?.ref ?? primaryExeName;
   const pendingCommunitySuggestion = useMemo(
-    () => findPendingCommunitySuggestionEntry(game.exeNames, exeCache),
-    [exeCache, game.exeNames],
+    () =>
+      findPendingCommunitySuggestionEntry(
+        game.exeNames,
+        exeCache,
+        scopedExeLinks,
+      ),
+    [exeCache, game.exeNames, scopedExeLinks],
   );
   const canSuggestToCommunity = canSuggestCustomGameToCommunity({
-    source: primaryExeEntry?.source ?? game.source,
+    source: primaryLocalLink?.source ?? primaryExeEntry?.source ?? game.source,
     exeName: primaryExeName,
     communitySuggestionId:
-      primaryExeEntry?.communitySuggestionId ?? game.communitySuggestionId,
+      primaryLocalLink?.communitySuggestionId ??
+      primaryExeEntry?.communitySuggestionId ??
+      game.communitySuggestionId,
     communitySuggestionStatus:
+      primaryLocalLink?.communitySuggestionStatus ??
       primaryExeEntry?.communitySuggestionStatus ??
       game.communitySuggestionStatus,
   });
   // Shown in place of the title while hovering the card.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
+  const localDisplayedSeconds = Math.max(
+    0,
+    game.recordedSeconds + game.adjustmentSeconds,
+  );
+  const playtimeTitle =
+    game.libraryImports.length > 0
+      ? `Steam: ${formatDuration(game.providerFloorSeconds, showDurationDays)} · PlayCounter: ${formatDuration(localDisplayedSeconds, showDurationDays)} · shown: ${formatDuration(game.totalSeconds, showDurationDays)} (highest single source, never added together).`
+      : undefined;
+  const trackingUnavailable =
+    game.libraryImports.length > 0 &&
+    game.exeNames.length === 0 &&
+    game.emulatorContentKeys.length === 0;
 
   const demoNotice = () =>
     addToast({
@@ -1512,7 +1681,7 @@ function GameLibraryCard({
     if (!exeName) return;
     if (pendingCommunity && match.source === "community") {
       suggestTrackedGameToCommunity(
-        exeName,
+        shareTarget ?? exeName,
         match.name,
         match.coverUrl,
         match.id,
@@ -1520,7 +1689,11 @@ function GameLibraryCard({
         match.igdbId,
       );
     } else {
-      applyKnownGameMatch(exeName, match);
+      if (primaryLocalLink?.ref.kind === "scoped") {
+        applyLocalLinkGameMatch(primaryLocalLink.ref, match);
+      } else {
+        applyKnownGameMatch(exeName, match);
+      }
     }
     addToast({
       tone: "success",
@@ -1644,7 +1817,7 @@ function GameLibraryCard({
 
   async function submitShareSuggestion() {
     const exeName = game.exeNames[0];
-    if (!shareSelection?.coverUrl || !exeName) return;
+    if (!shareSelection?.coverUrl || !exeName || !shareTarget) return;
 
     setShareState("saving");
     setShareMessage("");
@@ -1665,7 +1838,7 @@ function GameLibraryCard({
 
       const result = (await response.json()) as CommunityGameSuggestionResponse;
       if (result.igdbGame) {
-        applyGameMatch(exeName, result.igdbGame);
+        applyLocalLinkGameMatch(shareTarget, result.igdbGame);
         closeShare();
         addToast({
           tone: "success",
@@ -1677,14 +1850,14 @@ function GameLibraryCard({
       if (result.rejected) {
         if (result.id === undefined) throw new Error("Unexpected response");
         suggestTrackedGameToCommunity(
-          exeName,
+          shareTarget,
           shareSelection.name,
           shareSelection.coverUrl,
           result.id,
           false,
           shareSelection.igdbId,
         );
-        markCommunitySuggestionRejected(exeName, result.reviewNote);
+        markCommunitySuggestionRejected(shareTarget, result.reviewNote);
         closeShare();
         addToast({
           tone: "info",
@@ -1695,7 +1868,7 @@ function GameLibraryCard({
       }
       if (result.id === undefined) throw new Error("Unexpected response");
       suggestTrackedGameToCommunity(
-        exeName,
+        shareTarget,
         shareSelection.name,
         shareSelection.coverUrl,
         result.id,
@@ -1714,9 +1887,39 @@ function GameLibraryCard({
     }
   }
 
+  async function handleShareAction() {
+    if (
+      !primaryLocalLink ||
+      (primaryLocalLink.shareState !== "failed" &&
+        primaryLocalLink.shareState !== "unshared")
+    ) {
+      setShareOpen(true);
+      return;
+    }
+    const outcome = await submitLocalLinkToCommunity(primaryLocalLink.ref);
+    if (outcome.kind === "failed") {
+      addToast({
+        tone: "error",
+        title: "Could not share executable",
+        detail: outcome.error,
+      });
+      return;
+    }
+    addToast({
+      tone: outcome.kind === "rejected" ? "info" : "success",
+      title:
+        outcome.kind === "already-known"
+          ? "Known match applied"
+          : outcome.kind === "rejected"
+            ? "Suggestion already reviewed"
+            : "Suggested to community",
+      detail: `${primaryLocalLink.exeName} remains linked to ${game.name} on this PC.`,
+    });
+  }
+
   function handleCancelSuggestion(target: PendingCommunitySuggestionTarget) {
     setCancelSuggestionTarget(null);
-    void cancelCommunitySuggestion(target.exeName, target.gameId).then(
+    void cancelCommunitySuggestion(target.ref, target.gameId).then(
       (outcome) => {
         if (outcome.kind === "cancelled") {
           addToast({
@@ -2052,12 +2255,76 @@ function GameLibraryCard({
         console.warn("post-launch process scan failed", error),
       );
     } catch (error) {
-      addToast({ tone: "error", ...emulatorLaunchErrorMessage(error, game.name) });
+      addToast({
+        tone: "error",
+        ...emulatorLaunchErrorMessage(error, game.name),
+      });
     } finally {
       if (!keepLaunchFeedback) {
         setLaunching(false);
         onReleaseLaunch(launchKey);
       }
+    }
+  }
+
+  async function handleSteamLaunch() {
+    if (!steamLaunchEntry) return;
+    contextMenu.close();
+    if (hasActiveSession) {
+      addToast({
+        tone: "info",
+        title: `${game.name} is already running`,
+        detail: "PlayCounter is already tracking this game.",
+      });
+      return;
+    }
+    if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
+      addToast({
+        tone: "info",
+        title: "A game is already starting",
+        detail: "Wait for PlayCounter to finish the current launch first.",
+      });
+      return;
+    }
+    setLaunching(true);
+    let keepLaunchFeedback = false;
+    try {
+      const provider = await import("../../library/providers").then((module) =>
+        module.loadLibraryProvider("steam"),
+      );
+      await provider.launch(steamLaunchEntry.externalId);
+      keepLaunchFeedback = true;
+      void scanProcessesNow().catch((error) =>
+        console.warn("post-launch process scan failed", error),
+      );
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: `Could not start ${game.name}`,
+        detail: formatError(error),
+      });
+    } finally {
+      if (!keepLaunchFeedback) {
+        setLaunching(false);
+        onReleaseLaunch(launchKey);
+      }
+    }
+  }
+
+  async function handleOpenInSteam() {
+    if (!steamLaunchEntry) return;
+    contextMenu.close();
+    try {
+      const provider = await import("../../library/providers").then((module) =>
+        module.loadLibraryProvider("steam"),
+      );
+      await provider.launch(steamLaunchEntry.externalId, "store");
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: `Could not open ${game.name} in Steam`,
+        detail: formatError(error),
+      });
     }
   }
 
@@ -2119,6 +2386,8 @@ function GameLibraryCard({
       void handleLaunch(primaryLaunchTarget);
     } else if (primaryEmulatorMapping && primaryEmulatorTarget) {
       void handleEmulatorLaunch(primaryEmulatorMapping);
+    } else if (steamLaunchEntry) {
+      void handleSteamLaunch();
     } else {
       void handleLaunch();
     }
@@ -2195,6 +2464,24 @@ function GameLibraryCard({
             onClick={demoNotice}
           >
             Set or change launch file…
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      ) : null}
+      {!demo && steamLaunchEntry && canLaunchExecutables ? (
+        <>
+          <ContextMenuItem
+            icon={Play}
+            disabled={hasActiveSession || launching || launchBlocked}
+            onClick={() => void handleSteamLaunch()}
+          >
+            Play in Steam
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={ExternalLink}
+            onClick={() => void handleOpenInSteam()}
+          >
+            Open in Steam
           </ContextMenuItem>
           <ContextMenuSeparator />
         </>
@@ -2343,7 +2630,7 @@ function GameLibraryCard({
               icon={Send}
               onClick={() => {
                 contextMenu.close();
-                setShareOpen(true);
+                void handleShareAction();
               }}
             >
               Suggest to Community
@@ -2532,6 +2819,12 @@ function GameLibraryCard({
                 <SourceBadge source={source} />
               </span>
             ))}
+            {game.libraryImports.map((entry) => (
+              <ProviderBadge
+                key={`${entry.provider}:${entry.externalId}`}
+                provider={entry.provider}
+              />
+            ))}
             {game.emulatorIds.map((emulatorId) => (
               <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
             ))}
@@ -2575,7 +2868,7 @@ function GameLibraryCard({
                 icon={Send}
                 aria-label={`Suggest ${game.name} to the community`}
                 title="Suggest to community"
-                onClick={() => setShareOpen(true)}
+                onClick={() => void handleShareAction()}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
             ) : null}
@@ -2681,6 +2974,7 @@ function GameLibraryCard({
             className="mt-1 flex min-w-0 items-baseline gap-1.5"
           >
             <span
+              title={playtimeTitle}
               className={clsx(
                 "font-mono font-bold tracking-tight text-text",
                 isLarge ? "text-xl" : "text-lg",
@@ -2700,6 +2994,12 @@ function GameLibraryCard({
               {game.sessionCount !== 1 ? "s" : ""}
             </button>
           </div>
+
+          {trackingUnavailable ? (
+            <div className="mt-2 text-[11px] font-medium text-warning">
+              Tracking unavailable · no executable linked
+            </div>
+          ) : null}
 
           {/* Persistent Community Prompts */}
           {game.communityUpgradeExeName ? (
@@ -2871,7 +3171,7 @@ function GameLibraryCard({
               canSuggestToCommunity
                 ? () => {
                     setShowMatchCheck(false);
-                    setShareOpen(true);
+                    void handleShareAction();
                   }
                 : undefined
             }
@@ -3062,6 +3362,12 @@ function GameLibraryCard({
                   <SourceBadge source={source} />
                 </span>
               ))}
+              {game.libraryImports.map((entry) => (
+                <ProviderBadge
+                  key={`${entry.provider}:${entry.externalId}`}
+                  provider={entry.provider}
+                />
+              ))}
               {game.emulatorIds.map((emulatorId) => (
                 <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
               ))}
@@ -3148,7 +3454,9 @@ function GameLibraryCard({
                 Playtime
               </div>
               <div className="mt-0.5 font-mono text-sm font-semibold text-text">
-                {formatDuration(game.totalSeconds, showDurationDays)}
+                <span title={playtimeTitle}>
+                  {formatDuration(game.totalSeconds, showDurationDays)}
+                </span>
               </div>
             </div>
             <div className="text-right">
@@ -3267,7 +3575,7 @@ function GameLibraryCard({
             canSuggestToCommunity
               ? () => {
                   setShowMatchCheck(false);
-                  setShareOpen(true);
+                  void handleShareAction();
                 }
               : undefined
           }

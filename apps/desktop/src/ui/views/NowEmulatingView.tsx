@@ -12,6 +12,11 @@ import {
 } from "../tour/tourDemoGame";
 import { ActiveGameHero } from "./ActiveGameHero";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
+import {
+  providerFloorRecord,
+  providerFloors as collectProviderFloors,
+} from "../../library/playtimeFloor";
+import { resolvedCanonicalGameKey } from "../../store";
 
 const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
 const EMPTY_SECONDS: Record<string, number> = {};
@@ -30,9 +35,14 @@ export function NowEmulatingView() {
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const gameMetadata = useAppStore((state) => state.gameMetadata);
+  const libraryImports = useAppStore((state) => state.libraryImports);
   const resolveIgdbId = useMemo(
-    () => createGameIdentityResolver(gameMetadata, exeCache),
-    [exeCache, gameMetadata],
+    () => createGameIdentityResolver(gameMetadata, exeCache, libraryImports),
+    [exeCache, gameMetadata, libraryImports],
+  );
+  const providerFloorSeconds = useMemo(
+    () => providerFloorRecord(collectProviderFloors(libraryImports.values())),
+    [libraryImports],
   );
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
@@ -94,6 +104,7 @@ export function NowEmulatingView() {
         resolveIgdbId={resolveIgdbId}
         archivedGameSeconds={EMPTY_SECONDS}
         playtimeAdjustments={EMPTY_SECONDS}
+        providerFloorSeconds={0}
         statusLabel="Now emulating"
         tourAnchor="demo-emulator-now"
       />
@@ -141,6 +152,11 @@ export function NowEmulatingView() {
           resolveIgdbId={resolveIgdbId}
           archivedGameSeconds={archivedGameSeconds}
           playtimeAdjustments={playtimeAdjustments}
+          providerFloorSeconds={
+            providerFloorSeconds[
+              resolvedCanonicalGameKey(session, resolveIgdbId)
+            ] ?? 0
+          }
           statusLabel="Now emulating"
         />
       ))}

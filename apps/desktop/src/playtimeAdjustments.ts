@@ -20,3 +20,19 @@ export function displayTotalSeconds(
 ) {
   return Math.max(0, recordedSeconds + adjustmentSeconds);
 }
+
+/**
+ * Provider totals are historical floors, never adjustments. Keeping them
+ * separate prevents newly tracked sessions from being added on top of Steam's
+ * already-overlapping lifetime counter.
+ */
+export function effectiveTotalSeconds(
+  recordedSeconds: number,
+  adjustmentSeconds: number,
+  providerFloorSeconds = 0,
+) {
+  return Math.max(
+    displayTotalSeconds(recordedSeconds, adjustmentSeconds),
+    Math.max(0, Math.round(providerFloorSeconds)),
+  );
+}

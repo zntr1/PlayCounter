@@ -125,7 +125,11 @@ describe("custom game community suggestion eligibility", () => {
         ["Primary.exe", "Pending.exe", "Later.exe"],
         exeCache,
       ),
-    ).toEqual({ exeName: "Pending.exe", gameId: 42 });
+    ).toEqual({
+      ref: { kind: "exe", key: "pending.exe" },
+      exeName: "Pending.exe",
+      gameId: 42,
+    });
     expect(
       findPendingCommunitySuggestionEntry(["Primary.exe"], exeCache),
     ).toBeNull();

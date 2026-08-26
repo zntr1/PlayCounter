@@ -41,6 +41,10 @@ import { findTour } from "../tour/tourDefinitions";
 import { CommunitySuggestionForm } from "./DiscoveredView";
 import { ActiveGameHero } from "./ActiveGameHero";
 import { matchCandidatePriority } from "./matchCheckModel";
+import {
+  providerFloorRecord,
+  providerFloors as collectProviderFloors,
+} from "../../library/playtimeFloor";
 
 const TOUR_NOW_PLAYING_SESSION_ID = -1;
 const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
@@ -58,9 +62,14 @@ export function NowPlayingView() {
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const gameMetadata = useAppStore((state) => state.gameMetadata);
+  const libraryImports = useAppStore((state) => state.libraryImports);
   const resolveIgdbId = useMemo(
-    () => createGameIdentityResolver(gameMetadata, exeCache),
-    [exeCache, gameMetadata],
+    () => createGameIdentityResolver(gameMetadata, exeCache, libraryImports),
+    [exeCache, gameMetadata, libraryImports],
+  );
+  const providerFloorSeconds = useMemo(
+    () => providerFloorRecord(collectProviderFloors(libraryImports.values())),
+    [libraryImports],
   );
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
@@ -169,6 +178,13 @@ export function NowPlayingView() {
                 }
                 playtimeAdjustments={
                   isTourSession ? EMPTY_SECONDS : playtimeAdjustments
+                }
+                providerFloorSeconds={
+                  isTourSession
+                    ? 0
+                    : (providerFloorSeconds[
+                        resolvedCanonicalGameKey(activeSession, resolveIgdbId)
+                      ] ?? 0)
                 }
                 onReport={() => setReportTarget(activeSession)}
                 statusLabel="Now playing"

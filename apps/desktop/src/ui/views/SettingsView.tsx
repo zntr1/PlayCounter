@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import {
   chooseEmulatorBinary,
   clearLocalCache,
+  forgetImportedLibraryData,
   forgetEmulatorManualBinary,
   openUserIgnoredProcessesFolder,
   reloadIgnoredProcesses,
@@ -69,6 +70,7 @@ export function SettingsView() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [reloadingIgnored, setReloadingIgnored] = useState(false);
   const [confirmResetCache, setConfirmResetCache] = useState(false);
+  const [confirmForgetLibrary, setConfirmForgetLibrary] = useState(false);
   const [confirmForgetLaunchFiles, setConfirmForgetLaunchFiles] =
     useState<LaunchFileForgetScope | null>(null);
   const [confirmImport, setConfirmImport] = useState(false);
@@ -95,6 +97,9 @@ export function SettingsView() {
   );
   const executableLaunchTargetCount = useAppStore(
     (state) => state.launchTargets.size + state.manualLaunchTargets.size,
+  );
+  const importedLibraryCount = useAppStore(
+    (state) => state.libraryImports.size,
   );
   const emulatorLaunchTargetCount = useAppStore(
     (state) =>
@@ -691,7 +696,8 @@ export function SettingsView() {
                           className="mt-1 truncate text-xs text-text-muted"
                           title={binary?.exePath}
                         >
-                          Launch program: {binary
+                          Launch program:{" "}
+                          {binary
                             ? `${launchFileBaseName(binary.exePath)}${
                                 hasManualBinary ? " (selected)" : " (detected)"
                               }`
@@ -736,7 +742,10 @@ export function SettingsView() {
                         !(settings.emulatorDetection ?? true)
                       }
                       onClick={() =>
-                        void handleEmulatorIgnored(emulator.emulatorId, !ignored)
+                        void handleEmulatorIgnored(
+                          emulator.emulatorId,
+                          !ignored,
+                        )
                       }
                     >
                       {ignored ? "Enable" : "Ignore"}
@@ -826,6 +835,24 @@ export function SettingsView() {
             </div>
           </div>
         </div>
+      </SettingsPanel>
+
+      <SettingsPanel
+        description="Manage durable playtime imported from local game launchers. Install paths and path-scoped links always stay on this PC."
+        title="Library import"
+      >
+        <SettingsRow
+          description="Removes Steam provenance, imported playtime floors, Steam-created executable links, and local install facts. Recorded PlayCounter sessions remain."
+          title="Forget imported Steam data"
+        >
+          <Button
+            variant="danger"
+            disabled={importedLibraryCount === 0}
+            onClick={() => setConfirmForgetLibrary(true)}
+          >
+            Forget {importedLibraryCount || "all"}
+          </Button>
+        </SettingsRow>
       </SettingsPanel>
 
       <SettingsPanel
@@ -1015,6 +1042,37 @@ export function SettingsView() {
             });
           }}
         />
+      ) : null}
+      {confirmForgetLibrary ? (
+        <Modal
+          size="sm"
+          labelId="forget-library-title"
+          title="Forget imported Steam data?"
+          subtitle="Your recorded PlayCounter sessions will be kept."
+          icon={Trash2}
+          onClose={() => setConfirmForgetLibrary(false)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setConfirmForgetLibrary(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  forgetImportedLibraryData();
+                  setConfirmForgetLibrary(false);
+                }}
+              >
+                Forget imported data
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-sm text-text-muted">
+            Steam badges and imported playtime floors will disappear. You can
+            scan and import the library again at any time.
+          </p>
+        </Modal>
       ) : null}
       {confirmForgetLaunchFiles ? (
         <ForgetLaunchFilesDialog

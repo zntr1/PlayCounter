@@ -17,6 +17,7 @@ mod controller;
 mod emulator_launch;
 mod ignored_processes;
 mod launch;
+mod library;
 mod notification_overlay;
 mod process;
 mod session;
@@ -244,6 +245,10 @@ pub fn run() {
             get_exe_icon,
             launch::launch_executable,
             launch::verify_launch_paths,
+            library::library_detect_providers,
+            library::library_list_accounts,
+            library::library_scan,
+            library::library_launch_app,
             emulator_launch::launch_emulator_content,
             emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,

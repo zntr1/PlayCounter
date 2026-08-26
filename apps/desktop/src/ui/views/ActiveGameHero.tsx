@@ -3,7 +3,7 @@ import { Flag, Gamepad2 } from "lucide-react";
 import { gameSecondsKeys } from "../../gameSeconds";
 import {
   adjustmentSecondsFor,
-  displayTotalSeconds,
+  effectiveTotalSeconds,
 } from "../../playtimeAdjustments";
 import {
   resolvedCanonicalGameKey,
@@ -27,6 +27,7 @@ type ActiveGameHeroProps = {
   resolveIgdbId: GameIdentityResolver;
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
+  providerFloorSeconds?: number;
   statusLabel: "Now playing" | "Now emulating";
   onReport?: () => void;
   tourAnchor?: string;
@@ -41,6 +42,7 @@ export function ActiveGameHero({
   resolveIgdbId,
   archivedGameSeconds,
   playtimeAdjustments,
+  providerFloorSeconds = 0,
   statusLabel,
   onReport,
   tourAnchor,
@@ -106,9 +108,10 @@ export function ActiveGameHero({
     ) +
     archivedSeconds +
     elapsedSeconds;
-  const lifetimeSeconds = displayTotalSeconds(
+  const lifetimeSeconds = effectiveTotalSeconds(
     recordedSeconds,
     adjustmentSecondsFor(playtimeAdjustments, keys),
+    providerFloorSeconds,
   );
   const lifetimeSessionCount = priorSessions.length + 1;
   const canReport =

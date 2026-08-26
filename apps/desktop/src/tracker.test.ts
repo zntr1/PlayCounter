@@ -47,6 +47,7 @@ import {
   shareEmulatorMapping,
   startEmulatorGame,
   setGamePlaytime,
+  submitLocalLinkToCommunity,
   suggestTrackedGameToCommunity,
   untrackGame,
   verifyLaunchTargets,
@@ -129,6 +130,9 @@ beforeEach(() => {
   });
   useAppStore.setState({
     exeCache: new Map(),
+    libraryImports: new Map(),
+    libraryInstalls: new Map(),
+    scopedExeLinks: new Map(),
     launchTargets: new Map(),
     manualLaunchTargets: new Map(),
     emulatorAutoBinaries: new Map(),
@@ -2243,6 +2247,43 @@ describe("game metadata hydration", () => {
 });
 
 describe("contribution marker repair", () => {
+  it("updates a scoped custom link without creating a global basename mapping", () => {
+    const key = "game.exe|c:\\steam\\game";
+    const repaired = applyContributionMarkers(
+      {
+        exeCache: new Map(),
+        scopedExeLinks: new Map([
+          [
+            key,
+            {
+              exeName: "game.exe",
+              pathPrefix: "C:\\Steam\\Game",
+              gameId: -42,
+              igdbId: 123,
+              gameName: "Game",
+              coverUrl: "cover",
+              source: "custom" as const,
+              provider: "steam" as const,
+              externalId: "10",
+              setAt: "2026-08-23T00:00:00.000Z",
+              communitySuggestionId: 42,
+              communitySuggestionStatus: "pending" as const,
+            },
+          ],
+        ]),
+      },
+      [contribution({ status: "verified", reviewNote: undefined })],
+    );
+
+    expect(repaired.exeCache.size).toBe(0);
+    expect(repaired.scopedExeLinks.get(key)).toMatchObject({
+      communitySuggestionId: 42,
+      communitySuggestionStatus: "verified",
+      communitySuggestionVerified: true,
+      pathPrefix: "C:\\Steam\\Game",
+    });
+  });
+
   it("repairs the sole matching markerless custom game", () => {
     const repaired = applyContributionMarkers(
       new Map([["game.exe", entry()]]),
@@ -2278,6 +2319,81 @@ describe("contribution marker repair", () => {
       [contribution(), contribution({ gameId: 43 })],
     ).get("game.exe");
     expect(repaired).toBe(existing);
+  });
+});
+
+describe("imported local link sharing", () => {
+  const key = "game.exe|c:\\steam\\game";
+  const link = {
+    exeName: "game.exe",
+    pathPrefix: "C:\\Steam\\Game",
+    gameId: -42,
+    igdbId: 123,
+    gameName: "Game",
+    coverUrl: "cover",
+    source: "custom" as const,
+    provider: "steam" as const,
+    externalId: "10",
+    setAt: "2026-08-23T00:00:00.000Z",
+    shareState: "unshared" as const,
+  };
+
+  it("submits the known identity and keeps the resulting marker scoped", async () => {
+    const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+    useAppStore.setState({
+      installUuid,
+      scopedExeLinks: new Map([[key, link]]),
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://api.playcounter.test",
+      },
+    });
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Promise.resolve(
+          new Response(JSON.stringify({ id: 42, verified: false }), {
+            status: 200,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      submitLocalLinkToCommunity({ kind: "scoped", key }),
+    ).resolves.toEqual({ kind: "submitted" });
+
+    const state = useAppStore.getState();
+    expect(state.exeCache.has("game.exe")).toBe(false);
+    expect(state.scopedExeLinks.get(key)).toMatchObject({
+      pathPrefix: link.pathPrefix,
+      communitySuggestionId: 42,
+      communitySuggestionStatus: "pending",
+      shareState: undefined,
+    });
+    expect(
+      JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)),
+    ).toEqual({
+      exeName: "game.exe",
+      name: "Game",
+      coverUrl: "cover",
+      igdbId: 123,
+      installUuid,
+    });
+  });
+
+  it("keeps the local link and exposes retry state when submission fails", async () => {
+    useAppStore.setState({ scopedExeLinks: new Map([[key, link]]) });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    await expect(
+      submitLocalLinkToCommunity({ kind: "scoped", key }),
+    ).resolves.toEqual({ kind: "failed", error: "offline" });
+
+    expect(useAppStore.getState().scopedExeLinks.get(key)).toMatchObject({
+      gameId: -42,
+      igdbId: 123,
+      shareState: "failed",
+    });
   });
 });
 
@@ -3074,6 +3190,56 @@ describe("community suggestion cancellation", () => {
       kind: "not-pending",
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels only the selected scoped link", async () => {
+    const key = "game.exe|c:\\steam\\one";
+    const siblingKey = "game.exe|c:\\steam\\two";
+    const scoped = (pathPrefix: string, gameId: number) => ({
+      exeName: "game.exe",
+      pathPrefix,
+      gameId: -gameId,
+      igdbId: gameId,
+      gameName: `Game ${gameId}`,
+      coverUrl: "cover",
+      source: "custom" as const,
+      provider: "steam" as const,
+      externalId: String(gameId),
+      setAt: "2026-08-23T00:00:00.000Z",
+      communitySuggestionId: gameId,
+      communitySuggestionStatus: "pending" as const,
+    });
+    const sibling = scoped("C:\\Steam\\Two", 84);
+    useAppStore.setState({
+      installUuid,
+      scopedExeLinks: new Map([
+        [key, scoped("C:\\Steam\\One", 42)],
+        [siblingKey, sibling],
+      ]),
+    });
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        Promise.resolve(
+          new Response(JSON.stringify({ status: "cancelled" }), {
+            status: 200,
+          }),
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      cancelCommunitySuggestion({ kind: "scoped", key }, 42),
+    ).resolves.toEqual({ kind: "cancelled" });
+
+    const state = useAppStore.getState();
+    expect(
+      JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)),
+    ).toEqual({ exeName: "game.exe", gameId: 42, installUuid });
+    expect(
+      state.scopedExeLinks.get(key)?.communitySuggestionId,
+    ).toBeUndefined();
+    expect(state.scopedExeLinks.get(siblingKey)).toBe(sibling);
+    expect(state.exeCache.has("game.exe")).toBe(false);
   });
 
   it("suppresses stale pending polls until the server confirms absence", async () => {

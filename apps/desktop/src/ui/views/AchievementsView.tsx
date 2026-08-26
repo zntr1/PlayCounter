@@ -17,6 +17,7 @@ import {
 } from "../../store";
 import { SectionToggle, useSectionCollapse } from "../CollapsibleSection";
 import { Panel } from "../components";
+import { providerFloors } from "../../library/playtimeFloor";
 import { AchievementCard } from "./achievements/AchievementCard";
 import { AchievementSummary } from "./achievements/AchievementSummary";
 import { GameLadderRow } from "./achievements/GameLadderRow";
@@ -66,9 +67,10 @@ export function AchievementsView() {
   );
   const gameMetadata = useAppStore((state) => state.gameMetadata);
   const exeCache = useAppStore((state) => state.exeCache);
+  const libraryImports = useAppStore((state) => state.libraryImports);
   const resolveIgdbId = useMemo(
-    () => createGameIdentityResolver(gameMetadata, exeCache),
-    [exeCache, gameMetadata],
+    () => createGameIdentityResolver(gameMetadata, exeCache, libraryImports),
+    [exeCache, gameMetadata, libraryImports],
   );
   const metrics = useMemo(
     () =>
@@ -77,6 +79,7 @@ export function AchievementsView() {
         archivedSeconds,
         archivedGameSeconds,
         playtimeAdjustments,
+        providerFloors: providerFloors(libraryImports.values()),
         verifiedContributions,
         verifiedEmulatorContributions,
         resolveIgdbId,
@@ -85,6 +88,7 @@ export function AchievementsView() {
       archivedGameSeconds,
       archivedSeconds,
       playtimeAdjustments,
+      libraryImports,
       resolveIgdbId,
       sessions,
       verifiedContributions,

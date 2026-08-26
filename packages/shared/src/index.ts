@@ -50,6 +50,42 @@ export interface EmulatorResolveResponse {
   }>;
 }
 
+/** A locally installed game-library provider. Kept as a union for future adapters. */
+export type LibraryProviderId = "steam";
+
+export interface LibraryResolveRequest {
+  items: Array<{
+    /** Client-generated correlation key; never treated as game identity. */
+    key: string;
+    provider: LibraryProviderId;
+    /** Provider-native id. Steam uses its decimal AppID. */
+    externalId: string;
+  }>;
+}
+
+export interface LibraryKnownExecutable {
+  platform: Platform;
+  kind: ProcessIdentifierKind;
+  value: string;
+  provenance: "igdb" | "community";
+  verified: boolean;
+  /** True when this basename must not become a global one-to-one mapping. */
+  ambiguous?: boolean;
+}
+
+export interface LibraryResolveResponse {
+  results: Array<{
+    key: string;
+    status: "resolved" | "unknown";
+    game?: Game;
+    executables?: LibraryKnownExecutable[];
+    flaggedIdentifiers?: Array<{
+      value: string;
+      reason: IdentifierFlagReason;
+    }>;
+  }>;
+}
+
 export interface EmulatorContentSuggestionPayload extends EmulatorContentRef {
   /** Server-local igdb_games.id. Local custom games use negative ids. */
   gameId: number;

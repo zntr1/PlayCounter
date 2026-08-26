@@ -3,6 +3,7 @@ import { dailyTotals, getSessionGameKey, summaryStats } from "./historyStats";
 import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
 import type { AppNotification, NotificationKind } from "./notifications";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
+import type { ProviderFloor } from "./library/playtimeFloor";
 
 export const TOTAL_HOURS = [10, 50, 100, 250, 500, 1_000, 2_500, 5_000];
 export const MONTH_HOURS = [10, 25, 50, 100, 200];
@@ -57,7 +58,7 @@ export type MilestoneEvaluation = {
   revokedMilestoneIds: string[];
 };
 
-type MilestoneInput = {
+export type MilestoneInput = {
   sessions: Session[];
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
@@ -65,6 +66,7 @@ type MilestoneInput = {
   verifiedContributions: number;
   verifiedEmulatorContributions?: number;
   resolveIgdbId?: GameIdentityResolver;
+  providerFloors?: ProviderFloor[];
   now?: Date;
 };
 
@@ -113,6 +115,7 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
     {
       recordedSeconds: number;
       adjustmentSeconds: number;
+      providerFloorSeconds: number;
       name: string;
       coverUrl: string;
     }
@@ -154,6 +157,21 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
     games.set(canonicalKey, game);
     rememberAlias(canonicalKey, key);
   }
+  for (const floor of input.providerFloors ?? []) {
+    const game = games.get(floor.canonicalKey) ?? {
+      ...emptyGame(),
+      name: floor.name,
+      coverUrl: floor.coverUrl,
+    };
+    game.providerFloorSeconds = Math.max(
+      game.providerFloorSeconds,
+      floor.seconds,
+    );
+    if (!game.name) game.name = floor.name;
+    if (!game.coverUrl) game.coverUrl = floor.coverUrl;
+    games.set(floor.canonicalKey, game);
+    rememberAlias(floor.canonicalKey, floor.canonicalKey);
+  }
 
   const visibleGames = new Map<
     string,
@@ -164,6 +182,7 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
       const totalSeconds = Math.max(
         0,
         game.recordedSeconds + game.adjustmentSeconds,
+        game.providerFloorSeconds,
       );
       visibleGames.set(key, {
         hours: totalSeconds / 3600,
@@ -378,6 +397,7 @@ function emptyGame() {
   return {
     recordedSeconds: 0,
     adjustmentSeconds: 0,
+    providerFloorSeconds: 0,
     name: "A game",
     coverUrl: "",
   };

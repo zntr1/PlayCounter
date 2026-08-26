@@ -29,6 +29,8 @@ import {
   useRef,
   useState,
   type ReactNode,
+  lazy,
+  Suspense,
 } from "react";
 import { initializeTracker } from "../tracker";
 import {
@@ -77,6 +79,12 @@ import {
   toDisplayNotes,
 } from "../releaseNotes";
 
+const ImportLibraryView = lazy(() =>
+  import("./views/ImportLibraryView").then((module) => ({
+    default: module.ImportLibraryView,
+  })),
+);
+
 const views: Record<
   ViewId,
   {
@@ -119,6 +127,20 @@ const views: Record<
     icon: Gamepad2,
     component: <MyGamesView />,
   },
+  import: {
+    label: "Import Games",
+    subtitle: "Bring local launcher libraries into PlayCounter",
+    icon: Download,
+    component: (
+      <Suspense
+        fallback={
+          <div className="text-sm text-text-muted">Loading importer…</div>
+        }
+      >
+        <ImportLibraryView />
+      </Suspense>
+    ),
+  },
   discovered: {
     label: "Discovered",
     subtitle: "Apps found on your system, ready to match",
@@ -152,7 +174,10 @@ const views: Record<
 };
 
 const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
-  { label: "Library", items: ["now", "games", "history", "achievements"] },
+  {
+    label: "Library",
+    items: ["now", "games", "import", "history", "achievements"],
+  },
   { label: "Emulators", items: ["emulating", "dosbox", "dolphin"] },
   { label: "System", items: ["discovered", "settings", "dev"] },
 ];

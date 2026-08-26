@@ -1,5 +1,6 @@
 import type {
   CommunityGameAlias,
+  CommunityGameSuggestionResponse,
   CommunitySuggestionCancelPayload,
   CommunitySuggestionCancelResponse,
   Contribution,
@@ -145,6 +146,27 @@ import {
   type EmulatorShareContext,
 } from "./emulators/share";
 import { toPublicSnapshots } from "./emulators/publicProjection";
+import { customLocalGameId } from "./library/localGameIds";
+import type {
+  LibraryImportEntry,
+  LibraryInstallEntry,
+  ScopedExeLink,
+} from "./library/types";
+import { libraryEntryKey } from "./library/types";
+import { providerFloors } from "./library/playtimeFloor";
+import {
+  normalizeWindowsDir,
+  resolveScopedLink,
+  scopedExeLinkKey,
+} from "./library/scopedLinks";
+import {
+  findLocalLink,
+  findLocalLinksByExe,
+  listLocalLinks,
+  writeLocalLink,
+  type LocalLink,
+  type LocalLinkRef,
+} from "./localLinks";
 import type {
   EmulatorContentObservation,
   EmulatorContentSignal,
@@ -156,7 +178,6 @@ import type {
   RawEmulatorSignals,
 } from "./emulators/types";
 
-const CUSTOM_GAME_ID_BASE = -1_000_000_000;
 const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
 const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
 const FAKE_HISTORY_EXE_PREFIX = "playcounter-fake-";
@@ -183,6 +204,9 @@ type PersistedState = {
   emulatorManualLaunchTargets?: EmulatorLaunchTarget[];
   emulatorLaunchCandidates?: EmulatorLaunchCandidate[];
   gameMetadata?: GameMetadata[];
+  libraryImports?: LibraryImportEntry[];
+  libraryInstalls?: LibraryInstallEntry[];
+  scopedExeLinks?: ScopedExeLink[];
   ambiguousMatches?: AmbiguousProcessMatch[];
   emulatorMappings?: EmulatorMapping[];
   emulatorObservations?: EmulatorObservation[];
@@ -291,7 +315,7 @@ let emulatorSharingUnavailableUntil = 0;
 let communityCancelUnavailableUntil = 0;
 const communitySuggestionCancelGuard = new Map<
   string,
-  { exeName: string; gameId: number }
+  { ref: LocalLinkRef; exeName: string; gameId: number }
 >();
 let lastEmulatorRunningKeys = new Set<string>();
 const launchInFlight = new Map<string, number>();
@@ -613,6 +637,94 @@ function hydrate() {
     },
     (candidate) => candidate.contentKey,
   );
+  const positiveInteger = (value: unknown): value is number =>
+    typeof value === "number" && Number.isInteger(value) && value > 0;
+  const validExternalId = (value: unknown): value is string =>
+    typeof value === "string" && /^[1-9][0-9]{0,9}$/.test(value);
+  const persistedLibraryImport = (
+    value: unknown,
+  ): LibraryImportEntry | null => {
+    if (!value || typeof value !== "object") return null;
+    const entry = value as Partial<LibraryImportEntry>;
+    if (
+      entry.provider !== "steam" ||
+      !validExternalId(entry.externalId) ||
+      !positiveInteger(entry.igdbId) ||
+      !positiveInteger(entry.gameId) ||
+      (entry.source !== "igdb" && entry.source !== "community") ||
+      typeof entry.name !== "string" ||
+      typeof entry.coverUrl !== "string" ||
+      typeof entry.importedAt !== "string" ||
+      typeof entry.lastReadAt !== "string" ||
+      typeof entry.providerSeconds !== "number" ||
+      !Number.isFinite(entry.providerSeconds) ||
+      entry.providerSeconds < 0 ||
+      !Array.isArray(entry.linkedExeNames)
+    ) {
+      return null;
+    }
+    return {
+      ...entry,
+      providerSeconds: Math.round(entry.providerSeconds),
+      linkedExeNames: entry.linkedExeNames
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.toLowerCase()),
+    } as LibraryImportEntry;
+  };
+  const persistedLibraryInstall = (
+    value: unknown,
+  ): LibraryInstallEntry | null => {
+    if (!value || typeof value !== "object") return null;
+    const entry = value as Partial<LibraryInstallEntry>;
+    if (
+      entry.provider !== "steam" ||
+      !validExternalId(entry.externalId) ||
+      typeof entry.installPath !== "string" ||
+      !normalizeWindowsDir(entry.installPath) ||
+      typeof entry.scannedAt !== "string"
+    ) {
+      return null;
+    }
+    return entry as LibraryInstallEntry;
+  };
+  const persistedScopedExeLink = (value: unknown): ScopedExeLink | null => {
+    if (!value || typeof value !== "object") return null;
+    const entry = value as Partial<ScopedExeLink>;
+    if (
+      entry.provider !== "steam" ||
+      !validExternalId(entry.externalId) ||
+      !positiveInteger(entry.igdbId) ||
+      typeof entry.gameId !== "number" ||
+      !Number.isFinite(entry.gameId) ||
+      !entry.exeName ||
+      typeof entry.pathPrefix !== "string" ||
+      !normalizeWindowsDir(entry.pathPrefix) ||
+      (entry.source !== "igdb" &&
+        entry.source !== "community" &&
+        entry.source !== "custom") ||
+      typeof entry.gameName !== "string" ||
+      typeof entry.coverUrl !== "string" ||
+      typeof entry.setAt !== "string"
+    ) {
+      return null;
+    }
+    return entry as ScopedExeLink;
+  };
+  const libraryImports = hydrateMap(
+    persisted.libraryImports,
+    persistedLibraryImport,
+    (entry) => libraryEntryKey(entry.provider, entry.externalId),
+  );
+  const libraryInstalls = hydrateMap(
+    persisted.libraryInstalls,
+    persistedLibraryInstall,
+    (entry) => libraryEntryKey(entry.provider, entry.externalId),
+  );
+  const scopedExeLinks = hydrateMap(
+    persisted.scopedExeLinks,
+    persistedScopedExeLink,
+    (entry) => scopedExeLinkKey(entry.exeName, entry.pathPrefix)!,
+  );
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
   );
@@ -630,7 +742,11 @@ function hydrate() {
       ];
     }
     const keys = new Set<string>();
-    const resolver = createGameIdentityResolver(gameMetadataMap, exeCacheMap);
+    const resolver = createGameIdentityResolver(
+      gameMetadataMap,
+      exeCacheMap,
+      libraryImports,
+    );
     for (const session of hydratedSessions) {
       for (const key of autoDetectionKeys(session, resolver)) keys.add(key);
     }
@@ -755,6 +871,9 @@ function hydrate() {
     emulatorManualLaunchTargets,
     emulatorLaunchCandidates,
     gameMetadata: gameMetadataMap,
+    libraryImports,
+    libraryInstalls,
+    scopedExeLinks,
     recentSessions: hydratedSessions,
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
@@ -2219,7 +2338,7 @@ function reconcileSessionProvenance(
 }
 
 type CachedResolution =
-  | { state: "matched"; game: Game }
+  | { state: "matched"; game: Game; via: "cache" | "scoped" }
   | { state: "skipped" }
   | { state: "query" };
 
@@ -2238,6 +2357,8 @@ async function resolveProcesses(
   );
   let cacheMatchedCount = 0;
   let cacheSkippedCount = 0;
+  const scopedResolvedKeys = new Set<string>();
+  const unscopedSeenKeys = new Set<string>();
 
   for (const process of processes) {
     const existing = state.exeCache.get(process.exeName.toLowerCase());
@@ -2256,16 +2377,32 @@ async function resolveProcesses(
       queryProcesses.push(process);
       continue;
     }
-    // An unresolved ambiguity has no exe cache entry and would otherwise be
-    // re-queried on every scan; the stored candidates keep driving the UI. A
-    // matched cache entry always wins - the ambiguity is stale then (e.g. the
-    // exe was added as a custom game while the picker was open) and gets
-    // dropped so the picker disappears and the match tracks normally.
+    const cached = resolveCachedProcess(
+      process,
+      state.exeCache,
+      state.scopedExeLinks,
+      now,
+      ttlMs,
+    );
+    if (cached.state === "matched") {
+      // A global basename decision makes the old picker stale. A scoped
+      // decision deliberately leaves it available for another running copy of
+      // the same basename outside the linked install directory.
+      if (cached.via === "cache") {
+        state.removeAmbiguousMatch(process.exeName);
+      } else {
+        scopedResolvedKeys.add(processCacheKey(process));
+      }
+      matches.push({ process, game: cached.game });
+      cacheMatchedCount += 1;
+      continue;
+    }
+    unscopedSeenKeys.add(processCacheKey(process));
+    // An unresolved ambiguity has no global exe cache entry and would
+    // otherwise be re-queried on every scan. Exact scoped evidence was already
+    // given first refusal above.
     const ambiguous = ambiguousByKey.get(processCacheKey(process));
-    if (ambiguous && existing?.state === "matched") {
-      state.removeAmbiguousMatch(process.exeName);
-      logRuntime(`stale ambiguity dropped for matched exe ${process.exeName}`);
-    } else if (
+    if (
       ambiguous &&
       now - Date.parse(ambiguous.lastCheckedAt ?? ambiguous.detectedAt) <
         PENDING_COMMUNITY_RETRY_MS
@@ -2273,15 +2410,15 @@ async function resolveProcesses(
       cacheSkippedCount += 1;
       continue;
     }
-    const cached = resolveCachedProcess(process, state.exeCache, now, ttlMs);
-    if (cached.state === "matched") {
-      matches.push({ process, game: cached.game });
-      cacheMatchedCount += 1;
-    } else if (cached.state === "query") {
+    if (cached.state === "query") {
       queryProcesses.push(process);
     } else {
       cacheSkippedCount += 1;
     }
+  }
+
+  for (const key of scopedResolvedKeys) {
+    if (!unscopedSeenKeys.has(key)) state.removeAmbiguousMatch(key);
   }
 
   if (communityCheckProcesses.length > 0) {
@@ -2503,7 +2640,7 @@ function survivorOfRetiredGame(
 // Whether a community game is the one this entry suggested itself - directly,
 // or because the suggestion's id was retired when that game absorbed it.
 function isOwnCommunitySuggestion(
-  entry: ExeCacheEntry,
+  entry: Pick<LocalLink, "communitySuggestionId">,
   game: Game,
   aliases: CommunityGameAlias[] | undefined,
 ) {
@@ -2525,15 +2662,15 @@ function isOwnCommunitySuggestion(
 // their own session; this folds them onto one and moves what was recorded
 // under the others.
 function canonicalizeSharedCustomGames(communitySuggestionId: number) {
-  const gameIds = [...useAppStore.getState().exeCache.values()]
+  const current = useAppStore.getState();
+  const gameIds = listLocalLinks(current.exeCache, current.scopedExeLinks)
     .filter(
       (entry) =>
-        entry.state === "matched" &&
         entry.source === "custom" &&
         entry.communitySuggestionId === communitySuggestionId &&
         entry.gameId !== undefined,
     )
-    .map((entry) => entry.gameId as number);
+    .map((entry) => entry.gameId);
   if (gameIds.length < 2) return;
 
   const canonicalId = Math.min(...gameIds);
@@ -2545,6 +2682,7 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
 
   useAppStore.setState((state) => {
     const exeCache = new Map(state.exeCache);
+    const scopedExeLinks = new Map(state.scopedExeLinks);
     for (const [key, entry] of exeCache) {
       if (
         entry.state === "matched" &&
@@ -2556,9 +2694,19 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
         exeCache.set(key, { ...entry, gameId: canonicalId });
       }
     }
+    for (const [key, entry] of scopedExeLinks) {
+      if (
+        entry.source === "custom" &&
+        entry.communitySuggestionId === communitySuggestionId &&
+        staleIds.has(entry.gameId)
+      ) {
+        scopedExeLinks.set(key, { ...entry, gameId: canonicalId });
+      }
+    }
 
     return {
       exeCache,
+      scopedExeLinks,
       activeSessions: dedupeSessionsByGame(
         state.activeSessions.map((session) =>
           isStaleCustom(session)
@@ -2591,17 +2739,18 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
 // while the game remains custom when its verified row appears, and is removed
 // when neither row exists because moderators rejected it.
 export function applyCommunitySuggestionOutcome(
-  exeName: string,
+  target: string | LocalLinkRef,
   communityGames: Game[],
   pendingCommunityGames: Game[],
   pendingGamesAreAuthoritative: boolean,
   responseHasOtherMatches: boolean,
   aliases?: CommunityGameAlias[],
 ) {
-  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  const state = useAppStore.getState();
+  const ref = localLinkRef(target);
+  const existing = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
   if (
-    existing?.state !== "matched" ||
-    existing.source !== "custom" ||
+    existing?.source !== "custom" ||
     !existing.communitySuggestionId ||
     existing.communitySuggestionStatus === "verified" ||
     (existing.communitySuggestionStatus === undefined &&
@@ -2614,7 +2763,7 @@ export function applyCommunitySuggestionOutcome(
     isOwnCommunitySuggestion(existing, game, aliases),
   );
   if (approved) {
-    setCommunitySuggestionApproved(exeName, approved);
+    setCommunitySuggestionApproved(ref, approved);
     return "approved" as const;
   }
 
@@ -2622,7 +2771,7 @@ export function applyCommunitySuggestionOutcome(
     isOwnCommunitySuggestion(existing, game, aliases),
   );
   if (pending) {
-    setCommunitySuggestionMarker(exeName, pending, false);
+    setCommunitySuggestionMarker(ref, pending, false);
     return "pending" as const;
   }
 
@@ -2633,31 +2782,49 @@ export function applyCommunitySuggestionOutcome(
     return "inconclusive" as const;
   }
   if (existing.communitySuggestionStatus !== "rejected") {
-    setCommunitySuggestionRejected(exeName, existing.communitySuggestionNote);
+    setCommunitySuggestionRejected(ref, existing.communitySuggestionNote);
   }
   return "rejected" as const;
 }
 
-function setCommunitySuggestionRejected(exeName: string, note?: string) {
-  const key = exeName.toLowerCase();
+function localLinkRef(target: string | LocalLinkRef): LocalLinkRef {
+  return typeof target === "string"
+    ? { kind: "exe", key: target.toLowerCase() }
+    : target;
+}
+
+function sessionMatchesLocalLink(
+  session: Pick<Session, "exeName" | "gameId" | "source">,
+  link: LocalLink,
+) {
+  return (
+    session.exeName.toLowerCase() === link.exeName.toLowerCase() &&
+    session.source === "custom" &&
+    (link.ref.kind === "exe" || session.gameId === link.gameId)
+  );
+}
+
+function setCommunitySuggestionRejected(
+  target: string | LocalLinkRef,
+  note?: string,
+) {
+  const ref = localLinkRef(target);
   useAppStore.setState((state) => {
-    const existing = state.exeCache.get(key);
-    if (existing?.state !== "matched" || existing.source !== "custom") {
+    const existing = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
+    if (existing?.source !== "custom") {
       return {};
     }
 
-    const exeCache = new Map(state.exeCache);
-    exeCache.set(key, {
-      ...existing,
+    const maps = writeLocalLink(state, ref, {
       pendingCommunityGame: undefined,
       communitySuggestionVerified: false,
       communitySuggestionStatus: "rejected",
       communitySuggestionNote: note,
     });
     return {
-      exeCache,
+      ...maps,
       activeSessions: state.activeSessions.map((session) =>
-        session.exeName.toLowerCase() === key && session.source === "custom"
+        sessionMatchesLocalLink(session, existing)
           ? {
               ...session,
               communitySuggestionVerified: false,
@@ -2667,7 +2834,7 @@ function setCommunitySuggestionRejected(exeName: string, note?: string) {
           : session,
       ),
       recentSessions: state.recentSessions.map((session) =>
-        session.exeName.toLowerCase() === key && session.source === "custom"
+        sessionMatchesLocalLink(session, existing)
           ? {
               ...session,
               communitySuggestionVerified: false,
@@ -2678,29 +2845,30 @@ function setCommunitySuggestionRejected(exeName: string, note?: string) {
       ),
     };
   });
-  logRuntime(`community suggestion rejected ${exeName}`);
+  const link = findLocalLink(
+    ref,
+    useAppStore.getState().exeCache,
+    useAppStore.getState().scopedExeLinks,
+  );
+  logRuntime(`community suggestion rejected ${link?.exeName ?? ref.key}`);
   persist();
 }
 
-function communitySuggestionIdentityKey(exeName: string, gameId: number) {
-  return `${exeName.toLowerCase()}::${gameId}`;
+function communitySuggestionIdentityKey(ref: LocalLinkRef, gameId: number) {
+  return `${ref.kind}:${ref.key}:${gameId}`;
 }
 
-function clearCommunitySuggestionMarker(exeName: string, gameId: number) {
-  const key = exeName.toLowerCase();
+function clearCommunitySuggestionMarker(ref: LocalLinkRef, gameId: number) {
   useAppStore.setState((state) => {
-    const existing = state.exeCache.get(key);
+    const existing = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
     if (
-      existing?.state !== "matched" ||
-      existing.source !== "custom" ||
+      existing?.source !== "custom" ||
       existing.communitySuggestionId !== gameId
     ) {
       return {};
     }
 
-    const exeCache = new Map(state.exeCache);
-    exeCache.set(key, {
-      ...existing,
+    const maps = writeLocalLink(state, ref, {
       pendingCommunityGame: undefined,
       communitySuggestionId: undefined,
       communitySuggestionVerified: undefined,
@@ -2708,8 +2876,7 @@ function clearCommunitySuggestionMarker(exeName: string, gameId: number) {
       communitySuggestionNote: undefined,
     });
     const clearSession = <T extends ActiveSession | Session>(session: T): T =>
-      session.exeName.toLowerCase() === key &&
-      session.source === "custom" &&
+      sessionMatchesLocalLink(session, existing) &&
       session.communitySuggestionId === gameId
         ? {
             ...session,
@@ -2720,7 +2887,7 @@ function clearCommunitySuggestionMarker(exeName: string, gameId: number) {
           }
         : session;
     return {
-      exeCache,
+      ...maps,
       activeSessions: state.activeSessions.map(clearSession),
       recentSessions: state.recentSessions.map(clearSession),
     };
@@ -2728,38 +2895,37 @@ function clearCommunitySuggestionMarker(exeName: string, gameId: number) {
 }
 
 export function markCommunitySuggestionRejected(
-  exeName: string,
+  target: string | LocalLinkRef,
   note?: string,
 ) {
-  setCommunitySuggestionRejected(exeName, note);
+  setCommunitySuggestionRejected(target, note);
 }
 
 function setCommunitySuggestionMarker(
-  exeName: string,
+  target: string | LocalLinkRef,
   game: Game,
   verified: boolean,
 ) {
+  const ref = localLinkRef(target);
   useAppStore.setState((state) => {
-    const key = exeName.toLowerCase();
-    const existing = state.exeCache.get(key);
-    if (existing?.state !== "matched" || existing.source !== "custom") {
+    const existing = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
+    if (existing?.source !== "custom") {
       return {};
     }
 
-    const exeCache = new Map(state.exeCache);
-    exeCache.set(key, {
-      ...existing,
+    const maps = writeLocalLink(state, ref, {
       igdbId: game.igdbId ?? existing.igdbId,
       pendingCommunityGame: verified ? undefined : game,
       communitySuggestionId: game.id,
       communitySuggestionVerified: verified,
       communitySuggestionStatus: verified ? "verified" : "pending",
       communitySuggestionNote: undefined,
+      shareState: undefined,
     });
     return {
-      exeCache,
+      ...maps,
       activeSessions: state.activeSessions.map((session) =>
-        session.exeName.toLowerCase() === key && session.source === "custom"
+        sessionMatchesLocalLink(session, existing)
           ? {
               ...session,
               igdbId: game.igdbId ?? session.igdbId ?? existing.igdbId,
@@ -2771,7 +2937,7 @@ function setCommunitySuggestionMarker(
           : session,
       ),
       recentSessions: state.recentSessions.map((session) =>
-        session.exeName.toLowerCase() === key && session.source === "custom"
+        sessionMatchesLocalLink(session, existing)
           ? {
               ...session,
               igdbId: game.igdbId ?? session.igdbId ?? existing.igdbId,
@@ -2790,9 +2956,17 @@ function setCommunitySuggestionMarker(
   canonicalizeSharedCustomGames(game.id);
 }
 
-function setCommunitySuggestionApproved(exeName: string, game: Game) {
-  setCommunitySuggestionMarker(exeName, game, true);
-  logRuntime(`community suggestion approved ${exeName} -> ${game.name}`);
+function setCommunitySuggestionApproved(
+  target: string | LocalLinkRef,
+  game: Game,
+) {
+  const ref = localLinkRef(target);
+  const state = useAppStore.getState();
+  const link = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
+  setCommunitySuggestionMarker(ref, game, true);
+  logRuntime(
+    `community suggestion approved ${link?.exeName ?? ref.key} -> ${game.name}`,
+  );
   persist();
 }
 
@@ -2935,6 +3109,49 @@ export function applyGameMatch(exeName: string, game: Game) {
   logRuntime(`game match applied ${existing.exeName} -> ${game.name}`);
   persist();
   void requestProcessScan("after game match applied");
+}
+
+// Applies a verified server identity without widening a path-scoped choice to
+// a global basename claim.
+export function applyLocalLinkGameMatch(
+  target: string | LocalLinkRef,
+  game: Game,
+) {
+  const ref = localLinkRef(target);
+  if (ref.kind === "exe") {
+    applyGameMatch(ref.key, game);
+    return;
+  }
+  useAppStore.setState((state) => {
+    const existing = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
+    if (!existing) return {};
+    const maps = writeLocalLink(state, ref, {
+      gameId: game.id,
+      igdbId: game.igdbId ?? existing.igdbId,
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+      source: game.source,
+      pendingCommunityGame: undefined,
+      shareState: undefined,
+    });
+    const updateSession = <T extends ActiveSession | Session>(session: T): T =>
+      sessionMatchesLocalLink(session, existing)
+        ? {
+            ...session,
+            gameId: game.id,
+            igdbId: game.igdbId ?? existing.igdbId,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
+            source: game.source,
+          }
+        : session;
+    return {
+      ...maps,
+      activeSessions: state.activeSessions.map(updateSession),
+      recentSessions: state.recentSessions.map(updateSession),
+    };
+  });
+  persist();
 }
 
 // Applies a database game directly to an exe - used when a community
@@ -3594,9 +3811,10 @@ function cacheAmbiguousMatch(
   );
 }
 
-function resolveCachedProcess(
+export function resolveCachedProcess(
   process: ProcessSnapshot,
   exeCache: Map<string, ExeCacheEntry>,
+  scopedExeLinks: Map<string, ScopedExeLink>,
   now: number,
   ttlMs: number,
 ): CachedResolution {
@@ -3604,9 +3822,24 @@ function resolveCachedProcess(
   const cached = exeCache.get(exeKey);
 
   if (cached?.state === "blacklisted") return { state: "skipped" };
+  const scoped = resolveScopedLink(process, scopedExeLinks);
+  if (scoped) {
+    return {
+      state: "matched",
+      via: "scoped",
+      game: {
+        id: scoped.gameId,
+        igdbId: scoped.igdbId,
+        name: scoped.gameName,
+        coverUrl: scoped.coverUrl,
+        source: scoped.source,
+      },
+    };
+  }
   if (cached?.state === "matched" && cached.gameId && cached.gameName) {
     return {
       state: "matched",
+      via: "cache",
       game: {
         id: cached.gameId,
         igdbId: cached.igdbId,
@@ -3834,6 +4067,7 @@ function startSession(
     const resolver = createGameIdentityResolver(
       state.gameMetadata,
       state.exeCache,
+      state.libraryImports,
     );
     const firstAutoDetection = state.recordAutomaticDetection(
       autoDetectionKeys(
@@ -4509,7 +4743,13 @@ export async function pollContributions(
 
     const delivered = suppressNotifications ? [] : arrived;
     useAppStore.setState((current) => {
-      const exeCache = applyContributionMarkers(current.exeCache, body.items);
+      let localLinks = applyContributionMarkers(
+        {
+          exeCache: current.exeCache,
+          scopedExeLinks: current.scopedExeLinks,
+        },
+        body.items,
+      );
       for (const [identityKey, guard] of communitySuggestionCancelGuard) {
         const exeKey = guard.exeName.toLowerCase();
         const stillPending = body.items.some(
@@ -4523,14 +4763,16 @@ export async function pollContributions(
           continue;
         }
 
-        const entry = exeCache.get(exeKey);
+        const entry = findLocalLink(
+          guard.ref,
+          localLinks.exeCache,
+          localLinks.scopedExeLinks,
+        );
         if (
-          entry?.state === "matched" &&
-          entry.source === "custom" &&
+          entry?.source === "custom" &&
           entry.communitySuggestionId === guard.gameId
         ) {
-          exeCache.set(exeKey, {
-            ...entry,
+          localLinks = writeLocalLink(localLinks, guard.ref, {
             pendingCommunityGame: undefined,
             communitySuggestionId: undefined,
             communitySuggestionVerified: undefined,
@@ -4604,7 +4846,7 @@ export async function pollContributions(
         }
       }
       return {
-        exeCache,
+        ...localLinks,
         activeSessions: current.activeSessions.map(updateSession),
         recentSessions: current.recentSessions.map(updateSession),
         emulatorMappings,
@@ -4676,12 +4918,14 @@ export function evaluateAndStoreMilestones(
   const resolveIgdbId = createGameIdentityResolver(
     state.gameMetadata,
     state.exeCache,
+    state.libraryImports,
   );
   const result = evaluateMilestones({
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
+    providerFloors: providerFloors(state.libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
     verifiedEmulatorContributions: state.emulatorContributionCounts.verified,
     awardedMilestones: state.awardedMilestones,
@@ -4727,12 +4971,14 @@ function currentGameTotalSeconds(session: ActiveSession) {
   const resolver = createGameIdentityResolver(
     state.gameMetadata,
     state.exeCache,
+    state.libraryImports,
   );
   const metrics = milestoneMetrics({
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
+    providerFloors: providerFloors(state.libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
     resolveIgdbId: resolver,
   });
@@ -4743,8 +4989,36 @@ function currentGameTotalSeconds(session: ActiveSession) {
 export function applyContributionMarkers(
   current: Map<string, ExeCacheEntry>,
   contributions: Contribution[],
+): Map<string, ExeCacheEntry>;
+export function applyContributionMarkers(
+  current: {
+    exeCache: Map<string, ExeCacheEntry>;
+    scopedExeLinks: Map<string, ScopedExeLink>;
+  },
+  contributions: Contribution[],
+): {
+  exeCache: Map<string, ExeCacheEntry>;
+  scopedExeLinks: Map<string, ScopedExeLink>;
+};
+export function applyContributionMarkers(
+  current:
+    | Map<string, ExeCacheEntry>
+    | {
+        exeCache: Map<string, ExeCacheEntry>;
+        scopedExeLinks: Map<string, ScopedExeLink>;
+      },
+  contributions: Contribution[],
 ) {
-  const exeCache = new Map(current);
+  const legacy = current instanceof Map;
+  let maps = legacy
+    ? {
+        exeCache: new Map(current),
+        scopedExeLinks: new Map<string, ScopedExeLink>(),
+      }
+    : {
+        exeCache: new Map(current.exeCache),
+        scopedExeLinks: new Map(current.scopedExeLinks),
+      };
   const byExe = new Map<string, Contribution[]>();
   for (const contribution of contributions) {
     const key = contribution.value.toLowerCase();
@@ -4752,45 +5026,49 @@ export function applyContributionMarkers(
   }
 
   for (const [exeKey, candidates] of byExe) {
-    const entry = exeCache.get(exeKey);
-    if (entry?.state !== "matched" || entry.source !== "custom") continue;
-
-    let contribution = candidates.find(
-      (candidate) => candidate.gameId === entry.communitySuggestionId,
+    const links = findLocalLinksByExe(
+      exeKey,
+      maps.exeCache,
+      maps.scopedExeLinks,
     );
-    if (!contribution && entry.communitySuggestionId === undefined) {
-      const viable = candidates.filter((candidate) => {
-        const namesMatch =
-          candidate.gameName.trim().toLowerCase() ===
-          (entry.gameName ?? "").trim().toLowerCase();
-        const coversMatch =
-          !candidate.coverUrl ||
-          !entry.coverUrl ||
-          candidate.coverUrl === entry.coverUrl;
-        return namesMatch && coversMatch;
-      });
-      if (viable.length === 1) contribution = viable[0];
-    }
-    if (!contribution) continue;
+    for (const entry of links) {
+      let contribution = candidates.find(
+        (candidate) => candidate.gameId === entry.communitySuggestionId,
+      );
+      if (!contribution && entry.communitySuggestionId === undefined) {
+        const viable = candidates.filter((candidate) => {
+          const namesMatch =
+            candidate.gameName.trim().toLowerCase() ===
+            (entry.gameName ?? "").trim().toLowerCase();
+          const coversMatch =
+            !candidate.coverUrl ||
+            !entry.coverUrl ||
+            candidate.coverUrl === entry.coverUrl;
+          return namesMatch && coversMatch;
+        });
+        if (viable.length === 1) contribution = viable[0];
+      }
+      if (!contribution) continue;
 
-    exeCache.set(exeKey, {
-      ...entry,
-      pendingCommunityGame:
-        contribution.status === "pending"
-          ? {
-              id: contribution.gameId,
-              name: contribution.gameName,
-              coverUrl: contribution.coverUrl,
-              source: "community",
-            }
-          : undefined,
-      communitySuggestionId: contribution.gameId,
-      communitySuggestionVerified: contribution.status === "verified",
-      communitySuggestionStatus: contribution.status,
-      communitySuggestionNote: contribution.reviewNote,
-    });
+      maps = writeLocalLink(maps, entry.ref, {
+        pendingCommunityGame:
+          contribution.status === "pending"
+            ? {
+                id: contribution.gameId,
+                name: contribution.gameName,
+                coverUrl: contribution.coverUrl,
+                source: "community",
+              }
+            : undefined,
+        communitySuggestionId: contribution.gameId,
+        communitySuggestionVerified: contribution.status === "verified",
+        communitySuggestionStatus: contribution.status,
+        communitySuggestionNote: contribution.reviewNote,
+        shareState: undefined,
+      });
+    }
   }
-  return exeCache;
+  return legacy ? maps.exeCache : maps;
 }
 
 export async function recheckExecutable(exeName: string) {
@@ -4841,7 +5119,10 @@ export function addSharedCustomGame(
   if (!normalizedGameName) return null;
 
   communitySuggestionCancelGuard.delete(
-    communitySuggestionIdentityKey(exeName, communitySuggestionId),
+    communitySuggestionIdentityKey(
+      localLinkRef(exeName),
+      communitySuggestionId,
+    ),
   );
 
   const game: Game = {
@@ -4987,13 +5268,14 @@ export type CommunitySuggestionCancelOutcome =
   | { kind: "failed"; error: string };
 
 export async function cancelCommunitySuggestion(
-  exeName: string,
+  target: string | LocalLinkRef,
   expectedGameId: number,
 ): Promise<CommunitySuggestionCancelOutcome> {
   const state = useAppStore.getState();
-  const existing = state.exeCache.get(exeName.toLowerCase());
+  const ref = localLinkRef(target);
+  const existing = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
   if (
-    existing?.state !== "matched" ||
+    !existing ||
     existing.communitySuggestionId !== expectedGameId ||
     !canCancelCommunitySuggestion({
       source: existing.source,
@@ -5045,10 +5327,10 @@ export async function cancelCommunitySuggestion(
     });
     if (body.status === "cancelled" || body.status === "not_found") {
       communitySuggestionCancelGuard.set(
-        communitySuggestionIdentityKey(existing.exeName, expectedGameId),
-        { exeName: existing.exeName, gameId: expectedGameId },
+        communitySuggestionIdentityKey(ref, expectedGameId),
+        { ref, exeName: existing.exeName, gameId: expectedGameId },
       );
-      clearCommunitySuggestionMarker(existing.exeName, expectedGameId);
+      clearCommunitySuggestionMarker(ref, expectedGameId);
       logRuntime(
         `community suggestion cancelled ${existing.exeName} -> ${expectedGameId}`,
       );
@@ -5081,16 +5363,49 @@ export async function cancelCommunitySuggestion(
 // path - the exe is retagged locally as a shared custom game carrying the
 // suggested metadata and the awaiting-approval marker.
 export function suggestTrackedGameToCommunity(
-  exeName: string,
+  target: string | LocalLinkRef,
   gameName: string,
   coverUrl: string,
   communitySuggestionId: number,
   communitySuggestionVerified: boolean,
   igdbId?: number,
 ) {
-  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
-  if (existing?.state !== "matched") return null;
+  const ref = localLinkRef(target);
+  const current = useAppStore.getState();
+  const existing = findLocalLink(ref, current.exeCache, current.scopedExeLinks);
+  if (!existing) return null;
+  const exeName = existing.exeName;
   if (existing.source === "custom") {
+    if (ref.kind === "scoped") {
+      const normalizedName = gameName.trim();
+      if (!normalizedName) return null;
+      useAppStore.setState((state) =>
+        writeLocalLink(state, ref, {
+          gameName: normalizedName,
+          coverUrl,
+          igdbId: igdbId ?? existing.igdbId,
+        }),
+      );
+      setCommunitySuggestionMarker(
+        ref,
+        {
+          id: communitySuggestionId,
+          igdbId,
+          name: normalizedName,
+          coverUrl,
+          source: "community",
+        },
+        communitySuggestionVerified,
+      );
+      persist();
+      return {
+        id: existing.gameId,
+        igdbId: igdbId ?? existing.igdbId,
+        name: normalizedName,
+        coverUrl,
+        source: "custom" as const,
+      };
+    }
     return shareTrackedCustomGame(
       exeName,
       gameName,
@@ -5109,6 +5424,7 @@ export function suggestTrackedGameToCommunity(
     source: "custom",
   };
   if (!customGame.name) return null;
+  if (ref.kind === "scoped") return null;
   applyGameMatch(exeName, customGame);
   setCommunitySuggestionMarker(
     exeName,
@@ -5126,6 +5442,68 @@ export function suggestTrackedGameToCommunity(
   );
   persist();
   return customGame;
+}
+
+export type LocalLinkShareOutcome =
+  | { kind: "submitted" | "already-known" | "rejected" }
+  | { kind: "not-applicable" }
+  | { kind: "failed"; error: string };
+
+export async function submitLocalLinkToCommunity(
+  ref: LocalLinkRef,
+): Promise<LocalLinkShareOutcome> {
+  const state = useAppStore.getState();
+  const link = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
+  if (
+    link?.source !== "custom" ||
+    link.communitySuggestionId !== undefined ||
+    !link.gameName
+  ) {
+    return { kind: "not-applicable" };
+  }
+  const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions`;
+  try {
+    const response = await fetchWithTimeout(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      timeoutMs: API_REQUEST_TIMEOUT_MS,
+      body: JSON.stringify({
+        exeName: link.exeName,
+        name: link.gameName,
+        coverUrl: link.coverUrl,
+        igdbId: link.igdbId,
+        installUuid: state.installUuid ?? undefined,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+    const result = (await response.json()) as CommunityGameSuggestionResponse;
+    if (result.igdbGame) {
+      applyLocalLinkGameMatch(ref, result.igdbGame);
+      return { kind: "already-known" };
+    }
+    if (result.id === undefined) throw new Error("Unexpected response");
+    suggestTrackedGameToCommunity(
+      ref,
+      link.gameName,
+      link.coverUrl ?? "",
+      result.id,
+      result.verified ?? false,
+      link.igdbId,
+    );
+    if (result.rejected) {
+      markCommunitySuggestionRejected(ref, result.reviewNote);
+      return { kind: "rejected" };
+    }
+    return { kind: "submitted" };
+  } catch (error) {
+    useAppStore.setState((current) =>
+      writeLocalLink(current, ref, { shareState: "failed" }),
+    );
+    persist();
+    return { kind: "failed", error: formatError(error) };
+  }
 }
 
 // Resolves an ambiguity picker with a locally created custom game - the
@@ -5220,6 +5598,27 @@ export function untrackGame(
   aliases: GameAliasRef[] = [{ gameId, source }],
 ) {
   untrackGameInternal(gameId, source, removeHistory, aliases, "remove");
+}
+
+export function forgetImportedLibraryData() {
+  const state = useAppStore.getState();
+  const exeCache = new Map(state.exeCache);
+  const launchTargets = new Map(state.launchTargets);
+  for (const [key, entry] of exeCache) {
+    if (!entry.libraryProvider) continue;
+    exeCache.delete(key);
+    launchTargets.delete(key);
+  }
+  useAppStore.setState({
+    exeCache,
+    launchTargets,
+    libraryImports: new Map(),
+    libraryInstalls: new Map(),
+    scopedExeLinks: new Map(),
+  });
+  evaluateAndStoreMilestones({ suppressNotifications: true });
+  persist();
+  void requestProcessScan("after local library cleared");
 }
 
 function untrackGameInternal(
@@ -5656,6 +6055,9 @@ export function clearLocalLibrary() {
     archivedGameSeconds: {},
     playtimeAdjustments: {},
     autoDetectedGameKeys: [],
+    libraryImports: new Map(),
+    libraryInstalls: new Map(),
+    scopedExeLinks: new Map(),
   });
 
   logRuntime(
@@ -5895,7 +6297,11 @@ function stampCanonicalIdsFromMetadata(
       }
     }
 
-    const resolveIgdbId = createGameIdentityResolver(gameMetadata, exeCache);
+    const resolveIgdbId = createGameIdentityResolver(
+      gameMetadata,
+      exeCache,
+      state.libraryImports,
+    );
     let activeSessionsChanged = false;
     const repairedActiveSessions = state.activeSessions.map((session) => {
       const resolvedIgdbId = resolveIgdbId(
@@ -6170,11 +6576,7 @@ function sharedCustomGameId(exeName: string, communitySuggestionId: number) {
 }
 
 function customGameId(exeName: string) {
-  let hash = 0;
-  for (const char of exeName.toLowerCase()) {
-    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  }
-  return CUSTOM_GAME_ID_BASE - (hash % 900_000_000);
+  return customLocalGameId(exeName);
 }
 
 export function renameCustomGame(gameId: number, gameName: string) {
