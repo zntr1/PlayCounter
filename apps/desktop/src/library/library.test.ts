@@ -132,6 +132,14 @@ describe("library import", () => {
     expect(candidates.map((item) => item.fileName)).toEqual(["cs2.exe"]);
   });
 
+  it("ranks executable candidates when Steam has no manifest name", () => {
+    expect(
+      importExeCandidates(scanned.executables, [], null).map(
+        (item) => item.fileName,
+      ),
+    ).toEqual(["cs2.exe"]);
+  });
+
   it("merges multiple provider records into the highest IGDB floor", () => {
     const base: LibraryImportEntry = {
       provider: "steam",

@@ -24,10 +24,12 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
+  Component,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  type ErrorInfo,
   type ReactNode,
   lazy,
   Suspense,
@@ -85,6 +87,32 @@ const ImportLibraryView = lazy(() =>
   })),
 );
 
+class ImporterErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Steam importer failed to render", error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded-lg border border-danger-border bg-danger-tint px-4 py-3 text-sm text-danger">
+          The Steam importer could not be opened: {this.state.error.message}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const views: Record<
   ViewId,
   {
@@ -132,13 +160,15 @@ const views: Record<
     subtitle: "Bring local launcher libraries into PlayCounter",
     icon: Download,
     component: (
-      <Suspense
-        fallback={
-          <div className="text-sm text-text-muted">Loading importer…</div>
-        }
-      >
-        <ImportLibraryView />
-      </Suspense>
+      <ImporterErrorBoundary>
+        <Suspense
+          fallback={
+            <div className="text-sm text-text-muted">Loading importer…</div>
+          }
+        >
+          <ImportLibraryView />
+        </Suspense>
+      </ImporterErrorBoundary>
     ),
   },
   discovered: {

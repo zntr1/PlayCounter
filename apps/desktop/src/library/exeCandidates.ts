@@ -38,7 +38,7 @@ const GENERIC_BASENAMES = new Set([
 export function importExeCandidates(
   scanned: readonly ScannedExecutable[],
   known: readonly LibraryKnownExecutable[],
-  gameName = "",
+  gameName: string | null | undefined = "",
   ignoredProcesses: ReadonlySet<string> = new Set(),
 ) {
   const knownNames = new Set(
@@ -46,7 +46,7 @@ export function importExeCandidates(
       .filter((item) => item.platform === "windows" && item.kind === "exe")
       .map((item) => item.value.toLowerCase()),
   );
-  const title = gameName.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const title = (gameName ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return scanned
     .filter(
       (item) =>

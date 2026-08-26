@@ -31,6 +31,7 @@ const MAX_VDF_BYTES: u64 = 8 * 1024 * 1024;
 pub struct ProviderStatus {
     provider: &'static str,
     available: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     root_path: Option<String>,
     checked_paths: Vec<String>,
 }
@@ -39,6 +40,7 @@ pub struct ProviderStatus {
 #[serde(rename_all = "camelCase")]
 pub struct LocalAccount {
     account_id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     persona_name: Option<String>,
     most_recent: bool,
     games_with_playtime: usize,
@@ -57,10 +59,13 @@ pub struct ScannedExecutable {
 #[serde(rename_all = "camelCase")]
 pub struct ScannedGame {
     external_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
     playtime_seconds: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     last_played_unix: Option<u64>,
     installed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     install_path: Option<String>,
     executables: Vec<ScannedExecutable>,
 }
@@ -614,5 +619,4 @@ mod tests {
         ));
         assert!(!should_skip_directory(root, &root.join("bin")));
     }
-
 }
