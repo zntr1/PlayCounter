@@ -102,7 +102,16 @@ import {
   providerFloors,
   providerFloorsForProvider,
 } from "../../library/playtimeFloor";
-import { libraryEntryKey } from "../../library/types";
+import { commitLibraryImports } from "../../library/commit";
+import {
+  checkSteamImportForMatches,
+  type SteamImportMatchCheck,
+} from "../../library/recheck";
+import {
+  libraryEntryKey,
+  type LibraryImportEntry,
+  type LibraryInstallEntry,
+} from "../../library/types";
 import { listLocalLinks, type LocalLink } from "../../localLinks";
 import {
   CommunityApprovalBadge,
@@ -223,6 +232,8 @@ type GameSummary = {
     provider: "steam";
     externalId: string;
     installed: boolean;
+    entry: LibraryImportEntry;
+    install?: LibraryInstallEntry;
   }>;
   providerFloorSeconds: number;
 };
@@ -982,12 +993,14 @@ export function MyGamesView() {
             item.externalId === entry.externalId,
         )
       ) {
+        const key = libraryEntryKey(entry.provider, entry.externalId);
+        const install = libraryInstalls.get(key);
         summary.libraryImports.push({
           provider: entry.provider,
           externalId: entry.externalId,
-          installed: libraryInstalls.has(
-            libraryEntryKey(entry.provider, entry.externalId),
-          ),
+          installed: Boolean(install),
+          entry,
+          install,
         });
       }
     }
@@ -1661,6 +1674,7 @@ function GameLibraryCard({
     useState<PendingCommunitySuggestionTarget | null>(null);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const installUuid = useAppStore((state) => state.installUuid);
+  const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
   const isOffline = useIsOffline();
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSearch, setShareSearch] = useState("");
@@ -1903,6 +1917,10 @@ function GameLibraryCard({
     game.libraryImports.length > 0 &&
     game.exeNames.length === 0 &&
     game.emulatorContentKeys.length === 0;
+  const canCheckMatches = Boolean(
+    (game.source && game.exeNames[0]) ||
+      (trackingUnavailable && steamImportEntry),
+  );
 
   const demoNotice = () =>
     addToast({
@@ -2867,7 +2885,7 @@ function GameLibraryCard({
         >
           Adjust total playtime
         </ContextMenuItem>
-        {game.source && game.exeNames[0] ? (
+        {canCheckMatches ? (
           <>
             <ContextMenuSeparator />
             <ContextMenuItem
@@ -2880,6 +2898,10 @@ function GameLibraryCard({
             >
               Check for Matches
             </ContextMenuItem>
+          </>
+        ) : null}
+        {game.source && game.exeNames[0] ? (
+          <>
             {pendingCommunitySuggestion ? (
               <ContextMenuItem
                 icon={RotateCcw}
@@ -3109,7 +3131,7 @@ function GameLibraryCard({
               <span
                 role="img"
                 tabIndex={0}
-                aria-label="New sessions will not be tracked yet. Steam playtime is already imported. Install the game and run the Steam import again to link its executable."
+                aria-label="New sessions will not be tracked yet. Steam playtime is already imported. Use Check for Matches to look for a newly approved executable."
                 title="New sessions won't be tracked yet"
                 className="grid h-8 w-8 cursor-help place-items-center rounded-full border border-warning-border bg-warning-tint text-warning shadow-raised outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-warning focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
               >
@@ -3123,8 +3145,10 @@ function GameLibraryCard({
                   New sessions won&apos;t be tracked yet
                 </div>
                 <div className="mt-1 text-[11px] leading-4 text-text-muted">
-                  Steam playtime is already imported but this game's filename is unknown. Install the game and run
-                  it, then "discover" the file name or use the Steam import again to link its executable.
+                  Steam playtime is already imported, but this game&apos;s filename
+                  is unknown. Use Check for Matches to look for a newly approved
+                  executable, or install and run the game so PlayCounter can
+                  discover it.
                 </div>
               </div>
             </div>
@@ -3140,7 +3164,7 @@ function GameLibraryCard({
               launchTourDemo && "translate-x-0 opacity-100",
             )}
           >
-            {game.source && game.exeNames[0] ? (
+            {canCheckMatches ? (
               <IconButton
                 icon={Search}
                 aria-label={`Check matches for ${game.name}`}
@@ -3452,20 +3476,38 @@ function GameLibraryCard({
           />
         ) : null}
         {showMatchCheck ? (
-          <MatchCheckDialog
-            game={game}
-            onCancel={() => setShowMatchCheck(false)}
-            onApply={handleApplyMatch}
-            onReportNotAGame={() => void handleNegativeReport()}
-            onSearchCommunity={
-              canSuggestToCommunity
-                ? () => {
-                    setShowMatchCheck(false);
-                    void handleShareAction();
-                  }
-                : undefined
-            }
-          />
+          trackingUnavailable && steamImportEntry ? (
+            <SteamImportMatchCheckDialog
+              apiEndpoint={apiEndpoint}
+              entry={steamImportEntry.entry}
+              install={steamImportEntry.install}
+              ignoredProcesses={ignoredProcesses}
+              onCancel={() => setShowMatchCheck(false)}
+              onApplied={(executableNames) => {
+                setShowMatchCheck(false);
+                addToast({
+                  tone: "success",
+                  title: "Match applied",
+                  detail: `${executableNames.join(", ")} will now be tracked as ${game.name}.`,
+                });
+              }}
+            />
+          ) : (
+            <MatchCheckDialog
+              game={game}
+              onCancel={() => setShowMatchCheck(false)}
+              onApply={handleApplyMatch}
+              onReportNotAGame={() => void handleNegativeReport()}
+              onSearchCommunity={
+                canSuggestToCommunity
+                  ? () => {
+                      setShowMatchCheck(false);
+                      void handleShareAction();
+                    }
+                  : undefined
+              }
+            />
+          )
         ) : null}
         {reportOpen ? (
           <ReportWrongMatchDialog
@@ -3856,20 +3898,38 @@ function GameLibraryCard({
         />
       ) : null}
       {showMatchCheck ? (
-        <MatchCheckDialog
-          game={game}
-          onCancel={() => setShowMatchCheck(false)}
-          onApply={handleApplyMatch}
-          onReportNotAGame={() => void handleNegativeReport()}
-          onSearchCommunity={
-            canSuggestToCommunity
-              ? () => {
-                  setShowMatchCheck(false);
-                  void handleShareAction();
-                }
-              : undefined
-          }
-        />
+        trackingUnavailable && steamImportEntry ? (
+          <SteamImportMatchCheckDialog
+            apiEndpoint={apiEndpoint}
+            entry={steamImportEntry.entry}
+            install={steamImportEntry.install}
+            ignoredProcesses={ignoredProcesses}
+            onCancel={() => setShowMatchCheck(false)}
+            onApplied={(executableNames) => {
+              setShowMatchCheck(false);
+              addToast({
+                tone: "success",
+                title: "Match applied",
+                detail: `${executableNames.join(", ")} will now be tracked as ${game.name}.`,
+              });
+            }}
+          />
+        ) : (
+          <MatchCheckDialog
+            game={game}
+            onCancel={() => setShowMatchCheck(false)}
+            onApply={handleApplyMatch}
+            onReportNotAGame={() => void handleNegativeReport()}
+            onSearchCommunity={
+              canSuggestToCommunity
+                ? () => {
+                    setShowMatchCheck(false);
+                    void handleShareAction();
+                  }
+                : undefined
+            }
+          />
+        )
       ) : null}
       {reportOpen ? (
         <ReportWrongMatchDialog
@@ -4366,6 +4426,175 @@ function AdjustPlaytimeDialog({
           </div>
         ) : null}
       </form>
+    </Modal>
+  );
+}
+
+function SteamImportMatchCheckDialog({
+  apiEndpoint,
+  entry,
+  install,
+  ignoredProcesses,
+  onCancel,
+  onApplied,
+}: {
+  apiEndpoint: string;
+  entry: LibraryImportEntry;
+  install?: LibraryInstallEntry;
+  ignoredProcesses: ReadonlySet<string>;
+  onCancel: () => void;
+  onApplied: (executableNames: string[]) => void;
+}) {
+  const isOffline = useIsOffline();
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<SteamImportMatchCheck | null>(null);
+  const [error, setError] = useState("");
+  const [applying, setApplying] = useState(false);
+
+  useEffect(() => {
+    if (isOffline) return;
+    let cancelled = false;
+    setResult(null);
+    setError("");
+    void checkSteamImportForMatches({
+      apiEndpoint,
+      entry,
+      install,
+      ignoredProcesses,
+    })
+      .then((next) => {
+        if (!cancelled) setResult(next);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(formatError(cause));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiEndpoint, attempt, entry, ignoredProcesses, install, isOffline]);
+
+  function applyMatch() {
+    if (result?.kind !== "found") return;
+    setApplying(true);
+    setError("");
+    try {
+      commitLibraryImports([result.commit]);
+      onApplied(result.executableNames);
+    } catch (cause) {
+      setError(formatError(cause));
+      setApplying(false);
+    }
+  }
+
+  const retry = () => setAttempt((value) => value + 1);
+  const footer =
+    result?.kind === "found" ? (
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          variant="primary"
+          icon={Check}
+          loading={applying}
+          onClick={applyMatch}
+        >
+          Use {result.executableNames.length === 1 ? "match" : "matches"}
+        </Button>
+        <Button variant="ghost" disabled={applying} onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    ) : (
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          variant="secondary"
+          icon={Search}
+          disabled={isOffline}
+          onClick={retry}
+        >
+          Check again
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Close
+        </Button>
+      </div>
+    );
+
+  return (
+    <Modal
+      size="md"
+      labelId="steam-match-check-title"
+      eyebrow="Steam executable"
+      title={`Check matches for ${entry.name}`}
+      subtitle={`Steam AppID ${entry.externalId}`}
+      icon={!result && !error && !isOffline ? Loader2 : Search}
+      iconSpin={!result && !error && !isOffline}
+      onClose={onCancel}
+      footer={footer}
+    >
+      <p className="text-sm leading-6 text-text-muted">
+        Checks whether IGDB or the approved Community database now knows an
+        executable for this Steam game.
+      </p>
+
+      <div className="mt-5" role="status" aria-live="polite">
+        {isOffline ? (
+          <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
+            <div className="flex items-center gap-2 font-medium">
+              <WifiOff size={17} /> Checking the database needs an internet
+              connection.
+            </div>
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-danger-border bg-danger-tint p-5 text-sm text-danger">
+            <div className="font-semibold">The match check failed</div>
+            <div className="mt-1 text-text-muted">{error}</div>
+          </div>
+        ) : !result ? (
+          <div className="grid gap-2" aria-busy>
+            {Array.from({ length: 2 }, (_, index) => (
+              <div
+                key={index}
+                className="h-[72px] animate-pulse rounded-xl border border-border bg-surface-hover"
+              />
+            ))}
+            <span className="sr-only">
+              Checking IGDB and community databases…
+            </span>
+          </div>
+        ) : result.kind === "found" ? (
+          <div className="rounded-xl border border-success-border bg-success-tint p-5 text-sm text-success">
+            <div className="flex items-center gap-2 font-semibold">
+              <Check size={18} /> {result.executableNames.length === 1
+                ? "Executable match found"
+                : "Executable matches found"}
+            </div>
+            <div className="mt-2 font-mono text-xs text-text">
+              {result.executableNames.join(", ")}
+            </div>
+          </div>
+        ) : result.kind === "needs_install" ? (
+          <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
+            <div className="font-semibold">Local confirmation required</div>
+            <p className="mt-1 leading-5 text-text-muted">
+              The database knows {result.executableNames.join(", ")}, but the
+              filename can&apos;t be linked globally. Install the game and run a
+              Steam scan so PlayCounter can safely scope it to that folder.
+            </p>
+          </div>
+        ) : result.kind === "unsupported" ? (
+          <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
+            This PlayCounter backend does not support Steam executable checks
+            yet.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border bg-bg/60 p-5 text-sm text-text-muted">
+            <div className="font-semibold text-text">No match found yet</div>
+            <p className="mt-1 leading-5">
+              There is still no approved executable for this Steam game. You can
+              check again after a Community suggestion has been approved.
+            </p>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }
