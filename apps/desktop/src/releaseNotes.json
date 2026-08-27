@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.1.10",
+    "releasedAt": "2026-08-27",
+    "headline": "Bring your Steam library into PlayCounter.",
+    "highlights": [
+      "Import your local Steam library and historical playtime directly from the Steam tab in My Games.",
+      "The importer guides you through choosing a Steam account and selecting the games you want to add.",
+      "Click anywhere on a game row to select it, making large imports much faster.",
+      "Steam scans now show clear loading feedback while games and executable matches are being discovered.",
+      "Check for executable matches on Steam-imported games that do not have a known executable yet.",
+      "Improved Steam library path detection, imported-game rendering, and support for opening non-installed games in Steam."
+    ]
+  },
+  {
     "version": "1.1.9",
     "releasedAt": "2026-08-25",
     "headline": "Launch your Dolphin and DOSBox games straight from PlayCounter.",
