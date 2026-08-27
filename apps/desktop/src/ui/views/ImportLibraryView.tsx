@@ -491,6 +491,9 @@ export function ImportLibraryView() {
       </Panel>
     );
   }
+  if (phase === "scanning") {
+    return <LoadingPanel label="Scanning your Steam library…" />;
+  }
 
   return (
     <div className="grid gap-4">
@@ -537,7 +540,6 @@ export function ImportLibraryView() {
             <Button
               variant="primary"
               icon={scan ? RefreshCw : Download}
-              loading={phase === "scanning"}
               disabled={accountId === null}
               onClick={() => void scanAccount()}
             >
@@ -974,7 +976,7 @@ function initialImportGroup(
 function LoadingPanel({ label }: { label: string }) {
   return (
     <Panel className="grid min-h-[320px] place-items-center p-8 text-center text-text-muted">
-      <div>
+      <div role="status" aria-live="polite">
         <RefreshCw size={28} className="mx-auto animate-spin text-accent" />
         <p className="mt-3">{label}</p>
       </div>
