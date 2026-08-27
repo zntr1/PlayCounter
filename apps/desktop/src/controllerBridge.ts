@@ -4,6 +4,7 @@ import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
 import {
   isLeftmostVisualItem,
+  isTopmostVisualItem,
   nextControllerIndex,
   type ControllerAction,
   type ControllerItemRect,
@@ -406,6 +407,25 @@ function handleControllerEvent(
         ) {
           focusActiveNavigationItem();
           return;
+        }
+        if (
+          event.action === "up" &&
+          isTopmostVisualItem(cardRects, cardIndex)
+        ) {
+          const controlsAbove = contentItems.filter(
+            (item) =>
+              !gameCards.includes(item) &&
+              item.getBoundingClientRect().top <
+                selected.getBoundingClientRect().top,
+          );
+          const preferredControl =
+            controlsAbove.find(
+              (item) => item.getAttribute("aria-selected") === "true",
+            ) ?? controlsAbove.at(-1);
+          if (preferredControl) {
+            focusItem(preferredControl);
+            return;
+          }
         }
         moveWithinItems(gameCards, selected, event.action);
         return;

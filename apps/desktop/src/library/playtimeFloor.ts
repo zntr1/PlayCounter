@@ -1,3 +1,4 @@
+import type { LibraryProviderId } from "@playcounter/shared";
 import type { LibraryImportEntry } from "./types";
 
 export type ProviderFloor = {
@@ -7,6 +8,16 @@ export type ProviderFloor = {
   coverUrl: string;
 };
 
+export function providerFloorKey(game: {
+  igdbId?: number;
+  source?: string | null;
+  gameId: number;
+}) {
+  return game.igdbId === undefined
+    ? `${game.source ?? "unknown"}:${game.gameId}`
+    : `igdb#${game.igdbId}`;
+}
+
 export function providerFloors(
   entries: Iterable<LibraryImportEntry>,
 ): ProviderFloor[] {
@@ -14,7 +25,7 @@ export function providerFloors(
   for (const entry of entries) {
     const seconds = Math.max(0, Math.round(entry.providerSeconds));
     if (!Number.isFinite(seconds) || seconds === 0) continue;
-    const canonicalKey = `igdb#${entry.igdbId}`;
+    const canonicalKey = providerFloorKey(entry);
     const current = floors.get(canonicalKey);
     if (!current || seconds > current.seconds) {
       floors.set(canonicalKey, {
@@ -26,6 +37,17 @@ export function providerFloors(
     }
   }
   return [...floors.values()];
+}
+
+export function providerFloorsForProvider(
+  entries: Iterable<LibraryImportEntry>,
+  provider: LibraryProviderId,
+) {
+  const scopedEntries: LibraryImportEntry[] = [];
+  for (const entry of entries) {
+    if (entry.provider === provider) scopedEntries.push(entry);
+  }
+  return providerFloors(scopedEntries);
 }
 
 export function providerFloorRecord(

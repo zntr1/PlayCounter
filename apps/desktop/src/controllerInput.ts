@@ -78,6 +78,23 @@ export function isLeftmostVisualItem(
   });
 }
 
+export function isTopmostVisualItem(
+  rects: readonly ControllerItemRect[],
+  current: number,
+) {
+  if (current < 0 || current >= rects.length) return false;
+  const origin = rects[current];
+  const originCenter = center(origin);
+  return !rects.some((candidate, index) => {
+    if (index === current) return false;
+    const overlap =
+      Math.min(origin.left + origin.width, candidate.left + candidate.width) -
+      Math.max(origin.left, candidate.left);
+    const sameColumn = overlap > Math.min(origin.width, candidate.width) * 0.35;
+    return sameColumn && center(candidate).y < originCenter.y - 1;
+  });
+}
+
 function center(rect: ControllerItemRect) {
   return {
     x: rect.left + rect.width / 2,

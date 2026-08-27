@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import steamIconUrl from "../../../../../assets/steam/Steam_icon_logo.svg";
 import {
   AlertTriangle,
   Ban,
@@ -95,8 +96,10 @@ import {
   effectiveTotalSeconds,
 } from "../../playtimeAdjustments";
 import {
+  providerFloorKey,
   providerFloorRecord,
   providerFloors,
+  providerFloorsForProvider,
 } from "../../library/playtimeFloor";
 import { libraryEntryKey } from "../../library/types";
 import { listLocalLinks } from "../../localLinks";
@@ -106,6 +109,7 @@ import {
   Panel,
   ProviderBadge,
   SourceBadge,
+  Stat,
   formatDuration,
 } from "../components";
 import {
@@ -161,6 +165,11 @@ import {
 import { adapterFor } from "../../emulators/registry";
 import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
+import {
+  filterByProviderTab,
+  summarizeProviderLibrary,
+  type ProviderLibraryTab,
+} from "../providerLibrary";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = "grid" | "large" | "list";
@@ -426,6 +435,7 @@ export function MyGamesView() {
   const [pendingStopTracking, setPendingStopTracking] =
     useState<PendingStopTracking>(null);
   const [query, setQuery] = useState("");
+  const [libraryTab, setLibraryTab] = useState<ProviderLibraryTab>("all");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [view, setView] = useState<ViewMode>("grid");
   const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
@@ -462,6 +472,17 @@ export function MyGamesView() {
       ),
     [exeCache, hydratedGameMetadata, libraryImports],
   );
+  const providerFloorSeconds = useMemo(
+    () => providerFloorRecord(providerFloors(libraryImports.values())),
+    [libraryImports],
+  );
+  const steamProviderFloorSeconds = useMemo(
+    () =>
+      providerFloorRecord(
+        providerFloorsForProvider(libraryImports.values(), "steam"),
+      ),
+    [libraryImports],
+  );
 
   const acquireLaunchLock = useCallback((gameKey: string) => {
     if (launchLockRef.current !== null) return false;
@@ -487,6 +508,7 @@ export function MyGamesView() {
 
   useEffect(() => {
     setDemoPlaytime({ addedSeconds: 0, addedSessions: 0 });
+    setLibraryTab("all");
   }, [tourDemo.active, tourDemo.resetToken]);
 
   useEffect(() => {
@@ -1008,9 +1030,6 @@ export function MyGamesView() {
     }
 
     const consumedKeys = new Set<string>();
-    const floorByGame = providerFloorRecord(
-      providerFloors(libraryImports.values()),
-    );
     for (const summary of summaries.values()) {
       const keys = gameSecondsKeys(summary.aliases).filter((key) => {
         if (consumedKeys.has(key)) return false;
@@ -1027,11 +1046,8 @@ export function MyGamesView() {
       );
       summary.recordedSeconds =
         summary.sessionSeconds + summary.archivedSeconds;
-      const summaryKey =
-        summary.igdbId === undefined
-          ? `${summary.source ?? "unknown"}:${summary.gameId}`
-          : `igdb#${summary.igdbId}`;
-      summary.providerFloorSeconds = floorByGame[summaryKey] ?? 0;
+      const summaryKey = providerFloorKey(summary);
+      summary.providerFloorSeconds = providerFloorSeconds[summaryKey] ?? 0;
       summary.totalSeconds = effectiveTotalSeconds(
         summary.recordedSeconds,
         summary.adjustmentSeconds,
@@ -1053,6 +1069,7 @@ export function MyGamesView() {
     libraryImports,
     libraryInstalls,
     playtimeAdjustments,
+    providerFloorSeconds,
     recentSortNow,
     resolveIgdbId,
     scopedExeLinks,
@@ -1060,22 +1077,41 @@ export function MyGamesView() {
     userIgnoredProcesses,
   ]);
 
+  const steamGames = useMemo(
+    () => filterByProviderTab(games, "steam"),
+    [games],
+  );
+  const activeLibraryTab =
+    libraryTab === "steam" && steamGames.length === 0 ? "all" : libraryTab;
+  const tabGames = activeLibraryTab === "steam" ? steamGames : games;
+  const steamSummary = useMemo(
+    () =>
+      summarizeProviderLibrary(steamGames, "steam", steamProviderFloorSeconds),
+    [steamGames, steamProviderFloorSeconds],
+  );
+
+  useEffect(() => {
+    if (libraryTab === "steam" && steamGames.length === 0) {
+      setLibraryTab("all");
+    }
+  }, [libraryTab, steamGames.length]);
+
   const displayedGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = needle
-      ? games.filter(
+      ? tabGames.filter(
           (game) =>
             game.name.toLowerCase().includes(needle) ||
             game.emulatorLabels.some((label) =>
               label.toLowerCase().includes(needle),
             ),
         )
-      : games;
+      : tabGames;
 
     const sorted = [...filtered];
     sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
-  }, [games, query, sortKey]);
+  }, [query, sortKey, tabGames]);
   const demoGames = useMemo(() => {
     if (!tourDemo.active) return [];
     if (tourDemo.tourId === "core") return makeCoreTourDemoGames();
@@ -1089,10 +1125,14 @@ export function MyGamesView() {
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
   const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
-  const libraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
+  const allLibraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
+  const libraryGames =
+    activeLibraryTab === "steam" ? steamGames : allLibraryGames;
   const visibleGames = isCoreTourDemo
     ? demoGames
-    : [...demoGames, ...displayedGames];
+    : activeLibraryTab === "steam"
+      ? displayedGames
+      : [...demoGames, ...displayedGames];
 
   const demoNotice = () =>
     addToast({
@@ -1103,7 +1143,7 @@ export function MyGamesView() {
 
   return (
     <div className="grid gap-5">
-      {libraryGames.length === 0 ? (
+      {allLibraryGames.length === 0 ? (
         <Panel className="px-4 py-12 text-center text-sm text-text-muted">
           No discovered games have completed a session yet.
         </Panel>
@@ -1114,7 +1154,8 @@ export function MyGamesView() {
               <div>
                 <h2 className="font-semibold text-text">Library</h2>
                 <p className="mt-1 text-sm text-text-muted">
-                  {visibleGames.length} of {libraryGames.length} tracked games
+                  {visibleGames.length} of {libraryGames.length} tracked{" "}
+                  {activeLibraryTab === "steam" ? "Steam games" : "games"}
                 </p>
               </div>
               <div className="flex items-center gap-1 rounded-md border border-border bg-bg p-1">
@@ -1163,6 +1204,73 @@ export function MyGamesView() {
               </div>
             </div>
 
+            {steamGames.length > 0 ? (
+              <div
+                role="tablist"
+                aria-label="Game library source"
+                className="flex gap-1 border-b border-border bg-bg px-4 pt-3"
+              >
+                {(
+                  [
+                    {
+                      id: "all" as const,
+                      label: "All games",
+                      count: allLibraryGames.length,
+                    },
+                    {
+                      id: "steam" as const,
+                      label: "Steam",
+                      count: steamSummary.gameCount,
+                    },
+                  ] satisfies Array<{
+                    id: ProviderLibraryTab;
+                    label: string;
+                    count: number;
+                  }>
+                ).map((tab) => {
+                  const selected = activeLibraryTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      id={`library-tab-${tab.id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      aria-controls="library-tabpanel"
+                      data-controller-item="library-tab"
+                      onClick={() => setLibraryTab(tab.id)}
+                      className={clsx(
+                        "-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-medium transition",
+                        selected
+                          ? "border-accent text-text"
+                          : "border-transparent text-text-muted hover:border-border-strong hover:text-text",
+                      )}
+                    >
+                      {tab.id === "steam" ? (
+                        <img
+                          src={steamIconUrl}
+                          alt=""
+                          aria-hidden="true"
+                          className="h-4 w-4 shrink-0"
+                        />
+                      ) : null}
+                      <span>{tab.label}</span>
+                      <span
+                        className={clsx(
+                          "rounded-full px-1.5 py-0.5 font-mono text-[11px]",
+                          selected
+                            ? "bg-accent/15 text-accent"
+                            : "bg-surface text-text-faint",
+                        )}
+                      >
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
             <div className="grid gap-2 border-b border-border bg-bg px-4 py-3 lg:grid-cols-[minmax(220px,1fr)_220px]">
               <div className="relative min-w-0">
                 <Search
@@ -1191,83 +1299,132 @@ export function MyGamesView() {
             </div>
           </Panel>
 
-          {visibleGames.length === 0 ? (
-            <Panel className="px-4 py-12 text-center text-sm text-text-muted">
-              No games match &ldquo;{query}&rdquo;.
-            </Panel>
-          ) : (
-            <div
-              data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
-              className={clsx(
-                "grid",
-                view === "grid" &&
-                  "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
-                view === "large" &&
-                  "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
-                view === "list" && "gap-3",
-              )}
-            >
-              {visibleGames.map((game) => {
-                const isDemo = isTourDemoLibraryGame(game);
-                const cardKey = isDemo
-                  ? `tour-demo-${game.gameId}-${tourDemo.resetToken}`
-                  : game.igdbId !== undefined
-                    ? `igdb#${game.igdbId}`
-                    : `${game.source ?? "unknown"}:${game.gameId}`;
-                return (
-                  <GameLibraryCard
-                    key={cardKey}
-                    launchKey={cardKey}
-                    launchBlocked={launchingGameKey !== null}
-                    onAcquireLaunch={acquireLaunchLock}
-                    onReleaseLaunch={releaseLaunchLock}
-                    game={game}
-                    demo={isDemo}
-                    onDemoPlaytimeLogged={
-                      isDemo && tourDemo.tourId === "log-playtime"
-                        ? (durationSeconds) =>
-                            setDemoPlaytime((current) => ({
-                              addedSeconds:
-                                current.addedSeconds + durationSeconds,
-                              addedSessions: current.addedSessions + 1,
-                            }))
-                        : undefined
-                    }
-                    showDurationDays={showDurationDays}
-                    view={view}
-                    onRemove={
-                      isDemo
-                        ? demoNotice
-                        : () =>
-                            setPendingRemoval({
-                              gameId: game.gameId,
-                              source: game.source,
-                              name: game.name,
-                              aliases: game.aliases,
-                              libraryImports: game.libraryImports,
-                            })
-                    }
-                    onStopTracking={
-                      isDemo
-                        ? undefined
-                        : game.source
-                          ? () =>
-                              setPendingStopTracking({
-                                gameId: game.gameId,
-                                source: game.source!,
-                                name: game.name,
-                                exeNames: game.exeNames,
-                                emulatorLabels: game.emulatorLabels,
-                                sessionCount: game.sessionCount,
-                                aliases: game.aliases,
-                              })
-                          : undefined
-                    }
+          <div
+            id="library-tabpanel"
+            role={steamGames.length > 0 ? "tabpanel" : undefined}
+            aria-labelledby={
+              steamGames.length > 0
+                ? `library-tab-${activeLibraryTab}`
+                : undefined
+            }
+            className="grid gap-5"
+          >
+            <p className="sr-only" aria-live="polite">
+              {activeLibraryTab === "steam"
+                ? `Showing ${visibleGames.length} Steam games.`
+                : `Showing ${visibleGames.length} games.`}
+            </p>
+
+            {activeLibraryTab === "steam" ? (
+              <div className="grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <Stat
+                    label="Steam games"
+                    value={String(steamSummary.gameCount)}
                   />
-                );
-              })}
-            </div>
-          )}
+                  <Stat
+                    label="Steam lifetime playtime"
+                    value={formatDuration(
+                      steamSummary.providerSeconds,
+                      showDurationDays,
+                    )}
+                  />
+                  <Stat
+                    label="Played on Steam"
+                    value={String(steamSummary.playedCount)}
+                  />
+                  <Stat
+                    label="Installed on this PC"
+                    value={String(steamSummary.installedCount)}
+                  />
+                </div>
+                <p className="px-1 text-xs leading-5 text-text-faint">
+                  These statistics use only Steam&apos;s imported records. A
+                  game card still shows PlayCounter&apos;s effective playtime:
+                  the higher single source per game, never Steam and local
+                  sessions added together.
+                </p>
+              </div>
+            ) : null}
+
+            {visibleGames.length === 0 ? (
+              <Panel className="px-4 py-12 text-center text-sm text-text-muted">
+                No games match &ldquo;{query}&rdquo;.
+              </Panel>
+            ) : (
+              <div
+                data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
+                className={clsx(
+                  "grid",
+                  view === "grid" &&
+                    "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
+                  view === "large" &&
+                    "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
+                  view === "list" && "gap-3",
+                )}
+              >
+                {visibleGames.map((game) => {
+                  const isDemo = isTourDemoLibraryGame(game);
+                  const cardKey = isDemo
+                    ? `tour-demo-${game.gameId}-${tourDemo.resetToken}`
+                    : game.igdbId !== undefined
+                      ? `igdb#${game.igdbId}`
+                      : `${game.source ?? "unknown"}:${game.gameId}`;
+                  return (
+                    <GameLibraryCard
+                      key={cardKey}
+                      launchKey={cardKey}
+                      launchBlocked={launchingGameKey !== null}
+                      onAcquireLaunch={acquireLaunchLock}
+                      onReleaseLaunch={releaseLaunchLock}
+                      game={game}
+                      demo={isDemo}
+                      onDemoPlaytimeLogged={
+                        isDemo && tourDemo.tourId === "log-playtime"
+                          ? (durationSeconds) =>
+                              setDemoPlaytime((current) => ({
+                                addedSeconds:
+                                  current.addedSeconds + durationSeconds,
+                                addedSessions: current.addedSessions + 1,
+                              }))
+                          : undefined
+                      }
+                      showDurationDays={showDurationDays}
+                      view={view}
+                      onRemove={
+                        isDemo
+                          ? demoNotice
+                          : () =>
+                              setPendingRemoval({
+                                gameId: game.gameId,
+                                source: game.source,
+                                name: game.name,
+                                aliases: game.aliases,
+                                libraryImports: game.libraryImports,
+                              })
+                      }
+                      onStopTracking={
+                        isDemo
+                          ? undefined
+                          : game.source
+                            ? () =>
+                                setPendingStopTracking({
+                                  gameId: game.gameId,
+                                  source: game.source!,
+                                  name: game.name,
+                                  exeNames: game.exeNames,
+                                  emulatorLabels: game.emulatorLabels,
+                                  sessionCount: game.sessionCount,
+                                  aliases: game.aliases,
+                                })
+                            : undefined
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </>
       )}
       {pendingRemoval ? (

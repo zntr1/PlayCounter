@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { importExeCandidates } from "./exeCandidates";
 import { buildSteamImportCommit } from "./importPlan";
-import { providerFloorRecord, providerFloors } from "./playtimeFloor";
+import {
+  providerFloorRecord,
+  providerFloors,
+  providerFloorsForProvider,
+} from "./playtimeFloor";
 import { resolveLibraryGames } from "./resolve";
 import { resolveScopedLink, scopedExeLinkKey } from "./scopedLinks";
 import type {
@@ -210,6 +214,33 @@ describe("library import", () => {
       ]),
     );
     expect(record).toEqual({ "igdb#1942": 7_200 });
+  });
+
+  it("scopes provider floors before selecting the highest playtime", () => {
+    const base: LibraryImportEntry = {
+      provider: "steam",
+      externalId: "730",
+      igdbId: 1942,
+      gameId: 9,
+      source: "igdb",
+      name: "Counter-Strike 2",
+      coverUrl: "cover",
+      importedAt: "now",
+      providerSeconds: 7_200,
+      lastReadAt: "now",
+      linkedExeNames: [],
+    };
+    const futureProviderEntry = {
+      ...base,
+      provider: "future-provider",
+      providerSeconds: 72_000,
+    } as unknown as LibraryImportEntry;
+
+    expect(
+      providerFloorRecord(
+        providerFloorsForProvider([base, futureProviderEntry], "steam"),
+      ),
+    ).toEqual({ "igdb#1942": 7_200 });
   });
 
   it("probes the resolver capability without uploading playtime or paths", async () => {

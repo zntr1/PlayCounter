@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isLeftmostVisualItem,
+  isTopmostVisualItem,
   nextControllerIndex,
   type ControllerItemRect,
 } from "./controllerInput";
@@ -46,5 +47,11 @@ describe("controller grid navigation", () => {
     expect(isLeftmostVisualItem(grid, 0)).toBe(true);
     expect(isLeftmostVisualItem(grid, 1)).toBe(false);
     expect(isLeftmostVisualItem(grid, 2)).toBe(true);
+  });
+
+  it("recognizes top-row card boundaries", () => {
+    expect(isTopmostVisualItem(grid, 0)).toBe(true);
+    expect(isTopmostVisualItem(grid, 1)).toBe(true);
+    expect(isTopmostVisualItem(grid, 2)).toBe(false);
   });
 });
