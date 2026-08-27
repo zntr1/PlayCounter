@@ -3652,12 +3652,20 @@ function observationFromMapping(
 export function convertLocalSuggestionToCommunity(exeName: string) {
   const state = useAppStore.getState();
   const key = exeName.toLowerCase();
-  const existing = state.exeCache.get(key);
+  const existing = findLocalLinksByExe(
+    exeName,
+    state.exeCache,
+    state.scopedExeLinks,
+  ).find(
+    (link) =>
+      link.source === "custom" &&
+      link.communitySuggestionId !== undefined &&
+      link.communitySuggestionVerified === true,
+  );
   if (
-    existing?.state !== "matched" ||
-    existing.source !== "custom" ||
-    !existing.communitySuggestionId ||
-    !existing.communitySuggestionVerified
+    !existing ||
+    existing.communitySuggestionId === undefined ||
+    existing.communitySuggestionVerified !== true
   ) {
     return;
   }
@@ -3671,22 +3679,34 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
     source: "community",
   };
 
-  state.setExeCacheEntry({
-    exeName: existing.exeName,
-    state: "matched",
-    gameId: communityGame.id,
-    igdbId: communityGame.igdbId,
-    gameName: communityGame.name,
-    coverUrl: communityGame.coverUrl,
-    source: "community",
-    communitySuggestionId: existing.communitySuggestionId,
-    communitySuggestionVerified: true,
-    communitySuggestionStatus: "verified",
-    communitySuggestionNote: undefined,
-    lastCheckedAt: new Date().toISOString(),
-  });
+  const lastCheckedAt = new Date().toISOString();
+  const maps = writeLocalLink(
+    {
+      exeCache: state.exeCache,
+      scopedExeLinks: state.scopedExeLinks,
+    },
+    existing.ref,
+    {
+      gameId: communityGame.id,
+      igdbId: communityGame.igdbId,
+      gameName: communityGame.name,
+      coverUrl: communityGame.coverUrl,
+      source: "community",
+      communitySuggestionId: existing.communitySuggestionId,
+      communitySuggestionVerified: true,
+      communitySuggestionStatus: "verified",
+      communitySuggestionNote: undefined,
+    },
+  );
+  if (existing.ref.kind === "exe") {
+    const cacheEntry = maps.exeCache.get(existing.ref.key);
+    if (cacheEntry) {
+      maps.exeCache.set(existing.ref.key, { ...cacheEntry, lastCheckedAt });
+    }
+  }
 
   useAppStore.setState((current) => ({
+    ...maps,
     activeSessions: current.activeSessions.map((session) =>
       session.exeName.toLowerCase() === key && session.source === "custom"
         ? {

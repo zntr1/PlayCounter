@@ -27,6 +27,7 @@ import {
   chooseEmulatorLaunchFile,
   chooseLaunchTarget,
   clearLocalLibrary,
+  convertLocalSuggestionToCommunity,
   dismissAmbiguousMatch,
   evaluateAndStoreMilestones,
   forgetManualLaunchTarget,
@@ -2393,6 +2394,32 @@ describe("imported local link sharing", () => {
       gameId: -42,
       igdbId: 123,
       shareState: "failed",
+    });
+  });
+
+  it("converts an approved scoped suggestion to its community game", () => {
+    const scopedKey = "game.exe|c:\\steam\\game";
+    useAppStore.setState({
+      scopedExeLinks: new Map([
+        [
+          scopedKey,
+          {
+            ...link,
+            communitySuggestionId: 42,
+            communitySuggestionVerified: true,
+            communitySuggestionStatus: "verified" as const,
+          },
+        ],
+      ]),
+    });
+
+    convertLocalSuggestionToCommunity("Game.exe");
+
+    expect(useAppStore.getState().scopedExeLinks.get(scopedKey)).toMatchObject({
+      gameId: 42,
+      source: "community",
+      communitySuggestionId: 42,
+      communitySuggestionVerified: true,
     });
   });
 });
