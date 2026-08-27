@@ -2,7 +2,7 @@ use super::vdf;
 use crate::launch::{LaunchError, LaunchErrorKind};
 use serde::Serialize;
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     fs,
     path::{Component, Path, PathBuf},
     process::{Command, Stdio},
@@ -472,10 +472,10 @@ fn read_library_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
 
 fn scan_executables(root: &Path, deadline: Instant) -> (Vec<ScannedExecutable>, bool) {
     let mut result = Vec::new();
-    let mut pending = vec![(root.to_path_buf(), 0usize)];
+    let mut pending = VecDeque::from([(root.to_path_buf(), 0usize)]);
     let mut visited_entries = 0usize;
     let mut capped = false;
-    while let Some((folder, depth)) = pending.pop() {
+    while let Some((folder, depth)) = pending.pop_front() {
         if Instant::now() >= deadline || visited_entries >= MAX_DIRECTORY_ENTRIES_PER_GAME {
             capped = true;
             break;
@@ -495,7 +495,11 @@ fn scan_executables(root: &Path, deadline: Instant) -> (Vec<ScannedExecutable>, 
             };
             if kind.is_dir() && !kind.is_symlink() && depth < MAX_SCAN_DEPTH {
                 if !should_skip_directory(root, &path) {
-                    pending.push((path, depth + 1));
+                    if is_likely_executable_directory(&path) {
+                        pending.push_front((path, depth + 1));
+                    } else {
+                        pending.push_back((path, depth + 1));
+                    }
                 }
             } else if kind.is_file()
                 && path
@@ -523,6 +527,50 @@ fn scan_executables(root: &Path, deadline: Instant) -> (Vec<ScannedExecutable>, 
         capped = true;
     }
     (result, capped)
+}
+
+pub fn executable_from_path(
+    install_path: &str,
+    executable_path: &str,
+) -> Result<ScannedExecutable, String> {
+    let install_root = fs::canonicalize(install_path)
+        .map_err(|error| format!("Could not open the game installation folder: {error}"))?;
+    let selected = fs::canonicalize(executable_path)
+        .map_err(|error| format!("Could not open the selected executable: {error}"))?;
+    if !selected.is_file()
+        || !selected
+            .extension()
+            .is_some_and(|value| value.eq_ignore_ascii_case("exe"))
+    {
+        return Err("Choose a Windows .exe file.".to_string());
+    }
+    let relative = selected.strip_prefix(&install_root).map_err(|_| {
+        "Choose an executable inside this game's Steam installation folder.".to_string()
+    })?;
+    let file_name = selected
+        .file_name()
+        .ok_or("The selected executable has no file name.")?
+        .to_string_lossy()
+        .to_string();
+    let size_bytes = selected
+        .metadata()
+        .map_err(|error| format!("Could not inspect the selected executable: {error}"))?
+        .len();
+    Ok(ScannedExecutable {
+        file_name,
+        relative_path: path_string(relative),
+        size_bytes,
+        depth: relative.components().count().saturating_sub(1),
+    })
+}
+
+fn is_likely_executable_directory(path: &Path) -> bool {
+    matches!(
+        path.file_name()
+            .map(|value| value.to_string_lossy().to_ascii_lowercase())
+            .as_deref(),
+        Some("binaries" | "binary" | "bin" | "win64" | "win32" | "x64" | "x86")
+    )
 }
 
 fn should_skip_directory(root: &Path, path: &Path) -> bool {
@@ -618,5 +666,57 @@ mod tests {
             &root.join("Engine").join("Extras")
         ));
         assert!(!should_skip_directory(root, &root.join("bin")));
+    }
+
+    #[test]
+    fn prioritizes_binary_folders_before_large_content_trees() {
+        let root = std::env::temp_dir().join(format!(
+            "playcounter-steam-exe-scan-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let binaries = root.join("Nuts").join("Binaries").join("Win64");
+        let scripts = root.join("Nuts").join("Script");
+        fs::create_dir_all(&binaries).unwrap();
+        fs::create_dir_all(&scripts).unwrap();
+        fs::write(binaries.join("ItTakesTwo.exe"), b"game").unwrap();
+        for index in 0..=MAX_DIRECTORY_ENTRIES_PER_GAME {
+            fs::write(scripts.join(format!("asset-{index}.bin")), b"asset").unwrap();
+        }
+
+        let (executables, capped) =
+            scan_executables(&root, Instant::now() + Duration::from_secs(5));
+
+        assert!(capped);
+        assert!(executables
+            .iter()
+            .any(|entry| entry.relative_path.ends_with("ItTakesTwo.exe")));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn validates_a_manually_selected_executable_against_the_install_root() {
+        let container = std::env::temp_dir().join(format!(
+            "playcounter-steam-exe-picker-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let install_root = container.join("Game");
+        let executable = install_root.join("Binaries").join("Win64").join("Game.exe");
+        let outside = container.join("Other.exe");
+        fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"game executable").unwrap();
+        fs::write(&outside, b"other executable").unwrap();
+
+        let selected =
+            executable_from_path(install_root.to_str().unwrap(), executable.to_str().unwrap())
+                .unwrap();
+        assert_eq!(selected.file_name, "Game.exe");
+        assert_eq!(selected.depth, 2);
+        assert!(selected.relative_path.ends_with(r"Binaries\Win64\Game.exe"));
+        assert!(
+            executable_from_path(install_root.to_str().unwrap(), outside.to_str().unwrap(),)
+                .is_err()
+        );
+
+        fs::remove_dir_all(&container).unwrap();
     }
 }

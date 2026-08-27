@@ -27,6 +27,20 @@ pub async fn library_scan(provider: String, account_id: u32) -> Result<steam::Sc
 }
 
 #[tauri::command]
+pub async fn library_inspect_executable(
+    provider: String,
+    install_path: String,
+    executable_path: String,
+) -> Result<steam::ScannedExecutable, String> {
+    require_steam(&provider)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        steam::executable_from_path(&install_path, &executable_path)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn library_launch_app(
     provider: String,
     external_id: String,

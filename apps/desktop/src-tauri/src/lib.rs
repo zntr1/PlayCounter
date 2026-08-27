@@ -248,6 +248,7 @@ pub fn run() {
             library::library_detect_providers,
             library::library_list_accounts,
             library::library_scan,
+            library::library_inspect_executable,
             library::library_launch_app,
             emulator_launch::launch_emulator_content,
             emulator_launch::verify_emulator_content_paths,

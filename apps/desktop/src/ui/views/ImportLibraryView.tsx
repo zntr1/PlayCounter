@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
+  FolderOpen,
   HardDrive,
   LibraryBig,
   RefreshCw,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { LibraryProviderId } from "@playcounter/shared";
 import { runLibraryImport } from "../../library/importRun";
 import { importExeCandidates } from "../../library/exeCandidates";
@@ -20,6 +22,7 @@ import type {
   LocalLibraryAccount,
   ProviderStatus,
   ResolvedLibraryGame,
+  ScannedExecutable,
   ScannedLibraryGame,
 } from "../../library/types";
 import { libraryEntryKey } from "../../library/types";
@@ -43,6 +46,7 @@ type ImporterSession = {
   resolved: Map<string, ResolvedLibraryGame>;
   selected: Set<string>;
   manualExecutables: Record<string, string>;
+  browsedExecutables: Record<string, ScannedExecutable>;
   capability: "unknown" | "supported" | "unsupported";
   error: string | null;
 };
@@ -56,6 +60,7 @@ let importerSession: ImporterSession = {
   resolved: new Map(),
   selected: new Set(),
   manualExecutables: {},
+  browsedExecutables: {},
   capability: "unknown",
   error: null,
 };
@@ -94,6 +99,9 @@ export function ImportLibraryView() {
   const [manualExecutables, setManualExecutables] = useState<
     Record<string, string>
   >(importerSession.manualExecutables);
+  const [browsedExecutables, setBrowsedExecutables] = useState<
+    Record<string, ScannedExecutable>
+  >(importerSession.browsedExecutables);
   const [capability, setCapability] = useState<
     "unknown" | "supported" | "unsupported"
   >(importerSession.capability);
@@ -101,6 +109,9 @@ export function ImportLibraryView() {
   const [activeImportGroup, setActiveImportGroup] =
     useState<ImportGroupKey>("ready");
   const [addingExternalId, setAddingExternalId] = useState<string | null>(null);
+  const [browsingExternalId, setBrowsingExternalId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     importerSession = {
@@ -112,12 +123,14 @@ export function ImportLibraryView() {
       resolved,
       selected,
       manualExecutables,
+      browsedExecutables,
       capability,
       error,
     };
   }, [
     accountId,
     accounts,
+    browsedExecutables,
     capability,
     error,
     manualExecutables,
@@ -174,6 +187,8 @@ export function ImportLibraryView() {
     setScan(null);
     setResolved(new Map());
     setSelected(new Set());
+    setManualExecutables({});
+    setBrowsedExecutables({});
     setCapability("unknown");
     try {
       const provider = await loadLibraryProvider(providerId);
@@ -284,9 +299,14 @@ export function ImportLibraryView() {
 
   async function addAndShareGame(game: ScannedLibraryGame) {
     const match = resolved.get(libraryEntryKey(providerId, game.externalId));
-    const selectedExecutable = game.executables.find(
-      (item) => item.relativePath === manualExecutables[game.externalId],
-    );
+    const selectedExecutable =
+      game.executables.find(
+        (item) => item.relativePath === manualExecutables[game.externalId],
+      ) ??
+      (browsedExecutables[game.externalId]?.relativePath ===
+      manualExecutables[game.externalId]
+        ? browsedExecutables[game.externalId]
+        : undefined);
     if (!match || !selectedExecutable) return;
 
     const commit = buildSteamImportCommit({
@@ -321,6 +341,49 @@ export function ImportLibraryView() {
       setError(formatError(cause));
     } finally {
       setAddingExternalId(null);
+    }
+  }
+
+  async function browseExecutable(game: ScannedLibraryGame) {
+    if (!game.installPath) {
+      setError("Steam did not provide an installation path for this game.");
+      return;
+    }
+    setBrowsingExternalId(game.externalId);
+    setError(null);
+    try {
+      const selectedPath = await open({
+        multiple: false,
+        directory: false,
+        defaultPath: game.installPath,
+        filters: [{ name: "Game executable", extensions: ["exe"] }],
+      });
+      if (typeof selectedPath !== "string") return;
+      const executable = await invoke<ScannedExecutable>(
+        "library_inspect_executable",
+        {
+          provider: providerId,
+          installPath: game.installPath,
+          executablePath: selectedPath,
+        },
+      );
+      if (matchesProcessPatternSet(executable.fileName, ignoredProcesses)) {
+        throw new Error(
+          `${executable.fileName} is ignored by PlayCounter and cannot be used as the game executable.`,
+        );
+      }
+      setBrowsedExecutables((current) => ({
+        ...current,
+        [game.externalId]: executable,
+      }));
+      setManualExecutables((current) => ({
+        ...current,
+        [game.externalId]: executable.relativePath,
+      }));
+    } catch (cause) {
+      setError(formatError(cause));
+    } finally {
+      setBrowsingExternalId(null);
     }
   }
 
@@ -457,6 +520,7 @@ export function ImportLibraryView() {
                 setResolved(new Map());
                 setSelected(new Set());
                 setManualExecutables({});
+                setBrowsedExecutables({});
                 setCapability("unknown");
                 setError(null);
               }}
@@ -619,9 +683,12 @@ export function ImportLibraryView() {
                         activeImportGroupDetails.key === "attention"
                       }
                       addingAndSharing={addingExternalId === game.externalId}
+                      browsing={browsingExternalId === game.externalId}
                       manualExecutable={manualExecutables[game.externalId]}
+                      browsedExecutable={browsedExecutables[game.externalId]}
                       ignoredProcesses={ignoredProcesses}
                       onAddAndShare={() => void addAndShareGame(game)}
+                      onBrowseExecutable={() => void browseExecutable(game)}
                       onManualExecutable={(relativePath) =>
                         setManualExecutables((current) => ({
                           ...current,
@@ -674,9 +741,12 @@ function ImportRow({
   showSelection,
   showAddAndShare,
   addingAndSharing,
+  browsing,
   manualExecutable,
+  browsedExecutable,
   ignoredProcesses,
   onAddAndShare,
+  onBrowseExecutable,
   onManualExecutable,
   onSelected,
 }: {
@@ -687,9 +757,12 @@ function ImportRow({
   showSelection: boolean;
   showAddAndShare: boolean;
   addingAndSharing: boolean;
+  browsing: boolean;
   manualExecutable?: string;
+  browsedExecutable?: ScannedExecutable;
   ignoredProcesses: ReadonlySet<string>;
   onAddAndShare: () => void;
+  onBrowseExecutable: () => void;
   onManualExecutable: (value: string) => void;
   onSelected: (checked: boolean) => void;
 }) {
@@ -702,6 +775,15 @@ function ImportRow({
     resolved?.game?.name ?? game.name,
     ignoredProcesses,
   );
+  const executableOptions =
+    browsedExecutable &&
+    !candidates.some(
+      (candidate) =>
+        candidate.relativePath.toLowerCase() ===
+        browsedExecutable.relativePath.toLowerCase(),
+    )
+      ? [browsedExecutable, ...candidates]
+      : candidates;
   const showExeChoice = requiresExecutableChoice(
     game,
     resolved,
@@ -780,7 +862,7 @@ function ImportRow({
                 className="min-w-64 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
               >
                 <option value="">Select an executable…</option>
-                {candidates.map((candidate) => (
+                {executableOptions.map((candidate) => (
                   <option
                     key={candidate.relativePath}
                     value={candidate.relativePath}
@@ -789,6 +871,14 @@ function ImportRow({
                   </option>
                 ))}
               </select>
+              <Button
+                variant="secondary"
+                icon={FolderOpen}
+                loading={browsing}
+                onClick={onBrowseExecutable}
+              >
+                Browse…
+              </Button>
               <Button
                 variant="primary"
                 icon={Share2}
@@ -826,15 +916,7 @@ function requiresExecutableChoice(
   const hasKnownLocalExe = game.executables.some((item) =>
     knownNames.has(item.fileName.toLowerCase()),
   );
-  return (
-    !hasKnownLocalExe &&
-    importExeCandidates(
-      game.executables,
-      resolved.executables,
-      resolved.game.name,
-      ignoredProcesses,
-    ).length > 0
-  );
+  return !hasKnownLocalExe && game.installPath !== undefined;
 }
 
 function isImportable(
