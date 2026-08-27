@@ -234,7 +234,8 @@ function moveWithinItems(
 
 function activateItem(item: HTMLElement | undefined) {
   if (!item) return;
-  if (item.getAttribute("data-controller-item") === "navigation") {
+  const role = item.getAttribute("data-controller-item");
+  if (role === "navigation" || role === "view-link") {
     item.click();
     focusViewContentWhenReady();
     return;

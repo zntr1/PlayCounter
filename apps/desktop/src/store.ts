@@ -51,6 +51,7 @@ import {
   markWelcomeSeen,
   type TourProgress,
 } from "./ui/tour/tourState";
+import type { ProviderLibraryTab } from "./ui/providerLibrary";
 
 export type ViewId =
   | "now"
@@ -315,6 +316,7 @@ export type ActiveTour = {
 
 export type AppState = {
   activeView: ViewId;
+  libraryTab: ProviderLibraryTab;
   historyQuery: string;
   historyGameKey: string | null;
   installUuid: string | null;
@@ -374,6 +376,7 @@ export type AppState = {
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
+  setLibraryTab: (tab: ProviderLibraryTab) => void;
   startTour: (tourId: string) => void;
   goToTourStep: (index: number, resetDemo?: boolean) => void;
   endTour: (outcome: "completed" | "dismissed") => void;
@@ -584,6 +587,7 @@ function persistSoon() {
 
 export const useAppStore = create<AppState>((set, get) => ({
   activeView: "now",
+  libraryTab: "all",
   historyQuery: "",
   historyGameKey: null,
   installUuid: null,
@@ -643,6 +647,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   cleanup: null,
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
+  setLibraryTab: (libraryTab) => set({ libraryTab }),
   startTour: (tourId) => {
     const tour = findTour(tourId);
     if (!tour) return;

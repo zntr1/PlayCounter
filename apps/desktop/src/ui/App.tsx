@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  ArrowLeft,
   BarChart3,
   Bug,
   Check,
@@ -113,6 +114,12 @@ class ImporterErrorBoundary extends Component<
   }
 }
 
+function backToMyGames() {
+  const { setActiveView, setLibraryTab } = useAppStore.getState();
+  setLibraryTab("steam");
+  setActiveView("games");
+}
+
 const views: Record<
   ViewId,
   {
@@ -156,19 +163,31 @@ const views: Record<
     component: <MyGamesView />,
   },
   import: {
-    label: "Import Games",
-    subtitle: "Bring local launcher libraries into PlayCounter",
+    label: "Import from Steam",
+    subtitle: "Bring your Steam library and playtime into PlayCounter",
     icon: Download,
     component: (
-      <ImporterErrorBoundary>
-        <Suspense
-          fallback={
-            <div className="text-sm text-text-muted">Loading importer…</div>
-          }
-        >
-          <ImportLibraryView />
-        </Suspense>
-      </ImporterErrorBoundary>
+      <div className="grid gap-4">
+        <div>
+          <Button
+            variant="secondary"
+            icon={ArrowLeft}
+            data-controller-item="view-link"
+            onClick={backToMyGames}
+          >
+            Back to My Games
+          </Button>
+        </div>
+        <ImporterErrorBoundary>
+          <Suspense
+            fallback={
+              <div className="text-sm text-text-muted">Loading importer…</div>
+            }
+          >
+            <ImportLibraryView />
+          </Suspense>
+        </ImporterErrorBoundary>
+      </div>
     ),
   },
   discovered: {
@@ -206,7 +225,7 @@ const views: Record<
 const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
   {
     label: "Library",
-    items: ["now", "games", "import", "history", "achievements"],
+    items: ["now", "games", "history", "achievements"],
   },
   { label: "Emulators", items: ["emulating", "dosbox", "dolphin"] },
   { label: "System", items: ["discovered", "settings", "dev"] },
@@ -523,7 +542,10 @@ export function App() {
                         icon={view.icon}
                         imageSrc={view.imageSrc}
                         label={view.label}
-                        active={activeView === item}
+                        active={
+                          activeView === item ||
+                          (item === "games" && activeView === "import")
+                        }
                         controllerEnabled={
                           item !== "discovered" && item !== "dev"
                         }

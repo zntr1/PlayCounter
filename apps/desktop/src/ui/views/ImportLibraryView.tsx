@@ -72,6 +72,7 @@ export function ImportLibraryView() {
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
   const addToast = useAppStore((state) => state.addToast);
   const setActiveView = useAppStore((state) => state.setActiveView);
+  const setLibraryTab = useAppStore((state) => state.setLibraryTab);
   const [phase, setPhase] = useState<Phase>(() =>
     importerSession.phase === "scanning" ||
     importerSession.phase === "importing"
@@ -724,7 +725,13 @@ export function ImportLibraryView() {
               Import completed successfully.
             </span>
           </div>
-          <Button variant="primary" onClick={() => setActiveView("games")}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setLibraryTab("steam");
+              setActiveView("games");
+            }}
+          >
             Open My Games
           </Button>
         </Panel>

@@ -9,6 +9,7 @@ import {
   Clock3,
   ClockPlus,
   Copy,
+  Download,
   ExternalLink,
   Flag,
   FolderSearch,
@@ -180,6 +181,11 @@ import {
   summarizeProviderLibrary,
   type ProviderLibraryTab,
 } from "../providerLibrary";
+import {
+  myGamesLayout,
+  resolveLibraryTab,
+  showSteamLibraryTab,
+} from "../myGamesLayout";
 import {
   INITIAL_LIBRARY_RENDER_COUNT,
   nextLibraryRenderLimit,
@@ -451,13 +457,15 @@ export function MyGamesView() {
   const [pendingStopTracking, setPendingStopTracking] =
     useState<PendingStopTracking>(null);
   const [query, setQuery] = useState("");
-  const [libraryTab, setLibraryTab] = useState<ProviderLibraryTab>("all");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [view, setView] = useState<ViewMode>("grid");
   const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
   const launchLockRef = useRef<string | null>(null);
   const [launchingGameKey, setLaunchingGameKey] = useState<string | null>(null);
   const sessions = useAppStore((state) => state.recentSessions);
+  const libraryTab = useAppStore((state) => state.libraryTab);
+  const setLibraryTab = useAppStore((state) => state.setLibraryTab);
+  const setActiveView = useAppStore((state) => state.setActiveView);
   const activeSessions = useAppStore((state) => state.activeSessions);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
@@ -1103,20 +1111,20 @@ export function MyGamesView() {
     () => filterByProviderTab(games, "steam"),
     [games],
   );
-  const activeLibraryTab =
-    libraryTab === "steam" && steamGames.length === 0 ? "all" : libraryTab;
+  const steamImportSupported = currentPlatform() === "windows";
+  const activeLibraryTab = resolveLibraryTab(
+    libraryTab,
+    showSteamLibraryTab({
+      steamGameCount: steamGames.length,
+      steamImportSupported,
+    }),
+  );
   const tabGames = activeLibraryTab === "steam" ? steamGames : games;
   const steamSummary = useMemo(
     () =>
       summarizeProviderLibrary(steamGames, "steam", steamProviderFloorSeconds),
     [steamGames, steamProviderFloorSeconds],
   );
-
-  useEffect(() => {
-    if (libraryTab === "steam" && steamGames.length === 0) {
-      setLibraryTab("all");
-    }
-  }, [libraryTab, steamGames.length]);
 
   const displayedGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -1155,6 +1163,13 @@ export function MyGamesView() {
     : activeLibraryTab === "steam"
       ? displayedGames
       : [...demoGames, ...displayedGames];
+  const layout = myGamesLayout({
+    libraryGameCount: allLibraryGames.length,
+    steamGameCount: steamGames.length,
+    steamImportSupported,
+    requestedTab: libraryTab,
+    visibleGameCount: visibleGames.length,
+  });
   const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}`;
   const [renderWindow, setRenderWindow] = useState(() => ({
     key: renderWindowKey,
@@ -1239,10 +1254,8 @@ export function MyGamesView() {
 
   return (
     <div className="grid gap-5">
-      {allLibraryGames.length === 0 ? (
-        <Panel className="px-4 py-12 text-center text-sm text-text-muted">
-          No discovered games have completed a session yet.
-        </Panel>
+      {layout.panel === "empty-library" ? (
+        <EmptyLibraryPanel showSteamImport={layout.showImportCta} />
       ) : (
         <>
           <Panel dataTour="games-toolbar" className="overflow-hidden">
@@ -1300,7 +1313,7 @@ export function MyGamesView() {
               </div>
             </div>
 
-            {steamGames.length > 0 ? (
+            {layout.showTabs ? (
               <div
                 role="tablist"
                 aria-label="Game library source"
@@ -1397,22 +1410,40 @@ export function MyGamesView() {
 
           <div
             id="library-tabpanel"
-            role={steamGames.length > 0 ? "tabpanel" : undefined}
+            role={layout.showTabs ? "tabpanel" : undefined}
             aria-labelledby={
-              steamGames.length > 0
-                ? `library-tab-${activeLibraryTab}`
-                : undefined
+              layout.showTabs ? `library-tab-${activeLibraryTab}` : undefined
             }
             className="grid gap-5"
           >
             <p className="sr-only" aria-live="polite">
-              {activeLibraryTab === "steam"
-                ? `Showing ${visibleGames.length} Steam games.`
-                : `Showing ${visibleGames.length} games.`}
+              {layout.panel === "steam-empty"
+                ? "No Steam games imported yet. Use Import from Steam to add them."
+                : activeLibraryTab === "steam"
+                  ? `Showing ${visibleGames.length} Steam games.`
+                  : `Showing ${visibleGames.length} games.`}
             </p>
 
-            {activeLibraryTab === "steam" ? (
+            {layout.activeTab === "steam" && layout.panel !== "steam-empty" ? (
               <div className="grid gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold text-text">Steam library</h3>
+                    <p className="text-sm text-text-muted">
+                      Imported from your local Steam installation.
+                    </p>
+                  </div>
+                  {layout.showImportCta ? (
+                    <Button
+                      variant="secondary"
+                      icon={Download}
+                      data-controller-item="view-link"
+                      onClick={() => setActiveView("import")}
+                    >
+                      Import more from Steam
+                    </Button>
+                  ) : null}
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <Stat
                     label="Steam games"
@@ -1443,7 +1474,9 @@ export function MyGamesView() {
               </div>
             ) : null}
 
-            {visibleGames.length === 0 ? (
+            {layout.panel === "steam-empty" ? (
+              <SteamImportCallout variant="steam-tab" />
+            ) : layout.panel === "no-search-results" ? (
               <Panel className="px-4 py-12 text-center text-sm text-text-muted">
                 No games match &ldquo;{query}&rdquo;.
               </Panel>
@@ -1573,6 +1606,56 @@ export function MyGamesView() {
         />
       ) : null}
     </div>
+  );
+}
+
+function EmptyLibraryPanel({ showSteamImport }: { showSteamImport: boolean }) {
+  if (!showSteamImport) {
+    return (
+      <Panel className="px-4 py-12 text-center text-sm text-text-muted">
+        No discovered games have completed a session yet.
+      </Panel>
+    );
+  }
+
+  return <SteamImportCallout variant="first-import" />;
+}
+
+function SteamImportCallout({
+  variant,
+}: {
+  variant: "first-import" | "steam-tab";
+}) {
+  const setActiveView = useAppStore((state) => state.setActiveView);
+
+  return (
+    <Panel className="px-6 py-12 text-center">
+      <img
+        src={steamIconUrl}
+        alt=""
+        aria-hidden="true"
+        className="mx-auto h-10 w-10"
+      />
+      <h3 className="mt-4 text-lg font-semibold text-text">
+        {variant === "first-import"
+          ? "No games tracked yet"
+          : "No Steam games imported yet"}
+      </h3>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">
+        {variant === "first-import"
+          ? "PlayCounter adds games automatically as soon as it sees one running. You can also bring your Steam library in right now."
+          : "PlayCounter reads your local Steam installation and imports your games with their Steam playtime. No Steam login and no ownership data leave this PC."}
+      </p>
+      <Button
+        variant="primary"
+        icon={Download}
+        className="mx-auto mt-6"
+        data-controller-item="view-link"
+        onClick={() => setActiveView("import")}
+      >
+        Import from Steam
+      </Button>
+    </Panel>
   );
 }
 
