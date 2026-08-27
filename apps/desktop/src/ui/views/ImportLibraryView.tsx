@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   CheckCircle2,
   Download,
   FolderOpen,
@@ -440,7 +439,7 @@ export function ImportLibraryView() {
       {
         key: "unavailable",
         label: "Unavailable right now",
-        description: "Missing metadata or importable Steam activity.",
+        description: "Missing metadata or importable Steam activity. Most of the time, those are Demos and Applications like Wallpaper Engine, Soundpad, etc.",
         games: [] as ScannedLibraryGame[],
       },
       {
@@ -563,22 +562,6 @@ export function ImportLibraryView() {
           games with uncertain metadata.
         </Panel>
       ) : null}
-      {scan?.warnings.length ? (
-        <Panel className="p-4">
-          <div className="flex items-start gap-2 text-sm text-warning">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-            <div>
-              <div className="font-semibold">
-                The scan was partially successful
-              </div>
-              <div className="mt-1 text-text-muted">
-                {scan.warnings.join(" ")}
-              </div>
-            </div>
-          </div>
-        </Panel>
-      ) : null}
-
       {scan ? (
         <Panel className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -798,8 +781,15 @@ function ImportRow({
     resolved,
     ignoredProcesses,
   );
+  const Row = showSelection ? "label" : "article";
   return (
-    <article className="flex items-start gap-4 px-5 py-4">
+    <Row
+      className={`flex items-start gap-4 px-5 py-4 ${
+        showSelection && importable
+          ? "cursor-pointer transition-colors hover:bg-surface-hover/50"
+          : ""
+      }`}
+    >
       {showSelection ? (
         <input
           type="checkbox"
@@ -901,7 +891,7 @@ function ImportRow({
           </div>
         ) : null}
       </div>
-    </article>
+    </Row>
   );
 }
 
