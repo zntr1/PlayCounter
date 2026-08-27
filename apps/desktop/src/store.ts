@@ -44,7 +44,7 @@ import type {
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
 import { scopedExeLinkKey } from "./library/scopedLinks";
-import { listLocalLinks, type LocalLinkRef } from "./localLinks";
+import type { LocalLinkRef } from "./localLinks";
 import {
   defaultTourProgress,
   markTourCompleted,
@@ -219,6 +219,7 @@ export function findPendingCommunitySuggestionEntry(
   exeCache: ReadonlyMap<string, ExeCacheEntry>,
   scopedExeLinks: ReadonlyMap<string, ScopedExeLink> = new Map(),
 ): PendingCommunitySuggestionTarget | null {
+  if (exeNames.length === 0) return null;
   const wanted = new Set(exeNames.map((exeName) => exeName.toLowerCase()));
   for (const exeName of exeNames) {
     const key = exeName.toLowerCase();
@@ -240,9 +241,8 @@ export function findPendingCommunitySuggestionEntry(
       };
     }
   }
-  for (const entry of listLocalLinks(exeCache, scopedExeLinks)) {
+  for (const [key, entry] of scopedExeLinks) {
     if (
-      entry.ref.kind === "scoped" &&
       wanted.has(entry.exeName.toLowerCase()) &&
       canCancelCommunitySuggestion({
         source: entry.source,
@@ -253,7 +253,7 @@ export function findPendingCommunitySuggestionEntry(
       })
     ) {
       return {
-        ref: entry.ref,
+        ref: { kind: "scoped", key },
         exeName: entry.exeName,
         gameId: entry.communitySuggestionId!,
       };
