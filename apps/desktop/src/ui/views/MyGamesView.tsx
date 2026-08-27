@@ -3104,10 +3104,39 @@ function GameLibraryCard({
             ) : null}
           </div>
 
+          {trackingUnavailable ? (
+            <div className="peer/tracking-warning group/tracking-warning absolute right-2 top-2 z-40">
+              <span
+                role="img"
+                tabIndex={0}
+                aria-label="New sessions will not be tracked yet. Steam playtime is already imported. Install the game and run the Steam import again to link its executable."
+                title="New sessions won't be tracked yet"
+                className="grid h-8 w-8 cursor-help place-items-center rounded-full border border-warning-border bg-warning-tint text-warning shadow-raised outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-warning focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+              >
+                <AlertTriangle size={16} />
+              </span>
+              <div
+                role="tooltip"
+                className="pointer-events-none invisible absolute right-0 top-full mt-2 w-52 translate-y-1 rounded-md border border-warning-border bg-surface px-3 py-2 text-left opacity-0 shadow-raised transition group-hover/tracking-warning:visible group-hover/tracking-warning:translate-y-0 group-hover/tracking-warning:opacity-100 group-focus-within/tracking-warning:visible group-focus-within/tracking-warning:translate-y-0 group-focus-within/tracking-warning:opacity-100"
+              >
+                <div className="text-xs font-semibold text-warning">
+                  New sessions won&apos;t be tracked yet
+                </div>
+                <div className="mt-1 text-[11px] leading-4 text-text-muted">
+                  Steam playtime is already imported but this game's filename is unknown. Install the game and run
+                  it, then "discover" the file name or use the Steam import again to link its executable.
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* Hover Actions - Top Right (constructive first, destructive last) */}
           <div
             className={clsx(
-              "game-card-hover-actions absolute right-2 top-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100",
+              "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100",
+              trackingUnavailable
+                ? "top-12 peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0"
+                : "top-2",
               launchTourDemo && "translate-x-0 opacity-100",
             )}
           >
@@ -3261,12 +3290,6 @@ function GameLibraryCard({
               {game.sessionCount !== 1 ? "s" : ""}
             </button>
           </div>
-
-          {trackingUnavailable ? (
-            <div className="mt-2 text-[11px] font-medium text-warning">
-              Tracking unavailable · no executable linked
-            </div>
-          ) : null}
 
           {/* Persistent Community Prompts */}
           {game.communityUpgradeExeName ? (
