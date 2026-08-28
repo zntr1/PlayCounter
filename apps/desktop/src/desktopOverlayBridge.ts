@@ -7,7 +7,10 @@ import {
   DiscoveryAggregator,
   overlayGate,
   OVERLAY_FINISHED_EVENT,
+  SAFETY_MARGIN_MS,
+  type DesktopOverlayKind,
   type DesktopOverlayMessage,
+  type OverlayEvent,
   type TrackerOverlayEvent,
 } from "./desktopOverlays";
 import { currentPlatform } from "./platform";
@@ -23,6 +26,8 @@ type BridgeState = {
 };
 
 let bridge: BridgeState | null = null;
+/** While a preview is on screen, focus changes must not clear it. */
+let previewUntilMs = 0;
 
 function overlaysSupported() {
   try {
@@ -177,7 +182,9 @@ export function initializeDesktopOverlays() {
     track(
       state,
       getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-        if (focused) clearDesktopOverlays();
+        // A preview was asked for from this window, so refocusing it must not
+        // immediately dismiss the card the user just clicked for.
+        if (focused && Date.now() >= previewUntilMs) clearDesktopOverlays();
       }),
     );
   } catch (error) {
@@ -187,6 +194,19 @@ export function initializeDesktopOverlays() {
   if (useAppStore.getState().settings.desktopOverlaysEnabled === true) {
     void safeInvoke("notification_overlay_prepare");
   }
+
+  // Devtools escape hatch for checking popup layouts without playing a game:
+  // __playcounterOverlayPreview("session-summary")
+  previewHost().__playcounterOverlayPreview = previewDesktopOverlay;
+  state.teardown.push(() => {
+    delete previewHost().__playcounterOverlayPreview;
+  });
+}
+
+function previewHost() {
+  return globalThis as typeof globalThis & {
+    __playcounterOverlayPreview?: (kind?: DesktopOverlayKind) => void;
+  };
 }
 
 export function armDesktopOverlays() {
@@ -245,24 +265,64 @@ export function clearDesktopOverlays() {
   void safeInvoke("notification_overlay_close");
 }
 
-export function previewDesktopOverlay() {
+function previewEvent(
+  kind: DesktopOverlayKind,
+  gameName: string,
+  coverUrl: string | undefined,
+): OverlayEvent {
+  if (kind === "discovery") {
+    return { type: "discovery-burst", exeCount: 3 };
+  }
+  if (kind === "first-detection" || kind === "session-start") {
+    return {
+      type: "session-started",
+      gameName,
+      coverUrl,
+      firstAutoDetection: kind === "first-detection",
+    };
+  }
+  return {
+    type: "session-ended",
+    gameName,
+    coverUrl,
+    durationSeconds: 13_320,
+    totalSeconds: 180_000,
+    ...(kind === "milestone"
+      ? {
+          milestoneTitle: "50 hours played",
+          milestoneMetric: "50 HRS",
+          milestoneGameScoped: false,
+        }
+      : {}),
+  };
+}
+
+/**
+ * Fires a sample popup so the layout can be checked without playing a game.
+ * Only the master toggle is honored; the per-kind toggles are bypassed so any
+ * kind can be inspected on demand.
+ */
+export function previewDesktopOverlay(
+  kind: DesktopOverlayKind = "first-detection",
+) {
   const state = bridge;
   if (!state || state.disposed || !state.armed) return;
   const store = useAppStore.getState();
   if (store.settings.desktopOverlaysEnabled !== true) return;
   const sample = store.recentSessions[0];
-  const event = {
-    type: "session-started",
-    gameName: sample?.gameName ?? "Sample Game",
-    coverUrl: sample?.coverUrl,
-    firstAutoDetection: true,
-  } as const;
-  const message = buildOverlayMessage(
-    "first-detection",
-    event,
-    renderContext(),
+  const event = previewEvent(
+    kind,
+    sample?.gameName ?? "Sample Game",
+    sample?.coverUrl,
   );
-  state.queue.push(message);
+  const message = buildOverlayMessage(kind, event, renderContext());
+  // Previews deliberately skip the queue. Its gating exists to protect real
+  // popups -- one at a time, priority order, a pending cap, and an eight second
+  // throttle on passive kinds -- and every one of those can drop or postpone
+  // the card the button was just clicked for.
+  state.queue.clear();
+  previewUntilMs = Date.now() + message.durationMs + SAFETY_MARGIN_MS;
+  void safeInvoke("notification_overlay_show", { payload: message });
 }
 
 export function disposeDesktopOverlays() {

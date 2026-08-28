@@ -186,6 +186,7 @@ function overlayCopy(
     return {
       kicker: "SESSION SAVED",
       title: event.gameName,
+      body: "Added to your playtime.",
       metric: formatDuration(event.durationSeconds),
       coverUrl: event.coverUrl,
     };

@@ -36,6 +36,7 @@ import { Button, Modal } from "../primitives";
 import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
+import type { DesktopOverlayKind } from "../../desktopOverlays";
 import { TutorialSettingsPanel } from "../tour/TourUI";
 import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
 import { resolveEmulatorBinary } from "../../emulatorLaunch";
@@ -55,6 +56,14 @@ type UpdateStatus =
   | "error";
 
 type LaunchFileForgetScope = "executables" | "emulators";
+
+const OVERLAY_PREVIEWS: ReadonlyArray<readonly [DesktopOverlayKind, string]> = [
+  ["first-detection", "First detection"],
+  ["session-start", "Game start"],
+  ["session-summary", "Session summary"],
+  ["milestone", "Milestone"],
+  ["discovery", "Discovery"],
+];
 
 export function SettingsView() {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>("idle");
@@ -513,10 +522,22 @@ export function SettingsView() {
             />
           </SettingsRow>
           {settings.desktopOverlaysEnabled === true ? (
-            <div className="flex justify-end border-t border-border pt-4">
-              <Button variant="secondary" onClick={previewDesktopOverlay}>
-                Preview popup
-              </Button>
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-xs text-text-faint">
+                Preview a popup with sample data. Works for every kind, even the
+                ones switched off above.
+              </p>
+              <div className="flex flex-wrap justify-end gap-2">
+                {OVERLAY_PREVIEWS.map(([kind, label]) => (
+                  <Button
+                    key={kind}
+                    variant="secondary"
+                    onClick={() => previewDesktopOverlay(kind)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
             </div>
           ) : null}
         </SettingsPanel>

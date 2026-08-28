@@ -409,23 +409,26 @@ html[data-window="notification-overlay"] #overlay-root {
   letter-spacing: 0.16em;
 }
 
+/* Session summaries put the duration in the same right-hand slot the other
+   overlay kinds use for their badge, stacked so the caption sits above the
+   number instead of hanging off its baseline. */
 .desktop-overlay-session-duration {
   display: flex;
-  align-items: baseline;
-  gap: 9px;
-  margin-top: 12px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 
 .desktop-overlay-session-duration span {
   color: rgb(var(--color-text-muted));
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
 }
 
 .desktop-overlay-session-duration strong {
   color: rgb(var(--color-accent));
-  font-size: 30px;
+  font-size: 23px;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -438,10 +441,10 @@ html[data-window="notification-overlay"] #overlay-root {
 .desktop-overlay-live {
   border: 1px solid rgb(var(--color-accent) / 0.35);
   border-radius: 999px;
-  padding: 5px 8px;
+  padding: 6px 9px;
   background: rgb(var(--color-accent) / 0.12);
   color: rgb(var(--color-accent));
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   white-space: nowrap;
@@ -455,8 +458,8 @@ html[data-window="notification-overlay"] #overlay-root {
 }
 
 .desktop-overlay-live i {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: currentColor;
   box-shadow: 0 0 10px currentColor;

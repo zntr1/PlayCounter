@@ -9,6 +9,7 @@ import {
   emitOverlayEvent,
   initializeDesktopOverlays,
   noteDiscoveredExecutable,
+  previewDesktopOverlay,
 } from "./desktopOverlayBridge";
 import { useAppStore } from "./store";
 
@@ -103,6 +104,72 @@ describe("desktop overlay bridge", () => {
     disposeDesktopOverlays();
     expect(eventUnlisten).toHaveBeenCalledTimes(1);
     expect(focusUnlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows every preview immediately instead of queueing them", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, desktopOverlaysEnabled: true },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+    await flush();
+
+    previewDesktopOverlay("first-detection");
+    previewDesktopOverlay("session-start");
+    previewDesktopOverlay("milestone");
+    await flush();
+
+    // A queued preview would sit behind the ten second hold of the one before
+    // it, and the lowest priority kind would be dropped by the pending cap.
+    expect(
+      showCalls().map(
+        ([, args]) =>
+          (
+            args as never as {
+              payload: { kind: string };
+            }
+          ).payload.kind,
+      ),
+    ).toEqual(["first-detection", "session-start", "milestone"]);
+  });
+
+  it("repeats a passive preview without waiting out the throttle", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, desktopOverlaysEnabled: true },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+    await flush();
+
+    previewDesktopOverlay("session-start");
+    await vi.advanceTimersByTimeAsync(200);
+    previewDesktopOverlay("session-start");
+    await flush();
+
+    expect(showCalls()).toHaveLength(2);
+  });
+
+  it("keeps a preview on screen when the main window regains focus", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, desktopOverlaysEnabled: true },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+    await flush();
+    const focusHandler = onFocusChanged.mock.calls[0][0] as (event: {
+      payload: boolean;
+    }) => void;
+
+    previewDesktopOverlay("first-detection");
+    await flush();
+    focusHandler({ payload: true });
+    await flush();
+
+    expect(
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "notification_overlay_close",
+      ),
+    ).toHaveLength(0);
   });
 
   it("does not replay discoveries captured while opted out", async () => {

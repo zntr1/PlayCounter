@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { DesktopOverlayMessage } from "../desktopOverlayProtocol";
 import { applyTheme } from "../theme";
 
@@ -14,7 +14,10 @@ export function DesktopNotificationOverlay({
   const [phase, setPhase] = useState<Phase>("enter");
   const [coverFailed, setCoverFailed] = useState(false);
 
-  useEffect(() => {
+  // Layout effect, not a plain effect: a new message renders once while `phase`
+  // still holds the previous card's value, and a deferred reset lets that stale
+  // frame paint -- a visible flash before the enter animation starts.
+  useLayoutEffect(() => {
     if (!message) return;
     applyTheme(message.theme, message.accentColor);
     setCoverFailed(false);
@@ -76,32 +79,30 @@ export function DesktopNotificationOverlay({
           <div className="mt-1 truncate text-[17px] font-semibold leading-tight text-text">
             {message.title}
           </div>
-          {sessionSummary && message.metric ? (
-            <div className="desktop-overlay-session-duration">
-              <span>SESSION TIME</span>
-              <strong>{message.metric}</strong>
-            </div>
-          ) : message.body ? (
+          {message.body ? (
             <div className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-text-muted">
               {message.body}
             </div>
           ) : null}
         </div>
-        {!sessionSummary ? (
-          <div className="flex shrink-0 self-center pl-2">
-            {message.metric ? (
-              <span className="desktop-overlay-metric">{message.metric}</span>
-            ) : message.status === "live" ? (
-              <span className="desktop-overlay-live">
-                <i /> LIVE
-              </span>
-            ) : (
-              <span className="desktop-overlay-mark" aria-hidden="true">
-                P
-              </span>
-            )}
-          </div>
-        ) : null}
+        <div className="flex shrink-0 self-center pl-2">
+          {sessionSummary && message.metric ? (
+            <div className="desktop-overlay-session-duration">
+              <span>SESSION TIME</span>
+              <strong>{message.metric}</strong>
+            </div>
+          ) : message.metric ? (
+            <span className="desktop-overlay-metric">{message.metric}</span>
+          ) : message.status === "live" ? (
+            <span className="desktop-overlay-live">
+              <i /> LIVE
+            </span>
+          ) : (
+            <span className="desktop-overlay-mark" aria-hidden="true">
+              P
+            </span>
+          )}
+        </div>
       </article>
     </div>
   );

@@ -163,7 +163,7 @@ describe("desktop overlay policy", () => {
     const card = message("session-summary", 100);
 
     expect(card.metric).toBe("11m");
-    expect(card.body).toBeUndefined();
+    expect(card.body).not.toMatch(/\d/);
   });
 
   it("orders priority first, then newest, then sequence", () => {
