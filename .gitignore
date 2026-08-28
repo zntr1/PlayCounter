@@ -47,3 +47,4 @@ docs/*
 docs/update.md
 docs/work-summary.md
 docs/postgres-next-step-plan.md
+.playwright-mcp/
