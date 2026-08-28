@@ -3820,6 +3820,14 @@ function cacheAmbiguousMatch(
     lastCheckedAt: new Date().toISOString(),
     flagReason,
   });
+  if (!existing) {
+    emitOverlayEvent({
+      type: "choice-required",
+      exeName: process.exeName,
+      candidateCount: candidates.length,
+      targetPids: process.pid ? [process.pid] : undefined,
+    });
+  }
   state.addApiRequestLogEntry({
     endpoint: state.settings.apiEndpoint,
     exeName: process.exeName,

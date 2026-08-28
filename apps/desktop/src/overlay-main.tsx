@@ -46,7 +46,19 @@ function OverlayRoot() {
     );
   }, []);
 
-  return <DesktopNotificationOverlay message={message} onFinished={finish} />;
+  const activate = useCallback((id: string) => {
+    void invoke("notification_overlay_activate", { id }).catch((error) =>
+      console.error("overlay activation failed", error),
+    );
+  }, []);
+
+  return (
+    <DesktopNotificationOverlay
+      message={message}
+      onAction={activate}
+      onFinished={finish}
+    />
+  );
 }
 
 createRoot(document.getElementById("overlay-root")!).render(<OverlayRoot />);

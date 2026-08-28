@@ -58,6 +58,7 @@ type UpdateStatus =
 type LaunchFileForgetScope = "executables" | "emulators";
 
 const OVERLAY_PREVIEWS: ReadonlyArray<readonly [DesktopOverlayKind, string]> = [
+  ["action-required", "Choice required"],
   ["first-detection", "First detection"],
   ["session-start", "Game start"],
   ["session-summary", "Session summary"],
@@ -437,6 +438,23 @@ export function SettingsView() {
             Popups stay hidden while the PlayCounter window is open and focused.
           </p>
           <SettingsRow
+            description="Popup when PlayCounter needs you to choose between possible game matches. Opens Now Playing when clicked."
+            title="Choices that need review"
+          >
+            <input
+              type="checkbox"
+              checked={settings.overlayActionRequired !== false}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayActionRequired",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
             description="Popup when PlayCounter recognizes a game for the first time."
             title="First-time detections"
           >
@@ -505,7 +523,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Popup when PlayCounter finds an app it does not know. Only apps found while this is on are included."
+            description="Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included."
             title="New discoveries"
           >
             <input

@@ -98,12 +98,63 @@ describe("desktop overlay bridge", () => {
     initializeDesktopOverlays();
     initializeDesktopOverlays();
     await flush();
-    expect(listenMock).toHaveBeenCalledTimes(1);
+    expect(listenMock).toHaveBeenCalledTimes(2);
     expect(onFocusChanged).toHaveBeenCalledTimes(1);
 
     disposeDesktopOverlays();
-    expect(eventUnlisten).toHaveBeenCalledTimes(1);
+    expect(eventUnlisten).toHaveBeenCalledTimes(2);
     expect(focusUnlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["open-now-playing", "now"],
+    ["open-discovered", "discovered"],
+  ] as const)("routes %s popup actions to %s", async (action, view) => {
+    useAppStore.setState((state) => ({
+      activeView: "settings",
+      settings: { ...state.settings, desktopOverlaysEnabled: true },
+    }));
+    initializeDesktopOverlays();
+    await flush();
+    const registration = listenMock.mock.calls.find(
+      ([event]) => event === "playcounter:overlay-action",
+    );
+    const handler = registration?.[1] as
+      | ((event: { payload: string }) => void)
+      | undefined;
+
+    handler?.({ payload: action });
+
+    expect(useAppStore.getState().activeView).toBe(view);
+  });
+
+  it("shows an actionable ambiguity card while the app is in the tray", async () => {
+    useAppStore.setState((state) => ({
+      settings: {
+        ...state.settings,
+        desktopOverlaysEnabled: true,
+        overlayActionRequired: true,
+      },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+
+    emitOverlayEvent({
+      type: "choice-required",
+      exeName: "Mixtape.exe",
+      candidateCount: 3,
+      targetPids: [4242],
+    });
+    await flush();
+
+    expect(showCalls()).toHaveLength(1);
+    expect(showCalls()[0]?.[1]).toMatchObject({
+      payload: {
+        kind: "action-required",
+        action: "open-now-playing",
+        targetPids: [4242],
+      },
+    });
   });
 
   it("shows every preview immediately instead of queueing them", async () => {

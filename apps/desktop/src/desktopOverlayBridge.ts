@@ -6,6 +6,7 @@ import {
   DesktopOverlayQueue,
   DiscoveryAggregator,
   overlayGate,
+  OVERLAY_ACTION_EVENT,
   OVERLAY_FINISHED_EVENT,
   SAFETY_MARGIN_MS,
   type DesktopOverlayKind,
@@ -178,6 +179,17 @@ export function initializeDesktopOverlays() {
       }
     }),
   );
+  track(
+    state,
+    listen<string>(OVERLAY_ACTION_EVENT, ({ payload }) => {
+      if (bridge !== state || state.disposed) return;
+      if (payload === "open-now-playing") {
+        useAppStore.getState().setActiveView("now");
+      } else if (payload === "open-discovered") {
+        useAppStore.getState().setActiveView("discovered");
+      }
+    }),
+  );
   try {
     track(
       state,
@@ -272,6 +284,13 @@ function previewEvent(
 ): OverlayEvent {
   if (kind === "discovery") {
     return { type: "discovery-burst", exeCount: 3 };
+  }
+  if (kind === "action-required") {
+    return {
+      type: "choice-required",
+      exeName: "game.exe",
+      candidateCount: 3,
+    };
   }
   if (kind === "first-detection" || kind === "session-start") {
     return {

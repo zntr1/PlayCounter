@@ -260,7 +260,8 @@ pub fn run() {
             notification_overlay::notification_overlay_hide,
             notification_overlay::notification_overlay_close,
             notification_overlay::notification_overlay_ready,
-            notification_overlay::notification_overlay_finished
+            notification_overlay::notification_overlay_finished,
+            notification_overlay::notification_overlay_activate
         ])
         .setup(|app| {
             setup_tray(app.handle())?;

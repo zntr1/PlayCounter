@@ -8,6 +8,7 @@ import type {
   OverlayRenderContext,
 } from "./desktopOverlayProtocol";
 export {
+  OVERLAY_ACTION_EVENT,
   OVERLAY_CLEAR_EVENT,
   OVERLAY_FINISHED_EVENT,
   OVERLAY_SHOW_EVENT,
@@ -19,6 +20,7 @@ export type {
 } from "./desktopOverlayProtocol";
 
 export const OVERLAY_PRIORITY: Record<DesktopOverlayKind, number> = {
+  "action-required": 6,
   milestone: 5,
   "first-detection": 4,
   "session-summary": 3,
@@ -39,6 +41,7 @@ export const DISCOVERY_BURST_MS = 30_000;
 export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 
 const HOLD_MS: Record<DesktopOverlayKind, number> = {
+  "action-required": 15_000,
   "session-start": 10_000,
   "first-detection": 10_000,
   "session-summary": 10_000,
@@ -47,6 +50,7 @@ const HOLD_MS: Record<DesktopOverlayKind, number> = {
 };
 
 const TTL_MS: Record<DesktopOverlayKind, number> = {
+  "action-required": 15 * 60_000,
   "session-start": 20_000,
   "session-summary": 15 * 60_000,
   "first-detection": 5 * 60_000,
@@ -55,6 +59,12 @@ const TTL_MS: Record<DesktopOverlayKind, number> = {
 };
 
 export type OverlayEvent =
+  | {
+      type: "choice-required";
+      exeName: string;
+      candidateCount: number;
+      targetPids?: number[];
+    }
   | {
       type: "session-started";
       gameName: string;
@@ -90,6 +100,9 @@ export function overlayGate(
   settings: Settings,
 ): DesktopOverlayKind | null {
   if (settings.desktopOverlaysEnabled !== true) return null;
+  if (event.type === "choice-required") {
+    return settings.overlayActionRequired !== false ? "action-required" : null;
+  }
   if (event.type === "session-started") {
     if (event.firstAutoDetection) {
       return settings.overlayFirstDetections !== false
@@ -121,7 +134,7 @@ export function buildOverlayMessage(
     id: `${kind}:${context.nowMs}:${sequence}`,
     sequence,
     kind,
-    targetPids: event.type === "session-started" ? event.targetPids : undefined,
+    targetPids: "targetPids" in event ? event.targetPids : undefined,
     priority: OVERLAY_PRIORITY[kind],
     ...copy,
     theme: context.theme,
@@ -138,19 +151,42 @@ function overlayCopy(
   event: OverlayEvent,
 ): Pick<
   DesktopOverlayMessage,
-  "kicker" | "title" | "body" | "metric" | "status" | "coverUrl"
+  | "kicker"
+  | "title"
+  | "body"
+  | "metric"
+  | "status"
+  | "coverUrl"
+  | "action"
+  | "actionLabel"
 > {
+  if (kind === "action-required" && event.type === "choice-required") {
+    return {
+      kicker: "CHOICE REQUIRED",
+      title: "Pick a match",
+      body:
+        event.candidateCount === 2
+          ? "Choose between 2 possible matches so tracking can start."
+          : `Choose between ${event.candidateCount} possible matches so tracking can start.`,
+      action: "open-now-playing",
+      actionLabel: "Open Now Playing",
+    };
+  }
   if (kind === "discovery" && event.type === "discovery-burst") {
     return event.exeCount === 1
       ? {
           kicker: "NEW APP FOUND",
           title: "PlayCounter doesn't know this one",
           body: "Open Discovered to sort it out.",
+          action: "open-discovered",
+          actionLabel: "Open Discovered",
         }
       : {
           kicker: "NEW APPS FOUND",
           title: `${event.exeCount} new apps found`,
           body: "Open Discovered to sort them out.",
+          action: "open-discovered",
+          actionLabel: "Open Discovered",
         };
   }
   if (event.type === "session-started") {

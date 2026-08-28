@@ -58,23 +58,29 @@ function message(
 ): DesktopOverlayMessage {
   return buildOverlayMessage(
     kind,
-    kind === "discovery"
-      ? { type: "discovery-burst", exeCount: 1 }
-      : kind === "session-summary" || kind === "milestone"
-        ? {
-            type: "session-ended",
-            gameName: "Game",
-            durationSeconds: 700,
-            totalSeconds: 3_700,
-            ...(kind === "milestone"
-              ? { milestoneTitle: "10 hours", milestoneMetric: "10 HRS" }
-              : {}),
-          }
-        : {
-            type: "session-started",
-            gameName: "Game",
-            firstAutoDetection: kind === "first-detection",
-          },
+    kind === "action-required"
+      ? {
+          type: "choice-required",
+          exeName: "game.exe",
+          candidateCount: 2,
+        }
+      : kind === "discovery"
+        ? { type: "discovery-burst", exeCount: 1 }
+        : kind === "session-summary" || kind === "milestone"
+          ? {
+              type: "session-ended",
+              gameName: "Game",
+              durationSeconds: 700,
+              totalSeconds: 3_700,
+              ...(kind === "milestone"
+                ? { milestoneTitle: "10 hours", milestoneMetric: "10 HRS" }
+                : {}),
+            }
+          : {
+              type: "session-started",
+              gameName: "Game",
+              firstAutoDetection: kind === "first-detection",
+            },
     {
       nowMs: createdAtMs,
       theme: "dark",
@@ -146,6 +152,40 @@ describe("desktop overlay policy", () => {
     expect(card.targetPids).toEqual([4242, 4343]);
   });
 
+  it("makes ambiguity a default-on action that opens Now Playing", () => {
+    const event = {
+      type: "choice-required" as const,
+      exeName: "Mixtape.exe",
+      candidateCount: 3,
+      targetPids: [4242],
+    };
+
+    expect(overlayGate(event, settings)).toBe("action-required");
+    expect(
+      overlayGate(event, { ...settings, overlayActionRequired: false }),
+    ).toBeNull();
+    expect(
+      buildOverlayMessage("action-required", event, {
+        nowMs: 100,
+        theme: "dark",
+        accentColor: null,
+        reducedMotion: false,
+      }),
+    ).toMatchObject({
+      title: "Pick a match",
+      action: "open-now-playing",
+      actionLabel: "Open Now Playing",
+      targetPids: [4242],
+    });
+  });
+
+  it("turns discovery cards into links to Discovered", () => {
+    expect(message("discovery", 100)).toMatchObject({
+      action: "open-discovered",
+      actionLabel: "Open Discovered",
+    });
+  });
+
   it.each([
     "session-start",
     "first-detection",
@@ -158,6 +198,10 @@ describe("desktop overlay policy", () => {
       expect(message(kind, 100).durationMs).toBe(10_000);
     },
   );
+
+  it("holds action-required cards for fifteen seconds", () => {
+    expect(message("action-required", 100).durationMs).toBe(15_000);
+  });
 
   it("makes session duration the sole playtime value in summary cards", () => {
     const card = message("session-summary", 100);

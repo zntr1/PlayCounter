@@ -330,6 +330,34 @@ html[data-window="notification-overlay"] #overlay-root {
   border-left: 3px solid rgb(var(--color-accent));
 }
 
+.desktop-overlay-card-actionable {
+  cursor: pointer;
+  border-left: 3px solid rgb(var(--color-accent));
+  pointer-events: auto;
+}
+
+.desktop-overlay-card-actionable:hover {
+  border-color: rgb(var(--color-accent));
+  background: rgb(var(--color-surface-hover) / 0.98);
+}
+
+.desktop-overlay-action {
+  max-width: 104px;
+  border: 1px solid rgb(var(--color-accent) / 0.5);
+  border-radius: 8px;
+  background: rgb(var(--color-accent) / 0.14);
+  color: rgb(var(--color-accent));
+  padding: 7px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.desktop-overlay-action:hover {
+  background: rgb(var(--color-accent) / 0.24);
+}
+
 .overlay-card-enter {
   opacity: 0;
   transform: translate3d(24px, 0, 0) scale(0.985);
@@ -395,6 +423,15 @@ html[data-window="notification-overlay"] #overlay-root {
 .desktop-overlay-cover-fallback span {
   width: 38px;
   height: 38px;
+}
+
+.desktop-overlay-cover-fallback .desktop-overlay-logo {
+  width: calc(100% - 10px);
+  max-width: 66px;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.3));
 }
 
 .desktop-overlay-mark {

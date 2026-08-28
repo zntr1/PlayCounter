@@ -208,6 +208,7 @@ beforeEach(() => {
       overlaySessionStarts: true,
       overlaySessionSummaries: true,
       overlayMilestones: true,
+      overlayActionRequired: true,
       overlayDiscoveries: false,
       gameLaunchingEnabled: false,
       controllerNavigationEnabled: false,
@@ -415,6 +416,7 @@ describe("desktop overlay settings", () => {
       overlaySessionStarts: true,
       overlaySessionSummaries: true,
       overlayMilestones: true,
+      overlayActionRequired: true,
       overlayDiscoveries: false,
     });
   });
