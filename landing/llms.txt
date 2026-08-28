@@ -63,7 +63,7 @@ If PlayCounter does not recognize a running executable, a user can create a loca
 - Cover images are fetched from IGDB.
 - The desktop client and API source code are public for verification.
 
-Privacy notice: https://playcounter.app/datenschutz.html
+Privacy notice: https://playcounter.app/datenschutz
 
 ## Availability and license
 
@@ -120,5 +120,5 @@ Privacy notice: https://playcounter.app/datenschutz.html
 - Emulator playtime: https://playcounter.app/playtime-tracker-for-emulators/
 - Source: https://github.com/zntr1/PlayCounter
 - Latest release, checksums, and release notes: https://github.com/zntr1/PlayCounter/releases/latest
-- Privacy notice: https://playcounter.app/datenschutz.html
+- Privacy notice: https://playcounter.app/datenschutz
 - Discord: https://discord.gg/t2nG3jaEEY
