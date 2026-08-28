@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filterByProviderTab,
+  libraryProviders,
   summarizeProviderLibrary,
   type ProviderLibraryGame,
 } from "./providerLibrary";
@@ -27,6 +28,12 @@ const steamEntry = (externalId: string, installed: boolean) => ({
 });
 
 describe("provider library", () => {
+  it("shows one provider badge when multiple provider entries map to one game", () => {
+    expect(
+      libraryProviders([steamEntry("100", true), steamEntry("101", false)]),
+    ).toEqual(["steam"]);
+  });
+
   it("filters Steam games without changing the all-games result", () => {
     const games = [
       game(1, { igdbId: 10, imports: [steamEntry("100", true)] }),

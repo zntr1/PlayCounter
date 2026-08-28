@@ -29,6 +29,12 @@ export function hasProviderImport(
   return game.libraryImports.some((entry) => entry.provider === provider);
 }
 
+export function libraryProviders(
+  imports: readonly { provider: LibraryProviderId }[],
+) {
+  return [...new Set(imports.map((entry) => entry.provider))];
+}
+
 export function filterByProviderTab<T extends ProviderLibraryGame>(
   games: readonly T[],
   tab: ProviderLibraryTab,

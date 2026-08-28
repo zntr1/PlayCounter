@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import {
   forwardRef,
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -316,17 +318,17 @@ export function useContextMenu() {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
-  const onContextMenu = (e: MouseEvent) => {
+  const onContextMenu = useCallback((e: MouseEvent) => {
     e.preventDefault();
     setPosition({ x: e.clientX, y: e.clientY });
     setOpen(true);
-  };
+  }, []);
 
-  const close = () => setOpen(false);
-  const openAt = (nextPosition: { x: number; y: number }) => {
+  const close = useCallback(() => setOpen(false), []);
+  const openAt = useCallback((nextPosition: { x: number; y: number }) => {
     setPosition(nextPosition);
     setOpen(true);
-  };
+  }, []);
 
   return {
     props: { onContextMenu },
@@ -355,17 +357,27 @@ export function ContextMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState(position);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
 
     if (menuRef.current) {
       const rect = menuRef.current.getBoundingClientRect();
-      const x = Math.min(position.x, window.innerWidth - rect.width - 8);
-      const y = Math.min(position.y, window.innerHeight - rect.height - 8);
+      const x = Math.max(
+        8,
+        Math.min(position.x, window.innerWidth - rect.width - 8),
+      );
+      const y = Math.max(
+        8,
+        Math.min(position.y, window.innerHeight - rect.height - 8),
+      );
       setAdjustedPosition({ x, y });
     } else {
       setAdjustedPosition(position);
     }
+  }, [open, position]);
+
+  useEffect(() => {
+    if (!open) return;
 
     const handleGlobalClick = (e: globalThis.MouseEvent) => {
       // Allow clicking inside the menu without closing immediately
@@ -393,7 +405,7 @@ export function ContextMenu({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("blur", onClose);
     };
-  }, [open, position, onClose]);
+  }, [open, onClose]);
 
   useEffect(() => {
     if (open && focusFirstItem) {
@@ -409,7 +421,7 @@ export function ContextMenu({
     <div
       ref={menuRef}
       data-tour={dataTour}
-      className="fixed z-50 min-w-40 animate-fade-in overflow-hidden rounded-md border border-border bg-surface py-1 shadow-raised"
+      className="fixed z-50 max-h-[calc(100vh-1rem)] min-w-40 animate-fade-in overflow-x-hidden overflow-y-auto rounded-md border border-border bg-surface py-1 shadow-raised"
       style={{
         top: adjustedPosition.y,
         left: adjustedPosition.x,

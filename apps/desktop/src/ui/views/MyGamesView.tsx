@@ -178,6 +178,7 @@ import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 import {
   filterByProviderTab,
+  libraryProviders,
   summarizeProviderLibrary,
   type ProviderLibraryTab,
 } from "../providerLibrary";
@@ -190,6 +191,7 @@ import {
   INITIAL_LIBRARY_RENDER_COUNT,
   nextLibraryRenderLimit,
 } from "../libraryRenderWindow";
+import { steamContextActions } from "../gameLibraryActions";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = "grid" | "large" | "list";
@@ -1668,6 +1670,8 @@ function LaunchStartingOverlay({
   detected: boolean;
   compact?: boolean;
 }) {
+  // Game cards isolate their stacking contexts so this local overlay cannot
+  // paint over context menus portalled to document.body.
   return (
     <div
       role="status"
@@ -1852,8 +1856,8 @@ function GameLibraryCard({
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
-  const canLaunchExecutables =
-    currentPlatform() === "windows" && launcherEnabled;
+  const isWindows = currentPlatform() === "windows";
+  const canLaunchExecutables = isWindows && launcherEnabled;
   const launchTourDemo = demo && activeTour?.tourId === "launch-games";
   const canConfigureLaunch =
     canLaunchExecutables &&
@@ -1889,6 +1893,14 @@ function GameLibraryCard({
   const steamLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "steam" && entry.installed,
   );
+  const importedProviders = libraryProviders(game.libraryImports);
+  const steamActions = steamContextActions({
+    demo,
+    isWindows,
+    launcherEnabled,
+    hasImport: Boolean(steamImportEntry),
+    installed: Boolean(steamLaunchEntry),
+  });
   const gameEmulatorMappings = useMemo(
     () =>
       game.emulatorContentKeys.flatMap((contentKey) => {
@@ -2831,9 +2843,9 @@ function GameLibraryCard({
             <ContextMenuSeparator />
           </>
         ) : null}
-        {!demo && steamImportEntry && canLaunchExecutables ? (
+        {steamActions.showOpenInSteam ? (
           <>
-            {steamLaunchEntry ? (
+            {steamActions.showPlayInSteam ? (
               <ContextMenuItem
                 icon={Play}
                 disabled={hasActiveSession || launching || launchBlocked}
@@ -3141,7 +3153,7 @@ function GameLibraryCard({
               : `${game.name}, ${hasPrimaryLaunchTarget ? "press A to play" : "no launch file saved"}`
             : undefined
         }
-        className="game-library-card group relative flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-200 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
+        className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition-all duration-200 hover:-translate-y-1 hover:border-accent/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
       >
         {controllerNavigable ? (
           <button
@@ -3191,11 +3203,8 @@ function GameLibraryCard({
                 <SourceBadge source={source} />
               </span>
             ))}
-            {game.libraryImports.map((entry) => (
-              <ProviderBadge
-                key={`${entry.provider}:${entry.externalId}`}
-                provider={entry.provider}
-              />
+            {importedProviders.map((provider) => (
+              <ProviderBadge key={provider} provider={provider} />
             ))}
             {game.emulatorIds.map((emulatorId) => (
               <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
@@ -3689,7 +3698,7 @@ function GameLibraryCard({
             : `${game.name}, ${hasPrimaryLaunchTarget ? "press A to play" : "no launch file saved"}`
           : undefined
       }
-      className="game-library-card group relative rounded-xl border border-border bg-surface shadow-raised transition duration-200 hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
+      className="game-library-card group relative isolate rounded-xl border border-border bg-surface shadow-raised transition duration-200 hover:border-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
     >
       {controllerNavigable ? (
         <button
@@ -3777,11 +3786,8 @@ function GameLibraryCard({
                   <SourceBadge source={source} />
                 </span>
               ))}
-              {game.libraryImports.map((entry) => (
-                <ProviderBadge
-                  key={`${entry.provider}:${entry.externalId}`}
-                  provider={entry.provider}
-                />
+              {importedProviders.map((provider) => (
+                <ProviderBadge key={provider} provider={provider} />
               ))}
               {game.emulatorIds.map((emulatorId) => (
                 <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
