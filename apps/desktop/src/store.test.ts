@@ -210,6 +210,7 @@ beforeEach(() => {
       overlayMilestones: true,
       overlayActionRequired: true,
       overlayDiscoveries: false,
+      rememberLaunchPaths: true,
       gameLaunchingEnabled: false,
       controllerNavigationEnabled: false,
     },
@@ -219,9 +220,75 @@ beforeEach(() => {
 describe("launch target state", () => {
   it("defaults launcher control to off", () => {
     expect(useAppStore.getState().settings).toMatchObject({
+      rememberLaunchPaths: true,
       gameLaunchingEnabled: false,
       controllerNavigationEnabled: false,
     });
+  });
+
+  it("forgets every launch path and blocks new ones when storage is disabled", () => {
+    const owner = { gameId: 42, source: "igdb" as const };
+    const executable = {
+      exeName: "Game.exe",
+      path: String.raw`C:\Games\Game.exe`,
+      owner,
+    };
+    const emulatorBinary = {
+      emulatorId: "dolphin",
+      exePath: String.raw`C:\Emulators\Dolphin.exe`,
+      setAt: "auto",
+    };
+    const emulatorTarget = {
+      contentKey: "dolphin:rom:game.rvz",
+      emulatorId: "dolphin",
+      filePath: String.raw`D:\Games\Game.rvz`,
+      setAt: "auto",
+    };
+    useAppStore.getState().setLaunchTarget(executable);
+    useAppStore.getState().setManualLaunchTarget(executable);
+    useAppStore.getState().setEmulatorAutoBinary(emulatorBinary);
+    useAppStore.getState().setEmulatorManualBinary(emulatorBinary);
+    useAppStore.getState().setEmulatorAutoLaunchTarget(emulatorTarget);
+    useAppStore.getState().setEmulatorManualLaunchTarget(emulatorTarget);
+    useAppStore.getState().setEmulatorLaunchCandidates([
+      { ...emulatorTarget, displayName: "Game.rvz" },
+    ]);
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
+    useAppStore
+      .getState()
+      .setLauncherSetting("controllerNavigationEnabled", true);
+
+    useAppStore.getState().setLauncherSetting("rememberLaunchPaths", false);
+
+    expect(useAppStore.getState().settings).toMatchObject({
+      rememberLaunchPaths: false,
+      gameLaunchingEnabled: false,
+      controllerNavigationEnabled: false,
+    });
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(0);
+    expect(useAppStore.getState().emulatorManualBinaries.size).toBe(0);
+    expect(useAppStore.getState().emulatorAutoLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorManualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
+
+    useAppStore.getState().setLaunchTarget(executable);
+    useAppStore.getState().setManualLaunchTarget(executable);
+    useAppStore.getState().setEmulatorAutoBinary(emulatorBinary);
+    useAppStore.getState().setEmulatorManualBinary(emulatorBinary);
+    useAppStore.getState().setEmulatorAutoLaunchTarget(emulatorTarget);
+    useAppStore.getState().setEmulatorManualLaunchTarget(emulatorTarget);
+    useAppStore.getState().setEmulatorLaunchCandidates([
+      { ...emulatorTarget, displayName: "Game.rvz" },
+    ]);
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
+    expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(0);
+    expect(useAppStore.getState().emulatorManualBinaries.size).toBe(0);
+    expect(useAppStore.getState().emulatorAutoLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorManualLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
   });
 
   it("keys targets case-insensitively and clears them with the cache", () => {

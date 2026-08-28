@@ -360,6 +360,7 @@ export interface Settings {
   overlayMilestones?: boolean;
   overlayActionRequired?: boolean;
   overlayDiscoveries?: boolean;
+  rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
 }

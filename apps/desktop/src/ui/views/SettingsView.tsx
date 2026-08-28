@@ -55,7 +55,7 @@ type UpdateStatus =
   | "installing"
   | "error";
 
-type LaunchFileForgetScope = "executables" | "emulators";
+type LaunchFileForgetScope = "executables" | "emulators" | "all";
 
 const OVERLAY_PREVIEWS: ReadonlyArray<readonly [DesktopOverlayKind, string]> = [
   ["action-required", "Choice required"],
@@ -564,20 +564,38 @@ export function SettingsView() {
       {currentPlatform() === "windows" ? (
         <SettingsPanel
           dataTour="settings-launcher"
-          description="Let PlayCounter start games it already tracks on this PC, and optionally navigate with a controller."
+          description="Control local launch-file storage, direct game launching, and optional controller navigation."
           title="Game launching"
         >
           <SettingsRow
-            description="Remember local game program files and show Play actions in My Games. Off by default."
+            description="Keep recognized executable and emulator launch-file paths on this PC. Turning this off deletes saved paths and stops learning new ones."
+            title="Remember launch paths"
+          >
+            <input
+              type="checkbox"
+              checked={settings.rememberLaunchPaths !== false}
+              onChange={(event) => {
+                if (event.target.checked) {
+                  setLauncherSetting("rememberLaunchPaths", true);
+                } else {
+                  setConfirmForgetLaunchFiles("all");
+                }
+              }}
+              className="h-5 w-5 accent-accent"
+            />
+          </SettingsRow>
+          <SettingsRow
+            description="Show Play actions in My Games and allow PlayCounter to start games. Requires remembered launch paths."
             title="Launch games directly"
           >
             <input
               type="checkbox"
               checked={settings.gameLaunchingEnabled === true}
+              disabled={settings.rememberLaunchPaths === false}
               onChange={(event) =>
                 setLauncherSetting("gameLaunchingEnabled", event.target.checked)
               }
-              className="h-5 w-5 accent-accent"
+              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
 
@@ -585,8 +603,8 @@ export function SettingsView() {
             PlayCounter starts a selected game <code>.exe</code> directly, or
             passes a saved game file to a supported emulator. Launcher-managed
             games and administrator approval may still require their normal
-            shortcut. Learned paths stay on this device and are excluded from
-            backups.
+            shortcut. Remembered paths stay on this device and are excluded
+            from backups.
           </div>
           <SettingsRow
             description="Navigate PlayCounter with an controller. Requires direct game launching turned on."
@@ -1119,11 +1137,21 @@ export function SettingsView() {
           count={
             confirmForgetLaunchFiles === "executables"
               ? executableLaunchTargetCount
-              : emulatorLaunchTargetCount
+              : confirmForgetLaunchFiles === "emulators"
+                ? emulatorLaunchTargetCount
+                : executableLaunchTargetCount + emulatorLaunchTargetCount
           }
           onCancel={() => setConfirmForgetLaunchFiles(null)}
           onConfirm={() => {
-            if (confirmForgetLaunchFiles === "executables") {
+            if (confirmForgetLaunchFiles === "all") {
+              setLauncherSetting("rememberLaunchPaths", false);
+              addToast({
+                tone: "success",
+                title: "Launch path storage disabled",
+                detail:
+                  "Saved game and emulator launch paths were forgotten. Direct launching and controller navigation were turned off.",
+              });
+            } else if (confirmForgetLaunchFiles === "executables") {
               forgetExecutableLaunchTargets();
               addToast({
                 tone: "success",
@@ -1242,13 +1270,16 @@ function ForgetLaunchFilesDialog({
   onConfirm: () => void;
 }) {
   const emulatorFiles = scope === "emulators";
+  const disablingStorage = scope === "all";
   return (
     <Modal
       size="sm"
       labelId="forget-launch-files-dialog-title"
       eyebrow="Direct game launching"
       title={
-        emulatorFiles
+        disablingStorage
+          ? "Stop remembering launch paths?"
+          : emulatorFiles
           ? "Forget emulator launch files?"
           : "Forget regular game executables?"
       }
@@ -1260,17 +1291,23 @@ function ForgetLaunchFilesDialog({
             Cancel
           </Button>
           <Button variant="danger" icon={Trash2} onClick={onConfirm}>
-            Forget {count || "all"}
+            {disablingStorage
+              ? "Stop remembering"
+              : `Forget ${count || "all"}`}
           </Button>
         </div>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        {emulatorFiles
+        {disablingStorage
+          ? `This removes ${count === 0 ? "any" : `all ${count}`} saved game and emulator launch ${count === 1 ? "path" : "paths"}, stops PlayCounter from learning new ones, and turns off direct launching and controller navigation.`
+          : emulatorFiles
           ? `This removes ${count} saved emulator program and content ${count === 1 ? "path" : "paths"}, including files such as ISO, RVZ, and DOSBox programs. Regular game executable paths stay intact.`
           : `This removes ${count} saved executable ${count === 1 ? "path" : "paths"} for regular games. Emulator programs and content files stay intact.`}{" "}
-        Play history and game matches are not changed. PlayCounter can learn
-        stable paths again while launching is on.
+        Play history and game matches are not changed.
+        {!disablingStorage
+          ? " PlayCounter can learn stable paths again the next time it sees the game running."
+          : " You can enable path storage again at any time."}
       </p>
     </Modal>
   );

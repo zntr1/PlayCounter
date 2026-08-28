@@ -183,6 +183,7 @@ beforeEach(() => {
     },
     settings: {
       ...useAppStore.getState().settings,
+      rememberLaunchPaths: true,
       gameLaunchingEnabled: true,
       controllerNavigationEnabled: false,
     },
@@ -685,7 +686,8 @@ describe("game launching", () => {
     expect(useAppStore.getState().launchTargets.get("game.exe")).toBe(first);
   });
 
-  it("learns Dolphin.exe and an exact ISO path from a running game", async () => {
+  it("learns Dolphin.exe and an exact ISO path while launching is disabled", async () => {
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
     const contentKey = "dolphin:rom:the sims 2.rvz";
     useAppStore.setState({
       emulatorMappings: new Map([
@@ -1013,8 +1015,30 @@ describe("game launching", () => {
     expect(useAppStore.getState().launchTargets.has("gg5.exe")).toBe(false);
   });
 
-  it("does not learn executable paths while launching is disabled", async () => {
+  it("learns executable paths while launching is disabled", async () => {
     useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+    useAppStore.setState({
+      exeCache: new Map([["game.exe", entry({ gameId: 42, source: "igdb" })]]),
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes") {
+        return [
+          {
+            exeName: "Game.exe",
+            exePath: target.path,
+            pid: 123,
+          },
+        ];
+      }
+      return undefined;
+    });
+
+    await scanProcessesNow();
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(target);
+  });
+
+  it("does not learn executable paths when path storage is disabled", async () => {
+    useAppStore.getState().setLauncherSetting("rememberLaunchPaths", false);
     useAppStore.setState({
       exeCache: new Map([["game.exe", entry({ gameId: 42, source: "igdb" })]]),
     });
@@ -1075,21 +1099,35 @@ describe("game launching", () => {
     );
   });
 
-  it("does not verify saved paths while launching is disabled", async () => {
+  it("verifies saved paths while launching is disabled", async () => {
     useAppStore.getState().setLaunchTarget(target);
     useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+    invokeMock.mockResolvedValueOnce([{ path: target.path, status: "ok" }]);
 
     await expect(verifyLaunchTargets("test-disabled")).resolves.toBe(0);
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      "verify_launch_paths",
-      expect.anything(),
-    );
+    expect(invokeMock).toHaveBeenCalledWith("verify_launch_paths", {
+      paths: [target.path],
+    });
     expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(
       target,
     );
   });
 
+  it("does not verify paths when path storage is disabled", async () => {
+    useAppStore.getState().setLauncherSetting("rememberLaunchPaths", false);
+    useAppStore.setState({
+      launchTargets: new Map([["game.exe", target]]),
+    });
+
+    await expect(verifyLaunchTargets("test-storage-disabled")).resolves.toBe(0);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "verify_launch_paths",
+      expect.anything(),
+    );
+  });
+
   it("captures an ambiguous executable for only the selected local game", () => {
+    useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
     useAppStore.setState({
       ambiguousMatches: [
         {
@@ -1114,6 +1152,30 @@ describe("game launching", () => {
       path: String.raw`C:\Games\Mixtape.exe`,
       owner: { gameId: 7, source: "igdb" },
     });
+  });
+
+  it("does not retain an ambiguous executable when path storage is disabled", () => {
+    useAppStore.getState().setLauncherSetting("rememberLaunchPaths", false);
+    useAppStore.setState({
+      ambiguousMatches: [
+        {
+          exeName: "Mixtape.exe",
+          exePath: String.raw`C:\Games\Mixtape.exe`,
+          candidates: [],
+          detectedAt: "2026-08-20T10:00:00.000Z",
+          endedAt: "2026-08-20T10:01:00.000Z",
+        },
+      ],
+    });
+
+    selectAmbiguousMatch("Mixtape.exe", {
+      id: 7,
+      name: "Mixtape",
+      coverUrl: "cover",
+      source: "igdb",
+    });
+
+    expect(useAppStore.getState().launchTargets.size).toBe(0);
   });
 });
 

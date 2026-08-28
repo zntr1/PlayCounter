@@ -475,7 +475,10 @@ export type AppState = {
     enabled: boolean,
   ) => void;
   setLauncherSetting: (
-    key: "gameLaunchingEnabled" | "controllerNavigationEnabled",
+    key:
+      | "rememberLaunchPaths"
+      | "gameLaunchingEnabled"
+      | "controllerNavigationEnabled",
     enabled: boolean,
   ) => void;
   recordAutomaticDetection: (keys: string[]) => boolean;
@@ -521,6 +524,7 @@ const defaultSettings: Settings = {
   overlayMilestones: true,
   overlayActionRequired: true,
   overlayDiscoveries: false,
+  rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
 };
@@ -985,6 +989,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setLaunchTarget: (target) =>
     set((state) => {
+      if (state.settings.rememberLaunchPaths === false) return state;
       const launchTargets = new Map(state.launchTargets);
       launchTargets.set(target.exeName.toLowerCase(), target);
       return { launchTargets };
@@ -997,6 +1002,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   setManualLaunchTarget: (target, aliases = [target.owner]) =>
     set((state) => {
+      if (state.settings.rememberLaunchPaths === false) return state;
       const manualLaunchTargets = new Map(state.manualLaunchTargets);
       for (const alias of aliases) {
         manualLaunchTargets.delete(manualLaunchTargetKey(alias));
@@ -1012,6 +1018,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   setEmulatorAutoBinary: (entry) => {
     set((state) => {
+      if (state.settings.rememberLaunchPaths === false) return state;
       if (state.emulatorAutoBinaries.has(entry.emulatorId)) return state;
       const emulatorAutoBinaries = new Map(state.emulatorAutoBinaries);
       emulatorAutoBinaries.set(entry.emulatorId, entry);
@@ -1029,6 +1036,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setEmulatorManualBinary: (entry) => {
     set((state) => {
+      if (state.settings.rememberLaunchPaths === false) return state;
       const emulatorManualBinaries = new Map(state.emulatorManualBinaries);
       emulatorManualBinaries.set(entry.emulatorId, entry);
       return { emulatorManualBinaries };
@@ -1045,6 +1053,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setEmulatorAutoLaunchTarget: (target) => {
     set((state) => {
+      if (state.settings.rememberLaunchPaths === false) return state;
       if (
         state.emulatorAutoLaunchTargets.has(target.contentKey) ||
         state.emulatorManualLaunchTargets.has(target.contentKey)
@@ -1071,6 +1080,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setEmulatorManualLaunchTarget: (target) => {
     set((state) => {
+      if (state.settings.rememberLaunchPaths === false) return state;
       const emulatorManualLaunchTargets = new Map(
         state.emulatorManualLaunchTargets,
       );
@@ -1092,6 +1102,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setEmulatorLaunchCandidates: (candidates) => {
     let changed = false;
     set((state) => {
+      if (state.settings.rememberLaunchPaths === false) return state;
       const emulatorLaunchCandidates = new Map(
         candidates.map((candidate) => [candidate.contentKey, candidate]),
       );
@@ -1308,18 +1319,45 @@ export const useAppStore = create<AppState>((set, get) => ({
     persistSoon();
   },
   setLauncherSetting: (key, enabled) => {
-    set((state) => ({
-      settings: {
-        ...state.settings,
-        [key]:
-          key === "controllerNavigationEnabled" && enabled
-            ? state.settings.gameLaunchingEnabled === true
-            : enabled,
-        ...(key === "gameLaunchingEnabled" && !enabled
-          ? { controllerNavigationEnabled: false }
-          : {}),
-      },
-    }));
+    set((state) => {
+      if (key === "rememberLaunchPaths") {
+        if (enabled) {
+          return {
+            settings: { ...state.settings, rememberLaunchPaths: true },
+          };
+        }
+        return {
+          settings: {
+            ...state.settings,
+            rememberLaunchPaths: false,
+            gameLaunchingEnabled: false,
+            controllerNavigationEnabled: false,
+          },
+          launchTargets: new Map(),
+          manualLaunchTargets: new Map(),
+          emulatorAutoBinaries: new Map(),
+          emulatorManualBinaries: new Map(),
+          emulatorAutoLaunchTargets: new Map(),
+          emulatorManualLaunchTargets: new Map(),
+          emulatorLaunchCandidates: new Map(),
+        };
+      }
+      const remembersPaths = state.settings.rememberLaunchPaths !== false;
+      return {
+        settings: {
+          ...state.settings,
+          [key]:
+            key === "controllerNavigationEnabled" && enabled
+              ? remembersPaths && state.settings.gameLaunchingEnabled === true
+              : key === "gameLaunchingEnabled" && enabled
+                ? remembersPaths
+                : enabled,
+          ...(key === "gameLaunchingEnabled" && !enabled
+            ? { controllerNavigationEnabled: false }
+            : {}),
+        },
+      };
+    });
     persistSoon();
   },
   recordAutomaticDetection: (keys) => {

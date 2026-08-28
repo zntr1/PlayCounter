@@ -129,7 +129,7 @@ export const TOURS: TourDefinition[] = [
         anchor: a("settings-launcher"),
         scrollIntoView: true,
         title: "PlayCounter can start games too",
-        body: "This is optional and off by default. Turn it on and PlayCounter remembers a game's program file, then shows a Play button in My Games.",
+        body: "By default, PlayCounter remembers recognized game program files locally. Direct launching is optional and off by default; turn it on to show Play buttons in My Games.",
       },
       {
         id: "enable",
@@ -173,7 +173,7 @@ export const TOURS: TourDefinition[] = [
         anchor: a("settings-launcher"),
         scrollIntoView: true,
         title: "Paths stay on this PC",
-        body: "Saved launch paths never leave your device and aren't included in backups. Turn the feature off anytime, or use Forget all launch files to clear them without touching your games or history.",
+        body: "Saved launch paths never leave your device and aren't included in backups. Turn Remember launch paths off to clear them and stop learning new ones without touching your games or history.",
       },
       {
         id: "controller",

@@ -498,9 +498,28 @@ function hydrate() {
     ],
   });
   const settings: Settings =
-    loadedSettings.gameLaunchingEnabled === true
-      ? loadedSettings
-      : { ...loadedSettings, controllerNavigationEnabled: false };
+    loadedSettings.rememberLaunchPaths === false
+      ? {
+          ...loadedSettings,
+          rememberLaunchPaths: false,
+          gameLaunchingEnabled: false,
+          controllerNavigationEnabled: false,
+        }
+      : loadedSettings.gameLaunchingEnabled === true
+        ? loadedSettings
+        : { ...loadedSettings, controllerNavigationEnabled: false };
+  const rememberLaunchPaths = settings.rememberLaunchPaths !== false;
+  const shouldPersistLaunchPathOptOut =
+    !rememberLaunchPaths &&
+    [
+      persisted.launchTargets,
+      persisted.manualLaunchTargets,
+      persisted.emulatorAutoBinaries,
+      persisted.emulatorManualBinaries,
+      persisted.emulatorAutoLaunchTargets,
+      persisted.emulatorManualLaunchTargets,
+      persisted.emulatorLaunchCandidates,
+    ].some((values) => Array.isArray(values) && values.length > 0);
   const blacklist = persisted.blacklist ?? [];
   const exeCache = persisted.exeCache ?? [];
   const exeCacheMap = new Map(
@@ -538,15 +557,19 @@ function hydrate() {
     };
   }
   const launchTargets = new Map<string, LaunchTarget>();
-  for (const value of persisted.launchTargets ?? []) {
-    const target = persistedLaunchTarget(value);
-    if (target) launchTargets.set(target.exeName.toLowerCase(), target);
+  if (rememberLaunchPaths) {
+    for (const value of persisted.launchTargets ?? []) {
+      const target = persistedLaunchTarget(value);
+      if (target) launchTargets.set(target.exeName.toLowerCase(), target);
+    }
   }
   const manualLaunchTargets = new Map<string, LaunchTarget>();
-  for (const value of persisted.manualLaunchTargets ?? []) {
-    const target = persistedLaunchTarget(value);
-    if (target) {
-      manualLaunchTargets.set(manualLaunchTargetKey(target.owner), target);
+  if (rememberLaunchPaths) {
+    for (const value of persisted.manualLaunchTargets ?? []) {
+      const target = persistedLaunchTarget(value);
+      if (target) {
+        manualLaunchTargets.set(manualLaunchTargetKey(target.owner), target);
+      }
     }
   }
   function persistedEmulatorBinary(value: unknown): EmulatorBinaryEntry | null {
@@ -600,27 +623,27 @@ function hydrate() {
     return result;
   };
   const emulatorAutoBinaries = hydrateMap(
-    persisted.emulatorAutoBinaries,
+    rememberLaunchPaths ? persisted.emulatorAutoBinaries : undefined,
     persistedEmulatorBinary,
     (entry) => entry.emulatorId,
   );
   const emulatorManualBinaries = hydrateMap(
-    persisted.emulatorManualBinaries,
+    rememberLaunchPaths ? persisted.emulatorManualBinaries : undefined,
     persistedEmulatorBinary,
     (entry) => entry.emulatorId,
   );
   const emulatorAutoLaunchTargets = hydrateMap(
-    persisted.emulatorAutoLaunchTargets,
+    rememberLaunchPaths ? persisted.emulatorAutoLaunchTargets : undefined,
     persistedEmulatorTarget,
     (target) => target.contentKey,
   );
   const emulatorManualLaunchTargets = hydrateMap(
-    persisted.emulatorManualLaunchTargets,
+    rememberLaunchPaths ? persisted.emulatorManualLaunchTargets : undefined,
     persistedEmulatorTarget,
     (target) => target.contentKey,
   );
   const emulatorLaunchCandidates = hydrateMap(
-    persisted.emulatorLaunchCandidates,
+    rememberLaunchPaths ? persisted.emulatorLaunchCandidates : undefined,
     (value) => {
       const target = persistedEmulatorTarget(value);
       if (!target || !value || typeof value !== "object") return null;
@@ -933,7 +956,9 @@ function hydrate() {
     suppressContributionNotificationsOnce:
       persisted.suppressContributionNotificationsOnce === true,
   });
-  if (shouldPersistAchievementMigration) persist();
+  if (shouldPersistAchievementMigration || shouldPersistLaunchPathOptOut) {
+    persist();
+  }
 }
 
 async function loadEmulatorPrivacyContext() {
@@ -1076,7 +1101,7 @@ export async function openUserIgnoredProcessesFolder() {
 }
 
 function recordLaunchTargets(matches: ProcessMatch[]) {
-  if (useAppStore.getState().settings.gameLaunchingEnabled !== true) return;
+  if (useAppStore.getState().settings.rememberLaunchPaths === false) return;
   for (const { process, game } of matches) {
     if (
       !process.exeName ||
@@ -1151,7 +1176,7 @@ export async function launchGame(
 }
 
 export async function verifyLaunchTargets(reason: string): Promise<number> {
-  if (useAppStore.getState().settings.gameLaunchingEnabled !== true) return 0;
+  if (useAppStore.getState().settings.rememberLaunchPaths === false) return 0;
   try {
     if (currentPlatform() !== "windows") return 0;
   } catch {
@@ -1935,9 +1960,7 @@ async function learnEmulatorContentTargets(
   hosts: ProcessSnapshot[],
   nowIso: string,
 ) {
-  if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
-    return;
-  }
+  if (useAppStore.getState().settings.rememberLaunchPaths === false) return;
   const discoveries: Array<{
     candidate: EmulatorLaunchCandidate;
     association: "proven" | "requires_confirmation";
@@ -2060,7 +2083,7 @@ async function applyEmulatorReadings(
     });
     if (
       adapter.launch &&
-      state.settings.gameLaunchingEnabled === true &&
+      state.settings.rememberLaunchPaths !== false &&
       !state.emulatorAutoBinaries.has(host.emulatorId) &&
       isValidEmulatorBinaryPath(host.emulatorId, host.exePath) &&
       !isVolatileLaunchPath(host.exePath)
@@ -4131,7 +4154,7 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
 
   cacheMatchResult(ambiguous.exeName, game);
   if (
-    state.settings.gameLaunchingEnabled === true &&
+    state.settings.rememberLaunchPaths !== false &&
     isWindowsExecutablePath(ambiguous.exePath) &&
     !isVolatileLaunchPath(ambiguous.exePath)
   ) {
