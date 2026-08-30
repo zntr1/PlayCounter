@@ -1454,6 +1454,8 @@ export function MyGamesView() {
                       tab.kind === "provider"
                         ? providerTabConfig(tab.id)
                         : undefined;
+                    const tabIconUrl =
+                      tab.kind === "unimported" ? "/icon.png" : config?.iconUrl;
                     return (
                       <button
                         key={tab.id}
@@ -1471,9 +1473,9 @@ export function MyGamesView() {
                             : "border-transparent text-text-muted hover:border-border-strong hover:text-text",
                         )}
                       >
-                        {config?.iconUrl ? (
+                        {tabIconUrl ? (
                           <img
-                            src={config.iconUrl}
+                            src={tabIconUrl}
                             alt=""
                             aria-hidden="true"
                             className="h-4 w-4 shrink-0"
@@ -1606,7 +1608,7 @@ export function MyGamesView() {
             layout.panel !== "unimported-empty" ? (
               <div className="grid gap-3">
                 <div>
-                  <h3 className="font-semibold text-text">Not imported</h3>
+                  <h3 className="font-semibold text-text">PlayCounter</h3>
                   <p className="text-sm text-text-muted">
                     PlayCounter found these on its own — nothing here came from
                     a launcher import.

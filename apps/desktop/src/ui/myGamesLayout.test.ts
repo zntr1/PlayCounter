@@ -4,13 +4,13 @@ import type { LibraryTabDescriptor } from "./libraryTabs";
 
 const tabs: LibraryTabDescriptor[] = [
   { id: "all", kind: "all", label: "All games", count: 3 },
-  { id: "steam", kind: "provider", label: "Steam", count: 0 },
   {
     id: "unimported",
     kind: "unimported",
-    label: "Not imported",
+    label: "PlayCounter",
     count: 3,
   },
+  { id: "steam", kind: "provider", label: "Steam", count: 0 },
 ];
 
 function layout(overrides: Partial<Parameters<typeof myGamesLayout>[0]> = {}) {
@@ -73,7 +73,7 @@ describe("My Games layout", () => {
     });
   });
 
-  it("shows a dedicated empty Not imported panel", () => {
+  it("shows a dedicated empty PlayCounter panel", () => {
     expect(
       layout({
         requestedTab: "unimported",

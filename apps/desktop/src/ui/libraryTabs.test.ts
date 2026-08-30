@@ -28,7 +28,7 @@ const steamEntry = (externalId: string, installed = false) => ({
 });
 
 describe("library tabs", () => {
-  it("filters all, provider, and not-imported games", () => {
+  it("filters all, provider, and PlayCounter games", () => {
     const games = [
       game(1, { libraryImports: [steamEntry("100", true)] }),
       game(2),
@@ -39,7 +39,7 @@ describe("library tabs", () => {
     expect(filterByLibraryTab(games, "unimported")).toEqual([games[1]]);
   });
 
-  it("keeps a game with any provider import out of Not imported", () => {
+  it("keeps a game with any provider import out of PlayCounter", () => {
     const imported = game(1, {
       libraryImports: [steamEntry("100"), steamEntry("101")],
     });
@@ -70,17 +70,17 @@ describe("library tabs", () => {
       }),
     ).toEqual([
       { id: "all", kind: "all", label: "All games", count: 2 },
-      { id: "steam", kind: "provider", label: "Steam", count: 0 },
       {
         id: "unimported",
         kind: "unimported",
-        label: "Not imported",
+        label: "PlayCounter",
         count: 2,
       },
+      { id: "steam", kind: "provider", label: "Steam", count: 0 },
     ]);
   });
 
-  it("shows restored provider games and keeps Not imported last at zero", () => {
+  it("places PlayCounter before providers and keeps it visible at zero", () => {
     const tabs = visibleLibraryTabs({
       allTabCount: 2,
       unimportedGameCount: 0,
@@ -93,8 +93,8 @@ describe("library tabs", () => {
         },
       ],
     });
-    expect(tabs.map((tab) => tab.id)).toEqual(["all", "steam", "unimported"]);
-    expect(tabs.at(-1)?.count).toBe(0);
+    expect(tabs.map((tab) => tab.id)).toEqual(["all", "unimported", "steam"]);
+    expect(tabs.find((tab) => tab.id === "unimported")?.count).toBe(0);
   });
 
   it("falls back from an unavailable requested tab", () => {

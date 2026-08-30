@@ -45,18 +45,18 @@ export function visibleLibraryTabs(input: {
 
   return [
     { id: "all", kind: "all", label: "All games", count: input.allTabCount },
+    {
+      id: "unimported",
+      kind: "unimported",
+      label: "PlayCounter",
+      count: input.unimportedGameCount,
+    },
     ...providers.map<LibraryTabDescriptor>((provider) => ({
       id: provider.provider,
       kind: "provider",
       label: provider.label,
       count: provider.gameCount,
     })),
-    {
-      id: "unimported",
-      kind: "unimported",
-      label: "Not imported",
-      count: input.unimportedGameCount,
-    },
   ];
 }
 
