@@ -263,7 +263,7 @@ export const TOURS: TourDefinition[] = [
   },
   {
     id: "game-actions",
-    version: 1,
+    version: 2,
     kind: "guide",
     title: "Manage a game in your library",
     description: "Everything in a game's right-click menu.",
@@ -328,16 +328,6 @@ export const TOURS: TourDefinition[] = [
         backTo: "open-menu",
         title: "Fix a wrong match",
         body: "Report Wrong Match asks what the app really is - a different game, or no game at all - and sends that in for review. Convert to Custom Game keeps it here under a name you pick yourself.",
-      },
-      {
-        id: "copy",
-        view: "games",
-        anchor: a("demo-menu-copy-name"),
-        additionalAnchors: [a("demo-menu-copy-exe")],
-        retreatWhenMissing: a("demo-context-menu"),
-        backTo: "open-menu",
-        title: "Copy a name",
-        body: "Copy Game Name and Copy File Name put the name on your clipboard - useful when you report a problem to us.",
       },
       {
         id: "remove",

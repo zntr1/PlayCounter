@@ -438,6 +438,14 @@ export function ContextMenuSeparator() {
   return <div className="mx-2 my-1 h-px bg-border" />;
 }
 
+export function ContextMenuHeading({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-2 mb-1 mt-1 border-t border-border px-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-faint first:mt-0 first:border-t-0 first:pt-1">
+      {children}
+    </div>
+  );
+}
+
 export function ContextMenuItem({
   icon: Icon,
   danger,

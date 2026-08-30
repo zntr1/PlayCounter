@@ -1177,6 +1177,13 @@ export async function launchGame(
   }
 }
 
+export async function revealGameExecutable(
+  target: Pick<LaunchTarget, "exeName" | "path">,
+) {
+  logRuntime(`game file reveal requested ${target.exeName}`);
+  await invoke("reveal_executable", { path: target.path });
+}
+
 export async function verifyLaunchTargets(reason: string): Promise<number> {
   if (useAppStore.getState().settings.rememberLaunchPaths === false) return 0;
   try {

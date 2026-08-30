@@ -113,7 +113,6 @@ describe("tour definitions", () => {
       "playtime",
       "matches",
       "wrong-match",
-      "copy",
       "remove",
     ]);
     expect(

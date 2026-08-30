@@ -148,6 +148,28 @@ fn launch_blocking(raw: &str) -> Result<(), LaunchError> {
         .map_err(map_spawn_error)
 }
 
+#[cfg(windows)]
+fn reveal_blocking(raw: &str) -> Result<(), LaunchError> {
+    let (path, _) = resolve_launch_target(raw)?;
+    Command::new("explorer.exe")
+        .arg("/select,")
+        .arg(path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(map_spawn_error)
+}
+
+#[cfg(not(windows))]
+fn reveal_blocking(_raw: &str) -> Result<(), LaunchError> {
+    Err(LaunchError::new(
+        LaunchErrorKind::Unsupported,
+        "Showing game files in Explorer is only supported on Windows.",
+    ))
+}
+
 #[cfg(not(windows))]
 fn launch_blocking(_raw: &str) -> Result<(), LaunchError> {
     Err(LaunchError::new(
@@ -159,6 +181,13 @@ fn launch_blocking(_raw: &str) -> Result<(), LaunchError> {
 #[tauri::command]
 pub async fn launch_executable(path: String) -> Result<(), LaunchError> {
     tauri::async_runtime::spawn_blocking(move || launch_blocking(&path))
+        .await
+        .map_err(|error| LaunchError::new(LaunchErrorKind::SpawnFailed, error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn reveal_executable(path: String) -> Result<(), LaunchError> {
+    tauri::async_runtime::spawn_blocking(move || reveal_blocking(&path))
         .await
         .map_err(|error| LaunchError::new(LaunchErrorKind::SpawnFailed, error.to_string()))?
 }

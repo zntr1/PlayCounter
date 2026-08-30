@@ -7,10 +7,10 @@ import {
   Check,
   Clock3,
   ClockPlus,
-  Copy,
   Download,
   ExternalLink,
   Flag,
+  FolderOpen,
   FolderSearch,
   Gamepad2,
   Grid2X2,
@@ -60,6 +60,7 @@ import {
   hydrateGameMetadata,
   markCommunitySuggestionRejected,
   renameCustomGame,
+  revealGameExecutable,
   reportNegativeMatch,
   scanProcessesNow,
   chooseLaunchTarget,
@@ -126,6 +127,7 @@ import {
 import {
   Button,
   ContextMenu,
+  ContextMenuHeading,
   ContextMenuItem,
   ContextMenuSeparator,
   IconButton,
@@ -2217,6 +2219,21 @@ function GameLibraryCard({
     (game.source && game.exeNames[0]) ||
     (trackingUnavailable && steamImportEntry),
   );
+  const showLaunchActions =
+    launchTourDemo ||
+    (!demo &&
+      (canConfigureLaunch ||
+        (canLaunchExecutables && gameEmulatorMappings.length > 0)));
+  const showMatchingActions =
+    canCheckMatches ||
+    Boolean(
+      game.source &&
+      game.exeNames[0] &&
+      (pendingCommunitySuggestion ||
+        canSuggestToCommunity ||
+        game.source === "igdb" ||
+        game.source === "community"),
+    );
 
   const demoNotice = () =>
     addToast({
@@ -2538,28 +2555,6 @@ function GameLibraryCard({
       },
     );
   }
-
-  const handleCopyExe = () => {
-    if (demo) return demoNotice();
-    navigator.clipboard.writeText(game.exeNames[0]);
-    addToast({
-      tone: "success",
-      title: "Copied",
-      detail: "File name copied to clipboard.",
-    });
-    contextMenu.close();
-  };
-
-  const handleCopyName = () => {
-    if (demo) return demoNotice();
-    navigator.clipboard.writeText(game.name);
-    addToast({
-      tone: "success",
-      title: "Copied",
-      detail: "Game name copied to clipboard.",
-    });
-    contextMenu.close();
-  };
 
   const handleShowHistory = () => {
     if (demo) return demoNotice();
@@ -3022,6 +3017,20 @@ function GameLibraryCard({
     });
   }
 
+  async function handleOpenInExplorer() {
+    contextMenu.close();
+    if (!primaryLaunchTarget) return;
+    try {
+      await revealGameExecutable(primaryLaunchTarget);
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Could not open the game file",
+        detail: formatError(error),
+      });
+    }
+  }
+
   const renderContextMenu = () => {
     if (!contextMenu.open) return null;
     return (
@@ -3032,20 +3041,9 @@ function GameLibraryCard({
         dataTour={demo ? "demo-context-menu" : undefined}
         focusFirstItem={demo}
       >
-        {launchTourDemo ? (
-          <>
-            <ContextMenuItem
-              dataTour="demo-menu-launch-file"
-              icon={FolderSearch}
-              onClick={demoNotice}
-            >
-              Set or change launch file…
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-          </>
-        ) : null}
         {steamActions.showOpenInSteam ? (
           <>
+            <ContextMenuHeading>Steam</ContextMenuHeading>
             {steamActions.showPlayInSteam ? (
               <ContextMenuItem
                 icon={Play}
@@ -3061,8 +3059,19 @@ function GameLibraryCard({
             >
               Open in Steam
             </ContextMenuItem>
-            <ContextMenuSeparator />
           </>
+        ) : null}
+        {showLaunchActions ? (
+          <ContextMenuHeading>Launch</ContextMenuHeading>
+        ) : null}
+        {launchTourDemo ? (
+          <ContextMenuItem
+            dataTour="demo-menu-launch-file"
+            icon={FolderSearch}
+            onClick={demoNotice}
+          >
+            Set or change launch file…
+          </ContextMenuItem>
         ) : null}
         {!demo && canConfigureLaunch ? (
           <>
@@ -3097,12 +3106,20 @@ function GameLibraryCard({
                 ? "Change launch file…"
                 : "Set launch file…"}
             </ContextMenuItem>
+            {primaryLaunchTarget ? (
+              <ContextMenuItem
+                icon={FolderOpen}
+                title={primaryLaunchTarget.path}
+                onClick={() => void handleOpenInExplorer()}
+              >
+                Open in Explorer
+              </ContextMenuItem>
+            ) : null}
             {ownedLaunchTargets.length > 0 ? (
               <ContextMenuItem icon={Trash2} onClick={handleForgetLaunchFile}>
                 Forget launch file
               </ContextMenuItem>
             ) : null}
-            <ContextMenuSeparator />
           </>
         ) : null}
         {!demo && canLaunchExecutables && gameEmulatorMappings.length > 0 ? (
@@ -3151,9 +3168,9 @@ function GameLibraryCard({
                 </Fragment>
               );
             })}
-            <ContextMenuSeparator />
           </>
         ) : null}
+        <ContextMenuHeading>History</ContextMenuHeading>
         <ContextMenuItem
           dataTour={demo ? "demo-menu-show-history" : undefined}
           icon={History}
@@ -3181,20 +3198,20 @@ function GameLibraryCard({
         >
           Adjust total playtime
         </ContextMenuItem>
+        {showMatchingActions ? (
+          <ContextMenuHeading>Matching</ContextMenuHeading>
+        ) : null}
         {canCheckMatches ? (
-          <>
-            <ContextMenuSeparator />
-            <ContextMenuItem
-              dataTour={demo ? "demo-menu-check-matches" : undefined}
-              icon={Search}
-              onClick={() => {
-                contextMenu.close();
-                setShowMatchCheck(true);
-              }}
-            >
-              Check for Matches
-            </ContextMenuItem>
-          </>
+          <ContextMenuItem
+            dataTour={demo ? "demo-menu-check-matches" : undefined}
+            icon={Search}
+            onClick={() => {
+              contextMenu.close();
+              setShowMatchCheck(true);
+            }}
+          >
+            Check for Matches
+          </ContextMenuItem>
         ) : null}
         {game.source && game.exeNames[0] ? (
           <>
@@ -3249,7 +3266,7 @@ function GameLibraryCard({
         ) : null}
         {canEditCover ? (
           <>
-            <ContextMenuSeparator />
+            <ContextMenuHeading>Info</ContextMenuHeading>
             <ContextMenuItem
               dataTour={demo ? "demo-menu-rename" : undefined}
               icon={Pencil}
@@ -3289,21 +3306,6 @@ function GameLibraryCard({
             ) : null}
           </>
         ) : null}
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          dataTour={demo ? "demo-menu-copy-name" : undefined}
-          icon={Copy}
-          onClick={handleCopyName}
-        >
-          Copy Game Name
-        </ContextMenuItem>
-        <ContextMenuItem
-          dataTour={demo ? "demo-menu-copy-exe" : undefined}
-          icon={Copy}
-          onClick={handleCopyExe}
-        >
-          Copy File Name
-        </ContextMenuItem>
         <ContextMenuSeparator />
         {onStopTracking ? (
           <ContextMenuItem

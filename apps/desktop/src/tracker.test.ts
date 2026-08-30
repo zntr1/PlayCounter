@@ -42,6 +42,7 @@ import {
   pollContributions,
   removeGameHistory,
   reportNegativeMatch,
+  revealGameExecutable,
   scanProcessesNow,
   selectAmbiguousMatch,
   selectEmulatorGame,
@@ -346,6 +347,13 @@ describe("game launching", () => {
     await launchGame(firstTarget);
     expect(invokeMock).toHaveBeenCalledWith("launch_executable", {
       path: firstTarget.path,
+    });
+  });
+
+  it("reveals a saved game executable in Explorer", async () => {
+    await revealGameExecutable(target);
+    expect(invokeMock).toHaveBeenCalledWith("reveal_executable", {
+      path: target.path,
     });
   });
 
@@ -1034,7 +1042,9 @@ describe("game launching", () => {
     });
 
     await scanProcessesNow();
-    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(target);
+    expect(useAppStore.getState().launchTargets.get("game.exe")).toEqual(
+      target,
+    );
   });
 
   it("does not learn executable paths when path storage is disabled", async () => {

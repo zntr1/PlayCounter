@@ -244,6 +244,7 @@ pub fn run() {
             privacy_context,
             get_exe_icon,
             launch::launch_executable,
+            launch::reveal_executable,
             launch::verify_launch_paths,
             library::library_detect_providers,
             library::library_list_accounts,
