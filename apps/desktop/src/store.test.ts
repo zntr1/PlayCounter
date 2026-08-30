@@ -250,9 +250,11 @@ describe("launch target state", () => {
     useAppStore.getState().setEmulatorManualBinary(emulatorBinary);
     useAppStore.getState().setEmulatorAutoLaunchTarget(emulatorTarget);
     useAppStore.getState().setEmulatorManualLaunchTarget(emulatorTarget);
-    useAppStore.getState().setEmulatorLaunchCandidates([
-      { ...emulatorTarget, displayName: "Game.rvz" },
-    ]);
+    useAppStore
+      .getState()
+      .setEmulatorLaunchCandidates([
+        { ...emulatorTarget, displayName: "Game.rvz" },
+      ]);
     useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
     useAppStore
       .getState()
@@ -279,9 +281,11 @@ describe("launch target state", () => {
     useAppStore.getState().setEmulatorManualBinary(emulatorBinary);
     useAppStore.getState().setEmulatorAutoLaunchTarget(emulatorTarget);
     useAppStore.getState().setEmulatorManualLaunchTarget(emulatorTarget);
-    useAppStore.getState().setEmulatorLaunchCandidates([
-      { ...emulatorTarget, displayName: "Game.rvz" },
-    ]);
+    useAppStore
+      .getState()
+      .setEmulatorLaunchCandidates([
+        { ...emulatorTarget, displayName: "Game.rvz" },
+      ]);
     expect(useAppStore.getState().launchTargets.size).toBe(0);
     expect(useAppStore.getState().manualLaunchTargets.size).toBe(0);
     expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(0);
@@ -574,6 +578,36 @@ describe("ignored process sharing preference", () => {
     } finally {
       useAppStore.setState({ settings: originalSettings });
     }
+  });
+});
+
+describe("My Games presentation settings", () => {
+  it("persists card size, sort, and badge visibility independently", async () => {
+    const originalSettings = useAppStore.getState().settings;
+    try {
+      useAppStore.getState().setMyGamesCardSize("list");
+      useAppStore.getState().setMyGamesSortKey("name");
+      useAppStore.getState().setMyGamesShowBadges(false);
+
+      expect(useAppStore.getState().settings).toMatchObject({
+        libraryCardSize: "list",
+        librarySortKey: "name",
+        libraryShowBadges: false,
+      });
+      await Promise.resolve();
+      expect(globalThis.localStorage.setItem).toHaveBeenCalled();
+    } finally {
+      useAppStore.setState({ settings: originalSettings });
+    }
+  });
+
+  it("keeps the importer provider in session state", () => {
+    const originalProvider = useAppStore.getState().libraryImportProvider;
+    const originalSettings = useAppStore.getState().settings;
+    useAppStore.getState().setLibraryImportProvider("steam");
+    expect(useAppStore.getState().libraryImportProvider).toBe("steam");
+    expect(useAppStore.getState().settings).toBe(originalSettings);
+    useAppStore.setState({ libraryImportProvider: originalProvider });
   });
 });
 

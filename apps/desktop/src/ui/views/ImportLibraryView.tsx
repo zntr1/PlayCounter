@@ -10,7 +10,6 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { LibraryProviderId } from "@playcounter/shared";
 import { runLibraryImport } from "../../library/importRun";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { buildSteamImportCommit } from "../../library/importPlan";
@@ -65,7 +64,7 @@ let importerSession: ImporterSession = {
 };
 
 export function ImportLibraryView() {
-  const providerId: LibraryProviderId = "steam";
+  const providerId = useAppStore((state) => state.libraryImportProvider);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const existingImports = useAppStore((state) => state.libraryImports);
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
@@ -439,7 +438,8 @@ export function ImportLibraryView() {
       {
         key: "unavailable",
         label: "Unavailable right now",
-        description: "Missing metadata or importable Steam activity. Most of the time, those are Demos and Applications like Wallpaper Engine, Soundpad, etc.",
+        description:
+          "Missing metadata or importable Steam activity. Most of the time, those are Demos and Applications like Wallpaper Engine, Soundpad, etc.",
         games: [] as ScannedLibraryGame[],
       },
       {
@@ -713,7 +713,7 @@ export function ImportLibraryView() {
           <Button
             variant="primary"
             onClick={() => {
-              setLibraryTab("steam");
+              setLibraryTab(providerId);
               setActiveView("games");
             }}
           >

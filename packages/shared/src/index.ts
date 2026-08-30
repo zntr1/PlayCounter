@@ -343,6 +343,10 @@ export type Theme = "dark" | "light";
 export interface Settings {
   launchOnStartup: boolean;
   showDurationDays: boolean;
+  /** My Games card density. Absent on older persisted settings. */
+  libraryCardSize?: "grid" | "large" | "list";
+  librarySortKey?: "recent" | "playtime" | "name" | "sessions";
+  libraryShowBadges?: boolean;
   autoShareIgnoredProcesses: boolean;
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;

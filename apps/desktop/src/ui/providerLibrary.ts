@@ -1,8 +1,6 @@
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import { providerFloorKey } from "../library/playtimeFloor";
 
-export type ProviderLibraryTab = "all" | LibraryProviderId;
-
 export type ProviderLibraryGame = {
   gameId: number;
   igdbId?: number;
@@ -33,15 +31,6 @@ export function libraryProviders(
   imports: readonly { provider: LibraryProviderId }[],
 ) {
   return [...new Set(imports.map((entry) => entry.provider))];
-}
-
-export function filterByProviderTab<T extends ProviderLibraryGame>(
-  games: readonly T[],
-  tab: ProviderLibraryTab,
-) {
-  return tab === "all"
-    ? [...games]
-    : games.filter((game) => hasProviderImport(game, tab));
 }
 
 export function summarizeProviderLibrary(

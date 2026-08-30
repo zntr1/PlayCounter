@@ -1,5 +1,4 @@
 import clsx from "clsx";
-import steamIconUrl from "../../../../../assets/steam/Steam_icon_logo.svg";
 import {
   AlertTriangle,
   Ban,
@@ -26,6 +25,7 @@ import {
   RotateCcw,
   Search,
   Send,
+  SlidersHorizontal,
   Trash2,
   WifiOff,
 } from "lucide-react";
@@ -148,6 +148,7 @@ import type {
   Game,
   GameSource,
   IdentifierFlagReason,
+  LibraryProviderId,
 } from "@playcounter/shared";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
@@ -176,17 +177,25 @@ import {
 import { adapterFor } from "../../emulators/registry";
 import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
+import { libraryProviders, summarizeProviderLibrary } from "../providerLibrary";
+import { myGamesLayout } from "../myGamesLayout";
 import {
-  filterByProviderTab,
-  libraryProviders,
-  summarizeProviderLibrary,
-  type ProviderLibraryTab,
-} from "../providerLibrary";
-import {
-  myGamesLayout,
+  filterByLibraryTab,
   resolveLibraryTab,
-  showSteamLibraryTab,
-} from "../myGamesLayout";
+  summarizeUnimportedLibrary,
+  visibleLibraryTabs,
+} from "../libraryTabs";
+import {
+  importableProviderTabs,
+  isImportableProviderTabConfig,
+  providerTabConfig,
+  PROVIDER_TAB_CONFIGS,
+  type ImportableProviderTabConfig,
+} from "../libraryProviderTabs";
+import {
+  libraryBadgesVisible,
+  type MyGamesCardSize,
+} from "../myGamesPresentation";
 import {
   INITIAL_LIBRARY_RENDER_COUNT,
   nextLibraryRenderLimit,
@@ -194,7 +203,7 @@ import {
 import { steamContextActions } from "../gameLibraryActions";
 
 type SortKey = MyGamesSortKey;
-type ViewMode = "grid" | "large" | "list";
+type ViewMode = MyGamesCardSize;
 
 const sortOptions: Array<{ key: SortKey; label: string }> = [
   { key: "recent", label: "Last played" },
@@ -237,7 +246,7 @@ type GameSummary = {
   emulatorIds: string[];
   emulatorContentKeys: string[];
   libraryImports: Array<{
-    provider: "steam";
+    provider: LibraryProviderId;
     externalId: string;
     installed: boolean;
     entry: LibraryImportEntry;
@@ -459,14 +468,16 @@ export function MyGamesView() {
   const [pendingStopTracking, setPendingStopTracking] =
     useState<PendingStopTracking>(null);
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("recent");
-  const [view, setView] = useState<ViewMode>("grid");
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
   const launchLockRef = useRef<string | null>(null);
   const [launchingGameKey, setLaunchingGameKey] = useState<string | null>(null);
   const sessions = useAppStore((state) => state.recentSessions);
   const libraryTab = useAppStore((state) => state.libraryTab);
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
+  const setLibraryImportProvider = useAppStore(
+    (state) => state.setLibraryImportProvider,
+  );
   const setActiveView = useAppStore((state) => state.setActiveView);
   const activeSessions = useAppStore((state) => state.activeSessions);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
@@ -480,6 +491,21 @@ export function MyGamesView() {
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
+  const cardSize = useAppStore(
+    (state) => state.settings.libraryCardSize ?? "grid",
+  );
+  const sortKey = useAppStore(
+    (state) => state.settings.librarySortKey ?? "recent",
+  );
+  const showBadges = useAppStore(
+    (state) => state.settings.libraryShowBadges !== false,
+  );
+  const setMyGamesCardSize = useAppStore((state) => state.setMyGamesCardSize);
+  const setMyGamesSortKey = useAppStore((state) => state.setMyGamesSortKey);
+  const setMyGamesShowBadges = useAppStore(
+    (state) => state.setMyGamesShowBadges,
+  );
+  const view = cardSize;
   const gameLaunchingEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
@@ -500,13 +526,6 @@ export function MyGamesView() {
   );
   const providerFloorSeconds = useMemo(
     () => providerFloorRecord(providerFloors(libraryImports.values())),
-    [libraryImports],
-  );
-  const steamProviderFloorSeconds = useMemo(
-    () =>
-      providerFloorRecord(
-        providerFloorsForProvider(libraryImports.values(), "steam"),
-      ),
     [libraryImports],
   );
   const localLinks = useMemo(
@@ -543,7 +562,7 @@ export function MyGamesView() {
 
   useEffect(() => {
     const toggleControllerCardSize = () => {
-      setView((current) => (current === "large" ? "grid" : "large"));
+      setMyGamesCardSize(cardSize === "large" ? "grid" : "large");
       requestAnimationFrame(() => {
         document
           .querySelector<HTMLElement>('[data-controller-selected="true"]')
@@ -559,7 +578,7 @@ export function MyGamesView() {
         CONTROLLER_LIBRARY_VIEW_EVENT,
         toggleControllerCardSize,
       );
-  }, []);
+  }, [cardSize, setMyGamesCardSize]);
 
   useEffect(() => {
     if (tourDemo.active || !gameLaunchingEnabled) return;
@@ -1109,25 +1128,92 @@ export function MyGamesView() {
     userIgnoredProcesses,
   ]);
 
-  const steamGames = useMemo(
-    () => filterByProviderTab(games, "steam"),
+  const demoGames = useMemo(() => {
+    if (!tourDemo.active) return [];
+    if (tourDemo.tourId === "core") return makeCoreTourDemoGames();
+    return [
+      makeTourDemoGame(
+        demoPlaytime.addedSeconds,
+        demoPlaytime.addedSessions,
+        tourDemo.tourId === "source-badges",
+        tourDemo.tourId === "game-actions" ? "community" : null,
+      ),
+    ];
+  }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
+  const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
+  const allLibraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
+  const platform = currentPlatform();
+  const providerTabGames = useMemo(
+    () =>
+      PROVIDER_TAB_CONFIGS.map((config) => ({
+        config,
+        games: filterByLibraryTab(games, config.id),
+      })),
     [games],
   );
-  const steamImportSupported = currentPlatform() === "windows";
-  const activeLibraryTab = resolveLibraryTab(
-    libraryTab,
-    showSteamLibraryTab({
-      steamGameCount: steamGames.length,
-      steamImportSupported,
-    }),
-  );
-  const tabGames = activeLibraryTab === "steam" ? steamGames : games;
-  const steamSummary = useMemo(
+  const providerTabInputs = useMemo(
     () =>
-      summarizeProviderLibrary(steamGames, "steam", steamProviderFloorSeconds),
-    [steamGames, steamProviderFloorSeconds],
+      providerTabGames.map(({ config, games: providerGames }) => ({
+        provider: config.id,
+        label: config.label,
+        importSupported:
+          config.import.kind === "builtin" &&
+          config.import.platforms.includes(platform),
+        gameCount: providerGames.length,
+      })),
+    [platform, providerTabGames],
   );
-
+  const unimportedGames = useMemo(
+    () => filterByLibraryTab(games, "unimported"),
+    [games],
+  );
+  const tabs = visibleLibraryTabs({
+    allTabCount: allLibraryGames.length,
+    unimportedGameCount: unimportedGames.length,
+    providers: providerTabInputs,
+  });
+  const activeLibraryTab = resolveLibraryTab(libraryTab, tabs);
+  const activeTabDescriptor = tabs.find((tab) => tab.id === activeLibraryTab);
+  const activeProviderConfig =
+    activeTabDescriptor?.kind === "provider"
+      ? providerTabConfig(activeTabDescriptor.id)
+      : undefined;
+  const activeImportableProviderConfig = isImportableProviderTabConfig(
+    activeProviderConfig,
+  )
+    ? activeProviderConfig
+    : undefined;
+  const tabGames = useMemo(() => {
+    if (activeLibraryTab === "all") return games;
+    if (activeLibraryTab === "unimported") return unimportedGames;
+    return (
+      providerTabGames.find((entry) => entry.config.id === activeLibraryTab)
+        ?.games ?? []
+    );
+  }, [activeLibraryTab, games, providerTabGames, unimportedGames]);
+  const activeProviderSummary = useMemo(
+    () =>
+      activeProviderConfig
+        ? summarizeProviderLibrary(
+            tabGames,
+            activeProviderConfig.id,
+            providerFloorRecord(
+              providerFloorsForProvider(
+                libraryImports.values(),
+                activeProviderConfig.id,
+              ),
+            ),
+          )
+        : null,
+    [activeProviderConfig, libraryImports, tabGames],
+  );
+  const unimportedSummary = useMemo(
+    () =>
+      activeTabDescriptor?.kind === "unimported"
+        ? summarizeUnimportedLibrary(tabGames)
+        : null,
+    [activeTabDescriptor, tabGames],
+  );
   const displayedGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = needle
@@ -1144,33 +1230,22 @@ export function MyGamesView() {
     sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
   }, [query, sortKey, tabGames]);
-  const demoGames = useMemo(() => {
-    if (!tourDemo.active) return [];
-    if (tourDemo.tourId === "core") return makeCoreTourDemoGames();
-    return [
-      makeTourDemoGame(
-        demoPlaytime.addedSeconds,
-        demoPlaytime.addedSessions,
-        tourDemo.tourId === "source-badges",
-        tourDemo.tourId === "game-actions" ? "community" : null,
-      ),
-    ];
-  }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
-  const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
-  const allLibraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
+  const demoForTab = activeLibraryTab === "all" ? demoGames : [];
   const libraryGames =
-    activeLibraryTab === "steam" ? steamGames : allLibraryGames;
-  const visibleGames = isCoreTourDemo
-    ? demoGames
-    : activeLibraryTab === "steam"
-      ? displayedGames
-      : [...demoGames, ...displayedGames];
+    isCoreTourDemo && activeLibraryTab === "all"
+      ? demoGames
+      : [...demoForTab, ...tabGames];
+  const visibleGames =
+    isCoreTourDemo && activeLibraryTab === "all"
+      ? demoGames
+      : [...demoForTab, ...displayedGames];
   const layout = myGamesLayout({
     libraryGameCount: allLibraryGames.length,
-    steamGameCount: steamGames.length,
-    steamImportSupported,
+    tabs,
     requestedTab: libraryTab,
+    activeTabGameCount: libraryGames.length,
     visibleGameCount: visibleGames.length,
+    importSupported: importableProviderTabs(platform).length > 0,
   });
   const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}`;
   const [renderWindow, setRenderWindow] = useState(() => ({
@@ -1257,7 +1332,7 @@ export function MyGamesView() {
   return (
     <div className="grid gap-5">
       {layout.panel === "empty-library" ? (
-        <EmptyLibraryPanel showSteamImport={layout.showImportCta} />
+        <EmptyLibraryPanel platform={platform} />
       ) : (
         <>
           <Panel dataTour="games-toolbar" className="overflow-hidden">
@@ -1266,119 +1341,159 @@ export function MyGamesView() {
                 <h2 className="font-semibold text-text">Library</h2>
                 <p className="mt-1 text-sm text-text-muted">
                   {visibleGames.length} of {libraryGames.length} tracked{" "}
-                  {activeLibraryTab === "steam" ? "Steam games" : "games"}
+                  {activeProviderConfig
+                    ? `${activeProviderConfig.label} games`
+                    : "games"}
                 </p>
               </div>
-              <div className="flex items-center gap-1 rounded-md border border-border bg-bg p-1">
-                <button
-                  type="button"
-                  aria-label="Grid view"
-                  title="Standard cards"
-                  onClick={() => setView("grid")}
-                  className={clsx(
-                    "grid h-8 w-8 place-items-center rounded transition",
-                    view === "grid"
-                      ? "bg-accent text-accent-fg"
-                      : "text-text-muted hover:bg-surface-hover hover:text-text",
-                  )}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="flex items-center gap-1 rounded-md border border-border bg-bg p-1">
+                  <button
+                    type="button"
+                    aria-label="Grid view"
+                    title="Standard cards"
+                    onClick={() => setMyGamesCardSize("grid")}
+                    className={clsx(
+                      "grid h-8 w-8 place-items-center rounded transition",
+                      view === "grid"
+                        ? "bg-accent text-accent-fg"
+                        : "text-text-muted hover:bg-surface-hover hover:text-text",
+                    )}
+                  >
+                    <LayoutGrid size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Large card view"
+                    title="Large cards"
+                    onClick={() => setMyGamesCardSize("large")}
+                    className={clsx(
+                      "grid h-8 w-8 place-items-center rounded transition",
+                      view === "large"
+                        ? "bg-accent text-accent-fg"
+                        : "text-text-muted hover:bg-surface-hover hover:text-text",
+                    )}
+                  >
+                    <Grid2X2 size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="List view"
+                    title="List"
+                    onClick={() => setMyGamesCardSize("list")}
+                    className={clsx(
+                      "grid h-8 w-8 place-items-center rounded transition",
+                      view === "list"
+                        ? "bg-accent text-accent-fg"
+                        : "text-text-muted hover:bg-surface-hover hover:text-text",
+                    )}
+                  >
+                    <List size={15} />
+                  </button>
+                </div>
+                <Button
+                  variant="secondary"
+                  icon={SlidersHorizontal}
+                  aria-label="Customize library view"
+                  aria-expanded={customizeOpen}
+                  aria-controls="library-customize"
+                  data-controller-item="library-customize"
+                  onClick={() => setCustomizeOpen((open) => !open)}
                 >
-                  <LayoutGrid size={15} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Large card view"
-                  title="Large cards"
-                  onClick={() => setView("large")}
-                  className={clsx(
-                    "grid h-8 w-8 place-items-center rounded transition",
-                    view === "large"
-                      ? "bg-accent text-accent-fg"
-                      : "text-text-muted hover:bg-surface-hover hover:text-text",
-                  )}
-                >
-                  <Grid2X2 size={16} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="List view"
-                  title="List"
-                  onClick={() => setView("list")}
-                  className={clsx(
-                    "grid h-8 w-8 place-items-center rounded transition",
-                    view === "list"
-                      ? "bg-accent text-accent-fg"
-                      : "text-text-muted hover:bg-surface-hover hover:text-text",
-                  )}
-                >
-                  <List size={15} />
-                </button>
+                  Customize
+                </Button>
               </div>
             </div>
 
-            {layout.showTabs ? (
+            {customizeOpen ? (
               <div
-                role="tablist"
-                aria-label="Game library source"
-                className="flex gap-1 border-b border-border bg-bg px-4 pt-3"
+                id="library-customize"
+                className="border-b border-border bg-bg px-4 py-3"
               >
-                {(
-                  [
-                    {
-                      id: "all" as const,
-                      label: "All games",
-                      count: allLibraryGames.length,
-                    },
-                    {
-                      id: "steam" as const,
-                      label: "Steam",
-                      count: steamSummary.gameCount,
-                    },
-                  ] satisfies Array<{
-                    id: ProviderLibraryTab;
-                    label: string;
-                    count: number;
-                  }>
-                ).map((tab) => {
-                  const selected = activeLibraryTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      id={`library-tab-${tab.id}`}
-                      type="button"
-                      role="tab"
-                      aria-selected={selected}
-                      aria-controls="library-tabpanel"
-                      data-controller-item="library-tab"
-                      onClick={() => setLibraryTab(tab.id)}
-                      className={clsx(
-                        "-mb-px flex items-center gap-2 border-b-2 px-3 pb-3 text-sm font-medium transition",
-                        selected
-                          ? "border-accent text-text"
-                          : "border-transparent text-text-muted hover:border-border-strong hover:text-text",
-                      )}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <label
+                      htmlFor="library-show-badges"
+                      className="text-sm font-medium text-text"
                     >
-                      {tab.id === "steam" ? (
-                        <img
-                          src={steamIconUrl}
-                          alt=""
-                          aria-hidden="true"
-                          className="h-4 w-4 shrink-0"
-                        />
-                      ) : null}
-                      <span>{tab.label}</span>
-                      <span
+                      Show badges
+                    </label>
+                    <p
+                      id="library-show-badges-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      Hides the small source, launcher and emulator labels on
+                      covers. Warnings and actions stay.
+                    </p>
+                  </div>
+                  <input
+                    id="library-show-badges"
+                    type="checkbox"
+                    checked={showBadges}
+                    aria-describedby="library-show-badges-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesShowBadges(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {layout.showTabs ? (
+              <div className="border-b border-border bg-bg px-4 pt-3">
+                <div
+                  role="tablist"
+                  aria-label="Game library source"
+                  className="-mb-px flex gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:thin]"
+                >
+                  {tabs.map((tab) => {
+                    const selected = activeLibraryTab === tab.id;
+                    const config =
+                      tab.kind === "provider"
+                        ? providerTabConfig(tab.id)
+                        : undefined;
+                    return (
+                      <button
+                        key={tab.id}
+                        id={`library-tab-${tab.id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        aria-controls="library-tabpanel"
+                        data-controller-item="library-tab"
+                        onClick={() => setLibraryTab(tab.id)}
                         className={clsx(
-                          "rounded-full px-1.5 py-0.5 font-mono text-[11px]",
+                          "flex shrink-0 items-center gap-2 border-b-2 px-3 pb-3 text-sm font-medium transition",
                           selected
-                            ? "bg-accent/15 text-accent"
-                            : "bg-surface text-text-faint",
+                            ? "border-accent text-text"
+                            : "border-transparent text-text-muted hover:border-border-strong hover:text-text",
                         )}
                       >
-                        {tab.count}
-                      </span>
-                    </button>
-                  );
-                })}
+                        {config?.iconUrl ? (
+                          <img
+                            src={config.iconUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-4 w-4 shrink-0"
+                          />
+                        ) : null}
+                        <span>{tab.label}</span>
+                        <span
+                          className={clsx(
+                            "rounded-full px-1.5 py-0.5 font-mono text-[11px]",
+                            selected
+                              ? "bg-accent/15 text-accent"
+                              : "bg-surface text-text-faint",
+                          )}
+                        >
+                          {tab.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ) : null}
 
@@ -1398,7 +1513,9 @@ export function MyGamesView() {
               <select
                 aria-label="Sort games"
                 value={sortKey}
-                onChange={(event) => setSortKey(event.target.value as SortKey)}
+                onChange={(event) =>
+                  setMyGamesSortKey(event.target.value as MyGamesSortKey)
+                }
                 className="min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
               >
                 {sortOptions.map((option) => (
@@ -1419,65 +1536,128 @@ export function MyGamesView() {
             className="grid gap-5"
           >
             <p className="sr-only" aria-live="polite">
-              {layout.panel === "steam-empty"
-                ? "No Steam games imported yet. Use Import from Steam to add them."
-                : activeLibraryTab === "steam"
-                  ? `Showing ${visibleGames.length} Steam games.`
-                  : `Showing ${visibleGames.length} games.`}
+              {layout.panel === "provider-empty" && activeProviderConfig
+                ? `No ${activeProviderConfig.label} games imported yet. Use Import from ${activeProviderConfig.label} to add them.`
+                : layout.panel === "unimported-empty"
+                  ? "No games outside your imported libraries yet."
+                  : `Showing ${visibleGames.length} ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}.`}
             </p>
 
-            {layout.activeTab === "steam" && layout.panel !== "steam-empty" ? (
+            {activeProviderConfig &&
+            activeProviderSummary &&
+            layout.panel !== "provider-empty" ? (
               <div className="grid gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold text-text">Steam library</h3>
+                    <h3 className="font-semibold text-text">
+                      {activeProviderConfig.headline}
+                    </h3>
                     <p className="text-sm text-text-muted">
-                      Imported from your local Steam installation.
+                      {activeProviderConfig.subtitle}
                     </p>
                   </div>
-                  {layout.showImportCta ? (
+                  {activeImportableProviderConfig?.import.platforms.includes(
+                    platform,
+                  ) ? (
                     <Button
                       variant="secondary"
                       icon={Download}
                       data-controller-item="view-link"
-                      onClick={() => setActiveView("import")}
+                      onClick={() => {
+                        setLibraryImportProvider(
+                          activeImportableProviderConfig.id,
+                        );
+                        setActiveView("import");
+                      }}
                     >
-                      Import more from Steam
+                      {activeProviderConfig.importCtaLabel}
                     </Button>
                   ) : null}
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <Stat
-                    label="Steam games"
-                    value={String(steamSummary.gameCount)}
+                    label={activeProviderConfig.statLabels.games}
+                    value={String(activeProviderSummary.gameCount)}
                   />
                   <Stat
-                    label="Steam lifetime playtime"
+                    label={activeProviderConfig.statLabels.lifetime}
                     value={formatDuration(
-                      steamSummary.providerSeconds,
+                      activeProviderSummary.providerSeconds,
                       showDurationDays,
                     )}
                   />
                   <Stat
-                    label="Played on Steam"
-                    value={String(steamSummary.playedCount)}
+                    label={activeProviderConfig.statLabels.played}
+                    value={String(activeProviderSummary.playedCount)}
                   />
                   <Stat
-                    label="Installed on this PC"
-                    value={String(steamSummary.installedCount)}
+                    label={activeProviderConfig.statLabels.installed}
+                    value={String(activeProviderSummary.installedCount)}
                   />
                 </div>
                 <p className="px-1 text-xs leading-5 text-text-faint">
-                  These statistics use only Steam&apos;s imported records. A
-                  game card still shows PlayCounter&apos;s effective playtime:
-                  the higher single source per game, never Steam and local
-                  sessions added together.
+                  {activeProviderConfig.footnote}
                 </p>
               </div>
             ) : null}
 
-            {layout.panel === "steam-empty" ? (
-              <SteamImportCallout variant="steam-tab" />
+            {activeTabDescriptor?.kind === "unimported" &&
+            unimportedSummary &&
+            layout.panel !== "unimported-empty" ? (
+              <div className="grid gap-3">
+                <div>
+                  <h3 className="font-semibold text-text">Not imported</h3>
+                  <p className="text-sm text-text-muted">
+                    PlayCounter found these on its own — nothing here came from
+                    a launcher import.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <Stat
+                    label="Games"
+                    value={String(unimportedSummary.gameCount)}
+                  />
+                  <Stat
+                    label="Tracked playtime"
+                    value={formatDuration(
+                      unimportedSummary.trackedSeconds,
+                      showDurationDays,
+                    )}
+                  />
+                  <Stat
+                    label="With playtime"
+                    value={String(unimportedSummary.playedCount)}
+                  />
+                  <Stat
+                    label="Through an emulator"
+                    value={String(unimportedSummary.emulatorCount)}
+                  />
+                </div>
+                <p className="px-1 text-xs leading-5 text-text-faint">
+                  Detected while running, added by you, or played through an
+                  emulator. Import a launcher library and its games move to that
+                  launcher&apos;s tab.
+                </p>
+              </div>
+            ) : null}
+
+            {layout.panel === "provider-empty" &&
+            activeImportableProviderConfig ? (
+              <ProviderImportCallout
+                config={activeImportableProviderConfig}
+                variant="provider-tab"
+              />
+            ) : layout.panel === "unimported-empty" ? (
+              <Panel className="px-6 py-12 text-center">
+                <h3 className="text-lg font-semibold text-text">
+                  Everything here came from an import
+                </h3>
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-muted">
+                  Games PlayCounter detects on its own — a disc install, a
+                  portable .exe, an emulator, or anything you add yourself —
+                  show up here.
+                </p>
+              </Panel>
             ) : layout.panel === "no-search-results" ? (
               <Panel className="px-4 py-12 text-center text-sm text-text-muted">
                 No games match &ldquo;{query}&rdquo;.
@@ -1523,6 +1703,7 @@ export function MyGamesView() {
                             : undefined
                         }
                         showDurationDays={showDurationDays}
+                        showBadges={showBadges}
                         view={view}
                         onRemove={requestRemoval}
                         onStopTracking={
@@ -1611,8 +1792,13 @@ export function MyGamesView() {
   );
 }
 
-function EmptyLibraryPanel({ showSteamImport }: { showSteamImport: boolean }) {
-  if (!showSteamImport) {
+function EmptyLibraryPanel({
+  platform,
+}: {
+  platform: ReturnType<typeof currentPlatform>;
+}) {
+  const importProvider = importableProviderTabs(platform)[0];
+  if (!importProvider) {
     return (
       <Panel className="px-4 py-12 text-center text-sm text-text-muted">
         No discovered games have completed a session yet.
@@ -1620,42 +1806,52 @@ function EmptyLibraryPanel({ showSteamImport }: { showSteamImport: boolean }) {
     );
   }
 
-  return <SteamImportCallout variant="first-import" />;
+  return (
+    <ProviderImportCallout config={importProvider} variant="first-import" />
+  );
 }
 
-function SteamImportCallout({
+function ProviderImportCallout({
+  config,
   variant,
 }: {
-  variant: "first-import" | "steam-tab";
+  config: ImportableProviderTabConfig;
+  variant: "first-import" | "provider-tab";
 }) {
   const setActiveView = useAppStore((state) => state.setActiveView);
+  const setLibraryImportProvider = useAppStore(
+    (state) => state.setLibraryImportProvider,
+  );
 
   return (
     <Panel className="px-6 py-12 text-center">
-      <img
-        src={steamIconUrl}
-        alt=""
-        aria-hidden="true"
-        className="mx-auto h-10 w-10"
-      />
+      {config.iconUrl ? (
+        <img
+          src={config.iconUrl}
+          alt=""
+          aria-hidden="true"
+          className="mx-auto h-10 w-10"
+        />
+      ) : null}
       <h3 className="mt-4 text-lg font-semibold text-text">
         {variant === "first-import"
-          ? "No games tracked yet"
-          : "No Steam games imported yet"}
+          ? config.firstImportTitle
+          : config.emptyTitle}
       </h3>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">
-        {variant === "first-import"
-          ? "PlayCounter adds games automatically as soon as it sees one running. You can also bring your Steam library in right now."
-          : "PlayCounter reads your local Steam installation and imports your games with their Steam playtime. No Steam login and no ownership data leave this PC."}
+        {variant === "first-import" ? config.firstImportBody : config.emptyBody}
       </p>
       <Button
         variant="primary"
         icon={Download}
         className="mx-auto mt-6"
         data-controller-item="view-link"
-        onClick={() => setActiveView("import")}
+        onClick={() => {
+          setLibraryImportProvider(config.id);
+          setActiveView("import");
+        }}
       >
-        Import from Steam
+        {config.firstImportCtaLabel}
       </Button>
     </Panel>
   );
@@ -1711,6 +1907,7 @@ function GameLibraryCard({
   onAcquireLaunch,
   onReleaseLaunch,
   showDurationDays,
+  showBadges,
   view,
   onRemove,
   onStopTracking,
@@ -1724,12 +1921,14 @@ function GameLibraryCard({
   onAcquireLaunch: (gameKey: string) => boolean;
   onReleaseLaunch: (gameKey: string) => void;
   showDurationDays: boolean;
+  showBadges: boolean;
   view: ViewMode;
   onRemove: (game: GameSummary) => void;
   onStopTracking?: (game: GameSummary) => void;
   onDemoPlaytimeLogged?: (durationSeconds: number) => void;
   demo?: boolean;
 }) {
+  const badgesVisible = libraryBadgesVisible({ showBadges, demo });
   const averageSeconds = Math.round(
     game.sessionSeconds / Math.max(1, game.sessionCount),
   );
@@ -2014,7 +2213,7 @@ function GameLibraryCard({
     game.emulatorContentKeys.length === 0;
   const canCheckMatches = Boolean(
     (game.source && game.exeNames[0]) ||
-      (trackingUnavailable && steamImportEntry),
+    (trackingUnavailable && steamImportEntry),
   );
 
   const demoNotice = () =>
@@ -3194,29 +3393,31 @@ function GameLibraryCard({
           )}
 
           {/* Badges top left */}
-          <div className="absolute left-2 top-2 z-20 flex flex-col items-start gap-1.5 drop-shadow-md">
-            {game.sources.map((source) => (
-              <span
-                key={source}
-                data-tour={demo ? `demo-source-${source}` : undefined}
-              >
-                <SourceBadge source={source} />
-              </span>
-            ))}
-            {importedProviders.map((provider) => (
-              <ProviderBadge key={provider} provider={provider} />
-            ))}
-            {game.emulatorIds.map((emulatorId) => (
-              <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
-            ))}
-            {game.sources.includes("custom") ? (
-              <CommunityApprovalBadge
-                suggestionId={game.communitySuggestionId}
-                verified={game.communitySuggestionVerified}
-                status={game.communitySuggestionStatus}
-              />
-            ) : null}
-          </div>
+          {badgesVisible ? (
+            <div className="absolute left-2 top-2 z-20 flex flex-col items-start gap-1.5 drop-shadow-md">
+              {game.sources.map((source) => (
+                <span
+                  key={source}
+                  data-tour={demo ? `demo-source-${source}` : undefined}
+                >
+                  <SourceBadge source={source} />
+                </span>
+              ))}
+              {importedProviders.map((provider) => (
+                <ProviderBadge key={provider} provider={provider} />
+              ))}
+              {game.emulatorIds.map((emulatorId) => (
+                <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
+              ))}
+              {game.sources.includes("custom") ? (
+                <CommunityApprovalBadge
+                  suggestionId={game.communitySuggestionId}
+                  verified={game.communitySuggestionVerified}
+                  status={game.communitySuggestionStatus}
+                />
+              ) : null}
+            </div>
+          ) : null}
 
           {trackingUnavailable ? (
             <div className="peer/tracking-warning group/tracking-warning absolute right-2 top-2 z-40">
@@ -3237,10 +3438,10 @@ function GameLibraryCard({
                   New sessions won&apos;t be tracked yet
                 </div>
                 <div className="mt-1 text-[11px] leading-4 text-text-muted">
-                  Steam playtime is already imported, but this game&apos;s filename
-                  is unknown. Use Check for Matches to look for a newly approved
-                  executable, or install and run the game so PlayCounter can
-                  discover it.
+                  Steam playtime is already imported, but this game&apos;s
+                  filename is unknown. Use Check for Matches to look for a newly
+                  approved executable, or install and run the game so
+                  PlayCounter can discover it.
                 </div>
               </div>
             </div>
@@ -3777,28 +3978,32 @@ function GameLibraryCard({
                 game.name
               )}
             </h2>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {game.sources.map((source) => (
-                <span
-                  key={source}
-                  data-tour={demo ? `demo-source-${source}` : undefined}
-                >
-                  <SourceBadge source={source} />
-                </span>
-              ))}
-              {importedProviders.map((provider) => (
-                <ProviderBadge key={provider} provider={provider} />
-              ))}
-              {game.emulatorIds.map((emulatorId) => (
-                <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
-              ))}
-            </div>
-            {game.sources.includes("custom") ? (
-              <CommunityApprovalBadge
-                suggestionId={game.communitySuggestionId}
-                verified={game.communitySuggestionVerified}
-                status={game.communitySuggestionStatus}
-              />
+            {badgesVisible ? (
+              <>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {game.sources.map((source) => (
+                    <span
+                      key={source}
+                      data-tour={demo ? `demo-source-${source}` : undefined}
+                    >
+                      <SourceBadge source={source} />
+                    </span>
+                  ))}
+                  {importedProviders.map((provider) => (
+                    <ProviderBadge key={provider} provider={provider} />
+                  ))}
+                  {game.emulatorIds.map((emulatorId) => (
+                    <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
+                  ))}
+                </div>
+                {game.sources.includes("custom") ? (
+                  <CommunityApprovalBadge
+                    suggestionId={game.communitySuggestionId}
+                    verified={game.communitySuggestionVerified}
+                    status={game.communitySuggestionStatus}
+                  />
+                ) : null}
+              </>
             ) : null}
           </div>
           <div className="mt-1.5 flex items-center gap-3 text-xs text-text-faint">
@@ -4652,7 +4857,8 @@ function SteamImportMatchCheckDialog({
         ) : result.kind === "found" ? (
           <div className="rounded-xl border border-success-border bg-success-tint p-5 text-sm text-success">
             <div className="flex items-center gap-2 font-semibold">
-              <Check size={18} /> {result.executableNames.length === 1
+              <Check size={18} />{" "}
+              {result.executableNames.length === 1
                 ? "Executable match found"
                 : "Executable matches found"}
             </div>

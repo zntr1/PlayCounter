@@ -115,6 +115,7 @@ import {
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions } from "./sessionPersistence";
 import { normalizeAccentColor } from "./theme";
+import { resolveMyGamesPresentationSettings } from "./ui/myGamesPresentation";
 import { TOURS } from "./ui/tour/tourDefinitions";
 import { normalizeTourProgress } from "./ui/tour/tourState";
 import {
@@ -496,6 +497,7 @@ function hydrate() {
           .filter(Boolean),
       ),
     ],
+    ...resolveMyGamesPresentationSettings(persisted.settings),
   });
   const settings: Settings =
     loadedSettings.rememberLaunchPaths === false

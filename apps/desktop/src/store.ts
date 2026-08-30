@@ -51,7 +51,13 @@ import {
   markWelcomeSeen,
   type TourProgress,
 } from "./ui/tour/tourState";
-import type { ProviderLibraryTab } from "./ui/providerLibrary";
+import {
+  DEFAULT_IMPORT_PROVIDER,
+  type BuiltinImportProviderId,
+} from "./library/importProviders";
+import type { LibraryTabId } from "./ui/libraryTabs";
+import type { MyGamesCardSize } from "./ui/myGamesPresentation";
+import type { MyGamesSortKey } from "./ui/myGamesSort";
 
 export type ViewId =
   | "now"
@@ -317,7 +323,8 @@ export type ActiveTour = {
 
 export type AppState = {
   activeView: ViewId;
-  libraryTab: ProviderLibraryTab;
+  libraryTab: LibraryTabId;
+  libraryImportProvider: BuiltinImportProviderId;
   historyQuery: string;
   historyGameKey: string | null;
   installUuid: string | null;
@@ -377,7 +384,8 @@ export type AppState = {
   cleanup: (() => void) | null;
   settings: Settings;
   setActiveView: (view: ViewId) => void;
-  setLibraryTab: (tab: ProviderLibraryTab) => void;
+  setLibraryTab: (tab: LibraryTabId) => void;
+  setLibraryImportProvider: (provider: BuiltinImportProviderId) => void;
   startTour: (tourId: string) => void;
   goToTourStep: (index: number, resetDemo?: boolean) => void;
   endTour: (outcome: "completed" | "dismissed") => void;
@@ -465,6 +473,9 @@ export type AppState = {
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
+  setMyGamesCardSize: (size: MyGamesCardSize) => void;
+  setMyGamesSortKey: (key: MyGamesSortKey) => void;
+  setMyGamesShowBadges: (enabled: boolean) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setEmulatorSetting: (
     key: "emulatorDetection" | "emulatorContentLookup",
@@ -507,6 +518,9 @@ export const BUILD_STAGE: Stage =
 const defaultSettings: Settings = {
   launchOnStartup: true,
   showDurationDays: false,
+  libraryCardSize: "grid",
+  librarySortKey: "recent",
+  libraryShowBadges: true,
   autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
@@ -594,6 +608,7 @@ function persistSoon() {
 export const useAppStore = create<AppState>((set, get) => ({
   activeView: "now",
   libraryTab: "all",
+  libraryImportProvider: DEFAULT_IMPORT_PROVIDER,
   historyQuery: "",
   historyGameKey: null,
   installUuid: null,
@@ -654,6 +669,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   settings: defaultSettings,
   setActiveView: (activeView) => set({ activeView }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
+  setLibraryImportProvider: (libraryImportProvider) =>
+    set({ libraryImportProvider }),
   startTour: (tourId) => {
     const tour = findTour(tourId);
     if (!tour) return;
@@ -1301,6 +1318,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowDurationDays: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, showDurationDays: enabled },
+    }));
+    persistSoon();
+  },
+  setMyGamesCardSize: (libraryCardSize) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryCardSize },
+    }));
+    persistSoon();
+  },
+  setMyGamesSortKey: (librarySortKey) => {
+    set((state) => ({
+      settings: { ...state.settings, librarySortKey },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowBadges: (libraryShowBadges) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowBadges },
     }));
     persistSoon();
   },

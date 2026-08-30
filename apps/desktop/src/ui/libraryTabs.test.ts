@@ -1,0 +1,135 @@
+import { describe, expect, it } from "vitest";
+import {
+  filterByLibraryTab,
+  resolveLibraryTab,
+  summarizeUnimportedLibrary,
+  visibleLibraryTabs,
+  type UnimportedLibraryGame,
+} from "./libraryTabs";
+
+function game(
+  gameId: number,
+  options: Partial<UnimportedLibraryGame> = {},
+): UnimportedLibraryGame {
+  return {
+    gameId,
+    source: "igdb",
+    libraryImports: [],
+    totalSeconds: 0,
+    emulatorIds: [],
+    ...options,
+  };
+}
+
+const steamEntry = (externalId: string, installed = false) => ({
+  provider: "steam" as const,
+  externalId,
+  installed,
+});
+
+describe("library tabs", () => {
+  it("filters all, provider, and not-imported games", () => {
+    const games = [
+      game(1, { libraryImports: [steamEntry("100", true)] }),
+      game(2),
+    ];
+    expect(filterByLibraryTab(games, "all")).toEqual(games);
+    expect(filterByLibraryTab(games, "all")).not.toBe(games);
+    expect(filterByLibraryTab(games, "steam")).toEqual([games[0]]);
+    expect(filterByLibraryTab(games, "unimported")).toEqual([games[1]]);
+  });
+
+  it("keeps a game with any provider import out of Not imported", () => {
+    const imported = game(1, {
+      libraryImports: [steamEntry("100"), steamEntry("101")],
+    });
+    expect(filterByLibraryTab([imported], "unimported")).toEqual([]);
+    expect(filterByLibraryTab([imported], "steam")).toEqual([imported]);
+  });
+
+  it("only builds a tab strip when a provider is visible", () => {
+    const hiddenProvider = {
+      provider: "steam" as const,
+      label: "Steam",
+      importSupported: false,
+      gameCount: 0,
+    };
+    expect(
+      visibleLibraryTabs({
+        allTabCount: 2,
+        unimportedGameCount: 2,
+        providers: [hiddenProvider],
+      }),
+    ).toEqual([]);
+
+    expect(
+      visibleLibraryTabs({
+        allTabCount: 2,
+        unimportedGameCount: 2,
+        providers: [{ ...hiddenProvider, importSupported: true }],
+      }),
+    ).toEqual([
+      { id: "all", kind: "all", label: "All games", count: 2 },
+      { id: "steam", kind: "provider", label: "Steam", count: 0 },
+      {
+        id: "unimported",
+        kind: "unimported",
+        label: "Not imported",
+        count: 2,
+      },
+    ]);
+  });
+
+  it("shows restored provider games and keeps Not imported last at zero", () => {
+    const tabs = visibleLibraryTabs({
+      allTabCount: 2,
+      unimportedGameCount: 0,
+      providers: [
+        {
+          provider: "steam",
+          label: "Steam",
+          importSupported: false,
+          gameCount: 2,
+        },
+      ],
+    });
+    expect(tabs.map((tab) => tab.id)).toEqual(["all", "steam", "unimported"]);
+    expect(tabs.at(-1)?.count).toBe(0);
+  });
+
+  it("falls back from an unavailable requested tab", () => {
+    const tabs = visibleLibraryTabs({
+      allTabCount: 1,
+      unimportedGameCount: 1,
+      providers: [
+        {
+          provider: "steam",
+          label: "Steam",
+          importSupported: true,
+          gameCount: 0,
+        },
+      ],
+    });
+    expect(resolveLibraryTab("unimported", tabs)).toBe("unimported");
+    expect(resolveLibraryTab("steam", [])).toBe("all");
+  });
+
+  it("summarizes effective unimported playtime and emulator evidence", () => {
+    expect(
+      summarizeUnimportedLibrary([
+        game(1, { totalSeconds: 5_000 }),
+        game(2, { totalSeconds: -10, emulatorIds: ["dolphin"] }),
+        game(3, { totalSeconds: Number.NaN }),
+        game(4, {
+          totalSeconds: 99_999,
+          libraryImports: [steamEntry("400")],
+        }),
+      ]),
+    ).toEqual({
+      gameCount: 3,
+      trackedSeconds: 5_000,
+      playedCount: 1,
+      emulatorCount: 1,
+    });
+  });
+});

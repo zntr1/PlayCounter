@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  filterByProviderTab,
   libraryProviders,
   summarizeProviderLibrary,
   type ProviderLibraryGame,
@@ -32,16 +31,6 @@ describe("provider library", () => {
     expect(
       libraryProviders([steamEntry("100", true), steamEntry("101", false)]),
     ).toEqual(["steam"]);
-  });
-
-  it("filters Steam games without changing the all-games result", () => {
-    const games = [
-      game(1, { igdbId: 10, imports: [steamEntry("100", true)] }),
-      game(2),
-    ];
-
-    expect(filterByProviderTab(games, "all")).toEqual(games);
-    expect(filterByProviderTab(games, "steam")).toEqual([games[0]]);
   });
 
   it("summarizes canonical Steam games from Steam floors only", () => {

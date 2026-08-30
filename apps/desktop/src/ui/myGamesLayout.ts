@@ -1,54 +1,45 @@
-import type { ProviderLibraryTab } from "./providerLibrary";
+import type { LibraryTabDescriptor, LibraryTabId } from "./libraryTabs";
+import { resolveLibraryTab } from "./libraryTabs";
 
 export type MyGamesPanel =
   | "empty-library"
-  | "steam-empty"
+  | "provider-empty"
+  | "unimported-empty"
   | "no-search-results"
   | "games";
 
 export type MyGamesLayout = {
   showTabs: boolean;
-  activeTab: ProviderLibraryTab;
+  activeTab: LibraryTabId;
   showImportCta: boolean;
   panel: MyGamesPanel;
 };
 
-export function showSteamLibraryTab(input: {
-  steamGameCount: number;
-  steamImportSupported: boolean;
-}) {
-  return input.steamImportSupported || input.steamGameCount > 0;
-}
-
-export function resolveLibraryTab(
-  requestedTab: ProviderLibraryTab,
-  showSteamTab: boolean,
-): ProviderLibraryTab {
-  return requestedTab === "steam" && !showSteamTab ? "all" : requestedTab;
-}
-
 export function myGamesLayout(input: {
   libraryGameCount: number;
-  steamGameCount: number;
-  steamImportSupported: boolean;
-  requestedTab: ProviderLibraryTab;
+  tabs: readonly LibraryTabDescriptor[];
+  requestedTab: LibraryTabId;
+  activeTabGameCount: number;
   visibleGameCount: number;
+  importSupported: boolean;
 }): MyGamesLayout {
-  const showSteamTab = showSteamLibraryTab(input);
-  const activeTab = resolveLibraryTab(input.requestedTab, showSteamTab);
+  const activeTab = resolveLibraryTab(input.requestedTab, input.tabs);
+  const activeTabKind = input.tabs.find((tab) => tab.id === activeTab)?.kind;
   const panel: MyGamesPanel =
     input.libraryGameCount === 0
       ? "empty-library"
-      : activeTab === "steam" && input.steamGameCount === 0
-        ? "steam-empty"
-        : input.visibleGameCount === 0
-          ? "no-search-results"
-          : "games";
+      : activeTabKind === "provider" && input.activeTabGameCount === 0
+        ? "provider-empty"
+        : activeTabKind === "unimported" && input.activeTabGameCount === 0
+          ? "unimported-empty"
+          : input.visibleGameCount === 0
+            ? "no-search-results"
+            : "games";
 
   return {
-    showTabs: input.libraryGameCount > 0 && showSteamTab,
+    showTabs: input.libraryGameCount > 0 && input.tabs.length > 0,
     activeTab,
-    showImportCta: input.steamImportSupported,
+    showImportCta: input.importSupported,
     panel,
   };
 }

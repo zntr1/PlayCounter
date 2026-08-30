@@ -115,8 +115,9 @@ class ImporterErrorBoundary extends Component<
 }
 
 function backToMyGames() {
-  const { setActiveView, setLibraryTab } = useAppStore.getState();
-  setLibraryTab("steam");
+  const { libraryImportProvider, setActiveView, setLibraryTab } =
+    useAppStore.getState();
+  setLibraryTab(libraryImportProvider);
   setActiveView("games");
 }
 
