@@ -93,6 +93,7 @@ export type ResolvedLibraryGame = {
   status: "resolved" | "unknown";
   game?: GameMetadata;
   executables: LibraryKnownExecutable[];
+  candidates?: GameMetadata[];
 };
 
 export type LibraryImportCommit = {

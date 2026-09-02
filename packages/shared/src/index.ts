@@ -85,13 +85,21 @@ export interface LibraryResolveResponse {
     }>;
   }>;
 }
+export interface LibraryReverseResolveRequest {
+  /** Server-local game id selected by the user. */
+  gameId: number;
+}
+
+export interface LibraryReverseResolveResponse {
+  game: Game;
+  executables: LibraryKnownExecutable[];
+}
 
 /**
  * Xbox playtime import: the local desktop client has no on-disk source for
  * Xbox/Game Pass playtime, so the whole OAuth + Xbox Live lookup + IGDB
- * matching flow runs server-side. The desktop client only ever sees these
- * three request/response shapes; it never receives a Microsoft or Xbox
- * Live token.
+ * matching flow runs server-side. The desktop client never receives a
+ * Microsoft or Xbox Live token.
  */
 export interface XboxImportStartResponse {
   /** Opaque handle correlating the browser sign-in with later polling. */
@@ -99,8 +107,6 @@ export interface XboxImportStartResponse {
   /** Microsoft sign-in URL to open in the user's system browser. */
   authorizeUrl: string;
 }
-
-export type XboxImportStatus = "pending" | "done" | "failed";
 
 export type XboxImportFailureReason =
   | "cancelled"
@@ -111,33 +117,29 @@ export type XboxImportFailureReason =
 export interface XboxImportGame {
   /** Xbox Live title ID, the provider-native external ID for this provider. */
   externalId: string;
-  /** Title as reported by the Xbox achievements history; never IGDB truth. */
+  /** Title as reported by Xbox Live; never IGDB truth. */
   name: string;
   /**
-   * Total playtime in seconds when Xbox Live reported a MinutesPlayed stat
-   * for this title, otherwise null. null is a distinct "unknown", never
-   * coerced to 0 — many titles never report this statistic.
+   * Total playtime in seconds when Xbox Live reported MinutesPlayed,
+   * otherwise null. null is a distinct "unknown", never zero.
    */
   providerSeconds: number | null;
   /** ISO timestamp of the last achievement unlock, when available. */
   providerLastPlayedAt?: string;
   /**
-   * IGDB matching happens server-side (title-hint search; there is no
-   * Xbox-Live-provided ID IGDB indexes). "unknown" means the desktop must
-   * fall back to the same manual IGDB picker Steam uses for unmatched
-   * AppIDs — for Xbox this is the common case, not the exception.
+   * Title-search suggestions only. The desktop must require the user to pick
+   * one before importing; no Xbox-provided identifier proves an IGDB match.
    */
-  status: "resolved" | "unknown";
-  /** Present only when status is "resolved". */
-  game?: Game;
-  /** Always empty today; kept for shape symmetry with LibraryResolveResponse. */
-  executables?: LibraryKnownExecutable[];
+  candidates: Game[];
 }
 
-export interface XboxImportResultResponse {
-  status: XboxImportStatus;
-  reason?: XboxImportFailureReason;
-  games?: XboxImportGame[];
+export type XboxImportResultResponse =
+  | { status: "pending" }
+  | { status: "done"; games: XboxImportGame[] }
+  | { status: "failed"; reason: XboxImportFailureReason };
+
+export interface XboxImportCancelRequest {
+  attemptId: string;
 }
 
 export interface EmulatorContentSuggestionPayload extends EmulatorContentRef {

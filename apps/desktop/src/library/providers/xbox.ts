@@ -1,16 +1,29 @@
 import type {
+  GameMetadataResponse,
+  LibraryKnownExecutable,
+  LibraryReverseResolveRequest,
+  LibraryReverseResolveResponse,
+  XboxImportCancelRequest,
   XboxImportFailureReason,
   XboxImportGame,
-  XboxImportResultResponse,
   XboxImportStartResponse,
 } from "@playcounter/shared";
 import { invoke } from "@tauri-apps/api/core";
-import { DEFAULT_API_ENDPOINT } from "../../store";
+import { DEFAULT_API_ENDPOINT, type GameMetadata } from "../../store";
 import type { LocalLibraryProvider, LibraryScanOptions } from "../provider";
 import type { LibraryScanResult, ResolvedLibraryGame } from "../types";
 
 const XBOX_IMPORT_POLL_INTERVAL_MS = 1_500;
 const XBOX_IMPORT_TIMEOUT_MS = 5 * 60 * 1_000;
+const XBOX_CANCEL_TIMEOUT_MS = 3_000;
+type ParsedXboxImportGame = Omit<XboxImportGame, "candidates"> & {
+  candidates: GameMetadata[];
+};
+
+type ParsedXboxImportResult =
+  | { status: "pending" }
+  | { status: "done"; games: ParsedXboxImportGame[] }
+  | { status: "failed"; reason: XboxImportFailureReason };
 
 export const xboxProvider: LocalLibraryProvider = {
   id: "xbox",
@@ -66,14 +79,7 @@ export async function scanXboxLibrary(
       throw new Error(`Xbox import could not start (${startResponse.status}).`);
     }
 
-    const start = (await startResponse.json()) as XboxImportStartResponse;
-    if (
-      typeof start.attemptId !== "string" ||
-      !start.attemptId ||
-      typeof start.authorizeUrl !== "string"
-    ) {
-      throw new Error("Xbox import returned an invalid sign-in response.");
-    }
+    const start = parseXboxImportStart(await startResponse.json());
     attemptId = start.attemptId;
     attemptActive = true;
 
@@ -93,12 +99,9 @@ export async function scanXboxLibrary(
         );
       }
 
-      const result = (await resultResponse.json()) as XboxImportResultResponse;
+      const result = parseXboxImportResult(await resultResponse.json());
       if (result.status === "done") {
         attemptActive = false;
-        if (!Array.isArray(result.games)) {
-          throw new Error("Xbox import returned an invalid game list.");
-        }
         return mapXboxImportGames(result.games);
       }
       if (result.status === "failed") {
@@ -116,7 +119,7 @@ export async function scanXboxLibrary(
     }
   } catch (error) {
     if (attemptActive && attemptId) {
-      await cancelXboxImport(apiEndpoint, attemptId);
+      void cancelXboxImport(apiEndpoint, attemptId);
     }
     if (timedOut) {
       throw new Error(xboxImportFailureMessage("timed_out"));
@@ -131,20 +134,12 @@ export async function scanXboxLibrary(
   }
 }
 
-function mapXboxImportGames(games: XboxImportGame[]): LibraryScanResult {
+function mapXboxImportGames(games: ParsedXboxImportGame[]): LibraryScanResult {
   const resolvedGames: ResolvedLibraryGame[] = games.map((game) => ({
     key: `xbox:${game.externalId}`,
-    status: game.status,
-    game: game.game
-      ? {
-          id: game.game.id,
-          igdbId: game.game.igdbId,
-          name: game.game.name,
-          coverUrl: game.game.coverUrl,
-          source: game.game.source === "community" ? "community" : "igdb",
-        }
-      : undefined,
-    executables: game.executables ?? [],
+    status: "unknown",
+    executables: [],
+    candidates: game.candidates,
   }));
 
   return {
@@ -163,15 +158,238 @@ function mapXboxImportGames(games: XboxImportGame[]): LibraryScanResult {
 }
 
 async function cancelXboxImport(apiEndpoint: string, attemptId: string) {
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(
+    () => controller.abort(),
+    XBOX_CANCEL_TIMEOUT_MS,
+  );
   try {
     await fetch(`${apiEndpoint}/api/xbox/import/cancel`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ attemptId }),
+      body: JSON.stringify({ attemptId } satisfies XboxImportCancelRequest),
+      signal: controller.signal,
     });
   } catch {
     // Best effort: the backend TTL still removes an abandoned attempt.
+  } finally {
+    globalThis.clearTimeout(timeout);
   }
+}
+
+export async function searchXboxGames(
+  apiEndpoint: string,
+  rawQuery: string,
+): Promise<GameMetadata[]> {
+  const query = rawQuery.trim();
+  if (query.length < 2) return [];
+  const endpoint = apiEndpoint.replace(/\/+$/, "");
+  const response = await fetch(
+    `${endpoint}/api/games/search?query=${encodeURIComponent(query)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Xbox game search failed (${response.status}).`);
+  }
+  const value: unknown = await response.json();
+  const record = asRecord(value);
+  if (!record || !Array.isArray(record.games)) {
+    throw new Error("Xbox game search returned an invalid response.");
+  }
+  return record.games.map(
+    parseGameMetadata,
+  ) satisfies GameMetadataResponse["games"];
+}
+export async function reverseResolveXboxGame(
+  apiEndpoint: string,
+  gameId: number,
+): Promise<{
+  game: GameMetadata;
+  executables: LibraryKnownExecutable[];
+}> {
+  const endpoint = apiEndpoint.replace(/\/+$/, "");
+  const response = await fetch(`${endpoint}/api/library/reverse-resolve`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ gameId } satisfies LibraryReverseResolveRequest),
+  });
+  if (!response.ok) {
+    throw new Error(`Game executable lookup failed (${response.status}).`);
+  }
+  const record = asRecord(await response.json());
+  if (!record || !Array.isArray(record.executables)) {
+    throw new Error("Game executable lookup returned an invalid response.");
+  }
+  return {
+    game: parseGameMetadata(record.game),
+    executables: record.executables.map(parseLibraryExecutable),
+  } satisfies LibraryReverseResolveResponse;
+}
+
+function parseLibraryExecutable(value: unknown): LibraryKnownExecutable {
+  const record = asRecord(value);
+  const platform = record?.platform;
+  const kind = record?.kind;
+  if (
+    !record ||
+    !isLibraryPlatform(platform) ||
+    !isLibraryIdentifierKind(kind) ||
+    typeof record.value !== "string" ||
+    !record.value.trim() ||
+    (record.provenance !== "igdb" && record.provenance !== "community") ||
+    typeof record.verified !== "boolean" ||
+    (record.ambiguous !== undefined && typeof record.ambiguous !== "boolean")
+  ) {
+    throw new Error("Game executable lookup returned invalid executable data.");
+  }
+  return {
+    platform,
+    kind,
+    value: record.value,
+    provenance: record.provenance,
+    verified: record.verified,
+    ...(typeof record.ambiguous === "boolean"
+      ? { ambiguous: record.ambiguous }
+      : {}),
+  };
+}
+
+function isLibraryPlatform(
+  value: unknown,
+): value is LibraryKnownExecutable["platform"] {
+  return value === "windows" || value === "macos" || value === "linux";
+}
+
+function isLibraryIdentifierKind(
+  value: unknown,
+): value is LibraryKnownExecutable["kind"] {
+  return (
+    value === "exe" ||
+    value === "bundle_id" ||
+    value === "app_bundle" ||
+    value === "process_name" ||
+    value === "steam_app_id" ||
+    value === "executable_path" ||
+    value === "executable_name" ||
+    value === "desktop_id" ||
+    value === "wine_exe"
+  );
+}
+
+function parseXboxImportStart(value: unknown): XboxImportStartResponse {
+  const record = asRecord(value);
+  if (
+    !record ||
+    typeof record.attemptId !== "string" ||
+    !/^[a-f0-9]{48}$/.test(record.attemptId) ||
+    typeof record.authorizeUrl !== "string" ||
+    !record.authorizeUrl
+  ) {
+    throw new Error("Xbox import returned an invalid sign-in response.");
+  }
+  return {
+    attemptId: record.attemptId,
+    authorizeUrl: record.authorizeUrl,
+  };
+}
+
+function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
+  const record = asRecord(value);
+  if (!record || typeof record.status !== "string") {
+    throw new Error("Xbox import returned an invalid status.");
+  }
+  if (record.status === "pending") return { status: "pending" };
+  if (record.status === "done") {
+    if (!Array.isArray(record.games)) {
+      throw new Error("Xbox import returned an invalid game list.");
+    }
+    return { status: "done", games: record.games.map(parseXboxImportGame) };
+  }
+  if (record.status === "failed" && isXboxFailureReason(record.reason)) {
+    return { status: "failed", reason: record.reason };
+  }
+  throw new Error("Xbox import returned an invalid status.");
+}
+
+function parseXboxImportGame(value: unknown): ParsedXboxImportGame {
+  const record = asRecord(value);
+  if (
+    !record ||
+    typeof record.externalId !== "string" ||
+    !/^[1-9][0-9]{0,9}$/.test(record.externalId) ||
+    typeof record.name !== "string" ||
+    !record.name.trim() ||
+    (record.providerSeconds !== null &&
+      (typeof record.providerSeconds !== "number" ||
+        !Number.isFinite(record.providerSeconds) ||
+        record.providerSeconds < 0)) ||
+    !Array.isArray(record.candidates) ||
+    (record.providerLastPlayedAt !== undefined &&
+      (typeof record.providerLastPlayedAt !== "string" ||
+        !Number.isFinite(Date.parse(record.providerLastPlayedAt))))
+  ) {
+    throw new Error("Xbox import returned invalid game data.");
+  }
+  return {
+    externalId: record.externalId,
+    name: record.name,
+    providerSeconds: record.providerSeconds,
+    ...(typeof record.providerLastPlayedAt === "string"
+      ? { providerLastPlayedAt: record.providerLastPlayedAt }
+      : {}),
+    candidates: uniqueGames(record.candidates.map(parseGameMetadata)),
+  };
+}
+
+function parseGameMetadata(value: unknown): GameMetadata {
+  const record = asRecord(value);
+  if (
+    !record ||
+    typeof record.id !== "number" ||
+    !Number.isInteger(record.id) ||
+    record.id <= 0 ||
+    typeof record.igdbId !== "number" ||
+    !Number.isInteger(record.igdbId) ||
+    record.igdbId <= 0 ||
+    typeof record.name !== "string" ||
+    !record.name.trim() ||
+    typeof record.coverUrl !== "string" ||
+    (record.releaseYear !== undefined &&
+      (typeof record.releaseYear !== "number" ||
+        !Number.isInteger(record.releaseYear) ||
+        record.releaseYear <= 0)) ||
+    (record.source !== "igdb" && record.source !== "community")
+  ) {
+    throw new Error("Xbox import returned invalid game metadata.");
+  }
+  return {
+    id: record.id,
+    igdbId: record.igdbId,
+    name: record.name,
+    coverUrl: record.coverUrl,
+    ...(typeof record.releaseYear === "number"
+      ? { releaseYear: record.releaseYear }
+      : {}),
+    source: record.source,
+  };
+}
+
+function uniqueGames(games: GameMetadata[]) {
+  return [...new Map(games.map((game) => [game.igdbId, game])).values()];
+}
+
+function isXboxFailureReason(value: unknown): value is XboxImportFailureReason {
+  return (
+    value === "cancelled" ||
+    value === "timed_out" ||
+    value === "oauth_error" ||
+    value === "xbox_api_error"
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function isoTimestampToUnix(value: string | undefined) {

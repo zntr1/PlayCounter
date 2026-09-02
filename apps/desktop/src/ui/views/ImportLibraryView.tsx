@@ -5,6 +5,7 @@ import {
   HardDrive,
   LibraryBig,
   RefreshCw,
+  Search,
   Share2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +15,10 @@ import { runLibraryImport } from "../../library/importRun";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { loadLibraryProvider } from "../../library/providers";
+import {
+  reverseResolveXboxGame,
+  searchXboxGames,
+} from "../../library/providers/xbox";
 import { resolveLibraryGames } from "../../library/resolve";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import type {
@@ -25,11 +30,11 @@ import type {
   ScannedLibraryGame,
 } from "../../library/types";
 import { libraryEntryKey } from "../../library/types";
-import { useAppStore } from "../../store";
+import { useAppStore, type GameMetadata } from "../../store";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { STORAGE_KEY } from "../../persistence";
 import { Panel, ProviderBadge, formatDuration } from "../components";
-import { Button } from "../primitives";
+import { Button, Input } from "../primitives";
 
 type Phase = "detecting" | "ready" | "scanning" | "importing" | "done";
 type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
@@ -45,6 +50,7 @@ type ImporterSession = {
   scan: LibraryScanResult | null;
   resolved: Map<string, ResolvedLibraryGame>;
   selected: Set<string>;
+  completed: Set<string>;
   manualExecutables: Record<string, string>;
   browsedExecutables: Record<string, ScannedExecutable>;
   capability: "unknown" | "supported" | "unsupported";
@@ -63,6 +69,7 @@ function createImporterSession(
     scan: null,
     resolved: new Map(),
     selected: new Set(),
+    completed: new Set(),
     manualExecutables: {},
     browsedExecutables: {},
     capability: "unknown",
@@ -91,24 +98,17 @@ export function ImportLibraryView() {
       ? "ready"
       : session.phase,
   );
-  const [status, setStatus] = useState<ProviderStatus | null>(
-    session.status,
-  );
+  const [status, setStatus] = useState<ProviderStatus | null>(session.status);
   const [accounts, setAccounts] = useState<LocalLibraryAccount[]>(
     session.accounts,
   );
-  const [accountId, setAccountId] = useState<number | null>(
-    session.accountId,
-  );
-  const [scan, setScan] = useState<LibraryScanResult | null>(
-    session.scan,
-  );
+  const [accountId, setAccountId] = useState<number | null>(session.accountId);
+  const [scan, setScan] = useState<LibraryScanResult | null>(session.scan);
   const [resolved, setResolved] = useState<Map<string, ResolvedLibraryGame>>(
     session.resolved,
   );
-  const [selected, setSelected] = useState<Set<string>>(
-    session.selected,
-  );
+  const [selected, setSelected] = useState<Set<string>>(session.selected);
+  const [completed, setCompleted] = useState<Set<string>>(session.completed);
   const [manualExecutables, setManualExecutables] = useState<
     Record<string, string>
   >(session.manualExecutables);
@@ -148,6 +148,7 @@ export function ImportLibraryView() {
     setScan(next.scan);
     setResolved(next.resolved);
     setSelected(next.selected);
+    setCompleted(next.completed);
     setManualExecutables(next.manualExecutables);
     setBrowsedExecutables(next.browsedExecutables);
     setCapability(next.capability);
@@ -167,6 +168,7 @@ export function ImportLibraryView() {
       scan,
       resolved,
       selected,
+      completed,
       manualExecutables,
       browsedExecutables,
       capability,
@@ -175,6 +177,7 @@ export function ImportLibraryView() {
   }, [
     accountId,
     accounts,
+    completed,
     browsedExecutables,
     capability,
     error,
@@ -236,6 +239,7 @@ export function ImportLibraryView() {
     setScan(null);
     setResolved(new Map());
     setSelected(new Set());
+    setCompleted(new Set());
     setManualExecutables({});
     setBrowsedExecutables({});
     setCapability("unknown");
@@ -252,6 +256,26 @@ export function ImportLibraryView() {
       setCapability(lookup.capability);
       if (lookup.capability === "supported") {
         const byKey = new Map(lookup.games.map((game) => [game.key, game]));
+        if (isXbox) {
+          for (const game of result.games) {
+            const key = libraryEntryKey("xbox", game.externalId);
+            const existing = existingImports.get(key);
+            if (!existing) continue;
+            byKey.set(key, {
+              key,
+              status: "resolved",
+              game: {
+                id: existing.gameId,
+                igdbId: existing.igdbId,
+                name: existing.name,
+                coverUrl: existing.coverUrl,
+                source: existing.source,
+              },
+              executables: [],
+              candidates: byKey.get(key)?.candidates,
+            });
+          }
+        }
         setResolved(byKey);
         setActiveImportGroup(
           initialImportGroup(
@@ -276,8 +300,11 @@ export function ImportLibraryView() {
                     byKey.get(libraryEntryKey(providerId, game.externalId)),
                     ignoredProcesses,
                   ) &&
-                  !existingImports.has(
-                    libraryEntryKey(providerId, game.externalId),
+                  canImportExistingLibraryEntry(
+                    providerId,
+                    existingImports.has(
+                      libraryEntryKey(providerId, game.externalId),
+                    ),
                   ),
               )
               .map((game) => game.externalId),
@@ -307,7 +334,10 @@ export function ImportLibraryView() {
         );
         if (
           !match ||
-          existingImports.has(libraryEntryKey(providerId, game.externalId)) ||
+          !canImportExistingLibraryEntry(
+            providerId,
+            existingImports.has(libraryEntryKey(providerId, game.externalId)),
+          ) ||
           requiresExecutableChoice(game, match, ignoredProcesses)
         ) {
           return [];
@@ -337,7 +367,7 @@ export function ImportLibraryView() {
       setSelected(
         (current) => new Set([...current].filter((id) => !importedIds.has(id))),
       );
-      setActiveImportGroup("imported");
+      setActiveImportGroup(isXbox ? "ready" : "imported");
       setPhase("done");
       addToast({
         tone: "success",
@@ -393,6 +423,58 @@ export function ImportLibraryView() {
         detail: shareFailed
           ? "The game was added locally, but sharing the executable needs an online retry."
           : "The executable was submitted as a community suggestion.",
+      });
+    } catch (cause) {
+      setError(formatError(cause));
+    } finally {
+      setAddingExternalId(null);
+    }
+  }
+  async function confirmAndImportXboxGame(
+    scanned: ScannedLibraryGame,
+    selectedGame: GameMetadata,
+  ) {
+    const key = libraryEntryKey("xbox", scanned.externalId);
+    setAddingExternalId(scanned.externalId);
+    setError(null);
+    try {
+      const reverseMatch = await reverseResolveXboxGame(
+        apiEndpoint,
+        selectedGame.id,
+      );
+      const resolvedGame: ResolvedLibraryGame = {
+        key,
+        status: "resolved",
+        game: reverseMatch.game,
+        executables: reverseMatch.executables,
+        candidates: resolved.get(key)?.candidates,
+      };
+      const commit = buildLibraryImportCommit({
+        provider: "xbox",
+        scanned,
+        resolved: resolvedGame,
+        ignoredProcesses,
+      });
+      if (!commit)
+        throw new Error("The selected Xbox game cannot be imported.");
+
+      await backupImporterDataOnce();
+      await runLibraryImport([commit]);
+      setResolved((current) => new Map(current).set(key, resolvedGame));
+      setCompleted((current) => new Set(current).add(scanned.externalId));
+      setSelected((current) => {
+        const next = new Set(current);
+        next.delete(scanned.externalId);
+        return next;
+      });
+      const linkedCount = commit.exeCacheEntries.length;
+      addToast({
+        tone: "success",
+        title: `${reverseMatch.game.name} imported`,
+        detail:
+          linkedCount > 0
+            ? `${linkedCount} verified executable ${linkedCount === 1 ? "mapping was" : "mappings were"} linked for automatic tracking after installation.`
+            : "No verified one-to-one executable mapping is available yet.",
       });
     } catch (cause) {
       setError(formatError(cause));
@@ -458,20 +540,22 @@ export function ImportLibraryView() {
       const match = resolved.get(key);
       return (
         selected.has(game.externalId) &&
-        !existingImports.has(key) &&
+        canImportExistingLibraryEntry(providerId, existingImports.has(key)) &&
         isImportable(game, match) &&
         !requiresExecutableChoice(game, match, ignoredProcesses)
       );
     }).length ?? 0;
   const importableCount = useMemo(
     () =>
-      scan?.games.filter((game) =>
-        isImportable(
-          game,
-          resolved.get(libraryEntryKey(providerId, game.externalId)),
-        ),
+      scan?.games.filter(
+        (game) =>
+          !completed.has(game.externalId) &&
+          isImportable(
+            game,
+            resolved.get(libraryEntryKey(providerId, game.externalId)),
+          ),
       ).length ?? 0,
-    [resolved, scan],
+    [completed, providerId, resolved, scan],
   );
   const importGroups = useMemo(() => {
     const groups: Array<{
@@ -513,8 +597,19 @@ export function ImportLibraryView() {
     for (const game of scan?.games ?? []) {
       const key = libraryEntryKey(providerId, game.externalId);
       const match = resolved.get(key);
-      if (existingImports.has(key)) {
+      if (completed.has(game.externalId)) {
         groups[3].games.push(game);
+        continue;
+      }
+      if (!hasImportableActivity(game)) {
+        groups[2].games.push(game);
+      } else if (
+        existingImports.has(key) &&
+        !canImportExistingLibraryEntry(providerId, true)
+      ) {
+        groups[3].games.push(game);
+      } else if (isXbox && match?.status !== "resolved") {
+        groups[1].games.push(game);
       } else if (!isImportable(game, match)) {
         groups[2].games.push(game);
       } else if (requiresExecutableChoice(game, match, ignoredProcesses)) {
@@ -525,7 +620,15 @@ export function ImportLibraryView() {
     }
 
     return groups;
-  }, [existingImports, ignoredProcesses, isXbox, providerId, resolved, scan]);
+  }, [
+    completed,
+    existingImports,
+    ignoredProcesses,
+    isXbox,
+    providerId,
+    resolved,
+    scan,
+  ]);
   const activeImportGroupDetails =
     importGroups.find((group) => group.key === activeImportGroup) ??
     importGroups[0];
@@ -746,6 +849,7 @@ export function ImportLibraryView() {
                       key={game.externalId}
                       game={game}
                       provider={providerId}
+                      apiEndpoint={apiEndpoint}
                       resolved={resolved.get(
                         libraryEntryKey(providerId, game.externalId),
                       )}
@@ -763,6 +867,9 @@ export function ImportLibraryView() {
                       browsedExecutable={browsedExecutables[game.externalId]}
                       ignoredProcesses={ignoredProcesses}
                       onAddAndShare={() => void addAndShareGame(game)}
+                      onXboxMatch={(match) =>
+                        confirmAndImportXboxGame(game, match)
+                      }
                       onBrowseExecutable={() => void browseExecutable(game)}
                       onManualExecutable={(relativePath) =>
                         setManualExecutables((current) => ({
@@ -817,6 +924,7 @@ export function ImportLibraryView() {
 function ImportRow({
   game,
   provider,
+  apiEndpoint,
   resolved,
   selected,
   alreadyImported,
@@ -827,12 +935,14 @@ function ImportRow({
   manualExecutable,
   browsedExecutable,
   ignoredProcesses,
+  onXboxMatch,
   onAddAndShare,
   onBrowseExecutable,
   onManualExecutable,
   onSelected,
 }: {
   provider: BuiltinImportProviderId;
+  apiEndpoint: string;
   game: ScannedLibraryGame;
   resolved?: ResolvedLibraryGame;
   selected: boolean;
@@ -845,6 +955,7 @@ function ImportRow({
   browsedExecutable?: ScannedExecutable;
   ignoredProcesses: ReadonlySet<string>;
   onAddAndShare: () => void;
+  onXboxMatch: (game: GameMetadata) => Promise<void>;
   onBrowseExecutable: () => void;
   onManualExecutable: (value: string) => void;
   onSelected: (checked: boolean) => void;
@@ -920,9 +1031,11 @@ function ImportRow({
           ) : null}
           {!importable ? (
             <span className="text-xs font-medium text-warning">
-              {noImportablePlaytime
-                ? "No playtime to import"
-                : "Metadata unavailable"}
+              {provider === "xbox" && hasImportableActivity(game)
+                ? "Confirm game identity"
+                : noImportablePlaytime
+                  ? "No playtime to import"
+                  : "Metadata unavailable"}
             </span>
           ) : null}
         </div>
@@ -942,15 +1055,28 @@ function ImportRow({
                 ? "Installed"
                 : "Not installed"}
           </span>
-          {resolved?.executables.length ? (
-            <span>
-              {resolved.executables.length} known executable
-              {resolved.executables.length === 1 ? "" : "s"}
-            </span>
-          ) : (
-            <span>No known executable</span>
-          )}
+          {provider === "steam" ? (
+            resolved?.executables.length ? (
+              <span>
+                {resolved.executables.length} known executable
+                {resolved.executables.length === 1 ? "" : "s"}
+              </span>
+            ) : (
+              <span>No known executable</span>
+            )
+          ) : null}
         </div>
+        {provider === "xbox" &&
+        hasImportableActivity(game) &&
+        resolved?.status !== "resolved" ? (
+          <XboxMatchControls
+            apiEndpoint={apiEndpoint}
+            candidates={resolved?.candidates ?? []}
+            title={game.name ?? `Xbox title ${game.externalId}`}
+            importing={addingAndSharing}
+            onConfirm={onXboxMatch}
+          />
+        ) : null}
         {showAddAndShare && showExeChoice ? (
           <div className="mt-3 max-w-2xl text-xs text-text-muted">
             <p>
@@ -999,6 +1125,136 @@ function ImportRow({
     </Row>
   );
 }
+export function XboxMatchControls({
+  apiEndpoint,
+  candidates,
+  title,
+  onConfirm,
+  importing,
+}: {
+  apiEndpoint: string;
+  candidates: GameMetadata[];
+  title: string;
+  onConfirm: (game: GameMetadata) => Promise<void>;
+  importing: boolean;
+}) {
+  const [query, setQuery] = useState(title);
+  const [choices, setChoices] = useState(candidates);
+  const [selectedIgdbId, setSelectedIgdbId] = useState<number | null>(
+    candidates[0]?.igdbId ?? null,
+  );
+  const [searching, setSearching] = useState(false);
+  const [message, setMessage] = useState(
+    candidates.length > 0
+      ? "Choose the exact game, then confirm the match."
+      : "No reliable suggestion was found. Search by title.",
+  );
+  const selectedGame = choices.find(
+    (candidate) => candidate.igdbId === selectedIgdbId,
+  );
+
+  async function runSearch() {
+    if (query.trim().length < 2) return;
+    setSearching(true);
+    setMessage("");
+    try {
+      const games = await searchXboxGames(apiEndpoint, query);
+      setChoices(games);
+      setSelectedIgdbId(games[0]?.igdbId ?? null);
+      setMessage(
+        games.length > 0
+          ? "Choose the exact game, then confirm the match."
+          : "No matching games found. Try the English title or another spelling.",
+      );
+    } catch (cause) {
+      setChoices([]);
+      setSelectedIgdbId(null);
+      setMessage(formatError(cause));
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 max-w-2xl rounded-md border border-border bg-bg/50 p-3 text-xs text-text-muted">
+      <p>
+        Xbox title names are not unique. Confirm the IGDB game before its
+        history is attached to your library.
+      </p>
+      <div className="mt-3 flex items-start gap-3">
+        {selectedGame?.coverUrl ? (
+          <img
+            src={selectedGame.coverUrl}
+            alt={`${selectedGame.name} cover`}
+            className="h-24 w-16 shrink-0 rounded-md bg-surface-hover object-cover"
+          />
+        ) : (
+          <div
+            aria-label="No cover available"
+            className="grid h-24 w-16 shrink-0 place-items-center rounded-md bg-surface-hover text-text-faint"
+          >
+            <HardDrive size={20} />
+          </div>
+        )}
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
+          <select
+            aria-label={`Game match for ${title}`}
+            value={selectedIgdbId ?? ""}
+            onChange={(event) => setSelectedIgdbId(Number(event.target.value))}
+            className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text"
+          >
+            {choices.length === 0 ? (
+              <option value="">No game selected</option>
+            ) : null}
+            {choices.map((candidate) => (
+              <option key={candidate.igdbId} value={candidate.igdbId}>
+                {candidate.name}
+                {candidate.releaseYear ? ` · ${candidate.releaseYear}` : ""} ·
+                IGDB {candidate.igdbId}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="primary"
+            loading={importing}
+            disabled={!selectedGame}
+            onClick={() => selectedGame && void onConfirm(selectedGame)}
+          >
+            Confirm and Import
+          </Button>
+        </div>
+      </div>
+      <form
+        className="mt-3 flex flex-col gap-2 sm:flex-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void runSearch();
+        }}
+      >
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search the exact game title"
+          className="min-w-0 flex-1"
+        />
+        <Button
+          type="submit"
+          variant="secondary"
+          icon={Search}
+          loading={searching}
+          disabled={query.trim().length < 2}
+        >
+          Search IGDB
+        </Button>
+      </form>
+      {message ? (
+        <p className="mt-2" role="status" aria-live="polite">
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 function requiresExecutableChoice(
   game: ScannedLibraryGame,
@@ -1023,6 +1279,21 @@ function requiresExecutableChoice(
   return !hasKnownLocalExe && game.installPath !== undefined;
 }
 
+export function hasImportableActivity(game: ScannedLibraryGame) {
+  return (
+    game.playtimeSeconds === null ||
+    game.playtimeSeconds > 0 ||
+    game.lastPlayedUnix !== undefined
+  );
+}
+
+export function canImportExistingLibraryEntry(
+  provider: BuiltinImportProviderId,
+  alreadyImported: boolean,
+) {
+  return !alreadyImported || provider === "xbox";
+}
+
 function isImportable(
   game: ScannedLibraryGame,
   resolved?: ResolvedLibraryGame,
@@ -1030,9 +1301,7 @@ function isImportable(
   return (
     resolved?.status === "resolved" &&
     resolved.game?.igdbId !== undefined &&
-    (game.playtimeSeconds === null ||
-      game.playtimeSeconds > 0 ||
-      game.lastPlayedUnix !== undefined)
+    hasImportableActivity(game)
   );
 }
 
@@ -1049,11 +1318,20 @@ function initialImportGroup(
 
   for (const game of games) {
     const key = libraryEntryKey(provider, game.externalId);
-    if (existingImports.has(key)) {
+    const alreadyImported = existingImports.has(key);
+    const match = resolved.get(key);
+    if (!hasImportableActivity(game)) {
+      hasUnavailable = true;
+      continue;
+    }
+    if (!canImportExistingLibraryEntry(provider, alreadyImported)) {
       hasImported = true;
       continue;
     }
-    const match = resolved.get(key);
+    if (provider === "xbox" && match?.status !== "resolved") {
+      hasAttention = true;
+      continue;
+    }
     if (!isImportable(game, match)) {
       hasUnavailable = true;
       continue;

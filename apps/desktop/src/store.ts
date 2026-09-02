@@ -118,6 +118,7 @@ export type GameMetadata = {
   igdbId?: number;
   name: string;
   coverUrl: string;
+  releaseYear?: number;
   source: Exclude<GameSource, "custom">;
 };
 
