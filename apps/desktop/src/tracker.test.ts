@@ -12,6 +12,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock }));
 import { findManualLaunchTarget, manualLaunchTargetKey } from "./gameLaunch";
 import { buildLibraryImportCommit } from "./library/importPlan";
+import type { LibraryImportEntry } from "./library/types";
 import {
   createGameIdentityResolver,
   resolvedCanonicalGameKey,
@@ -33,6 +34,7 @@ import {
   dismissAmbiguousMatch,
   evaluateAndStoreMilestones,
   forgetManualLaunchTarget,
+  forgetImportedLibraryData,
   hydrateGameMetadata,
   findGameMatches,
   ignoreDiscoveredProcess,
@@ -328,6 +330,140 @@ describe("Steam AppID executable decisions", () => {
       via: "cache",
       game: { id: 9002, igdbId: 131645, name: "Knock on the Coffin Lid" },
     });
+  });
+});
+
+describe("provider-scoped library cleanup", () => {
+  const imported = (
+    provider: LibraryImportEntry["provider"],
+    externalId: string,
+    gameId: number,
+    exeName: string,
+  ): LibraryImportEntry => ({
+    provider,
+    externalId,
+    igdbId: gameId + 1_000,
+    gameId,
+    source: "igdb",
+    name: `${provider} game`,
+    coverUrl: "cover",
+    importedAt: "2026-09-02T00:00:00.000Z",
+    providerSeconds: 3_600,
+    lastReadAt: "2026-09-02T00:00:00.000Z",
+    linkedExeNames: [exeName],
+    linkedExeSources: ["igdb"],
+  });
+
+  it("forgets one provider without removing the other or recorded sessions", () => {
+    const steam = imported("steam", "10", 1, "SteamGame.exe");
+    const xbox = imported("xbox", "20", 2, "XboxGame.exe");
+    const session: Session = {
+      id: 1,
+      gameId: 2,
+      igdbId: xbox.igdbId,
+      gameName: xbox.name,
+      source: "igdb",
+      exeName: "XboxGame.exe",
+      startedAt: "2026-09-02T00:00:00.000Z",
+      endedAt: "2026-09-02T01:00:00.000Z",
+      durationSeconds: 3_600,
+    };
+    useAppStore.setState({
+      libraryImports: new Map([
+        ["steam:10", steam],
+        ["xbox:20", xbox],
+      ]),
+      libraryInstalls: new Map([
+        [
+          "steam:10",
+          {
+            provider: "steam",
+            externalId: "10",
+            installPath: String.raw`C:\Steam\SteamGame`,
+            scannedAt: "2026-09-02T00:00:00.000Z",
+          },
+        ],
+      ]),
+      scopedExeLinks: new Map([
+        [
+          "steamgame.exe|c:\\steam\\steamgame",
+          {
+            exeName: "SteamGame.exe",
+            pathPrefix: String.raw`c:\steam\steamgame`,
+            gameId: steam.gameId,
+            source: "igdb",
+            identifierSource: "igdb",
+            igdbId: steam.igdbId,
+            gameName: steam.name,
+            coverUrl: steam.coverUrl,
+            provider: "steam",
+            externalId: steam.externalId,
+            setAt: steam.lastReadAt,
+          },
+        ],
+      ]),
+      exeCache: new Map([
+        [
+          "steamgame.exe",
+          entry({
+            exeName: "SteamGame.exe",
+            gameId: steam.gameId,
+            igdbId: steam.igdbId,
+            source: "igdb",
+            libraryProvider: "steam",
+            libraryExternalId: steam.externalId,
+          }),
+        ],
+        [
+          "xboxgame.exe",
+          entry({
+            exeName: "XboxGame.exe",
+            gameId: xbox.gameId,
+            igdbId: xbox.igdbId,
+            source: "igdb",
+            libraryProvider: "xbox",
+            libraryExternalId: xbox.externalId,
+          }),
+        ],
+      ]),
+      launchTargets: new Map([
+        [
+          "steamgame.exe",
+          {
+            exeName: "SteamGame.exe",
+            path: String.raw`C:\Steam\SteamGame\SteamGame.exe`,
+            owner: { gameId: steam.gameId, source: "igdb" },
+          },
+        ],
+        [
+          "xboxgame.exe",
+          {
+            exeName: "XboxGame.exe",
+            path: String.raw`C:\Xbox\XboxGame.exe`,
+            owner: { gameId: xbox.gameId, source: "igdb" },
+          },
+        ],
+      ]),
+      recentSessions: [session],
+    });
+
+    forgetImportedLibraryData("steam");
+
+    let state = useAppStore.getState();
+    expect([...state.libraryImports.keys()]).toEqual(["xbox:20"]);
+    expect(state.libraryInstalls.size).toBe(0);
+    expect(state.scopedExeLinks.size).toBe(0);
+    expect([...state.exeCache.keys()]).toEqual(["xboxgame.exe"]);
+    expect([...state.launchTargets.keys()]).toEqual(["xboxgame.exe"]);
+    expect(state.recentSessions).toEqual([session]);
+
+    forgetImportedLibraryData("xbox");
+
+    state = useAppStore.getState();
+    expect(state.libraryImports.size).toBe(0);
+    expect(state.exeCache.size).toBe(0);
+    expect(state.launchTargets.size).toBe(0);
+    expect(state.recentSessions).toEqual([session]);
   });
 });
 

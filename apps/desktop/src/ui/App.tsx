@@ -253,6 +253,13 @@ export function App() {
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
+  const [importerMounted, setImporterMounted] = useState(
+    activeView === "import",
+  );
+  const renderImporter = importerMounted || activeView === "import";
+  useEffect(() => {
+    if (activeView === "import") setImporterMounted(true);
+  }, [activeView]);
   const libraryImportProvider = useAppStore(
     (state) => state.libraryImportProvider,
   );
@@ -619,9 +626,7 @@ export function App() {
             <h1 className="text-xl font-semibold tracking-normal text-text">
               {activeViewLabel}
             </h1>
-            <p className="text-sm text-text-muted">
-              {activeViewSubtitle}
-            </p>
+            <p className="text-sm text-text-muted">{activeViewSubtitle}</p>
           </div>
           <div className="flex items-center gap-2">
             <HelpButton />
@@ -719,7 +724,12 @@ export function App() {
             aria-label={`${activeViewLabel} content`}
             className="controller-content absolute inset-0 overflow-auto px-7 py-6"
           >
-            {views[activeView].component}
+            {activeView !== "import" ? views[activeView].component : null}
+            {renderImporter ? (
+              <div hidden={activeView !== "import"}>
+                {views.import.component}
+              </div>
+            ) : null}
           </div>
           {controllerModeActive ? (
             <div

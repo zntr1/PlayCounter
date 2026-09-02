@@ -19,6 +19,7 @@ import type {
   IgnoredProcessReportPayload,
   IgnoredProcessReportResponse,
   IgnoredProcessReportStatus,
+  LibraryProviderId,
   InstallPresencePayload,
   MatchProcessesResponse,
   Platform,
@@ -5727,25 +5728,38 @@ export function untrackGame(
   untrackGameInternal(gameId, source, removeHistory, aliases, "remove");
 }
 
-export function forgetImportedLibraryData() {
+export function forgetImportedLibraryData(provider: LibraryProviderId) {
   const state = useAppStore.getState();
   const exeCache = new Map(state.exeCache);
   const launchTargets = new Map(state.launchTargets);
+  const libraryImports = new Map(state.libraryImports);
+  const libraryInstalls = new Map(state.libraryInstalls);
+  const scopedExeLinks = new Map(state.scopedExeLinks);
   for (const [key, entry] of exeCache) {
-    if (!entry.libraryProvider) continue;
+    if (entry.libraryProvider !== provider) continue;
     exeCache.delete(key);
     launchTargets.delete(key);
   }
+  for (const [key, entry] of libraryImports) {
+    if (entry.provider === provider) libraryImports.delete(key);
+  }
+  for (const [key, entry] of libraryInstalls) {
+    if (entry.provider === provider) libraryInstalls.delete(key);
+  }
+  for (const [key, entry] of scopedExeLinks) {
+    if (entry.provider === provider) scopedExeLinks.delete(key);
+  }
+  backfillLibraryExecutableCache(exeCache, libraryImports.values());
   useAppStore.setState({
     exeCache,
     launchTargets,
-    libraryImports: new Map(),
-    libraryInstalls: new Map(),
-    scopedExeLinks: new Map(),
+    libraryImports,
+    libraryInstalls,
+    scopedExeLinks,
   });
   evaluateAndStoreMilestones({ suppressNotifications: true });
   persist();
-  void requestProcessScan("after local library cleared");
+  void requestProcessScan(`after ${provider} library cleared`);
 }
 
 function untrackGameInternal(

@@ -12,6 +12,7 @@ import {
 import { getVersion } from "@tauri-apps/api/app";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
+import type { LibraryProviderId } from "@playcounter/shared";
 import {
   chooseEmulatorBinary,
   clearLocalCache,
@@ -80,7 +81,8 @@ export function SettingsView() {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [reloadingIgnored, setReloadingIgnored] = useState(false);
   const [confirmResetCache, setConfirmResetCache] = useState(false);
-  const [confirmForgetLibrary, setConfirmForgetLibrary] = useState(false);
+  const [confirmForgetLibrary, setConfirmForgetLibrary] =
+    useState<LibraryProviderId | null>(null);
   const [confirmForgetLaunchFiles, setConfirmForgetLaunchFiles] =
     useState<LaunchFileForgetScope | null>(null);
   const [confirmImport, setConfirmImport] = useState(false);
@@ -108,9 +110,21 @@ export function SettingsView() {
   const executableLaunchTargetCount = useAppStore(
     (state) => state.launchTargets.size + state.manualLaunchTargets.size,
   );
-  const importedLibraryCount = useAppStore(
-    (state) => state.libraryImports.size,
-  );
+  const importedSteamCount = useAppStore((state) => {
+    let count = 0;
+    for (const entry of state.libraryImports.values()) {
+      if (entry.provider === "steam") count += 1;
+    }
+    return count;
+  });
+  const importedXboxCount = useAppStore((state) => {
+    let count = 0;
+    for (const entry of state.libraryImports.values()) {
+      if (entry.provider === "xbox") count += 1;
+    }
+    return count;
+  });
+  const forgetLibraryLabel = confirmForgetLibrary === "xbox" ? "Xbox" : "Steam";
   const emulatorLaunchTargetCount = useAppStore(
     (state) =>
       state.emulatorAutoBinaries.size +
@@ -603,8 +617,8 @@ export function SettingsView() {
             PlayCounter starts a selected game <code>.exe</code> directly, or
             passes a saved game file to a supported emulator. Launcher-managed
             games and administrator approval may still require their normal
-            shortcut. Remembered paths stay on this device and are excluded
-            from backups.
+            shortcut. Remembered paths stay on this device and are excluded from
+            backups.
           </div>
           <SettingsRow
             description="Navigate PlayCounter with an controller. Requires direct game launching turned on."
@@ -904,10 +918,22 @@ export function SettingsView() {
         >
           <Button
             variant="danger"
-            disabled={importedLibraryCount === 0}
-            onClick={() => setConfirmForgetLibrary(true)}
+            disabled={importedSteamCount === 0}
+            onClick={() => setConfirmForgetLibrary("steam")}
           >
-            Forget {importedLibraryCount || "all"}
+            Forget {importedSteamCount || "all"}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          description="Removes Xbox provenance, imported playtime floors, and Xbox-created executable links. Recorded PlayCounter sessions remain."
+          title="Forget imported Xbox data"
+        >
+          <Button
+            variant="danger"
+            disabled={importedXboxCount === 0}
+            onClick={() => setConfirmForgetLibrary("xbox")}
+          >
+            Forget {importedXboxCount || "all"}
           </Button>
         </SettingsRow>
       </SettingsPanel>
@@ -1104,20 +1130,20 @@ export function SettingsView() {
         <Modal
           size="sm"
           labelId="forget-library-title"
-          title="Forget imported Steam data?"
+          title={`Forget imported ${forgetLibraryLabel} data?`}
           subtitle="Your recorded PlayCounter sessions will be kept."
           icon={Trash2}
-          onClose={() => setConfirmForgetLibrary(false)}
+          onClose={() => setConfirmForgetLibrary(null)}
           footer={
             <div className="flex justify-end gap-2">
-              <Button onClick={() => setConfirmForgetLibrary(false)}>
+              <Button onClick={() => setConfirmForgetLibrary(null)}>
                 Cancel
               </Button>
               <Button
                 variant="danger"
                 onClick={() => {
-                  forgetImportedLibraryData();
-                  setConfirmForgetLibrary(false);
+                  forgetImportedLibraryData(confirmForgetLibrary);
+                  setConfirmForgetLibrary(null);
                 }}
               >
                 Forget imported data
@@ -1126,8 +1152,8 @@ export function SettingsView() {
           }
         >
           <p className="text-sm text-text-muted">
-            Steam badges and imported playtime floors will disappear. You can
-            scan and import the library again at any time.
+            {forgetLibraryLabel} badges and imported playtime floors will
+            disappear. You can import the library again at any time.
           </p>
         </Modal>
       ) : null}
@@ -1280,8 +1306,8 @@ function ForgetLaunchFilesDialog({
         disablingStorage
           ? "Stop remembering launch paths?"
           : emulatorFiles
-          ? "Forget emulator launch files?"
-          : "Forget regular game executables?"
+            ? "Forget emulator launch files?"
+            : "Forget regular game executables?"
       }
       icon={Gamepad2}
       onClose={onCancel}
@@ -1291,9 +1317,7 @@ function ForgetLaunchFilesDialog({
             Cancel
           </Button>
           <Button variant="danger" icon={Trash2} onClick={onConfirm}>
-            {disablingStorage
-              ? "Stop remembering"
-              : `Forget ${count || "all"}`}
+            {disablingStorage ? "Stop remembering" : `Forget ${count || "all"}`}
           </Button>
         </div>
       }
@@ -1302,8 +1326,8 @@ function ForgetLaunchFilesDialog({
         {disablingStorage
           ? `This removes ${count === 0 ? "any" : `all ${count}`} saved game and emulator launch ${count === 1 ? "path" : "paths"}, stops PlayCounter from learning new ones, and turns off direct launching and controller navigation.`
           : emulatorFiles
-          ? `This removes ${count} saved emulator program and content ${count === 1 ? "path" : "paths"}, including files such as ISO, RVZ, and DOSBox programs. Regular game executable paths stay intact.`
-          : `This removes ${count} saved executable ${count === 1 ? "path" : "paths"} for regular games. Emulator programs and content files stay intact.`}{" "}
+            ? `This removes ${count} saved emulator program and content ${count === 1 ? "path" : "paths"}, including files such as ISO, RVZ, and DOSBox programs. Regular game executable paths stay intact.`
+            : `This removes ${count} saved executable ${count === 1 ? "path" : "paths"} for regular games. Emulator programs and content files stay intact.`}{" "}
         Play history and game matches are not changed.
         {!disablingStorage
           ? " PlayCounter can learn stable paths again the next time it sees the game running."
