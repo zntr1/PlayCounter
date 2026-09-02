@@ -46,7 +46,8 @@ export function buildLibraryImportCommit(input: {
     string,
     {
       name: string;
-      pathScopedOnly: boolean;
+      verified: boolean;
+      ambiguous: boolean;
       identifierSource: "igdb" | "community";
     }
   >();
@@ -60,10 +61,8 @@ export function buildLibraryImportCommit(input: {
     const existing = executableEvidence.get(key);
     executableEvidence.set(key, {
       name: existing?.name ?? name,
-      pathScopedOnly:
-        Boolean(existing?.pathScopedOnly) ||
-        Boolean(executable.ambiguous) ||
-        !executable.verified,
+      verified: Boolean(existing?.verified) || executable.verified,
+      ambiguous: Boolean(existing?.ambiguous) || Boolean(executable.ambiguous),
       identifierSource:
         existing?.identifierSource === "igdb" ||
         executable.provenance === "igdb"
@@ -75,7 +74,9 @@ export function buildLibraryImportCommit(input: {
     const name = executable.name;
     linked.add(name);
     linkedExeSources.add(executable.identifierSource);
-    if (!executable.pathScopedOnly) {
+    if (executable.verified) {
+      // The Steam AppID already fixed the game identity. An ambiguous basename
+      // must stay local, but it is still a valid user-specific cache decision.
       exeCacheEntries.push(
         toExeCache(
           name,
@@ -86,7 +87,10 @@ export function buildLibraryImportCommit(input: {
           now,
         ),
       );
-      if (installPath && localByName.has(name.toLowerCase())) {
+      if (
+        installPath &&
+        (localByName.has(name.toLowerCase()) || executable.ambiguous)
+      ) {
         scopedLinks.push(
           toScopedLink(
             name,
@@ -100,10 +104,7 @@ export function buildLibraryImportCommit(input: {
         );
       }
     } else if (installPath) {
-      // The provider identity and install root make an otherwise ambiguous
-      // basename safe locally. Do not require the bounded filesystem scan to
-      // rediscover the file: large game folders can hit that scan's entry cap
-      // before a deeply nested executable (for example CS2's cs2.exe) is seen.
+      // Unverified evidence is only safe inside this provider installation.
       scopedLinks.push(
         toScopedLink(
           name,

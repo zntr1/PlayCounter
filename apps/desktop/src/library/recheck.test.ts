@@ -92,7 +92,7 @@ describe("Steam import match recheck", () => {
     expect(result.commit.entry.providerSeconds).toBeNull();
   });
 
-  it("does not globally link an ambiguous executable without an install path", async () => {
+  it("locally links an ambiguous executable without an install path", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -109,13 +109,17 @@ describe("Steam import match recheck", () => {
       entry,
     });
 
-    expect(result).toEqual({
-      kind: "needs_install",
-      executableNames: ["game.exe"],
+    expect(result.kind).toBe("found");
+    if (result.kind !== "found") return;
+    expect(result.executableNames).toEqual(["game.exe"]);
+    expect(result.commit.exeCacheEntries[0]).toMatchObject({
+      exeName: "game.exe",
+      gameId: 9,
+      identifierSource: "community",
     });
   });
 
-  it("path-scopes an ambiguous executable when Steam's install root is known", async () => {
+  it("also path-scopes an ambiguous executable when install root is known", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -140,7 +144,10 @@ describe("Steam import match recheck", () => {
 
     expect(result.kind).toBe("found");
     if (result.kind !== "found") return;
-    expect(result.commit.exeCacheEntries).toEqual([]);
+    expect(result.commit.exeCacheEntries[0]).toMatchObject({
+      exeName: "game.exe",
+      gameId: 9,
+    });
     expect(result.commit.scopedLinks[0]).toMatchObject({
       exeName: "game.exe",
       pathPrefix: String.raw`c:\steam\steamapps\common\cs2`,

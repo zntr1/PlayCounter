@@ -137,13 +137,18 @@ describe("library import", () => {
     });
   });
 
-  it("keeps ambiguous evidence path-scoped and manual mappings local", () => {
+  it("keeps an ambiguous AppID match local", () => {
     const ambiguous = {
       ...resolved,
       executables: [{ ...resolved.executables[0], ambiguous: true }],
     };
     const commit = buildLibraryImportCommit({ scanned, resolved: ambiguous });
-    expect(commit?.exeCacheEntries).toEqual([]);
+    expect(commit?.exeCacheEntries[0]).toMatchObject({
+      exeName: "cs2.exe",
+      igdbId: 1942,
+      identifierSource: "igdb",
+      libraryProvider: "steam",
+    });
     expect(commit?.scopedLinks[0]).toMatchObject({
       exeName: "cs2.exe",
       igdbId: 1942,
@@ -190,7 +195,7 @@ describe("library import", () => {
     });
   });
 
-  it("path-scopes an ambiguous known executable missed by the local scan", () => {
+  it("caches a verified ambiguous executable missed by the local scan", () => {
     const commit = buildLibraryImportCommit({
       scanned: { ...scanned, executables: [] },
       resolved: {
@@ -199,17 +204,21 @@ describe("library import", () => {
       },
     });
 
-    expect(commit?.exeCacheEntries).toEqual([]);
-    expect(commit?.scopedLinks).toEqual([
-      expect.objectContaining({
-        exeName: "cs2.exe",
-        pathPrefix: String.raw`c:\steamlibrary\steamapps\common\counter-strike global offensive`,
-        source: "igdb",
-        externalId: "730",
-      }),
-    ]);
+    expect(commit?.exeCacheEntries[0]).toMatchObject({
+      exeName: "cs2.exe",
+      gameId: 9,
+      igdbId: 1942,
+      source: "igdb",
+      identifierSource: "igdb",
+    });
+    expect(commit?.scopedLinks[0]).toMatchObject({
+      exeName: "cs2.exe",
+      pathPrefix: String.raw`c:\steamlibrary\steamapps\common\counter-strike global offensive`,
+      source: "igdb",
+      externalId: "730",
+    });
   });
-  it("retains executable provenance for an uninstalled ambiguous game", () => {
+  it("uses an AppID-resolved executable for an uninstalled import", () => {
     const commit = buildLibraryImportCommit({
       scanned: {
         ...scanned,
@@ -227,7 +236,15 @@ describe("library import", () => {
       linkedExeNames: ["cs2.exe"],
       linkedExeSources: ["igdb"],
     });
-    expect(commit?.exeCacheEntries).toEqual([]);
+    expect(commit?.exeCacheEntries[0]).toMatchObject({
+      exeName: "cs2.exe",
+      gameId: 9,
+      igdbId: 1942,
+      source: "igdb",
+      identifierSource: "igdb",
+      libraryProvider: "steam",
+      libraryExternalId: "730",
+    });
     expect(commit?.scopedLinks).toEqual([]);
   });
 

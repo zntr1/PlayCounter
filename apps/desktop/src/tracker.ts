@@ -298,6 +298,7 @@ const ignoredProcessSuggestionRequests = new Map<
 let initialized = false;
 let backendHealthTimer: number | undefined;
 let contributionsTimer: number | undefined;
+
 let processTimer: number | undefined;
 let trayTimer: number | undefined;
 let unsubscribeTraySync: (() => void) | undefined;
@@ -523,6 +524,43 @@ export function normalizePersistedLibraryImport(
     linkedExeNames,
     linkedExeSources: [...new Set(linkedExeSources)],
   } as LibraryImportEntry;
+}
+
+export function backfillLibraryExecutableCache(
+  exeCache: Map<string, ExeCacheEntry>,
+  libraryImports: Iterable<LibraryImportEntry>,
+) {
+  let changed = false;
+  for (const entry of libraryImports) {
+    const identifierSource = entry.linkedExeSources.includes("igdb")
+      ? "igdb"
+      : entry.linkedExeSources.includes("community")
+        ? "community"
+        : entry.linkedExeSources.includes("custom")
+          ? "custom"
+          : entry.source;
+    for (const exeName of entry.linkedExeNames) {
+      const key = exeName.toLowerCase();
+      const existing = exeCache.get(key);
+      if (existing?.state === "blacklisted") continue;
+      if (existing?.state === "matched") continue;
+      exeCache.set(key, {
+        exeName,
+        state: "matched",
+        gameId: entry.gameId,
+        igdbId: entry.igdbId,
+        gameName: entry.name,
+        coverUrl: entry.coverUrl,
+        source: entry.source,
+        identifierSource,
+        libraryProvider: entry.provider,
+        libraryExternalId: entry.externalId,
+        lastCheckedAt: entry.lastReadAt,
+      });
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 function hydrate() {
@@ -761,6 +799,10 @@ function hydrate() {
     normalizePersistedLibraryImport,
     (entry) => libraryEntryKey(entry.provider, entry.externalId),
   );
+  const backfilledLibraryExecutableCache = backfillLibraryExecutableCache(
+    exeCacheMap,
+    libraryImports.values(),
+  );
   const libraryInstalls = hydrateMap(
     persisted.libraryInstalls,
     persistedLibraryInstall,
@@ -979,7 +1021,11 @@ function hydrate() {
     suppressContributionNotificationsOnce:
       persisted.suppressContributionNotificationsOnce === true,
   });
-  if (shouldPersistAchievementMigration || shouldPersistLaunchPathOptOut) {
+  if (
+    shouldPersistAchievementMigration ||
+    shouldPersistLaunchPathOptOut ||
+    backfilledLibraryExecutableCache
+  ) {
     persist();
   }
 }

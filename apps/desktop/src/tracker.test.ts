@@ -11,6 +11,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock }));
 import { findManualLaunchTarget, manualLaunchTargetKey } from "./gameLaunch";
+import { buildLibraryImportCommit } from "./library/importPlan";
 import {
   createGameIdentityResolver,
   resolvedCanonicalGameKey,
@@ -18,6 +19,7 @@ import {
   type ExeCacheEntry,
 } from "./store";
 import {
+  backfillLibraryExecutableCache,
   addManualSession,
   applyGameMatch,
   applyCommunitySuggestionOutcome,
@@ -44,6 +46,7 @@ import {
   removeGameHistory,
   reportNegativeMatch,
   revealGameExecutable,
+  resolveCachedProcess,
   scanProcessesNow,
   selectAmbiguousMatch,
   selectEmulatorGame,
@@ -233,6 +236,97 @@ describe("persisted library imports", () => {
     ).toMatchObject({
       linkedExeNames: ["knock.exe"],
       linkedExeSources: ["igdb"],
+    });
+  });
+});
+describe("Steam AppID executable decisions", () => {
+  it("uses Knock.exe from the resolved Steam game without a picker query", () => {
+    const commit = buildLibraryImportCommit({
+      scanned: {
+        externalId: "1232580",
+        name: "Knock on the Coffin Lid",
+        playtimeSeconds: 6_000,
+        installed: false,
+        executables: [],
+      },
+      resolved: {
+        key: "steam:1232580",
+        status: "resolved",
+        game: {
+          id: 9002,
+          igdbId: 131645,
+          name: "Knock on the Coffin Lid",
+          coverUrl: "cover",
+          source: "igdb",
+        },
+        executables: [
+          {
+            platform: "windows",
+            kind: "exe",
+            value: "knock.exe",
+            provenance: "igdb",
+            verified: true,
+            ambiguous: true,
+          },
+        ],
+      },
+      now: "2026-09-02T00:00:00.000Z",
+    });
+    const cached = commit?.exeCacheEntries[0];
+    expect(cached).toBeDefined();
+    if (!cached) return;
+
+    expect(
+      resolveCachedProcess(
+        { exeName: "Knock.exe", exePath: null },
+        new Map([["knock.exe", cached]]),
+        new Map(),
+        Date.now(),
+        30 * 24 * 60 * 60 * 1_000,
+      ),
+    ).toEqual({
+      state: "matched",
+      via: "cache",
+      game: {
+        id: 9002,
+        igdbId: 131645,
+        name: "Knock on the Coffin Lid",
+        coverUrl: "cover",
+        source: "igdb",
+      },
+    });
+  });
+  it("backfills the local Knock.exe decision for an existing import", () => {
+    const imported = normalizePersistedLibraryImport({
+      provider: "steam",
+      externalId: "1232580",
+      igdbId: 131645,
+      gameId: 9002,
+      source: "igdb",
+      name: "Knock on the Coffin Lid",
+      coverUrl: "cover",
+      importedAt: "2026-08-30T14:56:31.380Z",
+      providerSeconds: 6_000,
+      lastReadAt: "2026-08-30T14:56:31.380Z",
+      linkedExeNames: ["knock.exe"],
+    });
+    expect(imported).not.toBeNull();
+    if (!imported) return;
+    const cache = new Map<string, ExeCacheEntry>();
+
+    expect(backfillLibraryExecutableCache(cache, [imported])).toBe(true);
+    expect(
+      resolveCachedProcess(
+        { exeName: "Knock.exe", exePath: null },
+        cache,
+        new Map(),
+        Date.now(),
+        30 * 24 * 60 * 60 * 1_000,
+      ),
+    ).toMatchObject({
+      state: "matched",
+      via: "cache",
+      game: { id: 9002, igdbId: 131645, name: "Knock on the Coffin Lid" },
     });
   });
 });
