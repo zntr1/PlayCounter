@@ -11,6 +11,7 @@ import type {
   EmulatorContentSuggestionResponse,
   EmulatorResolveResponse,
   Game,
+  GameSource,
   GameMetadataResponse,
   IdentifierFlagReason,
   IdentifierReportPayload,
@@ -495,9 +496,23 @@ export function normalizePersistedLibraryImport(
       (typeof entry.providerSeconds !== "number" ||
         !Number.isFinite(entry.providerSeconds) ||
         entry.providerSeconds < 0)) ||
-    !Array.isArray(entry.linkedExeNames)
+    !Array.isArray(entry.linkedExeNames) ||
+    (entry.linkedExeSources !== undefined &&
+      !Array.isArray(entry.linkedExeSources))
   ) {
     return null;
+  }
+  const linkedExeNames = entry.linkedExeNames
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.toLowerCase());
+  const linkedExeSources = Array.isArray(entry.linkedExeSources)
+    ? entry.linkedExeSources.filter(
+        (item): item is GameSource =>
+          item === "igdb" || item === "community" || item === "custom",
+      )
+    : [];
+  if (linkedExeNames.length > 0 && linkedExeSources.length === 0) {
+    linkedExeSources.push(entry.source);
   }
   return {
     ...entry,
@@ -505,12 +520,10 @@ export function normalizePersistedLibraryImport(
       entry.providerSeconds === null
         ? null
         : Math.round(entry.providerSeconds as number),
-    linkedExeNames: entry.linkedExeNames
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.toLowerCase()),
+    linkedExeNames,
+    linkedExeSources: [...new Set(linkedExeSources)],
   } as LibraryImportEntry;
 }
-
 
 function hydrate() {
   const hadPersistedStateOnStartup = localStorage.getItem(STORAGE_KEY) !== null;

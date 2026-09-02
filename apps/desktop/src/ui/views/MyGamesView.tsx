@@ -1012,6 +1012,9 @@ export function MyGamesView() {
       ) {
         summary.aliases.push({ gameId: entry.gameId, source: entry.source });
       }
+      for (const source of entry.linkedExeSources) {
+        addAlias(summary, entry.gameId, entry.source, source);
+      }
       if (summary.source === null) {
         summary.gameId = entry.gameId;
         summary.source = entry.source;

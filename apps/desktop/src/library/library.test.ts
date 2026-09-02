@@ -129,6 +129,7 @@ describe("library import", () => {
       source: "igdb",
       identifierSource: "community",
     });
+    expect(commit?.entry.linkedExeSources).toEqual(["community"]);
     expect(commit?.scopedLinks[0]).toMatchObject({
       gameId: resolved.game?.id,
       source: "igdb",
@@ -208,6 +209,27 @@ describe("library import", () => {
       }),
     ]);
   });
+  it("retains executable provenance for an uninstalled ambiguous game", () => {
+    const commit = buildLibraryImportCommit({
+      scanned: {
+        ...scanned,
+        installed: false,
+        installPath: undefined,
+        executables: [],
+      },
+      resolved: {
+        ...resolved,
+        executables: [{ ...resolved.executables[0], ambiguous: true }],
+      },
+    });
+
+    expect(commit?.entry).toMatchObject({
+      linkedExeNames: ["cs2.exe"],
+      linkedExeSources: ["igdb"],
+    });
+    expect(commit?.exeCacheEntries).toEqual([]);
+    expect(commit?.scopedLinks).toEqual([]);
+  });
 
   it("ranks known game executables and removes installer noise", () => {
     const candidates = importExeCandidates(
@@ -239,6 +261,7 @@ describe("library import", () => {
       providerSeconds: 7_200,
       lastReadAt: "now",
       linkedExeNames: [],
+      linkedExeSources: [],
     };
     const record = providerFloorRecord(
       providerFloors([
@@ -262,6 +285,7 @@ describe("library import", () => {
       providerSeconds: 7_200,
       lastReadAt: "now",
       linkedExeNames: [],
+      linkedExeSources: [],
     };
     const futureProviderEntry = {
       ...base,

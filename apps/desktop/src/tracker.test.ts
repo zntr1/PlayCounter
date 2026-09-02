@@ -214,6 +214,27 @@ describe("persisted library imports", () => {
       providerSeconds: null,
     });
   });
+
+  it("restores a source badge for legacy imports with an executable", () => {
+    expect(
+      normalizePersistedLibraryImport({
+        provider: "steam",
+        externalId: "1232580",
+        igdbId: 131645,
+        gameId: 9002,
+        source: "igdb",
+        name: "Knock on the Coffin Lid",
+        coverUrl: "cover",
+        importedAt: "2026-08-30T14:56:31.380Z",
+        providerSeconds: 6000,
+        lastReadAt: "2026-08-30T14:56:31.380Z",
+        linkedExeNames: ["Knock.exe"],
+      }),
+    ).toMatchObject({
+      linkedExeNames: ["knock.exe"],
+      linkedExeSources: ["igdb"],
+    });
+  });
 });
 
 describe("install presence wiring", () => {

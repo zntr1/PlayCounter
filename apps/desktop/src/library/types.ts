@@ -20,6 +20,7 @@ export type LibraryImportEntry = {
   providerLastPlayedAt?: string;
   lastReadAt: string;
   linkedExeNames: string[];
+  linkedExeSources: GameSource[];
 };
 
 export type LibraryInstallEntry = {

@@ -27,7 +27,9 @@ export async function checkSteamImportForMatches(input: {
   ignoredProcesses?: ReadonlySet<string>;
 }): Promise<SteamImportMatchCheck> {
   const scanned = importedGameAsScan(input.entry, input.install);
-  const lookup = await resolveLibraryGames(input.apiEndpoint, "steam", [scanned]);
+  const lookup = await resolveLibraryGames(input.apiEndpoint, "steam", [
+    scanned,
+  ]);
   if (lookup.capability === "unsupported") return { kind: "unsupported" };
 
   const resolved = lookup.games.find(
@@ -72,6 +74,12 @@ export async function checkSteamImportForMatches(input: {
           ...input.entry.linkedExeNames,
           ...executableNames,
         ]),
+        linkedExeSources: [
+          ...new Set([
+            ...input.entry.linkedExeSources,
+            ...commit.entry.linkedExeSources,
+          ]),
+        ],
       },
     },
   };

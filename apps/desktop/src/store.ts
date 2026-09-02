@@ -919,9 +919,15 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (libraryImports === state.libraryImports) {
           libraryImports = new Map(state.libraryImports);
         }
+        const identifierSource = entry.identifierSource ?? entry.source;
         libraryImports.set(key, {
           ...imported,
           linkedExeNames: [...imported.linkedExeNames, entry.exeName],
+          linkedExeSources:
+            identifierSource &&
+            !imported.linkedExeSources.includes(identifierSource)
+              ? [...imported.linkedExeSources, identifierSource]
+              : imported.linkedExeSources,
         });
       }
       return { exeCache, libraryImports };

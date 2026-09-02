@@ -14,6 +14,7 @@ const entry: LibraryImportEntry = {
   providerSeconds: 7_200,
   lastReadAt: "2026-01-01T00:00:00.000Z",
   linkedExeNames: [],
+  linkedExeSources: [],
 };
 
 function resolverResponse(executable: {
@@ -55,9 +56,7 @@ describe("Steam import match recheck", () => {
   it("creates a local match for a newly approved safe executable", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        resolverResponse({ value: "cs2.exe", verified: true }),
-      ),
+      vi.fn(async () => resolverResponse({ value: "cs2.exe", verified: true })),
     );
 
     const result = await checkSteamImportForMatches({
@@ -69,6 +68,7 @@ describe("Steam import match recheck", () => {
     if (result.kind !== "found") return;
     expect(result.executableNames).toEqual(["cs2.exe"]);
     expect(result.commit.entry.linkedExeNames).toEqual(["cs2.exe"]);
+    expect(result.commit.entry.linkedExeSources).toEqual(["community"]);
     expect(result.commit.exeCacheEntries[0]).toMatchObject({
       exeName: "cs2.exe",
       identifierSource: "community",
@@ -79,9 +79,7 @@ describe("Steam import match recheck", () => {
   it("keeps unknown provider playtime unknown after a metadata recheck", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        resolverResponse({ value: "cs2.exe", verified: true }),
-      ),
+      vi.fn(async () => resolverResponse({ value: "cs2.exe", verified: true })),
     );
 
     const result = await checkSteamImportForMatches({

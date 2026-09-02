@@ -1,4 +1,4 @@
-import type { LibraryProviderId } from "@playcounter/shared";
+import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import type { ExeCacheEntry, GameMetadata } from "../store";
 import { normalizeWindowsDir } from "./scopedLinks";
 import { manualExecutableNeedsScope } from "./exeCandidates";
@@ -40,6 +40,7 @@ export function buildLibraryImportCommit(input: {
   const exeCacheEntries: ExeCacheEntry[] = [];
   const scopedLinks: ScopedExeLink[] = [];
   const linked = new Set<string>();
+  const linkedExeSources = new Set<GameSource>();
 
   const executableEvidence = new Map<
     string,
@@ -73,6 +74,7 @@ export function buildLibraryImportCommit(input: {
   for (const executable of executableEvidence.values()) {
     const name = executable.name;
     linked.add(name);
+    linkedExeSources.add(executable.identifierSource);
     if (!executable.pathScopedOnly) {
       exeCacheEntries.push(
         toExeCache(
@@ -119,6 +121,7 @@ export function buildLibraryImportCommit(input: {
   if (input.selectedExecutable && installPath) {
     const selectedName = input.selectedExecutable.fileName;
     linked.add(selectedName);
+    linkedExeSources.add("custom");
     if (manualExecutableNeedsScope(input.selectedExecutable)) {
       scopedLinks.push(
         toCustomScopedLink(
@@ -132,13 +135,7 @@ export function buildLibraryImportCommit(input: {
       );
     } else {
       exeCacheEntries.push(
-        toCustomExeCache(
-          selectedName,
-          scanned.externalId,
-          provider,
-          game,
-          now,
-        ),
+        toCustomExeCache(selectedName, scanned.externalId, provider, game, now),
       );
     }
   }
@@ -161,6 +158,7 @@ export function buildLibraryImportCommit(input: {
       : undefined,
     lastReadAt: now,
     linkedExeNames: [...linked],
+    linkedExeSources: [...linkedExeSources],
   };
   return {
     entry,
