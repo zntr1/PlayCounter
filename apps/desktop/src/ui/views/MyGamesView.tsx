@@ -207,7 +207,7 @@ import {
   INITIAL_LIBRARY_RENDER_COUNT,
   nextLibraryRenderLimit,
 } from "../libraryRenderWindow";
-import { steamContextActions } from "../gameLibraryActions";
+import { libraryContextActions } from "../gameLibraryActions";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = MyGamesCardSize;
@@ -2115,17 +2115,27 @@ function GameLibraryCard({
   const xboxImportEntry = game.libraryImports.find(
     (entry) => entry.provider === "xbox",
   );
+  const xboxLaunchEntry = game.libraryImports.find(
+    (entry) => entry.provider === "xbox" && entry.installed,
+  );
   const importedProviders = libraryProviders(game.libraryImports);
   const hasUnknownXboxPlaytime = hasUnknownProviderPlaytime(
     game.libraryImports,
     "xbox",
   );
-  const steamActions = steamContextActions({
+  const steamActions = libraryContextActions({
     demo,
     isWindows,
     launcherEnabled,
     hasImport: Boolean(steamImportEntry),
     installed: Boolean(steamLaunchEntry),
+  });
+  const xboxActions = libraryContextActions({
+    demo,
+    isWindows,
+    launcherEnabled,
+    hasImport: Boolean(xboxImportEntry),
+    installed: Boolean(xboxLaunchEntry),
   });
   const gameEmulatorMappings = useMemo(
     () =>
@@ -2155,7 +2165,10 @@ function GameLibraryCard({
     (!demo &&
       canLaunchExecutables &&
       Boolean(
-        primaryLaunchTarget || primaryEmulatorTarget || steamLaunchEntry,
+        primaryLaunchTarget ||
+        primaryEmulatorTarget ||
+        steamLaunchEntry ||
+        xboxLaunchEntry,
       ));
   const showLaunchFooter =
     showPlayButton ||
@@ -2170,17 +2183,26 @@ function GameLibraryCard({
     launchBlocked,
   );
   const playState =
-    steamLaunchEntry && !primaryLaunchTarget && !primaryEmulatorTarget
+    xboxLaunchEntry && !manualTarget
       ? {
           ...basePlayState,
-          ariaLabel: `Play ${game.name} in Steam`,
-          title: "Play in Steam",
+          ariaLabel: `Play ${game.name} on Xbox`,
+          title: "Play on Xbox",
         }
-      : basePlayState;
+      : steamLaunchEntry && !primaryLaunchTarget && !primaryEmulatorTarget
+        ? {
+            ...basePlayState,
+            ariaLabel: `Play ${game.name} in Steam`,
+            title: "Play in Steam",
+          }
+        : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && canLaunchExecutables;
   const hasPrimaryLaunchTarget = Boolean(
-    primaryLaunchTarget || primaryEmulatorTarget || steamLaunchEntry,
+    primaryLaunchTarget ||
+    primaryEmulatorTarget ||
+    steamLaunchEntry ||
+    xboxLaunchEntry,
   );
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
@@ -2907,6 +2929,50 @@ function GameLibraryCard({
     }
   }
 
+  async function handleXboxLaunch() {
+    if (!xboxLaunchEntry) return;
+    contextMenu.close();
+    if (hasActiveSession) {
+      addToast({
+        tone: "info",
+        title: `${game.name} is already running`,
+        detail: "PlayCounter is already tracking this game.",
+      });
+      return;
+    }
+    if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
+      addToast({
+        tone: "info",
+        title: "A game is already starting",
+        detail: "Wait for PlayCounter to finish the current launch first.",
+      });
+      return;
+    }
+    setLaunching(true);
+    let keepLaunchFeedback = false;
+    try {
+      const provider = await import("../../library/providers").then((module) =>
+        module.loadLibraryProvider("xbox"),
+      );
+      await provider.launch(xboxLaunchEntry.externalId);
+      keepLaunchFeedback = true;
+      void scanProcessesNow().catch((error) =>
+        console.warn("post-launch process scan failed", error),
+      );
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: `Could not start ${game.name}`,
+        detail: formatError(error),
+      });
+    } finally {
+      if (!keepLaunchFeedback) {
+        setLaunching(false);
+        onReleaseLaunch(launchKey);
+      }
+    }
+  }
+
   async function handleOpenInSteam() {
     if (!steamImportEntry) return;
     contextMenu.close();
@@ -2994,7 +3060,11 @@ function GameLibraryCard({
   }
 
   function handlePreferredLaunch() {
-    if (primaryLaunchTarget) {
+    if (manualTarget) {
+      void handleLaunch(manualTarget);
+    } else if (xboxLaunchEntry) {
+      void handleXboxLaunch();
+    } else if (primaryLaunchTarget) {
       void handleLaunch(primaryLaunchTarget);
     } else if (primaryEmulatorMapping && primaryEmulatorTarget) {
       void handleEmulatorLaunch(primaryEmulatorMapping);
@@ -3084,10 +3154,10 @@ function GameLibraryCard({
         dataTour={demo ? "demo-context-menu" : undefined}
         focusFirstItem={demo}
       >
-        {steamActions.showOpenInSteam ? (
+        {steamActions.showOpenInLauncher ? (
           <>
             <ContextMenuHeading>Steam</ContextMenuHeading>
-            {steamActions.showPlayInSteam ? (
+            {steamActions.showPlayInLauncher ? (
               <ContextMenuItem
                 icon={Play}
                 disabled={hasActiveSession || launching || launchBlocked}
@@ -3104,9 +3174,18 @@ function GameLibraryCard({
             </ContextMenuItem>
           </>
         ) : null}
-        {isWindows && xboxImportEntry ? (
+        {xboxActions.showOpenInLauncher ? (
           <>
             <ContextMenuHeading>Xbox</ContextMenuHeading>
+            {xboxActions.showPlayInLauncher ? (
+              <ContextMenuItem
+                icon={Play}
+                disabled={hasActiveSession || launching || launchBlocked}
+                onClick={() => void handleXboxLaunch()}
+              >
+                Play on Xbox
+              </ContextMenuItem>
+            ) : null}
             <ContextMenuItem
               icon={ExternalLink}
               onClick={() => void handleOpenXboxApp()}

@@ -35,6 +35,7 @@ import {
   evaluateAndStoreMilestones,
   forgetManualLaunchTarget,
   forgetImportedLibraryData,
+  hydrate,
   hydrateGameMetadata,
   findGameMatches,
   ignoreDiscoveredProcess,
@@ -240,6 +241,110 @@ describe("persisted library imports", () => {
       linkedExeSources: ["igdb"],
     });
   });
+
+  it("hydrates Xbox installs and scoped executable links", () => {
+    vi.mocked(localStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        settings: {
+          rememberLaunchPaths: true,
+          gameLaunchingEnabled: true,
+        },
+        awardedMilestones: [],
+        autoDetectedGameKeys: [],
+        libraryInstalls: [
+          {
+            provider: "xbox",
+            externalId: "1234",
+            installPath: String.raw`C:\XboxGames\Example Game\Content`,
+            scannedAt: "2026-09-02T00:00:00.000Z",
+          },
+        ],
+        scopedExeLinks: [
+          {
+            exeName: "Game.exe",
+            pathPrefix: String.raw`c:\xboxgames\example game\content`,
+            gameId: 42,
+            source: "custom",
+            igdbId: 133430,
+            gameName: "Example Game",
+            coverUrl: "cover",
+            provider: "xbox",
+            externalId: "1234",
+            setAt: "2026-09-02T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+
+    hydrate();
+
+    expect([...useAppStore.getState().libraryInstalls.values()]).toEqual([
+      expect.objectContaining({ provider: "xbox", externalId: "1234" }),
+    ]);
+    expect([...useAppStore.getState().scopedExeLinks.values()]).toEqual([
+      expect.objectContaining({
+        provider: "xbox",
+        externalId: "1234",
+        exeName: "Game.exe",
+      }),
+    ]);
+  });
+
+  it("repairs an upgraded Xbox suggestion to community-only provenance", () => {
+    vi.mocked(localStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        settings: {
+          rememberLaunchPaths: true,
+          gameLaunchingEnabled: true,
+        },
+        awardedMilestones: [],
+        autoDetectedGameKeys: [],
+        libraryImports: [
+          {
+            provider: "xbox",
+            externalId: "1234",
+            igdbId: 133430,
+            gameId: 9,
+            source: "igdb",
+            name: "Example Game",
+            coverUrl: "cover",
+            importedAt: "2026-09-02T00:00:00.000Z",
+            providerSeconds: 0,
+            lastReadAt: "2026-09-02T00:00:00.000Z",
+            linkedExeNames: ["Game.exe"],
+            linkedExeSources: ["custom"],
+          },
+        ],
+        exeCache: [
+          {
+            exeName: "Game.exe",
+            state: "matched",
+            gameId: 42,
+            igdbId: 133430,
+            gameName: "Example Game",
+            coverUrl: "cover",
+            source: "community",
+            lastCheckedAt: "2026-09-02T00:00:00.000Z",
+            communitySuggestionId: 42,
+            communitySuggestionVerified: true,
+            communitySuggestionStatus: "verified",
+          },
+        ],
+      }),
+    );
+
+    hydrate();
+
+    const state = useAppStore.getState();
+    expect(state.exeCache.get("game.exe")).toMatchObject({
+      source: "community",
+      identifierSource: "community",
+    });
+    expect(state.libraryImports.get("xbox:1234")?.linkedExeSources).toEqual([
+      "community",
+    ]);
+    expect(state.scopedExeLinks.size).toBe(0);
+  });
 });
 describe("Steam AppID executable decisions", () => {
   it("uses Knock.exe from the resolved Steam game without a picker query", () => {
@@ -330,6 +435,49 @@ describe("Steam AppID executable decisions", () => {
       via: "cache",
       game: { id: 9002, igdbId: 131645, name: "Knock on the Coffin Lid" },
     });
+  });
+
+  it("does not create a global backfill over a scoped library link", () => {
+    const imported = normalizePersistedLibraryImport({
+      provider: "xbox",
+      externalId: "1234",
+      igdbId: 133430,
+      gameId: 9,
+      source: "igdb",
+      name: "Example Game",
+      coverUrl: "cover",
+      importedAt: "2026-09-02T00:00:00.000Z",
+      providerSeconds: 0,
+      lastReadAt: "2026-09-02T00:00:00.000Z",
+      linkedExeNames: ["Game.exe"],
+      linkedExeSources: ["custom"],
+    });
+    expect(imported).not.toBeNull();
+    if (!imported) return;
+    const cache = new Map<string, ExeCacheEntry>();
+
+    expect(
+      backfillLibraryExecutableCache(
+        cache,
+        [imported],
+        [
+          {
+            exeName: "Game.exe",
+            pathPrefix: String.raw`c:\xboxgames\example game\content`,
+            gameId: 42,
+            source: "community",
+            identifierSource: "community",
+            igdbId: 133430,
+            gameName: "Example Game",
+            coverUrl: "cover",
+            provider: "xbox",
+            externalId: "1234",
+            setAt: "2026-09-02T00:00:00.000Z",
+          },
+        ],
+      ),
+    ).toBe(false);
+    expect(cache.size).toBe(0);
   });
 });
 
@@ -2681,6 +2829,7 @@ describe("imported local link sharing", () => {
     gameName: "Game",
     coverUrl: "cover",
     source: "custom" as const,
+    identifierSource: "custom" as const,
     provider: "steam" as const,
     externalId: "10",
     setAt: "2026-08-23T00:00:00.000Z",
@@ -2759,6 +2908,25 @@ describe("imported local link sharing", () => {
           },
         ],
       ]),
+      libraryImports: new Map([
+        [
+          "steam:10",
+          {
+            provider: "steam" as const,
+            externalId: "10",
+            igdbId: 123,
+            gameId: 9,
+            source: "igdb" as const,
+            name: "Game",
+            coverUrl: "cover",
+            importedAt: "2026-08-23T00:00:00.000Z",
+            providerSeconds: 0,
+            lastReadAt: "2026-08-23T00:00:00.000Z",
+            linkedExeNames: ["Game.exe"],
+            linkedExeSources: ["custom" as const],
+          },
+        ],
+      ]),
     });
 
     convertLocalSuggestionToCommunity("Game.exe");
@@ -2766,9 +2934,13 @@ describe("imported local link sharing", () => {
     expect(useAppStore.getState().scopedExeLinks.get(scopedKey)).toMatchObject({
       gameId: 42,
       source: "community",
+      identifierSource: "community",
       communitySuggestionId: 42,
       communitySuggestionVerified: true,
     });
+    expect(
+      useAppStore.getState().libraryImports.get("steam:10")?.linkedExeSources,
+    ).toEqual(["community"]);
   });
 });
 

@@ -111,6 +111,49 @@ describe("library import", () => {
     expect(providerFloors(commit ? [commit.entry] : [])).toEqual([]);
   });
 
+  it("creates an Xbox install and scoped executable link", () => {
+    const selectedExecutable = {
+      fileName: "Game.exe",
+      relativePath: "Game.exe",
+      sizeBytes: 80_000_000,
+      depth: 0,
+      declared: true,
+    };
+    const commit = buildLibraryImportCommit({
+      provider: "xbox",
+      scanned: {
+        externalId: "1234",
+        name: "Example Game",
+        playtimeSeconds: null,
+        installed: true,
+        installPath: String.raw`C:\XboxGames\Example Game\Content`,
+        executables: [selectedExecutable],
+      },
+      resolved: {
+        ...resolved,
+        key: "xbox:1234",
+        executables: [],
+      },
+      selectedExecutable,
+      now: "now",
+    });
+
+    expect(commit?.install).toEqual({
+      provider: "xbox",
+      externalId: "1234",
+      installPath: String.raw`c:\xboxgames\example game\content`,
+      scannedAt: "now",
+    });
+    expect(commit?.scopedLinks).toHaveLength(1);
+    expect(commit?.scopedLinks[0]).toMatchObject({
+      exeName: "Game.exe",
+      pathPrefix: String.raw`c:\xboxgames\example game\content`,
+      provider: "xbox",
+      externalId: "1234",
+      source: "custom",
+    });
+  });
+
   it("keeps known provider time when a later import has unknown duration", () => {
     expect(mergeProviderSeconds(7_200, null)).toBe(7_200);
     expect(mergeProviderSeconds(null, null)).toBeNull();
@@ -255,6 +298,24 @@ describe("library import", () => {
       "Counter-Strike 2",
     );
     expect(candidates.map((item) => item.fileName)).toEqual(["cs2.exe"]);
+  });
+
+  it("keeps a small config-declared Xbox executable", () => {
+    expect(
+      importExeCandidates(
+        [
+          {
+            fileName: "TinyGame.exe",
+            relativePath: "TinyGame.exe",
+            sizeBytes: 4,
+            depth: 0,
+            declared: true,
+          },
+        ],
+        [],
+        "Tiny Game",
+      ).map((item) => item.fileName),
+    ).toEqual(["TinyGame.exe"]);
   });
 
   it("ranks executable candidates when Steam has no manifest name", () => {

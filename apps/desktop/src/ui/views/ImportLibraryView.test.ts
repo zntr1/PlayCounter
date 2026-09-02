@@ -117,4 +117,52 @@ describe("library importer eligibility", () => {
     expect(html).not.toContain("Released 2021");
     expect(html).toContain("Confirm and Import");
   });
+
+  it("preselects a declared Xbox executable before identity confirmation", () => {
+    const html = renderToStaticMarkup(
+      createElement(ImportRow, {
+        provider: "xbox",
+        apiEndpoint: "https://api.example",
+        game: {
+          externalId: "1234",
+          name: "Forza Horizon 5",
+          playtimeSeconds: null,
+          installed: true,
+          installPath: String.raw`C:\XboxGames\Forza Horizon 5\Content`,
+          executables: [
+            {
+              fileName: "ForzaHorizon5.exe",
+              relativePath: "ForzaHorizon5.exe",
+              sizeBytes: 1_000_000,
+              depth: 0,
+              declared: true,
+            },
+          ],
+        },
+        resolved: {
+          key: "xbox:1234",
+          status: "unknown",
+          executables: [],
+          candidates: [],
+        },
+        selected: false,
+        alreadyImported: false,
+        showSelection: false,
+        showAddAndShare: true,
+        addingAndSharing: false,
+        browsing: false,
+        manualExecutable: "ForzaHorizon5.exe",
+        ignoredProcesses: new Set<string>(),
+        onXboxMatch: async () => undefined,
+        onAddAndShare: () => undefined,
+        onBrowseExecutable: () => undefined,
+        onManualExecutable: () => undefined,
+        onSelected: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('value="ForzaHorizon5.exe" selected=""');
+    expect(html).toContain("Confirm and Import");
+    expect(html).not.toContain("Add and Share");
+  });
 });

@@ -51,7 +51,7 @@ export function importExeCandidates(
     .filter(
       (item) =>
         item.fileName.toLowerCase().endsWith(".exe") &&
-        item.sizeBytes >= 64 * 1024 &&
+        (item.declared || item.sizeBytes >= 64 * 1024) &&
         !BLOCKED_NAMES.has(item.fileName.toLowerCase()) &&
         !isInstallerOrCrashExecutable(item.fileName) &&
         !matchesProcessPatternSet(item.fileName, ignoredProcesses),
@@ -62,6 +62,7 @@ export function importExeCandidates(
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "");
       const score =
+        (item.declared ? 20_000 : 0) +
         (knownNames.has(item.fileName.toLowerCase()) ? 10_000 : 0) +
         (title && (base === title || title.includes(base)) ? 1_000 : 0) -
         item.depth * 20 -

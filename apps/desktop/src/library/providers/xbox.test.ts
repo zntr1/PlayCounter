@@ -53,8 +53,49 @@ describe("Xbox library provider", () => {
     expect(invokeMock).toHaveBeenCalledWith("open_xbox_app");
   });
 
-  it("opens Microsoft sign-in and maps server-resolved games without losing unknown playtime", async () => {
+  it("launches an installed title through the Xbox provider", async () => {
     invokeMock.mockResolvedValue(undefined);
+
+    await expect(xboxProvider.launch("1234")).resolves.toBeUndefined();
+
+    expect(invokeMock).toHaveBeenCalledWith("library_launch_app", {
+      provider: "xbox",
+      externalId: "1234",
+      mode: "play",
+    });
+  });
+
+  it("opens Microsoft sign-in and maps server-resolved games without losing unknown playtime", async () => {
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "library_scan_xbox_local"
+        ? {
+            games: [
+              {
+                externalId: "1234",
+                name: "Forza Horizon 5",
+                installPath: String.raw`C:\XboxGames\Forza Horizon 5\Content`,
+                executables: [
+                  {
+                    fileName: "ForzaHorizon5.exe",
+                    relativePath: "ForzaHorizon5.exe",
+                    sizeBytes: 1_000_000,
+                    depth: 0,
+                    declared: true,
+                  },
+                ],
+              },
+              {
+                externalId: "9999",
+                name: "Local only",
+                installPath: String.raw`D:\XboxGames\Local only\Content`,
+                executables: [],
+              },
+            ],
+            warnings: ["local scan warning"],
+            partial: true,
+          }
+        : undefined,
+    );
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -101,12 +142,21 @@ describe("Xbox library provider", () => {
           name: "Forza Horizon 5",
           playtimeSeconds: null,
           lastPlayedUnix: 1_788_177_600,
-          installed: false,
-          executables: [],
+          installed: true,
+          installPath: String.raw`C:\XboxGames\Forza Horizon 5\Content`,
+          executables: [
+            {
+              fileName: "ForzaHorizon5.exe",
+              relativePath: "ForzaHorizon5.exe",
+              sizeBytes: 1_000_000,
+              depth: 0,
+              declared: true,
+            },
+          ],
         },
       ],
-      warnings: [],
-      partial: false,
+      warnings: ["local scan warning"],
+      partial: true,
       resolvedGames: [
         {
           key: "xbox:1234",

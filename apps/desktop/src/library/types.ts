@@ -70,6 +70,8 @@ export type ScannedExecutable = {
   relativePath: string;
   sizeBytes: number;
   depth: number;
+  /** True when MicrosoftGame.config declares this as the title executable. */
+  declared?: boolean;
 };
 
 export type ScannedLibraryGame = {

@@ -276,6 +276,14 @@ export function ImportLibraryView() {
         openAuthorizeUrl: !isXbox || !copyOnStart,
       });
       setScan(result);
+      setManualExecutables(
+        Object.fromEntries(
+          result.games.flatMap((game) => {
+            const declared = game.executables.find((item) => item.declared);
+            return declared ? [[game.externalId, declared.relativePath]] : [];
+          }),
+        ),
+      );
       const lookup = result.resolvedGames
         ? { capability: "supported" as const, games: result.resolvedGames }
         : await resolveLibraryGames(apiEndpoint, providerId, result.games);
@@ -409,16 +417,19 @@ export function ImportLibraryView() {
     }
   }
 
+  function selectedExecutableFor(game: ScannedLibraryGame) {
+    const chosen = manualExecutables[game.externalId];
+    return (
+      game.executables.find((item) => item.relativePath === chosen) ??
+      (browsedExecutables[game.externalId]?.relativePath === chosen
+        ? browsedExecutables[game.externalId]
+        : undefined)
+    );
+  }
+
   async function addAndShareGame(game: ScannedLibraryGame) {
     const match = resolved.get(libraryEntryKey(providerId, game.externalId));
-    const selectedExecutable =
-      game.executables.find(
-        (item) => item.relativePath === manualExecutables[game.externalId],
-      ) ??
-      (browsedExecutables[game.externalId]?.relativePath ===
-      manualExecutables[game.externalId]
-        ? browsedExecutables[game.externalId]
-        : undefined);
+    const selectedExecutable = selectedExecutableFor(game);
     if (!match || !selectedExecutable) return;
 
     const commit = buildLibraryImportCommit({
@@ -480,6 +491,7 @@ export function ImportLibraryView() {
         scanned,
         resolved: resolvedGame,
         ignoredProcesses,
+        selectedExecutable: selectedExecutableFor(scanned),
       });
       if (!commit)
         throw new Error("The selected Xbox game cannot be imported.");
@@ -511,7 +523,9 @@ export function ImportLibraryView() {
 
   async function browseExecutable(game: ScannedLibraryGame) {
     if (!game.installPath) {
-      setError("Steam did not provide an installation path for this game.");
+      setError(
+        `${providerName} did not provide an installation path for this game.`,
+      );
       return;
     }
     setBrowsingExternalId(game.externalId);
@@ -1057,6 +1071,14 @@ export function ImportRow({
     resolved,
     ignoredProcesses,
   );
+  const xboxNeedsIdentity =
+    provider === "xbox" &&
+    hasImportableActivity(game) &&
+    resolved?.status !== "resolved";
+  const showExeBlock =
+    showAddAndShare &&
+    (showExeChoice ||
+      (xboxNeedsIdentity && game.installed && game.installPath !== undefined));
   const Row = showSelection ? "label" : "article";
   return (
     <Row
@@ -1114,13 +1136,7 @@ export function ImportRow({
               ? "Playtime unknown"
               : formatDuration(game.playtimeSeconds, false)}
           </span>
-          <span>
-            {provider === "xbox"
-              ? "Installation not checked"
-              : game.installed
-                ? "Installed"
-                : "Not installed"}
-          </span>
+          <span>{game.installed ? "Installed" : "Not installed"}</span>
           {provider === "steam" ? (
             resolved?.executables.length ? (
               <span>
@@ -1132,23 +1148,12 @@ export function ImportRow({
             )
           ) : null}
         </div>
-        {provider === "xbox" &&
-        hasImportableActivity(game) &&
-        resolved?.status !== "resolved" ? (
-          <XboxMatchControls
-            apiEndpoint={apiEndpoint}
-            candidates={resolved?.candidates ?? []}
-            title={game.name ?? `Xbox title ${game.externalId}`}
-            importing={addingAndSharing}
-            onConfirm={onXboxMatch}
-          />
-        ) : null}
-        {showAddAndShare && showExeChoice ? (
+        {showExeBlock ? (
           <div className="mt-3 max-w-2xl text-xs text-text-muted">
             <p>
-              Choose the executable PlayCounter should track. Add and Share
-              imports the game locally and submits this mapping for community
-              review; it is not globally approved automatically.
+              {xboxNeedsIdentity
+                ? "Choose the executable PlayCounter should track. It is submitted for community review together with the game match you confirm below."
+                : "Choose the executable PlayCounter should track. Add and Share imports the game locally and submits this mapping for community review; it is not globally approved automatically."}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
@@ -1175,17 +1180,28 @@ export function ImportRow({
               >
                 Browse…
               </Button>
-              <Button
-                variant="primary"
-                icon={Share2}
-                loading={addingAndSharing}
-                disabled={!manualExecutable}
-                onClick={onAddAndShare}
-              >
-                Add and Share
-              </Button>
+              {!xboxNeedsIdentity ? (
+                <Button
+                  variant="primary"
+                  icon={Share2}
+                  loading={addingAndSharing}
+                  disabled={!manualExecutable}
+                  onClick={onAddAndShare}
+                >
+                  Add and Share
+                </Button>
+              ) : null}
             </div>
           </div>
+        ) : null}
+        {xboxNeedsIdentity ? (
+          <XboxMatchControls
+            apiEndpoint={apiEndpoint}
+            candidates={resolved?.candidates ?? []}
+            title={game.name ?? `Xbox title ${game.externalId}`}
+            importing={addingAndSharing}
+            onConfirm={onXboxMatch}
+          />
         ) : null}
       </div>
     </Row>

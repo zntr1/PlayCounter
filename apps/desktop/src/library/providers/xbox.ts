@@ -13,13 +13,30 @@ import type {
 import { invoke } from "@tauri-apps/api/core";
 import { DEFAULT_API_ENDPOINT, type GameMetadata } from "../../store";
 import type { LocalLibraryProvider, LibraryScanOptions } from "../provider";
-import type { LibraryScanResult, ResolvedLibraryGame } from "../types";
+import type {
+  LibraryScanResult,
+  ResolvedLibraryGame,
+  ScannedExecutable,
+} from "../types";
 
 const XBOX_IMPORT_POLL_INTERVAL_MS = 1_500;
 const XBOX_IMPORT_TIMEOUT_MS = 5 * 60 * 1_000;
 const XBOX_CANCEL_TIMEOUT_MS = 3_000;
 type ParsedXboxImportGame = Omit<XboxImportGame, "candidates"> & {
   candidates: GameMetadata[];
+};
+
+export type XboxLocalGame = {
+  externalId: string;
+  name: string;
+  installPath: string;
+  executables: ScannedExecutable[];
+};
+
+export type XboxLocalScan = {
+  games: XboxLocalGame[];
+  warnings: string[];
+  partial: boolean;
 };
 
 type XboxFailureContext = {
@@ -51,7 +68,14 @@ export const xboxProvider: LocalLibraryProvider = {
     },
   ],
   scan: (_accountId, options) => scanXboxLibrary(options),
-  launch: async () => invoke<void>("open_xbox_app"),
+  launch: (externalId, mode = "play") =>
+    mode === "store"
+      ? invoke<void>("open_xbox_app")
+      : invoke<void>("library_launch_app", {
+          provider: "xbox",
+          externalId,
+          mode,
+        }),
 };
 
 export async function scanXboxLibrary(
@@ -122,7 +146,7 @@ export async function scanXboxLibrary(
       const result = parseXboxImportResult(await resultResponse.json());
       if (result.status === "done") {
         attemptActive = false;
-        return mapXboxImportGames(result.games);
+        return mapXboxImportGames(result.games, await scanLocalXboxGames());
       }
       if (result.status === "failed") {
         attemptActive = false;
@@ -155,7 +179,21 @@ export async function scanXboxLibrary(
   }
 }
 
-function mapXboxImportGames(games: ParsedXboxImportGame[]): LibraryScanResult {
+async function scanLocalXboxGames(): Promise<XboxLocalScan> {
+  try {
+    return await invoke<XboxLocalScan>("library_scan_xbox_local");
+  } catch {
+    return { games: [], warnings: [], partial: false };
+  }
+}
+
+function mapXboxImportGames(
+  games: ParsedXboxImportGame[],
+  local: XboxLocalScan,
+): LibraryScanResult {
+  const byExternalId = new Map(
+    local.games.map((game) => [game.externalId, game]),
+  );
   const resolvedGames: ResolvedLibraryGame[] = games.map((game) => ({
     key: `xbox:${game.externalId}`,
     status: "unknown",
@@ -164,16 +202,20 @@ function mapXboxImportGames(games: ParsedXboxImportGame[]): LibraryScanResult {
   }));
 
   return {
-    games: games.map((game) => ({
-      externalId: game.externalId,
-      name: game.name,
-      playtimeSeconds: game.providerSeconds,
-      lastPlayedUnix: isoTimestampToUnix(game.providerLastPlayedAt),
-      installed: false,
-      executables: [],
-    })),
-    warnings: [],
-    partial: false,
+    games: games.map((game) => {
+      const localGame = byExternalId.get(game.externalId);
+      return {
+        externalId: game.externalId,
+        name: game.name,
+        playtimeSeconds: game.providerSeconds,
+        lastPlayedUnix: isoTimestampToUnix(game.providerLastPlayedAt),
+        installed: Boolean(localGame),
+        installPath: localGame?.installPath,
+        executables: localGame?.executables ?? [],
+      };
+    }),
+    warnings: local.warnings,
+    partial: local.partial,
     resolvedGames,
   };
 }

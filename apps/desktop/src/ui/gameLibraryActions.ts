@@ -1,15 +1,15 @@
-export function steamContextActions(input: {
+export function libraryContextActions(input: {
   demo: boolean;
   isWindows: boolean;
   launcherEnabled: boolean;
   hasImport: boolean;
   installed: boolean;
 }) {
-  const showOpenInSteam = !input.demo && input.isWindows && input.hasImport;
+  const showOpenInLauncher = !input.demo && input.isWindows && input.hasImport;
 
   return {
-    showOpenInSteam,
-    showPlayInSteam:
-      showOpenInSteam && input.launcherEnabled && input.installed,
+    showOpenInLauncher,
+    showPlayInLauncher:
+      showOpenInLauncher && input.launcherEnabled && input.installed,
   };
 }

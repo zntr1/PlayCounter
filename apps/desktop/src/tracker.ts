@@ -530,8 +530,12 @@ export function normalizePersistedLibraryImport(
 export function backfillLibraryExecutableCache(
   exeCache: Map<string, ExeCacheEntry>,
   libraryImports: Iterable<LibraryImportEntry>,
+  scopedExeLinks: Iterable<ScopedExeLink> = [],
 ) {
   let changed = false;
+  const scopedNames = new Set(
+    [...scopedExeLinks].map((entry) => entry.exeName.toLowerCase()),
+  );
   for (const entry of libraryImports) {
     const identifierSource = entry.linkedExeSources.includes("igdb")
       ? "igdb"
@@ -544,7 +548,7 @@ export function backfillLibraryExecutableCache(
       const key = exeName.toLowerCase();
       const existing = exeCache.get(key);
       if (existing?.state === "blacklisted") continue;
-      if (existing?.state === "matched") continue;
+      if (existing?.state === "matched" || scopedNames.has(key)) continue;
       exeCache.set(key, {
         exeName,
         state: "matched",
@@ -564,7 +568,77 @@ export function backfillLibraryExecutableCache(
   return changed;
 }
 
-function hydrate() {
+function normalizeApprovedCommunityIdentifierSource<
+  T extends {
+    source?: GameSource;
+    identifierSource?: GameSource;
+    communitySuggestionVerified?: boolean;
+    communitySuggestionStatus?: ContributionStatus;
+  },
+>(entry: T): T {
+  return entry.source === "community" &&
+    (entry.identifierSource === undefined ||
+      entry.identifierSource === "custom") &&
+    (entry.communitySuggestionStatus === "verified" ||
+      entry.communitySuggestionVerified === true)
+    ? { ...entry, identifierSource: "community" }
+    : entry;
+}
+
+function reconcileLibraryImportIdentifierSources(
+  libraryImports: Map<string, LibraryImportEntry>,
+  exeCache: ReadonlyMap<string, ExeCacheEntry>,
+  scopedExeLinks: ReadonlyMap<string, ScopedExeLink>,
+) {
+  let changed = false;
+  for (const [key, imported] of libraryImports) {
+    if (!imported.linkedExeSources.includes("custom")) continue;
+    const sources = new Set<GameSource>(
+      imported.linkedExeSources.filter((source) => source !== "custom"),
+    );
+    let unresolvedCustom = false;
+    for (const linkedExeName of imported.linkedExeNames) {
+      const linkedKey = linkedExeName.toLowerCase();
+      const currentSources: GameSource[] = [];
+      const cached = exeCache.get(linkedKey);
+      if (
+        cached?.state === "matched" &&
+        cached.source &&
+        ((cached.libraryProvider === imported.provider &&
+          cached.libraryExternalId === imported.externalId) ||
+          (cached.source === "community" && cached.igdbId === imported.igdbId))
+      ) {
+        currentSources.push(cached.identifierSource ?? cached.source);
+      }
+      for (const scoped of scopedExeLinks.values()) {
+        if (
+          scoped.exeName.toLowerCase() === linkedKey &&
+          scoped.provider === imported.provider &&
+          scoped.externalId === imported.externalId
+        ) {
+          currentSources.push(scoped.identifierSource ?? scoped.source);
+        }
+      }
+      if (currentSources.length === 0) unresolvedCustom = true;
+      else currentSources.forEach((source) => sources.add(source));
+    }
+    if (unresolvedCustom) sources.add("custom");
+    const linkedExeSources = [...sources];
+    if (
+      linkedExeSources.length === imported.linkedExeSources.length &&
+      linkedExeSources.every(
+        (source, index) => source === imported.linkedExeSources[index],
+      )
+    ) {
+      continue;
+    }
+    libraryImports.set(key, { ...imported, linkedExeSources });
+    changed = true;
+  }
+  return changed;
+}
+
+export function hydrate() {
   const hadPersistedStateOnStartup = localStorage.getItem(STORAGE_KEY) !== null;
   const persisted = readPersisted();
   let shouldPersistAchievementMigration =
@@ -621,10 +695,10 @@ function hydrate() {
   const exeCacheMap = new Map(
     exeCache.map((entry) => {
       const { runningSince: _runningSince, ...rest } = entry;
-      return [
-        entry.exeName.toLowerCase(),
+      const normalized = normalizeApprovedCommunityIdentifierSource(
         inferSuggestionStatus(rest),
-      ] as const;
+      );
+      return [entry.exeName.toLowerCase(), normalized] as const;
     }),
   );
   function persistedLaunchTarget(value: unknown): LaunchTarget | null {
@@ -762,7 +836,7 @@ function hydrate() {
     if (!value || typeof value !== "object") return null;
     const entry = value as Partial<LibraryInstallEntry>;
     if (
-      entry.provider !== "steam" ||
+      (entry.provider !== "steam" && entry.provider !== "xbox") ||
       !validExternalId(entry.externalId) ||
       typeof entry.installPath !== "string" ||
       !normalizeWindowsDir(entry.installPath) ||
@@ -776,7 +850,7 @@ function hydrate() {
     if (!value || typeof value !== "object") return null;
     const entry = value as Partial<ScopedExeLink>;
     if (
-      entry.provider !== "steam" ||
+      (entry.provider !== "steam" && entry.provider !== "xbox") ||
       !validExternalId(entry.externalId) ||
       !positiveInteger(entry.igdbId) ||
       typeof entry.gameId !== "number" ||
@@ -793,16 +867,12 @@ function hydrate() {
     ) {
       return null;
     }
-    return entry as ScopedExeLink;
+    return normalizeApprovedCommunityIdentifierSource(entry as ScopedExeLink);
   };
   const libraryImports = hydrateMap(
     persisted.libraryImports,
     normalizePersistedLibraryImport,
     (entry) => libraryEntryKey(entry.provider, entry.externalId),
-  );
-  const backfilledLibraryExecutableCache = backfillLibraryExecutableCache(
-    exeCacheMap,
-    libraryImports.values(),
   );
   const libraryInstalls = hydrateMap(
     persisted.libraryInstalls,
@@ -813,6 +883,20 @@ function hydrate() {
     persisted.scopedExeLinks,
     persistedScopedExeLink,
     (entry) => scopedExeLinkKey(entry.exeName, entry.pathPrefix)!,
+  );
+  if (
+    reconcileLibraryImportIdentifierSources(
+      libraryImports,
+      exeCacheMap,
+      scopedExeLinks,
+    )
+  ) {
+    shouldPersistAchievementMigration = true;
+  }
+  const backfilledLibraryExecutableCache = backfillLibraryExecutableCache(
+    exeCacheMap,
+    libraryImports.values(),
+    scopedExeLinks.values(),
   );
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
@@ -3792,6 +3876,7 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
       gameName: communityGame.name,
       coverUrl: communityGame.coverUrl,
       source: "community",
+      identifierSource: "community",
       communitySuggestionId: existing.communitySuggestionId,
       communitySuggestionVerified: true,
       communitySuggestionStatus: "verified",
@@ -3805,8 +3890,16 @@ export function convertLocalSuggestionToCommunity(exeName: string) {
     }
   }
 
+  const libraryImports = new Map(state.libraryImports);
+  reconcileLibraryImportIdentifierSources(
+    libraryImports,
+    maps.exeCache,
+    maps.scopedExeLinks,
+  );
+
   useAppStore.setState((current) => ({
     ...maps,
+    libraryImports,
     activeSessions: current.activeSessions.map((session) =>
       session.exeName.toLowerCase() === key && session.source === "custom"
         ? {
@@ -5749,7 +5842,11 @@ export function forgetImportedLibraryData(provider: LibraryProviderId) {
   for (const [key, entry] of scopedExeLinks) {
     if (entry.provider === provider) scopedExeLinks.delete(key);
   }
-  backfillLibraryExecutableCache(exeCache, libraryImports.values());
+  backfillLibraryExecutableCache(
+    exeCache,
+    libraryImports.values(),
+    scopedExeLinks.values(),
+  );
   useAppStore.setState({
     exeCache,
     launchTargets,

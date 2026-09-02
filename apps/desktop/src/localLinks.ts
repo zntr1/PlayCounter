@@ -10,6 +10,7 @@ export type LocalLink = {
   ref: LocalLinkRef;
   exeName: string;
   source: GameSource;
+  identifierSource?: GameSource;
   gameId: number;
   igdbId?: number;
   gameName?: string;
@@ -40,6 +41,7 @@ function exeLocalLink(key: string, entry: ExeCacheEntry): LocalLink | null {
     ref: { kind: "exe", key },
     exeName: entry.exeName,
     source: entry.source,
+    identifierSource: entry.identifierSource,
     gameId: entry.gameId,
     igdbId: entry.igdbId,
     gameName: entry.gameName,
@@ -58,6 +60,7 @@ function scopedLocalLink(key: string, entry: ScopedExeLink): LocalLink {
     ref: { kind: "scoped", key },
     exeName: entry.exeName,
     source: entry.source,
+    identifierSource: entry.identifierSource,
     gameId: entry.gameId,
     igdbId: entry.igdbId,
     gameName: entry.gameName,

@@ -1,59 +1,59 @@
 import { describe, expect, it } from "vitest";
-import { steamContextActions } from "./gameLibraryActions";
+import { libraryContextActions } from "./gameLibraryActions";
 
-describe("Steam game context actions", () => {
+describe("game library context actions", () => {
   it("keeps Open in Steam available when direct launching is disabled", () => {
     expect(
-      steamContextActions({
+      libraryContextActions({
         demo: false,
         isWindows: true,
         launcherEnabled: false,
         hasImport: true,
         installed: true,
       }),
-    ).toEqual({ showOpenInSteam: true, showPlayInSteam: false });
+    ).toEqual({ showOpenInLauncher: true, showPlayInLauncher: false });
   });
 
   it("offers Play in Steam only for installed games with launching enabled", () => {
     expect(
-      steamContextActions({
+      libraryContextActions({
         demo: false,
         isWindows: true,
         launcherEnabled: true,
         hasImport: true,
         installed: true,
       }),
-    ).toEqual({ showOpenInSteam: true, showPlayInSteam: true });
+    ).toEqual({ showOpenInLauncher: true, showPlayInLauncher: true });
 
     expect(
-      steamContextActions({
+      libraryContextActions({
         demo: false,
         isWindows: true,
         launcherEnabled: true,
         hasImport: true,
         installed: false,
-      }).showPlayInSteam,
+      }).showPlayInLauncher,
     ).toBe(false);
   });
 
   it("hides unsupported and tutorial Steam actions", () => {
     expect(
-      steamContextActions({
+      libraryContextActions({
         demo: false,
         isWindows: false,
         launcherEnabled: true,
         hasImport: true,
         installed: true,
-      }).showOpenInSteam,
+      }).showOpenInLauncher,
     ).toBe(false);
     expect(
-      steamContextActions({
+      libraryContextActions({
         demo: true,
         isWindows: true,
         launcherEnabled: true,
         hasImport: true,
         installed: true,
-      }).showOpenInSteam,
+      }).showOpenInLauncher,
     ).toBe(false);
   });
 });
