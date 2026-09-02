@@ -45,6 +45,14 @@ describe("Xbox library provider", () => {
     ]);
   });
 
+  it("opens the installed Xbox app", async () => {
+    invokeMock.mockResolvedValue(undefined);
+
+    await expect(xboxProvider.launch("1234", "store")).resolves.toBeUndefined();
+
+    expect(invokeMock).toHaveBeenCalledWith("open_xbox_app");
+  });
+
   it("opens Microsoft sign-in and maps server-resolved games without losing unknown playtime", async () => {
     invokeMock.mockResolvedValue(undefined);
     const fetchMock = vi
@@ -225,7 +233,7 @@ describe("Xbox library provider", () => {
       },
     ]);
     expect(String(fetchMock.mock.calls[0][0])).toBe(
-      `${endpoint}/api/games/search?query=Forza%20Horizon`,
+      `${endpoint}/api/games/search?query=Forza%20Horizon&mainGamesAndRemastersOnly=true`,
     );
   });
 

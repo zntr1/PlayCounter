@@ -42,11 +42,7 @@ export const xboxProvider: LocalLibraryProvider = {
     },
   ],
   scan: (_accountId, options) => scanXboxLibrary(options),
-  launch: async () => {
-    throw new Error(
-      "Xbox games are launched through the Xbox app, not PlayCounter.",
-    );
-  },
+  launch: async () => invoke<void>("open_xbox_app"),
 };
 
 export async function scanXboxLibrary(
@@ -185,7 +181,7 @@ export async function searchXboxGames(
   if (query.length < 2) return [];
   const endpoint = apiEndpoint.replace(/\/+$/, "");
   const response = await fetch(
-    `${endpoint}/api/games/search?query=${encodeURIComponent(query)}`,
+    `${endpoint}/api/games/search?query=${encodeURIComponent(query)}&mainGamesAndRemastersOnly=true`,
   );
   if (!response.ok) {
     throw new Error(`Xbox game search failed (${response.status}).`);

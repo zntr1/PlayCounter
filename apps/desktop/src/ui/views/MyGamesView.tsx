@@ -183,6 +183,7 @@ import {
   hasUnknownProviderPlaytime,
   libraryProviders,
   summarizeProviderLibrary,
+  trackingUnavailableMessage,
 } from "../providerLibrary";
 import { myGamesLayout } from "../myGamesLayout";
 import {
@@ -2108,6 +2109,9 @@ function GameLibraryCard({
   const steamLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "steam" && entry.installed,
   );
+  const xboxImportEntry = game.libraryImports.find(
+    (entry) => entry.provider === "xbox",
+  );
   const importedProviders = libraryProviders(game.libraryImports);
   const hasUnknownXboxPlaytime = hasUnknownProviderPlaytime(
     game.libraryImports,
@@ -2234,6 +2238,10 @@ function GameLibraryCard({
   const canCheckMatches = Boolean(
     (game.source && game.exeNames[0]) ||
     (trackingUnavailable && steamImportEntry),
+  );
+  const trackingWarningMessage = trackingUnavailableMessage(
+    importedProviders,
+    canCheckMatches,
   );
   const showLaunchActions =
     launchTourDemo ||
@@ -2912,6 +2920,22 @@ function GameLibraryCard({
       });
     }
   }
+  async function handleOpenXboxApp() {
+    if (!xboxImportEntry) return;
+    contextMenu.close();
+    try {
+      const provider = await import("../../library/providers").then((module) =>
+        module.loadLibraryProvider("xbox"),
+      );
+      await provider.launch(xboxImportEntry.externalId, "store");
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Could not open the Xbox app",
+        detail: formatError(error),
+      });
+    }
+  }
 
   async function handleSetEmulatorLaunchFile(
     mapping: (typeof gameEmulatorMappings)[number],
@@ -3074,6 +3098,17 @@ function GameLibraryCard({
               onClick={() => void handleOpenInSteam()}
             >
               Open in Steam
+            </ContextMenuItem>
+          </>
+        ) : null}
+        {isWindows && xboxImportEntry ? (
+          <>
+            <ContextMenuHeading>Xbox</ContextMenuHeading>
+            <ContextMenuItem
+              icon={ExternalLink}
+              onClick={() => void handleOpenXboxApp()}
+            >
+              Open Xbox app
             </ContextMenuItem>
           </>
         ) : null}
@@ -3449,7 +3484,7 @@ function GameLibraryCard({
               <span
                 role="img"
                 tabIndex={0}
-                aria-label="New sessions will not be tracked yet. Steam playtime is already imported. Use Check for Matches to look for a newly approved executable."
+                aria-label={trackingWarningMessage}
                 title="New sessions won't be tracked yet"
                 className="grid h-8 w-8 cursor-help place-items-center rounded-full border border-warning-border bg-warning-tint text-warning shadow-raised outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-warning focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
               >
@@ -3463,10 +3498,7 @@ function GameLibraryCard({
                   New sessions won&apos;t be tracked yet
                 </div>
                 <div className="mt-1 text-[11px] leading-4 text-text-muted">
-                  Steam playtime is already imported, but this game&apos;s
-                  filename is unknown. Use Check for Matches to look for a newly
-                  approved executable, or install and run the game so
-                  PlayCounter can discover it.
+                  {trackingWarningMessage}
                 </div>
               </div>
             </div>

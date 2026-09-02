@@ -187,6 +187,18 @@ fn open_microsoft_signin_url(url: String) -> Result<(), String> {
 
     open_url(url)
 }
+#[tauri::command]
+fn open_xbox_app() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        return open_url("xbox://");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("The Xbox app is only available on Windows.".to_string())
+    }
+}
 
 #[tauri::command]
 async fn get_exe_icon(exe_path: String) -> Result<String, String> {
@@ -250,6 +262,7 @@ pub fn run() {
             open_user_ignored_processes_folder,
             open_external_url,
             open_microsoft_signin_url,
+            open_xbox_app,
             update_tray_now_playing,
             scan_processes,
             privacy_context,

@@ -35,6 +35,18 @@ export function libraryProviders(
 ) {
   return [...new Set(imports.map((entry) => entry.provider))];
 }
+export function trackingUnavailableMessage(
+  providers: readonly LibraryProviderId[],
+  canCheckMatches: boolean,
+) {
+  const source =
+    providers.length === 1
+      ? `${providers[0] === "xbox" ? "Xbox" : "Steam"} playtime`
+      : "Imported playtime";
+  return canCheckMatches
+    ? `${source} is already imported, but this game's filename is unknown. Use Check for Matches to look for a newly approved executable, or install and run the game so PlayCounter can discover it.`
+    : `${source} is already imported, but this game's filename is unknown. Install and run the game so PlayCounter can discover it.`;
+}
 
 export function hasUnknownProviderPlaytime(
   imports: readonly ProviderLibraryImport[],
@@ -72,10 +84,7 @@ export function summarizeProviderLibrary(
     summary.gameCount += 1;
     summary.entryCount += providerEntries.length;
     summary.providerSeconds += seconds;
-    if (
-      seconds > 0 ||
-      hasUnknownProviderPlaytime(providerEntries, provider)
-    ) {
+    if (seconds > 0 || hasUnknownProviderPlaytime(providerEntries, provider)) {
       summary.playedCount += 1;
     }
     if (providerEntries.some((entry) => entry.installed)) {

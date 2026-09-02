@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   libraryProviders,
   summarizeProviderLibrary,
+  trackingUnavailableMessage,
   type ProviderLibraryGame,
 } from "./providerLibrary";
 
@@ -97,5 +98,17 @@ describe("provider library", () => {
       playedCount: 1,
       installedCount: 0,
     });
+  });
+
+  it("uses the imported provider in missing-executable warnings", () => {
+    expect(trackingUnavailableMessage(["xbox"], false)).toBe(
+      "Xbox playtime is already imported, but this game's filename is unknown. Install and run the game so PlayCounter can discover it.",
+    );
+    expect(trackingUnavailableMessage(["steam"], true)).toContain(
+      "Steam playtime is already imported",
+    );
+    expect(trackingUnavailableMessage(["steam"], true)).toContain(
+      "Use Check for Matches",
+    );
   });
 });
