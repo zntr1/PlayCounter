@@ -74,4 +74,28 @@ describe("provider library", () => {
       }),
     ).toMatchObject({ providerSeconds: 0, playedCount: 0 });
   });
+
+  it("counts an Xbox title with unknown duration as played without adding zero time", () => {
+    const games = [
+      game(1, {
+        igdbId: 10,
+        imports: [
+          {
+            provider: "xbox",
+            externalId: "1234",
+            installed: false,
+            entry: { providerSeconds: null },
+          },
+        ],
+      }),
+    ];
+
+    expect(summarizeProviderLibrary(games, "xbox", {})).toEqual({
+      gameCount: 1,
+      entryCount: 1,
+      providerSeconds: 0,
+      playedCount: 1,
+      installedCount: 0,
+    });
+  });
 });

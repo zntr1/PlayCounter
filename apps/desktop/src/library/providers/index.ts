@@ -7,5 +7,7 @@ export async function loadLibraryProvider(
   switch (id) {
     case "steam":
       return (await import("./steam")).steamProvider;
+    case "xbox":
+      return (await import("./xbox")).xboxProvider;
   }
 }

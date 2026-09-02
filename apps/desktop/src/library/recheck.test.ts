@@ -76,6 +76,24 @@ describe("Steam import match recheck", () => {
     });
   });
 
+  it("keeps unknown provider playtime unknown after a metadata recheck", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        resolverResponse({ value: "cs2.exe", verified: true }),
+      ),
+    );
+
+    const result = await checkSteamImportForMatches({
+      apiEndpoint: "https://example.test",
+      entry: { ...entry, providerSeconds: null },
+    });
+
+    expect(result.kind).toBe("found");
+    if (result.kind !== "found") return;
+    expect(result.commit.entry.providerSeconds).toBeNull();
+  });
+
   it("does not globally link an ambiguous executable without an install path", async () => {
     vi.stubGlobal(
       "fetch",

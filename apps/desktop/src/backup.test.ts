@@ -121,6 +121,12 @@ describe("backup transfer data", () => {
           igdbId: 1942,
           providerSeconds: 7_200,
         },
+        {
+          provider: "xbox",
+          externalId: "1234",
+          igdbId: 133430,
+          providerSeconds: null,
+        },
       ],
       libraryInstalls: [
         {
@@ -156,6 +162,12 @@ describe("backup transfer data", () => {
           externalId: "730",
           igdbId: 1942,
           providerSeconds: 7_200,
+        },
+        {
+          provider: "xbox",
+          externalId: "1234",
+          igdbId: 133430,
+          providerSeconds: null,
         },
       ],
     });

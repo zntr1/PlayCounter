@@ -470,6 +470,48 @@ function applyBuildApiEndpoint(settings: Settings): Settings {
   return { ...settings, apiEndpoint: DEFAULT_API_ENDPOINT };
 }
 
+const positiveInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value > 0;
+
+const validExternalId = (value: unknown): value is string =>
+  typeof value === "string" && /^[1-9][0-9]{0,9}$/.test(value);
+
+export function normalizePersistedLibraryImport(
+  value: unknown,
+): LibraryImportEntry | null {
+  if (!value || typeof value !== "object") return null;
+  const entry = value as Partial<LibraryImportEntry>;
+  if (
+    (entry.provider !== "steam" && entry.provider !== "xbox") ||
+    !validExternalId(entry.externalId) ||
+    !positiveInteger(entry.igdbId) ||
+    !positiveInteger(entry.gameId) ||
+    (entry.source !== "igdb" && entry.source !== "community") ||
+    typeof entry.name !== "string" ||
+    typeof entry.coverUrl !== "string" ||
+    typeof entry.importedAt !== "string" ||
+    typeof entry.lastReadAt !== "string" ||
+    (entry.providerSeconds !== null &&
+      (typeof entry.providerSeconds !== "number" ||
+        !Number.isFinite(entry.providerSeconds) ||
+        entry.providerSeconds < 0)) ||
+    !Array.isArray(entry.linkedExeNames)
+  ) {
+    return null;
+  }
+  return {
+    ...entry,
+    providerSeconds:
+      entry.providerSeconds === null
+        ? null
+        : Math.round(entry.providerSeconds as number),
+    linkedExeNames: entry.linkedExeNames
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.toLowerCase()),
+  } as LibraryImportEntry;
+}
+
+
 function hydrate() {
   const hadPersistedStateOnStartup = localStorage.getItem(STORAGE_KEY) !== null;
   const persisted = readPersisted();
@@ -662,40 +704,6 @@ function hydrate() {
     },
     (candidate) => candidate.contentKey,
   );
-  const positiveInteger = (value: unknown): value is number =>
-    typeof value === "number" && Number.isInteger(value) && value > 0;
-  const validExternalId = (value: unknown): value is string =>
-    typeof value === "string" && /^[1-9][0-9]{0,9}$/.test(value);
-  const persistedLibraryImport = (
-    value: unknown,
-  ): LibraryImportEntry | null => {
-    if (!value || typeof value !== "object") return null;
-    const entry = value as Partial<LibraryImportEntry>;
-    if (
-      entry.provider !== "steam" ||
-      !validExternalId(entry.externalId) ||
-      !positiveInteger(entry.igdbId) ||
-      !positiveInteger(entry.gameId) ||
-      (entry.source !== "igdb" && entry.source !== "community") ||
-      typeof entry.name !== "string" ||
-      typeof entry.coverUrl !== "string" ||
-      typeof entry.importedAt !== "string" ||
-      typeof entry.lastReadAt !== "string" ||
-      typeof entry.providerSeconds !== "number" ||
-      !Number.isFinite(entry.providerSeconds) ||
-      entry.providerSeconds < 0 ||
-      !Array.isArray(entry.linkedExeNames)
-    ) {
-      return null;
-    }
-    return {
-      ...entry,
-      providerSeconds: Math.round(entry.providerSeconds),
-      linkedExeNames: entry.linkedExeNames
-        .filter((item): item is string => typeof item === "string")
-        .map((item) => item.toLowerCase()),
-    } as LibraryImportEntry;
-  };
   const persistedLibraryInstall = (
     value: unknown,
   ): LibraryInstallEntry | null => {
@@ -737,7 +745,7 @@ function hydrate() {
   };
   const libraryImports = hydrateMap(
     persisted.libraryImports,
-    persistedLibraryImport,
+    normalizePersistedLibraryImport,
     (entry) => libraryEntryKey(entry.provider, entry.externalId),
   );
   const libraryInstalls = hydrateMap(

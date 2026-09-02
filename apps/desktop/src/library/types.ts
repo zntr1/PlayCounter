@@ -16,7 +16,7 @@ export type LibraryImportEntry = {
   name: string;
   coverUrl: string;
   importedAt: string;
-  providerSeconds: number;
+  providerSeconds: number | null;
   providerLastPlayedAt?: string;
   lastReadAt: string;
   linkedExeNames: string[];
@@ -74,7 +74,7 @@ export type ScannedExecutable = {
 export type ScannedLibraryGame = {
   externalId: string;
   name?: string;
-  playtimeSeconds: number;
+  playtimeSeconds: number | null;
   lastPlayedUnix?: number;
   installed: boolean;
   installPath?: string;
@@ -85,6 +85,7 @@ export type LibraryScanResult = {
   games: ScannedLibraryGame[];
   warnings: string[];
   partial: boolean;
+  resolvedGames?: ResolvedLibraryGame[];
 };
 
 export type ResolvedLibraryGame = {

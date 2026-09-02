@@ -179,7 +179,11 @@ import {
 import { adapterFor } from "../../emulators/registry";
 import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
-import { libraryProviders, summarizeProviderLibrary } from "../providerLibrary";
+import {
+  hasUnknownProviderPlaytime,
+  libraryProviders,
+  summarizeProviderLibrary,
+} from "../providerLibrary";
 import { myGamesLayout } from "../myGamesLayout";
 import {
   filterByLibraryTab,
@@ -1801,8 +1805,8 @@ function EmptyLibraryPanel({
 }: {
   platform: ReturnType<typeof currentPlatform>;
 }) {
-  const importProvider = importableProviderTabs(platform)[0];
-  if (!importProvider) {
+  const importProviders = importableProviderTabs(platform);
+  if (importProviders.length === 0) {
     return (
       <Panel className="px-4 py-12 text-center text-sm text-text-muted">
         No discovered games have completed a session yet.
@@ -1811,7 +1815,15 @@ function EmptyLibraryPanel({
   }
 
   return (
-    <ProviderImportCallout config={importProvider} variant="first-import" />
+    <div className="grid gap-4 lg:grid-cols-2">
+      {importProviders.map((config) => (
+        <ProviderImportCallout
+          key={config.id}
+          config={config}
+          variant="first-import"
+        />
+      ))}
+    </div>
   );
 }
 
@@ -2097,6 +2109,10 @@ function GameLibraryCard({
     (entry) => entry.provider === "steam" && entry.installed,
   );
   const importedProviders = libraryProviders(game.libraryImports);
+  const hasUnknownXboxPlaytime = hasUnknownProviderPlaytime(
+    game.libraryImports,
+    "xbox",
+  );
   const steamActions = steamContextActions({
     demo,
     isWindows,
@@ -3410,6 +3426,11 @@ function GameLibraryCard({
               {importedProviders.map((provider) => (
                 <ProviderBadge key={provider} provider={provider} />
               ))}
+              {hasUnknownXboxPlaytime ? (
+                <span className="inline-flex shrink-0 items-center rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
+                  Played on Xbox · duration unknown
+                </span>
+              ) : null}
               {game.emulatorIds.map((emulatorId) => (
                 <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
               ))}
@@ -3996,6 +4017,11 @@ function GameLibraryCard({
                   {importedProviders.map((provider) => (
                     <ProviderBadge key={provider} provider={provider} />
                   ))}
+                  {hasUnknownXboxPlaytime ? (
+                    <span className="inline-flex shrink-0 items-center rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
+                      Played on Xbox · duration unknown
+                    </span>
+                  ) : null}
                   {game.emulatorIds.map((emulatorId) => (
                     <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
                   ))}

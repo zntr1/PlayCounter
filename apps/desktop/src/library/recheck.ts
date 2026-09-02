@@ -1,6 +1,6 @@
 import type { LibraryKnownExecutable } from "@playcounter/shared";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
-import { buildSteamImportCommit } from "./importPlan";
+import { buildLibraryImportCommit } from "./importPlan";
 import { resolveLibraryGames } from "./resolve";
 import {
   libraryEntryKey,
@@ -37,7 +37,7 @@ export async function checkSteamImportForMatches(input: {
     return { kind: "not_found" };
   }
 
-  const commit = buildSteamImportCommit({
+  const commit = buildLibraryImportCommit({
     scanned,
     resolved,
     ignoredProcesses: input.ignoredProcesses,

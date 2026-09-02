@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { importExeCandidates } from "./exeCandidates";
-import { buildSteamImportCommit } from "./importPlan";
+import { buildLibraryImportCommit } from "./importPlan";
+import { mergeProviderSeconds } from "./commit";
 import {
   providerFloorRecord,
   providerFloors,
@@ -72,7 +73,7 @@ describe("library import", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("creates a provider floor and a safe cached executable match", () => {
-    const commit = buildSteamImportCommit({ scanned, resolved, now: "now" });
+    const commit = buildLibraryImportCommit({ scanned, resolved, now: "now" });
     expect(commit?.entry.providerSeconds).toBe(7_200);
     expect(commit?.entry.igdbId).toBe(1942);
     expect(commit?.exeCacheEntries.map((entry) => entry.exeName)).toEqual([
@@ -84,8 +85,40 @@ describe("library import", () => {
     });
   });
 
+  it("preserves an unknown Xbox duration without coercing it to zero", () => {
+    const commit = buildLibraryImportCommit({
+      provider: "xbox",
+      scanned: {
+        ...scanned,
+        playtimeSeconds: null,
+        installed: false,
+        installPath: undefined,
+        executables: [],
+      },
+      resolved: {
+        ...resolved,
+        key: "xbox:730",
+        executables: [],
+      },
+      now: "now",
+    });
+
+    expect(commit?.entry).toMatchObject({
+      provider: "xbox",
+      providerSeconds: null,
+    });
+    expect(commit?.install).toBeUndefined();
+    expect(providerFloors(commit ? [commit.entry] : [])).toEqual([]);
+  });
+
+  it("keeps known provider time when a later import has unknown duration", () => {
+    expect(mergeProviderSeconds(7_200, null)).toBe(7_200);
+    expect(mergeProviderSeconds(null, null)).toBeNull();
+    expect(mergeProviderSeconds(null, 3_600)).toBe(3_600);
+  });
+
   it("keeps executable provenance separate from IGDB game identity", () => {
-    const commit = buildSteamImportCommit({
+    const commit = buildLibraryImportCommit({
       scanned,
       resolved: communityExecutable,
       now: "now",
@@ -108,7 +141,7 @@ describe("library import", () => {
       ...resolved,
       executables: [{ ...resolved.executables[0], ambiguous: true }],
     };
-    const commit = buildSteamImportCommit({ scanned, resolved: ambiguous });
+    const commit = buildLibraryImportCommit({ scanned, resolved: ambiguous });
     expect(commit?.exeCacheEntries).toEqual([]);
     expect(commit?.scopedLinks[0]).toMatchObject({
       exeName: "cs2.exe",
@@ -117,7 +150,7 @@ describe("library import", () => {
     });
 
     const noKnown = { ...resolved, executables: [] };
-    const manual = buildSteamImportCommit({
+    const manual = buildLibraryImportCommit({
       scanned,
       resolved: noKnown,
       selectedExecutable: scanned.executables[0],
@@ -129,7 +162,7 @@ describe("library import", () => {
       shareState: "unshared",
     });
 
-    const generic = buildSteamImportCommit({
+    const generic = buildLibraryImportCommit({
       scanned: {
         ...scanned,
         executables: [
@@ -157,7 +190,7 @@ describe("library import", () => {
   });
 
   it("path-scopes an ambiguous known executable missed by the local scan", () => {
-    const commit = buildSteamImportCommit({
+    const commit = buildLibraryImportCommit({
       scanned: { ...scanned, executables: [] },
       resolved: {
         ...resolved,

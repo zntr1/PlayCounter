@@ -87,12 +87,21 @@ export function SourceBadge({ source }: { source?: GameSource | null }) {
 }
 
 export function ProviderBadge({ provider }: { provider: LibraryProviderId }) {
+  const xbox = provider === "xbox";
   return (
     <span
-      title="Imported from your local Steam library"
-      className="inline-flex shrink-0 items-center rounded border border-[#66c0f4]/40 bg-[#1b2838] px-1.5 py-0.5 text-[11px] font-semibold text-[#66c0f4]"
+      title={
+        xbox
+          ? "Imported from your Xbox Live history"
+          : "Imported from your local Steam library"
+      }
+      className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-[11px] font-semibold ${
+        xbox
+          ? "border-[#107c10]/50 bg-[#0e2f16] text-[#7ee787]"
+          : "border-[#66c0f4]/40 bg-[#1b2838] text-[#66c0f4]"
+      }`}
     >
-      {provider === "steam" ? "Steam" : provider}
+      {xbox ? "Xbox" : "Steam"}
     </span>
   );
 }

@@ -1,3 +1,4 @@
+import type { LibraryProviderId } from "@playcounter/shared";
 import type { ExeCacheEntry, GameMetadata } from "../store";
 import { normalizeWindowsDir } from "./scopedLinks";
 import { manualExecutableNeedsScope } from "./exeCandidates";
@@ -12,7 +13,8 @@ import type {
   ScopedExeLink,
 } from "./types";
 
-export function buildSteamImportCommit(input: {
+export function buildLibraryImportCommit(input: {
+  provider?: LibraryProviderId;
   scanned: ScannedLibraryGame;
   resolved: ResolvedLibraryGame;
   selectedExecutable?: ScannedExecutable;
@@ -22,6 +24,7 @@ export function buildSteamImportCommit(input: {
   const { scanned, resolved } = input;
   if (resolved.status !== "resolved" || !resolved.game) return null;
   const now = input.now ?? new Date().toISOString();
+  const provider = input.provider ?? "steam";
   const game = resolved.game;
   const igdbId = game.igdbId;
   if (!igdbId) return null;
@@ -75,6 +78,7 @@ export function buildSteamImportCommit(input: {
         toExeCache(
           name,
           scanned.externalId,
+          provider,
           game,
           executable.identifierSource,
           now,
@@ -86,6 +90,7 @@ export function buildSteamImportCommit(input: {
             name,
             installPath,
             scanned.externalId,
+            provider,
             game,
             executable.identifierSource,
             now,
@@ -102,6 +107,7 @@ export function buildSteamImportCommit(input: {
           name,
           installPath,
           scanned.externalId,
+          provider,
           game,
           executable.identifierSource,
           now,
@@ -119,19 +125,26 @@ export function buildSteamImportCommit(input: {
           selectedName,
           installPath,
           scanned.externalId,
+          provider,
           game,
           now,
         ),
       );
     } else {
       exeCacheEntries.push(
-        toCustomExeCache(selectedName, scanned.externalId, game, now),
+        toCustomExeCache(
+          selectedName,
+          scanned.externalId,
+          provider,
+          game,
+          now,
+        ),
       );
     }
   }
 
   const entry: LibraryImportEntry = {
-    provider: "steam",
+    provider,
     externalId: scanned.externalId,
     igdbId,
     gameId: game.id,
@@ -139,7 +152,10 @@ export function buildSteamImportCommit(input: {
     name: game.name,
     coverUrl: game.coverUrl,
     importedAt: now,
-    providerSeconds: Math.max(0, Math.floor(scanned.playtimeSeconds)),
+    providerSeconds:
+      scanned.playtimeSeconds === null
+        ? null
+        : Math.max(0, Math.floor(scanned.playtimeSeconds)),
     providerLastPlayedAt: scanned.lastPlayedUnix
       ? new Date(scanned.lastPlayedUnix * 1000).toISOString()
       : undefined,
@@ -152,7 +168,7 @@ export function buildSteamImportCommit(input: {
     install:
       installPath && scanned.installed
         ? {
-            provider: "steam",
+            provider,
             externalId: scanned.externalId,
             installPath,
             scannedAt: now,
@@ -166,6 +182,7 @@ export function buildSteamImportCommit(input: {
 function toExeCache(
   exeName: string,
   externalId: string,
+  provider: LibraryProviderId,
   game: GameMetadata,
   identifierSource: "igdb" | "community",
   now: string,
@@ -179,7 +196,7 @@ function toExeCache(
     coverUrl: game.coverUrl,
     source: game.source,
     identifierSource,
-    libraryProvider: "steam",
+    libraryProvider: provider,
     libraryExternalId: externalId,
     lastCheckedAt: now,
   };
@@ -189,6 +206,7 @@ function toScopedLink(
   exeName: string,
   pathPrefix: string,
   externalId: string,
+  provider: LibraryProviderId,
   game: GameMetadata,
   identifierSource: "igdb" | "community",
   now: string,
@@ -202,7 +220,7 @@ function toScopedLink(
     igdbId: game.igdbId!,
     gameName: game.name,
     coverUrl: game.coverUrl,
-    provider: "steam",
+    provider,
     externalId,
     setAt: now,
   };
@@ -211,6 +229,7 @@ function toScopedLink(
 function toCustomExeCache(
   exeName: string,
   externalId: string,
+  provider: LibraryProviderId,
   game: GameMetadata,
   now: string,
 ): ExeCacheEntry {
@@ -225,7 +244,7 @@ function toCustomExeCache(
     identifierSource: "custom",
     lastCheckedAt: now,
     shareState: "unshared",
-    libraryProvider: "steam",
+    libraryProvider: provider,
     libraryExternalId: externalId,
   };
 }
@@ -234,6 +253,7 @@ function toCustomScopedLink(
   exeName: string,
   pathPrefix: string,
   externalId: string,
+  provider: LibraryProviderId,
   game: GameMetadata,
   now: string,
 ): ScopedExeLink {
@@ -246,7 +266,7 @@ function toCustomScopedLink(
     igdbId: game.igdbId!,
     gameName: game.name,
     coverUrl: game.coverUrl,
-    provider: "steam",
+    provider,
     externalId,
     setAt: now,
     shareState: "unshared",

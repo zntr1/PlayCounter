@@ -31,8 +31,8 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     libraryImports.set(key, {
       ...commit.entry,
       importedAt: previous?.importedAt ?? commit.entry.importedAt,
-      providerSeconds: Math.max(
-        previous?.providerSeconds ?? 0,
+      providerSeconds: mergeProviderSeconds(
+        previous?.providerSeconds,
         commit.entry.providerSeconds,
       ),
     });
@@ -156,6 +156,15 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     archivedGameSeconds: result.archivedGameSeconds,
   });
   return result;
+}
+
+export function mergeProviderSeconds(
+  previous: number | null | undefined,
+  incoming: number | null,
+) {
+  if (incoming === null) return previous ?? null;
+  if (previous === null || previous === undefined) return incoming;
+  return Math.max(previous, incoming);
 }
 
 function addBackfillSession(

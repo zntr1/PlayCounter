@@ -1,15 +1,18 @@
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import { providerFloorKey } from "../library/playtimeFloor";
 
+type ProviderLibraryImport = {
+  provider: LibraryProviderId;
+  externalId: string;
+  installed: boolean;
+  entry?: { providerSeconds: number | null };
+};
+
 export type ProviderLibraryGame = {
   gameId: number;
   igdbId?: number;
   source: GameSource | null;
-  libraryImports: Array<{
-    provider: LibraryProviderId;
-    externalId: string;
-    installed: boolean;
-  }>;
+  libraryImports: ProviderLibraryImport[];
 };
 
 export type ProviderLibrarySummary = {
@@ -31,6 +34,16 @@ export function libraryProviders(
   imports: readonly { provider: LibraryProviderId }[],
 ) {
   return [...new Set(imports.map((entry) => entry.provider))];
+}
+
+export function hasUnknownProviderPlaytime(
+  imports: readonly ProviderLibraryImport[],
+  provider: LibraryProviderId,
+) {
+  return imports.some(
+    (entry) =>
+      entry.provider === provider && entry.entry?.providerSeconds === null,
+  );
 }
 
 export function summarizeProviderLibrary(
@@ -59,7 +72,12 @@ export function summarizeProviderLibrary(
     summary.gameCount += 1;
     summary.entryCount += providerEntries.length;
     summary.providerSeconds += seconds;
-    if (seconds > 0) summary.playedCount += 1;
+    if (
+      seconds > 0 ||
+      hasUnknownProviderPlaytime(providerEntries, provider)
+    ) {
+      summary.playedCount += 1;
+    }
     if (providerEntries.some((entry) => entry.installed)) {
       summary.installedCount += 1;
     }

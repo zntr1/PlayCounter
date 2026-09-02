@@ -37,6 +37,7 @@ import {
   launchGame,
   launchEmulatorGame,
   resetEmulatorLaunchGuardForTests,
+  normalizePersistedLibraryImport,
   suggestIgnoredProcess,
   persist,
   pollContributions,
@@ -188,6 +189,30 @@ beforeEach(() => {
       gameLaunchingEnabled: true,
       controllerNavigationEnabled: false,
     },
+  });
+});
+
+describe("persisted library imports", () => {
+  it("accepts an Xbox import with unknown provider playtime", () => {
+    expect(
+      normalizePersistedLibraryImport({
+        provider: "xbox",
+        externalId: "1234",
+        igdbId: 133430,
+        gameId: 42,
+        source: "igdb",
+        name: "Forza Horizon 5",
+        coverUrl: "cover",
+        importedAt: "2026-09-01T00:00:00.000Z",
+        providerSeconds: null,
+        lastReadAt: "2026-09-01T00:00:00.000Z",
+        linkedExeNames: [],
+      }),
+    ).toMatchObject({
+      provider: "xbox",
+      externalId: "1234",
+      providerSeconds: null,
+    });
   });
 });
 

@@ -23,6 +23,7 @@ export function providerFloors(
 ): ProviderFloor[] {
   const floors = new Map<string, ProviderFloor>();
   for (const entry of entries) {
+    if (entry.providerSeconds === null) continue;
     const seconds = Math.max(0, Math.round(entry.providerSeconds));
     if (!Number.isFinite(seconds) || seconds === 0) continue;
     const canonicalKey = providerFloorKey(entry);

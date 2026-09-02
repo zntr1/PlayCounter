@@ -7,14 +7,15 @@ import {
   RefreshCw,
   Share2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
 import { importExeCandidates } from "../../library/exeCandidates";
-import { buildSteamImportCommit } from "../../library/importPlan";
+import { buildLibraryImportCommit } from "../../library/importPlan";
 import { loadLibraryProvider } from "../../library/providers";
 import { resolveLibraryGames } from "../../library/resolve";
+import type { BuiltinImportProviderId } from "../../library/importProviders";
 import type {
   LibraryScanResult,
   LocalLibraryAccount,
@@ -36,6 +37,7 @@ type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
 let importerSessionBackedUp = false;
 
 type ImporterSession = {
+  providerId: BuiltinImportProviderId;
   phase: Phase;
   status: ProviderStatus | null;
   accounts: LocalLibraryAccount[];
@@ -49,22 +51,35 @@ type ImporterSession = {
   error: string | null;
 };
 
-let importerSession: ImporterSession = {
-  phase: "detecting",
-  status: null,
-  accounts: [],
-  accountId: null,
-  scan: null,
-  resolved: new Map(),
-  selected: new Set(),
-  manualExecutables: {},
-  browsedExecutables: {},
-  capability: "unknown",
-  error: null,
-};
+function createImporterSession(
+  providerId: BuiltinImportProviderId,
+): ImporterSession {
+  return {
+    providerId,
+    phase: "detecting",
+    status: null,
+    accounts: [],
+    accountId: null,
+    scan: null,
+    resolved: new Map(),
+    selected: new Set(),
+    manualExecutables: {},
+    browsedExecutables: {},
+    capability: "unknown",
+    error: null,
+  };
+}
+
+let importerSession = createImporterSession("steam");
 
 export function ImportLibraryView() {
   const providerId = useAppStore((state) => state.libraryImportProvider);
+  if (importerSession.providerId !== providerId) {
+    importerSession = createImporterSession(providerId);
+  }
+  const session = importerSession;
+  const isXbox = providerId === "xbox";
+  const providerName = isXbox ? "Xbox" : "Steam";
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const existingImports = useAppStore((state) => state.libraryImports);
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
@@ -72,48 +87,79 @@ export function ImportLibraryView() {
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
   const [phase, setPhase] = useState<Phase>(() =>
-    importerSession.phase === "scanning" ||
-    importerSession.phase === "importing"
+    session.phase === "scanning" || session.phase === "importing"
       ? "ready"
-      : importerSession.phase,
+      : session.phase,
   );
   const [status, setStatus] = useState<ProviderStatus | null>(
-    importerSession.status,
+    session.status,
   );
   const [accounts, setAccounts] = useState<LocalLibraryAccount[]>(
-    importerSession.accounts,
+    session.accounts,
   );
   const [accountId, setAccountId] = useState<number | null>(
-    importerSession.accountId,
+    session.accountId,
   );
   const [scan, setScan] = useState<LibraryScanResult | null>(
-    importerSession.scan,
+    session.scan,
   );
   const [resolved, setResolved] = useState<Map<string, ResolvedLibraryGame>>(
-    importerSession.resolved,
+    session.resolved,
   );
   const [selected, setSelected] = useState<Set<string>>(
-    importerSession.selected,
+    session.selected,
   );
   const [manualExecutables, setManualExecutables] = useState<
     Record<string, string>
-  >(importerSession.manualExecutables);
+  >(session.manualExecutables);
   const [browsedExecutables, setBrowsedExecutables] = useState<
     Record<string, ScannedExecutable>
-  >(importerSession.browsedExecutables);
+  >(session.browsedExecutables);
   const [capability, setCapability] = useState<
     "unknown" | "supported" | "unsupported"
-  >(importerSession.capability);
-  const [error, setError] = useState<string | null>(importerSession.error);
+  >(session.capability);
+  const [error, setError] = useState<string | null>(session.error);
   const [activeImportGroup, setActiveImportGroup] =
     useState<ImportGroupKey>("ready");
   const [addingExternalId, setAddingExternalId] = useState<string | null>(null);
   const [browsingExternalId, setBrowsingExternalId] = useState<string | null>(
     null,
   );
+  const scanAbortController = useRef<AbortController | null>(null);
+  const activeProviderId = useRef(providerId);
+
+  useEffect(
+    () => () => {
+      scanAbortController.current?.abort();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (activeProviderId.current === providerId) return;
+    activeProviderId.current = providerId;
+    scanAbortController.current?.abort();
+    const next = createImporterSession(providerId);
+    importerSession = next;
+    setPhase(next.phase);
+    setStatus(next.status);
+    setAccounts(next.accounts);
+    setAccountId(next.accountId);
+    setScan(next.scan);
+    setResolved(next.resolved);
+    setSelected(next.selected);
+    setManualExecutables(next.manualExecutables);
+    setBrowsedExecutables(next.browsedExecutables);
+    setCapability(next.capability);
+    setError(next.error);
+    setActiveImportGroup("ready");
+    setAddingExternalId(null);
+    setBrowsingExternalId(null);
+  }, [providerId]);
 
   useEffect(() => {
     importerSession = {
+      providerId,
       phase,
       status,
       accounts,
@@ -133,6 +179,7 @@ export function ImportLibraryView() {
     capability,
     error,
     manualExecutables,
+    providerId,
     phase,
     resolved,
     scan,
@@ -180,6 +227,9 @@ export function ImportLibraryView() {
 
   async function scanAccount() {
     if (accountId === null) return;
+    const controller = new AbortController();
+    scanAbortController.current?.abort();
+    scanAbortController.current = controller;
     setActiveImportGroup("ready");
     setPhase("scanning");
     setError(null);
@@ -191,19 +241,21 @@ export function ImportLibraryView() {
     setCapability("unknown");
     try {
       const provider = await loadLibraryProvider(providerId);
-      const result = await provider.scan(accountId);
-      setScan(result);
-      const lookup = await resolveLibraryGames(
+      const result = await provider.scan(accountId, {
         apiEndpoint,
-        providerId,
-        result.games,
-      );
+        signal: controller.signal,
+      });
+      setScan(result);
+      const lookup = result.resolvedGames
+        ? { capability: "supported" as const, games: result.resolvedGames }
+        : await resolveLibraryGames(apiEndpoint, providerId, result.games);
       setCapability(lookup.capability);
       if (lookup.capability === "supported") {
         const byKey = new Map(lookup.games.map((game) => [game.key, game]));
         setResolved(byKey);
         setActiveImportGroup(
           initialImportGroup(
+            providerId,
             result.games,
             byKey,
             existingImports,
@@ -236,6 +288,10 @@ export function ImportLibraryView() {
     } catch (cause) {
       setError(formatError(cause));
       setPhase("ready");
+    } finally {
+      if (scanAbortController.current === controller) {
+        scanAbortController.current = null;
+      }
     }
   }
 
@@ -259,7 +315,8 @@ export function ImportLibraryView() {
         const executable = game.executables.find(
           (item) => item.relativePath === manualExecutables[game.externalId],
         );
-        const commit = buildSteamImportCommit({
+        const commit = buildLibraryImportCommit({
+          provider: providerId,
           scanned: game,
           resolved: match,
           selectedExecutable: executable,
@@ -284,7 +341,7 @@ export function ImportLibraryView() {
       setPhase("done");
       addToast({
         tone: "success",
-        title: `${commits.length} Steam ${commits.length === 1 ? "game" : "games"} imported`,
+        title: `${commits.length} ${providerName} ${commits.length === 1 ? "game" : "games"} imported`,
         detail:
           failedShares > 0
             ? `Your library is available in My Games. ${failedShares} executable ${failedShares === 1 ? "suggestion needs" : "suggestions need"} an online retry.`
@@ -308,7 +365,8 @@ export function ImportLibraryView() {
         : undefined);
     if (!match || !selectedExecutable) return;
 
-    const commit = buildSteamImportCommit({
+    const commit = buildLibraryImportCommit({
+      provider: providerId,
       scanned: game,
       resolved: match,
       selectedExecutable,
@@ -431,15 +489,17 @@ export function ImportLibraryView() {
       {
         key: "attention",
         label: "Needs attention",
-        description:
-          "Choose the executable, then add the game and share the mapping as a community suggestion.",
+        description: isXbox
+          ? "Review the recognized title before importing it."
+          : "Choose the executable, then add the game and share the mapping as a community suggestion.",
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "unavailable",
         label: "Unavailable right now",
-        description:
-          "Missing metadata or importable Steam activity. Most of the time, those are Demos and Applications like Wallpaper Engine, Soundpad, etc.",
+        description: isXbox
+          ? "The Xbox title could not be matched to importable game metadata."
+          : "Missing metadata or importable Steam activity. Most of the time, those are Demos and Applications like Wallpaper Engine, Soundpad, etc.",
         games: [] as ScannedLibraryGame[],
       },
       {
@@ -465,13 +525,21 @@ export function ImportLibraryView() {
     }
 
     return groups;
-  }, [existingImports, ignoredProcesses, providerId, resolved, scan]);
+  }, [existingImports, ignoredProcesses, isXbox, providerId, resolved, scan]);
   const activeImportGroupDetails =
     importGroups.find((group) => group.key === activeImportGroup) ??
     importGroups[0];
 
   if (phase === "detecting") {
-    return <LoadingPanel label="Looking for a local Steam installation…" />;
+    return (
+      <LoadingPanel
+        label={
+          isXbox
+            ? "Preparing Xbox import…"
+            : "Looking for a local Steam installation…"
+        }
+      />
+    );
   }
   if (!status?.available) {
     return (
@@ -479,11 +547,12 @@ export function ImportLibraryView() {
         <div className="max-w-lg">
           <LibraryBig size={36} className="mx-auto text-text-faint" />
           <h2 className="mt-4 text-2xl font-semibold text-text">
-            Steam was not found
+            {providerName} was not found
           </h2>
           <p className="mt-2 text-text-muted">
-            PlayCounter checks the Windows Steam registry entry and the usual
-            installation folders. No Steam login or Web API is used.
+            {isXbox
+              ? "Xbox import is temporarily unavailable. Check your connection and try again."
+              : "PlayCounter checks the Windows Steam registry entry and the usual installation folders. No Steam login or Web API is used."}
           </p>
           {error ? <ErrorNotice message={error} /> : null}
         </div>
@@ -491,7 +560,18 @@ export function ImportLibraryView() {
     );
   }
   if (phase === "scanning") {
-    return <LoadingPanel label="Scanning your Steam library…" />;
+    return (
+      <LoadingPanel
+        label={
+          isXbox
+            ? "Waiting for Microsoft sign-in and Xbox history…"
+            : "Scanning your Steam library…"
+        }
+        onCancel={
+          isXbox ? () => scanAbortController.current?.abort() : undefined
+        }
+      />
+    );
   }
 
   return (
@@ -500,22 +580,25 @@ export function ImportLibraryView() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <ProviderBadge provider="steam" />
+              <ProviderBadge provider={providerId} />
               <span className="text-sm text-text-muted">
-                Local library import
+                {isXbox ? "Remote playtime import" : "Local library import"}
               </span>
             </div>
             <h2 className="mt-2 text-xl font-semibold text-text">
-              Select a local Steam account
+              {isXbox
+                ? "Connect your Xbox account"
+                : "Select a local Steam account"}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
-              Game ownership is not uploaded. Only AppIDs from this local scan
-              are resolved against PlayCounter metadata.
+              {isXbox
+                ? "Microsoft sign-in opens in your browser. PlayCounter never sees your credentials, and access tokens are discarded server-side after this import."
+                : "Game ownership is not uploaded. Only AppIDs from this local scan are resolved against PlayCounter metadata."}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <select
-              aria-label="Steam account"
+              aria-label={`${providerName} account`}
               value={accountId ?? ""}
               onChange={(event) => {
                 setAccountId(Number(event.target.value));
@@ -531,8 +614,8 @@ export function ImportLibraryView() {
             >
               {accounts.map((account) => (
                 <option key={account.accountId} value={account.accountId}>
-                  {account.personaName ?? `Account ${account.accountId}`} ·{" "}
-                  {account.gamesWithPlaytime} games
+                  {account.personaName ?? `Account ${account.accountId}`}
+                  {isXbox ? "" : ` · ${account.gamesWithPlaytime} games`}
                 </option>
               ))}
             </select>
@@ -542,7 +625,11 @@ export function ImportLibraryView() {
               disabled={accountId === null}
               onClick={() => void scanAccount()}
             >
-              {scan ? "Scan again" : "Find games"}
+              {scan
+                ? "Scan again"
+                : isXbox
+                  ? "Sign in and find games"
+                  : "Find games"}
             </Button>
           </div>
         </div>
@@ -551,8 +638,9 @@ export function ImportLibraryView() {
       {error ? <ErrorNotice message={error} /> : null}
       {accounts.length === 0 ? (
         <Panel className="p-4 text-sm text-text-muted">
-          Steam is installed, but no readable local account data was found.
-          Start Steam and sign in locally once, then return here.
+          {isXbox
+            ? "Xbox import could not be prepared. Try again later."
+            : "Steam is installed, but no readable local account data was found. Start Steam and sign in locally once, then return here."}
         </Panel>
       ) : null}
       {capability === "unsupported" ? (
@@ -566,7 +654,7 @@ export function ImportLibraryView() {
         <Panel className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
-              <h2 className="font-semibold text-text">Steam games</h2>
+              <h2 className="font-semibold text-text">{providerName} games</h2>
               <p className="text-sm text-text-muted">
                 {importableCount} of {scan.games.length} games currently
                 importable
@@ -657,6 +745,7 @@ export function ImportLibraryView() {
                     <ImportRow
                       key={game.externalId}
                       game={game}
+                      provider={providerId}
                       resolved={resolved.get(
                         libraryEntryKey(providerId, game.externalId),
                       )}
@@ -727,6 +816,7 @@ export function ImportLibraryView() {
 
 function ImportRow({
   game,
+  provider,
   resolved,
   selected,
   alreadyImported,
@@ -742,6 +832,7 @@ function ImportRow({
   onManualExecutable,
   onSelected,
 }: {
+  provider: BuiltinImportProviderId;
   game: ScannedLibraryGame;
   resolved?: ResolvedLibraryGame;
   selected: boolean;
@@ -760,7 +851,9 @@ function ImportRow({
 }) {
   const importable = isImportable(game, resolved);
   const noImportablePlaytime =
-    game.playtimeSeconds <= 0 && game.lastPlayedUnix === undefined;
+    game.playtimeSeconds !== null &&
+    game.playtimeSeconds <= 0 &&
+    game.lastPlayedUnix === undefined;
   const candidates = importExeCandidates(
     game.executables,
     resolved?.executables ?? [],
@@ -818,7 +911,7 @@ function ImportRow({
           <h3 className="font-semibold text-text">
             {resolved?.game?.name ??
               game.name ??
-              `Steam App ${game.externalId}`}
+              `${provider === "xbox" ? "Xbox title" : "Steam App"} ${game.externalId}`}
           </h3>
           {alreadyImported ? (
             <span className="text-xs font-medium text-success">
@@ -834,9 +927,21 @@ function ImportRow({
           ) : null}
         </div>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
-          <span>AppID {game.externalId}</span>
-          <span>{formatDuration(game.playtimeSeconds, false)}</span>
-          <span>{game.installed ? "Installed" : "Not installed"}</span>
+          <span>
+            {provider === "xbox" ? "Xbox title ID" : "AppID"} {game.externalId}
+          </span>
+          <span>
+            {game.playtimeSeconds === null
+              ? "Playtime unknown"
+              : formatDuration(game.playtimeSeconds, false)}
+          </span>
+          <span>
+            {provider === "xbox"
+              ? "Installation not checked"
+              : game.installed
+                ? "Installed"
+                : "Not installed"}
+          </span>
           {resolved?.executables.length ? (
             <span>
               {resolved.executables.length} known executable
@@ -925,11 +1030,14 @@ function isImportable(
   return (
     resolved?.status === "resolved" &&
     resolved.game?.igdbId !== undefined &&
-    (game.playtimeSeconds > 0 || game.lastPlayedUnix !== undefined)
+    (game.playtimeSeconds === null ||
+      game.playtimeSeconds > 0 ||
+      game.lastPlayedUnix !== undefined)
   );
 }
 
 function initialImportGroup(
+  provider: BuiltinImportProviderId,
   games: readonly ScannedLibraryGame[],
   resolved: ReadonlyMap<string, ResolvedLibraryGame>,
   existingImports: ReadonlyMap<string, unknown>,
@@ -940,7 +1048,7 @@ function initialImportGroup(
   let hasImported = false;
 
   for (const game of games) {
-    const key = libraryEntryKey("steam", game.externalId);
+    const key = libraryEntryKey(provider, game.externalId);
     if (existingImports.has(key)) {
       hasImported = true;
       continue;
@@ -963,12 +1071,23 @@ function initialImportGroup(
   return "ready";
 }
 
-function LoadingPanel({ label }: { label: string }) {
+function LoadingPanel({
+  label,
+  onCancel,
+}: {
+  label: string;
+  onCancel?: () => void;
+}) {
   return (
     <Panel className="grid min-h-[320px] place-items-center p-8 text-center text-text-muted">
       <div role="status" aria-live="polite">
         <RefreshCw size={28} className="mx-auto animate-spin text-accent" />
         <p className="mt-3">{label}</p>
+        {onCancel ? (
+          <Button variant="secondary" className="mt-4" onClick={onCancel}>
+            Cancel import
+          </Button>
+        ) : null}
       </div>
     </Panel>
   );

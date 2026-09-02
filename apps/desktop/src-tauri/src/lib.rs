@@ -179,6 +179,16 @@ fn open_external_url(url: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_microsoft_signin_url(url: String) -> Result<(), String> {
+    let url = url.trim();
+    if !url.starts_with("https://login.microsoftonline.com/") {
+        return Err("Unsupported Microsoft sign-in URL.".to_string());
+    }
+
+    open_url(url)
+}
+
+#[tauri::command]
 async fn get_exe_icon(exe_path: String) -> Result<String, String> {
     if !Path::new(&exe_path).is_file() {
         return Err("Executable not found.".to_string());
@@ -239,6 +249,7 @@ pub fn run() {
             backup_local_data,
             open_user_ignored_processes_folder,
             open_external_url,
+            open_microsoft_signin_url,
             update_tray_now_playing,
             scan_processes,
             privacy_context,

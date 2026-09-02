@@ -50,8 +50,8 @@ export interface EmulatorResolveResponse {
   }>;
 }
 
-/** A locally installed game-library provider. Kept as a union for future adapters. */
-export type LibraryProviderId = "steam";
+/** A locally installed or remotely linked game-library provider. */
+export type LibraryProviderId = "steam" | "xbox";
 
 export interface LibraryResolveRequest {
   items: Array<{
@@ -84,6 +84,60 @@ export interface LibraryResolveResponse {
       reason: IdentifierFlagReason;
     }>;
   }>;
+}
+
+/**
+ * Xbox playtime import: the local desktop client has no on-disk source for
+ * Xbox/Game Pass playtime, so the whole OAuth + Xbox Live lookup + IGDB
+ * matching flow runs server-side. The desktop client only ever sees these
+ * three request/response shapes; it never receives a Microsoft or Xbox
+ * Live token.
+ */
+export interface XboxImportStartResponse {
+  /** Opaque handle correlating the browser sign-in with later polling. */
+  attemptId: string;
+  /** Microsoft sign-in URL to open in the user's system browser. */
+  authorizeUrl: string;
+}
+
+export type XboxImportStatus = "pending" | "done" | "failed";
+
+export type XboxImportFailureReason =
+  | "cancelled"
+  | "timed_out"
+  | "oauth_error"
+  | "xbox_api_error";
+
+export interface XboxImportGame {
+  /** Xbox Live title ID, the provider-native external ID for this provider. */
+  externalId: string;
+  /** Title as reported by the Xbox achievements history; never IGDB truth. */
+  name: string;
+  /**
+   * Total playtime in seconds when Xbox Live reported a MinutesPlayed stat
+   * for this title, otherwise null. null is a distinct "unknown", never
+   * coerced to 0 — many titles never report this statistic.
+   */
+  providerSeconds: number | null;
+  /** ISO timestamp of the last achievement unlock, when available. */
+  providerLastPlayedAt?: string;
+  /**
+   * IGDB matching happens server-side (title-hint search; there is no
+   * Xbox-Live-provided ID IGDB indexes). "unknown" means the desktop must
+   * fall back to the same manual IGDB picker Steam uses for unmatched
+   * AppIDs — for Xbox this is the common case, not the exception.
+   */
+  status: "resolved" | "unknown";
+  /** Present only when status is "resolved". */
+  game?: Game;
+  /** Always empty today; kept for shape symmetry with LibraryResolveResponse. */
+  executables?: LibraryKnownExecutable[];
+}
+
+export interface XboxImportResultResponse {
+  status: XboxImportStatus;
+  reason?: XboxImportFailureReason;
+  games?: XboxImportGame[];
 }
 
 export interface EmulatorContentSuggestionPayload extends EmulatorContentRef {

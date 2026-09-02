@@ -99,14 +99,14 @@ class ImporterErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Steam importer failed to render", error, info);
+    console.error("Library importer failed to render", error, info);
   }
 
   render() {
     if (this.state.error) {
       return (
         <div className="rounded-lg border border-danger-border bg-danger-tint px-4 py-3 text-sm text-danger">
-          The Steam importer could not be opened: {this.state.error.message}
+          The library importer could not be opened: {this.state.error.message}
         </div>
       );
     }
@@ -164,8 +164,8 @@ const views: Record<
     component: <MyGamesView />,
   },
   import: {
-    label: "Import from Steam",
-    subtitle: "Bring your Steam library and playtime into PlayCounter",
+    label: "Import library",
+    subtitle: "Bring an existing game library into PlayCounter",
     icon: Download,
     component: (
       <div className="grid gap-4">
@@ -253,6 +253,19 @@ export function App() {
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
+  const libraryImportProvider = useAppStore(
+    (state) => state.libraryImportProvider,
+  );
+  const activeViewLabel =
+    activeView === "import"
+      ? `Import from ${libraryImportProvider === "xbox" ? "Xbox" : "Steam"}`
+      : views[activeView].label;
+  const activeViewSubtitle =
+    activeView === "import"
+      ? libraryImportProvider === "xbox"
+        ? "Bring your Xbox history and playtime into PlayCounter"
+        : "Bring your Steam library and playtime into PlayCounter"
+      : views[activeView].subtitle;
   const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
   const tourProgress = useAppStore((state) => state.tourProgress);
   const lastSeenReleaseNotesVersion = useAppStore(
@@ -604,10 +617,10 @@ export function App() {
         >
           <div>
             <h1 className="text-xl font-semibold tracking-normal text-text">
-              {views[activeView].label}
+              {activeViewLabel}
             </h1>
             <p className="text-sm text-text-muted">
-              {views[activeView].subtitle}
+              {activeViewSubtitle}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -703,7 +716,7 @@ export function App() {
             data-controller-scroll
             data-controller-content="true"
             tabIndex={-1}
-            aria-label={`${views[activeView].label} content`}
+            aria-label={`${activeViewLabel} content`}
             className="controller-content absolute inset-0 overflow-auto px-7 py-6"
           >
             {views[activeView].component}
