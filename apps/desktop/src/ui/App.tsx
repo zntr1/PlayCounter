@@ -82,11 +82,7 @@ import {
   toDisplayNotes,
 } from "../releaseNotes";
 
-const ImportLibraryView = lazy(() =>
-  import("./views/ImportLibraryView").then((module) => ({
-    default: module.ImportLibraryView,
-  })),
-);
+const ImportLibraryView = lazy(() => import("./views/ImportLibraryView"));
 
 class ImporterErrorBoundary extends Component<
   { children: ReactNode },

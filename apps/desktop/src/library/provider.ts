@@ -8,6 +8,8 @@ import type {
 export type LibraryScanOptions = {
   apiEndpoint?: string;
   signal?: AbortSignal;
+  onAuthorizeUrl?: (url: string) => void;
+  openAuthorizeUrl?: boolean;
 };
 
 export type LocalLibraryProvider = {

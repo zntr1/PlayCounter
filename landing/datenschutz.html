@@ -315,6 +315,24 @@
         der Kernfunktion der App, Spiele automatisch zu erkennen).
       </p>
 
+      <h3>Optionaler Xbox-Import</h3>
+      <p>
+        Wenn du den Xbox-Import aktiv startest, öffnet PlayCounter eine
+        Microsoft-Anmeldung. Unsere API verarbeitet den kurzlebigen
+        Autorisierungscode und Zugriffstoken, die Xbox-Benutzerkennung sowie von
+        Xbox Live gelieferte Titel, Spielzeiten und letzte Aktivitäten, um dir
+        deine importierbaren Spiele anzuzeigen. Die Token werden nur für diesen
+        Import verwendet und nicht dauerhaft gespeichert.
+      </p>
+      <p>
+        Microsoft kann zusätzlich eine E-Mail-Adresse, einen bevorzugten
+        Benutzernamen oder einen Anzeigenamen als Kontobezeichnung liefern. Die
+        API verwendet diese Angabe ausschließlich vorübergehend, um bei einem
+        fehlgeschlagenen Import sichtbar zu machen, mit welchem Microsoft-Konto
+        die Anmeldung versucht wurde. Sie wird nicht als Benutzerkonto oder in
+        der Datenbank gespeichert. Rechtsgrundlage ist deine Einwilligung nach
+        Art. 6 Abs. 1 lit. a DSGVO; du kannst den Vorgang jederzeit abbrechen.
+      </p>
       <h3>Community-Spiele-Vorschläge</h3>
       <p>
         Wenn du ein noch nicht erkanntes Spiel zur Community-Datenbank
@@ -370,10 +388,11 @@
       <h2>5. Empfänger &amp; Übermittlung in Drittländer</h2>
       <p>
         Empfänger bzw. eingesetzte Dienste sind
-        <strong>Microsoft Azure</strong> (Hosting von Website und API), der für
-        die API konfigurierte <strong>PostgreSQL-Hosting-Anbieter</strong>
-        (serverseitige Matching-, Vorschlags- und Feedback-Daten),
-        <strong>GitHub</strong> (Updates, Downloads und Quellcode-Repository),
+        <strong>Microsoft</strong> (Microsoft-Anmeldung, Xbox Live sowie Azure
+        als Hosting von Website und API), der für die API konfigurierte
+        <strong>PostgreSQL-Hosting-Anbieter</strong> (serverseitige Matching-,
+        Vorschlags- und Feedback-Daten), <strong>GitHub</strong> (Updates,
+        Downloads und Quellcode-Repository),
         <strong>IGDB / Twitch / Amazon</strong> (Cover-Bilder) und
         <strong>Google</strong> (E-Mail-Kommunikation). Diese Unternehmen haben
         ihren Sitz in den USA oder können Daten von dort aus verarbeiten.
@@ -396,6 +415,12 @@
           Matching-Anfragen werden nicht als personenbezogener Spielverlauf in
           der Datenbank gespeichert. Nicht personenbezogene
           Dateiname-zu-Spiel-Zuordnungen können dauerhaft bestehen bleiben.
+        </li>
+        <li>
+          Daten eines Xbox-Importversuchs, einschließlich Token und optionaler
+          Kontobezeichnung, werden nach Abschluss oder Abbruch entfernt,
+          spätestens jedoch nach fünf Minuten. Importierte Spielzeiten werden
+          nur lokal auf deinem Gerät gespeichert.
         </li>
         <li>
           Technische Provider- und Anwendungsprotokolle werden nach den
@@ -557,6 +582,22 @@
           address to Azure, where it may be processed in access or security
           logs.
         </p>
+        <h3>Optional Xbox import</h3>
+        <p>
+          When you actively start an Xbox import, PlayCounter opens a Microsoft
+          sign-in. Our API temporarily processes the authorization code and
+          access tokens, the Xbox user identifier, and titles, playtime and last
+          activity returned by Xbox Live to show your importable games. Tokens
+          are used only for this import and are not stored permanently.
+        </p>
+        <p>
+          Microsoft may also provide an email address, preferred username or
+          display name as an account label. The API uses this value temporarily
+          only to show which Microsoft account was attempted when an import
+          fails. It is not used as a PlayCounter account or stored in the
+          database. The legal basis is your consent under Art. 6(1)(a) GDPR; you
+          can cancel the process at any time.
+        </p>
         <h3>Community game suggestions</h3>
         <p>
           If you suggest an unrecognised game to the community database, the
@@ -601,11 +642,11 @@
 
         <h2>5. Recipients &amp; international transfers</h2>
         <p>
-          Recipients and services used are
-          <strong>Microsoft Azure</strong> (website and API hosting), the
-          <strong>PostgreSQL hosting provider</strong> configured for the API
-          (server-side matching, suggestion and feedback data),
-          <strong>GitHub</strong> (updates, downloads and source repository),
+          Recipients and services used are <strong>Microsoft</strong> (Microsoft
+          sign-in, Xbox Live, and Azure hosting for the website and API), the
+          configured <strong>PostgreSQL hosting provider</strong> (server-side
+          matching, suggestion and feedback data), <strong>GitHub</strong>
+          (updates, downloads and source repository),
           <strong>IGDB / Twitch / Amazon</strong> (cover images), and
           <strong>Google</strong> (email communication). These companies are
           based in the United States or may process data from there. Transfers
@@ -627,6 +668,11 @@
             Matching requests are not stored in the database as a personal
             gaming history. Non-personal filename-to-game mappings may remain
             permanently.
+          </li>
+          <li>
+            Xbox import-attempt data, including tokens and any optional account
+            label, is removed after completion or cancellation and no later than
+            five minutes. Imported playtime is stored only on your device.
           </li>
           <li>
             Technical provider and application logs are deleted or overwritten

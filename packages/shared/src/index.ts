@@ -114,6 +114,13 @@ export type XboxImportFailureReason =
   | "oauth_error"
   | "xbox_api_error";
 
+export type XboxImportFailureStage =
+  | "authorization"
+  | "microsoft_token"
+  | "xbox_user_token"
+  | "xbox_xsts"
+  | "title_history";
+
 export interface XboxImportGame {
   /** Xbox Live title ID, the provider-native external ID for this provider. */
   externalId: string;
@@ -136,7 +143,14 @@ export interface XboxImportGame {
 export type XboxImportResultResponse =
   | { status: "pending" }
   | { status: "done"; games: XboxImportGame[] }
-  | { status: "failed"; reason: XboxImportFailureReason };
+  | {
+      status: "failed";
+      reason: XboxImportFailureReason;
+      stage?: XboxImportFailureStage;
+      errorCode?: string;
+      /** Display-only Microsoft account label; never use for authorization. */
+      accountLabel?: string;
+    };
 
 export interface XboxImportCancelRequest {
   attemptId: string;

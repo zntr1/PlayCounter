@@ -74,9 +74,12 @@ export function buildLibraryImportCommit(input: {
     const name = executable.name;
     linked.add(name);
     linkedExeSources.add(executable.identifierSource);
-    if (executable.verified) {
-      // The Steam AppID already fixed the game identity. An ambiguous basename
-      // must stay local, but it is still a valid user-specific cache decision.
+    if (
+      executable.verified &&
+      (!executable.ambiguous || provider === "steam")
+    ) {
+      // Verified identifiers are local cache decisions. A Steam AppID also
+      // makes an ambiguous basename user-specific; other providers must not.
       exeCacheEntries.push(
         toExeCache(
           name,

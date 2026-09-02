@@ -1,5 +1,6 @@
 import {
   CheckCircle2,
+  Copy,
   Download,
   FolderOpen,
   HardDrive,
@@ -55,6 +56,7 @@ type ImporterSession = {
   browsedExecutables: Record<string, ScannedExecutable>;
   capability: "unknown" | "supported" | "unsupported";
   error: string | null;
+  authorizeUrl: string | null;
 };
 
 function createImporterSession(
@@ -73,6 +75,7 @@ function createImporterSession(
     manualExecutables: {},
     browsedExecutables: {},
     capability: "unknown",
+    authorizeUrl: null,
     error: null,
   };
 }
@@ -119,6 +122,9 @@ export function ImportLibraryView() {
     "unknown" | "supported" | "unsupported"
   >(session.capability);
   const [error, setError] = useState<string | null>(session.error);
+  const [authorizeUrl, setAuthorizeUrl] = useState<string | null>(
+    session.authorizeUrl,
+  );
   const [activeImportGroup, setActiveImportGroup] =
     useState<ImportGroupKey>("ready");
   const [addingExternalId, setAddingExternalId] = useState<string | null>(null);
@@ -126,6 +132,7 @@ export function ImportLibraryView() {
     null,
   );
   const scanAbortController = useRef<AbortController | null>(null);
+  const copyAuthorizeUrlOnStart = useRef(false);
   const activeProviderId = useRef(providerId);
 
   useEffect(
@@ -153,6 +160,7 @@ export function ImportLibraryView() {
     setBrowsedExecutables(next.browsedExecutables);
     setCapability(next.capability);
     setError(next.error);
+    setAuthorizeUrl(next.authorizeUrl);
     setActiveImportGroup("ready");
     setAddingExternalId(null);
     setBrowsingExternalId(null);
@@ -173,8 +181,10 @@ export function ImportLibraryView() {
       browsedExecutables,
       capability,
       error,
+      authorizeUrl,
     };
   }, [
+    authorizeUrl,
     accountId,
     accounts,
     completed,
@@ -230,12 +240,15 @@ export function ImportLibraryView() {
 
   async function scanAccount() {
     if (accountId === null) return;
+    const copyOnStart = copyAuthorizeUrlOnStart.current;
+    copyAuthorizeUrlOnStart.current = false;
     const controller = new AbortController();
     scanAbortController.current?.abort();
     scanAbortController.current = controller;
     setActiveImportGroup("ready");
     setPhase("scanning");
     setError(null);
+    setAuthorizeUrl(null);
     setScan(null);
     setResolved(new Map());
     setSelected(new Set());
@@ -248,6 +261,13 @@ export function ImportLibraryView() {
       const result = await provider.scan(accountId, {
         apiEndpoint,
         signal: controller.signal,
+        onAuthorizeUrl: isXbox
+          ? (url) => {
+              setAuthorizeUrl(url);
+              if (copyOnStart) void copyAuthorizeUrl(url);
+            }
+          : undefined,
+        openAuthorizeUrl: !isXbox || !copyOnStart,
       });
       setScan(result);
       const lookup = result.resolvedGames
@@ -534,6 +554,27 @@ export function ImportLibraryView() {
     importerSessionBackedUp = true;
   }
 
+  async function copyAuthorizeUrl(url = authorizeUrl) {
+    if (!url) return;
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Clipboard access is unavailable.");
+      }
+      await navigator.clipboard.writeText(url);
+      addToast({
+        tone: "success",
+        title: "Sign-in link copied",
+        detail: "Open it in the browser where you want to sign in.",
+      });
+    } catch (cause) {
+      addToast({
+        tone: "error",
+        title: "Could not copy sign-in link",
+        detail: formatError(cause),
+      });
+    }
+  }
+
   const selectedCount =
     scan?.games.filter((game) => {
       const key = libraryEntryKey(providerId, game.externalId);
@@ -673,6 +714,9 @@ export function ImportLibraryView() {
         onCancel={
           isXbox ? () => scanAbortController.current?.abort() : undefined
         }
+        onCopySignInLink={
+          isXbox && authorizeUrl ? () => void copyAuthorizeUrl() : undefined
+        }
       />
     );
   }
@@ -698,6 +742,13 @@ export function ImportLibraryView() {
                 ? "Microsoft sign-in opens in your browser. PlayCounter never sees your credentials, and access tokens are discarded server-side after this import."
                 : "Game ownership is not uploaded. Only AppIDs from this local scan are resolved against PlayCounter metadata."}
             </p>
+            {isXbox ? (
+              <p className="mt-2 text-sm text-text-faint">
+                Make sure you use the Microsoft account connected to your Xbox
+                gaming profile. If you are unsure, copy the sign-in link and
+                open it in a private browser window.
+              </p>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -722,6 +773,19 @@ export function ImportLibraryView() {
                 </option>
               ))}
             </select>
+            {isXbox ? (
+              <Button
+                variant="secondary"
+                icon={Copy}
+                disabled={accountId === null}
+                onClick={() => {
+                  copyAuthorizeUrlOnStart.current = true;
+                  void scanAccount();
+                }}
+              >
+                Copy sign-in link
+              </Button>
+            ) : null}
             <Button
               variant="primary"
               icon={scan ? RefreshCw : Download}
@@ -921,7 +985,9 @@ export function ImportLibraryView() {
   );
 }
 
-function ImportRow({
+export default ImportLibraryView;
+
+export function ImportRow({
   game,
   provider,
   apiEndpoint,
@@ -1003,20 +1069,14 @@ function ImportRow({
           onChange={(event) => onSelected(event.target.checked)}
           aria-label={`Import ${resolved?.game?.name ?? game.name ?? game.externalId}`}
         />
-      ) : (
-        <span className="w-4 shrink-0" aria-hidden="true" />
-      )}
+      ) : null}
       {resolved?.game?.coverUrl ? (
         <img
           src={resolved.game.coverUrl}
           alt=""
           className="h-16 w-12 rounded object-cover"
         />
-      ) : (
-        <div className="grid h-16 w-12 place-items-center rounded bg-surface-hover text-text-faint">
-          <HardDrive size={18} />
-        </div>
-      )}
+      ) : null}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold text-text">
@@ -1352,19 +1412,42 @@ function initialImportGroup(
 function LoadingPanel({
   label,
   onCancel,
+  onCopySignInLink,
 }: {
   label: string;
   onCancel?: () => void;
+  onCopySignInLink?: () => void;
 }) {
   return (
     <Panel className="grid min-h-[320px] place-items-center p-8 text-center text-text-muted">
-      <div role="status" aria-live="polite">
-        <RefreshCw size={28} className="mx-auto animate-spin text-accent" />
-        <p className="mt-3">{label}</p>
-        {onCancel ? (
-          <Button variant="secondary" className="mt-4" onClick={onCancel}>
-            Cancel import
-          </Button>
+      <div>
+        <div role="status" aria-live="polite">
+          <RefreshCw size={28} className="mx-auto animate-spin text-accent" />
+          <p className="mt-3">{label}</p>
+          {onCopySignInLink ? (
+            <p className="mt-2 max-w-md text-sm text-text-faint">
+              Browser did not open or uses the wrong session? Copy the sign-in
+              link and open it manually.
+            </p>
+          ) : null}
+        </div>
+        {onCancel || onCopySignInLink ? (
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {onCopySignInLink ? (
+              <Button
+                variant="secondary"
+                icon={Copy}
+                onClick={onCopySignInLink}
+              >
+                Copy sign-in link
+              </Button>
+            ) : null}
+            {onCancel ? (
+              <Button variant="secondary" onClick={onCancel}>
+                Cancel import
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </Panel>

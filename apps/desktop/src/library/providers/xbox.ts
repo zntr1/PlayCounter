@@ -5,6 +5,7 @@ import type {
   LibraryReverseResolveResponse,
   XboxImportCancelRequest,
   XboxImportFailureReason,
+  XboxImportFailureStage,
   XboxImportGame,
   XboxImportStartResponse,
 } from "@playcounter/shared";
@@ -20,10 +21,17 @@ type ParsedXboxImportGame = Omit<XboxImportGame, "candidates"> & {
   candidates: GameMetadata[];
 };
 
+type XboxFailureContext = {
+  reason: XboxImportFailureReason;
+  stage?: XboxImportFailureStage;
+  errorCode?: string;
+  accountLabel?: string;
+};
+
 type ParsedXboxImportResult =
   | { status: "pending" }
   | { status: "done"; games: ParsedXboxImportGame[] }
-  | { status: "failed"; reason: XboxImportFailureReason };
+  | ({ status: "failed" } & XboxFailureContext);
 
 export const xboxProvider: LocalLibraryProvider = {
   id: "xbox",
@@ -78,10 +86,18 @@ export async function scanXboxLibrary(
     const start = parseXboxImportStart(await startResponse.json());
     attemptId = start.attemptId;
     attemptActive = true;
+    options.onAuthorizeUrl?.(start.authorizeUrl);
 
-    await invoke<void>("open_microsoft_signin_url", {
-      url: start.authorizeUrl,
-    });
+    if (options.openAuthorizeUrl !== false) {
+      try {
+        await invoke<void>("open_microsoft_signin_url", {
+          url: start.authorizeUrl,
+        });
+      } catch {
+        // Keep polling: the importer exposes the same URL for manual copying
+        // when the system browser integration is unavailable or has stale state.
+      }
+    }
 
     while (true) {
       ensureNotAborted(requestController.signal);
@@ -102,7 +118,7 @@ export async function scanXboxLibrary(
       }
       if (result.status === "failed") {
         attemptActive = false;
-        throw new Error(xboxImportFailureMessage(result.reason));
+        throw new Error(xboxImportFailureMessage(result));
       }
       if (result.status !== "pending") {
         throw new Error("Xbox import returned an invalid status.");
@@ -118,10 +134,10 @@ export async function scanXboxLibrary(
       void cancelXboxImport(apiEndpoint, attemptId);
     }
     if (timedOut) {
-      throw new Error(xboxImportFailureMessage("timed_out"));
+      throw new Error(xboxImportFailureMessage({ reason: "timed_out" }));
     }
     if (externalSignal?.aborted) {
-      throw new Error(xboxImportFailureMessage("cancelled"));
+      throw new Error(xboxImportFailureMessage({ reason: "cancelled" }));
     }
     throw error;
   } finally {
@@ -301,7 +317,32 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
     return { status: "done", games: record.games.map(parseXboxImportGame) };
   }
   if (record.status === "failed" && isXboxFailureReason(record.reason)) {
-    return { status: "failed", reason: record.reason };
+    if (record.stage !== undefined && !isXboxFailureStage(record.stage)) {
+      throw new Error("Xbox import returned an invalid failure stage.");
+    }
+    if (
+      record.accountLabel !== undefined &&
+      (typeof record.accountLabel !== "string" || !record.accountLabel.trim())
+    ) {
+      throw new Error("Xbox import returned an invalid account label.");
+    }
+    if (
+      record.errorCode !== undefined &&
+      (typeof record.errorCode !== "string" || !record.errorCode.trim())
+    ) {
+      throw new Error("Xbox import returned an invalid Microsoft error code.");
+    }
+    return {
+      status: "failed",
+      reason: record.reason,
+      ...(isXboxFailureStage(record.stage) ? { stage: record.stage } : {}),
+      ...(typeof record.errorCode === "string"
+        ? { errorCode: record.errorCode.trim().slice(0, 200) }
+        : {}),
+      ...(typeof record.accountLabel === "string"
+        ? { accountLabel: record.accountLabel.trim().slice(0, 254) }
+        : {}),
+    };
   }
   throw new Error("Xbox import returned an invalid status.");
 }
@@ -382,6 +423,16 @@ function isXboxFailureReason(value: unknown): value is XboxImportFailureReason {
   );
 }
 
+function isXboxFailureStage(value: unknown): value is XboxImportFailureStage {
+  return (
+    value === "authorization" ||
+    value === "microsoft_token" ||
+    value === "xbox_user_token" ||
+    value === "xbox_xsts" ||
+    value === "title_history"
+  );
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object"
     ? (value as Record<string, unknown>)
@@ -394,16 +445,39 @@ function isoTimestampToUnix(value: string | undefined) {
   return Number.isFinite(timestamp) ? Math.floor(timestamp / 1_000) : undefined;
 }
 
-function xboxImportFailureMessage(reason?: XboxImportFailureReason) {
-  switch (reason) {
+export function xboxImportFailureMessage(context: XboxFailureContext) {
+  const account = context.accountLabel
+    ? ` Microsoft account: ${context.accountLabel}.`
+    : "";
+  const recovery =
+    " Make sure this is the Microsoft account connected to your Xbox gaming profile. If you are unsure, use Copy sign-in link and open it in a private browser window.";
+
+  switch (context.stage) {
+    case "authorization": {
+      const errorCode = context.errorCode
+        ? ` Microsoft returned ${context.errorCode}.`
+        : "";
+      return `Microsoft sign-in was not completed.${errorCode}${recovery}`;
+    }
+    case "microsoft_token":
+      return `Microsoft sign-in returned, but PlayCounter could not complete Microsoft authorization.${recovery}`;
+    case "xbox_user_token":
+      return `Microsoft sign-in completed.${account} Xbox Live did not accept this account.${recovery}`;
+    case "xbox_xsts":
+      return `Microsoft sign-in completed.${account} Xbox Live could not create a gaming session for this account.${recovery}`;
+    case "title_history":
+      return `Xbox sign-in completed.${account} Xbox Live did not return game history.${recovery}`;
+  }
+
+  switch (context.reason) {
     case "cancelled":
       return "Xbox sign-in was cancelled.";
     case "timed_out":
-      return "Xbox sign-in timed out. Start the import again to retry.";
+      return `Xbox sign-in timed out.${recovery}`;
     case "oauth_error":
-      return "Microsoft sign-in failed. Start the import again to retry.";
+      return `Microsoft sign-in failed.${account}${recovery}`;
     case "xbox_api_error":
-      return "Xbox Live could not return your game history. Try again later.";
+      return `Xbox Live could not return your game history.${account}${recovery}`;
     default:
       return "Xbox import failed. Try again later.";
   }

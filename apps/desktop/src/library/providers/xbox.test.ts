@@ -87,9 +87,13 @@ describe("Xbox library provider", () => {
         }),
       );
     vi.stubGlobal("fetch", fetchMock);
+    const onAuthorizeUrl = vi.fn();
 
     await expect(
-      scanXboxLibrary({ apiEndpoint: `${endpoint}/` }),
+      scanXboxLibrary({
+        apiEndpoint: `${endpoint}/`,
+        onAuthorizeUrl,
+      }),
     ).resolves.toEqual({
       games: [
         {
@@ -123,9 +127,67 @@ describe("Xbox library provider", () => {
     expect(invokeMock).toHaveBeenCalledWith("open_microsoft_signin_url", {
       url: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
     });
+    expect(onAuthorizeUrl).toHaveBeenCalledWith(
+      "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+    );
     expect(String(fetchMock.mock.calls[1][0])).toBe(
       `${endpoint}/api/xbox/import/result?attemptId=${firstAttemptId}`,
     );
+  });
+
+  it("keeps the import alive when automatic browser opening fails", async () => {
+    invokeMock.mockRejectedValue(new Error("stale browser session"));
+    const authorizeUrl =
+      "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
+    const onAuthorizeUrl = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      scanXboxLibrary({ apiEndpoint: endpoint, onAuthorizeUrl }),
+    ).resolves.toMatchObject({ games: [], resolvedGames: [] });
+
+    expect(onAuthorizeUrl).toHaveBeenCalledWith(authorizeUrl);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns a copy-only link and actionable account failure", async () => {
+    invokeMock.mockResolvedValue(undefined);
+    const authorizeUrl =
+      "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
+    const onAuthorizeUrl = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "failed",
+          reason: "oauth_error",
+          stage: "xbox_xsts",
+          accountLabel: "player@example.com",
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      scanXboxLibrary({
+        apiEndpoint: endpoint,
+        onAuthorizeUrl,
+        openAuthorizeUrl: false,
+      }),
+    ).rejects.toThrow(
+      /Microsoft account: player@example\.com.*Xbox Live could not create a gaming session.*private browser window/,
+    );
+
+    expect(onAuthorizeUrl).toHaveBeenCalledWith(authorizeUrl);
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it("cancels promptly even when server cleanup does not respond", async () => {
