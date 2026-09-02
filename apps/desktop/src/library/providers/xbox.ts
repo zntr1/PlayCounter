@@ -7,6 +7,7 @@ import type {
   XboxImportFailureReason,
   XboxImportFailureStage,
   XboxImportGame,
+  XboxImportProgressStage,
   XboxImportStartResponse,
 } from "@playcounter/shared";
 import { invoke } from "@tauri-apps/api/core";
@@ -29,7 +30,7 @@ type XboxFailureContext = {
 };
 
 type ParsedXboxImportResult =
-  | { status: "pending" }
+  | { status: "pending"; stage?: XboxImportProgressStage }
   | { status: "done"; games: ParsedXboxImportGame[] }
   | ({ status: "failed" } & XboxFailureContext);
 
@@ -73,6 +74,12 @@ export async function scanXboxLibrary(
   }, XBOX_IMPORT_TIMEOUT_MS);
   let attemptId: string | undefined;
   let attemptActive = false;
+  let reportedProgress: XboxImportProgressStage | undefined;
+  const reportProgress = (stage: XboxImportProgressStage) => {
+    if (reportedProgress === stage) return;
+    reportedProgress = stage;
+    options.onXboxProgress?.(stage);
+  };
 
   try {
     const startResponse = await fetch(`${apiEndpoint}/api/xbox/import/start`, {
@@ -87,6 +94,7 @@ export async function scanXboxLibrary(
     attemptId = start.attemptId;
     attemptActive = true;
     options.onAuthorizeUrl?.(start.authorizeUrl);
+    reportProgress("authorization");
 
     if (options.openAuthorizeUrl !== false) {
       try {
@@ -123,6 +131,7 @@ export async function scanXboxLibrary(
       if (result.status !== "pending") {
         throw new Error("Xbox import returned an invalid status.");
       }
+      if (result.stage) reportProgress(result.stage);
 
       await abortableDelay(
         XBOX_IMPORT_POLL_INTERVAL_MS,
@@ -309,7 +318,21 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
   if (!record || typeof record.status !== "string") {
     throw new Error("Xbox import returned an invalid status.");
   }
-  if (record.status === "pending") return { status: "pending" };
+  if (record.status === "pending") {
+    if (
+      record.stage !== undefined &&
+      record.stage !== "authorization" &&
+      record.stage !== "history"
+    ) {
+      throw new Error("Xbox import returned an invalid progress stage.");
+    }
+    return {
+      status: "pending",
+      ...(record.stage === "authorization" || record.stage === "history"
+        ? { stage: record.stage }
+        : {}),
+    };
+  }
   if (record.status === "done") {
     if (!Array.isArray(record.games)) {
       throw new Error("Xbox import returned an invalid game list.");

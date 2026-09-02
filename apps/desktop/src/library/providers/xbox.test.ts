@@ -201,7 +201,9 @@ describe("Xbox library provider", () => {
             "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
         }),
       )
-      .mockResolvedValueOnce(jsonResponse({ status: "pending" }))
+      .mockResolvedValueOnce(
+        jsonResponse({ status: "pending", stage: "history" }),
+      )
       .mockImplementationOnce(
         (_input: RequestInfo | URL, init?: RequestInit) =>
           new Promise<Response>((_resolve, reject) => {
@@ -214,16 +216,22 @@ describe("Xbox library provider", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
     const controller = new AbortController();
+    const onXboxProgress = vi.fn();
 
     const scan = scanXboxLibrary({
       apiEndpoint: endpoint,
       signal: controller.signal,
+      onXboxProgress,
     });
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     vi.useFakeTimers();
     controller.abort();
 
     await expect(scan).rejects.toThrow("Xbox sign-in was cancelled.");
+    expect(onXboxProgress.mock.calls.map(([stage]) => stage)).toEqual([
+      "authorization",
+      "history",
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[2][0])).toBe(
       `${endpoint}/api/xbox/import/cancel`,

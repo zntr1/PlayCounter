@@ -9,6 +9,7 @@ import {
   Search,
   Share2,
 } from "lucide-react";
+import type { XboxImportProgressStage } from "@playcounter/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -125,6 +126,8 @@ export function ImportLibraryView() {
   const [authorizeUrl, setAuthorizeUrl] = useState<string | null>(
     session.authorizeUrl,
   );
+  const [xboxProgress, setXboxProgress] =
+    useState<XboxImportProgressStage>("authorization");
   const [activeImportGroup, setActiveImportGroup] =
     useState<ImportGroupKey>("ready");
   const [addingExternalId, setAddingExternalId] = useState<string | null>(null);
@@ -161,6 +164,7 @@ export function ImportLibraryView() {
     setCapability(next.capability);
     setError(next.error);
     setAuthorizeUrl(next.authorizeUrl);
+    setXboxProgress("authorization");
     setActiveImportGroup("ready");
     setAddingExternalId(null);
     setBrowsingExternalId(null);
@@ -249,6 +253,7 @@ export function ImportLibraryView() {
     setPhase("scanning");
     setError(null);
     setAuthorizeUrl(null);
+    setXboxProgress("authorization");
     setScan(null);
     setResolved(new Map());
     setSelected(new Set());
@@ -267,6 +272,7 @@ export function ImportLibraryView() {
               if (copyOnStart) void copyAuthorizeUrl(url);
             }
           : undefined,
+        onXboxProgress: isXbox ? setXboxProgress : undefined,
         openAuthorizeUrl: !isXbox || !copyOnStart,
       });
       setScan(result);
@@ -707,15 +713,15 @@ export function ImportLibraryView() {
     return (
       <LoadingPanel
         label={
-          isXbox
-            ? "Waiting for Microsoft sign-in and Xbox history…"
-            : "Scanning your Steam library…"
+          isXbox ? xboxScanLabel(xboxProgress) : "Scanning your Steam library…"
         }
         onCancel={
           isXbox ? () => scanAbortController.current?.abort() : undefined
         }
         onCopySignInLink={
-          isXbox && authorizeUrl ? () => void copyAuthorizeUrl() : undefined
+          isXbox && xboxProgress === "authorization" && authorizeUrl
+            ? () => void copyAuthorizeUrl()
+            : undefined
         }
       />
     );
@@ -1407,6 +1413,12 @@ function initialImportGroup(
   if (hasUnavailable) return "unavailable";
   if (hasImported) return "imported";
   return "ready";
+}
+
+export function xboxScanLabel(stage: XboxImportProgressStage) {
+  return stage === "history"
+    ? "Reading your Xbox history…"
+    : "Waiting for Microsoft sign-in…";
 }
 
 function LoadingPanel({

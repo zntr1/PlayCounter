@@ -140,8 +140,10 @@ export interface XboxImportGame {
   candidates: Game[];
 }
 
+export type XboxImportProgressStage = "authorization" | "history";
+
 export type XboxImportResultResponse =
-  | { status: "pending" }
+  | { status: "pending"; stage?: XboxImportProgressStage }
   | { status: "done"; games: XboxImportGame[] }
   | {
       status: "failed";

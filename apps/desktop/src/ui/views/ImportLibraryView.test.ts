@@ -6,10 +6,16 @@ import ImportLibraryView, {
   ImportRow,
   hasImportableActivity,
   XboxMatchControls,
+  xboxScanLabel,
 } from "./ImportLibraryView";
 
 it("exposes the importer as the lazy-load default component", () => {
   expect(ImportLibraryView).toBeTypeOf("function");
+});
+
+it("shows the current Xbox import stage", () => {
+  expect(xboxScanLabel("authorization")).toBe("Waiting for Microsoft sign-in…");
+  expect(xboxScanLabel("history")).toBe("Reading your Xbox history…");
 });
 
 describe("library importer eligibility", () => {

@@ -1,4 +1,7 @@
-import type { LibraryProviderId } from "@playcounter/shared";
+import type {
+  LibraryProviderId,
+  XboxImportProgressStage,
+} from "@playcounter/shared";
 import type {
   LibraryScanResult,
   LocalLibraryAccount,
@@ -9,6 +12,7 @@ export type LibraryScanOptions = {
   apiEndpoint?: string;
   signal?: AbortSignal;
   onAuthorizeUrl?: (url: string) => void;
+  onXboxProgress?: (stage: XboxImportProgressStage) => void;
   openAuthorizeUrl?: boolean;
 };
 
