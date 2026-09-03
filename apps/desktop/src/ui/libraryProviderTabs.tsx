@@ -1,5 +1,6 @@
 import type { LibraryProviderId, Platform } from "@playcounter/shared";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
+import xboxIconUrl from "../../../../assets/xbox/xbox-icon.png";
 import type { BuiltinImportProviderId } from "../library/importProviders";
 
 type ProviderTabCopy = {
@@ -65,6 +66,7 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
   {
     id: "xbox",
     label: "Xbox",
+    iconUrl: xboxIconUrl,
     headline: "Xbox history",
     subtitle: "Imported from Xbox Live after Microsoft sign-in.",
     importCtaLabel: "Import more from Xbox",

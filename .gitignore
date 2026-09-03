@@ -3,6 +3,7 @@
 CLAUDE.md
 AGENTS.md
 .superpowers/
+ERRORS.md
 
 # Environment & secrets
 .env
