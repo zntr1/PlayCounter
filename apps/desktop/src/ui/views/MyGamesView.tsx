@@ -116,12 +116,12 @@ import {
 } from "../../library/types";
 import { listLocalLinks, type LocalLink } from "../../localLinks";
 import {
-  CommunityApprovalBadge,
-  EmulatorBadge,
+  GameMatchBadges,
+  GameOriginBadges,
   Panel,
-  ProviderBadge,
   SourceBadge,
   Stat,
+  communitySuggestionApproval,
   formatDuration,
 } from "../components";
 import {
@@ -1432,8 +1432,9 @@ export function MyGamesView() {
                       id="library-show-badges-help"
                       className="mt-1 text-xs leading-5 text-text-faint"
                     >
-                      Hides the small source, launcher and emulator labels on
-                      covers. Warnings and actions stay.
+                      Hides the match seals on covers and the launcher, emulator
+                      or PlayCounter marks beside each game name. Warnings and
+                      actions stay.
                     </p>
                   </div>
                   <input
@@ -2119,10 +2120,14 @@ function GameLibraryCard({
     (entry) => entry.provider === "xbox" && entry.installed,
   );
   const importedProviders = libraryProviders(game.libraryImports);
-  const hasUnknownXboxPlaytime = hasUnknownProviderPlaytime(
-    game.libraryImports,
-    "xbox",
+  const unknownDurationProviders = importedProviders.filter((provider) =>
+    hasUnknownProviderPlaytime(game.libraryImports, provider),
   );
+  const communityApproval = communitySuggestionApproval({
+    suggestionId: game.communitySuggestionId,
+    verified: game.communitySuggestionVerified,
+    status: game.communitySuggestionStatus,
+  });
   const steamActions = libraryContextActions({
     demo,
     isWindows,
@@ -3529,36 +3534,14 @@ function GameLibraryCard({
             </div>
           )}
 
-          {/* Badges top left */}
+          {/* Match provenance: one seal per way this game's files were matched */}
           {badgesVisible ? (
-            <div className="absolute left-2 top-2 z-20 flex flex-col items-start gap-1.5 drop-shadow-md">
-              {game.sources.map((source) => (
-                <span
-                  key={source}
-                  data-tour={demo ? `demo-source-${source}` : undefined}
-                >
-                  <SourceBadge source={source} />
-                </span>
-              ))}
-              {importedProviders.map((provider) => (
-                <ProviderBadge key={provider} provider={provider} />
-              ))}
-              {hasUnknownXboxPlaytime ? (
-                <span className="inline-flex shrink-0 items-center rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
-                  Played on Xbox · duration unknown
-                </span>
-              ) : null}
-              {game.emulatorIds.map((emulatorId) => (
-                <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
-              ))}
-              {game.sources.includes("custom") ? (
-                <CommunityApprovalBadge
-                  suggestionId={game.communitySuggestionId}
-                  verified={game.communitySuggestionVerified}
-                  status={game.communitySuggestionStatus}
-                />
-              ) : null}
-            </div>
+            <GameMatchBadges
+              className="peer/seals absolute left-2 top-2 z-40 drop-shadow-md"
+              sources={game.sources}
+              approval={communityApproval}
+              dataTourPrefix={demo ? "demo-source" : undefined}
+            />
           ) : null}
 
           {trackingUnavailable ? (
@@ -3589,7 +3572,7 @@ function GameLibraryCard({
           {/* Hover Actions - Top Right (constructive first, destructive last) */}
           <div
             className={clsx(
-              "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100",
+              "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/seals:pointer-events-none peer-hover/seals:!opacity-0",
               trackingUnavailable
                 ? "top-12 peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0"
                 : "top-2",
@@ -3701,26 +3684,36 @@ function GameLibraryCard({
             isLarge ? "p-4" : "p-3",
           )}
         >
-          <h2
-            className={clsx(
-              "truncate font-semibold text-text",
-              isLarge ? "text-lg" : "text-[15px]",
-            )}
-            title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
-          >
-            {exeLabel ? (
-              <>
-                <span className="game-card-name-default group-hover:hidden">
-                  {game.name}
-                </span>
-                <span className="game-card-name-exe hidden font-mono text-[13px] group-hover:inline">
-                  {exeLabel}
-                </span>
-              </>
-            ) : (
-              game.name
-            )}
-          </h2>
+          <div className="flex min-w-0 items-center gap-2">
+            <h2
+              className={clsx(
+                "min-w-0 flex-1 truncate font-semibold text-text",
+                isLarge ? "text-lg" : "text-[15px]",
+              )}
+              title={exeLabel ? `${game.name} (${exeLabel})` : game.name}
+            >
+              {exeLabel ? (
+                <>
+                  <span className="game-card-name-default group-hover:hidden">
+                    {game.name}
+                  </span>
+                  <span className="game-card-name-exe hidden font-mono text-[13px] group-hover:inline">
+                    {exeLabel}
+                  </span>
+                </>
+              ) : (
+                game.name
+              )}
+            </h2>
+            {/* Origin: where this game came from, beside the name it belongs to */}
+            {badgesVisible ? (
+              <GameOriginBadges
+                providers={importedProviders}
+                emulatorIds={game.emulatorIds}
+                unknownDurationProviders={unknownDurationProviders}
+              />
+            ) : null}
+          </div>
           <div
             data-tour={demo ? "demo-playtime-result" : undefined}
             className="mt-1 flex min-w-0 items-baseline gap-1.5"
@@ -4119,34 +4112,18 @@ function GameLibraryCard({
             </h2>
             {badgesVisible ? (
               <>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {game.sources.map((source) => (
-                    <span
-                      key={source}
-                      data-tour={demo ? `demo-source-${source}` : undefined}
-                    >
-                      <SourceBadge source={source} />
-                    </span>
-                  ))}
-                  {importedProviders.map((provider) => (
-                    <ProviderBadge key={provider} provider={provider} />
-                  ))}
-                  {hasUnknownXboxPlaytime ? (
-                    <span className="inline-flex shrink-0 items-center rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
-                      Played on Xbox · duration unknown
-                    </span>
-                  ) : null}
-                  {game.emulatorIds.map((emulatorId) => (
-                    <EmulatorBadge key={emulatorId} emulatorId={emulatorId} />
-                  ))}
-                </div>
-                {game.sources.includes("custom") ? (
-                  <CommunityApprovalBadge
-                    suggestionId={game.communitySuggestionId}
-                    verified={game.communitySuggestionVerified}
-                    status={game.communitySuggestionStatus}
-                  />
-                ) : null}
+                <GameMatchBadges
+                  variant="label"
+                  sources={game.sources}
+                  approval={communityApproval}
+                  dataTourPrefix={demo ? "demo-source" : undefined}
+                />
+                <GameOriginBadges
+                  variant="label"
+                  providers={importedProviders}
+                  emulatorIds={game.emulatorIds}
+                  unknownDurationProviders={unknownDurationProviders}
+                />
               </>
             ) : null}
           </div>
