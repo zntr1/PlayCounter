@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Check,
@@ -15,7 +15,7 @@ import type {
   LibraryProviderId,
 } from "@playcounter/shared";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
-import xboxIconUrl from "../../../../assets/xbox/xbox-icon.png";
+import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import { emulatorAssetUrls } from "../emulators/assets";
 
 export function Panel({
@@ -88,43 +88,49 @@ export type SourceApproval = "pending" | "approved";
 const LABEL_SHELL =
   "inline-flex shrink-0 items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium";
 const SEAL_SHELL =
-  "relative grid h-5 w-5 shrink-0 place-items-center rounded-md border bg-bg/85 shadow-raised";
+  "relative grid h-[26px] w-[26px] shrink-0 place-items-center rounded-md border bg-bg/85 shadow-raised";
+// Coins sit beside the game name, so they stay smaller than the cover seals.
+// Border and shadow come from the entry: some marks are their own badge.
 const COIN_SHELL =
-  "relative grid h-5 w-5 shrink-0 place-items-center rounded-full border shadow-raised";
+  "relative grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full";
 const PIP_SHELL =
-  "absolute -bottom-1 -right-1 grid h-3 w-3 place-items-center rounded-full border border-bg";
-const COIN_IMAGE = "h-3.5 w-3.5 object-contain";
+  "absolute -bottom-1 -right-1 z-10 grid h-3.5 w-3.5 place-items-center rounded-full border border-bg";
+const COIN_IMAGE = "h-[17px] w-[17px] object-contain";
 const LABEL_IMAGE = "h-3 w-3 object-contain";
 
 type SourceMeta = {
   label: string;
   icon: LucideIcon;
   tip: string;
+  tone: string;
   labelTone: string;
   markTone: string;
 };
 
-// Colour encodes how public the fact is: verified record, then the crowd, then
-// a link that never leaves this PC. Amber stays reserved for real warnings.
+// Custom stays neutral so amber is reserved for real warnings; IGDB and
+// Community keep the hues the app has always used for them.
 const sourceMeta: Record<GameSource, SourceMeta> = {
   igdb: {
     label: "IGDB",
     icon: Database,
     tip: "IGDB has this file name on record for the game.",
-    labelTone: "border-success-border bg-success-tint text-success",
-    markTone: "border-success-border text-success",
+    tone: "text-community",
+    labelTone: "border-community-border bg-community-tint text-community",
+    markTone: "border-community-border text-community",
   },
   community: {
     label: "Community",
     icon: Users,
     tip: "A PlayCounter user linked this file name to the game, and it was approved.",
-    labelTone: "border-community-border bg-community-tint text-community",
-    markTone: "border-community-border text-community",
+    tone: "text-success",
+    labelTone: "border-success-border bg-success-tint text-success",
+    markTone: "border-success-border text-success",
   },
   custom: {
     label: "Custom",
     icon: PenLine,
     tip: "You linked this file name to the game yourself. Stays on this PC.",
+    tone: "text-text-muted",
     labelTone: "border-border bg-surface text-text-muted",
     markTone: "border-border text-text-muted",
   },
@@ -142,7 +148,7 @@ const approvalMeta: Record<
   approved: {
     icon: Check,
     tip: "The community approved this match.",
-    pipTone: "bg-community text-bg",
+    pipTone: "bg-success text-bg",
   },
 };
 
@@ -191,10 +197,10 @@ export function SourceBadge({
         aria-label={tip}
         className={`${SEAL_SHELL} ${meta.markTone}`}
       >
-        <Icon size={12} strokeWidth={2.25} aria-hidden="true" />
+        <Icon size={17} strokeWidth={2.25} aria-hidden="true" />
         {pip && PipIcon ? (
           <span aria-hidden="true" className={`${PIP_SHELL} ${pip.pipTone}`}>
-            <PipIcon size={7} strokeWidth={4} />
+            <PipIcon size={10} strokeWidth={4} />
           </span>
         ) : null}
       </span>
@@ -231,108 +237,169 @@ export function GameMatchBadges({
 }) {
   if (sources.length === 0) return null;
 
-  const badges = sources.map((source) => (
-    <SourceBadge
-      key={source}
-      source={source}
-      variant={variant}
-      approval={source === "custom" ? approval : undefined}
-      dataTour={dataTourPrefix ? `${dataTourPrefix}-${source}` : undefined}
-    />
-  ));
-
-  if (variant === "label") {
-    return (
-      <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
-        {badges}
-      </div>
-    );
-  }
-
-  // Icon-only seals need a way to teach themselves, so the whole cluster
-  // carries one legend instead of three native tooltips fighting each other.
-  // The caller owns placement, so the positioned tooltip anchor lives one level
-  // in: `absolute` from a caller class would otherwise lose to `relative` here.
   return (
-    <div className={className}>
-      <div className="group/seals relative flex items-start gap-1.5">
-        {badges}
-        <div
-          role="tooltip"
-          className="pointer-events-none invisible absolute left-0 top-full z-40 mt-2 w-52 translate-y-1 rounded-md border border-border bg-surface p-2 text-left opacity-0 shadow-raised transition group-hover/seals:visible group-hover/seals:translate-y-0 group-hover/seals:opacity-100 group-focus-within/seals:visible group-focus-within/seals:translate-y-0 group-focus-within/seals:opacity-100"
-        >
-          <div className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-text-faint">
-            How this file was matched
-          </div>
-          {sources.map((source) => {
-            const meta = sourceMeta[source];
-            const Icon = meta.icon;
-            const pip =
-              source === "custom" && approval ? approvalMeta[approval] : null;
-            return (
-              <div key={source} className="flex gap-1.5 px-1 py-1">
-                <Icon
-                  size={12}
-                  strokeWidth={2.25}
-                  aria-hidden="true"
-                  className={`mt-0.5 shrink-0 ${meta.markTone.split(" ").pop()}`}
-                />
-                <div className="min-w-0">
-                  <div className="text-[11px] font-semibold text-text">
-                    {meta.label}
-                  </div>
-                  <div className="text-[10px] leading-4 text-text-muted">
-                    {meta.tip}
-                    {pip ? ` ${pip.tip}` : ""}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+    <div
+      className={`flex flex-wrap items-center ${variant === "mark" ? "gap-0" : "gap-1.5"} ${className}`}
+    >
+      {sources.map((source) => (
+        <SourceBadge
+          key={source}
+          source={source}
+          variant={variant}
+          approval={source === "custom" ? approval : undefined}
+          dataTour={dataTourPrefix ? `${dataTourPrefix}-${source}` : undefined}
+        />
+      ))}
     </div>
   );
 }
 
-type OriginMeta = {
+type OriginEntry = {
+  key: string;
   label: string;
   tip: string;
-  iconUrl: string;
-  labelTone: string;
+  tone: string;
   coinTone: string;
+  chipTone: string;
+  iconUrl?: string;
+  icon?: LucideIcon;
+  emulatorId?: string;
+  unknownDuration?: boolean;
+  /** The asset is already a finished badge, so it fills the mark itself instead
+   *  of floating inside a second circle. */
+  coinFill?: boolean;
 };
 
-const providerMeta: Record<LibraryProviderId, OriginMeta> = {
+const providerMeta: Record<
+  LibraryProviderId,
+  Omit<OriginEntry, "key" | "unknownDuration">
+> = {
   steam: {
     label: "Steam",
     tip: "Imported from your local Steam library.",
     iconUrl: steamIconUrl,
-    labelTone: "border-[#66c0f4]/40 bg-[#1b2838] text-[#66c0f4]",
-    coinTone: "border-[#66c0f4]/55 bg-[#1b2838]",
+    tone: "text-[#66c0f4]",
+    coinTone: "shadow-raised",
+    chipTone: "border-[#66c0f4]/40 bg-[#1b2838] text-[#66c0f4]",
+    coinFill: true,
   },
   xbox: {
     label: "Xbox",
     tip: "Imported from your Xbox Live history.",
     iconUrl: xboxIconUrl,
-    labelTone: "border-[#107c10]/50 bg-[#0e2f16] text-[#7ee787]",
-    coinTone: "border-[#107c10]/70 bg-[#0e2f16]",
+    tone: "text-[#7ee787]",
+    coinTone: "shadow-raised",
+    chipTone: "border-[#107c10]/50 bg-[#0e2f16] text-[#7ee787]",
+    coinFill: true,
   },
+};
+
+const emulatorLabels: Record<string, string> = {
+  dosbox: "DOSBox",
+  dolphin: "Dolphin",
 };
 
 const UNKNOWN_DURATION_TIP = "This platform reported no play time for it.";
 
-export function ProviderBadge({
-  provider,
-  variant = "label",
+function providerOrigin(
+  provider: LibraryProviderId,
   unknownDuration = false,
+): OriginEntry {
+  return { key: provider, ...providerMeta[provider], unknownDuration };
+}
+
+function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
+  return {
+    key: `emulator:${emulatorId}`,
+    emulatorId,
+    label: label ?? emulatorLabels[emulatorId] ?? emulatorId,
+    tip: "Played through this emulator.",
+    tone: "text-accent",
+    // The emulator logos carry their own colour, so the coin stays neutral; the
+    // solid `.emulator-badge` fill is kept for the labelled chip.
+    coinTone: "border border-accent/60 bg-bg/85 text-accent shadow-raised",
+    chipTone: "emulator-badge",
+    iconUrl: emulatorAssetUrls[emulatorId],
+    icon: Cpu,
+  };
+}
+
+// The app icon is a transparent gamepad, not a disc, so it gets no ring at all.
+const playCounterOrigin: OriginEntry = {
+  key: "playcounter",
+  label: "PlayCounter",
+  tip: "Found by PlayCounter itself, with no launcher import.",
+  tone: "text-text-muted",
+  coinTone: "",
+  chipTone: "border-border bg-surface text-text-muted",
+  iconUrl: "/icon.png",
+  icon: Gamepad2,
+  coinFill: true,
+};
+
+export function gameOrigins({
+  providers,
+  emulatorIds,
+  unknownDurationProviders = [],
 }: {
-  provider: LibraryProviderId;
-  variant?: BadgeVariant;
-  unknownDuration?: boolean;
+  providers: readonly LibraryProviderId[];
+  emulatorIds: readonly string[];
+  unknownDurationProviders?: readonly LibraryProviderId[];
+}): OriginEntry[] {
+  const entries = [
+    ...providers.map((provider) =>
+      providerOrigin(provider, unknownDurationProviders.includes(provider)),
+    ),
+    ...emulatorIds.map((emulatorId) => emulatorOrigin(emulatorId)),
+  ];
+  return entries.length > 0 ? entries : [playCounterOrigin];
+}
+
+function OriginGlyph({
+  entry,
+  variant,
+}: {
+  entry: OriginEntry;
+  variant: BadgeVariant;
 }) {
-  const meta = providerMeta[provider];
-  const tip = `${meta.label} — ${meta.tip}${unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+  if (entry.iconUrl) {
+    return (
+      <img
+        src={entry.iconUrl}
+        alt=""
+        aria-hidden="true"
+        className={
+          variant === "label"
+            ? LABEL_IMAGE
+            : entry.coinFill
+              ? "h-full w-full object-contain"
+              : COIN_IMAGE
+        }
+      />
+    );
+  }
+  const Icon = entry.icon ?? Gamepad2;
+  return (
+    <Icon
+      size={variant === "mark" ? 14 : 11}
+      strokeWidth={2.25}
+      aria-hidden="true"
+    />
+  );
+}
+
+function originTip(entry: OriginEntry) {
+  return `${entry.label} — ${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+}
+
+function OriginBadge({
+  entry,
+  variant,
+}: {
+  entry: OriginEntry;
+  variant: BadgeVariant;
+}) {
+  const tip = originTip(entry);
 
   if (variant === "mark") {
     return (
@@ -340,18 +407,14 @@ export function ProviderBadge({
         role="img"
         aria-label={tip}
         title={tip}
-        className={`${COIN_SHELL} ${meta.coinTone}`}
+        data-emulator-id={entry.emulatorId}
+        className={`${COIN_SHELL} ${entry.coinTone}`}
       >
-        <img
-          src={meta.iconUrl}
-          alt=""
-          aria-hidden="true"
-          className={COIN_IMAGE}
-        />
-        {unknownDuration ? (
+        <OriginGlyph entry={entry} variant="mark" />
+        {entry.unknownDuration ? (
           <span
             aria-hidden="true"
-            className={`${PIP_SHELL} bg-warning text-[8px] font-bold leading-none text-bg`}
+            className={`${PIP_SHELL} bg-warning text-[9px] font-bold leading-none text-bg`}
           >
             ?
           </span>
@@ -363,24 +426,32 @@ export function ProviderBadge({
   return (
     <span
       title={tip}
-      className={`${LABEL_SHELL} font-semibold ${meta.labelTone}`}
+      data-emulator-id={entry.emulatorId}
+      className={`${LABEL_SHELL} font-semibold ${entry.chipTone}`}
     >
-      <img
-        src={meta.iconUrl}
-        alt=""
-        aria-hidden="true"
-        className={LABEL_IMAGE}
-      />
-      {meta.label}
-      {unknownDuration ? <span aria-hidden="true">?</span> : null}
+      <OriginGlyph entry={entry} variant="label" />
+      {entry.label}
+      {entry.unknownDuration ? <span aria-hidden="true">?</span> : null}
     </span>
   );
 }
 
-const emulatorLabels: Record<string, string> = {
-  dosbox: "DOSBox",
-  dolphin: "Dolphin",
-};
+export function ProviderBadge({
+  provider,
+  variant = "label",
+  unknownDuration = false,
+}: {
+  provider: LibraryProviderId;
+  variant?: BadgeVariant;
+  unknownDuration?: boolean;
+}) {
+  return (
+    <OriginBadge
+      entry={providerOrigin(provider, unknownDuration)}
+      variant={variant}
+    />
+  );
+}
 
 export function EmulatorBadge({
   emulatorId,
@@ -391,86 +462,8 @@ export function EmulatorBadge({
   label?: string;
   variant?: BadgeVariant;
 }) {
-  const display = label ?? emulatorLabels[emulatorId] ?? emulatorId;
-  const iconUrl = emulatorAssetUrls[emulatorId];
-  const tip = `${display} — played through this emulator.`;
-  // The emulator logos carry their own colour, so the coin stays neutral; the
-  // solid `.emulator-badge` fill is kept for the labelled variant only.
-  const image = variant === "mark" ? COIN_IMAGE : LABEL_IMAGE;
-  const glyph = iconUrl ? (
-    <img src={iconUrl} alt="" aria-hidden="true" className={image} />
-  ) : (
-    <Cpu
-      size={variant === "mark" ? 12 : 11}
-      strokeWidth={2.25}
-      aria-hidden="true"
-    />
-  );
-
-  if (variant === "mark") {
-    return (
-      <span
-        role="img"
-        aria-label={tip}
-        title={tip}
-        data-emulator-id={emulatorId}
-        className={`${COIN_SHELL} border-accent/60 bg-bg/85 text-accent`}
-      >
-        {glyph}
-      </span>
-    );
-  }
-
   return (
-    <span
-      title={tip}
-      data-emulator-id={emulatorId}
-      className={`emulator-badge ${LABEL_SHELL} font-semibold`}
-    >
-      {glyph}
-      {display}
-    </span>
-  );
-}
-
-export function PlayCounterOriginBadge({
-  variant = "label",
-}: {
-  variant?: BadgeVariant;
-}) {
-  const tip =
-    "PlayCounter — found this game by itself, with no launcher import.";
-  // A 20px coin cannot render the app logo legibly, so PlayCounter's own
-  // discovery reads as a quiet gamepad glyph — the default needs no fanfare.
-  const glyph = (
-    <Gamepad2
-      size={variant === "mark" ? 12 : 11}
-      strokeWidth={2.25}
-      aria-hidden="true"
-    />
-  );
-
-  if (variant === "mark") {
-    return (
-      <span
-        role="img"
-        aria-label={tip}
-        title={tip}
-        className={`${COIN_SHELL} border-border bg-bg/85 text-text-muted`}
-      >
-        {glyph}
-      </span>
-    );
-  }
-
-  return (
-    <span
-      title={tip}
-      className={`${LABEL_SHELL} border-border bg-surface font-semibold text-text-muted`}
-    >
-      {glyph}
-      PlayCounter
-    </span>
+    <OriginBadge entry={emulatorOrigin(emulatorId, label)} variant={variant} />
   );
 }
 
@@ -488,25 +481,136 @@ export function GameOriginBadges({
   className?: string;
 }) {
   return (
-    <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
-      {providers.map((provider) => (
-        <ProviderBadge
-          key={provider}
-          provider={provider}
-          variant={variant}
-          unknownDuration={unknownDurationProviders.includes(provider)}
-        />
+    <div
+      className={`flex flex-wrap items-center ${variant === "mark" ? "gap-0" : "gap-1.5"} ${className}`}
+    >
+      {gameOrigins({
+        providers,
+        emulatorIds,
+        unknownDurationProviders,
+      }).map((entry) => (
+        <OriginBadge key={entry.key} entry={entry} variant={variant} />
       ))}
-      {emulatorIds.map((emulatorId) => (
-        <EmulatorBadge
-          key={emulatorId}
-          emulatorId={emulatorId}
-          variant={variant}
+    </div>
+  );
+}
+
+function LegendHeading({ children }: PropsWithChildren) {
+  return (
+    <div className="px-1 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wider text-text-faint first:pt-0">
+      {children}
+    </div>
+  );
+}
+
+function LegendRow({
+  glyph,
+  tone,
+  label,
+  tip,
+}: {
+  glyph: ReactNode;
+  tone: string;
+  label: string;
+  tip: string;
+}) {
+  return (
+    <div className="flex gap-1.5 px-1 py-1">
+      <span className={`mt-0.5 shrink-0 ${tone}`}>{glyph}</span>
+      <div className="min-w-0">
+        <div className="text-[11px] font-semibold text-text">{label}</div>
+        <div className="text-[10px] leading-4 text-text-muted">{tip}</div>
+      </div>
+    </div>
+  );
+}
+
+/** The match seals plus the legend that teaches every mark on the card. The
+ *  origin coins live elsewhere (beside the game name), but they still get named
+ *  here: icon-only marks have to teach themselves somewhere. */
+export function GameProvenanceBadges({
+  sources,
+  approval,
+  providers,
+  emulatorIds,
+  unknownDurationProviders = [],
+  describeOrigins = true,
+  dataTourPrefix,
+  className = "",
+}: {
+  sources: readonly GameSource[];
+  approval?: SourceApproval;
+  providers: readonly LibraryProviderId[];
+  emulatorIds: readonly string[];
+  unknownDurationProviders?: readonly LibraryProviderId[];
+  /** False when the coins are switched off, so the legend stops naming marks
+   *  the card is not showing. */
+  describeOrigins?: boolean;
+  dataTourPrefix?: string;
+  className?: string;
+}) {
+  const origins = describeOrigins
+    ? gameOrigins({ providers, emulatorIds, unknownDurationProviders })
+    : [];
+
+  // The caller owns placement, so the positioned tooltip anchor lives one level
+  // in: `absolute` from a caller class would otherwise lose to `relative` here.
+  return (
+    <div className={className}>
+      <div className="group/provenance relative flex flex-wrap items-center gap-y-1">
+        <GameMatchBadges
+          sources={sources}
+          approval={approval}
+          dataTourPrefix={dataTourPrefix}
         />
-      ))}
-      {providers.length === 0 && emulatorIds.length === 0 ? (
-        <PlayCounterOriginBadge variant={variant} />
-      ) : null}
+        <div
+          role="tooltip"
+          className="pointer-events-none invisible absolute left-0 top-full z-40 mt-2 w-52 translate-y-1 rounded-md border border-border bg-surface p-2 text-left opacity-0 shadow-raised transition group-hover/provenance:visible group-hover/provenance:translate-y-0 group-hover/provenance:opacity-100 group-focus-within/provenance:visible group-focus-within/provenance:translate-y-0 group-focus-within/provenance:opacity-100"
+        >
+          {sources.length > 0 ? (
+            <>
+              <LegendHeading>How this file was matched</LegendHeading>
+              {sources.map((source) => {
+                const meta = sourceMeta[source];
+                const Icon = meta.icon;
+                const pip =
+                  source === "custom" && approval
+                    ? approvalMeta[approval]
+                    : null;
+                return (
+                  <LegendRow
+                    key={source}
+                    glyph={
+                      <Icon size={11} strokeWidth={2.25} aria-hidden="true" />
+                    }
+                    tone={meta.tone}
+                    label={meta.label}
+                    tip={pip ? `${meta.tip} ${pip.tip}` : meta.tip}
+                  />
+                );
+              })}
+            </>
+          ) : null}
+          {origins.length > 0 ? (
+            <>
+              <LegendHeading>Where this game came from</LegendHeading>
+              {origins.map((entry) => (
+                <LegendRow
+                  key={entry.key}
+                  glyph={<OriginGlyph entry={entry} variant="label" />}
+                  tone={entry.tone}
+                  label={entry.label}
+                  tip={
+                    entry.unknownDuration
+                      ? `${entry.tip} ${UNKNOWN_DURATION_TIP}`
+                      : entry.tip
+                  }
+                />
+              ))}
+            </>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

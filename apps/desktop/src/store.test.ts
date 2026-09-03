@@ -587,12 +587,14 @@ describe("My Games presentation settings", () => {
     try {
       useAppStore.getState().setMyGamesCardSize("list");
       useAppStore.getState().setMyGamesSortKey("name");
-      useAppStore.getState().setMyGamesShowBadges(false);
+      useAppStore.getState().setMyGamesShowOriginBadges(false);
+      useAppStore.getState().setMyGamesShowMatchBadges(true);
 
       expect(useAppStore.getState().settings).toMatchObject({
         libraryCardSize: "list",
         librarySortKey: "name",
-        libraryShowBadges: false,
+        libraryShowOriginBadges: false,
+        libraryShowMatchBadges: true,
       });
       await Promise.resolve();
       expect(globalThis.localStorage.setItem).toHaveBeenCalled();

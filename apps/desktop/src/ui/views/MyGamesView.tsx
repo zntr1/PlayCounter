@@ -118,6 +118,7 @@ import { listLocalLinks, type LocalLink } from "../../localLinks";
 import {
   GameMatchBadges,
   GameOriginBadges,
+  GameProvenanceBadges,
   Panel,
   SourceBadge,
   Stat,
@@ -199,10 +200,7 @@ import {
   PROVIDER_TAB_CONFIGS,
   type ImportableProviderTabConfig,
 } from "../libraryProviderTabs";
-import {
-  libraryBadgesVisible,
-  type MyGamesCardSize,
-} from "../myGamesPresentation";
+import { type MyGamesCardSize } from "../myGamesPresentation";
 import {
   INITIAL_LIBRARY_RENDER_COUNT,
   nextLibraryRenderLimit,
@@ -504,13 +502,19 @@ export function MyGamesView() {
   const sortKey = useAppStore(
     (state) => state.settings.librarySortKey ?? "recent",
   );
-  const showBadges = useAppStore(
-    (state) => state.settings.libraryShowBadges !== false,
+  const showOrigin = useAppStore(
+    (state) => state.settings.libraryShowOriginBadges !== false,
+  );
+  const showMatch = useAppStore(
+    (state) => state.settings.libraryShowMatchBadges !== false,
   );
   const setMyGamesCardSize = useAppStore((state) => state.setMyGamesCardSize);
   const setMyGamesSortKey = useAppStore((state) => state.setMyGamesSortKey);
-  const setMyGamesShowBadges = useAppStore(
-    (state) => state.setMyGamesShowBadges,
+  const setMyGamesShowOriginBadges = useAppStore(
+    (state) => state.setMyGamesShowOriginBadges,
+  );
+  const setMyGamesShowMatchBadges = useAppStore(
+    (state) => state.setMyGamesShowMatchBadges,
   );
   const view = cardSize;
   const gameLaunchingEnabled = useAppStore(
@@ -1418,33 +1422,60 @@ export function MyGamesView() {
             {customizeOpen ? (
               <div
                 id="library-customize"
-                className="border-b border-border bg-bg px-4 py-3"
+                className="divide-y divide-border border-b border-border bg-bg px-4"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <label
-                      htmlFor="library-show-badges"
+                      htmlFor="library-show-origin"
                       className="text-sm font-medium text-text"
                     >
-                      Show badges
+                      Show where games came from
                     </label>
                     <p
-                      id="library-show-badges-help"
+                      id="library-show-origin-help"
                       className="mt-1 text-xs leading-5 text-text-faint"
                     >
-                      Hides the match seals on covers and the launcher, emulator
-                      or PlayCounter marks beside each game name. Warnings and
-                      actions stay.
+                      The Steam, Xbox, emulator or PlayCounter mark beside each
+                      game name.
                     </p>
                   </div>
                   <input
-                    id="library-show-badges"
+                    id="library-show-origin"
                     type="checkbox"
-                    checked={showBadges}
-                    aria-describedby="library-show-badges-help"
+                    checked={showOrigin}
+                    aria-describedby="library-show-origin-help"
                     data-controller-item="library-option"
                     onChange={(event) =>
-                      setMyGamesShowBadges(event.target.checked)
+                      setMyGamesShowOriginBadges(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
+                      htmlFor="library-show-match"
+                      className="text-sm font-medium text-text"
+                    >
+                      Show how files were matched
+                    </label>
+                    <p
+                      id="library-show-match-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      The IGDB, Community or Custom seal in the cover corner.
+                      Warnings and actions always stay.
+                    </p>
+                  </div>
+                  <input
+                    id="library-show-match"
+                    type="checkbox"
+                    checked={showMatch}
+                    aria-describedby="library-show-match-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesShowMatchBadges(event.target.checked)
                     }
                     className="h-4 w-4 rounded border-border accent-accent"
                   />
@@ -1716,7 +1747,8 @@ export function MyGamesView() {
                             : undefined
                         }
                         showDurationDays={showDurationDays}
-                        showBadges={showBadges}
+                        showOrigin={showOrigin}
+                        showMatch={showMatch}
                         view={view}
                         onRemove={requestRemoval}
                         onStopTracking={
@@ -1928,7 +1960,8 @@ function GameLibraryCard({
   onAcquireLaunch,
   onReleaseLaunch,
   showDurationDays,
-  showBadges,
+  showOrigin,
+  showMatch,
   view,
   onRemove,
   onStopTracking,
@@ -1942,14 +1975,17 @@ function GameLibraryCard({
   onAcquireLaunch: (gameKey: string) => boolean;
   onReleaseLaunch: (gameKey: string) => void;
   showDurationDays: boolean;
-  showBadges: boolean;
+  showOrigin: boolean;
+  showMatch: boolean;
   view: ViewMode;
   onRemove: (game: GameSummary) => void;
   onStopTracking?: (game: GameSummary) => void;
   onDemoPlaytimeLogged?: (durationSeconds: number) => void;
   demo?: boolean;
 }) {
-  const badgesVisible = libraryBadgesVisible({ showBadges, demo });
+  // The tour walks through both halves, so its demo card always shows them.
+  const originVisible = demo || showOrigin;
+  const matchVisible = demo || showMatch;
   const averageSeconds = Math.round(
     game.sessionSeconds / Math.max(1, game.sessionCount),
   );
@@ -3534,12 +3570,17 @@ function GameLibraryCard({
             </div>
           )}
 
-          {/* Match provenance: one seal per way this game's files were matched */}
-          {badgesVisible ? (
-            <GameMatchBadges
-              className="peer/seals absolute left-2 top-2 z-40 drop-shadow-md"
+          {/* Match seals top left. Origin coins sit beside the game name, so the
+              right column is just the tracking warning and the hover actions. */}
+          {matchVisible ? (
+            <GameProvenanceBadges
+              className="peer/provenance absolute left-2 top-2 z-40 drop-shadow-md"
               sources={game.sources}
               approval={communityApproval}
+              providers={importedProviders}
+              emulatorIds={game.emulatorIds}
+              unknownDurationProviders={unknownDurationProviders}
+              describeOrigins={originVisible}
               dataTourPrefix={demo ? "demo-source" : undefined}
             />
           ) : null}
@@ -3572,10 +3613,10 @@ function GameLibraryCard({
           {/* Hover Actions - Top Right (constructive first, destructive last) */}
           <div
             className={clsx(
-              "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/seals:pointer-events-none peer-hover/seals:!opacity-0",
-              trackingUnavailable
-                ? "top-12 peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0"
-                : "top-2",
+              "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/provenance:pointer-events-none peer-hover/provenance:!opacity-0",
+              trackingUnavailable &&
+                "peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0",
+              trackingUnavailable ? "top-12" : "top-2",
               launchTourDemo && "translate-x-0 opacity-100",
             )}
           >
@@ -3685,6 +3726,14 @@ function GameLibraryCard({
           )}
         >
           <div className="flex min-w-0 items-center gap-2">
+            {/* Origin leads the name: where the game came from, then what it is */}
+            {originVisible ? (
+              <GameOriginBadges
+                providers={importedProviders}
+                emulatorIds={game.emulatorIds}
+                unknownDurationProviders={unknownDurationProviders}
+              />
+            ) : null}
             <h2
               className={clsx(
                 "min-w-0 flex-1 truncate font-semibold text-text",
@@ -3705,14 +3754,6 @@ function GameLibraryCard({
                 game.name
               )}
             </h2>
-            {/* Origin: where this game came from, beside the name it belongs to */}
-            {badgesVisible ? (
-              <GameOriginBadges
-                providers={importedProviders}
-                emulatorIds={game.emulatorIds}
-                unknownDurationProviders={unknownDurationProviders}
-              />
-            ) : null}
           </div>
           <div
             data-tour={demo ? "demo-playtime-result" : undefined}
@@ -4110,21 +4151,21 @@ function GameLibraryCard({
                 game.name
               )}
             </h2>
-            {badgesVisible ? (
-              <>
-                <GameMatchBadges
-                  variant="label"
-                  sources={game.sources}
-                  approval={communityApproval}
-                  dataTourPrefix={demo ? "demo-source" : undefined}
-                />
-                <GameOriginBadges
-                  variant="label"
-                  providers={importedProviders}
-                  emulatorIds={game.emulatorIds}
-                  unknownDurationProviders={unknownDurationProviders}
-                />
-              </>
+            {matchVisible ? (
+              <GameMatchBadges
+                variant="label"
+                sources={game.sources}
+                approval={communityApproval}
+                dataTourPrefix={demo ? "demo-source" : undefined}
+              />
+            ) : null}
+            {originVisible ? (
+              <GameOriginBadges
+                variant="label"
+                providers={importedProviders}
+                emulatorIds={game.emulatorIds}
+                unknownDurationProviders={unknownDurationProviders}
+              />
             ) : null}
           </div>
           <div className="mt-1.5 flex items-center gap-3 text-xs text-text-faint">

@@ -476,7 +476,8 @@ export type AppState = {
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesSortKey: (key: MyGamesSortKey) => void;
-  setMyGamesShowBadges: (enabled: boolean) => void;
+  setMyGamesShowOriginBadges: (enabled: boolean) => void;
+  setMyGamesShowMatchBadges: (enabled: boolean) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setEmulatorSetting: (
     key: "emulatorDetection" | "emulatorContentLookup",
@@ -521,7 +522,8 @@ const defaultSettings: Settings = {
   showDurationDays: false,
   libraryCardSize: "grid",
   librarySortKey: "recent",
-  libraryShowBadges: true,
+  libraryShowOriginBadges: true,
+  libraryShowMatchBadges: true,
   autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
@@ -1340,9 +1342,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     persistSoon();
   },
-  setMyGamesShowBadges: (libraryShowBadges) => {
+  setMyGamesShowOriginBadges: (libraryShowOriginBadges) => {
     set((state) => ({
-      settings: { ...state.settings, libraryShowBadges },
+      settings: { ...state.settings, libraryShowOriginBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowMatchBadges: (libraryShowMatchBadges) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowMatchBadges },
     }));
     persistSoon();
   },

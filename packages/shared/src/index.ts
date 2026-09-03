@@ -418,7 +418,13 @@ export interface Settings {
   /** My Games card density. Absent on older persisted settings. */
   libraryCardSize?: "grid" | "large" | "list";
   librarySortKey?: "recent" | "playtime" | "name" | "sessions";
+  /** Retired single toggle. Still read once so an existing opt-out seeds both
+   *  of the toggles below; never written again. */
   libraryShowBadges?: boolean;
+  /** Steam, Xbox, emulator or PlayCounter mark beside each game name. */
+  libraryShowOriginBadges?: boolean;
+  /** IGDB, Community or Custom seal in the cover corner. */
+  libraryShowMatchBadges?: boolean;
   autoShareIgnoredProcesses: boolean;
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;

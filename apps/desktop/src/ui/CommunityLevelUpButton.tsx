@@ -37,7 +37,7 @@ export function CommunityLevelUpButton({
               Suggestion approved
             </span>
             <span className="mt-0.5 block truncate text-xs font-bold">
-              Level up to Community
+              Level up
             </span>
           </span>
           <Sparkles

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MY_GAMES_PRESENTATION,
-  libraryBadgesVisible,
   resolveMyGamesPresentation,
   resolveMyGamesPresentationSettings,
 } from "./myGamesPresentation";
@@ -21,23 +20,37 @@ describe("My Games presentation", () => {
       resolveMyGamesPresentation({
         libraryCardSize: "huge" as "grid",
         librarySortKey: "playtime",
-        libraryShowBadges: false,
+        libraryShowOriginBadges: false,
       }),
-    ).toEqual({ cardSize: "grid", sortKey: "playtime", showBadges: false });
+    ).toEqual({
+      cardSize: "grid",
+      sortKey: "playtime",
+      showOrigin: false,
+      showMatch: true,
+    });
+  });
+
+  it("seeds both badge toggles from the retired single one", () => {
+    expect(
+      resolveMyGamesPresentation({ libraryShowBadges: false }),
+    ).toMatchObject({ showOrigin: false, showMatch: false });
+  });
+
+  it("lets a stored toggle win over the retired one", () => {
+    expect(
+      resolveMyGamesPresentation({
+        libraryShowBadges: false,
+        libraryShowMatchBadges: true,
+      }),
+    ).toMatchObject({ showOrigin: false, showMatch: true });
   });
 
   it("returns valid persisted setting keys", () => {
     expect(resolveMyGamesPresentationSettings(undefined)).toEqual({
       libraryCardSize: "grid",
       librarySortKey: "recent",
-      libraryShowBadges: true,
+      libraryShowOriginBadges: true,
+      libraryShowMatchBadges: true,
     });
-  });
-
-  it("keeps tour badge anchors visible", () => {
-    expect(libraryBadgesVisible({ showBadges: false, demo: false })).toBe(
-      false,
-    );
-    expect(libraryBadgesVisible({ showBadges: false, demo: true })).toBe(true);
   });
 });

@@ -5,19 +5,24 @@ export type MyGamesCardSize = "grid" | "large" | "list";
 
 export type MyGamesPresentationSettings = Pick<
   Settings,
-  "libraryCardSize" | "librarySortKey" | "libraryShowBadges"
+  | "libraryCardSize"
+  | "librarySortKey"
+  | "libraryShowOriginBadges"
+  | "libraryShowMatchBadges"
 >;
 
 export type MyGamesPresentation = {
   cardSize: MyGamesCardSize;
   sortKey: MyGamesSortKey;
-  showBadges: boolean;
+  showOrigin: boolean;
+  showMatch: boolean;
 };
 
 export const DEFAULT_MY_GAMES_PRESENTATION: MyGamesPresentation = {
   cardSize: "grid",
   sortKey: "recent",
-  showBadges: true,
+  showOrigin: true,
+  showMatch: true,
 };
 
 export function isMyGamesCardSize(value: unknown): value is MyGamesCardSize {
@@ -34,8 +39,17 @@ export function isMyGamesSortKey(value: unknown): value is MyGamesSortKey {
 }
 
 export function resolveMyGamesPresentation(
-  settings: Partial<MyGamesPresentationSettings> | undefined,
+  settings:
+    | (Partial<MyGamesPresentationSettings> &
+        Pick<Partial<Settings>, "libraryShowBadges">)
+    | undefined,
 ): MyGamesPresentation {
+  // The retired single toggle seeds both halves, so anyone who had badges off
+  // stays that way instead of having them reappear.
+  const legacy =
+    typeof settings?.libraryShowBadges === "boolean"
+      ? settings.libraryShowBadges
+      : undefined;
   return {
     cardSize: isMyGamesCardSize(settings?.libraryCardSize)
       ? settings.libraryCardSize
@@ -43,27 +57,28 @@ export function resolveMyGamesPresentation(
     sortKey: isMyGamesSortKey(settings?.librarySortKey)
       ? settings.librarySortKey
       : DEFAULT_MY_GAMES_PRESENTATION.sortKey,
-    showBadges:
-      typeof settings?.libraryShowBadges === "boolean"
-        ? settings.libraryShowBadges
-        : DEFAULT_MY_GAMES_PRESENTATION.showBadges,
+    showOrigin:
+      typeof settings?.libraryShowOriginBadges === "boolean"
+        ? settings.libraryShowOriginBadges
+        : (legacy ?? DEFAULT_MY_GAMES_PRESENTATION.showOrigin),
+    showMatch:
+      typeof settings?.libraryShowMatchBadges === "boolean"
+        ? settings.libraryShowMatchBadges
+        : (legacy ?? DEFAULT_MY_GAMES_PRESENTATION.showMatch),
   };
 }
 
 export function resolveMyGamesPresentationSettings(
-  settings: Partial<MyGamesPresentationSettings> | undefined,
+  settings:
+    | (Partial<MyGamesPresentationSettings> &
+        Pick<Partial<Settings>, "libraryShowBadges">)
+    | undefined,
 ): Required<MyGamesPresentationSettings> {
   const resolved = resolveMyGamesPresentation(settings);
   return {
     libraryCardSize: resolved.cardSize,
     librarySortKey: resolved.sortKey,
-    libraryShowBadges: resolved.showBadges,
+    libraryShowOriginBadges: resolved.showOrigin,
+    libraryShowMatchBadges: resolved.showMatch,
   };
-}
-
-export function libraryBadgesVisible(input: {
-  showBadges: boolean;
-  demo: boolean;
-}) {
-  return input.demo || input.showBadges;
 }

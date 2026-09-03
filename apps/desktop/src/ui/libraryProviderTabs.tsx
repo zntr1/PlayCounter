@@ -1,6 +1,6 @@
 import type { LibraryProviderId, Platform } from "@playcounter/shared";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
-import xboxIconUrl from "../../../../assets/xbox/xbox-icon.png";
+import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import type { BuiltinImportProviderId } from "../library/importProviders";
 
 type ProviderTabCopy = {
