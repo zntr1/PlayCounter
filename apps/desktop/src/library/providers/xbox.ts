@@ -276,11 +276,11 @@ export async function reverseResolveXboxGame(
     body: JSON.stringify({ gameId } satisfies LibraryReverseResolveRequest),
   });
   if (!response.ok) {
-    throw new Error(`Game executable lookup failed (${response.status}).`);
+    throw new Error(`The game file lookup failed (${response.status}).`);
   }
   const record = asRecord(await response.json());
   if (!record || !Array.isArray(record.executables)) {
-    throw new Error("Game executable lookup returned an invalid response.");
+    throw new Error("The game file lookup sent back an invalid response.");
   }
   return {
     game: parseGameMetadata(record.game),
@@ -302,7 +302,7 @@ function parseLibraryExecutable(value: unknown): LibraryKnownExecutable {
     typeof record.verified !== "boolean" ||
     (record.ambiguous !== undefined && typeof record.ambiguous !== "boolean")
   ) {
-    throw new Error("Game executable lookup returned invalid executable data.");
+    throw new Error("The game file lookup sent back invalid file data.");
   }
   return {
     platform,
@@ -515,7 +515,7 @@ export function xboxImportFailureMessage(context: XboxFailureContext) {
     ? ` Microsoft account: ${context.accountLabel}.`
     : "";
   const recovery =
-    " Make sure this is the Microsoft account connected to your Xbox gaming profile. If you are unsure, use Copy sign-in link and open it in a private browser window.";
+    " Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, use Copy sign-in link and open it in a private browser window.";
 
   switch (context.stage) {
     case "authorization": {
@@ -525,13 +525,13 @@ export function xboxImportFailureMessage(context: XboxFailureContext) {
       return `Microsoft sign-in was not completed.${errorCode}${recovery}`;
     }
     case "microsoft_token":
-      return `Microsoft sign-in returned, but PlayCounter could not complete Microsoft authorization.${recovery}`;
+      return `Microsoft answered, but PlayCounter could not finish the sign-in.${recovery}`;
     case "xbox_user_token":
       return `Microsoft sign-in completed.${account} Xbox Live did not accept this account.${recovery}`;
     case "xbox_xsts":
       return `Microsoft sign-in completed.${account} Xbox Live could not create a gaming session for this account.${recovery}`;
     case "title_history":
-      return `Xbox sign-in completed.${account} Xbox Live did not return game history.${recovery}`;
+      return `Xbox sign-in completed.${account} Xbox did not send back any game history.${recovery}`;
   }
 
   switch (context.reason) {
@@ -542,9 +542,9 @@ export function xboxImportFailureMessage(context: XboxFailureContext) {
     case "oauth_error":
       return `Microsoft sign-in failed.${account}${recovery}`;
     case "xbox_api_error":
-      return `Xbox Live could not return your game history.${account}${recovery}`;
+      return `Xbox could not send back your game history.${account}${recovery}`;
     default:
-      return "Xbox import failed. Try again later.";
+      return "The Xbox import failed. Please try again later.";
   }
 }
 

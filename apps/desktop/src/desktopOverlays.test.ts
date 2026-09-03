@@ -172,7 +172,7 @@ describe("desktop overlay policy", () => {
         reducedMotion: false,
       }),
     ).toMatchObject({
-      title: "Pick a match",
+      title: "Which game is this?",
       action: "open-now-playing",
       actionLabel: "Open Now Playing",
       targetPids: [4242],

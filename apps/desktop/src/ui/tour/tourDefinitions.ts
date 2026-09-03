@@ -181,7 +181,7 @@ export const TOURS: TourDefinition[] = [
         anchor: a("settings-launcher"),
         scrollIntoView: true,
         title: "Optional controller navigation",
-        body: "Turn on Controller navigation to move around PlayCounter with an controller. To bring PlayCounter to the front, hold Select/View + R1/RB a few seconds and then release.",
+        body: "Turn on Controller navigation to move around PlayCounter with a controller. To bring PlayCounter to the front, hold Select/View + R1/RB a few seconds and then release.",
       },
     ],
   },

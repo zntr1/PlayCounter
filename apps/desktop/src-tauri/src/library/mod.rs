@@ -15,7 +15,7 @@ pub async fn library_detect_providers() -> Result<Vec<steam::ProviderStatus>, St
 #[tauri::command]
 pub async fn library_list_accounts(provider: String) -> Result<Vec<steam::LocalAccount>, String> {
     if provider != "steam" {
-        return Err("This game library provider is not supported.".to_string());
+        return Err("PlayCounter cannot import from this launcher.".to_string());
     }
     tauri::async_runtime::spawn_blocking(steam::accounts)
         .await
@@ -25,7 +25,7 @@ pub async fn library_list_accounts(provider: String) -> Result<Vec<steam::LocalA
 #[tauri::command]
 pub async fn library_scan(provider: String, account_id: u32) -> Result<steam::ScanResult, String> {
     if provider != "steam" {
-        return Err("This game library provider is not supported.".to_string());
+        return Err("PlayCounter cannot import from this launcher.".to_string());
     }
     tauri::async_runtime::spawn_blocking(move || steam::scan(account_id))
         .await
@@ -64,7 +64,7 @@ pub async fn library_launch_app(
         "xbox" => xbox::launch_app(&external_id, &mode),
         _ => Err(LaunchError::new(
             LaunchErrorKind::Unsupported,
-            "This game library provider is not supported.",
+            "PlayCounter cannot import from this launcher.",
         )),
     })
     .await
@@ -75,6 +75,6 @@ fn require_local_provider(provider: &str) -> Result<(), String> {
     if provider == "steam" || provider == "xbox" {
         Ok(())
     } else {
-        Err("This game library provider is not supported.".to_string())
+        Err("PlayCounter cannot import from this launcher.".to_string())
     }
 }

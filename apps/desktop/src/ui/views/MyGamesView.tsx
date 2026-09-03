@@ -438,7 +438,7 @@ function playButtonState(
   }
   if (launchBlocked) {
     return {
-      ariaLabel: `Play ${gameName} (unavailable — another game is starting)`,
+      ariaLabel: `Play ${gameName} (unavailable, another game is starting)`,
       title: "Another game is starting",
       disabled: true,
       loading: false,
@@ -1652,8 +1652,8 @@ export function MyGamesView() {
                 <div>
                   <h3 className="font-semibold text-text">PlayCounter</h3>
                   <p className="text-sm text-text-muted">
-                    PlayCounter found these on its own — nothing here came from
-                    a launcher import.
+                    PlayCounter found these on its own. Nothing here came from a
+                    launcher import.
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1677,11 +1677,7 @@ export function MyGamesView() {
                     value={String(unimportedSummary.emulatorCount)}
                   />
                 </div>
-                <p className="px-1 text-xs leading-5 text-text-faint">
-                  Detected while running, added by you, or played through an
-                  emulator. Import a launcher library and its games move to that
-                  launcher&apos;s tab.
-                </p>
+               
               </div>
             ) : null}
 
@@ -1697,9 +1693,9 @@ export function MyGamesView() {
                   Everything here came from an import
                 </h3>
                 <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-muted">
-                  Games PlayCounter detects on its own — a disc install, a
-                  portable .exe, an emulator, or anything you add yourself —
-                  show up here.
+                  Games PlayCounter finds on its own show up here: a disc
+                  install, a game file you started yourself, an emulator, or
+                  anything you added by hand.
                 </p>
               </Panel>
             ) : layout.panel === "no-search-results" ? (

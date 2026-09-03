@@ -266,7 +266,7 @@ export function App() {
   const activeViewSubtitle =
     activeView === "import"
       ? libraryImportProvider === "xbox"
-        ? "Bring your Xbox history and playtime into PlayCounter"
+        ? "Bring your Xbox games and playtime into PlayCounter"
         : "Bring your Steam library and playtime into PlayCounter"
       : views[activeView].subtitle;
   const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);

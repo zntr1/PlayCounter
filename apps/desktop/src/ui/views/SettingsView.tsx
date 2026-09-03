@@ -452,7 +452,7 @@ export function SettingsView() {
             Popups stay hidden while the PlayCounter window is open and focused.
           </p>
           <SettingsRow
-            description="Popup when PlayCounter needs you to choose between possible game matches. Opens Now Playing when clicked."
+            description="Popup when PlayCounter needs you to pick between possible games. Click it to open Now Playing."
             title="Choices that need review"
           >
             <input
@@ -578,11 +578,11 @@ export function SettingsView() {
       {currentPlatform() === "windows" ? (
         <SettingsPanel
           dataTour="settings-launcher"
-          description="Control local launch-file storage, direct game launching, and optional controller navigation."
+          description="Decide whether PlayCounter may remember game files on this PC, start games for you, and be steered with a controller."
           title="Game launching"
         >
           <SettingsRow
-            description="Keep recognized executable and emulator launch-file paths on this PC. Turning this off deletes saved paths and stops learning new ones."
+            description="Keep the file paths of the games and emulators PlayCounter recognized on this PC. Turning this off deletes the saved paths and stops PlayCounter from learning new ones."
             title="Remember launch paths"
           >
             <input
@@ -599,7 +599,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Show Play actions in My Games and allow PlayCounter to start games. Requires remembered launch paths."
+            description="Show Play buttons in My Games and let PlayCounter start games for you. Needs remembered launch paths."
             title="Launch games directly"
           >
             <input
@@ -614,14 +614,14 @@ export function SettingsView() {
           </SettingsRow>
 
           <div className="rounded-lg border border-border bg-bg/40 px-4 py-3 text-xs leading-5 text-text-muted">
-            PlayCounter starts a selected game <code>.exe</code> directly, or
-            passes a saved game file to a supported emulator. Launcher-managed
-            games and administrator approval may still require their normal
-            shortcut. Remembered paths stay on this device and are excluded from
-            backups.
+            PlayCounter starts the game file you picked directly, or hands a
+            saved game file to a supported emulator. Games managed by a
+            launcher, and games that ask for administrator rights, may still
+            need their normal shortcut. Remembered paths stay on this device and
+            are left out of backups.
           </div>
           <SettingsRow
-            description="Navigate PlayCounter with an controller. Requires direct game launching turned on."
+            description="Move through PlayCounter with a controller. Needs direct game launching turned on."
             title={
               <span className="flex items-center gap-2">
                 <Gamepad2 size={17} className="text-accent" />
@@ -646,10 +646,10 @@ export function SettingsView() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-medium text-text">
-                  Regular game executables
+                  Saved game files
                 </div>
                 <div className="mt-0.5 text-xs text-text-faint">
-                  {executableLaunchTargetCount} saved <code>.exe</code>{" "}
+                  {executableLaunchTargetCount} saved game file{" "}
                   {executableLaunchTargetCount === 1 ? "path" : "paths"}
                 </div>
               </div>
@@ -659,7 +659,7 @@ export function SettingsView() {
                 disabled={executableLaunchTargetCount === 0}
                 onClick={() => setConfirmForgetLaunchFiles("executables")}
               >
-                Forget game executables
+                Forget game files
               </Button>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-3">
@@ -913,7 +913,7 @@ export function SettingsView() {
         title="Library import"
       >
         <SettingsRow
-          description="Removes Steam provenance, imported playtime floors, Steam-created executable links, and local install facts. Recorded PlayCounter sessions remain."
+          description="Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept."
           title="Forget imported Steam data"
         >
           <Button
@@ -925,7 +925,7 @@ export function SettingsView() {
           </Button>
         </SettingsRow>
         <SettingsRow
-          description="Removes Xbox provenance, imported playtime floors, and Xbox-created executable links. Recorded PlayCounter sessions remain."
+          description="Removes the Xbox mark, the imported Xbox playtime, and the game files Xbox linked. Sessions PlayCounter recorded itself are kept."
           title="Forget imported Xbox data"
         >
           <Button
@@ -1173,24 +1173,23 @@ export function SettingsView() {
               setLauncherSetting("rememberLaunchPaths", false);
               addToast({
                 tone: "success",
-                title: "Launch path storage disabled",
+                title: "Launch paths are no longer stored",
                 detail:
-                  "Saved game and emulator launch paths were forgotten. Direct launching and controller navigation were turned off.",
+                  "Saved game and emulator paths were forgotten. Starting games from PlayCounter and controller navigation were turned off.",
               });
             } else if (confirmForgetLaunchFiles === "executables") {
               forgetExecutableLaunchTargets();
               addToast({
                 tone: "success",
-                title: "Game executable paths forgotten",
-                detail:
-                  "Emulator programs and content files were left untouched.",
+                title: "Saved game files forgotten",
+                detail: "Emulator programs and game files were left untouched.",
               });
             } else {
               forgetEmulatorLaunchTargets();
               addToast({
                 tone: "success",
                 title: "Emulator launch files forgotten",
-                detail: "Regular game executable paths were left untouched.",
+                detail: "Saved paths for regular games were left untouched.",
               });
             }
             setConfirmForgetLaunchFiles(null);
@@ -1307,7 +1306,7 @@ function ForgetLaunchFilesDialog({
           ? "Stop remembering launch paths?"
           : emulatorFiles
             ? "Forget emulator launch files?"
-            : "Forget regular game executables?"
+            : "Forget saved game files?"
       }
       icon={Gamepad2}
       onClose={onCancel}
@@ -1324,14 +1323,14 @@ function ForgetLaunchFilesDialog({
     >
       <p className="text-sm leading-6 text-text-muted">
         {disablingStorage
-          ? `This removes ${count === 0 ? "any" : `all ${count}`} saved game and emulator launch ${count === 1 ? "path" : "paths"}, stops PlayCounter from learning new ones, and turns off direct launching and controller navigation.`
+          ? `This removes ${count === 0 ? "any" : `all ${count}`} saved game and emulator ${count === 1 ? "path" : "paths"}, stops PlayCounter from learning new ones, and turns off starting games from PlayCounter and controller navigation.`
           : emulatorFiles
-            ? `This removes ${count} saved emulator program and content ${count === 1 ? "path" : "paths"}, including files such as ISO, RVZ, and DOSBox programs. Regular game executable paths stay intact.`
-            : `This removes ${count} saved executable ${count === 1 ? "path" : "paths"} for regular games. Emulator programs and content files stay intact.`}{" "}
+            ? `This removes ${count} saved emulator program and game ${count === 1 ? "path" : "paths"}, including files such as ISO, RVZ, and DOSBox programs. Paths for regular games stay intact.`
+            : `This removes ${count} saved ${count === 1 ? "path" : "paths"} for regular games. Emulator programs and game files stay intact.`}{" "}
         Play history and game matches are not changed.
         {!disablingStorage
-          ? " PlayCounter can learn stable paths again the next time it sees the game running."
-          : " You can enable path storage again at any time."}
+          ? " PlayCounter can learn the paths again the next time it sees the game running."
+          : " You can turn path storage back on at any time."}
       </p>
     </Modal>
   );

@@ -121,7 +121,7 @@ const sourceMeta: Record<GameSource, SourceMeta> = {
   community: {
     label: "Community",
     icon: Users,
-    tip: "A PlayCounter user linked this file name to the game, and it was approved.",
+    tip: "Another user linked this file name to the game, and it was approved.",
     tone: "text-success",
     labelTone: "border-success-border bg-success-tint text-success",
     markTone: "border-success-border text-success",
@@ -129,7 +129,7 @@ const sourceMeta: Record<GameSource, SourceMeta> = {
   custom: {
     label: "Custom",
     icon: PenLine,
-    tip: "You linked this file name to the game yourself. Stays on this PC.",
+    tip: "You linked this file name to the game yourself. It stays on this PC.",
     tone: "text-text-muted",
     labelTone: "border-border bg-surface text-text-muted",
     markTone: "border-border text-text-muted",
@@ -142,7 +142,7 @@ const approvalMeta: Record<
 > = {
   pending: {
     icon: Clock3,
-    tip: "Sent to the community and waiting for review.",
+    tip: "Sent to the community and waiting to be reviewed.",
     pipTone: "bg-warning text-bg",
   },
   approved: {
@@ -167,8 +167,8 @@ export function communitySuggestionApproval(value: {
 function sourceTip(source: GameSource, approval?: SourceApproval) {
   const meta = sourceMeta[source];
   return approval
-    ? `${meta.label} — ${meta.tip} ${approvalMeta[approval].tip}`
-    : `${meta.label} — ${meta.tip}`;
+    ? `${meta.label}: ${meta.tip} ${approvalMeta[approval].tip}`
+    : `${meta.label}: ${meta.tip}`;
 }
 
 export function SourceBadge({
@@ -285,7 +285,7 @@ const providerMeta: Record<
   },
   xbox: {
     label: "Xbox",
-    tip: "Imported from your Xbox Live history.",
+    tip: "Imported from your Xbox play history.",
     iconUrl: xboxIconUrl,
     tone: "text-[#7ee787]",
     coinTone: "shadow-raised",
@@ -299,7 +299,7 @@ const emulatorLabels: Record<string, string> = {
   dolphin: "Dolphin",
 };
 
-const UNKNOWN_DURATION_TIP = "This platform reported no play time for it.";
+const UNKNOWN_DURATION_TIP = "This source did not report how long you played.";
 
 function providerOrigin(
   provider: LibraryProviderId,
@@ -328,7 +328,7 @@ function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
 const playCounterOrigin: OriginEntry = {
   key: "playcounter",
   label: "PlayCounter",
-  tip: "Found by PlayCounter itself, with no launcher import.",
+  tip: "Found by PlayCounter itself, not imported from a launcher.",
   tone: "text-text-muted",
   coinTone: "",
   chipTone: "border-border bg-surface text-text-muted",
@@ -389,7 +389,7 @@ function OriginGlyph({
 }
 
 function originTip(entry: OriginEntry) {
-  return `${entry.label} — ${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+  return `${entry.label}: ${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
 }
 
 function OriginBadge({

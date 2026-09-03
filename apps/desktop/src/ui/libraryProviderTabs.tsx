@@ -44,7 +44,7 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
     label: "Steam",
     iconUrl: steamIconUrl,
     headline: "Steam library",
-    subtitle: "Imported from your local Steam installation.",
+    subtitle: "Imported from Steam on this PC.",
     importCtaLabel: "Import more from Steam",
     statLabels: {
       games: "Steam games",
@@ -53,10 +53,10 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
       installed: "Installed on this PC",
     },
     footnote:
-      "These statistics use only Steam's imported records. A game card still shows PlayCounter's effective playtime: the higher single source per game, never Steam and local sessions added together.",
+      "These numbers come from Steam only. A game card always shows the higher of the two: your Steam playtime, or the time PlayCounter tracked itself. The two are never added together.",
     emptyTitle: "No Steam games imported yet",
     emptyBody:
-      "PlayCounter reads your local Steam installation and imports your games with their Steam playtime. No Steam login and no ownership data leave this PC.",
+      "PlayCounter reads Steam on this PC and brings in your games with their Steam playtime. You never have to sign in, and your game list stays on this PC.",
     firstImportTitle: "No games tracked yet",
     firstImportBody:
       "PlayCounter adds games automatically as soon as it sees one running. You can also bring your Steam library in right now.",
@@ -67,8 +67,9 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
     id: "xbox",
     label: "Xbox",
     iconUrl: xboxIconUrl,
-    headline: "Xbox history",
-    subtitle: "Imported from Xbox Live after Microsoft sign-in.",
+    headline: "Xbox library",
+    subtitle:
+      "Imported from your Xbox account after you sign in with Microsoft.",
     importCtaLabel: "Import more from Xbox",
     statLabels: {
       games: "Xbox games",
@@ -77,13 +78,13 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
       installed: "Linked on this PC",
     },
     footnote:
-      "Xbox playtime is included only when Xbox Live reports a duration; titles with unknown duration still count as played. Game cards use the higher single source per game, never Xbox and local sessions added together.",
+      "Xbox playtime only counts when Xbox reports how long you played. Games with an unknown length still count as played. A game card always shows the higher of the two: your Xbox playtime, or the time PlayCounter tracked itself. The two are never added together.",
     emptyTitle: "No Xbox games imported yet",
     emptyBody:
-      "Sign in with Microsoft in your browser, then review and confirm the recognized Xbox titles before importing. Most title matches need this confirmation. PlayCounter never sees your Microsoft credentials, and the server discards access tokens immediately after this import.",
+      "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
     firstImportTitle: "No games tracked yet",
     firstImportBody:
-      "Bring in your Xbox history by signing in with Microsoft in your browser. Most recognized title matches need your confirmation before import. PlayCounter never sees your password and keeps no access tokens.",
+      "Bring in your Xbox playtime by signing in with Microsoft in your browser. Most games need your confirmation first. PlayCounter never sees your password and keeps nothing from your sign-in.",
     firstImportCtaLabel: "Import from Xbox",
     import: { kind: "builtin", platforms: ["windows", "macos", "linux"] },
   },

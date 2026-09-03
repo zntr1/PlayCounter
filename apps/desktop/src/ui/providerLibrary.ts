@@ -44,8 +44,8 @@ export function trackingUnavailableMessage(
       ? `${providers[0] === "xbox" ? "Xbox" : "Steam"} playtime`
       : "Imported playtime";
   return canCheckMatches
-    ? `${source} is already imported, but this game's filename is unknown. Use Check for Matches to look for a newly approved executable, or install and run the game so PlayCounter can discover it.`
-    : `${source} is already imported, but this game's filename is unknown. Install and run the game so PlayCounter can discover it.`;
+    ? `${source} is already imported, but PlayCounter does not know this game's file name yet. Use Check for Matches, or install the game and run it once so PlayCounter can find it.`
+    : `${source} is already imported, but PlayCounter does not know this game's file name yet. Install the game and run it once so PlayCounter can find it.`;
 }
 
 export function hasUnknownProviderPlaytime(

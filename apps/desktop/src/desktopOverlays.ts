@@ -163,11 +163,11 @@ function overlayCopy(
   if (kind === "action-required" && event.type === "choice-required") {
     return {
       kicker: "CHOICE REQUIRED",
-      title: "Pick a match",
+      title: "Which game is this?",
       body:
         event.candidateCount === 2
-          ? "Choose between 2 possible matches so tracking can start."
-          : `Choose between ${event.candidateCount} possible matches so tracking can start.`,
+          ? "Two games use this file name. Pick one so tracking can start."
+          : `${event.candidateCount} games use this file name. Pick one so tracking can start.`,
       action: "open-now-playing",
       actionLabel: "Open Now Playing",
     };
@@ -177,14 +177,14 @@ function overlayCopy(
       ? {
           kicker: "NEW APP FOUND",
           title: "PlayCounter doesn't know this one",
-          body: "Open Discovered to sort it out.",
+          body: "Open Discovered and tell it what this is.",
           action: "open-discovered",
           actionLabel: "Open Discovered",
         }
       : {
           kicker: "NEW APPS FOUND",
           title: `${event.exeCount} new apps found`,
-          body: "Open Discovered to sort them out.",
+          body: "Open Discovered and tell it what they are.",
           action: "open-discovered",
           actionLabel: "Open Discovered",
         };

@@ -87,27 +87,27 @@ pub fn executable_from_path(
     executable_path: &str,
 ) -> Result<ScannedExecutable, String> {
     let install_root = fs::canonicalize(install_path)
-        .map_err(|error| format!("Could not open the game installation folder: {error}"))?;
+        .map_err(|error| format!("Could not open the game's install folder: {error}"))?;
     let selected = fs::canonicalize(executable_path)
-        .map_err(|error| format!("Could not open the selected executable: {error}"))?;
+        .map_err(|error| format!("Could not open the file you picked: {error}"))?;
     if !selected.is_file()
         || !selected
             .extension()
             .is_some_and(|value| value.eq_ignore_ascii_case("exe"))
     {
-        return Err("Choose a Windows .exe file.".to_string());
+        return Err("Pick a Windows program file (.exe).".to_string());
     }
     let relative = selected
         .strip_prefix(&install_root)
-        .map_err(|_| "Choose an executable inside this game's installation folder.".to_string())?;
+        .map_err(|_| "Pick a file inside this game's install folder.".to_string())?;
     let file_name = selected
         .file_name()
-        .ok_or("The selected executable has no file name.")?
+        .ok_or("The file you picked has no name.")?
         .to_string_lossy()
         .to_string();
     let size_bytes = selected
         .metadata()
-        .map_err(|error| format!("Could not inspect the selected executable: {error}"))?
+        .map_err(|error| format!("Could not read the file you picked: {error}"))?
         .len();
     Ok(ScannedExecutable {
         file_name,

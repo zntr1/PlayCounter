@@ -102,7 +102,7 @@ describe("provider library", () => {
 
   it("uses the imported provider in missing-executable warnings", () => {
     expect(trackingUnavailableMessage(["xbox"], false)).toBe(
-      "Xbox playtime is already imported, but this game's filename is unknown. Install and run the game so PlayCounter can discover it.",
+      "Xbox playtime is already imported, but PlayCounter does not know this game's file name yet. Install the game and run it once so PlayCounter can find it.",
     );
     expect(trackingUnavailableMessage(["steam"], true)).toContain(
       "Steam playtime is already imported",

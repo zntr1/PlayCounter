@@ -389,7 +389,7 @@ export function ImportLibraryView() {
         return commit ? [commit] : [];
       });
       if (commits.length === 0)
-        throw new Error("Select at least one importable game.");
+        throw new Error("Pick at least one game to import.");
       await backupImporterDataOnce();
       const result = await runLibraryImport(commits);
       const failedShares = result.shareOutcomes.filter(
@@ -408,7 +408,7 @@ export function ImportLibraryView() {
         title: `${commits.length} ${providerName} ${commits.length === 1 ? "game" : "games"} imported`,
         detail:
           failedShares > 0
-            ? `Your library is available in My Games. ${failedShares} executable ${failedShares === 1 ? "suggestion needs" : "suggestions need"} an online retry.`
+            ? `Your library is available in My Games. ${failedShares} game ${failedShares === 1 ? "file needs" : "files need"} another try when you are back online.`
             : "Your library and playtime are now available in My Games.",
       });
     } catch (cause) {
@@ -458,8 +458,8 @@ export function ImportLibraryView() {
         tone: "success",
         title: `${match.game?.name ?? game.name ?? "Game"} added to My Games`,
         detail: shareFailed
-          ? "The game was added locally, but sharing the executable needs an online retry."
-          : "The executable was submitted as a community suggestion.",
+          ? "The game was added on this PC, but sharing the game file needs another try when you are back online."
+          : "The game file was sent to the community for review.",
       });
     } catch (cause) {
       setError(formatError(cause));
@@ -511,8 +511,8 @@ export function ImportLibraryView() {
         title: `${reverseMatch.game.name} imported`,
         detail:
           linkedCount > 0
-            ? `${linkedCount} verified executable ${linkedCount === 1 ? "mapping was" : "mappings were"} linked for automatic tracking after installation.`
-            : "No verified one-to-one executable mapping is available yet.",
+            ? `${linkedCount} known game ${linkedCount === 1 ? "file was" : "files were"} linked, so PlayCounter tracks this game once it is installed.`
+            : "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
       });
     } catch (cause) {
       setError(formatError(cause));
@@ -524,7 +524,7 @@ export function ImportLibraryView() {
   async function browseExecutable(game: ScannedLibraryGame) {
     if (!game.installPath) {
       setError(
-        `${providerName} did not provide an installation path for this game.`,
+        `${providerName} did not report an install folder for this game.`,
       );
       return;
     }
@@ -535,7 +535,7 @@ export function ImportLibraryView() {
         multiple: false,
         directory: false,
         defaultPath: game.installPath,
-        filters: [{ name: "Game executable", extensions: ["exe"] }],
+        filters: [{ name: "Game file", extensions: ["exe"] }],
       });
       if (typeof selectedPath !== "string") return;
       const executable = await invoke<ScannedExecutable>(
@@ -548,7 +548,7 @@ export function ImportLibraryView() {
       );
       if (matchesProcessPatternSet(executable.fileName, ignoredProcesses)) {
         throw new Error(
-          `${executable.fileName} is ignored by PlayCounter and cannot be used as the game executable.`,
+          `${executable.fileName} is on PlayCounter's ignore list, so it cannot be used as the game file.`,
         );
       }
       setBrowsedExecutables((current) => ({
@@ -578,13 +578,13 @@ export function ImportLibraryView() {
     if (!url) return;
     try {
       if (!navigator.clipboard?.writeText) {
-        throw new Error("Clipboard access is unavailable.");
+        throw new Error("PlayCounter cannot reach the clipboard right now.");
       }
       await navigator.clipboard.writeText(url);
       addToast({
         tone: "success",
         title: "Sign-in link copied",
-        detail: "Open it in the browser where you want to sign in.",
+        detail: "Open it in the browser you want to sign in with.",
       });
     } catch (cause) {
       addToast({
@@ -628,23 +628,23 @@ export function ImportLibraryView() {
       {
         key: "ready",
         label: "Ready to import",
-        description: "No additional choices required.",
+        description: "Nothing left to decide. Pick the games and import them.",
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "attention",
         label: "Needs attention",
         description: isXbox
-          ? "Review the recognized title before importing it."
-          : "Choose the executable, then add the game and share the mapping as a community suggestion.",
+          ? "Confirm which game this is before importing it."
+          : "Pick the game file, then add the game and share the file with the community.",
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "unavailable",
         label: "Unavailable right now",
         description: isXbox
-          ? "The Xbox title could not be matched to importable game metadata."
-          : "Missing metadata or importable Steam activity. Most of the time, those are Demos and Applications like Wallpaper Engine, Soundpad, etc.",
+          ? "PlayCounter could not match this Xbox title to a game it knows."
+          : "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
         games: [] as ScannedLibraryGame[],
       },
       {
@@ -699,8 +699,8 @@ export function ImportLibraryView() {
       <LoadingPanel
         label={
           isXbox
-            ? "Preparing Xbox import…"
-            : "Looking for a local Steam installation…"
+            ? "Preparing the Xbox import…"
+            : "Looking for Steam on this PC…"
         }
       />
     );
@@ -715,8 +715,8 @@ export function ImportLibraryView() {
           </h2>
           <p className="mt-2 text-text-muted">
             {isXbox
-              ? "Xbox import is temporarily unavailable. Check your connection and try again."
-              : "PlayCounter checks the Windows Steam registry entry and the usual installation folders. No Steam login or Web API is used."}
+              ? "The Xbox import is unavailable right now. Check your connection and try again."
+              : "PlayCounter looks for Steam in the Windows registry and in the usual install folders. You never have to sign in to Steam."}
           </p>
           {error ? <ErrorNotice message={error} /> : null}
         </div>
@@ -749,24 +749,26 @@ export function ImportLibraryView() {
             <div className="flex items-center gap-2">
               <ProviderBadge provider={providerId} />
               <span className="text-sm text-text-muted">
-                {isXbox ? "Remote playtime import" : "Local library import"}
+                {isXbox
+                  ? "Playtime from your Xbox account"
+                  : "Library from this PC"}
               </span>
             </div>
             <h2 className="mt-2 text-xl font-semibold text-text">
               {isXbox
                 ? "Connect your Xbox account"
-                : "Select a local Steam account"}
+                : "Pick a Steam account on this PC"}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
               {isXbox
-                ? "Microsoft sign-in opens in your browser. PlayCounter never sees your credentials, and access tokens are discarded server-side after this import."
-                : "Game ownership is not uploaded. Only AppIDs from this local scan are resolved against PlayCounter metadata."}
+                ? "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done."
+                : "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers."}
             </p>
             {isXbox ? (
               <p className="mt-2 text-sm text-text-faint">
-                Make sure you use the Microsoft account connected to your Xbox
-                gaming profile. If you are unsure, copy the sign-in link and
-                open it in a private browser window.
+                Use the Microsoft account that belongs to your Xbox gamertag. If
+                you are not sure, copy the sign-in link and open it in a private
+                browser window.
               </p>
             ) : null}
           </div>
@@ -826,15 +828,15 @@ export function ImportLibraryView() {
       {accounts.length === 0 ? (
         <Panel className="p-4 text-sm text-text-muted">
           {isXbox
-            ? "Xbox import could not be prepared. Try again later."
-            : "Steam is installed, but no readable local account data was found. Start Steam and sign in locally once, then return here."}
+            ? "The Xbox import could not be prepared. Please try again later."
+            : "Steam is installed, but PlayCounter could not read any account data. Start Steam, sign in once, then come back here."}
         </Panel>
       ) : null}
       {capability === "unsupported" ? (
         <Panel className="border-warning-border bg-warning-tint p-4 text-sm text-warning">
-          This PlayCounter backend does not expose the Steam AppID resolver yet.
-          The local scan succeeded, but importing is disabled to avoid creating
-          games with uncertain metadata.
+          PlayCounter cannot look up Steam AppIDs right now. Your library was
+          scanned, but importing is switched off so you do not end up with
+          wrongly named games.
         </Panel>
       ) : null}
       {scan ? (
@@ -843,8 +845,7 @@ export function ImportLibraryView() {
             <div>
               <h2 className="font-semibold text-text">{providerName} games</h2>
               <p className="text-sm text-text-muted">
-                {importableCount} of {scan.games.length} games currently
-                importable
+                {importableCount} of {scan.games.length} games ready to import
               </p>
             </div>
             {activeImportGroup === "ready" ? (
@@ -973,7 +974,7 @@ export function ImportLibraryView() {
                   ))
                 ) : (
                   <p className="px-5 py-8 text-center text-sm text-text-muted">
-                    No games in this category.
+                    Nothing here right now.
                   </p>
                 )}
               </div>
@@ -986,9 +987,7 @@ export function ImportLibraryView() {
         <Panel className="flex items-center justify-between gap-4 border-success-border bg-success-tint p-4">
           <div className="flex items-center gap-3 text-success">
             <CheckCircle2 size={20} />
-            <span className="font-semibold">
-              Import completed successfully.
-            </span>
+            <span className="font-semibold">Import finished.</span>
           </div>
           <Button
             variant="primary"
@@ -1120,10 +1119,10 @@ export function ImportRow({
           {!importable ? (
             <span className="text-xs font-medium text-warning">
               {provider === "xbox" && hasImportableActivity(game)
-                ? "Confirm game identity"
+                ? "Confirm which game this is"
                 : noImportablePlaytime
                   ? "No playtime to import"
-                  : "Metadata unavailable"}
+                  : "Game details unavailable"}
             </span>
           ) : null}
         </div>
@@ -1140,11 +1139,11 @@ export function ImportRow({
           {provider === "steam" ? (
             resolved?.executables.length ? (
               <span>
-                {resolved.executables.length} known executable
+                {resolved.executables.length} known game file
                 {resolved.executables.length === 1 ? "" : "s"}
               </span>
             ) : (
-              <span>No known executable</span>
+              <span>No known game file</span>
             )
           ) : null}
         </div>
@@ -1152,17 +1151,17 @@ export function ImportRow({
           <div className="mt-3 max-w-2xl text-xs text-text-muted">
             <p>
               {xboxNeedsIdentity
-                ? "Choose the executable PlayCounter should track. It is submitted for community review together with the game match you confirm below."
-                : "Choose the executable PlayCounter should track. Add and Share imports the game locally and submits this mapping for community review; it is not globally approved automatically."}
+                ? "Pick the game file PlayCounter should watch. It goes to the community for review together with the game you confirm below."
+                : "Pick the game file PlayCounter should watch. Add and Share adds the game on this PC and sends the file to the community for review. It is not approved for everyone right away."}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
-                aria-label={`Executable for ${resolved?.game?.name ?? game.name ?? game.externalId}`}
+                aria-label={`Game file for ${resolved?.game?.name ?? game.name ?? game.externalId}`}
                 value={manualExecutable ?? ""}
                 onChange={(event) => onManualExecutable(event.target.value)}
                 className="min-w-64 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
               >
-                <option value="">Select an executable…</option>
+                <option value="">Pick a game file…</option>
                 {executableOptions.map((candidate) => (
                   <option
                     key={candidate.relativePath}
@@ -1229,7 +1228,7 @@ export function XboxMatchControls({
   const [message, setMessage] = useState(
     candidates.length > 0
       ? "Choose the exact game, then confirm the match."
-      : "No reliable suggestion was found. Search by title.",
+      : "No safe suggestion found. Search for the game by name.",
   );
   const selectedGame = choices.find(
     (candidate) => candidate.igdbId === selectedIgdbId,
@@ -1260,8 +1259,8 @@ export function XboxMatchControls({
   return (
     <div className="mt-3 max-w-2xl rounded-md border border-border bg-bg/50 p-3 text-xs text-text-muted">
       <p>
-        Xbox title names are not unique. Confirm the IGDB game before its
-        history is attached to your library.
+        Xbox names are not always unique. Confirm the right game before its
+        playtime is added to your library.
       </p>
       <div className="mt-3 flex items-start gap-3">
         {selectedGame?.coverUrl ? (
@@ -1316,7 +1315,7 @@ export function XboxMatchControls({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search the exact game title"
+          placeholder="Search for the game by name"
           className="min-w-0 flex-1"
         />
         <Button
@@ -1454,8 +1453,8 @@ function LoadingPanel({
           <p className="mt-3">{label}</p>
           {onCopySignInLink ? (
             <p className="mt-2 max-w-md text-sm text-text-faint">
-              Browser did not open or uses the wrong session? Copy the sign-in
-              link and open it manually.
+              Browser did not open, or opened the wrong account? Copy the
+              sign-in link and open it yourself.
             </p>
           ) : null}
         </div>
