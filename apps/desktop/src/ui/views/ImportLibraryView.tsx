@@ -39,7 +39,7 @@ import { Panel, ProviderBadge, formatDuration } from "../components";
 import { Button, Input } from "../primitives";
 
 type Phase = "detecting" | "ready" | "scanning" | "importing" | "done";
-type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
+export type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
 
 let importerSessionBackedUp = false;
 
@@ -323,24 +323,18 @@ export function ImportLibraryView() {
         setSelected(
           new Set(
             result.games
-              .filter(
-                (game) =>
-                  isImportable(
+              .filter((game) => {
+                const key = libraryEntryKey(providerId, game.externalId);
+                return (
+                  importGroupForGame({
                     game,
-                    byKey.get(libraryEntryKey(providerId, game.externalId)),
-                  ) &&
-                  !requiresExecutableChoice(
-                    game,
-                    byKey.get(libraryEntryKey(providerId, game.externalId)),
+                    provider: providerId,
+                    resolved: byKey.get(key),
+                    alreadyImported: existingImports.has(key),
                     ignoredProcesses,
-                  ) &&
-                  canImportExistingLibraryEntry(
-                    providerId,
-                    existingImports.has(
-                      libraryEntryKey(providerId, game.externalId),
-                    ),
-                  ),
-              )
+                  }) === "ready"
+                );
+              })
               .map((game) => game.externalId),
           ),
         );
@@ -368,11 +362,15 @@ export function ImportLibraryView() {
         );
         if (
           !match ||
-          !canImportExistingLibraryEntry(
-            providerId,
-            existingImports.has(libraryEntryKey(providerId, game.externalId)),
-          ) ||
-          requiresExecutableChoice(game, match, ignoredProcesses)
+          !canImportScannedGame({
+            game,
+            provider: providerId,
+            resolved: match,
+            alreadyImported: existingImports.has(
+              libraryEntryKey(providerId, game.externalId),
+            ),
+            ignoredProcesses,
+          })
         ) {
           return [];
         }
@@ -594,30 +592,37 @@ export function ImportLibraryView() {
       });
     }
   }
-
-  const selectedCount =
-    scan?.games.filter((game) => {
+  const selectableExternalIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const game of scan?.games ?? []) {
       const key = libraryEntryKey(providerId, game.externalId);
       const match = resolved.get(key);
-      return (
-        selected.has(game.externalId) &&
-        canImportExistingLibraryEntry(providerId, existingImports.has(key)) &&
-        isImportable(game, match) &&
-        !requiresExecutableChoice(game, match, ignoredProcesses)
-      );
-    }).length ?? 0;
-  const importableCount = useMemo(
-    () =>
-      scan?.games.filter(
-        (game) =>
-          !completed.has(game.externalId) &&
-          isImportable(
-            game,
-            resolved.get(libraryEntryKey(providerId, game.externalId)),
-          ),
-      ).length ?? 0,
-    [completed, providerId, resolved, scan],
-  );
+      if (
+        completed.has(game.externalId) ||
+        !canImportScannedGame({
+          game,
+          provider: providerId,
+          resolved: match,
+          alreadyImported: existingImports.has(key),
+          ignoredProcesses,
+        })
+      ) {
+        continue;
+      }
+      ids.add(game.externalId);
+    }
+    return ids;
+  }, [
+    completed,
+    existingImports,
+    ignoredProcesses,
+    providerId,
+    resolved,
+    scan,
+  ]);
+  const selectedCount = [...selected].filter((externalId) =>
+    selectableExternalIds.has(externalId),
+  ).length;
   const importGroups = useMemo(() => {
     const groups: Array<{
       key: ImportGroupKey;
@@ -650,34 +655,30 @@ export function ImportLibraryView() {
       {
         key: "imported",
         label: "Imported",
-        description: "Games already available in My Games.",
+        description: isXbox
+          ? "Games already in My Games. Import one again to update its Xbox playtime."
+          : "Games already available in My Games.",
         games: [] as ScannedLibraryGame[],
       },
     ];
+    const groupIndex: Record<ImportGroupKey, number> = {
+      ready: 0,
+      attention: 1,
+      unavailable: 2,
+      imported: 3,
+    };
 
     for (const game of scan?.games ?? []) {
       const key = libraryEntryKey(providerId, game.externalId);
-      const match = resolved.get(key);
-      if (completed.has(game.externalId)) {
-        groups[3].games.push(game);
-        continue;
-      }
-      if (!hasImportableActivity(game)) {
-        groups[2].games.push(game);
-      } else if (
-        existingImports.has(key) &&
-        !canImportExistingLibraryEntry(providerId, true)
-      ) {
-        groups[3].games.push(game);
-      } else if (isXbox && match?.status !== "resolved") {
-        groups[1].games.push(game);
-      } else if (!isImportable(game, match)) {
-        groups[2].games.push(game);
-      } else if (requiresExecutableChoice(game, match, ignoredProcesses)) {
-        groups[1].games.push(game);
-      } else {
-        groups[0].games.push(game);
-      }
+      const group = importGroupForGame({
+        game,
+        provider: providerId,
+        resolved: resolved.get(key),
+        alreadyImported: existingImports.has(key),
+        completed: completed.has(game.externalId),
+        ignoredProcesses,
+      });
+      groups[groupIndex[group]].games.push(game);
     }
 
     return groups;
@@ -693,6 +694,9 @@ export function ImportLibraryView() {
   const activeImportGroupDetails =
     importGroups.find((group) => group.key === activeImportGroup) ??
     importGroups[0];
+  const activeSelectableGames = activeImportGroupDetails.games.filter((game) =>
+    selectableExternalIds.has(game.externalId),
+  );
 
   if (phase === "detecting") {
     return (
@@ -845,17 +849,18 @@ export function ImportLibraryView() {
             <div>
               <h2 className="font-semibold text-text">{providerName} games</h2>
               <p className="text-sm text-text-muted">
-                {importableCount} of {scan.games.length} games ready to import
+                {importGroups[0].games.length} of {scan.games.length} games
+                ready to import
               </p>
             </div>
-            {activeImportGroup === "ready" ? (
+            {activeSelectableGames.length > 0 ? (
               <div className="flex items-center gap-2">
                 <Button
                   variant="secondary"
                   onClick={() =>
                     setSelected(
                       new Set(
-                        importGroups[0].games.map((game) => game.externalId),
+                        activeSelectableGames.map((game) => game.externalId),
                       ),
                     )
                   }
@@ -942,7 +947,11 @@ export function ImportLibraryView() {
                       alreadyImported={existingImports.has(
                         libraryEntryKey(providerId, game.externalId),
                       )}
-                      showSelection={activeImportGroupDetails.key === "ready"}
+                      showSelection={selectableExternalIds.has(game.externalId)}
+                      showExecutableChoice={
+                        activeImportGroupDetails.key === "attention" ||
+                        activeImportGroupDetails.key === "imported"
+                      }
                       showAddAndShare={
                         activeImportGroupDetails.key === "attention"
                       }
@@ -1014,6 +1023,7 @@ export function ImportRow({
   selected,
   alreadyImported,
   showSelection,
+  showExecutableChoice,
   showAddAndShare,
   addingAndSharing,
   browsing,
@@ -1033,6 +1043,7 @@ export function ImportRow({
   selected: boolean;
   alreadyImported: boolean;
   showSelection: boolean;
+  showExecutableChoice: boolean;
   showAddAndShare: boolean;
   addingAndSharing: boolean;
   browsing: boolean;
@@ -1075,7 +1086,7 @@ export function ImportRow({
     hasImportableActivity(game) &&
     resolved?.status !== "resolved";
   const showExeBlock =
-    showAddAndShare &&
+    showExecutableChoice &&
     (showExeChoice ||
       (xboxNeedsIdentity && game.installed && game.installPath !== undefined));
   const Row = showSelection ? "label" : "article";
@@ -1113,7 +1124,9 @@ export function ImportRow({
           </h3>
           {alreadyImported ? (
             <span className="text-xs font-medium text-success">
-              Already in My Games · updates playtime
+              {canImportExistingLibraryEntry(provider, true)
+                ? "Already in My Games · import again to update playtime"
+                : "Already in My Games"}
             </span>
           ) : null}
           {!importable ? (
@@ -1152,7 +1165,9 @@ export function ImportRow({
             <p>
               {xboxNeedsIdentity
                 ? "Pick the game file PlayCounter should watch. It goes to the community for review together with the game you confirm below."
-                : "Pick the game file PlayCounter should watch. Add and Share adds the game on this PC and sends the file to the community for review. It is not approved for everyone right away."}
+                : showAddAndShare
+                  ? "Pick the game file PlayCounter should watch. Add and Share adds the game on this PC and sends the file to the community for review. It is not approved for everyone right away."
+                  : "Pick the game file PlayCounter should watch, then import this game again to save it. The file is sent to the community for review."}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
@@ -1179,7 +1194,7 @@ export function ImportRow({
               >
                 Browse…
               </Button>
-              {!xboxNeedsIdentity ? (
+              {showAddAndShare && !xboxNeedsIdentity ? (
                 <Button
                   variant="primary"
                   icon={Share2}
@@ -1386,6 +1401,50 @@ function isImportable(
   );
 }
 
+export function canImportScannedGame(params: {
+  game: ScannedLibraryGame;
+  provider: BuiltinImportProviderId;
+  resolved?: ResolvedLibraryGame;
+  alreadyImported: boolean;
+  ignoredProcesses?: ReadonlySet<string>;
+}) {
+  const { game, provider, resolved, alreadyImported, ignoredProcesses } =
+    params;
+  if (!canImportExistingLibraryEntry(provider, alreadyImported)) return false;
+  if (!isImportable(game, resolved)) return false;
+  // Importing a game that is already in My Games only refreshes its playtime,
+  // so a missing executable link must not block it. Picking a file stays
+  // available in the Imported tab and is applied when it is chosen.
+  return (
+    alreadyImported ||
+    !requiresExecutableChoice(game, resolved, ignoredProcesses)
+  );
+}
+
+/**
+ * A game already in My Games belongs to the Imported tab, even when the
+ * provider still allows importing it again to refresh its playtime.
+ */
+export function importGroupForGame(params: {
+  game: ScannedLibraryGame;
+  provider: BuiltinImportProviderId;
+  resolved?: ResolvedLibraryGame;
+  alreadyImported: boolean;
+  completed?: boolean;
+  ignoredProcesses?: ReadonlySet<string>;
+}): ImportGroupKey {
+  const { game, provider, resolved, ignoredProcesses } = params;
+  if (params.completed || params.alreadyImported) return "imported";
+  if (!hasImportableActivity(game)) return "unavailable";
+  if (provider === "xbox" && resolved?.status !== "resolved")
+    return "attention";
+  if (!isImportable(game, resolved)) return "unavailable";
+  if (requiresExecutableChoice(game, resolved, ignoredProcesses)) {
+    return "attention";
+  }
+  return "ready";
+}
+
 function initialImportGroup(
   provider: BuiltinImportProviderId,
   games: readonly ScannedLibraryGame[],
@@ -1399,29 +1458,27 @@ function initialImportGroup(
 
   for (const game of games) {
     const key = libraryEntryKey(provider, game.externalId);
-    const alreadyImported = existingImports.has(key);
-    const match = resolved.get(key);
-    if (!hasImportableActivity(game)) {
-      hasUnavailable = true;
-      continue;
+    switch (
+      importGroupForGame({
+        game,
+        provider,
+        resolved: resolved.get(key),
+        alreadyImported: existingImports.has(key),
+        ignoredProcesses,
+      })
+    ) {
+      case "ready":
+        return "ready";
+      case "attention":
+        hasAttention = true;
+        break;
+      case "unavailable":
+        hasUnavailable = true;
+        break;
+      case "imported":
+        hasImported = true;
+        break;
     }
-    if (!canImportExistingLibraryEntry(provider, alreadyImported)) {
-      hasImported = true;
-      continue;
-    }
-    if (provider === "xbox" && match?.status !== "resolved") {
-      hasAttention = true;
-      continue;
-    }
-    if (!isImportable(game, match)) {
-      hasUnavailable = true;
-      continue;
-    }
-    if (requiresExecutableChoice(game, match, ignoredProcesses)) {
-      hasAttention = true;
-      continue;
-    }
-    return "ready";
   }
 
   if (hasAttention) return "attention";
