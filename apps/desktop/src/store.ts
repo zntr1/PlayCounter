@@ -5,6 +5,7 @@ import type {
   Game,
   GameSource,
   IdentifierFlagReason,
+  LibraryStatCardId,
   Session,
   Settings,
   Theme,
@@ -57,6 +58,7 @@ import {
 } from "./library/importProviders";
 import type { LibraryTabId } from "./ui/libraryTabs";
 import type { MyGamesCardSize } from "./ui/myGamesPresentation";
+import { DEFAULT_LIBRARY_STAT_CARD_IDS } from "./ui/myGamesStats";
 import type { MyGamesSortKey } from "./ui/myGamesSort";
 
 export type ViewId =
@@ -478,6 +480,8 @@ export type AppState = {
   setMyGamesSortKey: (key: MyGamesSortKey) => void;
   setMyGamesShowOriginBadges: (enabled: boolean) => void;
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
+  setMyGamesShowStatCards: (enabled: boolean) => void;
+  setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setEmulatorSetting: (
     key: "emulatorDetection" | "emulatorContentLookup",
@@ -524,6 +528,8 @@ const defaultSettings: Settings = {
   librarySortKey: "recent",
   libraryShowOriginBadges: true,
   libraryShowMatchBadges: true,
+  libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
+  libraryShowStatCards: true,
   autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
@@ -1351,6 +1357,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowMatchBadges: (libraryShowMatchBadges) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowMatchBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowStatCards: (libraryShowStatCards) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowStatCards },
+    }));
+    persistSoon();
+  },
+  setMyGamesStatCards: (libraryStatCards) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryStatCards },
     }));
     persistSoon();
   },

@@ -183,16 +183,22 @@ import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 import {
   hasUnknownProviderPlaytime,
   libraryProviders,
-  summarizeProviderLibrary,
   trackingUnavailableMessage,
 } from "../providerLibrary";
 import { myGamesLayout } from "../myGamesLayout";
 import {
   filterByLibraryTab,
   resolveLibraryTab,
-  summarizeUnimportedLibrary,
   visibleLibraryTabs,
 } from "../libraryTabs";
+import {
+  libraryStatCards,
+  libraryStatDefinitionsForKind,
+  resolveLibraryStatCardIds,
+  summarizeLibraryStats,
+  toggleLibraryStatCardIds,
+  type LibraryStatCard,
+} from "../myGamesStats";
 import {
   importableProviderTabs,
   isImportableProviderTabConfig,
@@ -414,6 +420,32 @@ function formatGameActivity(game: GameSummary) {
     : `Added ${formatLastPlayed(game.lastPlayedAt)}`;
 }
 
+function LibraryStatRow({
+  cards,
+  showDurationDays,
+}: {
+  cards: readonly LibraryStatCard[];
+  showDurationDays: boolean;
+}) {
+  if (cards.length === 0) return null;
+  return (
+    // auto-fit, not a fixed four: the row stays even whatever the user picks.
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
+      {cards.map((card) => (
+        <Stat
+          key={card.id}
+          label={card.label}
+          value={
+            card.format === "duration"
+              ? formatDuration(card.value, showDurationDays)
+              : String(card.value)
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 function playButtonState(
   gameName: string,
   launching: boolean,
@@ -515,6 +547,20 @@ export function MyGamesView() {
   );
   const setMyGamesShowMatchBadges = useAppStore(
     (state) => state.setMyGamesShowMatchBadges,
+  );
+  const showStatCards = useAppStore(
+    (state) => state.settings.libraryShowStatCards !== false,
+  );
+  const statCardSetting = useAppStore(
+    (state) => state.settings.libraryStatCards,
+  );
+  const setMyGamesShowStatCards = useAppStore(
+    (state) => state.setMyGamesShowStatCards,
+  );
+  const setMyGamesStatCards = useAppStore((state) => state.setMyGamesStatCards);
+  const statCardIds = useMemo(
+    () => resolveLibraryStatCardIds({ libraryStatCards: statCardSetting }),
+    [statCardSetting],
   );
   const view = cardSize;
   const gameLaunchingEnabled = useAppStore(
@@ -1205,29 +1251,41 @@ export function MyGamesView() {
         ?.games ?? []
     );
   }, [activeLibraryTab, games, providerTabGames, unimportedGames]);
-  const activeProviderSummary = useMemo(
-    () =>
-      activeProviderConfig
-        ? summarizeProviderLibrary(
-            tabGames,
-            activeProviderConfig.id,
-            providerFloorRecord(
-              providerFloorsForProvider(
-                libraryImports.values(),
-                activeProviderConfig.id,
-              ),
+  const activeTabKind = activeTabDescriptor?.kind ?? "all";
+  const statTabLabel =
+    activeProviderConfig?.label ??
+    (activeTabKind === "unimported" ? "PlayCounter" : "All games");
+  const availableStatDefinitions = useMemo(
+    () => libraryStatDefinitionsForKind(activeTabKind),
+    [activeTabKind],
+  );
+  const statCards = useMemo(() => {
+    if (!showStatCards || statCardIds.length === 0) return [];
+    const metrics = summarizeLibraryStats(tabGames, {
+      provider: activeProviderConfig?.id,
+      providerFloorSeconds: activeProviderConfig
+        ? providerFloorRecord(
+            providerFloorsForProvider(
+              libraryImports.values(),
+              activeProviderConfig.id,
             ),
           )
-        : null,
-    [activeProviderConfig, libraryImports, tabGames],
-  );
-  const unimportedSummary = useMemo(
-    () =>
-      activeTabDescriptor?.kind === "unimported"
-        ? summarizeUnimportedLibrary(tabGames)
-        : null,
-    [activeTabDescriptor, tabGames],
-  );
+        : undefined,
+      nowMs: recentSortNow,
+    });
+    return libraryStatCards(statCardIds, metrics, {
+      kind: activeTabKind,
+      providerLabel: activeProviderConfig?.label,
+    });
+  }, [
+    activeProviderConfig,
+    activeTabKind,
+    libraryImports,
+    recentSortNow,
+    showStatCards,
+    statCardIds,
+    tabGames,
+  ]);
   const displayedGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const filtered = needle
@@ -1480,6 +1538,82 @@ export function MyGamesView() {
                     className="h-4 w-4 rounded border-border accent-accent"
                   />
                 </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
+                      htmlFor="library-show-stats"
+                      className="text-sm font-medium text-text"
+                    >
+                      Show the summary row
+                    </label>
+                    <p
+                      id="library-show-stats-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      The number cards above your games.
+                    </p>
+                  </div>
+                  <input
+                    id="library-show-stats"
+                    type="checkbox"
+                    checked={showStatCards}
+                    aria-describedby="library-show-stats-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesShowStatCards(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+                {showStatCards ? (
+                  <fieldset className="py-3">
+                    <legend className="text-sm font-medium text-text">
+                      Numbers on the {statTabLabel} tab
+                    </legend>
+                    <p className="mt-1 text-xs leading-5 text-text-faint">
+                      Pick which numbers to show. A tab only offers the ones
+                      that mean something there.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {availableStatDefinitions.map((definition) => {
+                        const checked = statCardIds.includes(definition.id);
+                        return (
+                          <label
+                            key={definition.id}
+                            className="flex items-start gap-2.5 rounded-md px-2 py-1.5 transition hover:bg-surface-hover"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              data-controller-item="library-option"
+                              onChange={(event) =>
+                                setMyGamesStatCards(
+                                  toggleLibraryStatCardIds(
+                                    statCardIds,
+                                    definition.id,
+                                    event.target.checked,
+                                  ),
+                                )
+                              }
+                              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-accent"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm text-text">
+                                {definition.label({
+                                  kind: activeTabKind,
+                                  providerLabel: activeProviderConfig?.label,
+                                })}
+                              </span>
+                              <span className="block text-xs leading-5 text-text-faint">
+                                {definition.help}
+                              </span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ) : null}
               </div>
             ) : null}
 
@@ -1587,9 +1721,7 @@ export function MyGamesView() {
                   : `Showing ${visibleGames.length} ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}.`}
             </p>
 
-            {activeProviderConfig &&
-            activeProviderSummary &&
-            layout.panel !== "provider-empty" ? (
+            {activeProviderConfig && layout.panel !== "provider-empty" ? (
               <div className="grid gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -1618,32 +1750,14 @@ export function MyGamesView() {
                     </Button>
                   ) : null}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <Stat
-                    label={activeProviderConfig.statLabels.games}
-                    value={String(activeProviderSummary.gameCount)}
-                  />
-                  <Stat
-                    label={activeProviderConfig.statLabels.lifetime}
-                    value={formatDuration(
-                      activeProviderSummary.providerSeconds,
-                      showDurationDays,
-                    )}
-                  />
-                  <Stat
-                    label={activeProviderConfig.statLabels.played}
-                    value={String(activeProviderSummary.playedCount)}
-                  />
-                  <Stat
-                    label={activeProviderConfig.statLabels.installed}
-                    value={String(activeProviderSummary.installedCount)}
-                  />
-                </div>
+                <LibraryStatRow
+                  cards={statCards}
+                  showDurationDays={showDurationDays}
+                />
               </div>
             ) : null}
 
-            {activeTabDescriptor?.kind === "unimported" &&
-            unimportedSummary &&
+            {activeTabKind === "unimported" &&
             layout.panel !== "unimported-empty" ? (
               <div className="grid gap-3">
                 <div>
@@ -1653,29 +1767,18 @@ export function MyGamesView() {
                     launcher import.
                   </p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <Stat
-                    label="Games"
-                    value={String(unimportedSummary.gameCount)}
-                  />
-                  <Stat
-                    label="Tracked playtime"
-                    value={formatDuration(
-                      unimportedSummary.trackedSeconds,
-                      showDurationDays,
-                    )}
-                  />
-                  <Stat
-                    label="With playtime"
-                    value={String(unimportedSummary.playedCount)}
-                  />
-                  <Stat
-                    label="Through an emulator"
-                    value={String(unimportedSummary.emulatorCount)}
-                  />
-                </div>
-               
+                <LibraryStatRow
+                  cards={statCards}
+                  showDurationDays={showDurationDays}
+                />
               </div>
+            ) : null}
+
+            {activeTabKind === "all" && layout.panel === "games" ? (
+              <LibraryStatRow
+                cards={statCards}
+                showDurationDays={showDurationDays}
+              />
             ) : null}
 
             {layout.panel === "provider-empty" &&

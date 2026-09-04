@@ -2,21 +2,18 @@ import { describe, expect, it } from "vitest";
 import {
   filterByLibraryTab,
   resolveLibraryTab,
-  summarizeUnimportedLibrary,
   visibleLibraryTabs,
-  type UnimportedLibraryGame,
 } from "./libraryTabs";
+import type { ProviderLibraryGame } from "./providerLibrary";
 
 function game(
   gameId: number,
-  options: Partial<UnimportedLibraryGame> = {},
-): UnimportedLibraryGame {
+  options: Partial<ProviderLibraryGame> = {},
+): ProviderLibraryGame {
   return {
     gameId,
     source: "igdb",
     libraryImports: [],
-    totalSeconds: 0,
-    emulatorIds: [],
     ...options,
   };
 }
@@ -112,24 +109,5 @@ describe("library tabs", () => {
     });
     expect(resolveLibraryTab("unimported", tabs)).toBe("unimported");
     expect(resolveLibraryTab("steam", [])).toBe("all");
-  });
-
-  it("summarizes effective unimported playtime and emulator evidence", () => {
-    expect(
-      summarizeUnimportedLibrary([
-        game(1, { totalSeconds: 5_000 }),
-        game(2, { totalSeconds: -10, emulatorIds: ["dolphin"] }),
-        game(3, { totalSeconds: Number.NaN }),
-        game(4, {
-          totalSeconds: 99_999,
-          libraryImports: [steamEntry("400")],
-        }),
-      ]),
-    ).toEqual({
-      gameCount: 3,
-      trackedSeconds: 5_000,
-      playedCount: 1,
-      emulatorCount: 1,
-    });
   });
 });

@@ -412,6 +412,18 @@ export interface InstallPresencePayload {
 
 export type Theme = "dark" | "light";
 
+/** Summary cards a My Games tab can show above the grid. */
+export type LibraryStatCardId =
+  | "games"
+  | "playtime"
+  | "tracked"
+  | "recent"
+  | "sessions"
+  | "played"
+  | "unplayed"
+  | "installed"
+  | "emulator";
+
 export interface Settings {
   launchOnStartup: boolean;
   showDurationDays: boolean;
@@ -425,6 +437,10 @@ export interface Settings {
   libraryShowOriginBadges?: boolean;
   /** IGDB, Community or Custom seal in the cover corner. */
   libraryShowMatchBadges?: boolean;
+  /** My Games summary cards. Absent = the default set. Empty = all off. */
+  libraryStatCards?: LibraryStatCardId[];
+  /** Master switch for the My Games summary row. */
+  libraryShowStatCards?: boolean;
   autoShareIgnoredProcesses: boolean;
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;

@@ -603,6 +603,23 @@ describe("My Games presentation settings", () => {
     }
   });
 
+  it("persists the summary row toggle and the chosen cards", async () => {
+    const originalSettings = useAppStore.getState().settings;
+    try {
+      useAppStore.getState().setMyGamesShowStatCards(false);
+      useAppStore.getState().setMyGamesStatCards(["games", "installed"]);
+
+      expect(useAppStore.getState().settings).toMatchObject({
+        libraryShowStatCards: false,
+        libraryStatCards: ["games", "installed"],
+      });
+      await Promise.resolve();
+      expect(globalThis.localStorage.setItem).toHaveBeenCalled();
+    } finally {
+      useAppStore.setState({ settings: originalSettings });
+    }
+  });
+
   it("keeps the importer provider in session state", () => {
     const originalProvider = useAppStore.getState().libraryImportProvider;
     const originalSettings = useAppStore.getState().settings;
