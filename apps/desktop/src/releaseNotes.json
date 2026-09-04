@@ -2,7 +2,7 @@
   {
     "version": "1.1.14",
     "releasedAt": "2026-09-04",
-    "headline": "Keep imported game matches and contribution credit accurate.",
+    "headline": "Another Hotfix for v1.1.12!",
     "highlights": [
       "Existing approved game-file matches found during a library import are now applied directly, without showing Level up or repeating approval notifications.",
       "Importing a game no longer counts an already reviewed database match as a new community contribution or achievement."
