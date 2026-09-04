@@ -41,6 +41,7 @@ import {
   deactivateControllerMode,
 } from "../controllerBridge";
 import { emulatorAssetUrls } from "../emulators/assets";
+import { BackToTopButton } from "./BackToTopButton";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
@@ -738,6 +739,9 @@ export function App() {
           ) : null}
           {/* Scroll Fade Overlay */}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-bg to-transparent" />
+          {activeView === "games" ? (
+            <BackToTopButton containerRef={contentRef} />
+          ) : null}
         </div>
         {controllerModeActive ? <ControllerModeFooter /> : null}
       </section>
