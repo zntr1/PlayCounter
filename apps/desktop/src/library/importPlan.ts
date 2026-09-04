@@ -124,23 +124,34 @@ export function buildLibraryImportCommit(input: {
 
   if (input.selectedExecutable && installPath) {
     const selectedName = input.selectedExecutable.fileName;
-    linked.add(selectedName);
-    linkedExeSources.add("custom");
-    if (manualExecutableNeedsScope(input.selectedExecutable)) {
-      scopedLinks.push(
-        toCustomScopedLink(
-          selectedName,
-          installPath,
-          scanned.externalId,
-          provider,
-          game,
-          now,
-        ),
-      );
-    } else {
-      exeCacheEntries.push(
-        toCustomExeCache(selectedName, scanned.externalId, provider, game, now),
-      );
+    // Picking a locally installed file confirms where the known identifier
+    // lives; it does not turn that same IGDB/community identifier into a
+    // second custom match.
+    if (!executableEvidence.has(selectedName.toLowerCase())) {
+      linked.add(selectedName);
+      linkedExeSources.add("custom");
+      if (manualExecutableNeedsScope(input.selectedExecutable)) {
+        scopedLinks.push(
+          toCustomScopedLink(
+            selectedName,
+            installPath,
+            scanned.externalId,
+            provider,
+            game,
+            now,
+          ),
+        );
+      } else {
+        exeCacheEntries.push(
+          toCustomExeCache(
+            selectedName,
+            scanned.externalId,
+            provider,
+            game,
+            now,
+          ),
+        );
+      }
     }
   }
 

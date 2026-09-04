@@ -154,6 +154,62 @@ describe("library import", () => {
     });
   });
 
+  it("keeps a manually selected known Xbox executable IGDB-only", () => {
+    const selectedExecutable = {
+      fileName: "Gang Beasts.exe",
+      relativePath: "Gang Beasts.exe",
+      sizeBytes: 80_000_000,
+      depth: 0,
+      declared: true,
+    };
+    const commit = buildLibraryImportCommit({
+      provider: "xbox",
+      scanned: {
+        externalId: "629270283",
+        name: "Gang Beasts",
+        playtimeSeconds: 13_980,
+        installed: true,
+        installPath: String.raw`D:\XboxGames\Gang Beasts\Content`,
+        executables: [selectedExecutable],
+      },
+      resolved: {
+        key: "xbox:629270283",
+        status: "resolved",
+        game: {
+          id: 18_537,
+          igdbId: 11_177,
+          name: "Gang Beasts",
+          coverUrl: "cover",
+          source: "igdb",
+        },
+        executables: [
+          {
+            platform: "windows",
+            kind: "exe",
+            value: "gang beasts.exe",
+            provenance: "igdb",
+            verified: true,
+          },
+        ],
+      },
+      selectedExecutable,
+      now: "now",
+    });
+
+    expect(commit?.entry.linkedExeNames).toEqual(["gang beasts.exe"]);
+    expect(commit?.entry.linkedExeSources).toEqual(["igdb"]);
+    expect(commit?.exeCacheEntries).toHaveLength(1);
+    expect(commit?.exeCacheEntries[0]).toMatchObject({
+      source: "igdb",
+      identifierSource: "igdb",
+    });
+    expect(commit?.scopedLinks).toHaveLength(1);
+    expect(commit?.scopedLinks[0]).toMatchObject({
+      source: "igdb",
+      identifierSource: "igdb",
+    });
+  });
+
   it("keeps known provider time when a later import has unknown duration", () => {
     expect(mergeProviderSeconds(7_200, null)).toBe(7_200);
     expect(mergeProviderSeconds(null, null)).toBeNull();
