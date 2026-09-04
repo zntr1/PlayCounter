@@ -7,7 +7,6 @@ import {
   Gamepad2,
   History,
   Info,
-  Loader2,
   Star,
   WifiOff,
 } from "lucide-react";
@@ -140,6 +139,28 @@ function Row({ label, value }: { label: string; value: ReactNode }) {
       <span className="min-w-0 break-all text-right text-sm text-text">
         {value}
       </span>
+    </div>
+  );
+}
+
+/* Placeholders for the IGDB half while it loads. Same idiom the History view
+   uses for its charts: a pulsing block the size of the thing that is coming,
+   so the dialog does not jump once the request lands. */
+function SkeletonBar({ className }: { className: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse rounded bg-surface-hover motion-reduce:animate-none ${className}`}
+    />
+  );
+}
+
+function SkeletonChips({ widths }: { widths: readonly string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {widths.map((width, index) => (
+        <SkeletonBar key={index} className={`h-[26px] rounded-full ${width}`} />
+      ))}
     </div>
   );
 }
@@ -335,7 +356,13 @@ export function GameDetailsDialog({
                 }
               />
             </div>
-            {resolved?.summary ? (
+            {details.status === "loading" ? (
+              <div className="mt-3 grid gap-2">
+                <SkeletonBar className="h-3 w-full" />
+                <SkeletonBar className="h-3 w-full" />
+                <SkeletonBar className="h-3 w-2/3" />
+              </div>
+            ) : resolved?.summary ? (
               <p className="mt-3 max-h-32 overflow-y-auto whitespace-pre-line text-sm leading-6 text-text-muted">
                 {resolved.summary}
               </p>
@@ -543,10 +570,33 @@ export function GameDetailsDialog({
         {game.igdbId ? (
           <Section title="About this game" icon={Info}>
             {details.status === "loading" ? (
-              <p className="flex items-center gap-2 text-sm text-text-muted">
-                <Loader2 size={14} className="animate-spin" />
-                Loading details from IGDB…
-              </p>
+              <div
+                className="grid gap-3"
+                role="status"
+                aria-label="Loading details from IGDB"
+              >
+                {["Genres", "Modes", "Platforms"].map((label) => (
+                  <div key={label}>
+                    <div className="mb-1.5 text-xs uppercase tracking-wider text-text-faint">
+                      {label}
+                    </div>
+                    <SkeletonChips widths={["w-24", "w-20", "w-28"]} />
+                  </div>
+                ))}
+                <div className="divide-y divide-border">
+                  {["Developer", "Publisher"].map((label) => (
+                    <div
+                      key={label}
+                      className="flex items-center justify-between gap-4 py-1.5"
+                    >
+                      <span className="text-xs uppercase tracking-wider text-text-faint">
+                        {label}
+                      </span>
+                      <SkeletonBar className="h-3 w-32" />
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : details.status === "offline" ? (
               <p className="flex items-center gap-2 text-sm text-text-muted">
                 <WifiOff size={14} />
