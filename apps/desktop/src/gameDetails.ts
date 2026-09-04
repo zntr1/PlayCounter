@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { isOfflineStatus, useAppStore } from "./store";
 
 /* IGDB details for the game details view ─────────────────────────────────────
-   Descriptions, genres, companies and screenshots are decoration: nice to have
+   Descriptions, genres and companies are decoration: nice to have
    open in front of you, worthless to keep. So they are fetched on demand and
    cached in memory only - never persisted, because the WebView storage budget
    is already spent on sessions and matches (see sessionPersistence.ts).

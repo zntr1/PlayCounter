@@ -396,7 +396,6 @@ export interface GameDetails {
   genres: string[];
   gameModes: string[];
   platforms: string[];
-  screenshotUrls: string[];
   /** IGDB's aggregate score, 0-100, rounded. Absent when too few ratings. */
   rating?: number;
 }
