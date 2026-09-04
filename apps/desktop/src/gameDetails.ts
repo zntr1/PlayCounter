@@ -24,7 +24,7 @@ export type GameDetailsState =
   | { status: "error" };
 
 async function requestGameDetails(
-  gameId: number,
+  igdbId: number,
   endpoint: string,
 ): Promise<GameDetails | null> {
   const controller = new AbortController();
@@ -34,7 +34,7 @@ async function requestGameDetails(
   );
   try {
     const response = await fetch(
-      `${endpoint}/api/games/details?ids=${gameId}`,
+      `${endpoint}/api/games/details?igdbIds=${igdbId}`,
       { signal: controller.signal },
     );
     if (!response.ok) {
@@ -43,22 +43,22 @@ async function requestGameDetails(
     const body = (await response.json()) as GameDetailsResponse;
     // An API released before this endpoint answers 404, which throws above; an
     // API that knows the route but not the game answers with an empty list.
-    return body.details?.find((entry) => entry.gameId === gameId) ?? null;
+    return body.details?.find((entry) => entry.igdbId === igdbId) ?? null;
   } finally {
     window.clearTimeout(timeout);
   }
 }
 
-export function loadGameDetails(gameId: number, endpoint: string) {
-  let pending = cache.get(gameId);
+export function loadGameDetails(igdbId: number, endpoint: string) {
+  let pending = cache.get(igdbId);
   if (!pending) {
-    pending = requestGameDetails(gameId, endpoint).catch((error) => {
+    pending = requestGameDetails(igdbId, endpoint).catch((error) => {
       // A failure must not be cached as "this game has no details" - drop the
       // entry so reopening the card tries again.
-      cache.delete(gameId);
+      cache.delete(igdbId);
       throw error;
     });
-    cache.set(gameId, pending);
+    cache.set(igdbId, pending);
   }
   return pending;
 }
@@ -69,11 +69,11 @@ export function clearGameDetailsCache() {
 }
 
 /**
- * Details for one game, or a state explaining why there are none. Pass a
- * `gameId` of 0/undefined for games with no server identity (custom games) and
- * nothing is requested.
+ * Details for one game, or a state explaining why there are none. Addressed by
+ * IGDB id so a cache built against another deployment still resolves; pass
+ * undefined for a game with no IGDB identity and nothing is requested.
  */
-export function useGameDetails(gameId: number | undefined): GameDetailsState {
+export function useGameDetails(igdbId: number | undefined): GameDetailsState {
   const endpoint = useAppStore((state) => state.settings.apiEndpoint);
   const offline = useAppStore((state) =>
     isOfflineStatus(state.backendHealth.status),
@@ -81,19 +81,19 @@ export function useGameDetails(gameId: number | undefined): GameDetailsState {
   const [state, setState] = useState<GameDetailsState>({ status: "idle" });
 
   useEffect(() => {
-    if (!gameId || gameId <= 0) {
+    if (!igdbId || igdbId <= 0) {
       setState({ status: "empty" });
       return;
     }
     // A cached answer stays usable offline; only a cold read has to give up.
-    if (offline && !cache.has(gameId)) {
+    if (offline && !cache.has(igdbId)) {
       setState({ status: "offline" });
       return;
     }
 
     let cancelled = false;
     setState({ status: "loading" });
-    loadGameDetails(gameId, endpoint)
+    loadGameDetails(igdbId, endpoint)
       .then((details) => {
         if (cancelled) return;
         setState(details ? { status: "ready", details } : { status: "empty" });
@@ -104,7 +104,7 @@ export function useGameDetails(gameId: number | undefined): GameDetailsState {
     return () => {
       cancelled = true;
     };
-  }, [endpoint, gameId, offline]);
+  }, [endpoint, igdbId, offline]);
 
   return state;
 }

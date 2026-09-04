@@ -379,8 +379,11 @@ export interface GameMetadataResponse {
  * are unevenly filled, and a community game may have no IGDB entry at all.
  */
 export interface GameDetails {
-  /** The server-local game id that was requested, not the IGDB id. */
-  gameId: number;
+  /**
+   * Keyed on the IGDB id, never a server-local game id: local ids differ
+   * between deployments (and move when community games merge), while this one
+   * identifies the same game everywhere.
+   */
   igdbId: number;
   /** Canonical IGDB page, as IGDB itself reports it. Never built from a slug. */
   igdbUrl?: string;
