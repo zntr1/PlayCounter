@@ -179,24 +179,24 @@ export function launchErrorKind(error: unknown): LaunchErrorKind | null {
     : null;
 }
 
-function errorDetail(error: unknown) {
+export function launchErrorDetail(error: unknown) {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") {
     try {
-      return errorDetail(JSON.parse(error));
+      return launchErrorDetail(JSON.parse(error));
     } catch {
       return error;
     }
   }
-  if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
+  if (error && typeof error === "object" && "message" in error) {
+    const message = error.message;
     if (typeof message === "string" && message.trim()) return message;
   }
   return "The operating system did not provide more details.";
 }
 
 export function launchErrorMessage(error: unknown, gameName: string) {
-  const detail = errorDetail(error);
+  const detail = launchErrorDetail(error);
   switch (launchErrorKind(error)) {
     case "notFound":
       return {

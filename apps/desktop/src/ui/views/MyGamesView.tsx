@@ -110,6 +110,10 @@ import {
   type SteamImportMatchCheck,
 } from "../../library/recheck";
 import {
+  libraryLaunchErrorMessage,
+  shouldForgetLibraryInstallOnLaunchError,
+} from "../../library/launchErrors";
+import {
   libraryEntryKey,
   type LibraryImportEntry,
   type LibraryInstallEntry,
@@ -170,6 +174,7 @@ import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 import { XboxButtonGlyph } from "../XboxButtonGlyph";
 import {
   findManualLaunchTarget,
+  launchErrorDetail,
   launchErrorMessage,
   launchTargetsForGame,
 } from "../../gameLaunch";
@@ -2091,6 +2096,9 @@ function GameLibraryCard({
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
+  const removeLibraryInstall = useAppStore(
+    (state) => state.removeLibraryInstall,
+  );
   const showDemoContextMenu = useAppStore(
     (state) =>
       (state.activeTour?.tourId === "log-playtime" &&
@@ -3053,10 +3061,12 @@ function GameLibraryCard({
         console.warn("post-launch process scan failed", error),
       );
     } catch (error) {
+      if (shouldForgetLibraryInstallOnLaunchError(error)) {
+        removeLibraryInstall("steam", steamLaunchEntry.externalId);
+      }
       addToast({
         tone: "error",
-        title: `Could not start ${game.name}`,
-        detail: formatError(error),
+        ...libraryLaunchErrorMessage(error, game.name, "Steam"),
       });
     } finally {
       if (!keepLaunchFeedback) {
@@ -3097,10 +3107,12 @@ function GameLibraryCard({
         console.warn("post-launch process scan failed", error),
       );
     } catch (error) {
+      if (shouldForgetLibraryInstallOnLaunchError(error)) {
+        removeLibraryInstall("xbox", xboxLaunchEntry.externalId);
+      }
       addToast({
         tone: "error",
-        title: `Could not start ${game.name}`,
-        detail: formatError(error),
+        ...libraryLaunchErrorMessage(error, game.name, "Xbox"),
       });
     } finally {
       if (!keepLaunchFeedback) {
@@ -3122,7 +3134,7 @@ function GameLibraryCard({
       addToast({
         tone: "error",
         title: `Could not open ${game.name} in Steam`,
-        detail: formatError(error),
+        detail: launchErrorDetail(error),
       });
     }
   }

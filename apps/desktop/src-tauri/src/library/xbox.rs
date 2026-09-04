@@ -25,7 +25,7 @@ use windows_sys::Win32::{
     Foundation::{ERROR_INSUFFICIENT_BUFFER, ERROR_SUCCESS},
     Storage::{
         FileSystem::GetLogicalDrives,
-        Packaging::Appx::{PackageFamilyNameFromId, PACKAGE_ID},
+        Packaging::Appx::{GetPackagesByPackageFamily, PackageFamilyNameFromId, PACKAGE_ID},
     },
 };
 
@@ -97,6 +97,7 @@ fn scan_local_games_windows() -> XboxLocalScan {
     let mut missing_title_id = false;
     let mut invalid_config = false;
     let mut executable_scan_capped = false;
+    let mut unregistered_leftovers = false;
 
     'roots: for root in xbox_game_roots() {
         let Ok(entries) = fs::read_dir(&root) else {
@@ -114,7 +115,17 @@ fn scan_local_games_windows() -> XboxLocalScan {
             if !file_type.is_dir() || file_type.is_symlink() {
                 continue;
             }
-            match read_game_folder(&entry.path(), deadline) {
+            let folder = entry.path();
+            if game_config_path(&folder)
+                .and_then(|config_path| config_path.parent().map(install_is_registered))
+                == Some(false)
+            {
+                // Skipped before the executable walk: leftover folders can hold
+                // tens of gigabytes and would eat the scan budget for nothing.
+                unregistered_leftovers = true;
+                continue;
+            }
+            match read_game_folder(&folder, deadline) {
                 Ok((game, capped)) => {
                     executable_scan_capped |= capped;
                     games.push(game);
@@ -134,6 +145,12 @@ fn scan_local_games_windows() -> XboxLocalScan {
     }
     if invalid_config {
         warnings.push("Some Xbox game configurations could not be read.".to_string());
+    }
+    if unregistered_leftovers {
+        warnings.push(
+            "Some Xbox folders still hold game files that Windows no longer has installed; they were skipped."
+                .to_string(),
+        );
     }
     if executable_scan_capped {
         partial = true;
@@ -498,6 +515,9 @@ fn find_application_user_model_id(title_id: u32) -> Option<String> {
             let Some(install_path) = config_path.parent() else {
                 continue;
             };
+            if !install_is_registered(install_path) {
+                continue;
+            }
             if let Some(aumid) =
                 application_user_model_id(install_path, config.application_id.as_deref())
             {
@@ -523,6 +543,47 @@ fn application_user_model_id(
     let application_id = identity.application_id?;
     let family_name = package_family_name(&package_name, &publisher).ok()?;
     Some(format!("{family_name}!{application_id}"))
+}
+
+/// Windows keeps the files of a removed Xbox game in its `XboxGames` folder,
+/// so a readable `MicrosoftGame.config` does not prove the game can start.
+/// Only a registered package can be activated, and an unknown answer keeps the
+/// game visible instead of hiding a working install.
+#[cfg(windows)]
+fn install_is_registered(install_path: &Path) -> bool {
+    let Ok(identity) = read_app_identity(&install_path.join("appxmanifest.xml"), None) else {
+        return true;
+    };
+    let (Some(package_name), Some(publisher)) = (identity.package_name, identity.publisher) else {
+        return true;
+    };
+    let Ok(family_name) = package_family_name(&package_name, &publisher) else {
+        return true;
+    };
+    package_family_is_registered(&family_name).unwrap_or(true)
+}
+
+#[cfg(windows)]
+fn package_family_is_registered(family_name: &str) -> Option<bool> {
+    let family_name = family_name
+        .encode_utf16()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let mut count = 0u32;
+    let mut buffer_length = 0u32;
+    let result = unsafe {
+        GetPackagesByPackageFamily(
+            family_name.as_ptr(),
+            &mut count,
+            std::ptr::null_mut(),
+            &mut buffer_length,
+            std::ptr::null_mut(),
+        )
+    };
+    match result {
+        ERROR_SUCCESS | ERROR_INSUFFICIENT_BUFFER => Some(count > 0),
+        _ => None,
+    }
 }
 
 #[cfg(windows)]
@@ -614,6 +675,24 @@ mod tests {
             .unwrap(),
             "MijuGames.ThePlanetCrafter_ta6nvwnbx9v7t"
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn reports_a_package_family_that_windows_does_not_have_installed() {
+        assert_eq!(
+            package_family_is_registered("PlayCounter.NotInstalled_ta6nvwnbx9v7t"),
+            Some(false)
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn keeps_an_install_whose_manifest_cannot_be_read() {
+        assert!(install_is_registered(&std::env::temp_dir().join(format!(
+            "playcounter-xbox-missing-{}",
+            uuid::Uuid::new_v4()
+        ))));
     }
 
     #[test]
