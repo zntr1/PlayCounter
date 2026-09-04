@@ -1648,7 +1648,7 @@ export function MyGamesView() {
                         data-controller-item="library-tab"
                         onClick={() => setLibraryTab(tab.id)}
                         className={clsx(
-                          "flex shrink-0 items-center gap-2 border-b-2 px-3 pb-3 text-sm font-medium transition",
+                          "library-tab flex shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-3 pb-2.5 pt-2.5 text-sm font-medium transition",
                           selected
                             ? "border-accent text-text"
                             : "border-transparent text-text-muted hover:border-border-strong hover:text-text",
@@ -3657,14 +3657,6 @@ function GameLibraryCard({
             detected={hasActiveSession}
           />
         ) : null}
-        {controllerNavigable ? (
-          <span className="pointer-events-none absolute left-1/2 top-3 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
-            <Gamepad2 size={14} />
-
-            <XboxButtonGlyph button="A" size="small" />
-            <span>{hasPrimaryLaunchTarget ? "Play" : "Info"}</span>
-          </span>
-        ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
           {game.coverUrl ? (
             <img
@@ -4015,7 +4007,20 @@ function GameLibraryCard({
               </>
             ) : (
               <>
-                <Play size={isLarge ? 16 : 14} />
+                {/* Under controller nav the selected card swaps the play icon
+                    for the A glyph, so the button doubles as the button hint. */}
+                <Play
+                  size={isLarge ? 16 : 14}
+                  className={clsx(
+                    controllerNavigable &&
+                      "group-data-[controller-selected=true]:hidden",
+                  )}
+                />
+                {controllerNavigable ? (
+                  <span className="hidden group-data-[controller-selected=true]:inline-flex">
+                    <XboxButtonGlyph button="A" size="small" />
+                  </span>
+                ) : null}
                 Play
               </>
             )}
@@ -4199,13 +4204,6 @@ function GameLibraryCard({
           detected={hasActiveSession}
           compact
         />
-      ) : null}
-      {controllerNavigable ? (
-        <span className="pointer-events-none absolute left-1/2 top-2 z-50 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 border-white/80 bg-accent px-3 py-1.5 text-xs font-bold text-accent-fg shadow-raised group-data-[controller-selected=true]:flex">
-          <Gamepad2 size={14} />
-          <XboxButtonGlyph button="A" size="small" />
-          <span>{hasPrimaryLaunchTarget ? "Play" : "Info"}</span>
-        </span>
       ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
@@ -4394,6 +4392,16 @@ function GameLibraryCard({
                 </span>
               ) : playState.loading ? (
                 <Loader2 size={15} className="animate-spin" />
+              ) : controllerNavigable ? (
+                <>
+                  <Play
+                    size={15}
+                    className="group-data-[controller-selected=true]:hidden"
+                  />
+                  <span className="hidden group-data-[controller-selected=true]:inline-flex">
+                    <XboxButtonGlyph button="A" size="small" />
+                  </span>
+                </>
               ) : (
                 <Play size={15} />
               )}

@@ -89,7 +89,7 @@
 
 /* Controller focus is explicit because gamepad-driven HTMLElement.focus()
    does not reliably activate the browser's :focus-visible heuristic. */
-[data-controller-selected="true"]:not(.game-library-card) {
+[data-controller-selected="true"]:not(.game-library-card):not(.library-tab) {
   position: relative;
   z-index: 30;
   outline: 5px solid rgb(var(--color-accent));
@@ -97,6 +97,21 @@
   box-shadow:
     0 0 0 8px rgb(var(--color-bg) / 0.88),
     0 0 24px rgb(var(--color-accent) / 0.72);
+}
+
+/* Library tabs live in a horizontally scrolling, vertically clipped strip, so
+   the outline ring above gets sliced into two floating side bars. They get an
+   inset treatment instead: everything stays inside the button's own box. */
+.library-tab {
+  position: relative;
+  z-index: 0;
+}
+
+.library-tab[data-controller-selected="true"] {
+  z-index: 30;
+  color: rgb(var(--color-text));
+  background: rgb(var(--color-accent) / 0.16);
+  box-shadow: inset 0 0 0 2px rgb(var(--color-accent) / 0.85);
 }
 
 .controller-scroll-focus-indicator {
