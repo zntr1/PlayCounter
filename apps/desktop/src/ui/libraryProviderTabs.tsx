@@ -15,7 +15,6 @@ type ProviderTabCopy = {
     played: string;
     installed: string;
   };
-  footnote: string;
   emptyTitle: string;
   emptyBody: string;
   firstImportTitle: string;
@@ -52,8 +51,6 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
       played: "Played on Steam",
       installed: "Installed on this PC",
     },
-    footnote:
-      "These numbers come from Steam only. A game card always shows the higher of the two: your Steam playtime, or the time PlayCounter tracked itself. The two are never added together.",
     emptyTitle: "No Steam games imported yet",
     emptyBody:
       "PlayCounter reads Steam on this PC and brings in your games with their Steam playtime. You never have to sign in, and your game list stays on this PC.",
@@ -69,7 +66,7 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
     iconUrl: xboxIconUrl,
     headline: "Xbox library",
     subtitle:
-      "Imported from your Xbox account after you sign in with Microsoft.",
+      "Imported from your Xbox account.",
     importCtaLabel: "Import more from Xbox",
     statLabels: {
       games: "Xbox games",
@@ -77,8 +74,6 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
       played: "Played on Xbox",
       installed: "Linked on this PC",
     },
-    footnote:
-      "Xbox playtime only counts when Xbox reports how long you played. Games with an unknown length still count as played. A game card always shows the higher of the two: your Xbox playtime, or the time PlayCounter tracked itself. The two are never added together.",
     emptyTitle: "No Xbox games imported yet",
     emptyBody:
       "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",

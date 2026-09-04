@@ -1639,9 +1639,6 @@ export function MyGamesView() {
                     value={String(activeProviderSummary.installedCount)}
                   />
                 </div>
-                <p className="px-1 text-xs leading-5 text-text-faint">
-                  {activeProviderConfig.footnote}
-                </p>
               </div>
             ) : null}
 
