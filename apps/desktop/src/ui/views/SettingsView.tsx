@@ -32,7 +32,7 @@ import {
   type InstallProgress,
   type UpdateCheckResult,
 } from "../../updater";
-import { Panel } from "../components";
+import { Panel, ProviderBadge } from "../components";
 import { Button, Modal } from "../primitives";
 import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
@@ -914,7 +914,12 @@ export function SettingsView() {
       >
         <SettingsRow
           description="Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept."
-          title="Forget imported Steam data"
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="steam" variant="mark" />
+              Forget imported Steam data
+            </span>
+          }
         >
           <Button
             variant="danger"
@@ -926,7 +931,12 @@ export function SettingsView() {
         </SettingsRow>
         <SettingsRow
           description="Removes the Xbox mark, the imported Xbox playtime, and the game files Xbox linked. Sessions PlayCounter recorded itself are kept."
-          title="Forget imported Xbox data"
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="xbox" variant="mark" />
+              Forget imported Xbox data
+            </span>
+          }
         >
           <Button
             variant="danger"
