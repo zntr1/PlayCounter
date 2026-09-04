@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  DatabaseZap,
   Download,
   FolderInput,
   FolderOpen,
@@ -15,7 +14,6 @@ import { useEffect, useState } from "react";
 import type { LibraryProviderId } from "@playcounter/shared";
 import {
   chooseEmulatorBinary,
-  clearLocalCache,
   forgetImportedLibraryData,
   forgetEmulatorManualBinary,
   openUserIgnoredProcessesFolder,
@@ -80,7 +78,6 @@ export function SettingsView() {
   const [startupSyncing, setStartupSyncing] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [reloadingIgnored, setReloadingIgnored] = useState(false);
-  const [confirmResetCache, setConfirmResetCache] = useState(false);
   const [confirmForgetLibrary, setConfirmForgetLibrary] =
     useState<LibraryProviderId | null>(null);
   const [confirmForgetLaunchFiles, setConfirmForgetLaunchFiles] =
@@ -986,23 +983,6 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        dataTour="settings-maintenance"
-        description="Manual recovery actions for stale local tracking state."
-        title="Maintenance"
-      >
-        <SettingsRow
-          description="Clears cached matches and errors. Your play history is not deleted."
-          title="Reset local cache"
-        >
-          <div className="flex shrink-0 justify-end">
-            <Button variant="danger" onClick={() => setConfirmResetCache(true)}>
-              Reset cache
-            </Button>
-          </div>
-        </SettingsRow>
-      </SettingsPanel>
-
-      <SettingsPanel
         description="Tutorials and task guides are available from the Help menu in the top-right corner."
         title="Help & tutorials"
       >
@@ -1119,20 +1099,6 @@ export function SettingsView() {
           onConfirm={() => {
             setConfirmImport(false);
             void handleImport();
-          }}
-        />
-      ) : null}
-      {confirmResetCache ? (
-        <ResetCacheDialog
-          onCancel={() => setConfirmResetCache(false)}
-          onConfirm={() => {
-            clearLocalCache();
-            setConfirmResetCache(false);
-            addToast({
-              tone: "success",
-              title: "Local cache reset",
-              detail: "Cached matches were cleared.",
-            });
           }}
         />
       ) : null}
@@ -1256,40 +1222,6 @@ function SettingsRow({
       </div>
       <div className="shrink-0">{children}</div>
     </div>
-  );
-}
-
-function ResetCacheDialog({
-  onCancel,
-  onConfirm,
-}: {
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <Modal
-      size="sm"
-      labelId="reset-cache-dialog-title"
-      eyebrow="Settings"
-      title="Reset local cache?"
-      icon={DatabaseZap}
-      onClose={onCancel}
-      footer={
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={onConfirm}>
-            Reset cache
-          </Button>
-        </div>
-      }
-    >
-      <p className="text-sm leading-6 text-text-muted">
-        This clears cached executable matches and transient errors. Play
-        history, settings, and ignored-process files stay intact.
-      </p>
-    </Modal>
   );
 }
 

@@ -506,14 +506,6 @@ export const TOURS: TourDefinition[] = [
         body: "When you ignore an app PlayCounter doesn't recognize, it sends the file name, your platform, and an anonymous install ID to improve PlayCounter. Playtime and game history are never shared.",
       },
       {
-        id: "maintenance",
-        view: "settings",
-        anchor: a("settings-maintenance"),
-        scrollIntoView: true,
-        title: "Recovery tools",
-        body: "Reset local cache is for stale matches or tracking errors. It clears cached detection data, not your play history. This action stays locked during the guide to prevent an accidental reset.",
-      },
-      {
         id: "updates",
         view: "settings",
         anchor: a("settings-updates"),

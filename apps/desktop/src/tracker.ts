@@ -6333,12 +6333,6 @@ function isFakeHistorySession(session: Session) {
   );
 }
 
-export function clearLocalCache() {
-  useAppStore.getState().clearCache();
-  logRuntime("local cache cleared");
-  persist();
-}
-
 export async function scanProcessesNow() {
   await requestProcessScan("manual");
 }

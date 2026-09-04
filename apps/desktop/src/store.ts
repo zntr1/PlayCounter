@@ -511,7 +511,6 @@ export type AppState = {
   setAccentColor: (color: string | null) => void;
   toggleVerboseLogs: () => void;
   toggleBlacklist: (exeName: string, enabled: boolean) => void;
-  clearCache: () => void;
 };
 
 export const DEFAULT_API_ENDPOINT =
@@ -1522,18 +1521,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     persistSoon();
   },
-  clearCache: () =>
-    set({
-      exeCache: new Map(),
-      launchTargets: new Map(),
-      gameMetadata: new Map(),
-      libraryImports: new Map(),
-      libraryInstalls: new Map(),
-      scopedExeLinks: new Map(),
-      emulatorObservations: [],
-      emulatorMappings: new Map(),
-      runtimeError: null,
-    }),
 }));
 
 export function gameMetadataKey(game: Pick<GameMetadata, "id" | "source">) {

@@ -295,7 +295,7 @@ describe("launch target state", () => {
     expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
   });
 
-  it("keys targets case-insensitively and clears them with the cache", () => {
+  it("keys targets case-insensitively", () => {
     useAppStore.getState().setLaunchTarget({
       exeName: "Game.exe",
       path: String.raw`C:\Games\Game.exe`,
@@ -304,14 +304,6 @@ describe("launch target state", () => {
     expect(useAppStore.getState().launchTargets.has("game.exe")).toBe(true);
 
     useAppStore.getState().removeLaunchTarget("GAME.EXE");
-    expect(useAppStore.getState().launchTargets.size).toBe(0);
-
-    useAppStore.getState().setLaunchTarget({
-      exeName: "Game.exe",
-      path: String.raw`C:\Games\Game.exe`,
-      owner: { gameId: 42, source: "igdb" },
-    });
-    useAppStore.getState().clearCache();
     expect(useAppStore.getState().launchTargets.size).toBe(0);
   });
 
@@ -371,7 +363,6 @@ describe("launch target state", () => {
       path: String.raw`C:\Games\Launcher.exe`,
       owner,
     });
-    useAppStore.getState().clearCache();
     expect(useAppStore.getState().manualLaunchTargets.size).toBe(1);
 
     useAppStore.getState().setLaunchTarget({
@@ -412,7 +403,6 @@ describe("launch target state", () => {
       exePath: String.raw`D:\Manual\Dolphin.exe`,
       setAt: "manual",
     });
-    useAppStore.getState().clearCache();
     expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(1);
     expect(useAppStore.getState().emulatorManualBinaries.size).toBe(1);
 
