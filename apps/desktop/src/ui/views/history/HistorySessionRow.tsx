@@ -10,6 +10,7 @@ import {
 import { memo, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { getSessionGameKey } from "../../../historyStats";
+import { GameCover } from "../../GameCover";
 import { useAppStore, type GameIdentityResolver } from "../../../store";
 import {
   CommunityApprovalBadge,
@@ -266,7 +267,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       ) : null}
 
       {coverUrl ? (
-        <img
+        <GameCover
           src={coverUrl}
           alt=""
           loading="lazy"

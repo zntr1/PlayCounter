@@ -1,6 +1,7 @@
 import { Crown, Timer } from "lucide-react";
 import type { TopGame } from "../../historyStats";
 import { formatDuration } from "../components";
+import { GameCover as LibraryCover } from "../GameCover";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
 
 const podiumStyles = [
@@ -242,7 +243,7 @@ function ListGame({
 
 function GameCover({ game, className }: { game: TopGame; className: string }) {
   return game.coverUrl ? (
-    <img
+    <LibraryCover
       src={game.coverUrl}
       alt=""
       loading="lazy"

@@ -170,13 +170,33 @@ fn open_user_ignored_processes_folder(app: tauri::AppHandle) -> Result<(), Strin
 
 #[tauri::command]
 fn open_external_url(url: String) -> Result<(), String> {
-    let url = match url.trim() {
+    let trimmed = url.trim();
+    let url = match trimmed {
         WEBSITE_URL | "https://playcounter.app" => WEBSITE_URL,
         DISCORD_URL => DISCORD_URL,
+        // The game details view links out to IGDB. Unlike the two fixed URLs
+        // above this one is built at runtime, so it is validated rather than
+        // compared.
+        _ if is_allowed_igdb_url(trimmed) => trimmed,
         _ => return Err("Unsupported external URL.".to_string()),
     };
 
     open_url(url)
+}
+
+/// True only for an `https://www.igdb.com/...` URL safe to hand to the shell.
+///
+/// The prefix check settles the host on its own: a URL's authority ends at the
+/// first `/` after the scheme, so anything matching this prefix cannot smuggle
+/// in userinfo (`user@evil.test`) or a different host. What is left to reject
+/// is whitespace and control characters, which have no place in a URL and
+/// could otherwise be used to confuse the shell.
+fn is_allowed_igdb_url(url: &str) -> bool {
+    const IGDB_PREFIX: &str = "https://www.igdb.com/";
+
+    url.starts_with(IGDB_PREFIX)
+        && url.len() <= 2048
+        && !url.chars().any(|c| c.is_whitespace() || c.is_control())
 }
 
 #[tauri::command]
@@ -528,5 +548,48 @@ async fn watch_processes(app: tauri::AppHandle) {
         }
 
         tokio::time::sleep(Duration::from_secs(5)).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_allowed_igdb_url;
+
+    #[test]
+    fn accepts_igdb_game_and_search_urls() {
+        assert!(is_allowed_igdb_url(
+            "https://www.igdb.com/games/the-witcher-3-wild-hunt"
+        ));
+        assert!(is_allowed_igdb_url(
+            "https://www.igdb.com/search?type=1&q=Half-Life%202"
+        ));
+    }
+
+    #[test]
+    fn rejects_other_hosts_and_schemes() {
+        for url in [
+            "https://igdb.com/games/doom",
+            "http://www.igdb.com/games/doom",
+            "https://www.igdb.com.evil.test/games/doom",
+            "https://evil.test/https://www.igdb.com/",
+            "file:///C:/Windows/System32/cmd.exe",
+            "javascript:alert(1)",
+            "",
+        ] {
+            assert!(!is_allowed_igdb_url(url), "should reject {url}");
+        }
+    }
+
+    #[test]
+    fn rejects_whitespace_and_control_characters() {
+        assert!(!is_allowed_igdb_url("https://www.igdb.com/games/a b"));
+        assert!(!is_allowed_igdb_url("https://www.igdb.com/games/a\nb"));
+        assert!(!is_allowed_igdb_url("https://www.igdb.com/games/a\0b"));
+    }
+
+    #[test]
+    fn rejects_an_absurdly_long_url() {
+        let long = format!("https://www.igdb.com/search?q={}", "a".repeat(4096));
+        assert!(!is_allowed_igdb_url(&long));
     }
 }
