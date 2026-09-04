@@ -178,7 +178,7 @@ export function GameDetailsDialog({
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
   const addToast = useAppStore((state) => state.addToast);
-  const details = useGameDetails(game.igdbId ? game.gameId : undefined);
+  const details = useGameDetails(game.igdbId);
   // Release year already known from matching, so the title line is never empty
   // while the details request is in flight.
   const cachedReleaseYear = useAppStore((state) =>
