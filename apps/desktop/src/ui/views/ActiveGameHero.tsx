@@ -1,6 +1,7 @@
 import type { Session } from "@playcounter/shared";
 import { Flag, Gamepad2 } from "lucide-react";
 import { gameSecondsKeys } from "../../gameSeconds";
+import { GameCover } from "../GameCover";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
@@ -134,7 +135,7 @@ export function ActiveGameHero({
       ) : null}
       {session.coverUrl ? (
         <div aria-hidden className="absolute inset-0">
-          <img
+          <GameCover
             src={session.coverUrl}
             alt=""
             className="h-full w-full scale-110 object-cover opacity-20 blur-2xl"
@@ -145,7 +146,7 @@ export function ActiveGameHero({
 
       <div className="relative grid gap-6 p-6 sm:grid-cols-[176px_minmax(0,1fr)]">
         {session.coverUrl ? (
-          <img
+          <GameCover
             src={session.coverUrl}
             alt=""
             className="aspect-[3/4] w-full rounded-lg bg-surface-hover object-cover shadow-raised"

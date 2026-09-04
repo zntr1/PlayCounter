@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.1.15",
+    "releasedAt": "2026-09-04",
+    "headline": "Every game now has a details view.",
+    "highlights": [
+      "Right-click a game in My Games and pick Open Details to see the whole picture: release date, first and last played, average and longest session, days played and the last 30 days.",
+      "The same view lists every file PlayCounter watches for that game, whether a file counts everywhere or only in one folder, the launch file you saved, and the Steam or Xbox entry it was imported from.",
+      "Games matched to the database now show their description, genres, modes, developer, publisher and platforms, with a button that opens the game on IGDB.",
+      "New Sharper covers option under Customize in My Games loads cover art at a larger size. Covers you set yourself are left alone."
+    ]
+  },
+  {
     "version": "1.1.14",
     "releasedAt": "2026-09-04",
     "headline": "Another Hotfix for v1.1.12!",

@@ -373,6 +373,35 @@ export interface GameMetadataResponse {
   games: Game[];
 }
 
+/**
+ * Extended IGDB facts for one game, shown in the desktop's game details view.
+ * Everything past `gameId`/`igdbId` is optional or an empty array: IGDB entries
+ * are unevenly filled, and a community game may have no IGDB entry at all.
+ */
+export interface GameDetails {
+  /** The server-local game id that was requested, not the IGDB id. */
+  gameId: number;
+  igdbId: number;
+  /** Canonical IGDB page, as IGDB itself reports it. Never built from a slug. */
+  igdbUrl?: string;
+  summary?: string;
+  /** ISO calendar date (YYYY-MM-DD) of the first release, when IGDB knows one. */
+  releaseDate?: string;
+  releaseYear?: number;
+  developers: string[];
+  publishers: string[];
+  genres: string[];
+  gameModes: string[];
+  platforms: string[];
+  screenshotUrls: string[];
+  /** IGDB's aggregate score, 0-100, rounded. Absent when too few ratings. */
+  rating?: number;
+}
+
+export interface GameDetailsResponse {
+  details: GameDetails[];
+}
+
 export interface Session {
   id: number;
   gameId: number;
@@ -437,6 +466,8 @@ export interface Settings {
   libraryShowOriginBadges?: boolean;
   /** IGDB, Community or Custom seal in the cover corner. */
   libraryShowMatchBadges?: boolean;
+  /** Request IGDB cover art one size up. Absent = off, the smaller default. */
+  libraryHighResCovers?: boolean;
   /** My Games summary cards. Absent = the default set. Empty = all off. */
   libraryStatCards?: LibraryStatCardId[];
   /** Master switch for the My Games summary row. */

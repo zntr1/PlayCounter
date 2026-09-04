@@ -1,5 +1,6 @@
 import type { GameSource, Session } from "@playcounter/shared";
 import clsx from "clsx";
+import { GameCover } from "../GameCover";
 import { ChevronDown, Search, Timer, Trash2, X } from "lucide-react";
 import {
   useCallback,
@@ -754,7 +755,7 @@ function DeleteSessionDialog({
       </p>
       <div className="mt-4 flex items-stretch gap-4 rounded-lg border border-border bg-surface-hover p-4">
         {coverUrl ? (
-          <img
+          <GameCover
             src={coverUrl}
             alt={`${gameName} cover`}
             className="h-[88px] w-16 shrink-0 rounded-md object-cover shadow-sm"

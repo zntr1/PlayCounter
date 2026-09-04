@@ -146,6 +146,8 @@ import {
   sortMatchCandidates,
 } from "./matchCheckModel";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
+import { GameDetailsDialog } from "./games/GameDetailsDialog";
+import { GameCover } from "../GameCover";
 import { CancelCommunitySuggestionDialog } from "../CancelCommunitySuggestionDialog";
 import type {
   CommunityGameSuggestionResponse,
@@ -552,6 +554,12 @@ export function MyGamesView() {
   );
   const setMyGamesShowMatchBadges = useAppStore(
     (state) => state.setMyGamesShowMatchBadges,
+  );
+  const highResCovers = useAppStore(
+    (state) => state.settings.libraryHighResCovers === true,
+  );
+  const setMyGamesHighResCovers = useAppStore(
+    (state) => state.setMyGamesHighResCovers,
   );
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
@@ -1546,6 +1554,35 @@ export function MyGamesView() {
                 <div className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <label
+                      htmlFor="library-high-res-covers"
+                      className="text-sm font-medium text-text"
+                    >
+                      Sharper covers
+                    </label>
+                    <p
+                      id="library-high-res-covers-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      Load cover art at a larger size. Looks better on big
+                      cards, uses more data. Covers you set yourself are
+                      unaffected.
+                    </p>
+                  </div>
+                  <input
+                    id="library-high-res-covers"
+                    type="checkbox"
+                    checked={highResCovers}
+                    aria-describedby="library-high-res-covers-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesHighResCovers(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
                       htmlFor="library-show-stats"
                       className="text-sm font-medium text-text"
                     >
@@ -2115,6 +2152,7 @@ function GameLibraryCard({
   const [showAddPlaytime, setShowAddPlaytime] = useState(false);
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [cancelSuggestionTarget, setCancelSuggestionTarget] =
     useState<PendingCommunitySuggestionTarget | null>(null);
@@ -3292,6 +3330,15 @@ function GameLibraryCard({
     }
   }
 
+  const renderDetailsDialog = () =>
+    showDetails ? (
+      <GameDetailsDialog
+        game={game}
+        launchTargets={ownedLaunchTargets}
+        onClose={() => setShowDetails(false)}
+      />
+    ) : null;
+
   const renderContextMenu = () => {
     if (!contextMenu.open) return null;
     return (
@@ -3545,9 +3592,19 @@ function GameLibraryCard({
             ) : null}
           </>
         ) : null}
+        <ContextMenuHeading>Info</ContextMenuHeading>
+        <ContextMenuItem
+          icon={Info}
+          onClick={() => {
+            contextMenu.close();
+            if (demo) return demoNotice();
+            setShowDetails(true);
+          }}
+        >
+          Open Details
+        </ContextMenuItem>
         {canEditCover ? (
           <>
-            <ContextMenuHeading>Info</ContextMenuHeading>
             <ContextMenuItem
               dataTour={demo ? "demo-menu-rename" : undefined}
               icon={Pencil}
@@ -3658,7 +3715,7 @@ function GameLibraryCard({
         ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
           {game.coverUrl ? (
-            <img
+            <GameCover
               src={game.coverUrl}
               alt=""
               className="game-card-cover-image h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -4037,6 +4094,7 @@ function GameLibraryCard({
           </div>
         ) : null}
         {renderContextMenu()}
+        {renderDetailsDialog()}
         {showAddPlaytime ? (
           <AddPlaytimeDialog
             game={game}
@@ -4207,7 +4265,7 @@ function GameLibraryCard({
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
           {game.coverUrl ? (
-            <img
+            <GameCover
               src={game.coverUrl}
               alt=""
               className="aspect-[3/4] w-full rounded-lg object-cover"
@@ -4452,6 +4510,7 @@ function GameLibraryCard({
         }}
       />
       {renderContextMenu()}
+      {renderDetailsDialog()}
       {showAddPlaytime ? (
         <AddPlaytimeDialog
           game={game}

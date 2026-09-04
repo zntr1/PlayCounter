@@ -480,6 +480,7 @@ export type AppState = {
   setMyGamesSortKey: (key: MyGamesSortKey) => void;
   setMyGamesShowOriginBadges: (enabled: boolean) => void;
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
+  setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
@@ -528,6 +529,7 @@ const defaultSettings: Settings = {
   librarySortKey: "recent",
   libraryShowOriginBadges: true,
   libraryShowMatchBadges: true,
+  libraryHighResCovers: false,
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
   libraryShowStatCards: true,
   autoShareIgnoredProcesses: false,
@@ -1357,6 +1359,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowMatchBadges: (libraryShowMatchBadges) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowMatchBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesHighResCovers: (libraryHighResCovers) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryHighResCovers },
     }));
     persistSoon();
   },
