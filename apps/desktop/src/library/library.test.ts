@@ -216,6 +216,12 @@ describe("library import", () => {
     expect(mergeProviderSeconds(null, 3_600)).toBe(3_600);
   });
 
+  it("never lowers or doubles provider time when a game is imported again", () => {
+    expect(mergeProviderSeconds(7_200, 7_200)).toBe(7_200);
+    expect(mergeProviderSeconds(7_200, 9_000)).toBe(9_000);
+    expect(mergeProviderSeconds(9_000, 7_200)).toBe(9_000);
+  });
+
   it("keeps executable provenance separate from IGDB game identity", () => {
     const commit = buildLibraryImportCommit({
       scanned,

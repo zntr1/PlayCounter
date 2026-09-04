@@ -364,7 +364,6 @@ export function ImportLibraryView() {
           !match ||
           !canImportScannedGame({
             game,
-            provider: providerId,
             resolved: match,
             alreadyImported: existingImports.has(
               libraryEntryKey(providerId, game.externalId),
@@ -601,7 +600,6 @@ export function ImportLibraryView() {
         completed.has(game.externalId) ||
         !canImportScannedGame({
           game,
-          provider: providerId,
           resolved: match,
           alreadyImported: existingImports.has(key),
           ignoredProcesses,
@@ -655,9 +653,7 @@ export function ImportLibraryView() {
       {
         key: "imported",
         label: "Imported",
-        description: isXbox
-          ? "Games already in My Games. Import one again to update its Xbox playtime."
-          : "Games already available in My Games.",
+        description: `Games already in My Games. Import one again to update its ${providerName} playtime.`,
         games: [] as ScannedLibraryGame[],
       },
     ];
@@ -688,6 +684,7 @@ export function ImportLibraryView() {
     ignoredProcesses,
     isXbox,
     providerId,
+    providerName,
     resolved,
     scan,
   ]);
@@ -1124,9 +1121,7 @@ export function ImportRow({
           </h3>
           {alreadyImported ? (
             <span className="text-xs font-medium text-success">
-              {canImportExistingLibraryEntry(provider, true)
-                ? "Already in My Games · import again to update playtime"
-                : "Already in My Games"}
+              Already in My Games · import again to update playtime
             </span>
           ) : null}
           {!importable ? (
@@ -1383,13 +1378,6 @@ export function hasImportableActivity(game: ScannedLibraryGame) {
   );
 }
 
-export function canImportExistingLibraryEntry(
-  provider: BuiltinImportProviderId,
-  alreadyImported: boolean,
-) {
-  return !alreadyImported || provider === "xbox";
-}
-
 function isImportable(
   game: ScannedLibraryGame,
   resolved?: ResolvedLibraryGame,
@@ -1403,14 +1391,11 @@ function isImportable(
 
 export function canImportScannedGame(params: {
   game: ScannedLibraryGame;
-  provider: BuiltinImportProviderId;
   resolved?: ResolvedLibraryGame;
   alreadyImported: boolean;
   ignoredProcesses?: ReadonlySet<string>;
 }) {
-  const { game, provider, resolved, alreadyImported, ignoredProcesses } =
-    params;
-  if (!canImportExistingLibraryEntry(provider, alreadyImported)) return false;
+  const { game, resolved, alreadyImported, ignoredProcesses } = params;
   if (!isImportable(game, resolved)) return false;
   // Importing a game that is already in My Games only refreshes its playtime,
   // so a missing executable link must not block it. Picking a file stays

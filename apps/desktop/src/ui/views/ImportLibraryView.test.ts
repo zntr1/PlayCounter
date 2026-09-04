@@ -2,7 +2,6 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import ImportLibraryView, {
-  canImportExistingLibraryEntry,
   canImportScannedGame,
   importGroupForGame,
   ImportRow,
@@ -21,10 +20,40 @@ it("shows the current Xbox import stage", () => {
 });
 
 describe("library importer eligibility", () => {
-  it("allows Xbox imports to refresh existing playtime without changing Steam behavior", () => {
-    expect(canImportExistingLibraryEntry("xbox", true)).toBe(true);
-    expect(canImportExistingLibraryEntry("steam", true)).toBe(false);
-    expect(canImportExistingLibraryEntry("xbox", false)).toBe(true);
+  it("lets both providers import an existing entry again to refresh playtime", () => {
+    const game = {
+      externalId: "730",
+      name: "Counter-Strike 2",
+      playtimeSeconds: 7_200,
+      installed: false,
+      executables: [],
+    };
+    const resolved = {
+      key: "steam:730",
+      status: "resolved" as const,
+      game: {
+        id: 3,
+        igdbId: 1_372,
+        name: "Counter-Strike 2",
+        coverUrl: "cover",
+        source: "igdb" as const,
+      },
+      executables: [],
+    };
+
+    expect(
+      canImportScannedGame({ game, resolved, alreadyImported: true }),
+    ).toBe(true);
+    expect(
+      canImportScannedGame({ game, resolved, alreadyImported: false }),
+    ).toBe(true);
+    expect(
+      canImportScannedGame({
+        game: { ...game, playtimeSeconds: 0 },
+        resolved,
+        alreadyImported: true,
+      }),
+    ).toBe(false);
   });
 
   it("keeps an already imported game in the Imported group for both providers", () => {
@@ -174,7 +203,6 @@ describe("library importer eligibility", () => {
     expect(
       canImportScannedGame({
         game,
-        provider: "xbox",
         resolved,
         alreadyImported: true,
       }),
@@ -182,7 +210,6 @@ describe("library importer eligibility", () => {
     expect(
       canImportScannedGame({
         game,
-        provider: "xbox",
         resolved,
         alreadyImported: false,
       }),
@@ -244,7 +271,7 @@ describe("library importer eligibility", () => {
     expect(html).not.toContain("Add and Share");
   });
 
-  it("labels an imported row by whether the provider can refresh it", () => {
+  it("tells an imported row that importing it again refreshes playtime", () => {
     const props = {
       apiEndpoint: "https://api.example",
       game: {
@@ -294,10 +321,10 @@ describe("library importer eligibility", () => {
         createElement(ImportRow, {
           ...props,
           provider: "steam",
-          showSelection: false,
+          showSelection: true,
         }),
       ),
-    ).toContain("Already in My Games<");
+    ).toContain("Already in My Games · import again to update playtime");
   });
 
   it("does not reserve empty artwork for an unresolved Xbox title", () => {
