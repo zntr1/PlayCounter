@@ -3315,7 +3315,12 @@ export function applyLocalLinkGameMatch(
       gameName: game.name,
       coverUrl: game.coverUrl,
       source: game.source,
+      identifierSource: game.source,
       pendingCommunityGame: undefined,
+      communitySuggestionId: undefined,
+      communitySuggestionVerified: undefined,
+      communitySuggestionStatus: undefined,
+      communitySuggestionNote: undefined,
       shareState: undefined,
     });
     const updateSession = <T extends ActiveSession | Session>(session: T): T =>
@@ -5705,6 +5710,19 @@ export async function submitLocalLinkToCommunity(
       return { kind: "already-known" };
     }
     if (result.id === undefined) throw new Error("Unexpected response");
+    if (result.verified) {
+      // This match was approved before the import. Apply it as database truth
+      // instead of making the imported link look like a freshly approved
+      // suggestion that still needs a Level up action.
+      applyLocalLinkGameMatch(ref, {
+        id: result.id,
+        igdbId: link.igdbId,
+        name: link.gameName,
+        coverUrl: link.coverUrl ?? "",
+        source: "community",
+      });
+      return { kind: "already-known" };
+    }
     suggestTrackedGameToCommunity(
       ref,
       link.gameName,

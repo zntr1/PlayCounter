@@ -2879,6 +2879,40 @@ describe("imported local link sharing", () => {
     });
   });
 
+  it("applies a previously approved match without creating a Level up marker", async () => {
+    useAppStore.setState({
+      scopedExeLinks: new Map([[key, link]]),
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://api.playcounter.test",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Promise.resolve(
+          new Response(JSON.stringify({ id: 42, verified: true }), {
+            status: 200,
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      submitLocalLinkToCommunity({ kind: "scoped", key }),
+    ).resolves.toEqual({ kind: "already-known" });
+
+    expect(useAppStore.getState().scopedExeLinks.get(key)).toMatchObject({
+      gameId: 42,
+      igdbId: 123,
+      source: "community",
+      identifierSource: "community",
+      communitySuggestionId: undefined,
+      communitySuggestionVerified: undefined,
+      communitySuggestionStatus: undefined,
+    });
+  });
+
   it("keeps the local link and exposes retry state when submission fails", async () => {
     useAppStore.setState({ scopedExeLinks: new Map([[key, link]]) });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));

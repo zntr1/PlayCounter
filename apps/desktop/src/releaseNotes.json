@@ -1,15 +1,19 @@
 [
   {
+    "version": "1.1.14",
+    "releasedAt": "2026-09-04",
+    "headline": "Keep imported game matches and contribution credit accurate.",
+    "highlights": [
+      "Existing approved game-file matches found during a library import are now applied directly, without showing Level up or repeating approval notifications.",
+      "Importing a game no longer counts an already reviewed database match as a new community contribution or achievement."
+    ]
+  },
+  {
     "version": "1.1.13",
     "releasedAt": "2026-09-04",
-    "headline": "Bring your Xbox library and playtime into PlayCounter.",
+    "headline": "Hotfix for v1.1.12.",
     "highlights": [
-      "Import your Xbox play history with Microsoft sign-in in your browser, then match it with games installed through the Xbox app on this PC.",
-      "Review uncertain Xbox matches before importing and choose the correct game file when PlayCounter needs help identifying what to track.",
-      "My Games now has dedicated Steam and Xbox views, clearer imported-game states, and a Back to top button for large libraries.",
-      "Customize the My Games summary cards and choose which origin and match markers appear on game cards. Your view choices are remembered.",
-      "Open launchable games in File Explorer from their context menu, and control whether PlayCounter remembers local launch paths independently of the Play button.",
-      "Steam games can be imported again to refresh playtime, while improved game-file matching, system-process filtering, and provider and emulator icons keep your library more accurate."
+      "Fixed the Xbox History to use a different tooling to read Xbox Game History to solve a problem regarding false positives."
     ]
   },
   {
