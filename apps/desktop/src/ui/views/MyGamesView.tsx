@@ -1768,8 +1768,7 @@ export function MyGamesView() {
                 <div>
                   <h3 className="font-semibold text-text">PlayCounter</h3>
                   <p className="text-sm text-text-muted">
-                    PlayCounter found these on its own. Nothing here came from a
-                    launcher import.
+                    Everything that PlayCounter found and tracked for you.
                   </p>
                 </div>
                 <LibraryStatRow
