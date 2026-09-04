@@ -21,6 +21,7 @@ mod library;
 mod notification_overlay;
 mod process;
 mod session;
+mod shell_open;
 
 const TRAY_STATUS_IDLE: &str = "No game active";
 const TRAY_STATUS_PREFIX: &str = "Playing ";
@@ -506,32 +507,7 @@ fn open_folder(path: &Path) -> Result<(), String> {
 }
 
 fn open_url(url: &str) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    let mut command = {
-        let mut command = Command::new("rundll32.exe");
-        command.args(["url.dll,FileProtocolHandler", url]);
-        command
-    };
-
-    #[cfg(target_os = "macos")]
-    let mut command = {
-        let mut command = Command::new("open");
-        command.arg(url);
-        command
-    };
-
-    #[cfg(target_os = "linux")]
-    let mut command = {
-        let mut command = Command::new("xdg-open");
-        command.arg(url);
-        command
-    };
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    return Err("Opening links is not supported on this platform.".to_string());
-
-    command.spawn().map_err(|error| error.to_string())?;
-    Ok(())
+    shell_open::open_url(url)
 }
 
 async fn watch_processes(app: tauri::AppHandle) {

@@ -1,6 +1,6 @@
 [package]
 name = "playcounter"
-version = "1.1.12"
+version = "1.1.13"
 description = "Launcher-agnostic game play tracker"
 authors = ["PlayCounter"]
 edition = "2021"
@@ -33,4 +33,4 @@ base64 = "0.22.1"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Wdk_System_Threading", "Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Storage_Packaging_Appx", "Win32_System_Registry", "Win32_System_Threading", "Win32_UI_Input_XboxController", "Win32_UI_WindowsAndMessaging"] }
-windows = { version = "0.59", features = ["Win32_System_Com", "Win32_UI_Shell"] }
+windows = { version = "0.59", features = ["Win32_System_Com", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

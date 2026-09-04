@@ -8,7 +8,6 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     path::{Component, Path, PathBuf},
-    process::{Command, Stdio},
     time::Instant,
 };
 
@@ -204,19 +203,12 @@ pub fn launch_app(external_id: &str, mode: &str) -> Result<(), LaunchError> {
 
     #[cfg(windows)]
     {
-        Command::new("rundll32.exe")
-            .args(["url.dll,FileProtocolHandler", &url])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|error| {
-                LaunchError::new(
-                    LaunchErrorKind::SpawnFailed,
-                    format!("Could not open Steam: {error}"),
-                )
-            })?;
-        Ok(())
+        crate::shell_open::open_url(&url).map_err(|error| {
+            LaunchError::new(
+                LaunchErrorKind::SpawnFailed,
+                format!("Could not open Steam: {error}"),
+            )
+        })
     }
 
     #[cfg(not(windows))]
