@@ -257,6 +257,15 @@ export function App() {
   useEffect(() => {
     if (activeView === "import") setImporterMounted(true);
   }, [activeView]);
+  /* My Games is expensive to build - it sorts the whole library and drip-feeds
+     the cards back in batches - and unmounting it throws every cover <img>
+     away, so a revisit reloads the lot. Once opened it stays mounted and is
+     merely hidden, exactly like the importer above. */
+  const [gamesMounted, setGamesMounted] = useState(activeView === "games");
+  const renderGames = gamesMounted || activeView === "games";
+  useEffect(() => {
+    if (activeView === "games") setGamesMounted(true);
+  }, [activeView]);
   const libraryImportProvider = useAppStore(
     (state) => state.libraryImportProvider,
   );
@@ -721,7 +730,12 @@ export function App() {
             aria-label={`${activeViewLabel} content`}
             className="controller-content absolute inset-0 overflow-auto px-7 py-6"
           >
-            {activeView !== "import" ? views[activeView].component : null}
+            {activeView !== "import" && activeView !== "games"
+              ? views[activeView].component
+              : null}
+            {renderGames ? (
+              <div hidden={activeView !== "games"}>{views.games.component}</div>
+            ) : null}
             {renderImporter ? (
               <div hidden={activeView !== "import"}>
                 {views.import.component}

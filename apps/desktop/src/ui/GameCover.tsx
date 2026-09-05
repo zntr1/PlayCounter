@@ -31,8 +31,13 @@ export function GameCover({
     setFallback(failedUpgrades.has(upgradeCoverUrl(src, wanted)));
   }, [src, wanted]);
 
+  /* A library of any size puts far more covers in the DOM than fit on screen.
+     Leaving the off-screen ones to the browser keeps the first paint cheap;
+     callers that need a cover decoded up front (the hero) can override both. */
   return (
     <img
+      loading="lazy"
+      decoding="async"
       {...rest}
       src={fallback ? src : upgraded}
       onError={(event) => {
