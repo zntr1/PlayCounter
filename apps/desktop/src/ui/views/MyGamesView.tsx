@@ -195,6 +195,7 @@ import {
 import { myGamesLayout } from "../myGamesLayout";
 import {
   filterByLibraryTab,
+  hasEmptyProviderTabs,
   resolveLibraryTab,
   visibleLibraryTabs,
 } from "../libraryTabs";
@@ -571,6 +572,12 @@ export function MyGamesView() {
     (state) => state.setMyGamesShowStatCards,
   );
   const setMyGamesStatCards = useAppStore((state) => state.setMyGamesStatCards);
+  const hideEmptyProviderTabs = useAppStore(
+    (state) => state.settings.libraryHideEmptyProviderTabs === true,
+  );
+  const setMyGamesHideEmptyProviderTabs = useAppStore(
+    (state) => state.setMyGamesHideEmptyProviderTabs,
+  );
   const statCardIds = useMemo(
     () => resolveLibraryStatCardIds({ libraryStatCards: statCardSetting }),
     [statCardSetting],
@@ -1258,7 +1265,9 @@ export function MyGamesView() {
     () => filterByLibraryTab(games, "unimported"),
     [games],
   );
+  const canHideEmptyProviderTabs = hasEmptyProviderTabs(providerTabInputs);
   const tabs = visibleLibraryTabs({
+    hideEmptyProviders: hideEmptyProviderTabs,
     allTabCount: allLibraryGames.length,
     unimportedGameCount: unimportedGames.length,
     providers: providerTabInputs,
@@ -1596,6 +1605,41 @@ export function MyGamesView() {
                       setMyGamesHighResCovers(event.target.checked)
                     }
                     className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
+                      htmlFor="library-hide-empty-tabs"
+                      className={clsx(
+                        "text-sm font-medium",
+                        canHideEmptyProviderTabs
+                          ? "text-text"
+                          : "text-text-faint",
+                      )}
+                    >
+                      Hide empty library tabs
+                    </label>
+                    <p
+                      id="library-hide-empty-tabs-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      {canHideEmptyProviderTabs
+                        ? "A Steam or Xbox tab with nothing imported disappears, along with its import button. The tab row goes away entirely once no library tab is left. Turn this off again to import later."
+                        : "Every library tab has games in it, so there is nothing to hide."}
+                    </p>
+                  </div>
+                  <input
+                    id="library-hide-empty-tabs"
+                    type="checkbox"
+                    checked={hideEmptyProviderTabs}
+                    disabled={!canHideEmptyProviderTabs}
+                    aria-describedby="library-hide-empty-tabs-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesHideEmptyProviderTabs(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 py-3">

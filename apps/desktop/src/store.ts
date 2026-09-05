@@ -482,6 +482,7 @@ export type AppState = {
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
   setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
+  setMyGamesHideEmptyProviderTabs: (enabled: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setEmulatorSetting: (
@@ -531,6 +532,7 @@ const defaultSettings: Settings = {
   libraryHighResCovers: false,
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
   libraryShowStatCards: true,
+  libraryHideEmptyProviderTabs: false,
   autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
@@ -1370,6 +1372,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowStatCards: (libraryShowStatCards) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowStatCards },
+    }));
+    persistSoon();
+  },
+  setMyGamesHideEmptyProviderTabs: (libraryHideEmptyProviderTabs) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryHideEmptyProviderTabs },
     }));
     persistSoon();
   },

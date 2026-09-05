@@ -35,12 +35,30 @@ export function providerTabVisible(input: ProviderTabInput) {
   return input.importSupported || input.gameCount > 0;
 }
 
+/** True while a provider tab is on screen with nothing imported into it, so
+ *  there is something for the hide toggle to act on. */
+export function hasEmptyProviderTabs(
+  providers: readonly ProviderTabInput[],
+): boolean {
+  return providers.some(
+    (provider) => providerTabVisible(provider) && provider.gameCount === 0,
+  );
+}
+
 export function visibleLibraryTabs(input: {
   allTabCount: number;
   unimportedGameCount: number;
   providers: readonly ProviderTabInput[];
+  hideEmptyProviders?: boolean;
 }): LibraryTabDescriptor[] {
-  const providers = input.providers.filter(providerTabVisible);
+  const providers = input.providers.filter(
+    (provider) =>
+      providerTabVisible(provider) &&
+      (!input.hideEmptyProviders || provider.gameCount > 0),
+  );
+  // Without a provider tab there is nothing to switch between: All games and
+  // PlayCounter would list the same games. Drop the whole strip instead of
+  // leaving a dead tab behind.
   if (providers.length === 0) return [];
 
   return [
