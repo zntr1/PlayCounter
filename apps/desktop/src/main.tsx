@@ -36,3 +36,14 @@ createRoot(document.getElementById("root")!).render(
     </QueryClientProvider>
   </React.StrictMode>,
 );
+
+// The native window starts hidden so no blank white frame is shown while the
+// webview boots and the saved geometry is restored. Reveal it once the first
+// frame is actually on screen.
+requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    void import("@tauri-apps/api/core")
+      .then(({ invoke }) => invoke("main_window_ready"))
+      .catch(() => {});
+  });
+});
