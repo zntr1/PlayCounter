@@ -4,7 +4,10 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
     time::Duration,
 };
 use tauri::{
@@ -33,6 +36,27 @@ struct TrayState {
     status_item: Mutex<Option<MenuItem<Wry>>>,
 }
 
+/// The main window is created hidden so Windows never shows a bare white frame
+/// while the webview boots and the saved geometry is restored. It is revealed
+/// once the UI has painted - unless autostart launched us, in which case we
+/// stay in the tray.
+struct StartupWindow {
+    autostart: bool,
+    revealed: AtomicBool,
+}
+
+impl StartupWindow {
+    fn reveal(&self, app: &tauri::AppHandle) {
+        if self.autostart {
+            return;
+        }
+        if self.revealed.swap(true, Ordering::SeqCst) {
+            return;
+        }
+        show_main_window(app);
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TraySession {
@@ -45,6 +69,12 @@ struct TraySession {
 struct PrivacyContext {
     user_name: String,
     home_dir_name: String,
+}
+
+/// Called by the frontend once the first frame is on screen.
+#[tauri::command]
+fn main_window_ready(app: tauri::AppHandle) {
+    app.state::<StartupWindow>().reveal(&app);
 }
 
 #[tauri::command]
@@ -255,8 +285,18 @@ pub fn run() {
         .manage(controller::ControllerWatcher::default())
         .manage(emulator_launch::EmulatorLaunchGuard::default())
         .manage(notification_overlay::OverlayState::default())
+        .manage(StartupWindow {
+            autostart: launched_from_autostart(),
+            revealed: AtomicBool::new(false),
+        })
         .plugin(
             tauri_plugin_window_state::Builder::default()
+                // VISIBLE is excluded so the plugin cannot show the window
+                // behind our back - we decide when it appears.
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        - tauri_plugin_window_state::StateFlags::VISIBLE,
+                )
                 .with_denylist(&[notification_overlay::OVERLAY_LABEL])
                 .build(),
         )
@@ -272,6 +312,7 @@ pub fn run() {
             Some(vec!["--autostart"]),
         ))
         .invoke_handler(tauri::generate_handler![
+            main_window_ready,
             install_uuid,
             adopt_install_uuid,
             ignored_processes,
@@ -312,11 +353,14 @@ pub fn run() {
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
-            if launched_from_autostart() {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
-                }
-            }
+            // Safety net: if the webview never gets far enough to call
+            // main_window_ready, show the window anyway rather than leaving the
+            // user with nothing but a tray icon.
+            let reveal_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(8)).await;
+                reveal_handle.state::<StartupWindow>().reveal(&reveal_handle);
+            });
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(Duration::from_secs(10)).await;
