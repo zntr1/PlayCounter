@@ -1,5 +1,6 @@
-import type { Session } from "@playcounter/shared";
+import type { GameDetails, Session } from "@playcounter/shared";
 import { Flag, Gamepad2 } from "lucide-react";
+import { useGameDetails } from "../../gameDetails";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { GameCover } from "../GameCover";
 import {
@@ -17,7 +18,7 @@ import {
   SourceBadge,
   formatDuration,
 } from "../components";
-import { IconButton } from "../primitives";
+import { Button } from "../primitives";
 
 type ActiveGameHeroProps = {
   session: ActiveSession;
@@ -33,6 +34,12 @@ type ActiveGameHeroProps = {
   onReport?: () => void;
   tourAnchor?: string;
 };
+
+/* The hero ───────────────────────────────────────────────────────────────────
+   One game, one running clock. The cover sets the mood: it is painted large,
+   and blurred again behind everything so the whole card takes on the game's
+   palette. The session timer is the only big number; lifetime totals sit
+   beside it in a smaller voice. */
 
 export function ActiveGameHero({
   session,
@@ -118,54 +125,70 @@ export function ActiveGameHero({
   const canReport =
     Boolean(onReport) &&
     (session.source === "igdb" || session.source === "community");
+  // Decoration from IGDB, fetched once per game and shown only when it lands.
+  // Loading, offline and "no entry" all leave the line empty on purpose.
+  const details = useGameDetails(session.igdbId);
+  const facts =
+    details.status === "ready" ? igdbFactsLine(details.details) : null;
 
   return (
     <section
-      className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
+      className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-raised"
       data-tour={tourAnchor}
     >
-      {canReport ? (
-        <IconButton
-          icon={Flag}
-          aria-label={`Report wrong match for ${session.gameName}`}
-          title="Report wrong match"
-          onClick={onReport}
-          className="absolute right-4 top-4 z-30 bg-bg/90 text-text-muted shadow-raised hover:bg-warning hover:text-white"
-        />
-      ) : null}
       {session.coverUrl ? (
         <div aria-hidden className="absolute inset-0">
           <GameCover
             src={session.coverUrl}
             alt=""
-            className="h-full w-full scale-110 object-cover opacity-20 blur-2xl"
+            className="hero-backdrop h-full w-full scale-125 object-cover blur-3xl saturate-150"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/85 to-surface/40" />
+          <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/85 to-surface/40" />
         </div>
       ) : null}
 
-      <div className="relative grid gap-6 p-6 sm:grid-cols-[176px_minmax(0,1fr)]">
+      <div className="relative grid gap-7 p-6 sm:grid-cols-[200px_minmax(0,1fr)]">
         {session.coverUrl ? (
           <GameCover
             src={session.coverUrl}
             alt=""
-            className="aspect-[3/4] w-full rounded-lg bg-surface-hover object-cover shadow-raised"
+            loading="eager"
+            className="aspect-[3/4] w-full rounded-xl bg-surface-hover object-cover shadow-card-hover ring-1 ring-white/10"
           />
         ) : (
-          <div className="grid aspect-[3/4] w-full place-items-center rounded-lg bg-surface-hover text-text-faint">
-            <Gamepad2 size={32} />
+          <div className="grid aspect-[3/4] w-full place-items-center rounded-xl bg-surface-hover text-text-faint ring-1 ring-white/10">
+            <Gamepad2 size={36} />
           </div>
         )}
 
         <div className="flex min-w-0 flex-col">
-          <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-success-border bg-success-tint px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-success">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
-            {statusLabel}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-success-border bg-success-tint px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-success">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+              {statusLabel}
+            </div>
+            {canReport ? (
+              <Button
+                variant="ghost"
+                icon={Flag}
+                aria-label={`Report wrong match for ${session.gameName}`}
+                title="Report wrong match"
+                onClick={onReport}
+                className="-mr-2 -mt-1 text-text-faint hover:bg-warning-tint hover:text-warning"
+              >
+                Wrong game?
+              </Button>
+            ) : null}
           </div>
-          <h2 className="truncate text-3xl font-bold text-text">
+
+          <h2
+            className="mt-3 line-clamp-2 break-words text-4xl font-bold leading-tight text-text"
+            title={session.gameName}
+          >
             {session.gameName}
           </h2>
-          <div className="mt-2 flex flex-wrap items-center gap-2.5">
+
+          <div className="mt-3 flex flex-wrap items-center gap-2.5">
             {sources.map((source) => (
               <SourceBadge key={source} source={source} />
             ))}
@@ -190,23 +213,29 @@ export function ActiveGameHero({
                 {session.emulator.label} · {session.emulator.display}
               </span>
             ) : (
-              <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted drop-shadow-sm">
+              <span className="truncate rounded-md border border-border/60 bg-surface-hover/50 px-2 py-0.5 font-mono text-[11px] font-medium tracking-wide text-text-muted">
                 {exeNames.join(", ")}
               </span>
             )}
           </div>
 
-          <div className="mt-auto grid grid-cols-3 gap-3 pt-6">
-            <HeroStat
-              label="Current session"
-              value={formatClock(elapsedSeconds)}
-              accent
-            />
-            <HeroStat
+          <div className="mt-2 min-h-5 truncate text-sm text-text-muted">
+            {facts}
+          </div>
+
+          <div className="mt-auto flex flex-wrap items-end gap-x-10 gap-y-4 pt-7">
+            <div>
+              <FigureLabel>This session</FigureLabel>
+              <div className="mt-1 font-mono text-5xl font-semibold leading-none tabular-nums tracking-tight text-accent">
+                {formatClock(elapsedSeconds)}
+              </div>
+            </div>
+            <div aria-hidden className="hidden h-12 w-px bg-border sm:block" />
+            <Figure
               label="Total playtime"
               value={formatDuration(lifetimeSeconds, showDurationDays)}
             />
-            <HeroStat label="Sessions" value={String(lifetimeSessionCount)} />
+            <Figure label="Sessions" value={String(lifetimeSessionCount)} />
           </div>
         </div>
       </div>
@@ -214,30 +243,36 @@ export function ActiveGameHero({
   );
 }
 
-function HeroStat({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
+function FigureLabel({ children }: { children: string }) {
   return (
-    <div className="rounded-lg border border-border bg-bg/60 px-4 py-3">
-      <div className="text-xs uppercase tracking-wide text-text-faint">
-        {label}
-      </div>
-      <div
-        className={`mt-1 truncate font-mono text-2xl font-semibold tabular-nums ${accent ? "text-accent" : "text-text"}`}
-      >
+    <div className="text-[11px] font-semibold uppercase tracking-wider text-text-faint">
+      {children}
+    </div>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <FigureLabel>{label}</FigureLabel>
+      <div className="mt-1 font-mono text-2xl font-semibold leading-none tabular-nums text-text">
         {value}
       </div>
     </div>
   );
 }
 
-function formatClock(seconds: number) {
+// "2020 · Action, Role-playing" - both parts optional.
+function igdbFactsLine(details: GameDetails) {
+  const parts = [
+    details.releaseYear?.toString() ??
+      (details.releaseDate ? details.releaseDate.slice(0, 4) : null),
+    details.genres.length > 0 ? details.genres.slice(0, 3).join(", ") : null,
+  ].filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+export function formatClock(seconds: number) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;

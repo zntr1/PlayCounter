@@ -141,6 +141,16 @@
   box-shadow: 0 0 10px rgb(var(--color-accent) / 0.75);
 }
 
+/* The Now Playing hero paints the card with the cover's own colours. Light
+   surfaces need less of it to keep the text readable. */
+.hero-backdrop {
+  opacity: 0.6;
+}
+
+:root[data-theme="light"] .hero-backdrop {
+  opacity: 0.35;
+}
+
 .emulator-badge {
   border-color: rgb(3 79 201);
   background: rgb(3 79 201);
