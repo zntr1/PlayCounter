@@ -940,6 +940,19 @@ select {
   display: none;
 }
 
+/* The card title only swaps to the .exe names while Shift is held. */
+body.shift-held
+  .game-library-card:not(:has(.level-up-cta:hover)):hover
+  .game-card-name-default {
+  display: none;
+}
+
+body.shift-held
+  .game-library-card:not(:has(.level-up-cta:hover)):hover
+  .game-card-name-exe {
+  display: inline;
+}
+
 .level-up-arrow {
   animation: level-up-arrow 1.55s ease-in-out infinite;
 }

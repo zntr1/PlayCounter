@@ -630,6 +630,24 @@ export function MyGamesView() {
     setLibraryTab("all");
   }, [tourDemo.active, tourDemo.resetToken]);
 
+  // Hovering a card reveals its .exe names only while Shift is held.
+  useEffect(() => {
+    const setShiftHeld = (held: boolean) => {
+      document.body.classList.toggle("shift-held", held);
+    };
+    const syncFromKey = (event: KeyboardEvent) => setShiftHeld(event.shiftKey);
+    const clearShift = () => setShiftHeld(false);
+    window.addEventListener("keydown", syncFromKey);
+    window.addEventListener("keyup", syncFromKey);
+    window.addEventListener("blur", clearShift);
+    return () => {
+      window.removeEventListener("keydown", syncFromKey);
+      window.removeEventListener("keyup", syncFromKey);
+      window.removeEventListener("blur", clearShift);
+      clearShift();
+    };
+  }, []);
+
   useEffect(() => {
     const toggleControllerCardSize = () => {
       setMyGamesCardSize(cardSize === "large" ? "grid" : "large");
@@ -2427,7 +2445,7 @@ function GameLibraryCard({
       primaryExeEntry?.communitySuggestionStatus ??
       game.communitySuggestionStatus,
   });
-  // Shown in place of the title while hovering the card.
+  // Shown in place of the title while hovering the card with Shift held.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
   const localDisplayedSeconds = Math.max(
@@ -3349,6 +3367,17 @@ function GameLibraryCard({
         dataTour={demo ? "demo-context-menu" : undefined}
         focusFirstItem={demo}
       >
+        <ContextMenuHeading>Info</ContextMenuHeading>
+        <ContextMenuItem
+          icon={Info}
+          onClick={() => {
+            contextMenu.close();
+            if (demo) return demoNotice();
+            setShowDetails(true);
+          }}
+        >
+          Open Details
+        </ContextMenuItem>
         {steamActions.showOpenInLauncher ? (
           <>
             <ContextMenuHeading>Steam</ContextMenuHeading>
@@ -3592,19 +3621,9 @@ function GameLibraryCard({
             ) : null}
           </>
         ) : null}
-        <ContextMenuHeading>Info</ContextMenuHeading>
-        <ContextMenuItem
-          icon={Info}
-          onClick={() => {
-            contextMenu.close();
-            if (demo) return demoNotice();
-            setShowDetails(true);
-          }}
-        >
-          Open Details
-        </ContextMenuItem>
         {canEditCover ? (
           <>
+            <ContextMenuHeading>Edit</ContextMenuHeading>
             <ContextMenuItem
               dataTour={demo ? "demo-menu-rename" : undefined}
               icon={Pencil}
@@ -3776,6 +3795,13 @@ function GameLibraryCard({
               launchTourDemo && "translate-x-0 opacity-100",
             )}
           >
+            <IconButton
+              icon={Info}
+              aria-label={`Open details for ${game.name}`}
+              title="Open details"
+              onClick={() => (demo ? demoNotice() : setShowDetails(true))}
+              className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+            />
             {canCheckMatches ? (
               <IconButton
                 icon={Search}
@@ -3899,10 +3925,10 @@ function GameLibraryCard({
             >
               {exeLabel ? (
                 <>
-                  <span className="game-card-name-default group-hover:hidden">
+                  <span className="game-card-name-default">
                     {game.name}
                   </span>
-                  <span className="game-card-name-exe hidden font-mono text-[13px] group-hover:inline">
+                  <span className="game-card-name-exe hidden font-mono text-[13px]">
                     {exeLabel}
                   </span>
                 </>
@@ -4303,10 +4329,10 @@ function GameLibraryCard({
             >
               {exeLabel ? (
                 <>
-                  <span className="game-card-name-default group-hover:hidden">
+                  <span className="game-card-name-default">
                     {game.name}
                   </span>
-                  <span className="game-card-name-exe hidden font-mono text-sm group-hover:inline">
+                  <span className="game-card-name-exe hidden font-mono text-sm">
                     {exeLabel}
                   </span>
                 </>
