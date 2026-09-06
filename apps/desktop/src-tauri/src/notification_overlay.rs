@@ -25,6 +25,8 @@ pub struct OverlayPayload {
     kind: String,
     #[serde(default)]
     target_pids: Vec<u32>,
+    #[serde(default)]
+    monitor: Option<String>,
     priority: i32,
     kicker: String,
     title: String,
@@ -48,6 +50,31 @@ pub struct OverlayState {
     ready: AtomicBool,
     current_id: Mutex<Option<String>>,
     current_action: Mutex<Option<String>>,
+}
+
+#[derive(Serialize)]
+pub struct OverlayMonitor {
+    id: String,
+    name: String,
+    width: u32,
+    height: u32,
+    primary: bool,
+}
+
+fn monitor_id(monitor: &tauri::Monitor) -> String {
+    // Prefer the OS name so moving a display does not lose the preference.
+    monitor
+        .name()
+        .cloned()
+        .unwrap_or_else(|| format!("position:{},{}", monitor.position().x, monitor.position().y))
+}
+
+fn monitor_index(ids: &[String], requested: Option<&str>, primary: Option<&str>) -> Option<usize> {
+    requested
+        .filter(|id| *id != "primary")
+        .and_then(|id| ids.iter().position(|candidate| candidate == id))
+        .or_else(|| primary.and_then(|id| ids.iter().position(|candidate| candidate == id)))
+        .or_else(|| (!ids.is_empty()).then_some(0))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -160,34 +187,20 @@ mod imp {
 
     fn selected_monitor(
         app: &tauri::AppHandle,
-        target_pids: &[u32],
+        requested: Option<&str>,
     ) -> Result<tauri::Monitor, String> {
-        if let Some((x, y)) = process_window_center(target_pids) {
-            if let Some(monitor) = app
-                .monitor_from_point(x, y)
-                .map_err(|error| error.to_string())?
-            {
-                return Ok(monitor);
-            }
-        }
-        if let Some((x, y)) = foreground_window_center() {
-            if let Some(monitor) = app
-                .monitor_from_point(x, y)
-                .map_err(|error| error.to_string())?
-            {
-                return Ok(monitor);
-            }
-        }
-        if let Ok(cursor) = app.cursor_position() {
-            if let Some(monitor) = app
-                .monitor_from_point(cursor.x, cursor.y)
-                .map_err(|error| error.to_string())?
-            {
-                return Ok(monitor);
-            }
-        }
-        app.primary_monitor()
-            .map_err(|error| error.to_string())?
+        let monitors = app
+            .available_monitors()
+            .map_err(|error| error.to_string())?;
+        let primary = app
+            .primary_monitor()
+            .ok()
+            .flatten()
+            .as_ref()
+            .map(monitor_id);
+        let ids: Vec<_> = monitors.iter().map(monitor_id).collect();
+        monitor_index(&ids, requested, primary.as_deref())
+            .map(|index| monitors[index].clone())
             .ok_or_else(|| "No monitor is available for the notification overlay.".to_string())
     }
 
@@ -196,7 +209,7 @@ mod imp {
         window: &tauri::WebviewWindow,
         payload: &OverlayPayload,
     ) -> Result<(), String> {
-        let monitor = selected_monitor(app, &payload.target_pids)?;
+        let monitor = selected_monitor(app, payload.monitor.as_deref())?;
         let area = monitor.work_area();
         let rect = overlay_rect(
             PhysRect {
@@ -466,45 +479,6 @@ mod imp {
         }
         context.best_center
     }
-
-    #[cfg(not(target_os = "windows"))]
-    fn process_window_center(_target_pids: &[u32]) -> Option<(f64, f64)> {
-        None
-    }
-
-    #[cfg(target_os = "windows")]
-    fn foreground_window_center() -> Option<(f64, f64)> {
-        use windows_sys::Win32::Foundation::RECT;
-        use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
-
-        unsafe {
-            let hwnd = GetForegroundWindow();
-            if hwnd.is_null() {
-                return None;
-            }
-            let mut rect = RECT {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-            };
-            if GetWindowRect(hwnd, &mut rect) == 0
-                || rect.right <= rect.left
-                || rect.bottom <= rect.top
-            {
-                return None;
-            }
-            Some((
-                f64::from(rect.left + (rect.right - rect.left) / 2),
-                f64::from(rect.top + (rect.bottom - rect.top) / 2),
-            ))
-        }
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    fn foreground_window_center() -> Option<(f64, f64)> {
-        None
-    }
 }
 
 #[cfg(target_os = "macos")]
@@ -568,6 +542,39 @@ fn overlay_only(window: &tauri::Window) -> Result<(), String> {
 // Window and event operations dispatch onto Tauri's main loop. Run these
 // commands through its async executor so a synchronous IPC handler cannot
 // block the loop it is waiting on.
+#[tauri::command(async)]
+pub fn notification_overlay_monitors(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+) -> Result<Vec<OverlayMonitor>, String> {
+    main_only(&window)?;
+    let primary = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .as_ref()
+        .map(monitor_id);
+    Ok(app
+        .available_monitors()
+        .map_err(|error| error.to_string())?
+        .iter()
+        .enumerate()
+        .map(|(index, monitor)| {
+            let id = monitor_id(monitor);
+            OverlayMonitor {
+                primary: primary.as_ref() == Some(&id),
+                id,
+                name: monitor
+                    .name()
+                    .cloned()
+                    .unwrap_or_else(|| format!("Display {}", index + 1)),
+                width: monitor.size().width,
+                height: monitor.size().height,
+            }
+        })
+        .collect())
+}
+
 #[tauri::command(async)]
 pub fn notification_overlay_prepare(
     app: tauri::AppHandle,
@@ -665,6 +672,7 @@ mod tests {
             sequence: 0,
             kind: "action-required".to_string(),
             target_pids: vec![],
+            monitor: None,
             priority: 1,
             kicker: "Choice required".to_string(),
             title: "Choose a game".to_string(),
@@ -681,6 +689,23 @@ mod tests {
             created_at_ms: 0,
             expires_at_ms: 10_000,
         }
+    }
+
+    #[test]
+    fn selects_requested_monitor_and_falls_back_when_disconnected() {
+        let ids = vec!["secondary".to_string(), "main".to_string()];
+        assert_eq!(monitor_index(&ids, None, Some("main")), Some(1));
+        assert_eq!(monitor_index(&ids, Some("primary"), Some("main")), Some(1));
+        assert_eq!(
+            monitor_index(&ids, Some("secondary"), Some("main")),
+            Some(0)
+        );
+        assert_eq!(
+            monitor_index(&ids, Some("disconnected"), Some("main")),
+            Some(1)
+        );
+        assert_eq!(monitor_index(&ids, Some("disconnected"), None), Some(0));
+        assert_eq!(monitor_index(&[], Some("secondary"), None), None);
     }
 
     #[test]

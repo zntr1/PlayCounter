@@ -489,6 +489,7 @@ export type AppState = {
     key: "emulatorDetection" | "emulatorContentLookup",
     enabled: boolean,
   ) => void;
+  setOverlayMonitor: (monitor: string) => void;
   setDesktopOverlaySetting: (
     key: DesktopOverlaySettingKey,
     enabled: boolean,
@@ -544,6 +545,7 @@ const defaultSettings: Settings = {
   emulatorContentLookup: true,
   ignoredEmulatorIds: [],
   desktopOverlaysEnabled: true,
+  overlayMonitor: "primary",
   overlayFirstDetections: true,
   overlaySessionStarts: true,
   overlaySessionSummaries: true,
@@ -1399,6 +1401,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setDesktopOverlaySetting: (key, enabled) => {
     set((state) => ({ settings: { ...state.settings, [key]: enabled } }));
+    persistSoon();
+  },
+  setOverlayMonitor: (overlayMonitor) => {
+    set((state) => ({ settings: { ...state.settings, overlayMonitor } }));
     persistSoon();
   },
   setLauncherSetting: (key, enabled) => {

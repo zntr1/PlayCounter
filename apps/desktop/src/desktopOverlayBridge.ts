@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   buildOverlayMessage,
   DesktopOverlayQueue,
@@ -8,7 +7,6 @@ import {
   overlayGate,
   OVERLAY_ACTION_EVENT,
   OVERLAY_FINISHED_EVENT,
-  SAFETY_MARGIN_MS,
   type DesktopOverlayKind,
   type DesktopOverlayMessage,
   type OverlayEvent,
@@ -27,8 +25,27 @@ type BridgeState = {
 };
 
 let bridge: BridgeState | null = null;
-/** While a preview is on screen, focus changes must not clear it. */
-let previewUntilMs = 0;
+
+export type DesktopOverlayMonitor = {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  primary: boolean;
+};
+
+export function listDesktopOverlayMonitors() {
+  return invoke<DesktopOverlayMonitor[]>("notification_overlay_monitors");
+}
+
+function showDesktopOverlay(message: DesktopOverlayMessage) {
+  void safeInvoke("notification_overlay_show", {
+    payload: {
+      ...message,
+      monitor: useAppStore.getState().settings.overlayMonitor ?? "primary",
+    },
+  });
+}
 
 function overlaysSupported() {
   try {
@@ -81,15 +98,6 @@ function renderContext() {
   } as const;
 }
 
-async function mainWindowIsActive() {
-  try {
-    const window = getCurrentWindow();
-    return (await window.isVisible()) && (await window.isFocused());
-  } catch {
-    return false;
-  }
-}
-
 function currentBridge(expected: BridgeState, generation: number) {
   return (
     bridge === expected &&
@@ -107,9 +115,7 @@ export function initializeDesktopOverlays() {
     setTimer: (delay, callback) =>
       globalThis.setTimeout(callback, delay) as unknown as number,
     clearTimer: (handle) => globalThis.clearTimeout(handle),
-    show: (message) => {
-      void safeInvoke("notification_overlay_show", { payload: message });
-    },
+    show: showDesktopOverlay,
     hide: (id) => {
       void safeInvoke("notification_overlay_hide", { id });
     },
@@ -130,7 +136,6 @@ export function initializeDesktopOverlays() {
       const kind = overlayGate(event, store.settings);
       if (!kind) return false;
       const message = buildOverlayMessage(kind, event, renderContext());
-      if (await mainWindowIsActive()) return false;
       if (!currentBridge(state, generation)) return false;
       const settings = useAppStore.getState().settings;
       if (
@@ -190,19 +195,6 @@ export function initializeDesktopOverlays() {
       }
     }),
   );
-  try {
-    track(
-      state,
-      getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-        // A preview was asked for from this window, so refocusing it must not
-        // immediately dismiss the card the user just clicked for.
-        if (focused && Date.now() >= previewUntilMs) clearDesktopOverlays();
-      }),
-    );
-  } catch (error) {
-    console.warn("desktop overlay focus listener failed", error);
-  }
-
   if (useAppStore.getState().settings.desktopOverlaysEnabled === true) {
     void safeInvoke("notification_overlay_prepare");
   }
@@ -245,7 +237,6 @@ export function emitOverlayEvent(event: TrackerOverlayEvent) {
       );
       if (ready !== true) return;
     }
-    if (await mainWindowIsActive()) return;
     if (!currentBridge(state, generation)) return;
     const settings = useAppStore.getState().settings;
     const kind = overlayGate(event, settings);
@@ -340,8 +331,7 @@ export function previewDesktopOverlay(
   // throttle on passive kinds -- and every one of those can drop or postpone
   // the card the button was just clicked for.
   state.queue.clear();
-  previewUntilMs = Date.now() + message.durationMs + SAFETY_MARGIN_MS;
-  void safeInvoke("notification_overlay_show", { payload: message });
+  showDesktopOverlay(message);
 }
 
 export function disposeDesktopOverlays() {
