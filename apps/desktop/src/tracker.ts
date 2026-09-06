@@ -393,7 +393,8 @@ async function finishTrackerStartup() {
 
   await backfillCanonicalGameIds();
 
-  void closeStaleSession();
+  // Recovery is decided by the next process scan, not by session age. A game
+  // may have kept running for hours while PlayCounter was closed.
   scheduleBackendHealthChecks();
 
   logRuntime("process listener skipped; polling is active");
@@ -1816,7 +1817,11 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   // the first one seen starts it, and it only ends once none of them is left.
   const matchesByGame = new Map<
     string,
-    { primary: ProcessMatch; targetPids: number[] }
+    {
+      primary: ProcessMatch;
+      processes: ProcessSnapshot[];
+      targetPids: number[];
+    }
   >();
   for (const match of matches) {
     const key = activeSessionKey(
@@ -1829,10 +1834,14 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     if (!grouped) {
       matchesByGame.set(key, {
         primary: match,
+        processes: [match.process],
         targetPids: pid === undefined ? [] : [pid],
       });
-    } else if (pid !== undefined && !grouped.targetPids.includes(pid)) {
-      grouped.targetPids.push(pid);
+    } else {
+      grouped.processes.push(match.process);
+      if (pid !== undefined && !grouped.targetPids.includes(pid)) {
+        grouped.targetPids.push(pid);
+      }
     }
   }
   const nextKeys = new Set(matchesByGame.keys());
@@ -1842,9 +1851,16 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
 
   for (const current of currentSessions) {
     const continuingGroup = matchesByGame.get(sessionIdentityKey(current));
-    if (continuingGroup) {
-      reconcileSessionProvenance(current, continuingGroup.primary);
-      checkpointActiveSessionIfDue(current);
+    if (
+      continuingGroup &&
+      (!current.recoveredFromCheckpoint ||
+        canResumeRecoveredSession(current, continuingGroup.processes))
+    ) {
+      const reconciled = reconcileSessionProvenance(
+        current,
+        continuingGroup.primary,
+      );
+      checkpointActiveSessionIfDue(reconciled);
       verboseRuntime(
         `scan active session unchanged ${current.gameName} (${current.exeName})`,
       );
@@ -1852,7 +1868,7 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     }
 
     logRuntime(
-      `scan match ended; ending active session ${current.gameName} (${current.exeName})`,
+      `scan ${continuingGroup ? "process continuity unconfirmed" : "match ended"}; ending active session ${current.gameName} (${current.exeName})`,
     );
     await endSession(
       current,
@@ -2508,17 +2524,22 @@ function observationLaunchContext(
 function reconcileSessionProvenance(
   session: ActiveSession,
   match: ProcessMatch,
-) {
+): ActiveSession {
   if (match.emulator) {
     if (session.emulator?.contentKey !== match.emulator.contentKey) {
-      updateActiveSession({ ...session, emulator: match.emulator });
+      const updated = { ...session, emulator: match.emulator };
+      updateActiveSession(updated);
+      return updated;
     }
-    return;
+    return session;
   }
   if (session.emulator) {
     const { emulator: _emulator, ...native } = session;
-    updateActiveSession({ ...native, exeName: match.process.exeName });
+    const updated = { ...native, exeName: match.process.exeName };
+    updateActiveSession(updated);
+    return updated;
   }
+  return session;
 }
 
 type CachedResolution =
@@ -4604,7 +4625,6 @@ export async function dismissAmbiguousMatch(exeName: string) {
 type SessionEndReason =
   | "process-ended"
   | "recovered-checkpoint"
-  | "stale-timeout"
   | "settings-change"
   | "route-change";
 
@@ -4655,23 +4675,6 @@ async function endSession(
   logRuntime(
     `session ended ${session.gameName} durationSeconds=${durationSeconds}`,
   );
-}
-
-async function closeStaleSession() {
-  const activeSessions = useAppStore.getState().activeSessions;
-  if (activeSessions.length === 0) {
-    verboseRuntime("stale session check skipped; no active sessions");
-    return;
-  }
-  for (const active of activeSessions) {
-    const ageMs = Date.now() - Date.parse(active.startedAt);
-    logRuntime(
-      `stale session check ${active.gameName} (${active.exeName}) activeAgeMs=${ageMs}`,
-    );
-    if (ageMs > 4 * 60 * 60 * 1000) {
-      await endSession(active, active.checkpointedAt, "stale-timeout");
-    }
-  }
 }
 
 function scheduleBackendHealthChecks() {
@@ -6720,10 +6723,32 @@ function collapseDuplicateActiveSessions() {
   return deduped;
 }
 
+function canResumeRecoveredSession(
+  session: ActiveSession,
+  processes: ProcessSnapshot[],
+) {
+  const checkpointMs = Date.parse(session.checkpointedAt);
+  if (!Number.isFinite(checkpointMs) || checkpointMs > Date.now()) return false;
+
+  // Matching the game alone is insufficient: it may have stopped and restarted
+  // during our absence. A currently running process that predates the last
+  // checkpoint proves continuity. Check all of the game's executables, not
+  // just the primary one (a launcher/client can exit while another remains).
+  // Missing/invalid start times cannot justify crediting an unobserved gap.
+  return processes.some(
+    ({ startedAtUnix }) =>
+      typeof startedAtUnix === "number" &&
+      Number.isFinite(startedAtUnix) &&
+      startedAtUnix > 0 &&
+      startedAtUnix * 1000 <= checkpointMs,
+  );
+}
+
 function checkpointActiveSessionIfDue(session: ActiveSession) {
   if (
+    !session.recoveredFromCheckpoint &&
     Date.now() - Date.parse(session.checkpointedAt) <
-    SESSION_CHECKPOINT_INTERVAL_MS
+      SESSION_CHECKPOINT_INTERVAL_MS
   ) {
     return;
   }
