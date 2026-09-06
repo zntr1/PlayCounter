@@ -4,7 +4,6 @@ import {
   INSTALL_PRESENCE_SUCCESS_COOLDOWN_MS,
   INSTALL_PRESENCE_UNSUPPORTED_COOLDOWN_MS,
   reportInstallPresence,
-  sanitizeInstallPresenceMarker,
   shouldSendInstallPresence,
   type InstallPresenceMarker,
 } from "./installPresence";
@@ -134,7 +133,9 @@ describe("install presence reporting", () => {
       sentAt: new Date(now).toISOString(),
       kind: "success",
     });
-    expect(request).toHaveBeenCalledWith(endpoint, { installUuid });
+    expect(request).toHaveBeenCalledWith(endpoint, {
+      installUuid,
+    });
   });
 
   it.each([
@@ -177,24 +178,5 @@ describe("install presence reporting", () => {
     });
     expect(result).toBe(current);
     expect(request).not.toHaveBeenCalled();
-  });
-});
-
-describe("install presence persistence", () => {
-  it("sanitizes and normalizes a valid marker", () => {
-    expect(
-      sanitizeInstallPresenceMarker({ ...marker(), endpoint: `${endpoint}/` }),
-    ).toEqual(marker());
-  });
-
-  it.each([
-    null,
-    "marker",
-    {},
-    { ...marker(), kind: "invalid" },
-    { ...marker(), sentAt: "invalid" },
-    { ...marker(), installUuid: 42 },
-  ])("rejects invalid persisted marker %#", (value) => {
-    expect(sanitizeInstallPresenceMarker(value)).toBeNull();
   });
 });

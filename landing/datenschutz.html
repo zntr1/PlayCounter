@@ -206,7 +206,7 @@
       <p class="lede">Datenschutz</p>
       <h1>Datenschutzerklärung</h1>
       <p class="lang-jump"><a href="#en">English version below ↓</a></p>
-      <p class="updated">Stand: 17. Juli 2026</p>
+      <p class="updated">Stand: 6. September 2026</p>
 
       <p>
         Diese Datenschutzerklärung gilt für die Website
@@ -287,6 +287,37 @@
         Server. Es gibt kein Benutzerkonto. Aus Kompatibilitätsgründen noch
         vorhandene Endpunkte für ältere Live-Statistik-Versionen verwerfen
         eingehende Anfragen, ohne neue Aktivitätsdaten zu speichern.
+      </p>
+
+      <h3 id="usage-statistics-de">Installationspräsenz (Online-Zählung)</h3>
+      <p>
+        Während PlayCounter läuft, sendet die App automatisch die zufällig
+        erzeugte Installations-Kennung an <strong>api.playcounter.app</strong>:
+        beim Start und ungefähr stündlich, auch im Infobereich und wenn kein
+        Spiel läuft. Es gibt dafür derzeit keinen gesonderten Einwilligungs-
+        oder Statistikschalter in der App. Die Kennung ist pseudonym, nicht
+        vollständig anonym: Meldungen derselben Installation können einander
+        zugeordnet werden. Dieselbe Installations-Kennung kann auch bei
+        Feedback und Community-Einreichungen verwendet werden.
+      </p>
+      <p>
+        Pro Kennung speichert der Server den ersten und letzten Empfangszeitpunkt,
+        keine Liste einzelner Meldungen. Präsenzmeldungen enthalten keine
+        Spielnamen, Spielzeiten, Sitzungsverläufe, Dateipfade oder Kontodaten.
+        Die IP-Adresse wird für die Verbindung technisch verarbeitet und kann
+        in Hosting- und Sicherheitsprotokollen erscheinen; sie ist kein Feld
+        der Präsenztabelle.
+      </p>
+      <p>
+        Verantwortlich ist der in Abschnitt 1 genannte Betreiber. Zweck ist,
+        die Zahl aktuell und kürzlich aktiver Installationen zu ermitteln.
+        Die interne Administrationsansicht zeigt zusammengefasste Zähler.
+        Als online gilt eine Installation mit einer Meldung innerhalb der
+        letzten zwei Stunden; dieser Zeitraum ist keine Löschfrist.
+        Empfänger sind unser API- und PostgreSQL-Hosting-Anbieter (Abschnitt 5).
+        Auskunfts-, Löschungs- und Widerspruchsanfragen kannst du an die in
+        Abschnitt 1 genannte E-Mail-Adresse richten. Ohne Serververbindung
+        können keine Präsenzmeldungen übertragen werden.
       </p>
 
       <h3>Spiele-Abgleich (Matching)</h3>
@@ -390,8 +421,8 @@
         Empfänger bzw. eingesetzte Dienste sind
         <strong>Microsoft</strong> (Microsoft-Anmeldung, Xbox Live sowie Azure
         als Hosting von Website und API), der für die API konfigurierte
-        <strong>PostgreSQL-Hosting-Anbieter</strong> (serverseitige Matching-,
-        Vorschlags- und Feedback-Daten), <strong>GitHub</strong> (Updates,
+        <strong>Microsoft Azure Database for PostgreSQL</strong> (serverseitige Matching-,
+        Vorschlags-, Feedback- und Präsenzdaten), <strong>GitHub</strong> (Updates,
         Downloads und Quellcode-Repository),
         <strong>IGDB / Twitch / Amazon</strong> (Cover-Bilder) und
         <strong>Google</strong> (E-Mail-Kommunikation). Diese Unternehmen haben
@@ -407,6 +438,14 @@
 
       <h2>6. Speicherdauer</h2>
       <ul>
+        <li>
+          Präsenzdatensätze werden nach 30 Tagen ohne Meldung bei der nächsten
+          Bereinigung gelöscht. Diese läuft beim API-Start und im laufenden
+          Betrieb stündlich. Die 30 Tage ermöglichen die Anzeige kürzlich
+          aktiver Installationen. Für Sicherungskopien und technische
+          Provider-Protokolle gelten die gesonderten Aufbewahrungszyklen des
+          jeweiligen Dienstes.
+        </li>
         <li>
           Lokale Spielzeiten, Verläufe und Einstellungen bleiben auf deinem
           Gerät, bis du sie in der App oder über dein Betriebssystem löschst.
@@ -453,6 +492,7 @@
         <li>Löschung (Art. 17)</li>
         <li>Einschränkung der Verarbeitung (Art. 18)</li>
         <li>Datenübertragbarkeit (Art. 20)</li>
+        <li>Widerruf einer Einwilligung für die Zukunft (Art. 7 Abs. 3)</li>
         <li>
           Widerspruch gegen Verarbeitungen auf Grundlage berechtigter Interessen
           (Art. 21) – z.&nbsp;B. durch Offline-Betrieb der App
@@ -494,7 +534,7 @@
       <section lang="en" aria-labelledby="privacy-policy-title">
         <p class="lede" id="en">Privacy</p>
         <h1 id="privacy-policy-title">Privacy Policy</h1>
-        <p class="updated">Last updated: 17 July 2026</p>
+        <p class="updated">Last updated: 6 September 2026</p>
 
         <p>
           This privacy policy covers the
@@ -562,6 +602,36 @@
           live-statistics versions discard incoming requests without storing new
           activity data.
         </p>
+        <h3 id="usage-statistics-en">Install presence (online count)</h3>
+        <p>
+          While PlayCounter runs, the app automatically sends its randomly
+          generated installation ID to <strong>api.playcounter.app</strong> on
+          startup and approximately hourly, including in the system tray and
+          when no game is running. There is currently no separate consent or
+          statistics switch in the app. This ID is pseudonymous, not fully
+          anonymous: reports from the same installation can be associated.
+          The same installation ID may also be used for feedback and community
+          submissions.
+        </p>
+        <p>
+          For each ID the server stores the first and latest report receipt
+          times, not a list of individual heartbeats. Presence reports contain
+          no game names, playtime, session history, file paths or account details.
+          IP addresses are necessarily processed for the connection and may
+          appear in hosting and security logs; they are not a field in the
+          presence table.
+        </p>
+        <p>
+          The controller is identified in section 1. The purpose is to count
+          online and recently active installations. The private admin dashboard
+          displays aggregate counts. An installation is online if it reported
+          within the last two hours; this is not a deletion deadline. Recipients
+          are our API and PostgreSQL hosting providers (section 5). You can send
+          access, deletion and objection requests to the email address in
+          section 1. Presence reports cannot be transmitted without a server
+          connection.
+        </p>
+
         <h3>Game matching</h3>
         <p>
           To map a running program to a game, the app sends the
@@ -644,8 +714,8 @@
         <p>
           Recipients and services used are <strong>Microsoft</strong> (Microsoft
           sign-in, Xbox Live, and Azure hosting for the website and API), the
-          configured <strong>PostgreSQL hosting provider</strong> (server-side
-          matching, suggestion and feedback data), <strong>GitHub</strong>
+          <strong>Microsoft Azure Database for PostgreSQL</strong> (server-side
+          matching, suggestion, feedback and presence data), <strong>GitHub</strong>
           (updates, downloads and source repository),
           <strong>IGDB / Twitch / Amazon</strong> (cover images), and
           <strong>Google</strong> (email communication). These companies are
@@ -660,6 +730,13 @@
 
         <h2>6. Retention</h2>
         <ul>
+          <li>
+            Presence records are deleted after 30 days without a report at the
+            next cleanup, which runs on API startup and hourly while the API is
+            running. The 30-day window supports counts of recently active
+            installations. Backups and technical provider logs follow the
+            separate retention cycles of the relevant service.
+          </li>
           <li>
             Local playtime, history and settings remain on your device until you
             delete them in the app or through your operating system.
@@ -704,6 +781,7 @@
           <li>erasure (Art. 17)</li>
           <li>restriction of processing (Art. 18)</li>
           <li>data portability (Art. 20)</li>
+          <li>withdrawal of consent for future processing (Art. 7(3))</li>
           <li>
             object to processing based on legitimate interest (Art. 21) – e.g.
             by running the app offline

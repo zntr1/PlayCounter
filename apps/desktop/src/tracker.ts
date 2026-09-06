@@ -84,10 +84,7 @@ import {
   sanitizeDiscoveredReviewReminder,
 } from "./discoveredReminder";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
-import {
-  reportInstallPresence,
-  sanitizeInstallPresenceMarker,
-} from "./installPresence";
+import { reportInstallPresence } from "./installPresence";
 import { currentPlatform } from "./platform";
 import {
   evaluateMilestones,
@@ -197,7 +194,6 @@ export const PENDING_COMMUNITY_RETRY_MS = 5 * 60 * 1000;
 
 type PersistedState = {
   installUuid?: string;
-  installPresenceMarker?: unknown;
   contributionOwnerUuid?: string;
   settings?: Partial<Settings>;
   exeCache?: ExeCacheEntry[];
@@ -1037,9 +1033,8 @@ export function hydrate() {
   );
   useAppStore.setState({
     installUuid: persisted.installUuid ?? null,
-    installPresenceMarker: sanitizeInstallPresenceMarker(
-      persisted.installPresenceMarker,
-    ),
+    // Presence cooldowns belong to this run, so every startup reports again.
+    installPresenceMarker: null,
     contributionOwnerUuid: persisted.contributionOwnerUuid ?? null,
     settings,
     // Open running windows were removed while constructing exeCacheMap above;
@@ -4753,7 +4748,6 @@ async function sendInstallPresenceIfDue() {
     });
     if (marker && marker !== state.installPresenceMarker) {
       useAppStore.getState().setInstallPresenceMarker(marker);
-      persist();
       logRuntime(`install presence marker updated kind=${marker.kind}`);
     }
   })();
