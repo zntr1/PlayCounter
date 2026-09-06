@@ -8,9 +8,10 @@ import {
   type LibraryImportEntry,
   type LibraryInstallEntry,
   type ScannedLibraryGame,
+  type ResolvedLibraryGame,
 } from "./types";
 
-export type SteamImportMatchCheck =
+export type LibraryImportMatchCheck =
   | {
       kind: "found";
       commit: LibraryImportCommit;
@@ -20,26 +21,45 @@ export type SteamImportMatchCheck =
   | { kind: "needs_install"; executableNames: string[] }
   | { kind: "unsupported" };
 
-export async function checkSteamImportForMatches(input: {
+export async function checkLibraryImportForMatches(input: {
   apiEndpoint: string;
   entry: LibraryImportEntry;
   install?: LibraryInstallEntry;
   ignoredProcesses?: ReadonlySet<string>;
-}): Promise<SteamImportMatchCheck> {
+}): Promise<LibraryImportMatchCheck> {
   const scanned = importedGameAsScan(input.entry, input.install);
-  const lookup = await resolveLibraryGames(input.apiEndpoint, "steam", [
-    scanned,
-  ]);
-  if (lookup.capability === "unsupported") return { kind: "unsupported" };
-
-  const resolved = lookup.games.find(
-    (game) => game.key === libraryEntryKey("steam", input.entry.externalId),
-  );
+  let resolved: ResolvedLibraryGame | undefined;
+  if (input.entry.provider === "xbox") {
+    // Xbox imports use the game the user confirmed, rather than a global
+    // Xbox title identifier mapping.
+    const { reverseResolveXboxGame } = await import("./providers/xbox");
+    const result = await reverseResolveXboxGame(
+      input.apiEndpoint,
+      input.entry.gameId,
+    );
+    resolved = {
+      key: libraryEntryKey(input.entry.provider, input.entry.externalId),
+      status: "resolved",
+      ...result,
+    };
+  } else {
+    const lookup = await resolveLibraryGames(
+      input.apiEndpoint,
+      input.entry.provider,
+      [scanned],
+    );
+    if (lookup.capability === "unsupported") return { kind: "unsupported" };
+    resolved = lookup.games.find(
+      (game) =>
+        game.key === libraryEntryKey(input.entry.provider, input.entry.externalId),
+    );
+  }
   if (!resolved?.game || resolved.status !== "resolved") {
     return { kind: "not_found" };
   }
 
   const commit = buildLibraryImportCommit({
+    provider: input.entry.provider,
     scanned,
     resolved,
     ignoredProcesses: input.ignoredProcesses,
@@ -47,8 +67,7 @@ export async function checkSteamImportForMatches(input: {
   if (!commit) return { kind: "not_found" };
 
   // Only call an executable "linked" when the plan can actually install a
-  // global or path-scoped local mapping. Ambiguous basenames without a known
-  // Steam install root must not make tracking appear ready.
+  // local cache or path-scoped mapping using the provider's safety rules.
   const executableNames = uniqueExecutableNames([
     ...commit.exeCacheEntries.map((entry) => entry.exeName),
     ...commit.scopedLinks.map((entry) => entry.exeName),
