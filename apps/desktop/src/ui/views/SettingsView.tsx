@@ -4,6 +4,7 @@ import {
   FolderInput,
   FolderOpen,
   Gamepad2,
+  Info,
   RotateCcw,
   Trash2,
   Upload,
@@ -77,6 +78,7 @@ export function SettingsView() {
     useState<InstallProgress | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [uuidInfoOpen, setUuidInfoOpen] = useState(false);
   const [updateNotesOpen, setUpdateNotesOpen] = useState(false);
   const [startupSyncing, setStartupSyncing] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export function SettingsView() {
   const [importing, setImporting] = useState(false);
   const [emulatorSyncing, setEmulatorSyncing] = useState<string | null>(null);
   const isOffline = useIsOffline();
+  const installUuid = useAppStore((state) => state.installUuid);
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
@@ -1099,6 +1102,46 @@ export function SettingsView() {
           </div>
         </div>
       </SettingsPanel>
+      {installUuid ? (
+        <div className="flex items-center gap-1.5 px-1 text-xs text-text-muted">
+          <p className="min-w-0">
+            User UUID:{" "}
+            <span className="select-all break-all font-mono">{installUuid}</span>
+          </p>
+          <div
+            className="relative shrink-0"
+            onMouseEnter={() => setUuidInfoOpen(true)}
+            onMouseLeave={() => setUuidInfoOpen(false)}
+            onFocus={() => setUuidInfoOpen(true)}
+            onBlur={() => setUuidInfoOpen(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setUuidInfoOpen(false);
+            }}
+          >
+            <button
+              type="button"
+              aria-label="About your user UUID"
+              aria-describedby={uuidInfoOpen ? "user-uuid-info" : undefined}
+              className="flex rounded p-1 transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <Info size={14} aria-hidden="true" />
+            </button>
+            {uuidInfoOpen ? (
+              <div className="absolute bottom-full right-0 z-10 w-64 max-w-[calc(100vw-2rem)] pb-2">
+                <p
+                  id="user-uuid-info"
+                  role="tooltip"
+                  className="rounded-md border border-border bg-surface px-3 py-2 leading-relaxed text-text shadow-raised"
+                >
+                  A random ID that recognizes your installation without an
+                  account. Used to count active installations and link your
+                  community suggestions and reports.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {updateNotesOpen && updateResult?.status === "available" ? (
         <ReleaseNotesDialog
           version={updateResult.version}
