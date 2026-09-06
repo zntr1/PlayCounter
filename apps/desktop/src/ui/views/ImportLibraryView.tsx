@@ -134,21 +134,22 @@ export function ImportLibraryView() {
   const [browsingExternalId, setBrowsingExternalId] = useState<string | null>(
     null,
   );
-  const scanAbortController = useRef<AbortController | null>(null);
+  const importAbortController = useRef(new AbortController());
   const copyAuthorizeUrlOnStart = useRef(false);
   const activeProviderId = useRef(providerId);
 
-  useEffect(
-    () => () => {
-      scanAbortController.current?.abort();
-    },
-    [],
-  );
+  useEffect(() => {
+    if (importAbortController.current.signal.aborted) {
+      importAbortController.current = new AbortController();
+    }
+    return () => importAbortController.current.abort();
+  }, []);
 
   useEffect(() => {
     if (activeProviderId.current === providerId) return;
     activeProviderId.current = providerId;
-    scanAbortController.current?.abort();
+    importAbortController.current.abort();
+    importAbortController.current = new AbortController();
     const next = createImporterSession(providerId);
     importerSession = next;
     setPhase(next.phase);
@@ -240,15 +241,36 @@ export function ImportLibraryView() {
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, providerId]);
+
+  function isCurrentImport(signal: AbortSignal) {
+    return (
+      !signal.aborted &&
+      importAbortController.current.signal === signal &&
+      useAppStore.getState().libraryImportProvider === providerId
+    );
+  }
+
+  function cancelImport() {
+    importAbortController.current.abort();
+    setPhase("ready");
+    setScan(null);
+    setResolved(new Map());
+    setSelected(new Set());
+    setAuthorizeUrl(null);
+    setError(null);
+    setAddingExternalId(null);
+    setBrowsingExternalId(null);
+  }
 
   async function scanAccount() {
     if (accountId === null) return;
     const copyOnStart = copyAuthorizeUrlOnStart.current;
     copyAuthorizeUrlOnStart.current = false;
     const controller = new AbortController();
-    scanAbortController.current?.abort();
-    scanAbortController.current = controller;
+    importAbortController.current.abort();
+    importAbortController.current = controller;
+    const { signal } = controller;
     setActiveImportGroup("ready");
     setPhase("scanning");
     setError(null);
@@ -263,18 +285,25 @@ export function ImportLibraryView() {
     setCapability("unknown");
     try {
       const provider = await loadLibraryProvider(providerId);
+      if (!isCurrentImport(signal)) return;
       const result = await provider.scan(accountId, {
         apiEndpoint,
         signal: controller.signal,
         onAuthorizeUrl: isXbox
           ? (url) => {
+              if (!isCurrentImport(signal)) return;
               setAuthorizeUrl(url);
-              if (copyOnStart) void copyAuthorizeUrl(url);
+              if (copyOnStart) void copyAuthorizeUrl(url, signal);
             }
           : undefined,
-        onXboxProgress: isXbox ? setXboxProgress : undefined,
+        onXboxProgress: isXbox
+          ? (stage) => {
+              if (isCurrentImport(signal)) setXboxProgress(stage);
+            }
+          : undefined,
         openAuthorizeUrl: !isXbox || !copyOnStart,
       });
+      if (!isCurrentImport(signal)) return;
       setScan(result);
       setManualExecutables(
         Object.fromEntries(
@@ -286,7 +315,13 @@ export function ImportLibraryView() {
       );
       const lookup = result.resolvedGames
         ? { capability: "supported" as const, games: result.resolvedGames }
-        : await resolveLibraryGames(apiEndpoint, providerId, result.games);
+        : await resolveLibraryGames(
+            apiEndpoint,
+            providerId,
+            result.games,
+            signal,
+          );
+      if (!isCurrentImport(signal)) return;
       setCapability(lookup.capability);
       if (lookup.capability === "supported") {
         const byKey = new Map(lookup.games.map((game) => [game.key, game]));
@@ -341,17 +376,16 @@ export function ImportLibraryView() {
       }
       setPhase("ready");
     } catch (cause) {
+      if (!isCurrentImport(signal)) return;
       setError(formatError(cause));
       setPhase("ready");
-    } finally {
-      if (scanAbortController.current === controller) {
-        scanAbortController.current = null;
-      }
     }
   }
 
   async function importSelected() {
     if (!scan) return;
+    const { signal } = importAbortController.current;
+    if (!isCurrentImport(signal)) return;
     setPhase("importing");
     setError(null);
     try {
@@ -387,8 +421,10 @@ export function ImportLibraryView() {
       });
       if (commits.length === 0)
         throw new Error("Pick at least one game to import.");
-      await backupImporterDataOnce();
-      const result = await runLibraryImport(commits);
+      await backupImporterDataOnce(signal);
+      if (!isCurrentImport(signal)) return;
+      const result = await runLibraryImport(commits, signal);
+      if (!isCurrentImport(signal)) return;
       const failedShares = result.shareOutcomes.filter(
         ({ outcome }) => outcome.kind === "failed",
       ).length;
@@ -409,6 +445,7 @@ export function ImportLibraryView() {
             : "Your library and playtime are now available in My Games.",
       });
     } catch (cause) {
+      if (!isCurrentImport(signal)) return;
       setError(formatError(cause));
       setPhase("ready");
     }
@@ -438,11 +475,15 @@ export function ImportLibraryView() {
     });
     if (!commit) return;
 
+    const { signal } = importAbortController.current;
+    if (!isCurrentImport(signal)) return;
     setAddingExternalId(game.externalId);
     setError(null);
     try {
-      await backupImporterDataOnce();
-      const result = await runLibraryImport([commit]);
+      await backupImporterDataOnce(signal);
+      if (!isCurrentImport(signal)) return;
+      const result = await runLibraryImport([commit], signal);
+      if (!isCurrentImport(signal)) return;
       const shareFailed = result.shareOutcomes.some(
         ({ outcome }) => outcome.kind === "failed",
       );
@@ -459,9 +500,10 @@ export function ImportLibraryView() {
           : "The game file was sent to the community for review.",
       });
     } catch (cause) {
+      if (!isCurrentImport(signal)) return;
       setError(formatError(cause));
     } finally {
-      setAddingExternalId(null);
+      if (isCurrentImport(signal)) setAddingExternalId(null);
     }
   }
   async function confirmAndImportXboxGame(
@@ -469,13 +511,17 @@ export function ImportLibraryView() {
     selectedGame: GameMetadata,
   ) {
     const key = libraryEntryKey("xbox", scanned.externalId);
+    const { signal } = importAbortController.current;
+    if (!isCurrentImport(signal)) return;
     setAddingExternalId(scanned.externalId);
     setError(null);
     try {
       const reverseMatch = await reverseResolveXboxGame(
         apiEndpoint,
         selectedGame.id,
+        signal,
       );
+      if (!isCurrentImport(signal)) return;
       const resolvedGame: ResolvedLibraryGame = {
         key,
         status: "resolved",
@@ -493,8 +539,10 @@ export function ImportLibraryView() {
       if (!commit)
         throw new Error("The selected Xbox game cannot be imported.");
 
-      await backupImporterDataOnce();
-      await runLibraryImport([commit]);
+      await backupImporterDataOnce(signal);
+      if (!isCurrentImport(signal)) return;
+      await runLibraryImport([commit], signal);
+      if (!isCurrentImport(signal)) return;
       setResolved((current) => new Map(current).set(key, resolvedGame));
       setCompleted((current) => new Set(current).add(scanned.externalId));
       setSelected((current) => {
@@ -512,13 +560,16 @@ export function ImportLibraryView() {
             : "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
       });
     } catch (cause) {
+      if (!isCurrentImport(signal)) return;
       setError(formatError(cause));
     } finally {
-      setAddingExternalId(null);
+      if (isCurrentImport(signal)) setAddingExternalId(null);
     }
   }
 
   async function browseExecutable(game: ScannedLibraryGame) {
+    const { signal } = importAbortController.current;
+    if (!isCurrentImport(signal)) return;
     if (!game.installPath) {
       setError(
         `${providerName} did not report an install folder for this game.`,
@@ -534,6 +585,7 @@ export function ImportLibraryView() {
         defaultPath: game.installPath,
         filters: [{ name: "Game file", extensions: ["exe"] }],
       });
+      if (!isCurrentImport(signal)) return;
       if (typeof selectedPath !== "string") return;
       const executable = await invoke<ScannedExecutable>(
         "library_inspect_executable",
@@ -543,6 +595,7 @@ export function ImportLibraryView() {
           executablePath: selectedPath,
         },
       );
+      if (!isCurrentImport(signal)) return;
       if (matchesProcessPatternSet(executable.fileName, ignoredProcesses)) {
         throw new Error(
           `${executable.fileName} is on PlayCounter's ignore list, so it cannot be used as the game file.`,
@@ -557,33 +610,42 @@ export function ImportLibraryView() {
         [game.externalId]: executable.relativePath,
       }));
     } catch (cause) {
+      if (!isCurrentImport(signal)) return;
       setError(formatError(cause));
     } finally {
-      setBrowsingExternalId(null);
+      if (isCurrentImport(signal)) setBrowsingExternalId(null);
     }
   }
 
-  async function backupImporterDataOnce() {
+  async function backupImporterDataOnce(signal: AbortSignal) {
+    signal.throwIfAborted();
     if (importerSessionBackedUp) return;
     await invoke("backup_local_data", {
       contents: localStorage.getItem(STORAGE_KEY) ?? "{}",
     });
+    signal.throwIfAborted();
     importerSessionBackedUp = true;
   }
 
-  async function copyAuthorizeUrl(url = authorizeUrl) {
+  async function copyAuthorizeUrl(
+    url = authorizeUrl,
+    signal = importAbortController.current.signal,
+  ) {
+    if (!isCurrentImport(signal)) return;
     if (!url) return;
     try {
       if (!navigator.clipboard?.writeText) {
         throw new Error("PlayCounter cannot reach the clipboard right now.");
       }
       await navigator.clipboard.writeText(url);
+      if (!isCurrentImport(signal)) return;
       addToast({
         tone: "success",
         title: "Sign-in link copied",
         detail: "Open it in the browser you want to sign in with.",
       });
     } catch (cause) {
+      if (!isCurrentImport(signal)) return;
       addToast({
         tone: "error",
         title: "Could not copy sign-in link",
@@ -730,9 +792,7 @@ export function ImportLibraryView() {
         label={
           isXbox ? xboxScanLabel(xboxProgress) : "Scanning your Steam library…"
         }
-        onCancel={
-          isXbox ? () => scanAbortController.current?.abort() : undefined
-        }
+        onCancel={cancelImport}
         onCopySignInLink={
           isXbox && xboxProgress === "authorization" && authorizeUrl
             ? () => void copyAuthorizeUrl()
@@ -778,6 +838,10 @@ export function ImportLibraryView() {
               aria-label={`${providerName} account`}
               value={accountId ?? ""}
               onChange={(event) => {
+                importAbortController.current.abort();
+                importAbortController.current = new AbortController();
+                setAddingExternalId(null);
+                setBrowsingExternalId(null);
                 setAccountId(Number(event.target.value));
                 setScan(null);
                 setResolved(new Map());

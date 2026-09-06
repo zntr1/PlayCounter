@@ -6,15 +6,18 @@ import { libraryEntryKey, type LibraryImportCommit } from "./types";
 
 export async function runLibraryImport(
   commits: readonly LibraryImportCommit[],
+  signal?: AbortSignal,
 ) {
+  signal?.throwIfAborted();
   const persisted = commitLibraryImports(commits);
   const refs = customLinkRefsForCommits(commits);
   const shareOutcomes = await Promise.all(
     refs.map(async (ref) => ({
       ref,
-      outcome: await submitLocalLinkToCommunity(ref),
+      outcome: await submitLocalLinkToCommunity(ref, signal),
     })),
   );
+  signal?.throwIfAborted();
   return { persisted, shareOutcomes };
 }
 
