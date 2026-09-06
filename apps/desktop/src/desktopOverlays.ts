@@ -20,6 +20,7 @@ export type {
 } from "./desktopOverlayProtocol";
 
 export const OVERLAY_PRIORITY: Record<DesktopOverlayKind, number> = {
+  "current-session": 7,
   "action-required": 6,
   milestone: 5,
   "first-detection": 4,
@@ -41,6 +42,7 @@ export const DISCOVERY_BURST_MS = 30_000;
 export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 
 const HOLD_MS: Record<DesktopOverlayKind, number> = {
+  "current-session": 6_000,
   "action-required": 15_000,
   "session-start": 10_000,
   "first-detection": 10_000,
@@ -50,6 +52,7 @@ const HOLD_MS: Record<DesktopOverlayKind, number> = {
 };
 
 const TTL_MS: Record<DesktopOverlayKind, number> = {
+  "current-session": 10_000,
   "action-required": 15 * 60_000,
   "session-start": 20_000,
   "session-summary": 15 * 60_000,
@@ -59,6 +62,14 @@ const TTL_MS: Record<DesktopOverlayKind, number> = {
 };
 
 export type OverlayEvent =
+  | {
+      type: "current-session";
+      gameName?: string;
+      coverUrl?: string;
+      durationSeconds: number;
+      sessionIndex?: number;
+      sessionCount?: number;
+    }
   | {
       type: "choice-required";
       exeName: string;
@@ -99,6 +110,8 @@ export function overlayGate(
   event: OverlayEvent,
   settings: Settings,
 ): DesktopOverlayKind | null {
+  // Requested explicitly by a hotkey; automatic notification preferences do not apply.
+  if (event.type === "current-session") return "current-session";
   if (settings.desktopOverlaysEnabled !== true) return null;
   if (event.type === "choice-required") {
     return settings.overlayActionRequired !== false ? "action-required" : null;
@@ -160,6 +173,21 @@ function overlayCopy(
   | "action"
   | "actionLabel"
 > {
+  if (event.type === "current-session") {
+    return {
+      kicker: "CURRENT SESSION",
+      title: event.gameName ?? "No game active",
+      metric: event.gameName
+        ? formatDuration(event.durationSeconds)
+        : undefined,
+      coverUrl: event.coverUrl,
+      body: !event.gameName
+        ? "Start a game to track your session time."
+        : (event.sessionCount ?? 0) > 1
+          ? `${event.sessionIndex} of ${event.sessionCount} active games · Press again for next`
+          : undefined,
+    };
+  }
   if (kind === "action-required" && event.type === "choice-required") {
     return {
       kicker: "CHOICE REQUIRED",
@@ -343,6 +371,18 @@ export class DesktopOverlayQueue {
     this.visible = null;
     this.state = "idle";
     this.drainNow();
+  }
+
+  /** An explicit request replaces the visible card and retains queued notifications. */
+  showImmediately(message: DesktopOverlayMessage) {
+    if (this.disposed) return;
+    if (this.visible) this.deps.hide(this.visible.id);
+    this.clearSafetyTimer();
+    this.clearDrainTimer();
+    this.visible = null;
+    this.state = "idle";
+    this.pending = this.pending.filter((item) => item.kind !== message.kind);
+    this.push(message);
   }
 
   clear() {

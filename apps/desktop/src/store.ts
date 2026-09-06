@@ -490,6 +490,10 @@ export type AppState = {
     enabled: boolean,
   ) => void;
   setOverlayMonitor: (monitor: string) => void;
+  setHotkey: (
+    key: "showWindowHotkey" | "currentSessionHotkey",
+    shortcut: string | null,
+  ) => void;
   setDesktopOverlaySetting: (
     key: DesktopOverlaySettingKey,
     enabled: boolean,
@@ -1405,6 +1409,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setOverlayMonitor: (overlayMonitor) => {
     set((state) => ({ settings: { ...state.settings, overlayMonitor } }));
+    persistSoon();
+  },
+  setHotkey: (key, shortcut) => {
+    set((state) => ({ settings: { ...state.settings, [key]: shortcut } }));
     persistSoon();
   },
   setLauncherSetting: (key, enabled) => {

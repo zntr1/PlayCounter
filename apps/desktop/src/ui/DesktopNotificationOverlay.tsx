@@ -44,7 +44,8 @@ export function DesktopNotificationOverlay({
   const celebration =
     message.kind === "first-detection" || message.kind === "milestone";
   const compact = message.kind === "session-start";
-  const sessionSummary = message.kind === "session-summary";
+  const sessionSummary =
+    message.kind === "session-summary" || message.kind === "current-session";
   const phaseClass =
     phase === "enter"
       ? "overlay-card-enter"

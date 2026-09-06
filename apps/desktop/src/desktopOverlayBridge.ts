@@ -25,6 +25,38 @@ type BridgeState = {
 };
 
 let bridge: BridgeState | null = null;
+let lastRequestedSessionId: number | null = null;
+
+export function showCurrentSessionOverlay() {
+  const state = bridge;
+  if (!state || state.disposed) return;
+  const sessions = useAppStore
+    .getState()
+    .activeSessions.filter((session) => !session.recoveredFromCheckpoint);
+  const previousIndex = sessions.findIndex(
+    (session) => session.id === lastRequestedSessionId,
+  );
+  const index = (previousIndex + 1) % Math.max(1, sessions.length);
+  const session = sessions[index];
+  lastRequestedSessionId = session?.id ?? null;
+  const context = renderContext();
+  const startedAt = session ? Date.parse(session.startedAt) : context.nowMs;
+  const message = buildOverlayMessage(
+    "current-session",
+    {
+      type: "current-session",
+      gameName: session?.gameName,
+      coverUrl: session?.coverUrl,
+      durationSeconds: Number.isFinite(startedAt)
+        ? Math.max(0, Math.floor((context.nowMs - startedAt) / 1000))
+        : 0,
+      sessionIndex: index + 1,
+      sessionCount: sessions.length,
+    },
+    context,
+  );
+  state.queue.showImmediately(message);
+}
 
 export type DesktopOverlayMonitor = {
   id: string;
@@ -273,6 +305,14 @@ function previewEvent(
   gameName: string,
   coverUrl: string | undefined,
 ): OverlayEvent {
+  if (kind === "current-session") {
+    return {
+      type: "current-session",
+      gameName,
+      coverUrl,
+      durationSeconds: 4_200,
+    };
+  }
   if (kind === "discovery") {
     return { type: "discovery-burst", exeCount: 3 };
   }
@@ -351,6 +391,7 @@ export function disposeDesktopOverlays() {
     }
   }
   bridge = null;
+  lastRequestedSessionId = null;
 }
 
 export function desktopOverlayBridgeStateForTests(): {
