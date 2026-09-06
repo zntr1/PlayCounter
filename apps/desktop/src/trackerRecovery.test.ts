@@ -117,6 +117,35 @@ async function stopAt(at: string) {
 }
 
 describe("session recovery through startup and process scans", () => {
+  it("skips unchanged scans but saves minute checkpoints and session endings", async () => {
+    processes = [runningProcess];
+    await restart("2026-09-06T12:00:00.000Z");
+    await scanProcessesNow();
+    const setItem = vi.spyOn(localStorage, "setItem");
+    for (let seconds = 5; seconds < 60; seconds += 5) {
+      vi.setSystemTime(Date.parse("2026-09-06T12:00:00.000Z") + seconds * 1000);
+      await scanProcessesNow();
+    }
+    expect(setItem).not.toHaveBeenCalled();
+
+    vi.setSystemTime(new Date("2026-09-06T12:01:00.000Z"));
+    await scanProcessesNow();
+    expect(setItem).toHaveBeenCalledTimes(1);
+    expect(
+      JSON.parse(storage.get(STORAGE_KEY)!).activeSessions[0].checkpointedAt,
+    ).toBe("2026-09-06T12:01:00.000Z");
+
+    await stopAt("2026-09-06T12:01:05.000Z");
+    const saved = JSON.parse(storage.get(STORAGE_KEY)!);
+    expect(saved.activeSessions).toEqual([]);
+    expect(saved.sessions[0].endedAt).toBe("2026-09-06T12:01:05.000Z");
+    setItem.mockClear();
+    await scanProcessesNow();
+    await scanProcessesNow();
+    expect(setItem).not.toHaveBeenCalled();
+    setItem.mockRestore();
+  });
+
   it("keeps ten hours of continuous play while PlayCounter was closed", async () => {
     processes = [runningProcess];
     await restart("2026-09-06T20:10:00.000Z");

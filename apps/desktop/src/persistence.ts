@@ -119,6 +119,13 @@ export type PersistResult =
 export function createPersistedPayload(
   state: PersistableAppState,
 ): PersistedPayload {
+  return buildPersistedPayload(state, normalizeSessions(state.recentSessions));
+}
+
+function buildPersistedPayload(
+  state: PersistableAppState,
+  sessions: Session[],
+): PersistedPayload {
   return {
     installUuid: state.installUuid ?? undefined,
     contributionOwnerUuid: state.contributionOwnerUuid ?? undefined,
@@ -141,7 +148,7 @@ export function createPersistedPayload(
     libraryImports: [...(state.libraryImports?.values() ?? [])],
     libraryInstalls: [...(state.libraryInstalls?.values() ?? [])],
     scopedExeLinks: [...(state.scopedExeLinks?.values() ?? [])],
-    sessions: normalizeSessions([...state.recentSessions]),
+    sessions,
     activeSessions: state.activeSessions,
     ambiguousMatches: state.ambiguousMatches,
     emulatorMappings: [...(state.emulatorMappings?.values() ?? [])],
@@ -216,10 +223,84 @@ function archiveRemovedSessions(payload: PersistedPayload, removed: Session[]) {
   return { archivedSeconds, archivedGameSeconds };
 }
 
+type EncodedField = { value: unknown; json: string | undefined };
+type PersistenceCache = {
+  sessionsInput?: Session[];
+  sessions?: Session[];
+  fields?: Map<string, EncodedField>;
+};
+
+// Store collections and their entries are immutable. Keep only the latest
+// projection per storage instance, so scans can reuse unchanged history and
+// field encodings without retaining older versions of the application state.
+const persistenceCaches = new WeakMap<Storage, PersistenceCache>();
+
+function samePersistedValue(left: unknown, right: unknown): boolean {
+  return (
+    Object.is(left, right) ||
+    (Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((value, index) => Object.is(value, right[index])))
+  );
+}
+
+function writePayload(
+  storage: Storage,
+  cache: PersistenceCache,
+  payload: PersistedPayload,
+) {
+  const fields = new Map<string, EncodedField>();
+  let changed = !cache.fields;
+  for (const [key, value] of Object.entries(payload)) {
+    const previous = cache.fields?.get(key);
+    const json =
+      previous && samePersistedValue(previous.value, value)
+        ? previous.json
+        : JSON.stringify(value);
+    fields.set(key, { value, json });
+    if (!previous || previous.json !== json) changed = true;
+  }
+  if (cache.fields?.size !== fields.size) changed = true;
+  if (changed) {
+    const serialized = `{${[...fields]
+      .filter(([, field]) => field.json !== undefined)
+      .map(([key, field]) => `${JSON.stringify(key)}:${field.json}`)
+      .join(",")}}`;
+    storage.setItem(STORAGE_KEY, serialized);
+  }
+  // Only successful writes become the baseline. A failed save must be retried
+  // even when the next scan supplies exactly the same state.
+  cache.fields = fields;
+}
+
 export function persistAppState(state: PersistableAppState): PersistResult {
-  const payload = createPersistedPayload(state);
+  // Accessing localStorage itself can throw when storage is unavailable.
+  let storage: Storage;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    storage = localStorage;
+  } catch (error) {
+    return {
+      status: "failed",
+      error,
+      ...projection(createPersistedPayload(state)),
+    };
+  }
+  let cache = persistenceCaches.get(storage);
+  if (!cache) {
+    cache = {};
+    persistenceCaches.set(storage, cache);
+  }
+  if (
+    !cache.sessions ||
+    !samePersistedValue(cache.sessionsInput, state.recentSessions)
+  ) {
+    cache.sessions = normalizeSessions(state.recentSessions);
+  }
+  cache.sessionsInput = state.recentSessions;
+  const payload = buildPersistedPayload(state, cache.sessions);
+  try {
+    writePayload(storage, cache, payload);
     return { status: "saved", ...projection(payload) };
   } catch (error) {
     if (!isQuotaExceeded(error)) {
@@ -229,7 +310,7 @@ export function persistAppState(state: PersistableAppState): PersistResult {
     const withoutNotifications = { ...payload, notifications: [] };
     if (payload.notifications.length > 0) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(withoutNotifications));
+        writePayload(storage, cache, withoutNotifications);
         return {
           status: "trimmed",
           removed: [],
@@ -261,7 +342,7 @@ export function persistAppState(state: PersistableAppState): PersistResult {
       sessions,
     };
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmedPayload));
+      writePayload(storage, cache, trimmedPayload);
       return {
         status: "trimmed",
         removed,
@@ -293,5 +374,6 @@ export function readPersistedRecord(
 }
 
 export function writePersistedRecord(data: Record<string, unknown>) {
+  persistenceCaches.delete(localStorage);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
