@@ -1,3 +1,4 @@
+import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import type {
   CommunityGameAlias,
   CommunityGameSuggestionResponse,
@@ -303,6 +304,7 @@ let contributionsTimer: number | undefined;
 let processTimer: number | undefined;
 let trayTimer: number | undefined;
 let unsubscribeTraySync: (() => void) | undefined;
+let stopLibraryImportMatchChecks: (() => void) | undefined;
 let nextSessionSequence = 0;
 let scanInFlight: Promise<void> | undefined;
 let installPresencePingInFlight: Promise<void> | undefined;
@@ -411,6 +413,8 @@ async function finishTrackerStartup() {
     trayTimer = undefined;
     unsubscribeTraySync?.();
     unsubscribeTraySync = undefined;
+    stopLibraryImportMatchChecks?.();
+    stopLibraryImportMatchChecks = undefined;
     canonicalBackfillDone = false;
     canonicalBackfillInFlight = undefined;
     canonicalMetadataCheckedIds.clear();
@@ -450,6 +454,7 @@ async function finishTrackerStartup() {
       }
       armDesktopOverlays();
       armControllerBridge();
+      stopLibraryImportMatchChecks = startLibraryImportMatchChecks();
     })();
   }, 1_500);
   if (identityResolved) {

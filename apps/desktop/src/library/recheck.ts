@@ -26,6 +26,7 @@ export async function checkLibraryImportForMatches(input: {
   entry: LibraryImportEntry;
   install?: LibraryInstallEntry;
   ignoredProcesses?: ReadonlySet<string>;
+  signal?: AbortSignal;
 }): Promise<LibraryImportMatchCheck> {
   const scanned = importedGameAsScan(input.entry, input.install);
   let resolved: ResolvedLibraryGame | undefined;
@@ -36,6 +37,7 @@ export async function checkLibraryImportForMatches(input: {
     const result = await reverseResolveXboxGame(
       input.apiEndpoint,
       input.entry.gameId,
+      input.signal,
     );
     resolved = {
       key: libraryEntryKey(input.entry.provider, input.entry.externalId),
@@ -47,6 +49,7 @@ export async function checkLibraryImportForMatches(input: {
       input.apiEndpoint,
       input.entry.provider,
       [scanned],
+      input.signal,
     );
     if (lookup.capability === "unsupported") return { kind: "unsupported" };
     resolved = lookup.games.find(

@@ -101,6 +101,11 @@ import {
   providerFloorsForProvider,
 } from "../../library/playtimeFloor";
 import { commitLibraryImports } from "../../library/commit";
+import { LibraryMatchOffer } from "../LibraryMatchOffer";
+import {
+  dismissLibraryMatchOffer,
+  useLibraryMatchOffers,
+} from "../../library/matchOffers";
 import {
   checkLibraryImportForMatches,
   type LibraryImportMatchCheck,
@@ -2207,6 +2212,7 @@ function GameLibraryCard({
   const [showAddPlaytime, setShowAddPlaytime] = useState(false);
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
+  const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
   const [showDetails, setShowDetails] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [cancelSuggestionTarget, setCancelSuggestionTarget] =
@@ -2484,7 +2490,34 @@ function GameLibraryCard({
     game.libraryImports.length > 0 &&
     game.exeNames.length === 0 &&
     game.emulatorContentKeys.length === 0;
-  const matchCheckImportEntry = steamImportEntry ?? xboxImportEntry;
+  const offeredImport = game.libraryImports.find(
+    (item) =>
+      libraryMatchOffers.get(libraryEntryKey(item.provider, item.externalId))
+        ?.entry === item.entry,
+  );
+  const matchCheckImportEntry =
+    offeredImport ?? steamImportEntry ?? xboxImportEntry;
+  const libraryMatchOffer =
+    !demo && trackingUnavailable && offeredImport
+      ? libraryMatchOffers.get(
+          libraryEntryKey(offeredImport.provider, offeredImport.externalId),
+        )
+      : undefined;
+  const libraryMatchPrompt = libraryMatchOffer ? (
+    <LibraryMatchOffer
+      gameName={game.name}
+      onCover={!isList}
+      onReview={() => setShowMatchCheck(true)}
+      onDismiss={() =>
+        dismissLibraryMatchOffer(
+          libraryEntryKey(
+            libraryMatchOffer.entry.provider,
+            libraryMatchOffer.entry.externalId,
+          ),
+        )
+      }
+    />
+  ) : null;
   const canCheckMatches = Boolean(
     (game.source && game.exeNames[0]) ||
     (trackingUnavailable && matchCheckImportEntry),
@@ -3703,7 +3736,7 @@ function GameLibraryCard({
             />
           ) : null}
 
-          {trackingUnavailable ? (
+          {trackingUnavailable && !libraryMatchOffer ? (
             <div className="peer/tracking-warning group/tracking-warning absolute right-2 top-2 z-40">
               <span
                 role="img"
@@ -3734,7 +3767,7 @@ function GameLibraryCard({
               "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/provenance:pointer-events-none peer-hover/provenance:!opacity-0",
               trackingUnavailable &&
                 "peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0",
-              trackingUnavailable ? "top-12" : "top-2",
+              trackingUnavailable && !libraryMatchOffer ? "top-12" : "top-2",
               launchTourDemo && "translate-x-0 opacity-100",
             )}
           >
@@ -3813,6 +3846,11 @@ function GameLibraryCard({
             />
           </div>
 
+          {libraryMatchPrompt ? (
+            <div className="absolute inset-x-2 bottom-2 z-30">
+              {libraryMatchPrompt}
+            </div>
+          ) : null}
           {game.communitySuggestionExeName && !game.communityUpgradeExeName ? (
             <div className="absolute inset-x-2 bottom-2 z-30 drop-shadow-lg">
               <CommunityLevelUpButton
@@ -4311,6 +4349,7 @@ function GameLibraryCard({
             </button>
           ) : null}
 
+          {libraryMatchPrompt}
           {game.communityUpgradeExeName ? (
             <div className="mt-3 flex gap-2">
               <Button

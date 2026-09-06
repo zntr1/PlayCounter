@@ -265,6 +265,7 @@ export async function searchXboxGames(
 export async function reverseResolveXboxGame(
   apiEndpoint: string,
   gameId: number,
+  signal?: AbortSignal,
 ): Promise<{
   game: GameMetadata;
   executables: LibraryKnownExecutable[];
@@ -274,6 +275,7 @@ export async function reverseResolveXboxGame(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ gameId } satisfies LibraryReverseResolveRequest),
+    ...(signal ? { signal } : {}),
   });
   if (!response.ok) {
     throw new Error(`The game file lookup failed (${response.status}).`);
