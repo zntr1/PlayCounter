@@ -619,6 +619,86 @@ describe("provider-scoped library cleanup", () => {
   });
 });
 
+describe("tracker request deadlines", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function stalledBody(_input: RequestInfo | URL, init?: RequestInit) {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: () =>
+        new Promise((_resolve, reject) => {
+          init!.signal!.addEventListener(
+            "abort",
+            () => reject(init!.signal!.reason),
+            { once: true },
+          );
+        }),
+    } as Response);
+  }
+
+  it("times out a stalled match lookup body", async () => {
+    vi.stubGlobal("fetch", vi.fn(stalledBody));
+    const lookup = findGameMatches("Game.exe");
+    const assertion = expect(lookup).rejects.toMatchObject({
+      name: "TimeoutError",
+    });
+    await vi.advanceTimersByTimeAsync(8_000);
+    await assertion;
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("releases the scan queue after a stalled body and tracks the next result", async () => {
+    invokeMock.mockResolvedValue([{ exeName: "Game.exe", exePath: null }]);
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(stalledBody)
+      .mockResolvedValueOnce(
+        Response.json({
+          matches: [
+            {
+              key: "game.exe",
+              game: { id: 42, name: "Game", source: "igdb", coverUrl: "" },
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const first = scanProcessesNow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const queued = scanProcessesNow();
+    await vi.advanceTimersByTimeAsync(8_000);
+    await Promise.all([first, queued]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_processes"),
+    ).toHaveLength(2);
+    expect(useAppStore.getState().activeSessions[0]?.gameId).toBe(42);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("times out a stalled health body and can reconnect on the next check", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(stalledBody)
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    const health = checkBackendHealth();
+    await vi.advanceTimersByTimeAsync(2_500);
+    await health;
+    expect(useAppStore.getState().backendHealth).toMatchObject({
+      status: "offline",
+      detail: "Health check timed out",
+    });
+    await checkBackendHealth();
+    expect(useAppStore.getState().backendHealth.status).toBe("online");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
 describe("install presence wiring", () => {
   const installUuid = "550e8400-e29b-41d4-a716-446655440000";
   const apiEndpoint = "https://api.playcounter.test";

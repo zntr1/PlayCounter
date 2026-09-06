@@ -1,3 +1,4 @@
+import { requestJsonResponse, requestWithTimeout } from "./requestJson";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import type {
@@ -2331,7 +2332,7 @@ async function applyEmulatorReadings(
   }
 
   try {
-    const response = await fetchWithTimeout(
+    const response = await requestJsonResponse<EmulatorResolveResponse>(
       `${state.settings.apiEndpoint}/api/emulator/resolve`,
       {
         method: "POST",
@@ -2346,7 +2347,7 @@ async function applyEmulatorReadings(
       }
       throw new Error(`${response.status} ${response.statusText}`);
     }
-    const body = (await response.json()) as EmulatorResolveResponse;
+    const body = response.data;
     const results = new Map(body.results.map((result) => [result.key, result]));
     for (const item of resolveIntent.items) {
       const result = results.get(item.key);
@@ -2648,7 +2649,7 @@ async function resolveProcesses(
     logRuntime(
       `match API batch request started count=${queryProcesses.length}`,
     );
-    const response = await fetchWithTimeout(
+    const response = await requestJsonResponse<MatchProcessesResponse>(
       `${state.settings.apiEndpoint}/api/match-processes`,
       {
         method: "POST",
@@ -2665,7 +2666,7 @@ async function resolveProcesses(
     if (!response.ok)
       throw new Error(`${response.status} ${response.statusText}`);
 
-    const body = (await response.json()) as MatchProcessesResponse;
+    const body = response.data;
     const matchedCount = body.matches.filter((match) => match.game).length;
     logRuntime(
       `match API batch response ok count=${body.matches.length}, matched=${matchedCount}, durationMs=${Date.now() - requestStartedAt}`,
@@ -2733,7 +2734,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
     communityUpgradeCheckedAt.set(processCacheKey(process), now);
   }
   try {
-    const response = await fetchWithTimeout(
+    const response = await requestJsonResponse<MatchProcessesResponse>(
       `${state.settings.apiEndpoint}/api/match-processes`,
       {
         method: "POST",
@@ -2750,7 +2751,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
     if (!response.ok)
       throw new Error(`${response.status} ${response.statusText}`);
 
-    const body = (await response.json()) as MatchProcessesResponse;
+    const body = response.data;
     for (const result of body.matches) {
       const aliases = result.communityGameAliases;
       // The surviving game can be the match or one of the picker candidates -
@@ -3393,7 +3394,7 @@ export async function findGameMatches(
 ): Promise<GameMatchLookup> {
   const state = useAppStore.getState();
   const process: ProcessSnapshot = { exeName, exePath: null };
-  const response = await fetchWithTimeout(
+  const response = await requestJsonResponse<MatchProcessesResponse>(
     `${state.settings.apiEndpoint}/api/match-processes`,
     {
       method: "POST",
@@ -3413,7 +3414,7 @@ export async function findGameMatches(
     throw new Error(`${response.status} ${response.statusText}`);
   }
 
-  const body = (await response.json()) as MatchProcessesResponse;
+  const body = response.data;
   const result = body.matches.find(
     (match) => match.key.toLowerCase() === processCacheKey(process),
   );
@@ -3466,18 +3467,16 @@ export async function searchEmulatorGames(
   const endpoint = useAppStore
     .getState()
     .settings.apiEndpoint.replace(/\/+$/, "");
-  const response = await fetchWithTimeout(
+  const response = await requestJsonResponse<GameMetadataResponse>(
     `${endpoint}/api/emulator/games/search?emulatorId=${encodeURIComponent(emulatorId)}&query=${encodeURIComponent(value)}`,
     { timeoutMs: API_REQUEST_TIMEOUT_MS },
   );
   if (!response.ok)
     throw new Error(`${response.status} ${response.statusText}`);
-  return ((await response.json()) as GameMetadataResponse).games.map(
-    (game) => ({
-      ...game,
-      source: game.source ?? "igdb",
-    }),
-  );
+  return response.data.games.map((game) => ({
+    ...game,
+    source: game.source ?? "igdb",
+  }));
 }
 
 export type EmulatorShareOutcome =
@@ -3522,18 +3521,19 @@ export async function shareEmulatorMapping(
 
   const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/emulator/suggestions`;
   try {
-    const response = await fetchWithTimeout(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      timeoutMs: API_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify({
-        emulatorId: mapping.emulatorId,
-        contentKind: mapping.contentKind,
-        contentValue: mapping.contentValue,
-        gameId: mapping.gameId,
-        installUuid: context.installUuid,
-      }),
-    });
+    const response =
+      await requestJsonResponse<EmulatorContentSuggestionResponse>(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({
+          emulatorId: mapping.emulatorId,
+          contentKind: mapping.contentKind,
+          contentValue: mapping.contentValue,
+          gameId: mapping.gameId,
+          installUuid: context.installUuid,
+        }),
+      });
     if (response.status === 404 || response.status === 501) {
       emulatorSharingUnavailableUntil = Date.now() + 30 * 60_000;
       return { kind: "unavailable" };
@@ -3541,7 +3541,7 @@ export async function shareEmulatorMapping(
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }
-    const body = (await response.json()) as EmulatorContentSuggestionResponse;
+    const body = response.data;
     if (
       body.status !== "pending" &&
       body.status !== "rejected" &&
@@ -4428,16 +4428,19 @@ async function submitIdentifierReport(
       installUuid: state.installUuid,
       ...gameIdentity,
     };
-    const response = await fetchWithTimeout(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      timeoutMs: API_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify(payload),
-    });
+    const response = await requestJsonResponse<IdentifierReportResponse>(
+      endpoint,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify(payload),
+      },
+    );
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }
-    const result = (await response.json()) as IdentifierReportResponse;
+    const result = response.data;
     state.addApiRequestLogEntry({
       endpoint,
       exeName,
@@ -4584,16 +4587,19 @@ async function submitIgnoredProcessReport(
       platform: currentPlatform(),
       installUuid,
     };
-    const response = await fetchWithTimeout(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      timeoutMs: API_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify(payload),
-    });
+    const response = await requestJsonResponse<IgnoredProcessReportResponse>(
+      endpoint,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify(payload),
+      },
+    );
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }
-    const result = (await response.json()) as IgnoredProcessReportResponse;
+    const result = response.data;
     state.addApiRequestLogEntry({
       endpoint,
       exeName,
@@ -4702,22 +4708,26 @@ export async function checkBackendHealth() {
   }
 
   try {
-    const response = await fetchWithTimeout(`${endpoint}/health`, {
-      cache: "no-store",
-      timeoutMs: BACKEND_HEALTH_TIMEOUT_MS,
-    });
+    const response = await requestJsonResponse<{ ok?: boolean }>(
+      `${endpoint}/health`,
+      {
+        cache: "no-store",
+        timeoutMs: BACKEND_HEALTH_TIMEOUT_MS,
+      },
+    );
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }
 
-    const body = (await response.json()) as { ok?: boolean };
+    const body = response.data;
     if (body.ok !== true) throw new Error("Health check returned not ok");
 
     setBackendHealth("online", "Backend health check passed");
     await sendInstallPresenceIfDue();
   } catch (error) {
     const detail =
-      error instanceof DOMException && error.name === "AbortError"
+      error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError")
         ? "Health check timed out"
         : formatError(error);
     setBackendHealth("offline", detail);
@@ -4734,7 +4744,7 @@ async function sendInstallPresenceIfDue() {
       apiEndpoint: state.settings.apiEndpoint,
       marker: state.installPresenceMarker,
       request: async (endpoint, payload) => {
-        const response = await fetchWithTimeout(
+        const response = await requestWithTimeout(
           `${endpoint}/api/install-presence`,
           {
             method: "POST",
@@ -4742,8 +4752,9 @@ async function sendInstallPresenceIfDue() {
             body: JSON.stringify(payload satisfies InstallPresencePayload),
             timeoutMs: API_REQUEST_TIMEOUT_MS,
           },
+          (response) => ({ ok: response.ok, status: response.status }),
         );
-        return { ok: response.ok, status: response.status };
+        return response;
       },
     });
     if (marker && marker !== state.installPresenceMarker) {
@@ -4934,13 +4945,13 @@ export async function pollContributions(
   try {
     const pollStartedAt = Date.now();
     const params = new URLSearchParams({ installUuid });
-    const response = await fetchWithTimeout(
+    const response = await requestJsonResponse<ContributionsResponse>(
       `${state.settings.apiEndpoint}/api/community/contributions?${params}`,
       { timeoutMs: API_REQUEST_TIMEOUT_MS },
     );
     if (!response.ok)
       throw new Error(`${response.status} ${response.statusText}`);
-    const body = (await response.json()) as ContributionsResponse;
+    const body = response.data;
     const previous = useAppStore.getState().seenContributionStatus;
     const arrived: AppNotification[] = [];
     const seenContributionStatus = { ...previous };
@@ -5535,12 +5546,13 @@ export async function cancelCommunitySuggestion(
     installUuid: state.installUuid,
   };
   try {
-    const response = await fetchWithTimeout(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      timeoutMs: API_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify(payload),
-    });
+    const response =
+      await requestJsonResponse<CommunitySuggestionCancelResponse>(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify(payload),
+      });
     if (response.status === 404 || response.status === 501) {
       communityCancelUnavailableUntil = Date.now() + 30 * 60_000;
       return { kind: "unavailable" };
@@ -5549,7 +5561,7 @@ export async function cancelCommunitySuggestion(
       throw new Error(`${response.status} ${response.statusText}`);
     }
 
-    const body = (await response.json()) as CommunitySuggestionCancelResponse;
+    const body = response.data;
     state.addApiRequestLogEntry({
       endpoint,
       exeName: existing.exeName,
@@ -5696,23 +5708,26 @@ export async function submitLocalLinkToCommunity(
   }
   const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions`;
   try {
-    const response = await fetchWithTimeout(endpoint, {
-      signal,
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      timeoutMs: API_REQUEST_TIMEOUT_MS,
-      body: JSON.stringify({
-        exeName: link.exeName,
-        name: link.gameName,
-        coverUrl: link.coverUrl,
-        igdbId: link.igdbId,
-        installUuid: state.installUuid ?? undefined,
-      }),
-    });
+    const response = await requestJsonResponse<CommunityGameSuggestionResponse>(
+      endpoint,
+      {
+        signal,
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({
+          exeName: link.exeName,
+          name: link.gameName,
+          coverUrl: link.coverUrl,
+          igdbId: link.igdbId,
+          installUuid: state.installUuid ?? undefined,
+        }),
+      },
+    );
     if (!response.ok) {
       throw new Error(`${response.status} ${response.statusText}`);
     }
-    const result = (await response.json()) as CommunityGameSuggestionResponse;
+    const result = response.data;
     signal?.throwIfAborted();
     if (result.igdbGame) {
       applyLocalLinkGameMatch(ref, result.igdbGame);
@@ -6434,14 +6449,14 @@ export async function hydrateGameMetadata(
 
   const request = (async () => {
     try {
-      const response = await fetchWithTimeout(
+      const response = await requestJsonResponse<GameMetadataResponse>(
         `${state.settings.apiEndpoint}/api/games/metadata?ids=${missingIds.join(",")}`,
         { timeoutMs: API_REQUEST_TIMEOUT_MS },
       );
       if (!response.ok)
         throw new Error(`${response.status} ${response.statusText}`);
 
-      const body = (await response.json()) as GameMetadataResponse;
+      const body = response.data;
       const games = body.games.filter(
         (game): game is GameMetadata =>
           game.source === "igdb" || game.source === "community",
@@ -7081,29 +7096,6 @@ function linuxSteamAppId(path: string | null) {
 
 function normalizeProcessPath(path: string) {
   return path.replace(/\\/g, "/").toLowerCase();
-}
-
-async function fetchWithTimeout(
-  input: RequestInfo | URL,
-  init: RequestInit & { timeoutMs?: number } = {},
-) {
-  const { timeoutMs = API_REQUEST_TIMEOUT_MS, signal, ...requestInit } = init;
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-
-  if (signal) {
-    if (signal.aborted) controller.abort();
-    else
-      signal.addEventListener("abort", () => controller.abort(), {
-        once: true,
-      });
-  }
-
-  try {
-    return await fetch(input, { ...requestInit, signal: controller.signal });
-  } finally {
-    window.clearTimeout(timeout);
-  }
 }
 
 function formatError(error: unknown) {
