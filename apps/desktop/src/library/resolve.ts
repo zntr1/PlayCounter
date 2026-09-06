@@ -15,6 +15,7 @@ export async function resolveLibraryGames(
   apiEndpoint: string,
   provider: LibraryProviderId,
   games: readonly ScannedLibraryGame[],
+  signal?: AbortSignal,
 ): Promise<LibraryResolveOutcome> {
   const resolved: ResolvedLibraryGame[] = [];
   const offsets =
@@ -36,6 +37,7 @@ export async function resolveLibraryGames(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ items } satisfies LibraryResolveRequest),
+      ...(signal ? { signal } : {}),
     });
     if ([404, 405, 501].includes(response.status)) {
       return { capability: "unsupported", games: [] };
