@@ -24,7 +24,7 @@ import {
   AmbiguousMatchCard,
   notifyNegativeReportOutcome,
 } from "./nowPlaying/AmbiguousMatchCard";
-import { useCommunityGameCorrection } from "./nowPlaying/useCommunityGameCorrection";
+import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import {
   providerFloorRecord,
   providerFloors as collectProviderFloors,

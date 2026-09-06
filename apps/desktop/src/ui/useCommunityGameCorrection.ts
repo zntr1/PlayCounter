@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
   CommunityGameSuggestionResponse,
   CommunityMetadataCandidate,
@@ -9,11 +9,12 @@ import {
   communityMetadataSearchUrl,
   mergeCommunityMetadataCandidates,
   type CommunityMetadataSearchOptions,
-} from "../../../communityMetadataSearch";
-import { useAppStore, useIsOffline } from "../../../store";
+} from "../communityMetadataSearch";
+import { requestJson } from "../requestJson";
+import { useAppStore, useIsOffline } from "../store";
 
 /* Searching the database and sending a correction ────────────────────────────
-   The ambiguity picker and the "wrong game" dialog run the same flow: search
+   Discovery, library sharing and the ambiguity picker run the same flow: search
    IGDB through the API, page through results, pick one with cover art, post it
    as a community suggestion. Only what happens with the answer differs, so the
    three outcomes are handed back to the caller together with the selection. */
@@ -32,11 +33,16 @@ export type CommunityCorrectionOutcome = {
 
 export function useCommunityGameCorrection({
   exeName,
+  targetKey = exeName,
+  resultInstruction = "Pick the game you started.",
   onKnownGame,
   onRejected,
   onSuggested,
 }: {
   exeName: string;
+  /** Distinguishes local links that share an executable name. */
+  targetKey?: string;
+  resultInstruction?: string;
   /** The API already knows this game: it was applied directly. */
   onKnownGame: (game: Game) => void;
   /** Reviewed before and turned down; `id` is the earlier suggestion. */
@@ -66,19 +72,39 @@ export function useCommunityGameCorrection({
   );
   const [state, setState] = useState<CommunityCorrectionState>("idle");
   const [message, setMessage] = useState("");
+  const request = useRef<{
+    controller: AbortController;
+    kind: "search" | "submit";
+  } | null>(null);
+  const contextKey = JSON.stringify([apiEndpoint, exeName, targetKey]);
+  const previousContext = useRef(contextKey);
+
+  function cancelRequest() {
+    request.current?.controller.abort();
+    request.current = null;
+  }
+
+  useEffect(() => {
+    if (previousContext.current !== contextKey) {
+      previousContext.current = contextKey;
+      reset();
+    }
+    return cancelRequest;
+  }, [contextKey]);
 
   function resetResults() {
+    cancelRequest();
     setSelection(null);
     setCandidates([]);
     setHasMore(false);
     setNextOffset(0);
     setMessage("");
+    setState("idle");
   }
 
   function reset() {
     setSearchValue("");
     resetResults();
-    setState("idle");
   }
 
   function setSearch(value: string) {
@@ -92,18 +118,27 @@ export function useCommunityGameCorrection({
     options: CommunityMetadataSearchOptions,
   ) {
     const query = search.trim();
-    if (query.length < 2 || isOffline) return;
+    if (query.length < 2 || isOffline || request.current?.kind === "submit")
+      return;
+
+    cancelRequest();
+    const controller = new AbortController();
+    request.current = { controller, kind: "search" };
 
     setState(append ? "loading-more" : "loading");
     setMessage("");
-    if (!append) setCandidates([]);
+    if (!append) {
+      setSelection(null);
+      setCandidates([]);
+      setHasMore(false);
+      setNextOffset(0);
+    }
     try {
-      const response = await fetch(
+      const body = await requestJson<CommunityMetadataSearchResponse>(
         communityMetadataSearchUrl(apiEndpoint, query, offset, options),
+        { signal: controller.signal },
       );
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
-      const body = (await response.json()) as CommunityMetadataSearchResponse;
+      if (request.current?.controller !== controller) return;
       const results = append
         ? mergeCommunityMetadataCandidates(candidates, body.candidates)
         : body.candidates;
@@ -114,13 +149,16 @@ export function useCommunityGameCorrection({
         results.length > 0
           ? body.hasMore
             ? `${results.length} matches shown. Load more to keep looking.`
-            : `All ${results.length} matches shown. Pick the game you started.`
+            : `All ${results.length} matches shown. ${resultInstruction}`
           : "No matching games found.",
       );
       setState("idle");
     } catch (error) {
+      if (request.current?.controller !== controller) return;
       setState("error");
       setMessage(formatError(error));
+    } finally {
+      if (request.current?.controller === controller) request.current = null;
     }
   }
 
@@ -129,7 +167,7 @@ export function useCommunityGameCorrection({
   }
 
   function loadMore(options: CommunityMetadataSearchOptions) {
-    if (!hasMore) return;
+    if (!hasMore || request.current) return;
     return searchPage(nextOffset, true, options);
   }
 
@@ -146,27 +184,37 @@ export function useCommunityGameCorrection({
   }
 
   async function submit() {
-    if (!selection?.coverUrl) return;
+    if (
+      !selection?.coverUrl ||
+      !exeName ||
+      isOffline ||
+      request.current?.kind === "submit"
+    )
+      return;
     const chosen = { ...selection, coverUrl: selection.coverUrl };
+    cancelRequest();
+    const controller = new AbortController();
+    request.current = { controller, kind: "submit" };
 
     setState("saving");
     setMessage("");
     try {
-      const response = await fetch(`${apiEndpoint}/api/community/suggestions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          exeName,
-          name: chosen.name,
-          coverUrl: chosen.coverUrl,
-          igdbId: chosen.igdbId,
-          installUuid: installUuid ?? undefined,
-        }),
-      });
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
-
-      const result = (await response.json()) as CommunityGameSuggestionResponse;
+      const result = await requestJson<CommunityGameSuggestionResponse>(
+        `${apiEndpoint}/api/community/suggestions`,
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            exeName,
+            name: chosen.name,
+            coverUrl: chosen.coverUrl,
+            igdbId: chosen.igdbId,
+            installUuid: installUuid ?? undefined,
+          }),
+        },
+      );
+      if (request.current?.controller !== controller) return;
       if (result.igdbGame) {
         setState("saved");
         onKnownGame(result.igdbGame);
@@ -180,8 +228,11 @@ export function useCommunityGameCorrection({
       }
       onSuggested(result.id, result.verified ?? false, { selection: chosen });
     } catch (error) {
+      if (request.current?.controller !== controller) return;
       setState("error");
       setMessage(formatError(error));
+    } finally {
+      if (request.current?.controller === controller) request.current = null;
     }
   }
 
