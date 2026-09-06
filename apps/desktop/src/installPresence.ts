@@ -1,6 +1,7 @@
 import type { InstallPresencePayload } from "@playcounter/shared";
 
-export const INSTALL_PRESENCE_SUCCESS_COOLDOWN_MS = 20 * 60 * 60 * 1000;
+// Admin considers an install online for two hours after a heartbeat.
+export const INSTALL_PRESENCE_SUCCESS_COOLDOWN_MS = 60 * 60 * 1000;
 export const INSTALL_PRESENCE_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 export const INSTALL_PRESENCE_UNSUPPORTED_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -87,29 +88,4 @@ export async function reportInstallPresence(input: {
   } catch {
     return { endpoint, installUuid, sentAt, kind: "retry" };
   }
-}
-
-export function sanitizeInstallPresenceMarker(
-  value: unknown,
-): InstallPresenceMarker | null {
-  if (!value || typeof value !== "object") return null;
-  const marker = value as Partial<InstallPresenceMarker>;
-  if (
-    typeof marker.endpoint !== "string" ||
-    typeof marker.installUuid !== "string" ||
-    typeof marker.sentAt !== "string" ||
-    !Number.isFinite(Date.parse(marker.sentAt)) ||
-    (marker.kind !== "success" &&
-      marker.kind !== "retry" &&
-      marker.kind !== "unsupported")
-  ) {
-    return null;
-  }
-
-  return {
-    endpoint: normalizeInstallPresenceEndpoint(marker.endpoint),
-    installUuid: marker.installUuid,
-    sentAt: marker.sentAt,
-    kind: marker.kind,
-  };
 }

@@ -46,6 +46,11 @@ and the current public/private split are documented in [BACKEND.md](./BACKEND.md
 ## Privacy
 
 - Play tracking happens **locally** on your machine - your history stays there.
+- Presence reporting automatically sends your pseudonymous installation ID on
+  startup and hourly while running, including in the tray. These reports contain
+  no game names or history. The server keeps first/latest report timestamps;
+  inactive records are removed after 30 days during hourly cleanup. This is used to determine, whether
+  stronger hardware/capacity for the PlayCounter online services are needed.
 - Automatic game matching sends the required process identifier to the API. On
   Windows this is the executable filename, never its full path.
 - Feedback and community game submissions are only sent when you choose those

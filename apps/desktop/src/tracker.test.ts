@@ -12,6 +12,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: openMock }));
 import { findManualLaunchTarget, manualLaunchTargetKey } from "./gameLaunch";
 import { buildLibraryImportCommit } from "./library/importPlan";
+import {
+  INSTALL_PRESENCE_RETRY_COOLDOWN_MS,
+  INSTALL_PRESENCE_SUCCESS_COOLDOWN_MS,
+} from "./installPresence";
 import type { LibraryImportEntry } from "./library/types";
 import {
   createGameIdentityResolver,
@@ -618,8 +622,7 @@ describe("provider-scoped library cleanup", () => {
 describe("install presence wiring", () => {
   const installUuid = "550e8400-e29b-41d4-a716-446655440000";
   const apiEndpoint = "https://api.playcounter.test";
-
-  it("reports presence after a successful health check and persists the marker", async () => {
+  it("reports presence after a successful health check and keeps the marker in memory", async () => {
     useAppStore.setState({
       installUuid,
       installPresenceMarker: null,
@@ -645,13 +648,128 @@ describe("install presence wiring", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const presenceCall = fetchMock.mock.calls[1];
     expect(String(presenceCall[0])).toBe(`${apiEndpoint}/api/install-presence`);
-    expect(JSON.parse(String(presenceCall[1]?.body))).toEqual({ installUuid });
+    expect(JSON.parse(String(presenceCall[1]?.body))).toEqual({
+      installUuid,
+    });
     expect(useAppStore.getState().installPresenceMarker).toMatchObject({
       endpoint: apiEndpoint,
       installUuid,
       kind: "success",
     });
-    expect(globalThis.localStorage.setItem).toHaveBeenCalled();
+    expect(globalThis.localStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("reports again on startup despite a recent persisted heartbeat", async () => {
+    // Hydration pins the endpoint to the configured build environment.
+    hydrate();
+    const startupEndpoint = useAppStore.getState().settings.apiEndpoint;
+    vi.mocked(localStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        installUuid,
+        settings: useAppStore.getState().settings,
+        installPresenceMarker: {
+          endpoint: startupEndpoint,
+          installUuid,
+          kind: "success",
+          sentAt: new Date().toISOString(),
+        },
+      }),
+    );
+    hydrate();
+    expect(useAppStore.getState().installPresenceMarker).toBeNull();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      status: String(input).endsWith("/health") ? 200 : 204,
+      json: async () => ({ ok: true }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await checkBackendHealth();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toBe(
+      `${startupEndpoint}/api/install-presence`,
+    );
+    persist();
+    const saved = JSON.parse(vi.mocked(localStorage.setItem).mock.lastCall![1]);
+    expect(saved.installUuid).toBe(installUuid);
+    expect(saved).not.toHaveProperty("installPresenceMarker");
+  });
+
+  it("renews hourly, retries failed heartbeats, and resumes after a long sleep", async () => {
+    vi.useFakeTimers();
+    try {
+      useAppStore.setState({
+        installUuid,
+        settings: { ...useAppStore.getState().settings, apiEndpoint },
+      });
+      let presenceOk = true;
+      const presence = vi.fn(async () => ({
+        ok: presenceOk,
+        status: presenceOk ? 204 : 503,
+      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL) =>
+          String(input).endsWith("/health")
+            ? { ok: true, json: async () => ({ ok: true }) }
+            : presence(),
+        ),
+      );
+
+      await checkBackendHealth();
+      expect(presence).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(
+        INSTALL_PRESENCE_SUCCESS_COOLDOWN_MS - 1,
+      );
+      await checkBackendHealth();
+      expect(presence).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      presenceOk = false;
+      await checkBackendHealth();
+      expect(presence).toHaveBeenCalledTimes(2);
+      expect(useAppStore.getState().installPresenceMarker?.kind).toBe("retry");
+      expect(useAppStore.getState().backendHealth.status).toBe("online");
+      await checkBackendHealth();
+      expect(presence).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(INSTALL_PRESENCE_RETRY_COOLDOWN_MS);
+      presenceOk = true;
+      await checkBackendHealth();
+      expect(presence).toHaveBeenCalledTimes(3);
+      expect(useAppStore.getState().installPresenceMarker?.kind).toBe(
+        "success",
+      );
+      vi.setSystemTime(Date.now() + 12 * 60 * 60 * 1000);
+      await checkBackendHealth();
+      expect(presence).toHaveBeenCalledTimes(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("coalesces concurrent presence requests", async () => {
+    useAppStore.setState({
+      installUuid,
+      settings: { ...useAppStore.getState().settings, apiEndpoint },
+    });
+    let complete!: (value: { ok: boolean; status: number }) => void;
+    const pending = new Promise<{ ok: boolean; status: number }>((resolve) => {
+      complete = resolve;
+    });
+    const presence = vi.fn(() => pending);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).endsWith("/health")
+          ? { ok: true, json: async () => ({ ok: true }) }
+          : presence(),
+      ),
+    );
+    const first = checkBackendHealth();
+    const second = checkBackendHealth();
+    await vi.waitFor(() => expect(presence).toHaveBeenCalledTimes(1));
+    complete({ ok: true, status: 204 });
+    await Promise.all([first, second]);
+    expect(presence).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a fresh marker quiet but bypasses it for a changed endpoint", async () => {
@@ -688,6 +806,7 @@ describe("install presence wiring", () => {
       "https://other.playcounter.test/api/install-presence",
     );
   });
+
 });
 
 describe("game launching", () => {

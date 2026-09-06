@@ -223,9 +223,12 @@
                 <strong>Update checks.</strong> Version checks and downloads use GitHub.
               </li>
               <li>
-                <strong>Anonymous activity, where applicable.</strong> The service
-                supports an anonymous live view of what is being played; this is not tied
-                to an account because there are no accounts.
+                <strong>Install presence.</strong> While PlayCounter runs, it
+                automatically sends a pseudonymous installation ID on startup
+                and hourly to estimate online installations. Reports contain no
+                game names or playtime history. The server keeps first/latest
+                report timestamps. Inactive records are removed after 30 days
+                during hourly cleanup.
               </li>
               <li>
                 <strong>Feedback and community match submissions.</strong> These are sent
