@@ -102,8 +102,8 @@ import {
 } from "../../library/playtimeFloor";
 import { commitLibraryImports } from "../../library/commit";
 import {
-  checkSteamImportForMatches,
-  type SteamImportMatchCheck,
+  checkLibraryImportForMatches,
+  type LibraryImportMatchCheck,
 } from "../../library/recheck";
 import {
   libraryLaunchErrorMessage,
@@ -2484,9 +2484,10 @@ function GameLibraryCard({
     game.libraryImports.length > 0 &&
     game.exeNames.length === 0 &&
     game.emulatorContentKeys.length === 0;
+  const matchCheckImportEntry = steamImportEntry ?? xboxImportEntry;
   const canCheckMatches = Boolean(
     (game.source && game.exeNames[0]) ||
-    (trackingUnavailable && steamImportEntry),
+    (trackingUnavailable && matchCheckImportEntry),
   );
   const trackingWarningMessage = trackingUnavailableMessage(
     importedProviders,
@@ -4078,11 +4079,11 @@ function GameLibraryCard({
           />
         ) : null}
         {showMatchCheck ? (
-          trackingUnavailable && steamImportEntry ? (
-            <SteamImportMatchCheckDialog
+          trackingUnavailable && matchCheckImportEntry ? (
+            <LibraryImportMatchCheckDialog
               apiEndpoint={apiEndpoint}
-              entry={steamImportEntry.entry}
-              install={steamImportEntry.install}
+              entry={matchCheckImportEntry.entry}
+              install={matchCheckImportEntry.install}
               ignoredProcesses={ignoredProcesses}
               onCancel={() => setShowMatchCheck(false)}
               onApplied={(executableNames) => {
@@ -4479,11 +4480,11 @@ function GameLibraryCard({
         />
       ) : null}
       {showMatchCheck ? (
-        trackingUnavailable && steamImportEntry ? (
-          <SteamImportMatchCheckDialog
+        trackingUnavailable && matchCheckImportEntry ? (
+          <LibraryImportMatchCheckDialog
             apiEndpoint={apiEndpoint}
-            entry={steamImportEntry.entry}
-            install={steamImportEntry.install}
+            entry={matchCheckImportEntry.entry}
+            install={matchCheckImportEntry.install}
             ignoredProcesses={ignoredProcesses}
             onCancel={() => setShowMatchCheck(false)}
             onApplied={(executableNames) => {
@@ -4998,7 +4999,7 @@ function AdjustPlaytimeDialog({
   );
 }
 
-function SteamImportMatchCheckDialog({
+function LibraryImportMatchCheckDialog({
   apiEndpoint,
   entry,
   install,
@@ -5013,9 +5014,10 @@ function SteamImportMatchCheckDialog({
   onCancel: () => void;
   onApplied: (executableNames: string[]) => void;
 }) {
+  const providerLabel = providerTabConfig(entry.provider)?.label ?? entry.provider;
   const isOffline = useIsOffline();
   const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<SteamImportMatchCheck | null>(null);
+  const [result, setResult] = useState<LibraryImportMatchCheck | null>(null);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
 
@@ -5024,7 +5026,7 @@ function SteamImportMatchCheckDialog({
     let cancelled = false;
     setResult(null);
     setError("");
-    void checkSteamImportForMatches({
+    void checkLibraryImportForMatches({
       apiEndpoint,
       entry,
       install,
@@ -5089,10 +5091,10 @@ function SteamImportMatchCheckDialog({
   return (
     <Modal
       size="md"
-      labelId="steam-match-check-title"
-      eyebrow="Steam executable"
+      labelId="library-match-check-title"
+      eyebrow={`${providerLabel} executable`}
       title={`Check matches for ${entry.name}`}
-      subtitle={`Steam AppID ${entry.externalId}`}
+      subtitle={`${providerLabel} ${entry.provider === "steam" ? "AppID" : "Title ID"} ${entry.externalId}`}
       icon={!result && !error && !isOffline ? Loader2 : Search}
       iconSpin={!result && !error && !isOffline}
       onClose={onCancel}
@@ -5100,7 +5102,7 @@ function SteamImportMatchCheckDialog({
     >
       <p className="text-sm leading-6 text-text-muted">
         Checks whether IGDB or the approved Community database now knows an
-        executable for this Steam game.
+        executable for this {providerLabel} game.
       </p>
 
       <div className="mt-5" role="status" aria-live="polite">
@@ -5145,21 +5147,22 @@ function SteamImportMatchCheckDialog({
             <div className="font-semibold">Local confirmation required</div>
             <p className="mt-1 leading-5 text-text-muted">
               The database knows {result.executableNames.join(", ")}, but the
-              filename can&apos;t be linked globally. Install the game and run a
-              Steam scan so PlayCounter can safely scope it to that folder.
+              filename can&apos;t be linked globally. Install the game and run a{" "}
+              {providerLabel} scan so PlayCounter can safely scope it to that
+              folder.
             </p>
           </div>
         ) : result.kind === "unsupported" ? (
           <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
-            This PlayCounter backend does not support Steam executable checks
-            yet.
+            This PlayCounter backend does not support {providerLabel} executable
+            checks yet.
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-bg/60 p-5 text-sm text-text-muted">
             <div className="font-semibold text-text">No match found yet</div>
             <p className="mt-1 leading-5">
-              There is still no approved executable for this Steam game. You can
-              check again after a Community suggestion has been approved.
+              There is still no approved executable for this {providerLabel} game.
+              You can check again after a Community suggestion has been approved.
             </p>
           </div>
         )}

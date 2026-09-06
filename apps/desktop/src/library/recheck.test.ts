@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { checkSteamImportForMatches } from "./recheck";
+import { checkLibraryImportForMatches } from "./recheck";
 import type { LibraryImportEntry } from "./types";
 
 const entry: LibraryImportEntry = {
@@ -59,7 +59,7 @@ describe("Steam import match recheck", () => {
       vi.fn(async () => resolverResponse({ value: "cs2.exe", verified: true })),
     );
 
-    const result = await checkSteamImportForMatches({
+    const result = await checkLibraryImportForMatches({
       apiEndpoint: "https://example.test",
       entry,
     });
@@ -82,7 +82,7 @@ describe("Steam import match recheck", () => {
       vi.fn(async () => resolverResponse({ value: "cs2.exe", verified: true })),
     );
 
-    const result = await checkSteamImportForMatches({
+    const result = await checkLibraryImportForMatches({
       apiEndpoint: "https://example.test",
       entry: { ...entry, providerSeconds: null },
     });
@@ -104,7 +104,7 @@ describe("Steam import match recheck", () => {
       ),
     );
 
-    const result = await checkSteamImportForMatches({
+    const result = await checkLibraryImportForMatches({
       apiEndpoint: "https://example.test",
       entry,
     });
@@ -131,7 +131,7 @@ describe("Steam import match recheck", () => {
       ),
     );
 
-    const result = await checkSteamImportForMatches({
+    const result = await checkLibraryImportForMatches({
       apiEndpoint: "https://example.test",
       entry,
       install: {
@@ -152,5 +152,66 @@ describe("Steam import match recheck", () => {
       exeName: "game.exe",
       pathPrefix: String.raw`c:\steam\steamapps\common\cs2`,
     });
+  });
+});
+
+
+describe("Xbox import match recheck", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each([
+    { ambiguous: false, installed: false, expected: "found" },
+    { ambiguous: true, installed: false, expected: "needs_install" },
+    { ambiguous: true, installed: true, expected: "found" },
+  ])("handles ambiguous=$ambiguous, installed=$installed safely", async ({ ambiguous, installed, expected }) => {
+    const fetchMock = vi.fn(async () => {
+      const response = await resolverResponse({ value: "game.exe", verified: true, ambiguous }).json();
+      return new Response(JSON.stringify(response.results[0]), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await checkLibraryImportForMatches({
+      apiEndpoint: "https://example.test",
+      entry: { ...entry, provider: "xbox", externalId: "1234", providerSeconds: null },
+      install: installed ? {
+        provider: "xbox",
+        externalId: "1234",
+        installPath: String.raw`C:\XboxGames\Game`,
+        scannedAt: entry.lastReadAt,
+      } : undefined,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.test/api/library/reverse-resolve",
+      expect.objectContaining({ body: JSON.stringify({ gameId: entry.gameId }) }),
+    );
+    expect(result.kind).toBe(expected);
+    if (result.kind !== "found") return;
+    expect(result.commit.entry).toMatchObject({
+      provider: "xbox", externalId: "1234", providerSeconds: null,
+      linkedExeNames: ["game.exe"],
+    });
+    if (ambiguous) {
+      expect(result.commit.exeCacheEntries).toEqual([]);
+      expect(result.commit.scopedLinks[0]).toMatchObject({
+        provider: "xbox", externalId: "1234", gameId: entry.gameId,
+        pathPrefix: String.raw`c:\xboxgames\game`,
+      });
+    } else {
+      expect(result.commit.exeCacheEntries[0]).toMatchObject({
+        exeName: "game.exe", gameId: entry.gameId,
+      });
+    }
+  });
+
+  it("reports no match when the confirmed Xbox game still has no executables", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      const response = await resolverResponse({ value: "game.exe", verified: true }).json();
+      return new Response(JSON.stringify({ ...response.results[0], executables: [] }), { status: 200 });
+    }));
+    const result = await checkLibraryImportForMatches({
+      apiEndpoint: "https://example.test",
+      entry: { ...entry, provider: "xbox" },
+    });
+    expect(result.kind).toBe("not_found");
   });
 });
