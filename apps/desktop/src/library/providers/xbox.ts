@@ -117,6 +117,7 @@ export async function scanXboxLibrary(
     const start = parseXboxImportStart(await startResponse.json());
     attemptId = start.attemptId;
     attemptActive = true;
+    ensureNotAborted(requestController.signal);
     options.onAuthorizeUrl?.(start.authorizeUrl);
     reportProgress("authorization");
 
@@ -144,9 +145,12 @@ export async function scanXboxLibrary(
       }
 
       const result = parseXboxImportResult(await resultResponse.json());
+      ensureNotAborted(requestController.signal);
       if (result.status === "done") {
         attemptActive = false;
-        return mapXboxImportGames(result.games, await scanLocalXboxGames());
+        const localGames = await scanLocalXboxGames();
+        ensureNotAborted(requestController.signal);
+        return mapXboxImportGames(result.games, localGames);
       }
       if (result.status === "failed") {
         attemptActive = false;

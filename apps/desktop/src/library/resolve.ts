@@ -26,6 +26,7 @@ export async function resolveLibraryGames(
           (_, index) => index * BATCH_SIZE,
         );
   for (const offset of offsets) {
+    signal?.throwIfAborted();
     const items: LibraryResolveRequest["items"] = games
       .slice(offset, offset + BATCH_SIZE)
       .map((game) => ({
@@ -39,6 +40,7 @@ export async function resolveLibraryGames(
       body: JSON.stringify({ items } satisfies LibraryResolveRequest),
       ...(signal ? { signal } : {}),
     });
+    signal?.throwIfAborted();
     if ([404, 405, 501].includes(response.status)) {
       return { capability: "unsupported", games: [] };
     }
@@ -46,6 +48,7 @@ export async function resolveLibraryGames(
       throw new Error(`Library lookup failed (${response.status}).`);
     }
     const body = (await response.json()) as LibraryResolveResponse;
+    signal?.throwIfAborted();
     for (const item of body.results) {
       const flagged = new Set(
         (item.flaggedIdentifiers ?? []).map((identifier) =>

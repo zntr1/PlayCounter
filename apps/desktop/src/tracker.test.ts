@@ -806,7 +806,6 @@ describe("install presence wiring", () => {
       "https://other.playcounter.test/api/install-presence",
     );
   });
-
 });
 
 describe("game launching", () => {
@@ -2954,6 +2953,38 @@ describe("imported local link sharing", () => {
     setAt: "2026-08-23T00:00:00.000Z",
     shareState: "unshared" as const,
   };
+
+  it.each([false, true])(
+    "ignores late sharing replies after import cancellation (reject=%s)",
+    async (reject) => {
+      useAppStore.setState({ scopedExeLinks: new Map([[key, link]]) });
+      const controller = new AbortController();
+      let finish!: () => void;
+      const fetchMock = vi.fn(
+        () =>
+          new Promise<Response>((resolve, fail) => {
+            finish = () =>
+              reject
+                ? fail(new Error("Late failure"))
+                : resolve(
+                    new Response(JSON.stringify({ id: 42, verified: true })),
+                  );
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const pending = submitLocalLinkToCommunity(
+        { kind: "scoped", key },
+        controller.signal,
+      );
+      const assertion = expect(pending).rejects.toMatchObject({
+        name: "AbortError",
+      });
+      controller.abort();
+      finish();
+      await assertion;
+      expect(useAppStore.getState().scopedExeLinks.get(key)).toBe(link);
+    },
+  );
 
   it("submits the known identity and keeps the resulting marker scoped", async () => {
     const installUuid = "550e8400-e29b-41d4-a716-446655440000";

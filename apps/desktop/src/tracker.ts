@@ -5682,7 +5682,9 @@ export type LocalLinkShareOutcome =
 
 export async function submitLocalLinkToCommunity(
   ref: LocalLinkRef,
+  signal?: AbortSignal,
 ): Promise<LocalLinkShareOutcome> {
+  signal?.throwIfAborted();
   const state = useAppStore.getState();
   const link = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
   if (
@@ -5695,6 +5697,7 @@ export async function submitLocalLinkToCommunity(
   const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions`;
   try {
     const response = await fetchWithTimeout(endpoint, {
+      signal,
       method: "POST",
       headers: { "content-type": "application/json" },
       timeoutMs: API_REQUEST_TIMEOUT_MS,
@@ -5710,6 +5713,7 @@ export async function submitLocalLinkToCommunity(
       throw new Error(`${response.status} ${response.statusText}`);
     }
     const result = (await response.json()) as CommunityGameSuggestionResponse;
+    signal?.throwIfAborted();
     if (result.igdbGame) {
       applyLocalLinkGameMatch(ref, result.igdbGame);
       return { kind: "already-known" };
@@ -5742,6 +5746,7 @@ export async function submitLocalLinkToCommunity(
     }
     return { kind: "submitted" };
   } catch (error) {
+    signal?.throwIfAborted();
     useAppStore.setState((current) =>
       writeLocalLink(current, ref, { shareState: "failed" }),
     );
