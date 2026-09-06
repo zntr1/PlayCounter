@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Session } from "@playcounter/shared";
+import { validateBackupData } from "./backupValidation";
 import {
   readPersistedRecord,
   STORAGE_KEY,
@@ -159,6 +160,7 @@ export async function importLocalData(): Promise<ImportResult> {
   const raw = await invoke<string>("read_text_file", { path });
   const envelope = parseEnvelope(raw);
   const data = createTransferData(envelope.data);
+  validateBackupData(data, "data");
   data.notifications = [];
   data.discoveredReviewReminder = null;
   data.suppressStartupNotificationsOnce = true;

@@ -9,7 +9,10 @@ const { invokeMock, openMock, saveMock, reloadMock, getVersionMock } =
     getVersionMock: vi.fn(),
   }));
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: invokeMock,
+  convertFileSrc: (value: string) => value,
+}));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: getVersionMock }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: openMock,
@@ -17,9 +20,62 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 import { createTransferData, exportLocalData, importLocalData } from "./backup";
-import { STORAGE_KEY } from "./persistence";
+import { createPersistedPayload, STORAGE_KEY } from "./persistence";
+import { useAppStore } from "./store";
+import { hydrate } from "./tracker";
 
 const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+const validAward = {
+  id: "milestone:total:10",
+  kind: "milestone-total",
+  title: "10 hours",
+  awardedAt: "2026-08-19T00:00:00.000Z",
+};
+const validEntry = {
+  exeName: "game.exe",
+  state: "matched",
+  gameId: 42,
+  gameName: "Game",
+  source: "igdb",
+  lastCheckedAt: "2026-08-19T00:00:00.000Z",
+};
+const validSession = {
+  id: 1,
+  gameId: 42,
+  exeName: "game.exe",
+  startedAt: "2026-08-19T00:00:00.000Z",
+  endedAt: "2026-08-19T00:01:00.000Z",
+  durationSeconds: 60,
+};
+const validMapping = {
+  contentKey: "dosbox:program:game.exe",
+  emulatorId: "dosbox",
+  label: "DOSBox",
+  contentKind: "program",
+  contentValue: "game.exe",
+  display: "Game",
+  trust: "recognized",
+  decision: "game",
+  confidence: "user",
+  gameId: 42,
+  gameName: "Game",
+  source: "igdb",
+  decidedAt: validSession.startedAt,
+  lastSeenAt: validSession.startedAt,
+};
+const validLibraryImport = {
+  provider: "steam",
+  externalId: "42",
+  igdbId: 42,
+  gameId: 42,
+  source: "igdb",
+  name: "Game",
+  coverUrl: "",
+  importedAt: validSession.startedAt,
+  lastReadAt: validSession.startedAt,
+  providerSeconds: 3600,
+  linkedExeNames: ["game.exe"],
+};
 
 function backup(data: Record<string, unknown>, version = 2) {
   return JSON.stringify({
@@ -214,6 +270,155 @@ describe("backup transfer data", () => {
 });
 
 describe("backup import", () => {
+  const arrays = [
+    "sessions",
+    "exeCache",
+    "gameMetadata",
+    "libraryImports",
+    "emulatorMappings",
+    "emulatorObservations",
+    "knownEmulators",
+    "awardedMilestones",
+  ];
+  const invalidCases: Array<[string, Record<string, unknown>]> = [
+    ...arrays.flatMap(
+      (field): Array<[string, Record<string, unknown>]> => [
+        [field, { [field]: {} }],
+        [field, { [field]: [null] }],
+        [field, { [field]: [[]] }],
+      ],
+    ),
+    ["settings", { settings: [] }],
+    [
+      "settings.ignoredEmulatorIds",
+      { settings: { ignoredEmulatorIds: "dosbox" } },
+    ],
+    [
+      "settings.ignoredEmulatorIds[0]",
+      { settings: { ignoredEmulatorIds: [null] } },
+    ],
+    ["settings.apiEndpoint", { settings: { apiEndpoint: 42 } }],
+    [
+      "settings.pollingIntervalSeconds",
+      { settings: { pollingIntervalSeconds: -5 } },
+    ],
+    ["exeCache[0].exeName", { exeCache: [{ ...validEntry, exeName: 42 }] }],
+    [
+      "exeCache[0].pendingCommunityGame",
+      { exeCache: [{ ...validEntry, pendingCommunityGame: [] }] },
+    ],
+    [
+      "emulatorMappings[0].share",
+      { emulatorMappings: [{ ...validMapping, share: "pending" }] },
+    ],
+    [
+      "emulatorMappings[0].contentKey",
+      { emulatorMappings: [{ ...validMapping, contentKey: 1 }] },
+    ],
+    [
+      "libraryImports[0].linkedExeNames[0]",
+      { libraryImports: [{ ...validLibraryImport, linkedExeNames: [null] }] },
+    ],
+    [
+      "libraryImports[0].linkedExeSources",
+      { libraryImports: [{ ...validLibraryImport, linkedExeSources: {} }] },
+    ],
+    [
+      "sessions[0].startedAt",
+      { sessions: [{ ...validSession, startedAt: "invalid" }] },
+    ],
+    [
+      "sessions[0].durationSeconds",
+      { sessions: [{ ...validSession, durationSeconds: "60" }] },
+    ],
+    ["sessions[0].gameName", { sessions: [{ ...validSession, gameName: {} }] }],
+    ["sessions[0].emulator", { sessions: [{ ...validSession, emulator: [] }] }],
+    [
+      "awardedMilestones[0].aliasIds",
+      { awardedMilestones: [{ ...validAward, aliasIds: {} }] },
+    ],
+    ["archivedSeconds", { archivedSeconds: -1 }],
+    ["archivedGameSeconds.game", { archivedGameSeconds: { game: "100" } }],
+    ["playtimeAdjustments", { playtimeAdjustments: [] }],
+    ["contributionCounts", { contributionCounts: [] }],
+    ["seenContributionStatus.game", { seenContributionStatus: { game: {} } }],
+    ["autoDetectedGameKeys[0]", { autoDetectedGameKeys: [7] }],
+    [
+      "tours.completed",
+      { tours: { version: 1, welcomeVersion: 1, completed: [] } },
+    ],
+    ["installUuid", { installUuid: "broken" }],
+  ];
+
+  it.each(invalidCases)(
+    "rejects malformed %s before writing data or adopting identity",
+    async (path, data) => {
+      const existing = JSON.stringify({ sessions: [validSession] });
+      const values = installLocalStorage(existing);
+      openMock.mockResolvedValue("backup.json");
+      invokeMock.mockResolvedValue(backup({ installUuid, ...data }));
+      await expect(importLocalData()).rejects.toThrow(
+        `invalid data at data.${path}`,
+      );
+      expect(values.get(STORAGE_KEY)).toBe(existing);
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+      expect(invokeMock.mock.calls.map(([command]) => command)).toEqual([
+        "read_text_file",
+      ]);
+      expect(reloadMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([1, 2])(
+    "imports and hydrates a valid version %s backup",
+    async (version) => {
+      installLocalStorage(null);
+      const state = useAppStore.getInitialState();
+      const data = createTransferData(
+        createPersistedPayload({
+          ...state,
+          recentSessions: [validSession],
+          exeCache: new Map([
+            [
+              "game.exe",
+              {
+                ...validEntry,
+                state: "matched" as const,
+                source: "igdb" as const,
+              },
+            ],
+          ]),
+        }) as unknown as Record<string, unknown>,
+      );
+      data.emulatorMappings = [validMapping];
+      data.libraryImports = [validLibraryImport];
+      if (version === 1) {
+        delete data.tours;
+        delete data.knownEmulators;
+        delete data.autoDetectedGameKeys;
+        delete data.awardedMilestones;
+        data.awardedMilestoneIds = [validAward.id];
+      }
+      openMock.mockResolvedValue("backup.json");
+      invokeMock.mockResolvedValue(backup(data, version));
+      await expect(importLocalData()).resolves.toMatchObject({
+        imported: true,
+        sessions: 1,
+      });
+      useAppStore.setState(state, true);
+      expect(() => hydrate()).not.toThrow();
+      expect(useAppStore.getState().recentSessions).toEqual([validSession]);
+      expect(useAppStore.getState().exeCache.get("game.exe")?.gameId).toBe(42);
+      expect(
+        useAppStore.getState().emulatorMappings.get(validMapping.contentKey)
+          ?.gameId,
+      ).toBe(42);
+      expect(
+        useAppStore.getState().libraryImports.get("steam:42")?.providerSeconds,
+      ).toBe(3600);
+    },
+  );
+
   it("adopts the contribution identity and starts with a silent notification baseline", async () => {
     const existing = JSON.stringify({
       installUuid: "11111111-1111-4111-8111-111111111111",
@@ -229,13 +434,13 @@ describe("backup import", () => {
             contributionOwnerUuid: installUuid,
             sessions: [],
             settings: { theme: "light" },
-            awardedMilestones: [{ id: "milestone:total:10" }],
+            awardedMilestones: [validAward],
             seenContributionStatus: { contribution: "verified" },
             notifications: [{ id: "old-notification" }],
             blacklist: ["ignored.exe"],
             exeCache: [
               { exeName: "ignored.exe", state: "blacklisted" },
-              { exeName: "game.exe", state: "matched" },
+              validEntry,
             ],
           },
           1,
@@ -259,9 +464,9 @@ describe("backup import", () => {
       suppressStartupNotificationsOnce: true,
       suppressContributionNotificationsOnce: true,
       lastSeenReleaseNotesVersion: "1.1.5",
-      awardedMilestones: [{ id: "milestone:total:10" }],
+      awardedMilestones: [validAward],
       seenContributionStatus: { contribution: "verified" },
-      exeCache: [{ exeName: "game.exe", state: "matched" }],
+      exeCache: [validEntry],
     });
     expect(imported).not.toHaveProperty("blacklist");
     expect(reloadMock).toHaveBeenCalledOnce();
