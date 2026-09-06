@@ -10,6 +10,7 @@ import {
   initializeDesktopOverlays,
   noteDiscoveredExecutable,
   previewDesktopOverlay,
+  showCurrentSessionOverlay,
 } from "./desktopOverlayBridge";
 import { useAppStore } from "./store";
 
@@ -43,6 +44,7 @@ beforeEach(() => {
     onFocusChanged,
   } as never);
   useAppStore.setState((state) => ({
+    activeSessions: [],
     settings: {
       ...state.settings,
       desktopOverlaysEnabled: false,
@@ -71,6 +73,105 @@ function showCalls() {
 }
 
 describe("desktop overlay bridge", () => {
+  it("shows current elapsed time on request with automatic popups disabled", async () => {
+    vi.setSystemTime(90_000);
+    useAppStore.setState({
+      activeSessions: [
+        {
+          id: 1,
+          gameId: 1,
+          gameName: "Playing",
+          exeName: "game.exe",
+          coverUrl: "cover.jpg",
+          startedAt: new Date(0).toISOString(),
+          checkpointedAt: new Date(60_000).toISOString(),
+        },
+      ],
+    });
+    initializeDesktopOverlays();
+    showCurrentSessionOverlay();
+    await flush();
+    expect(showCalls()[0]?.[1]).toMatchObject({
+      payload: {
+        kind: "current-session",
+        title: "Playing",
+        kicker: "CURRENT SESSION",
+        metric: "1m",
+        monitor: "primary",
+        coverUrl: "cover.jpg",
+      },
+    });
+    expect(useAppStore.getState().activeSessions).toHaveLength(1);
+  });
+
+  it("cycles active games, skips unconfirmed recovery, and handles no active session", async () => {
+    const session = {
+      id: 1,
+      gameId: 1,
+      gameName: "One",
+      exeName: "game.exe",
+      coverUrl: "",
+      startedAt: new Date(0).toISOString(),
+      checkpointedAt: new Date(0).toISOString(),
+    };
+    useAppStore.setState({
+      activeSessions: [
+        session,
+        { ...session, id: 2, gameName: "Two" },
+        {
+          ...session,
+          id: 3,
+          gameName: "Unconfirmed",
+          recoveredFromCheckpoint: true,
+        },
+      ],
+    });
+    initializeDesktopOverlays();
+    showCurrentSessionOverlay();
+    showCurrentSessionOverlay();
+    showCurrentSessionOverlay();
+    useAppStore.setState({ activeSessions: [] });
+    showCurrentSessionOverlay();
+    await flush();
+    expect(
+      showCalls().map(
+        ([, args]) => (args as { payload: { title: string } }).payload.title,
+      ),
+    ).toEqual(["One", "Two", "One", "No game active"]);
+  });
+
+  it("shows requested time immediately and resumes queued notifications afterward", async () => {
+    useAppStore.setState((state) => ({
+      settings: { ...state.settings, desktopOverlaysEnabled: true },
+    }));
+    initializeDesktopOverlays();
+    armDesktopOverlays();
+    emitOverlayEvent({
+      type: "session-started",
+      gameName: "Visible",
+      firstAutoDetection: true,
+    });
+    emitOverlayEvent({
+      type: "session-started",
+      gameName: "Queued",
+      firstAutoDetection: true,
+    });
+    await flush();
+    showCurrentSessionOverlay();
+    await flush();
+    const finished = listenMock.mock.calls.find(
+      ([event]) => event === "playcounter:overlay-finished",
+    )?.[1];
+    const { payload } = showCalls()[1][1] as { payload: { id: string } };
+    finished?.({ payload: payload.id } as never);
+    await flush();
+    expect(
+      showCalls().map(
+        ([, args]) => (args as { payload: { title: string } }).payload.title,
+      ),
+    ).toEqual(["Visible", "No game active", "Queued"]);
+  });
+
   it.each([true, false])(
     "shows real popups with foreground focus=%s",
     async (hasFocus) => {

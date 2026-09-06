@@ -456,6 +456,9 @@ export type LibraryStatCardId =
   | "emulator";
 
 export interface Settings {
+  /** Global keyboard shortcuts. Null or absent means disabled. */
+  showWindowHotkey?: string | null;
+  currentSessionHotkey?: string | null;
   launchOnStartup: boolean;
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */

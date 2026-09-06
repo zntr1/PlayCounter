@@ -3,6 +3,7 @@ export type DesktopOverlayKind =
   | "milestone"
   | "first-detection"
   | "session-summary"
+  | "current-session"
   | "session-start"
   | "discovery";
 

@@ -12,7 +12,9 @@ export function DesktopOverlayMonitorSelect() {
     (state) => state.settings.overlayMonitor ?? "primary",
   );
   const enabled = useAppStore(
-    (state) => state.settings.desktopOverlaysEnabled === true,
+    (state) =>
+      state.settings.desktopOverlaysEnabled === true ||
+      !!state.settings.currentSessionHotkey,
   );
   const setMonitor = useAppStore((state) => state.setOverlayMonitor);
   const [monitors, setMonitors] = useState<DesktopOverlayMonitor[]>([]);

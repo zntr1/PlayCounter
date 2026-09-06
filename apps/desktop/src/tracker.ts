@@ -1,4 +1,5 @@
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
+import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import type {
   CommunityGameAlias,
   CommunityGameSuggestionResponse,
@@ -347,6 +348,7 @@ export async function initializeTracker() {
 
   hydrate();
   initializeDesktopOverlays();
+  initializeHotkeys();
   initializeControllerBridge();
   syncTrayNowPlaying();
   scheduleTraySync();
@@ -427,6 +429,7 @@ async function finishTrackerStartup() {
     installPresencePingInFlight = undefined;
     lastLaunchVerificationAt = 0;
     disposeDesktopOverlays();
+    disposeHotkeys();
     disposeControllerBridge();
     initialized = false;
   });

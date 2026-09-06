@@ -36,6 +36,7 @@ import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
+import { HotkeyInput } from "../HotkeyInput";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
 import { TutorialSettingsPanel } from "../tour/TourUI";
 import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
@@ -62,6 +63,7 @@ const OVERLAY_PREVIEWS: ReadonlyArray<readonly [DesktopOverlayKind, string]> = [
   ["first-detection", "First detection"],
   ["session-start", "Game start"],
   ["session-summary", "Session summary"],
+  ["current-session", "Current session"],
   ["milestone", "Milestone"],
   ["discovery", "Discovery"],
 ];
@@ -389,6 +391,35 @@ export function SettingsView() {
             checked={settings.showDurationDays}
             onChange={(event) => setShowDurationDays(event.target.checked)}
             className="h-5 w-5 accent-accent"
+          />
+        </SettingsRow>
+      </SettingsPanel>
+
+      <SettingsPanel
+        title="Keyboard shortcuts"
+        description="Global hotkeys work while PlayCounter is running, including in the system tray."
+      >
+        <SettingsRow
+          title="Bring PlayCounter to front"
+          description="Show and focus PlayCounter from any app."
+        >
+          <HotkeyInput
+            setting="showWindowHotkey"
+            label="Bring PlayCounter to front"
+          />
+        </SettingsRow>
+        <SettingsRow
+          title="Show current session time"
+          description={
+            currentPlatform() === "macos"
+              ? "Desktop popups are not supported on macOS."
+              : "Show a brief popup without leaving your game, even when automatic popups are off. Press again to cycle through active games. Uses the display selected under Desktop popups."
+          }
+        >
+          <HotkeyInput
+            setting="currentSessionHotkey"
+            label="Show current session time"
+            disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
       </SettingsPanel>

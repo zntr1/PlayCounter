@@ -18,6 +18,7 @@ use tauri::{
 
 mod controller;
 mod emulator_launch;
+mod hotkeys;
 mod ignored_processes;
 mod launch;
 mod library;
@@ -285,6 +286,7 @@ pub fn run() {
         .manage(controller::ControllerWatcher::default())
         .manage(emulator_launch::EmulatorLaunchGuard::default())
         .manage(notification_overlay::OverlayState::default())
+        .manage(hotkeys::HotkeyState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
             revealed: AtomicBool::new(false),
@@ -304,6 +306,7 @@ pub fn run() {
             show_main_window(app);
         }))
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
@@ -312,6 +315,7 @@ pub fn run() {
         ))
         .invoke_handler(tauri::generate_handler![
             main_window_ready,
+            hotkeys::set_global_hotkey,
             install_uuid,
             adopt_install_uuid,
             ignored_processes,
