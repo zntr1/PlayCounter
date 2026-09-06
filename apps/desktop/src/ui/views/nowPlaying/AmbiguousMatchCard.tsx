@@ -29,7 +29,7 @@ import { CommunitySuggestionForm } from "../DiscoveredView";
 import { formatClock } from "../ActiveGameHero";
 import { sortMatchCandidates } from "../matchCheckModel";
 import { ambiguousMatchCopy, formatAgo } from "./ambiguousMatchCopy";
-import { useCommunityGameCorrection } from "./useCommunityGameCorrection";
+import { useCommunityGameCorrection } from "../../useCommunityGameCorrection";
 
 /* One executable PlayCounter would not match on its own ─────────────────────
    Header asks the question, body offers the database's candidates as cover

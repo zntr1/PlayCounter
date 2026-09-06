@@ -89,11 +89,7 @@ import {
 import { CommunitySuggestionForm } from "./DiscoveredView";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { gameSecondsKeys } from "../../gameSeconds";
-import {
-  communityMetadataSearchUrl,
-  mergeCommunityMetadataCandidates,
-  type CommunityMetadataSearchOptions,
-} from "../../communityMetadataSearch";
+import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
@@ -150,9 +146,6 @@ import { GameDetailsDialog } from "./games/GameDetailsDialog";
 import { GameCover } from "../GameCover";
 import { CancelCommunitySuggestionDialog } from "../CancelCommunitySuggestionDialog";
 import type {
-  CommunityGameSuggestionResponse,
-  CommunityMetadataCandidate,
-  CommunityMetadataSearchResponse,
   ContributionStatus,
   Game,
   GameSource,
@@ -2219,22 +2212,9 @@ function GameLibraryCard({
   const [cancelSuggestionTarget, setCancelSuggestionTarget] =
     useState<PendingCommunitySuggestionTarget | null>(null);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
-  const installUuid = useAppStore((state) => state.installUuid);
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
   const isOffline = useIsOffline();
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareSearch, setShareSearch] = useState("");
-  const [shareCandidates, setShareCandidates] = useState<
-    CommunityMetadataCandidate[]
-  >([]);
-  const [shareHasMore, setShareHasMore] = useState(false);
-  const [shareNextOffset, setShareNextOffset] = useState(0);
-  const [shareSelection, setShareSelection] =
-    useState<CommunityMetadataCandidate | null>(null);
-  const [shareState, setShareState] = useState<
-    "idle" | "loading" | "loading-more" | "saving" | "saved" | "error"
-  >("idle");
-  const [shareMessage, setShareMessage] = useState("");
   const [showConvert, setShowConvert] = useState(false);
   const [convertName, setConvertName] = useState("");
   const [showRename, setShowRename] = useState(false);
@@ -2628,147 +2608,65 @@ function GameLibraryCard({
     });
   }
 
-  function closeShare() {
-    setShareOpen(false);
-    setShareSearch("");
-    setShareCandidates([]);
-    setShareHasMore(false);
-    setShareNextOffset(0);
-    setShareSelection(null);
-    setShareState("idle");
-    setShareMessage("");
-  }
-
-  async function searchShareCandidatePage(
-    offset: number,
-    append: boolean,
-    options: CommunityMetadataSearchOptions,
-  ) {
-    const query = shareSearch.trim();
-    if (query.length < 2 || isOffline) return;
-
-    setShareState(append ? "loading-more" : "loading");
-    setShareMessage("");
-    if (!append) setShareCandidates([]);
-    try {
-      const response = await fetch(
-        communityMetadataSearchUrl(apiEndpoint, query, offset, options),
-      );
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
-      const body = (await response.json()) as CommunityMetadataSearchResponse;
-      const candidates = append
-        ? mergeCommunityMetadataCandidates(shareCandidates, body.candidates)
-        : body.candidates;
-      setShareCandidates(candidates);
-      setShareHasMore(Boolean(body.hasMore));
-      setShareNextOffset(body.nextOffset ?? 0);
-      setShareMessage(
-        candidates.length > 0
-          ? body.hasMore
-            ? `${candidates.length} matches shown. Load more to keep looking.`
-            : `All ${candidates.length} matches shown. Pick the right game.`
-          : "No matching games found.",
-      );
-      setShareState("idle");
-    } catch (error) {
-      setShareState("error");
-      setShareMessage(formatError(error));
-    }
-  }
-
-  function searchShareCandidates(options: CommunityMetadataSearchOptions) {
-    return searchShareCandidatePage(0, false, options);
-  }
-
-  function loadMoreShareCandidates(options: CommunityMetadataSearchOptions) {
-    if (!shareHasMore) return;
-    return searchShareCandidatePage(shareNextOffset, true, options);
-  }
-
-  function applyShareCandidate(candidate: CommunityMetadataCandidate) {
-    if (!candidate.coverUrl) {
-      setShareSelection(null);
-      setShareMessage(
-        `${candidate.name} has no cover art. Pick a result with cover art.`,
-      );
-      return;
-    }
-
-    setShareSelection(candidate);
-    setShareMessage(`Selected ${candidate.name} from the database.`);
-  }
-
-  async function submitShareSuggestion() {
-    const exeName = game.exeNames[0];
-    if (!shareSelection?.coverUrl || !exeName || !shareTarget) return;
-
-    setShareState("saving");
-    setShareMessage("");
-    try {
-      const response = await fetch(`${apiEndpoint}/api/community/suggestions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          exeName,
-          name: shareSelection.name,
-          coverUrl: shareSelection.coverUrl,
-          igdbId: shareSelection.igdbId,
-          installUuid: installUuid ?? undefined,
-        }),
+  const correction = useCommunityGameCorrection({
+    exeName: primaryExeName ?? "",
+    targetKey:
+      typeof shareTarget === "string"
+        ? shareTarget
+        : shareTarget
+          ? `${shareTarget.kind}:${shareTarget.key}`
+          : "",
+    resultInstruction: "Pick the right game.",
+    onKnownGame: (matchedGame) => {
+      if (!shareTarget) return;
+      applyLocalLinkGameMatch(shareTarget, matchedGame);
+      closeShare();
+      addToast({
+        tone: "success",
+        title: "Already in IGDB",
+        detail: `${matchedGame.name} is a known IGDB match for ${primaryExeName} and was applied directly.`,
       });
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
-
-      const result = (await response.json()) as CommunityGameSuggestionResponse;
-      if (result.igdbGame) {
-        applyLocalLinkGameMatch(shareTarget, result.igdbGame);
-        closeShare();
-        addToast({
-          tone: "success",
-          title: "Already in IGDB",
-          detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
-        });
-        return;
-      }
-      if (result.rejected) {
-        if (result.id === undefined) throw new Error("Unexpected response");
-        suggestTrackedGameToCommunity(
-          shareTarget,
-          shareSelection.name,
-          shareSelection.coverUrl,
-          result.id,
-          false,
-          shareSelection.igdbId,
-        );
-        markCommunitySuggestionRejected(shareTarget, result.reviewNote);
-        closeShare();
-        addToast({
-          tone: "info",
-          title: "Suggestion already reviewed",
-          detail: result.reviewNote ?? "This suggestion was not accepted.",
-        });
-        return;
-      }
-      if (result.id === undefined) throw new Error("Unexpected response");
+    },
+    onRejected: (id, reviewNote, { selection }) => {
+      if (!shareTarget) return;
       suggestTrackedGameToCommunity(
         shareTarget,
-        shareSelection.name,
-        shareSelection.coverUrl,
-        result.id,
-        result.verified ?? false,
-        shareSelection.igdbId,
+        selection.name,
+        selection.coverUrl,
+        id,
+        false,
+        selection.igdbId,
+      );
+      markCommunitySuggestionRejected(shareTarget, reviewNote);
+      closeShare();
+      addToast({
+        tone: "info",
+        title: "Suggestion already reviewed",
+        detail: reviewNote ?? "This suggestion was not accepted.",
+      });
+    },
+    onSuggested: (id, verified, { selection }) => {
+      if (!shareTarget) return;
+      suggestTrackedGameToCommunity(
+        shareTarget,
+        selection.name,
+        selection.coverUrl,
+        id,
+        verified,
+        selection.igdbId,
       );
       closeShare();
       addToast({
         tone: "success",
         title: "Suggested to community",
-        detail: `Your community suggestion was submitted for ${exeName}.`,
+        detail: `Your community suggestion was submitted for ${primaryExeName}.`,
       });
-    } catch (error) {
-      setShareState("error");
-      setShareMessage(formatError(error));
-    }
+    },
+  });
+
+  function closeShare() {
+    setShareOpen(false);
+    correction.reset();
   }
 
   async function handleShareAction() {
@@ -3969,9 +3867,7 @@ function GameLibraryCard({
             >
               {exeLabel ? (
                 <>
-                  <span className="game-card-name-default">
-                    {game.name}
-                  </span>
+                  <span className="game-card-name-default">{game.name}</span>
                   <span className="game-card-name-exe hidden font-mono text-[13px]">
                     {exeLabel}
                   </span>
@@ -4238,34 +4134,21 @@ function GameLibraryCard({
         ) : null}
         {shareOpen ? (
           <CommunitySuggestionForm
-            candidates={shareCandidates}
-            exeName={game.exeNames[0] ?? ""}
-            hasMore={shareHasMore}
-            message={shareMessage}
-            search={shareSearch}
-            selection={shareSelection}
-            state={shareState}
+            candidates={correction.candidates}
+            exeName={primaryExeName ?? ""}
+            hasMore={correction.hasMore}
+            message={correction.message}
+            search={correction.search}
+            selection={correction.selection}
+            state={correction.state}
             isOffline={isOffline}
-            onApplyCandidate={applyShareCandidate}
+            onApplyCandidate={correction.applyCandidate}
             onCancel={closeShare}
-            onLoadMore={loadMoreShareCandidates}
-            onSearch={(options) => void searchShareCandidates(options)}
-            onSearchChange={(value) => {
-              setShareSearch(value);
-              setShareSelection(null);
-              setShareCandidates([]);
-              setShareHasMore(false);
-              setShareNextOffset(0);
-              setShareMessage("");
-            }}
-            onSearchOptionsChange={() => {
-              setShareSelection(null);
-              setShareCandidates([]);
-              setShareHasMore(false);
-              setShareNextOffset(0);
-              setShareMessage("");
-            }}
-            onSubmit={() => void submitShareSuggestion()}
+            onLoadMore={correction.loadMore}
+            onSearch={correction.searchFirstPage}
+            onSearchChange={correction.setSearch}
+            onSearchOptionsChange={correction.resetResults}
+            onSubmit={() => void correction.submit()}
           />
         ) : null}
         {showConvert ? (
@@ -4373,9 +4256,7 @@ function GameLibraryCard({
             >
               {exeLabel ? (
                 <>
-                  <span className="game-card-name-default">
-                    {game.name}
-                  </span>
+                  <span className="game-card-name-default">{game.name}</span>
                   <span className="game-card-name-exe hidden font-mono text-sm">
                     {exeLabel}
                   </span>
@@ -4654,34 +4535,21 @@ function GameLibraryCard({
       ) : null}
       {shareOpen ? (
         <CommunitySuggestionForm
-          candidates={shareCandidates}
-          exeName={game.exeNames[0] ?? ""}
-          hasMore={shareHasMore}
-          message={shareMessage}
-          search={shareSearch}
-          selection={shareSelection}
-          state={shareState}
+          candidates={correction.candidates}
+          exeName={primaryExeName ?? ""}
+          hasMore={correction.hasMore}
+          message={correction.message}
+          search={correction.search}
+          selection={correction.selection}
+          state={correction.state}
           isOffline={isOffline}
-          onApplyCandidate={applyShareCandidate}
+          onApplyCandidate={correction.applyCandidate}
           onCancel={closeShare}
-          onLoadMore={loadMoreShareCandidates}
-          onSearch={(options) => void searchShareCandidates(options)}
-          onSearchChange={(value) => {
-            setShareSearch(value);
-            setShareSelection(null);
-            setShareCandidates([]);
-            setShareHasMore(false);
-            setShareNextOffset(0);
-            setShareMessage("");
-          }}
-          onSearchOptionsChange={() => {
-            setShareSelection(null);
-            setShareCandidates([]);
-            setShareHasMore(false);
-            setShareNextOffset(0);
-            setShareMessage("");
-          }}
-          onSubmit={() => void submitShareSuggestion()}
+          onLoadMore={correction.loadMore}
+          onSearch={correction.searchFirstPage}
+          onSearchChange={correction.setSearch}
+          onSearchOptionsChange={correction.resetResults}
+          onSubmit={() => void correction.submit()}
         />
       ) : null}
       {showConvert ? (

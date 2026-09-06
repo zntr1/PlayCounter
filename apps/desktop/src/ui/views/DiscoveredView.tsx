@@ -12,11 +12,7 @@ import {
   Copy,
   X,
 } from "lucide-react";
-import type {
-  CommunityGameSuggestionResponse,
-  CommunityMetadataCandidate,
-  CommunityMetadataSearchResponse,
-} from "@playcounter/shared";
+import type { CommunityMetadataCandidate } from "@playcounter/shared";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -44,6 +40,7 @@ import {
   type DiscoveryStatus,
 } from "../../discoveredReview";
 import { ExeIcon } from "../ExeIcon";
+import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import { Panel, SourceBadge } from "../components";
 import {
   findReviewExecutables,
@@ -57,8 +54,6 @@ import {
 import { AnimatedCount, Button, IconButton, Input, Modal } from "../primitives";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import {
-  communityMetadataSearchUrl,
-  mergeCommunityMetadataCandidates,
   type CommunityMetadataSearchOptions,
   type CommunityMetadataSort,
 } from "../../communityMetadataSearch";
@@ -253,18 +248,6 @@ export function DiscoveredView() {
     key: string;
     exeName: string;
   } | null>(null);
-  const [suggestionSelection, setSuggestionSelection] =
-    useState<CommunityMetadataCandidate | null>(null);
-  const [suggestionSearch, setSuggestionSearch] = useState("");
-  const [suggestionCandidates, setSuggestionCandidates] = useState<
-    CommunityMetadataCandidate[]
-  >([]);
-  const [suggestionHasMore, setSuggestionHasMore] = useState(false);
-  const [suggestionNextOffset, setSuggestionNextOffset] = useState(0);
-  const [suggestionState, setSuggestionState] = useState<
-    "idle" | "loading" | "loading-more" | "saving" | "saved" | "error"
-  >("idle");
-  const [suggestionMessage, setSuggestionMessage] = useState("");
   const [filter, setFilter] = useState<FilterId>("review");
   const [ignoredSort, setIgnoredSort] =
     useState<IgnoredProcessSort>("lastAdded");
@@ -277,8 +260,6 @@ export function DiscoveredView() {
   const isOffline = useIsOffline();
   const processes = useAppStore((state) => state.processes);
   const exeCache = useAppStore((state) => state.exeCache);
-  const installUuid = useAppStore((state) => state.installUuid);
-  const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const unmatchedRetryDays = useAppStore(
     (state) => state.settings.unmatchedRetryDays,
   );
@@ -379,6 +360,61 @@ export function DiscoveredView() {
     });
   }
 
+  const correction = useCommunityGameCorrection({
+    exeName: suggestionTarget?.exeName ?? "",
+    resultInstruction: "Pick the exact game to unlock sharing.",
+    onKnownGame: (game) => {
+      if (!suggestionTarget) return;
+      const { exeName } = suggestionTarget;
+      applyKnownGameMatch(exeName, game);
+      closeCommunitySuggestion();
+      addToast({
+        tone: "success",
+        title: "Already in IGDB",
+        detail: `${game.name} is a known IGDB match for ${exeName} and was applied directly.`,
+      });
+      showHeart();
+    },
+    onRejected: (id, reviewNote, { selection }) => {
+      if (!suggestionTarget) return;
+      const { exeName } = suggestionTarget;
+      addSharedCustomGame(
+        exeName,
+        selection.name,
+        selection.coverUrl,
+        id,
+        false,
+        selection.igdbId,
+      );
+      markCommunitySuggestionRejected(exeName, reviewNote);
+      closeCommunitySuggestion();
+      addToast({
+        tone: "info",
+        title: "Suggestion already reviewed",
+        detail: reviewNote ?? "This suggestion was not accepted.",
+      });
+    },
+    onSuggested: (id, verified, { selection }) => {
+      if (!suggestionTarget) return;
+      const { exeName } = suggestionTarget;
+      addSharedCustomGame(
+        exeName,
+        selection.name,
+        selection.coverUrl,
+        id,
+        verified,
+        selection.igdbId,
+      );
+      closeCommunitySuggestion();
+      addToast({
+        tone: "success",
+        title: "Game added and shared",
+        detail: `Your community suggestion was submitted for ${exeName}.`,
+      });
+      showHeart();
+    },
+  });
+
   function startCommunitySuggestion(exeName: string) {
     if (isOffline) {
       addToast({
@@ -388,175 +424,13 @@ export function DiscoveredView() {
       });
       return;
     }
-    const key = exeName.toLowerCase();
-    setSuggestionTarget({ key, exeName });
-    setSuggestionSelection(null);
-    setSuggestionSearch("");
-    setSuggestionCandidates([]);
-    setSuggestionHasMore(false);
-    setSuggestionNextOffset(0);
-    setSuggestionMessage("");
-    setSuggestionState("idle");
+    correction.reset();
+    setSuggestionTarget({ key: exeName.toLowerCase(), exeName });
   }
 
   function closeCommunitySuggestion() {
     setSuggestionTarget(null);
-    setSuggestionSelection(null);
-    setSuggestionCandidates([]);
-    setSuggestionHasMore(false);
-    setSuggestionNextOffset(0);
-    setSuggestionState("idle");
-    setSuggestionMessage("");
-  }
-
-  async function searchSuggestionMetadataPage(
-    offset: number,
-    append: boolean,
-    options: CommunityMetadataSearchOptions,
-  ) {
-    const query = suggestionSearch.trim();
-    if (query.length < 2 || isOffline) return;
-
-    if (!append) setSuggestionCandidates([]);
-    setSuggestionMessage("");
-    setSuggestionState(append ? "loading-more" : "loading");
-
-    try {
-      const response = await fetch(
-        communityMetadataSearchUrl(apiEndpoint, query, offset, options),
-      );
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
-
-      const body = (await response.json()) as CommunityMetadataSearchResponse;
-      const candidates = append
-        ? mergeCommunityMetadataCandidates(
-            suggestionCandidates,
-            body.candidates,
-          )
-        : body.candidates;
-      setSuggestionCandidates(candidates);
-      setSuggestionHasMore(Boolean(body.hasMore));
-      setSuggestionNextOffset(body.nextOffset ?? 0);
-      setSuggestionMessage(
-        candidates.length > 0
-          ? body.hasMore
-            ? `${candidates.length} matches shown. Load more to keep looking.`
-            : `All ${candidates.length} matches shown. Pick the exact game to unlock sharing.`
-          : "No matching games found.",
-      );
-      setSuggestionState("idle");
-    } catch (error) {
-      setSuggestionState("error");
-      setSuggestionMessage(formatError(error));
-    }
-  }
-
-  function searchSuggestionMetadata(options: CommunityMetadataSearchOptions) {
-    return searchSuggestionMetadataPage(0, false, options);
-  }
-
-  function loadMoreSuggestionMetadata(options: CommunityMetadataSearchOptions) {
-    if (!suggestionHasMore) return;
-    return searchSuggestionMetadataPage(suggestionNextOffset, true, options);
-  }
-
-  function applyMetadataCandidate(candidate: CommunityMetadataCandidate) {
-    if (!candidate.coverUrl) {
-      setSuggestionSelection(null);
-      setSuggestionMessage(
-        `${candidate.name} has no cover art. Pick a result with cover art.`,
-      );
-      return;
-    }
-
-    setSuggestionSelection(candidate);
-    setSuggestionMessage(`Selected ${candidate.name} from the database.`);
-  }
-
-  async function submitCommunitySuggestion(exeName: string) {
-    if (!suggestionSelection?.coverUrl) return;
-
-    setSuggestionState("saving");
-    setSuggestionMessage("");
-    try {
-      const response = await fetch(`${apiEndpoint}/api/community/suggestions`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          exeName,
-          name: suggestionSelection.name,
-          coverUrl: suggestionSelection.coverUrl,
-          igdbId: suggestionSelection.igdbId,
-          installUuid: installUuid ?? undefined,
-        }),
-      });
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
-
-      const result = (await response.json()) as CommunityGameSuggestionResponse;
-      if (result.igdbGame) {
-        applyKnownGameMatch(exeName, result.igdbGame);
-        setSuggestionState("saved");
-        setSuggestionTarget(null);
-        setSuggestionSelection(null);
-        setSuggestionCandidates([]);
-        addToast({
-          tone: "success",
-          title: "Already in IGDB",
-          detail: `${result.igdbGame.name} is a known IGDB match for ${exeName} and was applied directly.`,
-        });
-        showHeart();
-        return;
-      }
-      if (result.rejected) {
-        if (result.id === undefined) throw new Error("Unexpected response");
-        addSharedCustomGame(
-          exeName,
-          suggestionSelection.name,
-          suggestionSelection.coverUrl,
-          result.id,
-          false,
-          suggestionSelection.igdbId,
-        );
-        markCommunitySuggestionRejected(exeName, result.reviewNote);
-        setSuggestionState("saved");
-        setSuggestionTarget(null);
-        setSuggestionSelection(null);
-        setSuggestionCandidates([]);
-        addToast({
-          tone: "info",
-          title: "Suggestion already reviewed",
-          detail: result.reviewNote ?? "This suggestion was not accepted.",
-        });
-        return;
-      }
-      if (result.id === undefined) throw new Error("Unexpected response");
-      addSharedCustomGame(
-        exeName,
-        suggestionSelection.name,
-        suggestionSelection.coverUrl,
-        result.id,
-        result.verified ?? false,
-        suggestionSelection.igdbId,
-      );
-      setSuggestionState("saved");
-      setSuggestionMessage(
-        `Added to your library and shared as community game #${result.id}.`,
-      );
-      setSuggestionTarget(null);
-      setSuggestionSelection(null);
-      setSuggestionCandidates([]);
-      addToast({
-        tone: "success",
-        title: "Game added and shared",
-        detail: `Your community suggestion was submitted for ${exeName}.`,
-      });
-      showHeart();
-    } catch (error) {
-      setSuggestionState("error");
-      setSuggestionMessage(formatError(error));
-    }
+    correction.reset();
   }
 
   const discoverySections = useMemo((): DiscoverySection[] => {
@@ -1060,36 +934,21 @@ export function DiscoveredView() {
       {suggestionTarget ? (
         <CommunitySuggestionForm
           key={suggestionTarget.key}
-          candidates={suggestionCandidates}
+          candidates={correction.candidates}
           exeName={suggestionTarget.exeName}
-          hasMore={suggestionHasMore}
-          message={suggestionMessage}
-          search={suggestionSearch}
-          selection={suggestionSelection}
-          state={suggestionState}
+          hasMore={correction.hasMore}
+          message={correction.message}
+          search={correction.search}
+          selection={correction.selection}
+          state={correction.state}
           isOffline={isOffline}
-          onApplyCandidate={applyMetadataCandidate}
+          onApplyCandidate={correction.applyCandidate}
           onCancel={closeCommunitySuggestion}
-          onLoadMore={loadMoreSuggestionMetadata}
-          onSearch={searchSuggestionMetadata}
-          onSearchChange={(value) => {
-            setSuggestionSearch(value);
-            setSuggestionSelection(null);
-            setSuggestionCandidates([]);
-            setSuggestionHasMore(false);
-            setSuggestionNextOffset(0);
-            setSuggestionMessage("");
-          }}
-          onSearchOptionsChange={() => {
-            setSuggestionSelection(null);
-            setSuggestionCandidates([]);
-            setSuggestionHasMore(false);
-            setSuggestionNextOffset(0);
-            setSuggestionMessage("");
-          }}
-          onSubmit={() =>
-            void submitCommunitySuggestion(suggestionTarget.exeName)
-          }
+          onLoadMore={correction.loadMore}
+          onSearch={correction.searchFirstPage}
+          onSearchChange={correction.setSearch}
+          onSearchOptionsChange={correction.resetResults}
+          onSubmit={() => void correction.submit()}
         />
       ) : null}
     </div>
