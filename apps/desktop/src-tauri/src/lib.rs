@@ -342,6 +342,7 @@ pub fn run() {
             controller::controller_watch_start,
             controller::controller_watch_stop,
             notification_overlay::notification_overlay_prepare,
+            notification_overlay::notification_overlay_monitors,
             notification_overlay::notification_overlay_wait_for_game_window,
             notification_overlay::notification_overlay_show,
             notification_overlay::notification_overlay_hide,

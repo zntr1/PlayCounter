@@ -487,6 +487,8 @@ export interface Settings {
   emulatorContentLookup?: boolean;
   ignoredEmulatorIds?: string[];
   desktopOverlaysEnabled?: boolean;
+  /** OS display identifier, or "primary" (also the default when absent). */
+  overlayMonitor?: string;
   overlayFirstDetections?: boolean;
   overlaySessionStarts?: boolean;
   overlaySessionSummaries?: boolean;

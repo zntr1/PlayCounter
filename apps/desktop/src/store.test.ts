@@ -470,9 +470,19 @@ describe("launch target state", () => {
 });
 
 describe("desktop overlay settings", () => {
+  it("persists the chosen monitor with the notification settings", async () => {
+    useAppStore.getState().setOverlayMonitor("display-two");
+    await Promise.resolve();
+    const saved = vi.mocked(globalThis.localStorage.setItem).mock.calls.at(-1);
+    expect(JSON.parse(saved![1]).settings.overlayMonitor).toBe("display-two");
+    useAppStore.getState().setOverlayMonitor("primary");
+    await Promise.resolve();
+  });
+
   it("defaults notifications on except for new discoveries", () => {
     expect(useAppStore.getState().settings).toMatchObject({
       desktopOverlaysEnabled: true,
+      overlayMonitor: "primary",
       overlayFirstDetections: true,
       overlaySessionStarts: true,
       overlaySessionSummaries: true,

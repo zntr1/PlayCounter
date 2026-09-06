@@ -35,6 +35,7 @@ import { Button, Modal } from "../primitives";
 import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
+import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
 import { TutorialSettingsPanel } from "../tour/TourUI";
 import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
@@ -430,7 +431,7 @@ export function SettingsView() {
           title="Desktop popups"
         >
           <SettingsRow
-            description="Works even when PlayCounter is only running in the tray."
+            description="Show popups even while PlayCounter is open and focused, or running in the tray."
             title="Show desktop popups"
           >
             <input
@@ -445,9 +446,12 @@ export function SettingsView() {
               className="h-5 w-5 accent-accent"
             />
           </SettingsRow>
-          <p className="-mt-3 text-xs text-text-faint">
-            Popups stay hidden while the PlayCounter window is open and focused.
-          </p>
+          <SettingsRow
+            description="Popups appear at the top right of this display. If it is disconnected, PlayCounter uses your primary monitor."
+            title="Popup monitor"
+          >
+            <DesktopOverlayMonitorSelect />
+          </SettingsRow>
           <SettingsRow
             description="Popup when PlayCounter needs you to pick between possible games. Click it to open Now Playing."
             title="Choices that need review"
