@@ -29,7 +29,7 @@ impl ProcessScanner for LinuxScanner {
             }
 
             processes
-                .entry(exe_name.to_lowercase())
+                .entry(process.pid().as_u32())
                 .or_insert(ProcessSnapshot {
                     exe_name,
                     exe_path,

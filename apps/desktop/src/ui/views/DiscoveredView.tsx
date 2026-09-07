@@ -439,7 +439,15 @@ export function DiscoveredView() {
     const ambiguousKeys = new Set(
       ambiguousMatches.map((match) => match.exeName.toLowerCase()),
     );
-    const nativeProcesses = processes.filter((process) => !process.emulatorId);
+    // Review actions apply to an executable name. Keep one row per name here;
+    // the tracker retains every process instance for path-scoped matching.
+    const nativeProcesses = [
+      ...new Map(
+        processes
+          .filter((process) => !process.emulatorId)
+          .map((process) => [process.exeName.toLowerCase(), process]),
+      ).values(),
+    ];
     const runningKeys = new Set(
       nativeProcesses.map((process) => process.exeName.toLowerCase()),
     );

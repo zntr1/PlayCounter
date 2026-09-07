@@ -2656,10 +2656,7 @@ async function resolveProcesses(
         headers: { "content-type": "application/json" },
         timeoutMs: API_REQUEST_TIMEOUT_MS,
         body: JSON.stringify({
-          processes: queryProcesses.map((process) => ({
-            key: processCacheKey(process),
-            identifiers: processIdentifiers(process),
-          })),
+          processes: processLookupItems(queryProcesses),
         }),
       },
     );
@@ -2741,10 +2738,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
         headers: { "content-type": "application/json" },
         timeoutMs: API_REQUEST_TIMEOUT_MS,
         body: JSON.stringify({
-          processes: processes.map((process) => ({
-            key: processCacheKey(process),
-            identifiers: processIdentifiers(process),
-          })),
+          processes: processLookupItems(processes),
         }),
       },
     );
@@ -6992,16 +6986,33 @@ function createSessionId() {
 }
 
 function uniqueProcesses(processes: ProcessSnapshot[]) {
+  // Keep each running instance for scoped matching, overlay targeting, and
+  // recovery continuity. Older snapshots without PIDs can still use the path.
   return [
     ...new Map(
       processes.map((process) => [
-        process.emulatorId
-          ? `${process.exeName.toLowerCase()}#${process.pid ?? 0}`
-          : process.exeName.toLowerCase(),
+        process.pid !== undefined
+          ? `pid:${process.pid}`
+          : process.exePath
+            ? `path:${process.exePath}`
+            : `name:${process.exeName.toLowerCase()}`,
         process,
       ]),
     ).values(),
   ].sort((a, b) => a.exeName.localeCompare(b.exeName));
+}
+
+function processLookupItems(processes: ProcessSnapshot[]) {
+  // The API/cache still resolve executable names. Query each key once, then
+  // apply the result to every instance without discarding its path or PID.
+  return [
+    ...new Map(
+      processes.map((process) => [processCacheKey(process), process]),
+    ).values(),
+  ].map((process) => ({
+    key: processCacheKey(process),
+    identifiers: processIdentifiers(process),
+  }));
 }
 
 function processCacheKey(process: ProcessSnapshot) {
