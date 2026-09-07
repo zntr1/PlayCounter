@@ -172,7 +172,8 @@ jobs:
           if [ "${expected_arch}" = "aarch64" ]; then
             expected_arch="arm64"
           fi
-          lipo -verify_arch "${expected_arch}" "${app_bundle}/Contents/MacOS/${executable}"
+          # -verify_arch treats all following arguments as architecture names.
+          lipo "${app_bundle}/Contents/MacOS/${executable}" -verify_arch "${expected_arch}"
           codesign --verify --deep --strict --verbose=2 "${app_bundle}"
           for installer in ./*.dmg; do
             hdiutil verify "${installer}"
