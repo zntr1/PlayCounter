@@ -191,6 +191,8 @@ const MIN_BACKFILL_SECONDS = 60;
 const BACKEND_HEALTH_INTERVAL_MS = 60_000;
 const BACKEND_HEALTH_TIMEOUT_MS = 2_500;
 const API_REQUEST_TIMEOUT_MS = 8_000;
+// The match-processes API accepts at most 200 lookup items per request.
+const MATCH_PROCESSES_BATCH_SIZE = 200;
 export const PENDING_COMMUNITY_RETRY_MS = 5 * 60 * 1000;
 
 type PersistedState = {
@@ -2644,79 +2646,83 @@ async function resolveProcesses(
     return matches;
   }
 
-  try {
-    const requestStartedAt = Date.now();
-    logRuntime(
-      `match API batch request started count=${queryProcesses.length}`,
-    );
-    const response = await requestJsonResponse<MatchProcessesResponse>(
-      `${state.settings.apiEndpoint}/api/match-processes`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        timeoutMs: API_REQUEST_TIMEOUT_MS,
-        body: JSON.stringify({
-          processes: processLookupItems(queryProcesses),
-        }),
-      },
-    );
-    if (!response.ok)
-      throw new Error(`${response.status} ${response.statusText}`);
-
-    const body = response.data;
-    const matchedCount = body.matches.filter((match) => match.game).length;
-    logRuntime(
-      `match API batch response ok count=${body.matches.length}, matched=${matchedCount}, durationMs=${Date.now() - requestStartedAt}`,
-    );
-    const resultsByExe = new Map(
-      body.matches.map((match) => [match.key.toLowerCase(), match]),
-    );
-
-    for (const process of queryProcesses) {
-      const result = resultsByExe.get(processCacheKey(process));
-      if (result?.ambiguousGames?.length) {
-        cacheAmbiguousMatch(
-          process,
-          result.ambiguousGames,
-          result.flaggedIdentifier?.reason,
-        );
-        continue;
-      }
-      const game = result?.game ?? null;
-      if (game) {
-        cacheMatchResult(process.exeName, game);
-        matches.push({ process, game });
-        continue;
-      }
-      const pendingCommunityGame =
-        result?.pendingCommunityGame ?? result?.pendingCommunityGames?.[0];
-      if (pendingCommunityGame) {
-        cachePendingCommunityMatch(process.exeName, pendingCommunityGame);
-        continue;
-      }
-
-      cacheMatchResult(process.exeName, game);
-    }
-  } catch (error) {
-    logRuntime(
-      `match API batch failed count=${queryProcesses.length}: ${formatError(error)}`,
-    );
-    state.addApiRequestLogEntry({
-      endpoint: state.settings.apiEndpoint,
-      exeName: `${queryProcesses.length} executables`,
-      status: "error",
-      detail: formatError(error),
-    });
-    if (
-      state.backendHealth.status === "offline" ||
-      state.backendHealth.status === "reconnecting"
-    ) {
-      verboseRuntime(
-        "match API unavailable; leaving uncached executables pending",
+  const resultsByExe = new Map<
+    string,
+    MatchProcessesResponse["matches"][number]
+  >();
+  for (const batch of processLookupBatches(queryProcesses)) {
+    try {
+      const requestStartedAt = Date.now();
+      logRuntime(`match API batch request started count=${batch.length}`);
+      const response = await requestJsonResponse<MatchProcessesResponse>(
+        `${state.settings.apiEndpoint}/api/match-processes`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          timeoutMs: API_REQUEST_TIMEOUT_MS,
+          body: JSON.stringify({ processes: batch }),
+        },
       );
-    } else {
-      state.setRuntimeError(`Match API failed: ${formatError(error)}`);
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+
+      const body = response.data;
+      const matchedCount = body.matches.filter((match) => match.game).length;
+      logRuntime(
+        `match API batch response ok count=${body.matches.length}, matched=${matchedCount}, durationMs=${Date.now() - requestStartedAt}`,
+      );
+      for (const result of body.matches) {
+        resultsByExe.set(result.key.toLowerCase(), result);
+      }
+    } catch (error) {
+      logRuntime(
+        `match API batch failed count=${batch.length}: ${formatError(error)}`,
+      );
+      state.addApiRequestLogEntry({
+        endpoint: state.settings.apiEndpoint,
+        exeName: `${batch.length} executables`,
+        status: "error",
+        detail: formatError(error),
+      });
+      if (
+        state.backendHealth.status === "offline" ||
+        state.backendHealth.status === "reconnecting"
+      ) {
+        verboseRuntime(
+          "match API unavailable; leaving uncached executables pending",
+        );
+      } else {
+        state.setRuntimeError(`Match API failed: ${formatError(error)}`);
+      }
     }
+  }
+
+  for (const process of queryProcesses) {
+    const result = resultsByExe.get(processCacheKey(process));
+    // Failed batches stay uncached so a later scan can retry them.
+    if (!result) continue;
+    if (result.ambiguousGames?.length) {
+      cacheAmbiguousMatch(
+        process,
+        result.ambiguousGames,
+        result.flaggedIdentifier?.reason,
+      );
+      continue;
+    }
+    const game = result.game;
+    if (game) {
+      cacheMatchResult(process.exeName, game);
+      matches.push({ process, game });
+      continue;
+    }
+    const pendingCommunityGame =
+      result.pendingCommunityGame ?? result.pendingCommunityGames?.[0];
+    if (pendingCommunityGame) {
+      cachePendingCommunityMatch(process.exeName, pendingCommunityGame);
+      continue;
+    }
+
+    cacheMatchResult(process.exeName, game);
   }
 
   return matches;
@@ -2730,56 +2736,59 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
   for (const process of processes) {
     communityUpgradeCheckedAt.set(processCacheKey(process), now);
   }
-  try {
-    const response = await requestJsonResponse<MatchProcessesResponse>(
-      `${state.settings.apiEndpoint}/api/match-processes`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        timeoutMs: API_REQUEST_TIMEOUT_MS,
-        body: JSON.stringify({
-          processes: processLookupItems(processes),
-        }),
-      },
-    );
-    if (!response.ok)
-      throw new Error(`${response.status} ${response.statusText}`);
-
-    const body = response.data;
-    for (const result of body.matches) {
-      const aliases = result.communityGameAliases;
-      // The surviving game can be the match or one of the picker candidates -
-      // an exe that IGDB and the community both map is ambiguous by design.
-      const communityGames = [
-        result.game,
-        ...(result.ambiguousGames ?? []),
-      ].filter((game): game is Game => game?.source === "community");
-
-      if (applyMergedCommunityGame(result.key, communityGames, aliases)) {
-        continue;
-      }
-
-      const pendingCommunityGames =
-        result.pendingCommunityGames ??
-        (result.pendingCommunityGame ? [result.pendingCommunityGame] : []);
-      const suggestionOutcome = applyCommunitySuggestionOutcome(
-        result.key,
-        communityGames,
-        pendingCommunityGames,
-        result.pendingCommunityGames !== undefined,
-        Boolean(result.game || result.ambiguousGames?.length),
-        aliases,
+  for (const batch of processLookupBatches(processes)) {
+    try {
+      const response = await requestJsonResponse<MatchProcessesResponse>(
+        `${state.settings.apiEndpoint}/api/match-processes`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          timeoutMs: API_REQUEST_TIMEOUT_MS,
+          body: JSON.stringify({ processes: batch }),
+        },
       );
-      if (suggestionOutcome === "pending" || suggestionOutcome === "approved") {
-        continue;
+      if (!response.ok)
+        throw new Error(`${response.status} ${response.statusText}`);
+
+      const body = response.data;
+      for (const result of body.matches) {
+        const aliases = result.communityGameAliases;
+        // The surviving game can be the match or one of the picker candidates -
+        // an exe that IGDB and the community both map is ambiguous by design.
+        const communityGames = [
+          result.game,
+          ...(result.ambiguousGames ?? []),
+        ].filter((game): game is Game => game?.source === "community");
+
+        if (applyMergedCommunityGame(result.key, communityGames, aliases)) {
+          continue;
+        }
+
+        const pendingCommunityGames =
+          result.pendingCommunityGames ??
+          (result.pendingCommunityGame ? [result.pendingCommunityGame] : []);
+        const suggestionOutcome = applyCommunitySuggestionOutcome(
+          result.key,
+          communityGames,
+          pendingCommunityGames,
+          result.pendingCommunityGames !== undefined,
+          Boolean(result.game || result.ambiguousGames?.length),
+          aliases,
+        );
+        if (
+          suggestionOutcome === "pending" ||
+          suggestionOutcome === "approved"
+        ) {
+          continue;
+        }
+        if (result.game && result.game.source !== "custom") {
+          setCommunityUpgrade(result.key, result.game, aliases);
+          continue;
+        }
       }
-      if (result.game && result.game.source !== "custom") {
-        setCommunityUpgrade(result.key, result.game, aliases);
-        continue;
-      }
+    } catch (error) {
+      verboseRuntime(`community upgrade check failed: ${formatError(error)}`);
     }
-  } catch (error) {
-    verboseRuntime(`community upgrade check failed: ${formatError(error)}`);
   }
 }
 
@@ -7002,10 +7011,10 @@ function uniqueProcesses(processes: ProcessSnapshot[]) {
   ].sort((a, b) => a.exeName.localeCompare(b.exeName));
 }
 
-function processLookupItems(processes: ProcessSnapshot[]) {
+function* processLookupBatches(processes: ProcessSnapshot[]) {
   // The API/cache still resolve executable names. Query each key once, then
   // apply the result to every instance without discarding its path or PID.
-  return [
+  const items = [
     ...new Map(
       processes.map((process) => [processCacheKey(process), process]),
     ).values(),
@@ -7013,6 +7022,13 @@ function processLookupItems(processes: ProcessSnapshot[]) {
     key: processCacheKey(process),
     identifiers: processIdentifiers(process),
   }));
+  for (
+    let offset = 0;
+    offset < items.length;
+    offset += MATCH_PROCESSES_BATCH_SIZE
+  ) {
+    yield items.slice(offset, offset + MATCH_PROCESSES_BATCH_SIZE);
+  }
 }
 
 function processCacheKey(process: ProcessSnapshot) {
