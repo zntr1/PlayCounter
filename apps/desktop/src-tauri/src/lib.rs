@@ -277,7 +277,27 @@ fn update_tray_now_playing(
     set_tray_status(&app, &format_tray_status(&sessions))
 }
 
+fn configure_macos_test_storage(config: &mut tauri::Config) {
+    if config.identifier != "app.playcounter.desktop.test" {
+        return;
+    }
+
+    // tauri-utils 2.9.2 emits a Vec for a configured dataStoreIdentifier, but
+    // WindowConfig requires [u8; 16]. Set the same persistent test-store ID
+    // after generate_context! and before Tauri creates any configured windows.
+    for window in &mut config.app.windows {
+        window.data_store_identifier = Some([
+            93, 166, 17, 135, 225, 44, 72, 81, 170, 198, 202, 39, 76, 203, 110, 162,
+        ]);
+    }
+}
+
 pub fn run() {
+    let mut context = tauri::generate_context!();
+    if cfg!(target_os = "macos") {
+        configure_macos_test_storage(context.config_mut());
+    }
+
     tauri::Builder::default()
         .manage(TrayState {
             icon: Mutex::new(None),
@@ -363,7 +383,9 @@ pub fn run() {
             let reveal_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(Duration::from_secs(8)).await;
-                reveal_handle.state::<StartupWindow>().reveal(&reveal_handle);
+                reveal_handle
+                    .state::<StartupWindow>()
+                    .reveal(&reveal_handle);
             });
             Ok(())
         })
@@ -376,7 +398,7 @@ pub fn run() {
                 let _ = window.hide();
             }
         })
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running PlayCounter");
 }
 

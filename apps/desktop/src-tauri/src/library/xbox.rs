@@ -1,4 +1,6 @@
-use super::exe_scan::{self, path_string, ScannedExecutable, EXE_WALK_BUDGET};
+#[cfg(any(windows, test))]
+use super::exe_scan::EXE_WALK_BUDGET;
+use super::exe_scan::{self, path_string, ScannedExecutable};
 use crate::launch::{LaunchError, LaunchErrorKind};
 use quick_xml::{events::Event, reader::Reader, XmlVersion};
 use serde::Serialize;

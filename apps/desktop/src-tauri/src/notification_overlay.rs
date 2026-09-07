@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Mutex,
-};
+use std::sync::{atomic::AtomicBool, Mutex};
 
 pub const OVERLAY_LABEL: &str = "notification-overlay";
 pub const MAIN_LABEL: &str = "main";
@@ -153,6 +150,7 @@ fn sanitize(mut payload: OverlayPayload) -> OverlayPayload {
 #[cfg(not(target_os = "macos"))]
 mod imp {
     use super::*;
+    use std::sync::atomic::Ordering;
     use tauri::{Emitter, Manager};
 
     fn ensure_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, String> {
