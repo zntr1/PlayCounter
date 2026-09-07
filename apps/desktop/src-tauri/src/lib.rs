@@ -13,7 +13,7 @@ use std::{
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, Wry,
+    Manager, Wry,
 };
 
 mod controller;
@@ -365,11 +365,6 @@ pub fn run() {
                 tokio::time::sleep(Duration::from_secs(8)).await;
                 reveal_handle.state::<StartupWindow>().reveal(&reveal_handle);
             });
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(Duration::from_secs(10)).await;
-                watch_processes(handle).await;
-            });
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -576,27 +571,6 @@ fn open_folder(path: &Path) -> Result<(), String> {
 
 fn open_url(url: &str) -> Result<(), String> {
     shell_open::open_url(url)
-}
-
-async fn watch_processes(app: tauri::AppHandle) {
-    let scanner = create_scanner();
-    let mut previous: Vec<ProcessSnapshot> = Vec::new();
-
-    loop {
-        match scanner.scan().await {
-            Ok(current) => {
-                if current != previous {
-                    let _ = app.emit("processes-changed", &current);
-                    previous = current;
-                }
-            }
-            Err(error) => {
-                let _ = app.emit("process-scan-error", error.to_string());
-            }
-        }
-
-        tokio::time::sleep(Duration::from_secs(5)).await;
-    }
 }
 
 #[cfg(test)]
