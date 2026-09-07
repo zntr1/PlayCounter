@@ -12,6 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "tauri": "tauri",
     "tauri:build:test": "tauri build --ci --config src-tauri/tauri.test.conf.json",
+    "tauri:build:macos:test": "tauri build --ci --config src-tauri/tauri.test.conf.json --config src-tauri/tauri.macos.test.conf.json",
     "tauri:build:prod": "tauri build --ci"
   },
   "dependencies": {
