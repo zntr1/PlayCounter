@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - test
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,6 +20,9 @@ jobs:
   detect-desktop-version:
     name: Detect desktop version
     runs-on: ubuntu-latest
+    # Manual runs build Mac installers only; Windows publishing stays gated by
+    # a version change pushed to the test branch.
+    if: github.event_name == 'push'
     outputs:
       version: ${{ steps.version.outputs.current }}
       version_changed: ${{ steps.version.outputs.changed }}
@@ -101,62 +105,102 @@ jobs:
           name: desktop-windows-bundle
           path: apps/desktop/src-tauri/target/release/bundle
 
-  # build-desktop-macos:
-  #   name: Build macOS desktop
-  #   runs-on: ${{ matrix.runner }}
-  #   needs:
-  #     - detect-desktop-version
-  #   if: needs.detect-desktop-version.outputs.version_changed == 'true'
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       include:
-  #         - runner: macos-15-intel
-  #           arch: x86_64
-  #         - runner: macos-14
-  #           arch: aarch64
-  #   steps:
-  #     - name: Check out repository
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Set up pnpm
-  #       uses: pnpm/action-setup@v4
-  #       with:
-  #         version: ${{ env.PNPM_VERSION }}
-  #
-  #     - name: Set up Node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: ${{ env.NODE_VERSION }}
-  #         cache: pnpm
-  #
-  #     - name: Set up Rust
-  #       uses: dtolnay/rust-toolchain@stable
-  #
-  #     - name: Cache Rust build
-  #       uses: Swatinem/rust-cache@v2
-  #       with:
-  #         workspaces: apps/desktop/src-tauri -> target
-  #
-  #     - name: Install dependencies
-  #       run: pnpm install --frozen-lockfile
-  #
-  #     - name: Check desktop version sync
-  #       run: node scripts/ci/check-desktop-version-sync.mjs
-  #
-  #     - name: Build desktop distributables
-  #       env:
-  #         TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  #         TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
-  #       run: |
-  #         pnpm --filter @playcounter/shared build
-  #         corepack pnpm --filter @playcounter/desktop tauri build --ci --config src-tauri/tauri.macos.test.conf.json
-  #
-  #     - name: Upload macOS bundle artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: desktop-macos-${{ matrix.arch }}-bundle
-  #         path: apps/desktop/src-tauri/target/release/bundle
+  build-desktop-macos:
+    name: Build macOS test (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    # Produce an installable DMG on every test push, even without a version bump.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: aarch64
+            target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            arch: x86_64
+            target: x86_64-apple-darwin
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "14.0"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          key: macos-test-${{ matrix.target }}
+
+      - name: Install dependencies
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Check desktop version sync
+        run: node scripts/ci/check-desktop-version-sync.mjs
+
+      - name: Build macOS test installer
+        run: |
+          corepack pnpm --filter @playcounter/shared build
+          corepack pnpm --filter @playcounter/desktop tauri:build:macos:test --target ${{ matrix.target }} -- --locked
+
+      - name: Verify bundle and checksum installer
+        working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_bundle="../macos/PlayCounter (Test).app"
+          info_plist="${app_bundle}/Contents/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${info_plist}")" = "app.playcounter.desktop.test"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "${info_plist}")" = "14.0"
+          executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${info_plist}")"
+          expected_arch="${{ matrix.arch }}"
+          if [ "${expected_arch}" = "aarch64" ]; then
+            expected_arch="arm64"
+          fi
+          lipo -verify_arch "${expected_arch}" "${app_bundle}/Contents/MacOS/${executable}"
+          codesign --verify --deep --strict --verbose=2 "${app_bundle}"
+          for installer in ./*.dmg; do
+            hdiutil verify "${installer}"
+          done
+          shasum -a 256 ./*.dmg > SHA256SUMS
+
+      - name: Upload macOS test installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-${{ matrix.arch }}-dmg
+          path: |
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Explain Mac installation
+        shell: bash
+        run: |
+          cat >> "${GITHUB_STEP_SUMMARY}" <<'EOF'
+          Download `desktop-macos-${{ matrix.arch }}-dmg` from this run's **Artifacts**, unzip it, open the DMG, and drag **PlayCounter (Test)** into **Applications**.
+
+          Requires macOS 14 or newer. Choose `aarch64` for Apple silicon (M-series) or `x86_64` for Intel.
+
+          This experimental build is ad-hoc signed and is not notarized. If macOS blocks the first launch, use **System Settings → Privacy & Security → Open Anyway** for this app. Install later test builds by downloading a new DMG; Mac automatic updates are not published yet.
+
+          The test app uses separate local storage and the existing test build's API settings. Steam import, launching, and other Mac functionality still need validation.
+          EOF
 
   publish-desktop:
     name: Publish desktop artifacts
