@@ -58,19 +58,17 @@ impl ProcessScanner for WindowsScanner {
                 continue;
             }
 
-            processes
-                .entry(exe_name.to_lowercase())
-                .or_insert(ProcessSnapshot {
-                    exe_name,
-                    exe_path,
-                    pid,
-                    started_at_unix: process.start_time(),
-                    emulator_id: None,
-                    command_line: None,
-                    working_directory: None,
-                    window_title: None,
-                    open_files: None,
-                });
+            processes.entry(pid).or_insert(ProcessSnapshot {
+                exe_name,
+                exe_path,
+                pid,
+                started_at_unix: process.start_time(),
+                emulator_id: None,
+                command_line: None,
+                working_directory: None,
+                window_title: None,
+                open_files: None,
+            });
         }
 
         let title_pids = emulator_processes
@@ -92,5 +90,55 @@ impl ProcessScanner for WindowsScanner {
         let mut snapshots = processes.into_values().collect::<Vec<_>>();
         snapshots.extend(emulator_processes);
         Ok(snapshots)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ProcessScanner, WindowsScanner};
+    use std::{
+        os::windows::process::CommandExt,
+        process::{Child, Command, Stdio},
+    };
+    use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
+
+    struct TestProcesses(Vec<Child>);
+
+    impl Drop for TestProcesses {
+        fn drop(&mut self) {
+            for child in &mut self.0 {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn retains_every_instance_of_the_same_executable() {
+        let command = std::env::var_os("COMSPEC").expect("Windows command interpreter");
+        let mut children = TestProcesses(Vec::new());
+        for _ in 0..2 {
+            // An open input pipe keeps the interpreter alive without a window.
+            children.0.push(
+                Command::new(&command)
+                    .args(["/D", "/Q"])
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .spawn()
+                    .expect("start test process"),
+            );
+        }
+
+        let snapshots = WindowsScanner.scan().await.expect("scan processes");
+        for child in &children.0 {
+            let snapshot = snapshots
+                .iter()
+                .find(|snapshot| snapshot.pid == child.id())
+                .expect("every PID must survive scanning, even with the same name and path");
+            assert!(snapshot.exe_path.is_some());
+            assert!(snapshot.started_at_unix > 0);
+        }
     }
 }

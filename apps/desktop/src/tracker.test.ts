@@ -699,6 +699,113 @@ describe("tracker request deadlines", () => {
   });
 });
 
+describe("same-name process instances", () => {
+  it.each([true, false])(
+    "tracks and ends path-scoped games independently (PIDs available: %s)",
+    async (withPids) => {
+      const processes = ["One", "Two"].map((folder, index) => ({
+        exeName: "Game.exe",
+        exePath: `C:\\Games\\${folder}\\Game.exe`,
+        ...(withPids ? { pid: 100 + index } : {}),
+      }));
+      useAppStore.setState({
+        scopedExeLinks: new Map(
+          ["One", "Two"].map((folder, index) => [
+            folder,
+            {
+              exeName: "Game.exe",
+              pathPrefix: `C:\\Games\\${folder}`,
+              gameId: 42 + index,
+              igdbId: 42 + index,
+              gameName: folder,
+              source: "igdb" as const,
+              coverUrl: "cover",
+              provider: "steam" as const,
+              externalId: String(index),
+              setAt: "2026-09-07T00:00:00.000Z",
+            },
+          ]),
+        ),
+      });
+      invokeMock.mockImplementation(async (command: string) =>
+        command === "scan_processes" ? processes : undefined,
+      );
+
+      await scanProcessesNow();
+      expect(useAppStore.getState().processes).toHaveLength(2);
+      expect(
+        useAppStore
+          .getState()
+          .activeSessions.map((session) => session.gameId)
+          .sort(),
+      ).toEqual([42, 43]);
+      expect(useAppStore.getState().exeCache.size).toBe(0);
+      const secondSession = useAppStore
+        .getState()
+        .activeSessions.find((session) => session.gameId === 43)!;
+
+      processes.shift();
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions).toMatchObject([
+        { id: secondSession.id, gameId: 43 },
+      ]);
+    },
+  );
+
+  it.each([null, String.raw`C:\Games\Game.exe`])(
+    "keeps every PID but queries and counts the game once (path: %s)",
+    async (exePath) => {
+      const processes = [100, 101].map((pid) => ({
+        exeName: "Game.exe",
+        exePath,
+        pid,
+      }));
+      invokeMock.mockImplementation(async (command: string) =>
+        command === "scan_processes" ? [...processes, processes[0]] : undefined,
+      );
+      const fetchMock = vi.fn().mockResolvedValue(
+        Response.json({
+          matches: [
+            {
+              key: "game.exe",
+              game: { id: 42, name: "Game", source: "igdb", coverUrl: "" },
+            },
+          ],
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      await scanProcessesNow();
+      expect(
+        useAppStore
+          .getState()
+          .processes.map((process) => process.pid)
+          .sort(),
+      ).toEqual([100, 101]);
+      expect(useAppStore.getState().activeSessions).toHaveLength(1);
+      const sessionId = useAppStore.getState().activeSessions[0].id;
+      const matchRequests = fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith("/api/match-processes"),
+      );
+      expect(matchRequests).toHaveLength(1);
+      expect(JSON.parse(matchRequests[0][1].body).processes).toEqual([
+        {
+          key: "game.exe",
+          identifiers: [
+            { platform: "windows", kind: "exe", value: "Game.exe" },
+          ],
+        },
+      ]);
+
+      processes.shift();
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions).toMatchObject([
+        { id: sessionId, gameId: 42 },
+      ]);
+    },
+  );
+});
+
 describe("install presence wiring", () => {
   const installUuid = "550e8400-e29b-41d4-a716-446655440000";
   const apiEndpoint = "https://api.playcounter.test";

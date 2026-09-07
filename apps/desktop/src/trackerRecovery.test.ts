@@ -284,6 +284,28 @@ describe("session recovery through startup and process scans", () => {
     expect(useAppStore.getState().recentSessions).toEqual([]);
   });
 
+  it.each([false, true])(
+    "checks every same-name instance for continuity (reversed: %s)",
+    async (reversed) => {
+      processes = [
+        runningProcess,
+        {
+          ...runningProcess,
+          pid: 456,
+          startedAtUnix: Date.parse("2026-09-06T12:00:00Z") / 1000,
+        },
+      ];
+      if (reversed) processes.reverse();
+      await restart("2026-09-06T12:00:00.000Z");
+      await scanProcessesNow();
+      expect(useAppStore.getState().processes).toHaveLength(2);
+      expect(useAppStore.getState().activeSessions).toMatchObject([
+        { id: original.id },
+      ]);
+      expect(useAppStore.getState().recentSessions).toEqual([]);
+    },
+  );
+
   it("confirms recovery immediately, even inside the one-minute checkpoint interval", async () => {
     processes = [runningProcess];
     await restart("2026-09-06T10:10:20.000Z");
