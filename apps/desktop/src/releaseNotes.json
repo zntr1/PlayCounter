@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.1.16",
+    "releasedAt": "2026-09-08",
+    "headline": "Global hotkeys, popups on your second screen, and smarter tracking.",
+    "highlights": [
+      "New keyboard shortcuts in Settings: one hotkey brings PlayCounter to the front from any app, another shows a brief 'Current session' popup with your playtime without leaving your game. Press it again to cycle through running games.",
+      "Desktop popups can now appear on the monitor you choose and also show while the PlayCounter window is open.",
+      "At startup PlayCounter looks for game files of Steam and Xbox imports that are not tracked yet and marks them with 'Match found' if there has been found a matching file name in the community database now.",
+      "Faster 'My Games' and 'Now Playing' views, fewer disk writes, and your install ID is now visible at the bottom of Settings."
+    ]
+  },
+  {
     "version": "1.1.15",
     "releasedAt": "2026-09-05",
     "headline": "Every game now has a details view.",
