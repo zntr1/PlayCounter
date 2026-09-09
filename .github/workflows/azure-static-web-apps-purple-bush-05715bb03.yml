@@ -6,6 +6,8 @@ on:
       - test
     paths:
       - "landing/**"
+      - "scripts/landing/**"
+      - "package.json"
       - ".github/workflows/azure-static-web-apps-purple-bush-05715bb03.yml"
   pull_request:
     types: [opened, synchronize, reopened, closed]
@@ -18,10 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate landing content and generated files
+        run: |
+          node scripts/landing/build.mjs --check
+          node scripts/landing/check.mjs
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1

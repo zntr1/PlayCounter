@@ -19,17 +19,19 @@ Different AI models supported me in developing this application.
 
 **[Download the latest release for Windows →](https://github.com/zntr1/PlayCounter/releases/latest)**
 
-Every release ships the Windows installer together with its **SHA-256 checksum**
-and an independent **VirusTotal scan**, so you can verify your download before you
-install. macOS and Linux are planned.
+The official release page includes release notes, checksums and available
+security-scan results for checking your download. The public installer is for
+Windows; macOS and Linux are planned.
 
 ## Screenshots
 
-![PlayCounter recording Cyberpunk 2077](docs/screenshots/now-playing.png)
+Screenshots show the 1.1.16 interface with example data.
 
-|                               Game library                                |                                   Session history                                   |
-| :-----------------------------------------------------------------------: | :---------------------------------------------------------------------------------: |
-| ![PlayCounter library with game cover art](docs/screenshots/my-games.png) | ![PlayCounter session history with game cover art](docs/screenshots/my-history.png) |
+![PlayCounter recording Cyberpunk 2077](landing/images/playcounter-now-playing-v1-1-16.jpg)
+
+|                                          Game library                                           |                                Session history                                 |
+| :---------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------: |
+| ![PlayCounter library with Steam and Xbox tabs](landing/images/playcounter-library-v1-1-16.jpg) | ![PlayCounter session history](landing/images/playcounter-history-v1-1-16.jpg) |
 
 ## Why the desktop client is open source
 
@@ -58,17 +60,31 @@ and the current public/private split are documented in [BACKEND.md](./BACKEND.md
 - The on-demand Steam importer reads local Steam files and sends only AppIDs
   from the selected local account for metadata resolution; account names,
   playtime, and install paths are not uploaded.
+- The optional Xbox importer uses Microsoft sign-in in your browser. The API
+  temporarily handles authorization and Xbox game data for that import; the app
+  does not see your Microsoft password.
+- DOSBox and Dolphin detection reads local emulator process information. Online
+  matching can send extracted game identifiers, filenames or titles; full
+  command lines are not uploaded in those automatic matching requests.
 - A blacklist lets you exclude any executable from tracking.
+
+See the [privacy policy](https://playcounter.app/datenschutz#en) for data flows
+and retention details.
 
 ## Features
 
 - Detects recognized games by watching running processes, with no per-launcher
   setup and no requirement to launch through PlayCounter
-- Track anything you choose, not just games (any process on your PC)
+- Add local entries for games or other processes you choose to track
 - Automatic executable-to-game matching against the API
-- Local play-session tracking with recent history and manual session entry
-- Selective local Steam-library import with playtime floors, deduplication,
-  Steam launch actions, and provider-neutral plumbing for future importers
+- Steam and Xbox imports for available previous playtime, with game matching
+  and review before import; overlapping provider totals are not added together
+- Dedicated per-game DOSBox and Dolphin detection, with local review for
+  uncertain matches
+- Searchable game library with provider tabs, grid/list layouts and custom covers
+- Session history and statistics, manual entries and playtime adjustments
+- Optional game-launch actions, desktop overlays and configurable shortcuts
+- Local backup export and import
 - Current / "now playing" view with a system-tray indicator
 - Community suggestions and one-time local choices for unknown or ambiguous exes
 - Configurable polling and unmatched-retry intervals plus an executable blacklist

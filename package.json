@@ -23,6 +23,9 @@
   },
   "scripts": {
     "dev": "turbo dev",
+    "landing:build": "node scripts/landing/build.mjs",
+    "landing:check": "node scripts/landing/build.mjs --check && node scripts/landing/check.mjs",
+    "landing:preview": "node scripts/landing/preview.mjs",
     "desktop:version": "node scripts/ci/sync-desktop-version.mjs",
     "desktop:dev": "scripts\\dev-desktop.cmd",
     "desktop:build": "scripts\\build-desktop.cmd",
