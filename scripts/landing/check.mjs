@@ -207,6 +207,17 @@ assert.deepEqual(
 const config = JSON.parse(
   readFileSync(resolve(directory, "staticwebapp.config.json"), "utf8"),
 );
+// Azure rejects routes that differ only by trailing slashes during deployment.
+const normalizedRoutes = new Map();
+for (const { route } of config.routes) {
+  const normalized = route.replace(/\/+$/, "") || "/";
+  assert(
+    !normalizedRoutes.has(normalized),
+    `Duplicate Azure route: ${route} conflicts with ${normalizedRoutes.get(normalized)} (trailing slashes do not distinguish routes)`,
+  );
+  normalizedRoutes.set(normalized, route);
+}
+assert.equal(config.trailingSlash, "auto");
 assert(
   !config.navigationFallback,
   "Unknown URLs must not return the homepage with HTTP 200",
@@ -220,16 +231,12 @@ for (const name of ["datenschutz", "impressum"]) {
     `/${name}.html`,
     `Missing legal-page rewrite: ${name}`,
   );
-  for (const suffix of ["/", ".html"]) {
-    const alias = config.routes.find(
-      (route) => route.route === `/${name}${suffix}`,
-    );
-    assert.equal(alias?.statusCode, 301);
-    assert.equal(alias.redirect, `/${name}`);
-  }
+  const alias = config.routes.find((route) => route.route === `/${name}.html`);
+  assert.equal(alias?.statusCode, 301);
+  assert.equal(alias.redirect, `/${name}`);
 }
 for (const [slug, destination] of Object.entries(mergedPages)) {
-  for (const suffix of ["", "/", "/index", "/index/", "/index.html", ".html"]) {
+  for (const suffix of ["", "/index", "/index.html", ".html"]) {
     const route = config.routes.find(
       (item) => item.route === `/${slug}${suffix}`,
     );
@@ -251,5 +258,5 @@ assert.equal(
   "/",
 );
 console.log(
-  `Landing checks passed: ${files.size - 1} canonical pages, ${guides.length} sourced guides, ${checkedLinks} local links/assets, metadata, schema, sitemap and retirement rules.`,
+  `Landing checks passed: ${files.size - 1} canonical pages, ${guides.length} sourced guides, ${checkedLinks} local links/assets, ${normalizedRoutes.size} unique Azure routes, metadata, schema, sitemap and retirement rules.`,
 );

@@ -6,11 +6,6 @@
       "rewrite": "/datenschutz.html"
     },
     {
-      "route": "/datenschutz/",
-      "redirect": "/datenschutz",
-      "statusCode": 301
-    },
-    {
       "route": "/datenschutz.html",
       "redirect": "/datenschutz",
       "statusCode": 301
@@ -18,11 +13,6 @@
     {
       "route": "/impressum",
       "rewrite": "/impressum.html"
-    },
-    {
-      "route": "/impressum/",
-      "redirect": "/impressum",
-      "statusCode": 301
     },
     {
       "route": "/impressum.html",
@@ -35,17 +25,7 @@
       "statusCode": 301
     },
     {
-      "route": "/game-time-tracker-windows/",
-      "redirect": "/",
-      "statusCode": 301
-    },
-    {
       "route": "/game-time-tracker-windows/index",
-      "redirect": "/",
-      "statusCode": 301
-    },
-    {
-      "route": "/game-time-tracker-windows/index/",
       "redirect": "/",
       "statusCode": 301
     },
@@ -65,17 +45,7 @@
       "statusCode": 301
     },
     {
-      "route": "/how-much-time-do-i-spend-gaming/",
-      "redirect": "/total-playtime-across-all-launchers/#totals",
-      "statusCode": 301
-    },
-    {
       "route": "/how-much-time-do-i-spend-gaming/index",
-      "redirect": "/total-playtime-across-all-launchers/#totals",
-      "statusCode": 301
-    },
-    {
-      "route": "/how-much-time-do-i-spend-gaming/index/",
       "redirect": "/total-playtime-across-all-launchers/#totals",
       "statusCode": 301
     },
@@ -95,17 +65,7 @@
       "statusCode": 301
     },
     {
-      "route": "/index/",
-      "redirect": "/",
-      "statusCode": 301
-    },
-    {
       "route": "/guides/index",
-      "redirect": "/guides/",
-      "statusCode": 301
-    },
-    {
-      "route": "/guides/index/",
       "redirect": "/guides/",
       "statusCode": 301
     },
@@ -115,17 +75,7 @@
       "statusCode": 301
     },
     {
-      "route": "/total-playtime-across-all-launchers/index/",
-      "redirect": "/total-playtime-across-all-launchers/",
-      "statusCode": 301
-    },
-    {
       "route": "/track-playtime-outside-steam/index",
-      "redirect": "/track-playtime-outside-steam/",
-      "statusCode": 301
-    },
-    {
-      "route": "/track-playtime-outside-steam/index/",
       "redirect": "/track-playtime-outside-steam/",
       "statusCode": 301
     },
@@ -135,17 +85,7 @@
       "statusCode": 301
     },
     {
-      "route": "/playtime-tracker-for-emulators/index/",
-      "redirect": "/playtime-tracker-for-emulators/",
-      "statusCode": 301
-    },
-    {
       "route": "/how-automatic-game-detection-works/index",
-      "redirect": "/how-automatic-game-detection-works/",
-      "statusCode": 301
-    },
-    {
-      "route": "/how-automatic-game-detection-works/index/",
       "redirect": "/how-automatic-game-detection-works/",
       "statusCode": 301
     },
@@ -155,17 +95,7 @@
       "statusCode": 301
     },
     {
-      "route": "/supported-games/index/",
-      "redirect": "/supported-games/",
-      "statusCode": 301
-    },
-    {
       "route": "/is-playcounter-safe/index",
-      "redirect": "/is-playcounter-safe/",
-      "statusCode": 301
-    },
-    {
-      "route": "/is-playcounter-safe/index/",
       "redirect": "/is-playcounter-safe/",
       "statusCode": 301
     },
@@ -175,17 +105,7 @@
       "statusCode": 301
     },
     {
-      "route": "/check-playtime-on-steam/index/",
-      "redirect": "/check-playtime-on-steam/",
-      "statusCode": 301
-    },
-    {
       "route": "/check-playtime-xbox-game-pass/index",
-      "redirect": "/check-playtime-xbox-game-pass/",
-      "statusCode": 301
-    },
-    {
-      "route": "/check-playtime-xbox-game-pass/index/",
       "redirect": "/check-playtime-xbox-game-pass/",
       "statusCode": 301
     },
@@ -195,17 +115,7 @@
       "statusCode": 301
     },
     {
-      "route": "/check-playtime-epic-games/index/",
-      "redirect": "/check-playtime-epic-games/",
-      "statusCode": 301
-    },
-    {
       "route": "/check-playtime-gog-galaxy/index",
-      "redirect": "/check-playtime-gog-galaxy/",
-      "statusCode": 301
-    },
-    {
-      "route": "/check-playtime-gog-galaxy/index/",
       "redirect": "/check-playtime-gog-galaxy/",
       "statusCode": 301
     },
@@ -215,17 +125,7 @@
       "statusCode": 301
     },
     {
-      "route": "/check-playtime-ea-app/index/",
-      "redirect": "/check-playtime-ea-app/",
-      "statusCode": 301
-    },
-    {
       "route": "/check-playtime-ubisoft-connect/index",
-      "redirect": "/check-playtime-ubisoft-connect/",
-      "statusCode": 301
-    },
-    {
-      "route": "/check-playtime-ubisoft-connect/index/",
       "redirect": "/check-playtime-ubisoft-connect/",
       "statusCode": 301
     },
@@ -235,17 +135,7 @@
       "statusCode": 301
     },
     {
-      "route": "/check-playtime-battle-net/index/",
-      "redirect": "/check-playtime-battle-net/",
-      "statusCode": 301
-    },
-    {
       "route": "/check-playtime-rockstar-launcher/index",
-      "redirect": "/check-playtime-rockstar-launcher/",
-      "statusCode": 301
-    },
-    {
-      "route": "/check-playtime-rockstar-launcher/index/",
       "redirect": "/check-playtime-rockstar-launcher/",
       "statusCode": 301
     },
@@ -255,17 +145,7 @@
       "statusCode": 301
     },
     {
-      "route": "/check-playtime-itch-io/index/",
-      "redirect": "/check-playtime-itch-io/",
-      "statusCode": 301
-    },
-    {
       "route": "/check-playtime-minecraft/index",
-      "redirect": "/check-playtime-minecraft/",
-      "statusCode": 301
-    },
-    {
-      "route": "/check-playtime-minecraft/index/",
       "redirect": "/check-playtime-minecraft/",
       "statusCode": 301
     },
@@ -275,27 +155,12 @@
       "statusCode": 301
     },
     {
-      "route": "/check-playtime-fortnite/index/",
-      "redirect": "/check-playtime-fortnite/",
-      "statusCode": 301
-    },
-    {
       "route": "/check-playtime-roblox/index",
       "redirect": "/check-playtime-roblox/",
       "statusCode": 301
     },
     {
-      "route": "/check-playtime-roblox/index/",
-      "redirect": "/check-playtime-roblox/",
-      "statusCode": 301
-    },
-    {
       "route": "/check-playtime-riot-games/index",
-      "redirect": "/check-playtime-riot-games/",
-      "statusCode": 301
-    },
-    {
-      "route": "/check-playtime-riot-games/index/",
       "redirect": "/check-playtime-riot-games/",
       "statusCode": 301
     },
