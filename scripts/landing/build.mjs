@@ -347,8 +347,10 @@ export function buildOutputs() {
     "llms.txt",
     `# PlayCounter\n\n> ${site.description}\n\n- Public Windows release: ${site.version}, published ${site.releaseDate}.\n- Free desktop app; no PlayCounter account required. Desktop source is MIT-licensed. The current production API is private.\n- Automatic tracking follows recognized running games, regardless of launcher. Unknown or ambiguous games can be reviewed locally.\n- Historical importers: Steam (local account files) and Xbox (optional Microsoft sign-in; playtime availability varies by game).\n- Imported totals do not recreate sessions. For a matched game, the displayed total is the higher local total or largest imported provider total, not their sum.\n- Dedicated per-game emulator detection: DOSBox and Dolphin. Recognition depends on exposed game identifiers or titles.\n- Recorded sessions and history stay on the PC. Matching, metadata, updates and pseudonymous installation presence use online services; optional imports have additional data flows.\n\n## Official pages\n\n- [Features, imports and download](${url("/")})\n- [Guides](${url("/guides/")})\n- [Playtime totals](${url("/total-playtime-across-all-launchers/")})\n- [Emulator support](${url("/playtime-tracker-for-emulators/")})\n- [Privacy policy](${url("/datenschutz#en")})\n- [Download verification and source](${url("/is-playcounter-safe/")})\n- [Public desktop source](${site.repository})\n- [Current releases](${site.releases})\n`,
   );
+  // Azure treats /path and /path/ as duplicate routes. Emit one rule and let
+  // trailingSlash: "auto" normalize file and directory URLs.
   const redirects = Object.entries(mergedPages).flatMap(([slug, destination]) =>
-    ["", "/", "/index", "/index/", "/index.html", ".html"].map((suffix) => ({
+    ["", "/index", "/index.html", ".html"].map((suffix) => ({
       route: `/${slug}${suffix}`,
       redirect: destination,
       statusCode: 301,
@@ -367,17 +369,14 @@ export function buildOutputs() {
     routes: [
       ...["datenschutz", "impressum"].flatMap((name) => [
         { route: `/${name}`, rewrite: `/${name}.html` },
-        { route: `/${name}/`, redirect: `/${name}`, statusCode: 301 },
         { route: `/${name}.html`, redirect: `/${name}`, statusCode: 301 },
       ]),
       ...redirects,
-      ...aliases.flatMap((alias) =>
-        ["", "/"].map((suffix) => ({
-          route: `/${alias}${suffix}`,
-          redirect: alias === "index" ? "/" : `/${alias.slice(0, -6)}/`,
-          statusCode: 301,
-        })),
-      ),
+      ...aliases.map((alias) => ({
+        route: `/${alias}`,
+        redirect: alias === "index" ? "/" : `/${alias.slice(0, -6)}/`,
+        statusCode: 301,
+      })),
       {
         route: "/images/*",
         headers: { "Cache-Control": "public, max-age=31536000, immutable" },

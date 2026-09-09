@@ -42,10 +42,11 @@ createServer((request, response) => {
     send(405, "", { Allow: "GET, HEAD" });
     return;
   }
+  const normalizedPath = pathname.replace(/\/+$/, "") || "/";
   const rule = config.routes.find((route) =>
     route.route.endsWith("*")
       ? pathname.startsWith(route.route.slice(0, -1))
-      : pathname === route.route,
+      : normalizedPath === (route.route.replace(/\/+$/, "") || "/"),
   );
   if (rule?.headers) Object.assign(headers, rule.headers);
   if (rule?.redirect) {
@@ -74,7 +75,18 @@ createServer((request, response) => {
       send(301, "", { Location: `${pathname}/` });
       return;
     }
-  } else if (!extname(file) && existsSync(`${file}.html`)) file += ".html";
+  } else {
+    if (!extname(file) && existsSync(`${file}.html`)) file += ".html";
+    if (
+      config.trailingSlash === "auto" &&
+      pathname.endsWith("/") &&
+      existsSync(file) &&
+      statSync(file).isFile()
+    ) {
+      send(301, "", { Location: normalizedPath });
+      return;
+    }
+  }
   if (!existsSync(file) || !statSync(file).isFile()) {
     const errorFile = resolve(
       directory,

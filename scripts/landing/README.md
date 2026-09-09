@@ -15,6 +15,11 @@ Preview uses `http://127.0.0.1:4180`. Set `PLAYCOUNTER_LANDING_PORT` to change i
 It models configured redirects and headers, but does not replace verification
 on Azure Static Web Apps.
 
+Azure rejects separate route rules for `/path` and `/path/` as duplicates.
+Keep one rule per normalized path; `trailingSlash: "auto"` handles canonical
+file and directory URLs. `landing:check` rejects trailing-slash duplicates
+before the deployment action runs.
+
 - `site.mjs`: verified public release, download, support lists and homepage FAQ.
   Development package versions can be ahead of a public release. Update the
   website facts after checking the published installer, size and release date.
