@@ -2,6 +2,7 @@ import type {
   ContributionCounts,
   ContributionStatus,
   EmulatorLaunchContext,
+  FeedbackReply,
   Game,
   GameSource,
   IdentifierFlagReason,
@@ -17,10 +18,13 @@ import {
   DISCOVERED_REVIEW_REMINDER_ID,
   type DiscoveredReviewReminder,
 } from "./discoveredReminder";
-import type { AppNotification } from "./notifications";
+import type { AppNotification, FeedbackReplyCursor } from "./notifications";
 import type { InstallPresenceMarker } from "./installPresence";
 import type { AwardedMilestone } from "./milestones";
-import { EMPTY_CONTRIBUTION_COUNTS } from "./notifications";
+import {
+  EMPTY_CONTRIBUTION_COUNTS,
+  feedbackReplyNotification,
+} from "./notifications";
 import { persistAppState } from "./persistence";
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
@@ -365,6 +369,7 @@ export type AppState = {
   installPresenceMarker: InstallPresenceMarker | null;
   toasts: Toast[];
   notifications: AppNotification[];
+  feedbackReplyCursor: FeedbackReplyCursor | null;
   discoveredReviewReminder: DiscoveredReviewReminder;
   seenContributionStatus: Record<string, ContributionStatus>;
   contributionCounts: ContributionCounts;
@@ -465,6 +470,10 @@ export type AppState = {
   setDiscoveredReviewReminder: (reminder: DiscoveredReviewReminder) => void;
   dismissNotification: (notificationId: string) => void;
   clearNotifications: () => void;
+  receiveFeedbackReplies: (
+    cursor: FeedbackReplyCursor,
+    replies: FeedbackReply[],
+  ) => void;
   markAllNotificationsRead: () => void;
   rekeyGameSeconds: (from: string, to: string) => void;
   setPlaytimeAdjustment: (
@@ -664,6 +673,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   installPresenceMarker: null,
   toasts: [],
   notifications: [],
+  feedbackReplyCursor: null,
   discoveredReviewReminder: null,
   seenContributionStatus: {},
   contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
@@ -801,8 +811,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         contributionCounts: EMPTY_CONTRIBUTION_COUNTS,
         emulatorContributionCounts: EMPTY_CONTRIBUTION_COUNTS,
         emulatorMappings,
+        feedbackReplyCursor: null,
         notifications: state.notifications.filter(
-          (notification) => !notification.kind.startsWith("suggestion-"),
+          (notification) =>
+            !notification.kind.startsWith("suggestion-") &&
+            notification.kind !== "feedback-reply",
         ),
       };
     }),
@@ -1218,6 +1231,67 @@ export const useAppStore = create<AppState>((set, get) => ({
       ].slice(0, 100),
     }));
     persistSoon();
+  },
+  receiveFeedbackReplies: (cursor, replies) => {
+    let changed = false;
+    let received = 0;
+    set((state) => {
+      if (
+        state.installUuid !== cursor.installUuid ||
+        state.settings.apiEndpoint.replace(/\/+$/, "") !== cursor.endpoint
+      )
+        return state;
+      const previous = state.feedbackReplyCursor;
+      const sameOwner =
+        previous?.installUuid === cursor.installUuid &&
+        previous?.endpoint === cursor.endpoint;
+      const afterId = sameOwner ? previous.afterId : "0";
+      const messages = new Map(
+        replies.map((reply) => [
+          `feedback-reply:${reply.id}`,
+          reply.feedbackMessage,
+        ]),
+      );
+      const retained = state.notifications
+        .filter(
+          (notification) => sameOwner || notification.kind !== "feedback-reply",
+        )
+        .map((notification) => {
+          const feedbackMessage = messages.get(notification.id);
+          if (
+            notification.kind !== "feedback-reply" ||
+            !feedbackMessage ||
+            notification.feedbackMessage === feedbackMessage
+          )
+            return notification;
+          changed = true;
+          return { ...notification, feedbackMessage };
+        });
+      const cursorAdvanced = BigInt(cursor.afterId) > BigInt(afterId);
+      if (sameOwner && !cursorAdvanced && !changed) return state;
+      const fresh = replies.filter(
+        (reply) => BigInt(reply.id) > BigInt(afterId),
+      );
+      received = fresh.length;
+      changed = true;
+      return {
+        feedbackReplyCursor: sameOwner && !cursorAdvanced ? previous : cursor,
+        notifications: [
+          ...fresh.map(feedbackReplyNotification).reverse(),
+          ...retained,
+        ].slice(0, 100),
+      };
+    });
+    if (changed) persistSoon();
+    if (received > 0)
+      get().addToast({
+        tone: "info",
+        title:
+          received === 1
+            ? "Reply from PlayCounter"
+            : "New replies from PlayCounter",
+        detail: "Open Notifications to read the reply to your feedback.",
+      });
   },
   setDiscoveredReviewReminder: (discoveredReviewReminder) => {
     set({ discoveredReviewReminder });

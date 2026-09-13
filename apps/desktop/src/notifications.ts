@@ -3,12 +3,14 @@ import type {
   ContributionCounts,
   ContributionStatus,
   EmulatorContribution,
+  FeedbackReply,
 } from "@playcounter/shared";
 import { contentKey } from "./emulators/signals";
 import type { EmulatorMapping } from "./emulators/types";
 import type { ViewId } from "./store";
 
 export type NotificationKind =
+  | "feedback-reply"
   | "suggestion-verified"
   | "suggestion-rejected"
   | "milestone-total"
@@ -29,11 +31,46 @@ export type AppNotification = {
   kind: NotificationKind;
   title: string;
   body?: string;
+  feedbackMessage?: string;
   coverUrl?: string;
   createdAt: string;
   readAt?: string;
   action?: NotificationAction;
 };
+
+export type FeedbackReplyCursor = {
+  endpoint: string;
+  installUuid: string;
+  afterId: string;
+};
+
+export function isFeedbackReplyId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^(0|[1-9][0-9]{0,18})$/.test(value) &&
+    BigInt(value) <= 9223372036854775807n
+  );
+}
+
+export function normalizeFeedbackReplyCursor(
+  value: unknown,
+): FeedbackReplyCursor | null {
+  if (!value || typeof value !== "object") return null;
+  const cursor = value as Partial<FeedbackReplyCursor>;
+  if (
+    typeof cursor.endpoint !== "string" ||
+    !cursor.endpoint ||
+    typeof cursor.installUuid !== "string" ||
+    !cursor.installUuid ||
+    !isFeedbackReplyId(cursor.afterId)
+  )
+    return null;
+  return {
+    endpoint: cursor.endpoint.replace(/\/+$/, ""),
+    installUuid: cursor.installUuid,
+    afterId: cursor.afterId,
+  };
+}
 
 export const EMPTY_CONTRIBUTION_COUNTS: ContributionCounts = {
   suggested: 0,
@@ -44,6 +81,8 @@ export const EMPTY_CONTRIBUTION_COUNTS: ContributionCounts = {
 
 export function notificationEmoji(kind: NotificationKind) {
   switch (kind) {
+    case "feedback-reply":
+      return "💬";
     case "suggestion-verified":
       return "✅";
     case "suggestion-rejected":
@@ -67,9 +106,23 @@ export function notificationEmoji(kind: NotificationKind) {
   }
 }
 
+export function feedbackReplyNotification(
+  reply: FeedbackReply,
+): AppNotification {
+  return {
+    id: `feedback-reply:${reply.id}`,
+    kind: "feedback-reply",
+    title: "Reply from PlayCounter",
+    feedbackMessage: reply.feedbackMessage,
+    body: reply.message,
+    createdAt: reply.createdAt,
+  };
+}
+
 export function displayNotificationTitle(
   notification: Pick<AppNotification, "id" | "kind" | "title">,
 ) {
+  if (notification.kind === "feedback-reply") return "Reply from PlayCounter";
   if (notification.kind === "suggestion-verified") {
     const title = notification.title.replace(
       / was verified$/i,

@@ -16,6 +16,7 @@ import {
 import type { NotificationKind } from "./notifications";
 
 const EXPECTED_ICONS: Record<NotificationKind, AchievementIconName> = {
+  "feedback-reply": "message-square",
   "suggestion-verified": "shield-check",
   "suggestion-rejected": "circle-slash",
   "milestone-total": "trophy",

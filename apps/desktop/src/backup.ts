@@ -43,6 +43,7 @@ const DEVICE_LOCAL_KEYS = [
 ];
 const NOTIFICATION_STATE_KEYS = [
   "notifications",
+  "feedbackReplyCursor",
   "discoveredReviewReminder",
   "suppressStartupNotificationsOnce",
   "suppressContributionNotificationsOnce",

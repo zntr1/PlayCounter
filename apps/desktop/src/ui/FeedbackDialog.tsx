@@ -67,6 +67,12 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   async function handleSubmit() {
     const trimmed = message.trim();
     if (!trimmed || submitting || isOffline) return;
+    if (!installUuid) {
+      setError(
+        "Feedback is still getting ready. Please try again in a moment.",
+      );
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -83,7 +89,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
         message: trimmed,
         appVersion,
         platform: detectPlatform(),
-        installUuid: installUuid ?? undefined,
+        installUuid,
       };
 
       const response = await fetch(`${apiEndpoint}/api/feedback`, {
@@ -99,7 +105,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
       addToast({
         tone: "success",
         title: "Thanks for the feedback",
-        detail: "Your message was sent to the PlayCounter team.",
+        detail: "Your message was sent. Replies will appear in Notifications.",
       });
       onClose();
     } catch (caught) {
@@ -119,7 +125,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
       labelId="feedback-dialog-title"
       eyebrow="Support"
       title="Send feedback"
-      subtitle="Report a bug or suggest a feature."
+      subtitle="Report a bug, ask a question, or suggest a feature. Replies appear in Notifications."
       icon={MessageSquarePlus}
       onClose={onClose}
       footer={

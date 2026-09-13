@@ -30,11 +30,9 @@ export function NotificationBell() {
   }, [open]);
 
   function toggle() {
-    setOpen((current) => {
-      const next = !current;
-      if (next) markAllRead();
-      return next;
-    });
+    const next = !open;
+    if (next) markAllRead();
+    setOpen(next);
   }
 
   return (
