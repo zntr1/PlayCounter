@@ -568,7 +568,7 @@ export const TOURS: TourDefinition[] = [
         id: "intro",
         view: "settings",
         title: "Games inside emulators",
-        body: "PlayCounter can tell which game is running inside a supported emulator, instead of just logging the emulator itself.\n\nSupported right now:\n\n- Dolphin\n- DOSBox\n\nMissing one? Ask for it via the Feedback button or on Discord.\n\nThis guide uses a sample Dolphin setup. Nothing here is real: no sample can be changed, shared, or deleted, and every button on it is switched off.",
+        body: "PlayCounter can tell which game is running inside a supported emulator, instead of just logging the emulator itself.\n\nSupported right now:\n\n- Dolphin\n- DOSBox\n- PCSX2\n\nMissing one? Ask for it via the Feedback button or on Discord.\n\nThis guide uses a sample Dolphin setup. Nothing here is real: no sample can be changed, shared, or deleted, and every button on it is switched off.",
       },
       {
         id: "settings",
@@ -576,7 +576,7 @@ export const TOURS: TourDefinition[] = [
         anchor: a("settings-emulators"),
         scrollIntoView: true,
         title: "Enable emulator detection",
-        body: "Turn emulator detection on here. PlayCounter reads the emulator's window title and start-up options on your PC to work out which game is loaded. Only the recognized game name or disc ID is sent to the database - never the full path or the window title.\n\nEvery emulator PlayCounter has already seen is listed below the switches. That's also where you can ignore one again.",
+        body: "Turn emulator detection on here. PlayCounter reads the emulator's loaded game files, window title, and start-up options on your PC to work out which game is loaded. Only the recognized game name or disc ID is sent to the database - never the full path or the window title.\n\nEvery emulator PlayCounter has already seen is listed below the switches. That's also where you can ignore one again.",
       },
       {
         id: "menu",

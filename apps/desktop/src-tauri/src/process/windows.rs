@@ -51,9 +51,10 @@ impl ProcessScanner for WindowsScanner {
                         .map(|path| path.to_string_lossy().to_string())
                         .filter(|path| !path.is_empty()),
                     window_title: None,
-                    open_files: (host.id == "dolphin")
-                        .then(|| emulator::open_content_files(pid))
-                        .filter(|paths| !paths.is_empty()),
+                    open_files: (!host.content_extensions.is_empty())
+                        .then(|| emulator::open_content_files(pid, host.content_extensions))
+                        .flatten()
+                        .filter(|paths| host.id == "pcsx2" || !paths.is_empty()),
                 });
                 continue;
             }

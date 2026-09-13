@@ -66,6 +66,7 @@ export type ViewId =
   | "emulating"
   | "dosbox"
   | "dolphin"
+  | "pcsx2"
   | "games"
   | "import"
   | "discovered"

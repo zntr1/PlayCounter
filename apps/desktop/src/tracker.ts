@@ -2021,7 +2021,7 @@ function rawEmulatorSignals(
     args: process.commandLine ?? [],
     workingDirectory: process.workingDirectory ?? null,
     windowTitle: process.windowTitle ?? null,
-    openFiles: process.openFiles ?? [],
+    openFiles: process.openFiles ?? undefined,
   };
 }
 

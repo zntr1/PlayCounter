@@ -68,6 +68,16 @@ export function DolphinView() {
   );
 }
 
+export function Pcsx2View() {
+  return (
+    <EmulatorView
+      emulatorId="pcsx2"
+      label="PCSX2"
+      fallbackHostName="pcsx2-qt.exe"
+    />
+  );
+}
+
 function EmulatorView({
   emulatorId,
   label,

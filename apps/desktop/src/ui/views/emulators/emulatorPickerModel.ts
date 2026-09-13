@@ -8,12 +8,14 @@ import type {
 export function emulatorDetectionSourceLabel(source?: EmulatorDetectionSource) {
   if (source === "window_title") return "window title";
   if (source === "launch_arguments") return "start-up options";
+  if (source === "open_file_handle") return "loaded game file";
   return null;
 }
 
 export function guestPlatformLabel(emulatorId: string) {
   if (emulatorId === "dolphin") return "GameCube / Wii";
   if (emulatorId === "dosbox") return "DOS";
+  if (emulatorId === "pcsx2") return "PlayStation 2";
   return "emulator";
 }
 

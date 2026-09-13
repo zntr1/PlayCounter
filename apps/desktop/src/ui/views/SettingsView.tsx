@@ -722,7 +722,7 @@ export function SettingsView() {
 
       <SettingsPanel
         dataTour="settings-emulators"
-        description="Detect the game running inside a supported emulator, including DOSBox and Dolphin."
+        description="Detect the game running inside DOSBox, Dolphin, or PCSX2."
         title="Emulators"
       >
         <SettingsRow
@@ -739,7 +739,7 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
-          description="Sends the recognized game name or disc ID (such as a DOSBox program or a Dolphin disc file) to look it up in the database. Folder paths and unclear window titles stay on this PC."
+          description="Sends the recognized game filename or disc ID to look it up in the database. Folder paths and unclear window titles stay on this PC."
           title="Look up recognized content"
         >
           <input

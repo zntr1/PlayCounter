@@ -18,9 +18,7 @@ use std::{
 #[cfg(windows)]
 use std::process::{Command, Stdio};
 
-const DOLPHIN_EXTENSIONS: &[&str] = &[
-    "elf", "dol", "gcm", "iso", "tgc", "wbfs", "ciso", "gcz", "wad", "dff", "wia", "rvz", "json",
-];
+use crate::process::emulator::{DOLPHIN_CONTENT_EXTENSIONS, PCSX2_CONTENT_EXTENSIONS};
 const DOSBOX_EXTENSIONS: &[&str] = &["conf", "exe", "com", "bat"];
 
 struct EmulatorLaunchAdapter {
@@ -105,9 +103,19 @@ static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
     EmulatorLaunchAdapter {
         id: "dolphin",
         label: "Dolphin",
-        extensions: DOLPHIN_EXTENSIONS,
+        extensions: DOLPHIN_CONTENT_EXTENSIONS,
         arguments: dolphin_arguments,
         is_idle: is_dolphin_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "pcsx2",
+        label: "PCSX2",
+        extensions: PCSX2_CONTENT_EXTENSIONS,
+        // A positional boot file works with both Qt and legacy wx builds.
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        // A generic PCSX2 window may coexist with a separate game window.
+        // Do not close a running instance based on its title alone.
+        is_idle: |_| false,
     },
 ];
 
@@ -602,6 +610,23 @@ mod tests {
             ),
             ..idle
         }));
+    }
+
+    #[test]
+    fn builds_pcsx2_launch_without_shell_interpretation() {
+        let adapter = launch_adapter_for("pcsx2").unwrap();
+        for extension in ["iso", "CHD", "cso", "zso", "bin", "img", "mdf", "gz", "elf"] {
+            assert!(has_supported_extension(
+                adapter,
+                &format!(r"D:\PS2\Game.{extension}")
+            ));
+        }
+        assert!(!has_supported_extension(adapter, r"D:\PS2\save.p2s"));
+        let path = Path::new(r"D:\PS2\Ratchet & Clank.chd");
+        assert_eq!(
+            (adapter.arguments)(path),
+            vec![path.as_os_str().to_os_string()]
+        );
     }
 
     #[cfg(windows)]

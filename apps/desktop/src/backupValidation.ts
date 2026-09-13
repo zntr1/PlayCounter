@@ -89,7 +89,11 @@ const provider = oneOf("steam", "xbox");
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
 const trust = oneOf("recognized", "weak");
-const detectionSource = oneOf("window_title", "launch_arguments");
+const detectionSource = oneOf(
+  "window_title",
+  "launch_arguments",
+  "open_file_handle",
+);
 const game = object(
   { id: integer, name: nonempty, coverUrl: string, source },
   { igdbId: positiveId, releaseYear: integer },
