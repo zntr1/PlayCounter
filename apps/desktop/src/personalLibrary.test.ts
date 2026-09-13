@@ -180,7 +180,7 @@ describe("personal game journals", () => {
   it("removes shelf memberships when deleting a shelf without removing annotations", () => {
     const shelf = useAppStore
       .getState()
-      .savePersonalShelf({ name: "Weekend", pinned: true })!;
+      .savePersonalShelf({ name: "Weekend" })!;
     useAppStore
       .getState()
       .updateGameJournal(game, { note: "Next quest", shelfIds: [shelf] });
@@ -308,7 +308,6 @@ describe("durable playthrough time", () => {
     useAppStore.getState().updateGameJournal(game, { status: "not-planned" });
     useAppStore.getState().savePersonalShelf({
       name: "Not planned",
-      pinned: false,
       filters: { status: "not-planned" },
     });
     useAppStore
@@ -328,6 +327,18 @@ describe("durable playthrough time", () => {
     expect(data.personalShelves).toEqual(
       useAppStore.getState().personalShelves,
     );
+    // Backups from before shelf pinning was removed still import normally.
+    expect(() =>
+      validateBackupData(
+        {
+          ...data,
+          personalShelves: useAppStore
+            .getState()
+            .personalShelves.map((shelf) => ({ ...shelf, pinned: true })),
+        },
+        "data",
+      ),
+    ).not.toThrow();
     expect(() =>
       validateBackupData(
         { ...data, sessions: [session(1, "missing")] },

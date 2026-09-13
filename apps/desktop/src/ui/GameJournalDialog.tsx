@@ -63,7 +63,7 @@ export function SessionPlaythroughSelect({
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <span>{compact ? "Playthrough" : "This session"}</span>
+      {!compact ? <span>This session</span> : null}
       <select
         aria-label={`Playthrough for session ${session.id}`}
         className={`${journalSelectClass} max-w-[240px] !py-1`}
@@ -197,6 +197,30 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     }
   }
 
+  const playthroughSelector = (
+    <label className="grid gap-2 text-sm text-text-muted">
+      {tab === "note" ? "Note for" : "Playthrough"}
+      <select
+        aria-label="Journal playthrough"
+        value={selected ?? ""}
+        className={journalSelectClass}
+        onChange={(event) => select(event.target.value || null)}
+      >
+        <option value="">
+          {DEFAULT_PLAYTHROUGH_NAME}
+          {journal.activePlaythroughId === null ? " · Active" : ""}
+        </option>
+        {journal.playthroughs.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+            {p.id === journal.activePlaythroughId ? " · Active" : ""}
+            {p.completedAt ? " · Finished" : ""}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
   return (
     <Modal
       labelId="game-journal-title"
@@ -245,31 +269,15 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
         <div
           key={tab}
           data-controller-scroll
-          className="grid min-h-0 content-start gap-5 overflow-y-auto [scrollbar-gutter:stable]"
+          className={
+            tab === "playthroughs"
+              ? "min-h-0 overflow-y-auto md:overflow-hidden"
+              : "grid min-h-0 content-start gap-5 overflow-y-auto [scrollbar-gutter:stable]"
+          }
         >
           {tab !== "organize" ? (
             <>
-              <label className="grid gap-2 text-sm text-text-muted">
-                {tab === "note" ? "Note for" : "Playthrough"}
-                <select
-                  aria-label="Journal playthrough"
-                  value={selected ?? ""}
-                  className={journalSelectClass}
-                  onChange={(event) => select(event.target.value || null)}
-                >
-                  <option value="">
-                    {DEFAULT_PLAYTHROUGH_NAME}
-                    {journal.activePlaythroughId === null ? " · Active" : ""}
-                  </option>
-                  {journal.playthroughs.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                      {p.id === journal.activePlaythroughId ? " · Active" : ""}
-                      {p.completedAt ? " · Finished" : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {tab === "note" ? playthroughSelector : null}
               {tab === "note" ? (
                 <div className="grid gap-3">
                   <textarea
@@ -298,230 +306,249 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   </div>
                 </div>
               ) : (
-                <div className="grid gap-4">
-                  <form
-                    className="flex gap-2"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      create();
-                    }}
+                <div className="grid gap-5 md:h-full md:min-h-0 md:grid-cols-2 md:grid-rows-[minmax(0,1fr)]">
+                  <div
+                    data-controller-scroll
+                    className="grid min-h-0 content-start gap-4 md:overflow-y-auto md:px-1 md:[scrollbar-gutter:stable]"
                   >
-                    <Input
-                      aria-label="New playthrough name"
-                      maxLength={NAME_LIMIT}
-                      value={name}
-                      placeholder="New Game+, co-op campaign, 2026 replay…"
-                      className="flex-1"
-                      onChange={(event) => setName(event.target.value)}
-                    />
-                    <Button
-                      type="submit"
-                      variant="secondary"
-                      icon={Plus}
-                      disabled={!name.trim()}
+                    {playthroughSelector}
+                    <form
+                      className="flex gap-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        create();
+                      }}
                     >
-                      Create
-                    </Button>
-                  </form>
-                  <div className="rounded-lg border border-border bg-bg p-3 text-sm text-text-muted">
-                    <span className="font-medium text-text">
-                      Next session: {playthroughName(journal)}
-                    </span>
-                    <p className="mt-1 text-xs">
-                      New playthroughs become active for future sessions.
-                      Earlier sessions stay in their current playthrough.
-                    </p>
-                    {running.map((s) => (
-                      <div key={s.id} className="mt-3">
-                        <SessionPlaythroughSelect session={s} />
-                      </div>
-                    ))}
-                  </div>
-                  {playthrough ? (
-                    <section className="grid gap-3 rounded-xl border border-border p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <Input
-                          key={`${playthrough.id}:${playthrough.name}`}
-                          aria-label="Playthrough name"
-                          maxLength={NAME_LIMIT}
-                          defaultValue={playthrough.name}
-                          onBlur={(event) => {
-                            if (event.target.value.trim())
-                              actions
-                                .getState()
-                                .updatePlaythrough(
-                                  target.game,
-                                  playthrough.id,
-                                  {
-                                    name: event.target.value,
-                                  },
-                                );
-                            else event.target.value = playthrough.name;
-                          }}
-                        />
-                        <span className="font-mono text-lg font-semibold text-accent">
-                          {formatDuration(selectedSeconds, showDays)}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="secondary"
-                          icon={Check}
-                          disabled={
-                            !!playthrough.completedAt ||
-                            journal.activePlaythroughId === playthrough.id
-                          }
-                          onClick={() =>
-                            actions
-                              .getState()
-                              .setActivePlaythrough(target.game, playthrough.id)
-                          }
-                        >
-                          {journal.activePlaythroughId === playthrough.id
-                            ? "Active playthrough"
-                            : "Make active"}
-                        </Button>
-                        {journal.activePlaythroughId === playthrough.id ? (
-                          <Button
-                            variant="ghost"
-                            onClick={() => {
-                              actions
-                                .getState()
-                                .setActivePlaythrough(target.game, null);
-                              select(null);
-                            }}
-                          >
-                            Use default
-                          </Button>
-                        ) : null}
-                        <Button
-                          variant="secondary"
-                          icon={Flag}
-                          onClick={() =>
-                            actions
-                              .getState()
-                              .updatePlaythrough(target.game, playthrough.id, {
-                                completedAt: playthrough.completedAt
-                                  ? null
-                                  : new Date().toISOString(),
-                              })
-                          }
-                        >
-                          {playthrough.completedAt ? "Reopen" : "Mark finished"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          icon={StickyNote}
-                          onClick={() => setTab("note")}
-                        >
-                          {playthrough.note ? "Edit note" : "Add note"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          icon={Trash2}
-                          aria-label="Delete playthrough"
-                          onClick={() => setDeleting(playthrough.id)}
-                        />
-                      </div>
-                      {playthrough.completedAt ? (
-                        <label className="flex items-center gap-3 text-sm text-text-muted">
-                          Finished on
+                      <Input
+                        aria-label="New playthrough name"
+                        maxLength={NAME_LIMIT}
+                        value={name}
+                        placeholder="New Game+, co-op campaign, 2026 replay…"
+                        className="flex-1"
+                        onChange={(event) => setName(event.target.value)}
+                      />
+                      <Button
+                        type="submit"
+                        variant="secondary"
+                        icon={Plus}
+                        disabled={!name.trim()}
+                      >
+                        Create
+                      </Button>
+                    </form>
+                    <div className="rounded-lg border border-border bg-bg p-3 text-sm text-text-muted">
+                      <span className="font-medium text-text">
+                        Next session: {playthroughName(journal)}
+                      </span>
+                      <p className="mt-1 text-xs">
+                        New playthroughs become active for future sessions.
+                        Earlier sessions stay in their current playthrough.
+                      </p>
+                      {journal.playthroughs.length > 0 &&
+                        running.map((s) => (
+                          <div key={s.id} className="mt-3">
+                            <SessionPlaythroughSelect session={s} />
+                          </div>
+                        ))}
+                    </div>
+                    {playthrough ? (
+                      <section className="grid gap-3 rounded-xl border border-border p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                           <Input
-                            type="date"
-                            aria-label="Playthrough completion date"
-                            value={playthrough.completedAt.slice(0, 10)}
-                            onChange={(event) => {
-                              if (event.target.value)
+                            key={`${playthrough.id}:${playthrough.name}`}
+                            aria-label="Playthrough name"
+                            maxLength={NAME_LIMIT}
+                            defaultValue={playthrough.name}
+                            onBlur={(event) => {
+                              if (event.target.value.trim())
                                 actions
                                   .getState()
                                   .updatePlaythrough(
                                     target.game,
                                     playthrough.id,
                                     {
-                                      completedAt: `${event.target.value}T12:00:00.000Z`,
+                                      name: event.target.value,
                                     },
                                   );
+                              else event.target.value = playthrough.name;
                             }}
                           />
-                        </label>
-                      ) : null}
-                      {deleting === playthrough.id ? (
-                        <div className="rounded-lg border border-warning-border bg-warning-tint p-3 text-sm text-text">
-                          Delete “{playthrough.name}” and its note? Its sessions
-                          return to the default playthrough and all game
-                          playtime is kept.
-                          <div className="mt-3 flex gap-2">
+                          <span className="font-mono text-lg font-semibold text-accent">
+                            {formatDuration(selectedSeconds, showDays)}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            icon={Check}
+                            disabled={
+                              !!playthrough.completedAt ||
+                              journal.activePlaythroughId === playthrough.id
+                            }
+                            onClick={() =>
+                              actions
+                                .getState()
+                                .setActivePlaythrough(
+                                  target.game,
+                                  playthrough.id,
+                                )
+                            }
+                          >
+                            {journal.activePlaythroughId === playthrough.id
+                              ? "Active playthrough"
+                              : "Make active"}
+                          </Button>
+                          {journal.activePlaythroughId === playthrough.id ? (
                             <Button
-                              variant="danger"
+                              variant="ghost"
                               onClick={() => {
                                 actions
                                   .getState()
-                                  .deletePlaythrough(
-                                    target.game,
-                                    playthrough.id,
-                                  );
-                                setSelected(null);
-                                setDeleting(null);
+                                  .setActivePlaythrough(target.game, null);
+                                select(null);
                               }}
                             >
-                              Delete playthrough
+                              Use default
                             </Button>
-                            <Button
-                              variant="secondary"
-                              onClick={() => setDeleting(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
+                          ) : null}
+                          <Button
+                            variant="secondary"
+                            icon={Flag}
+                            onClick={() =>
+                              actions
+                                .getState()
+                                .updatePlaythrough(
+                                  target.game,
+                                  playthrough.id,
+                                  {
+                                    completedAt: playthrough.completedAt
+                                      ? null
+                                      : new Date().toISOString(),
+                                  },
+                                )
+                            }
+                          >
+                            {playthrough.completedAt
+                              ? "Reopen"
+                              : "Mark finished"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            icon={StickyNote}
+                            onClick={() => setTab("note")}
+                          >
+                            {playthrough.note ? "Edit note" : "Add note"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            icon={Trash2}
+                            aria-label="Delete playthrough"
+                            onClick={() => setDeleting(playthrough.id)}
+                          />
                         </div>
-                      ) : null}
-                    </section>
-                  ) : (
-                    <section className="grid gap-3 rounded-xl border border-border p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="text-sm font-semibold text-text">
-                          {DEFAULT_PLAYTHROUGH_NAME}
-                        </h3>
-                        <span className="font-mono text-lg font-semibold text-accent">
-                          {formatDuration(selectedSeconds, showDays)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-text-muted">
-                        Your standard playthrough. Create another for a replay
-                        or a different campaign.
-                      </p>
-                      {hasGameWideTime ? (
+                        {playthrough.completedAt ? (
+                          <label className="flex items-center gap-3 text-sm text-text-muted">
+                            Finished on
+                            <Input
+                              type="date"
+                              aria-label="Playthrough completion date"
+                              value={playthrough.completedAt.slice(0, 10)}
+                              onChange={(event) => {
+                                if (event.target.value)
+                                  actions
+                                    .getState()
+                                    .updatePlaythrough(
+                                      target.game,
+                                      playthrough.id,
+                                      {
+                                        completedAt: `${event.target.value}T12:00:00.000Z`,
+                                      },
+                                    );
+                              }}
+                            />
+                          </label>
+                        ) : null}
+                        {deleting === playthrough.id ? (
+                          <div className="rounded-lg border border-warning-border bg-warning-tint p-3 text-sm text-text">
+                            Delete “{playthrough.name}” and its note? Its
+                            sessions return to the default playthrough and all
+                            game playtime is kept.
+                            <div className="mt-3 flex gap-2">
+                              <Button
+                                variant="danger"
+                                onClick={() => {
+                                  actions
+                                    .getState()
+                                    .deletePlaythrough(
+                                      target.game,
+                                      playthrough.id,
+                                    );
+                                  setSelected(null);
+                                  setDeleting(null);
+                                }}
+                              >
+                                Delete playthrough
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                onClick={() => setDeleting(null)}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </section>
+                    ) : (
+                      <section className="grid gap-3 rounded-xl border border-border p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <h3 className="text-sm font-semibold text-text">
+                            {DEFAULT_PLAYTHROUGH_NAME}
+                          </h3>
+                          <span className="font-mono text-lg font-semibold text-accent">
+                            {formatDuration(selectedSeconds, showDays)}
+                          </span>
+                        </div>
                         <p className="text-xs text-text-muted">
-                          Imported lifetime playtime and game-wide adjustments
-                          stay in the game's overall total.
+                          Your standard playthrough. Create another for a replay
+                          or a different campaign.
                         </p>
-                      ) : null}
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="secondary"
-                          icon={Check}
-                          disabled={journal.activePlaythroughId === null}
-                          onClick={() =>
-                            actions
-                              .getState()
-                              .setActivePlaythrough(target.game, null)
-                          }
-                        >
-                          {journal.activePlaythroughId === null
-                            ? "Active playthrough"
-                            : "Make active"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          icon={StickyNote}
-                          onClick={() => setTab("note")}
-                        >
-                          {journal.note ? "Edit note" : "Add note"}
-                        </Button>
-                      </div>
-                    </section>
-                  )}
-                  <section className="grid gap-2">
+                        {hasGameWideTime ? (
+                          <p className="text-xs text-text-muted">
+                            Imported lifetime playtime and game-wide adjustments
+                            stay in the game's overall total.
+                          </p>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            icon={Check}
+                            disabled={journal.activePlaythroughId === null}
+                            onClick={() =>
+                              actions
+                                .getState()
+                                .setActivePlaythrough(target.game, null)
+                            }
+                          >
+                            {journal.activePlaythroughId === null
+                              ? "Active playthrough"
+                              : "Make active"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            icon={StickyNote}
+                            onClick={() => setTab("note")}
+                          >
+                            {journal.note ? "Edit note" : "Add note"}
+                          </Button>
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                  <section
+                    className="flex min-h-0 flex-col gap-2 rounded-xl border border-border p-4"
+                    aria-label="Recorded sessions"
+                  >
                     <h3 className="text-sm font-semibold text-text">
                       Recorded sessions · {selectedSessions.length}
                     </h3>
@@ -532,7 +559,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                         archived sessions.
                       </p>
                     ) : null}
-                    <div className="max-h-64 overflow-y-auto divide-y divide-border">
+                    <div
+                      data-controller-scroll
+                      className="divide-y divide-border md:min-h-0 md:flex-1 md:overflow-y-auto md:[scrollbar-gutter:stable]"
+                    >
                       {selectedSessions.map((s) => (
                         <div
                           key={s.id}
@@ -627,7 +657,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   event.preventDefault();
                   const id = actions
                     .getState()
-                    .savePersonalShelf({ name: shelfName, pinned: false });
+                    .savePersonalShelf({ name: shelfName });
                   if (id) {
                     actions.getState().updateGameJournal(target.game, {
                       shelfIds: [...journal.shelfIds, id],
