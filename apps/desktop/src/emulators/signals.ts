@@ -11,6 +11,11 @@ export const GENERIC_IDENTITY_DENYLIST = new Set([
   "dosbox-staging",
   "dolphin",
   "dolphin-emu",
+  "pcsx2",
+  "pcsx2-qt",
+  "bios",
+  "ps2 bios",
+  "boot",
   "staging",
   "config",
   "conf",
@@ -93,7 +98,7 @@ export function normalizeToken(raw: string, kind?: EmulatorContentKind) {
     return null;
   }
   const base = token.replace(
-    /\.(?:exe|com|bat|conf|elf|dol|gcm|iso|tgc|wbfs|ciso|gcz|wad|dff|wia|rvz|json)$/i,
+    /\.(?:exe|com|bat|conf|elf|dol|gcm|iso|tgc|wbfs|ciso|gcz|wad|dff|wia|rvz|json|bin|img|mdf|chd|cso|zso|(?:iso\.)?gz)$/i,
     "",
   );
   const denylist =

@@ -25,7 +25,10 @@ export type RawEmulatorSignals = {
   openFiles?: string[];
 };
 
-export type EmulatorDetectionSource = "window_title" | "launch_arguments";
+export type EmulatorDetectionSource =
+  | "window_title"
+  | "launch_arguments"
+  | "open_file_handle";
 
 export type EmulatorContentSignal = {
   kind: EmulatorContentKind;

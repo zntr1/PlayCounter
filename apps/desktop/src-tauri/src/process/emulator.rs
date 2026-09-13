@@ -1,10 +1,17 @@
 use std::ffi::OsString;
 
+pub const DOLPHIN_CONTENT_EXTENSIONS: &[&str] = &[
+    "elf", "dol", "gcm", "iso", "tgc", "wbfs", "ciso", "gcz", "wad", "dff", "wia", "rvz", "json",
+];
+pub const PCSX2_CONTENT_EXTENSIONS: &[&str] =
+    &["iso", "bin", "img", "mdf", "chd", "cso", "zso", "gz", "elf"];
+
 pub struct EmulatorHost {
     pub id: &'static str,
     pub exe_names: &'static [&'static str],
     pub needs_command_line: bool,
     pub needs_window_title: bool,
+    pub content_extensions: &'static [&'static str],
 }
 
 pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
@@ -21,12 +28,26 @@ pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
         ],
         needs_command_line: true,
         needs_window_title: true,
+        content_extensions: &[],
     },
     EmulatorHost {
         id: "dolphin",
         exe_names: &["dolphin.exe"],
         needs_command_line: true,
         needs_window_title: true,
+        content_extensions: DOLPHIN_CONTENT_EXTENSIONS,
+    },
+    EmulatorHost {
+        id: "pcsx2",
+        exe_names: &[
+            "pcsx2-qt.exe",
+            "pcsx2-qtx64.exe",
+            "pcsx2-qtx64-avx2.exe",
+            "pcsx2.exe",
+        ],
+        needs_command_line: true,
+        needs_window_title: true,
+        content_extensions: PCSX2_CONTENT_EXTENSIONS,
     },
 ];
 
@@ -157,7 +178,7 @@ pub fn request_close_windows(pids: &std::collections::HashSet<u32>) -> usize {
 }
 
 #[cfg(target_os = "windows")]
-pub fn open_content_files(pid: u32) -> Vec<String> {
+pub fn open_content_files(pid: u32, extensions: &[&str]) -> Option<Vec<String>> {
     use std::{collections::HashSet, ffi::c_void, mem, ptr};
     use windows_sys::{
         Wdk::System::Threading::{NtQueryInformationProcess, ProcessHandleInformation},
@@ -206,14 +227,12 @@ pub fn open_content_files(pid: u32) -> Vec<String> {
         }
     }
 
-    fn supported_content_path(path: &str) -> bool {
-        let lower = path.to_ascii_lowercase();
-        [
-            ".elf", ".dol", ".gcm", ".iso", ".tgc", ".wbfs", ".ciso", ".gcz", ".wad", ".dff",
-            ".wia", ".rvz", ".json",
-        ]
-        .iter()
-        .any(|extension| lower.ends_with(extension))
+    fn supported_content_path(path: &str, extensions: &[&str]) -> bool {
+        path.rsplit_once('.').is_some_and(|(_, ext)| {
+            extensions
+                .iter()
+                .any(|candidate| candidate.eq_ignore_ascii_case(ext))
+        })
     }
 
     fn normalize_final_path(path: String) -> String {
@@ -249,7 +268,7 @@ pub fn open_content_files(pid: u32) -> Vec<String> {
         )
     };
     if process.is_null() {
-        return Vec::new();
+        return None;
     }
     let process = OwnedHandle(process);
 
@@ -273,20 +292,20 @@ pub fn open_content_files(pid: u32) -> Vec<String> {
             break;
         }
         if status != STATUS_INFO_LENGTH_MISMATCH {
-            return Vec::new();
+            return None;
         }
         let next_size = (required as usize)
             .max(buffer_bytes.saturating_mul(2))
             .min(MAX_SNAPSHOT_BYTES);
         if next_size <= buffer_bytes {
-            return Vec::new();
+            return None;
         }
         buffer.resize(next_size.div_ceil(word_size), 0);
     }
 
     let buffer_bytes = buffer.len() * word_size;
     if buffer_bytes < mem::size_of::<ProcessHandleSnapshotHeader>() {
-        return Vec::new();
+        return None;
     }
     let header = unsafe { &*(buffer.as_ptr().cast::<ProcessHandleSnapshotHeader>()) };
     let available_entries = buffer_bytes
@@ -330,14 +349,14 @@ pub fn open_content_files(pid: u32) -> Vec<String> {
         let Some(path) = (unsafe { final_path(duplicated.0) }) else {
             continue;
         };
-        if supported_content_path(&path) && seen.insert(path.to_ascii_lowercase()) {
+        if supported_content_path(&path, extensions) && seen.insert(path.to_ascii_lowercase()) {
             content_paths.push(path);
             if content_paths.len() >= MAX_CONTENT_PATHS {
                 break;
             }
         }
     }
-    content_paths
+    Some(content_paths)
 }
 
 #[cfg(test)]
@@ -351,6 +370,22 @@ mod tests {
         assert_eq!(host_for("DOLPHIN.EXE").map(|host| host.id), Some("dolphin"));
         assert!(host_for("notdosbox.exe").is_none());
         assert!(host_for("dolphin-tool.exe").is_none());
+        for name in [
+            "PCSX2-QT.EXE",
+            "pcsx2-qtx64.exe",
+            "pcsx2-qtx64-avx2.exe",
+            "pcsx2.exe",
+        ] {
+            assert_eq!(host_for(name).map(|host| host.id), Some("pcsx2"));
+        }
+        for name in [
+            "notpcsx2.exe",
+            "pcsx2-updater.exe",
+            "pcsx2-qt-helper.exe",
+            "pcsx2-gsrunner.exe",
+        ] {
+            assert!(host_for(name).is_none());
+        }
     }
 
     #[test]
@@ -376,7 +411,9 @@ mod tests {
         let path = std::env::temp_dir().join(&file_name);
         let file = std::fs::File::create(&path).expect("create test content");
 
-        let paths = super::open_content_files(std::process::id());
+        let paths =
+            super::open_content_files(std::process::id(), super::DOLPHIN_CONTENT_EXTENSIONS)
+                .unwrap();
         assert!(paths.iter().any(|candidate| {
             candidate
                 .replace('/', "\\")
@@ -384,6 +421,24 @@ mod tests {
                 .ends_with(&file_name.to_ascii_lowercase())
         }));
 
+        drop(file);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn captures_pcsx2_disc_files_and_distinguishes_unavailable_access() {
+        let name = format!("playcounter-pcsx2-{}.CHD", std::process::id());
+        let path = std::env::temp_dir().join(&name);
+        let file = std::fs::File::create(&path).unwrap();
+        let paths =
+            super::open_content_files(std::process::id(), super::PCSX2_CONTENT_EXTENSIONS).unwrap();
+        assert!(paths.iter().any(|candidate| candidate.ends_with(&name)));
+        let dolphin =
+            super::open_content_files(std::process::id(), super::DOLPHIN_CONTENT_EXTENSIONS)
+                .unwrap();
+        assert!(!dolphin.iter().any(|candidate| candidate.ends_with(&name)));
+        assert!(super::open_content_files(0, super::PCSX2_CONTENT_EXTENSIONS).is_none());
         drop(file);
         std::fs::remove_file(path).unwrap();
     }

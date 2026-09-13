@@ -1,5 +1,6 @@
 import type { EmulatorMapping } from "./emulators/types";
 import { adapterFor } from "./emulators/registry";
+import { PCSX2_EXE_NAMES } from "./emulators/pcsx2";
 import {
   isAbsoluteWindowsPath,
   launchErrorKind,
@@ -53,6 +54,7 @@ export function isValidEmulatorBinaryPath(
   if (!isAbsoluteWindowsPath(path)) return false;
   const baseName = launchFileBaseName(path).toLowerCase();
   if (emulatorId === "dolphin") return baseName === "dolphin.exe";
+  if (emulatorId === "pcsx2") return PCSX2_EXE_NAMES.includes(baseName);
   if (emulatorId === "dosbox") {
     return [
       "dosbox.exe",

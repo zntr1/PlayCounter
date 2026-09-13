@@ -297,6 +297,7 @@ const providerMeta: Record<
 const emulatorLabels: Record<string, string> = {
   dosbox: "DOSBox",
   dolphin: "Dolphin",
+  pcsx2: "PCSX2",
 };
 
 const UNKNOWN_DURATION_TIP = "This source did not report how long you played.";

@@ -55,7 +55,7 @@ import { AchievementsView } from "./views/AchievementsView";
 import { MyGamesView } from "./views/MyGamesView";
 import { NowPlayingView } from "./views/NowPlayingView";
 import { NowEmulatingView } from "./views/NowEmulatingView";
-import { DolphinView, DosboxView } from "./views/EmulatorsView";
+import { DolphinView, DosboxView, Pcsx2View } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
 import { HelpButton, TourOverlay, WelcomePrompt } from "./tour/TourUI";
@@ -154,6 +154,13 @@ const views: Record<
     imageSrc: emulatorAssetUrls.dolphin,
     component: <DolphinView />,
   },
+  pcsx2: {
+    label: "PCSX2",
+    subtitle: "PlayStation 2 games, mappings, and emulator playtime",
+    icon: Cpu,
+    imageSrc: emulatorAssetUrls.pcsx2,
+    component: <Pcsx2View />,
+  },
   games: {
     label: "My Games",
     subtitle: "Every game PlayCounter has tracked for you",
@@ -225,7 +232,7 @@ const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
     label: "Library",
     items: ["now", "games", "history", "achievements"],
   },
-  { label: "Emulators", items: ["emulating", "dosbox", "dolphin"] },
+  { label: "Emulators", items: ["emulating", "dosbox", "dolphin", "pcsx2"] },
   { label: "System", items: ["discovered", "settings", "dev"] },
 ];
 
@@ -353,7 +360,7 @@ export function App() {
         mapping.emulatorId === emulatorId && mapping.needsConfirmation,
     ).length;
   const emulatorTourDemo = emulatorTourDemoActive(activeTourId);
-  const sidebarEmulatorBadge = (item: "dosbox" | "dolphin") =>
+  const sidebarEmulatorBadge = (item: "dosbox" | "dolphin" | "pcsx2") =>
     emulatorTourDemo && item === "dolphin" ? 1 : emulatorReviewCount(item);
   const theme = useAppStore((state) => state.settings.theme);
   const setTheme = useAppStore((state) => state.setTheme);
@@ -545,7 +552,10 @@ export function App() {
                 (item !== "dolphin" ||
                   emulatorTourDemo ||
                   (knownEmulators.has("dolphin") &&
-                    !ignoredEmulatorSet.has("dolphin"))),
+                    !ignoredEmulatorSet.has("dolphin"))) &&
+                (item !== "pcsx2" ||
+                  (knownEmulators.has("pcsx2") &&
+                    !ignoredEmulatorSet.has("pcsx2"))),
             );
             if (items.length === 0) return null;
 
@@ -580,7 +590,9 @@ export function App() {
                         badge={
                           item === "discovered"
                             ? needsReviewCount
-                            : item === "dosbox" || item === "dolphin"
+                            : item === "dosbox" ||
+                                item === "dolphin" ||
+                                item === "pcsx2"
                               ? sidebarEmulatorBadge(item)
                               : undefined
                         }

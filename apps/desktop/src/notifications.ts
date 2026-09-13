@@ -201,7 +201,8 @@ export function emulatorContributionNotification(
   const key = emulatorContributionKey(contribution);
   const action =
     contribution.emulatorId === "dosbox" ||
-    contribution.emulatorId === "dolphin"
+    contribution.emulatorId === "dolphin" ||
+    contribution.emulatorId === "pcsx2"
       ? {
           view: contribution.emulatorId as ViewId,
           label: `Open ${emulatorLabel}`,

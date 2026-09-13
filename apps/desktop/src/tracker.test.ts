@@ -1,5 +1,6 @@
 import type { Contribution, Game, Session } from "@playcounter/shared";
 import type { EmulatorMapping } from "./emulators/types";
+import { validateBackupData } from "./backupValidation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { invokeMock, openMock } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
@@ -199,6 +200,197 @@ beforeEach(() => {
       gameLaunchingEnabled: true,
       controllerNavigationEnabled: false,
     },
+  });
+});
+
+describe("PCSX2 tracking integration", () => {
+  const firstKey = "pcsx2:rom:final fantasy x.chd";
+  const secondKey = "pcsx2:rom:ratchet & clank.iso";
+  const firstFile = String.raw`D:\PS2\Final Fantasy X.chd`;
+  const secondFile = String.raw`D:\PS2\Ratchet & Clank.iso`;
+
+  function configure(rememberLaunchPaths = true) {
+    useAppStore.setState({
+      knownEmulators: new Map(),
+      settings: {
+        ...useAppStore.getState().settings,
+        emulatorDetection: true,
+        emulatorContentLookup: false,
+        ignoredEmulatorIds: [],
+        rememberLaunchPaths,
+      },
+      emulatorMappings: new Map([
+        [
+          firstKey,
+          emulatorMapping({
+            emulatorId: "pcsx2",
+            label: "PCSX2",
+            contentKey: firstKey,
+            contentKind: "rom",
+            contentValue: "final fantasy x.chd",
+            display: "Final Fantasy X.chd",
+            gameName: "Final Fantasy X",
+            detectionSource: "open_file_handle",
+          }),
+        ],
+        [
+          secondKey,
+          emulatorMapping({
+            emulatorId: "pcsx2",
+            label: "PCSX2",
+            contentKey: secondKey,
+            contentKind: "rom",
+            contentValue: "ratchet & clank.iso",
+            display: "Ratchet & Clank.iso",
+            gameId: 43,
+            gameName: "Ratchet & Clank",
+            detectionSource: "open_file_handle",
+          }),
+        ],
+      ]),
+    });
+    let openFiles = [firstFile];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "scan_processes")
+        return [
+          {
+            exeName: "pcsx2-qt.exe",
+            exePath: String.raw`C:\Emulators\pcsx2-qt.exe`,
+            emulatorId: "pcsx2",
+            pid: 9801,
+            startedAtUnix: 10,
+            commandLine: [firstFile],
+            openFiles,
+            windowTitle: openFiles.length ? "Custom title" : "PCSX2 v2.4.0",
+          },
+        ];
+      if (command === "verify_emulator_content_paths")
+        return openFiles.map((path) => ({ path, status: "ok" }));
+      return undefined;
+    });
+    return (files: string[]) => {
+      openFiles = files;
+    };
+  }
+
+  it("starts the mapped game, switches in the same PID and ends after game shutdown", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-12T10:00:00Z"));
+      const setFiles = configure();
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions).toEqual([
+        expect.objectContaining({
+          gameId: 42,
+          emulator: expect.objectContaining({
+            emulatorId: "pcsx2",
+            contentKey: firstKey,
+          }),
+        }),
+      ]);
+      expect(
+        useAppStore.getState().emulatorAutoLaunchTargets.get(firstKey),
+      ).toMatchObject({ filePath: firstFile });
+      expect(useAppStore.getState().knownEmulators.has("pcsx2")).toBe(true);
+      expect(useAppStore.getState().exeCache.has("pcsx2-qt.exe")).toBe(false);
+
+      vi.setSystemTime(new Date("2026-09-12T10:01:00Z"));
+      setFiles([secondFile]);
+      await scanProcessesNow();
+      // The native session reconciler also has a short process-exit grace.
+      await scanProcessesNow();
+      expect(
+        useAppStore
+          .getState()
+          .activeSessions.some((session) => session.gameId === 43),
+      ).toBe(true);
+      expect(
+        useAppStore
+          .getState()
+          .activeSessions.some((session) => session.gameId === 42),
+      ).toBe(false);
+      expect(
+        useAppStore.getState().emulatorAutoLaunchTargets.get(secondKey),
+      ).toMatchObject({ filePath: secondFile });
+
+      vi.setSystemTime(new Date("2026-09-12T10:02:00Z"));
+      setFiles([]);
+      await scanProcessesNow();
+      await scanProcessesNow();
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions).toEqual([]);
+      expect(useAppStore.getState().recentSessions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            gameId: 42,
+            emulator: expect.objectContaining({ emulatorId: "pcsx2" }),
+          }),
+          expect.objectContaining({
+            gameId: 43,
+            emulator: expect.objectContaining({ emulatorId: "pcsx2" }),
+          }),
+        ]),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("tracks with path storage disabled and stops when PCSX2 is ignored", async () => {
+    configure(false);
+    await scanProcessesNow();
+    expect(
+      useAppStore
+        .getState()
+        .activeSessions.some((session) => session.gameId === 42),
+    ).toBe(true);
+    expect(useAppStore.getState().emulatorAutoLaunchTargets.size).toBe(0);
+    expect(useAppStore.getState().emulatorAutoBinaries.size).toBe(0);
+    useAppStore.getState().setEmulatorIgnoredSetting("pcsx2", true);
+    await scanProcessesNow();
+    await scanProcessesNow();
+    await scanProcessesNow();
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(useAppStore.getState().emulatorMappings.has(firstKey)).toBe(true);
+    expect(useAppStore.getState().knownEmulators.has("pcsx2")).toBe(true);
+    useAppStore.getState().setEmulatorIgnoredSetting("pcsx2", false);
+    await scanProcessesNow();
+    expect(
+      useAppStore
+        .getState()
+        .activeSessions.some((session) => session.gameId === 42),
+    ).toBe(true);
+  });
+
+  it("persists and restores the PCSX2 mapping and loaded-file provenance", async () => {
+    configure();
+    await scanProcessesNow();
+    persist();
+    const saved = vi
+      .mocked(localStorage.setItem)
+      .mock.calls.filter(([key]) => key.includes("playcounter"))
+      .at(-1)?.[1];
+    expect(saved).toBeTruthy();
+    const record = JSON.parse(saved!);
+    expect(() =>
+      validateBackupData(
+        {
+          emulatorMappings: record.emulatorMappings,
+          knownEmulators: record.knownEmulators,
+        },
+        "backup",
+      ),
+    ).not.toThrow();
+    vi.mocked(localStorage.getItem).mockReturnValue(saved!);
+    useAppStore.setState({
+      emulatorMappings: new Map(),
+      knownEmulators: new Map(),
+    });
+    hydrate();
+    expect(useAppStore.getState().emulatorMappings.get(firstKey)).toMatchObject(
+      { detectionSource: "open_file_handle", gameName: "Final Fantasy X" },
+    );
+    expect(useAppStore.getState().knownEmulators.has("pcsx2")).toBe(true);
   });
 });
 
