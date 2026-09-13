@@ -105,6 +105,7 @@ export type ProcessSnapshot = {
 
 export type ActiveSession = {
   id: number;
+  /** Absent for the game's built-in default playthrough. */
   playthroughId?: string;
   gameId: number;
   igdbId?: number;
@@ -806,7 +807,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!journal.playthroughs.some((p) => p.id === id)) return;
     const archivedPlaythroughSeconds = { ...state.archivedPlaythroughSeconds };
     delete archivedPlaythroughSeconds[id];
-    const unassign = <T extends { playthroughId?: string }>(session: T): T =>
+    const moveToDefault = <T extends { playthroughId?: string }>(
+      session: T,
+    ): T =>
       session.playthroughId === id
         ? { ...session, playthroughId: undefined }
         : session;
@@ -824,8 +827,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         personalGameIdentity(state),
       ),
       archivedPlaythroughSeconds,
-      recentSessions: state.recentSessions.map(unassign),
-      activeSessions: state.activeSessions.map(unassign),
+      recentSessions: state.recentSessions.map(moveToDefault),
+      activeSessions: state.activeSessions.map(moveToDefault),
     });
     persistSoon();
   },

@@ -1,5 +1,6 @@
 import type { Settings } from "@playcounter/shared";
 import {
+  GAME_STATUSES,
   journalKey,
   type GameJournal,
   type PersonalShelf,
@@ -91,6 +92,7 @@ function dictionary(validate: Validator): Validator {
 
 const source = oneOf("igdb", "community", "custom");
 const provider = oneOf("steam", "xbox");
+const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
 const trust = oneOf("recognized", "weak");
@@ -124,7 +126,8 @@ const session = object(
   {
     id: integer,
     gameId: integer,
-    exeName: nonempty,
+    // Emulator and manual sessions may have no executable associated with them.
+    exeName: string,
     startedAt: date,
     endedAt: nullable(date),
     durationSeconds: nullable(nonnegative),
@@ -353,15 +356,7 @@ const validateBackupShape: Validator = object(
         ),
         note: string,
         favorite: boolean,
-        status: nullable(
-          oneOf(
-            "playing",
-            "on-hold",
-            "finished",
-            "want-to-play",
-            "want-to-replay",
-          ),
-        ),
+        status: nullable(gameStatus),
         shelfIds: array(nonempty),
         activePlaythroughId: nullable(nonempty),
         playthroughs: array(
@@ -384,13 +379,7 @@ const validateBackupShape: Validator = object(
             {
               search: string,
               source: oneOf("all", "steam", "xbox", "unimported"),
-              status: oneOf(
-                "playing",
-                "on-hold",
-                "finished",
-                "want-to-play",
-                "want-to-replay",
-              ),
+              status: gameStatus,
               favorite: boolean,
               installed: boolean,
               played: oneOf("played", "unplayed"),

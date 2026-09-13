@@ -216,6 +216,7 @@ export function Modal({
   iconSpin = false,
   onClose,
   footer,
+  className,
   bodyClassName,
   dataTour,
   backdropDataTour,
@@ -230,6 +231,7 @@ export function Modal({
   iconSpin?: boolean;
   onClose: () => void;
   footer?: ReactNode;
+  className?: string;
   bodyClassName?: string;
   dataTour?: string;
   backdropDataTour?: string;
@@ -257,6 +259,7 @@ export function Modal({
         className={clsx(
           "flex max-h-[90vh] w-full animate-modal-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised outline-none motion-reduce:animate-none",
           modalSizes[size],
+          className,
         )}
       >
         <div className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">

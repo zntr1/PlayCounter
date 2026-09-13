@@ -159,6 +159,7 @@ import {
   useLibraryJournalLookup,
 } from "../LibraryOrganization";
 import {
+  DEFAULT_PLAYTHROUGH_NAME,
   matchesLibraryFilters,
   type LibraryFilters,
 } from "../../personalLibrary";
@@ -1267,6 +1268,40 @@ export function MyGamesView() {
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
   const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
   const allLibraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
+  // Apply shelf rules before the source selection so every badge describes
+  // the games available in that source within the current view.
+  const shelfGames = useMemo(() => {
+    const savedFilterSelected = personalShelves.some(
+      (s) => s.id === shelfSelection && s.filters,
+    );
+    return games.filter((game) => {
+      const journal = journalFor({ ...game, gameName: game.name });
+      return (
+        (savedFilterSelected ||
+          matchesShelf(game, journal, shelfSelection, personalShelves)) &&
+        matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
+      );
+    });
+  }, [
+    games,
+    journalFor,
+    shelfSelection,
+    personalShelves,
+    libraryFilters,
+    recentSortNow,
+  ]);
+  const matchingGames = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle
+      ? shelfGames.filter(
+          (game) =>
+            game.name.toLowerCase().includes(needle) ||
+            game.emulatorLabels.some((label) =>
+              label.toLowerCase().includes(needle),
+            ),
+        )
+      : shelfGames;
+  }, [query, shelfGames]);
   const platform = currentPlatform();
   const providerTabGames = useMemo(
     () =>
@@ -1293,12 +1328,21 @@ export function MyGamesView() {
     [games],
   );
   const canHideEmptyProviderTabs = hasEmptyProviderTabs(providerTabInputs);
+  // Tab visibility and import prompts still depend on the full library:
+  // a shelf with no matches must not hide a source or imply it was never imported.
   const tabs = visibleLibraryTabs({
     hideEmptyProviders: hideEmptyProviderTabs,
     allTabCount: allLibraryGames.length,
     unimportedGameCount: unimportedGames.length,
     providers: providerTabInputs,
-  });
+  }).map((tab) => ({
+    ...tab,
+    count:
+      tab.id === "all" && isCoreTourDemo
+        ? demoGames.length
+        : filterByLibraryTab(matchingGames, tab.id).length +
+          (tab.id === "all" ? demoGames.length : 0),
+  }));
   const activeLibraryTab = resolveLibraryTab(libraryTab, tabs);
   const activeTabDescriptor = tabs.find((tab) => tab.id === activeLibraryTab);
   const activeProviderConfig =
@@ -1319,26 +1363,8 @@ export function MyGamesView() {
     );
   }, [activeLibraryTab, games, providerTabGames, unimportedGames]);
   const tabGames = useMemo(
-    () =>
-      sourceGames.filter((game) => {
-        const journal = journalFor({ ...game, gameName: game.name });
-        const savedFilterSelected = personalShelves.some(
-          (s) => s.id === shelfSelection && s.filters,
-        );
-        return (
-          (savedFilterSelected ||
-            matchesShelf(game, journal, shelfSelection, personalShelves)) &&
-          matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
-        );
-      }),
-    [
-      sourceGames,
-      journalFor,
-      shelfSelection,
-      personalShelves,
-      libraryFilters,
-      recentSortNow,
-    ],
+    () => filterByLibraryTab(shelfGames, activeLibraryTab),
+    [shelfGames, activeLibraryTab],
   );
   const activeTabKind = activeTabDescriptor?.kind ?? "all";
   const statTabLabel =
@@ -1376,21 +1402,10 @@ export function MyGamesView() {
     tabGames,
   ]);
   const displayedGames = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const filtered = needle
-      ? tabGames.filter(
-          (game) =>
-            game.name.toLowerCase().includes(needle) ||
-            game.emulatorLabels.some((label) =>
-              label.toLowerCase().includes(needle),
-            ),
-        )
-      : tabGames;
-
-    const sorted = [...filtered];
+    const sorted = filterByLibraryTab(matchingGames, activeLibraryTab);
     sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
-  }, [query, sortKey, tabGames]);
+  }, [activeLibraryTab, matchingGames, sortKey]);
   const demoForTab = activeLibraryTab === "all" ? demoGames : [];
   const libraryGames =
     isCoreTourDemo && activeLibraryTab === "all"
@@ -4920,7 +4935,7 @@ function AddPlaytimeDialog({
       </div>
 
       <div className="mt-5 rounded-xl border border-border bg-bg/60 p-4">
-        {!demo && journal.playthroughs.length ? (
+        {!demo ? (
           <label className="mb-4 grid gap-2 text-sm text-text-muted">
             Playthrough
             <select
@@ -4929,7 +4944,7 @@ function AddPlaytimeDialog({
               className={journalSelectClass}
               onChange={(event) => setPlaythroughId(event.target.value)}
             >
-              <option value="">Unassigned</option>
+              <option value="">{DEFAULT_PLAYTHROUGH_NAME}</option>
               {journal.playthroughs.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}

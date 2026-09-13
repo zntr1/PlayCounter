@@ -1,6 +1,7 @@
 import type { Contribution, Game, Session } from "@playcounter/shared";
 import type { EmulatorMapping } from "./emulators/types";
 import { validateBackupData } from "./backupValidation";
+import * as overlayBridge from "./desktopOverlayBridge";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { invokeMock, openMock } = vi.hoisted(() => ({
   invokeMock: vi.fn(),
@@ -119,79 +120,109 @@ function emulatorMapping(
 }
 
 describe("playthrough tracking", () => {
-  it("snapshots the active playthrough and persists an explicit session correction on exit", async () => {
-    vi.useFakeTimers();
-    try {
-      vi.setSystemTime(new Date("2026-09-13T10:00:00Z"));
+  it.each([false, true])(
+    "snapshots the active playthrough and persists a session correction (named=%s)",
+    async (named) => {
+      const overlayEvent = vi.spyOn(overlayBridge, "emitOverlayEvent");
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date("2026-09-13T10:00:00Z"));
+        const game = {
+          gameId: -1,
+          source: "custom" as const,
+          gameName: "Game",
+        };
+        useAppStore.getState().setExeCacheEntry(entry());
+        const first = named
+          ? useAppStore.getState().createPlaythrough(game, "First run")!
+          : undefined;
+        let running = true;
+        invokeMock.mockImplementation(async (command: string) =>
+          command === "scan_processes"
+            ? running
+              ? [
+                  {
+                    exeName: "Game.exe",
+                    exePath: "C:\\Games\\Game.exe",
+                    pid: 9871,
+                  },
+                ]
+              : []
+            : undefined,
+        );
+        await scanProcessesNow();
+        const active = useAppStore.getState().activeSessions[0];
+        expect(active.playthroughId).toBe(first);
+        expect(overlayEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "session-started",
+            playthroughName: named ? "First run" : "Default playthrough",
+          }),
+        );
+        const second = useAppStore
+          .getState()
+          .createPlaythrough(game, "Replay")!;
+        expect(useAppStore.getState().activeSessions[0].playthroughId).toBe(
+          first,
+        );
+        useAppStore.getState().assignSessionPlaythrough(active.id, second);
+        vi.setSystemTime(new Date("2026-09-13T10:03:00Z"));
+        running = false;
+        await scanProcessesNow();
+        await scanProcessesNow();
+        expect(useAppStore.getState().recentSessions).toEqual([
+          expect.objectContaining({
+            id: active.id,
+            playthroughId: second,
+            durationSeconds: 180,
+          }),
+        ]);
+        expect(useAppStore.getState().activeSessions).toHaveLength(0);
+        expect(overlayEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "session-ended",
+            playthroughName: "Replay",
+          }),
+        );
+      } finally {
+        overlayEvent.mockRestore();
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it.each([false, true])(
+    "hydrates the assignment captured before a crash (named=%s)",
+    (named) => {
       const game = { gameId: -1, source: "custom" as const, gameName: "Game" };
-      useAppStore.getState().setExeCacheEntry(entry());
-      const first = useAppStore
-        .getState()
-        .createPlaythrough(game, "First run")!;
-      let running = true;
-      invokeMock.mockImplementation(async (command: string) =>
-        command === "scan_processes"
-          ? running
-            ? [
-                {
-                  exeName: "Game.exe",
-                  exePath: "C:\\Games\\Game.exe",
-                  pid: 9871,
-                },
-              ]
-            : []
-          : undefined,
+      const first = named
+        ? useAppStore.getState().createPlaythrough(game, "First run")!
+        : undefined;
+      useAppStore.getState().createPlaythrough(game, "Replay");
+      const active = {
+        ...game,
+        id: 7,
+        exeName: "Game.exe",
+        coverUrl: "",
+        playthroughId: first,
+        startedAt: "2026-09-13T10:00:00Z",
+        checkpointedAt: "2026-09-13T10:01:00Z",
+      };
+      vi.mocked(localStorage.getItem).mockReturnValue(
+        JSON.stringify({
+          gameJournals: useAppStore.getState().gameJournals,
+          activeSessions: [active],
+        }),
       );
-      await scanProcessesNow();
-      const active = useAppStore.getState().activeSessions[0];
-      expect(active.playthroughId).toBe(first);
-      const second = useAppStore.getState().createPlaythrough(game, "Replay")!;
+      hydrate();
       expect(useAppStore.getState().activeSessions[0].playthroughId).toBe(
         first,
       );
-      useAppStore.getState().assignSessionPlaythrough(active.id, second);
-      vi.setSystemTime(new Date("2026-09-13T10:03:00Z"));
-      running = false;
-      await scanProcessesNow();
-      await scanProcessesNow();
-      expect(useAppStore.getState().recentSessions).toEqual([
-        expect.objectContaining({
-          id: active.id,
-          playthroughId: second,
-          durationSeconds: 180,
-        }),
-      ]);
-      expect(useAppStore.getState().activeSessions).toHaveLength(0);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("hydrates the assignment captured before a crash independently of the new active selection", () => {
-    const game = { gameId: -1, source: "custom" as const, gameName: "Game" };
-    const first = useAppStore.getState().createPlaythrough(game, "First run")!;
-    useAppStore.getState().createPlaythrough(game, "Replay");
-    const active = {
-      ...game,
-      id: 7,
-      exeName: "Game.exe",
-      coverUrl: "",
-      playthroughId: first,
-      startedAt: "2026-09-13T10:00:00Z",
-      checkpointedAt: "2026-09-13T10:01:00Z",
-    };
-    vi.mocked(localStorage.getItem).mockReturnValue(
-      JSON.stringify({
-        gameJournals: useAppStore.getState().gameJournals,
-        activeSessions: [active],
-      }),
-    );
-    hydrate();
-    expect(useAppStore.getState().activeSessions[0]).toMatchObject({
-      playthroughId: first,
-      recoveredFromCheckpoint: true,
-    });
-  });
+      expect(
+        useAppStore.getState().activeSessions[0].recoveredFromCheckpoint,
+      ).toBe(true);
+    },
+  );
 });
 
 beforeEach(() => {

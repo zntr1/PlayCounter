@@ -8,6 +8,7 @@ import {
 } from "./store";
 import {
   archivePlaythroughSeconds,
+  defaultPlaythroughTime,
   emptyJournal,
   matchesLibraryFilters,
   playthroughSeconds,
@@ -191,16 +192,14 @@ describe("personal game journals", () => {
   });
 
   it("persists only game identity, never device fields passed by a library card", () => {
-    useAppStore
-      .getState()
-      .updateGameJournal(
-        {
-          ...game,
-          libraryImports: [{ installPath: "C:/Private/Library" }],
-          exePath: "C:/Private/Game.exe",
-        } as typeof game,
-        { note: "Private note" },
-      );
+    useAppStore.getState().updateGameJournal(
+      {
+        ...game,
+        libraryImports: [{ installPath: "C:/Private/Library" }],
+        exePath: "C:/Private/Game.exe",
+      } as typeof game,
+      { note: "Private note" },
+    );
     const saved = createPersistedPayload(useAppStore.getState());
     expect(JSON.stringify(saved.gameJournals)).not.toContain("Private/Library");
     expect(JSON.stringify(saved.gameJournals)).not.toContain("exePath");
@@ -208,6 +207,54 @@ describe("personal game journals", () => {
 });
 
 describe("durable playthrough time", () => {
+  it("keeps default time through the session cap and returns deleted playthrough time to it", () => {
+    const readDefault = () => {
+      const state = useAppStore.getState();
+      return defaultPlaythroughTime(
+        getGameJournal(state, game),
+        state.recentSessions,
+        state.archivedGameSeconds["igdb:42"] ?? 0,
+        state.archivedPlaythroughSeconds,
+      );
+    };
+    useAppStore.setState({
+      recentSessions: Array.from({ length: MAX_STORED_SESSIONS }, (_, i) =>
+        session(i + 1),
+      ),
+    });
+    const initialSeconds = MAX_STORED_SESSIONS * 90;
+    expect(readDefault().seconds).toBe(initialSeconds);
+    const replay = useAppStore.getState().createPlaythrough(game, "Replay")!;
+    expect(readDefault().seconds).toBe(initialSeconds);
+    useAppStore.getState().addSession(session(MAX_STORED_SESSIONS + 1, replay));
+    expect(readDefault()).toEqual({
+      seconds: initialSeconds,
+      archivedSeconds: 90,
+    });
+    useAppStore.setState({
+      archivedSeconds: 590,
+      archivedGameSeconds: { "igdb:42": 590 },
+      archivedPlaythroughSeconds: { [replay]: 500 },
+    });
+    expect(readDefault()).toEqual({
+      seconds: initialSeconds,
+      archivedSeconds: 90,
+    });
+    useAppStore.getState().deletePlaythrough(game, replay);
+    expect(readDefault()).toEqual({
+      seconds: initialSeconds + 590,
+      archivedSeconds: 590,
+    });
+    expect(
+      useAppStore.getState().recentSessions.every((s) => !s.playthroughId),
+    ).toBe(true);
+    const data = createTransferData(
+      createPersistedPayload(useAppStore.getState()),
+    );
+    expect(() => validateBackupData(data, "data")).not.toThrow();
+    expect(data.sessions).toEqual(useAppStore.getState().recentSessions);
+  });
+
   it("keeps totals through the session cap and storage quota fallback", () => {
     const id = useAppStore.getState().createPlaythrough(game, "First run")!;
     const history = Array.from({ length: MAX_STORED_SESSIONS }, (_, i) =>
@@ -258,6 +305,12 @@ describe("durable playthrough time", () => {
 
   it("transfers complete journals in backups and rejects broken references", () => {
     const id = useAppStore.getState().createPlaythrough(game, "First run")!;
+    useAppStore.getState().updateGameJournal(game, { status: "not-planned" });
+    useAppStore.getState().savePersonalShelf({
+      name: "Not planned",
+      pinned: false,
+      filters: { status: "not-planned" },
+    });
     useAppStore
       .getState()
       .updatePlaythrough(game, id, { note: "Northern ruins" });
@@ -272,6 +325,9 @@ describe("durable playthrough time", () => {
     );
     expect(() => validateBackupData(data, "data")).not.toThrow();
     expect(data.gameJournals).toEqual(useAppStore.getState().gameJournals);
+    expect(data.personalShelves).toEqual(
+      useAppStore.getState().personalShelves,
+    );
     expect(() =>
       validateBackupData(
         { ...data, sessions: [session(1, "missing")] },

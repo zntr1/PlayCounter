@@ -124,6 +124,7 @@ import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions, splitStoredSessions } from "./sessionPersistence";
 import {
   journalNote,
+  playthroughName,
   sanitizePlaythroughSeconds,
   type GameJournal,
   type PersonalShelf,
@@ -4743,9 +4744,7 @@ function sessionJournalContext(session: ActiveSession) {
   const state = useAppStore.getState();
   const journal = getGameJournal(state, session);
   return {
-    playthroughName: journal.playthroughs.find(
-      (p) => p.id === session.playthroughId,
-    )?.name,
+    playthroughName: playthroughName(journal, session.playthroughId ?? null),
     note:
       state.settings.overlayGameNotes === true
         ? journalNote(journal, session.playthroughId ?? null).slice(0, 180)

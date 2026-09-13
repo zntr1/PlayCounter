@@ -22,7 +22,11 @@ import {
 import { Button } from "../primitives";
 import { SessionPlaythroughSelect } from "../GameJournalDialog";
 import { useGameJournal } from "../useGameJournal";
-import { journalNote, playthroughSeconds } from "../../personalLibrary";
+import {
+  defaultPlaythroughTime,
+  journalNote,
+  playthroughSeconds,
+} from "../../personalLibrary";
 
 type ActiveGameHeroProps = {
   session: ActiveSession;
@@ -201,19 +205,24 @@ export function ActiveGameHero({
           </h2>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <SessionPlaythroughSelect session={session} />
-            {playthrough ? (
-              <span className="text-xs text-text-muted">
-                {formatDuration(
-                  playthroughSeconds(
-                    playthrough.id,
-                    recentSessions,
-                    archivedPlaythroughSeconds,
-                  ) + elapsedSeconds,
-                  showDurationDays,
-                )}{" "}
-                this playthrough
-              </span>
-            ) : null}
+            <span className="text-xs text-text-muted">
+              {formatDuration(
+                (playthrough
+                  ? playthroughSeconds(
+                      playthrough.id,
+                      recentSessions,
+                      archivedPlaythroughSeconds,
+                    )
+                  : defaultPlaythroughTime(
+                      journal,
+                      priorSessions,
+                      archivedSeconds,
+                      archivedPlaythroughSeconds,
+                    ).seconds) + elapsedSeconds,
+                showDurationDays,
+              )}{" "}
+              this playthrough
+            </span>
             <Button
               variant="ghost"
               icon={BookOpen}
