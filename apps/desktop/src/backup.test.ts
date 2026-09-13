@@ -303,6 +303,7 @@ describe("backup import", () => {
       { settings: { pollingIntervalSeconds: -5 } },
     ],
     ["exeCache[0].exeName", { exeCache: [{ ...validEntry, exeName: 42 }] }],
+    ["exeCache[0].exeName", { exeCache: [{ ...validEntry, exeName: "" }] }],
     [
       "exeCache[0].pendingCommunityGame",
       { exeCache: [{ ...validEntry, pendingCommunityGame: [] }] },
@@ -331,6 +332,12 @@ describe("backup import", () => {
       "sessions[0].durationSeconds",
       { sessions: [{ ...validSession, durationSeconds: "60" }] },
     ],
+    ...[undefined, null, 42].map(
+      (exeName): [string, Record<string, unknown>] => [
+        "sessions[0].exeName",
+        { sessions: [{ ...validSession, exeName }] },
+      ],
+    ),
     ["sessions[0].gameName", { sessions: [{ ...validSession, gameName: {} }] }],
     ["sessions[0].emulator", { sessions: [{ ...validSession, emulator: [] }] }],
     [
@@ -366,6 +373,53 @@ describe("backup import", () => {
         "read_text_file",
       ]);
       expect(reloadMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([1, 2])(
+    "imports and hydrates version %s emulator and manual sessions without executable names",
+    async (version) => {
+      const values = installLocalStorage(null);
+      const sessions = [
+        {
+          ...validSession,
+          exeName: "",
+          emulator: {
+            emulatorId: "dolphin",
+            label: "Dolphin",
+            contentKey: "dolphin:title_id:game01",
+            display: "Game",
+            trust: "recognized",
+          },
+        },
+        {
+          ...validSession,
+          id: 2,
+          exeName: "",
+          emulator: {
+            emulatorId: "dosbox",
+            label: "DOSBox",
+            contentKey: "dosbox:program:game",
+            display: "Game",
+            trust: "recognized",
+          },
+        },
+        { ...validSession, id: 3, exeName: "", origin: "manual" },
+      ];
+      openMock.mockResolvedValue("backup.json");
+      invokeMock.mockResolvedValue(backup({ sessions }, version));
+
+      await expect(importLocalData()).resolves.toMatchObject({
+        imported: true,
+        sessions: sessions.length,
+      });
+      expect(JSON.parse(values.get(STORAGE_KEY) ?? "{}").sessions).toEqual(
+        sessions,
+      );
+      useAppStore.setState(useAppStore.getInitialState(), true);
+      expect(() => hydrate()).not.toThrow();
+      expect(useAppStore.getState().recentSessions).toEqual(sessions);
+      expect(reloadMock).toHaveBeenCalledOnce();
     },
   );
 

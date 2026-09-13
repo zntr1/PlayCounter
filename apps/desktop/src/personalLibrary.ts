@@ -3,12 +3,14 @@ import type { Session } from "@playcounter/shared";
 
 export const NOTE_LIMIT = 4000;
 export const NAME_LIMIT = 80;
+export const DEFAULT_PLAYTHROUGH_NAME = "Default playthrough";
 export const GAME_STATUSES = {
   playing: "Playing",
   "on-hold": "On hold",
   finished: "Finished",
   "want-to-play": "Want to play",
   "want-to-replay": "Want to replay",
+  "not-planned": "Not planned",
 } as const;
 export type GameStatus = keyof typeof GAME_STATUSES;
 export type Playthrough = {
@@ -24,6 +26,7 @@ export type GameJournal = {
   favorite: boolean;
   status: GameStatus | null;
   shelfIds: string[];
+  /** Null selects the built-in default playthrough. */
   activePlaythroughId: string | null;
   playthroughs: Playthrough[];
 };
@@ -211,6 +214,48 @@ export function playthroughSeconds(
       0,
     )
   );
+}
+
+export function playthroughName(
+  journal: GameJournal,
+  id: string | null = journal.activePlaythroughId,
+) {
+  return (
+    journal.playthroughs.find((p) => p.id === id)?.name ??
+    DEFAULT_PLAYTHROUGH_NAME
+  );
+}
+
+/** Sessions without a named assignment belong to this game's default playthrough.
+ *  The caller must scope sessions and the game archive to this game. Provider
+ *  lifetime totals and game-wide adjustments cannot be attributed to a run. */
+export function defaultPlaythroughTime(
+  journal: GameJournal,
+  sessions: readonly Session[],
+  gameArchivedSeconds: number,
+  archived: Record<string, number>,
+) {
+  const archivedSeconds = Math.max(
+    0,
+    gameArchivedSeconds -
+      journal.playthroughs.reduce(
+        (sum, p) => sum + Math.max(0, archived[p.id] ?? 0),
+        0,
+      ),
+  );
+  return {
+    archivedSeconds,
+    seconds:
+      archivedSeconds +
+      sessions.reduce(
+        (sum, session) =>
+          sum +
+          (!session.playthroughId
+            ? Math.max(0, session.durationSeconds ?? 0)
+            : 0),
+        0,
+      ),
+  };
 }
 
 export function journalNote(

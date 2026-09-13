@@ -406,7 +406,8 @@ export interface GameDetailsResponse {
 
 export interface Session {
   id: number;
-  /** Local organization only; never included in tracking API payloads. */
+  /** Local organization only; absent for the game's default playthrough.
+   *  Never included in tracking API payloads. */
   playthroughId?: string;
   gameId: number;
   igdbId?: number;

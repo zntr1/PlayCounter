@@ -40,6 +40,56 @@ async function click(text: string) {
   await act(() => button!.click());
 }
 
+it("offers a default playthrough for an existing game and keeps its history when starting another", async () => {
+  const oldSession = {
+    ...game,
+    id: 1,
+    exeName: "game.exe",
+    startedAt: "2026-09-13T10:00:00Z",
+    endedAt: "2026-09-13T11:00:00Z",
+    durationSeconds: 3600,
+  };
+  useAppStore.setState({
+    gameJournals: {},
+    recentSessions: [oldSession, { ...oldSession, id: 2, gameId: -2 }],
+    archivedGameSeconds: { "custom:-1": 900, "custom:-2": 9000 },
+  });
+  useAppStore.getState().openGameJournal({ game, tab: "playthroughs" });
+  await act(() => root.render(<GameJournalHost />));
+  const selector = document.querySelector<HTMLSelectElement>(
+    '[aria-label="Journal playthrough"]',
+  )!;
+  expect(selector.selectedOptions[0].textContent).toBe(
+    "Default playthrough · Active",
+  );
+  expect(document.body.textContent).toContain("1h 15m");
+  expect(document.body.textContent).toContain("Recorded sessions · 1");
+  expect(document.body.textContent).not.toContain("Unassigned");
+  const name = document.querySelector<HTMLInputElement>(
+    '[aria-label="New playthrough name"]',
+  )!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(name, "Replay");
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await click("Create");
+  expect(selector.selectedOptions[0].textContent).toBe("Replay · Active");
+  expect(document.body.textContent).toContain("Recorded sessions · 0");
+  expect(useAppStore.getState().recentSessions[0]).toEqual(oldSession);
+  await click("Use default");
+  expect(selector.selectedOptions[0].textContent).toBe(
+    "Default playthrough · Active",
+  );
+  expect(document.body.textContent).toContain("1h 15m");
+  expect(
+    getGameJournal(useAppStore.getState(), game).activePlaythroughId,
+  ).toBeNull();
+  expect(useAppStore.getState().recentSessions[0]).toEqual(oldSession);
+});
+
 it("edits the session's note and switches scopes without copying text into another note", async () => {
   useAppStore
     .getState()
