@@ -43,6 +43,7 @@ import {
 import { emulatorAssetUrls } from "../emulators/assets";
 import { BackToTopButton } from "./BackToTopButton";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
@@ -824,6 +825,7 @@ export function App() {
       ) : null}
       <ToastViewport />
       <WelcomePrompt />
+      <GameJournalHost />
       <TourOverlay />
     </main>
   );

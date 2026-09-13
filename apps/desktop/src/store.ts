@@ -12,7 +12,7 @@ import type {
   Theme,
 } from "@playcounter/shared";
 import { create } from "zustand";
-import { gameSecondsKey } from "./gameSeconds";
+import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
 import {
   anchorDiscoveredReviewReminder,
   DISCOVERED_REVIEW_REMINDER_ID,
@@ -64,6 +64,18 @@ import type { LibraryTabId } from "./ui/libraryTabs";
 import type { MyGamesCardSize } from "./ui/myGamesPresentation";
 import { DEFAULT_LIBRARY_STAT_CARD_IDS } from "./ui/myGamesStats";
 import type { MyGamesSortKey } from "./ui/myGamesSort";
+import {
+  archivePlaythroughSeconds,
+  NAME_LIMIT,
+  NOTE_LIMIT,
+  readJournal,
+  rekeyJournal,
+  writeJournal,
+  type GameJournal,
+  type JournalTarget,
+  type PersonalShelf,
+  type Playthrough,
+} from "./personalLibrary";
 
 export type ViewId =
   | "now"
@@ -93,6 +105,7 @@ export type ProcessSnapshot = {
 
 export type ActiveSession = {
   id: number;
+  playthroughId?: string;
   gameId: number;
   igdbId?: number;
   gameName: string;
@@ -317,6 +330,7 @@ export type DesktopOverlaySettingKey =
   | "desktopOverlaysEnabled"
   | "overlayFirstDetections"
   | "overlaySessionStarts"
+  | "overlayGameNotes"
   | "overlaySessionSummaries"
   | "overlayMilestones"
   | "overlayActionRequired"
@@ -330,6 +344,30 @@ export type ActiveTour = {
 };
 
 export type AppState = {
+  gameJournals: Record<string, GameJournal>;
+  personalShelves: PersonalShelf[];
+  archivedPlaythroughSeconds: Record<string, number>;
+  journalTarget: JournalTarget | null;
+  openGameJournal: (target: JournalTarget | null) => void;
+  updateGameJournal: (
+    game: GameIdentityRef,
+    patch: Partial<
+      Pick<GameJournal, "note" | "favorite" | "status" | "shelfIds">
+    >,
+  ) => void;
+  createPlaythrough: (game: GameIdentityRef, name: string) => string | null;
+  updatePlaythrough: (
+    game: GameIdentityRef,
+    id: string,
+    patch: Partial<Pick<Playthrough, "name" | "note" | "completedAt">>,
+  ) => void;
+  setActivePlaythrough: (game: GameIdentityRef, id: string | null) => void;
+  deletePlaythrough: (game: GameIdentityRef, id: string) => void;
+  assignSessionPlaythrough: (sessionId: number, id: string | null) => boolean;
+  savePersonalShelf: (
+    shelf: Omit<PersonalShelf, "id"> & { id?: string },
+  ) => string | null;
+  deletePersonalShelf: (id: string) => void;
   activeView: ViewId;
   libraryTab: LibraryTabId;
   libraryImportProvider: BuiltinImportProviderId;
@@ -562,6 +600,7 @@ const defaultSettings: Settings = {
   overlayMonitor: "primary",
   overlayFirstDetections: true,
   overlaySessionStarts: true,
+  overlayGameNotes: false,
   overlaySessionSummaries: true,
   overlayMilestones: true,
   overlayActionRequired: true,
@@ -578,6 +617,7 @@ function addSessionsToArchive(
   archivedSeconds: number,
   currentGameSeconds: Record<string, number>,
   sessions: Session[],
+  currentPlaythroughSeconds: Record<string, number> = {},
 ) {
   const archivedGameSeconds = { ...currentGameSeconds };
   for (const session of sessions) {
@@ -586,15 +626,28 @@ function addSessionsToArchive(
     const key = gameSecondsKey(session);
     archivedGameSeconds[key] = (archivedGameSeconds[key] ?? 0) + seconds;
   }
-  return { archivedSeconds, archivedGameSeconds };
+  return {
+    archivedSeconds,
+    archivedGameSeconds,
+    archivedPlaythroughSeconds: archivePlaythroughSeconds(
+      currentPlaythroughSeconds,
+      sessions,
+    ),
+  };
 }
 
 export function foldSessionsIntoArchive(
   archivedSeconds: number,
   archivedGameSeconds: Record<string, number>,
   sessions: Session[],
+  archivedPlaythroughSeconds: Record<string, number> = {},
 ) {
-  return addSessionsToArchive(archivedSeconds, archivedGameSeconds, sessions);
+  return addSessionsToArchive(
+    archivedSeconds,
+    archivedGameSeconds,
+    sessions,
+    archivedPlaythroughSeconds,
+  );
 }
 
 function persistSoon() {
@@ -607,6 +660,7 @@ function persistSoon() {
         notifications: result.notifications,
         archivedSeconds: result.archivedSeconds,
         archivedGameSeconds: result.archivedGameSeconds,
+        archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
       });
     }
     if (result.status === "trimmed") {
@@ -634,6 +688,195 @@ function persistSoon() {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  gameJournals: {},
+  personalShelves: [],
+  archivedPlaythroughSeconds: {},
+  journalTarget: null,
+  openGameJournal: (journalTarget) => set({ journalTarget }),
+  updateGameJournal: (game, patch) => {
+    const state = get();
+    const journal = getGameJournal(state, game);
+    set({
+      gameJournals: writeJournal(
+        state.gameJournals,
+        {
+          ...journal,
+          ...patch,
+          note:
+            patch.note === undefined
+              ? journal.note
+              : patch.note
+                  .slice(0, Math.max(NOTE_LIMIT, journal.note.length))
+                  .trim(),
+          shelfIds:
+            patch.shelfIds === undefined
+              ? journal.shelfIds
+              : [...new Set(patch.shelfIds)].filter((id) =>
+                  state.personalShelves.some((s) => s.id === id && !s.filters),
+                ),
+        },
+        personalGameIdentity(state),
+      ),
+    });
+    persistSoon();
+  },
+  createPlaythrough: (game, name) => {
+    const normalized = name.trim().slice(0, NAME_LIMIT);
+    if (!normalized) return null;
+    const state = get();
+    const journal = getGameJournal(state, game);
+    const id = crypto.randomUUID();
+    const playthrough = {
+      id,
+      name: normalized,
+      note: "",
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+    };
+    set({
+      gameJournals: writeJournal(
+        state.gameJournals,
+        {
+          ...journal,
+          playthroughs: [...journal.playthroughs, playthrough],
+          activePlaythroughId: id,
+        },
+        personalGameIdentity(state),
+      ),
+    });
+    persistSoon();
+    return id;
+  },
+  updatePlaythrough: (game, id, patch) => {
+    const state = get();
+    const journal = getGameJournal(state, game);
+    if (!journal.playthroughs.some((p) => p.id === id)) return;
+    if (patch.completedAt && !Number.isFinite(Date.parse(patch.completedAt)))
+      return;
+    const name = patch.name?.trim().slice(0, NAME_LIMIT);
+    if (patch.name !== undefined && !name) return;
+    set({
+      gameJournals: writeJournal(
+        state.gameJournals,
+        {
+          ...journal,
+          activePlaythroughId:
+            patch.completedAt && journal.activePlaythroughId === id
+              ? null
+              : journal.activePlaythroughId,
+          playthroughs: journal.playthroughs.map((p) =>
+            p.id === id
+              ? {
+                  ...p,
+                  ...patch,
+                  name: name ?? p.name,
+                  note:
+                    patch.note === undefined
+                      ? p.note
+                      : patch.note.slice(0, NOTE_LIMIT).trim(),
+                }
+              : p,
+          ),
+        },
+        personalGameIdentity(state),
+      ),
+    });
+    persistSoon();
+  },
+  setActivePlaythrough: (game, id) => {
+    const state = get();
+    const journal = getGameJournal(state, game);
+    if (
+      id !== null &&
+      !journal.playthroughs.some((p) => p.id === id && !p.completedAt)
+    )
+      return;
+    set({
+      gameJournals: writeJournal(
+        state.gameJournals,
+        { ...journal, activePlaythroughId: id },
+        personalGameIdentity(state),
+      ),
+    });
+    persistSoon();
+  },
+  deletePlaythrough: (game, id) => {
+    const state = get();
+    const journal = getGameJournal(state, game);
+    if (!journal.playthroughs.some((p) => p.id === id)) return;
+    const archivedPlaythroughSeconds = { ...state.archivedPlaythroughSeconds };
+    delete archivedPlaythroughSeconds[id];
+    const unassign = <T extends { playthroughId?: string }>(session: T): T =>
+      session.playthroughId === id
+        ? { ...session, playthroughId: undefined }
+        : session;
+    set({
+      gameJournals: writeJournal(
+        state.gameJournals,
+        {
+          ...journal,
+          activePlaythroughId:
+            journal.activePlaythroughId === id
+              ? null
+              : journal.activePlaythroughId,
+          playthroughs: journal.playthroughs.filter((p) => p.id !== id),
+        },
+        personalGameIdentity(state),
+      ),
+      archivedPlaythroughSeconds,
+      recentSessions: state.recentSessions.map(unassign),
+      activeSessions: state.activeSessions.map(unassign),
+    });
+    persistSoon();
+  },
+  assignSessionPlaythrough: (sessionId, id) => {
+    const state = get();
+    const session =
+      state.activeSessions.find((s) => s.id === sessionId) ??
+      state.recentSessions.find((s) => s.id === sessionId);
+    if (
+      !session ||
+      (id !== null &&
+        !getGameJournal(state, session).playthroughs.some((p) => p.id === id))
+    )
+      return false;
+    const assign = <T extends { id: number; playthroughId?: string }>(
+      s: T,
+    ): T => (s.id === sessionId ? { ...s, playthroughId: id ?? undefined } : s);
+    set({
+      activeSessions: state.activeSessions.map(assign),
+      recentSessions: state.recentSessions.map(assign),
+    });
+    persistSoon();
+    return true;
+  },
+  savePersonalShelf: (shelf) => {
+    const name = shelf.name.trim().slice(0, NAME_LIMIT);
+    if (!name) return null;
+    const id = shelf.id ?? crypto.randomUUID();
+    const state = get();
+    const next = { ...shelf, id, name };
+    set({
+      personalShelves: state.personalShelves.some((s) => s.id === id)
+        ? state.personalShelves.map((s) => (s.id === id ? next : s))
+        : [...state.personalShelves, next],
+    });
+    persistSoon();
+    return id;
+  },
+  deletePersonalShelf: (id) => {
+    const state = get();
+    set({
+      personalShelves: state.personalShelves.filter((s) => s.id !== id),
+      gameJournals: Object.fromEntries(
+        Object.entries(state.gameJournals).map(([key, journal]) => [
+          key,
+          { ...journal, shelfIds: journal.shelfIds.filter((s) => s !== id) },
+        ]),
+      ),
+    });
+    persistSoon();
+  },
   activeView: "now",
   libraryTab: "all",
   libraryImportProvider: DEFAULT_IMPORT_PROVIDER,
@@ -901,6 +1144,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         state.archivedSeconds,
         state.archivedGameSeconds,
         removed,
+        state.archivedPlaythroughSeconds,
       );
       return { recentSessions: kept, ...archive };
     }),
@@ -1367,7 +1611,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
       move(archivedGameSeconds);
       move(playtimeAdjustments);
-      return { archivedGameSeconds, playtimeAdjustments };
+      return {
+        archivedGameSeconds,
+        playtimeAdjustments,
+        gameJournals: rekeyJournal(state.gameJournals, from, to),
+      };
     }),
   setPlaytimeAdjustment: (key, seconds, clearKeys = []) =>
     set((state) => {
@@ -1383,6 +1631,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => {
       const archivedGameSeconds = { ...state.archivedGameSeconds };
       const playtimeAdjustments = { ...state.playtimeAdjustments };
+      const archivedPlaythroughSeconds = {
+        ...state.archivedPlaythroughSeconds,
+      };
+      const identity = personalGameIdentity(state);
+      const gameKeys = new Set(
+        keys.flatMap((key) => {
+          const ref = gameSecondsRefFromKey(key);
+          return ref ? [identity(ref)] : [];
+        }),
+      );
+      for (const journal of Object.values(state.gameJournals)) {
+        if (gameKeys.has(identity(journal.game)))
+          for (const p of journal.playthroughs)
+            delete archivedPlaythroughSeconds[p.id];
+      }
       let removedArchivedSeconds = 0;
       for (const key of new Set(keys)) {
         removedArchivedSeconds += Math.max(0, archivedGameSeconds[key] ?? 0);
@@ -1396,6 +1659,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         ),
         archivedGameSeconds,
         playtimeAdjustments,
+        archivedPlaythroughSeconds,
       };
     }),
   toggleSectionCollapsed: (sectionId) => {
@@ -1622,6 +1886,56 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 export function gameMetadataKey(game: Pick<GameMetadata, "id" | "source">) {
   return `${game.source}:${game.id}`;
+}
+
+export function personalGameIdentity(
+  state: Pick<AppState, "gameMetadata" | "exeCache" | "libraryImports">,
+) {
+  const resolver = createGameIdentityResolver(
+    state.gameMetadata,
+    state.exeCache,
+    state.libraryImports,
+  );
+  return (game: GameIdentityRef) => resolvedCanonicalGameKey(game, resolver);
+}
+
+export function getGameJournal(
+  state: Pick<
+    AppState,
+    "gameJournals" | "gameMetadata" | "exeCache" | "libraryImports"
+  >,
+  game: GameIdentityRef,
+) {
+  return readJournal(state.gameJournals, game, personalGameIdentity(state));
+}
+
+/** A partial game correction must not leave sessions assigned to another game. */
+export function reconcileSessionPlaythroughs(state: AppState) {
+  const identity = personalGameIdentity(state);
+  const owners = new Map(
+    Object.values(state.gameJournals).flatMap((journal) =>
+      journal.playthroughs.map((p) => [p.id, identity(journal.game)] as const),
+    ),
+  );
+  function reconcile<T extends GameIdentityRef & { playthroughId?: string }>(
+    sessions: T[],
+  ) {
+    let changed = false;
+    const result = sessions.map((session) => {
+      if (
+        !session.playthroughId ||
+        owners.get(session.playthroughId) === identity(session)
+      )
+        return session;
+      changed = true;
+      return { ...session, playthroughId: undefined };
+    });
+    return changed ? result : sessions;
+  }
+  return {
+    activeSessions: reconcile(state.activeSessions),
+    recentSessions: reconcile(state.recentSessions),
+  };
 }
 
 export type GameIdentityRef = {

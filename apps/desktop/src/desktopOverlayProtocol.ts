@@ -7,7 +7,10 @@ export type DesktopOverlayKind =
   | "session-start"
   | "discovery";
 
-export type DesktopOverlayAction = "open-now-playing" | "open-discovered";
+export type DesktopOverlayAction =
+  | "open-now-playing"
+  | "open-discovered"
+  | `open-game-note:${number}`;
 
 export type DesktopOverlayMessage = {
   id: string;

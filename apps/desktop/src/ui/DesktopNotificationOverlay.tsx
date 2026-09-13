@@ -43,7 +43,7 @@ export function DesktopNotificationOverlay({
 
   const celebration =
     message.kind === "first-detection" || message.kind === "milestone";
-  const compact = message.kind === "session-start";
+  const compact = message.kind === "session-start" && !message.body;
   const sessionSummary =
     message.kind === "session-summary" || message.kind === "current-session";
   const phaseClass =
@@ -102,7 +102,13 @@ export function DesktopNotificationOverlay({
             </div>
           ) : null}
         </div>
-        <div className="flex shrink-0 self-center pl-2">
+        <div className="flex shrink-0 flex-col items-end gap-2 self-center pl-2">
+          {sessionSummary && message.metric ? (
+            <div className="desktop-overlay-session-duration">
+              <span>SESSION TIME</span>
+              <strong>{message.metric}</strong>
+            </div>
+          ) : null}
           {message.action && message.actionLabel ? (
             <button
               type="button"
@@ -114,12 +120,7 @@ export function DesktopNotificationOverlay({
             >
               {message.actionLabel}
             </button>
-          ) : sessionSummary && message.metric ? (
-            <div className="desktop-overlay-session-duration">
-              <span>SESSION TIME</span>
-              <strong>{message.metric}</strong>
-            </div>
-          ) : message.metric ? (
+          ) : sessionSummary && message.metric ? null : message.metric ? (
             <span className="desktop-overlay-metric">{message.metric}</span>
           ) : message.status === "live" ? (
             <span className="desktop-overlay-live">

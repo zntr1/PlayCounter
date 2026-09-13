@@ -78,6 +78,8 @@ export type OverlayEvent =
     }
   | {
       type: "session-started";
+      playthroughName?: string;
+      note?: string;
       gameName: string;
       coverUrl?: string;
       firstAutoDetection: boolean;
@@ -85,6 +87,8 @@ export type OverlayEvent =
     }
   | {
       type: "session-ended";
+      sessionId?: number;
+      playthroughName?: string;
       gameName: string;
       coverUrl?: string;
       durationSeconds: number;
@@ -218,17 +222,26 @@ function overlayCopy(
         };
   }
   if (event.type === "session-started") {
+    const context = [
+      event.playthroughName
+        ? `Playthrough: ${event.playthroughName}`
+        : undefined,
+      event.note,
+    ]
+      .filter(Boolean)
+      .join(" · ");
     return kind === "first-detection"
       ? {
           kicker: "NEW GAME DETECTED",
           title: event.gameName,
-          body: "Found automatically. Tracking starts now.",
+          body: context || "Found automatically. Tracking starts now.",
           status: "live",
           coverUrl: event.coverUrl,
         }
       : {
           kicker: "TRACKING STARTED",
           title: event.gameName,
+          body: context || undefined,
           status: "live",
           coverUrl: event.coverUrl,
         };
@@ -250,9 +263,16 @@ function overlayCopy(
     return {
       kicker: "SESSION SAVED",
       title: event.gameName,
-      body: "Added to your playtime.",
+      body: event.playthroughName
+        ? `Saved to ${event.playthroughName}`
+        : "Added to your playtime.",
       metric: formatDuration(event.durationSeconds),
       coverUrl: event.coverUrl,
+      action:
+        event.sessionId === undefined
+          ? undefined
+          : `open-game-note:${event.sessionId}`,
+      actionLabel: event.sessionId === undefined ? undefined : "Update note",
     };
   }
   throw new Error(`Event ${event.type} cannot render ${kind}`);

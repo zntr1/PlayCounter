@@ -73,6 +73,59 @@ function showCalls() {
 }
 
 describe("desktop overlay bridge", () => {
+  it.each([false, true])(
+    "includes notes only when enabled (%s) while retaining playthrough context",
+    async (enabled) => {
+      useAppStore.setState((state) => ({
+        settings: {
+          ...state.settings,
+          desktopOverlaysEnabled: true,
+          overlayGameNotes: enabled,
+        },
+      }));
+      initializeDesktopOverlays();
+      armDesktopOverlays();
+      emitOverlayEvent({
+        type: "session-started",
+        gameName: "Game",
+        firstAutoDetection: true,
+        playthroughName: "Co-op",
+        note: "Northern ruins",
+      });
+      await flush();
+      const payload = (showCalls()[0][1] as { payload: { body: string } })
+        .payload;
+      expect(payload.body).toContain("Co-op");
+      expect(payload.body.includes("Northern ruins")).toBe(enabled);
+    },
+  );
+
+  it("opens the completed session's note rather than the current active playthrough", async () => {
+    const session = {
+      id: 37,
+      gameId: -1,
+      source: "custom" as const,
+      gameName: "Game",
+      exeName: "game.exe",
+      startedAt: new Date(0).toISOString(),
+      endedAt: new Date(600000).toISOString(),
+      durationSeconds: 600,
+      playthroughId: "old-run",
+    };
+    useAppStore.setState({ recentSessions: [session], journalTarget: null });
+    initializeDesktopOverlays();
+    await flush();
+    const callback = listenMock.mock.calls.find(
+      ([event]) => event === "playcounter:overlay-action",
+    )?.[1];
+    callback?.({ payload: "open-game-note:37" } as never);
+    expect(useAppStore.getState().journalTarget).toMatchObject({
+      game: { gameId: -1 },
+      playthroughId: "old-run",
+      tab: "note",
+    });
+  });
+
   it("shows current elapsed time on request with automatic popups disabled", async () => {
     vi.setSystemTime(90_000);
     useAppStore.setState({

@@ -130,6 +130,16 @@ fn sanitize(mut payload: OverlayPayload) -> OverlayPayload {
     payload.cover_url = truncate_optional(payload.cover_url, 2048);
     payload.action = payload.action.and_then(|action| match action.as_str() {
         "open-now-playing" | "open-discovered" => Some(action),
+        _ if action.strip_prefix("open-game-note:").is_some_and(|id| {
+            !id.is_empty()
+                && id.bytes().all(|byte| byte.is_ascii_digit())
+                && id
+                    .parse::<u64>()
+                    .is_ok_and(|number| number <= 9_007_199_254_740_991)
+        }) =>
+        {
+            Some(action)
+        }
         _ => None,
     });
     payload.action_label = if payload.action.is_some() {
@@ -715,6 +725,20 @@ mod tests {
         let invalid = sanitize(payload_with_action(Some("open-settings")));
         assert_eq!(invalid.action, None);
         assert_eq!(invalid.action_label, None);
+    }
+
+    #[test]
+    fn allows_only_numeric_session_note_actions() {
+        let valid = sanitize(payload_with_action(Some("open-game-note:123456")));
+        assert_eq!(valid.action.as_deref(), Some("open-game-note:123456"));
+        for action in [
+            "open-game-note:",
+            "open-game-note:-1",
+            "open-game-note:abc",
+            "open-game-note:9007199254740992",
+        ] {
+            assert!(sanitize(payload_with_action(Some(action))).action.is_none());
+        }
     }
 
     #[test]

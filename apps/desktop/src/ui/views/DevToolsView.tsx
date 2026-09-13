@@ -202,9 +202,9 @@ export function DevToolsView() {
         >
           <p className="text-sm text-text-muted">
             This permanently removes local games, completed and active sessions,
-            archived playtime, executable matches, and emulator game mappings. A
-            game that is currently running can be detected again on the next
-            scan.
+            archived playtime, notes, playthroughs, shelves, executable matches,
+            and emulator game mappings. A game that is currently running can be
+            detected again on the next scan.
           </p>
         </Modal>
       ) : null}

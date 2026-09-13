@@ -118,6 +118,82 @@ function emulatorMapping(
   };
 }
 
+describe("playthrough tracking", () => {
+  it("snapshots the active playthrough and persists an explicit session correction on exit", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-13T10:00:00Z"));
+      const game = { gameId: -1, source: "custom" as const, gameName: "Game" };
+      useAppStore.getState().setExeCacheEntry(entry());
+      const first = useAppStore
+        .getState()
+        .createPlaythrough(game, "First run")!;
+      let running = true;
+      invokeMock.mockImplementation(async (command: string) =>
+        command === "scan_processes"
+          ? running
+            ? [
+                {
+                  exeName: "Game.exe",
+                  exePath: "C:\\Games\\Game.exe",
+                  pid: 9871,
+                },
+              ]
+            : []
+          : undefined,
+      );
+      await scanProcessesNow();
+      const active = useAppStore.getState().activeSessions[0];
+      expect(active.playthroughId).toBe(first);
+      const second = useAppStore.getState().createPlaythrough(game, "Replay")!;
+      expect(useAppStore.getState().activeSessions[0].playthroughId).toBe(
+        first,
+      );
+      useAppStore.getState().assignSessionPlaythrough(active.id, second);
+      vi.setSystemTime(new Date("2026-09-13T10:03:00Z"));
+      running = false;
+      await scanProcessesNow();
+      await scanProcessesNow();
+      expect(useAppStore.getState().recentSessions).toEqual([
+        expect.objectContaining({
+          id: active.id,
+          playthroughId: second,
+          durationSeconds: 180,
+        }),
+      ]);
+      expect(useAppStore.getState().activeSessions).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hydrates the assignment captured before a crash independently of the new active selection", () => {
+    const game = { gameId: -1, source: "custom" as const, gameName: "Game" };
+    const first = useAppStore.getState().createPlaythrough(game, "First run")!;
+    useAppStore.getState().createPlaythrough(game, "Replay");
+    const active = {
+      ...game,
+      id: 7,
+      exeName: "Game.exe",
+      coverUrl: "",
+      playthroughId: first,
+      startedAt: "2026-09-13T10:00:00Z",
+      checkpointedAt: "2026-09-13T10:01:00Z",
+    };
+    vi.mocked(localStorage.getItem).mockReturnValue(
+      JSON.stringify({
+        gameJournals: useAppStore.getState().gameJournals,
+        activeSessions: [active],
+      }),
+    );
+    hydrate();
+    expect(useAppStore.getState().activeSessions[0]).toMatchObject({
+      playthroughId: first,
+      recoveredFromCheckpoint: true,
+    });
+  });
+});
+
 beforeEach(() => {
   vi.stubGlobal("window", globalThis);
   vi.stubGlobal("navigator", {
@@ -143,6 +219,10 @@ beforeEach(() => {
     value: { setItem: vi.fn(), getItem: vi.fn(() => null) },
   });
   useAppStore.setState({
+    gameJournals: {},
+    personalShelves: [],
+    archivedPlaythroughSeconds: {},
+    journalTarget: null,
     exeCache: new Map(),
     libraryImports: new Map(),
     libraryInstalls: new Map(),

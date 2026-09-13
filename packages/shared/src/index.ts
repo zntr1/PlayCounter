@@ -406,6 +406,8 @@ export interface GameDetailsResponse {
 
 export interface Session {
   id: number;
+  /** Local organization only; never included in tracking API payloads. */
+  playthroughId?: string;
   gameId: number;
   igdbId?: number;
   gameName?: string;
@@ -515,6 +517,7 @@ export interface Settings {
   overlayMonitor?: string;
   overlayFirstDetections?: boolean;
   overlaySessionStarts?: boolean;
+  overlayGameNotes?: boolean;
   overlaySessionSummaries?: boolean;
   overlayMilestones?: boolean;
   overlayActionRequired?: boolean;

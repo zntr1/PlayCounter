@@ -1,6 +1,7 @@
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import {
   CalendarDays,
+  BookOpen,
   Clock3,
   ExternalLink,
   FolderOpen,
@@ -299,6 +300,21 @@ export function GameDetailsDialog({
       }
     >
       <div className="grid gap-4">
+        <Button
+          variant="secondary"
+          icon={BookOpen}
+          onClick={() => {
+            onClose();
+            useAppStore
+              .getState()
+              .openGameJournal({
+                game: { ...game, gameName: game.name },
+                tab: "playthroughs",
+              });
+          }}
+        >
+          Notes, playthroughs & shelves
+        </Button>
         <div className="flex flex-wrap gap-5">
           <div className="w-40 shrink-0">
             {game.coverUrl ? (

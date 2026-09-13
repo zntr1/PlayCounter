@@ -1,4 +1,9 @@
 import type { Settings } from "@playcounter/shared";
+import {
+  journalKey,
+  type GameJournal,
+  type PersonalShelf,
+} from "./personalLibrary";
 
 type Validator = (value: unknown, path: string) => void;
 
@@ -124,7 +129,12 @@ const session = object(
     endedAt: nullable(date),
     durationSeconds: nullable(nonnegative),
   },
-  { ...gameFields, origin: oneOf("manual"), emulator: emulatorContext },
+  {
+    ...gameFields,
+    origin: oneOf("manual"),
+    emulator: emulatorContext,
+    playthroughId: nonempty,
+  },
 );
 const exeEntry = object(
   {
@@ -309,6 +319,7 @@ const settings = object({}, {
   overlayMonitor: string,
   overlayFirstDetections: boolean,
   overlaySessionStarts: boolean,
+  overlayGameNotes: boolean,
   overlaySessionSummaries: boolean,
   overlayMilestones: boolean,
   overlayActionRequired: boolean,
@@ -322,13 +333,75 @@ const settings = object({}, {
  * Missing fields remain valid for older backups; present fields must be safe
  * for the tracker and views to consume. This runs before any import side effect.
  */
-export const validateBackupData: Validator = object(
+const validateBackupShape: Validator = object(
   {},
   {
     installUuid: nullable(uuid),
     contributionOwnerUuid: nullable(uuid),
     settings,
     sessions: array(session),
+    gameJournals: dictionary(
+      object({
+        game: object(
+          { gameId: integer },
+          {
+            source: nullable(source),
+            igdbId: positiveId,
+            gameName: string,
+            coverUrl: string,
+          },
+        ),
+        note: string,
+        favorite: boolean,
+        status: nullable(
+          oneOf(
+            "playing",
+            "on-hold",
+            "finished",
+            "want-to-play",
+            "want-to-replay",
+          ),
+        ),
+        shelfIds: array(nonempty),
+        activePlaythroughId: nullable(nonempty),
+        playthroughs: array(
+          object({
+            id: nonempty,
+            name: nonempty,
+            note: string,
+            createdAt: date,
+            completedAt: nullable(date),
+          }),
+        ),
+      }),
+    ),
+    personalShelves: array(
+      object(
+        { id: nonempty, name: nonempty, pinned: boolean },
+        {
+          filters: object(
+            {},
+            {
+              search: string,
+              source: oneOf("all", "steam", "xbox", "unimported"),
+              status: oneOf(
+                "playing",
+                "on-hold",
+                "finished",
+                "want-to-play",
+                "want-to-replay",
+              ),
+              favorite: boolean,
+              installed: boolean,
+              played: oneOf("played", "unplayed"),
+              emulator: oneOf("dosbox", "dolphin", "pcsx2"),
+              lastPlayedDays: positiveId,
+            },
+          ),
+        },
+      ),
+    ),
+    archivedPlaythroughSeconds: dictionary(nonnegative),
     exeCache: array(exeEntry),
     gameMetadata: array(game),
     libraryImports: array(libraryImport),
@@ -361,3 +434,51 @@ export const validateBackupData: Validator = object(
     }),
   },
 );
+
+export const validateBackupData: Validator = (value, path) => {
+  validateBackupShape(value, path);
+  const data = record(value, path);
+  const journals = (data.gameJournals ?? {}) as Record<string, GameJournal>;
+  const shelves = (data.personalShelves ?? []) as PersonalShelf[];
+  const shelfIds = new Set<string>();
+  for (const shelf of shelves) {
+    if (shelfIds.has(shelf.id))
+      invalid(`${path}.personalShelves (duplicate id)`);
+    shelfIds.add(shelf.id);
+  }
+  const playthroughIds = new Set<string>();
+  for (const [key, journal] of Object.entries(journals)) {
+    if (journalKey(journal.game) !== key)
+      invalid(`${path}.gameJournals.${key}.game`);
+    for (const playthrough of journal.playthroughs) {
+      if (playthroughIds.has(playthrough.id))
+        invalid(`${path}.gameJournals.${key}.playthroughs (duplicate id)`);
+      playthroughIds.add(playthrough.id);
+    }
+    if (
+      journal.activePlaythroughId &&
+      !journal.playthroughs.some(
+        (p) => p.id === journal.activePlaythroughId && !p.completedAt,
+      )
+    )
+      invalid(`${path}.gameJournals.${key}.activePlaythroughId`);
+    if (
+      journal.shelfIds.some(
+        (id) => !shelves.some((s) => s.id === id && !s.filters),
+      )
+    )
+      invalid(`${path}.gameJournals.${key}.shelfIds`);
+  }
+  for (const [index, session] of (
+    (data.sessions ?? []) as Array<{ playthroughId?: string }>
+  ).entries()) {
+    if (session.playthroughId && !playthroughIds.has(session.playthroughId))
+      invalid(`${path}.sessions[${index}].playthroughId`);
+  }
+  for (const id of Object.keys(
+    (data.archivedPlaythroughSeconds ?? {}) as object,
+  )) {
+    if (!playthroughIds.has(id))
+      invalid(`${path}.archivedPlaythroughSeconds.${id}`);
+  }
+};
