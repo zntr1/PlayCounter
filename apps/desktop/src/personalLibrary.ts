@@ -43,7 +43,6 @@ export type LibraryFilters = {
 export type PersonalShelf = {
   id: string;
   name: string;
-  pinned: boolean;
   /** Absent for a shelf with manually selected games. */
   filters?: LibraryFilters;
 };

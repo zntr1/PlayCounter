@@ -372,7 +372,7 @@ const validateBackupShape: Validator = object(
     ),
     personalShelves: array(
       object(
-        { id: nonempty, name: nonempty, pinned: boolean },
+        { id: nonempty, name: nonempty },
         {
           filters: object(
             {},

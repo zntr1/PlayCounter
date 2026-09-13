@@ -71,9 +71,7 @@ beforeEach(() => {
       ],
     ]),
   });
-  shelf = useAppStore
-    .getState()
-    .savePersonalShelf({ name: "Weekend", pinned: false })!;
+  shelf = useAppStore.getState().savePersonalShelf({ name: "Weekend" })!;
   for (const game of [local, steam]) {
     useAppStore.getState().updateGameJournal(game, {
       favorite: true,
@@ -150,7 +148,6 @@ it("counts favorites and manual shelves across sources, then updates when member
 it("counts status and saved filters independently of their selected source, including search", async () => {
   const saved = useAppStore.getState().savePersonalShelf({
     name: "Not planned imports",
-    pinned: false,
     filters: { status: "not-planned", source: "steam" },
   })!;
   await act(() => root.render(<MyGamesView />));

@@ -1,8 +1,6 @@
 import {
-  BookOpen,
   FolderHeart,
   Pencil,
-  Pin,
   Plus,
   Search,
   SlidersHorizontal,
@@ -26,7 +24,6 @@ import {
   type GameIdentityRef,
 } from "../store";
 import { Button, Input, Modal } from "./primitives";
-import { GameCover } from "./GameCover";
 import { journalSelectClass } from "./GameJournalDialog";
 import type { LibraryTabId } from "./libraryTabs";
 
@@ -96,7 +93,6 @@ export function LibraryOrganizationToolbar({
     null,
   );
   const [name, setName] = useState("");
-  const [pinned, setPinned] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const selected = shelves.find((s) => s.id === selection);
   const count = Object.values(filters).filter(
@@ -114,7 +110,6 @@ export function LibraryOrganizationToolbar({
   function edit(value: typeof editor) {
     setEditor(value);
     setName(typeof value === "object" && value ? value.name : "");
-    setPinned(typeof value === "object" && value ? value.pinned : false);
     setConfirmDelete(false);
   }
   function setFilter(key: keyof LibraryFilters, value: unknown) {
@@ -326,7 +321,6 @@ export function LibraryOrganizationToolbar({
                 const id = save({
                   id: typeof editor === "object" ? editor.id : undefined,
                   name,
-                  pinned,
                   filters:
                     editor === "filter"
                       ? {
@@ -360,16 +354,6 @@ export function LibraryOrganizationToolbar({
               }
               onChange={(e) => setName(e.target.value)}
             />
-            <label className="flex items-center gap-2 text-sm text-text">
-              <input
-                type="checkbox"
-                checked={pinned}
-                className="h-4 w-4 accent-accent"
-                onChange={(e) => setPinned(e.target.checked)}
-              />
-              <Pin size={14} />
-              Pin above the library
-            </label>
             {editor === "filter" ? (
               <p className="text-sm text-text-muted">
                 Saves these filters, the search, and the selected import source.
@@ -422,99 +406,5 @@ export function LibraryOrganizationToolbar({
         </Modal>
       ) : null}
     </div>
-  );
-}
-
-export function PinnedLibraryShelves({
-  games,
-  onSelect,
-  journalFor,
-}: {
-  games: OrganizedGame[];
-  onSelect: (id: string) => void;
-  journalFor: (game: GameIdentityRef) => GameJournal;
-}) {
-  const shelves = useAppStore((s) => s.personalShelves);
-  const open = useAppStore((s) => s.openGameJournal);
-  const save = useAppStore((s) => s.savePersonalShelf);
-  return (
-    <>
-      {shelves
-        .filter((s) => s.pinned)
-        .map((shelf) => {
-          const members = games.filter((game) =>
-            matchesShelf(game, journalFor(game), shelf.id, shelves),
-          );
-          return (
-            <section
-              key={shelf.id}
-              className="min-w-0 rounded-xl border border-border bg-surface p-4"
-            >
-              <header className="mb-3 flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  className="flex min-w-0 items-center gap-2 text-sm font-semibold text-text hover:text-accent"
-                  onClick={() => onSelect(shelf.id)}
-                >
-                  <Pin size={14} className="shrink-0 text-accent" />
-                  <span className="truncate">{shelf.name}</span>
-                  <span className="font-mono text-xs text-text-faint">
-                    {members.length}
-                  </span>
-                </button>
-                <div className="flex gap-1">
-                  <Button variant="ghost" onClick={() => onSelect(shelf.id)}>
-                    View all
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    icon={Pin}
-                    aria-label={`Unpin ${shelf.name}`}
-                    onClick={() => save({ ...shelf, pinned: false })}
-                  />
-                </div>
-              </header>
-              <div className="flex gap-3 overflow-x-auto pb-1">
-                {members.slice(0, 8).map((game) => (
-                  <button
-                    key={`${game.source}:${game.gameId}`}
-                    type="button"
-                    className="group flex w-36 shrink-0 items-center gap-2 rounded-lg p-1 text-left transition hover:bg-surface-hover"
-                    title={`Open ${game.name}`}
-                    onClick={() =>
-                      open({
-                        game: { ...game, gameName: game.name },
-                        tab: "playthroughs",
-                      })
-                    }
-                  >
-                    {game.coverUrl ? (
-                      <GameCover
-                        src={game.coverUrl}
-                        alt=""
-                        className="h-14 w-10 shrink-0 rounded object-cover"
-                      />
-                    ) : (
-                      <div className="grid h-14 w-10 shrink-0 place-items-center rounded bg-bg text-text-faint">
-                        <BookOpen size={16} />
-                      </div>
-                    )}
-                    <span className="line-clamp-2 text-xs font-medium text-text group-hover:text-accent">
-                      {game.name}
-                    </span>
-                  </button>
-                ))}
-                {!members.length ? (
-                  <p className="py-2 text-xs text-text-muted">
-                    {shelf.filters
-                      ? "No games match this saved filter yet."
-                      : "Right-click a game and choose Shelves & status to add it here."}
-                  </p>
-                ) : null}
-              </div>
-            </section>
-          );
-        })}
-    </>
   );
 }

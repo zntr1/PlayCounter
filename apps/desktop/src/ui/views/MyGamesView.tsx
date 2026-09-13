@@ -154,7 +154,6 @@ import { useGameJournal } from "../useGameJournal";
 import { journalSelectClass } from "../GameJournalDialog";
 import {
   LibraryOrganizationToolbar,
-  PinnedLibraryShelves,
   matchesShelf,
   useLibraryJournalLookup,
 } from "../LibraryOrganization";
@@ -1884,15 +1883,6 @@ export function MyGamesView() {
             </div>
           </Panel>
 
-          {shelfSelection === "all" &&
-          !query &&
-          Object.keys(libraryFilters).length === 0 ? (
-            <PinnedLibraryShelves
-              games={games}
-              journalFor={journalFor}
-              onSelect={selectShelf}
-            />
-          ) : null}
           <div
             id="library-tabpanel"
             role={layout.showTabs ? "tabpanel" : undefined}
