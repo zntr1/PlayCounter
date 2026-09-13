@@ -108,6 +108,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     state.archivedSeconds,
     state.archivedGameSeconds,
     split.removed,
+    state.archivedPlaythroughSeconds,
   );
   const milestoneResult = evaluateMilestones({
     sessions: split.kept,
@@ -139,6 +140,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     recentSessions: split.kept,
     archivedSeconds: archive.archivedSeconds,
     archivedGameSeconds: archive.archivedGameSeconds,
+    archivedPlaythroughSeconds: archive.archivedPlaythroughSeconds,
   };
   const result = persistAppState(candidate);
   if (result.status === "failed") throw result.error;
@@ -154,6 +156,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     notifications: result.notifications,
     archivedSeconds: result.archivedSeconds,
     archivedGameSeconds: result.archivedGameSeconds,
+    archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
   });
   return result;
 }

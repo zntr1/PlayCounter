@@ -149,6 +149,19 @@ import {
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
 import { GameCover } from "../GameCover";
+import { GameJournalMenu, GameNoteBadge } from "../GameJournalActions";
+import { useGameJournal } from "../useGameJournal";
+import { journalSelectClass } from "../GameJournalDialog";
+import {
+  LibraryOrganizationToolbar,
+  PinnedLibraryShelves,
+  matchesShelf,
+  useLibraryJournalLookup,
+} from "../LibraryOrganization";
+import {
+  matchesLibraryFilters,
+  type LibraryFilters,
+} from "../../personalLibrary";
 import { CancelCommunitySuggestionDialog } from "../CancelCommunitySuggestionDialog";
 import type {
   ContributionStatus,
@@ -257,6 +270,7 @@ type GameSummary = {
   sessionCount: number;
   historyGameKey: string | null;
   lastPlayedAt: string;
+  hasLastPlayedEvidence?: boolean;
   activeStartedAt?: string;
   exeNames: string[];
   emulatorLabels: string[];
@@ -502,6 +516,10 @@ function activeDurationSeconds(activeSession: ActiveSession) {
 }
 
 export function MyGamesView() {
+  const [shelfSelection, setShelfSelection] = useState("all");
+  const [libraryFilters, setLibraryFilters] = useState<LibraryFilters>({});
+  const personalShelves = useAppStore((s) => s.personalShelves);
+  const journalFor = useLibraryJournalLookup();
   const tourDemo = useTourDemo();
   const [demoPlaytime, setDemoPlaytime] = useState({
     addedSeconds: 0,
@@ -511,6 +529,16 @@ export function MyGamesView() {
   const [pendingStopTracking, setPendingStopTracking] =
     useState<PendingStopTracking>(null);
   const [query, setQuery] = useState("");
+  const selectShelf = useCallback((id: string) => {
+    setShelfSelection(id);
+    const saved = useAppStore
+      .getState()
+      .personalShelves.find((s) => s.id === id)?.filters;
+    const { source = "all", search = "", ...filters } = saved ?? {};
+    setLibraryFilters(filters);
+    setQuery(search);
+    useAppStore.getState().setLibraryTab(source);
+  }, []);
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
   const launchLockRef = useRef<string | null>(null);
@@ -1194,6 +1222,7 @@ export function MyGamesView() {
       summary.recordedSeconds =
         summary.sessionSeconds + summary.archivedSeconds;
       const summaryKey = providerFloorKey(summary);
+      summary.hasLastPlayedEvidence = summariesWithPlayEvidence.has(summaryKey);
       summary.providerFloorSeconds = providerFloorSeconds[summaryKey] ?? 0;
       summary.totalSeconds = effectiveTotalSeconds(
         summary.recordedSeconds,
@@ -1281,7 +1310,7 @@ export function MyGamesView() {
   )
     ? activeProviderConfig
     : undefined;
-  const tabGames = useMemo(() => {
+  const sourceGames = useMemo(() => {
     if (activeLibraryTab === "all") return games;
     if (activeLibraryTab === "unimported") return unimportedGames;
     return (
@@ -1289,6 +1318,28 @@ export function MyGamesView() {
         ?.games ?? []
     );
   }, [activeLibraryTab, games, providerTabGames, unimportedGames]);
+  const tabGames = useMemo(
+    () =>
+      sourceGames.filter((game) => {
+        const journal = journalFor({ ...game, gameName: game.name });
+        const savedFilterSelected = personalShelves.some(
+          (s) => s.id === shelfSelection && s.filters,
+        );
+        return (
+          (savedFilterSelected ||
+            matchesShelf(game, journal, shelfSelection, personalShelves)) &&
+          matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
+        );
+      }),
+    [
+      sourceGames,
+      journalFor,
+      shelfSelection,
+      personalShelves,
+      libraryFilters,
+      recentSortNow,
+    ],
+  );
   const activeTabKind = activeTabDescriptor?.kind ?? "all";
   const statTabLabel =
     activeProviderConfig?.label ??
@@ -1353,11 +1404,11 @@ export function MyGamesView() {
     libraryGameCount: allLibraryGames.length,
     tabs,
     requestedTab: libraryTab,
-    activeTabGameCount: libraryGames.length,
+    activeTabGameCount: sourceGames.length + demoForTab.length,
     visibleGameCount: visibleGames.length,
     importSupported: importableProviderTabs(platform).length > 0,
   });
-  const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}`;
+  const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}`;
   const [renderWindow, setRenderWindow] = useState(() => ({
     key: renderWindowKey,
     limit: INITIAL_LIBRARY_RENDER_COUNT,
@@ -1719,8 +1770,19 @@ export function MyGamesView() {
               </div>
             ) : null}
 
+            <LibraryOrganizationToolbar
+              selection={shelfSelection}
+              onSelect={selectShelf}
+              filters={libraryFilters}
+              onFiltersChange={setLibraryFilters}
+              source={activeLibraryTab}
+              query={query}
+            />
             {layout.showTabs ? (
               <div className="border-b border-border bg-bg px-4 pt-3">
+                <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-faint">
+                  Import source
+                </div>
                 <div
                   role="tablist"
                   aria-label="Game library source"
@@ -1807,6 +1869,15 @@ export function MyGamesView() {
             </div>
           </Panel>
 
+          {shelfSelection === "all" &&
+          !query &&
+          Object.keys(libraryFilters).length === 0 ? (
+            <PinnedLibraryShelves
+              games={games}
+              journalFor={journalFor}
+              onSelect={selectShelf}
+            />
+          ) : null}
           <div
             id="library-tabpanel"
             role={layout.showTabs ? "tabpanel" : undefined}
@@ -1901,7 +1972,11 @@ export function MyGamesView() {
               </Panel>
             ) : layout.panel === "no-search-results" ? (
               <Panel className="px-4 py-12 text-center text-sm text-text-muted">
-                No games match &ldquo;{query}&rdquo;.
+                {query ? (
+                  <>No games match &ldquo;{query}&rdquo;.</>
+                ) : (
+                  "No games match this shelf and these filters yet."
+                )}
               </Panel>
             ) : (
               <>
@@ -2789,7 +2864,11 @@ function GameLibraryCard({
     contextMenu.close();
   };
 
-  const handleAddPlaytime = (durationSeconds: number, endedAt: string) => {
+  const handleAddPlaytime = (
+    durationSeconds: number,
+    endedAt: string,
+    playthroughId?: string,
+  ) => {
     if (demo) {
       setShowAddPlaytime(false);
       onDemoPlaytimeLogged?.(durationSeconds);
@@ -2810,6 +2889,7 @@ function GameLibraryCard({
       exeName: game.exeNames[0] ?? "",
       durationSeconds,
       endedAt,
+      playthroughId,
       communitySuggestionId: game.communitySuggestionId,
       communitySuggestionVerified: game.communitySuggestionVerified,
       communitySuggestionStatus: game.communitySuggestionStatus,
@@ -3354,6 +3434,12 @@ function GameLibraryCard({
         >
           Open Details
         </ContextMenuItem>
+        {!demo ? (
+          <GameJournalMenu
+            game={{ ...game, gameName: game.name }}
+            onClose={contextMenu.close}
+          />
+        ) : null}
         {steamActions.showOpenInLauncher ? (
           <>
             <ContextMenuHeading>Steam</ContextMenuHeading>
@@ -3709,6 +3795,9 @@ function GameLibraryCard({
           />
         ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
+          {!demo ? (
+            <GameNoteBadge game={{ ...game, gameName: game.name }} />
+          ) : null}
           {game.coverUrl ? (
             <GameCover
               src={game.coverUrl}
@@ -4256,6 +4345,9 @@ function GameLibraryCard({
       ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
+          {!demo ? (
+            <GameNoteBadge game={{ ...game, gameName: game.name }} compact />
+          ) : null}
           {game.coverUrl ? (
             <GameCover
               src={game.coverUrl}
@@ -4678,7 +4770,8 @@ function StopTrackingDialog({
         <p className="mt-2 text-sm leading-6 text-text-muted">
           {game.sessionCount} completed{" "}
           {game.sessionCount === 1 ? "session" : "sessions"} can be kept in My
-          History or cleared now.
+          History or cleared now. Clearing here also removes this game's notes,
+          playthroughs, and shelf memberships.
         </p>
       ) : null}
       <div className="mt-4 rounded-xl border border-border bg-bg px-3 py-2 text-xs text-text-faint">
@@ -4726,6 +4819,10 @@ function RemoveGameDialog({
         PlayCounter will detect it again the next time you play, use Ignore game
         if you want it gone for good.
       </p>
+      <p className="mt-2 text-sm leading-6 text-text-muted">
+        Clearing history here also removes this game's notes, playthroughs, and
+        shelf memberships.
+      </p>
     </Modal>
   );
 }
@@ -4749,8 +4846,14 @@ function AddPlaytimeDialog({
   game: GameSummary;
   demo?: boolean;
   onCancel: () => void;
-  onConfirm: (durationSeconds: number, endedAt: string) => void;
+  onConfirm: (
+    durationSeconds: number,
+    endedAt: string,
+    playthroughId?: string,
+  ) => void;
 }) {
+  const journal = useGameJournal({ ...game, gameName: game.name });
+  const [playthroughId, setPlaythroughId] = useState("");
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [dateValue, setDateValue] = useState(() =>
@@ -4766,7 +4869,11 @@ function AddPlaytimeDialog({
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onConfirm(durationSeconds, parsedDate.toISOString());
+    onConfirm(
+      durationSeconds,
+      parsedDate.toISOString(),
+      playthroughId || undefined,
+    );
   };
 
   return (
@@ -4813,6 +4920,24 @@ function AddPlaytimeDialog({
       </div>
 
       <div className="mt-5 rounded-xl border border-border bg-bg/60 p-4">
+        {!demo && journal.playthroughs.length ? (
+          <label className="mb-4 grid gap-2 text-sm text-text-muted">
+            Playthrough
+            <select
+              aria-label="Manual session playthrough"
+              value={playthroughId}
+              className={journalSelectClass}
+              onChange={(event) => setPlaythroughId(event.target.value)}
+            >
+              <option value="">Unassigned</option>
+              {journal.playthroughs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div className="mb-3">
           <h3 className="text-sm font-semibold text-text">Session length</h3>
           <p className="mt-0.5 text-xs text-text-faint">
@@ -5053,7 +5178,8 @@ function LibraryImportMatchCheckDialog({
   onCancel: () => void;
   onApplied: (executableNames: string[]) => void;
 }) {
-  const providerLabel = providerTabConfig(entry.provider)?.label ?? entry.provider;
+  const providerLabel =
+    providerTabConfig(entry.provider)?.label ?? entry.provider;
   const isOffline = useIsOffline();
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<LibraryImportMatchCheck | null>(null);
@@ -5200,8 +5326,9 @@ function LibraryImportMatchCheckDialog({
           <div className="rounded-xl border border-border bg-bg/60 p-5 text-sm text-text-muted">
             <div className="font-semibold text-text">No match found yet</div>
             <p className="mt-1 leading-5">
-              There is still no approved executable for this {providerLabel} game.
-              You can check again after a Community suggestion has been approved.
+              There is still no approved executable for this {providerLabel}{" "}
+              game. You can check again after a Community suggestion has been
+              approved.
             </p>
           </div>
         )}

@@ -1,5 +1,5 @@
 import type { GameDetails, Session } from "@playcounter/shared";
-import { Flag, Gamepad2 } from "lucide-react";
+import { BookOpen, Flag, Gamepad2, StickyNote } from "lucide-react";
 import { useGameDetails } from "../../gameDetails";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { GameCover } from "../GameCover";
@@ -9,6 +9,7 @@ import {
 } from "../../playtimeAdjustments";
 import {
   resolvedCanonicalGameKey,
+  useAppStore,
   type ActiveSession,
   type ExeCacheEntry,
   type GameIdentityResolver,
@@ -19,6 +20,9 @@ import {
   formatDuration,
 } from "../components";
 import { Button } from "../primitives";
+import { SessionPlaythroughSelect } from "../GameJournalDialog";
+import { useGameJournal } from "../useGameJournal";
+import { journalNote, playthroughSeconds } from "../../personalLibrary";
 
 type ActiveGameHeroProps = {
   session: ActiveSession;
@@ -55,6 +59,14 @@ export function ActiveGameHero({
   onReport,
   tourAnchor,
 }: ActiveGameHeroProps) {
+  const journal = useGameJournal(session);
+  const openJournal = useAppStore((s) => s.openGameJournal);
+  const archivedPlaythroughSeconds = useAppStore(
+    (s) => s.archivedPlaythroughSeconds,
+  );
+  const playthrough = journal.playthroughs.find(
+    (p) => p.id === session.playthroughId,
+  );
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
@@ -187,6 +199,50 @@ export function ActiveGameHero({
           >
             {session.gameName}
           </h2>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <SessionPlaythroughSelect session={session} />
+            {playthrough ? (
+              <span className="text-xs text-text-muted">
+                {formatDuration(
+                  playthroughSeconds(
+                    playthrough.id,
+                    recentSessions,
+                    archivedPlaythroughSeconds,
+                  ) + elapsedSeconds,
+                  showDurationDays,
+                )}{" "}
+                this playthrough
+              </span>
+            ) : null}
+            <Button
+              variant="ghost"
+              icon={BookOpen}
+              onClick={() =>
+                openJournal({
+                  game: session,
+                  tab: "playthroughs",
+                  playthroughId: session.playthroughId ?? null,
+                })
+              }
+            >
+              Journal
+            </Button>
+            {journalNote(journal, session.playthroughId ?? null) ? (
+              <Button
+                variant="ghost"
+                icon={StickyNote}
+                onClick={() =>
+                  openJournal({
+                    game: session,
+                    tab: "note",
+                    playthroughId: session.playthroughId ?? null,
+                  })
+                }
+              >
+                Read note
+              </Button>
+            ) : null}
+          </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
             {sources.map((source) => (

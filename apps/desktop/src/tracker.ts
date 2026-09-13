@@ -44,6 +44,10 @@ import {
   gameMetadataKey,
   isOfflineStatus,
   resolvedCanonicalGameKey,
+  getGameJournal,
+  personalGameIdentity,
+  reconcileSessionPlaythroughs,
+  foldSessionsIntoArchive,
   type ActiveSession,
   type AmbiguousProcessMatch,
   type ExeCacheEntry,
@@ -117,7 +121,13 @@ import {
   STORAGE_KEY,
 } from "./persistence";
 import { normalizeCollapsedSections } from "./sectionCollapse";
-import { normalizeSessions } from "./sessionPersistence";
+import { normalizeSessions, splitStoredSessions } from "./sessionPersistence";
+import {
+  journalNote,
+  sanitizePlaythroughSeconds,
+  type GameJournal,
+  type PersonalShelf,
+} from "./personalLibrary";
 import { normalizeAccentColor } from "./theme";
 import { resolveMyGamesPresentationSettings } from "./ui/myGamesPresentation";
 import { TOURS } from "./ui/tour/tourDefinitions";
@@ -198,6 +208,9 @@ const MATCH_PROCESSES_BATCH_SIZE = 200;
 export const PENDING_COMMUNITY_RETRY_MS = 5 * 60 * 1000;
 
 type PersistedState = {
+  gameJournals?: Record<string, GameJournal>;
+  personalShelves?: PersonalShelf[];
+  archivedPlaythroughSeconds?: Record<string, number>;
   installUuid?: string;
   contributionOwnerUuid?: string;
   settings?: Partial<Settings>;
@@ -916,8 +929,13 @@ export function hydrate() {
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
   );
-  const hydratedSessions = normalizeSessions(
-    (persisted.sessions ?? []).map(inferSuggestionStatus),
+  const { kept: hydratedSessions, removed: hydratedOverflow } =
+    splitStoredSessions((persisted.sessions ?? []).map(inferSuggestionStatus));
+  const hydratedArchive = foldSessionsIntoArchive(
+    Math.max(0, persisted.archivedSeconds ?? 0),
+    sanitizeGameSecondsRecord(persisted.archivedGameSeconds, { signed: false }),
+    hydratedOverflow,
+    sanitizePlaythroughSeconds(persisted.archivedPlaythroughSeconds),
   );
   const autoDetectedGameKeys = (() => {
     if (Array.isArray(persisted.autoDetectedGameKeys)) {
@@ -1062,6 +1080,10 @@ export function hydrate() {
     libraryInstalls,
     scopedExeLinks,
     recentSessions: hydratedSessions,
+    gameJournals: persisted.gameJournals ?? {},
+    personalShelves: persisted.personalShelves ?? [],
+    archivedPlaythroughSeconds: hydratedArchive.archivedPlaythroughSeconds,
+    journalTarget: null,
     activeSessions: normalizePersistedActiveSessions(persisted),
     ambiguousMatches: persisted.ambiguousMatches ?? [],
     emulatorMappings,
@@ -1097,11 +1119,8 @@ export function hydrate() {
     },
     awardedMilestones: migrateAwardedMilestones(persisted),
     milestonesInitializedAt: persisted.milestonesInitializedAt ?? null,
-    archivedSeconds: Math.max(0, persisted.archivedSeconds ?? 0),
-    archivedGameSeconds: sanitizeGameSecondsRecord(
-      persisted.archivedGameSeconds,
-      { signed: false },
-    ),
+    archivedSeconds: hydratedArchive.archivedSeconds,
+    archivedGameSeconds: hydratedArchive.archivedGameSeconds,
     playtimeAdjustments: sanitizeGameSecondsRecord(
       persisted.playtimeAdjustments,
       { signed: true },
@@ -4308,6 +4327,13 @@ function startSession(
     .exeCache.get(process.exeName.toLowerCase());
   const session: ActiveSession = {
     id: createSessionId(),
+    playthroughId:
+      getGameJournal(useAppStore.getState(), {
+        gameId: game.id,
+        source: game.source,
+        igdbId: game.igdbId,
+        gameName: game.name,
+      }).activePlaythroughId ?? undefined,
     gameId: game.id,
     igdbId: game.igdbId,
     gameName: game.name,
@@ -4346,6 +4372,7 @@ function startSession(
     );
     emitOverlayEvent({
       type: "session-started",
+      ...sessionJournalContext(session),
       gameName: game.name,
       coverUrl: game.coverUrl,
       firstAutoDetection,
@@ -4655,6 +4682,16 @@ async function endSession(
   endedAtOverride?: string,
   reason: SessionEndReason = "process-ended",
 ) {
+  session =
+    useAppStore.getState().activeSessions.find((s) => s.id === session.id) ??
+    session;
+  if (
+    session.playthroughId &&
+    !getGameJournal(useAppStore.getState(), session).playthroughs.some(
+      (p) => p.id === session.playthroughId,
+    )
+  )
+    session = { ...session, playthroughId: undefined };
   logRuntime(`session ending ${session.gameName} (${session.exeName})`);
   const endedAt = endedAtOverride ?? new Date().toISOString();
   const durationSeconds = Math.max(
@@ -4663,6 +4700,7 @@ async function endSession(
   );
   useAppStore.getState().addSession({
     id: session.id,
+    playthroughId: session.playthroughId,
     gameId: session.gameId,
     igdbId: session.igdbId,
     gameName: session.gameName,
@@ -4684,6 +4722,8 @@ async function endSession(
     const top = pickTopMilestone(freshMilestones);
     emitOverlayEvent({
       type: "session-ended",
+      sessionId: session.id,
+      ...sessionJournalContext(session),
       gameName: session.gameName,
       coverUrl: session.coverUrl,
       durationSeconds,
@@ -4697,6 +4737,20 @@ async function endSession(
   logRuntime(
     `session ended ${session.gameName} durationSeconds=${durationSeconds}`,
   );
+}
+
+function sessionJournalContext(session: ActiveSession) {
+  const state = useAppStore.getState();
+  const journal = getGameJournal(state, session);
+  return {
+    playthroughName: journal.playthroughs.find(
+      (p) => p.id === session.playthroughId,
+    )?.name,
+    note:
+      state.settings.overlayGameNotes === true
+        ? journalNote(journal, session.playthroughId ?? null).slice(0, 180)
+        : undefined,
+  };
 }
 
 function scheduleBackendHealthChecks() {
@@ -4817,7 +4871,15 @@ function scheduleProcessPolling(intervalSeconds: number) {
 }
 
 export function persist() {
-  const state = useAppStore.getState();
+  let state = useAppStore.getState();
+  const reconciled = reconcileSessionPlaythroughs(state);
+  if (
+    reconciled.activeSessions !== state.activeSessions ||
+    reconciled.recentSessions !== state.recentSessions
+  ) {
+    useAppStore.setState(reconciled);
+    state = useAppStore.getState();
+  }
   const result = persistAppState(state);
   if (result.status !== "failed") {
     useAppStore.setState((current) => {
@@ -4843,6 +4905,10 @@ export function persist() {
         recentSessions === current.recentSessions &&
         notifications === current.notifications &&
         result.archivedSeconds === current.archivedSeconds &&
+        sameNumberRecord(
+          current.archivedPlaythroughSeconds,
+          result.archivedPlaythroughSeconds,
+        ) &&
         archivedGameSeconds === current.archivedGameSeconds
       ) {
         return current;
@@ -4852,6 +4918,7 @@ export function persist() {
         notifications,
         archivedSeconds: result.archivedSeconds,
         archivedGameSeconds,
+        archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
       };
     });
   }
@@ -5923,6 +5990,11 @@ function untrackGameInternal(
   emulatorDisposition: "remove" | "ignore",
 ) {
   const state = useAppStore.getState();
+  const identity = personalGameIdentity(state);
+  const removedGameKeys = new Set(aliases.map(identity));
+  const journalKeys = Object.keys(state.gameJournals).filter((key) =>
+    removedGameKeys.has(identity(state.gameJournals[key].game)),
+  );
   const matchingExeNames = [...state.exeCache.values()]
     .filter(
       (entry) =>
@@ -5989,6 +6061,18 @@ function untrackGameInternal(
       }),
     }));
     state.clearGameSeconds(gameSecondsKeys(aliases));
+    useAppStore.setState((current) => {
+      const gameJournals = { ...current.gameJournals };
+      const archivedPlaythroughSeconds = {
+        ...current.archivedPlaythroughSeconds,
+      };
+      for (const key of journalKeys) {
+        for (const p of gameJournals[key]?.playthroughs ?? [])
+          delete archivedPlaythroughSeconds[p.id];
+        delete gameJournals[key];
+      }
+      return { gameJournals, archivedPlaythroughSeconds };
+    });
   }
 
   logRuntime(
@@ -6012,6 +6096,7 @@ export function addManualSession(params: {
   exeName: string;
   durationSeconds: number;
   endedAt: string;
+  playthroughId?: string;
   communitySuggestionId?: number;
   communitySuggestionVerified?: boolean;
   communitySuggestionStatus?: ContributionStatus;
@@ -6031,6 +6116,13 @@ export function addManualSession(params: {
 
   useAppStore.getState().addSession({
     id: createSessionId(),
+    playthroughId:
+      params.playthroughId &&
+      getGameJournal(useAppStore.getState(), params).playthroughs.some(
+        (p) => p.id === params.playthroughId,
+      )
+        ? params.playthroughId
+        : undefined,
     gameId: params.gameId,
     igdbId: params.igdbId,
     gameName: params.gameName,
@@ -6347,6 +6439,10 @@ export function clearLocalLibrary() {
     emulatorLaunchCandidates: new Map(),
     archivedSeconds: 0,
     archivedGameSeconds: {},
+    gameJournals: {},
+    personalShelves: [],
+    archivedPlaythroughSeconds: {},
+    journalTarget: null,
     playtimeAdjustments: {},
     autoDetectedGameKeys: [],
     libraryImports: new Map(),

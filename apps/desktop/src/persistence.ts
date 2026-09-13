@@ -8,7 +8,16 @@ import type { AppNotification, FeedbackReplyCursor } from "./notifications";
 import type { DiscoveredReviewReminder } from "./discoveredReminder";
 import type { AwardedMilestone } from "./milestones";
 import { gameSecondsKey } from "./gameSeconds";
-import { normalizeSessions } from "./sessionPersistence";
+import {
+  normalizeSessions,
+  MAX_STORED_SESSIONS,
+  MIN_SESSION_DURATION_SECONDS,
+} from "./sessionPersistence";
+import {
+  archivePlaythroughSeconds,
+  type GameJournal,
+  type PersonalShelf,
+} from "./personalLibrary";
 import type {
   EmulatorMapping,
   EmulatorObservation,
@@ -20,6 +29,9 @@ export const STORAGE_KEY = "playcounter:v1";
 export const MAX_STORED_NOTIFICATIONS = 100;
 
 type PersistableAppState = {
+  gameJournals?: Record<string, GameJournal>;
+  personalShelves?: PersonalShelf[];
+  archivedPlaythroughSeconds?: Record<string, number>;
   installUuid: string | null;
   contributionOwnerUuid: string | null;
   settings: Settings;
@@ -62,6 +74,9 @@ type PersistableAppState = {
 };
 
 export type PersistedPayload = {
+  gameJournals?: Record<string, GameJournal>;
+  personalShelves?: PersonalShelf[];
+  archivedPlaythroughSeconds: Record<string, number>;
   installUuid?: string;
   contributionOwnerUuid?: string;
   settings: Settings;
@@ -106,7 +121,11 @@ export type PersistedPayload = {
 
 export type PersistedProjection = Pick<
   PersistedPayload,
-  "sessions" | "notifications" | "archivedSeconds" | "archivedGameSeconds"
+  | "sessions"
+  | "notifications"
+  | "archivedSeconds"
+  | "archivedGameSeconds"
+  | "archivedPlaythroughSeconds"
 >;
 
 export type PersistResult =
@@ -128,8 +147,11 @@ function buildPersistedPayload(
   state: PersistableAppState,
   sessions: Session[],
 ): PersistedPayload {
-  return {
+  const payload: PersistedPayload = {
     installUuid: state.installUuid ?? undefined,
+    gameJournals: state.gameJournals ?? {},
+    personalShelves: state.personalShelves ?? [],
+    archivedPlaythroughSeconds: state.archivedPlaythroughSeconds ?? {},
     contributionOwnerUuid: state.contributionOwnerUuid ?? undefined,
     settings: state.settings,
     exeCache: [...state.exeCache.values()],
@@ -196,6 +218,17 @@ function buildPersistedPayload(
     suppressContributionNotificationsOnce:
       state.suppressContributionNotificationsOnce || undefined,
   };
+  if (state.recentSessions.length > MAX_STORED_SESSIONS) {
+    const kept = new Set(sessions);
+    const removed = state.recentSessions.filter(
+      (session) =>
+        !kept.has(session) &&
+        (session.durationSeconds ?? 0) >= MIN_SESSION_DURATION_SECONDS,
+    );
+    if (removed.length)
+      Object.assign(payload, archiveRemovedSessions(payload, removed));
+  }
+  return payload;
 }
 
 function isQuotaExceeded(error: unknown) {
@@ -211,6 +244,7 @@ function projection(payload: PersistedPayload): PersistedProjection {
     notifications: payload.notifications,
     archivedSeconds: payload.archivedSeconds,
     archivedGameSeconds: payload.archivedGameSeconds,
+    archivedPlaythroughSeconds: payload.archivedPlaythroughSeconds,
   };
 }
 
@@ -223,7 +257,14 @@ function archiveRemovedSessions(payload: PersistedPayload, removed: Session[]) {
     const key = gameSecondsKey(session);
     archivedGameSeconds[key] = (archivedGameSeconds[key] ?? 0) + seconds;
   }
-  return { archivedSeconds, archivedGameSeconds };
+  return {
+    archivedSeconds,
+    archivedGameSeconds,
+    archivedPlaythroughSeconds: archivePlaythroughSeconds(
+      payload.archivedPlaythroughSeconds,
+      removed,
+    ),
+  };
 }
 
 type EncodedField = { value: unknown; json: string | undefined };

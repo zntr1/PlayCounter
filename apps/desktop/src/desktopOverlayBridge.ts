@@ -198,6 +198,12 @@ export function initializeDesktopOverlays() {
       else clearDesktopOverlays();
       return;
     }
+    if (
+      previous.settings.overlayGameNotes === true &&
+      store.settings.overlayGameNotes !== true
+    ) {
+      clearDesktopOverlays();
+    }
     const discoveryNow =
       masterNow && store.settings.overlayDiscoveries === true;
     const discoveryBefore =
@@ -224,6 +230,19 @@ export function initializeDesktopOverlays() {
         useAppStore.getState().setActiveView("now");
       } else if (payload === "open-discovered") {
         useAppStore.getState().setActiveView("discovered");
+      } else if (/^open-game-note:\d+$/.test(payload)) {
+        const store = useAppStore.getState();
+        const session = store.recentSessions.find(
+          (s) => s.id === Number(payload.slice("open-game-note:".length)),
+        );
+        if (session) {
+          store.setActiveView("history");
+          store.openGameJournal({
+            game: session,
+            tab: "note",
+            playthroughId: session.playthroughId ?? null,
+          });
+        }
       }
     }),
   );
@@ -273,7 +292,11 @@ export function emitOverlayEvent(event: TrackerOverlayEvent) {
     const settings = useAppStore.getState().settings;
     const kind = overlayGate(event, settings);
     if (!kind) return;
-    const message = buildOverlayMessage(kind, event, renderContext());
+    const gatedEvent =
+      event.type === "session-started" && settings.overlayGameNotes !== true
+        ? { ...event, note: undefined }
+        : event;
+    const message = buildOverlayMessage(kind, gatedEvent, renderContext());
     state.queue.push(message);
   })().catch((error) => console.warn("desktop overlay routing failed", error));
 }

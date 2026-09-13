@@ -555,6 +555,24 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
+            description="Include a short note when a game starts. Uses the session's playthrough note, or the general game note when it is empty."
+            title="Notes in game-start popups"
+          >
+            <input
+              type="checkbox"
+              aria-label="Notes in game-start popups"
+              checked={settings.overlayGameNotes === true}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayGameNotes",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
             description="Popup when you unlock a new playtime milestone."
             title="Milestones"
           >
@@ -985,12 +1003,12 @@ export function SettingsView() {
 
       <SettingsPanel
         dataTour="settings-backup"
-        description="Move your play history and game cache to another PC. Backups are plain JSON files."
+        description="Move your play history, notes, playthroughs, and shelves to another PC. Backups are plain JSON files."
         title="Backup & transfer"
       >
         <SettingsRow
           dataTour="settings-backup-export"
-          description="Save all local data (play history, game cache, settings) to a JSON file you can copy to another PC."
+          description="Save your history, notes, playthroughs, shelves, game cache, and settings to a JSON file you can copy to another PC."
           title="Export data"
         >
           <div className="flex shrink-0 justify-end">
@@ -1106,7 +1124,9 @@ export function SettingsView() {
         <div className="flex items-center gap-1.5 px-1 text-xs text-text-muted">
           <p className="min-w-0">
             User UUID:{" "}
-            <span className="select-all break-all font-mono">{installUuid}</span>
+            <span className="select-all break-all font-mono">
+              {installUuid}
+            </span>
           </p>
           <div
             className="relative shrink-0"
