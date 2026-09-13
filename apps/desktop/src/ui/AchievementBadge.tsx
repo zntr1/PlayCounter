@@ -5,6 +5,7 @@ import {
   Flame,
   Gamepad2,
   ListChecks,
+  MessageSquare,
   Joystick,
   ShieldCheck,
   Trophy,
@@ -29,6 +30,7 @@ const ICONS: Record<AchievementIconName, LucideIcon> = {
   "shield-check": ShieldCheck,
   "circle-slash": CircleSlash,
   "list-checks": ListChecks,
+  "message-square": MessageSquare,
 };
 
 export function AchievementBadge({

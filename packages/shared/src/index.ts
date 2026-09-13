@@ -437,6 +437,27 @@ export interface FeedbackResponse {
   id: number;
 }
 
+/** UUIDs address an anonymous installation; they are not account authentication. */
+export interface FeedbackRepliesPayload {
+  installUuid: string;
+  /** Decimal BIGINT cursor. Keep IDs as strings to preserve precision. */
+  afterId?: string;
+}
+
+export interface FeedbackReply {
+  id: string;
+  feedbackId: string;
+  /** Original submission text. Older API versions may omit it. */
+  feedbackMessage?: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface FeedbackRepliesResponse {
+  items: FeedbackReply[];
+  hasMore: boolean;
+}
+
 export interface InstallPresencePayload {
   installUuid: string;
 }

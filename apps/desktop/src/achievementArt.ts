@@ -30,7 +30,8 @@ export type AchievementIconName =
   | "joystick"
   | "shield-check"
   | "circle-slash"
-  | "list-checks";
+  | "list-checks"
+  | "message-square";
 
 export type AchievementArt = {
   icon: AchievementIconName;
@@ -53,6 +54,14 @@ export function achievementArt(input: {
   const threshold = milestoneThreshold(input.id);
 
   switch (input.kind) {
+    case "feedback-reply":
+      return art(
+        "message-square",
+        "bronze",
+        "feedback reply",
+        false,
+        "Reply from PlayCounter",
+      );
     case "milestone-total":
       return art(
         "trophy",

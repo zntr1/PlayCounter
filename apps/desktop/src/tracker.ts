@@ -86,6 +86,7 @@ import {
 } from "./discoveredReminder";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 import { reportInstallPresence } from "./installPresence";
+import { startFeedbackReplies } from "./feedbackReplies";
 import { currentPlatform } from "./platform";
 import {
   evaluateMilestones,
@@ -99,6 +100,7 @@ import {
   emulatorContributionKey,
   emulatorContributionNotification,
   notificationEmoji,
+  normalizeFeedbackReplyCursor,
   seedEmulatorSeenStatus,
   shouldNotifyContributionTransition,
   type AppNotification,
@@ -220,6 +222,7 @@ type PersistedState = {
   activeSessions?: ActiveSession[];
   blacklist?: string[];
   notifications?: AppNotification[];
+  feedbackReplyCursor?: unknown;
   discoveredReviewReminder?: unknown;
   seenContributionStatus?: Record<string, ContributionStatus>;
   contributionCounts?: ContributionCounts;
@@ -300,6 +303,7 @@ const ignoredProcessSuggestionRequests = new Map<
 let initialized = false;
 let backendHealthTimer: number | undefined;
 let contributionsTimer: number | undefined;
+let stopFeedbackReplies: (() => void) | undefined;
 
 let processTimer: number | undefined;
 let trayTimer: number | undefined;
@@ -408,6 +412,8 @@ async function finishTrackerStartup() {
     backendHealthTimer = undefined;
     if (contributionsTimer) window.clearInterval(contributionsTimer);
     contributionsTimer = undefined;
+    stopFeedbackReplies?.();
+    stopFeedbackReplies = undefined;
     if (processTimer) window.clearInterval(processTimer);
     processTimer = undefined;
     if (trayTimer) window.clearInterval(trayTimer);
@@ -460,6 +466,7 @@ async function finishTrackerStartup() {
     })();
   }, 1_500);
   if (identityResolved) {
+    stopFeedbackReplies = startFeedbackReplies();
     contributionsTimer = window.setInterval(
       () => void pollContributions("interval"),
       30 * 60 * 1000,
@@ -1068,6 +1075,9 @@ export function hydrate() {
     ),
     blacklist: new Set(blacklist.map((exe) => exe.toLowerCase())),
     notifications: persisted.notifications ?? [],
+    feedbackReplyCursor: normalizeFeedbackReplyCursor(
+      persisted.feedbackReplyCursor,
+    ),
     discoveredReviewReminder: sanitizeDiscoveredReviewReminder(
       persisted.discoveredReviewReminder,
     ),

@@ -104,6 +104,17 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
                 <div className="text-sm font-medium text-text">
                   {displayNotificationTitle(notification)}
                 </div>
+                {notification.kind === "feedback-reply" &&
+                notification.feedbackMessage ? (
+                  <blockquote className="my-2 border-l-2 border-accent/40 pl-3">
+                    <div className="mb-1 text-[11px] font-medium text-text-faint">
+                      Your feedback
+                    </div>
+                    <p className="whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">
+                      {notification.feedbackMessage}
+                    </p>
+                  </blockquote>
+                ) : null}
                 {notification.body ? (
                   <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">
                     {notification.body}
