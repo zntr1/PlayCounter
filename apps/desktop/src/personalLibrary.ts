@@ -261,8 +261,9 @@ export function journalNote(
   journal: GameJournal,
   playthroughId: string | null = journal.activePlaythroughId,
 ) {
+  // An empty playthrough note must not inherit the default playthrough's note.
   return (
-    journal.playthroughs.find((p) => p.id === playthroughId)?.note ||
+    journal.playthroughs.find((p) => p.id === playthroughId)?.note ??
     journal.note
   );
 }

@@ -73,9 +73,8 @@ export function GameJournalBadges({
 }) {
   const journal = useGameJournal(game);
   const open = useAppStore((s) => s.openGameJournal);
-  const applicable = journalNote(journal);
   const other = journal.playthroughs.find((p) => p.note);
-  const hasNote = Boolean(applicable || other);
+  const hasNote = Boolean(journal.note || other);
   const notePlaythroughId =
     journal.playthroughs.find(
       (p) => p.id === journal.activePlaythroughId && p.note,
