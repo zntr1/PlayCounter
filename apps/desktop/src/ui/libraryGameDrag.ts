@@ -8,6 +8,9 @@ import {
 } from "react";
 import { getGameJournal, useAppStore, type GameIdentityRef } from "../store";
 
+const DRAG_SCALE = 0.75;
+const RETURN_DURATION = 320;
+
 export type StartLibraryGameDrag = (
   game: GameIdentityRef,
   event: ReactPointerEvent<HTMLElement>,
@@ -134,8 +137,8 @@ export function useLibraryGameDrag() {
         animation.onfinish = null;
         animation.cancel();
       }
-      preview?.remove();
       source.removeAttribute("data-library-drag-source");
+      preview?.remove();
     }
     cleanupRef.current = cleanup;
 
@@ -169,9 +172,10 @@ export function useLibraryGameDrag() {
         setGame(game);
       }
       event.preventDefault();
-      x = origin.left + event.clientX - downX;
-      y = origin.top + event.clientY - downY;
-      preview.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      // Keep the grabbed point under the pointer as the card shrinks.
+      x = event.clientX - (downX - origin.left) * DRAG_SCALE;
+      y = event.clientY - (downY - origin.top) * DRAG_SCALE;
+      preview.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${DRAG_SCALE})`;
       setDropTarget(
         targetAt(event.clientX, event.clientY)?.dataset.libraryDropShelf ??
           null,
@@ -234,20 +238,37 @@ export function useLibraryGameDrag() {
         const scaleX = destination.width / origin.width;
         const scaleY = destination.height / origin.height;
         const translate = `translate3d(${destination.left}px, ${destination.top}px, 0)`;
+        const sourceShadow = getComputedStyle(source).boxShadow;
+        const cover = source.querySelector<HTMLElement>(
+          ".game-card-cover-image",
+        );
+        const previewCover = preview!.querySelector<HTMLElement>(
+          ".game-card-cover-image",
+        );
+        if (cover && previewCover) {
+          // Settle the frozen hover zoom before handing back to the real card.
+          previewCover.style.transition = `transform ${RETURN_DURATION}ms ease-out`;
+          previewCover.style.transform = getComputedStyle(cover).transform;
+        }
         animation = preview!.animate(
           [
             {
-              transform: `translate3d(${x}px, ${y}px, 0)`,
+              transform: `translate3d(${x}px, ${y}px, 0) scale(${DRAG_SCALE})`,
+              boxShadow: getComputedStyle(preview!).boxShadow,
               easing: "cubic-bezier(.22,.8,.28,1)",
             },
             {
-              transform: `${translate} scale(${scaleX * 1.025}, ${scaleY * 1.025})`,
+              transform: `${translate} scale(${scaleX * 1.015}, ${scaleY * 1.015})`,
+              boxShadow: sourceShadow,
               offset: 0.8,
               easing: "ease-in-out",
             },
-            { transform: `${translate} scale(${scaleX}, ${scaleY})` },
+            {
+              transform: `${translate} scale(${scaleX}, ${scaleY})`,
+              boxShadow: sourceShadow,
+            },
           ],
-          { duration: 420, fill: "forwards" },
+          { duration: RETURN_DURATION, fill: "forwards" },
         );
         animation.onfinish = reset;
       });
