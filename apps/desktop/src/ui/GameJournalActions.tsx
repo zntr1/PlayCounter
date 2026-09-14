@@ -1,7 +1,8 @@
 import { BookOpen, FolderHeart, Star, StickyNote } from "lucide-react";
-import { journalNote } from "../personalLibrary";
+import { GAME_STATUSES, journalNote } from "../personalLibrary";
 import { useAppStore, type GameIdentityRef } from "../store";
 import { ContextMenuHeading, ContextMenuItem } from "./primitives";
+import { STATUS_TONES } from "./journalStyles";
 import { useGameJournal } from "./useGameJournal";
 
 export function GameJournalMenu({
@@ -34,6 +35,7 @@ export function GameJournalMenu({
         }}
       >
         Playthroughs
+        {journal.playthroughs.length ? ` · ${journal.playthroughs.length}` : ""}
       </ContextMenuItem>
       <ContextMenuItem
         icon={Star}
@@ -57,7 +59,12 @@ export function GameJournalMenu({
   );
 }
 
-export function GameNoteBadge({
+const badgeShell =
+  "grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-md";
+
+/** What the journal knows about a game, read from its cover: a note to pick up,
+ *  a favorite, and where the game stands. Nothing else earns cover space. */
+export function GameJournalBadges({
   game,
   compact = false,
 }: {
@@ -73,10 +80,10 @@ export function GameNoteBadge({
     journal.playthroughs.find(
       (p) => p.id === journal.activePlaythroughId && p.note,
     )?.id ?? (journal.note ? null : other?.id);
-  if (!hasNote && !journal.favorite) return null;
+  if (!hasNote && !journal.favorite && !journal.status) return null;
   return (
     <div
-      className={`absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex gap-1`}
+      className={`absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
     >
       {hasNote ? (
         <button
@@ -87,19 +94,42 @@ export function GameNoteBadge({
             event.stopPropagation();
             open({ game, tab: "note", playthroughId: notePlaythroughId });
           }}
-          className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-md transition hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+          className={`${badgeShell} transition hover:bg-accent hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${compact ? "h-6 w-6" : ""}`}
         >
-          <StickyNote size={14} />
+          <StickyNote size={compact ? 12 : 14} />
         </button>
       ) : null}
-      {journal.favorite && !compact ? (
+      {journal.favorite ? (
         <span
           aria-label="Favorite"
           title="Favorite"
-          className="grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 text-amber-300"
+          className={`${badgeShell} text-amber-300 ${compact ? "h-6 w-6" : ""}`}
         >
-          <Star size={13} fill="currentColor" />
+          <Star size={compact ? 11 : 13} fill="currentColor" />
         </span>
+      ) : null}
+      {journal.status ? (
+        compact ? (
+          <span
+            aria-label={GAME_STATUSES[journal.status]}
+            title={GAME_STATUSES[journal.status]}
+            className={`${badgeShell} h-6 w-6`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${STATUS_TONES[journal.status].dot}`}
+            />
+          </span>
+        ) : (
+          <span
+            title={GAME_STATUSES[journal.status]}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/75 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-md"
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[journal.status].dot}`}
+            />
+            {GAME_STATUSES[journal.status]}
+          </span>
+        )
       ) : null}
     </div>
   );

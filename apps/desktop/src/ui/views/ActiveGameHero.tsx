@@ -20,7 +20,8 @@ import {
   formatDuration,
 } from "../components";
 import { Button } from "../primitives";
-import { SessionPlaythroughSelect } from "../GameJournalDialog";
+import { SessionPlaythroughPicker } from "../GameJournalDialog";
+import { notePreview } from "../journalStyles";
 import { useGameJournal } from "../useGameJournal";
 import {
   defaultPlaythroughTime,
@@ -71,6 +72,7 @@ export function ActiveGameHero({
   const playthrough = journal.playthroughs.find(
     (p) => p.id === session.playthroughId,
   );
+  const activeNote = journalNote(journal, session.playthroughId ?? null);
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
@@ -203,24 +205,26 @@ export function ActiveGameHero({
           >
             {session.gameName}
           </h2>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <SessionPlaythroughSelect session={session} />
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <SessionPlaythroughPicker session={session} />
             <span className="text-xs text-text-muted">
-              {formatDuration(
-                (playthrough
-                  ? playthroughSeconds(
-                      playthrough.id,
-                      recentSessions,
-                      archivedPlaythroughSeconds,
-                    )
-                  : defaultPlaythroughTime(
-                      journal,
-                      priorSessions,
-                      archivedSeconds,
-                      archivedPlaythroughSeconds,
-                    ).seconds) + elapsedSeconds,
-                showDurationDays,
-              )}{" "}
+              <span className="font-mono tabular-nums text-text">
+                {formatDuration(
+                  (playthrough
+                    ? playthroughSeconds(
+                        playthrough.id,
+                        recentSessions,
+                        archivedPlaythroughSeconds,
+                      )
+                    : defaultPlaythroughTime(
+                        journal,
+                        priorSessions,
+                        archivedSeconds,
+                        archivedPlaythroughSeconds,
+                      ).seconds) + elapsedSeconds,
+                  showDurationDays,
+                )}
+              </span>{" "}
               this playthrough
             </span>
             <Button
@@ -236,22 +240,26 @@ export function ActiveGameHero({
             >
               Journal
             </Button>
-            {journalNote(journal, session.playthroughId ?? null) ? (
-              <Button
-                variant="ghost"
-                icon={StickyNote}
-                onClick={() =>
-                  openJournal({
-                    game: session,
-                    tab: "note",
-                    playthroughId: session.playthroughId ?? null,
-                  })
-                }
-              >
-                Read note
-              </Button>
-            ) : null}
           </div>
+          {/* The note answers "where did I leave off?", so the hero answers it
+              without asking for a click first. */}
+          {activeNote ? (
+            <button
+              type="button"
+              title="Open this note"
+              onClick={() =>
+                openJournal({
+                  game: session,
+                  tab: "note",
+                  playthroughId: session.playthroughId ?? null,
+                })
+              }
+              className="mt-3 inline-flex max-w-xl items-start gap-2 self-start rounded-lg border border-border/70 bg-bg/50 px-3 py-2 text-left text-sm text-text-muted transition hover:border-accent/50 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              <StickyNote size={14} className="mt-0.5 shrink-0 text-accent" />
+              <span className="truncate">{notePreview(activeNote)}</span>
+            </button>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
             {sources.map((source) => (

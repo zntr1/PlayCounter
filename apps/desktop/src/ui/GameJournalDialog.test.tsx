@@ -3,8 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore } from "../store";
-import { GameJournalHost, SessionPlaythroughSelect } from "./GameJournalDialog";
-import { GameNoteBadge } from "./GameJournalActions";
+import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
+import { GameJournalBadges } from "./GameJournalActions";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
 let root: Root;
@@ -36,8 +36,49 @@ async function click(text: string) {
   const button = [...document.querySelectorAll("button")].find(
     (item) => item.textContent?.trim() === text,
   );
-  expect(button).toBeDefined();
+  expect(button, `no button labelled ${text}`).toBeDefined();
   await act(() => button!.click());
+}
+
+async function clickLabel(label: string) {
+  const button = document.querySelector<HTMLButtonElement>(
+    `[aria-label="${label}"]`,
+  );
+  expect(button, `no control labelled ${label}`).not.toBeNull();
+  await act(() => button!.click());
+}
+
+function ledgerRows() {
+  return [...document.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+}
+
+function selectedRow() {
+  return ledgerRows().find(
+    (row) => row.getAttribute("aria-selected") === "true",
+  );
+}
+
+async function selectPlaythrough(name: string) {
+  const row = ledgerRows().find((item) =>
+    item.textContent?.trim().startsWith(name),
+  );
+  expect(row, `no playthrough row for ${name}`).toBeDefined();
+  await act(() => row!.click());
+}
+
+async function type(
+  element: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) {
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      element instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(element, value);
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+  });
 }
 
 it("offers a default playthrough for an existing game and keeps its history when starting another", async () => {
@@ -56,33 +97,27 @@ it("offers a default playthrough for an existing game and keeps its history when
   });
   useAppStore.getState().openGameJournal({ game, tab: "playthroughs" });
   await act(() => root.render(<GameJournalHost />));
-  const selector = document.querySelector<HTMLSelectElement>(
-    '[aria-label="Journal playthrough"]',
-  )!;
-  expect(selector.selectedOptions[0].textContent).toBe(
-    "Default playthrough · Active",
-  );
+  expect(selectedRow()?.textContent).toContain("Default playthrough");
+  expect(selectedRow()?.textContent).toContain("Active");
   expect(document.body.textContent).toContain("1h 15m");
   expect(document.body.textContent).toContain("Recorded sessions · 1");
   expect(document.body.textContent).not.toContain("Unassigned");
-  const name = document.querySelector<HTMLInputElement>(
-    '[aria-label="New playthrough name"]',
-  )!;
-  await act(() => {
-    Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )!.set!.call(name, "Replay");
-    name.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-  await click("Create");
-  expect(selector.selectedOptions[0].textContent).toBe("Replay · Active");
+
+  await type(
+    document.querySelector<HTMLInputElement>(
+      '[aria-label="New playthrough name"]',
+    )!,
+    "Replay",
+  );
+  await clickLabel("Create playthrough");
+  expect(selectedRow()?.textContent).toContain("Replay");
+  expect(selectedRow()?.textContent).toContain("Active");
   expect(document.body.textContent).toContain("Recorded sessions · 0");
   expect(useAppStore.getState().recentSessions[0]).toEqual(oldSession);
-  await click("Use default");
-  expect(selector.selectedOptions[0].textContent).toBe(
-    "Default playthrough · Active",
-  );
+
+  await selectPlaythrough("Default playthrough");
+  await click("Make active");
+  expect(selectedRow()?.textContent).toContain("Default playthrough");
   expect(document.body.textContent).toContain("1h 15m");
   expect(
     getGameJournal(useAppStore.getState(), game).activePlaythroughId,
@@ -97,22 +132,10 @@ it("edits the session's note and switches scopes without copying text into anoth
   await act(() => root.render(<GameJournalHost />));
   const textarea = document.querySelector("textarea")!;
   expect(textarea.value).toBe("First run reminder");
-  await act(() => {
-    Object.getOwnPropertyDescriptor(
-      HTMLTextAreaElement.prototype,
-      "value",
-    )!.set!.call(textarea, "Updated first run");
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  await type(textarea, "Updated first run");
   await click("Save note");
-  const select = document.querySelector<HTMLSelectElement>(
-    '[aria-label="Journal playthrough"]',
-  )!;
-  await act(() => {
-    select.value = "";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
-  expect(textarea.value).toBe("General reminder");
+  await selectPlaythrough("Default playthrough");
+  expect(document.querySelector("textarea")!.value).toBe("General reminder");
   await click("Done");
   const journal = getGameJournal(useAppStore.getState(), game);
   expect(journal.note).toBe("General reminder");
@@ -126,15 +149,12 @@ it("opens the general note from the cover when the active playthrough has no not
   await act(() =>
     root.render(
       <>
-        <GameNoteBadge game={game} />
+        <GameJournalBadges game={game} />
         <GameJournalHost />
       </>,
     ),
   );
-  const button = document.querySelector<HTMLButtonElement>(
-    '[aria-label="Read note for Campaign"]',
-  )!;
-  await act(() => button.click());
+  await clickLabel("Read note for Campaign");
   expect(document.querySelector("textarea")?.value).toBe("General reminder");
   expect(useAppStore.getState().journalTarget?.playthroughId).toBeNull();
 });
@@ -150,12 +170,9 @@ it("changes a recorded session's assignment without changing the next-session de
     durationSeconds: 3600,
   };
   useAppStore.setState({ recentSessions: [session] });
-  await act(() => root.render(<SessionPlaythroughSelect session={session} />));
-  const select = document.querySelector("select")!;
-  await act(() => {
-    select.value = "";
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  await act(() => root.render(<SessionPlaythroughPicker session={session} />));
+  await clickLabel("Playthrough for session 7");
+  await click("Default playthrough");
   expect(
     useAppStore.getState().recentSessions[0].playthroughId,
   ).toBeUndefined();

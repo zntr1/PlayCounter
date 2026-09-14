@@ -1,14 +1,15 @@
 import {
   BookOpen,
   Check,
+  ChevronDown,
   Flag,
-  FolderHeart,
+  Gamepad2,
   Plus,
   Star,
-  StickyNote,
   Trash2,
+  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_PLAYTHROUGH_NAME,
   GAME_STATUSES,
@@ -25,16 +26,34 @@ import {
   useAppStore,
   type ActiveSession,
 } from "../store";
-import { Button, Input, Modal } from "./primitives";
+import {
+  Button,
+  ContextMenu,
+  ContextMenuHeading,
+  ContextMenuItem,
+  IconButton,
+  Input,
+  Modal,
+  Pill,
+  useAnchoredMenu,
+} from "./primitives";
+import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import { formatDuration } from "./components";
+import { GameCover } from "./GameCover";
 import { useGameJournal } from "./useGameJournal";
 import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
 
-export const journalSelectClass =
-  "min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30";
+/* The game journal ───────────────────────────────────────────────────────────
+   One game, one page. The left column is a ledger of playthroughs with the
+   time each one took, so a replay is something you can see rather than
+   something you have to remember. The right column is the selected
+   playthrough: its name, its note, and the sessions it owns. Favorites,
+   progress and shelves describe the game itself, so they sit in the header
+   above both columns. */
 
-export function SessionPlaythroughSelect({
+/** Assigns one session to a playthrough. Reads as a label, opens as a menu. */
+export function SessionPlaythroughPicker({
   session,
   compact = false,
 }: {
@@ -44,6 +63,9 @@ export function SessionPlaythroughSelect({
   const journal = useGameJournal(session);
   const assign = useAppStore((s) => s.assignSessionPlaythrough);
   const open = useAppStore((s) => s.openGameJournal);
+  const menu = useAnchoredMenu();
+  const current = session.playthroughId ?? null;
+
   if (!journal.playthroughs.length)
     return compact ? null : (
       <Button
@@ -57,28 +79,60 @@ export function SessionPlaythroughSelect({
         {DEFAULT_PLAYTHROUGH_NAME}
       </Button>
     );
+
   return (
-    <label
-      className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-text-muted"
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
-    >
-      {!compact ? <span>This session</span> : null}
-      <select
+    <>
+      <Pill
+        ref={menu.anchorRef}
+        icon={BookOpen}
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
         aria-label={`Playthrough for session ${session.id}`}
-        className={`${journalSelectClass} max-w-[240px] !py-1`}
-        value={session.playthroughId ?? ""}
-        onChange={(event) => assign(session.id, event.target.value || null)}
+        className={
+          compact
+            ? "max-w-[220px] border-transparent bg-surface-hover !px-2 !py-0.5 !text-[12px]"
+            : "max-w-[260px] !py-1"
+        }
+        onClick={(event) => {
+          event.stopPropagation();
+          menu.toggle();
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
       >
-        <option value="">{DEFAULT_PLAYTHROUGH_NAME}</option>
+        <span className="truncate">{playthroughName(journal, current)}</span>
+        <ChevronDown size={12} className="shrink-0 opacity-70" />
+      </Pill>
+      <ContextMenu
+        open={menu.open}
+        position={menu.position}
+        anchorRef={menu.anchorRef}
+        onClose={menu.close}
+      >
+        <ContextMenuHeading>Count this session towards</ContextMenuHeading>
+        <ContextMenuItem
+          selected={current === null}
+          onClick={() => {
+            assign(session.id, null);
+            menu.close();
+          }}
+        >
+          {DEFAULT_PLAYTHROUGH_NAME}
+        </ContextMenuItem>
         {journal.playthroughs.map((p) => (
-          <option key={p.id} value={p.id}>
+          <ContextMenuItem
+            key={p.id}
+            selected={current === p.id}
+            onClick={() => {
+              assign(session.id, p.id);
+              menu.close();
+            }}
+          >
             {p.name}
             {p.completedAt ? " · Finished" : ""}
-          </option>
+          </ContextMenuItem>
         ))}
-      </select>
-    </label>
+      </ContextMenu>
+    </>
   );
 }
 
@@ -94,7 +148,6 @@ export function GameJournalHost() {
 
 function GameJournalDialog({ target }: { target: JournalTarget }) {
   const journal = useGameJournal(target.game);
-  const [tab, setTab] = useState(target.tab ?? "note");
   const [selected, setSelected] = useState<string | null>(
     target.playthroughId === undefined
       ? journal.activePlaythroughId
@@ -104,24 +157,21 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const storedNote = playthrough?.note ?? journal.note;
   const [draft, setDraft] = useState(storedNote);
   const [name, setName] = useState("");
-  const [shelfName, setShelfName] = useState("");
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const sessions = useAppStore((s) => s.recentSessions);
   const activeSessions = useAppStore((s) => s.activeSessions);
   const archived = useAppStore((s) => s.archivedPlaythroughSeconds);
   const archivedGameSeconds = useAppStore((s) => s.archivedGameSeconds);
   const playtimeAdjustments = useAppStore((s) => s.playtimeAdjustments);
   const libraryImports = useAppStore((s) => s.libraryImports);
-  const shelves = useAppStore((s) => s.personalShelves);
-  const actions = useAppStore;
-  const identity = personalGameIdentity(actions.getState());
+  const showDays = useAppStore((s) => s.settings.showDurationDays);
+  const identity = personalGameIdentity(useAppStore.getState());
   const gameKey = identity(target.game);
   const gameSessions = sessions.filter((s) => identity(s) === gameKey);
   const selectedSessions = gameSessions.filter(
     (s) => (s.playthroughId ?? null) === selected,
   );
   const running = activeSessions.filter((s) => identity(s) === gameKey);
-  const showDays = useAppStore((s) => s.settings.showDurationDays);
   const [now, setNow] = useState(Date.now);
   const gameArchivedSeconds = Object.entries(archivedGameSeconds).reduce(
     (sum, [key, seconds]) => {
@@ -147,20 +197,44 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
       const ref = gameSecondsRefFromKey(key);
       return seconds !== 0 && ref && identity(ref) === gameKey;
     });
-  const selectedSeconds =
-    (playthrough
-      ? playthroughSeconds(playthrough.id, gameSessions, archived)
-      : defaultTime.seconds) +
+  const runningSecondsFor = (id: string | null) =>
     running
-      .filter((s) => (s.playthroughId ?? null) === selected)
+      .filter((s) => (s.playthroughId ?? null) === id)
       .reduce(
         (sum, s) =>
           sum + Math.max(0, Math.floor((now - Date.parse(s.startedAt)) / 1000)),
         0,
       );
+  // One pass over the ledger: every row needs its own total, and the longest
+  // row sets the scale for the bars.
+  const ledger = [
+    {
+      id: null as string | null,
+      name: DEFAULT_PLAYTHROUGH_NAME,
+      completedAt: null as string | null,
+      seconds: defaultTime.seconds + runningSecondsFor(null),
+    },
+    ...journal.playthroughs.map((p) => ({
+      id: p.id as string | null,
+      name: p.name,
+      completedAt: p.completedAt,
+      seconds:
+        playthroughSeconds(p.id, gameSessions, archived) +
+        runningSecondsFor(p.id),
+    })),
+  ];
+  const longestSeconds = Math.max(...ledger.map((entry) => entry.seconds), 1);
+  const trackedSeconds = ledger.reduce((sum, entry) => sum + entry.seconds, 0);
+  const selectedSeconds =
+    ledger.find((entry) => entry.id === selected)?.seconds ?? 0;
   const selectedArchivedSeconds = playthrough
     ? (archived[playthrough.id] ?? 0)
     : defaultTime.archivedSeconds;
+  const lastPlayedAt = gameSessions.reduce(
+    (latest, s) => (s.startedAt > latest ? s.startedAt : latest),
+    "",
+  );
+
   useEffect(() => {
     if (!running.length) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -171,14 +245,14 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   function saveNote() {
     if (draft === storedNote) return;
     if (playthrough)
-      actions
+      useAppStore
         .getState()
         .updatePlaythrough(target.game, playthrough.id, { note: draft });
-    else actions.getState().updateGameJournal(target.game, { note: draft });
+    else useAppStore.getState().updateGameJournal(target.game, { note: draft });
   }
   function close() {
     saveNote();
-    actions.getState().openGameJournal(null);
+    useAppStore.getState().openGameJournal(null);
   }
   function select(id: string | null) {
     saveNote();
@@ -186,507 +260,587 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     setDraft(
       journal.playthroughs.find((p) => p.id === id)?.note ?? journal.note,
     );
-    setDeleting(null);
+    setDeleting(false);
   }
   function create() {
     saveNote();
-    const id = actions.getState().createPlaythrough(target.game, name);
+    const id = useAppStore.getState().createPlaythrough(target.game, name);
     if (id) {
       setSelected(id);
+      setDraft("");
       setName("");
+      setDeleting(false);
     }
   }
-
-  const playthroughSelector = (
-    <label className="grid gap-2 text-sm text-text-muted">
-      {tab === "note" ? "Note for" : "Playthrough"}
-      <select
-        aria-label="Journal playthrough"
-        value={selected ?? ""}
-        className={journalSelectClass}
-        onChange={(event) => select(event.target.value || null)}
-      >
-        <option value="">
-          {DEFAULT_PLAYTHROUGH_NAME}
-          {journal.activePlaythroughId === null ? " · Active" : ""}
-        </option>
-        {journal.playthroughs.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-            {p.id === journal.activePlaythroughId ? " · Active" : ""}
-            {p.completedAt ? " · Finished" : ""}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
 
   return (
     <Modal
       labelId="game-journal-title"
-      size="wide"
+      size="xl"
       className="h-[720px]"
-      bodyClassName="flex flex-col !overflow-hidden"
-      icon={BookOpen}
+      bodyClassName="flex flex-col !overflow-hidden !p-0"
+      media={
+        target.game.coverUrl ? (
+          <GameCover
+            src={target.game.coverUrl}
+            alt=""
+            className="h-[58px] w-11 shrink-0 rounded-lg object-cover shadow-sm ring-1 ring-white/10"
+          />
+        ) : (
+          <div className="grid h-[58px] w-11 shrink-0 place-items-center rounded-lg bg-surface-hover text-text-faint ring-1 ring-white/10">
+            <Gamepad2 size={20} />
+          </div>
+        )
+      }
+      eyebrow="Journal"
       title={target.game.gameName ?? "Game journal"}
-      subtitle="Your notes, playthroughs, and shelves"
+      subtitle={[
+        `${formatDuration(trackedSeconds, showDays)} tracked`,
+        `${gameSessions.length} ${gameSessions.length === 1 ? "session" : "sessions"}`,
+        lastPlayedAt
+          ? `last played ${new Date(lastPlayedAt).toLocaleDateString()}`
+          : "no sessions yet",
+      ].join(" · ")}
       onClose={close}
       footer={
-        <Button variant="primary" icon={Check} onClick={close}>
-          {draft !== storedNote ? "Save and close" : "Done"}
-        </Button>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-text-faint">
+            Notes and playthroughs stay on this computer.
+          </span>
+          <Button variant="primary" icon={Check} onClick={close}>
+            {draft !== storedNote ? "Save and close" : "Done"}
+          </Button>
+        </div>
       }
     >
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-5">
-        <div
-          className="flex flex-wrap gap-2"
-          role="tablist"
-          aria-label="Game journal"
-        >
-          {(
-            [
-              { id: "note", label: "Notes", icon: StickyNote },
-              { id: "playthroughs", label: "Playthroughs", icon: BookOpen },
-              { id: "organize", label: "Shelves & status", icon: FolderHeart },
-            ] as const
-          ).map((item) => (
+      <GameShelfStrip target={target} />
+
+      <div className="grid min-h-0 flex-1 md:grid-cols-[252px_minmax(0,1fr)]">
+        <div className="flex min-h-0 flex-col border-border md:border-r">
+          <div className="flex items-baseline justify-between px-5 pt-4">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-faint">
+              Playthroughs
+            </h3>
+            <span className="font-mono text-[11px] text-text-faint">
+              {ledger.length}
+            </span>
+          </div>
+          <div
+            data-controller-scroll
+            role="listbox"
+            aria-label="Playthroughs"
+            className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-3 [scrollbar-gutter:stable]"
+          >
+            {ledger.map((entry) => (
+              <LedgerRow
+                key={entry.id ?? "default"}
+                entry={entry}
+                share={entry.seconds / longestSeconds}
+                active={journal.activePlaythroughId === entry.id}
+                selected={selected === entry.id}
+                showDays={showDays}
+                autoFocus={
+                  target.tab !== "note" &&
+                  target.tab !== "organize" &&
+                  selected === entry.id
+                }
+                onSelect={() => select(entry.id)}
+              />
+            ))}
+          </div>
+          <form
+            className="flex gap-2 border-t border-border px-3 py-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              create();
+            }}
+          >
+            <Input
+              aria-label="New playthrough name"
+              maxLength={NAME_LIMIT}
+              value={name}
+              placeholder="New Game+, co-op run…"
+              className="flex-1 !py-1.5 text-[13px]"
+              onChange={(event) => setName(event.target.value)}
+            />
             <Button
-              key={item.id}
-              role="tab"
-              aria-selected={tab === item.id}
-              variant={tab === item.id ? "primary" : "secondary"}
-              icon={item.icon}
-              onClick={() => {
-                saveNote();
-                setTab(item.id);
-              }}
-            >
-              {item.label}
-            </Button>
-          ))}
+              type="submit"
+              variant="secondary"
+              icon={Plus}
+              aria-label="Create playthrough"
+              title="Create playthrough"
+              className="!px-2.5"
+              disabled={!name.trim()}
+            />
+          </form>
+          <p className="border-t border-border px-5 py-2.5 text-[11px] leading-4 text-text-faint">
+            Next session counts towards{" "}
+            <span className="font-medium text-text-muted">
+              {playthroughName(journal)}
+            </span>
+            .
+          </p>
         </div>
 
         <div
-          key={tab}
           data-controller-scroll
-          className={
-            tab === "playthroughs"
-              ? "min-h-0 overflow-y-auto md:overflow-hidden"
-              : "grid min-h-0 content-start gap-5 overflow-y-auto [scrollbar-gutter:stable]"
-          }
+          className="grid min-h-0 content-start gap-5 overflow-y-auto p-5 [scrollbar-gutter:stable]"
         >
-          {tab !== "organize" ? (
-            <>
-              {tab === "note" ? playthroughSelector : null}
-              {tab === "note" ? (
-                <div className="grid gap-3">
-                  <textarea
-                    aria-label="Game note"
-                    data-autofocus
-                    rows={7}
-                    maxLength={Math.max(NOTE_LIMIT, storedNote.length)}
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Where did you leave off? What would you like to do next time?"
-                    className="w-full resize-y rounded-xl border border-border bg-bg p-4 text-sm leading-relaxed text-text outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
-                  />
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs text-text-faint">
-                      {draft.length.toLocaleString()} /{" "}
-                      {Math.max(NOTE_LIMIT, storedNote.length).toLocaleString()}
-                    </span>
-                    <Button
-                      icon={Check}
-                      variant="secondary"
-                      onClick={saveNote}
-                      disabled={draft === storedNote}
-                    >
-                      Save note
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid gap-5 md:h-full md:min-h-0 md:grid-cols-2 md:grid-rows-[minmax(0,1fr)]">
-                  <div
-                    data-controller-scroll
-                    className="grid min-h-0 content-start gap-4 md:overflow-y-auto md:px-1 md:[scrollbar-gutter:stable]"
-                  >
-                    {playthroughSelector}
-                    <form
-                      className="flex gap-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        create();
-                      }}
-                    >
-                      <Input
-                        aria-label="New playthrough name"
-                        maxLength={NAME_LIMIT}
-                        value={name}
-                        placeholder="New Game+, co-op campaign, 2026 replay…"
-                        className="flex-1"
-                        onChange={(event) => setName(event.target.value)}
-                      />
-                      <Button
-                        type="submit"
-                        variant="secondary"
-                        icon={Plus}
-                        disabled={!name.trim()}
-                      >
-                        Create
-                      </Button>
-                    </form>
-                    <div className="rounded-lg border border-border bg-bg p-3 text-sm text-text-muted">
-                      <span className="font-medium text-text">
-                        Next session: {playthroughName(journal)}
-                      </span>
-                      <p className="mt-1 text-xs">
-                        New playthroughs become active for future sessions.
-                        Earlier sessions stay in their current playthrough.
-                      </p>
-                      {journal.playthroughs.length > 0 &&
-                        running.map((s) => (
-                          <div key={s.id} className="mt-3">
-                            <SessionPlaythroughSelect session={s} />
-                          </div>
-                        ))}
-                    </div>
-                    {playthrough ? (
-                      <section className="grid gap-3 rounded-xl border border-border p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <Input
-                            key={`${playthrough.id}:${playthrough.name}`}
-                            aria-label="Playthrough name"
-                            maxLength={NAME_LIMIT}
-                            defaultValue={playthrough.name}
-                            onBlur={(event) => {
-                              if (event.target.value.trim())
-                                actions
-                                  .getState()
-                                  .updatePlaythrough(
-                                    target.game,
-                                    playthrough.id,
-                                    {
-                                      name: event.target.value,
-                                    },
-                                  );
-                              else event.target.value = playthrough.name;
-                            }}
-                          />
-                          <span className="font-mono text-lg font-semibold text-accent">
-                            {formatDuration(selectedSeconds, showDays)}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="secondary"
-                            icon={Check}
-                            disabled={
-                              !!playthrough.completedAt ||
-                              journal.activePlaythroughId === playthrough.id
-                            }
-                            onClick={() =>
-                              actions
-                                .getState()
-                                .setActivePlaythrough(
-                                  target.game,
-                                  playthrough.id,
-                                )
-                            }
-                          >
-                            {journal.activePlaythroughId === playthrough.id
-                              ? "Active playthrough"
-                              : "Make active"}
-                          </Button>
-                          {journal.activePlaythroughId === playthrough.id ? (
-                            <Button
-                              variant="ghost"
-                              onClick={() => {
-                                actions
-                                  .getState()
-                                  .setActivePlaythrough(target.game, null);
-                                select(null);
-                              }}
-                            >
-                              Use default
-                            </Button>
-                          ) : null}
-                          <Button
-                            variant="secondary"
-                            icon={Flag}
-                            onClick={() =>
-                              actions
-                                .getState()
-                                .updatePlaythrough(
-                                  target.game,
-                                  playthrough.id,
-                                  {
-                                    completedAt: playthrough.completedAt
-                                      ? null
-                                      : new Date().toISOString(),
-                                  },
-                                )
-                            }
-                          >
-                            {playthrough.completedAt
-                              ? "Reopen"
-                              : "Mark finished"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            icon={StickyNote}
-                            onClick={() => setTab("note")}
-                          >
-                            {playthrough.note ? "Edit note" : "Add note"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            icon={Trash2}
-                            aria-label="Delete playthrough"
-                            onClick={() => setDeleting(playthrough.id)}
-                          />
-                        </div>
-                        {playthrough.completedAt ? (
-                          <label className="flex items-center gap-3 text-sm text-text-muted">
-                            Finished on
-                            <Input
-                              type="date"
-                              aria-label="Playthrough completion date"
-                              value={playthrough.completedAt.slice(0, 10)}
-                              onChange={(event) => {
-                                if (event.target.value)
-                                  actions
-                                    .getState()
-                                    .updatePlaythrough(
-                                      target.game,
-                                      playthrough.id,
-                                      {
-                                        completedAt: `${event.target.value}T12:00:00.000Z`,
-                                      },
-                                    );
-                              }}
-                            />
-                          </label>
-                        ) : null}
-                        {deleting === playthrough.id ? (
-                          <div className="rounded-lg border border-warning-border bg-warning-tint p-3 text-sm text-text">
-                            Delete “{playthrough.name}” and its note? Its
-                            sessions return to the default playthrough and all
-                            game playtime is kept.
-                            <div className="mt-3 flex gap-2">
-                              <Button
-                                variant="danger"
-                                onClick={() => {
-                                  actions
-                                    .getState()
-                                    .deletePlaythrough(
-                                      target.game,
-                                      playthrough.id,
-                                    );
-                                  setSelected(null);
-                                  setDeleting(null);
-                                }}
-                              >
-                                Delete playthrough
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                onClick={() => setDeleting(null)}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        ) : null}
-                      </section>
-                    ) : (
-                      <section className="grid gap-3 rounded-xl border border-border p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <h3 className="text-sm font-semibold text-text">
-                            {DEFAULT_PLAYTHROUGH_NAME}
-                          </h3>
-                          <span className="font-mono text-lg font-semibold text-accent">
-                            {formatDuration(selectedSeconds, showDays)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-text-muted">
-                          Your standard playthrough. Create another for a replay
-                          or a different campaign.
-                        </p>
-                        {hasGameWideTime ? (
-                          <p className="text-xs text-text-muted">
-                            Imported lifetime playtime and game-wide adjustments
-                            stay in the game's overall total.
-                          </p>
-                        ) : null}
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="secondary"
-                            icon={Check}
-                            disabled={journal.activePlaythroughId === null}
-                            onClick={() =>
-                              actions
-                                .getState()
-                                .setActivePlaythrough(target.game, null)
-                            }
-                          >
-                            {journal.activePlaythroughId === null
-                              ? "Active playthrough"
-                              : "Make active"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            icon={StickyNote}
-                            onClick={() => setTab("note")}
-                          >
-                            {journal.note ? "Edit note" : "Add note"}
-                          </Button>
-                        </div>
-                      </section>
-                    )}
-                  </div>
-                  <section
-                    className="flex min-h-0 flex-col gap-2 rounded-xl border border-border p-4"
-                    aria-label="Recorded sessions"
-                  >
-                    <h3 className="text-sm font-semibold text-text">
-                      Recorded sessions · {selectedSessions.length}
-                    </h3>
-                    {selectedArchivedSeconds > 0 ? (
-                      <p className="text-xs text-text-muted">
-                        Total includes{" "}
-                        {formatDuration(selectedArchivedSeconds, showDays)} from
-                        archived sessions.
-                      </p>
-                    ) : null}
-                    <div
-                      data-controller-scroll
-                      className="divide-y divide-border md:min-h-0 md:flex-1 md:overflow-y-auto md:[scrollbar-gutter:stable]"
-                    >
-                      {selectedSessions.map((s) => (
-                        <div
-                          key={s.id}
-                          className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm text-text-muted"
-                        >
-                          <span>
-                            {new Date(s.startedAt).toLocaleDateString()} ·{" "}
-                            {formatDuration(s.durationSeconds ?? 0, showDays)}
-                          </span>
-                          <SessionPlaythroughSelect session={s} compact />
-                        </div>
-                      ))}
-                      {!selectedSessions.length ? (
-                        <p className="py-2 text-sm text-text-faint">
-                          No recorded sessions here yet.
-                        </p>
-                      ) : null}
-                    </div>
-                  </section>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="grid gap-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  icon={Star}
-                  variant={journal.favorite ? "primary" : "secondary"}
-                  aria-pressed={journal.favorite}
-                  onClick={() =>
-                    actions.getState().updateGameJournal(target.game, {
-                      favorite: !journal.favorite,
-                    })
-                  }
-                >
-                  {journal.favorite ? "Favorite" : "Add to Favorites"}
-                </Button>
-                <select
-                  aria-label="Game status"
-                  value={journal.status ?? ""}
-                  className={journalSelectClass}
-                  onChange={(event) =>
-                    actions.getState().updateGameJournal(target.game, {
-                      status: (event.target.value || null) as GameStatus | null,
-                    })
-                  }
-                >
-                  <option value="">No status</option>
-                  {Object.entries(GAME_STATUSES).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <fieldset className="grid gap-2">
-                <legend className="mb-3 text-sm font-semibold text-text">
-                  Shelves
-                </legend>
-                {shelves
-                  .filter((s) => !s.filters)
-                  .map((s) => (
-                    <label
-                      key={s.id}
-                      className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm text-text"
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-accent"
-                        checked={journal.shelfIds.includes(s.id)}
-                        onChange={(event) =>
-                          actions.getState().updateGameJournal(target.game, {
-                            shelfIds: event.target.checked
-                              ? [...journal.shelfIds, s.id]
-                              : journal.shelfIds.filter((id) => id !== s.id),
-                          })
-                        }
-                      />
-                      {s.name}
-                    </label>
-                  ))}
-                {!shelves.some((s) => !s.filters) ? (
-                  <p className="text-sm text-text-muted">
-                    Create a shelf to group games. A game can belong to several
-                    shelves.
-                  </p>
-                ) : null}
-              </fieldset>
-              <form
-                className="flex gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const id = actions
-                    .getState()
-                    .savePersonalShelf({ name: shelfName });
-                  if (id) {
-                    actions.getState().updateGameJournal(target.game, {
-                      shelfIds: [...journal.shelfIds, id],
-                    });
-                    setShelfName("");
-                  }
-                }}
-              >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              {playthrough ? (
                 <Input
-                  aria-label="New shelf name"
+                  key={`${playthrough.id}:${playthrough.name}`}
+                  aria-label="Playthrough name"
                   maxLength={NAME_LIMIT}
-                  value={shelfName}
-                  onChange={(event) => setShelfName(event.target.value)}
-                  placeholder="New shelf…"
-                  className="flex-1"
+                  defaultValue={playthrough.name}
+                  className="-mx-2 w-full border-transparent bg-transparent px-2 py-1 text-lg font-bold !text-text hover:border-border"
+                  onBlur={(event) => {
+                    if (event.target.value.trim())
+                      useAppStore
+                        .getState()
+                        .updatePlaythrough(target.game, playthrough.id, {
+                          name: event.target.value,
+                        });
+                    else event.target.value = playthrough.name;
+                  }}
                 />
-                <Button
-                  type="submit"
-                  variant="secondary"
-                  icon={Plus}
-                  disabled={!shelfName.trim()}
-                >
-                  Create & add
-                </Button>
-              </form>
+              ) : (
+                <h3 className="py-1 text-lg font-bold text-text">
+                  {DEFAULT_PLAYTHROUGH_NAME}
+                </h3>
+              )}
+              <p className="mt-1 text-xs text-text-muted">
+                {playthrough
+                  ? `Started ${new Date(playthrough.createdAt).toLocaleDateString()}`
+                  : "Everything you played before starting a named playthrough."}
+                {selectedArchivedSeconds > 0
+                  ? ` · includes ${formatDuration(selectedArchivedSeconds, showDays)} from archived sessions`
+                  : ""}
+              </p>
             </div>
-          )}
+            <div className="text-right">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-faint">
+                Playtime
+              </div>
+              <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-accent">
+                {formatDuration(selectedSeconds, showDays)}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill
+              icon={Check}
+              selected={journal.activePlaythroughId === selected}
+              disabled={
+                journal.activePlaythroughId === selected ||
+                Boolean(playthrough?.completedAt)
+              }
+              title={
+                playthrough?.completedAt
+                  ? "Reopen this playthrough to make it active"
+                  : undefined
+              }
+              onClick={() =>
+                useAppStore
+                  .getState()
+                  .setActivePlaythrough(target.game, selected)
+              }
+            >
+              {journal.activePlaythroughId === selected
+                ? "Active"
+                : "Make active"}
+            </Pill>
+            {playthrough ? (
+              <Pill
+                icon={Flag}
+                selected={Boolean(playthrough.completedAt)}
+                onClick={() =>
+                  useAppStore
+                    .getState()
+                    .updatePlaythrough(target.game, playthrough.id, {
+                      completedAt: playthrough.completedAt
+                        ? null
+                        : new Date().toISOString(),
+                    })
+                }
+              >
+                {playthrough.completedAt ? "Finished" : "Mark finished"}
+              </Pill>
+            ) : null}
+            {playthrough?.completedAt ? (
+              <label className="flex items-center gap-2 text-xs text-text-muted">
+                on
+                <Input
+                  type="date"
+                  aria-label="Playthrough completion date"
+                  className="!py-1 text-xs"
+                  value={playthrough.completedAt.slice(0, 10)}
+                  onChange={(event) => {
+                    if (event.target.value)
+                      useAppStore
+                        .getState()
+                        .updatePlaythrough(target.game, playthrough.id, {
+                          completedAt: `${event.target.value}T12:00:00.000Z`,
+                        });
+                  }}
+                />
+              </label>
+            ) : null}
+            {playthrough ? (
+              <IconButton
+                icon={Trash2}
+                intent="danger"
+                aria-label="Delete playthrough"
+                title="Delete playthrough"
+                className="ml-auto"
+                onClick={() => setDeleting(true)}
+              />
+            ) : null}
+          </div>
+
+          {deleting && playthrough ? (
+            <div className="rounded-lg border border-warning-border bg-warning-tint p-3 text-sm text-text">
+              Delete “{playthrough.name}” and its note? Its sessions return to
+              the default playthrough and all game playtime is kept.
+              <div className="mt-3 flex gap-2">
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    useAppStore
+                      .getState()
+                      .deletePlaythrough(target.game, playthrough.id);
+                    setSelected(null);
+                    setDeleting(false);
+                  }}
+                >
+                  Delete playthrough
+                </Button>
+                <Button variant="secondary" onClick={() => setDeleting(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {!playthrough && hasGameWideTime ? (
+            <p className="rounded-lg border border-border bg-bg px-3 py-2 text-xs leading-5 text-text-muted">
+              Imported lifetime playtime and game-wide adjustments stay in the
+              game&apos;s overall total. They cannot be split across
+              playthroughs.
+            </p>
+          ) : null}
+
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="journal-note"
+                className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-faint"
+              >
+                Note
+              </label>
+              <span className="font-mono text-[11px] text-text-faint">
+                {draft.length.toLocaleString()} /{" "}
+                {Math.max(NOTE_LIMIT, storedNote.length).toLocaleString()}
+              </span>
+            </div>
+            <textarea
+              id="journal-note"
+              data-autofocus={target.tab === "note" ? "" : undefined}
+              rows={4}
+              maxLength={Math.max(NOTE_LIMIT, storedNote.length)}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={saveNote}
+              placeholder="Where did you leave off? What would you like to do next time?"
+              className="w-full resize-y rounded-xl border border-border bg-bg p-4 text-sm leading-relaxed text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+            />
+            <div className="flex items-center justify-end gap-2">
+              <span aria-live="polite" className="text-[11px] text-text-faint">
+                {draft === storedNote ? "Saved" : "Unsaved changes"}
+              </span>
+              <Button
+                icon={Check}
+                variant="secondary"
+                onClick={saveNote}
+                disabled={draft === storedNote}
+              >
+                Save note
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-faint">
+              Recorded sessions · {selectedSessions.length}
+            </h4>
+            <div className="divide-y divide-border rounded-xl border border-border">
+              {running
+                .filter((s) => (s.playthroughId ?? null) === selected)
+                .map((s) => (
+                  <div
+                    key={`live-${s.id}`}
+                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm"
+                  >
+                    <span className="inline-flex items-center gap-2 text-success">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+                      Playing now
+                    </span>
+                    <SessionPlaythroughPicker session={s} compact />
+                  </div>
+                ))}
+              {selectedSessions.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm text-text-muted"
+                >
+                  <span className="tabular-nums">
+                    {new Date(s.startedAt).toLocaleDateString()}
+                    <span className="ml-2 font-mono text-text">
+                      {formatDuration(s.durationSeconds ?? 0, showDays)}
+                    </span>
+                  </span>
+                  <SessionPlaythroughPicker session={s} compact />
+                </div>
+              ))}
+              {!selectedSessions.length && !running.length ? (
+                <p className="px-3 py-4 text-sm text-text-faint">
+                  No sessions counted here yet. Playtime lands here while this
+                  playthrough is active.
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
     </Modal>
+  );
+}
+
+function LedgerRow({
+  entry,
+  share,
+  active,
+  selected,
+  showDays,
+  autoFocus,
+  onSelect,
+}: {
+  entry: {
+    id: string | null;
+    name: string;
+    completedAt: string | null;
+    seconds: number;
+  };
+  share: number;
+  active: boolean;
+  selected: boolean;
+  showDays: boolean;
+  autoFocus: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={selected}
+      data-autofocus={autoFocus ? "" : undefined}
+      onClick={onSelect}
+      className={`grid w-full gap-1.5 rounded-lg border px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+        selected
+          ? "border-accent/60 bg-accent-tint"
+          : "border-transparent hover:bg-surface-hover"
+      }`}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <span
+          className={`truncate text-[13px] font-medium ${selected ? "text-text" : "text-text-muted"}`}
+        >
+          {entry.name}
+        </span>
+        {active ? (
+          <span
+            title="New sessions count towards this playthrough"
+            className="ml-auto shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
+          >
+            Active
+          </span>
+        ) : null}
+        {entry.completedAt ? (
+          <Flag
+            size={12}
+            className={`shrink-0 text-success ${active ? "" : "ml-auto"}`}
+            aria-label="Finished"
+          />
+        ) : null}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[11px] tabular-nums text-text-faint">
+          {formatDuration(entry.seconds, showDays)}
+        </span>
+        <span className="h-1 flex-1 overflow-hidden rounded-full bg-surface-hover">
+          <span
+            className={`block h-full rounded-full ${selected ? "bg-accent" : "bg-border"}`}
+            style={{ width: `${Math.max(2, Math.round(share * 100))}%` }}
+          />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+/** Favorite, progress and shelves describe the game, not a single run. */
+function GameShelfStrip({ target }: { target: JournalTarget }) {
+  const journal = useGameJournal(target.game);
+  const shelves = useAppStore((s) => s.personalShelves);
+  const update = useAppStore((s) => s.updateGameJournal);
+  const save = useAppStore((s) => s.savePersonalShelf);
+  const statusMenu = useAnchoredMenu();
+  const shelfMenu = useAnchoredMenu();
+  const [shelfName, setShelfName] = useState("");
+  const manualShelves = useMemo(
+    () => shelves.filter((s) => !s.filters),
+    [shelves],
+  );
+  const memberships = manualShelves.filter((s) =>
+    journal.shelfIds.includes(s.id),
+  );
+  const status = journal.status;
+
+  function toggleShelf(id: string, member: boolean) {
+    update(target.game, {
+      shelfIds: member
+        ? journal.shelfIds.filter((value) => value !== id)
+        : [...journal.shelfIds, id],
+    });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
+      <Pill
+        icon={Star}
+        selected={journal.favorite}
+        aria-pressed={journal.favorite}
+        onClick={() => update(target.game, { favorite: !journal.favorite })}
+      >
+        {journal.favorite ? "Favorite" : "Add to Favorites"}
+      </Pill>
+
+      <Pill
+        ref={statusMenu.anchorRef}
+        aria-haspopup="menu"
+        aria-expanded={statusMenu.open}
+        aria-label="Progress status"
+        selected={Boolean(status)}
+        onClick={statusMenu.toggle}
+      >
+        <span
+          className={`h-2 w-2 rounded-full ${status ? STATUS_TONES[status].dot : "bg-text-faint"}`}
+        />
+        {status ? GAME_STATUSES[status] : "Set progress"}
+        <ChevronDown size={12} className="opacity-70" />
+      </Pill>
+      <ContextMenu
+        open={statusMenu.open}
+        position={statusMenu.position}
+        anchorRef={statusMenu.anchorRef}
+        onClose={statusMenu.close}
+      >
+        <ContextMenuHeading>Progress</ContextMenuHeading>
+        {GAME_STATUS_LIST.map((value) => (
+          <ContextMenuItem
+            key={value}
+            selected={status === value}
+            onClick={() => {
+              update(target.game, {
+                status: status === value ? null : (value as GameStatus),
+              });
+              statusMenu.close();
+            }}
+          >
+            {GAME_STATUSES[value]}
+          </ContextMenuItem>
+        ))}
+      </ContextMenu>
+
+      <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+
+      {memberships.map((shelf) => (
+        <Pill
+          key={shelf.id}
+          selected
+          aria-label={`Remove ${target.game.gameName ?? "game"} from ${shelf.name}`}
+          title="Remove from this shelf"
+          onClick={() => toggleShelf(shelf.id, true)}
+        >
+          {shelf.name}
+          <X size={12} className="opacity-70" />
+        </Pill>
+      ))}
+      <Pill
+        ref={shelfMenu.anchorRef}
+        icon={Plus}
+        aria-haspopup="menu"
+        aria-expanded={shelfMenu.open}
+        data-autofocus={target.tab === "organize" ? "" : undefined}
+        onClick={shelfMenu.toggle}
+      >
+        Shelf
+      </Pill>
+      <ContextMenu
+        open={shelfMenu.open}
+        position={shelfMenu.position}
+        anchorRef={shelfMenu.anchorRef}
+        onClose={shelfMenu.close}
+      >
+        <ContextMenuHeading>Shelves</ContextMenuHeading>
+        {manualShelves.map((shelf) => (
+          <ContextMenuItem
+            key={shelf.id}
+            selected={journal.shelfIds.includes(shelf.id)}
+            onClick={() =>
+              toggleShelf(shelf.id, journal.shelfIds.includes(shelf.id))
+            }
+          >
+            {shelf.name}
+          </ContextMenuItem>
+        ))}
+        {!manualShelves.length ? (
+          <p className="max-w-56 px-3 py-2 text-xs leading-5 text-text-muted">
+            Shelves group games however you like. A game can sit on several.
+          </p>
+        ) : null}
+        <form
+          className="flex gap-1.5 border-t border-border px-2 pb-1 pt-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const id = save({ name: shelfName });
+            if (id) {
+              update(target.game, { shelfIds: [...journal.shelfIds, id] });
+              setShelfName("");
+              shelfMenu.close();
+            }
+          }}
+        >
+          <Input
+            aria-label="New shelf name"
+            maxLength={NAME_LIMIT}
+            value={shelfName}
+            placeholder="New shelf…"
+            className="w-40 !py-1 text-[13px]"
+            onChange={(event) => setShelfName(event.target.value)}
+          />
+          <Button
+            type="submit"
+            variant="secondary"
+            icon={Plus}
+            aria-label="Create shelf and add this game"
+            className="!px-2"
+            disabled={!shelfName.trim()}
+          />
+        </form>
+      </ContextMenu>
+    </div>
   );
 }
