@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useAppStore } from "../../store";
+import { getGameJournal, useAppStore } from "../../store";
 import type { LibraryImportEntry } from "../../library/types";
 import { MyGamesView } from "./MyGamesView";
 
@@ -35,6 +35,7 @@ let shelf: string;
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.spyOn(document, "elementFromPoint").mockReturnValue(null);
   localStorage.clear();
   useAppStore.setState(useAppStore.getInitialState(), true);
   useAppStore.setState({
@@ -87,6 +88,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(() => root.unmount());
   container.remove();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -103,14 +105,18 @@ function counts() {
   );
 }
 
-async function selectShelf(label: string) {
+function shelfChip(label: string) {
   const chip = [
     ...container.querySelectorAll<HTMLButtonElement>(
       '[aria-label="Library shelf"] [role="tab"]',
     ),
   ].find((item) => item.textContent?.startsWith(label));
   expect(chip, `no shelf chip for ${label}`).toBeDefined();
-  await act(() => chip!.click());
+  return chip!;
+}
+
+async function selectShelf(label: string) {
+  await act(() => shelfChip(label).click());
 }
 
 async function setStatusFilter(label: string) {
@@ -208,4 +214,235 @@ it("counts a game once per source even with multiple imports", async () => {
   await act(() => root.render(<MyGamesView />));
   await selectShelf("Favorites");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1, xbox: 1 });
+});
+
+function gameCard(name: string) {
+  const card = [
+    ...container.querySelectorAll<HTMLElement>(".game-library-card"),
+  ].find((element) => element.textContent?.includes(name));
+  expect(card, `no game card for ${name}`).toBeDefined();
+  return card!;
+}
+
+async function pointer(
+  target: EventTarget,
+  type: string,
+  options: PointerEventInit = {},
+) {
+  const event = new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    pointerId: 1,
+    pointerType: "mouse",
+    isPrimary: true,
+    button: 0,
+    buttons: type === "pointerup" ? 0 : 1,
+    clientX: 120,
+    clientY: 400,
+    ...options,
+  });
+  await act(() => {
+    target.dispatchEvent(event);
+  });
+  return event;
+}
+
+async function startDrag(card: HTMLElement) {
+  await pointer(card, "pointerdown");
+  await pointer(window, "pointermove", { clientX: 140, clientY: 410 });
+  expect(document.querySelector(".library-game-drag-preview")).not.toBeNull();
+}
+
+async function releaseOnShelf(label: string) {
+  vi.mocked(document.elementFromPoint).mockReturnValue(
+    shelfChip(label).lastElementChild,
+  );
+  await pointer(window, "pointermove", { clientX: 220, clientY: 100 });
+  await pointer(window, "pointerup", { clientX: 220, clientY: 100 });
+  // happy-dom has no layout: the return animation restores the card on this frame.
+  await act(
+    () =>
+      new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+  );
+}
+
+async function dropGame(card: HTMLElement, label: string) {
+  await startDrag(card);
+  await releaseOnShelf(label);
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+}
+
+it.each(["grid", "large", "list"] as const)(
+  "adds a dragged game to shelves and Favorites in %s view without changing its other data",
+  async (view) => {
+    useAppStore.getState().setMyGamesCardSize(view);
+    useAppStore.getState().updateGameJournal(local, {
+      favorite: false,
+      note: "Continue the quest",
+    });
+    const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
+    await act(() => root.render(<MyGamesView />));
+    await selectShelf("Weekend");
+    const original = getGameJournal(useAppStore.getState(), local);
+    const other = getGameJournal(useAppStore.getState(), steam);
+
+    await dropGame(gameCard(local.gameName), "Co-op");
+    expect(getGameJournal(useAppStore.getState(), local)).toEqual({
+      ...original,
+      shelfIds: [shelf, target],
+    });
+    expect(shelfChip("Weekend").getAttribute("aria-selected")).toBe("true");
+    expect(shelfChip("Co-op").lastElementChild?.textContent).toBe("1");
+    const journals = useAppStore.getState().gameJournals;
+    await dropGame(gameCard(local.gameName), "Co-op");
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+
+    await dropGame(gameCard(local.gameName), "Favorites");
+    expect(getGameJournal(useAppStore.getState(), local)).toEqual({
+      ...original,
+      favorite: true,
+      shelfIds: [shelf, target],
+    });
+    expect(getGameJournal(useAppStore.getState(), steam)).toEqual(other);
+  },
+);
+
+it("ignores external drops, saved-filter targets, and cancelled drags", async () => {
+  useAppStore.getState().savePersonalShelf({
+    name: "Unplayed",
+    filters: { played: "unplayed" },
+  });
+  await act(() => root.render(<MyGamesView />));
+  const journals = useAppStore.getState().gameJournals;
+  await act(() => {
+    shelfChip("Weekend").dispatchEvent(new Event("drop", { bubbles: true }));
+  });
+
+  for (const label of ["Unplayed", "All games"]) {
+    await dropGame(gameCard("Local other"), label);
+  }
+  await startDrag(gameCard("Local other"));
+  await act(() => {
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
+  await releaseOnShelf("Weekend");
+  expect(useAppStore.getState().gameJournals).toBe(journals);
+});
+
+it("assigns an imported game to the same journal as its local alias", async () => {
+  const alias = {
+    gameId: -12,
+    source: "custom" as const,
+    igdbId: steam.igdbId,
+    gameName: steam.name,
+  };
+  useAppStore.getState().updateGameJournal(alias, { note: "Steam campaign" });
+  const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
+  await act(() => root.render(<MyGamesView />));
+  await dropGame(gameCard(steam.name), "Co-op");
+  for (const identity of [steam, alias]) {
+    expect(getGameJournal(useAppStore.getState(), identity)).toMatchObject({
+      note: "Steam campaign",
+      shelfIds: [shelf, target],
+    });
+  }
+  expect(
+    Object.values(useAppStore.getState().gameJournals).filter(
+      (journal) => journal.game.igdbId === steam.igdbId,
+    ),
+  ).toHaveLength(1);
+});
+
+it("preserves membership changes made during a drag and does not drag from card controls", async () => {
+  useAppStore.getState().updateGameJournal(local, { note: "Read this note" });
+  const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
+  const addedMeanwhile = useAppStore
+    .getState()
+    .savePersonalShelf({ name: "Later" })!;
+  await act(() => root.render(<MyGamesView />));
+  const card = gameCard(local.gameName);
+  const control = card.querySelector('[title="Read note"]')!;
+  await pointer(control, "pointerdown");
+  await pointer(window, "pointermove", { clientX: 220, clientY: 100 });
+  await pointer(window, "pointerup");
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+
+  await startDrag(card);
+  await act(() =>
+    useAppStore.getState().updateGameJournal(local, {
+      shelfIds: [shelf, addedMeanwhile],
+    }),
+  );
+  await releaseOnShelf("Co-op");
+  expect(getGameJournal(useAppStore.getState(), local).shelfIds).toEqual([
+    shelf,
+    addedMeanwhile,
+    target,
+  ]);
+});
+
+it("keeps small pointer movements as clicks and suppresses the release click after a real drag", async () => {
+  const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
+  await act(() => root.render(<MyGamesView />));
+  const card = gameCard(local.gameName);
+  await pointer(card, "pointerdown");
+  await pointer(window, "pointermove", { clientX: 123, clientY: 402 });
+  await pointer(window, "pointerup");
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+
+  await dropGame(card, "Co-op");
+  await selectShelf("Co-op"); // Simulates the browser's click following pointerup.
+  expect(shelfChip("All games").getAttribute("aria-selected")).toBe("true");
+  expect(getGameJournal(useAppStore.getState(), local).shelfIds).toEqual([
+    shelf,
+    target,
+  ]);
+  await pointer(shelfChip("Co-op"), "pointerdown");
+  await selectShelf("Co-op");
+  expect(shelfChip("Co-op").getAttribute("aria-selected")).toBe("true");
+});
+
+it.each(["pointercancel", "blur"])(
+  "restores the card without assigning it after %s",
+  async (type) => {
+    await act(() => root.render(<MyGamesView />));
+    const journals = useAppStore.getState().gameJournals;
+    const card = gameCard("Local other");
+    await startDrag(card);
+    await act(() => {
+      window.dispatchEvent(new Event(type));
+    });
+    await releaseOnShelf("Weekend");
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+    expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+    expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+  },
+);
+
+it("cleans up a card drag when the library unmounts", async () => {
+  await act(() => root.render(<MyGamesView />));
+  const card = gameCard("Local other");
+  await startDrag(card);
+  await act(() => root.render(null));
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  expect(
+    document.documentElement.classList.contains("library-game-dragging"),
+  ).toBe(false);
+  expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+});
+
+it("cleans up a drag when navigating away from the mounted library", async () => {
+  useAppStore.setState({ activeView: "games" });
+  await act(() => root.render(<MyGamesView />));
+  const card = gameCard("Local other");
+  const journals = useAppStore.getState().gameJournals;
+  await startDrag(card);
+  await act(() => useAppStore.getState().setActiveView("history"));
+  await releaseOnShelf("Weekend");
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+  expect(useAppStore.getState().gameJournals).toBe(journals);
 });
