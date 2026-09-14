@@ -926,6 +926,40 @@ select {
   outline-offset: 2px;
 }
 
+.library-game-dragging,
+.library-game-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.game-library-card[data-library-drag-source] {
+  opacity: 0;
+  pointer-events: none;
+  transform: none !important;
+  transition: none;
+}
+
+.library-game-drag-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  margin: 0;
+  pointer-events: none;
+  transform-origin: top left;
+  opacity: 1;
+  transition: none;
+  will-change: transform;
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 0.4),
+    0 0 0 1px rgb(var(--color-accent) / 0.45);
+}
+
+.library-game-drag-preview .game-card-hover-actions,
+.library-game-drag-preview [role="tooltip"] {
+  visibility: hidden;
+}
+
 /* Treat the cover CTA as its own hover target, not as a card hover. */
 .game-library-card:has(.level-up-cta:hover) {
   border-color: rgb(var(--color-border));

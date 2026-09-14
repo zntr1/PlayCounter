@@ -158,6 +158,11 @@ import {
   useLibraryJournalLookup,
 } from "../LibraryOrganization";
 import {
+  useLibraryGameDrag,
+  libraryGameDragSourceProps,
+  type StartLibraryGameDrag,
+} from "../libraryGameDrag";
+import {
   DEFAULT_PLAYTHROUGH_NAME,
   matchesLibraryFilters,
   type LibraryFilters,
@@ -516,6 +521,7 @@ function activeDurationSeconds(activeSession: ActiveSession) {
 }
 
 export function MyGamesView() {
+  const libraryDrag = useLibraryGameDrag();
   const [shelfSelection, setShelfSelection] = useState("all");
   const [libraryFilters, setLibraryFilters] = useState<LibraryFilters>({});
   const personalShelves = useAppStore((s) => s.personalShelves);
@@ -1527,7 +1533,13 @@ export function MyGamesView() {
         <EmptyLibraryPanel platform={platform} />
       ) : (
         <>
-          <Panel dataTour="games-toolbar" className="overflow-hidden">
+          <Panel
+            dataTour="games-toolbar"
+            className={clsx(
+              "overflow-hidden",
+              libraryDrag.game && "sticky top-0 z-40",
+            )}
+          >
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4">
               <div>
                 <h2 className="font-semibold text-text">Library</h2>
@@ -1809,6 +1821,8 @@ export function MyGamesView() {
               source={activeLibraryTab}
               query={query}
               counts={shelfCounts}
+              draggedGame={libraryDrag.game}
+              dropTarget={libraryDrag.dropTarget}
             />
             {layout.showTabs ? (
               <div className="border-b border-border bg-bg px-4 pt-3">
@@ -2028,6 +2042,7 @@ export function MyGamesView() {
                         launchBlocked={launchingGameKey !== null}
                         onAcquireLaunch={acquireLaunchLock}
                         onReleaseLaunch={releaseLaunchLock}
+                        onDragGame={libraryDrag.start}
                         game={game}
                         localLinks={localLinks}
                         demo={isDemo}
@@ -2261,6 +2276,7 @@ function GameLibraryCard({
   onRemove,
   onStopTracking,
   onDemoPlaytimeLogged,
+  onDragGame,
   demo = false,
 }: {
   game: GameSummary;
@@ -2276,6 +2292,7 @@ function GameLibraryCard({
   onRemove: (game: GameSummary) => void;
   onStopTracking?: (game: GameSummary) => void;
   onDemoPlaytimeLogged?: (durationSeconds: number) => void;
+  onDragGame: StartLibraryGameDrag;
   demo?: boolean;
 }) {
   // The tour walks through both halves, so its demo card always shows them.
@@ -2304,6 +2321,17 @@ function GameLibraryCard({
   );
   const activeTour = useAppStore((state) => state.activeTour);
   const contextMenu = useContextMenu();
+  const gameDragProps = libraryGameDragSourceProps(
+    {
+      gameId: game.gameId,
+      source: game.source,
+      igdbId: game.igdbId,
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+    },
+    onDragGame,
+    demo,
+  );
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
@@ -3786,6 +3814,7 @@ function GameLibraryCard({
     return (
       <article
         ref={cardRef}
+        {...gameDragProps}
         {...contextMenu.props}
         {...demoCardProps}
         data-controller-item={controllerNavigable ? "game-card" : undefined}
@@ -3825,6 +3854,7 @@ function GameLibraryCard({
             <GameCover
               src={game.coverUrl}
               alt=""
+              draggable={false}
               className="game-card-cover-image h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
@@ -4334,6 +4364,7 @@ function GameLibraryCard({
   return (
     <article
       ref={cardRef}
+      {...gameDragProps}
       {...contextMenu.props}
       {...demoCardProps}
       data-controller-item={controllerNavigable ? "game-card" : undefined}
@@ -4378,6 +4409,7 @@ function GameLibraryCard({
             <GameCover
               src={game.coverUrl}
               alt=""
+              draggable={false}
               className="aspect-[3/4] w-full rounded-lg object-cover"
             />
           ) : (

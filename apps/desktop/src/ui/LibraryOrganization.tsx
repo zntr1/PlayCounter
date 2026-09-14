@@ -109,6 +109,8 @@ export function LibraryOrganizationToolbar({
   source,
   query,
   counts,
+  draggedGame,
+  dropTarget,
 }: {
   selection: string;
   onSelect: (id: string) => void;
@@ -118,6 +120,8 @@ export function LibraryOrganizationToolbar({
   query: string;
   /** Games per shelf id, counted across every import source. */
   counts: Record<string, number>;
+  draggedGame: GameIdentityRef | null;
+  dropTarget: string | null;
 }) {
   const shelves = useAppStore((s) => s.personalShelves);
   const save = useAppStore((s) => s.savePersonalShelf);
@@ -158,6 +162,19 @@ export function LibraryOrganizationToolbar({
     onFiltersChange(next);
   }
 
+  function dropProps(id: string, allowed = true) {
+    return {
+      "data-library-drop-shelf": allowed ? id : undefined,
+      className: !draggedGame
+        ? undefined
+        : !allowed
+          ? "opacity-40"
+          : dropTarget === id
+            ? "!border-accent !bg-accent !text-accent-fg ring-2 ring-accent/40 [&>span]:!text-accent-fg"
+            : "!border-accent/60 !bg-accent-tint !text-accent",
+    };
+  }
+
   return (
     <div className="grid gap-3 border-b border-border px-4 py-3">
       <div className="flex items-start gap-2">
@@ -167,6 +184,7 @@ export function LibraryOrganizationToolbar({
           className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
         >
           <Pill
+            {...dropProps("all", false)}
             role="tab"
             aria-selected={selection === "all"}
             selected={selection === "all"}
@@ -176,6 +194,7 @@ export function LibraryOrganizationToolbar({
             All games
           </Pill>
           <Pill
+            {...dropProps("favorites")}
             role="tab"
             aria-selected={selection === "favorites"}
             selected={selection === "favorites"}
@@ -188,6 +207,7 @@ export function LibraryOrganizationToolbar({
           {shelves.map((shelf) => (
             <Pill
               key={shelf.id}
+              {...dropProps(shelf.id, !shelf.filters)}
               role="tab"
               aria-selected={selection === shelf.id}
               selected={selection === shelf.id}
