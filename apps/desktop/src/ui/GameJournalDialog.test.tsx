@@ -2,9 +2,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { getGameJournal, useAppStore } from "../store";
+import { getGameJournal, useAppStore, type ActiveSession } from "../store";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
 import { GameJournalBadges } from "./GameJournalActions";
+import { ActiveGameHero } from "./views/ActiveGameHero";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
 let root: Root;
@@ -145,18 +146,79 @@ it("edits the session's note and switches scopes without copying text into anoth
   expect(journal.playthroughs.find((p) => p.id === second)?.note).toBe("");
 });
 
-it("opens the general note from the cover when the active playthrough has no note", async () => {
-  await act(() =>
-    root.render(
+it.each([true, false])(
+  "opens the default note from the cover when the active playthrough has no note (another named note: %s)",
+  async (hasOtherNote) => {
+    if (!hasOtherNote)
+      useAppStore.getState().updatePlaythrough(game, first, { note: "" });
+    await act(() =>
+      root.render(
+        <>
+          <GameJournalBadges game={game} />
+          <GameJournalHost />
+        </>,
+      ),
+    );
+    await clickLabel("Read note for Campaign");
+    expect(document.querySelector("textarea")?.value).toBe("General reminder");
+    expect(useAppStore.getState().journalTarget?.playthroughId).toBeNull();
+  },
+);
+
+it("shows only the running session's playthrough note when switching assignments in Now Playing", async () => {
+  const session: ActiveSession = {
+    ...game,
+    id: 7,
+    playthroughId: first,
+    exeName: "game.exe",
+    coverUrl: "",
+    startedAt: "2026-09-14T10:00:00Z",
+    checkpointedAt: "2026-09-14T10:01:00Z",
+  };
+  useAppStore.setState({ activeSessions: [session] });
+  function NowPlaying() {
+    const running = useAppStore((state) => state.activeSessions[0]);
+    return (
       <>
-        <GameJournalBadges game={game} />
+        <ActiveGameHero
+          session={running}
+          elapsedSeconds={60}
+          recentSessions={[]}
+          showDurationDays={false}
+          exeCache={new Map()}
+          resolveIgdbId={() => undefined}
+          archivedGameSeconds={{}}
+          playtimeAdjustments={{}}
+          statusLabel="Now playing"
+        />
         <GameJournalHost />
-      </>,
-    ),
-  );
-  await clickLabel("Read note for Campaign");
+      </>
+    );
+  }
+  await act(() => root.render(<NowPlaying />));
+  expect(container.textContent).toContain("First run reminder");
+  expect(container.textContent).not.toContain("General reminder");
+
+  await clickLabel("Playthrough for session 7");
+  await click("Replay");
+  expect(useAppStore.getState().activeSessions[0].playthroughId).toBe(second);
+  expect(container.textContent).not.toContain("First run reminder");
+  expect(container.textContent).not.toContain("General reminder");
+  expect(container.querySelector('[title="Open this note"]')).toBeNull();
+  await click("Journal");
+  expect(document.querySelector("textarea")?.value).toBe("");
+  expect(useAppStore.getState().journalTarget?.playthroughId).toBe(second);
+  await click("Done");
+
+  await clickLabel("Playthrough for session 7");
+  await click("Default playthrough");
+  expect(container.textContent).toContain("General reminder");
+  await click("General reminder");
   expect(document.querySelector("textarea")?.value).toBe("General reminder");
   expect(useAppStore.getState().journalTarget?.playthroughId).toBeNull();
+  expect(getGameJournal(useAppStore.getState(), game).activePlaythroughId).toBe(
+    second,
+  );
 });
 
 it("changes a recorded session's assignment without changing the next-session default", async () => {

@@ -10,6 +10,7 @@ import {
   archivePlaythroughSeconds,
   defaultPlaythroughTime,
   emptyJournal,
+  journalNote,
   matchesLibraryFilters,
   playthroughSeconds,
   type FilterableLibraryGame,
@@ -60,6 +61,24 @@ afterEach(async () => {
 });
 
 describe("personal game journals", () => {
+  it("keeps new and cleared playthrough notes empty while preserving the default note", () => {
+    useAppStore.getState().updateGameJournal(game, { note: "Default reminder" });
+    const id = useAppStore.getState().createPlaythrough(game, "Replay")!;
+    const readNote = () =>
+      journalNote(getGameJournal(useAppStore.getState(), game));
+
+    expect(readNote()).toBe("");
+    useAppStore
+      .getState()
+      .updatePlaythrough(game, id, { note: "Replay reminder" });
+    expect(readNote()).toBe("Replay reminder");
+    useAppStore.getState().updatePlaythrough(game, id, { note: "" });
+    expect(readNote()).toBe("");
+
+    useAppStore.getState().setActivePlaythrough(game, null);
+    expect(readNote()).toBe("Default reminder");
+  });
+
   it("keeps existing and running sessions unchanged when selecting or creating a playthrough", () => {
     const first = useAppStore.getState().createPlaythrough(game, "First run")!;
     const running: ActiveSession = {
