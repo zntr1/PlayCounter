@@ -1,3 +1,4 @@
+import "./disableBrowserContextMenu";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";

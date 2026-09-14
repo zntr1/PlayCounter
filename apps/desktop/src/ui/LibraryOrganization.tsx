@@ -6,7 +6,7 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GAME_STATUSES,
   NAME_LIMIT,
@@ -23,7 +23,16 @@ import {
   useAppStore,
   type GameIdentityRef,
 } from "../store";
-import { Button, IconButton, Input, Modal, Pill } from "./primitives";
+import {
+  Button,
+  ContextMenu,
+  ContextMenuHeading,
+  ContextMenuItem,
+  Input,
+  Modal,
+  Pill,
+  useContextMenu,
+} from "./primitives";
 import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import type { LibraryTabId } from "./libraryTabs";
 
@@ -118,7 +127,15 @@ export function LibraryOrganizationToolbar({
     null,
   );
   const [name, setName] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState<PersonalShelf | null>(null);
+  const [menuShelfId, setMenuShelfId] = useState<string | null>(null);
+  const shelfMenu = useContextMenu();
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeShelfMenu = useCallback(() => {
+    shelfMenu.close();
+    menuTriggerRef.current?.focus();
+  }, [shelfMenu.close]);
+  const menuShelf = shelves.find((s) => s.id === menuShelfId);
   const selected = shelves.find((s) => s.id === selection);
   const activeCount = Object.values(filters).filter(
     (v) => v !== undefined && v !== false && v !== "",
@@ -134,7 +151,6 @@ export function LibraryOrganizationToolbar({
   function edit(value: typeof editor) {
     setEditor(value);
     setName(typeof value === "object" && value ? value.name : "");
-    setConfirmDelete(false);
   }
   function setFilter(key: keyof LibraryFilters, value: unknown) {
     const next = { ...filters, [key]: value };
@@ -179,10 +195,27 @@ export function LibraryOrganizationToolbar({
               count={counts[shelf.id]}
               title={
                 shelf.filters
-                  ? "Saved filter · updates as your library changes"
-                  : undefined
+                  ? "Saved filter · updates as your library changes. Right-click to edit or delete."
+                  : "Right-click to edit or delete"
               }
               onClick={() => onSelect(shelf.id)}
+              onContextMenu={(event) => {
+                menuTriggerRef.current = event.currentTarget;
+                setMenuShelfId(shelf.id);
+                shelfMenu.props.onContextMenu(event);
+              }}
+              onKeyDown={(event) => {
+                if (
+                  event.key !== "ContextMenu" &&
+                  !(event.shiftKey && event.key === "F10")
+                )
+                  return;
+                event.preventDefault();
+                const rect = event.currentTarget.getBoundingClientRect();
+                menuTriggerRef.current = event.currentTarget;
+                setMenuShelfId(shelf.id);
+                shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
+              }}
             >
               {shelf.name}
             </Pill>
@@ -190,14 +223,6 @@ export function LibraryOrganizationToolbar({
           <Pill icon={Plus} onClick={() => edit("new")}>
             New shelf
           </Pill>
-          {selected ? (
-            <IconButton
-              icon={Pencil}
-              aria-label={`Edit ${selected.name}`}
-              title="Rename or delete this shelf"
-              onClick={() => edit(selected)}
-            />
-          ) : null}
         </div>
         <Button
           variant={expanded || activeCount ? "secondary" : "ghost"}
@@ -385,6 +410,36 @@ export function LibraryOrganizationToolbar({
         </div>
       ) : null}
 
+      {menuShelf ? (
+        <ContextMenu
+          open={shelfMenu.open}
+          position={shelfMenu.position}
+          onClose={closeShelfMenu}
+          focusFirstItem
+        >
+          <ContextMenuHeading>{menuShelf.name}</ContextMenuHeading>
+          <ContextMenuItem
+            icon={Pencil}
+            onClick={() => {
+              closeShelfMenu();
+              edit(menuShelf);
+            }}
+          >
+            Edit
+          </ContextMenuItem>
+          <ContextMenuItem
+            icon={Trash2}
+            danger
+            onClick={() => {
+              closeShelfMenu();
+              setDeleting(menuShelf);
+            }}
+          >
+            Delete
+          </ContextMenuItem>
+        </ContextMenu>
+      ) : null}
+
       {editor ? (
         <Modal
           labelId="shelf-editor-title"
@@ -420,7 +475,7 @@ export function LibraryOrganizationToolbar({
                         : undefined,
                 });
                 if (id) {
-                  onSelect(id);
+                  if (typeof editor !== "object") onSelect(id);
                   setEditor(null);
                 }
               }}
@@ -446,49 +501,47 @@ export function LibraryOrganizationToolbar({
                 changes.
               </p>
             ) : null}
-            {typeof editor === "object" ? (
-              <>
-                {editor.filters ? (
-                  <p className="text-xs text-text-muted">
-                    Change its rules under Filters, then choose Update{" "}
-                    {editor.name}.
-                  </p>
-                ) : null}
-                {confirmDelete ? (
-                  <div className="text-sm text-text-muted">
-                    Delete this shelf? The games and their notes stay in your
-                    library.
-                    <div className="mt-2 flex gap-2">
-                      <Button
-                        variant="danger"
-                        onClick={() => {
-                          remove(editor.id);
-                          onSelect("all");
-                          setEditor(null);
-                        }}
-                      >
-                        Delete shelf
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => setConfirmDelete(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    icon={Trash2}
-                    onClick={() => setConfirmDelete(true)}
-                  >
-                    Delete shelf
-                  </Button>
-                )}
-              </>
+            {typeof editor === "object" && editor.filters ? (
+              <p className="text-xs text-text-muted">
+                Change its rules under Filters, then choose Update {editor.name}
+                .
+              </p>
             ) : null}
           </div>
+        </Modal>
+      ) : null}
+      {deleting ? (
+        <Modal
+          labelId="delete-shelf-title"
+          title={`Delete “${deleting.name}”?`}
+          icon={Trash2}
+          size="sm"
+          onClose={() => setDeleting(null)}
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                data-autofocus
+                onClick={() => setDeleting(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  remove(deleting.id);
+                  if (selection === deleting.id) onSelect("all");
+                  setDeleting(null);
+                }}
+              >
+                Delete shelf
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-text-muted">
+            The games and their notes stay in your library.
+          </p>
         </Modal>
       ) : null}
     </div>
