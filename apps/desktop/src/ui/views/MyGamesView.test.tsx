@@ -487,6 +487,89 @@ it("keeps small pointer movements as clicks and suppresses the release click aft
   expect(shelfChip("Co-op").getAttribute("aria-selected")).toBe("true");
 });
 
+it.each(["before", "during"])(
+  "keeps the returning card attached to its library slot when scrolling %s the animation",
+  async (timing) => {
+    // Match App's positioned scroll area, including its border and existing scroll.
+    container.setAttribute("data-controller-content", "true");
+    container.style.position = "absolute";
+    container.style.overflow = "auto";
+    Object.defineProperty(container, "clientLeft", { value: 2 });
+    Object.defineProperty(container, "clientTop", { value: 3 });
+    vi.spyOn(container, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(100, 80, 800, 600),
+    );
+    container.scrollLeft = 30;
+    container.scrollTop = 500;
+    await act(() => root.render(<MyGamesView />));
+    const card = gameCard("Local other");
+    const measureCard = vi
+      .spyOn(card, "getBoundingClientRect")
+      .mockImplementation(
+        () =>
+          new DOMRect(
+            362 - container.scrollLeft,
+            983 - container.scrollTop,
+            200,
+            300,
+          ),
+      );
+    await startDrag(card);
+    const preview = document.querySelector<HTMLElement>(
+      ".library-game-drag-preview",
+    )!;
+    const animation = {
+      cancel: vi.fn(),
+      onfinish: null,
+    } as unknown as Animation;
+    const animate = vi.fn<HTMLElement["animate"]>(() => animation);
+    Object.defineProperty(preview, "animate", { value: animate });
+    const scroll = () => {
+      container.scrollLeft = 70;
+      container.scrollTop = 660;
+      container.dispatchEvent(new Event("scroll"));
+    };
+    vi.mocked(document.elementFromPoint).mockReturnValue(shelfChip("Weekend"));
+    await act(() => {
+      window.dispatchEvent(
+        new PointerEvent("pointerup", {
+          pointerId: 1,
+          pointerType: "mouse",
+          clientX: 220,
+          clientY: 100,
+        }),
+      );
+      if (timing === "before") scroll();
+    });
+    await nextFrame();
+    expect(preview.parentElement === container).toBe(true);
+    expect(preview.style.position).toBe("absolute");
+    expect(card.hasAttribute("data-library-drag-source")).toBe(true);
+    // The destination is in content coordinates, independent of either scroll offset.
+    const keyframes = animate.mock.calls[0]?.[0] as Keyframe[];
+    expect(keyframes.at(-1)?.transform).toBe(
+      "translate3d(260px, 900px, 0) scale(1, 1)",
+    );
+    const journals = useAppStore.getState().gameJournals;
+    measureCard.mockClear();
+    if (timing === "during") await act(scroll);
+    await nextFrame();
+    expect(animate).toHaveBeenCalledTimes(1);
+    expect(measureCard).not.toHaveBeenCalled();
+    expect(preview.isConnected).toBe(true);
+    await act(() =>
+      animation.onfinish?.call(
+        animation,
+        new Event("finish") as AnimationPlaybackEvent,
+      ),
+    );
+    expect(animation.cancel).toHaveBeenCalledTimes(1);
+    expect(preview.isConnected).toBe(false);
+    expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+  },
+);
+
 it.each(["pointercancel", "blur", "pointerleave"])(
   "restores the card without assigning it after %s",
   async (type) => {
