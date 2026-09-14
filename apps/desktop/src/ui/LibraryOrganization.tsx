@@ -35,6 +35,7 @@ import {
 } from "./primitives";
 import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import type { LibraryTabId } from "./libraryTabs";
+import { LibraryGameHoverHint } from "./LibraryGameDropHint";
 
 export type OrganizedGame = FilterableLibraryGame & GameIdentityRef;
 
@@ -160,6 +161,7 @@ export function LibraryOrganizationToolbar({
 
   function dropProps(id: string, allowed = true) {
     return {
+      "data-library-shelf": id,
       "data-library-drop-shelf": allowed ? id : undefined,
     };
   }
@@ -182,6 +184,7 @@ export function LibraryOrganizationToolbar({
             onClick={() => onSelect("all")}
           >
             All games
+            <LibraryGameHoverHint />
           </Pill>
           <Pill
             {...dropProps("favorites")}
@@ -193,6 +196,7 @@ export function LibraryOrganizationToolbar({
             onClick={() => onSelect("favorites")}
           >
             Favorites
+            <LibraryGameHoverHint />
           </Pill>
           {shelves.map((shelf) => (
             <Pill
@@ -228,6 +232,7 @@ export function LibraryOrganizationToolbar({
               }}
             >
               {shelf.name}
+              <LibraryGameHoverHint />
             </Pill>
           ))}
           <Pill icon={Plus} onClick={() => edit("new")}>

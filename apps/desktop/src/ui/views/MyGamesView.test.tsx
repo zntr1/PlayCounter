@@ -302,10 +302,16 @@ it.each(["grid", "large", "list"] as const)(
     expect(shelfChip("Weekend").getAttribute("aria-selected")).toBe("true");
     expect(shelfChip("Co-op").lastElementChild?.textContent).toBe("1");
     const journals = useAppStore.getState().gameJournals;
+    const toasts = useAppStore.getState().toasts;
     await dropGame(gameCard(local.gameName), "Co-op");
     expect(useAppStore.getState().gameJournals).toBe(journals);
+    expect(useAppStore.getState().toasts).toBe(toasts);
+    expect(document.querySelector(".library-game-drop-hint")?.textContent).toBe(
+      "Already in Co-op",
+    );
 
     await dropGame(gameCard(local.gameName), "Favorites");
+    expect(document.querySelector(".library-game-drop-hint")).toBeNull();
     expect(getGameJournal(useAppStore.getState(), local)).toEqual({
       ...original,
       favorite: true,
@@ -315,7 +321,7 @@ it.each(["grid", "large", "list"] as const)(
   },
 );
 
-it("ignores external drops, saved-filter targets, and cancelled drags", async () => {
+it("explains blocked shelf drops without changing data, and ignores external or cancelled drags", async () => {
   useAppStore.getState().savePersonalShelf({
     name: "Unplayed",
     filters: { played: "unplayed" },
@@ -326,10 +332,22 @@ it("ignores external drops, saved-filter targets, and cancelled drags", async ()
     shelfChip("Weekend").dispatchEvent(new Event("drop", { bubbles: true }));
   });
 
-  for (const label of ["Unplayed", "All games"]) {
+  for (const [label, message] of [
+    [
+      "Unplayed",
+      "This shelf uses filtersGames appear here automatically when they match.",
+    ],
+    ["All games", "Already in All games"],
+  ]) {
     await dropGame(gameCard("Local other"), label);
+    expect(document.querySelector(".library-game-drop-hint")?.textContent).toBe(
+      message,
+    );
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+    expect(useAppStore.getState().toasts).toHaveLength(0);
   }
   await startDrag(gameCard("Local other"));
+  expect(document.querySelector(".library-game-drop-hint")).toBeNull();
   await act(() => {
     window.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
@@ -337,6 +355,25 @@ it("ignores external drops, saved-filter targets, and cancelled drags", async ()
   });
   await releaseOnShelf("Weekend");
   expect(useAppStore.getState().gameJournals).toBe(journals);
+  expect(document.querySelector(".library-game-drop-hint")).toBeNull();
+});
+
+it("clears duplicate Favorites feedback when scrolling or leaving the library", async () => {
+  useAppStore.setState({ activeView: "games" });
+  await act(() => root.render(<MyGamesView />));
+  const journals = useAppStore.getState().gameJournals;
+  await dropGame(gameCard(local.gameName), "Favorites");
+  expect(document.querySelector(".library-game-drop-hint")?.textContent).toBe(
+    "Already in Favorites",
+  );
+  await act(() => container.dispatchEvent(new Event("scroll")));
+  expect(document.querySelector(".library-game-drop-hint")).toBeNull();
+
+  await dropGame(gameCard(local.gameName), "Favorites");
+  await act(() => useAppStore.getState().setActiveView("history"));
+  expect(document.querySelector(".library-game-drop-hint")).toBeNull();
+  expect(useAppStore.getState().gameJournals).toBe(journals);
+  expect(useAppStore.getState().toasts).toHaveLength(0);
 });
 
 it("assigns an imported game to the same journal as its local alias", async () => {
@@ -361,6 +398,12 @@ it("assigns an imported game to the same journal as its local alias", async () =
       (journal) => journal.game.igdbId === steam.igdbId,
     ),
   ).toHaveLength(1);
+  const journals = useAppStore.getState().gameJournals;
+  await dropGame(gameCard(steam.name), "Co-op");
+  expect(document.querySelector(".library-game-drop-hint")?.textContent).toBe(
+    "Already in Co-op",
+  );
+  expect(useAppStore.getState().gameJournals).toBe(journals);
 });
 
 it("preserves membership changes made during a drag and does not drag from card controls", async () => {
@@ -389,6 +432,38 @@ it("preserves membership changes made during a drag and does not drag from card 
     addedMeanwhile,
     target,
   ]);
+});
+
+it("rechecks membership on drop when a shelf's prepared hover hint is no longer current", async () => {
+  await act(() => root.render(<MyGamesView />));
+  const card = gameCard(local.gameName);
+  await startDrag(card);
+  expect(shelfChip("Weekend").dataset.libraryDragBlocked).toBe("already-added");
+  await act(() =>
+    useAppStore.getState().updateGameJournal(local, { shelfIds: [] }),
+  );
+  await releaseOnShelf("Weekend");
+  expect(getGameJournal(useAppStore.getState(), local).shelfIds).toEqual([
+    shelf,
+  ]);
+  expect(document.querySelector(".library-game-drop-hint")).toBeNull();
+
+  await act(() =>
+    useAppStore.getState().updateGameJournal(local, { shelfIds: [] }),
+  );
+  await startDrag(card);
+  expect(shelfChip("Weekend").hasAttribute("data-library-drag-blocked")).toBe(
+    false,
+  );
+  await act(() =>
+    useAppStore.getState().updateGameJournal(local, { shelfIds: [shelf] }),
+  );
+  const journals = useAppStore.getState().gameJournals;
+  await releaseOnShelf("Weekend");
+  expect(document.querySelector(".library-game-drop-hint")?.textContent).toBe(
+    "Already in Weekend",
+  );
+  expect(useAppStore.getState().gameJournals).toBe(journals);
 });
 
 it("keeps small pointer movements as clicks and suppresses the release click after a real drag", async () => {
@@ -428,6 +503,10 @@ it.each(["pointercancel", "blur", "pointerleave"])(
     expect(useAppStore.getState().gameJournals).toBe(journals);
     expect(document.querySelector(".library-game-drag-preview")).toBeNull();
     expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+    expect(container.querySelector("[data-library-drag-blocked]")).toBeNull();
+    expect(shelfChip("Weekend").getAttribute("title")).toBe(
+      "Right-click to edit or delete",
+    );
   },
 );
 
@@ -441,6 +520,7 @@ it("cleans up a card drag when the library unmounts", async () => {
     document.documentElement.classList.contains("library-game-dragging"),
   ).toBe(false);
   expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+  expect(document.querySelector("[data-library-drag-blocked]")).toBeNull();
 });
 
 it("cleans up a drag when navigating away from the mounted library", async () => {
@@ -454,9 +534,14 @@ it("cleans up a drag when navigating away from the mounted library", async () =>
   expect(document.querySelector(".library-game-drag-preview")).toBeNull();
   expect(card.hasAttribute("data-library-drag-source")).toBe(false);
   expect(useAppStore.getState().gameJournals).toBe(journals);
+  expect(container.querySelector("[data-library-drag-blocked]")).toBeNull();
 });
 
-it("does not rerender the library when moving between shelf drop targets", async () => {
+it("prepares blocked-shelf explanations before release without rerendering during hover", async () => {
+  useAppStore
+    .getState()
+    .savePersonalShelf({ name: "Unplayed", filters: { played: "unplayed" } });
+  useAppStore.getState().savePersonalShelf({ name: "Later" });
   const onRender = vi.fn();
   await act(() =>
     root.render(
@@ -466,14 +551,30 @@ it("does not rerender the library when moving between shelf drop targets", async
     ),
   );
   onRender.mockClear();
-  await startDrag(gameCard("Local other"));
+  await startDrag(gameCard(local.gameName));
   await nextFrame();
-  for (const label of ["Weekend", "Favorites", "All games"]) {
+  expect(shelfChip("Later").hasAttribute("data-library-drag-blocked")).toBe(
+    false,
+  );
+  for (const [label, reason, message] of [
+    ["Weekend", "already-added", "Already in Weekend"],
+    ["Favorites", "already-added", "Already in Favorites"],
+    ["All games", "already-added", "Already in All games"],
+    ["Unplayed", "saved-filter", "This shelf uses filters"],
+  ]) {
+    const chip = shelfChip(label);
+    const hint = chip.querySelector<HTMLElement>(".library-game-hover-hint")!;
+    expect(chip.dataset.libraryDragBlocked).toBe(reason);
+    expect(hint.textContent).toContain(message);
+    expect(chip.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(chip.hasAttribute("title")).toBe(false);
     vi.mocked(document.elementFromPoint).mockReturnValue(shelfChip(label));
-    await pointer(window, "pointermove", { clientX: 220, clientY: 100 });
+    await pointer(chip, "pointermove", { clientX: 220, clientY: 100 });
     await nextFrame();
   }
   expect(onRender).not.toHaveBeenCalled();
+  expect(document.elementFromPoint).not.toHaveBeenCalled();
+  expect(useAppStore.getState().toasts).toHaveLength(0);
 });
 
 it("waits for release to look up the shelf and change membership, without measuring layout during movement", async () => {
@@ -487,6 +588,16 @@ it("waits for release to look up the shelf and change membership, without measur
   const journals = useAppStore.getState().gameJournals;
   await startDrag(card);
   await nextFrame();
+  const measureHints = vi.spyOn(
+    shelfChip("All games").querySelector<HTMLElement>(
+      ".library-game-hover-hint",
+    )!,
+    "getBoundingClientRect",
+  );
+  const measureShelf = vi.spyOn(
+    shelfChip("All games"),
+    "getBoundingClientRect",
+  );
   measureCard.mockClear();
   measureRail.mockClear();
   vi.mocked(document.elementFromPoint)
@@ -511,7 +622,10 @@ it("waits for release to look up the shelf and change membership, without measur
   expect(document.elementFromPoint).not.toHaveBeenCalled();
   expect(measureCard).not.toHaveBeenCalled();
   expect(measureRail).not.toHaveBeenCalled();
+  expect(measureHints).not.toHaveBeenCalled();
+  expect(measureShelf).not.toHaveBeenCalled();
   expect(useAppStore.getState().gameJournals).toBe(journals);
+  expect(document.querySelector(".library-game-drop-hint")).toBeNull();
 
   await pointer(window, "pointerup", { clientX: 249, clientY: 100 });
   expect(document.elementFromPoint).toHaveBeenCalledTimes(1);

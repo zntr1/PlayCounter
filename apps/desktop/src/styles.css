@@ -938,17 +938,19 @@ select {
 
 .library-game-dragging
   [data-library-shelf-rail]
-  > button:not([data-library-drop-shelf]) {
+  > button:not([data-library-drop-shelf]):not([data-library-drag-blocked]) {
   opacity: 0.4;
 }
 
-.library-game-dragging [data-library-drop-shelf] {
+.library-game-dragging
+  [data-library-drop-shelf]:not([data-library-drag-blocked]) {
   border-color: rgb(var(--color-accent) / 0.6);
   background-color: var(--color-accent-tint);
   color: rgb(var(--color-accent));
 }
 
-.library-game-dragging [data-library-drop-shelf]:hover {
+.library-game-dragging
+  [data-library-drop-shelf]:not([data-library-drag-blocked]):hover {
   position: relative;
   z-index: 10;
   cursor: copy !important;
@@ -961,8 +963,137 @@ select {
     0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
 
-.library-game-dragging [data-library-drop-shelf]:hover > span {
+.library-game-dragging
+  [data-library-drop-shelf]:not([data-library-drag-blocked]):hover
+  > span {
   color: inherit;
+}
+
+.library-game-dragging [data-library-drag-blocked] {
+  border-color: rgb(var(--color-border));
+  background-color: rgb(var(--color-surface));
+  color: rgb(var(--color-text-muted));
+}
+
+.library-game-dragging [data-library-drag-blocked]:hover {
+  position: relative;
+  /* Keep the hint above the small card following the pointer. */
+  z-index: 1001;
+  border-color: rgb(var(--color-accent) / 0.45);
+  background-color: rgb(var(--color-surface-hover));
+}
+
+.library-game-dragging [data-library-drag-blocked]:hover,
+.library-game-dragging [data-library-drag-blocked]:hover * {
+  cursor: not-allowed !important;
+}
+
+.library-game-drop-hint,
+.library-game-hover-hint {
+  position: fixed;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 9px 12px;
+  border: 1px solid rgb(var(--color-accent) / 0.3);
+  border-radius: 12px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text));
+  box-shadow: var(--shadow-raised);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.library-game-drop-hint {
+  animation: library-game-drop-hint 3s ease both;
+}
+
+.library-game-hover-hint {
+  display: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.library-game-dragging [data-library-drag-blocked] > .library-game-hover-hint {
+  display: flex;
+}
+
+.library-game-dragging
+  [data-library-drag-blocked]:hover
+  > .library-game-hover-hint {
+  visibility: visible;
+  opacity: 1;
+}
+
+.library-game-hover-hint [data-hint-icon] {
+  display: none;
+}
+
+[data-library-drag-blocked="already-added"] [data-hint-icon="already-added"],
+[data-library-drag-blocked="saved-filter"] [data-hint-icon="saved-filter"],
+[data-library-drag-blocked="unavailable"] [data-hint-icon="unavailable"] {
+  display: block;
+}
+
+.library-game-drop-hint::before,
+.library-game-hover-hint::before {
+  position: absolute;
+  top: -4px;
+  left: calc(var(--drop-hint-arrow-x) - 4px);
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid rgb(var(--color-accent) / 0.3);
+  border-left: 1px solid rgb(var(--color-accent) / 0.3);
+  background: rgb(var(--color-surface));
+  content: "";
+  transform: rotate(45deg);
+}
+
+.library-game-drop-hint[data-side="above"]::before,
+.library-game-hover-hint[data-side="above"]::before {
+  top: auto;
+  bottom: -4px;
+  transform: rotate(225deg);
+}
+
+.library-game-drop-hint-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 1px solid rgb(var(--color-accent) / 0.2);
+  border-radius: 8px;
+  background: var(--color-accent-tint);
+  color: rgb(var(--color-accent));
+}
+
+@keyframes library-game-drop-hint {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  6%,
+  90% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-game-drop-hint {
+    animation: none;
+  }
+  .library-game-hover-hint {
+    transition: none;
+  }
 }
 
 .game-library-card[data-library-drag-source] {
