@@ -363,7 +363,32 @@ export function useLibraryGameDrag() {
           }
           const scaleX = destination.width / origin.width;
           const scaleY = destination.height / origin.height;
-          const translate = `translate3d(${destination.left}px, ${destination.top}px, 0)`;
+          let destinationX = destination.left;
+          let destinationY = destination.top;
+          const scrollContainer = source.closest<HTMLElement>(
+            "[data-controller-content]",
+          );
+          if (scrollContainer) {
+            // Return in the library's content coordinates so native scrolling
+            // moves the copy and its destination together throughout the bounce.
+            const bounds = scrollContainer.getBoundingClientRect();
+            const offsetX =
+              bounds.left +
+              scrollContainer.clientLeft -
+              scrollContainer.scrollLeft;
+            const offsetY =
+              bounds.top +
+              scrollContainer.clientTop -
+              scrollContainer.scrollTop;
+            x -= offsetX;
+            y -= offsetY;
+            destinationX -= offsetX;
+            destinationY -= offsetY;
+            preview!.style.position = "absolute";
+            preview!.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${dragScale})`;
+            scrollContainer.append(preview!);
+          }
+          const translate = `translate3d(${destinationX}px, ${destinationY}px, 0)`;
           const sourceShadow = getComputedStyle(source).boxShadow;
           const cover = source.querySelector<HTMLElement>(
             ".game-card-cover-image",
