@@ -13,7 +13,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { getSessionGameKey } from "../../../historyStats";
 import { GameCover } from "../../GameCover";
-import { SessionPlaythroughSelect } from "../../GameJournalDialog";
+import { SessionPlaythroughPicker } from "../../GameJournalDialog";
 import { useAppStore, type GameIdentityResolver } from "../../../store";
 import {
   CommunityApprovalBadge,
@@ -313,7 +313,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           ) : null}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-muted">
-          <SessionPlaythroughSelect session={session} compact />
+          <SessionPlaythroughPicker session={session} compact />
           <span className="truncate">
             {session.emulator
               ? `${session.emulator.label} · ${session.emulator.display}`
@@ -356,13 +356,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           icon={StickyNote}
           onClick={() => {
             contextMenu.close();
-            useAppStore
-              .getState()
-              .openGameJournal({
-                game: { ...session, gameName },
-                tab: "note",
-                playthroughId: session.playthroughId ?? null,
-              });
+            useAppStore.getState().openGameJournal({
+              game: { ...session, gameName },
+              tab: "note",
+              playthroughId: session.playthroughId ?? null,
+            });
           }}
         >
           Update note
@@ -371,13 +369,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           icon={BookOpen}
           onClick={() => {
             contextMenu.close();
-            useAppStore
-              .getState()
-              .openGameJournal({
-                game: { ...session, gameName },
-                tab: "playthroughs",
-                playthroughId: session.playthroughId ?? null,
-              });
+            useAppStore.getState().openGameJournal({
+              game: { ...session, gameName },
+              tab: "playthroughs",
+              playthroughId: session.playthroughId ?? null,
+            });
           }}
         >
           Playthroughs

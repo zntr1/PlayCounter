@@ -2,8 +2,8 @@ import {
   FolderHeart,
   Pencil,
   Plus,
-  Search,
   SlidersHorizontal,
+  Star,
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -23,8 +23,8 @@ import {
   useAppStore,
   type GameIdentityRef,
 } from "../store";
-import { Button, Input, Modal } from "./primitives";
-import { journalSelectClass } from "./GameJournalDialog";
+import { Button, IconButton, Input, Modal, Pill } from "./primitives";
+import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import type { LibraryTabId } from "./libraryTabs";
 
 export type OrganizedGame = FilterableLibraryGame & GameIdentityRef;
@@ -61,13 +61,35 @@ export function matchesShelf(
 ) {
   if (id === "all") return true;
   if (id === "favorites") return journal.favorite;
-  if (id.startsWith("status:")) return journal.status === id.slice(7);
   const shelf = shelves.find((s) => s.id === id);
   return !shelf
     ? true
     : shelf.filters
       ? matchesLibraryFilters(game, journal, shelf.filters)
       : journal.shelfIds.includes(shelf.id);
+}
+
+/* The shelf rail ─────────────────────────────────────────────────────────────
+   Shelves were hidden behind a dropdown, so nobody could see what they had
+   made. They are chips now: one row, one click, each carrying its own count.
+   Everything that narrows the library further — progress, playtime, emulator —
+   lives in the filter drawer, stated as pills rather than a wall of selects. */
+
+function FilterGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-[104px_minmax(0,1fr)] sm:items-baseline">
+      <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-faint">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
 }
 
 export function LibraryOrganizationToolbar({
@@ -77,6 +99,7 @@ export function LibraryOrganizationToolbar({
   onFiltersChange,
   source,
   query,
+  counts,
 }: {
   selection: string;
   onSelect: (id: string) => void;
@@ -84,6 +107,8 @@ export function LibraryOrganizationToolbar({
   onFiltersChange: (filters: LibraryFilters) => void;
   source: LibraryTabId;
   query: string;
+  /** Games per shelf id, counted across every import source. */
+  counts: Record<string, number>;
 }) {
   const shelves = useAppStore((s) => s.personalShelves);
   const save = useAppStore((s) => s.savePersonalShelf);
@@ -95,14 +120,13 @@ export function LibraryOrganizationToolbar({
   const [name, setName] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const selected = shelves.find((s) => s.id === selection);
-  const count = Object.values(filters).filter(
+  const activeCount = Object.values(filters).filter(
     (v) => v !== undefined && v !== false && v !== "",
   ).length;
   useEffect(() => {
     if (
       selection !== "all" &&
       selection !== "favorites" &&
-      !selection.startsWith("status:") &&
       !shelves.some((s) => s.id === selection)
     )
       onSelect("all");
@@ -117,156 +141,217 @@ export function LibraryOrganizationToolbar({
     if (value === undefined) delete next[key];
     onFiltersChange(next);
   }
+
   return (
     <div className="grid gap-3 border-b border-border px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <FolderHeart size={16} className="text-accent" />
-        <select
+      <div className="flex items-start gap-2">
+        <div
+          role="tablist"
           aria-label="Library shelf"
-          value={selection}
-          onChange={(event) => onSelect(event.target.value)}
-          className={`${journalSelectClass} flex-1 sm:max-w-[280px]`}
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
         >
-          <option value="all">All shelves</option>
-          <option value="favorites">Favorites</option>
-          <optgroup label="Progress">
-            {Object.entries(GAME_STATUSES).map(([value, label]) => (
-              <option key={value} value={`status:${value}`}>
-                {label}
-              </option>
-            ))}
-          </optgroup>
-          {shelves.some((s) => !s.filters) ? (
-            <optgroup label="My shelves">
-              {shelves
-                .filter((s) => !s.filters)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-            </optgroup>
+          <Pill
+            role="tab"
+            aria-selected={selection === "all"}
+            selected={selection === "all"}
+            count={counts.all}
+            onClick={() => onSelect("all")}
+          >
+            All games
+          </Pill>
+          <Pill
+            role="tab"
+            aria-selected={selection === "favorites"}
+            selected={selection === "favorites"}
+            icon={Star}
+            count={counts.favorites}
+            onClick={() => onSelect("favorites")}
+          >
+            Favorites
+          </Pill>
+          {shelves.map((shelf) => (
+            <Pill
+              key={shelf.id}
+              role="tab"
+              aria-selected={selection === shelf.id}
+              selected={selection === shelf.id}
+              icon={shelf.filters ? SlidersHorizontal : FolderHeart}
+              count={counts[shelf.id]}
+              title={
+                shelf.filters
+                  ? "Saved filter · updates as your library changes"
+                  : undefined
+              }
+              onClick={() => onSelect(shelf.id)}
+            >
+              {shelf.name}
+            </Pill>
+          ))}
+          <Pill icon={Plus} onClick={() => edit("new")}>
+            New shelf
+          </Pill>
+          {selected ? (
+            <IconButton
+              icon={Pencil}
+              aria-label={`Edit ${selected.name}`}
+              title="Rename or delete this shelf"
+              onClick={() => edit(selected)}
+            />
           ) : null}
-          {shelves.some((s) => s.filters) ? (
-            <optgroup label="Saved filters">
-              {shelves
-                .filter((s) => s.filters)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-            </optgroup>
-          ) : null}
-        </select>
-        <Button variant="ghost" icon={Plus} onClick={() => edit("new")}>
-          New shelf
-        </Button>
-        {selected ? (
-          <Button variant="ghost" icon={Pencil} onClick={() => edit(selected)}>
-            Edit shelf
-          </Button>
-        ) : null}
+        </div>
         <Button
-          variant={expanded || count ? "secondary" : "ghost"}
+          variant={expanded || activeCount ? "secondary" : "ghost"}
           icon={SlidersHorizontal}
           aria-expanded={expanded}
+          className="shrink-0"
           onClick={() => setExpanded(!expanded)}
         >
-          Filters{count ? ` · ${count}` : ""}
+          Filters{activeCount ? ` · ${activeCount}` : ""}
         </Button>
       </div>
-      {selected?.filters ? (
-        <p className="text-xs text-text-muted">
-          Saved filter · updates automatically as your library changes.
-        </p>
-      ) : null}
+
       {expanded ? (
-        <div className="grid gap-3">
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-            <select
-              aria-label="Filter by status"
-              className={journalSelectClass}
-              value={filters.status ?? ""}
-              onChange={(e) => setFilter("status", e.target.value || undefined)}
+        <div className="grid gap-3 rounded-xl border border-border bg-bg p-4">
+          <FilterGroup label="Progress">
+            <Pill
+              selected={!filters.status}
+              onClick={() => setFilter("status", undefined)}
             >
-              <option value="">Any status</option>
-              {Object.entries(GAME_STATUSES).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Filter by playtime"
-              className={journalSelectClass}
-              value={filters.played ?? ""}
-              onChange={(e) => setFilter("played", e.target.value || undefined)}
+              Any
+            </Pill>
+            {GAME_STATUS_LIST.map((value) => (
+              <Pill
+                key={value}
+                selected={filters.status === value}
+                onClick={() =>
+                  setFilter(
+                    "status",
+                    filters.status === value
+                      ? undefined
+                      : (value as GameStatus),
+                  )
+                }
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${STATUS_TONES[value].dot}`}
+                />
+                {GAME_STATUSES[value]}
+              </Pill>
+            ))}
+          </FilterGroup>
+          <FilterGroup label="Playtime">
+            <Pill
+              selected={!filters.played}
+              onClick={() => setFilter("played", undefined)}
             >
-              <option value="">Any playtime</option>
-              <option value="unplayed">Unplayed</option>
-              <option value="played">Played</option>
-            </select>
-            <select
-              aria-label="Filter by installation"
-              className={journalSelectClass}
-              value={filters.installed ? "installed" : ""}
-              onChange={(e) =>
-                setFilter("installed", e.target.value ? true : undefined)
-              }
-            >
-              <option value="">Any installation</option>
-              <option value="installed">Installed (Steam / Xbox)</option>
-            </select>
-            <select
-              aria-label="Filter by emulator"
-              className={journalSelectClass}
-              value={filters.emulator ?? ""}
-              onChange={(e) =>
-                setFilter("emulator", e.target.value || undefined)
-              }
-            >
-              <option value="">Any emulator</option>
-              <option value="dosbox">DOSBox</option>
-              <option value="dolphin">Dolphin</option>
-              <option value="pcsx2">PlayStation 2 · PCSX2</option>
-            </select>
-            <select
-              aria-label="Filter by last played"
-              className={journalSelectClass}
-              value={filters.lastPlayedDays ?? ""}
-              onChange={(e) =>
+              Any
+            </Pill>
+            <Pill
+              selected={filters.played === "played"}
+              onClick={() =>
                 setFilter(
-                  "lastPlayedDays",
-                  e.target.value ? Number(e.target.value) : undefined,
+                  "played",
+                  filters.played === "played" ? undefined : "played",
                 )
               }
             >
-              <option value="">Any last played date</option>
-              <option value="30">Not played in 30 days</option>
-              <option value="90">Not played in 90 days</option>
-              <option value="180">Not played in 6 months</option>
-              <option value="365">Not played in a year</option>
-            </select>
-            <label className="flex items-center gap-2 px-2 text-sm text-text">
-              <input
-                type="checkbox"
-                checked={filters.favorite === true}
-                className="h-4 w-4 accent-accent"
-                onChange={(e) =>
-                  setFilter("favorite", e.target.checked || undefined)
-                }
-              />
+              Played
+            </Pill>
+            <Pill
+              selected={filters.played === "unplayed"}
+              onClick={() =>
+                setFilter(
+                  "played",
+                  filters.played === "unplayed" ? undefined : "unplayed",
+                )
+              }
+            >
+              Never played
+            </Pill>
+            <span aria-hidden className="mx-1 h-6 w-px bg-border" />
+            <Pill
+              icon={Star}
+              selected={filters.favorite === true}
+              onClick={() =>
+                setFilter("favorite", filters.favorite ? undefined : true)
+              }
+            >
               Favorites only
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
+            </Pill>
+            <Pill
+              selected={filters.installed === true}
+              onClick={() =>
+                setFilter("installed", filters.installed ? undefined : true)
+              }
+            >
+              Installed (Steam / Xbox)
+            </Pill>
+          </FilterGroup>
+          <FilterGroup label="Emulator">
+            <Pill
+              selected={!filters.emulator}
+              onClick={() => setFilter("emulator", undefined)}
+            >
+              Any
+            </Pill>
+            {(
+              [
+                ["dosbox", "DOSBox"],
+                ["dolphin", "Dolphin"],
+                ["pcsx2", "PCSX2"],
+              ] as const
+            ).map(([value, label]) => (
+              <Pill
+                key={value}
+                selected={filters.emulator === value}
+                onClick={() =>
+                  setFilter(
+                    "emulator",
+                    filters.emulator === value ? undefined : value,
+                  )
+                }
+              >
+                {label}
+              </Pill>
+            ))}
+          </FilterGroup>
+          <FilterGroup label="Untouched">
+            <Pill
+              selected={!filters.lastPlayedDays}
+              onClick={() => setFilter("lastPlayedDays", undefined)}
+            >
+              Any
+            </Pill>
+            {(
+              [
+                [30, "30 days"],
+                [90, "90 days"],
+                [180, "6 months"],
+                [365, "A year"],
+              ] as const
+            ).map(([days, label]) => (
+              <Pill
+                key={days}
+                selected={filters.lastPlayedDays === days}
+                onClick={() =>
+                  setFilter(
+                    "lastPlayedDays",
+                    filters.lastPlayedDays === days ? undefined : days,
+                  )
+                }
+              >
+                {label}
+              </Pill>
+            ))}
+          </FilterGroup>
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
             <Button
               variant="secondary"
-              icon={Search}
+              icon={Plus}
+              disabled={!activeCount}
               onClick={() => edit("filter")}
             >
-              Save filter as shelf
+              Save as shelf
             </Button>
             {selected?.filters ? (
               <Button
@@ -282,19 +367,24 @@ export function LibraryOrganizationToolbar({
                   })
                 }
               >
-                Update saved filter
+                Update {selected.name}
               </Button>
             ) : null}
             <Button
               variant="ghost"
               onClick={() => onFiltersChange({})}
-              disabled={!count}
+              disabled={!activeCount}
             >
               Clear filters
             </Button>
+            <p className="ml-auto text-xs text-text-faint">
+              A saved shelf keeps these rules, the search, and the import
+              source.
+            </p>
           </div>
         </div>
       ) : null}
+
       {editor ? (
         <Modal
           labelId="shelf-editor-title"
@@ -302,7 +392,7 @@ export function LibraryOrganizationToolbar({
             typeof editor === "object"
               ? "Edit shelf"
               : editor === "filter"
-                ? "Save filter"
+                ? "Save filter as shelf"
                 : "New shelf"
           }
           icon={FolderHeart}
@@ -313,11 +403,7 @@ export function LibraryOrganizationToolbar({
               disabled={!name.trim()}
               onClick={() => {
                 const builtin =
-                  selection === "favorites"
-                    ? { favorite: true }
-                    : selection.startsWith("status:")
-                      ? { status: selection.slice(7) as GameStatus }
-                      : {};
+                  selection === "favorites" ? { favorite: true } : {};
                 const id = save({
                   id: typeof editor === "object" ? editor.id : undefined,
                   name,
@@ -356,16 +442,16 @@ export function LibraryOrganizationToolbar({
             />
             {editor === "filter" ? (
               <p className="text-sm text-text-muted">
-                Saves these filters, the search, and the selected import source.
-                Games join this shelf automatically.
+                Games join and leave this shelf on their own as your library
+                changes.
               </p>
             ) : null}
             {typeof editor === "object" ? (
               <>
                 {editor.filters ? (
                   <p className="text-xs text-text-muted">
-                    Change its rules using Filters, then choose Update saved
-                    filter.
+                    Change its rules under Filters, then choose Update{" "}
+                    {editor.name}.
                   </p>
                 ) : null}
                 {confirmDelete ? (

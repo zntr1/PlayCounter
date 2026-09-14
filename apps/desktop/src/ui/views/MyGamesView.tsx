@@ -149,9 +149,9 @@ import {
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
 import { GameCover } from "../GameCover";
-import { GameJournalMenu, GameNoteBadge } from "../GameJournalActions";
+import { GameJournalBadges, GameJournalMenu } from "../GameJournalActions";
 import { useGameJournal } from "../useGameJournal";
-import { journalSelectClass } from "../GameJournalDialog";
+import { selectClass } from "../primitives";
 import {
   LibraryOrganizationToolbar,
   matchesShelf,
@@ -1289,6 +1289,23 @@ export function MyGamesView() {
     libraryFilters,
     recentSortNow,
   ]);
+  // Each chip carries its own size, counted across every import source so the
+  // number does not shift when the source tab changes.
+  const shelfCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: games.length,
+      favorites: 0,
+    };
+    for (const shelf of personalShelves) counts[shelf.id] = 0;
+    for (const game of games) {
+      const journal = journalFor({ ...game, gameName: game.name });
+      if (journal.favorite) counts.favorites += 1;
+      for (const shelf of personalShelves)
+        if (matchesShelf(game, journal, shelf.id, personalShelves))
+          counts[shelf.id] += 1;
+    }
+    return counts;
+  }, [games, journalFor, personalShelves]);
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return needle
@@ -1791,6 +1808,7 @@ export function MyGamesView() {
               onFiltersChange={setLibraryFilters}
               source={activeLibraryTab}
               query={query}
+              counts={shelfCounts}
             />
             {layout.showTabs ? (
               <div className="border-b border-border bg-bg px-4 pt-3">
@@ -3801,7 +3819,7 @@ function GameLibraryCard({
         ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
           {!demo ? (
-            <GameNoteBadge game={{ ...game, gameName: game.name }} />
+            <GameJournalBadges game={{ ...game, gameName: game.name }} />
           ) : null}
           {game.coverUrl ? (
             <GameCover
@@ -4351,7 +4369,10 @@ function GameLibraryCard({
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
           {!demo ? (
-            <GameNoteBadge game={{ ...game, gameName: game.name }} compact />
+            <GameJournalBadges
+              game={{ ...game, gameName: game.name }}
+              compact
+            />
           ) : null}
           {game.coverUrl ? (
             <GameCover
@@ -4931,7 +4952,7 @@ function AddPlaytimeDialog({
             <select
               aria-label="Manual session playthrough"
               value={playthroughId}
-              className={journalSelectClass}
+              className={selectClass}
               onChange={(event) => setPlaythroughId(event.target.value)}
             >
               <option value="">{DEFAULT_PLAYTHROUGH_NAME}</option>

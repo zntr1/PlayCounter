@@ -13,7 +13,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, X, type LucideIcon } from "lucide-react";
+import { Check, Loader2, X, type LucideIcon } from "lucide-react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -142,23 +142,84 @@ export function Input({ className, ...rest }: InputProps) {
   );
 }
 
+// Native select, themed to match Input. Kept for genuine form fields; the
+// browsing surfaces use Pill groups and anchored menus instead.
+export const selectClass =
+  "min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30";
+
+type PillProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  selected?: boolean;
+  icon?: LucideIcon;
+  /** Rendered as a quiet trailing number, e.g. a shelf's game count. */
+  count?: number;
+};
+
+/** A one-click choice: filter value, shelf, status. Loud enough to read as a
+ *  control, quiet enough to put twenty of them in a row. */
+export const Pill = forwardRef<HTMLButtonElement, PillProps>(function Pill(
+  {
+    selected = false,
+    icon: Icon,
+    count,
+    className,
+    children,
+    "aria-pressed": ariaPressed,
+    ...rest
+  },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      aria-pressed={ariaPressed ?? selected}
+      className={clsx(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
+        selected
+          ? "border-accent/70 bg-accent-tint text-accent"
+          : "border-border bg-surface text-text-muted hover:border-accent/40 hover:bg-surface-hover hover:text-text",
+        className,
+      )}
+      {...rest}
+    >
+      {Icon ? <Icon size={14} /> : null}
+      {children}
+      {count !== undefined ? (
+        <span
+          className={clsx(
+            "ml-0.5 font-mono text-[11px] tabular-nums",
+            selected ? "text-accent/80" : "text-text-faint",
+          )}
+        >
+          {count}
+        </span>
+      ) : null}
+    </button>
+  );
+});
+
+// Menus opened inside a dialog answer Escape first: closing a playthrough
+// picker should not also close the journal behind it.
+let openMenuCount = 0;
+
 // Closes an open overlay (modal, menu) when the user presses Escape.
 export function useEscapeKey(onClose: () => void) {
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && openMenuCount === 0) onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 }
 
-export type ModalSize = "sm" | "md" | "wide" | "full";
+export type ModalSize = "sm" | "md" | "wide" | "xl" | "full";
 
 const modalSizes: Record<ModalSize, string> = {
   sm: "max-w-md",
   md: "max-w-lg",
   wide: "max-w-4xl",
+  xl: "max-w-5xl",
   full: "h-[80vh] max-w-none",
 };
 
@@ -214,6 +275,7 @@ export function Modal({
   subtitle,
   icon: Icon,
   iconSpin = false,
+  media,
   onClose,
   footer,
   className,
@@ -229,6 +291,8 @@ export function Modal({
   subtitle?: string;
   icon?: LucideIcon;
   iconSpin?: boolean;
+  /** Replaces the icon tile, e.g. with the game's cover art. */
+  media?: ReactNode;
   onClose: () => void;
   footer?: ReactNode;
   className?: string;
@@ -264,7 +328,8 @@ export function Modal({
       >
         <div className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
           <div className="flex items-start gap-3">
-            {Icon ? (
+            {media ?? null}
+            {!media && Icon ? (
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
                 <Icon
                   size={21}
@@ -342,11 +407,28 @@ export function useContextMenu() {
   };
 }
 
+/** A menu that hangs off its own trigger button: the picker pattern used for
+ *  playthrough assignment and progress status. Keeps the native-select
+ *  behaviour (click to open, Escape to close) without the native look. */
+export function useAnchoredMenu() {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const close = useCallback(() => setOpen(false), []);
+  const toggle = useCallback(() => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (rect) setPosition({ x: rect.left, y: rect.bottom + 6 });
+    setOpen((current) => !current);
+  }, []);
+  return { anchorRef, open, position, close, toggle };
+}
+
 export function ContextMenu({
   open,
   position,
   onClose,
   children,
+  anchorRef,
   dataTour,
   focusFirstItem,
 }: {
@@ -354,6 +436,8 @@ export function ContextMenu({
   position: { x: number; y: number };
   onClose: () => void;
   children: ReactNode;
+  /** Clicks on the trigger are the trigger's business, not an outside click. */
+  anchorRef?: RefObject<HTMLElement | null>;
   dataTour?: string;
   focusFirstItem?: boolean;
 }) {
@@ -381,11 +465,15 @@ export function ContextMenu({
 
   useEffect(() => {
     if (!open) return;
+    openMenuCount += 1;
 
     const handleGlobalClick = (e: globalThis.MouseEvent) => {
       // Allow clicking inside the menu without closing immediately
       // (item clicks will close it if they call onClose)
-      if (menuRef.current && menuRef.current.contains(e.target as Node)) {
+      if (
+        (menuRef.current && menuRef.current.contains(e.target as Node)) ||
+        (anchorRef?.current && anchorRef.current.contains(e.target as Node))
+      ) {
         return;
       }
       // Tutorial controls own their transition and cleanup. Closing a guided
@@ -404,11 +492,12 @@ export function ContextMenu({
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("blur", onClose);
     return () => {
+      openMenuCount -= 1;
       window.removeEventListener("mousedown", handleGlobalClick);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("blur", onClose);
     };
-  }, [open, onClose]);
+  }, [open, onClose, anchorRef]);
 
   useEffect(() => {
     if (open && focusFirstItem) {
@@ -454,6 +543,7 @@ export function ContextMenuItem({
   danger,
   disabled,
   title,
+  selected,
   onClick,
   children,
   dataTour,
@@ -462,6 +552,8 @@ export function ContextMenuItem({
   danger?: boolean;
   disabled?: boolean;
   title?: string;
+  /** Marks the current value when the menu stands in for a select. */
+  selected?: boolean;
   onClick: () => void;
   children: ReactNode;
   dataTour?: string;
@@ -472,6 +564,8 @@ export function ContextMenuItem({
       type="button"
       disabled={disabled}
       title={title}
+      role={selected === undefined ? undefined : "menuitemradio"}
+      aria-checked={selected}
       className={clsx(
         "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors",
         disabled && "cursor-not-allowed opacity-50",
@@ -488,6 +582,7 @@ export function ContextMenuItem({
         />
       )}
       <span className="flex-1 truncate">{children}</span>
+      {selected ? <Check size={14} className="shrink-0 text-accent" /> : null}
     </button>
   );
 }

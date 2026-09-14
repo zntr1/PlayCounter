@@ -92,23 +92,39 @@ afterEach(async () => {
 
 function counts() {
   return Object.fromEntries(
-    [...container.querySelectorAll('[role="tab"]')].map((tab) => [
+    [
+      ...container.querySelectorAll(
+        '[aria-label="Game library source"] [role="tab"]',
+      ),
+    ].map((tab) => [
       tab.id.replace("library-tab-", ""),
       Number(tab.lastElementChild?.textContent),
     ]),
   );
 }
 
-async function selectShelf(value: string) {
-  const select = container.querySelector<HTMLSelectElement>(
-    '[aria-label="Library shelf"]',
-  )!;
-  await act(() => {
-    select.value = value;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+async function selectShelf(label: string) {
+  const chip = [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      '[aria-label="Library shelf"] [role="tab"]',
+    ),
+  ].find((item) => item.textContent?.startsWith(label));
+  expect(chip, `no shelf chip for ${label}`).toBeDefined();
+  await act(() => chip!.click());
 }
 
+async function setStatusFilter(label: string) {
+  const toggle = [
+    ...container.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((item) => item.textContent?.startsWith("Filters"))!;
+  if (toggle.getAttribute("aria-expanded") !== "true")
+    await act(() => toggle.click());
+  const pill = [
+    ...container.querySelectorAll<HTMLButtonElement>("button"),
+  ].find((item) => item.textContent?.trim() === label);
+  expect(pill, `no filter pill for ${label}`).toBeDefined();
+  await act(() => pill!.click());
+}
 async function selectSource(source: string) {
   await act(() =>
     container
@@ -120,7 +136,7 @@ async function selectSource(source: string) {
 it("counts favorites and manual shelves across sources, then updates when membership changes", async () => {
   await act(() => root.render(<MyGamesView />));
   expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
-  await selectShelf("favorites");
+  await selectShelf("Favorites");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
   await selectSource("steam");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
@@ -133,30 +149,34 @@ it("counts favorites and manual shelves across sources, then updates when member
     useAppStore.getState().updateGameJournal(steam, { favorite: false }),
   );
   expect(counts()).toEqual({ all: 1, unimported: 1, steam: 0 });
-  expect(container.querySelector('[aria-selected="true"]')?.id).toBe(
-    "library-tab-steam",
-  );
+  expect(
+    container.querySelector(
+      '[aria-label="Game library source"] [aria-selected="true"]',
+    )?.id,
+  ).toBe("library-tab-steam");
   expect(panel.textContent).toContain("No games match this shelf");
   expect(panel.textContent).not.toContain("No Steam games imported yet");
 
-  await selectShelf(shelf);
+  await selectShelf("Weekend");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
-  await selectShelf("all");
+  await selectShelf("All games");
   expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
 });
 
 it("counts status and saved filters independently of their selected source, including search", async () => {
-  const saved = useAppStore.getState().savePersonalShelf({
+  useAppStore.getState().savePersonalShelf({
     name: "Not planned imports",
     filters: { status: "not-planned", source: "steam" },
-  })!;
+  });
   await act(() => root.render(<MyGamesView />));
-  await selectShelf("status:not-planned");
+  await setStatusFilter("Not planned");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
-  await selectShelf(saved);
-  expect(container.querySelector('[aria-selected="true"]')?.id).toBe(
-    "library-tab-steam",
-  );
+  await selectShelf("Not planned imports");
+  expect(
+    container.querySelector(
+      '[aria-label="Game library source"] [aria-selected="true"]',
+    )?.id,
+  ).toBe("library-tab-steam");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
 
   const search = container.querySelector<HTMLInputElement>(
@@ -186,6 +206,6 @@ it("counts a game once per source even with multiple imports", async () => {
     ]),
   });
   await act(() => root.render(<MyGamesView />));
-  await selectShelf("favorites");
+  await selectShelf("Favorites");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1, xbox: 1 });
 });
