@@ -933,9 +933,14 @@ select {
 }
 
 .game-library-card[data-library-drag-source] {
-  opacity: 0;
+  /* Opacity would trigger the card's fade-in transition when the drag ends. */
+  visibility: hidden;
   pointer-events: none;
   transform: none !important;
+  transition: none;
+}
+
+.game-library-card[data-library-drag-source] .game-card-cover-image {
   transition: none;
 }
 
