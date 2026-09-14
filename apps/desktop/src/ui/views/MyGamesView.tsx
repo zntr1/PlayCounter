@@ -162,6 +162,7 @@ import {
   libraryGameDragSourceProps,
   type StartLibraryGameDrag,
 } from "../libraryGameDrag";
+import { LibraryGameDropHint } from "../LibraryGameDropHint";
 import {
   DEFAULT_PLAYTHROUGH_NAME,
   matchesLibraryFilters,
@@ -1529,6 +1530,10 @@ export function MyGamesView() {
 
   return (
     <div className="grid gap-5">
+      <LibraryGameDropHint
+        hint={libraryDrag.hint}
+        onDismiss={libraryDrag.dismissHint}
+      />
       {layout.panel === "empty-library" ? (
         <EmptyLibraryPanel platform={platform} />
       ) : (
