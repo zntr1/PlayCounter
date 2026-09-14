@@ -970,17 +970,22 @@ select {
 }
 
 .library-game-dragging [data-library-drag-blocked] {
-  border-color: rgb(var(--color-border));
-  background-color: rgb(var(--color-surface));
-  color: rgb(var(--color-text-muted));
+  /* Dim the chip's colors so its nested hover hint stays fully readable. */
+  border-color: rgb(var(--color-border) / 0.4);
+  background-color: rgb(var(--color-surface) / 0.4);
+  color: rgb(var(--color-text-muted) / 0.4);
+}
+
+.library-game-dragging
+  [data-library-drag-blocked]
+  > span:not(.library-game-hover-hint) {
+  color: inherit;
 }
 
 .library-game-dragging [data-library-drag-blocked]:hover {
   position: relative;
   /* Keep the hint above the small card following the pointer. */
   z-index: 1001;
-  border-color: rgb(var(--color-accent) / 0.45);
-  background-color: rgb(var(--color-surface-hover));
 }
 
 .library-game-dragging [data-library-drag-blocked]:hover,
