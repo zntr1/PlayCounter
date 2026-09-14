@@ -13,8 +13,8 @@ import {
   type ShelfDropHint,
 } from "./LibraryGameDropHint";
 
-const PREVIEW_WIDTH = 56;
-const PREVIEW_HEIGHT = 76;
+const PREVIEW_WIDTH = 84;
+const PREVIEW_HEIGHT = 114;
 const PREVIEW_GAP = 16;
 const RETURN_DURATION = 320;
 
@@ -209,6 +209,8 @@ export function useLibraryGameDrag() {
       clickCleanupRef.current();
       dismissHint();
       const source = event.currentTarget;
+      const restingCursor = source.style.cursor;
+      source.style.cursor = "grabbing";
       const pointerId = event.pointerId;
       const downX = event.clientX;
       const downY = event.clientY;
@@ -226,6 +228,7 @@ export function useLibraryGameDrag() {
       let clearHoverHints = () => {};
 
       function stopListening() {
+        source.style.cursor = restingCursor;
         window.removeEventListener("pointermove", move, true);
         window.removeEventListener("pointerup", release, true);
         window.removeEventListener("pointercancel", cancel, true);
@@ -469,7 +472,7 @@ export function libraryGameDragSourceProps(
 ): HTMLAttributes<HTMLElement> {
   return {
     draggable: false,
-    style: { cursor: disabled ? undefined : "grab" },
+    style: { cursor: disabled ? undefined : "default" },
     onPointerDown: disabled ? undefined : (event) => start(game, event),
     onDragStart: (event) => event.preventDefault(),
   };

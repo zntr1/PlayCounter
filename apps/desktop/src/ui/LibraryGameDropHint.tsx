@@ -28,14 +28,14 @@ export function positionLibraryGameHints(
       12,
       Math.min(center - width / 2, window.innerWidth - width - 12),
     );
-    const above = anchor.bottom + height + 10 > window.innerHeight - 12;
+    const top = anchor.top - height - 10;
     element.style.left = `${left}px`;
-    element.style.top = `${Math.max(12, above ? anchor.top - height - 10 : anchor.bottom + 10)}px`;
+    element.style.top = `${top}px`;
     element.style.setProperty(
       "--drop-hint-arrow-x",
       `${Math.max(12, Math.min(center - left, width - 12))}px`,
     );
-    element.dataset.side = above ? "above" : "below";
+    element.dataset.side = "above";
   }
 }
 
