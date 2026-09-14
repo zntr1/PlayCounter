@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from "react";
+import { act, Profiler } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore } from "../../store";
@@ -253,6 +253,13 @@ async function startDrag(card: HTMLElement) {
   expect(document.querySelector(".library-game-drag-preview")).not.toBeNull();
 }
 
+async function nextFrame() {
+  await act(
+    () =>
+      new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+  );
+}
+
 async function releaseOnShelf(label: string) {
   vi.mocked(document.elementFromPoint).mockReturnValue(
     shelfChip(label).lastElementChild,
@@ -405,7 +412,7 @@ it("keeps small pointer movements as clicks and suppresses the release click aft
   expect(shelfChip("Co-op").getAttribute("aria-selected")).toBe("true");
 });
 
-it.each(["pointercancel", "blur"])(
+it.each(["pointercancel", "blur", "pointerleave"])(
   "restores the card without assigning it after %s",
   async (type) => {
     await act(() => root.render(<MyGamesView />));
@@ -413,7 +420,9 @@ it.each(["pointercancel", "blur"])(
     const card = gameCard("Local other");
     await startDrag(card);
     await act(() => {
-      window.dispatchEvent(new Event(type));
+      const target =
+        type === "pointerleave" ? document.documentElement : window;
+      target.dispatchEvent(new Event(type));
     });
     await releaseOnShelf("Weekend");
     expect(useAppStore.getState().gameJournals).toBe(journals);
@@ -445,4 +454,139 @@ it("cleans up a drag when navigating away from the mounted library", async () =>
   expect(document.querySelector(".library-game-drag-preview")).toBeNull();
   expect(card.hasAttribute("data-library-drag-source")).toBe(false);
   expect(useAppStore.getState().gameJournals).toBe(journals);
+});
+
+it("does not rerender the library when moving between shelf drop targets", async () => {
+  const onRender = vi.fn();
+  await act(() =>
+    root.render(
+      <Profiler id="library" onRender={onRender}>
+        <MyGamesView />
+      </Profiler>,
+    ),
+  );
+  onRender.mockClear();
+  await startDrag(gameCard("Local other"));
+  await nextFrame();
+  for (const label of ["Weekend", "Favorites", "All games"]) {
+    vi.mocked(document.elementFromPoint).mockReturnValue(shelfChip(label));
+    await pointer(window, "pointermove", { clientX: 220, clientY: 100 });
+    await nextFrame();
+  }
+  expect(onRender).not.toHaveBeenCalled();
+});
+
+it("waits for release to look up the shelf and change membership, without measuring layout during movement", async () => {
+  await act(() => root.render(<MyGamesView />));
+  const card = gameCard("Local other");
+  const rail = container.querySelector<HTMLElement>(
+    "[data-library-shelf-rail]",
+  )!;
+  const measureCard = vi.spyOn(card, "getBoundingClientRect");
+  const measureRail = vi.spyOn(rail, "getBoundingClientRect");
+  const journals = useAppStore.getState().gameJournals;
+  await startDrag(card);
+  await nextFrame();
+  measureCard.mockClear();
+  measureRail.mockClear();
+  vi.mocked(document.elementFromPoint)
+    .mockClear()
+    .mockReturnValue(shelfChip("Weekend"));
+  await act(() => {
+    for (let x = 220; x < 250; x++) {
+      window.dispatchEvent(
+        new PointerEvent("pointermove", {
+          bubbles: true,
+          pointerId: 1,
+          pointerType: "mouse",
+          isPrimary: true,
+          buttons: 1,
+          clientX: x,
+          clientY: 100,
+        }),
+      );
+    }
+  });
+  await nextFrame();
+  expect(document.elementFromPoint).not.toHaveBeenCalled();
+  expect(measureCard).not.toHaveBeenCalled();
+  expect(measureRail).not.toHaveBeenCalled();
+  expect(useAppStore.getState().gameJournals).toBe(journals);
+
+  await pointer(window, "pointerup", { clientX: 249, clientY: 100 });
+  expect(document.elementFromPoint).toHaveBeenCalledTimes(1);
+  expect(document.elementFromPoint).toHaveBeenLastCalledWith(249, 100);
+  expect(
+    getGameJournal(useAppStore.getState(), { gameId: -2, source: "custom" })
+      .shelfIds,
+  ).toEqual([shelf]);
+  await nextFrame();
+});
+
+it("uses the release position when dropping before the next pointer frame", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await startDrag(gameCard("Local other"));
+  vi.mocked(document.elementFromPoint).mockImplementation((x) =>
+    shelfChip(x >= 300 ? "Weekend" : "Favorites"),
+  );
+  await act(() => {
+    window.dispatchEvent(
+      new PointerEvent("pointermove", {
+        pointerId: 1,
+        pointerType: "mouse",
+        buttons: 1,
+        clientX: 220,
+        clientY: 100,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", {
+        pointerId: 1,
+        pointerType: "mouse",
+        clientX: 320,
+        clientY: 100,
+      }),
+    );
+  });
+  await nextFrame();
+  expect(
+    getGameJournal(useAppStore.getState(), { gameId: -2, source: "custom" }),
+  ).toMatchObject({
+    favorite: false,
+    shelfIds: [shelf],
+  });
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  expect(
+    document.documentElement.classList.contains("library-game-dragging"),
+  ).toBe(false);
+});
+
+it("discards queued pointer work when a drag is cancelled", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await startDrag(gameCard("Local other"));
+  const journals = useAppStore.getState().gameJournals;
+  vi.mocked(document.elementFromPoint)
+    .mockClear()
+    .mockReturnValue(shelfChip("Weekend"));
+  await act(() => {
+    window.dispatchEvent(
+      new PointerEvent("pointermove", {
+        pointerId: 1,
+        pointerType: "mouse",
+        buttons: 1,
+        clientX: 220,
+        clientY: 100,
+      }),
+    );
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+  });
+  await nextFrame();
+  expect(document.elementFromPoint).not.toHaveBeenCalled();
+  expect(useAppStore.getState().gameJournals).toBe(journals);
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  expect(
+    document.documentElement.classList.contains("library-game-dragging"),
+  ).toBe(false);
 });
