@@ -932,6 +932,39 @@ select {
   user-select: none !important;
 }
 
+.library-game-dragging [data-library-shelf-rail] > button {
+  transition: none;
+}
+
+.library-game-dragging
+  [data-library-shelf-rail]
+  > button:not([data-library-drop-shelf]) {
+  opacity: 0.4;
+}
+
+.library-game-dragging [data-library-drop-shelf] {
+  border-color: rgb(var(--color-accent) / 0.6);
+  background-color: var(--color-accent-tint);
+  color: rgb(var(--color-accent));
+}
+
+.library-game-dragging [data-library-drop-shelf]:hover {
+  position: relative;
+  z-index: 10;
+  cursor: copy !important;
+  border-color: rgb(var(--color-accent));
+  background-color: rgb(var(--color-accent));
+  color: rgb(var(--color-accent-fg));
+  box-shadow:
+    0 0 0 2px rgb(var(--color-bg)),
+    0 0 0 6px rgb(var(--color-accent) / 0.4),
+    0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.library-game-dragging [data-library-drop-shelf]:hover > span {
+  color: inherit;
+}
+
 .game-library-card[data-library-drag-source] {
   /* Opacity would trigger the card's fade-in transition when the drag ends. */
   visibility: hidden;

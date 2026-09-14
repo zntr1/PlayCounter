@@ -2,13 +2,14 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState,
   type HTMLAttributes,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { getGameJournal, useAppStore, type GameIdentityRef } from "../store";
 
-const DRAG_SCALE = 0.75;
+const PREVIEW_WIDTH = 56;
+const PREVIEW_HEIGHT = 76;
+const PREVIEW_GAP = 16;
 const RETURN_DURATION = 320;
 
 export type StartLibraryGameDrag = (
@@ -74,8 +75,6 @@ function createPreview(source: HTMLElement, rect: DOMRect) {
 
 /** Pointer dragging gives us an opaque card and a return animation, including in WebView2. */
 export function useLibraryGameDrag() {
-  const [game, setGame] = useState<GameIdentityRef | null>(null);
-  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const cleanupRef = useRef<() => void>(() => {});
   const clickCleanupRef = useRef<() => void>(() => {});
   const activeView = useAppStore((state) => state.activeView);
@@ -83,8 +82,6 @@ export function useLibraryGameDrag() {
   useEffect(() => {
     cleanupRef.current();
     clickCleanupRef.current();
-    setGame(null);
-    setDropTarget(null);
   }, [activeView]);
   useEffect(
     () => () => {
@@ -116,18 +113,23 @@ export function useLibraryGameDrag() {
     let origin: DOMRect;
     let x = 0;
     let y = 0;
+    let pointerX = downX;
+    let pointerY = downY;
+    let moveFrame = 0;
+    let dragScale = 1;
     let frame = 0;
     let animation: Animation | undefined;
     let returning = false;
 
     function stopListening() {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", release);
-      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", release, true);
+      window.removeEventListener("pointercancel", cancel, true);
+      document.documentElement.removeEventListener("pointerleave", cancel);
       window.removeEventListener("keydown", keyDown, true);
       window.removeEventListener("blur", cancel);
-      if (source.hasPointerCapture?.(pointerId))
-        source.releasePointerCapture(pointerId);
+      cancelAnimationFrame(moveFrame);
+      moveFrame = 0;
       document.documentElement.classList.remove("library-game-dragging");
     }
     function cleanup() {
@@ -142,11 +144,6 @@ export function useLibraryGameDrag() {
     }
     cleanupRef.current = cleanup;
 
-    function reset() {
-      cleanup();
-      setGame(null);
-      setDropTarget(null);
-    }
     function targetAt(clientX: number, clientY: number) {
       return (
         document
@@ -154,32 +151,49 @@ export function useLibraryGameDrag() {
           ?.closest<HTMLElement>("[data-library-drop-shelf]") ?? null
       );
     }
+    function scheduleMove() {
+      if (preview && !moveFrame)
+        moveFrame = requestAnimationFrame(updatePreview);
+    }
     function move(event: PointerEvent) {
       if (event.pointerId !== pointerId) return;
       if (!(event.buttons & 1) || !source.isConnected) {
         cancel();
         return;
       }
+      pointerX = event.clientX;
+      pointerY = event.clientY;
       if (!preview) {
         if (Math.hypot(event.clientX - downX, event.clientY - downY) < 8)
           return;
         origin = source.getBoundingClientRect();
+        dragScale = Math.min(
+          1,
+          PREVIEW_WIDTH / origin.width,
+          PREVIEW_HEIGHT / origin.height,
+        );
         preview = createPreview(source, origin);
         source.setAttribute("data-library-drag-source", "true");
         document.documentElement.classList.add("library-game-dragging");
         window.getSelection()?.removeAllRanges();
-        source.setPointerCapture?.(pointerId);
-        setGame(game);
+        // Position the initial copy immediately; subsequent input is coalesced per frame.
+        updatePreview();
+      } else {
+        scheduleMove();
       }
       event.preventDefault();
-      // Keep the grabbed point under the pointer as the card shrinks.
-      x = event.clientX - (downX - origin.left) * DRAG_SCALE;
-      y = event.clientY - (downY - origin.top) * DRAG_SCALE;
-      preview.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${DRAG_SCALE})`;
-      setDropTarget(
-        targetAt(event.clientX, event.clientY)?.dataset.libraryDropShelf ??
-          null,
-      );
+    }
+    function updatePreview() {
+      moveFrame = 0;
+      if (!preview || returning) return;
+      if (!source.isConnected) {
+        cancel();
+        return;
+      }
+      // Movement only translates the preview. Shelf lookup and data changes wait for release.
+      x = pointerX + PREVIEW_GAP;
+      y = pointerY + PREVIEW_GAP;
+      preview.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${dragScale})`;
     }
     function suppressReleaseClick() {
       // A drag must not turn into a click on a shelf or a card action on release.
@@ -202,10 +216,8 @@ export function useLibraryGameDrag() {
       if (returning) return;
       returning = true;
       stopListening();
-      setGame(null);
-      setDropTarget(null);
       if (!preview) {
-        reset();
+        cleanup();
         return;
       }
       suppressReleaseClick();
@@ -225,14 +237,14 @@ export function useLibraryGameDrag() {
           );
       }
       if (reducedMotion || !preview.animate) {
-        reset();
+        cleanup();
         return;
       }
-      // Let the toolbar leave its sticky position before measuring the card's current slot.
+      // Let updated shelf counts render before measuring the card's current slot.
       frame = requestAnimationFrame(() => {
         const destination = source.getBoundingClientRect();
         if (!source.isConnected || !destination.width || !destination.height) {
-          reset();
+          cleanup();
           return;
         }
         const scaleX = destination.width / origin.width;
@@ -253,7 +265,7 @@ export function useLibraryGameDrag() {
         animation = preview!.animate(
           [
             {
-              transform: `translate3d(${x}px, ${y}px, 0) scale(${DRAG_SCALE})`,
+              transform: `translate3d(${x}px, ${y}px, 0) scale(${dragScale})`,
               boxShadow: getComputedStyle(preview!).boxShadow,
               easing: "cubic-bezier(.22,.8,.28,1)",
             },
@@ -270,12 +282,19 @@ export function useLibraryGameDrag() {
           ],
           { duration: RETURN_DURATION, fill: "forwards" },
         );
-        animation.onfinish = reset;
+        animation.onfinish = cleanup;
       });
     }
     function release(event: PointerEvent) {
-      if (event.pointerId === pointerId)
-        finish(preview ? targetAt(event.clientX, event.clientY) : null);
+      if (event.pointerId !== pointerId) return;
+      if (preview) {
+        // A fast release can arrive before the scheduled frame: use the actual release point.
+        cancelAnimationFrame(moveFrame);
+        pointerX = event.clientX;
+        pointerY = event.clientY;
+        updatePreview();
+      }
+      finish(preview ? targetAt(event.clientX, event.clientY) : null);
     }
     function cancel() {
       finish(null);
@@ -286,14 +305,20 @@ export function useLibraryGameDrag() {
       event.stopPropagation();
       cancel();
     }
-    window.addEventListener("pointermove", move, { passive: false });
-    window.addEventListener("pointerup", release);
-    window.addEventListener("pointercancel", cancel);
+    // Window capture listeners keep receiving events over child controls without
+    // capturing the pointer to the card, so shelves can use ordinary CSS :hover.
+    window.addEventListener("pointermove", move, {
+      passive: false,
+      capture: true,
+    });
+    window.addEventListener("pointerup", release, true);
+    window.addEventListener("pointercancel", cancel, true);
+    document.documentElement.addEventListener("pointerleave", cancel);
     window.addEventListener("keydown", keyDown, true);
     window.addEventListener("blur", cancel);
   }, []);
 
-  return { game, dropTarget, start };
+  return { start };
 }
 
 export function libraryGameDragSourceProps(

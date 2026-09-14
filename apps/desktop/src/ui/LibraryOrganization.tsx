@@ -109,8 +109,6 @@ export function LibraryOrganizationToolbar({
   source,
   query,
   counts,
-  draggedGame,
-  dropTarget,
 }: {
   selection: string;
   onSelect: (id: string) => void;
@@ -120,8 +118,6 @@ export function LibraryOrganizationToolbar({
   query: string;
   /** Games per shelf id, counted across every import source. */
   counts: Record<string, number>;
-  draggedGame: GameIdentityRef | null;
-  dropTarget: string | null;
 }) {
   const shelves = useAppStore((s) => s.personalShelves);
   const save = useAppStore((s) => s.savePersonalShelf);
@@ -165,13 +161,6 @@ export function LibraryOrganizationToolbar({
   function dropProps(id: string, allowed = true) {
     return {
       "data-library-drop-shelf": allowed ? id : undefined,
-      className: !draggedGame
-        ? undefined
-        : !allowed
-          ? "opacity-40"
-          : dropTarget === id
-            ? "!border-accent !bg-accent !text-accent-fg ring-2 ring-accent/40 [&>span]:!text-accent-fg"
-            : "!border-accent/60 !bg-accent-tint !text-accent",
     };
   }
 
@@ -181,6 +170,7 @@ export function LibraryOrganizationToolbar({
         <div
           role="tablist"
           aria-label="Library shelf"
+          data-library-shelf-rail=""
           className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
         >
           <Pill

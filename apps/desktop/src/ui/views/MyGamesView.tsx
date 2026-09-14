@@ -1533,13 +1533,7 @@ export function MyGamesView() {
         <EmptyLibraryPanel platform={platform} />
       ) : (
         <>
-          <Panel
-            dataTour="games-toolbar"
-            className={clsx(
-              "overflow-hidden",
-              libraryDrag.game && "sticky top-0 z-40",
-            )}
-          >
+          <Panel dataTour="games-toolbar" className="overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4">
               <div>
                 <h2 className="font-semibold text-text">Library</h2>
@@ -1821,8 +1815,6 @@ export function MyGamesView() {
               source={activeLibraryTab}
               query={query}
               counts={shelfCounts}
-              draggedGame={libraryDrag.game}
-              dropTarget={libraryDrag.dropTarget}
             />
             {layout.showTabs ? (
               <div className="border-b border-border bg-bg px-4 pt-3">
