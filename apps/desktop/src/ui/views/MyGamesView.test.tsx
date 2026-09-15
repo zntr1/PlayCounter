@@ -216,6 +216,268 @@ it("counts a game once per source even with multiple imports", async () => {
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1, xbox: 1 });
 });
 
+function button(label: string, within: ParentNode = container) {
+  const found = [...within.querySelectorAll<HTMLButtonElement>("button")].find(
+    (item) => item.textContent?.trim() === label,
+  );
+  expect(found, `no button for ${label}`).toBeDefined();
+  return found!;
+}
+
+async function enterSelection() {
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>('[aria-label="Select games"]')!
+      .click(),
+  );
+}
+
+async function applyBulkStatus(label: string) {
+  await act(() => button("Set status").click());
+  const menu = document.querySelector("#library-bulk-status-menu")!;
+  expect(menu).not.toBeNull();
+  await act(() => button(label, menu).click());
+}
+
+function selectionCheckboxes() {
+  return [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      '.game-library-card [role="checkbox"]',
+    ),
+  ];
+}
+
+async function inputSearch(value: string) {
+  const input = container.querySelector<HTMLInputElement>(
+    '[placeholder="Search games..."]',
+  )!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+it.each(["grid", "large", "list"] as const)(
+  "selects ranges, applies statuses, and undoes in %s view",
+  async (view) => {
+    useAppStore.getState().setMyGamesCardSize(view);
+    container.setAttribute("data-controller-content", "true");
+    await act(() => root.render(<MyGamesView />));
+    expect(selectionCheckboxes()).toHaveLength(0);
+    await enterSelection();
+    const checkboxes = selectionCheckboxes();
+    expect(checkboxes).toHaveLength(4);
+    expect(button("Set status").disabled).toBe(true);
+    await act(() => checkboxes[0].click());
+    await act(() =>
+      checkboxes[3].dispatchEvent(
+        new MouseEvent("click", { bubbles: true, shiftKey: true }),
+      ),
+    );
+    expect(
+      checkboxes.every((item) => item.getAttribute("aria-checked") === "true"),
+    ).toBe(true);
+    expect(container.textContent).toContain("4 selected");
+    const journals = useAppStore.getState().gameJournals;
+    container.scrollTop = 350;
+    await applyBulkStatus("Finished");
+    expect(container.scrollTop).toBe(350);
+    expect(container.textContent).toContain("4 games marked Finished");
+    expect(container.textContent).toContain("0 selected");
+    expect(selectionCheckboxes()).toHaveLength(4);
+    expect(getGameJournal(useAppStore.getState(), local).status).toBe(
+      "finished",
+    );
+    expect(getGameJournal(useAppStore.getState(), steam).status).toBe(
+      "finished",
+    );
+    await act(() => button("Undo").click());
+    expect(getGameJournal(useAppStore.getState(), local)).toEqual(
+      journals["custom:-1"],
+    );
+    expect(
+      getGameJournal(useAppStore.getState(), { ...local, gameId: -2 }).status,
+    ).toBeNull();
+    await act(() => button("Done").click());
+    expect(selectionCheckboxes()).toHaveLength(0);
+    expect(document.activeElement?.getAttribute("aria-label")).toBe(
+      "Select games",
+    );
+  },
+);
+
+it("uses the current source, search, shelf, and status filters for bulk assignment", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await selectShelf("Weekend");
+  await selectSource("steam");
+  await setStatusFilter("Not planned");
+  await inputSearch("favorite");
+  await enterSelection();
+  expect(button("Select all 1 result")).toBeDefined();
+  await act(() => button("Select all 1 result").click());
+  await applyBulkStatus("Finished");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
+  expect(container.textContent).toContain("1 game marked Finished");
+  expect(
+    container
+      .querySelector('[aria-label="Select games"]')
+      ?.getAttribute("aria-pressed"),
+  ).toBe("true");
+  expect(getGameJournal(useAppStore.getState(), steam).status).toBe("finished");
+  expect(getGameJournal(useAppStore.getState(), local).status).toBe(
+    "not-planned",
+  );
+  await act(() => button("Undo").click());
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+});
+
+it("selects all results even while most cards have not rendered", async () => {
+  vi.stubGlobal(
+    "requestIdleCallback",
+    vi.fn(() => 1),
+  );
+  vi.stubGlobal("cancelIdleCallback", vi.fn());
+  const entries = Array.from({ length: 120 }, (_, index) => ({
+    ...steam,
+    externalId: String(1000 + index),
+    gameId: 1000 + index,
+    igdbId: 1000 + index,
+    name: `Imported game ${index}`,
+  }));
+  useAppStore.setState({
+    libraryImports: new Map(
+      entries.map((entry) => [`steam:${entry.externalId}`, entry]),
+    ),
+  });
+  await act(() => root.render(<MyGamesView />));
+  await selectSource("steam");
+  await enterSelection();
+  expect(selectionCheckboxes().length).toBeLessThan(120);
+  await act(() => button("Select all 120 results").click());
+  await applyBulkStatus("Want to play");
+  expect(
+    entries.every(
+      (entry) =>
+        getGameJournal(useAppStore.getState(), entry).status === "want-to-play",
+    ),
+  ).toBe(true);
+  expect(getGameJournal(useAppStore.getState(), local).status).toBe(
+    "not-planned",
+  );
+});
+
+it("works through No status games and offers explicit clearing", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await setStatusFilter("No status");
+  await enterSelection();
+  expect(selectionCheckboxes()).toHaveLength(2);
+  await act(() => button("Select all 2 results").click());
+  await applyBulkStatus("Finished");
+  expect(selectionCheckboxes()).toHaveLength(0);
+  await setStatusFilter("Finished");
+  await act(() => button("Select all 2 results").click());
+  await applyBulkStatus("Finished");
+  expect(selectionCheckboxes()).toHaveLength(2);
+  expect(container.textContent).toContain("already marked Finished");
+  await act(() => button("Select all 2 results").click());
+  await applyBulkStatus("Clear status");
+  expect(selectionCheckboxes()).toHaveLength(0);
+  await act(() => button("Done").click());
+  await act(() => button("Undo").click());
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+});
+
+it("clears selection on filter changes, preserves it across layouts, and stops shelf dragging", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await enterSelection();
+  await act(() => selectionCheckboxes()[0].click());
+  await act(() => useAppStore.getState().setMyGamesCardSize("list"));
+  expect(container.textContent).toContain("1 selected");
+  const card = gameCard(local.gameName);
+  expect(card.querySelector("[inert]")).not.toBeNull();
+  await pointer(card, "pointerdown");
+  await pointer(window, "pointermove", { clientX: 150, clientY: 410 });
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  await pointer(window, "pointerup");
+  await selectSource("steam");
+  expect(container.textContent).toContain("0 selected");
+  await act(() => button("Select all 2 results").click());
+  await inputSearch("favorite");
+  expect(container.textContent).toContain("0 selected");
+  await inputSearch("");
+  expect(
+    selectionCheckboxes().every(
+      (item) => item.getAttribute("aria-checked") === "false",
+    ),
+  ).toBe(true);
+});
+
+it("supports scoped Ctrl+A, keyboard menu navigation, and Escape without intercepting search editing", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await enterSelection();
+  const search = container.querySelector<HTMLInputElement>(
+    '[placeholder="Search games..."]',
+  )!;
+  const editing = new KeyboardEvent("keydown", {
+    key: "a",
+    ctrlKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  await act(() => search.dispatchEvent(editing));
+  expect(editing.defaultPrevented).toBe(false);
+  expect(container.textContent).toContain("0 selected");
+  await act(() =>
+    selectionCheckboxes()[0].dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "a",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(container.textContent).toContain("4 selected");
+  await act(() => button("Set status").click());
+  const menu = document.querySelector("#library-bulk-status-menu")!;
+  await act(() => button("Playing", menu).focus());
+  await act(() =>
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "End",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(document.activeElement?.textContent).toBe("Clear status");
+  await act(() =>
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(document.querySelector("#library-bulk-status-menu")).toBeNull();
+  expect(container.textContent).toContain("4 selected");
+  expect(document.activeElement).toBe(button("Set status"));
+  await act(() =>
+    button("Set status").dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(selectionCheckboxes()).toHaveLength(0);
+});
+
 function gameCard(name: string) {
   const card = [
     ...container.querySelectorAll<HTMLElement>(".game-library-card"),

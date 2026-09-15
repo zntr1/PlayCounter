@@ -110,6 +110,7 @@ export function LibraryOrganizationToolbar({
   source,
   query,
   counts,
+  selectionAction,
 }: {
   selection: string;
   onSelect: (id: string) => void;
@@ -119,6 +120,7 @@ export function LibraryOrganizationToolbar({
   query: string;
   /** Games per shelf id, counted across every import source. */
   counts: Record<string, number>;
+  selectionAction?: React.ReactNode;
 }) {
   const shelves = useAppStore((s) => s.personalShelves);
   const save = useAppStore((s) => s.savePersonalShelf);
@@ -239,6 +241,7 @@ export function LibraryOrganizationToolbar({
             New shelf
           </Pill>
         </div>
+        {selectionAction}
         <Button
           variant={expanded || activeCount ? "secondary" : "ghost"}
           icon={SlidersHorizontal}
@@ -258,6 +261,17 @@ export function LibraryOrganizationToolbar({
               onClick={() => setFilter("status", undefined)}
             >
               Any
+            </Pill>
+            <Pill
+              selected={filters.status === "none"}
+              onClick={() =>
+                setFilter(
+                  "status",
+                  filters.status === "none" ? undefined : "none",
+                )
+              }
+            >
+              No status
             </Pill>
             {GAME_STATUS_LIST.map((value) => (
               <Pill

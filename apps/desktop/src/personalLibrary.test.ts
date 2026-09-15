@@ -62,7 +62,9 @@ afterEach(async () => {
 
 describe("personal game journals", () => {
   it("keeps new and cleared playthrough notes empty while preserving the default note", () => {
-    useAppStore.getState().updateGameJournal(game, { note: "Default reminder" });
+    useAppStore
+      .getState()
+      .updateGameJournal(game, { note: "Default reminder" });
     const id = useAppStore.getState().createPlaythrough(game, "Replay")!;
     const readNote = () =>
       journalNote(getGameJournal(useAppStore.getState(), game));
@@ -225,6 +227,120 @@ describe("personal game journals", () => {
   });
 });
 
+describe("bulk progress status", () => {
+  it("saves a batch once, resolves duplicate identities, and preserves journals and time", async () => {
+    const state = useAppStore.getState();
+    const shelfId = state.savePersonalShelf({ name: "Weekend" })!;
+    state.updateGameJournal(game, {
+      note: "Keep",
+      favorite: true,
+      shelfIds: [shelfId],
+    });
+    const run = state.createPlaythrough(game, "Replay")!;
+    state.updateGameJournal(other, { status: "finished" });
+    useAppStore.setState({ recentSessions: [session(1, run)] });
+    const before = getGameJournal(useAppStore.getState(), game);
+    const sessionsBefore = useAppStore.getState().recentSessions;
+    await Promise.resolve();
+    vi.mocked(localStorage.setItem).mockClear();
+    const listener = vi.fn();
+    const unsubscribe = useAppStore.subscribe(listener);
+    const alias = { ...game, gameId: -5, source: "custom" as const };
+    const changes = state.setGameStatuses([game, alias, other], "finished");
+    expect(changes).toEqual([
+      { game: before.game, before: null, after: "finished" },
+    ]);
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+    await Promise.resolve();
+    expect(localStorage.setItem).toHaveBeenCalledTimes(1);
+    expect(getGameJournal(useAppStore.getState(), alias)).toEqual({
+      ...before,
+      game: expect.objectContaining(alias),
+      status: "finished",
+    });
+    expect(useAppStore.getState().recentSessions).toEqual(sessionsBefore);
+    expect(Object.keys(useAppStore.getState().gameJournals)).toHaveLength(2);
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).gameJournals["igdb:42"]
+        .status,
+    ).toBe("finished");
+  });
+
+  it("assigns the requested status consistently and clears it only explicitly", async () => {
+    const state = useAppStore.getState();
+    state.setGameStatuses([game, other], "finished");
+    const journals = useAppStore.getState().gameJournals;
+    await Promise.resolve();
+    vi.mocked(localStorage.setItem).mockClear();
+    expect(state.setGameStatuses([game, other], "finished")).toEqual([]);
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+    await Promise.resolve();
+    expect(localStorage.setItem).not.toHaveBeenCalled();
+    const changes = state.setGameStatuses([game, other], null);
+    expect(changes).toHaveLength(2);
+    expect(getGameJournal(useAppStore.getState(), game).status).toBeNull();
+    expect(state.undoGameStatuses(changes)).toBe(2);
+    expect(getGameJournal(useAppStore.getState(), other).status).toBe(
+      "finished",
+    );
+  });
+
+  it("consolidates previously separate journals when their game identities become linked", () => {
+    const alias = { ...game, gameId: -5, source: "custom" as const };
+    useAppStore.setState({
+      gameJournals: {
+        "igdb:42": {
+          ...emptyJournal(game),
+          status: "finished",
+          note: "Original note",
+        },
+        "custom:-5": {
+          ...emptyJournal(alias),
+          status: "on-hold",
+          note: "Import note",
+          favorite: true,
+        },
+      },
+    });
+    useAppStore.getState().setGameStatuses([game, alias], "finished");
+    expect(Object.keys(useAppStore.getState().gameJournals)).toEqual([
+      "igdb:42",
+    ]);
+    expect(getGameJournal(useAppStore.getState(), alias)).toMatchObject({
+      status: "finished",
+      favorite: true,
+      note: "Original note\n\nImport note",
+    });
+  });
+
+  it("undoes just the batch statuses and skips subsequent status changes or removed journals", () => {
+    const state = useAppStore.getState();
+    const removed = { ...game, gameId: 80, igdbId: 800 };
+    state.updateGameJournal(game, { status: "on-hold" });
+    const changes = state.setGameStatuses([game, other, removed], "finished");
+    state.updateGameJournal(game, {
+      note: "Written after the batch",
+      favorite: true,
+    });
+    state.updateGameJournal(other, { status: "playing" });
+    const journals = { ...useAppStore.getState().gameJournals };
+    delete journals["igdb:80"];
+    useAppStore.setState({ gameJournals: journals });
+    expect(state.undoGameStatuses(changes)).toBe(1);
+    expect(getGameJournal(useAppStore.getState(), game)).toMatchObject({
+      status: "on-hold",
+      note: "Written after the batch",
+      favorite: true,
+    });
+    expect(getGameJournal(useAppStore.getState(), other).status).toBe(
+      "playing",
+    );
+    expect(useAppStore.getState().gameJournals["igdb:80"]).toBeUndefined();
+    expect(state.undoGameStatuses(changes)).toBe(0);
+  });
+});
+
 describe("durable playthrough time", () => {
   it("keeps default time through the session cap and returns deleted playthrough time to it", () => {
     const readDefault = () => {
@@ -384,6 +500,39 @@ describe("saved library filters", () => {
       { provider: "xbox", installed: true, entry: { providerSeconds: null } },
     ],
   };
+  it("filters unassigned games and retains the No status rule in saved shelves and backups", () => {
+    const journal = emptyJournal(game);
+    expect(matchesLibraryFilters(candidate, journal, { status: "none" })).toBe(
+      true,
+    );
+    expect(
+      matchesLibraryFilters(
+        candidate,
+        { ...journal, status: "not-planned" },
+        { status: "none" },
+      ),
+    ).toBe(false);
+    useAppStore.getState().savePersonalShelf({
+      name: "Unsorted",
+      filters: { status: "none", source: "xbox" },
+    });
+    const data = createTransferData(
+      createPersistedPayload(useAppStore.getState()),
+    );
+    expect(data.personalShelves).toEqual([
+      expect.objectContaining({ filters: { status: "none", source: "xbox" } }),
+    ]);
+    expect(() => validateBackupData(data, "data")).not.toThrow();
+    expect(() =>
+      validateBackupData(
+        {
+          ...data,
+          gameJournals: { "igdb:42": { ...journal, status: "none" } },
+        },
+        "data",
+      ),
+    ).toThrow("status");
+  });
   it("does not call unknown provider time unplayed", () => {
     expect(
       matchesLibraryFilters(candidate, emptyJournal(game), {
