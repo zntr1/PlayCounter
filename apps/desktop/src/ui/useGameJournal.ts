@@ -1,11 +1,12 @@
+import { usePersonalLibraryState } from "./PersonalLibraryContext";
 import { useMemo } from "react";
-import { getGameJournal, useAppStore, type GameIdentityRef } from "../store";
+import { getGameJournal, type GameIdentityRef } from "../store";
 
 export function useGameJournal(game: GameIdentityRef) {
-  const gameJournals = useAppStore((s) => s.gameJournals);
-  const gameMetadata = useAppStore((s) => s.gameMetadata);
-  const exeCache = useAppStore((s) => s.exeCache);
-  const libraryImports = useAppStore((s) => s.libraryImports);
+  const gameJournals = usePersonalLibraryState((s) => s.gameJournals);
+  const gameMetadata = usePersonalLibraryState((s) => s.gameMetadata);
+  const exeCache = usePersonalLibraryState((s) => s.exeCache);
+  const libraryImports = usePersonalLibraryState((s) => s.libraryImports);
   return useMemo(
     () =>
       getGameJournal(

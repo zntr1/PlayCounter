@@ -8,24 +8,51 @@ import { NotificationArt } from "./AchievementBadge";
 import { Panel } from "./components";
 import { Button, IconButton, useEscapeKey } from "./primitives";
 
-export function NotificationsPanel({ onClose }: { onClose: () => void }) {
+export function NotificationsPanel({
+  onClose,
+  demo = false,
+}: {
+  onClose: () => void;
+  demo?: boolean;
+}) {
   const notifications = useAppStore((state) => state.notifications);
-  const counts = useAppStore((state) => state.contributionCounts);
+  const storedCounts = useAppStore((state) => state.contributionCounts);
   const emulatorCounts = useAppStore(
     (state) => state.emulatorContributionCounts,
   );
   const dismiss = useAppStore((state) => state.dismissNotification);
   const clear = useAppStore((state) => state.clearNotifications);
   const setActiveView = useAppStore((state) => state.setActiveView);
-  const displayedNotifications = notificationsForDisplay(notifications);
+  const counts = demo
+    ? { suggested: 0, verified: 0, pending: 0, rejected: 0 }
+    : storedCounts;
+  const displayedNotifications = demo
+    ? [
+        {
+          id: "tour-feedback-reply",
+          kind: "feedback-reply" as const,
+          title: "Reply to your feedback",
+          createdAt: new Date().toISOString(),
+          feedbackMessage: "Can I keep separate notes for a co-op run?",
+          body: "Yes. Open the game's journal and create a named playthrough. Each run has its own note and session list.",
+          readAt: undefined,
+          action: undefined,
+        },
+      ]
+    : notificationsForDisplay(notifications);
   useEscapeKey(onClose);
 
   return (
-    <Panel className="absolute right-0 top-10 z-40 flex max-h-[min(620px,calc(100vh-90px))] w-[390px] flex-col overflow-hidden rounded-xl">
+    <Panel
+      dataTour={demo ? "demo-feedback-panel" : undefined}
+      className="absolute right-0 top-10 z-40 flex max-h-[min(620px,calc(100vh-90px))] w-[390px] flex-col overflow-hidden rounded-xl"
+    >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
           <h2 className="font-semibold text-text">Notifications</h2>
-          <p className="text-xs text-text-muted">Updates from PlayCounter</p>
+          <p className="text-xs text-text-muted">
+            {demo ? "Sample reply · practice only" : "Updates from PlayCounter"}
+          </p>
         </div>
         <IconButton
           aria-label="Close notifications"
@@ -58,7 +85,7 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
-        {emulatorCounts.suggested > 0 ? (
+        {!demo && emulatorCounts.suggested > 0 ? (
           <>
             <div className="mb-2 mt-4 flex items-baseline justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-text-faint">
               <span>Emulator matches</span>
@@ -96,6 +123,7 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
         ) : (
           displayedNotifications.map((notification) => (
             <article
+              data-tour={demo ? "demo-feedback-notification" : undefined}
               key={notification.id}
               className="flex gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
             >
@@ -106,7 +134,10 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
                 </div>
                 {notification.kind === "feedback-reply" &&
                 notification.feedbackMessage ? (
-                  <blockquote className="my-2 border-l-2 border-accent/40 pl-3">
+                  <blockquote
+                    data-tour={demo ? "demo-feedback-original" : undefined}
+                    className="my-2 border-l-2 border-accent/40 pl-3"
+                  >
                     <div className="mb-1 text-[11px] font-medium text-text-faint">
                       Your feedback
                     </div>
@@ -116,7 +147,10 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
                   </blockquote>
                 ) : null}
                 {notification.body ? (
-                  <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">
+                  <p
+                    data-tour={demo ? "demo-feedback-reply" : undefined}
+                    className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-text-muted"
+                  >
                     {notification.body}
                   </p>
                 ) : null}
@@ -148,7 +182,10 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
                 aria-label="Dismiss notification"
                 title="Dismiss"
                 icon={X}
-                onClick={() => dismiss(notification.id)}
+                disabled={demo}
+                onClick={() => {
+                  if (!demo) dismiss(notification.id);
+                }}
                 className="border-transparent"
               />
             </article>
@@ -156,7 +193,7 @@ export function NotificationsPanel({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      {notifications.length > 0 ? (
+      {!demo && notifications.length > 0 ? (
         <div className="flex justify-end border-t border-border p-3">
           <Button variant="ghost" icon={Trash2} onClick={clear}>
             Clear all

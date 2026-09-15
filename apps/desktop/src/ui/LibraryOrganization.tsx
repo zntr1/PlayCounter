@@ -1,4 +1,8 @@
 import {
+  usePersonalLibraryState,
+  useLibraryPractice,
+} from "./PersonalLibraryContext";
+import {
   FolderHeart,
   Pencil,
   Plus,
@@ -20,11 +24,7 @@ import {
   type LibraryFilters,
   type PersonalShelf,
 } from "../personalLibrary";
-import {
-  personalGameIdentity,
-  useAppStore,
-  type GameIdentityRef,
-} from "../store";
+import { personalGameIdentity, type GameIdentityRef } from "../store";
 import {
   Button,
   ContextMenu,
@@ -38,14 +38,15 @@ import {
 import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import type { LibraryTabId } from "./libraryTabs";
 import { LibraryGameHoverHint } from "./LibraryGameDropHint";
+import { emitTourEvent } from "./tour/TourUI";
 
 export type OrganizedGame = FilterableLibraryGame & GameIdentityRef;
 
 export function useLibraryJournalLookup() {
-  const gameJournals = useAppStore((s) => s.gameJournals);
-  const gameMetadata = useAppStore((s) => s.gameMetadata);
-  const exeCache = useAppStore((s) => s.exeCache);
-  const libraryImports = useAppStore((s) => s.libraryImports);
+  const gameJournals = usePersonalLibraryState((s) => s.gameJournals);
+  const gameMetadata = usePersonalLibraryState((s) => s.gameMetadata);
+  const exeCache = usePersonalLibraryState((s) => s.exeCache);
+  const libraryImports = usePersonalLibraryState((s) => s.libraryImports);
   return useMemo(() => {
     const identity = personalGameIdentity({
       gameMetadata,
@@ -132,10 +133,11 @@ export function LibraryOrganizationToolbar({
   counts: Record<string, number>;
   selectionAction?: React.ReactNode;
 }) {
-  const shelves = useAppStore((s) => s.personalShelves);
-  const save = useAppStore((s) => s.savePersonalShelf);
-  const remove = useAppStore((s) => s.deletePersonalShelf);
-  const addToast = useAppStore((s) => s.addToast);
+  const practice = useLibraryPractice();
+  const shelves = usePersonalLibraryState((s) => s.personalShelves);
+  const save = usePersonalLibraryState((s) => s.savePersonalShelf);
+  const remove = usePersonalLibraryState((s) => s.deletePersonalShelf);
+  const addToast = usePersonalLibraryState((s) => s.addToast);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [editor, setEditor] = useState<PersonalShelf | "new" | null>(null);
   const [name, setName] = useState("");
@@ -197,6 +199,7 @@ export function LibraryOrganizationToolbar({
 
   return (
     <div
+      data-tour={practice ? "demo-organization" : undefined}
       ref={toolbarRef}
       className="grid gap-3 border-b border-border px-4 py-3"
     >
@@ -221,6 +224,7 @@ export function LibraryOrganizationToolbar({
             </Pill>
             <Pill
               {...dropProps("favorites")}
+              data-tour={practice ? "demo-favorites" : undefined}
               role="tab"
               aria-selected={selection === "favorites"}
               selected={selection === "favorites"}
@@ -234,6 +238,13 @@ export function LibraryOrganizationToolbar({
             {shelves.map((shelf) => (
               <Pill
                 key={shelf.id}
+                data-tour={
+                  practice
+                    ? shelf.filters
+                      ? "demo-filtered-shelf"
+                      : "demo-personal-shelf"
+                    : undefined
+                }
                 {...dropProps(shelf.id, !shelf.filters)}
                 role="tab"
                 aria-selected={selection === shelf.id}
@@ -268,13 +279,18 @@ export function LibraryOrganizationToolbar({
                 <LibraryGameHoverHint />
               </Pill>
             ))}
-            <Pill icon={Plus} onClick={() => edit("new")}>
+            <Pill
+              data-tour={practice ? "demo-new-shelf" : undefined}
+              icon={Plus}
+              onClick={() => edit("new")}
+            >
               New shelf
             </Pill>
           </div>
         ) : null}
         {selectionAction}
         <Button
+          data-tour={practice ? "demo-filters-toggle" : undefined}
           variant={expanded || activeCount ? "secondary" : "ghost"}
           icon={SlidersHorizontal}
           aria-expanded={expanded}
@@ -288,6 +304,7 @@ export function LibraryOrganizationToolbar({
 
       {expanded ? (
         <div
+          data-tour={practice ? "demo-library-filters" : undefined}
           id="library-filters"
           className="grid gap-3 rounded-xl border border-border bg-bg p-4"
           onKeyDown={(event) => {
@@ -316,6 +333,7 @@ export function LibraryOrganizationToolbar({
               Any
             </Pill>
             <Pill
+              data-tour={practice ? "demo-filter-status-none" : undefined}
               selected={filters.status === "none"}
               onClick={() =>
                 setFilter(
@@ -329,6 +347,7 @@ export function LibraryOrganizationToolbar({
             {GAME_STATUS_LIST.map((value) => (
               <Pill
                 key={value}
+                data-tour={practice ? `demo-filter-status-${value}` : undefined}
                 selected={filters.status === value}
                 onClick={() =>
                   setFilter(
@@ -454,6 +473,7 @@ export function LibraryOrganizationToolbar({
           <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
             {selected ? (
               <Button
+                data-tour={practice ? "demo-save-filters" : undefined}
                 variant="primary"
                 icon={Save}
                 aria-label={`Save filters to ${selected.name}`}
@@ -512,6 +532,7 @@ export function LibraryOrganizationToolbar({
 
       {showShelves && menuShelf ? (
         <ContextMenu
+          dataTour={practice ? "demo-library-menu" : undefined}
           open={shelfMenu.open}
           position={shelfMenu.position}
           onClose={closeShelfMenu}
@@ -553,12 +574,15 @@ export function LibraryOrganizationToolbar({
 
       {showShelves && editor ? (
         <Modal
+          dataTour={practice ? "demo-shelf-editor" : undefined}
+          backdropDataTour={practice ? "demo-library-modal" : undefined}
           labelId="shelf-editor-title"
           title={typeof editor === "object" ? "Edit shelf" : "New shelf"}
           icon={FolderHeart}
           onClose={() => setEditor(null)}
           footer={
             <Button
+              data-tour={practice ? "demo-shelf-save" : undefined}
               type="submit"
               form="shelf-editor-form"
               variant="primary"
@@ -584,12 +608,14 @@ export function LibraryOrganizationToolbar({
                 if (typeof editor !== "object") {
                   onExpandedChange(false);
                   onSelect(id);
+                  if (practice) emitTourEvent("library.demo-shelf-created");
                 }
                 setEditor(null);
               }
             }}
           >
             <Input
+              data-tour={practice ? "demo-shelf-name" : undefined}
               data-autofocus
               aria-label="Shelf name"
               maxLength={NAME_LIMIT}
@@ -606,6 +632,8 @@ export function LibraryOrganizationToolbar({
       ) : null}
       {showShelves && deleting ? (
         <Modal
+          dataTour={practice ? "demo-shelf-editor" : undefined}
+          backdropDataTour={practice ? "demo-library-modal" : undefined}
           labelId="delete-shelf-title"
           title={`Delete “${deleting.name}”?`}
           icon={Trash2}

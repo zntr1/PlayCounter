@@ -1,4 +1,9 @@
 import {
+  usePersonalLibraryState,
+  usePersonalLibraryApi,
+  useLibraryPractice,
+} from "./PersonalLibraryContext";
+import {
   BookOpen,
   Check,
   ChevronDown,
@@ -21,11 +26,7 @@ import {
   type GameStatus,
   type JournalTarget,
 } from "../personalLibrary";
-import {
-  personalGameIdentity,
-  useAppStore,
-  type ActiveSession,
-} from "../store";
+import { personalGameIdentity, type ActiveSession } from "../store";
 import {
   Button,
   ContextMenu,
@@ -60,9 +61,10 @@ export function SessionPlaythroughPicker({
   session: Session | ActiveSession;
   compact?: boolean;
 }) {
+  const practice = useLibraryPractice();
   const journal = useGameJournal(session);
-  const assign = useAppStore((s) => s.assignSessionPlaythrough);
-  const open = useAppStore((s) => s.openGameJournal);
+  const assign = usePersonalLibraryState((s) => s.assignSessionPlaythrough);
+  const open = usePersonalLibraryState((s) => s.openGameJournal);
   const menu = useAnchoredMenu();
   const current = session.playthroughId ?? null;
 
@@ -83,6 +85,7 @@ export function SessionPlaythroughPicker({
   return (
     <>
       <Pill
+        data-tour={practice ? "demo-session-playthrough" : undefined}
         ref={menu.anchorRef}
         icon={BookOpen}
         aria-haspopup="menu"
@@ -103,6 +106,7 @@ export function SessionPlaythroughPicker({
         <ChevronDown size={12} className="shrink-0 opacity-70" />
       </Pill>
       <ContextMenu
+        dataTour={practice ? "demo-library-menu" : undefined}
         open={menu.open}
         position={menu.position}
         anchorRef={menu.anchorRef}
@@ -121,6 +125,7 @@ export function SessionPlaythroughPicker({
         {journal.playthroughs.map((p) => (
           <ContextMenuItem
             key={p.id}
+            dataTour={practice ? "demo-session-named-playthrough" : undefined}
             selected={current === p.id}
             onClick={() => {
               assign(session.id, p.id);
@@ -137,7 +142,7 @@ export function SessionPlaythroughPicker({
 }
 
 export function GameJournalHost() {
-  const target = useAppStore((s) => s.journalTarget);
+  const target = usePersonalLibraryState((s) => s.journalTarget);
   return target ? (
     <GameJournalDialog
       key={`${target.game.source}:${target.game.gameId}:${target.tab}:${target.playthroughId}`}
@@ -147,6 +152,8 @@ export function GameJournalHost() {
 }
 
 function GameJournalDialog({ target }: { target: JournalTarget }) {
+  const libraryApi = usePersonalLibraryApi();
+  const practice = useLibraryPractice();
   const journal = useGameJournal(target.game);
   const [selected, setSelected] = useState<string | null>(
     target.playthroughId === undefined
@@ -158,14 +165,18 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const [draft, setDraft] = useState(storedNote);
   const [name, setName] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const sessions = useAppStore((s) => s.recentSessions);
-  const activeSessions = useAppStore((s) => s.activeSessions);
-  const archived = useAppStore((s) => s.archivedPlaythroughSeconds);
-  const archivedGameSeconds = useAppStore((s) => s.archivedGameSeconds);
-  const playtimeAdjustments = useAppStore((s) => s.playtimeAdjustments);
-  const libraryImports = useAppStore((s) => s.libraryImports);
-  const showDays = useAppStore((s) => s.settings.showDurationDays);
-  const identity = personalGameIdentity(useAppStore.getState());
+  const sessions = usePersonalLibraryState((s) => s.recentSessions);
+  const activeSessions = usePersonalLibraryState((s) => s.activeSessions);
+  const archived = usePersonalLibraryState((s) => s.archivedPlaythroughSeconds);
+  const archivedGameSeconds = usePersonalLibraryState(
+    (s) => s.archivedGameSeconds,
+  );
+  const playtimeAdjustments = usePersonalLibraryState(
+    (s) => s.playtimeAdjustments,
+  );
+  const libraryImports = usePersonalLibraryState((s) => s.libraryImports);
+  const showDays = usePersonalLibraryState((s) => s.settings.showDurationDays);
+  const identity = personalGameIdentity(libraryApi.getState());
   const gameKey = identity(target.game);
   const gameSessions = sessions.filter((s) => identity(s) === gameKey);
   const selectedSessions = gameSessions.filter(
@@ -245,14 +256,14 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   function saveNote() {
     if (draft === storedNote) return;
     if (playthrough)
-      useAppStore
+      libraryApi
         .getState()
         .updatePlaythrough(target.game, playthrough.id, { note: draft });
-    else useAppStore.getState().updateGameJournal(target.game, { note: draft });
+    else libraryApi.getState().updateGameJournal(target.game, { note: draft });
   }
   function close() {
     saveNote();
-    useAppStore.getState().openGameJournal(null);
+    libraryApi.getState().openGameJournal(null);
   }
   function select(id: string | null) {
     saveNote();
@@ -264,7 +275,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   }
   function create() {
     saveNote();
-    const id = useAppStore.getState().createPlaythrough(target.game, name);
+    const id = libraryApi.getState().createPlaythrough(target.game, name);
     if (id) {
       setSelected(id);
       setDraft("");
@@ -275,6 +286,8 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
 
   return (
     <Modal
+      dataTour={practice ? "demo-journal" : undefined}
+      backdropDataTour={practice ? "demo-library-modal" : undefined}
       labelId="game-journal-title"
       size="xl"
       className="h-[720px]"
@@ -305,7 +318,9 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
       footer={
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-text-faint">
-            Notes and playthroughs stay on this computer.
+            {practice
+              ? "Practice only · changes disappear when you leave the guide."
+              : "Notes and playthroughs stay on this computer."}
           </span>
           <Button variant="primary" icon={Check} onClick={close}>
             {draft !== storedNote ? "Save and close" : "Done"}
@@ -315,7 +330,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     >
       <GameShelfStrip target={target} />
 
-      <div className="grid min-h-0 flex-1 md:grid-cols-[252px_minmax(0,1fr)]">
+      <div
+        data-tour={practice ? "demo-journal-columns" : undefined}
+        className="grid min-h-0 flex-1 md:grid-cols-[252px_minmax(0,1fr)]"
+      >
         <div className="flex min-h-0 flex-col border-border md:border-r">
           <div className="flex items-baseline justify-between px-5 pt-4">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-faint">
@@ -327,6 +345,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
           </div>
           <div
             data-controller-scroll
+            data-tour={practice ? "demo-playthrough-list" : undefined}
             role="listbox"
             aria-label="Playthroughs"
             className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-3 [scrollbar-gutter:stable]"
@@ -349,6 +368,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             ))}
           </div>
           <form
+            data-tour={practice ? "demo-new-playthrough" : undefined}
             className="flex gap-2 border-t border-border px-3 py-3"
             onSubmit={(event) => {
               event.preventDefault();
@@ -356,6 +376,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             }}
           >
             <Input
+              data-tour={practice ? "demo-playthrough-name" : undefined}
               aria-label="New playthrough name"
               maxLength={NAME_LIMIT}
               value={name}
@@ -364,6 +385,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               onChange={(event) => setName(event.target.value)}
             />
             <Button
+              data-tour={practice ? "demo-playthrough-create" : undefined}
               type="submit"
               variant="secondary"
               icon={Plus}
@@ -397,7 +419,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   className="-mx-2 w-full border-transparent bg-transparent px-2 py-1 text-lg font-bold !text-text hover:border-border"
                   onBlur={(event) => {
                     if (event.target.value.trim())
-                      useAppStore
+                      libraryApi
                         .getState()
                         .updatePlaythrough(target.game, playthrough.id, {
                           name: event.target.value,
@@ -429,8 +451,12 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div
+            data-tour={practice ? "demo-playthrough-actions" : undefined}
+            className="flex flex-wrap items-center gap-2"
+          >
             <Pill
+              data-tour={practice ? "demo-playthrough-active" : undefined}
               icon={Check}
               selected={journal.activePlaythroughId === selected}
               disabled={
@@ -443,7 +469,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   : undefined
               }
               onClick={() =>
-                useAppStore
+                libraryApi
                   .getState()
                   .setActivePlaythrough(target.game, selected)
               }
@@ -454,10 +480,11 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             </Pill>
             {playthrough ? (
               <Pill
+                data-tour={practice ? "demo-playthrough-finish" : undefined}
                 icon={Flag}
                 selected={Boolean(playthrough.completedAt)}
                 onClick={() =>
-                  useAppStore
+                  libraryApi
                     .getState()
                     .updatePlaythrough(target.game, playthrough.id, {
                       completedAt: playthrough.completedAt
@@ -479,7 +506,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   value={playthrough.completedAt.slice(0, 10)}
                   onChange={(event) => {
                     if (event.target.value)
-                      useAppStore
+                      libraryApi
                         .getState()
                         .updatePlaythrough(target.game, playthrough.id, {
                           completedAt: `${event.target.value}T12:00:00.000Z`,
@@ -508,7 +535,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 <Button
                   variant="danger"
                   onClick={() => {
-                    useAppStore
+                    libraryApi
                       .getState()
                       .deletePlaythrough(target.game, playthrough.id);
                     setSelected(null);
@@ -532,7 +559,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             </p>
           ) : null}
 
-          <div className="grid gap-2">
+          <div
+            data-tour={practice ? "demo-journal-note" : undefined}
+            className="grid gap-2"
+          >
             <div className="flex items-center justify-between">
               <label
                 htmlFor="journal-note"
@@ -546,6 +576,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               </span>
             </div>
             <textarea
+              data-tour={practice ? "demo-note-input" : undefined}
               id="journal-note"
               data-autofocus={target.tab === "note" ? "" : undefined}
               rows={4}
@@ -561,6 +592,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 {draft === storedNote ? "Saved" : "Unsaved changes"}
               </span>
               <Button
+                data-tour={practice ? "demo-note-save" : undefined}
                 icon={Check}
                 variant="secondary"
                 onClick={saveNote}
@@ -571,7 +603,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             </div>
           </div>
 
-          <div className="grid gap-2">
+          <div
+            data-tour={practice ? "demo-playthrough-sessions" : undefined}
+            className="grid gap-2"
+          >
             <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-faint">
               Recorded sessions · {selectedSessions.length}
             </h4>
@@ -692,13 +727,14 @@ function LedgerRow({
 
 /** Favorite, progress and shelves describe the game, not a single run. */
 function GameShelfStrip({ target }: { target: JournalTarget }) {
+  const practice = useLibraryPractice();
   const journal = useGameJournal(target.game);
-  const shelves = useAppStore((s) => s.personalShelves);
-  const showShelves = useAppStore(
+  const shelves = usePersonalLibraryState((s) => s.personalShelves);
+  const showShelves = usePersonalLibraryState(
     (s) => s.settings.libraryShowShelves !== false,
   );
-  const update = useAppStore((s) => s.updateGameJournal);
-  const save = useAppStore((s) => s.savePersonalShelf);
+  const update = usePersonalLibraryState((s) => s.updateGameJournal);
+  const save = usePersonalLibraryState((s) => s.savePersonalShelf);
   const statusMenu = useAnchoredMenu();
   const shelfMenu = useAnchoredMenu();
   const [shelfName, setShelfName] = useState("");
@@ -720,7 +756,10 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
+    <div
+      data-tour={practice ? "demo-journal-organize" : undefined}
+      className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3"
+    >
       <Pill
         icon={Star}
         selected={journal.favorite}
@@ -748,6 +787,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         <ChevronDown size={12} className="opacity-70" />
       </Pill>
       <ContextMenu
+        dataTour={practice ? "demo-library-menu" : undefined}
         open={statusMenu.open}
         position={statusMenu.position}
         anchorRef={statusMenu.anchorRef}
@@ -787,6 +827,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             </Pill>
           ))}
           <Pill
+            data-tour={practice ? "demo-journal-shelf" : undefined}
             ref={shelfMenu.anchorRef}
             icon={Plus}
             aria-haspopup="menu"
@@ -797,6 +838,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             Shelf
           </Pill>
           <ContextMenu
+            dataTour={practice ? "demo-library-menu" : undefined}
             open={shelfMenu.open}
             position={shelfMenu.position}
             anchorRef={shelfMenu.anchorRef}
@@ -806,6 +848,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             {manualShelves.map((shelf) => (
               <ContextMenuItem
                 key={shelf.id}
+                dataTour={practice ? "demo-journal-shelf-choice" : undefined}
                 selected={journal.shelfIds.includes(shelf.id)}
                 onClick={() =>
                   toggleShelf(shelf.id, journal.shelfIds.includes(shelf.id))

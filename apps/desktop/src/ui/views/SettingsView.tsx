@@ -556,7 +556,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Include a short note when a game starts. Uses the session's playthrough note, or the general game note when it is empty."
+            description="Include a short reminder from the session's playthrough when a game starts."
             title="Notes in game-start popups"
           >
             <input

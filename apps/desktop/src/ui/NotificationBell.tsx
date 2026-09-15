@@ -5,6 +5,10 @@ import { NotificationsPanel } from "./NotificationsPanel";
 import { IconButton } from "./primitives";
 
 export function NotificationBell() {
+  const feedbackStep = useAppStore((s) =>
+    s.activeTour?.tourId === "feedback-replies" ? s.activeTour.stepIndex : null,
+  );
+  const demo = feedbackStep !== null;
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const unread = useAppStore(
@@ -31,12 +35,12 @@ export function NotificationBell() {
 
   function toggle() {
     const next = !open;
-    if (next) markAllRead();
+    if (next && !demo) markAllRead();
     setOpen(next);
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div data-tour="notifications-bell" ref={containerRef} className="relative">
       <IconButton
         aria-label="Open notifications"
         title="Notifications"
@@ -48,7 +52,14 @@ export function NotificationBell() {
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}
-      {open ? <NotificationsPanel onClose={() => setOpen(false)} /> : null}
+      {(demo ? feedbackStep > 0 : open) ? (
+        <NotificationsPanel
+          demo={demo}
+          onClose={() => {
+            if (!demo) setOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,8 @@
 import {
+  usePersonalLibraryState,
+  useLibraryPractice,
+} from "./PersonalLibraryContext";
+import {
   BookOpen,
   CircleDot,
   FolderHeart,
@@ -6,7 +10,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { GAME_STATUSES, journalNote } from "../personalLibrary";
-import { useAppStore, type GameIdentityRef } from "../store";
+import { type GameIdentityRef } from "../store";
 import { ContextMenuHeading, ContextMenuItem } from "./primitives";
 import { STATUS_TONES } from "./journalStyles";
 import { useGameJournal } from "./useGameJournal";
@@ -18,16 +22,18 @@ export function GameJournalMenu({
   game: GameIdentityRef;
   onClose: () => void;
 }) {
+  const practice = useLibraryPractice();
   const journal = useGameJournal(game);
-  const open = useAppStore((s) => s.openGameJournal);
-  const update = useAppStore((s) => s.updateGameJournal);
-  const showShelves = useAppStore(
+  const open = usePersonalLibraryState((s) => s.openGameJournal);
+  const update = usePersonalLibraryState((s) => s.updateGameJournal);
+  const showShelves = usePersonalLibraryState(
     (s) => s.settings.libraryShowShelves !== false,
   );
   return (
     <>
       <ContextMenuHeading>My library</ContextMenuHeading>
       <ContextMenuItem
+        dataTour={practice ? "demo-menu-note" : undefined}
         icon={StickyNote}
         onClick={() => {
           onClose();
@@ -37,6 +43,7 @@ export function GameJournalMenu({
         {journalNote(journal) ? "Edit note" : "Add note"}
       </ContextMenuItem>
       <ContextMenuItem
+        dataTour={practice ? "demo-menu-playthroughs" : undefined}
         icon={BookOpen}
         onClick={() => {
           onClose();
@@ -47,6 +54,7 @@ export function GameJournalMenu({
         {journal.playthroughs.length ? ` · ${journal.playthroughs.length}` : ""}
       </ContextMenuItem>
       <ContextMenuItem
+        dataTour={practice ? "demo-menu-favorite" : undefined}
         icon={Star}
         onClick={() => {
           onClose();
@@ -56,6 +64,7 @@ export function GameJournalMenu({
         {journal.favorite ? "Remove from Favorites" : "Add to Favorites"}
       </ContextMenuItem>
       <ContextMenuItem
+        dataTour={practice ? "demo-menu-organize" : undefined}
         icon={showShelves ? FolderHeart : CircleDot}
         onClick={() => {
           onClose();
@@ -80,12 +89,13 @@ export function GameJournalBadges({
   game: GameIdentityRef;
   compact?: boolean;
 }) {
+  const practice = useLibraryPractice();
   const journal = useGameJournal(game);
-  const open = useAppStore((s) => s.openGameJournal);
-  const showStatus = useAppStore(
+  const open = usePersonalLibraryState((s) => s.openGameJournal);
+  const showStatus = usePersonalLibraryState(
     (s) => s.settings.libraryShowStatusBadges !== false,
   );
-  const showNotes = useAppStore(
+  const showNotes = usePersonalLibraryState(
     (s) => s.settings.libraryShowNoteBadges !== false,
   );
   const status = showStatus ? journal.status : null;

@@ -1,3 +1,4 @@
+import { useLibraryPractice } from "./PersonalLibraryContext";
 import clsx from "clsx";
 import { Check, ChevronDown } from "lucide-react";
 import {
@@ -33,6 +34,7 @@ export function LibraryBulkActions({
   onDone: () => void;
   onStatus: (status: GameStatus | null) => void;
 }) {
+  const practice = useLibraryPractice();
   const menu = useAnchoredMenu();
   const menuRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
@@ -56,6 +58,7 @@ export function LibraryBulkActions({
   if (!active) return null;
   return (
     <div
+      data-tour={practice ? "demo-bulk-actions" : undefined}
       ref={barRef}
       tabIndex={-1}
       aria-label="Bulk status actions"
@@ -63,12 +66,14 @@ export function LibraryBulkActions({
     >
       <div className="flex flex-wrap items-center gap-2">
         <span
+          data-tour={practice ? "demo-bulk-count" : undefined}
           className="min-w-24 px-1 text-sm font-semibold text-text"
           aria-live="polite"
         >
           {count} selected
         </span>
         <button
+          data-tour={practice ? "demo-bulk-set-status" : undefined}
           ref={menu.anchorRef}
           type="button"
           disabled={!count}
@@ -82,6 +87,7 @@ export function LibraryBulkActions({
           Set status <ChevronDown size={14} />
         </button>
         <Button
+          data-tour={practice ? "demo-bulk-select-all" : undefined}
           variant="ghost"
           disabled={!total || count === total}
           data-controller-item="library-option"
@@ -120,6 +126,7 @@ export function LibraryBulkActions({
         </p>
       ) : null}
       <ContextMenu
+        dataTour={practice ? "demo-library-menu" : undefined}
         open={menu.open && active && count > 0}
         position={menu.position}
         anchorRef={menu.anchorRef}
@@ -166,6 +173,7 @@ export function LibraryBulkActions({
           {GAME_STATUS_LIST.map((status) => (
             <button
               key={status}
+              data-tour={practice ? `demo-bulk-status-${status}` : undefined}
               type="button"
               role="menuitem"
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-text transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"

@@ -1210,3 +1210,50 @@ body.shift-held
     transform: none;
   }
 }
+/* Keep the practice controls and their instructions visible together. */
+[data-tour="demo-library-customize"] p {
+  display: none;
+}
+[data-tour="demo-library-customize"] > div {
+  flex-wrap: nowrap;
+  padding-block: 10px;
+}
+[data-tour="demo-library-customize"] input[type="checkbox"] {
+  flex-shrink: 0;
+}
+.tour-practice-space {
+  padding-right: 410px;
+}
+[data-tour-practice-card] {
+  top: 104px;
+  right: 16px;
+  max-height: calc(100vh - 120px) !important;
+}
+[data-tour="demo-library-modal"] {
+  padding-right: 430px !important;
+  padding-bottom: 24px !important;
+}
+[data-tour="demo-library-modal"] > [role="dialog"] {
+  max-height: calc(100vh - 48px);
+}
+@media (max-width: 1199px) {
+  .tour-practice-space {
+    position: fixed;
+    top: 96px;
+    left: 16px;
+    bottom: 16px;
+    width: calc(100vw - 400px);
+    overflow: auto;
+    padding: 8px;
+    z-index: 50;
+  }
+  [data-tour-practice-card] {
+    width: 350px;
+  }
+  [data-tour="demo-library-modal"] {
+    padding-right: 390px !important;
+  }
+  [data-tour="demo-journal"] [data-tour="demo-journal-columns"] {
+    grid-template-columns: 160px minmax(0, 1fr);
+  }
+}

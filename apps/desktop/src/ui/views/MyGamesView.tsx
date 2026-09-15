@@ -1,3 +1,5 @@
+import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
+import { useLibraryPractice } from "../PersonalLibraryContext";
 import clsx from "clsx";
 import {
   AlertTriangle,
@@ -259,7 +261,7 @@ const sortOptions: Array<{ key: SortKey; label: string }> = [
 const GTA_V_TOUR_COVER =
   "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.webp";
 
-type GameSummary = {
+export type GameSummary = {
   kind: LibraryGameKind;
   gameId: number;
   igdbId?: number;
@@ -354,7 +356,7 @@ function makeTourDemoGame(
   };
 }
 
-function makeCoreTourDemoGames(): GameSummary[] {
+export function makeCoreTourDemoGames(): GameSummary[] {
   const now = Date.now();
   return [
     {
@@ -1639,190 +1641,21 @@ export function MyGamesView() {
                 id="library-customize"
                 className="divide-y divide-border border-b border-border bg-bg px-4"
               >
-                {view !== "list" ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div>
-                      <label
-                        htmlFor="library-grid-columns"
-                        className="text-sm font-medium text-text"
-                      >
-                        Cards per row
-                      </label>
-                      <p
-                        id="library-grid-columns-help"
-                        className="mt-1 text-xs leading-5 text-text-faint"
-                      >
-                        Saved until you select a preset view again.
-                        {gridLayout.columns < gridLayout.sliderValue
-                          ? ` Showing ${gridLayout.columns} per row to fit this window.`
-                          : null}
-                      </p>
-                    </div>
-                    <div className="flex w-full items-center gap-3 sm:w-64">
-                      <input
-                        id="library-grid-columns"
-                        type="range"
-                        min={1}
-                        max={gridLayout.maxColumns}
-                        step={1}
-                        value={gridLayout.sliderValue}
-                        aria-describedby="library-grid-columns-help"
-                        aria-valuetext={`${gridLayout.sliderValue} cards per row`}
-                        onChange={(event) =>
-                          setMyGamesGridColumns(
-                            event.currentTarget.valueAsNumber,
-                          )
-                        }
-                        className="h-5 min-w-0 flex-1 cursor-pointer accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                      />
-                      <output
-                        htmlFor="library-grid-columns"
-                        className="min-w-6 text-right font-mono text-sm font-semibold tabular-nums text-text"
-                      >
-                        {gridLayout.sliderValue}
-                      </output>
-                    </div>
-                  </div>
-                ) : null}
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-show-shelves"
-                      className="text-sm font-medium text-text"
-                    >
-                      Show shelves
-                    </label>
-                    <p
-                      id="library-show-shelves-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      Hide the entire shelf row at any time. Your games stay in
-                      the library, and your shelves are kept for when you turn
-                      this back on.
-                    </p>
-                  </div>
-                  <input
-                    id="library-show-shelves"
-                    type="checkbox"
-                    checked={showShelves}
-                    aria-describedby="library-show-shelves-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesShowShelves(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-show-origin"
-                      className="text-sm font-medium text-text"
-                    >
-                      Show where games came from
-                    </label>
-                    <p
-                      id="library-show-origin-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      The Steam, Xbox, emulator or PlayCounter mark beside each
-                      game name.
-                    </p>
-                  </div>
-                  <input
-                    id="library-show-origin"
-                    type="checkbox"
-                    checked={showOrigin}
-                    aria-describedby="library-show-origin-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesShowOriginBadges(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-show-match"
-                      className="text-sm font-medium text-text"
-                    >
-                      Show how files were matched
-                    </label>
-                    <p
-                      id="library-show-match-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      The IGDB, Community or Custom seal in the cover corner.
-                      Warnings and actions always stay.
-                    </p>
-                  </div>
-                  <input
-                    id="library-show-match"
-                    type="checkbox"
-                    checked={showMatch}
-                    aria-describedby="library-show-match-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesShowMatchBadges(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-show-status"
-                      className="text-sm font-medium text-text"
-                    >
-                      Show status on game cards
-                    </label>
-                    <p
-                      id="library-show-status-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      Display each game's progress status on its cover.
-                    </p>
-                  </div>
-                  <input
-                    id="library-show-status"
-                    type="checkbox"
-                    checked={showStatus}
-                    aria-describedby="library-show-status-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesShowStatusBadges(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-show-notes"
-                      className="text-sm font-medium text-text"
-                    >
-                      Show notes on game cards
-                    </label>
-                    <p
-                      id="library-show-notes-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      Display a note icon on covers for games with saved notes.
-                    </p>
-                  </div>
-                  <input
-                    id="library-show-notes"
-                    type="checkbox"
-                    checked={showNotes}
-                    aria-describedby="library-show-notes-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesShowNoteBadges(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
+                <LibraryAppearanceControls
+                  view={view}
+                  gridLayout={gridLayout}
+                  showShelves={showShelves}
+                  showOrigin={showOrigin}
+                  showMatch={showMatch}
+                  showStatus={showStatus}
+                  showNotes={showNotes}
+                  setMyGamesGridColumns={setMyGamesGridColumns}
+                  setMyGamesShowShelves={setMyGamesShowShelves}
+                  setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
+                  setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
+                  setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
+                  setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                />
                 <div className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <label
@@ -2489,7 +2322,7 @@ function LaunchStartingOverlay({
   );
 }
 
-function GameLibraryCard({
+export function GameLibraryCard({
   game,
   localLinks,
   launchKey,
@@ -2528,9 +2361,10 @@ function GameLibraryCard({
   onToggleSelection: (key: string, range: boolean) => void;
   demo?: boolean;
 }) {
+  const libraryPractice = useLibraryPractice();
   // The tour walks through both halves, so its demo card always shows them.
-  const originVisible = demo || showOrigin;
-  const matchVisible = demo || showMatch;
+  const originVisible = (demo && !libraryPractice) || showOrigin;
+  const matchVisible = (demo && !libraryPractice) || showMatch;
   const averageSeconds = Math.round(
     game.sessionSeconds / Math.max(1, game.sessionCount),
   );
@@ -2563,7 +2397,7 @@ function GameLibraryCard({
       coverUrl: game.coverUrl,
     },
     onDragGame,
-    demo || selectionMode,
+    (demo && !libraryPractice) || selectionMode,
   );
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -2587,7 +2421,7 @@ function GameLibraryCard({
   const [launching, setLaunching] = useState(false);
 
   useEffect(() => {
-    if (!demo) return;
+    if (!demo || libraryPractice) return;
     if (!showDemoContextMenu) {
       contextMenu.close();
       return;
@@ -3699,6 +3533,21 @@ function GameLibraryCard({
 
   const renderContextMenu = () => {
     if (!contextMenu.open) return null;
+    if (libraryPractice)
+      return (
+        <ContextMenu
+          open
+          position={contextMenu.position}
+          onClose={contextMenu.close}
+          dataTour="demo-library-menu"
+          focusFirstItem
+        >
+          <GameJournalMenu
+            game={{ ...game, gameName: game.name }}
+            onClose={contextMenu.close}
+          />
+        </ContextMenu>
+      );
     return (
       <ContextMenu
         open={contextMenu.open}
@@ -4040,6 +3889,19 @@ function GameLibraryCard({
   const demoCardProps = demo
     ? {
         "data-tour": "demo-game-card",
+        "data-tour-game-id": game.gameId,
+        onKeyDown: libraryPractice
+          ? (event: React.KeyboardEvent<HTMLElement>) => {
+              if (
+                event.key === "ContextMenu" ||
+                (event.shiftKey && event.key === "F10")
+              ) {
+                event.preventDefault();
+                const rect = event.currentTarget.getBoundingClientRect();
+                contextMenu.openAt({ x: rect.left + 20, y: rect.top + 40 });
+              }
+            }
+          : undefined,
       }
     : {};
 
@@ -4058,7 +3920,7 @@ function GameLibraryCard({
         {...demoCardProps}
         data-controller-item={controllerNavigable ? "game-card" : undefined}
         aria-busy={launching}
-        tabIndex={controllerNavigable ? -1 : undefined}
+        tabIndex={libraryPractice ? 0 : controllerNavigable ? -1 : undefined}
         aria-label={
           controllerNavigable
             ? launching
@@ -4086,7 +3948,7 @@ function GameLibraryCard({
           />
         ) : null}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
-          {!demo ? (
+          {!demo || libraryPractice ? (
             <GameJournalBadges game={{ ...game, gameName: game.name }} />
           ) : null}
           {game.coverUrl ? (
@@ -4614,7 +4476,7 @@ function GameLibraryCard({
       {...demoCardProps}
       data-controller-item={controllerNavigable ? "game-card" : undefined}
       aria-busy={launching}
-      tabIndex={controllerNavigable ? -1 : undefined}
+      tabIndex={libraryPractice ? 0 : controllerNavigable ? -1 : undefined}
       aria-label={
         controllerNavigable
           ? launching
@@ -4644,7 +4506,7 @@ function GameLibraryCard({
       ) : null}
       <div className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 p-3">
         <div className="relative w-[72px] shrink-0">
-          {!demo ? (
+          {!demo || libraryPractice ? (
             <GameJournalBadges
               game={{ ...game, gameName: game.name }}
               compact

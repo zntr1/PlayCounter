@@ -1,3 +1,4 @@
+import { usePersonalLibraryApi } from "./PersonalLibraryContext";
 import {
   useCallback,
   useEffect,
@@ -8,7 +9,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { GAME_STATUSES, type GameStatus } from "../personalLibrary";
-import { useAppStore, type GameIdentityRef } from "../store";
+import { type GameIdentityRef } from "../store";
 
 type SelectableGame = GameIdentityRef & { name: string };
 
@@ -23,6 +24,7 @@ export function useLibrarySelection(
   scope: string,
   enabled: boolean,
 ) {
+  const libraryApi = usePersonalLibraryApi();
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRestore = useRef<{ element: HTMLElement; top: number } | null>(
     null,
@@ -101,7 +103,7 @@ export function useLibrarySelection(
         event.key !== "Escape" ||
         event.isComposing ||
         event.defaultPrevented ||
-        useAppStore.getState().activeView !== "games" ||
+        libraryApi.getState().activeView !== "games" ||
         document.querySelector('[role="dialog"], [role="menu"]')
       )
         return;
@@ -111,7 +113,7 @@ export function useLibrarySelection(
     // Clicking empty space can leave focus outside the library's React root.
     window.addEventListener("keydown", onEscape);
     return () => window.removeEventListener("keydown", onEscape);
-  }, [active, enabled, finish]);
+  }, [active, enabled, finish, libraryApi]);
   const toggleMode = () => {
     if (active) finish();
     else if (enabled) {
@@ -161,7 +163,7 @@ export function useLibrarySelection(
   function applyStatus(status: GameStatus | null) {
     if (!selected.size) return;
     rememberScroll();
-    const changes = useAppStore.getState().setGameStatuses(
+    const changes = libraryApi.getState().setGameStatuses(
       games
         .filter((game) => selected.has(librarySelectionKey(game)))
         .map((game) => ({ ...game, gameName: game.name })),
@@ -169,7 +171,7 @@ export function useLibrarySelection(
     );
     const count = changes.length;
     const label = `${count} ${count === 1 ? "game" : "games"}`;
-    useAppStore.getState().addToast({
+    libraryApi.getState().addToast({
       tone: count ? "success" : "info",
       title: count
         ? status
