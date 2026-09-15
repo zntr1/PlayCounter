@@ -556,7 +556,7 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
-            description="Include a short reminder from the session's playthrough when a game starts."
+            description="Show the note of the game's active playthrough in the popup when a game starts."
             title="Notes in game-start popups"
           >
             <input
@@ -758,7 +758,7 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
-          description="Sends the recognized game filename or disc ID to look it up in the database. Folder paths and unclear window titles stay on this PC."
+          description="Sends the recognized game file name or disc ID to look it up in the database. Folder paths and unclear window titles stay on this PC."
           title="Look up recognized content"
         >
           <input

@@ -320,7 +320,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
           <span className="text-xs text-text-faint">
             {practice
               ? "Practice only · changes disappear when you leave the guide."
-              : "Notes and playthroughs stay on this computer."}
+              : "Notes and playthroughs are stored on this PC only."}
           </span>
           <Button variant="primary" icon={Check} onClick={close}>
             {draft !== storedNote ? "Save and close" : "Done"}
@@ -380,7 +380,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               aria-label="New playthrough name"
               maxLength={NAME_LIMIT}
               value={name}
-              placeholder="New Game+, co-op run…"
+              placeholder="Speedrun, New Game+, Hardcore…"
               className="flex-1 !py-1.5 text-[13px]"
               onChange={(event) => setName(event.target.value)}
             />
@@ -396,7 +396,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             />
           </form>
           <p className="border-t border-border px-5 py-2.5 text-[11px] leading-4 text-text-faint">
-            Next session counts towards{" "}
+            Your next session is counted towards{" "}
             <span className="font-medium text-text-muted">
               {playthroughName(journal)}
             </span>
@@ -435,7 +435,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               <p className="mt-1 text-xs text-text-muted">
                 {playthrough
                   ? `Started ${new Date(playthrough.createdAt).toLocaleDateString()}`
-                  : "Everything you played before starting a named playthrough."}
+                  : "All sessions that are not assigned to a named playthrough."}
                 {selectedArchivedSeconds > 0
                   ? ` · includes ${formatDuration(selectedArchivedSeconds, showDays)} from archived sessions`
                   : ""}
@@ -529,8 +529,8 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
 
           {deleting && playthrough ? (
             <div className="rounded-lg border border-warning-border bg-warning-tint p-3 text-sm text-text">
-              Delete “{playthrough.name}” and its note? Its sessions return to
-              the default playthrough and all game playtime is kept.
+              Delete “{playthrough.name}” and its note? Its sessions move back
+              to Default playthrough. No playtime is lost.
               <div className="mt-3 flex gap-2">
                 <Button
                   variant="danger"
@@ -553,9 +553,9 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
 
           {!playthrough && hasGameWideTime ? (
             <p className="rounded-lg border border-border bg-bg px-3 py-2 text-xs leading-5 text-text-muted">
-              Imported lifetime playtime and game-wide adjustments stay in the
-              game&apos;s overall total. They cannot be split across
-              playthroughs.
+              Playtime imported from Steam or Xbox and adjustments to the total
+              count towards the game&apos;s overall total only. They cannot be
+              assigned to a playthrough.
             </p>
           ) : null}
 
@@ -584,7 +584,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onBlur={saveNote}
-              placeholder="Where did you leave off? What would you like to do next time?"
+              placeholder="Where did you stop? What do you want to do next time?"
               className="w-full resize-y rounded-xl border border-border bg-bg p-4 text-sm leading-relaxed text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
             />
             <div className="flex items-center justify-end gap-2">
@@ -641,7 +641,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               ))}
               {!selectedSessions.length && !running.length ? (
                 <p className="px-3 py-4 text-sm text-text-faint">
-                  No sessions counted here yet. Playtime lands here while this
+                  No sessions yet. New sessions are added here while this
                   playthrough is active.
                 </p>
               ) : null}
@@ -859,7 +859,8 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             ))}
             {!manualShelves.length ? (
               <p className="max-w-56 px-3 py-2 text-xs leading-5 text-text-muted">
-                Shelves group games however you like. A game can sit on several.
+                Shelves group your games any way you like. A game can sit on
+                several shelves.
               </p>
             ) : null}
             <form
@@ -878,7 +879,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
                 aria-label="New shelf name"
                 maxLength={NAME_LIMIT}
                 value={shelfName}
-                placeholder="New shelf…"
+                placeholder="Online Games"
                 className="w-40 !py-1 text-[13px]"
                 onChange={(event) => setShelfName(event.target.value)}
               />

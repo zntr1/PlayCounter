@@ -2041,8 +2041,8 @@ export function MyGamesView() {
                       This shelf is empty
                     </h3>
                     <p>
-                      Drag games onto this shelf, or add filters to fill it
-                      automatically.
+                      Drag games onto this shelf, or save filters so it fills
+                      itself.
                     </p>
                     <Button
                       icon={SlidersHorizontal}
@@ -4935,8 +4935,8 @@ function StopTrackingDialog({
         <p className="mt-2 text-sm leading-6 text-text-muted">
           {game.sessionCount} completed{" "}
           {game.sessionCount === 1 ? "session" : "sessions"} can be kept in My
-          History or cleared now. Clearing here also removes this game's notes,
-          playthroughs, and shelf memberships.
+          History or cleared now. Clearing also deletes the game's notes and
+          playthroughs and takes it off your shelves.
         </p>
       ) : null}
       <div className="mt-4 rounded-xl border border-border bg-bg px-3 py-2 text-xs text-text-faint">
@@ -4985,8 +4985,8 @@ function RemoveGameDialog({
         if you want it gone for good.
       </p>
       <p className="mt-2 text-sm leading-6 text-text-muted">
-        Clearing history here also removes this game's notes, playthroughs, and
-        shelf memberships.
+        This also deletes the game's notes and playthroughs and takes it off
+        your shelves.
       </p>
     </Modal>
   );

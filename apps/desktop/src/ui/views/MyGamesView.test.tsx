@@ -1054,7 +1054,7 @@ it("clears source and search with the other filters and offers shelf saving only
   await inputSearch("favorite");
   await openFilters();
   expect(container.textContent).toContain(
-    "Create or select a shelf to save filters.",
+    "Select a shelf to save these filters to it.",
   );
   expect(container.querySelector('[aria-label^="Save filters to"]')).toBeNull();
   expect(container.textContent).not.toContain("Save as shelf");
@@ -1212,7 +1212,7 @@ it("explains blocked shelf drops without changing data, and ignores external or 
   for (const [label, message] of [
     [
       "Unplayed",
-      "This shelf uses filtersGames appear here automatically when they match.",
+      "This shelf fills itself from filtersGames are added automatically when they match. Right-click the shelf to edit its filters.",
     ],
     ["All games", "Already in All games"],
   ]) {
@@ -1520,7 +1520,7 @@ it("prepares blocked-shelf explanations before release without rerendering durin
     ["Weekend", "already-added", "Already in Weekend"],
     ["Favorites", "already-added", "Already in Favorites"],
     ["All games", "already-added", "Already in All games"],
-    ["Unplayed", "saved-filter", "This shelf uses filters"],
+    ["Unplayed", "saved-filter", "This shelf fills itself from filters"],
   ]) {
     const chip = shelfChip(label);
     const hint = chip.querySelector<HTMLElement>(".library-game-hover-hint")!;

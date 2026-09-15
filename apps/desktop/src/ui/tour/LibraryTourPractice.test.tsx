@@ -279,7 +279,7 @@ it("targets the status filter and Save filters, then the saved shelf", async () 
   expect(target().textContent).toBe("Save filters");
   await act(() => target().click());
   expect(target().getAttribute("data-tour")).toBe("demo-filtered-shelf");
-  expect(target().textContent).toContain("Weekend games");
+  expect(target().textContent).toContain("Online Games");
 });
 
 it("targets journal fields, session assignment, and Mark finished precisely", async () => {
@@ -387,7 +387,7 @@ it("keeps real feedback and unread state untouched while displaying a sample rep
   });
   expect(
     document.querySelector('[data-tour="demo-feedback-original"]')?.textContent,
-  ).toContain("co-op run");
+  ).toContain("speedrun");
   expect(document.body.textContent).not.toContain("Keep this");
   expect(markAllNotificationsRead).not.toHaveBeenCalled();
   expect(useAppStore.getState().notifications).toEqual(notifications);

@@ -253,7 +253,7 @@ export function LibraryOrganizationToolbar({
                 count={counts[shelf.id]}
                 title={
                   shelf.filters
-                    ? "Saved filters · updates automatically. Right-click to edit filters, rename, or delete."
+                    ? "Fills itself from saved filters. Right-click to edit filters, rename, or delete."
                     : "Right-click to edit filters, rename, or delete"
                 }
                 onClick={() => onSelect(shelf.id)}
@@ -320,8 +320,9 @@ export function LibraryOrganizationToolbar({
                 Filters for {selected.name}
               </h3>
               <p className="mt-1 text-xs text-text-muted">
-                Preview matches from your whole library. Save these filters to
-                update this shelf automatically.
+                The cards below preview every game in your library that matches
+                these filters. Click Save filters to make this shelf fill itself
+                from them.
               </p>
             </div>
           ) : null}
@@ -441,7 +442,7 @@ export function LibraryOrganizationToolbar({
               </Pill>
             ))}
           </FilterGroup>
-          <FilterGroup label="Untouched">
+          <FilterGroup label="Not played for">
             <Pill
               selected={!filters.lastPlayedDays}
               onClick={() => setFilter("lastPlayedDays", undefined)}
@@ -522,8 +523,8 @@ export function LibraryOrganizationToolbar({
             {showShelves ? (
               <p className="ml-auto text-xs text-text-faint">
                 {selected
-                  ? "Removing saved filters restores games added by hand."
-                  : "Create or select a shelf to save filters."}
+                  ? "Remove saved filters brings back the games you added by hand."
+                  : "Select a shelf to save these filters to it."}
               </p>
             ) : null}
           </div>
@@ -620,12 +621,12 @@ export function LibraryOrganizationToolbar({
               aria-label="Shelf name"
               maxLength={NAME_LIMIT}
               value={name}
-              placeholder="Weekend games"
+              placeholder="Online Games"
               onChange={(e) => setName(e.target.value)}
             />
             <p className="text-xs text-text-muted">
-              Add games by hand, or open Filters on this shelf to save rules
-              that fill it automatically.
+              Drag games onto the shelf, or select the shelf, open Filters, and
+              save them so the shelf fills itself.
             </p>
           </form>
         </Modal>
