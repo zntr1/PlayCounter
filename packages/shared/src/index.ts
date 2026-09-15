@@ -226,13 +226,15 @@ export interface MatchProcessesResponse {
     // one candidate exists, so a shared executable name is never auto-applied.
     flaggedIdentifier?: { reason: IdentifierFlagReason };
     pendingCommunityGame?: Game;
-    // All unverified suggestions for the matched identifiers. Newer servers
-    // always include this array (including when empty), which lets the desktop
-    // distinguish a rejected suggestion from one hidden behind another match.
+    // All pending suggestions for the matched identifiers. An empty array
+    // does not prove rejection; use explicit contribution review status.
     // The singular field remains for older clients and discovery UI.
     pendingCommunityGames?: Game[];
+    // All verified community identities, including rows hidden by matching
+    // deduplication. Status/alias evidence only, not additional picker choices.
+    verifiedCommunityGames?: Game[];
     // Covers every community game named in this result - the match, the
-    // ambiguous candidates and pending suggestions. Community and IGDB
+    // ambiguous candidates, verified identities and pending suggestions. Community and IGDB
     // entries for one exe deliberately end up in the picker, so a merged game
     // often appears only as a candidate.
     communityGameAliases?: CommunityGameAlias[];
@@ -334,6 +336,8 @@ export interface Contribution {
   kind: ProcessIdentifierKind;
   value: string;
   gameId: number;
+  // Retired ids of this community game, for markers and notification history.
+  mergedFromGameIds?: number[];
   gameName: string;
   coverUrl: string;
   status: ContributionStatus;

@@ -2792,6 +2792,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
         // The surviving game can be the match or one of the picker candidates -
         // an exe that IGDB and the community both map is ambiguous by design.
         const communityGames = [
+          ...(result.verifiedCommunityGames ?? []),
           result.game,
           ...(result.ambiguousGames ?? []),
         ].filter((game): game is Game => game?.source === "community");
@@ -2807,8 +2808,6 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
           result.key,
           communityGames,
           pendingCommunityGames,
-          result.pendingCommunityGames !== undefined,
-          Boolean(result.game || result.ambiguousGames?.length),
           aliases,
         );
         if (
@@ -2983,15 +2982,13 @@ function canonicalizeSharedCustomGames(communitySuggestionId: number) {
 }
 
 // Reconciles the local suggestion marker with the authoritative community
-// result. It stays pending while its unverified row exists, becomes approved
-// while the game remains custom when its verified row appears, and is removed
-// when neither row exists because moderators rejected it.
+// result. Missing match candidates never prove rejection: title deduplication
+// or an older server may hide a verified row. Only an explicit contribution
+// review or suggestion response can mark a suggestion rejected.
 export function applyCommunitySuggestionOutcome(
   target: string | LocalLinkRef,
   communityGames: Game[],
   pendingCommunityGames: Game[],
-  pendingGamesAreAuthoritative: boolean,
-  responseHasOtherMatches: boolean,
   aliases?: CommunityGameAlias[],
 ) {
   const state = useAppStore.getState();
@@ -3023,16 +3020,9 @@ export function applyCommunitySuggestionOutcome(
     return "pending" as const;
   }
 
-  // Older servers did not report pending suggestions beside another stored
-  // match. Treat that response as inconclusive instead of falsely declaring a
-  // rejection. New servers always include pendingCommunityGames, even empty.
-  if (!pendingGamesAreAuthoritative && responseHasOtherMatches) {
-    return "inconclusive" as const;
-  }
-  if (existing.communitySuggestionStatus !== "rejected") {
-    setCommunitySuggestionRejected(ref, existing.communitySuggestionNote);
-  }
-  return "rejected" as const;
+  return existing.communitySuggestionStatus === "rejected"
+    ? ("rejected" as const)
+    : ("inconclusive" as const);
 }
 
 function localLinkRef(target: string | LocalLinkRef): LocalLinkRef {
@@ -5042,8 +5032,15 @@ export async function pollContributions(
     const seenContributionStatus = { ...previous };
     for (const contribution of body.items) {
       const key = contributionKey(contribution);
+      const previousStatus =
+        previous[key] ??
+        contribution.mergedFromGameIds
+          ?.map(
+            (gameId) => previous[contributionKey({ ...contribution, gameId })],
+          )
+          .find((status) => status !== undefined);
       if (
-        shouldNotifyContributionTransition(previous[key], contribution.status)
+        shouldNotifyContributionTransition(previousStatus, contribution.status)
       ) {
         const notification = contributionNotification(contribution);
         if (notification) arrived.push(notification);
@@ -5360,7 +5357,10 @@ export function applyContributionMarkers(
     );
     for (const entry of links) {
       let contribution = candidates.find(
-        (candidate) => candidate.gameId === entry.communitySuggestionId,
+        (candidate) =>
+          candidate.gameId === entry.communitySuggestionId ||
+          (entry.communitySuggestionId !== undefined &&
+            candidate.mergedFromGameIds?.includes(entry.communitySuggestionId)),
       );
       if (!contribution && entry.communitySuggestionId === undefined) {
         const viable = candidates.filter((candidate) => {
