@@ -16,6 +16,7 @@ use tauri::{
     Manager, Wry,
 };
 
+mod automatic_backups;
 mod controller;
 mod emulator_launch;
 mod hotkeys;
@@ -344,6 +345,9 @@ pub fn run() {
             read_text_file,
             write_text_file,
             backup_local_data,
+            automatic_backups::default_backup_directory,
+            automatic_backups::write_automatic_backup,
+            automatic_backups::open_backup_directory,
             open_user_ignored_processes_folder,
             open_external_url,
             open_microsoft_signin_url,

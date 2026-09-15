@@ -18,6 +18,10 @@ vi.mock("./controllerBridge", () => ({
   disposeControllerBridge: vi.fn(),
   armControllerBridge: vi.fn(),
 }));
+vi.mock("./automaticBackups", () => ({
+  initializeAutomaticBackups: vi.fn(),
+  disposeAutomaticBackups: vi.fn(),
+}));
 
 import { useAppStore, type ActiveSession, type ProcessSnapshot } from "./store";
 import { initializeTracker, scanProcessesNow } from "./tracker";

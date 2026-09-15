@@ -37,6 +37,7 @@ import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
+import { AutomaticBackupSettings } from "../AutomaticBackupSettings";
 import { HotkeyInput } from "../HotkeyInput";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
 import { TutorialSettingsPanel } from "../tour/TourUI";
@@ -1003,9 +1004,10 @@ export function SettingsView() {
 
       <SettingsPanel
         dataTour="settings-backup"
-        description="Move your play history, notes, playthroughs, and shelves to another PC. Backups are plain JSON files."
+        description="Protect your play history, notes, playthroughs, and shelves, or move them to another PC. Backups are plain JSON files."
         title="Backup & transfer"
       >
+        <AutomaticBackupSettings />
         <SettingsRow
           dataTour="settings-backup-export"
           description="Save your history, notes, playthroughs, shelves, game cache, and settings to a JSON file you can copy to another PC."
