@@ -449,7 +449,7 @@ function formatLastPlayed(value: string) {
 }
 
 function formatGameActivity(game: GameSummary) {
-  return game.sessionCount > 0
+  return game.hasLastPlayedEvidence || game.sessionCount > 0
     ? `Last played ${formatLastPlayed(game.lastPlayedAt)}`
     : `Added ${formatLastPlayed(game.lastPlayedAt)}`;
 }
@@ -1980,11 +1980,16 @@ export function MyGamesView() {
               counts={shelfCounts}
               selectionAction={
                 <Button
-                  variant={bulkSelection.active ? "secondary" : "ghost"}
+                  variant={bulkSelection.active ? "primary" : "ghost"}
                   icon={CheckSquare}
                   data-library-select=""
                   aria-label="Select games"
                   aria-pressed={bulkSelection.active}
+                  title={
+                    bulkSelection.active
+                      ? "Exit selection mode (Esc)"
+                      : "Select games to set their status"
+                  }
                   data-controller-item="library-option"
                   disabled={
                     tourDemo.active ||
@@ -1993,7 +1998,7 @@ export function MyGamesView() {
                   onClick={bulkSelection.toggleMode}
                   className="shrink-0"
                 >
-                  Select
+                  {bulkSelection.active ? "Selecting" : "Select"}
                 </Button>
               }
             />
@@ -2167,13 +2172,10 @@ export function MyGamesView() {
               active={bulkSelection.active}
               count={bulkSelection.selected.size}
               total={displayedGames.length}
-              notice={bulkSelection.notice}
               onSelectAll={bulkSelection.selectAll}
               onClear={bulkSelection.clear}
               onDone={bulkSelection.finish}
               onStatus={bulkSelection.applyStatus}
-              onUndo={bulkSelection.undo}
-              onDismiss={bulkSelection.dismissNotice}
             />
 
             {layout.panel === "provider-empty" &&

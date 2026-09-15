@@ -7,18 +7,10 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import {
-  GAME_STATUSES,
-  type GameStatus,
-  type GameStatusChange,
-} from "../personalLibrary";
+import { GAME_STATUSES, type GameStatus } from "../personalLibrary";
 import { useAppStore, type GameIdentityRef } from "../store";
 
 type SelectableGame = GameIdentityRef & { name: string };
-export type BulkStatusNotice = {
-  message: string;
-  changes: GameStatusChange[];
-};
 
 export function librarySelectionKey(game: GameIdentityRef) {
   return game.igdbId !== undefined
@@ -35,13 +27,13 @@ export function useLibrarySelection(
   const scrollRestore = useRef<{ element: HTMLElement; top: number } | null>(
     null,
   );
+  const restoreFocus = useRef(false);
   const [active, setActive] = useState(false);
   const [selection, setSelection] = useState(() => ({
     scope,
     keys: new Set<string>(),
     anchor: null as string | null,
   }));
-  const [notice, setNotice] = useState<BulkStatusNotice | null>(null);
   const keys = useMemo(() => games.map(librarySelectionKey), [games]);
   const available = useMemo(() => new Set(keys), [keys]);
   const selected = useMemo(
@@ -74,26 +66,52 @@ export function useLibrarySelection(
   }, [scope, available, enabled]);
 
   useLayoutEffect(() => {
-    if (!scrollRestore.current) return;
-    const { element, top } = scrollRestore.current;
-    element.scrollTop = top;
-    scrollRestore.current = null;
+    if (scrollRestore.current) {
+      const { element, top } = scrollRestore.current;
+      element.scrollTop = top;
+      scrollRestore.current = null;
+    }
+    if (restoreFocus.current) {
+      restoreFocus.current = false;
+      // Applying a status can remove every matching game and disable Select.
+      const target =
+        rootRef.current?.querySelector<HTMLElement>(
+          "[data-library-select]:not(:disabled)",
+        ) ??
+        rootRef.current?.querySelector<HTMLElement>(
+          '[placeholder="Search games..."]',
+        );
+      target?.focus({ preventScroll: true });
+    }
   });
 
   const clear = useCallback(() => {
     setSelection({ scope, keys: new Set(), anchor: null });
   }, [scope]);
   const finish = useCallback(() => {
+    restoreFocus.current = true;
     setActive(false);
     clear();
-    rootRef.current
-      ?.querySelector<HTMLElement>(
-        games.length
-          ? "[data-library-select]"
-          : '[placeholder="Search games..."]',
+  }, [clear]);
+
+  useEffect(() => {
+    if (!active || !enabled) return;
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (
+        event.key !== "Escape" ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        useAppStore.getState().activeView !== "games" ||
+        document.querySelector('[role="dialog"], [role="menu"]')
       )
-      ?.focus({ preventScroll: true });
-  }, [clear, games.length]);
+        return;
+      event.preventDefault();
+      finish();
+    };
+    // Clicking empty space can leave focus outside the library's React root.
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, [active, enabled, finish]);
   const toggleMode = () => {
     if (active) finish();
     else if (enabled) {
@@ -151,9 +169,9 @@ export function useLibrarySelection(
     );
     const count = changes.length;
     const label = `${count} ${count === 1 ? "game" : "games"}`;
-    setNotice({
-      changes,
-      message: count
+    useAppStore.getState().addToast({
+      tone: count ? "success" : "info",
+      title: count
         ? status
           ? `${label} marked ${GAME_STATUSES[status]}`
           : `Status cleared for ${label}`
@@ -161,19 +179,7 @@ export function useLibrarySelection(
           ? `Selected games are already marked ${GAME_STATUSES[status]}`
           : "Selected games already have no status",
     });
-    clear();
-  }
-  function undo() {
-    if (!notice?.changes.length) return;
-    rememberScroll();
-    const count = useAppStore.getState().undoGameStatuses(notice.changes);
-    const skipped = notice.changes.length - count;
-    setNotice({
-      changes: [],
-      message: count
-        ? `Restored statuses for ${count} ${count === 1 ? "game" : "games"}${skipped ? ` · ${skipped} changed since this batch and were skipped` : ""}`
-        : "These games changed since this batch; no statuses were restored.",
-    });
+    finish();
   }
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!active || !enabled || event.defaultPrevented) return;
@@ -193,9 +199,6 @@ export function useLibrarySelection(
     ) {
       event.preventDefault();
       selectAll();
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      finish();
     }
   }
 
@@ -203,15 +206,12 @@ export function useLibrarySelection(
     rootRef,
     active: active && enabled,
     selected,
-    notice,
     toggleMode,
     toggleGame,
     selectAll,
     clear,
     finish,
     applyStatus,
-    undo,
-    dismissNotice: () => setNotice(null),
     onKeyDown,
   };
 }
