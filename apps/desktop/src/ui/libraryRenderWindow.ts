@@ -1,5 +1,5 @@
-export const INITIAL_LIBRARY_RENDER_COUNT = 36;
-export const LIBRARY_RENDER_BATCH_SIZE = 36;
+export const INITIAL_LIBRARY_RENDER_COUNT = 12;
+export const LIBRARY_RENDER_BATCH_SIZE = 12;
 
 export function nextLibraryRenderLimit(current: number, total: number) {
   return Math.min(

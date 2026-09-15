@@ -242,10 +242,7 @@ import {
   type ImportableProviderTabConfig,
 } from "../libraryProviderTabs";
 import { type MyGamesCardSize } from "../myGamesPresentation";
-import {
-  INITIAL_LIBRARY_RENDER_COUNT,
-  nextLibraryRenderLimit,
-} from "../libraryRenderWindow";
+import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
 
 type SortKey = MyGamesSortKey;
@@ -1495,48 +1492,11 @@ export function MyGamesView() {
     importSupported: importableProviderTabs(platform).length > 0,
   });
   const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}`;
-  const [renderWindow, setRenderWindow] = useState(() => ({
-    key: renderWindowKey,
-    limit: INITIAL_LIBRARY_RENDER_COUNT,
-  }));
-  const visibleGameLimit =
-    renderWindow.key === renderWindowKey
-      ? renderWindow.limit
-      : INITIAL_LIBRARY_RENDER_COUNT;
-  const renderedGames = visibleGames.slice(0, visibleGameLimit);
-
-  useEffect(() => {
-    if (renderWindow.key !== renderWindowKey) {
-      setRenderWindow({
-        key: renderWindowKey,
-        limit: INITIAL_LIBRARY_RENDER_COUNT,
-      });
-      return;
-    }
-    if (renderWindow.limit >= visibleGames.length) return;
-
-    const advance = () =>
-      setRenderWindow((current) => {
-        if (current.key !== renderWindowKey) return current;
-        return {
-          key: current.key,
-          limit: nextLibraryRenderLimit(current.limit, visibleGames.length),
-        };
-      });
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (
-        callback: () => void,
-        options?: { timeout: number },
-      ) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-    if (idleWindow.requestIdleCallback) {
-      const handle = idleWindow.requestIdleCallback(advance, { timeout: 250 });
-      return () => idleWindow.cancelIdleCallback?.(handle);
-    }
-    const handle = window.setTimeout(advance, 16);
-    return () => window.clearTimeout(handle);
-  }, [renderWindow, renderWindowKey, visibleGames.length]);
+  const renderWindow = useLibraryRenderWindow(
+    renderWindowKey,
+    visibleGames.length,
+  );
+  const renderedGames = visibleGames.slice(0, renderWindow.limit);
 
   const demoNotice = useCallback(
     () =>
@@ -2233,10 +2193,19 @@ export function MyGamesView() {
                     );
                   })}
                 </div>
-                {renderedGames.length < visibleGames.length ? (
-                  <div className="flex items-center justify-center gap-2 py-2 text-xs text-text-faint">
-                    <Loader2 size={14} className="animate-spin" />
-                    Preparing the rest of your library…
+                {renderWindow.hasMore ? (
+                  <div
+                    ref={renderWindow.sentinelRef}
+                    className="flex justify-center py-2"
+                  >
+                    <Button
+                      variant="ghost"
+                      data-controller-item="library-option"
+                      loading={renderWindow.pending}
+                      onClick={renderWindow.loadMore}
+                    >
+                      Show more games
+                    </Button>
                   </div>
                 ) : null}
               </>

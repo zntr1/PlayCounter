@@ -165,7 +165,22 @@ function focusItem(item: HTMLElement | undefined) {
 }
 
 function focusFirstItemWhenReady(state: ControllerBridgeState, attempt = 0) {
-  if (bridge !== state || state.disposed || !shouldWatch(state)) return;
+  if (
+    bridge !== state ||
+    state.disposed ||
+    !shouldWatch(state) ||
+    useAppStore.getState().activeView !== "games"
+  )
+    return;
+  // The sidebar can paint before the deferred library has mounted. Wait for
+  // that commit instead of selecting a navigation button from the loading view.
+  if (
+    typeof document !== "undefined" &&
+    document.querySelector('[data-controller-content][aria-busy="true"]')
+  ) {
+    globalThis.requestAnimationFrame?.(() => focusFirstItemWhenReady(state));
+    return;
+  }
   const items = controllerItems();
   const first = preferredControllerItem(items);
   if (first) {
@@ -178,13 +193,23 @@ function focusFirstItemWhenReady(state: ControllerBridgeState, attempt = 0) {
   );
 }
 
-function focusViewContentWhenReady() {
+function focusViewContentWhenReady(view = useAppStore.getState().activeView) {
   if (!globalThis.requestAnimationFrame) return;
   globalThis.requestAnimationFrame(() => {
+    if (
+      useAppStore.getState().activeView !== view ||
+      !bridge ||
+      !shouldWatch(bridge)
+    )
+      return;
     const content = document.querySelector<HTMLElement>(
       '[data-controller-content="true"]',
     );
     if (!content) return;
+    if (content.getAttribute("aria-busy") === "true") {
+      focusViewContentWhenReady(view);
+      return;
+    }
     const contentItems = controllerItems().filter((item) =>
       content.contains(item),
     );
