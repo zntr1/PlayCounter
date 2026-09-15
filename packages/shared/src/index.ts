@@ -487,6 +487,8 @@ export interface Settings {
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
   libraryCardSize?: "grid" | "large" | "list";
+  /** Custom grid columns. Null or absent uses the selected view's responsive default. */
+  libraryGridColumns?: number | null;
   librarySortKey?: "recent" | "playtime" | "name" | "sessions";
   /** Retired single toggle. Still read once so an existing opt-out seeds both
    *  of the toggles below; never written again. */

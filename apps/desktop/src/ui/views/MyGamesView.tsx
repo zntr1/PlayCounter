@@ -242,6 +242,7 @@ import {
   type ImportableProviderTabConfig,
 } from "../libraryProviderTabs";
 import { type MyGamesCardSize } from "../myGamesPresentation";
+import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
 
@@ -582,6 +583,10 @@ export function MyGamesView() {
   const cardSize = useAppStore(
     (state) => state.settings.libraryCardSize ?? "grid",
   );
+  const gridColumns = useAppStore(
+    (state) => state.settings.libraryGridColumns ?? null,
+  );
+  const gridLayout = useLibraryGridColumns(cardSize, gridColumns);
   const sortKey = useAppStore(
     (state) => state.settings.librarySortKey ?? "recent",
   );
@@ -598,6 +603,9 @@ export function MyGamesView() {
     (state) => state.settings.libraryShowNoteBadges !== false,
   );
   const setMyGamesCardSize = useAppStore((state) => state.setMyGamesCardSize);
+  const setMyGamesGridColumns = useAppStore(
+    (state) => state.setMyGamesGridColumns,
+  );
   const setMyGamesSortKey = useAppStore((state) => state.setMyGamesSortKey);
   const setMyGamesShowOriginBadges = useAppStore(
     (state) => state.setMyGamesShowOriginBadges,
@@ -1631,6 +1639,51 @@ export function MyGamesView() {
                 id="library-customize"
                 className="divide-y divide-border border-b border-border bg-bg px-4"
               >
+                {view !== "list" ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div>
+                      <label
+                        htmlFor="library-grid-columns"
+                        className="text-sm font-medium text-text"
+                      >
+                        Cards per row
+                      </label>
+                      <p
+                        id="library-grid-columns-help"
+                        className="mt-1 text-xs leading-5 text-text-faint"
+                      >
+                        Saved until you select a preset view again.
+                        {gridLayout.columns < gridLayout.sliderValue
+                          ? ` Showing ${gridLayout.columns} per row to fit this window.`
+                          : null}
+                      </p>
+                    </div>
+                    <div className="flex w-full items-center gap-3 sm:w-64">
+                      <input
+                        id="library-grid-columns"
+                        type="range"
+                        min={1}
+                        max={gridLayout.maxColumns}
+                        step={1}
+                        value={gridLayout.sliderValue}
+                        aria-describedby="library-grid-columns-help"
+                        aria-valuetext={`${gridLayout.sliderValue} cards per row`}
+                        onChange={(event) =>
+                          setMyGamesGridColumns(
+                            event.currentTarget.valueAsNumber,
+                          )
+                        }
+                        className="h-5 min-w-0 flex-1 cursor-pointer accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      />
+                      <output
+                        htmlFor="library-grid-columns"
+                        className="min-w-6 text-right font-mono text-sm font-semibold tabular-nums text-text"
+                      >
+                        {gridLayout.sliderValue}
+                      </output>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <label
@@ -2174,6 +2227,8 @@ export function MyGamesView() {
             ) : (
               <>
                 <div
+                  ref={gridLayout.gridRef}
+                  style={gridLayout.style}
                   data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
                   className={clsx(
                     "grid",

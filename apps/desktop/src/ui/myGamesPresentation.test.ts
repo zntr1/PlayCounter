@@ -19,11 +19,13 @@ describe("My Games presentation", () => {
     expect(
       resolveMyGamesPresentation({
         libraryCardSize: "huge" as "grid",
+        libraryGridColumns: 0,
         librarySortKey: "playtime",
         libraryShowOriginBadges: false,
       }),
     ).toEqual({
       cardSize: "grid",
+      gridColumns: null,
       sortKey: "playtime",
       showOrigin: false,
       showMatch: true,
@@ -48,9 +50,19 @@ describe("My Games presentation", () => {
   it("returns valid persisted setting keys", () => {
     expect(resolveMyGamesPresentationSettings(undefined)).toEqual({
       libraryCardSize: "grid",
+      libraryGridColumns: null,
       librarySortKey: "recent",
       libraryShowOriginBadges: true,
       libraryShowMatchBadges: true,
     });
+  });
+
+  it("restores custom columns without changing the chosen card style", () => {
+    expect(
+      resolveMyGamesPresentationSettings({
+        libraryCardSize: "large",
+        libraryGridColumns: 6,
+      }),
+    ).toMatchObject({ libraryCardSize: "large", libraryGridColumns: 6 });
   });
 });
