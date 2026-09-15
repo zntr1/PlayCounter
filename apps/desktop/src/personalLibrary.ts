@@ -33,7 +33,7 @@ export type GameJournal = {
 export type LibraryFilters = {
   search?: string;
   source?: "all" | "steam" | "xbox" | "unimported";
-  status?: GameStatus;
+  status?: GameStatus | "none";
   favorite?: boolean;
   installed?: boolean;
   played?: "played" | "unplayed";
@@ -137,6 +137,59 @@ export function writeJournal(
     delete next[key];
   next[journalKey(journal.game)] = journal;
   return next;
+}
+
+export type GameStatusChange = {
+  game: GameIdentityRef;
+  before: GameStatus | null;
+  after: GameStatus | null;
+};
+
+/** Index once and copy once, even when assigning a whole imported library. */
+export function updateJournalStatuses(
+  journals: Record<string, GameJournal>,
+  updates: readonly {
+    game: GameIdentityRef;
+    status: GameStatus | null;
+    expectedStatus?: GameStatus | null;
+  }[],
+  identity: (game: GameIdentityRef) => string,
+) {
+  const groups = new Map<string, Record<string, GameJournal>>();
+  for (const [key, journal] of Object.entries(journals)) {
+    const canonical = identity(journal.game);
+    let group = groups.get(canonical);
+    if (!group) groups.set(canonical, (group = {}));
+    group[key] = journal;
+  }
+  let next: Record<string, GameJournal> | undefined;
+  const changes: GameStatusChange[] = [];
+  const seen = new Set<string>();
+  for (const { game, status, expectedStatus } of updates) {
+    const canonical = identity(game);
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    const group = groups.get(canonical);
+    const journal = readJournal(group ?? {}, game, identity);
+    // Undo must not recreate removed journals or replace a newer status.
+    if (
+      expectedStatus !== undefined &&
+      (!group || journal.status !== expectedStatus)
+    )
+      continue;
+    const previousKeys = Object.keys(group ?? {});
+    if (journal.status === status && previousKeys.length <= 1) continue;
+    next ??= { ...journals };
+    for (const key of previousKeys) delete next[key];
+    next[journalKey(game)] = { ...journal, status };
+    if (journal.status !== status)
+      changes.push({
+        game: journal.game,
+        before: journal.status,
+        after: status,
+      });
+  }
+  return { journals: next ?? journals, changes };
 }
 
 export function rekeyJournal(
@@ -302,7 +355,11 @@ export function matchesLibraryFilters(
     !game.libraryImports.some((entry) => entry.provider === filters.source)
   )
     return false;
-  if (filters.status && journal.status !== filters.status) return false;
+  if (
+    filters.status &&
+    journal.status !== (filters.status === "none" ? null : filters.status)
+  )
+    return false;
   if (filters.favorite && !journal.favorite) return false;
   if (
     filters.installed !== undefined &&

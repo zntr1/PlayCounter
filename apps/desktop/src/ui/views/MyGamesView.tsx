@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Clipboard,
   Check,
+  CheckSquare,
   Clock3,
   ClockPlus,
   Download,
@@ -150,6 +151,14 @@ import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
 import { GameCover } from "../GameCover";
 import { GameJournalBadges, GameJournalMenu } from "../GameJournalActions";
+import {
+  LibraryBulkActions,
+  SelectableLibraryCard,
+} from "../LibraryBulkActions";
+import {
+  librarySelectionKey,
+  useLibrarySelection,
+} from "../useLibrarySelection";
 import { useGameJournal } from "../useGameJournal";
 import { selectClass } from "../primitives";
 import {
@@ -1441,6 +1450,11 @@ export function MyGamesView() {
     sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
   }, [activeLibraryTab, matchingGames, sortKey]);
+  const bulkSelection = useLibrarySelection(
+    displayedGames,
+    `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}`,
+    !tourDemo.active,
+  );
   const demoForTab = activeLibraryTab === "all" ? demoGames : [];
   const libraryGames =
     isCoreTourDemo && activeLibraryTab === "all"
@@ -1541,7 +1555,11 @@ export function MyGamesView() {
   }, []);
 
   return (
-    <div className="grid gap-5">
+    <div
+      ref={bulkSelection.rootRef}
+      onKeyDown={bulkSelection.onKeyDown}
+      className="grid gap-5"
+    >
       <LibraryGameDropHint
         hint={libraryDrag.hint}
         onDismiss={libraryDrag.dismissHint}
@@ -1886,6 +1904,24 @@ export function MyGamesView() {
               source={activeLibraryTab}
               query={query}
               counts={shelfCounts}
+              selectionAction={
+                <Button
+                  variant={bulkSelection.active ? "secondary" : "ghost"}
+                  icon={CheckSquare}
+                  data-library-select=""
+                  aria-label="Select games"
+                  aria-pressed={bulkSelection.active}
+                  data-controller-item="library-option"
+                  disabled={
+                    tourDemo.active ||
+                    (!displayedGames.length && !bulkSelection.active)
+                  }
+                  onClick={bulkSelection.toggleMode}
+                  className="shrink-0"
+                >
+                  Select
+                </Button>
+              }
             />
             {layout.showTabs ? (
               <div className="border-b border-border bg-bg px-4 pt-3">
@@ -2053,6 +2089,19 @@ export function MyGamesView() {
               />
             ) : null}
 
+            <LibraryBulkActions
+              active={bulkSelection.active}
+              count={bulkSelection.selected.size}
+              total={displayedGames.length}
+              notice={bulkSelection.notice}
+              onSelectAll={bulkSelection.selectAll}
+              onClear={bulkSelection.clear}
+              onDone={bulkSelection.finish}
+              onStatus={bulkSelection.applyStatus}
+              onUndo={bulkSelection.undo}
+              onDismiss={bulkSelection.dismissNotice}
+            />
+
             {layout.panel === "provider-empty" &&
             activeImportableProviderConfig ? (
               <ProviderImportCallout
@@ -2106,6 +2155,11 @@ export function MyGamesView() {
                         onAcquireLaunch={acquireLaunchLock}
                         onReleaseLaunch={releaseLaunchLock}
                         onDragGame={libraryDrag.start}
+                        selectionMode={!isDemo && bulkSelection.active}
+                        selected={bulkSelection.selected.has(
+                          librarySelectionKey(game),
+                        )}
+                        onToggleSelection={bulkSelection.toggleGame}
                         game={game}
                         localLinks={localLinks}
                         demo={isDemo}
@@ -2340,6 +2394,9 @@ function GameLibraryCard({
   onStopTracking,
   onDemoPlaytimeLogged,
   onDragGame,
+  selectionMode,
+  selected,
+  onToggleSelection,
   demo = false,
 }: {
   game: GameSummary;
@@ -2356,6 +2413,9 @@ function GameLibraryCard({
   onStopTracking?: (game: GameSummary) => void;
   onDemoPlaytimeLogged?: (durationSeconds: number) => void;
   onDragGame: StartLibraryGameDrag;
+  selectionMode: boolean;
+  selected: boolean;
+  onToggleSelection: (key: string, range: boolean) => void;
   demo?: boolean;
 }) {
   // The tour walks through both halves, so its demo card always shows them.
@@ -2393,7 +2453,7 @@ function GameLibraryCard({
       coverUrl: game.coverUrl,
     },
     onDragGame,
-    demo,
+    demo || selectionMode,
   );
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -2616,7 +2676,7 @@ function GameLibraryCard({
           }
         : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
-  const controllerNavigable = !demo && canLaunchExecutables;
+  const controllerNavigable = !demo && !selectionMode && canLaunchExecutables;
   const hasPrimaryLaunchTarget = Boolean(
     primaryLaunchTarget ||
     primaryEmulatorTarget ||
@@ -3875,10 +3935,16 @@ function GameLibraryCard({
 
   if (!isList) {
     return (
-      <article
+      <SelectableLibraryCard
+        selectionMode={selectionMode}
+        selected={selected}
+        gameName={game.name}
+        onToggleSelection={(range) =>
+          onToggleSelection(librarySelectionKey(game), range)
+        }
         ref={cardRef}
         {...gameDragProps}
-        {...contextMenu.props}
+        {...(selectionMode ? {} : contextMenu.props)}
         {...demoCardProps}
         data-controller-item={controllerNavigable ? "game-card" : undefined}
         aria-busy={launching}
@@ -3928,7 +3994,7 @@ function GameLibraryCard({
 
           {/* Match seals top left. Origin coins sit beside the game name, so the
               right column is just the tracking warning and the hover actions. */}
-          {matchVisible ? (
+          {matchVisible && !selectionMode ? (
             <GameProvenanceBadges
               className="peer/provenance absolute left-2 top-2 z-40 drop-shadow-md"
               sources={game.sources}
@@ -4419,16 +4485,22 @@ function GameLibraryCard({
             onConfirm={submitRename}
           />
         ) : null}
-      </article>
+      </SelectableLibraryCard>
     );
   }
 
   // List View
   return (
-    <article
+    <SelectableLibraryCard
+      selectionMode={selectionMode}
+      selected={selected}
+      gameName={game.name}
+      onToggleSelection={(range) =>
+        onToggleSelection(librarySelectionKey(game), range)
+      }
       ref={cardRef}
       {...gameDragProps}
-      {...contextMenu.props}
+      {...(selectionMode ? {} : contextMenu.props)}
       {...demoCardProps}
       data-controller-item={controllerNavigable ? "game-card" : undefined}
       aria-busy={launching}
@@ -4829,7 +4901,7 @@ function GameLibraryCard({
           onConfirm={submitRename}
         />
       ) : null}
-    </article>
+    </SelectableLibraryCard>
   );
 }
 

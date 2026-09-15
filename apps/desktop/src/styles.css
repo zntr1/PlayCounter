@@ -1101,6 +1101,10 @@ select {
   }
 }
 
+.game-library-card[data-library-selecting] {
+  transform: none;
+}
+
 .game-library-card[data-library-drag-source] {
   /* Opacity would trigger the card's fade-in transition when the drag ends. */
   visibility: hidden;

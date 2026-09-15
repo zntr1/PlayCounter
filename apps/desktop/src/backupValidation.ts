@@ -381,7 +381,7 @@ const validateBackupShape: Validator = object(
             {
               search: string,
               source: oneOf("all", "steam", "xbox", "unimported"),
-              status: gameStatus,
+              status: oneOf(...Object.keys(GAME_STATUSES), "none"),
               favorite: boolean,
               installed: boolean,
               played: oneOf("played", "unplayed"),

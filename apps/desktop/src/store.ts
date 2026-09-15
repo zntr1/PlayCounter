@@ -70,8 +70,11 @@ import {
   NOTE_LIMIT,
   readJournal,
   rekeyJournal,
+  updateJournalStatuses,
   writeJournal,
   type GameJournal,
+  type GameStatus,
+  type GameStatusChange,
   type JournalTarget,
   type PersonalShelf,
   type Playthrough,
@@ -356,6 +359,11 @@ export type AppState = {
       Pick<GameJournal, "note" | "favorite" | "status" | "shelfIds">
     >,
   ) => void;
+  setGameStatuses: (
+    games: readonly GameIdentityRef[],
+    status: GameStatus | null,
+  ) => GameStatusChange[];
+  undoGameStatuses: (changes: readonly GameStatusChange[]) => number;
   createPlaythrough: (game: GameIdentityRef, name: string) => string | null;
   updatePlaythrough: (
     game: GameIdentityRef,
@@ -724,6 +732,36 @@ export const useAppStore = create<AppState>((set, get) => ({
       ),
     });
     persistSoon();
+  },
+  setGameStatuses: (games, status) => {
+    const state = get();
+    const result = updateJournalStatuses(
+      state.gameJournals,
+      games.map((game) => ({ game, status })),
+      personalGameIdentity(state),
+    );
+    if (result.journals !== state.gameJournals) {
+      set({ gameJournals: result.journals });
+      persistSoon();
+    }
+    return result.changes;
+  },
+  undoGameStatuses: (changes) => {
+    const state = get();
+    const result = updateJournalStatuses(
+      state.gameJournals,
+      changes.map(({ game, before, after }) => ({
+        game,
+        status: before,
+        expectedStatus: after,
+      })),
+      personalGameIdentity(state),
+    );
+    if (result.journals !== state.gameJournals) {
+      set({ gameJournals: result.journals });
+      persistSoon();
+    }
+    return result.changes.length;
   },
   createPlaythrough: (game, name) => {
     const normalized = name.trim().slice(0, NAME_LIMIT);
