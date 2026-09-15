@@ -469,37 +469,44 @@ export function LibraryOrganizationToolbar({
           onClose={() => setEditor(null)}
           footer={
             <Button
+              type="submit"
+              form="shelf-editor-form"
               variant="primary"
               disabled={!name.trim()}
-              onClick={() => {
-                const builtin =
-                  selection === "favorites" ? { favorite: true } : {};
-                const id = save({
-                  id: typeof editor === "object" ? editor.id : undefined,
-                  name,
-                  filters:
-                    editor === "filter"
-                      ? {
-                          ...builtin,
-                          ...filters,
-                          source,
-                          search: query.trim() || undefined,
-                        }
-                      : typeof editor === "object"
-                        ? editor.filters
-                        : undefined,
-                });
-                if (id) {
-                  if (typeof editor !== "object") onSelect(id);
-                  setEditor(null);
-                }
-              }}
             >
               Save shelf
             </Button>
           }
         >
-          <div className="grid gap-4">
+          <form
+            id="shelf-editor-form"
+            className="grid gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!name.trim()) return;
+              const builtin =
+                selection === "favorites" ? { favorite: true } : {};
+              const id = save({
+                id: typeof editor === "object" ? editor.id : undefined,
+                name,
+                filters:
+                  editor === "filter"
+                    ? {
+                        ...builtin,
+                        ...filters,
+                        source,
+                        search: query.trim() || undefined,
+                      }
+                    : typeof editor === "object"
+                      ? editor.filters
+                      : undefined,
+              });
+              if (id) {
+                if (typeof editor !== "object") onSelect(id);
+                setEditor(null);
+              }
+            }}
+          >
             <Input
               data-autofocus
               aria-label="Shelf name"
@@ -522,7 +529,7 @@ export function LibraryOrganizationToolbar({
                 .
               </p>
             ) : null}
-          </div>
+          </form>
         </Modal>
       ) : null}
       {deleting ? (

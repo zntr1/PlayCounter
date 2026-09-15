@@ -292,6 +292,8 @@ const settings = object({}, {
   libraryShowBadges: boolean,
   libraryShowOriginBadges: boolean,
   libraryShowMatchBadges: boolean,
+  libraryShowStatusBadges: boolean,
+  libraryShowNoteBadges: boolean,
   libraryHighResCovers: boolean,
   libraryShowStatCards: boolean,
   libraryHideEmptyProviderTabs: boolean,

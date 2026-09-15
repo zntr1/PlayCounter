@@ -529,6 +529,8 @@ export type AppState = {
   setMyGamesSortKey: (key: MyGamesSortKey) => void;
   setMyGamesShowOriginBadges: (enabled: boolean) => void;
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
+  setMyGamesShowStatusBadges: (enabled: boolean) => void;
+  setMyGamesShowNoteBadges: (enabled: boolean) => void;
   setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesHideEmptyProviderTabs: (enabled: boolean) => void;
@@ -583,6 +585,8 @@ const defaultSettings: Settings = {
   librarySortKey: "recent",
   libraryShowOriginBadges: true,
   libraryShowMatchBadges: true,
+  libraryShowStatusBadges: true,
+  libraryShowNoteBadges: true,
   libraryHighResCovers: false,
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
   libraryShowStatCards: true,
@@ -1708,6 +1712,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowMatchBadges: (libraryShowMatchBadges) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowMatchBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowStatusBadges: (libraryShowStatusBadges) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowStatusBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowNoteBadges: (libraryShowNoteBadges) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowNoteBadges },
     }));
     persistSoon();
   },
