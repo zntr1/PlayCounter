@@ -5859,7 +5859,7 @@ function GameNameDialog({
             onChange={(event) => onNameChange(event.target.value)}
             maxLength={120}
             data-autofocus
-            placeholder="Game name..."
+            placeholder="e.g. Stardew Valley (modded)"
           />
         </label>
       </form>

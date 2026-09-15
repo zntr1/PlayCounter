@@ -297,7 +297,7 @@ export function EmulatorGamePicker({
                 maxLength={120}
                 disabled={busy}
                 onChange={(event) => setCustomName(event.target.value)}
-                placeholder="Custom game name"
+                placeholder="e.g. Chrono Trigger (fan translation)"
                 className="min-w-0 flex-1"
               />
               <Button

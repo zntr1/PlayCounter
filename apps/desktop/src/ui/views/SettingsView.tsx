@@ -358,7 +358,7 @@ export function SettingsView() {
         title="General"
       >
         <SettingsRow
-          description="Strongly recommended. PlayCounter starts when you sign in so it can detect every game session; if disabled, tracking only works after you open the app manually."
+          description="Strongly recommended. PlayCounter starts when you sign in, so no game session is missed. If this is off, tracking only works after you open the app yourself."
           title="Launch on startup"
         >
           <input
@@ -745,7 +745,7 @@ export function SettingsView() {
         title="Emulators"
       >
         <SettingsRow
-          description="Reads the emulator's window title and start-up options on this PC to work out which game is loaded. Full paths and window titles never leave your PC."
+          description="Reads the loaded game file, the window title, and the start-up options of the emulator on this PC to work out which game is running. Full paths and window titles never leave your PC."
           title="Detect emulator games"
         >
           <input
@@ -902,7 +902,7 @@ export function SettingsView() {
           />
         </SettingsRow>
         <SettingsRow
-          description="Apps in this list are skipped before PlayCounter tries to match them. Built-in system defaults plus your own file."
+          description="Apps in this list are never treated as games. It contains PlayCounter's built-in list of system apps plus the apps you ignored yourself."
           title="Ignored apps"
         >
           <Button
@@ -963,7 +963,7 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Manage durable playtime imported from local game launchers. Install paths and path-scoped links always stay on this PC."
+        description="Remove the playtime you imported from Steam or Xbox. Install paths and the game files linked to them always stay on this PC."
         title="Library import"
       >
         <SettingsRow
@@ -1049,7 +1049,7 @@ export function SettingsView() {
 
       <SettingsPanel
         dataTour="settings-updates"
-        description="Check and install updates from the configured release feed."
+        description="Check for a new version of PlayCounter and install it."
         title="Updates"
       >
         <SettingsRow
