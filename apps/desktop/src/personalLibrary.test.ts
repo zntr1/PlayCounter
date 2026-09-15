@@ -120,6 +120,40 @@ describe("personal game journals", () => {
     expect(useAppStore.getState().recentSessions[0]).toEqual(session());
   });
 
+  it("only replaces the session collection that changes and skips unchanged assignments", async () => {
+    const state = useAppStore.getState();
+    const replay = state.createPlaythrough(game, "Replay")!;
+    useAppStore.setState({
+      recentSessions: [session(1)],
+      activeSessions: [
+        {
+          ...session(2),
+          gameName: game.gameName,
+          coverUrl: "",
+          checkpointedAt: new Date().toISOString(),
+        },
+      ],
+    });
+    await Promise.resolve();
+    const history = useAppStore.getState().recentSessions;
+    expect(state.assignSessionPlaythrough(2, replay)).toBe(true);
+    expect(useAppStore.getState().recentSessions).toBe(history);
+    await Promise.resolve();
+    expect(useAppStore.getState().recentSessions).toBe(history);
+    const running = useAppStore.getState().activeSessions;
+    expect(state.assignSessionPlaythrough(1, replay)).toBe(true);
+    expect(useAppStore.getState().activeSessions).toBe(running);
+    await Promise.resolve();
+    vi.mocked(localStorage.setItem).mockClear();
+    const listener = vi.fn();
+    const unsubscribe = useAppStore.subscribe(listener);
+    expect(state.assignSessionPlaythrough(1, replay)).toBe(true);
+    await Promise.resolve();
+    expect(listener).not.toHaveBeenCalled();
+    expect(localStorage.setItem).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
   it("completes and reopens without moving time; deletion unassigns and keeps game totals", () => {
     const id = useAppStore.getState().createPlaythrough(game, "First run")!;
     useAppStore.setState({
