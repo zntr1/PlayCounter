@@ -141,6 +141,112 @@ async function selectSource(source: string) {
   );
 }
 
+function seedLargeLibrary(count = 120) {
+  useAppStore.setState({
+    exeCache: new Map(),
+    gameJournals: {},
+    personalShelves: [],
+    libraryImports: new Map(
+      Array.from({ length: count }, (_, index) => {
+        const entry = {
+          ...steam,
+          externalId: String(index + 1),
+          gameId: index + 1,
+          igdbId: index + 1000,
+          name: `Paged game ${String(index + 1).padStart(3, "0")}`,
+        };
+        return [`steam:${entry.externalId}`, entry];
+      }),
+    ),
+  });
+}
+
+it.each(["grid", "large", "list"] as const)(
+  "loads more %s cards near the viewport, pauses while hidden, and searches the entire library",
+  async (view) => {
+    const observers: Array<{
+      callback: IntersectionObserverCallback;
+      options?: IntersectionObserverInit;
+      observe: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe = vi.fn();
+        disconnect = vi.fn();
+        constructor(
+          public callback: IntersectionObserverCallback,
+          public options?: IntersectionObserverInit,
+        ) {
+          observers.push(this);
+        }
+      },
+    );
+    const intersect = async (
+      observer = observers.at(-1)!,
+      isIntersecting = true,
+    ) =>
+      act(() =>
+        observer.callback(
+          [{ isIntersecting } as IntersectionObserverEntry],
+          observer as unknown as IntersectionObserver,
+        ),
+      );
+
+    seedLargeLibrary();
+    useAppStore.getState().setMyGamesCardSize(view);
+    container.setAttribute("data-controller-content", "true");
+    await act(() => root.render(<MyGamesView />));
+    const card = gameCard("Paged game 001");
+    expect(counts()).toEqual({ all: 120, unimported: 0, steam: 120 });
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(12);
+    expect(observers.at(-1)?.options?.root).toBe(container);
+
+    // Waiting at the top must not gradually mount the rest of the library.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
+    await intersect(undefined, false);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(12);
+    await intersect();
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(24);
+    expect(gameCard("Paged game 001")).toBe(card);
+
+    const queuedObserver = observers.at(-1)!;
+    await act(() => useAppStore.getState().setActiveView("now"));
+    expect(queuedObserver.disconnect).toHaveBeenCalled();
+    await intersect(queuedObserver);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(24);
+    await act(() => useAppStore.getState().setActiveView("games"));
+    await intersect();
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(36);
+
+    const beforeSearch = observers.at(-1)!;
+    await inputSearch("Paged game 120");
+    await intersect(beforeSearch);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+    expect(gameCard("Paged game 120")).toBeDefined();
+    expect(counts()).toEqual({ all: 1, unimported: 0, steam: 1 });
+    expect(container.textContent).not.toContain("Show more games");
+    await inputSearch("");
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(12);
+  },
+);
+
+it("lets keyboard users load every result without IntersectionObserver", async () => {
+  vi.stubGlobal("IntersectionObserver", undefined);
+  seedLargeLibrary(25);
+  await act(() => root.render(<MyGamesView />));
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(12);
+  const more = button("Show more games");
+  expect(more.getAttribute("data-controller-item")).toBe("library-option");
+  await act(() => more.click());
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(24);
+  await act(() => button("Show more games").click());
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(25);
+  expect(gameCard("Paged game 025")).toBeDefined();
+  expect(container.textContent).not.toContain("Show more games");
+});
+
 it("defers hidden library session updates and refreshes on return while keeping shelf and search", async () => {
   const firstRun = useAppStore
     .getState()

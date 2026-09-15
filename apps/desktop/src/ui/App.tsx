@@ -26,6 +26,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   Component,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -265,15 +266,17 @@ export function App() {
   useEffect(() => {
     if (activeView === "import") setImporterMounted(true);
   }, [activeView]);
-  /* My Games is expensive to build - it sorts the whole library and drip-feeds
-     the cards back in batches - and unmounting it throws every cover <img>
-     away, so a revisit reloads the lot. Once opened it stays mounted and is
-     merely hidden, exactly like the importer above. */
-  const [gamesMounted, setGamesMounted] = useState(activeView === "games");
-  const renderGames = gamesMounted || activeView === "games";
+  // Paint navigation first, then build the library in an interruptible render.
+  // Keep it mounted after opening so filters, card state, and covers survive.
+  const deferredGamesRequested = useDeferredValue(
+    activeView === "games",
+    false,
+  );
+  const [gamesMounted, setGamesMounted] = useState(false);
+  const renderGames = gamesMounted || deferredGamesRequested;
   useEffect(() => {
-    if (activeView === "games") setGamesMounted(true);
-  }, [activeView]);
+    if (deferredGamesRequested) setGamesMounted(true);
+  }, [deferredGamesRequested]);
   const libraryImportProvider = useAppStore(
     (state) => state.libraryImportProvider,
   );
@@ -740,12 +743,27 @@ export function App() {
             data-controller-scroll
             data-controller-content="true"
             tabIndex={-1}
+            aria-busy={activeView === "games" && !renderGames}
             aria-label={`${activeViewLabel} content`}
             className="controller-content absolute inset-0 overflow-auto px-7 py-6"
           >
             {activeView !== "import" && activeView !== "games"
               ? views[activeView].component
               : null}
+            {activeView === "games" && !renderGames ? (
+              <div role="status" className="grid gap-4">
+                <span className="sr-only">Loading your games…</span>
+                <div className="h-24 rounded-xl border border-border bg-surface" />
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                  {Array.from({ length: 4 }, (_, index) => (
+                    <div
+                      key={index}
+                      className="aspect-[3/4] rounded-xl border border-border bg-surface"
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {renderGames ? (
               <div hidden={activeView !== "games"}>{views.games.component}</div>
             ) : null}

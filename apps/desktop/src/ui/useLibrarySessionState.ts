@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useDeferredValue, useMemo } from "react";
 import { useAppStore, type AppState } from "../store";
 
 /** Keep the mounted library's session snapshot still while another view is open. */
@@ -28,5 +28,7 @@ export function useLibrarySessionState() {
       return snapshot;
     };
   }, []);
-  return useAppStore(select);
+  // Returning to the library shows the cached cards immediately. Catching up
+  // with session changes must not hold up the navigation's first paint.
+  return useDeferredValue(useAppStore(select));
 }
