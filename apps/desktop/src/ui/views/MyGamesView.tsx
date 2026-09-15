@@ -581,6 +581,12 @@ export function MyGamesView() {
   const showMatch = useAppStore(
     (state) => state.settings.libraryShowMatchBadges !== false,
   );
+  const showStatus = useAppStore(
+    (state) => state.settings.libraryShowStatusBadges !== false,
+  );
+  const showNotes = useAppStore(
+    (state) => state.settings.libraryShowNoteBadges !== false,
+  );
   const setMyGamesCardSize = useAppStore((state) => state.setMyGamesCardSize);
   const setMyGamesSortKey = useAppStore((state) => state.setMyGamesSortKey);
   const setMyGamesShowOriginBadges = useAppStore(
@@ -588,6 +594,12 @@ export function MyGamesView() {
   );
   const setMyGamesShowMatchBadges = useAppStore(
     (state) => state.setMyGamesShowMatchBadges,
+  );
+  const setMyGamesShowStatusBadges = useAppStore(
+    (state) => state.setMyGamesShowStatusBadges,
+  );
+  const setMyGamesShowNoteBadges = useAppStore(
+    (state) => state.setMyGamesShowNoteBadges,
   );
   const highResCovers = useAppStore(
     (state) => state.settings.libraryHighResCovers === true,
@@ -1665,6 +1677,60 @@ export function MyGamesView() {
                     data-controller-item="library-option"
                     onChange={(event) =>
                       setMyGamesShowMatchBadges(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
+                      htmlFor="library-show-status"
+                      className="text-sm font-medium text-text"
+                    >
+                      Show status on game cards
+                    </label>
+                    <p
+                      id="library-show-status-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      Display each game's progress status on its cover.
+                    </p>
+                  </div>
+                  <input
+                    id="library-show-status"
+                    type="checkbox"
+                    checked={showStatus}
+                    aria-describedby="library-show-status-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesShowStatusBadges(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
+                      htmlFor="library-show-notes"
+                      className="text-sm font-medium text-text"
+                    >
+                      Show notes on game cards
+                    </label>
+                    <p
+                      id="library-show-notes-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      Display a note icon on covers for games with saved notes.
+                    </p>
+                  </div>
+                  <input
+                    id="library-show-notes"
+                    type="checkbox"
+                    checked={showNotes}
+                    aria-describedby="library-show-notes-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesShowNoteBadges(event.target.checked)
                     }
                     className="h-4 w-4 rounded border-border accent-accent"
                   />

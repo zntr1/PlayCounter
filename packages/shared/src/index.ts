@@ -495,6 +495,10 @@ export interface Settings {
   libraryShowOriginBadges?: boolean;
   /** IGDB, Community or Custom seal in the cover corner. */
   libraryShowMatchBadges?: boolean;
+  /** Show progress status on game covers. Absent = enabled. */
+  libraryShowStatusBadges?: boolean;
+  /** Show the note shortcut on game covers. Absent = enabled. */
+  libraryShowNoteBadges?: boolean;
   /** Request IGDB cover art one size up. Absent = off, the smaller default. */
   libraryHighResCovers?: boolean;
   /** My Games summary cards. Absent = the default set. Empty = all off. */

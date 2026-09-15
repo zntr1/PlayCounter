@@ -73,13 +73,20 @@ export function GameJournalBadges({
 }) {
   const journal = useGameJournal(game);
   const open = useAppStore((s) => s.openGameJournal);
+  const showStatus = useAppStore(
+    (s) => s.settings.libraryShowStatusBadges !== false,
+  );
+  const showNotes = useAppStore(
+    (s) => s.settings.libraryShowNoteBadges !== false,
+  );
+  const status = showStatus ? journal.status : null;
   const other = journal.playthroughs.find((p) => p.note);
-  const hasNote = Boolean(journal.note || other);
+  const hasNote = showNotes && Boolean(journal.note || other);
   const notePlaythroughId =
     journal.playthroughs.find(
       (p) => p.id === journal.activePlaythroughId && p.note,
     )?.id ?? (journal.note ? null : other?.id);
-  if (!hasNote && !journal.favorite && !journal.status) return null;
+  if (!hasNote && !journal.favorite && !status) return null;
   return (
     <div
       className={`absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
@@ -107,26 +114,26 @@ export function GameJournalBadges({
           <Star size={compact ? 11 : 13} fill="currentColor" />
         </span>
       ) : null}
-      {journal.status ? (
+      {status ? (
         compact ? (
           <span
-            aria-label={GAME_STATUSES[journal.status]}
-            title={GAME_STATUSES[journal.status]}
+            aria-label={GAME_STATUSES[status]}
+            title={GAME_STATUSES[status]}
             className={`${badgeShell} h-6 w-6`}
           >
             <span
-              className={`h-2 w-2 rounded-full ${STATUS_TONES[journal.status].dot}`}
+              className={`h-2 w-2 rounded-full ${STATUS_TONES[status].dot}`}
             />
           </span>
         ) : (
           <span
-            title={GAME_STATUSES[journal.status]}
+            title={GAME_STATUSES[status]}
             className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/75 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-md"
           >
             <span
-              className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[journal.status].dot}`}
+              className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[status].dot}`}
             />
-            {GAME_STATUSES[journal.status]}
+            {GAME_STATUSES[status]}
           </span>
         )
       ) : null}
