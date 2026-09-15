@@ -43,8 +43,9 @@ function shelfDropHint(
   if (shelf?.filters)
     return {
       reason: "saved-filter",
-      title: "This shelf uses filters",
-      detail: "Games appear here automatically when they match.",
+      title: "This shelf fills itself from filters",
+      detail:
+        "Games are added automatically when they match. Right-click the shelf to edit its filters.",
     };
 
   const favorite = shelfId === "favorites";

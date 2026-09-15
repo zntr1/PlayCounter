@@ -48,7 +48,7 @@ export function LibraryAppearanceControls({
               id={fieldId("grid-columns-help")}
               className="mt-1 text-xs leading-5 text-text-faint"
             >
-              Saved until you select a preset view again.
+              Kept until you pick Standard cards or Large cards again.
               {gridLayout.columns < gridLayout.sliderValue
                 ? ` Showing ${gridLayout.columns} per row to fit this window.`
                 : null}
@@ -91,8 +91,8 @@ export function LibraryAppearanceControls({
             id={fieldId("show-shelves-help")}
             className="mt-1 text-xs leading-5 text-text-faint"
           >
-            Hide the entire shelf row at any time. Your games stay in the
-            library, and your shelves are kept for when you turn this back on.
+            Show the row with All games, Favorites, and your shelves above the
+            library. Turning it off only hides the row; your shelves are kept.
           </p>
         </div>
         <input
@@ -169,7 +169,8 @@ export function LibraryAppearanceControls({
             id={fieldId("show-status-help")}
             className="mt-1 text-xs leading-5 text-text-faint"
           >
-            Display each game's progress status on its cover.
+            Show each game's progress status, such as In progress or Finished,
+            on its cover.
           </p>
         </div>
         <input
@@ -195,7 +196,8 @@ export function LibraryAppearanceControls({
             id={fieldId("show-notes-help")}
             className="mt-1 text-xs leading-5 text-text-faint"
           >
-            Display a note icon on covers for games with saved notes.
+            Show a note icon on the cover of every game that has a note. Click
+            it to read the note.
           </p>
         </div>
         <input

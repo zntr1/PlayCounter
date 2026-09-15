@@ -41,8 +41,8 @@ export function ReleaseNotesDialog({
           <section className="rounded-xl border border-accent/30 bg-accent-tint p-3">
             <h3 className="font-semibold text-text">Try the new features</h3>
             <p className="mb-2 mt-1 text-xs text-text-muted">
-              Short guides, with sample games for practice. Also available from
-              ? Help.
+              Short guides with sample games to practice on. Nothing you do in
+              them changes your library. You can also start them from ? Help.
             </p>
             <div className="grid gap-1">
               {TOURS.filter((tour) =>

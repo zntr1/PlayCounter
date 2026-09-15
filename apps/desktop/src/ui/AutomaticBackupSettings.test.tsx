@@ -125,7 +125,7 @@ it("keeps folder errors visible and renders retention warnings separately from f
   });
   await click("Back up now");
   expect(container.textContent).toContain(
-    "Backup saved, but older snapshots could not be removed",
+    "Backup saved, but older backups could not be removed",
   );
   expect(container.textContent).not.toContain("Backup error:");
 });

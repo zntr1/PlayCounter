@@ -2,20 +2,20 @@
   {
     "version": "1.1.17",
     "releasedAt": "2026-09-15",
-    "headline": "Keep track of every playthrough and organize your game library.",
+    "headline": "Notes, playthroughs, and shelves for your game library + Emulator PCSX2 Support",
     "highlights": [
-      "Add private notes to your games and create named playthroughs with separate notes, playtime, and session lists. Choose the playthrough for new sessions, reassign sessions from History, and mark a playthrough as finished.",
-      "Organize My Games with Favorites and personal shelves. Add games by hand, drag cards onto Favorites or manual shelves, or save and edit filters to fill a shelf automatically. Unavailable drops explain why.",
-      "Set progress statuses such as 'In progress', 'On hold', and 'Finished'. Select individual games, a range, or all matching results to set or clear their status together.",
-      "Automatic backups are enabled weekly by default and keep the latest five snapshots. In Settings, choose daily backups, change the folder or the number of backups to keep, or back up immediately. Missed backups run when you next open PlayCounter.",
-      "On Windows, track PlayStation 2 games running in PCSX2 and launch them directly from My Games or the PCSX2 page.",
-      "Receive replies to feedback in Notifications, together with the original message you sent.",
-      "Choose how many cards appear per row and keep that choice between launches. Independently show or hide status badges, note shortcuts, and library shelves under Customize.",
-      "See your current playthrough's note in Now Playing, optionally include it in game-start popups, and open the note editor from a saved-session popup.",
-      "My Games opens and switches views more responsively in large libraries, keeps your search and shelf selection when you return, and has smoother dragging and more consistent right-click menus.",
-      "Last played dates now use available local and imported history correctly. Fixed incorrect suggestion statuses and repeated approval notifications after community game merges, backup imports that rejected valid emulator or manual sessions, and launch progress displays for long game names.",
+      "Write a private note for every game so you remember where you stopped. Start named playthroughs such as 'Speedrun' or 'New Game+', each with its own note, playtime, and list of sessions. Move sessions between playthroughs from the journal or from My History, and mark a playthrough as finished.",
+      "Organize My Games with Favorites and your own shelves. Drag games onto a shelf, or save filters so a shelf fills itself. While you drag, a shelf that cannot take the game tells you why.",
+      "Give games a progress status such as 'In progress', 'On hold', or 'Finished'. Use Select to change the status of several games, a range, or every game in the current view at once.",
+      "Automatic backups are on by default: one backup per week, the last five are kept. In Settings you can switch to daily backups, change the folder and how many backups to keep, or back up right away. A missed backup is saved the next time you open PlayCounter.",
+      "On Windows, PlayCounter now recognizes PlayStation 2 games running in PCSX2 and can launch them from My Games or the PCSX2 page.",
+      "Replies to your feedback arrive in Notifications, quoted together with the message you sent.",
+      "Under Customize in My Games, choose how many cards fit in a row and show or hide status badges, note icons, and the shelf row. Your choices are remembered.",
+      "Now Playing shows the note of the game's active playthrough. Optionally include it in game-start popups, and update it right from the saved-session popup.",
+      "My Games opens and switches views faster in large libraries, keeps your search and selected shelf when you come back, and has smoother dragging and more consistent right-click menus.",
+      "Fixed last-played dates for games with imported history, wrong suggestion statuses and repeated approval notifications after community game merges, backup imports that rejected valid emulator or manual sessions, and the startup spinner for games with long names.",
       "Updated the website with fresh screenshots and clearer guides for game detection, Steam and Xbox imports, emulator tracking, and playtime totals.",
-      "Learn the new features with short guides in Help or start one from these release notes. Practice notes, playthroughs, shelves, progress statuses, and card layouts with sample games without changing your library."
+      "Learn the new features with short guides in ? Help or start one from these release notes. They use sample games, so nothing you try changes your library."
     ]
   },
   {

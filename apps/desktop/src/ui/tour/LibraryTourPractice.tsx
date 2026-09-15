@@ -140,7 +140,7 @@ function PracticeLibrary({
         ["active-run", "move-session", "finish-run"].includes(stepId) &&
         !journal.playthroughs.length
       ) {
-        store.getState().createPlaythrough(LIBRARY_TOUR_GAME, "Co-op run");
+        store.getState().createPlaythrough(LIBRARY_TOUR_GAME, "Speedrun");
         journal = getGameJournal(store.getState(), LIBRARY_TOUR_GAME);
       }
       store.getState().openGameJournal({
@@ -158,7 +158,7 @@ function PracticeLibrary({
       if (["fill-shelf", "filters", "save-filters"].includes(stepId)) {
         let shelf = store.getState().personalShelves[0];
         if (!shelf) {
-          store.getState().savePersonalShelf({ name: "Weekend games" });
+          store.getState().savePersonalShelf({ name: "Online Games" });
           shelf = store.getState().personalShelves[0];
         }
         if (stepId !== "fill-shelf") {
@@ -198,7 +198,9 @@ function PracticeLibrary({
         // Supply a visible example if the status exercise was skipped.
         store.getState().updateGameJournal(LIBRARY_TOUR_GAME, {
           status: journal.status ?? "playing",
-          note: journal.note || "Meet the group in Stormwind.",
+          note:
+            journal.note ||
+            "Finish the Westfall quests, then head to Stormwind.",
         });
       }
     }
@@ -225,7 +227,8 @@ function PracticeLibrary({
           <div>
             <h2 className="font-semibold text-text">Practice library</h2>
             <p className="text-xs text-text-muted">
-              Sample games · changes last only for this guide
+              Sample games · everything you change here disappears when the
+              guide ends
             </p>
           </div>
           {tourId === "library-progress" ? (

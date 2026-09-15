@@ -74,8 +74,9 @@ export function AutomaticBackupSettings() {
             id="automatic-backups-description"
             className="mt-1 text-sm text-text-muted"
           >
-            Save scheduled snapshots while PlayCounter is running, including in
-            the tray. Missed backups run the next time you open the app.
+            Save a backup on a schedule while PlayCounter is running, even when
+            it is only in the tray. A missed backup is saved the next time you
+            open the app.
           </p>
         </div>
         <input
@@ -211,14 +212,15 @@ export function AutomaticBackupSettings() {
           </p>
         ) : null}
         <p>
-          Older automatic snapshots in this folder are removed after a new
-          backup succeeds. Restore a snapshot with Import data below.
+          After a new backup is saved, older automatic backups beyond the Keep
+          limit are deleted from this folder. To restore a backup, use Import
+          data below.
         </p>
         {error ? (
           <p className="break-words text-danger">
             Backup error: {error}
             {preferences.enabled && retryAt
-              ? " Automatic backups retry in 15 minutes; you can also use Back up now."
+              ? " PlayCounter tries again in 15 minutes. You can also click Back up now."
               : ""}
           </p>
         ) : null}
@@ -229,7 +231,7 @@ export function AutomaticBackupSettings() {
         ) : null}
         {cleanupWarning ? (
           <p className="break-words text-warning">
-            Backup saved, but older snapshots could not be removed:{" "}
+            Backup saved, but older backups could not be removed:{" "}
             {cleanupWarning}
           </p>
         ) : null}
