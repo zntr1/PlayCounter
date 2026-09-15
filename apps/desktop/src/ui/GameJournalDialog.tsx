@@ -694,6 +694,9 @@ function LedgerRow({
 function GameShelfStrip({ target }: { target: JournalTarget }) {
   const journal = useGameJournal(target.game);
   const shelves = useAppStore((s) => s.personalShelves);
+  const showShelves = useAppStore(
+    (s) => s.settings.libraryShowShelves !== false,
+  );
   const update = useAppStore((s) => s.updateGameJournal);
   const save = useAppStore((s) => s.savePersonalShelf);
   const statusMenu = useAnchoredMenu();
@@ -732,6 +735,9 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         aria-haspopup="menu"
         aria-expanded={statusMenu.open}
         aria-label="Progress status"
+        data-autofocus={
+          target.tab === "organize" && !showShelves ? "" : undefined
+        }
         selected={Boolean(status)}
         onClick={statusMenu.toggle}
       >
@@ -764,83 +770,87 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         ))}
       </ContextMenu>
 
-      <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+      {showShelves ? (
+        <>
+          <span aria-hidden className="mx-1 h-5 w-px bg-border" />
 
-      {memberships.map((shelf) => (
-        <Pill
-          key={shelf.id}
-          selected
-          aria-label={`Remove ${target.game.gameName ?? "game"} from ${shelf.name}`}
-          title="Remove from this shelf"
-          onClick={() => toggleShelf(shelf.id, true)}
-        >
-          {shelf.name}
-          <X size={12} className="opacity-70" />
-        </Pill>
-      ))}
-      <Pill
-        ref={shelfMenu.anchorRef}
-        icon={Plus}
-        aria-haspopup="menu"
-        aria-expanded={shelfMenu.open}
-        data-autofocus={target.tab === "organize" ? "" : undefined}
-        onClick={shelfMenu.toggle}
-      >
-        Shelf
-      </Pill>
-      <ContextMenu
-        open={shelfMenu.open}
-        position={shelfMenu.position}
-        anchorRef={shelfMenu.anchorRef}
-        onClose={shelfMenu.close}
-      >
-        <ContextMenuHeading>Shelves</ContextMenuHeading>
-        {manualShelves.map((shelf) => (
-          <ContextMenuItem
-            key={shelf.id}
-            selected={journal.shelfIds.includes(shelf.id)}
-            onClick={() =>
-              toggleShelf(shelf.id, journal.shelfIds.includes(shelf.id))
-            }
-          >
-            {shelf.name}
-          </ContextMenuItem>
-        ))}
-        {!manualShelves.length ? (
-          <p className="max-w-56 px-3 py-2 text-xs leading-5 text-text-muted">
-            Shelves group games however you like. A game can sit on several.
-          </p>
-        ) : null}
-        <form
-          className="flex gap-1.5 border-t border-border px-2 pb-1 pt-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const id = save({ name: shelfName });
-            if (id) {
-              update(target.game, { shelfIds: [...journal.shelfIds, id] });
-              setShelfName("");
-              shelfMenu.close();
-            }
-          }}
-        >
-          <Input
-            aria-label="New shelf name"
-            maxLength={NAME_LIMIT}
-            value={shelfName}
-            placeholder="New shelf…"
-            className="w-40 !py-1 text-[13px]"
-            onChange={(event) => setShelfName(event.target.value)}
-          />
-          <Button
-            type="submit"
-            variant="secondary"
+          {memberships.map((shelf) => (
+            <Pill
+              key={shelf.id}
+              selected
+              aria-label={`Remove ${target.game.gameName ?? "game"} from ${shelf.name}`}
+              title="Remove from this shelf"
+              onClick={() => toggleShelf(shelf.id, true)}
+            >
+              {shelf.name}
+              <X size={12} className="opacity-70" />
+            </Pill>
+          ))}
+          <Pill
+            ref={shelfMenu.anchorRef}
             icon={Plus}
-            aria-label="Create shelf and add this game"
-            className="!px-2"
-            disabled={!shelfName.trim()}
-          />
-        </form>
-      </ContextMenu>
+            aria-haspopup="menu"
+            aria-expanded={shelfMenu.open}
+            data-autofocus={target.tab === "organize" ? "" : undefined}
+            onClick={shelfMenu.toggle}
+          >
+            Shelf
+          </Pill>
+          <ContextMenu
+            open={shelfMenu.open}
+            position={shelfMenu.position}
+            anchorRef={shelfMenu.anchorRef}
+            onClose={shelfMenu.close}
+          >
+            <ContextMenuHeading>Shelves</ContextMenuHeading>
+            {manualShelves.map((shelf) => (
+              <ContextMenuItem
+                key={shelf.id}
+                selected={journal.shelfIds.includes(shelf.id)}
+                onClick={() =>
+                  toggleShelf(shelf.id, journal.shelfIds.includes(shelf.id))
+                }
+              >
+                {shelf.name}
+              </ContextMenuItem>
+            ))}
+            {!manualShelves.length ? (
+              <p className="max-w-56 px-3 py-2 text-xs leading-5 text-text-muted">
+                Shelves group games however you like. A game can sit on several.
+              </p>
+            ) : null}
+            <form
+              className="flex gap-1.5 border-t border-border px-2 pb-1 pt-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const id = save({ name: shelfName });
+                if (id) {
+                  update(target.game, { shelfIds: [...journal.shelfIds, id] });
+                  setShelfName("");
+                  shelfMenu.close();
+                }
+              }}
+            >
+              <Input
+                aria-label="New shelf name"
+                maxLength={NAME_LIMIT}
+                value={shelfName}
+                placeholder="New shelf…"
+                className="w-40 !py-1 text-[13px]"
+                onChange={(event) => setShelfName(event.target.value)}
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                icon={Plus}
+                aria-label="Create shelf and add this game"
+                className="!px-2"
+                disabled={!shelfName.trim()}
+              />
+            </form>
+          </ContextMenu>
+        </>
+      ) : null}
     </div>
   );
 }

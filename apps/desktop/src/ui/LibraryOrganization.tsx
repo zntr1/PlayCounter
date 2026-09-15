@@ -105,6 +105,7 @@ function FilterGroup({
 }
 
 export function LibraryOrganizationToolbar({
+  showShelves,
   selection,
   onSelect,
   filters,
@@ -117,6 +118,7 @@ export function LibraryOrganizationToolbar({
   counts,
   selectionAction,
 }: {
+  showShelves: boolean;
   selection: string;
   onSelect: (id: string) => void;
   filters: LibraryFilters;
@@ -146,7 +148,9 @@ export function LibraryOrganizationToolbar({
     menuTriggerRef.current?.focus();
   }, [shelfMenu.close]);
   const menuShelf = shelves.find((s) => s.id === menuShelfId);
-  const selected = shelves.find((s) => s.id === selection);
+  const selected = showShelves
+    ? shelves.find((s) => s.id === selection)
+    : undefined;
   const draftFilters = normalizeLibraryFilters({
     ...filters,
     source,
@@ -160,11 +164,11 @@ export function LibraryOrganizationToolbar({
   useEffect(() => {
     if (
       selection !== "all" &&
-      selection !== "favorites" &&
-      !shelves.some((s) => s.id === selection)
+      (!showShelves ||
+        (selection !== "favorites" && !shelves.some((s) => s.id === selection)))
     )
       onSelect("all");
-  }, [selection, shelves, onSelect]);
+  }, [showShelves, selection, shelves, onSelect]);
   function edit(value: typeof editor) {
     setEditor(value);
     setName(typeof value === "object" && value ? value.name : "");
@@ -186,8 +190,8 @@ export function LibraryOrganizationToolbar({
 
   function dropProps(id: string, allowed = true) {
     return {
-      "data-library-shelf": id,
-      "data-library-drop-shelf": allowed ? id : undefined,
+      "data-library-shelf": showShelves ? id : undefined,
+      "data-library-drop-shelf": showShelves && allowed ? id : undefined,
     };
   }
 
@@ -196,77 +200,79 @@ export function LibraryOrganizationToolbar({
       ref={toolbarRef}
       className="grid gap-3 border-b border-border px-4 py-3"
     >
-      <div className="flex items-start gap-2">
-        <div
-          role="tablist"
-          aria-label="Library shelf"
-          data-library-shelf-rail=""
-          className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
-        >
-          <Pill
-            {...dropProps("all", false)}
-            role="tab"
-            aria-selected={selection === "all"}
-            selected={selection === "all"}
-            count={counts.all}
-            onClick={() => onSelect("all")}
+      <div className="flex items-start justify-end gap-2">
+        {showShelves ? (
+          <div
+            role="tablist"
+            aria-label="Library shelf"
+            data-library-shelf-rail=""
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
           >
-            All games
-            <LibraryGameHoverHint />
-          </Pill>
-          <Pill
-            {...dropProps("favorites")}
-            role="tab"
-            aria-selected={selection === "favorites"}
-            selected={selection === "favorites"}
-            icon={Star}
-            count={counts.favorites}
-            onClick={() => onSelect("favorites")}
-          >
-            Favorites
-            <LibraryGameHoverHint />
-          </Pill>
-          {shelves.map((shelf) => (
             <Pill
-              key={shelf.id}
-              {...dropProps(shelf.id, !shelf.filters)}
+              {...dropProps("all", false)}
               role="tab"
-              aria-selected={selection === shelf.id}
-              selected={selection === shelf.id}
-              icon={shelf.filters ? SlidersHorizontal : FolderHeart}
-              count={counts[shelf.id]}
-              title={
-                shelf.filters
-                  ? "Saved filters · updates automatically. Right-click to edit filters, rename, or delete."
-                  : "Right-click to edit filters, rename, or delete"
-              }
-              onClick={() => onSelect(shelf.id)}
-              onContextMenu={(event) => {
-                menuTriggerRef.current = event.currentTarget;
-                setMenuShelfId(shelf.id);
-                shelfMenu.props.onContextMenu(event);
-              }}
-              onKeyDown={(event) => {
-                if (
-                  event.key !== "ContextMenu" &&
-                  !(event.shiftKey && event.key === "F10")
-                )
-                  return;
-                event.preventDefault();
-                const rect = event.currentTarget.getBoundingClientRect();
-                menuTriggerRef.current = event.currentTarget;
-                setMenuShelfId(shelf.id);
-                shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
-              }}
+              aria-selected={selection === "all"}
+              selected={selection === "all"}
+              count={counts.all}
+              onClick={() => onSelect("all")}
             >
-              {shelf.name}
+              All games
               <LibraryGameHoverHint />
             </Pill>
-          ))}
-          <Pill icon={Plus} onClick={() => edit("new")}>
-            New shelf
-          </Pill>
-        </div>
+            <Pill
+              {...dropProps("favorites")}
+              role="tab"
+              aria-selected={selection === "favorites"}
+              selected={selection === "favorites"}
+              icon={Star}
+              count={counts.favorites}
+              onClick={() => onSelect("favorites")}
+            >
+              Favorites
+              <LibraryGameHoverHint />
+            </Pill>
+            {shelves.map((shelf) => (
+              <Pill
+                key={shelf.id}
+                {...dropProps(shelf.id, !shelf.filters)}
+                role="tab"
+                aria-selected={selection === shelf.id}
+                selected={selection === shelf.id}
+                icon={shelf.filters ? SlidersHorizontal : FolderHeart}
+                count={counts[shelf.id]}
+                title={
+                  shelf.filters
+                    ? "Saved filters · updates automatically. Right-click to edit filters, rename, or delete."
+                    : "Right-click to edit filters, rename, or delete"
+                }
+                onClick={() => onSelect(shelf.id)}
+                onContextMenu={(event) => {
+                  menuTriggerRef.current = event.currentTarget;
+                  setMenuShelfId(shelf.id);
+                  shelfMenu.props.onContextMenu(event);
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key !== "ContextMenu" &&
+                    !(event.shiftKey && event.key === "F10")
+                  )
+                    return;
+                  event.preventDefault();
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  menuTriggerRef.current = event.currentTarget;
+                  setMenuShelfId(shelf.id);
+                  shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
+                }}
+              >
+                {shelf.name}
+                <LibraryGameHoverHint />
+              </Pill>
+            ))}
+            <Pill icon={Plus} onClick={() => edit("new")}>
+              New shelf
+            </Pill>
+          </div>
+        ) : null}
         {selectionAction}
         <Button
           variant={expanded || activeCount ? "secondary" : "ghost"}
@@ -493,16 +499,18 @@ export function LibraryOrganizationToolbar({
             >
               Clear filters
             </Button>
-            <p className="ml-auto text-xs text-text-faint">
-              {selected
-                ? "Removing saved filters restores games added by hand."
-                : "Create or select a shelf to save filters."}
-            </p>
+            {showShelves ? (
+              <p className="ml-auto text-xs text-text-faint">
+                {selected
+                  ? "Removing saved filters restores games added by hand."
+                  : "Create or select a shelf to save filters."}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
 
-      {menuShelf ? (
+      {showShelves && menuShelf ? (
         <ContextMenu
           open={shelfMenu.open}
           position={shelfMenu.position}
@@ -543,7 +551,7 @@ export function LibraryOrganizationToolbar({
         </ContextMenu>
       ) : null}
 
-      {editor ? (
+      {showShelves && editor ? (
         <Modal
           labelId="shelf-editor-title"
           title={typeof editor === "object" ? "Edit shelf" : "New shelf"}
@@ -596,7 +604,7 @@ export function LibraryOrganizationToolbar({
           </form>
         </Modal>
       ) : null}
-      {deleting ? (
+      {showShelves && deleting ? (
         <Modal
           labelId="delete-shelf-title"
           title={`Delete “${deleting.name}”?`}

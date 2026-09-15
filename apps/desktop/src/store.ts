@@ -542,6 +542,7 @@ export type AppState = {
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
   setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
+  setMyGamesShowShelves: (enabled: boolean) => void;
   setMyGamesHideEmptyProviderTabs: (enabled: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
@@ -599,6 +600,7 @@ const defaultSettings: Settings = {
   libraryHighResCovers: false,
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
   libraryShowStatCards: true,
+  libraryShowShelves: true,
   libraryHideEmptyProviderTabs: false,
   autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
@@ -1807,6 +1809,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesHideEmptyProviderTabs: (libraryHideEmptyProviderTabs) => {
     set((state) => ({
       settings: { ...state.settings, libraryHideEmptyProviderTabs },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowShelves: (libraryShowShelves) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowShelves },
     }));
     persistSoon();
   },

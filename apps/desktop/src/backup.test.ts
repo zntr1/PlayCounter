@@ -299,6 +299,10 @@ describe("backup import", () => {
     ],
     ["settings.apiEndpoint", { settings: { apiEndpoint: 42 } }],
     [
+      "settings.libraryShowShelves",
+      { settings: { libraryShowShelves: "false" } },
+    ],
+    [
       "settings.pollingIntervalSeconds",
       { settings: { pollingIntervalSeconds: -5 } },
     ],
@@ -431,6 +435,7 @@ describe("backup import", () => {
       const data = createTransferData(
         createPersistedPayload({
           ...state,
+          settings: { ...state.settings, libraryShowShelves: false },
           recentSessions: [validSession],
           exeCache: new Map([
             [
@@ -461,6 +466,7 @@ describe("backup import", () => {
       });
       useAppStore.setState(state, true);
       expect(() => hydrate()).not.toThrow();
+      expect(useAppStore.getState().settings.libraryShowShelves).toBe(false);
       expect(useAppStore.getState().recentSessions).toEqual([validSession]);
       expect(useAppStore.getState().exeCache.get("game.exe")?.gameId).toBe(42);
       expect(

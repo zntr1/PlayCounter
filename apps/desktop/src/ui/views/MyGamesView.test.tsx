@@ -121,6 +121,18 @@ async function selectShelf(label: string) {
   await act(() => shelfChip(label).click());
 }
 
+async function shelvesToggle() {
+  if (!container.querySelector("#library-show-shelves"))
+    await act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Customize library view"]',
+        )!
+        .click(),
+    );
+  return container.querySelector<HTMLInputElement>("#library-show-shelves")!;
+}
+
 async function setStatusFilter(label: string) {
   const toggle = [
     ...container.querySelectorAll<HTMLButtonElement>("button"),
@@ -310,6 +322,79 @@ it("defers hidden library session updates and refreshes on return while keeping 
       '[placeholder="Search games..."]',
     )!.value,
   ).toBe("favorite");
+});
+
+it.each(["All games", "Favorites", "Weekend", "Saved search"])(
+  "lets users hide populated shelves from Customize while %s is selected",
+  async (selection) => {
+    useAppStore.getState().savePersonalShelf({
+      name: "Saved search",
+      filters: {
+        status: "not-planned",
+        source: "steam",
+        search: "Steam favorite",
+      },
+    });
+    const { personalShelves, gameJournals } = useAppStore.getState();
+    expect(useAppStore.getState().settings.libraryShowShelves).toBe(true);
+    await act(() => root.render(<MyGamesView />));
+    await selectShelf(selection);
+    const toggle = await shelvesToggle();
+    expect(toggle.checked).toBe(true);
+    expect(toggle.matches(":disabled")).toBe(false);
+    expect(toggle.getAttribute("aria-disabled")).not.toBe("true");
+    for (const label of ["All games", "Favorites", "Weekend", "Saved search"])
+      expect(
+        Number(shelfChip(label).lastElementChild?.textContent),
+      ).toBeGreaterThan(0);
+
+    await act(() =>
+      container
+        .querySelector<HTMLLabelElement>('label[for="library-show-shelves"]')!
+        .click(),
+    );
+    expect(toggle.checked).toBe(false);
+    expect(toggle.matches(":disabled")).toBe(false);
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings
+        .libraryShowShelves,
+    ).toBe(false);
+    expect(container.querySelector('[aria-label="Library shelf"]')).toBeNull();
+    expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(4);
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[placeholder="Search games..."]',
+      )!.value,
+    ).toBe("");
+    expect(container.textContent).not.toContain("New shelf");
+    expect(container.querySelector("[data-library-shelf]")).toBeNull();
+
+    // Ordinary filtering still works, with no shelf actions left in the drawer.
+    await setStatusFilter("Not planned");
+    expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
+    expect(container.textContent).not.toContain("Save as shelf");
+    expect(container.textContent).not.toContain("Update Saved search");
+    expect(useAppStore.getState().personalShelves).toBe(personalShelves);
+    expect(useAppStore.getState().gameJournals).toBe(gameJournals);
+
+    await act(() => toggle.click());
+    expect(shelfChip("All games").getAttribute("aria-selected")).toBe("true");
+    expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("2");
+    expect(shelfChip("Favorites").lastElementChild?.textContent).toBe("2");
+    await selectShelf("Saved search");
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+    expect(gameCard(steam.name)).toBeDefined();
+  },
+);
+
+it("shows shelves for older settings without a shelf preference", async () => {
+  const settings = { ...useAppStore.getState().settings };
+  delete settings.libraryShowShelves;
+  useAppStore.setState({ settings });
+  await act(() => root.render(<MyGamesView />));
+  expect((await shelvesToggle()).checked).toBe(true);
+  expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("2");
 });
 
 it("counts favorites and manual shelves across sources, then updates when membership changes", async () => {
@@ -875,6 +960,31 @@ async function dropGame(card: HTMLElement, label: string) {
   expect(document.querySelector(".library-game-drag-preview")).toBeNull();
   expect(card.hasAttribute("data-library-drag-source")).toBe(false);
 }
+
+it("cancels shelf dragging when shelves are disabled and allows it again when enabled", async () => {
+  await act(() => root.render(<MyGamesView />));
+  const card = gameCard(local.gameName);
+  const { gameJournals } = useAppStore.getState();
+  await startDrag(card);
+  await act(() => useAppStore.getState().setMyGamesShowShelves(false));
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+  expect(
+    document.documentElement.classList.contains("library-game-dragging"),
+  ).toBe(false);
+  await pointer(window, "pointerup");
+  await pointer(card, "pointerdown");
+  await pointer(window, "pointermove", { clientX: 140, clientY: 410 });
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  await pointer(window, "pointerup");
+  expect(useAppStore.getState().gameJournals).toBe(gameJournals);
+
+  await act(() => useAppStore.getState().setMyGamesShowShelves(true));
+  await startDrag(card);
+  await pointer(window, "pointercancel");
+  await nextFrame();
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+});
 
 it.each(["grid", "large", "list"] as const)(
   "adds a dragged game to shelves and Favorites in %s view without changing its other data",

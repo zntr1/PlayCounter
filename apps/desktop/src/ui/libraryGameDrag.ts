@@ -178,12 +178,15 @@ export function useLibraryGameDrag() {
     setHint(null);
   }, []);
   const activeView = useAppStore((state) => state.activeView);
+  const showShelves = useAppStore(
+    (state) => state.settings.libraryShowShelves !== false,
+  );
   // My Games stays mounted when another app view is opened.
   useEffect(() => {
     cleanupRef.current();
     clickCleanupRef.current();
     dismissHint();
-  }, [activeView, dismissHint]);
+  }, [activeView, showShelves, dismissHint]);
   useEffect(
     () => () => {
       cleanupRef.current();
@@ -195,6 +198,7 @@ export function useLibraryGameDrag() {
   const start = useCallback<StartLibraryGameDrag>(
     (game, event) => {
       if (
+        useAppStore.getState().settings.libraryShowShelves === false ||
         event.button !== 0 ||
         event.isPrimary === false ||
         event.pointerType === "touch" ||
@@ -334,7 +338,11 @@ export function useLibraryGameDrag() {
         const reducedMotion = window.matchMedia(
           "(prefers-reduced-motion: reduce)",
         ).matches;
-        if (target?.dataset.libraryShelf && source.isConnected) {
+        if (
+          target?.dataset.libraryShelf &&
+          source.isConnected &&
+          useAppStore.getState().settings.libraryShowShelves !== false
+        ) {
           const blocked = assignShelf(game, target.dataset.libraryShelf);
           if (blocked) {
             hintVisibleRef.current = true;
