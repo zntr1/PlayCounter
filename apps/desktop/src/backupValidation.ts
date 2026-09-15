@@ -1,4 +1,5 @@
 import type { Settings } from "@playcounter/shared";
+import { isLibraryGridColumns } from "./ui/myGamesPresentation";
 import {
   GAME_STATUSES,
   journalKey,
@@ -288,6 +289,7 @@ const settings = object({}, {
   launchOnStartup: boolean,
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
+  libraryGridColumns: nullable(check(isLibraryGridColumns)),
   librarySortKey: oneOf("recent", "playtime", "name", "sessions"),
   libraryShowBadges: boolean,
   libraryShowOriginBadges: boolean,

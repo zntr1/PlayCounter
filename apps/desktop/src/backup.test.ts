@@ -289,6 +289,12 @@ describe("backup import", () => {
       ],
     ),
     ["settings", { settings: [] }],
+    ...[0, -1, 2.5, 49, "6"].map(
+      (libraryGridColumns): [string, Record<string, unknown>] => [
+        "settings.libraryGridColumns",
+        { settings: { libraryGridColumns } },
+      ],
+    ),
     [
       "settings.ignoredEmulatorIds",
       { settings: { ignoredEmulatorIds: "dosbox" } },
@@ -435,7 +441,11 @@ describe("backup import", () => {
       const data = createTransferData(
         createPersistedPayload({
           ...state,
-          settings: { ...state.settings, libraryShowShelves: false },
+          settings: {
+            ...state.settings,
+            libraryShowShelves: false,
+            libraryGridColumns: 6,
+          },
           recentSessions: [validSession],
           exeCache: new Map([
             [
@@ -467,6 +477,7 @@ describe("backup import", () => {
       useAppStore.setState(state, true);
       expect(() => hydrate()).not.toThrow();
       expect(useAppStore.getState().settings.libraryShowShelves).toBe(false);
+      expect(useAppStore.getState().settings.libraryGridColumns).toBe(6);
       expect(useAppStore.getState().recentSessions).toEqual([validSession]);
       expect(useAppStore.getState().exeCache.get("game.exe")?.gameId).toBe(42);
       expect(

@@ -133,6 +133,95 @@ async function shelvesToggle() {
   return container.querySelector<HTMLInputElement>("#library-show-shelves")!;
 }
 
+async function setGridColumns(value: number) {
+  const slider = container.querySelector<HTMLInputElement>(
+    "#library-grid-columns",
+  )!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(slider, String(value));
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+it.each(["grid", "large"] as const)(
+  "customizes %s columns, saves them, and resets even when the active preset is clicked",
+  async (view) => {
+    useAppStore.getState().setMyGamesCardSize(view);
+    await act(() => root.render(<MyGamesView />));
+    await shelvesToggle(); // Open Customize.
+    const slider = container.querySelector<HTMLInputElement>(
+      "#library-grid-columns",
+    )!;
+    const grid = gameCard(local.gameName).parentElement!;
+    const defaultColumns = view === "grid" ? "4" : "3";
+    expect(slider.value).toBe(defaultColumns);
+    await setGridColumns(6);
+    expect(slider.value).toBe("6");
+    expect(grid.style.gridTemplateColumns).toBe("repeat(6, minmax(0, 1fr))");
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
+    ).toMatchObject({ libraryCardSize: view, libraryGridColumns: 6 });
+
+    await selectSource("steam");
+    await act(() => useAppStore.getState().setMyGamesSortKey("name"));
+    expect(slider.value).toBe("6");
+    expect(grid.style.gridTemplateColumns).toBe("repeat(6, minmax(0, 1fr))");
+
+    // Reset via every preset, including the one that is already selected.
+    for (const title of [
+      view === "grid" ? "Standard cards" : "Large cards",
+      view === "grid" ? "Large cards" : "Standard cards",
+      "List",
+    ]) {
+      await setGridColumns(6);
+      await act(() =>
+        container
+          .querySelector<HTMLButtonElement>(`[title="${title}"]`)!
+          .click(),
+      );
+      expect(grid.style.gridTemplateColumns).toBe("");
+      expect(
+        JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings
+          .libraryGridColumns,
+      ).toBeNull();
+    }
+    expect(container.querySelector("#library-grid-columns")).toBeNull();
+  },
+);
+
+it("fits custom columns to the window and restores the saved count when it grows", async () => {
+  useAppStore.getState().setMyGamesGridColumns(6);
+  await act(() => root.render(<MyGamesView />));
+  await shelvesToggle();
+  const grid = gameCard(local.gameName).parentElement!;
+  let width = 1100;
+  Object.defineProperty(grid, "clientWidth", { get: () => width });
+  grid.style.columnGap = "16px";
+  const resize = () => act(() => window.dispatchEvent(new Event("resize")));
+  await resize();
+  expect(grid.style.gridTemplateColumns).toBe("repeat(6, minmax(0, 1fr))");
+
+  width = 700;
+  await resize();
+  expect(grid.style.gridTemplateColumns).toBe("repeat(4, minmax(0, 1fr))");
+  expect(
+    container.querySelector<HTMLInputElement>("#library-grid-columns")!.value,
+  ).toBe("6");
+  expect(
+    container.querySelector("#library-grid-columns-help")!.textContent,
+  ).toContain("Showing 4 per row to fit this window.");
+  expect(
+    JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.libraryGridColumns,
+  ).toBe(6);
+
+  width = 1100;
+  await resize();
+  expect(grid.style.gridTemplateColumns).toBe("repeat(6, minmax(0, 1fr))");
+});
+
 async function setStatusFilter(label: string) {
   const toggle = [
     ...container.querySelectorAll<HTMLButtonElement>("button"),

@@ -61,7 +61,10 @@ import {
   type BuiltinImportProviderId,
 } from "./library/importProviders";
 import type { LibraryTabId } from "./ui/libraryTabs";
-import type { MyGamesCardSize } from "./ui/myGamesPresentation";
+import {
+  isLibraryGridColumns,
+  type MyGamesCardSize,
+} from "./ui/myGamesPresentation";
 import { DEFAULT_LIBRARY_STAT_CARD_IDS } from "./ui/myGamesStats";
 import type { MyGamesSortKey } from "./ui/myGamesSort";
 import {
@@ -535,6 +538,7 @@ export type AppState = {
   setLaunchOnStartup: (enabled: boolean) => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
+  setMyGamesGridColumns: (columns: number) => void;
   setMyGamesSortKey: (key: MyGamesSortKey) => void;
   setMyGamesShowOriginBadges: (enabled: boolean) => void;
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
@@ -592,6 +596,7 @@ const defaultSettings: Settings = {
   launchOnStartup: true,
   showDurationDays: false,
   libraryCardSize: "grid",
+  libraryGridColumns: null,
   librarySortKey: "recent",
   libraryShowOriginBadges: true,
   libraryShowMatchBadges: true,
@@ -1760,7 +1765,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setMyGamesCardSize: (libraryCardSize) => {
     set((state) => ({
-      settings: { ...state.settings, libraryCardSize },
+      settings: { ...state.settings, libraryCardSize, libraryGridColumns: null },
+    }));
+    persistSoon();
+  },
+  setMyGamesGridColumns: (libraryGridColumns) => {
+    if (
+      !isLibraryGridColumns(libraryGridColumns) ||
+      get().settings.libraryGridColumns === libraryGridColumns
+    )
+      return;
+    set((state) => ({
+      settings: { ...state.settings, libraryGridColumns },
     }));
     persistSoon();
   },
