@@ -3619,6 +3619,79 @@ describe("imported local link sharing", () => {
 });
 
 describe("rejected contribution reconciliation", () => {
+  it("retains contribution markers and does not replay approval after a server merge", async () => {
+    const verified = contribution({
+      gameId: 33,
+      mergedFromGameIds: [467],
+      status: "verified",
+    });
+    const seenKey = `windows:exe:${verified.value.toLowerCase()}:467`;
+    useAppStore.setState({
+      installUuid: "550e8400-e29b-41d4-a716-446655440000",
+      seenContributionStatus: { [seenKey]: "verified" },
+      contributionCounts: {
+        suggested: 1,
+        verified: 1,
+        pending: 0,
+        rejected: 0,
+      },
+      exeCache: new Map([
+        [
+          verified.value.toLowerCase(),
+          entry({
+            communitySuggestionId: 467,
+            communitySuggestionStatus: "verified",
+            communitySuggestionVerified: true,
+          }),
+        ],
+      ]),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: async () => ({
+          items: [verified],
+          counts: { suggested: 1, verified: 1, pending: 0, rejected: 0 },
+        }),
+      })),
+    );
+    await pollContributions("after community merge");
+    expect(
+      useAppStore.getState().exeCache.get(verified.value.toLowerCase()),
+    ).toMatchObject({
+      communitySuggestionId: 33,
+      communitySuggestionVerified: true,
+      communitySuggestionStatus: "verified",
+    });
+    expect(
+      useAppStore
+        .getState()
+        .notifications.filter((item) => item.kind === "suggestion-verified"),
+    ).toEqual([]);
+  });
+
+  it.each([false, true])(
+    "does not infer rejection from a missing suggestion (other match: %s)",
+    (otherMatch) => {
+      const pending = entry({
+        communitySuggestionId: 467,
+        communitySuggestionVerified: false,
+        communitySuggestionStatus: "pending",
+      });
+      useAppStore.setState({ exeCache: new Map([["game.exe", pending]]) });
+      const games: Game[] = otherMatch
+        ? [{ id: 33, name: "Game", source: "community", coverUrl: "old-cover" }]
+        : [];
+      expect(applyCommunitySuggestionOutcome("Game.exe", games, [])).toBe(
+        "inconclusive",
+      );
+      expect(useAppStore.getState().exeCache.get("game.exe")).toBe(pending);
+    },
+  );
+
   it("allows a rejected suggestion to become approved", () => {
     useAppStore.setState({
       exeCache: new Map([
@@ -3640,9 +3713,9 @@ describe("rejected contribution reconciliation", () => {
       coverUrl: "cover",
       source: "community",
     };
-    expect(
-      applyCommunitySuggestionOutcome("Game.exe", [approved], [], true, true),
-    ).toBe("approved");
+    expect(applyCommunitySuggestionOutcome("Game.exe", [approved], [])).toBe(
+      "approved",
+    );
     expect(
       useAppStore.getState().exeCache.get("game.exe")
         ?.communitySuggestionStatus,
@@ -3658,9 +3731,9 @@ describe("rejected contribution reconciliation", () => {
       communitySuggestionNote: "Keep this note",
     });
     useAppStore.setState({ exeCache: new Map([["game.exe", rejected]]) });
-    expect(
-      applyCommunitySuggestionOutcome("Game.exe", [], [], true, false),
-    ).toBe("rejected");
+    expect(applyCommunitySuggestionOutcome("Game.exe", [], [])).toBe(
+      "rejected",
+    );
     expect(useAppStore.getState().exeCache.get("game.exe")).toBe(rejected);
   });
 
@@ -3708,9 +3781,9 @@ describe("rejected contribution reconciliation", () => {
       source: "community",
     };
 
-    expect(
-      applyCommunitySuggestionOutcome("Game.exe", [], [pending], true, false),
-    ).toBe("pending");
+    expect(applyCommunitySuggestionOutcome("Game.exe", [], [pending])).toBe(
+      "pending",
+    );
     expect(useAppStore.getState().exeCache.get("game.exe")?.igdbId).toBe(12345);
     expect(useAppStore.getState().activeSessions[0].igdbId).toBe(12345);
     expect(useAppStore.getState().recentSessions[0].igdbId).toBe(12345);

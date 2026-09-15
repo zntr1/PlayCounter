@@ -72,6 +72,126 @@ function mockMatchApi(
 }
 
 describe("process lookup batching", () => {
+  it("approves a suggestion hidden behind a same-title automatic match", async () => {
+    processes = macProcesses(1, "HiddenApproved");
+    const exeName = processes[0].exeName;
+    const key = exeName.toLowerCase();
+    const own: Game = {
+      id: 467,
+      igdbId: 17269,
+      name: "Roblox",
+      source: "community",
+      coverUrl: "new-cover",
+    };
+    useAppStore.setState({
+      exeCache: new Map([
+        [
+          key,
+          {
+            exeName,
+            state: "matched",
+            gameId: -1,
+            gameName: "Roblox",
+            source: "custom",
+            coverUrl: "new-cover",
+            lastCheckedAt: "2026-09-01T00:00:00.000Z",
+            communitySuggestionId: 467,
+            communitySuggestionStatus: "pending",
+          },
+        ],
+      ]),
+    });
+    mockMatchApi(() => ({
+      matches: [
+        {
+          key,
+          game: { ...own, id: 33, igdbId: undefined, coverUrl: "old-cover" },
+          pendingCommunityGames: [],
+          verifiedCommunityGames: [own],
+        },
+      ],
+    }));
+
+    await scanProcessesNow();
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().exeCache.get(key)).toMatchObject({
+        source: "custom",
+        gameId: -1,
+        communitySuggestionId: 467,
+        communitySuggestionVerified: true,
+        communitySuggestionStatus: "verified",
+      });
+    });
+    expect(
+      useAppStore.getState().exeCache.get(key)?.communityUpgradeGame,
+    ).toBeUndefined();
+  });
+
+  it("migrates a cached retired id using verified identity evidence and preserves recorded time", async () => {
+    processes = macProcesses(1, "MergedCommunity");
+    const exeName = processes[0].exeName;
+    const key = exeName.toLowerCase();
+    const survivor: Game = {
+      id: 33,
+      igdbId: 17269,
+      name: "Roblox",
+      source: "community",
+      coverUrl: "new-cover",
+    };
+    useAppStore.setState({
+      exeCache: new Map([
+        [
+          key,
+          {
+            exeName,
+            state: "matched",
+            gameId: 467,
+            igdbId: 17269,
+            gameName: "Roblox",
+            source: "community",
+            coverUrl: "new-cover",
+            lastCheckedAt: "2026-09-01T00:00:00.000Z",
+          },
+        ],
+      ]),
+      recentSessions: [
+        {
+          id: 7,
+          gameId: 467,
+          igdbId: 17269,
+          gameName: "Roblox",
+          source: "community",
+          exeName,
+          startedAt: "2026-09-01T00:00:00.000Z",
+          endedAt: "2026-09-01T01:00:00.000Z",
+          durationSeconds: 3600,
+        },
+      ],
+    });
+    mockMatchApi(() => ({
+      matches: [
+        {
+          key,
+          game: { ...survivor, id: 90, source: "igdb" },
+          verifiedCommunityGames: [survivor],
+          communityGameAliases: [{ gameId: 33, mergedFromGameIds: [467] }],
+        },
+      ],
+    }));
+
+    await scanProcessesNow();
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().exeCache.get(key)).toMatchObject({
+        gameId: 33,
+        source: "community",
+        igdbId: 17269,
+      });
+    });
+    expect(useAppStore.getState().recentSessions).toMatchObject([
+      { id: 7, gameId: 33, igdbId: 17269, durationSeconds: 3600 },
+    ]);
+  });
+
   it.each([0, 200, 201, 400, 405])(
     "resolves all %i macOS process names within the request limit",
     async (count) => {
