@@ -5,7 +5,7 @@ export const NOTE_LIMIT = 4000;
 export const NAME_LIMIT = 80;
 export const DEFAULT_PLAYTHROUGH_NAME = "Default playthrough";
 export const GAME_STATUSES = {
-  playing: "Playing",
+  playing: "In progress",
   "on-hold": "On hold",
   finished: "Finished",
   "want-to-play": "Want to play",

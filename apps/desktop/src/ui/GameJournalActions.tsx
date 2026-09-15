@@ -80,6 +80,7 @@ export function GameJournalBadges({
     (s) => s.settings.libraryShowNoteBadges !== false,
   );
   const status = showStatus ? journal.status : null;
+  const statusLabel = status ? `Status: ${GAME_STATUSES[status]}` : undefined;
   const other = journal.playthroughs.find((p) => p.note);
   const hasNote = showNotes && Boolean(journal.note || other);
   const notePlaythroughId =
@@ -117,8 +118,8 @@ export function GameJournalBadges({
       {status ? (
         compact ? (
           <span
-            aria-label={GAME_STATUSES[status]}
-            title={GAME_STATUSES[status]}
+            aria-label={statusLabel}
+            title={statusLabel}
             className={`${badgeShell} h-6 w-6`}
           >
             <span
@@ -127,7 +128,8 @@ export function GameJournalBadges({
           </span>
         ) : (
           <span
-            title={GAME_STATUSES[status]}
+            aria-label={statusLabel}
+            title={statusLabel}
             className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/75 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-white shadow-md"
           >
             <span
