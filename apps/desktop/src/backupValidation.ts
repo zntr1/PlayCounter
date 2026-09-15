@@ -453,11 +453,7 @@ export const validateBackupData: Validator = (value, path) => {
       )
     )
       invalid(`${path}.gameJournals.${key}.activePlaythroughId`);
-    if (
-      journal.shelfIds.some(
-        (id) => !shelves.some((s) => s.id === id && !s.filters),
-      )
-    )
+    if (journal.shelfIds.some((id) => !shelfIds.has(id)))
       invalid(`${path}.gameJournals.${key}.shelfIds`);
   }
   for (const [index, session] of (

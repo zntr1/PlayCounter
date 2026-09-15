@@ -534,6 +534,7 @@ export function MyGamesView() {
   const libraryDrag = useLibraryGameDrag();
   const [shelfSelection, setShelfSelection] = useState("all");
   const [libraryFilters, setLibraryFilters] = useState<LibraryFilters>({});
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const personalShelves = useAppStore((s) => s.personalShelves);
   const journalFor = useLibraryJournalLookup();
   const tourDemo = useTourDemo();
@@ -619,6 +620,22 @@ export function MyGamesView() {
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
   );
+  const selectedShelf = personalShelves.find(
+    (shelf) => shelf.id === shelfSelection,
+  );
+  const editShelfFilters = filtersOpen && Boolean(selectedShelf);
+  const changeFiltersOpen = useCallback(
+    (open: boolean) => {
+      if (!open && selectedShelf) selectShelf(selectedShelf.id);
+      setFiltersOpen(open);
+    },
+    [selectedShelf, selectShelf],
+  );
+  const clearLibraryFilters = useCallback(() => {
+    setLibraryFilters({});
+    setQuery("");
+    setLibraryTab("all");
+  }, [setLibraryTab]);
   const statCardSetting = useAppStore(
     (state) => state.settings.libraryStatCards,
   );
@@ -1305,6 +1322,7 @@ export function MyGamesView() {
       const journal = journalFor({ ...game, gameName: game.name });
       return (
         (savedFilterSelected ||
+          editShelfFilters ||
           matchesShelf(game, journal, shelfSelection, personalShelves)) &&
         matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
       );
@@ -1314,6 +1332,7 @@ export function MyGamesView() {
     journalFor,
     shelfSelection,
     personalShelves,
+    editShelfFilters,
     libraryFilters,
     recentSortNow,
   ]);
@@ -1452,7 +1471,7 @@ export function MyGamesView() {
   }, [activeLibraryTab, matchingGames, sortKey]);
   const bulkSelection = useLibrarySelection(
     displayedGames,
-    `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}`,
+    `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}\u0000${editShelfFilters}`,
     !tourDemo.active,
   );
   const demoForTab = activeLibraryTab === "all" ? demoGames : [];
@@ -1901,6 +1920,9 @@ export function MyGamesView() {
               onSelect={selectShelf}
               filters={libraryFilters}
               onFiltersChange={setLibraryFilters}
+              expanded={filtersOpen}
+              onExpandedChange={changeFiltersOpen}
+              onClearFilters={clearLibraryFilters}
               source={activeLibraryTab}
               query={query}
               counts={shelfCounts}
@@ -2121,7 +2143,28 @@ export function MyGamesView() {
               </Panel>
             ) : layout.panel === "no-search-results" ? (
               <Panel className="px-4 py-12 text-center text-sm text-text-muted">
-                {query ? (
+                {selectedShelf &&
+                !selectedShelf.filters &&
+                !filtersOpen &&
+                !shelfCounts[selectedShelf.id] &&
+                !query &&
+                !Object.keys(libraryFilters).length ? (
+                  <div className="mx-auto grid max-w-md justify-items-center gap-3">
+                    <h3 className="font-semibold text-text">
+                      This shelf is empty
+                    </h3>
+                    <p>
+                      Drag games onto this shelf, or add filters to fill it
+                      automatically.
+                    </p>
+                    <Button
+                      icon={SlidersHorizontal}
+                      onClick={() => changeFiltersOpen(true)}
+                    >
+                      Add filters
+                    </Button>
+                  </div>
+                ) : query ? (
                   <>No games match &ldquo;{query}&rdquo;.</>
                 ) : (
                   "No games match this shelf and these filters yet."

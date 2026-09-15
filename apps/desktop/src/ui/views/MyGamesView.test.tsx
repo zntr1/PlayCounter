@@ -3,6 +3,7 @@ import { act, Profiler } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore } from "../../store";
+import { STORAGE_KEY } from "../../persistence";
 import type { LibraryImportEntry } from "../../library/types";
 import { MyGamesView } from "./MyGamesView";
 
@@ -478,6 +479,167 @@ it("supports scoped Ctrl+A, keyboard menu navigation, and Escape without interce
   expect(selectionCheckboxes()).toHaveLength(0);
 });
 
+async function openFilters() {
+  const toggle = container.querySelector<HTMLButtonElement>(
+    '[aria-controls="library-filters"]',
+  )!;
+  if (toggle.getAttribute("aria-expanded") !== "true")
+    await act(() => toggle.click());
+}
+
+it("creates a shelf first, previews the whole library, and saves filters to that same shelf", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await act(() => button("New shelf").click());
+  const name = document.querySelector<HTMLInputElement>(
+    '[aria-label="Shelf name"]',
+  )!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(name, "Backlog");
+    name.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(() => button("Save shelf", document).click());
+  const id = useAppStore
+    .getState()
+    .personalShelves.find((s) => s.name === "Backlog")!.id;
+  expect(shelfChip("Backlog").getAttribute("aria-selected")).toBe("true");
+  expect(container.textContent).toContain("This shelf is empty");
+  await act(() => button("Add filters").click());
+  expect(container.textContent).toContain("Filters for Backlog");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(4);
+  expect(button("Save filters").disabled).toBe(true);
+  await setStatusFilter("No status");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+  expect(button("Save filters").disabled).toBe(false);
+  await act(() => button("Save filters").click());
+  expect(container.querySelector("#library-filters")).toBeNull();
+  expect(
+    useAppStore.getState().personalShelves.find((s) => s.id === id),
+  ).toEqual({ id, name: "Backlog", filters: { status: "none" } });
+  expect(useAppStore.getState().personalShelves).toHaveLength(2);
+  await selectShelf("All games");
+  await selectShelf("Backlog");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+  expect(
+    JSON.parse(localStorage.getItem(STORAGE_KEY)!).personalShelves.find(
+      (s: { id: string }) => s.id === id,
+    ).filters,
+  ).toEqual({ status: "none" });
+  await openFilters();
+  expect(button("Save filters").disabled).toBe(true);
+  expect(container.textContent).not.toContain("Save as shelf");
+});
+
+it.each(["search", "source"] as const)(
+  "saves a %s-only filter onto an existing shelf",
+  async (rule) => {
+    await act(() => root.render(<MyGamesView />));
+    await selectShelf("Weekend");
+    await openFilters();
+    if (rule === "search") await inputSearch("  other  ");
+    else await selectSource("steam");
+    expect(button("Save filters").disabled).toBe(false);
+    await act(() => button("Save filters").click());
+    expect(
+      useAppStore.getState().personalShelves.find((s) => s.id === shelf)
+        ?.filters,
+    ).toEqual(rule === "search" ? { search: "other" } : { source: "steam" });
+    await selectShelf("All games");
+    await selectShelf("Weekend");
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[placeholder="Search games..."]',
+      )!.value,
+    ).toBe(rule === "search" ? "other" : "");
+    expect(
+      container.querySelector(
+        '[aria-label="Game library source"] [aria-selected="true"]',
+      )!.id,
+    ).toBe(rule === "source" ? "library-tab-steam" : "library-tab-all");
+  },
+);
+
+it("discards shelf filter previews on Cancel and restores the existing manual games", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await selectShelf("Weekend");
+  const journals = useAppStore.getState().gameJournals;
+  await openFilters();
+  await setStatusFilter("No status");
+  await selectSource("steam");
+  await inputSearch("other");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+  expect(gameCard("Steam other")).toBeDefined();
+  await act(() => button("Cancel").click());
+  expect(container.querySelector("#library-filters")).toBeNull();
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+  expect(gameCard("Local favorite")).toBeDefined();
+  expect(gameCard("Steam favorite")).toBeDefined();
+  expect(
+    useAppStore.getState().personalShelves.find((s) => s.id === shelf)?.filters,
+  ).toBeUndefined();
+  expect(useAppStore.getState().gameJournals).toBe(journals);
+  expect(document.activeElement).toBe(
+    container.querySelector('[aria-controls="library-filters"]'),
+  );
+});
+
+it("edits an inactive shelf through its context menu and restores manual additions when filters are removed", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await act(() =>
+    shelfChip("Weekend").dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+    ),
+  );
+  await act(() => button("Edit filters", document).click());
+  expect(shelfChip("Weekend").getAttribute("aria-selected")).toBe("true");
+  expect(container.textContent).toContain("Filters for Weekend");
+  await setStatusFilter("No status");
+  await act(() => button("Save filters").click());
+  expect(gameCard("Local other")).toBeDefined();
+  expect(gameCard("Steam other")).toBeDefined();
+  expect(getGameJournal(useAppStore.getState(), local).shelfIds).toContain(
+    shelf,
+  );
+  await openFilters();
+  await setStatusFilter("Playing");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
+  await act(() => button("Cancel").click());
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+  await openFilters();
+  await act(() => button("Remove saved filters").click());
+  expect(gameCard("Local favorite")).toBeDefined();
+  expect(gameCard("Steam favorite")).toBeDefined();
+  expect(
+    useAppStore.getState().personalShelves.find((s) => s.id === shelf)?.filters,
+  ).toBeUndefined();
+  expect(shelfChip("Weekend").getAttribute("data-library-drop-shelf")).toBe(
+    shelf,
+  );
+});
+
+it("clears source and search with the other filters and offers shelf saving only on a custom shelf", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await selectSource("steam");
+  await inputSearch("favorite");
+  await openFilters();
+  expect(container.textContent).toContain(
+    "Create or select a shelf to save filters.",
+  );
+  expect(container.querySelector('[aria-label^="Save filters to"]')).toBeNull();
+  expect(container.textContent).not.toContain("Save as shelf");
+  await act(() => button("Clear filters").click());
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(4);
+  expect(
+    container.querySelector<HTMLInputElement>(
+      '[placeholder="Search games..."]',
+    )!.value,
+  ).toBe("");
+  expect(button("Clear filters").disabled).toBe(true);
+});
+
 function gameCard(name: string) {
   const card = [
     ...container.querySelectorAll<HTMLElement>(".game-library-card"),
@@ -850,7 +1012,7 @@ it.each(["pointercancel", "blur", "pointerleave"])(
     expect(card.hasAttribute("data-library-drag-source")).toBe(false);
     expect(container.querySelector("[data-library-drag-blocked]")).toBeNull();
     expect(shelfChip("Weekend").getAttribute("title")).toBe(
-      "Right-click to edit or delete",
+      "Right-click to edit filters, rename, or delete",
     );
   },
 );
