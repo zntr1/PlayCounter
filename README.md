@@ -84,7 +84,7 @@ and retention details.
 - Searchable game library with provider tabs, grid/list layouts and custom covers
 - Session history and statistics, manual entries and playtime adjustments
 - Optional game-launch actions, desktop overlays and configurable shortcuts
-- Local backup export and import
+- Local backup export and import, plus daily or weekly automatic snapshots in app data or a chosen folder (while PlayCounter runs, with catch-up on next launch and configurable retention)
 - Current / "now playing" view with a system-tray indicator
 - Community suggestions and one-time local choices for unknown or ambiguous exes
 - Configurable polling and unmatched-retry intervals plus an executable blacklist

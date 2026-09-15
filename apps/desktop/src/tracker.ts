@@ -1,6 +1,10 @@
 import { requestJsonResponse, requestWithTimeout } from "./requestJson";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
+import {
+  initializeAutomaticBackups,
+  disposeAutomaticBackups,
+} from "./automaticBackups";
 import type {
   CommunityGameAlias,
   CommunityGameSuggestionResponse,
@@ -364,6 +368,7 @@ export async function initializeTracker() {
   logRuntime("tracker initialize started");
 
   hydrate();
+  initializeAutomaticBackups();
   initializeDesktopOverlays();
   initializeHotkeys();
   initializeControllerBridge();
@@ -449,6 +454,7 @@ async function finishTrackerStartup() {
     lastLaunchVerificationAt = 0;
     disposeDesktopOverlays();
     disposeHotkeys();
+    disposeAutomaticBackups();
     disposeControllerBridge();
     initialized = false;
   });

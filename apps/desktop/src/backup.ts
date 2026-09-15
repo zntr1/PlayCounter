@@ -89,6 +89,19 @@ function defaultExportName() {
 
 export type ExportResult = { path: string } | { cancelled: true };
 
+export function createBackupContents(
+  source: Record<string, unknown> = readPersistedRaw(),
+): string {
+  const envelope: BackupEnvelope = {
+    format: BACKUP_FORMAT,
+    version: BACKUP_VERSION,
+    app: "PlayCounter",
+    exportedAt: new Date().toISOString(),
+    data: createTransferData(source),
+  };
+  return JSON.stringify(envelope, null, 2);
+}
+
 export async function exportLocalData(): Promise<ExportResult> {
   const path = await save({
     defaultPath: defaultExportName(),
@@ -96,17 +109,9 @@ export async function exportLocalData(): Promise<ExportResult> {
   });
   if (!path) return { cancelled: true };
 
-  const envelope: BackupEnvelope = {
-    format: BACKUP_FORMAT,
-    version: BACKUP_VERSION,
-    app: "PlayCounter",
-    exportedAt: new Date().toISOString(),
-    data: createTransferData(readPersistedRaw()),
-  };
-
   await invoke("write_text_file", {
     path,
-    contents: JSON.stringify(envelope, null, 2),
+    contents: createBackupContents(),
   });
   return { path };
 }
@@ -181,15 +186,8 @@ export async function importLocalData(): Promise<ImportResult> {
   const existing = localStorage.getItem(STORAGE_KEY);
   let backupPath: string | null = null;
   if (existing) {
-    const envelope: BackupEnvelope = {
-      format: BACKUP_FORMAT,
-      version: BACKUP_VERSION,
-      app: "PlayCounter",
-      exportedAt: new Date().toISOString(),
-      data: createTransferData(readPersistedRaw()),
-    };
     backupPath = await invoke<string>("backup_local_data", {
-      contents: JSON.stringify(envelope, null, 2),
+      contents: createBackupContents(),
     });
   }
 
