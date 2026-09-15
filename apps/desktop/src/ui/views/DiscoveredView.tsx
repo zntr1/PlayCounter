@@ -1236,7 +1236,7 @@ function TriageWizardCard({
               onChange={(event) => onCustomGameNameChange(event.target.value)}
               maxLength={120}
               autoFocus
-              placeholder="Enter custom game name..."
+              placeholder="e.g. Stardew Valley (modded)"
               className="h-10 flex-1 text-base"
             />
             <Button
@@ -1517,7 +1517,7 @@ function DiscoveredExecutableRow({
             onChange={(event) => onCustomGameNameChange(event.target.value)}
             maxLength={120}
             autoFocus
-            placeholder="Enter custom game name..."
+            placeholder="e.g. Stardew Valley (modded)"
             className="h-9 flex-1 text-sm"
           />
           <Button
