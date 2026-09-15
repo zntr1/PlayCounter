@@ -23,6 +23,7 @@ export type LibraryStatGame = {
   adjustmentSeconds: number;
   sessionCount: number;
   lastPlayedAt: string;
+  hasLastPlayedEvidence?: boolean;
   emulatorIds: readonly string[];
   libraryImports: readonly {
     provider: LibraryProviderId;
@@ -247,9 +248,9 @@ export function summarizeLibraryStats(
       metrics.installed += 1;
     }
     if (game.emulatorIds.length > 0) metrics.emulator += 1;
-    // lastPlayedAt doubles as "added at" for games with no sessions yet.
+    // Imported play dates count too; a metadata/import timestamp alone does not.
     if (
-      game.sessionCount > 0 &&
+      (game.hasLastPlayedEvidence || game.sessionCount > 0) &&
       Number.isFinite(lastPlayedAt) &&
       lastPlayedAt >= recentSince
     ) {

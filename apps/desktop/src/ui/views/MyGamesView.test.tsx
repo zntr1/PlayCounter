@@ -608,7 +608,7 @@ async function inputSearch(value: string) {
 }
 
 it.each(["grid", "large", "list"] as const)(
-  "selects ranges, applies statuses, and undoes in %s view",
+  "selects ranges, applies statuses, and confirms with a toast in %s view",
   async (view) => {
     useAppStore.getState().setMyGamesCardSize(view);
     container.setAttribute("data-controller-content", "true");
@@ -628,30 +628,31 @@ it.each(["grid", "large", "list"] as const)(
       checkboxes.every((item) => item.getAttribute("aria-checked") === "true"),
     ).toBe(true);
     expect(container.textContent).toContain("4 selected");
-    const journals = useAppStore.getState().gameJournals;
     container.scrollTop = 350;
     await applyBulkStatus("Finished");
     expect(container.scrollTop).toBe(350);
-    expect(container.textContent).toContain("4 games marked Finished");
-    expect(container.textContent).toContain("0 selected");
-    expect(selectionCheckboxes()).toHaveLength(4);
+    expect(useAppStore.getState().toasts).toEqual([
+      expect.objectContaining({
+        tone: "success",
+        title: "4 games marked Finished",
+      }),
+    ]);
+    expect(container.textContent).not.toContain("4 games marked Finished");
+    expect(
+      container.querySelector('[aria-label="Bulk status actions"]'),
+    ).toBeNull();
+    expect(container.textContent).not.toContain("0 selected");
+    expect(selectionCheckboxes()).toHaveLength(0);
+    const select = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select games"]',
+    )!;
+    expect(select.getAttribute("aria-pressed")).toBe("false");
+    expect(document.activeElement).toBe(select);
     expect(getGameJournal(useAppStore.getState(), local).status).toBe(
       "finished",
     );
     expect(getGameJournal(useAppStore.getState(), steam).status).toBe(
       "finished",
-    );
-    await act(() => button("Undo").click());
-    expect(getGameJournal(useAppStore.getState(), local)).toEqual(
-      journals["custom:-1"],
-    );
-    expect(
-      getGameJournal(useAppStore.getState(), { ...local, gameId: -2 }).status,
-    ).toBeNull();
-    await act(() => button("Done").click());
-    expect(selectionCheckboxes()).toHaveLength(0);
-    expect(document.activeElement?.getAttribute("aria-label")).toBe(
-      "Select games",
     );
   },
 );
@@ -667,18 +668,25 @@ it("uses the current source, search, shelf, and status filters for bulk assignme
   await act(() => button("Select all 1 result").click());
   await applyBulkStatus("Finished");
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
-  expect(container.textContent).toContain("1 game marked Finished");
+  expect(useAppStore.getState().toasts[0]).toMatchObject({
+    tone: "success",
+    title: "1 game marked Finished",
+  });
+  expect(
+    container.querySelector('[aria-label="Bulk status actions"]'),
+  ).toBeNull();
   expect(
     container
       .querySelector('[aria-label="Select games"]')
       ?.getAttribute("aria-pressed"),
-  ).toBe("true");
+  ).toBe("false");
+  expect(document.activeElement).toBe(
+    container.querySelector('[placeholder="Search games..."]'),
+  );
   expect(getGameJournal(useAppStore.getState(), steam).status).toBe("finished");
   expect(getGameJournal(useAppStore.getState(), local).status).toBe(
     "not-planned",
   );
-  await act(() => button("Undo").click());
-  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
 });
 
 it("selects all results even while most cards have not rendered", async () => {
@@ -725,16 +733,26 @@ it("works through No status games and offers explicit clearing", async () => {
   await applyBulkStatus("Finished");
   expect(selectionCheckboxes()).toHaveLength(0);
   await setStatusFilter("Finished");
+  await enterSelection();
   await act(() => button("Select all 2 results").click());
   await applyBulkStatus("Finished");
-  expect(selectionCheckboxes()).toHaveLength(2);
-  expect(container.textContent).toContain("already marked Finished");
+  expect(selectionCheckboxes()).toHaveLength(0);
+  expect(useAppStore.getState().toasts[0]).toMatchObject({
+    tone: "info",
+    title: "Selected games are already marked Finished",
+  });
+  await enterSelection();
   await act(() => button("Select all 2 results").click());
   await applyBulkStatus("Clear status");
   expect(selectionCheckboxes()).toHaveLength(0);
-  await act(() => button("Done").click());
-  await act(() => button("Undo").click());
-  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+  expect(useAppStore.getState().toasts[0]).toMatchObject({
+    tone: "success",
+    title: "Status cleared for 2 games",
+  });
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
+  expect(
+    container.querySelector('[aria-label="Bulk status actions"]'),
+  ).toBeNull();
 });
 
 it("clears selection on filter changes, preserves it across layouts, and stops shelf dragging", async () => {
@@ -811,17 +829,81 @@ it("supports scoped Ctrl+A, keyboard menu navigation, and Escape without interce
     ),
   );
   expect(document.querySelector("#library-bulk-status-menu")).toBeNull();
-  expect(container.textContent).toContain("4 selected");
-  expect(document.activeElement).toBe(button("Set status"));
-  await act(() =>
-    button("Set status").dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Escape",
-        bubbles: true,
-        cancelable: true,
-      }),
-    ),
+  expect(selectionCheckboxes()).toHaveLength(0);
+  expect(document.activeElement).toBe(
+    container.querySelector('[aria-label="Select games"]'),
   );
+});
+
+it.each(["select button", "game", "search", "empty space"])(
+  "shows selection mode clearly and exits with Escape from %s",
+  async (focus) => {
+    await act(() => root.render(<MyGamesView />));
+    const select = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select games"]',
+    )!;
+    expect(select.textContent).toBe("Select");
+    expect(select.classList.contains("bg-accent")).toBe(false);
+    await enterSelection();
+    expect(select.getAttribute("aria-pressed")).toBe("true");
+    expect(select.classList.contains("bg-accent")).toBe(true);
+    expect(select.textContent).toBe("Selecting");
+    expect(select.title).toBe("Exit selection mode (Esc)");
+    await act(() => selectionCheckboxes()[0].click());
+    const journals = useAppStore.getState().gameJournals;
+    const target =
+      focus === "select button"
+        ? select
+        : focus === "game"
+          ? selectionCheckboxes()[0]
+          : focus === "search"
+            ? container.querySelector<HTMLInputElement>(
+                '[placeholder="Search games..."]',
+              )!
+            : document.body;
+    await act(() =>
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    expect(selectionCheckboxes()).toHaveLength(0);
+    expect(select.getAttribute("aria-pressed")).toBe("false");
+    expect(select.classList.contains("bg-accent")).toBe(false);
+    expect(select.textContent).toBe("Select");
+    expect(document.activeElement).toBe(select);
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+    await enterSelection();
+    expect(container.textContent).toContain("0 selected");
+  },
+);
+
+it("keeps Escape scoped to the visible library and lets dialogs handle it first", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await enterSelection();
+  const escape = () =>
+    act(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", cancelable: true }),
+      ),
+    );
+  await act(() => useAppStore.getState().setActiveView("now"));
+  await escape();
+  expect(selectionCheckboxes()).toHaveLength(4);
+  await act(() => useAppStore.getState().setActiveView("games"));
+  const dialog = document.createElement("div");
+  dialog.setAttribute("role", "dialog");
+  document.body.append(dialog);
+  try {
+    await escape();
+    expect(selectionCheckboxes()).toHaveLength(4);
+  } finally {
+    dialog.remove();
+  }
+  await escape();
   expect(selectionCheckboxes()).toHaveLength(0);
 });
 

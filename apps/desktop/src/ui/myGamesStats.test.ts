@@ -132,6 +132,36 @@ describe("my games stats", () => {
     expect(metrics).toMatchObject({ games: 3, recent: 1, sessions: 4 });
   });
 
+  it("counts imported play dates as recent without treating the import date as play", () => {
+    const metrics = summarizeLibraryStats(
+      [
+        game(1, {
+          libraryImports: [steamImport(false, 7_200)],
+          hasLastPlayedEvidence: true,
+          lastPlayedAt: daysAgo(2),
+        }),
+        game(2, {
+          libraryImports: [steamImport(false, 7_200)],
+          hasLastPlayedEvidence: true,
+          lastPlayedAt: daysAgo(45),
+        }),
+        game(3, {
+          libraryImports: [steamImport(false, 7_200)],
+          hasLastPlayedEvidence: false,
+          lastPlayedAt: daysAgo(1),
+        }),
+        game(4, {
+          libraryImports: [steamImport()],
+          hasLastPlayedEvidence: true,
+          lastPlayedAt: "invalid",
+        }),
+      ],
+      { provider: "steam", nowMs: NOW },
+    );
+
+    expect(metrics).toMatchObject({ games: 4, recent: 1, sessions: 0 });
+  });
+
   it("uses tracked totals and emulator evidence off a launcher tab", () => {
     const metrics = summarizeLibraryStats(
       [

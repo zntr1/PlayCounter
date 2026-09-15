@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Check, ChevronDown, RotateCcw, X } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -12,34 +12,26 @@ import {
   Button,
   ContextMenu,
   ContextMenuSeparator,
-  IconButton,
   useAnchoredMenu,
 } from "./primitives";
 import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
-import type { BulkStatusNotice } from "./useLibrarySelection";
 
 export function LibraryBulkActions({
   active,
   count,
   total,
-  notice,
   onSelectAll,
   onClear,
   onDone,
   onStatus,
-  onUndo,
-  onDismiss,
 }: {
   active: boolean;
   count: number;
   total: number;
-  notice: BulkStatusNotice | null;
   onSelectAll: () => void;
   onClear: () => void;
   onDone: () => void;
   onStatus: (status: GameStatus | null) => void;
-  onUndo: () => void;
-  onDismiss: () => void;
 }) {
   const menu = useAnchoredMenu();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -60,9 +52,8 @@ export function LibraryBulkActions({
   function apply(status: GameStatus | null) {
     menu.close();
     onStatus(status);
-    barRef.current?.focus({ preventScroll: true });
   }
-  if (!active && !notice) return null;
+  if (!active) return null;
   return (
     <div
       ref={barRef}
@@ -70,97 +61,62 @@ export function LibraryBulkActions({
       aria-label="Bulk status actions"
       className="sticky top-0 z-40 rounded-xl border border-accent/30 bg-surface px-3 py-2 shadow-raised focus:outline-none"
     >
-      {active ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className="min-w-24 px-1 text-sm font-semibold text-text"
-            aria-live="polite"
-          >
-            {count} selected
-          </span>
-          <button
-            ref={menu.anchorRef}
-            type="button"
-            disabled={!count}
-            aria-haspopup="menu"
-            aria-expanded={menu.open}
-            aria-controls={menu.open ? "library-bulk-status-menu" : undefined}
-            data-controller-item="library-option"
-            onClick={menu.toggle}
-            className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-fg transition hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Set status <ChevronDown size={14} />
-          </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className="min-w-24 px-1 text-sm font-semibold text-text"
+          aria-live="polite"
+        >
+          {count} selected
+        </span>
+        <button
+          ref={menu.anchorRef}
+          type="button"
+          disabled={!count}
+          aria-haspopup="menu"
+          aria-expanded={menu.open}
+          aria-controls={menu.open ? "library-bulk-status-menu" : undefined}
+          data-controller-item="library-option"
+          onClick={menu.toggle}
+          className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-fg transition hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Set status <ChevronDown size={14} />
+        </button>
+        <Button
+          variant="ghost"
+          disabled={!total || count === total}
+          data-controller-item="library-option"
+          onClick={() => {
+            onSelectAll();
+            barRef.current?.focus({ preventScroll: true });
+          }}
+        >
+          Select all {total} {total === 1 ? "result" : "results"}
+        </Button>
+        {count ? (
           <Button
             variant="ghost"
-            disabled={!total || count === total}
             data-controller-item="library-option"
             onClick={() => {
-              onSelectAll();
+              onClear();
               barRef.current?.focus({ preventScroll: true });
             }}
           >
-            Select all {total} {total === 1 ? "result" : "results"}
+            Clear selection
           </Button>
-          {count ? (
-            <Button
-              variant="ghost"
-              data-controller-item="library-option"
-              onClick={() => {
-                onClear();
-                barRef.current?.focus({ preventScroll: true });
-              }}
-            >
-              Clear selection
-            </Button>
-          ) : null}
-          <Button
-            variant="secondary"
-            className="ml-auto"
-            data-controller-item="library-option"
-            onClick={onDone}
-          >
-            Done
-          </Button>
-        </div>
-      ) : null}
-      {notice ? (
-        <div
-          className={clsx(
-            "flex flex-wrap items-center gap-2",
-            active && "mt-2 border-t border-border pt-2",
-          )}
+        ) : null}
+        <Button
+          variant="secondary"
+          className="ml-auto"
+          data-controller-item="library-option"
+          onClick={onDone}
         >
-          <p role="status" className="flex-1 text-sm text-text-muted">
-            {notice.message}
-          </p>
-          {notice.changes.length ? (
-            <Button
-              variant="ghost"
-              icon={RotateCcw}
-              data-controller-item="library-option"
-              onClick={() => {
-                onUndo();
-                barRef.current?.focus({ preventScroll: true });
-              }}
-            >
-              Undo
-            </Button>
-          ) : null}
-          <IconButton
-            icon={X}
-            aria-label="Dismiss status update"
-            data-controller-item="library-option"
-            onClick={() => {
-              onDismiss();
-              if (active) barRef.current?.focus({ preventScroll: true });
-              else onDone();
-            }}
-          />
-        </div>
-      ) : active && !count ? (
+          Done
+        </Button>
+      </div>
+      {!count ? (
         <p className="px-1 pt-1 text-xs text-text-faint">
-          Click games to select them. Shift-click selects a range.
+          Click games to select them. Shift-click selects a range. Press Esc to
+          exit.
         </p>
       ) : null}
       <ContextMenu
@@ -196,8 +152,12 @@ export function LibraryBulkActions({
             if (next >= 0) {
               event.preventDefault();
               buttons[next]?.focus();
-            } else if (event.key === "Escape" || event.key === "Tab") {
-              if (event.key === "Escape") event.preventDefault();
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              menu.close();
+              onDone();
+            } else if (event.key === "Tab") {
               event.stopPropagation();
               closeMenu();
             }

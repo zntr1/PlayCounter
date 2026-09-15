@@ -72,6 +72,7 @@ export type GameDetailsTarget = {
   sessionCount: number;
   historyGameKey: string | null;
   lastPlayedAt: string;
+  hasLastPlayedEvidence?: boolean;
   exeNames: string[];
   emulatorLabels: string[];
   emulatorIds: string[];
@@ -225,6 +226,19 @@ export function GameDetailsDialog({
       }),
     [game.archivedSeconds, game.historyGameKey, sessions],
   );
+  // The library summary already selects the newest local or provider date.
+  // Without play evidence its timestamp is only the date the game was added.
+  const hasLastPlayedEvidence =
+    game.hasLastPlayedEvidence || game.sessionCount > 0;
+  const lastPlayedAt = hasLastPlayedEvidence
+    ? game.lastPlayedAt
+    : stats.lastPlayedAt;
+  const hasPlayed =
+    hasLastPlayedEvidence ||
+    stats.sessionCount > 0 ||
+    game.recordedSeconds > 0 ||
+    game.totalSeconds > 0 ||
+    game.libraryImports.some(({ entry }) => entry.providerSeconds === null);
 
   const scopedByExe = useMemo(() => {
     const byExe = new Map<string, ScopedExeLink>();
@@ -364,10 +378,7 @@ export function GameDetailsDialog({
               <Figure
                 label="Last played"
                 value={
-                  game.sessionCount > 0
-                    ? (formatDate(stats.lastPlayedAt ?? game.lastPlayedAt) ??
-                      "Unknown")
-                    : "Never"
+                  formatDate(lastPlayedAt) ?? (hasPlayed ? "Unknown" : "Never")
                 }
               />
             </div>
