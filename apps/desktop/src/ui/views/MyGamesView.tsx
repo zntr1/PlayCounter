@@ -2466,7 +2466,7 @@ function LaunchStartingOverlay({
     >
       <div
         className={clsx(
-          "flex items-center rounded-xl border border-accent/50 bg-surface/95 text-center shadow-raised",
+          "flex min-w-0 max-w-full items-center rounded-xl border border-accent/50 bg-surface/95 text-center shadow-raised",
           compact ? "gap-3 px-4 py-2.5" : "flex-col gap-3 px-6 py-5",
         )}
       >
@@ -2474,8 +2474,8 @@ function LaunchStartingOverlay({
           size={compact ? 20 : 30}
           className="shrink-0 animate-spin text-accent"
         />
-        <div className={compact ? "text-left" : undefined}>
-          <div className="max-w-64 truncate text-sm font-bold text-text">
+        <div className={clsx("min-w-0 max-w-full", compact && "text-left")}>
+          <div className="max-w-64 whitespace-normal break-words text-sm font-bold text-text">
             Starting {gameName}…
           </div>
           <div className="mt-1 text-xs text-text-muted">
