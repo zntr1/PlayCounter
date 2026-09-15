@@ -22,7 +22,9 @@ describe("tour definitions", () => {
             ),
           ).toBe(true);
         } else {
-          expect(step.advanceOn).toBeDefined();
+          expect(
+            Boolean(step.advanceOn) || (tour.practice && step.manualAdvance),
+          ).toBe(true);
           expect(step.anchor).toContain('data-tour="demo-');
           expect(
             step.allow?.every((selector) =>
@@ -59,7 +61,7 @@ describe("tour definitions", () => {
 
   it("documents the emulator live view and management page", () => {
     const guide = TOURS.find((tour) => tour.id === "emulators")!;
-    expect(guide.version).toBe(2);
+    expect(guide.version).toBe(3);
     expect(guide.steps.map((step) => step.id)).toEqual([
       "intro",
       "settings",
@@ -69,6 +71,7 @@ describe("tour definitions", () => {
       "linked-games",
       "confirm",
       "fix-match",
+      "pcsx2",
       "library",
     ]);
     expect(guide.steps.every((step) => !step.optional)).toBe(true);
@@ -134,6 +137,34 @@ describe("tour definitions", () => {
     ]);
     expect(
       guide.steps.find((step) => step.id === "controller")?.body,
-    ).toContain("View + RB");
+    ).toContain("Select/View + R1/RB");
+  });
+
+  it("keeps skip, back, and follow-up destinations reachable", () => {
+    for (const tour of TOURS) {
+      if (tour.nextTourId)
+        expect(TOURS.some((next) => next.id === tour.nextTourId)).toBe(true);
+      for (const step of tour.steps) {
+        for (const destination of [step.skipTo, step.backTo].filter(Boolean)) {
+          expect(
+            tour.steps.some((candidate) => candidate.id === destination),
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("offers read-only backup and feedback guides alongside the practice tours", () => {
+    const release = TOURS.filter((tour) => tour.release === "1.1.17");
+    expect(
+      release.filter((tour) => tour.practice).map((tour) => tour.id),
+    ).toEqual(["notes-playthroughs", "organize-library", "library-progress"]);
+    for (const id of ["backup-data", "feedback-replies", "emulators"]) {
+      expect(
+        release
+          .find((tour) => tour.id === id)
+          ?.steps.every((step) => !step.interactive),
+      ).toBe(true);
+    }
   });
 });

@@ -1,10 +1,14 @@
 import type { ViewId } from "../../store";
+import { TOUR_DEMO_GAME } from "./tourDemoGame";
 
 export type TourAdvance =
   | { type: "anchor-present"; selector: string }
   | {
       type: "event";
-      name: "mygames.demo-session-logged" | "mygames.demo-launch-attempted";
+      name:
+        | "mygames.demo-session-logged"
+        | "mygames.demo-launch-attempted"
+        | "library.demo-shelf-created";
     };
 
 export type TourEventName = Extract<TourAdvance, { type: "event" }>["name"];
@@ -15,7 +19,11 @@ export type TourStep = {
   body: string;
   view: ViewId | "keep" | "return";
   anchor?: string;
+  /** Prefer these targets, in order, as an action opens a menu or dialog. */
+  anchorTargets?: string[];
   additionalAnchors?: string[];
+  /** Place instructions outside this container while highlighting its detail. */
+  positionAnchor?: string;
   cardPlacement?: "below";
   optional?: boolean;
   interactive?: boolean;
@@ -38,10 +46,16 @@ export type TourDefinition = {
   description: string;
   duration: string;
   demoGame?: boolean;
+  practice?: boolean;
+  release?: string;
+  nextTourId?: string;
   steps: TourStep[];
 };
 
 const a = (name: string) => `[data-tour="${name}"]`;
+// Both practice games share the card marker. Keep WoW-specific instructions
+// attached to WoW when dragging hides it or a shelf filters it out.
+const libraryTourCard = `${a("demo-game-card")}[data-tour-game-id="${TOUR_DEMO_GAME.gameId}"]`;
 
 export const TOURS: TourDefinition[] = [
   {
@@ -110,6 +124,335 @@ export const TOURS: TourDefinition[] = [
         anchor: a("help"),
         title: "You're set up",
         body: "One thing left worth doing: startup, popups, and appearance are worth a look before you start playing.",
+      },
+    ],
+  },
+  {
+    id: "notes-playthroughs",
+    version: 1,
+    kind: "guide",
+    title: "Notes & playthroughs",
+    description:
+      "Leave a reminder, start a new run, and move a sample session.",
+    duration: "3 min",
+    practice: true,
+    release: "1.1.17",
+    nextTourId: "organize-library",
+    steps: [
+      {
+        id: "intro",
+        view: "games",
+        anchor: a("demo-library-cards"),
+        title: "Remember where you left off",
+        body: "Try the journal on the familiar World of Warcraft sample. Notes, playthroughs, and sessions in this practice library disappear when you leave. Your own games stay as they are.",
+      },
+      {
+        id: "open-journal",
+        view: "games",
+        anchor: libraryTourCard,
+        anchorTargets: [a("demo-menu-note")],
+        interactive: true,
+        allow: [libraryTourCard, a("demo-library-menu")],
+        advanceOn: { type: "anchor-present", selector: a("demo-journal") },
+        skipTo: "note",
+        title: "Right-click World of Warcraft",
+        body: "Choose Add note. The same journal also opens from Playthroughs or a saved note's icon on the cover.",
+        keyboardHint: "Keyboard: focus the card and press Shift+F10.",
+      },
+      {
+        id: "note",
+        view: "games",
+        anchor: a("demo-note-input"),
+        additionalAnchors: [a("demo-note-save")],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [a("demo-journal-note")],
+        title: "Write a reminder for next time",
+        body: "Try “Meet the group in Stormwind.” Save note keeps it; leaving the field saves it too. This note belongs to the Default playthrough. Try it, then choose Next.",
+      },
+      {
+        id: "create-run",
+        view: "games",
+        anchor: a("demo-playthrough-name"),
+        additionalAnchors: [a("demo-playthrough-create")],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [a("demo-new-playthrough")],
+        title: "Give your next run a name",
+        body: "Enter a name such as “Co-op run” and press Enter. Each named playthrough gets its own note, recorded playtime, and session list. Your earlier sessions stay in Default playthrough.",
+      },
+      {
+        id: "active-run",
+        view: "games",
+        anchor: a("demo-playthrough-active"),
+        additionalAnchors: [a("demo-note-input")],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [
+          a("demo-playthrough-list"),
+          a("demo-playthrough-actions"),
+          a("demo-journal-note"),
+        ],
+        title: "Choose where new sessions go",
+        body: "A new playthrough starts active. Clicking a playthrough in the list lets you read it; Make active chooses where future sessions count. Add a separate reminder for this run. An empty note stays empty.",
+      },
+      {
+        id: "move-session",
+        view: "games",
+        anchor: `${a("demo-playthrough-list")} [role="option"]:last-child`,
+        anchorTargets: [
+          a("demo-session-named-playthrough"),
+          a("demo-session-playthrough"),
+        ],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [
+          a("demo-playthrough-sessions"),
+          a("demo-playthrough-list"),
+          a("demo-library-menu"),
+        ],
+        title: "Move an earlier session into this run",
+        body: "We opened the default session list. Use the playthrough label beside a sample session to assign it to your named run. Watch its time move in the list. You can use the same picker in My History; the game's total stays the same.",
+      },
+      {
+        id: "finish-run",
+        view: "games",
+        anchor: a("demo-playthrough-finish"),
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [a("demo-playthrough-actions")],
+        title: "Finish a playthrough",
+        body: "Try Mark finished. Its notes and sessions remain available. Finishing the active run sends future sessions back to Default until you make another run active. The game's progress status is a separate choice.",
+      },
+      {
+        id: "finish",
+        view: "games",
+        anchor: a("demo-library-cards"),
+        title: "Pick up your reminder when you play",
+        body: "On your own games, Now Playing shows the active playthrough's note. Settings → Desktop notifications can include it in game-start popups, and a saved-session popup can open the note editor. Replay this guide anytime from ? Help.",
+      },
+    ],
+  },
+  {
+    id: "organize-library",
+    version: 1,
+    kind: "guide",
+    title: "Favorites & shelves",
+    description: "Practice dragging games and making a shelf fill itself.",
+    duration: "3 min",
+    practice: true,
+    release: "1.1.17",
+    nextTourId: "library-progress",
+    steps: [
+      {
+        id: "intro",
+        view: "games",
+        anchor: a("demo-organization"),
+        title: "Make a library that fits you",
+        body: "Favorites keep games close. Personal shelves group them however you like, and one game can belong to several. Practice here with World of Warcraft and GTA V; nothing in this sample library is saved.",
+      },
+      {
+        id: "favorite",
+        view: "games",
+        anchor: a("demo-favorites"),
+        anchorTargets: [a("demo-menu-favorite")],
+        additionalAnchors: [libraryTourCard],
+        interactive: true,
+        manualAdvance: true,
+        allow: [a("demo-library-stage"), a("demo-library-menu")],
+        title: "Keep a favorite close",
+        body: "Drag a sample card onto Favorites, or right-click it and choose Add to Favorites. The star appears on its cover. Click Favorites to see that group, then All games to return.",
+      },
+      {
+        id: "create-shelf",
+        view: "games",
+        anchor: a("demo-new-shelf"),
+        anchorTargets: [a("demo-shelf-name")],
+        additionalAnchors: [a("demo-shelf-save")],
+        interactive: true,
+        advanceOn: { type: "event", name: "library.demo-shelf-created" },
+        skipTo: "fill-shelf",
+        allow: [a("demo-organization"), a("demo-library-modal")],
+        title: "Create a personal shelf",
+        body: "Click New shelf, enter a name such as “Weekend games”, and press Enter. A new shelf starts empty and is ready for games you choose.",
+      },
+      {
+        id: "fill-shelf",
+        view: "games",
+        anchor: a("demo-personal-shelf"),
+        anchorTargets: [
+          a("demo-journal-shelf-choice"),
+          a("demo-journal-shelf"),
+          a("demo-menu-organize"),
+        ],
+        additionalAnchors: [libraryTourCard],
+        interactive: true,
+        manualAdvance: true,
+        allow: [
+          a("demo-library-stage"),
+          a("demo-library-menu"),
+          a("demo-library-modal"),
+        ],
+        title: "Put games on your shelf",
+        body: "We returned to All games. Drag a card onto your shelf, then open the shelf to check it. You can also right-click a card → Shelves & status → Shelf. Hovering an unavailable drop target explains why it cannot accept the game.",
+      },
+      {
+        id: "filters",
+        view: "games",
+        anchor: a("demo-filters-toggle"),
+        anchorTargets: [a("demo-filter-status-playing")],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [a("demo-organization")],
+        title: "Try a shelf that fills itself",
+        body: "We opened Filters for your shelf. Choose In progress to preview every matching game in your library. The sample World of Warcraft already has that status. Combine rules such as progress, playtime, or emulator to make your own view.",
+      },
+      {
+        id: "save-filters",
+        view: "games",
+        anchor: a("demo-filters-toggle"),
+        anchorTargets: [
+          `${a("demo-save-filters")}:not(:disabled)`,
+          a("demo-filtered-shelf"),
+        ],
+        scrollIntoView: true,
+        interactive: true,
+        manualAdvance: true,
+        allow: [a("demo-organization"), a("demo-library-menu")],
+        title: "Save the rules to your shelf",
+        body: "Click Save filters. From then on, games enter or leave this shelf as they match its rules. Right-click the shelf → Edit filters to change them. Removing saved filters restores the games you added by hand. Filtered shelves explain why you cannot drag games into them.",
+      },
+      {
+        id: "finish",
+        view: "games",
+        anchor: a("demo-organization"),
+        title: "Your next visit starts where you left off",
+        body: "In My Games, your search and shelf selection stay in place when you visit another page and return. Next, try marking several games with a progress status and choosing what their cards show.",
+      },
+    ],
+  },
+  {
+    id: "library-progress",
+    version: 1,
+    kind: "guide",
+    title: "Progress & card layout",
+    description:
+      "Set several statuses together and try the new Customize controls.",
+    duration: "3 min",
+    practice: true,
+    release: "1.1.17",
+    steps: [
+      {
+        id: "intro",
+        view: "games",
+        anchor: a("demo-library-cards"),
+        title: "Track what you want to play next",
+        body: "Progress statuses are your own labels: In progress, On hold, Finished, and more. They describe your plans and progress, independently of whether a game is running. This guide uses temporary sample cards and settings.",
+      },
+      {
+        id: "filter",
+        view: "games",
+        anchor: a("demo-filters-toggle"),
+        anchorTargets: [a("demo-filter-status-none")],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [a("demo-organization")],
+        title: "Find games that need a status",
+        body: "In Filters, choose No status. Both samples start without one. In your own library, use search, shelves, or filters first so you only select the games you intend to update.",
+      },
+      {
+        id: "select",
+        view: "games",
+        anchor: a("demo-library-select"),
+        interactive: true,
+        allow: [a("demo-library-stage")],
+        advanceOn: { type: "anchor-present", selector: a("demo-bulk-actions") },
+        skipTo: "select-games",
+        title: "Turn on selection",
+        body: "Click Select to choose games for a shared status change. The guide continues when selection opens.",
+      },
+      {
+        id: "select-games",
+        view: "games",
+        anchor: a("demo-library-select"),
+        anchorTargets: [
+          `${a("demo-library-cards")} [role="checkbox"][aria-checked="false"]`,
+          a("demo-bulk-count"),
+        ],
+        additionalAnchors: [`${a("demo-bulk-select-all")}:not(:disabled)`],
+        interactive: true,
+        manualAdvance: true,
+        allow: [a("demo-library-stage")],
+        title: "Select a few games or every result",
+        body: "Click the two sample cards. The highlight moves to the next unselected card. Shift-click selects a range. Select all results, or Ctrl/Cmd+A while selection is active, includes every matching result. Changing your filters clears the selection.",
+      },
+      {
+        id: "apply",
+        view: "games",
+        anchor: a("demo-library-select"),
+        anchorTargets: [
+          a("demo-bulk-status-playing"),
+          a("demo-bulk-set-status"),
+          a("demo-library-result"),
+        ],
+        interactive: true,
+        manualAdvance: true,
+        allow: [a("demo-library-stage"), a("demo-library-menu")],
+        title: "Set their status together",
+        body: "Choose Set status → In progress. If you skipped selecting, both samples are selected for you. When a game no longer matches No status, it leaves those results. Clear filters shows it again. Clear status in the same menu removes a label.",
+      },
+      {
+        id: "open-customize",
+        view: "games",
+        anchor: a("demo-customize-toggle"),
+        interactive: true,
+        allow: [a("demo-library-stage")],
+        advanceOn: {
+          type: "anchor-present",
+          selector: a("demo-library-customize"),
+        },
+        skipTo: "customize",
+        title: "Open the card options",
+        body: "Click Customize. This is where you choose the number of cards per row and which details appear on their covers.",
+      },
+      {
+        id: "customize",
+        view: "games",
+        anchor: a("demo-customize-toggle"),
+        anchorTargets: [a("demo-grid-columns")],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [a("demo-library-stage")],
+        title: "Choose how many cards fit in a row",
+        body: "The sample grid starts at five cards per row. Move the Cards per row slider to try a different size. These are the controls from Customize in My Games; your real preferences stay unchanged during this practice.",
+      },
+      {
+        id: "card-details",
+        view: "games",
+        anchor: a("demo-customize-toggle"),
+        anchorTargets: [a("demo-show-status")],
+        additionalAnchors: [a("demo-show-notes"), a("demo-show-shelves")],
+        interactive: true,
+        manualAdvance: true,
+        scrollIntoView: true,
+        allow: [a("demo-library-stage")],
+        title: "Choose which details to show",
+        body: "Toggle Show status on game cards and Show notes on game cards to see each cover detail change independently. Show shelves controls the shelf row. Hiding these details keeps your statuses, notes, and shelves.",
+      },
+      {
+        id: "finish",
+        view: "games",
+        anchor: a("demo-library-cards"),
+        title: "Ready for your own library",
+        body: "Use Select for a batch of games, or right-click one card → Shelves & status for a single game. In the real Customize panel, your layout choices are kept between launches. All samples and practice changes disappear when you finish.",
       },
     ],
   },
@@ -517,10 +860,12 @@ export const TOURS: TourDefinition[] = [
   },
   {
     id: "backup-data",
-    version: 1,
+    version: 2,
+    release: "1.1.17",
     kind: "guide",
     title: "Back up or move your data",
-    description: "Export your PlayCounter data or restore it from a backup.",
+    description:
+      "Understand automatic snapshots, export, and restoring your data.",
     duration: "1 min",
     steps: [
       {
@@ -535,7 +880,36 @@ export const TOURS: TourDefinition[] = [
         anchor: a("settings-backup"),
         scrollIntoView: true,
         title: "Backup & transfer",
-        body: "This section handles portable JSON backups. A backup contains your play history, the games and matches PlayCounter has cached, your settings, and everything else it keeps on this PC.",
+        body: "This section handles portable JSON backups. Backups include your history, games, private notes, playthroughs, shelves, and app settings. Saved launch paths stay on this device and are excluded.",
+      },
+      {
+        id: "automatic",
+        view: "settings",
+        anchor: a("settings-backup-enabled"),
+        scrollIntoView: true,
+        title: "Weekly protection is already on",
+        body: "Automatic backups are enabled weekly by default and keep the latest five snapshots. A missed backup runs when you next open PlayCounter. This guide only shows the controls; it does not change your schedule or create a backup.",
+      },
+      {
+        id: "schedule",
+        view: "settings",
+        anchor: a("settings-backup-interval"),
+        additionalAnchors: [
+          a("settings-backup-keep"),
+          a("settings-backup-now"),
+        ],
+        scrollIntoView: true,
+        title: "Choose how much history to keep",
+        body: "Choose daily or weekly snapshots and how many to keep. Back up now creates a snapshot immediately. When the retention limit is reached, older automatic snapshots are removed.",
+      },
+      {
+        id: "folder",
+        view: "settings",
+        anchor: a("settings-backup-choose-folder"),
+        additionalAnchors: [a("settings-backup-open-folder")],
+        scrollIntoView: true,
+        title: "Know where your backups live",
+        body: "Choose folder changes where automatic snapshots are saved; Open folder shows them. The default is on this computer. To keep a copy elsewhere, choose a folder that you also back up or sync.",
       },
       {
         id: "export",
@@ -556,8 +930,45 @@ export const TOURS: TourDefinition[] = [
     ],
   },
   {
+    id: "feedback-replies",
+    version: 1,
+    kind: "guide",
+    release: "1.1.17",
+    title: "Find replies to your feedback",
+    description: "See where replies arrive, alongside the message you sent.",
+    duration: "30 sec",
+    steps: [
+      {
+        id: "send",
+        view: "keep",
+        anchor: a("send-feedback"),
+        title: "Send an idea or report a problem",
+        body: "Use Send feedback to tell us what happened or what would help. Replies arrive inside PlayCounter. This guide shows a sample reply; it does not send a message.",
+      },
+      {
+        id: "bell",
+        view: "keep",
+        anchor: a("demo-feedback-notification"),
+        positionAnchor: a("demo-feedback-panel"),
+        additionalAnchors: [a("notifications-bell")],
+        title: "Check Notifications for replies",
+        body: "The bell is where replies appear, alongside other PlayCounter updates. This is a sample notification. Your existing messages and unread counts stay unchanged during the guide.",
+      },
+      {
+        id: "context",
+        view: "keep",
+        anchor: a("demo-feedback-original"),
+        positionAnchor: a("demo-feedback-panel"),
+        additionalAnchors: [a("demo-feedback-reply")],
+        title: "Your message stays with the answer",
+        body: "Your feedback is quoted above the reply so you can see what it refers to. Replies return to the PlayCounter installation that sent the feedback. Check here after sending a report or suggestion.",
+      },
+    ],
+  },
+  {
     id: "emulators",
-    version: 2,
+    version: 3,
+    release: "1.1.17",
     kind: "guide",
     title: "Track emulator games",
     description:
@@ -607,7 +1018,7 @@ export const TOURS: TourDefinition[] = [
         anchor: a("demo-emulator-linked"),
         cardPlacement: "below",
         title: "Your linked games",
-        body: "One row per game PlayCounter connected to a file or disc ID inside Dolphin. This row is a sample. Once a game is linked, PlayCounter recognizes it automatically every time you start it - you are never asked twice.",
+        body: "One row per game PlayCounter connected to a file or disc ID inside Dolphin. This row is a sample. Once a game is linked, PlayCounter recognizes it automatically every time you start it - you normally do not need to choose the game again.",
       },
       {
         id: "confirm",
@@ -623,6 +1034,14 @@ export const TOURS: TourDefinition[] = [
         anchor: a("demo-emulator-actions"),
         title: "Correct, drop, or share a match",
         body: "Change game replaces a wrong match - search once and it sticks. Forget game makes PlayCounter ask again the next time that game shows up; recorded playtime stays in History. Share match sends the file-to-game link to the Community database, so other people's PlayCounter recognizes it too.\n\nAll three are switched off on this sample row, so nothing can be changed, shared, or deleted while you're here.",
+      },
+      {
+        id: "pcsx2",
+        view: "settings",
+        anchor: a("settings-emulators"),
+        scrollIntoView: true,
+        title: "PlayStation 2 games with PCSX2",
+        body: "On Windows, start a game in PCSX2 with emulator detection enabled. PlayCounter identifies the loaded PS2 game and tracks its own sessions. The PCSX2 page appears after the emulator has been seen. With direct launching enabled and a saved launch target available, start it again from My Games or the PCSX2 page.",
       },
       {
         id: "library",

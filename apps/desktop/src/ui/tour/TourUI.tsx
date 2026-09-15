@@ -1,3 +1,9 @@
+import {
+  findTourElement,
+  findTourTarget,
+  tourFocusTarget,
+  tourTargetRect,
+} from "./tourTargetRect";
 import { Check, CircleHelp, X } from "lucide-react";
 import {
   useEffect,
@@ -68,40 +74,65 @@ export function HelpButton() {
         />
       </span>
       {open ? (
-        <div className="absolute right-0 top-11 z-50 w-[420px] max-w-[calc(100vw-32px)] overflow-hidden rounded-xl border border-border bg-surface shadow-raised">
+        <div
+          className="absolute right-0 top-11 z-50 flex max-h-[calc(100vh-100px)] w-[420px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setOpen(false);
+          }}
+        >
           <div className="border-b border-border px-4 py-3">
             <div className="font-semibold text-text">Help & tutorials</div>
             <div className="mt-0.5 text-xs text-text-muted">
               Learn the basics or practice a common task.
             </div>
           </div>
-          <div className="grid gap-1 p-2">
-            {TOURS.map((tour) => {
-              const complete = progress.completed[tour.id] === tour.version;
-              return (
-                <button
-                  key={tour.id}
-                  type="button"
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-hover"
-                  onClick={() => startTour(tour.id)}
-                >
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent">
-                    {complete ? <Check size={16} /> : <CircleHelp size={16} />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-text">
-                      {tour.title}
-                    </span>
-                    <span className="block text-xs leading-relaxed text-text-muted">
-                      {tour.description}
-                    </span>
-                  </span>
-                  <span className="text-[11px] text-text-muted">
-                    {complete ? "Replay" : tour.duration}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="min-h-0 overflow-y-auto p-2">
+            {[
+              {
+                title: "New in 1.1.17",
+                tours: TOURS.filter((tour) => tour.release === "1.1.17"),
+              },
+              {
+                title: "More guides",
+                tours: TOURS.filter((tour) => tour.release !== "1.1.17"),
+              },
+            ].map((group) => (
+              <section key={group.title} className="mb-2 grid gap-1">
+                <h3 className="px-3 pb-1 pt-2 text-xs font-semibold text-accent">
+                  {group.title}
+                </h3>
+                {group.tours.map((tour) => {
+                  const complete = progress.completed[tour.id] === tour.version;
+                  return (
+                    <button
+                      key={tour.id}
+                      type="button"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-hover"
+                      onClick={() => startTour(tour.id)}
+                    >
+                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent">
+                        {complete ? (
+                          <Check size={16} />
+                        ) : (
+                          <CircleHelp size={16} />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-text">
+                          {tour.title}
+                        </span>
+                        <span className="block text-xs leading-relaxed text-text-muted">
+                          {tour.description}
+                        </span>
+                      </span>
+                      <span className="text-[11px] text-text-muted">
+                        {complete ? "Replay" : tour.duration}
+                      </span>
+                    </button>
+                  );
+                })}
+              </section>
+            ))}
           </div>
         </div>
       ) : null}
@@ -270,6 +301,7 @@ function TourRunner() {
   const tour = findTour(active.tourId);
   const step = tour?.steps[active.stepIndex];
   const [rect, setRect] = useState<TourTargetRect | null>(null);
+  const [positionRect, setPositionRect] = useState<TourTargetRect | null>(null);
   const [additionalRects, setAdditionalRects] = useState<TourTargetRect[]>([]);
   const [missing, setMissing] = useState(false);
   const [cardHeight, setCardHeight] = useState(260);
@@ -298,15 +330,21 @@ function TourRunner() {
       (step.cardPlacement !== "below" && !step.scrollIntoView)
     )
       return;
-    const frame = requestAnimationFrame(() => {
-      document.querySelector(step.anchor!)?.scrollIntoView({
-        block: step.cardPlacement === "below" ? "start" : "center",
+    const scrollTarget = () => {
+      findTourTarget(step)?.scrollIntoView({
+        block:
+          step.cardPlacement === "below" || tour?.practice ? "start" : "center",
         inline: "nearest",
         behavior: "instant",
       });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [step]);
+    };
+    const frame = requestAnimationFrame(scrollTarget);
+    window.addEventListener("resize", scrollTarget);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", scrollTarget);
+    };
+  }, [step, tour?.practice]);
 
   useLayoutEffect(() => {
     const card = cardRef.current;
@@ -323,39 +361,63 @@ function TourRunner() {
       return;
     }
     let frame = 0;
+    let previousTarget: HTMLElement | null = null;
     const started = performance.now();
     const update = () => {
-      const element = step.anchor ? document.querySelector(step.anchor) : null;
+      const element = findTourTarget(step);
       if (element) {
-        const next = element.getBoundingClientRect();
-        setRect((current) => {
-          const measured = {
-            top: next.top,
-            left: next.left,
-            width: next.width,
-            height: next.height,
-          };
-          return current &&
-            current.top === measured.top &&
-            current.left === measured.left &&
-            current.width === measured.width &&
-            current.height === measured.height
+        if (element !== previousTarget) {
+          const layer = element.closest('[role="dialog"], [role="menu"]');
+          if (step.scrollIntoView || step.cardPlacement === "below" || layer) {
+            element.scrollIntoView({
+              block: "nearest",
+              inline: "nearest",
+              behavior: "instant",
+            });
+          }
+          // Follow a newly opened menu/dialog without taking focus away from
+          // someone reading or navigating the guide's own controls.
+          if (
+            step.interactive &&
+            layer &&
+            layer !==
+              previousTarget?.closest('[role="dialog"], [role="menu"]') &&
+            !cardRef.current?.contains(document.activeElement)
+          ) {
+            tourFocusTarget(element)?.focus({ preventScroll: true });
+          }
+          previousTarget = element;
+        }
+        const measured = tourTargetRect(element);
+        const positionElement = step.positionAnchor
+          ? findTourElement(step.positionAnchor)
+          : null;
+        const measuredPosition = positionElement
+          ? tourTargetRect(positionElement)
+          : null;
+        setPositionRect((current) =>
+          current &&
+          measuredPosition &&
+          sameRects([current], [measuredPosition])
             ? current
-            : measured;
-        });
+            : measuredPosition,
+        );
+        setRect((current) =>
+          current && measured && sameRects([current], [measured])
+            ? current
+            : measured,
+        );
         const measuredAdditional = (step.additionalAnchors ?? []).flatMap(
           (selector) => {
-            const additional = document.querySelector(selector);
-            if (!additional) return [];
-            const bounds = additional.getBoundingClientRect();
-            return [
-              {
-                top: bounds.top,
-                left: bounds.left,
-                width: bounds.width,
-                height: bounds.height,
-              },
-            ];
+            const additional = findTourElement(selector);
+            const layer = element.closest('[role="dialog"], [role="menu"]');
+            if (
+              additional === element ||
+              (layer && additional && !layer.contains(additional))
+            )
+              return [];
+            const rect = additional ? tourTargetRect(additional) : null;
+            return rect ? [rect] : [];
           },
         );
         setAdditionalRects((current) =>
@@ -364,6 +426,7 @@ function TourRunner() {
         setMissing(false);
       } else {
         setRect(null);
+        setPositionRect(null);
         setAdditionalRects([]);
         if (step.anchor && performance.now() - started > 1500) setMissing(true);
       }
@@ -453,27 +516,67 @@ function TourRunner() {
       if (!isAllowed(event)) cardRef.current?.focus({ preventScroll: true });
     };
     document.addEventListener("focusin", focus, true);
+    const tab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || event.defaultPrevented) return;
+      const selector =
+        'button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])';
+      const roots = [
+        ...allow.flatMap((entry) => [...document.querySelectorAll(entry)]),
+        cardRef.current,
+      ].filter((root): root is Element => Boolean(root));
+      const controls = [
+        ...new Set(
+          roots.flatMap((root) => [
+            ...(root.matches(selector) ? [root] : []),
+            ...root.querySelectorAll(selector),
+          ]),
+        ),
+      ].filter(
+        (element): element is HTMLElement =>
+          element instanceof HTMLElement &&
+          element.getClientRects().length > 0 &&
+          !element.closest("[inert]"),
+      );
+      if (!controls.length) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const current = controls.indexOf(document.activeElement as HTMLElement);
+      controls[
+        (current + (event.shiftKey ? -1 : 1) + controls.length) %
+          controls.length
+      ].focus();
+    };
+    document.addEventListener("keydown", tab, true);
     return () => {
       events.forEach((name) => document.removeEventListener(name, block, true));
       document.removeEventListener("focusin", focus, true);
+      document.removeEventListener("keydown", tab, true);
     };
   }, [step]);
 
   useEffect(() => {
     if (!step) return;
-    if (step.interactive && step.allow?.[0]) {
-      const root = document.querySelector(step.allow[0]) as HTMLElement | null;
-      const focusable = root?.matches("button,input,select,textarea,[tabindex]")
-        ? root
-        : (root?.querySelector(
-            "button,input,select,textarea,[tabindex]",
-          ) as HTMLElement | null);
-      (focusable ?? cardRef.current)?.focus({ preventScroll: true });
-    } else {
-      cardRef.current?.focus({ preventScroll: true });
-    }
+    // Wait for the practice step's layout effects to prepare its controls.
+    const focusFrame = requestAnimationFrame(() => {
+      const target = step.interactive
+        ? tourFocusTarget(findTourTarget(step))
+        : null;
+      (target ?? cardRef.current)?.focus({ preventScroll: true });
+    });
 
     const handleArrowNavigation = (event: KeyboardEvent) => {
+      // Arrow keys belong to text fields, sliders, menus and the playthrough
+      // ledger. Navigate the guide only while its own card has focus.
+      if (
+        event.isComposing ||
+        event.defaultPrevented ||
+        (step.interactive &&
+          !(
+            event.target instanceof Element &&
+            event.target.closest("[data-tour-card]")
+          ))
+      )
+        return;
       if (event.key === "ArrowRight") {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -487,20 +590,37 @@ function TourRunner() {
     };
 
     window.addEventListener("keydown", handleArrowNavigation, true);
-    if (step.interactive) {
-      return () =>
-        window.removeEventListener("keydown", handleArrowNavigation, true);
-    }
-
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") endTour("dismissed");
-      if (["Enter", " "].includes(event.key)) {
+      if (event.defaultPrevented || event.isComposing) return;
+      if (event.key === "Escape") {
+        // An open practice dialog or menu handles its own Escape first.
+        const insideCard =
+          event.target instanceof Element &&
+          event.target.closest("[data-tour-card]");
+        if (
+          !step.interactive ||
+          insideCard ||
+          !document.querySelector(
+            '[data-tour="demo-library-modal"], [data-tour="demo-library-menu"], [data-tour="demo-context-menu"], [data-tour="demo-log-session-dialog"]',
+          )
+        )
+          endTour("dismissed");
+      }
+      if (
+        !step.interactive &&
+        ["Enter", " "].includes(event.key) &&
+        !(
+          event.target instanceof Element &&
+          event.target.closest("button,a,input,textarea,select")
+        )
+      ) {
         event.preventDefault();
         advance();
       }
     };
     window.addEventListener("keydown", handler);
     return () => {
+      cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", handleArrowNavigation, true);
       window.removeEventListener("keydown", handler);
     };
@@ -523,7 +643,11 @@ function TourRunner() {
       ? tour.steps.findIndex((candidate) => candidate.id === step.skipTo)
       : active.stepIndex + 1;
     if (index < 0) index = active.stepIndex + 1;
-    while (index < tour.steps.length && tour.steps[index].interactive)
+    while (
+      !step.skipTo &&
+      index < tour.steps.length &&
+      tour.steps[index].interactive
+    )
       index += 1;
     if (index >= tour.steps.length) endTour("completed");
     else goTo(index, true);
@@ -533,10 +657,12 @@ function TourRunner() {
     startTour("settings");
   };
   const isLast = active.stepIndex === tour.steps.length - 1;
-  const style = tourCardPosition(rect, step.cardPlacement, cardHeight, {
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
+  const style = tour.practice
+    ? undefined
+    : tourCardPosition(positionRect ?? rect, step.cardPlacement, cardHeight, {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
   const hasOwnBackdrop = step.id === "fill-dialog";
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
 
@@ -592,7 +718,9 @@ function TourRunner() {
       <div
         ref={cardRef}
         data-tour-card
+        data-tour-practice-card={tour.practice || undefined}
         role="dialog"
+        aria-labelledby="tour-step-title"
         aria-modal={!step.interactive}
         tabIndex={-1}
         className="pointer-events-auto fixed max-h-[calc(100vh-32px)] w-[390px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-2xl border border-border bg-surface p-5 text-text shadow-raised outline-none"
@@ -611,7 +739,9 @@ function TourRunner() {
             <X size={16} />
           </button>
         </div>
-        <h2 className="mt-2 text-lg font-semibold">{step.title}</h2>
+        <h2 id="tour-step-title" className="mt-2 text-lg font-semibold">
+          {step.title}
+        </h2>
         <p className="mt-2 whitespace-pre-line text-sm leading-6 text-text-muted">
           {step.body}
         </p>
@@ -621,6 +751,15 @@ function TourRunner() {
         {missing ? (
           <p className="mt-2 text-xs text-warning">
             This control is not available right now. You can still continue.
+            {tour.practice ? (
+              <button
+                type="button"
+                className="ml-1 underline"
+                onClick={() => goTo(active.stepIndex, true)}
+              >
+                Show this step
+              </button>
+            ) : null}
           </p>
         ) : null}
         {tour.id === CORE_TOUR_ID && isLast ? (
@@ -648,6 +787,19 @@ function TourRunner() {
               Back
             </Button>
             <div className="flex flex-wrap justify-end gap-2">
+              {isLast && tour.nextTourId ? (
+                <Button
+                  onClick={() => {
+                    endTour("completed");
+                    startTour(tour.nextTourId!);
+                  }}
+                >
+                  {findTour(tour.nextTourId)?.title}
+                </Button>
+              ) : null}
+              {isLast && !tour.nextTourId ? (
+                <Button onClick={openGuides}>More guides</Button>
+              ) : null}
               {step.interactive && !step.manualAdvance ? (
                 <Button onClick={skipInteractive}>Skip step</Button>
               ) : null}

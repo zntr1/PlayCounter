@@ -1,4 +1,9 @@
 import {
+  usePersonalLibraryApi,
+  usePersonalLibraryState,
+} from "./PersonalLibraryContext";
+import type { PersonalLibraryState } from "../personalLibraryStore";
+import {
   useCallback,
   useEffect,
   useRef,
@@ -6,7 +11,7 @@ import {
   type HTMLAttributes,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { getGameJournal, useAppStore, type GameIdentityRef } from "../store";
+import { getGameJournal, type GameIdentityRef } from "../store";
 import type { GameJournal, PersonalShelf } from "../personalLibrary";
 import {
   positionLibraryGameHints,
@@ -52,8 +57,11 @@ function shelfDropHint(
   return null;
 }
 
-function assignShelf(game: GameIdentityRef, shelfId: string) {
-  const state = useAppStore.getState();
+function assignShelf(
+  game: GameIdentityRef,
+  shelfId: string,
+  state: PersonalLibraryState,
+) {
   const shelf = state.personalShelves.find((entry) => entry.id === shelfId);
   // Recheck at drop time, including changes made since the hover hints were prepared.
   const journal = getGameJournal(state, game);
@@ -74,8 +82,7 @@ function assignShelf(game: GameIdentityRef, shelfId: string) {
   return null;
 }
 
-function prepareShelfHints(game: GameIdentityRef) {
-  const state = useAppStore.getState();
+function prepareShelfHints(game: GameIdentityRef, state: PersonalLibraryState) {
   const journal = getGameJournal(state, game);
   const shelves = new Map(
     state.personalShelves.map((shelf) => [shelf.id, shelf]),
@@ -167,6 +174,7 @@ function createPreview(source: HTMLElement, rect: DOMRect) {
 
 /** Pointer dragging gives us an opaque card and a return animation, including in WebView2. */
 export function useLibraryGameDrag() {
+  const libraryApi = usePersonalLibraryApi();
   const cleanupRef = useRef<() => void>(() => {});
   const clickCleanupRef = useRef<() => void>(() => {});
   const [hint, setHint] = useState<ShelfDropHint | null>(null);
@@ -177,8 +185,8 @@ export function useLibraryGameDrag() {
     hintVisibleRef.current = false;
     setHint(null);
   }, []);
-  const activeView = useAppStore((state) => state.activeView);
-  const showShelves = useAppStore(
+  const activeView = usePersonalLibraryState((state) => state.activeView);
+  const showShelves = usePersonalLibraryState(
     (state) => state.settings.libraryShowShelves !== false,
   );
   // My Games stays mounted when another app view is opened.
@@ -198,7 +206,7 @@ export function useLibraryGameDrag() {
   const start = useCallback<StartLibraryGameDrag>(
     (game, event) => {
       if (
-        useAppStore.getState().settings.libraryShowShelves === false ||
+        libraryApi.getState().settings.libraryShowShelves === false ||
         event.button !== 0 ||
         event.isPrimary === false ||
         event.pointerType === "touch" ||
@@ -288,7 +296,7 @@ export function useLibraryGameDrag() {
           preview = createPreview(source, origin);
           source.setAttribute("data-library-drag-source", "true");
           document.documentElement.classList.add("library-game-dragging");
-          clearHoverHints = prepareShelfHints(game);
+          clearHoverHints = prepareShelfHints(game, libraryApi.getState());
           window.getSelection()?.removeAllRanges();
           // Position the initial copy immediately; subsequent input is coalesced per frame.
           updatePreview();
@@ -341,9 +349,13 @@ export function useLibraryGameDrag() {
         if (
           target?.dataset.libraryShelf &&
           source.isConnected &&
-          useAppStore.getState().settings.libraryShowShelves !== false
+          libraryApi.getState().settings.libraryShowShelves !== false
         ) {
-          const blocked = assignShelf(game, target.dataset.libraryShelf);
+          const blocked = assignShelf(
+            game,
+            target.dataset.libraryShelf,
+            libraryApi.getState(),
+          );
           if (blocked) {
             hintVisibleRef.current = true;
             setHint({ ...blocked, target });
@@ -467,7 +479,7 @@ export function useLibraryGameDrag() {
       window.addEventListener("keydown", keyDown, true);
       window.addEventListener("blur", cancel);
     },
-    [dismissHint],
+    [dismissHint, libraryApi],
   );
 
   return { start, hint, dismissHint };

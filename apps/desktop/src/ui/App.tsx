@@ -1,3 +1,5 @@
+import { LibraryTourPractice } from "./tour/LibraryTourPractice";
+import { findTour } from "./tour/tourDefinitions";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -290,7 +292,11 @@ export function App() {
         ? "Bring your Xbox games and playtime into PlayCounter"
         : "Bring your Steam library and playtime into PlayCounter"
       : views[activeView].subtitle;
-  const activeTourId = useAppStore((state) => state.activeTour?.tourId ?? null);
+  const activeTour = useAppStore((state) => state.activeTour);
+  const activeTourId = activeTour?.tourId ?? null;
+  const tour = activeTourId ? findTour(activeTourId) : undefined;
+  const practiceStep =
+    tour?.practice && activeTour ? tour.steps[activeTour.stepIndex] : undefined;
   const tourProgress = useAppStore((state) => state.tourProgress);
   const lastSeenReleaseNotesVersion = useAppStore(
     (state) => state.lastSeenReleaseNotesVersion,
@@ -693,6 +699,7 @@ export function App() {
             <Button
               variant="secondary"
               icon={MessageSquarePlus}
+              data-tour="send-feedback"
               disabled={isOffline}
               title={isOffline ? "Feedback unavailable offline" : undefined}
               onClick={() => setFeedbackOpen(true)}
@@ -750,7 +757,7 @@ export function App() {
             {activeView !== "import" && activeView !== "games"
               ? views[activeView].component
               : null}
-            {activeView === "games" && !renderGames ? (
+            {activeView === "games" && !renderGames && !practiceStep ? (
               <div role="status" className="grid gap-4">
                 <span className="sr-only">Loading your games…</span>
                 <div className="h-24 rounded-xl border border-border bg-surface" />
@@ -765,7 +772,16 @@ export function App() {
               </div>
             ) : null}
             {renderGames ? (
-              <div hidden={activeView !== "games"}>{views.games.component}</div>
+              <div hidden={activeView !== "games" || Boolean(practiceStep)}>
+                {views.games.component}
+              </div>
+            ) : null}
+            {practiceStep && activeTourId ? (
+              <LibraryTourPractice
+                key={activeTourId}
+                tourId={activeTourId}
+                stepId={practiceStep.id}
+              />
             ) : null}
             {renderImporter ? (
               <div hidden={activeView !== "import"}>
@@ -802,6 +818,10 @@ export function App() {
             notes: toDisplayNotes(note),
           }))}
           onClose={() => closeCurrentReleaseNotes(appVersion)}
+          onStartTour={(id) => {
+            closeCurrentReleaseNotes(appVersion);
+            useAppStore.getState().startTour(id);
+          }}
           footer={
             <div className="flex justify-end">
               <Button

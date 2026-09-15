@@ -79,6 +79,7 @@ export function AutomaticBackupSettings() {
           </p>
         </div>
         <input
+          data-tour="settings-backup-enabled"
           type="checkbox"
           aria-label="Automatic backups"
           aria-describedby="automatic-backups-description"
@@ -90,10 +91,14 @@ export function AutomaticBackupSettings() {
           className="mt-1 h-4 w-4 shrink-0 accent-accent disabled:opacity-50"
         />
       </div>
-      <div className="flex flex-wrap items-end gap-3">
+      <div
+        data-tour="settings-backup-schedule"
+        className="flex flex-wrap items-end gap-3"
+      >
         <label className="grid gap-1.5 text-sm text-text-muted">
           Schedule
           <select
+            data-tour="settings-backup-interval"
             value={preferences.interval}
             disabled={busy}
             onChange={(event) =>
@@ -110,6 +115,7 @@ export function AutomaticBackupSettings() {
         <label className="grid gap-1.5 text-sm text-text-muted">
           Keep
           <select
+            data-tour="settings-backup-keep"
             value={preferences.keepCount}
             disabled={busy}
             onChange={(event) =>
@@ -129,6 +135,7 @@ export function AutomaticBackupSettings() {
           </select>
         </label>
         <Button
+          data-tour="settings-backup-now"
           icon={Download}
           loading={running}
           disabled={busy}
@@ -146,7 +153,10 @@ export function AutomaticBackupSettings() {
           Back up now
         </Button>
       </div>
-      <div className="min-w-0 rounded-md border border-border bg-surface px-3 py-3">
+      <div
+        data-tour="settings-backup-folder"
+        className="min-w-0 rounded-md border border-border bg-surface px-3 py-3"
+      >
         <p className="text-sm text-text-muted">
           {preferences.directory
             ? "Backup folder"
@@ -156,10 +166,15 @@ export function AutomaticBackupSettings() {
           {directory ?? "App data / backups / automatic"}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button disabled={busy} onClick={() => void chooseFolder()}>
+          <Button
+            data-tour="settings-backup-choose-folder"
+            disabled={busy}
+            onClick={() => void chooseFolder()}
+          >
             Choose folder
           </Button>
           <Button
+            data-tour="settings-backup-open-folder"
             icon={FolderOpen}
             disabled={busy}
             onClick={() => void openFolder()}
