@@ -510,7 +510,7 @@ it("supports scoped Ctrl+A, keyboard menu navigation, and Escape without interce
   expect(container.textContent).toContain("4 selected");
   await act(() => button("Set status").click());
   const menu = document.querySelector("#library-bulk-status-menu")!;
-  await act(() => button("Playing", menu).focus());
+  await act(() => button("In progress", menu).focus());
   await act(() =>
     document.activeElement!.dispatchEvent(
       new KeyboardEvent("keydown", {
@@ -670,7 +670,7 @@ it("edits an inactive shelf through its context menu and restores manual additio
     shelf,
   );
   await openFilters();
-  await setStatusFilter("Playing");
+  await setStatusFilter("In progress");
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
   await act(() => button("Cancel").click());
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
