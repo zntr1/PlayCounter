@@ -888,7 +888,7 @@ export const TOURS: TourDefinition[] = [
         view: "settings",
         anchor: a("settings-backup-enabled"),
         scrollIntoView: true,
-        title: "Automatic backups are already on",
+        title: "Automatic backups",
         body: "PlayCounter saves a backup once a week and keeps the last five. If a backup was missed because PlayCounter was not running, it is saved the next time you open the app. This guide only points at the controls; it does not change your settings or create a backup.",
       },
       {
