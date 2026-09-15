@@ -891,11 +891,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     )
       return false;
     const assign = <T extends { id: number; playthroughId?: string }>(
-      s: T,
-    ): T => (s.id === sessionId ? { ...s, playthroughId: id ?? undefined } : s);
+      sessions: T[],
+    ): T[] =>
+      sessions.some(
+        (s) => s.id === sessionId && (s.playthroughId ?? null) !== id,
+      )
+        ? sessions.map((s) =>
+            s.id === sessionId ? { ...s, playthroughId: id ?? undefined } : s,
+          )
+        : sessions;
+    const activeSessions = assign(state.activeSessions);
+    const recentSessions = assign(state.recentSessions);
+    if (
+      activeSessions === state.activeSessions &&
+      recentSessions === state.recentSessions
+    )
+      return true;
     set({
-      activeSessions: state.activeSessions.map(assign),
-      recentSessions: state.recentSessions.map(assign),
+      activeSessions,
+      recentSessions,
     });
     persistSoon();
     return true;

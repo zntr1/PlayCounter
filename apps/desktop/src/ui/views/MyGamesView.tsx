@@ -160,6 +160,7 @@ import {
   useLibrarySelection,
 } from "../useLibrarySelection";
 import { useGameJournal } from "../useGameJournal";
+import { useLibrarySessionState } from "../useLibrarySessionState";
 import { selectClass } from "../primitives";
 import {
   LibraryOrganizationToolbar,
@@ -560,15 +561,17 @@ export function MyGamesView() {
   const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
   const launchLockRef = useRef<string | null>(null);
   const [launchingGameKey, setLaunchingGameKey] = useState<string | null>(null);
-  const sessions = useAppStore((state) => state.recentSessions);
+  const {
+    recentSessions: sessions,
+    activeSessions,
+    archivedGameSeconds,
+  } = useLibrarySessionState();
   const libraryTab = useAppStore((state) => state.libraryTab);
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
   const setLibraryImportProvider = useAppStore(
     (state) => state.setLibraryImportProvider,
   );
   const setActiveView = useAppStore((state) => state.setActiveView);
-  const activeSessions = useAppStore((state) => state.activeSessions);
-  const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);

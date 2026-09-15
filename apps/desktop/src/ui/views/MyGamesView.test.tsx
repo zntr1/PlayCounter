@@ -40,6 +40,7 @@ beforeEach(() => {
   localStorage.clear();
   useAppStore.setState(useAppStore.getInitialState(), true);
   useAppStore.setState({
+    activeView: "games",
     settings: {
       ...useAppStore.getState().settings,
       gameLaunchingEnabled: false,
@@ -139,6 +140,71 @@ async function selectSource(source: string) {
       .click(),
   );
 }
+
+it("defers hidden library session updates and refreshes on return while keeping shelf and search", async () => {
+  const firstRun = useAppStore
+    .getState()
+    .createPlaythrough(local, "First run")!;
+  const replay = useAppStore.getState().createPlaythrough(local, "Replay")!;
+  const startedAt = new Date(Date.now() - 120_000).toISOString();
+  useAppStore.setState({
+    activeSessions: [
+      {
+        ...local,
+        id: 7,
+        playthroughId: firstRun,
+        exeName: "game-1.exe",
+        coverUrl: "",
+        startedAt,
+        checkpointedAt: new Date().toISOString(),
+      },
+    ],
+  });
+  const onRender = vi.fn();
+  await act(() =>
+    root.render(
+      <Profiler id="library" onRender={onRender}>
+        <MyGamesView />
+      </Profiler>,
+    ),
+  );
+  await selectShelf("Weekend");
+  await inputSearch("favorite");
+  const card = gameCard(local.gameName);
+  const before = card.textContent;
+  await act(() => useAppStore.getState().setActiveView("now"));
+  onRender.mockClear();
+  await act(() => {
+    useAppStore.getState().assignSessionPlaythrough(7, replay);
+    useAppStore.setState({
+      recentSessions: [
+        {
+          ...local,
+          id: 8,
+          exeName: "game-1.exe",
+          startedAt: "2026-09-13T10:00:00Z",
+          endedAt: "2026-09-13T11:00:00Z",
+          durationSeconds: 3600,
+        },
+      ],
+      archivedGameSeconds: { "custom:-1": 3600 },
+    });
+  });
+  expect(onRender).not.toHaveBeenCalled();
+  expect(card.textContent).toBe(before);
+  expect(useAppStore.getState().activeSessions[0].playthroughId).toBe(replay);
+
+  await act(() => useAppStore.getState().setActiveView("games"));
+  expect(onRender).toHaveBeenCalled();
+  expect(gameCard(local.gameName)).toBe(card);
+  expect(card.textContent).toContain("2h");
+  expect(shelfChip("Weekend").getAttribute("aria-selected")).toBe("true");
+  expect(
+    container.querySelector<HTMLInputElement>(
+      '[placeholder="Search games..."]',
+    )!.value,
+  ).toBe("favorite");
+});
 
 it("counts favorites and manual shelves across sources, then updates when membership changes", async () => {
   await act(() => root.render(<MyGamesView />));
