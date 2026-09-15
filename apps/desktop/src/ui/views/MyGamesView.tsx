@@ -620,9 +620,15 @@ export function MyGamesView() {
   const showStatCards = useAppStore(
     (state) => state.settings.libraryShowStatCards !== false,
   );
-  const selectedShelf = personalShelves.find(
-    (shelf) => shelf.id === shelfSelection,
+  const showShelves = useAppStore(
+    (state) => state.settings.libraryShowShelves !== false,
   );
+  const setMyGamesShowShelves = useAppStore(
+    (state) => state.setMyGamesShowShelves,
+  );
+  const selectedShelf = showShelves
+    ? personalShelves.find((shelf) => shelf.id === shelfSelection)
+    : undefined;
   const editShelfFilters = filtersOpen && Boolean(selectedShelf);
   const changeFiltersOpen = useCallback(
     (open: boolean) => {
@@ -1628,6 +1634,35 @@ export function MyGamesView() {
                 <div className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <label
+                      htmlFor="library-show-shelves"
+                      className="text-sm font-medium text-text"
+                    >
+                      Show shelves
+                    </label>
+                    <p
+                      id="library-show-shelves-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      Hide the entire shelf row at any time. Your games stay in
+                      the library, and your shelves are kept for when you turn
+                      this back on.
+                    </p>
+                  </div>
+                  <input
+                    id="library-show-shelves"
+                    type="checkbox"
+                    checked={showShelves}
+                    aria-describedby="library-show-shelves-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesShowShelves(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
                       htmlFor="library-show-origin"
                       className="text-sm font-medium text-text"
                     >
@@ -1775,15 +1810,15 @@ export function MyGamesView() {
                           : "text-text-faint",
                       )}
                     >
-                      Hide empty library tabs
+                      Hide empty import source tabs
                     </label>
                     <p
                       id="library-hide-empty-tabs-help"
                       className="mt-1 text-xs leading-5 text-text-faint"
                     >
                       {canHideEmptyProviderTabs
-                        ? "A Steam or Xbox tab with nothing imported disappears, along with its import button. The tab row goes away entirely once no library tab is left. Turn this off again to import later."
-                        : "Every library tab has games in it, so there is nothing to hide."}
+                        ? "Hide Steam and Xbox tabs with no imported games."
+                        : "All import source tabs have games."}
                     </p>
                   </div>
                   <input
@@ -1879,6 +1914,7 @@ export function MyGamesView() {
             ) : null}
 
             <LibraryOrganizationToolbar
+              showShelves={showShelves}
               selection={shelfSelection}
               onSelect={selectShelf}
               filters={libraryFilters}
@@ -2129,8 +2165,10 @@ export function MyGamesView() {
                   </div>
                 ) : query ? (
                   <>No games match &ldquo;{query}&rdquo;.</>
-                ) : (
+                ) : showShelves ? (
                   "No games match this shelf and these filters yet."
+                ) : (
+                  "No games match these filters yet."
                 )}
               </Panel>
             ) : (

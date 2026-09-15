@@ -1,4 +1,10 @@
-import { BookOpen, FolderHeart, Star, StickyNote } from "lucide-react";
+import {
+  BookOpen,
+  CircleDot,
+  FolderHeart,
+  Star,
+  StickyNote,
+} from "lucide-react";
 import { GAME_STATUSES, journalNote } from "../personalLibrary";
 import { useAppStore, type GameIdentityRef } from "../store";
 import { ContextMenuHeading, ContextMenuItem } from "./primitives";
@@ -15,6 +21,9 @@ export function GameJournalMenu({
   const journal = useGameJournal(game);
   const open = useAppStore((s) => s.openGameJournal);
   const update = useAppStore((s) => s.updateGameJournal);
+  const showShelves = useAppStore(
+    (s) => s.settings.libraryShowShelves !== false,
+  );
   return (
     <>
       <ContextMenuHeading>My library</ContextMenuHeading>
@@ -47,13 +56,13 @@ export function GameJournalMenu({
         {journal.favorite ? "Remove from Favorites" : "Add to Favorites"}
       </ContextMenuItem>
       <ContextMenuItem
-        icon={FolderHeart}
+        icon={showShelves ? FolderHeart : CircleDot}
         onClick={() => {
           onClose();
           open({ game, tab: "organize" });
         }}
       >
-        Shelves & status
+        {showShelves ? "Shelves & status" : "Progress status"}
       </ContextMenuItem>
     </>
   );

@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore, type ActiveSession } from "../store";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
-import { GameJournalBadges } from "./GameJournalActions";
+import { GameJournalBadges, GameJournalMenu } from "./GameJournalActions";
 import { ActiveGameHero } from "./views/ActiveGameHero";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
@@ -81,6 +81,49 @@ async function type(
     element.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
+
+it("hides shelf controls while keeping progress, favorites, and shelf memberships", async () => {
+  const shelf = useAppStore.getState().savePersonalShelf({ name: "Weekend" })!;
+  useAppStore.getState().updateGameJournal(game, { shelfIds: [shelf] });
+  useAppStore.getState().setMyGamesShowShelves(false);
+  await act(() =>
+    root.render(
+      <>
+        <GameJournalMenu game={game} onClose={() => {}} />
+        <GameJournalHost />
+      </>,
+    ),
+  );
+  expect(container.textContent).not.toContain("Shelves & status");
+  await click("Progress status");
+  expect(
+    document.querySelector('[aria-label="Remove Campaign from Weekend"]'),
+  ).toBeNull();
+  expect(document.querySelector('[aria-label="New shelf name"]')).toBeNull();
+  expect(
+    [...document.querySelectorAll("button")].some(
+      (item) => item.textContent?.trim() === "Shelf",
+    ),
+  ).toBe(false);
+  await clickLabel("Progress status");
+  await click("In progress");
+  expect(getGameJournal(useAppStore.getState(), game).status).toBe("playing");
+  expect(getGameJournal(useAppStore.getState(), game).shelfIds).toEqual([
+    shelf,
+  ]);
+
+  await act(() => useAppStore.getState().setMyGamesShowShelves(true));
+  expect(
+    document.querySelector('[aria-label="Remove Campaign from Weekend"]'),
+  ).not.toBeNull();
+  await click("Shelf");
+  expect(
+    document.querySelector('[aria-label="New shelf name"]'),
+  ).not.toBeNull();
+  expect(getGameJournal(useAppStore.getState(), game).note).toBe(
+    "General reminder",
+  );
+});
 
 it("offers a default playthrough for an existing game and keeps its history when starting another", async () => {
   const oldSession = {

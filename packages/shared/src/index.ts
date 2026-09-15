@@ -505,6 +505,8 @@ export interface Settings {
   libraryStatCards?: LibraryStatCardId[];
   /** Master switch for the My Games summary row. */
   libraryShowStatCards?: boolean;
+  /** Show library shelves and their controls. Absent = enabled. */
+  libraryShowShelves?: boolean;
   /** Drop provider tabs that have no imported games. Absent = off, tabs stay. */
   libraryHideEmptyProviderTabs?: boolean;
   autoShareIgnoredProcesses: boolean;
