@@ -68,6 +68,7 @@ import {
   archivePlaythroughSeconds,
   NAME_LIMIT,
   NOTE_LIMIT,
+  normalizeLibraryFilters,
   readJournal,
   rekeyJournal,
   updateJournalStatuses,
@@ -725,7 +726,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             patch.shelfIds === undefined
               ? journal.shelfIds
               : [...new Set(patch.shelfIds)].filter((id) =>
-                  state.personalShelves.some((s) => s.id === id && !s.filters),
+                  state.personalShelves.some(
+                    (s) =>
+                      s.id === id &&
+                      (!s.filters || journal.shelfIds.includes(id)),
+                  ),
                 ),
         },
         personalGameIdentity(state),
@@ -900,7 +905,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!name) return null;
     const id = shelf.id ?? crypto.randomUUID();
     const state = get();
-    const next = { ...shelf, id, name };
+    const next = {
+      ...shelf,
+      id,
+      name,
+      filters:
+        shelf.filters === undefined
+          ? undefined
+          : normalizeLibraryFilters(shelf.filters),
+    };
     set({
       personalShelves: state.personalShelves.some((s) => s.id === id)
         ? state.personalShelves.map((s) => (s.id === id ? next : s))

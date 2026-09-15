@@ -12,6 +12,7 @@ import {
   emptyJournal,
   journalNote,
   matchesLibraryFilters,
+  normalizeLibraryFilters,
   playthroughSeconds,
   type FilterableLibraryGame,
 } from "./personalLibrary";
@@ -500,6 +501,66 @@ describe("saved library filters", () => {
       { provider: "xbox", installed: true, entry: { providerSeconds: null } },
     ],
   };
+  it("keeps manual memberships while saving filters to an existing shelf, including through other shelf edits and backups", () => {
+    const state = useAppStore.getState();
+    const shelf = state.savePersonalShelf({ name: "Weekend" })!;
+    const additional = state.savePersonalShelf({ name: "Co-op" })!;
+    state.updateGameJournal(game, { note: "Keep this", shelfIds: [shelf] });
+    expect(
+      state.savePersonalShelf({
+        id: shelf,
+        name: "Weekend",
+        filters: { status: "none", source: "all", search: "  " },
+      }),
+    ).toBe(shelf);
+    expect(useAppStore.getState().personalShelves).toHaveLength(2);
+    expect(useAppStore.getState().personalShelves[0].filters).toEqual({
+      status: "none",
+    });
+    state.updateGameJournal(game, {
+      shelfIds: [shelf, additional],
+      note: "Updated later",
+    });
+    expect(getGameJournal(useAppStore.getState(), game).shelfIds).toEqual([
+      shelf,
+      additional,
+    ]);
+    // The automatic shelf cannot gain new manual memberships through another edit.
+    state.updateGameJournal(other, { shelfIds: [shelf, additional] });
+    expect(getGameJournal(useAppStore.getState(), other).shelfIds).toEqual([
+      additional,
+    ]);
+    const data = createTransferData(
+      createPersistedPayload(useAppStore.getState()),
+    );
+    expect(() => validateBackupData(data, "data")).not.toThrow();
+    state.savePersonalShelf({ id: shelf, name: "Weekend", filters: undefined });
+    expect(getGameJournal(useAppStore.getState(), game)).toMatchObject({
+      note: "Updated later",
+      shelfIds: [shelf, additional],
+    });
+    expect(useAppStore.getState().personalShelves[0].filters).toBeUndefined();
+    expect(() =>
+      validateBackupData({ ...data, personalShelves: [] }, "data"),
+    ).toThrow("shelfIds");
+  });
+
+  it("normalizes inactive rules while preserving filters for not-installed games", () => {
+    expect(
+      normalizeLibraryFilters({
+        source: "all",
+        search: "  ",
+        favorite: false,
+        installed: false,
+      }),
+    ).toEqual({ installed: false });
+    expect(
+      normalizeLibraryFilters({ search: "  RPG  ", source: "steam" }),
+    ).toEqual({ search: "RPG", source: "steam" });
+    expect(normalizeLibraryFilters({ source: "steam" })).toEqual({
+      source: "steam",
+    });
+  });
   it("filters unassigned games and retains the No status rule in saved shelves and backups", () => {
     const journal = emptyJournal(game);
     expect(matchesLibraryFilters(candidate, journal, { status: "none" })).toBe(

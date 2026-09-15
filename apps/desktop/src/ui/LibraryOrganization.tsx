@@ -2,6 +2,7 @@ import {
   FolderHeart,
   Pencil,
   Plus,
+  Save,
   SlidersHorizontal,
   Star,
   Trash2,
@@ -11,6 +12,7 @@ import {
   GAME_STATUSES,
   NAME_LIMIT,
   matchesLibraryFilters,
+  normalizeLibraryFilters,
   readJournal,
   type FilterableLibraryGame,
   type GameJournal,
@@ -107,6 +109,9 @@ export function LibraryOrganizationToolbar({
   onSelect,
   filters,
   onFiltersChange,
+  expanded,
+  onExpandedChange,
+  onClearFilters,
   source,
   query,
   counts,
@@ -116,6 +121,9 @@ export function LibraryOrganizationToolbar({
   onSelect: (id: string) => void;
   filters: LibraryFilters;
   onFiltersChange: (filters: LibraryFilters) => void;
+  expanded: boolean;
+  onExpandedChange: (open: boolean) => void;
+  onClearFilters: () => void;
   source: LibraryTabId;
   query: string;
   /** Games per shelf id, counted across every import source. */
@@ -125,10 +133,9 @@ export function LibraryOrganizationToolbar({
   const shelves = useAppStore((s) => s.personalShelves);
   const save = useAppStore((s) => s.savePersonalShelf);
   const remove = useAppStore((s) => s.deletePersonalShelf);
-  const [expanded, setExpanded] = useState(false);
-  const [editor, setEditor] = useState<PersonalShelf | "new" | "filter" | null>(
-    null,
-  );
+  const addToast = useAppStore((s) => s.addToast);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [editor, setEditor] = useState<PersonalShelf | "new" | null>(null);
   const [name, setName] = useState("");
   const [deleting, setDeleting] = useState<PersonalShelf | null>(null);
   const [menuShelfId, setMenuShelfId] = useState<string | null>(null);
@@ -140,9 +147,16 @@ export function LibraryOrganizationToolbar({
   }, [shelfMenu.close]);
   const menuShelf = shelves.find((s) => s.id === menuShelfId);
   const selected = shelves.find((s) => s.id === selection);
-  const activeCount = Object.values(filters).filter(
-    (v) => v !== undefined && v !== false && v !== "",
-  ).length;
+  const draftFilters = normalizeLibraryFilters({
+    ...filters,
+    source,
+    search: query,
+  });
+  const activeCount = Object.keys(draftFilters).length;
+  const filtersChanged =
+    selected &&
+    JSON.stringify(draftFilters) !==
+      JSON.stringify(normalizeLibraryFilters(selected.filters ?? {}));
   useEffect(() => {
     if (
       selection !== "all" &&
@@ -160,6 +174,15 @@ export function LibraryOrganizationToolbar({
     if (value === undefined) delete next[key];
     onFiltersChange(next);
   }
+  function closeFilters() {
+    onExpandedChange(false);
+    focusFiltersButton();
+  }
+  function focusFiltersButton() {
+    toolbarRef.current
+      ?.querySelector<HTMLButtonElement>('[aria-controls="library-filters"]')
+      ?.focus({ preventScroll: true });
+  }
 
   function dropProps(id: string, allowed = true) {
     return {
@@ -169,7 +192,10 @@ export function LibraryOrganizationToolbar({
   }
 
   return (
-    <div className="grid gap-3 border-b border-border px-4 py-3">
+    <div
+      ref={toolbarRef}
+      className="grid gap-3 border-b border-border px-4 py-3"
+    >
       <div className="flex items-start gap-2">
         <div
           role="tablist"
@@ -211,8 +237,8 @@ export function LibraryOrganizationToolbar({
               count={counts[shelf.id]}
               title={
                 shelf.filters
-                  ? "Saved filter · updates as your library changes. Right-click to edit or delete."
-                  : "Right-click to edit or delete"
+                  ? "Saved filters · updates automatically. Right-click to edit filters, rename, or delete."
+                  : "Right-click to edit filters, rename, or delete"
               }
               onClick={() => onSelect(shelf.id)}
               onContextMenu={(event) => {
@@ -246,15 +272,36 @@ export function LibraryOrganizationToolbar({
           variant={expanded || activeCount ? "secondary" : "ghost"}
           icon={SlidersHorizontal}
           aria-expanded={expanded}
+          aria-controls="library-filters"
           className="shrink-0"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => onExpandedChange(!expanded)}
         >
           Filters{activeCount ? ` · ${activeCount}` : ""}
         </Button>
       </div>
 
       {expanded ? (
-        <div className="grid gap-3 rounded-xl border border-border bg-bg p-4">
+        <div
+          id="library-filters"
+          className="grid gap-3 rounded-xl border border-border bg-bg p-4"
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            event.stopPropagation();
+            closeFilters();
+          }}
+        >
+          {selected ? (
+            <div className="border-b border-border pb-3">
+              <h3 className="text-sm font-semibold text-text">
+                Filters for {selected.name}
+              </h3>
+              <p className="mt-1 text-xs text-text-muted">
+                Preview matches from your whole library. Save these filters to
+                update this shelf automatically.
+              </p>
+            </div>
+          ) : null}
           <FilterGroup label="Progress">
             <Pill
               selected={!filters.status}
@@ -399,41 +446,57 @@ export function LibraryOrganizationToolbar({
             ))}
           </FilterGroup>
           <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <Button
-              variant="secondary"
-              icon={Plus}
-              disabled={!activeCount}
-              onClick={() => edit("filter")}
-            >
-              Save as shelf
-            </Button>
+            {selected ? (
+              <Button
+                variant="primary"
+                icon={Save}
+                aria-label={`Save filters to ${selected.name}`}
+                disabled={!activeCount || !filtersChanged}
+                onClick={() => {
+                  save({ ...selected, filters: draftFilters });
+                  closeFilters();
+                  addToast({
+                    tone: "success",
+                    title: "Filters saved",
+                    detail: selected.name,
+                  });
+                }}
+              >
+                Save filters
+              </Button>
+            ) : null}
+            {selected ? (
+              <Button variant="ghost" onClick={closeFilters}>
+                Cancel
+              </Button>
+            ) : null}
             {selected?.filters ? (
               <Button
-                variant="secondary"
-                onClick={() =>
-                  save({
-                    ...selected,
-                    filters: {
-                      ...filters,
-                      source,
-                      search: query.trim() || undefined,
-                    },
-                  })
-                }
+                variant="ghost"
+                onClick={() => {
+                  save({ ...selected, filters: undefined });
+                  closeFilters();
+                  addToast({
+                    tone: "success",
+                    title: "Saved filters removed",
+                    detail: selected.name,
+                  });
+                }}
               >
-                Update {selected.name}
+                Remove saved filters
               </Button>
             ) : null}
             <Button
               variant="ghost"
-              onClick={() => onFiltersChange({})}
+              onClick={onClearFilters}
               disabled={!activeCount}
             >
               Clear filters
             </Button>
             <p className="ml-auto text-xs text-text-faint">
-              A saved shelf keeps these rules, the search, and the import
-              source.
+              {selected
+                ? "Removing saved filters restores games added by hand."
+                : "Create or select a shelf to save filters."}
             </p>
           </div>
         </div>
@@ -447,6 +510,17 @@ export function LibraryOrganizationToolbar({
           focusFirstItem
         >
           <ContextMenuHeading>{menuShelf.name}</ContextMenuHeading>
+          <ContextMenuItem
+            icon={SlidersHorizontal}
+            onClick={() => {
+              closeShelfMenu();
+              onSelect(menuShelf.id);
+              onExpandedChange(true);
+              focusFiltersButton();
+            }}
+          >
+            Edit filters
+          </ContextMenuItem>
           <ContextMenuItem
             icon={Pencil}
             onClick={() => {
@@ -472,13 +546,7 @@ export function LibraryOrganizationToolbar({
       {editor ? (
         <Modal
           labelId="shelf-editor-title"
-          title={
-            typeof editor === "object"
-              ? "Edit shelf"
-              : editor === "filter"
-                ? "Save filter as shelf"
-                : "New shelf"
-          }
+          title={typeof editor === "object" ? "Edit shelf" : "New shelf"}
           icon={FolderHeart}
           onClose={() => setEditor(null)}
           footer={
@@ -498,25 +566,17 @@ export function LibraryOrganizationToolbar({
             onSubmit={(event) => {
               event.preventDefault();
               if (!name.trim()) return;
-              const builtin =
-                selection === "favorites" ? { favorite: true } : {};
               const id = save({
                 id: typeof editor === "object" ? editor.id : undefined,
                 name,
                 filters:
-                  editor === "filter"
-                    ? {
-                        ...builtin,
-                        ...filters,
-                        source,
-                        search: query.trim() || undefined,
-                      }
-                    : typeof editor === "object"
-                      ? editor.filters
-                      : undefined,
+                  typeof editor === "object" ? editor.filters : undefined,
               });
               if (id) {
-                if (typeof editor !== "object") onSelect(id);
+                if (typeof editor !== "object") {
+                  onExpandedChange(false);
+                  onSelect(id);
+                }
                 setEditor(null);
               }
             }}
@@ -526,23 +586,13 @@ export function LibraryOrganizationToolbar({
               aria-label="Shelf name"
               maxLength={NAME_LIMIT}
               value={name}
-              placeholder={
-                editor === "filter" ? "Installed but unplayed" : "Weekend games"
-              }
+              placeholder="Weekend games"
               onChange={(e) => setName(e.target.value)}
             />
-            {editor === "filter" ? (
-              <p className="text-sm text-text-muted">
-                Games join and leave this shelf on their own as your library
-                changes.
-              </p>
-            ) : null}
-            {typeof editor === "object" && editor.filters ? (
-              <p className="text-xs text-text-muted">
-                Change its rules under Filters, then choose Update {editor.name}
-                .
-              </p>
-            ) : null}
+            <p className="text-xs text-text-muted">
+              Add games by hand, or open Filters on this shelf to save rules
+              that fill it automatically.
+            </p>
           </form>
         </Modal>
       ) : null}

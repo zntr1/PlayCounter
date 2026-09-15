@@ -25,6 +25,7 @@ export type GameJournal = {
   note: string;
   favorite: boolean;
   status: GameStatus | null;
+  /** Manual additions stay here while a shelf uses saved filters. */
   shelfIds: string[];
   /** Null selects the built-in default playthrough. */
   activePlaythroughId: string | null;
@@ -46,6 +47,25 @@ export type PersonalShelf = {
   /** Absent for a shelf with manually selected games. */
   filters?: LibraryFilters;
 };
+
+/** Defaults and inactive rules do not make a saved filter different. */
+export function normalizeLibraryFilters(
+  filters: LibraryFilters,
+): LibraryFilters {
+  const normalized: LibraryFilters = {};
+  const search = filters.search?.trim();
+  if (search) normalized.search = search;
+  if (filters.source && filters.source !== "all")
+    normalized.source = filters.source;
+  if (filters.status) normalized.status = filters.status;
+  if (filters.favorite) normalized.favorite = true;
+  if (filters.installed !== undefined) normalized.installed = filters.installed;
+  if (filters.played) normalized.played = filters.played;
+  if (filters.emulator) normalized.emulator = filters.emulator;
+  if (filters.lastPlayedDays)
+    normalized.lastPlayedDays = filters.lastPlayedDays;
+  return normalized;
+}
 export type JournalTarget = {
   game: GameIdentityRef;
   tab?: "note" | "playthroughs" | "organize";
