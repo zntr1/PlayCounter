@@ -316,8 +316,18 @@ export function ImportLibraryView() {
       setManualExecutables(
         Object.fromEntries(
           result.games.flatMap((game) => {
-            const declared = game.executables.find((item) => item.declared);
-            return declared ? [[game.externalId, declared.relativePath]] : [];
+            const candidates = importExeCandidates(
+              game.executables,
+              [],
+              game.name,
+              ignoredProcesses,
+            );
+            const preselected =
+              candidates.find((item) => item.declared) ??
+              (candidates.length === 1 ? candidates[0] : undefined);
+            return preselected
+              ? [[game.externalId, preselected.relativePath]]
+              : [];
           }),
         ),
       );

@@ -334,6 +334,7 @@ export type DesktopOverlaySettingKey =
   | "desktopOverlaysEnabled"
   | "overlayFirstDetections"
   | "overlaySessionStarts"
+  | "overlayPlaythroughNames"
   | "overlayGameNotes"
   | "overlaySessionSummaries"
   | "overlayMilestones"
@@ -621,6 +622,7 @@ const defaultSettings: Settings = {
   overlayMonitor: "primary",
   overlayFirstDetections: true,
   overlaySessionStarts: true,
+  overlayPlaythroughNames: false,
   overlayGameNotes: false,
   overlaySessionSummaries: true,
   overlayMilestones: true,

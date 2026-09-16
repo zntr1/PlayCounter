@@ -530,6 +530,8 @@ export interface Settings {
   overlayMonitor?: string;
   overlayFirstDetections?: boolean;
   overlaySessionStarts?: boolean;
+  /** Show playthrough names in session popups. Absent = disabled. */
+  overlayPlaythroughNames?: boolean;
   overlayGameNotes?: boolean;
   overlaySessionSummaries?: boolean;
   overlayMilestones?: boolean;
