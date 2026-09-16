@@ -189,7 +189,6 @@ comppkgsrv.exe
 consent.exe
 credentialuibroker.exe
 custominstallexec.exe
-defrag.exe
 devicecensus.exe
 directxdatabaseupdater.exe
 disksnapshot.exe
