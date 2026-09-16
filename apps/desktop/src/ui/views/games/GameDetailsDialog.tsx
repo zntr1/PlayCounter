@@ -65,6 +65,8 @@ export type GameDetailsTarget = {
   coverUrl: string;
   source: GameSource | null;
   sources: GameSource[];
+  emulatorSources?: GameSource[];
+  emulatorApproval?: "pending";
   totalSeconds: number;
   recordedSeconds: number;
   adjustmentSeconds: number;
@@ -348,11 +350,15 @@ export function GameDetailsDialog({
             <div className="flex flex-wrap items-center gap-2">
               <GameProvenanceBadges
                 sources={game.sources}
-                approval={communitySuggestionApproval({
-                  suggestionId: game.communitySuggestionId,
-                  verified: game.communitySuggestionVerified,
-                  status: game.communitySuggestionStatus,
-                })}
+                emulatorSources={game.emulatorSources}
+                approval={
+                  game.emulatorApproval ??
+                  communitySuggestionApproval({
+                    suggestionId: game.communitySuggestionId,
+                    verified: game.communitySuggestionVerified,
+                    status: game.communitySuggestionStatus,
+                  })
+                }
                 providers={importedProviders}
                 emulatorIds={game.emulatorIds}
                 unknownDurationProviders={importedProviders.filter((provider) =>

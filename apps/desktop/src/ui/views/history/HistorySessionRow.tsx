@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { getSessionGameKey } from "../../../historyStats";
+import { emulatorSessionProvenance } from "../../../emulators/provenance";
 import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
 import { useAppStore, type GameIdentityResolver } from "../../../store";
@@ -90,7 +92,19 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
-  const source = session.source ?? metadata?.source;
+  const provenance = useAppStore(
+    useShallow((state) =>
+      emulatorSessionProvenance(
+        session,
+        session.emulator
+          ? state.emulatorMappings.get(session.emulator.contentKey)
+          : undefined,
+      ),
+    ),
+  );
+  const source = session.emulator
+    ? provenance.source
+    : (session.source ?? metadata?.source);
   const gameName =
     session.gameName ??
     metadata?.gameName ??
@@ -285,7 +299,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       <div className="flex min-w-0 flex-col justify-center">
         <div className="flex min-w-0 items-center gap-2">
           <h3 className="truncate text-base font-bold text-text">{gameName}</h3>
-          <SourceBadge source={source} />
+          <SourceBadge
+            source={source}
+            approval={session.emulator ? provenance.approval : undefined}
+            emulator={Boolean(session.emulator)}
+          />
           {session.emulator ? (
             <EmulatorBadge
               emulatorId={session.emulator.emulatorId}
@@ -300,7 +318,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
               Manual
             </span>
           ) : null}
-          {source === "custom" ? (
+          {!session.emulator && source === "custom" ? (
             <CommunityApprovalBadge
               suggestionId={
                 session.communitySuggestionId ?? metadata?.communitySuggestionId

@@ -164,22 +164,39 @@ export function communitySuggestionApproval(value: {
   return undefined;
 }
 
-function sourceTip(source: GameSource, approval?: SourceApproval) {
+const emulatorSourceTips: Record<GameSource, string> = {
+  igdb: "Suggested from an IGDB game-title search. This file match has not been community approved.",
+  community: "This emulator game match was approved by the community.",
+  custom: "This emulator game match is saved on this PC.",
+};
+
+function sourceDescription(source: GameSource, emulator: boolean) {
+  return emulator ? emulatorSourceTips[source] : sourceMeta[source].tip;
+}
+
+function sourceTip(
+  source: GameSource,
+  approval?: SourceApproval,
+  emulator = false,
+) {
   const meta = sourceMeta[source];
+  const description = sourceDescription(source, emulator);
   return approval
-    ? `${meta.label}: ${meta.tip} ${approvalMeta[approval].tip}`
-    : `${meta.label}: ${meta.tip}`;
+    ? `${meta.label}: ${description} ${approvalMeta[approval].tip}`
+    : `${meta.label}: ${description}`;
 }
 
 export function SourceBadge({
   source,
   variant = "label",
   approval,
+  emulator = false,
   dataTour,
 }: {
   source?: GameSource | null;
   variant?: BadgeVariant;
   approval?: SourceApproval;
+  emulator?: boolean;
   dataTour?: string;
 }) {
   if (!source) return null;
@@ -187,7 +204,7 @@ export function SourceBadge({
   const Icon = meta.icon;
   const pip = approval ? approvalMeta[approval] : null;
   const PipIcon = pip?.icon;
-  const tip = sourceTip(source, approval);
+  const tip = sourceTip(source, approval, emulator);
 
   if (variant === "mark") {
     return (
@@ -224,12 +241,14 @@ export function SourceBadge({
 
 export function GameMatchBadges({
   sources,
+  emulatorSources = [],
   approval,
   variant = "mark",
   dataTourPrefix,
   className = "",
 }: {
   sources: readonly GameSource[];
+  emulatorSources?: readonly GameSource[];
   approval?: SourceApproval;
   variant?: BadgeVariant;
   dataTourPrefix?: string;
@@ -245,6 +264,7 @@ export function GameMatchBadges({
         <SourceBadge
           key={source}
           source={source}
+          emulator={emulatorSources.includes(source)}
           variant={variant}
           approval={source === "custom" ? approval : undefined}
           dataTour={dataTourPrefix ? `${dataTourPrefix}-${source}` : undefined}
@@ -534,6 +554,7 @@ function LegendRow({
  *  here: icon-only marks have to teach themselves somewhere. */
 export function GameProvenanceBadges({
   sources,
+  emulatorSources = [],
   approval,
   providers,
   emulatorIds,
@@ -543,6 +564,7 @@ export function GameProvenanceBadges({
   className = "",
 }: {
   sources: readonly GameSource[];
+  emulatorSources?: readonly GameSource[];
   approval?: SourceApproval;
   providers: readonly LibraryProviderId[];
   emulatorIds: readonly string[];
@@ -564,6 +586,7 @@ export function GameProvenanceBadges({
       <div className="group/provenance relative flex flex-wrap items-center gap-y-1">
         <GameMatchBadges
           sources={sources}
+          emulatorSources={emulatorSources}
           approval={approval}
           dataTourPrefix={dataTourPrefix}
         />
@@ -576,6 +599,10 @@ export function GameProvenanceBadges({
               <LegendHeading>How this file was matched</LegendHeading>
               {sources.map((source) => {
                 const meta = sourceMeta[source];
+                const description = sourceDescription(
+                  source,
+                  emulatorSources.includes(source),
+                );
                 const Icon = meta.icon;
                 const pip =
                   source === "custom" && approval
@@ -589,7 +616,7 @@ export function GameProvenanceBadges({
                     }
                     tone={meta.tone}
                     label={meta.label}
-                    tip={pip ? `${meta.tip} ${pip.tip}` : meta.tip}
+                    tip={pip ? `${description} ${pip.tip}` : description}
                   />
                 );
               })}

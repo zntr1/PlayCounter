@@ -13,6 +13,7 @@ import { useAppStore, useIsOffline } from "../../store";
 import { emulatorAssetUrls } from "../../emulators/assets";
 import { adapterFor } from "../../emulators/registry";
 import type { EmulatorMapping } from "../../emulators/types";
+import { emulatorMappingProvenance } from "../../emulators/provenance";
 import { emulatorLaunchErrorMessage } from "../../emulatorLaunch";
 import { currentPlatform } from "../../platform";
 import {
@@ -420,6 +421,7 @@ function LinkedGameRow({
   onForget?: () => void;
 }) {
   const detectionSource = emulatorDetectionSourceLabel(mapping.detectionSource);
+  const provenance = emulatorMappingProvenance(mapping);
   const addToast = useAppStore((state) => state.addToast);
   const installUuid = useAppStore((state) => state.installUuid);
   const offline = useIsOffline();
@@ -497,7 +499,7 @@ function LinkedGameRow({
           <div className="truncate font-medium text-text">
             {mapping.gameName}
           </div>
-          <SourceBadge source={mapping.source} />
+          <SourceBadge source={provenance.source} emulator />
           {mapping.needsConfirmation ? (
             <span
               className="rounded border border-warning-border bg-warning-tint px-1.5 py-0.5 text-[11px] font-medium text-warning"

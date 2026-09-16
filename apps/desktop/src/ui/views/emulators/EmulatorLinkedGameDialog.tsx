@@ -2,6 +2,7 @@ import type { Game } from "@playcounter/shared";
 import { Gamepad2, Repeat2 } from "lucide-react";
 import { useState } from "react";
 import type { EmulatorMapping } from "../../../emulators/types";
+import { emulatorMappingProvenance } from "../../../emulators/provenance";
 import { useAppStore } from "../../../store";
 import { addCustomEmulatorGame, selectEmulatorGame } from "../../../tracker";
 import { SourceBadge } from "../../components";
@@ -29,6 +30,7 @@ export function EmulatorLinkedGameDialog({
   const [busy, setBusy] = useState(false);
   const labelId = `change-emulator-game-${mapping.contentKey.replace(/[^a-z0-9]/gi, "-")}`;
   const platformLabel = guestPlatformLabel(mapping.emulatorId);
+  const provenance = emulatorMappingProvenance(mapping);
 
   async function apply(game: Game) {
     if (busy) return;
@@ -113,7 +115,7 @@ export function EmulatorLinkedGameDialog({
             <span className="truncate font-semibold text-text">
               {mapping.gameName}
             </span>
-            <SourceBadge source={mapping.source} />
+            <SourceBadge {...provenance} emulator />
           </div>
         </div>
       </div>
