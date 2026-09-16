@@ -327,6 +327,7 @@ const settings = object({}, {
   overlayMonitor: string,
   overlayFirstDetections: boolean,
   overlaySessionStarts: boolean,
+  overlayPlaythroughNames: boolean,
   overlayGameNotes: boolean,
   overlaySessionSummaries: boolean,
   overlayMilestones: boolean,

@@ -51,6 +51,8 @@ beforeEach(() => {
       overlayDiscoveries: false,
       overlayFirstDetections: true,
       overlayMonitor: "primary",
+      overlayPlaythroughNames: false,
+      overlayGameNotes: false,
     },
   }));
 });
@@ -73,14 +75,21 @@ function showCalls() {
 }
 
 describe("desktop overlay bridge", () => {
-  it.each([false, true])(
-    "includes notes only when enabled (%s) while retaining playthrough context",
-    async (enabled) => {
+  it.each([
+    { names: undefined, notes: undefined },
+    { names: false, notes: false },
+    { names: true, notes: false },
+    { names: false, notes: true },
+    { names: true, notes: true },
+  ])(
+    "shows playthrough names and notes only when their own setting is enabled (%o)",
+    async ({ names, notes }) => {
       useAppStore.setState((state) => ({
         settings: {
           ...state.settings,
           desktopOverlaysEnabled: true,
-          overlayGameNotes: enabled,
+          overlayPlaythroughNames: names,
+          overlayGameNotes: notes,
         },
       }));
       initializeDesktopOverlays();
@@ -95,8 +104,37 @@ describe("desktop overlay bridge", () => {
       await flush();
       const payload = (showCalls()[0][1] as { payload: { body: string } })
         .payload;
-      expect(payload.body).toContain("Co-op");
-      expect(payload.body.includes("Northern ruins")).toBe(enabled);
+      expect(payload.body.includes("Co-op")).toBe(names === true);
+      expect(payload.body.includes("Northern ruins")).toBe(notes === true);
+    },
+  );
+
+  it.each([undefined, false, true])(
+    "keeps saved-session playthrough names opt-in (%s) and preserves the note action",
+    async (enabled) => {
+      useAppStore.setState((state) => ({
+        settings: {
+          ...state.settings,
+          desktopOverlaysEnabled: true,
+          overlayPlaythroughNames: enabled,
+        },
+      }));
+      initializeDesktopOverlays();
+      armDesktopOverlays();
+      emitOverlayEvent({
+        type: "session-ended",
+        sessionId: 37,
+        gameName: "Game",
+        playthroughName: "Co-op",
+        durationSeconds: 600,
+        totalSeconds: 600,
+      });
+      await flush();
+      const payload = (
+        showCalls()[0][1] as { payload: { body: string; action: string } }
+      ).payload;
+      expect(payload.body.includes("Co-op")).toBe(enabled === true);
+      expect(payload.action).toBe("open-game-note:37");
     },
   );
 

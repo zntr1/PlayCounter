@@ -556,6 +556,24 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
+            description="Show the playthrough name in game-start and saved-session popups."
+            title="Playthrough names in popups"
+          >
+            <input
+              type="checkbox"
+              aria-label="Playthrough names in popups"
+              checked={settings.overlayPlaythroughNames === true}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayPlaythroughNames",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
             description="Show the note of the game's active playthrough in the popup when a game starts."
             title="Notes in game-start popups"
           >

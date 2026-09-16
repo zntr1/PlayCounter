@@ -199,8 +199,10 @@ export function initializeDesktopOverlays() {
       return;
     }
     if (
-      previous.settings.overlayGameNotes === true &&
-      store.settings.overlayGameNotes !== true
+      (previous.settings.overlayGameNotes === true &&
+        store.settings.overlayGameNotes !== true) ||
+      (previous.settings.overlayPlaythroughNames === true &&
+        store.settings.overlayPlaythroughNames !== true)
     ) {
       clearDesktopOverlays();
     }
@@ -292,10 +294,20 @@ export function emitOverlayEvent(event: TrackerOverlayEvent) {
     const settings = useAppStore.getState().settings;
     const kind = overlayGate(event, settings);
     if (!kind) return;
-    const gatedEvent =
-      event.type === "session-started" && settings.overlayGameNotes !== true
-        ? { ...event, note: undefined }
-        : event;
+    let gatedEvent = event;
+    if (
+      (gatedEvent.type === "session-started" ||
+        gatedEvent.type === "session-ended") &&
+      settings.overlayPlaythroughNames !== true
+    ) {
+      gatedEvent = { ...gatedEvent, playthroughName: undefined };
+    }
+    if (
+      gatedEvent.type === "session-started" &&
+      settings.overlayGameNotes !== true
+    ) {
+      gatedEvent = { ...gatedEvent, note: undefined };
+    }
     const message = buildOverlayMessage(kind, gatedEvent, renderContext());
     state.queue.push(message);
   })().catch((error) => console.warn("desktop overlay routing failed", error));

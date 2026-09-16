@@ -103,6 +103,95 @@ it("opening the importer only detects local accounts and does not start API look
   expect(mocks.run).not.toHaveBeenCalled();
 });
 
+it.each(["steam", "xbox"] as const)(
+  "preselects the only eligible %s game file and imports it only after confirmation",
+  async (provider) => {
+    await act(() => store.setState({ libraryImportProvider: provider }));
+    const result = scanResult("Example Game");
+    const matchedGame = result.resolvedGames![0].game!;
+    result.games[0] = {
+      ...result.games[0],
+      installed: true,
+      installPath: String.raw`C:\Games\Example`,
+      executables: [
+        {
+          fileName: "Example.exe",
+          relativePath: String.raw`bin\Example.exe`,
+          sizeBytes: 1_000_000,
+          depth: 1,
+        },
+        {
+          fileName: "uninstall.exe",
+          relativePath: "uninstall.exe",
+          sizeBytes: 1_000_000,
+          depth: 0,
+        },
+      ],
+    };
+    result.resolvedGames = [
+      provider === "xbox"
+        ? {
+            key: "xbox:42",
+            status: "unknown",
+            executables: [],
+            candidates: [matchedGame],
+          }
+        : result.resolvedGames![0],
+    ];
+    mocks.scan.mockResolvedValue(result);
+    mocks.reverse.mockResolvedValue({ game: matchedGame, executables: [] });
+    mocks.run.mockResolvedValue({ shareOutcomes: [] });
+
+    await click(provider === "xbox" ? "Sign in and find games" : "Find games");
+    const picker = container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Game file for Example Game"]',
+    );
+    expect(picker?.value).toBe(String.raw`bin\Example.exe`);
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(store.getState().libraryImports.size).toBe(0);
+
+    await click(provider === "xbox" ? "Confirm and Import" : "Add and Share");
+    expect(mocks.run).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          entry: expect.objectContaining({
+            provider,
+            linkedExeNames: ["Example.exe"],
+          }),
+        }),
+      ],
+      expect.any(AbortSignal),
+    );
+  },
+);
+
+it("leaves multiple eligible game files for the user to choose", async () => {
+  const result = scanResult("Example Game");
+  result.games[0] = {
+    ...result.games[0],
+    installed: true,
+    installPath: String.raw`C:\Games\Example`,
+    executables: ["Example.exe", "ExampleDX12.exe"].map((fileName) => ({
+      fileName,
+      relativePath: fileName,
+      sizeBytes: 1_000_000,
+      depth: 0,
+    })),
+  };
+  mocks.scan.mockResolvedValue(result);
+  await click("Find games");
+  expect(
+    container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Game file for Example Game"]',
+    )?.value,
+  ).toBe("");
+  const addButton = [...container.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Add and Share",
+  );
+  expect(addButton?.disabled).toBe(true);
+  expect(mocks.run).not.toHaveBeenCalled();
+});
+
 it("shows automatic cooldown recovery during a Steam lookup and still allows cancellation", async () => {
   const lookup = deferred<unknown>();
   mocks.scan.mockResolvedValue({
