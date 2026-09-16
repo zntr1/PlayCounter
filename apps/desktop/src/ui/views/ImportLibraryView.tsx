@@ -495,9 +495,6 @@ export function ImportLibraryView() {
       if (!isCurrentImport(signal)) return;
       const result = await runLibraryImport([commit], signal);
       if (!isCurrentImport(signal)) return;
-      const shareFailed = result.shareOutcomes.some(
-        ({ outcome }) => outcome.kind === "failed",
-      );
       setSelected((current) => {
         const next = new Set(current);
         next.delete(game.externalId);
@@ -506,9 +503,9 @@ export function ImportLibraryView() {
       addToast({
         tone: "success",
         title: `${match.game?.name ?? game.name ?? "Game"} added to My Games`,
-        detail: shareFailed
-          ? "The game was added on this PC, but sharing the game file needs another try when you are back online."
-          : "The game file was sent to the community for review.",
+        detail: importShareDetail(
+          result.shareOutcomes.map(({ outcome }) => outcome.kind),
+        ),
       });
     } catch (cause) {
       if (!isCurrentImport(signal)) return;
@@ -712,7 +709,7 @@ export function ImportLibraryView() {
         label: "Needs attention",
         description: isXbox
           ? "Confirm which game this is before importing it."
-          : "Pick the game file, then add the game and share the file with the community.",
+          : "Pick the game file. Known matches are linked; unknown files can be shared with the community.",
         games: [] as ScannedLibraryGame[],
       },
       {
@@ -1240,10 +1237,10 @@ export function ImportRow({
           <div className="mt-3 max-w-2xl text-xs text-text-muted">
             <p>
               {xboxNeedsIdentity
-                ? "Pick the game file PlayCounter should watch. It goes to the community for review together with the game you confirm below."
+                ? "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below."
                 : showAddAndShare
-                  ? "Pick the game file PlayCounter should watch. Add and Share adds the game on this PC and sends the file to the community for review. It is not approved for everyone right away."
-                  : "Pick the game file PlayCounter should watch, then import this game again to save it. The file is sent to the community for review."}
+                  ? "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review."
+                  : "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review."}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
@@ -1440,6 +1437,16 @@ export function XboxMatchControls({
       ) : null}
     </div>
   );
+}
+
+export function importShareDetail(outcomes: readonly string[]) {
+  if (outcomes.includes("failed"))
+    return "The game was added on this PC, but its game file could not be verified or shared. Please try again later.";
+  if (outcomes.includes("rejected"))
+    return "The game was added on this PC. This game file suggestion was previously rejected; its review status has been preserved.";
+  if (outcomes.includes("submitted"))
+    return "The game file was sent to the community for review.";
+  return "An existing game file match was linked. No community review was needed.";
 }
 
 function requiresExecutableChoice(
