@@ -1,3 +1,4 @@
+import { rateLimitedFetch, responseError } from "./rateLimitedFetch";
 import type { GameDetails, GameDetailsResponse } from "@playcounter/shared";
 import { useEffect, useState } from "react";
 import { isOfflineStatus, useAppStore } from "./store";
@@ -33,12 +34,12 @@ async function requestGameDetails(
     REQUEST_TIMEOUT_MS,
   );
   try {
-    const response = await fetch(
+    const response = await rateLimitedFetch(
       `${endpoint}/api/games/details?igdbIds=${igdbId}`,
       { signal: controller.signal },
     );
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
     const body = (await response.json()) as GameDetailsResponse;
     // An API released before this endpoint answers 404, which throws above; an

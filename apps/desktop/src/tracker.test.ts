@@ -1,5 +1,6 @@
 import type { Contribution, Game, Session } from "@playcounter/shared";
 import type { EmulatorMapping } from "./emulators/types";
+import { rateLimitedFetch } from "./rateLimitedFetch";
 import { validateBackupData } from "./backupValidation";
 import * as overlayBridge from "./desktopOverlayBridge";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -926,6 +927,43 @@ describe("tracker request deadlines", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  it("keeps 429 in diagnostics without leaving a raw runtime warning, then retries tracking", async () => {
+    useAppStore.setState({
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://tracker-warning.example",
+      },
+    });
+    invokeMock.mockResolvedValue([{ exeName: "Game.exe", exePath: null }]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          matches: [
+            {
+              key: "game.exe",
+              game: { id: 42, name: "Game", source: "igdb", coverUrl: "" },
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    await scanProcessesNow();
+    expect(useAppStore.getState().runtimeError).toBeNull();
+    expect(
+      useAppStore
+        .getState()
+        .apiRequestLog.some((item) => item.detail === "429 Too Many Requests"),
+    ).toBe(true);
+    expect(useAppStore.getState().exeCache.has("game.exe")).toBe(false);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await scanProcessesNow();
+    expect(useAppStore.getState().activeSessions[0]?.gameId).toBe(42);
+  });
+
   function stalledBody(_input: RequestInfo | URL, init?: RequestInit) {
     return Promise.resolve({
       ok: true,
@@ -1110,6 +1148,75 @@ describe("same-name process instances", () => {
 });
 
 describe("install presence wiring", () => {
+  it("recovers health from offline even while other API routes are cooling down", async () => {
+    const endpoint = "https://health-recovery.example";
+    useAppStore.setState({
+      settings: { ...useAppStore.getState().settings, apiEndpoint: endpoint },
+      backendHealth: {
+        status: "offline",
+        checkedAt: null,
+        detail: "Disconnected",
+      },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+      )
+      .mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await rateLimitedFetch(`${endpoint}/api/library/resolve`);
+    await checkBackendHealth();
+    expect(useAppStore.getState().backendHealth.status).toBe("online");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toBe(`${endpoint}/health`);
+  });
+
+  it("restores offline state instead of leaving a throttled health check stuck reconnecting", async () => {
+    const health = {
+      status: "offline" as const,
+      checkedAt: null,
+      detail: "Disconnected",
+    };
+    useAppStore.setState({
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://old-health.example",
+      },
+      backendHealth: health,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+        ),
+    );
+    await checkBackendHealth();
+    expect(useAppStore.getState().backendHealth).toEqual(health);
+  });
+
+  it("does not mark an online backend offline when it is throttling", async () => {
+    useAppStore.setState({
+      settings: {
+        ...useAppStore.getState().settings,
+        apiEndpoint: "https://health-throttled.example",
+      },
+      backendHealth: { status: "online", checkedAt: null, detail: null },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    await checkBackendHealth();
+    await checkBackendHealth();
+    expect(useAppStore.getState().backendHealth.status).toBe("online");
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   const installUuid = "550e8400-e29b-41d4-a716-446655440000";
   const apiEndpoint = "https://api.playcounter.test";
   it("reports presence after a successful health check and keeps the marker in memory", async () => {

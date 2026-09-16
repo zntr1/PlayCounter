@@ -1,3 +1,5 @@
+import { requestLibraryJson, type RateLimitWaitListener } from "./request";
+import { responseError } from "../rateLimitedFetch";
 import type {
   LibraryProviderId,
   LibraryResolveRequest,
@@ -16,6 +18,7 @@ export async function resolveLibraryGames(
   provider: LibraryProviderId,
   games: readonly ScannedLibraryGame[],
   signal?: AbortSignal,
+  onRateLimitWait?: RateLimitWaitListener,
 ): Promise<LibraryResolveOutcome> {
   const resolved: ResolvedLibraryGame[] = [];
   const offsets =
@@ -34,20 +37,27 @@ export async function resolveLibraryGames(
         provider,
         externalId: game.externalId,
       }));
-    const response = await fetch(libraryResolveUrl(apiEndpoint), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ items } satisfies LibraryResolveRequest),
-      ...(signal ? { signal } : {}),
-    });
+    const response = await requestLibraryJson<LibraryResolveResponse>(
+      libraryResolveUrl(apiEndpoint),
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ items } satisfies LibraryResolveRequest),
+        ...(signal ? { signal } : {}),
+        onRateLimitWait,
+      },
+    );
     signal?.throwIfAborted();
     if ([404, 405, 501].includes(response.status)) {
       return { capability: "unsupported", games: [] };
     }
     if (!response.ok) {
-      throw new Error(`Library lookup failed (${response.status}).`);
+      throw responseError(
+        response,
+        `Library lookup failed (${response.status}).`,
+      );
     }
-    const body = (await response.json()) as LibraryResolveResponse;
+    const body = response.data;
     signal?.throwIfAborted();
     for (const item of body.results) {
       const flagged = new Set(

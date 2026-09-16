@@ -1,3 +1,4 @@
+import { rateLimitedFetch, responseError } from "../rateLimitedFetch";
 import clsx from "clsx";
 import {
   Bug,
@@ -92,13 +93,13 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
         installUuid,
       };
 
-      const response = await fetch(`${apiEndpoint}/api/feedback`, {
+      const response = await rateLimitedFetch(`${apiEndpoint}/api/feedback`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
-        throw new Error(`${response.status} ${response.statusText}`);
+        throw responseError(response);
       }
       (await response.json()) as FeedbackResponse;
 

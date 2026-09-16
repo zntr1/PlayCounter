@@ -96,6 +96,43 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+it("opening the importer only detects local accounts and does not start API lookups", () => {
+  expect(mocks.scan).not.toHaveBeenCalled();
+  expect(mocks.lookup).not.toHaveBeenCalled();
+  expect(mocks.reverse).not.toHaveBeenCalled();
+  expect(mocks.run).not.toHaveBeenCalled();
+});
+
+it("shows automatic cooldown recovery during a Steam lookup and still allows cancellation", async () => {
+  const lookup = deferred<unknown>();
+  mocks.scan.mockResolvedValue({
+    ...scanResult("Delayed game"),
+    resolvedGames: undefined,
+  });
+  mocks.lookup.mockImplementation(
+    (_endpoint, _provider, _games, _signal, onWait) => {
+      onWait(true);
+      return lookup.promise;
+    },
+  );
+  await click("Find games");
+  expect(container.textContent).toContain(
+    "Your import will continue automatically",
+  );
+  const signal = mocks.lookup.mock.calls[0][3] as AbortSignal;
+  const onWait = mocks.lookup.mock.calls[0][4] as (waiting: boolean) => void;
+  await click("Cancel import");
+  expect(signal.aborted).toBe(true);
+  await act(() => {
+    onWait(true);
+    lookup.resolve({ capability: "supported", games: [] });
+  });
+  expect(container.textContent).not.toContain(
+    "Your import will continue automatically",
+  );
+  expect(mocks.run).not.toHaveBeenCalled();
+});
+
 it("ignores late native scan results after cancellation and a new scan", async () => {
   const old = deferred<LibraryScanResult>();
   mocks.scan
