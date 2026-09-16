@@ -46,6 +46,7 @@ import {
 import { emulatorAssetUrls } from "../emulators/assets";
 import { BackToTopButton } from "./BackToTopButton";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { RequestWarning } from "./RequestWarning";
 import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
@@ -708,11 +709,7 @@ export function App() {
             </Button>
           </div>
         </header>
-        {runtimeError ? (
-          <div className="border-b border-warning-border bg-warning-tint px-7 py-2 text-sm text-warning">
-            {runtimeError}
-          </div>
-        ) : null}
+        <RequestWarning apiEndpoint={apiEndpoint} runtimeError={runtimeError} />
         {startupUpdate?.status === "available" ? (
           <div className="flex items-center justify-between gap-4 border-b border-info-border bg-info-tint px-7 py-2 text-sm text-info">
             <span className="min-w-0">

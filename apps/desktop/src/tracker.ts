@@ -1,4 +1,5 @@
 import { requestJsonResponse, requestWithTimeout } from "./requestJson";
+import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import {
@@ -2383,7 +2384,7 @@ async function applyEmulatorReadings(
       if (response.status === 404 || response.status === 501) {
         emulatorLookupUnavailableUntil = Date.now() + 30 * 60_000;
       }
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
     const body = response.data;
     const results = new Map(body.results.map((result) => [result.key, result]));
@@ -2699,8 +2700,7 @@ async function resolveProcesses(
           body: JSON.stringify({ processes: batch }),
         },
       );
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
+      if (!response.ok) throw responseError(response);
 
       const body = response.data;
       const matchedCount = body.matches.filter((match) => match.game).length;
@@ -2712,14 +2712,20 @@ async function resolveProcesses(
       }
     } catch (error) {
       logRuntime(
-        `match API batch failed count=${batch.length}: ${formatError(error)}`,
+        `match API batch failed count=${batch.length}: ${error instanceof RateLimitError ? "429 Too Many Requests" : formatError(error)}`,
       );
       state.addApiRequestLogEntry({
         endpoint: state.settings.apiEndpoint,
         exeName: `${batch.length} executables`,
         status: "error",
-        detail: formatError(error),
+        detail:
+          error instanceof RateLimitError
+            ? "429 Too Many Requests"
+            : formatError(error),
       });
+      // The live cooldown notice explains throttling and clears itself.
+      // Keep pending executables uncached for a later automatic scan.
+      if (error instanceof RateLimitError) break;
       if (
         state.backendHealth.status === "offline" ||
         state.backendHealth.status === "reconnecting"
@@ -2783,8 +2789,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
           body: JSON.stringify({ processes: batch }),
         },
       );
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
+      if (!response.ok) throw responseError(response);
 
       const body = response.data;
       for (const result of body.matches) {
@@ -3440,7 +3445,7 @@ export async function findGameMatches(
     },
   );
   if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
+    throw responseError(response);
   }
 
   const body = response.data;
@@ -3500,8 +3505,7 @@ export async function searchEmulatorGames(
     `${endpoint}/api/emulator/games/search?emulatorId=${encodeURIComponent(emulatorId)}&query=${encodeURIComponent(value)}`,
     { timeoutMs: API_REQUEST_TIMEOUT_MS },
   );
-  if (!response.ok)
-    throw new Error(`${response.status} ${response.statusText}`);
+  if (!response.ok) throw responseError(response);
   return response.data.games.map((game) => ({
     ...game,
     source: game.source ?? "igdb",
@@ -3568,7 +3572,7 @@ export async function shareEmulatorMapping(
       return { kind: "unavailable" };
     }
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
     const body = response.data;
     if (
@@ -4475,7 +4479,7 @@ async function submitIdentifierReport(
       },
     );
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
     const result = response.data;
     state.addApiRequestLogEntry({
@@ -4634,7 +4638,7 @@ async function submitIgnoredProcessReport(
       },
     );
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
     const result = response.data;
     state.addApiRequestLogEntry({
@@ -4775,10 +4779,17 @@ export async function checkBackendHealth() {
       {
         cache: "no-store",
         timeoutMs: BACKEND_HEALTH_TIMEOUT_MS,
+        rateLimitScope: "endpoint",
       },
     );
+    // Throttling is not a loss of connectivity. Preserve the current health
+    // state until the next scheduled check instead of triggering reconnects.
+    if (response.status === 429) {
+      state.setBackendHealth(state.backendHealth);
+      return;
+    }
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
 
     const body = response.data;
@@ -5024,8 +5035,7 @@ export async function pollContributions(
       `${state.settings.apiEndpoint}/api/community/contributions?${params}`,
       { timeoutMs: API_REQUEST_TIMEOUT_MS },
     );
-    if (!response.ok)
-      throw new Error(`${response.status} ${response.statusText}`);
+    if (!response.ok) throw responseError(response);
     const body = response.data;
     const previous = useAppStore.getState().seenContributionStatus;
     const arrived: AppNotification[] = [];
@@ -5643,7 +5653,7 @@ export async function cancelCommunitySuggestion(
       return { kind: "unavailable" };
     }
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
 
     const body = response.data;
@@ -5810,7 +5820,7 @@ export async function submitLocalLinkToCommunity(
       },
     );
     if (!response.ok) {
-      throw new Error(`${response.status} ${response.statusText}`);
+      throw responseError(response);
     }
     const result = response.data;
     signal?.throwIfAborted();
@@ -6567,8 +6577,7 @@ export async function hydrateGameMetadata(
         `${state.settings.apiEndpoint}/api/games/metadata?ids=${missingIds.join(",")}`,
         { timeoutMs: API_REQUEST_TIMEOUT_MS },
       );
-      if (!response.ok)
-        throw new Error(`${response.status} ${response.statusText}`);
+      if (!response.ok) throw responseError(response);
 
       const body = response.data;
       const games = body.games.filter(

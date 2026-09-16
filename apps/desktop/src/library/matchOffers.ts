@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { rateLimitDelay } from "../rateLimitedFetch";
 import { createGameIdentityResolver, useAppStore } from "../store";
 import { checkLibraryImportForMatches } from "./recheck";
 import { libraryEntryKey, type LibraryImportEntry } from "./types";
@@ -69,6 +70,8 @@ export function startLibraryImportMatchChecks(): () => void {
   let disposed = false;
   let running = false;
   let retryRequested = false;
+  const lifetime = new AbortController();
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
   useLibraryMatchOffers.setState({ offers: new Map() });
 
   async function check() {
@@ -78,6 +81,8 @@ export function startLibraryImportMatchChecks(): () => void {
       retryRequested = true;
       return;
     }
+    if (retryTimer) globalThis.clearTimeout(retryTimer);
+    retryTimer = undefined;
     running = true;
     const queue = [...pending];
     try {
@@ -86,6 +91,8 @@ export function startLibraryImportMatchChecks(): () => void {
         Array.from({ length: Math.min(3, queue.length) }, async () => {
           while (!disposed && queue.length > 0) {
             if (useAppStore.getState().backendHealth.status === "offline")
+              return;
+            if (rateLimitDelay(useAppStore.getState().settings.apiEndpoint) > 0)
               return;
             const [key, entry] = queue.shift()!;
             const state = useAppStore.getState();
@@ -131,16 +138,28 @@ export function startLibraryImportMatchChecks(): () => void {
               }
             } catch {
               // A failed lookup must not interrupt startup. Keep it pending for
-              // the next offline-to-online transition; manual checks still work.
+              // cooldown expiry or the next offline-to-online transition.
+              if (rateLimitDelay(state.settings.apiEndpoint) > 0)
+                retryRequested = true;
             } finally {
               globalThis.clearTimeout(timeout);
               controllers.delete(controller);
             }
+            // Three workers, at most one request each every three seconds.
+            // Leave room in the API allowance for tracking and user actions.
+            if (queue.length > 0 && !disposed)
+              await pauseLibraryCheck(lifetime.signal);
           }
         }),
       );
     } finally {
       running = false;
+      const delay = rateLimitDelay(useAppStore.getState().settings.apiEndpoint);
+      if (!disposed && pending.size > 0 && delay > 0) {
+        retryRequested = false;
+        retryTimer = globalThis.setTimeout(() => void check(), delay);
+        return;
+      }
       if (retryRequested) {
         retryRequested = false;
         void check();
@@ -159,8 +178,23 @@ export function startLibraryImportMatchChecks(): () => void {
   void check();
   return () => {
     disposed = true;
+    lifetime.abort();
+    if (retryTimer) globalThis.clearTimeout(retryTimer);
     unsubscribe();
     for (const controller of controllers) controller.abort();
     useLibraryMatchOffers.setState({ offers: new Map() });
   };
+}
+
+function pauseLibraryCheck(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const finish = () => {
+      globalThis.clearTimeout(timer);
+      signal.removeEventListener("abort", finish);
+      resolve();
+    };
+    const timer = globalThis.setTimeout(finish, 3_000);
+    signal.addEventListener("abort", finish, { once: true });
+  });
 }

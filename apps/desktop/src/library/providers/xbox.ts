@@ -1,3 +1,9 @@
+import {
+  rateLimitedFetch,
+  rateLimitDelay,
+  responseError,
+} from "../../rateLimitedFetch";
+import { requestLibraryJson } from "../request";
 import type {
   GameMetadataResponse,
   LibraryKnownExecutable,
@@ -106,15 +112,22 @@ export async function scanXboxLibrary(
   };
 
   try {
-    const startResponse = await fetch(`${apiEndpoint}/api/xbox/import/start`, {
-      method: "POST",
-      signal: requestController.signal,
-    });
+    const startResponse = await requestLibraryJson<unknown>(
+      `${apiEndpoint}/api/xbox/import/start`,
+      {
+        method: "POST",
+        signal: requestController.signal,
+        onRateLimitWait: options.onRateLimitWait,
+      },
+    );
     if (!startResponse.ok) {
-      throw new Error(`Xbox import could not start (${startResponse.status}).`);
+      throw responseError(
+        startResponse,
+        `Xbox import could not start (${startResponse.status}).`,
+      );
     }
 
-    const start = parseXboxImportStart(await startResponse.json());
+    const start = parseXboxImportStart(startResponse.data);
     attemptId = start.attemptId;
     attemptActive = true;
     ensureNotAborted(requestController.signal);
@@ -134,10 +147,22 @@ export async function scanXboxLibrary(
 
     while (true) {
       ensureNotAborted(requestController.signal);
-      const resultResponse = await fetch(
+      const resultResponse = await rateLimitedFetch(
         `${apiEndpoint}/api/xbox/import/result?attemptId=${encodeURIComponent(attemptId)}`,
         { signal: requestController.signal },
       );
+      if (resultResponse.status === 429) {
+        options.onRateLimitWait?.(true);
+        try {
+          await abortableDelay(
+            Math.min(60_000, Math.max(1_000, rateLimitDelay(apiEndpoint))),
+            requestController.signal,
+          );
+        } finally {
+          options.onRateLimitWait?.(false);
+        }
+        continue;
+      }
       if (!resultResponse.ok) {
         throw new Error(
           `Xbox import status could not be checked (${resultResponse.status}).`,
@@ -231,7 +256,7 @@ async function cancelXboxImport(apiEndpoint: string, attemptId: string) {
     XBOX_CANCEL_TIMEOUT_MS,
   );
   try {
-    await fetch(`${apiEndpoint}/api/xbox/import/cancel`, {
+    await rateLimitedFetch(`${apiEndpoint}/api/xbox/import/cancel`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ attemptId } satisfies XboxImportCancelRequest),
@@ -247,17 +272,22 @@ async function cancelXboxImport(apiEndpoint: string, attemptId: string) {
 export async function searchXboxGames(
   apiEndpoint: string,
   rawQuery: string,
+  signal?: AbortSignal,
 ): Promise<GameMetadata[]> {
   const query = rawQuery.trim();
   if (query.length < 2) return [];
   const endpoint = apiEndpoint.replace(/\/+$/, "");
-  const response = await fetch(
+  const response = await requestLibraryJson<unknown>(
     `${endpoint}/api/games/search?query=${encodeURIComponent(query)}&mainGamesAndRemastersOnly=true`,
+    { signal },
   );
   if (!response.ok) {
-    throw new Error(`Xbox game search failed (${response.status}).`);
+    throw responseError(
+      response,
+      `Xbox game search failed (${response.status}).`,
+    );
   }
-  const value: unknown = await response.json();
+  const value = response.data;
   const record = asRecord(value);
   if (!record || !Array.isArray(record.games)) {
     throw new Error("Xbox game search returned an invalid response.");
@@ -275,16 +305,22 @@ export async function reverseResolveXboxGame(
   executables: LibraryKnownExecutable[];
 }> {
   const endpoint = apiEndpoint.replace(/\/+$/, "");
-  const response = await fetch(`${endpoint}/api/library/reverse-resolve`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ gameId } satisfies LibraryReverseResolveRequest),
-    ...(signal ? { signal } : {}),
-  });
+  const response = await requestLibraryJson<unknown>(
+    `${endpoint}/api/library/reverse-resolve`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ gameId } satisfies LibraryReverseResolveRequest),
+      ...(signal ? { signal } : {}),
+    },
+  );
   if (!response.ok) {
-    throw new Error(`The game file lookup failed (${response.status}).`);
+    throw responseError(
+      response,
+      `The game file lookup failed (${response.status}).`,
+    );
   }
-  const record = asRecord(await response.json());
+  const record = asRecord(response.data);
   if (!record || !Array.isArray(record.executables)) {
     throw new Error("The game file lookup sent back an invalid response.");
   }

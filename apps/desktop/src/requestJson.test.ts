@@ -39,6 +39,23 @@ function stallResponseBody(headersDelay = 0) {
 }
 
 describe("JSON requests", () => {
+  it("gives manual actions a useful rate-limit message without promising an automatic retry", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+    );
+    const result = requestJson("https://manual-action.example/feedback", {
+      method: "POST",
+    });
+    await expect(result).rejects.toMatchObject({
+      name: "RateLimitError",
+      status: 429,
+      message:
+        "The server is temporarily busy. Please try this action again after the pause.",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("reads the response and releases the timer and cancellation listener", async () => {
     const controller = new AbortController();
     const removeListener = vi.spyOn(controller.signal, "removeEventListener");

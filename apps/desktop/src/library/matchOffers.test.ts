@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "../store";
+import { rateLimitedFetch } from "../rateLimitedFetch";
 import {
   checkLibraryImportForMatches,
   type LibraryImportMatchCheck,
@@ -81,9 +82,83 @@ afterEach(() => {
   stop?.();
   stop = undefined;
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("startup library match offers", () => {
+  it("leaves request capacity for tracking even with hundreds of startup entries", async () => {
+    vi.useFakeTimers();
+    setImports(Array.from({ length: 240 }, (_, index) => entry(index + 1)));
+    lookup.mockResolvedValue({ kind: "not_found" });
+    stop = startLibraryImportMatchChecks();
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(lookup).toHaveBeenCalledTimes(60);
+    stop();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(lookup).toHaveBeenCalledTimes(60);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("retains the retry when cooldown expires during the pacing delay", async () => {
+    vi.useFakeTimers();
+    const endpoint = "https://short-cooldown.example";
+    useAppStore.setState({
+      settings: { ...useAppStore.getState().settings, apiEndpoint: endpoint },
+    });
+    setImports([entry(1), entry(2), entry(3), entry(4)]);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(null, { status: 429, headers: { "Retry-After": "1" } }),
+        ),
+    );
+    lookup
+      .mockImplementationOnce(async () => {
+        await rateLimitedFetch(endpoint);
+        throw new Error("429");
+      })
+      .mockImplementation(async ({ entry }) => found(entry));
+    stop = startLibraryImportMatchChecks();
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(useLibraryMatchOffers.getState().offers.size).toBe(4);
+    expect(lookup).toHaveBeenCalledTimes(5);
+    stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("retries a throttled lookup after cooldown without a health transition", async () => {
+    vi.useFakeTimers();
+    const endpoint = "https://startup-cooldown.example";
+    useAppStore.setState({
+      settings: { ...useAppStore.getState().settings, apiEndpoint: endpoint },
+    });
+    setImports([entry(1)]);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+        ),
+    );
+    lookup
+      .mockImplementationOnce(async () => {
+        await rateLimitedFetch(endpoint);
+        throw new Error("429");
+      })
+      .mockImplementation(async ({ entry }) => found(entry));
+    stop = startLibraryImportMatchChecks();
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(lookup).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(lookup).toHaveBeenCalledTimes(2);
+    expect(useLibraryMatchOffers.getState().offers.size).toBe(1);
+    stop();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("offers Steam and Xbox matches without applying them, and checks only once per startup", async () => {
     const entries = [entry(1), entry(2, "xbox")];
     setImports(entries);
@@ -226,7 +301,8 @@ describe("startup library match offers", () => {
     },
   );
 
-  it("offers only usable matches and limits simultaneous lookups", async () => {
+  it("offers only usable matches and paces lookups", async () => {
+    vi.useFakeTimers();
     setImports([entry(1), entry(2), entry(3), entry(4), entry(5)]);
     const finish: Array<() => void> = [];
     lookup.mockImplementation(
@@ -240,7 +316,10 @@ describe("startup library match offers", () => {
     stop = startLibraryImportMatchChecks();
     expect(lookup).toHaveBeenCalledTimes(3);
     finish[0]();
-    await vi.waitFor(() => expect(lookup).toHaveBeenCalledTimes(4));
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(lookup).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(lookup).toHaveBeenCalledTimes(4);
     stop();
     finish.forEach((resolve) => resolve());
     await Promise.resolve();

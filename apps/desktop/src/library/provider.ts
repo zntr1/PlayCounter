@@ -13,6 +13,7 @@ export type LibraryScanOptions = {
   signal?: AbortSignal;
   onAuthorizeUrl?: (url: string) => void;
   onXboxProgress?: (stage: XboxImportProgressStage) => void;
+  onRateLimitWait?: (waiting: boolean) => void;
   openAuthorizeUrl?: boolean;
 };
 

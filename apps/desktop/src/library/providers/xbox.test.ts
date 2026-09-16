@@ -23,6 +23,97 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("Xbox library provider", () => {
+  it("waits and retries a throttled sign-in start before opening the browser", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          attemptId: firstAttemptId,
+          authorizeUrl:
+            "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    invokeMock.mockResolvedValue({ games: [], warnings: [], partial: false });
+    const waiting = vi.fn();
+    const run = scanXboxLibrary({
+      apiEndpoint: "https://xbox-start-cooldown.example",
+      onRateLimitWait: waiting,
+    });
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(waiting).toHaveBeenLastCalledWith(true);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(run).resolves.toMatchObject({ games: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "open_microsoft_signin_url",
+      ),
+    ).toHaveLength(1);
+    expect(waiting).toHaveBeenLastCalledWith(false);
+  });
+
+  it("can cancel before a throttled sign-in start without creating a later attempt", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    const run = scanXboxLibrary({
+      apiEndpoint: "https://xbox-cancel-start.example",
+      signal: controller.signal,
+    });
+    const rejected = expect(run).rejects.toThrow(/cancelled/i);
+    await vi.advanceTimersByTimeAsync(1_000);
+    controller.abort();
+    await rejected;
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(invokeMock).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("resumes a throttled status poll without cancelling the import", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          attemptId: firstAttemptId,
+          authorizeUrl:
+            "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(null, { status: 429, headers: { "Retry-After": "20" } }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    invokeMock.mockResolvedValue({ games: [], warnings: [], partial: false });
+    const result = scanXboxLibrary({
+      apiEndpoint: "https://xbox-cooldown.example",
+      openAuthorizeUrl: false,
+    });
+    await vi.advanceTimersByTimeAsync(19_999);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toMatchObject({ games: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[2][0])).toContain(
+      "/api/xbox/import/result",
+    );
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();

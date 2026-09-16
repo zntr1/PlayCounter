@@ -1,6 +1,15 @@
+import {
+  rateLimitedFetch,
+  responseError,
+  type RateLimitScope,
+} from "./rateLimitedFetch";
+
 const DEFAULT_TIMEOUT_MS = 8_000;
 
-type RequestOptions = RequestInit & { timeoutMs?: number };
+type RequestOptions = RequestInit & {
+  timeoutMs?: number;
+  rateLimitScope?: RateLimitScope;
+};
 
 /** Keeps cancellation and the deadline active until the response body is read. */
 export async function requestJson<T>(
@@ -8,7 +17,7 @@ export async function requestJson<T>(
   init: RequestOptions = {},
 ): Promise<T> {
   const result = await requestJsonResponse<T>(input, init);
-  if (!result.ok) throw new Error(`${result.status} ${result.statusText}`);
+  if (!result.ok) throw responseError(result);
   return result.data;
 }
 
@@ -39,7 +48,12 @@ export function requestJsonResponse<T>(
 /** The deadline covers both fetching and consuming the response. */
 export async function requestWithTimeout<T>(
   input: RequestInfo | URL,
-  { signal, timeoutMs = DEFAULT_TIMEOUT_MS, ...init }: RequestOptions,
+  {
+    signal,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    rateLimitScope,
+    ...init
+  }: RequestOptions,
   consume: (response: Response) => T | Promise<T>,
 ): Promise<T> {
   const controller = new AbortController();
@@ -56,7 +70,14 @@ export async function requestWithTimeout<T>(
 
   try {
     controller.signal.throwIfAborted();
-    const response = await fetch(input, { ...init, signal: controller.signal });
+    const response = await rateLimitedFetch(
+      input,
+      {
+        ...init,
+        signal: controller.signal,
+      },
+      rateLimitScope,
+    );
     controller.signal.throwIfAborted();
     const result = await consume(response);
     controller.signal.throwIfAborted();

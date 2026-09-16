@@ -22,6 +22,7 @@ import {
   searchXboxGames,
 } from "../../library/providers/xbox";
 import { resolveLibraryGames } from "../../library/resolve";
+import { RATE_LIMIT_MESSAGE } from "../../rateLimitedFetch";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import type {
   LibraryScanResult,
@@ -126,6 +127,7 @@ export function ImportLibraryView() {
   const [authorizeUrl, setAuthorizeUrl] = useState<string | null>(
     session.authorizeUrl,
   );
+  const [waitingForServer, setWaitingForServer] = useState(false);
   const [xboxProgress, setXboxProgress] =
     useState<XboxImportProgressStage>("authorization");
   const [activeImportGroup, setActiveImportGroup] =
@@ -165,6 +167,7 @@ export function ImportLibraryView() {
     setCapability(next.capability);
     setError(next.error);
     setAuthorizeUrl(next.authorizeUrl);
+    setWaitingForServer(false);
     setXboxProgress("authorization");
     setActiveImportGroup("ready");
     setAddingExternalId(null);
@@ -258,6 +261,7 @@ export function ImportLibraryView() {
     setResolved(new Map());
     setSelected(new Set());
     setAuthorizeUrl(null);
+    setWaitingForServer(false);
     setError(null);
     setAddingExternalId(null);
     setBrowsingExternalId(null);
@@ -276,6 +280,7 @@ export function ImportLibraryView() {
     setError(null);
     setAuthorizeUrl(null);
     setXboxProgress("authorization");
+    setWaitingForServer(false);
     setScan(null);
     setResolved(new Map());
     setSelected(new Set());
@@ -289,6 +294,9 @@ export function ImportLibraryView() {
       const result = await provider.scan(accountId, {
         apiEndpoint,
         signal: controller.signal,
+        onRateLimitWait: (waiting) => {
+          if (isCurrentImport(signal)) setWaitingForServer(waiting);
+        },
         onAuthorizeUrl: isXbox
           ? (url) => {
               if (!isCurrentImport(signal)) return;
@@ -320,6 +328,9 @@ export function ImportLibraryView() {
             providerId,
             result.games,
             signal,
+            (waiting) => {
+              if (isCurrentImport(signal)) setWaitingForServer(waiting);
+            },
           );
       if (!isCurrentImport(signal)) return;
       setCapability(lookup.capability);
@@ -790,7 +801,13 @@ export function ImportLibraryView() {
     return (
       <LoadingPanel
         label={
-          isXbox ? xboxScanLabel(xboxProgress) : "Scanning your Steam library…"
+          waitingForServer
+            ? "The server is busy. Your import will continue automatically…"
+            : isXbox
+              ? authorizeUrl
+                ? xboxScanLabel(xboxProgress)
+                : "Connecting to Xbox…"
+              : "Scanning your Steam library…"
         }
         onCancel={cancelImport}
         onCopySignInLink={
@@ -1299,6 +1316,11 @@ export function XboxMatchControls({
     candidates[0]?.igdbId ?? null,
   );
   const [searching, setSearching] = useState(false);
+  const searchController = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setSearching(false);
+    return () => searchController.current?.abort();
+  }, [apiEndpoint]);
   const [message, setMessage] = useState(
     candidates.length > 0
       ? "Choose the exact game, then confirm the match."
@@ -1310,10 +1332,18 @@ export function XboxMatchControls({
 
   async function runSearch() {
     if (query.trim().length < 2) return;
+    searchController.current?.abort();
+    const controller = new AbortController();
+    searchController.current = controller;
     setSearching(true);
     setMessage("");
     try {
-      const games = await searchXboxGames(apiEndpoint, query);
+      const games = await searchXboxGames(
+        apiEndpoint,
+        query,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
       setChoices(games);
       setSelectedIgdbId(games[0]?.igdbId ?? null);
       setMessage(
@@ -1322,11 +1352,12 @@ export function XboxMatchControls({
           : "No matching games found. Try the English title or another spelling.",
       );
     } catch (cause) {
+      if (controller.signal.aborted) return;
       setChoices([]);
       setSelectedIgdbId(null);
       setMessage(formatError(cause));
     } finally {
-      setSearching(false);
+      if (!controller.signal.aborted) setSearching(false);
     }
   }
 
@@ -1588,8 +1619,12 @@ function LoadingPanel({
 }
 
 function ErrorNotice({ message }: { message: string }) {
+  const throttled = message === RATE_LIMIT_MESSAGE;
   return (
-    <div className="mt-4 rounded-lg border border-danger-border bg-danger-tint px-4 py-3 text-sm text-danger">
+    <div
+      role={throttled ? "status" : "alert"}
+      className={`mt-4 rounded-lg border px-4 py-3 text-sm ${throttled ? "border-warning-border bg-warning-tint text-warning" : "border-danger-border bg-danger-tint text-danger"}`}
+    >
       {message}
     </div>
   );
