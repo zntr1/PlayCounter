@@ -214,6 +214,11 @@ import {
   resolveEmulatorLaunchTarget,
 } from "../../emulatorLaunch";
 import { adapterFor } from "../../emulators/registry";
+import {
+  emulatorMappingProvenance,
+  emulatorSessionProvenance,
+  type EmulatorMatchProvenance,
+} from "../../emulators/provenance";
 import { currentPlatform } from "../../platform";
 import { CONTROLLER_LIBRARY_VIEW_EVENT } from "../../controllerBridge";
 import {
@@ -269,6 +274,8 @@ export type GameSummary = {
   coverUrl: string;
   source: GameSource | null;
   sources: GameSource[];
+  emulatorSources?: GameSource[];
+  emulatorApproval?: EmulatorMatchProvenance["approval"];
   hasExplicitIdentifierSource?: boolean;
   aliases: GameAliasRef[];
   communitySuggestionId?: number;
@@ -818,6 +825,19 @@ export function MyGamesView() {
     const summaries = new Map<string, GameSummary>();
     const summariesWithPlayEvidence = new Set<string>();
 
+    const mergeEmulatorProvenance = (
+      summary: GameSummary,
+      provenance: EmulatorMatchProvenance,
+    ) => {
+      if (provenance.source) {
+        summary.emulatorSources ??= [];
+        if (!summary.emulatorSources.includes(provenance.source)) {
+          summary.emulatorSources.push(provenance.source);
+        }
+      }
+      summary.emulatorApproval ??= provenance.approval;
+    };
+
     const addAlias = (
       summary: GameSummary,
       gameId: number,
@@ -900,7 +920,8 @@ export function MyGamesView() {
       name: params.name,
       coverUrl: params.coverUrl,
       source: params.source ?? null,
-      sources: params.source ? [params.source] : [],
+      // Identity aliases and match badges are collected independently below.
+      sources: [],
       aliases: [{ gameId: params.gameId, source: params.source ?? null }],
       totalSeconds: 0,
       sessionSeconds: 0,
@@ -978,9 +999,19 @@ export function MyGamesView() {
         });
         summaries.set(summaryKey, existing);
       }
-      addAlias(existing, session.gameId, session.source);
+      addAlias(
+        existing,
+        session.gameId,
+        session.source,
+        session.emulator ? null : undefined,
+      );
       if (session.source !== resolvedSource) {
-        addAlias(existing, session.gameId, resolvedSource);
+        addAlias(
+          existing,
+          session.gameId,
+          resolvedSource,
+          session.emulator ? null : undefined,
+        );
       }
       for (const entry of gameEntries) mergeEntry(existing, entry);
       existing.sessionSeconds += session.durationSeconds ?? 0;
@@ -1016,6 +1047,13 @@ export function MyGamesView() {
         existing.exeNames.push(session.exeName);
       }
       if (session.emulator) {
+        mergeEmulatorProvenance(
+          existing,
+          emulatorSessionProvenance(
+            session,
+            emulatorMappings.get(session.emulator.contentKey),
+          ),
+        );
         const label = `${session.emulator.label} · ${session.emulator.display}`;
         if (!existing.emulatorLabels.includes(label)) {
           existing.emulatorLabels.push(label);
@@ -1091,9 +1129,19 @@ export function MyGamesView() {
         });
         summaries.set(summaryKey, existing);
       }
-      addAlias(existing, activeSession.gameId, activeSession.source);
+      addAlias(
+        existing,
+        activeSession.gameId,
+        activeSession.source,
+        activeSession.emulator ? null : undefined,
+      );
       if (activeSession.source !== resolvedSource) {
-        addAlias(existing, activeSession.gameId, resolvedSource);
+        addAlias(
+          existing,
+          activeSession.gameId,
+          resolvedSource,
+          activeSession.emulator ? null : undefined,
+        );
       }
       for (const entry of gameEntries) {
         mergeEntry(existing, entry);
@@ -1124,6 +1172,13 @@ export function MyGamesView() {
         existing.exeNames.push(activeSession.exeName);
       }
       if (activeSession.emulator) {
+        mergeEmulatorProvenance(
+          existing,
+          emulatorSessionProvenance(
+            activeSession,
+            emulatorMappings.get(activeSession.emulator.contentKey),
+          ),
+        );
         const label = `${activeSession.emulator.label} · ${activeSession.emulator.display}`;
         if (!existing.emulatorLabels.includes(label)) {
           existing.emulatorLabels.push(label);
@@ -1251,7 +1306,8 @@ export function MyGamesView() {
         });
         summaries.set(summaryKey, summary);
       }
-      addAlias(summary, mapping.gameId, source);
+      addAlias(summary, mapping.gameId, source, null);
+      mergeEmulatorProvenance(summary, emulatorMappingProvenance(mapping));
       if (!summary.emulatorContentKeys.includes(mapping.contentKey)) {
         summary.emulatorContentKeys.push(mapping.contentKey);
       }
@@ -1266,6 +1322,15 @@ export function MyGamesView() {
 
     const consumedKeys = new Set<string>();
     for (const summary of summaries.values()) {
+      // Native/imported evidence can coexist with an emulator route for the
+      // same game. Keep both; never add IGDB merely for the metadata namespace.
+      const emulatorSources = summary.emulatorSources ?? [];
+      summary.emulatorSources = emulatorSources.filter(
+        (source) => !summary.sources.includes(source),
+      );
+      summary.sources = [
+        ...new Set([...summary.sources, ...emulatorSources]),
+      ].sort((left, right) => sourceRank(left) - sourceRank(right));
       const keys = gameSecondsKeys(summary.aliases).filter((key) => {
         if (consumedKeys.has(key)) return false;
         consumedKeys.add(key);
@@ -2541,11 +2606,13 @@ export function GameLibraryCard({
   const unknownDurationProviders = importedProviders.filter((provider) =>
     hasUnknownProviderPlaytime(game.libraryImports, provider),
   );
-  const communityApproval = communitySuggestionApproval({
-    suggestionId: game.communitySuggestionId,
-    verified: game.communitySuggestionVerified,
-    status: game.communitySuggestionStatus,
-  });
+  const communityApproval =
+    game.emulatorApproval ??
+    communitySuggestionApproval({
+      suggestionId: game.communitySuggestionId,
+      verified: game.communitySuggestionVerified,
+      status: game.communitySuggestionStatus,
+    });
   const steamActions = libraryContextActions({
     demo,
     isWindows,
@@ -3970,6 +4037,7 @@ export function GameLibraryCard({
             <GameProvenanceBadges
               className="peer/provenance absolute left-2 top-2 z-40 drop-shadow-md"
               sources={game.sources}
+              emulatorSources={game.emulatorSources}
               approval={communityApproval}
               providers={importedProviders}
               emulatorIds={game.emulatorIds}
@@ -4565,6 +4633,7 @@ export function GameLibraryCard({
               <GameMatchBadges
                 variant="label"
                 sources={game.sources}
+                emulatorSources={game.emulatorSources}
                 approval={communityApproval}
                 dataTourPrefix={demo ? "demo-source" : undefined}
               />

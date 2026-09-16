@@ -1,6 +1,8 @@
 import type { GameDetails, Session } from "@playcounter/shared";
 import { BookOpen, Flag, Gamepad2, StickyNote } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { useGameDetails } from "../../gameDetails";
+import { emulatorSessionProvenance } from "../../emulators/provenance";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { GameCover } from "../GameCover";
 import {
@@ -65,6 +67,16 @@ export function ActiveGameHero({
   tourAnchor,
 }: ActiveGameHeroProps) {
   const journal = useGameJournal(session);
+  const provenance = useAppStore(
+    useShallow((state) =>
+      emulatorSessionProvenance(
+        session,
+        session.emulator
+          ? state.emulatorMappings.get(session.emulator.contentKey)
+          : undefined,
+      ),
+    ),
+  );
   const openJournal = useAppStore((s) => s.openGameJournal);
   const archivedPlaythroughSeconds = useAppStore(
     (s) => s.archivedPlaythroughSeconds,
@@ -94,8 +106,11 @@ export function ActiveGameHero({
   );
   const sources = [
     ...new Set(
-      [session.source, ...matchingEntries.map((entry) => entry.source)].filter(
-        (source): source is NonNullable<typeof source> => Boolean(source),
+      (session.emulator
+        ? [provenance.source]
+        : [session.source, ...matchingEntries.map((entry) => entry.source)]
+      ).filter((source): source is NonNullable<typeof source> =>
+        Boolean(source),
       ),
     ),
   ].sort((left, right) => {
@@ -263,9 +278,14 @@ export function ActiveGameHero({
 
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
             {sources.map((source) => (
-              <SourceBadge key={source} source={source} />
+              <SourceBadge
+                key={source}
+                source={source}
+                approval={session.emulator ? provenance.approval : undefined}
+                emulator={Boolean(session.emulator)}
+              />
             ))}
-            {sources.includes("custom") ? (
+            {!session.emulator && sources.includes("custom") ? (
               <CommunityApprovalBadge
                 suggestionId={
                   suggestionEntry?.communitySuggestionId ??
