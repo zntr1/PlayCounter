@@ -532,7 +532,6 @@ function activeDurationSeconds(activeSession: ActiveSession) {
 }
 
 export function MyGamesView() {
-  const libraryDrag = useLibraryGameDrag();
   const [shelfSelection, setShelfSelection] = useState("all");
   const [libraryFilters, setLibraryFilters] = useState<LibraryFilters>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -1490,6 +1489,7 @@ export function MyGamesView() {
     `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}\u0000${editShelfFilters}`,
     !tourDemo.active,
   );
+  const libraryDrag = useLibraryGameDrag(bulkSelection.selectedGames);
   const demoForTab = activeLibraryTab === "all" ? demoGames : [];
   const libraryGames =
     isCoreTourDemo && activeLibraryTab === "all"
@@ -2397,7 +2397,7 @@ export function GameLibraryCard({
       coverUrl: game.coverUrl,
     },
     onDragGame,
-    (demo && !libraryPractice) || selectionMode,
+    (demo && !libraryPractice) || (selectionMode && !selected),
   );
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);

@@ -64,7 +64,6 @@ function PracticeLibrary({
   const notice = useStore(store, (s) => s.notice);
   const sessions = useStore(store, (s) => s.recentSessions);
   const journalFor = useLibraryJournalLookup();
-  const drag = useLibraryGameDrag();
   const [shelfId, setShelfId] = useState("all");
   const [filters, setFilters] = useState<LibraryFilters>({});
   const [expanded, setExpanded] = useState(false);
@@ -107,6 +106,7 @@ function PracticeLibrary({
     JSON.stringify([shelfId, filters]),
     true,
   );
+  const drag = useLibraryGameDrag(selection.selectedGames);
   const counts = Object.fromEntries(
     ["all", "favorites", ...shelves.map((s) => s.id)].map((id) => [
       id,

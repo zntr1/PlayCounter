@@ -359,6 +359,10 @@ export type AppState = {
       Pick<GameJournal, "note" | "favorite" | "status" | "shelfIds">
     >,
   ) => void;
+  addGamesToShelf: (
+    games: readonly GameIdentityRef[],
+    shelfId: string,
+  ) => number;
   setGameStatuses: (
     games: readonly GameIdentityRef[],
     status: GameStatus | null,

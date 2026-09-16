@@ -1138,6 +1138,28 @@ select {
   visibility: hidden;
 }
 
+.library-game-drag-count {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border: 2px solid rgb(var(--color-bg));
+  border-radius: 999px;
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-accent-fg));
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.35);
+  pointer-events: none;
+  will-change: transform;
+}
+
 /* Treat the cover CTA as its own hover target, not as a card hover. */
 .game-library-card:has(.level-up-cta:hover) {
   border-color: rgb(var(--color-border));

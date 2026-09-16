@@ -6,13 +6,14 @@ import type { PersonalLibraryState } from "../personalLibraryStore";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type HTMLAttributes,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { getGameJournal, type GameIdentityRef } from "../store";
-import type { GameJournal, PersonalShelf } from "../personalLibrary";
+import { personalGameIdentity, type GameIdentityRef } from "../store";
+import type { PersonalShelf } from "../personalLibrary";
 import {
   positionLibraryGameHints,
   type ShelfDropHint,
@@ -31,10 +32,17 @@ export type StartLibraryGameDrag = (
 function shelfDropHint(
   shelfId: string,
   shelf: PersonalShelf | undefined,
-  journal: GameJournal,
+  assignedShelves: ReadonlySet<string>,
+  count: number,
 ): Omit<ShelfDropHint, "target"> | null {
-  if (shelfId === "all")
-    return { reason: "already-added", title: "Already in All games" };
+  const alreadyAdded = (name: string): Omit<ShelfDropHint, "target"> => ({
+    reason: "already-added",
+    title:
+      count > 1
+        ? `All selected games are already in ${name}`
+        : `Already in ${name}`,
+  });
+  if (shelfId === "all") return alreadyAdded("All games");
   if (shelfId !== "favorites" && !shelf)
     return {
       reason: "unavailable",
@@ -49,42 +57,73 @@ function shelfDropHint(
     };
 
   const favorite = shelfId === "favorites";
-  const alreadyAssigned = favorite
-    ? journal.favorite
-    : journal.shelfIds.includes(shelfId);
   const name = favorite ? "Favorites" : shelf!.name;
-  if (alreadyAssigned)
-    return { reason: "already-added", title: `Already in ${name}` };
+  if (assignedShelves.has(shelfId)) return alreadyAdded(name);
   return null;
 }
 
+/** A shelf is blocked only if every dragged game already belongs to it. */
+function commonShelfMemberships(
+  games: readonly GameIdentityRef[],
+  state: PersonalLibraryState,
+) {
+  const identity = personalGameIdentity(state);
+  const memberships = new Map(
+    games.map((game) => [identity(game), new Set<string>()]),
+  );
+  // Union linked journals once, without scanning the library for every game.
+  for (const journal of Object.values(state.gameJournals)) {
+    const assigned = memberships.get(identity(journal.game));
+    if (!assigned) continue;
+    if (journal.favorite) assigned.add("favorites");
+    for (const shelfId of journal.shelfIds) assigned.add(shelfId);
+  }
+  const [first, ...others] = memberships.values();
+  return new Set(
+    [...(first ?? [])].filter((id) =>
+      others.every((assigned) => assigned.has(id)),
+    ),
+  );
+}
+
 function assignShelf(
-  game: GameIdentityRef,
+  games: readonly GameIdentityRef[],
   shelfId: string,
   state: PersonalLibraryState,
 ) {
   const shelf = state.personalShelves.find((entry) => entry.id === shelfId);
   // Recheck at drop time, including changes made since the hover hints were prepared.
-  const journal = getGameJournal(state, game);
-  const blocked = shelfDropHint(shelfId, shelf, journal);
+  const blocked = shelfDropHint(
+    shelfId,
+    shelf,
+    commonShelfMemberships(games, state),
+    games.length,
+  );
   if (blocked) return blocked;
   const favorite = shelfId === "favorites";
-  state.updateGameJournal(
-    game,
-    favorite
-      ? { favorite: true }
-      : { shelfIds: [...journal.shelfIds, shelfId] },
-  );
+  const added = state.addGamesToShelf(games, shelfId);
+  const name = favorite ? "Favorites" : shelf!.name;
   state.addToast({
     tone: "success",
-    title: `Added to ${favorite ? "Favorites" : shelf!.name}`,
-    detail: game.gameName,
+    title:
+      games.length > 1
+        ? `Added ${added} ${added === 1 ? "game" : "games"} to ${name}`
+        : `Added to ${name}`,
+    detail:
+      games.length === 1
+        ? games[0].gameName
+        : added < games.length
+          ? `${games.length - added} already in ${name}`
+          : undefined,
   });
   return null;
 }
 
-function prepareShelfHints(game: GameIdentityRef, state: PersonalLibraryState) {
-  const journal = getGameJournal(state, game);
+function prepareShelfHints(
+  games: readonly GameIdentityRef[],
+  state: PersonalLibraryState,
+) {
+  const assignedShelves = commonShelfMemberships(games, state);
   const shelves = new Map(
     state.personalShelves.map((shelf) => [shelf.id, shelf]),
   );
@@ -101,7 +140,12 @@ function prepareShelfHints(game: GameIdentityRef, state: PersonalLibraryState) {
       target.removeAttribute("data-library-drag-blocked");
     });
     const id = target.dataset.libraryShelf!;
-    const blocked = shelfDropHint(id, shelves.get(id), journal);
+    const blocked = shelfDropHint(
+      id,
+      shelves.get(id),
+      assignedShelves,
+      games.length,
+    );
     const element = target.querySelector<HTMLElement>(
       ".library-game-hover-hint",
     );
@@ -146,6 +190,7 @@ function prepareShelfHints(game: GameIdentityRef, state: PersonalLibraryState) {
 
 function createPreview(source: HTMLElement, rect: DOMRect) {
   const preview = source.cloneNode(true) as HTMLElement;
+  preview.querySelector("[data-library-selection-toggle]")?.remove();
   // Keep the card's appearance without duplicating controller targets or IDs.
   for (const element of [preview, ...preview.querySelectorAll("*")]) {
     for (const attribute of [...element.attributes]) {
@@ -174,8 +219,12 @@ function createPreview(source: HTMLElement, rect: DOMRect) {
 }
 
 /** Pointer dragging gives us an opaque card and a return animation, including in WebView2. */
-export function useLibraryGameDrag() {
+export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
   const libraryApi = usePersonalLibraryApi();
+  const selectedGamesRef = useRef(selectedGames);
+  useLayoutEffect(() => {
+    selectedGamesRef.current = selectedGames;
+  }, [selectedGames]);
   const cleanupRef = useRef<() => void>(() => {});
   const clickCleanupRef = useRef<() => void>(() => {});
   const [hint, setHint] = useState<ShelfDropHint | null>(null);
@@ -214,6 +263,9 @@ export function useLibraryGameDrag() {
         (event.target instanceof Element &&
           event.target.closest(
             "button, a, input, textarea, select, [role='button'], [contenteditable='true']",
+          ) &&
+          !event.target.closest(
+            "[data-library-selection-toggle][aria-checked='true']",
           ))
       )
         return;
@@ -225,9 +277,12 @@ export function useLibraryGameDrag() {
       const restingCursor = source.style.cursor;
       source.style.cursor = "grabbing";
       const pointerId = event.pointerId;
+      const selection = selectedGamesRef.current;
+      let games: readonly GameIdentityRef[] = [game];
       const downX = event.clientX;
       const downY = event.clientY;
       let preview: HTMLElement | null = null;
+      let countBadge: HTMLElement | null = null;
       let origin: DOMRect;
       let x = 0;
       let y = 0;
@@ -253,6 +308,7 @@ export function useLibraryGameDrag() {
         document.documentElement.classList.remove("library-game-dragging");
         clearHoverHints();
         clearHoverHints = () => {};
+        countBadge?.remove();
       }
       function cleanup() {
         stopListening();
@@ -288,6 +344,14 @@ export function useLibraryGameDrag() {
         if (!preview) {
           if (Math.hypot(event.clientX - downX, event.clientY - downY) < 8)
             return;
+          const identity = personalGameIdentity(libraryApi.getState());
+          const sourceKey = identity(game);
+          if (selection.some((selected) => identity(selected) === sourceKey))
+            games = [
+              ...new Map(
+                [game, ...selection].map((entry) => [identity(entry), entry]),
+              ).values(),
+            ];
           origin = source.getBoundingClientRect();
           dragScale = Math.min(
             1,
@@ -295,9 +359,16 @@ export function useLibraryGameDrag() {
             PREVIEW_HEIGHT / origin.height,
           );
           preview = createPreview(source, origin);
+          if (games.length > 1) {
+            countBadge = document.createElement("span");
+            countBadge.className = "library-game-drag-count";
+            countBadge.textContent = `+${games.length - 1}`;
+            countBadge.setAttribute("aria-hidden", "true");
+            document.body.append(countBadge);
+          }
           source.setAttribute("data-library-drag-source", "true");
           document.documentElement.classList.add("library-game-dragging");
-          clearHoverHints = prepareShelfHints(game, libraryApi.getState());
+          clearHoverHints = prepareShelfHints(games, libraryApi.getState());
           window.getSelection()?.removeAllRanges();
           // Position the initial copy immediately; subsequent input is coalesced per frame.
           updatePreview();
@@ -317,6 +388,8 @@ export function useLibraryGameDrag() {
         x = pointerX + PREVIEW_GAP;
         y = pointerY + PREVIEW_GAP;
         preview.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${dragScale})`;
+        if (countBadge)
+          countBadge.style.transform = `translate3d(${x + origin.width * dragScale - 10}px, ${y - 10}px, 0)`;
       }
       function suppressReleaseClick() {
         // A drag must not turn into a click on a shelf or a card action on release.
@@ -353,7 +426,7 @@ export function useLibraryGameDrag() {
           libraryApi.getState().settings.libraryShowShelves !== false
         ) {
           const blocked = assignShelf(
-            game,
+            games,
             target.dataset.libraryShelf,
             libraryApi.getState(),
           );

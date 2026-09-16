@@ -3,6 +3,7 @@ import { getGameJournal, personalGameIdentity, type AppState } from "./store";
 import {
   NAME_LIMIT,
   NOTE_LIMIT,
+  addJournalGamesToShelf,
   normalizeLibraryFilters,
   updateJournalStatuses,
   writeJournal,
@@ -12,6 +13,7 @@ export type PersonalLibraryActions = Pick<
   AppState,
   | "openGameJournal"
   | "updateGameJournal"
+  | "addGamesToShelf"
   | "setGameStatuses"
   | "undoGameStatuses"
   | "createPlaythrough"
@@ -81,6 +83,26 @@ export function createPersonalLibraryActions(
         ),
       });
       persistSoon();
+    },
+    addGamesToShelf: (games, shelfId) => {
+      const state = get();
+      if (shelfId !== "favorites") {
+        const shelf = state.personalShelves.find(
+          (entry) => entry.id === shelfId,
+        );
+        if (!shelf || shelf.filters) return 0;
+      }
+      const result = addJournalGamesToShelf(
+        state.gameJournals,
+        games,
+        shelfId,
+        personalGameIdentity(state),
+      );
+      if (result.journals !== state.gameJournals) {
+        set({ gameJournals: result.journals });
+        persistSoon();
+      }
+      return result.added;
     },
     setGameStatuses: (games, status) => {
       const state = get();

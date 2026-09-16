@@ -376,6 +376,86 @@ describe("bulk progress status", () => {
   });
 });
 
+describe("bulk shelf assignment", () => {
+  it("saves once, deduplicates linked games, and preserves other journal and session data", async () => {
+    const state = useAppStore.getState();
+    const originalShelf = state.savePersonalShelf({ name: "Weekend" })!;
+    const target = state.savePersonalShelf({ name: "Co-op" })!;
+    state.updateGameJournal(game, {
+      note: "Keep this note",
+      status: "on-hold",
+      favorite: true,
+      shelfIds: [originalShelf],
+    });
+    const run = state.createPlaythrough(game, "Replay")!;
+    state.updateGameJournal(other, { shelfIds: [target] });
+    useAppStore.setState({ recentSessions: [session(1, run)] });
+    const before = getGameJournal(useAppStore.getState(), game);
+    const otherBefore = useAppStore.getState().gameJournals["community:42"];
+    const sessions = useAppStore.getState().recentSessions;
+    const alias = { ...game, gameId: -5, source: "custom" as const };
+    await Promise.resolve();
+    vi.mocked(localStorage.setItem).mockClear();
+    const listener = vi.fn();
+    const unsubscribe = useAppStore.subscribe(listener);
+    expect(state.addGamesToShelf([game, alias, other], target)).toBe(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+    await Promise.resolve();
+    expect(localStorage.setItem).toHaveBeenCalledTimes(1);
+    expect(getGameJournal(useAppStore.getState(), game)).toEqual({
+      ...before,
+      shelfIds: [originalShelf, target],
+    });
+    expect(useAppStore.getState().gameJournals["community:42"]).toBe(
+      otherBefore,
+    );
+    expect(useAppStore.getState().recentSessions).toEqual(sessions);
+    expect(Object.keys(useAppStore.getState().gameJournals)).toHaveLength(2);
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).gameJournals["igdb:42"]
+        .shelfIds,
+    ).toEqual([originalShelf, target]);
+
+    const journals = useAppStore.getState().gameJournals;
+    vi.mocked(localStorage.setItem).mockClear();
+    expect(state.addGamesToShelf([alias, game, other], target)).toBe(0);
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+    await Promise.resolve();
+    expect(localStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it("adds Favorites, preserves linked notes, and rejects automatic or unavailable shelves", () => {
+    const state = useAppStore.getState();
+    const alias = { ...game, gameId: -5, source: "custom" as const };
+    useAppStore.setState({
+      gameJournals: {
+        "igdb:42": { ...emptyJournal(game), note: "Original note" },
+        "custom:-5": {
+          ...emptyJournal(alias),
+          note: "Import note",
+          status: "finished",
+        },
+      },
+    });
+    expect(state.addGamesToShelf([game, alias, other], "favorites")).toBe(2);
+    expect(getGameJournal(useAppStore.getState(), game)).toMatchObject({
+      favorite: true,
+      note: "Original note\n\nImport note",
+      status: "finished",
+    });
+    expect(Object.keys(useAppStore.getState().gameJournals)).toHaveLength(2);
+    const automatic = state.savePersonalShelf({
+      name: "Unplayed",
+      filters: { played: "unplayed" },
+    })!;
+    const journals = useAppStore.getState().gameJournals;
+    for (const shelfId of [automatic, "deleted", "all"])
+      expect(state.addGamesToShelf([game, other], shelfId)).toBe(0);
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+  });
+});
+
 describe("durable playthrough time", () => {
   it("keeps default time through the session cap and returns deleted playthrough time to it", () => {
     const readDefault = () => {
