@@ -755,7 +755,7 @@ it("works through No status games and offers explicit clearing", async () => {
   ).toBeNull();
 });
 
-it("clears selection on filter changes, preserves it across layouts, and stops shelf dragging", async () => {
+it("clears selection on filter changes and preserves it across layouts", async () => {
   await act(() => root.render(<MyGamesView />));
   await enterSelection();
   await act(() => selectionCheckboxes()[0].click());
@@ -763,10 +763,6 @@ it("clears selection on filter changes, preserves it across layouts, and stops s
   expect(container.textContent).toContain("1 selected");
   const card = gameCard(local.gameName);
   expect(card.querySelector("[inert]")).not.toBeNull();
-  await pointer(card, "pointerdown");
-  await pointer(window, "pointermove", { clientX: 150, clientY: 410 });
-  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
-  await pointer(window, "pointerup");
   await selectSource("steam");
   expect(container.textContent).toContain("0 selected");
   await act(() => button("Select all 2 results").click());
@@ -1131,6 +1127,218 @@ async function dropGame(card: HTMLElement, label: string) {
   expect(document.querySelector(".library-game-drag-preview")).toBeNull();
   expect(card.hasAttribute("data-library-drag-source")).toBe(false);
 }
+
+it.each(["grid", "large", "list"] as const)(
+  "drags selected games with one card and an extra-game count in %s view",
+  async (view) => {
+    useAppStore.getState().setMyGamesCardSize(view);
+    const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
+    await act(() => root.render(<MyGamesView />));
+    await enterSelection();
+    const names = [local.gameName, "Local other", steam.name];
+    for (const name of names)
+      await act(() =>
+        gameCard(name)
+          .querySelector<HTMLButtonElement>('[role="checkbox"]')!
+          .click(),
+      );
+    const card = gameCard(steam.name);
+    const checkbox =
+      card.querySelector<HTMLButtonElement>('[role="checkbox"]')!;
+    // Real pointer input starts on the full-card selection button.
+    await startDrag(checkbox);
+    expect(
+      document.querySelectorAll(".library-game-drag-preview"),
+    ).toHaveLength(1);
+    expect(
+      document.querySelector(".library-game-drag-preview")?.textContent,
+    ).toContain(steam.name);
+    expect(
+      document.querySelector(".library-game-drag-preview [role=checkbox]"),
+    ).toBeNull();
+    expect(
+      document.querySelector(".library-game-drag-count")?.textContent,
+    ).toBe("+2");
+    await releaseOnShelf("Co-op");
+    expect(document.querySelector(".library-game-drag-count")).toBeNull();
+    expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+    expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+    // The synthetic click following a drag must not deselect the source.
+    await act(() => checkbox.click());
+    expect(container.textContent).toContain("3 selected");
+    expect(checkbox.getAttribute("aria-checked")).toBe("true");
+    for (const game of [local, { ...local, gameId: -2 }, steam])
+      expect(getGameJournal(useAppStore.getState(), game).shelfIds).toContain(
+        target,
+      );
+    expect(
+      getGameJournal(useAppStore.getState(), {
+        ...steam,
+        gameId: 2,
+        igdbId: 200,
+      }).shelfIds,
+    ).not.toContain(target);
+    expect(shelfChip("All games").getAttribute("aria-selected")).toBe("true");
+    expect(shelfChip("Co-op").lastElementChild?.textContent).toBe("3");
+    expect(useAppStore.getState().toasts).toEqual([
+      expect.objectContaining({ title: "Added 3 games to Co-op" }),
+    ]);
+  },
+);
+
+it("keeps ordinary selection clicks and drags a single selected card without a count", async () => {
+  await act(() => root.render(<MyGamesView />));
+  await enterSelection();
+  const checkbox = gameCard(local.gameName).querySelector<HTMLButtonElement>(
+    '[role="checkbox"]',
+  )!;
+  await pointer(checkbox, "pointerdown");
+  await pointer(window, "pointermove", { clientX: 140, clientY: 410 });
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  await pointer(window, "pointerup");
+  await act(() => checkbox.click());
+  expect(checkbox.getAttribute("aria-checked")).toBe("true");
+  await startDrag(checkbox);
+  expect(document.querySelector(".library-game-drag-count")).toBeNull();
+  await pointer(window, "pointercancel");
+  await nextFrame();
+  await pointer(checkbox, "pointerdown");
+  await pointer(window, "pointermove", { clientX: 123, clientY: 402 });
+  await pointer(window, "pointerup");
+  await act(() => checkbox.click());
+  expect(checkbox.getAttribute("aria-checked")).toBe("false");
+});
+
+it("adds only missing games to shelves and Favorites and explains when all are already added", async () => {
+  useAppStore
+    .getState()
+    .savePersonalShelf({ name: "Unplayed", filters: { played: "unplayed" } });
+  const onRender = vi.fn();
+  await act(() =>
+    root.render(
+      <Profiler id="library" onRender={onRender}>
+        <MyGamesView />
+      </Profiler>,
+    ),
+  );
+  await enterSelection();
+  await act(() => button("Select all 4 results").click());
+  onRender.mockClear();
+  await startDrag(
+    gameCard(local.gameName).querySelector<HTMLElement>('[role="checkbox"]')!,
+  );
+  expect(shelfChip("Weekend").hasAttribute("data-library-drag-blocked")).toBe(
+    false,
+  );
+  expect(shelfChip("Favorites").hasAttribute("data-library-drag-blocked")).toBe(
+    false,
+  );
+  expect(shelfChip("Unplayed").dataset.libraryDragBlocked).toBe("saved-filter");
+  const measure = vi.spyOn(shelfChip("Weekend"), "getBoundingClientRect");
+  await pointer(window, "pointermove", { clientX: 220, clientY: 100 });
+  await nextFrame();
+  expect(onRender).not.toHaveBeenCalled();
+  expect(measure).not.toHaveBeenCalled();
+  await releaseOnShelf("Weekend");
+  expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("4");
+  expect(useAppStore.getState().toasts[0]).toMatchObject({
+    title: "Added 2 games to Weekend",
+    detail: "2 already in Weekend",
+  });
+  const journals = useAppStore.getState().gameJournals;
+  await startDrag(gameCard(local.gameName));
+  expect(shelfChip("Weekend").dataset.libraryDragBlocked).toBe("already-added");
+  expect(
+    shelfChip("Weekend").querySelector("[data-hint-title]")?.textContent,
+  ).toBe("All selected games are already in Weekend");
+  await releaseOnShelf("Weekend");
+  expect(useAppStore.getState().gameJournals).toBe(journals);
+  expect(useAppStore.getState().toasts).toHaveLength(1);
+  await dropGame(gameCard(local.gameName), "Favorites");
+  expect(shelfChip("Favorites").lastElementChild?.textContent).toBe("4");
+  const favorites = useAppStore.getState().gameJournals;
+  await dropGame(gameCard(local.gameName), "Unplayed");
+  expect(useAppStore.getState().gameJournals).toBe(favorites);
+});
+
+it("rechecks every selected game's latest membership and keeps selection when Escape cancels a drag", async () => {
+  const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
+  await act(() => root.render(<MyGamesView />));
+  await enterSelection();
+  await act(() => button("Select all 4 results").click());
+  const journals = useAppStore.getState().gameJournals;
+  await startDrag(gameCard(local.gameName));
+  await act(() =>
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  await nextFrame();
+  expect(document.querySelector(".library-game-drag-count")).toBeNull();
+  expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  expect(container.textContent).toContain("4 selected");
+  expect(useAppStore.getState().gameJournals).toBe(journals);
+
+  await startDrag(gameCard(local.gameName));
+  await act(() =>
+    useAppStore.getState().updateGameJournal(steam, {
+      shelfIds: [shelf, target],
+      note: "Written during the drag",
+    }),
+  );
+  await releaseOnShelf("Co-op");
+  expect(getGameJournal(useAppStore.getState(), steam)).toMatchObject({
+    shelfIds: [shelf, target],
+    note: "Written during the drag",
+  });
+  expect(shelfChip("Co-op").lastElementChild?.textContent).toBe("4");
+  expect(useAppStore.getState().toasts[0]).toMatchObject({
+    title: "Added 3 games to Co-op",
+  });
+});
+
+it("drags all selected results from the current scope, including cards not yet rendered", async () => {
+  vi.stubGlobal(
+    "requestIdleCallback",
+    vi.fn(() => 1),
+  );
+  vi.stubGlobal("cancelIdleCallback", vi.fn());
+  const entries = Array.from({ length: 120 }, (_, index) => ({
+    ...steam,
+    externalId: String(1000 + index),
+    gameId: 1000 + index,
+    igdbId: 1000 + index,
+    name: `Imported game ${index}`,
+  }));
+  useAppStore.setState({
+    libraryImports: new Map(
+      entries.map((entry) => [`steam:${entry.externalId}`, entry]),
+    ),
+  });
+  await act(() => root.render(<MyGamesView />));
+  await selectSource("steam");
+  await enterSelection();
+  await act(() => button("Select all 120 results").click());
+  expect(selectionCheckboxes().length).toBeLessThan(120);
+  await startDrag(selectionCheckboxes()[0]);
+  expect(document.querySelector(".library-game-drag-count")?.textContent).toBe(
+    "+119",
+  );
+  await releaseOnShelf("Favorites");
+  expect(
+    entries.every(
+      (game) => getGameJournal(useAppStore.getState(), game).favorite,
+    ),
+  ).toBe(true);
+  expect(
+    getGameJournal(useAppStore.getState(), { ...local, gameId: -2 }).favorite,
+  ).toBe(false);
+  expect(container.textContent).toContain("120 selected");
+});
 
 it("cancels shelf dragging when shelves are disabled and allows it again when enabled", async () => {
   await act(() => root.render(<MyGamesView />));

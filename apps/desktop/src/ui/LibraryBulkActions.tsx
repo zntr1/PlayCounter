@@ -215,16 +215,17 @@ function LibrarySelectionOverlay({
       role="checkbox"
       aria-checked={selected}
       aria-label={`Select ${name}`}
+      data-library-selection-toggle=""
       data-controller-item="library-option"
       onClick={(event) => {
         event.stopPropagation();
         onToggle(event.shiftKey);
       }}
       className={clsx(
-        "absolute inset-0 z-[75] cursor-pointer rounded-[inherit] border-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
+        "absolute inset-0 z-[75] rounded-[inherit] border-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
         selected
-          ? "border-accent bg-accent/10"
-          : "border-transparent hover:border-accent/60",
+          ? "cursor-inherit border-accent bg-accent/10"
+          : "cursor-pointer border-transparent hover:border-accent/60",
       )}
     >
       <span

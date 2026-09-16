@@ -165,6 +165,53 @@ export type GameStatusChange = {
   after: GameStatus | null;
 };
 
+function groupJournals(
+  journals: Record<string, GameJournal>,
+  identity: (game: GameIdentityRef) => string,
+) {
+  const groups = new Map<string, Record<string, GameJournal>>();
+  for (const [key, journal] of Object.entries(journals)) {
+    const canonical = identity(journal.game);
+    let group = groups.get(canonical);
+    if (!group) groups.set(canonical, (group = {}));
+    group[key] = journal;
+  }
+  return groups;
+}
+
+/** Index once and copy once, even when assigning a whole imported library. */
+export function addJournalGamesToShelf(
+  journals: Record<string, GameJournal>,
+  games: readonly GameIdentityRef[],
+  shelfId: string,
+  identity: (game: GameIdentityRef) => string,
+) {
+  const groups = groupJournals(journals, identity);
+  const seen = new Set<string>();
+  let next: Record<string, GameJournal> | undefined;
+  let added = 0;
+  for (const game of games) {
+    const canonical = identity(game);
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    const group = groups.get(canonical);
+    const journal = readJournal(group ?? {}, game, identity);
+    const favorite = shelfId === "favorites";
+    if (favorite ? journal.favorite : journal.shelfIds.includes(shelfId))
+      continue;
+    next ??= { ...journals };
+    for (const key of Object.keys(group ?? {})) delete next[key];
+    next[journalKey(game)] = {
+      ...journal,
+      ...(favorite
+        ? { favorite: true }
+        : { shelfIds: [...journal.shelfIds, shelfId] }),
+    };
+    added++;
+  }
+  return { journals: next ?? journals, added };
+}
+
 /** Index once and copy once, even when assigning a whole imported library. */
 export function updateJournalStatuses(
   journals: Record<string, GameJournal>,
@@ -175,13 +222,7 @@ export function updateJournalStatuses(
   }[],
   identity: (game: GameIdentityRef) => string,
 ) {
-  const groups = new Map<string, Record<string, GameJournal>>();
-  for (const [key, journal] of Object.entries(journals)) {
-    const canonical = identity(journal.game);
-    let group = groups.get(canonical);
-    if (!group) groups.set(canonical, (group = {}));
-    group[key] = journal;
-  }
+  const groups = groupJournals(journals, identity);
   let next: Record<string, GameJournal> | undefined;
   const changes: GameStatusChange[] = [];
   const seen = new Set<string>();

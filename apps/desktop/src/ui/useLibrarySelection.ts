@@ -47,6 +47,19 @@ export function useLibrarySelection(
       ),
     [active, enabled, selection, scope, available],
   );
+  const selectedGames = useMemo(
+    () =>
+      games
+        .filter((game) => selected.has(librarySelectionKey(game)))
+        .map((game) => ({
+          gameId: game.gameId,
+          source: game.source,
+          igdbId: game.igdbId,
+          gameName: game.name,
+          coverUrl: game.coverUrl,
+        })),
+    [games, selected],
+  );
 
   // A changed search/source/shelf starts a fresh selection. Removed or filtered
   // games must not stay selected invisibly, or reappear selected later.
@@ -163,12 +176,9 @@ export function useLibrarySelection(
   function applyStatus(status: GameStatus | null) {
     if (!selected.size) return;
     rememberScroll();
-    const changes = libraryApi.getState().setGameStatuses(
-      games
-        .filter((game) => selected.has(librarySelectionKey(game)))
-        .map((game) => ({ ...game, gameName: game.name })),
-      status,
-    );
+    const changes = libraryApi
+      .getState()
+      .setGameStatuses(selectedGames, status);
     const count = changes.length;
     const label = `${count} ${count === 1 ? "game" : "games"}`;
     libraryApi.getState().addToast({
@@ -208,6 +218,7 @@ export function useLibrarySelection(
     rootRef,
     active: active && enabled,
     selected,
+    selectedGames,
     toggleMode,
     toggleGame,
     selectAll,
