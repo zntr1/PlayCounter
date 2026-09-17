@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.1.18",
+    "releasedAt": "2026-09-17",
+    "headline": "Some fixes, some improvements! :)",
+    "highlights": [
+      "Select several games in My Games and drag them onto Favorites or a shelf together. The drag preview shows the group size, and games already on the shelf are skipped.",
+      "Steam and Xbox imports now preselect the game file when there is only one suitable choice. Review it and confirm to add the game.",
+      "Import confirmations now tell you when an existing game-file match was linked, when a file was sent for community review, and when verification needs another try.",
+      "Playthrough names in game-start and saved-session popups are now off by default. Enable 'Playthrough names in popups' in Settings to show them. Note text has its own separate setting.",
+      "If the server is temporarily busy, PlayCounter shows a countdown and retries background game lookups. Imports can pause and resume automatically, and you can still cancel while waiting.",
+      "Emulator match badges now correctly reflect community matches, your own choices, and pending reviews across My Games, active sessions, history, and game details.",
+      "The empty My Games screen now explains automatic game detection and offers Steam and Xbox imports as optional ways to bring in games and past playtime."
+    ]
+  },
+  {
     "version": "1.1.17",
     "releasedAt": "2026-09-15",
     "headline": "Notes, playthroughs, and shelves for your game library + Emulator PCSX2 Support",

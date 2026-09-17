@@ -45,6 +45,7 @@ docs/*
 !docs/screenshots/
 !docs/screenshots/**
 !docs/release-notes.md
+!docs/releases/
 docs/update.md
 docs/work-summary.md
 docs/postgres-next-step-plan.md
