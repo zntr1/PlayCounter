@@ -1338,6 +1338,80 @@ async function dropGame(card: HTMLElement, label: string) {
   expect(card.hasAttribute("data-library-drag-source")).toBe(false);
 }
 
+async function openSessionModal() {
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Log a missed session for ${local.gameName}"]`,
+      )!
+      .click(),
+  );
+  return document.querySelector<HTMLElement>('[role="dialog"]')!;
+}
+
+it.each(["grid", "large", "list"] as const)(
+  "does not drag the %s card through its modal or backdrop, and resumes after closing",
+  async (view) => {
+    useAppStore.getState().setMyGamesCardSize(view);
+    await act(() => root.render(<MyGamesView />));
+    const card = gameCard(local.gameName);
+    const journals = useAppStore.getState().gameJournals;
+    const dialog = await openSessionModal();
+
+    for (const target of [
+      dialog.querySelector("h2")!,
+      dialog.querySelector("[data-controller-scroll]")!,
+      card, // Also block a background card if an event reaches it directly.
+      dialog.parentElement!,
+    ]) {
+      await pointer(target, "pointerdown");
+      // The backdrop closes on mousedown, after the original pointerdown.
+      await act(() =>
+        target.dispatchEvent(
+          new MouseEvent("mousedown", {
+            bubbles: true,
+            button: 0,
+            buttons: 1,
+          }),
+        ),
+      );
+      expect(card.style.cursor).not.toBe("grabbing");
+      await pointer(window, "pointermove", { clientX: 220, clientY: 100 });
+      expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+      expect(card.hasAttribute("data-library-drag-source")).toBe(false);
+      expect(
+        document.documentElement.classList.contains("library-game-dragging"),
+      ).toBe(false);
+      await pointer(window, "pointerup");
+    }
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+    await startDrag(card);
+    await pointer(window, "pointercancel");
+  },
+);
+
+it.each(["pending", "active"] as const)(
+  "cancels a %s card drag when a modal opens and prevents the drop",
+  async (phase) => {
+    useAppStore.getState().savePersonalShelf({ name: "Co-op" });
+    await act(() => root.render(<MyGamesView />));
+    const card = gameCard(local.gameName);
+    const journals = useAppStore.getState().gameJournals;
+    if (phase === "active") await startDrag(card);
+    else await pointer(card, "pointerdown");
+
+    const dialog = await openSessionModal();
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(card.style.cursor).not.toBe("grabbing");
+    expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+    expect(container.querySelector("[data-library-drag-blocked]")).toBeNull();
+    await releaseOnShelf("Co-op");
+    expect(useAppStore.getState().gameJournals).toBe(journals);
+    expect(document.querySelector(".library-game-drag-preview")).toBeNull();
+  },
+);
+
 it.each(["grid", "large", "list"] as const)(
   "drags selected games with one card and an extra-game count in %s view",
   async (view) => {

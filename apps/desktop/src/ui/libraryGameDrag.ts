@@ -23,6 +23,7 @@ const PREVIEW_WIDTH = 84;
 const PREVIEW_HEIGHT = 114;
 const PREVIEW_GAP = 16;
 const RETURN_DURATION = 320;
+const MODAL_SELECTOR = '[role="dialog"][aria-modal="true"]';
 
 export type StartLibraryGameDrag = (
   game: GameIdentityRef,
@@ -260,6 +261,10 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
         event.button !== 0 ||
         event.isPrimary === false ||
         event.pointerType === "touch" ||
+        // Portals bubble through the React card even though their DOM is outside it.
+        !(event.target instanceof Node) ||
+        !event.currentTarget.contains(event.target) ||
+        document.querySelector(MODAL_SELECTOR) ||
         (event.target instanceof Element &&
           event.target.closest(
             "button, a, input, textarea, select, [role='button'], [contenteditable='true']",
@@ -303,6 +308,7 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
         document.documentElement.removeEventListener("pointerleave", cancel);
         window.removeEventListener("keydown", keyDown, true);
         window.removeEventListener("blur", cancel);
+        window.removeEventListener("focusin", modalFocused, true);
         cancelAnimationFrame(moveFrame);
         moveFrame = 0;
         document.documentElement.classList.remove("library-game-dragging");
@@ -410,6 +416,10 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
       }
       function finish(target: HTMLElement | null) {
         if (returning) return;
+        if (document.querySelector(MODAL_SELECTOR)) {
+          cancelForModal();
+          return;
+        }
         returning = true;
         stopListening();
         if (!preview) {
@@ -535,6 +545,20 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
       function cancel() {
         finish(null);
       }
+      function cancelForModal() {
+        if (preview) suppressReleaseClick();
+        cleanup();
+      }
+      function modalFocused(event: FocusEvent) {
+        if (
+          event.target instanceof Element &&
+          event.target.closest(MODAL_SELECTOR)
+        ) {
+          // Dialog focus cancels pending and active drags without a return animation
+          // or repeatedly inspecting the DOM during pointer movement.
+          cancelForModal();
+        }
+      }
       function keyDown(event: KeyboardEvent) {
         if (event.key !== "Escape") return;
         event.preventDefault();
@@ -552,6 +576,7 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
       document.documentElement.addEventListener("pointerleave", cancel);
       window.addEventListener("keydown", keyDown, true);
       window.addEventListener("blur", cancel);
+      window.addEventListener("focusin", modalFocused, true);
     },
     [dismissHint, libraryApi],
   );
