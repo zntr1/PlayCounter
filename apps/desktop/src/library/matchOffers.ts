@@ -1,12 +1,15 @@
 import { create } from "zustand";
 import { rateLimitDelay } from "../rateLimitedFetch";
 import { createGameIdentityResolver, useAppStore } from "../store";
-import { checkLibraryImportForMatches } from "./recheck";
+import {
+  checkLibraryImportForMatches,
+  type LibraryExecutableMatch,
+} from "./recheck";
 import { libraryEntryKey, type LibraryImportEntry } from "./types";
 
 type LibraryMatchOffer = {
   entry: LibraryImportEntry;
-  executableNames: string[];
+  executableMatches: LibraryExecutableMatch[];
 };
 
 // Offers are session-only. Reviewing one performs a fresh lookup before the
@@ -132,7 +135,7 @@ export function startLibraryImportMatchChecks(): () => void {
                 useLibraryMatchOffers.setState((state) => ({
                   offers: new Map(state.offers).set(key, {
                     entry,
-                    executableNames: result.executableNames,
+                    executableMatches: result.executableMatches,
                   }),
                 }));
               }

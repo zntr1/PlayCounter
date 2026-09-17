@@ -52,6 +52,7 @@ function found(item: LibraryImportEntry): LibraryImportMatchCheck {
   return {
     kind: "found",
     executableNames: ["game.exe"],
+    executableMatches: [{ name: "game.exe", sources: ["community"] }],
     commit: {
       entry: item,
       metadata: {
@@ -168,6 +169,12 @@ describe("startup library match offers", () => {
       expect(useLibraryMatchOffers.getState().offers.size).toBe(2),
     );
     expect(useAppStore.getState().exeCache.size).toBe(0);
+    expect(
+      useLibraryMatchOffers.getState().offers.get("steam:1")?.executableMatches,
+    ).toEqual([{ name: "game.exe", sources: ["community"] }]);
+    expect(
+      useLibraryMatchOffers.getState().offers.get("xbox:2")?.executableMatches,
+    ).toEqual([{ name: "game.exe", sources: ["community"] }]);
     expect(useAppStore.getState().libraryImports.get("steam:1")).toBe(
       entries[0],
     );

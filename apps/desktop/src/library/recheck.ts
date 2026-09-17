@@ -11,11 +11,17 @@ import {
   type ResolvedLibraryGame,
 } from "./types";
 
+export type LibraryExecutableMatch = {
+  name: string;
+  sources: LibraryKnownExecutable["provenance"][];
+};
+
 export type LibraryImportMatchCheck =
   | {
       kind: "found";
       commit: LibraryImportCommit;
       executableNames: string[];
+      executableMatches: LibraryExecutableMatch[];
     }
   | { kind: "not_found" }
   | { kind: "needs_install"; executableNames: string[] }
@@ -54,7 +60,8 @@ export async function checkLibraryImportForMatches(input: {
     if (lookup.capability === "unsupported") return { kind: "unsupported" };
     resolved = lookup.games.find(
       (game) =>
-        game.key === libraryEntryKey(input.entry.provider, input.entry.externalId),
+        game.key ===
+        libraryEntryKey(input.entry.provider, input.entry.externalId),
     );
   }
   if (!resolved?.game || resolved.status !== "resolved") {
@@ -88,6 +95,23 @@ export async function checkLibraryImportForMatches(input: {
   return {
     kind: "found",
     executableNames,
+    // Attribute each usable file to its exact Windows executable evidence,
+    // independently of the game's metadata source or older saved links.
+    executableMatches: executableNames.map((name) => ({
+      name,
+      sources: [
+        ...new Set(
+          resolved.executables
+            .filter(
+              (executable) =>
+                executable.platform === "windows" &&
+                executable.kind === "exe" &&
+                executable.value.trim().toLowerCase() === name.toLowerCase(),
+            )
+            .map((executable) => executable.provenance),
+        ),
+      ].sort(),
+    })),
     commit: {
       ...commit,
       entry: {

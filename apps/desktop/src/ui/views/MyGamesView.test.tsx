@@ -5,10 +5,19 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore } from "../../store";
 import { STORAGE_KEY } from "../../persistence";
 import type { LibraryImportEntry } from "../../library/types";
+import {
+  checkLibraryImportForMatches,
+  type LibraryImportMatchCheck,
+} from "../../library/recheck";
+import { useLibraryMatchOffers } from "../../library/matchOffers";
 import { MyGamesView } from "./MyGamesView";
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
+vi.mock("../../library/recheck", () => ({
+  checkLibraryImportForMatches: vi.fn(),
+}));
+const checkLibraryMatch = vi.mocked(checkLibraryImportForMatches);
 
 const local = {
   gameId: -1,
@@ -35,6 +44,8 @@ let container: HTMLDivElement;
 let shelf: string;
 
 beforeEach(() => {
+  checkLibraryMatch.mockReset();
+  useLibraryMatchOffers.setState({ offers: new Map() });
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(document, "elementFromPoint").mockReturnValue(null);
   localStorage.clear();
@@ -92,6 +103,205 @@ afterEach(async () => {
   container.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+function seedMatchReview(
+  provider: "steam" | "xbox",
+  view: "grid" | "large" | "list",
+  offered = true,
+) {
+  const entry = { ...steam, provider };
+  const key = `${provider}:${entry.externalId}`;
+  useAppStore.setState({
+    exeCache: new Map(),
+    libraryImports: new Map([[key, entry]]),
+    backendHealth: { status: "online", checkedAt: null, detail: null },
+  });
+  useAppStore.getState().setMyGamesCardSize(view);
+  if (offered)
+    useLibraryMatchOffers.setState({
+      offers: new Map([
+        [
+          key,
+          {
+            entry,
+            executableMatches: [
+              { name: "startup-preview.exe", sources: ["igdb"] },
+            ],
+          },
+        ],
+      ]),
+    });
+  return entry;
+}
+
+async function openMatchReview(offered = true) {
+  await act(() => root.render(<MyGamesView />));
+  const label = offered
+    ? `Review tracking match for ${steam.name}`
+    : `Check matches for ${steam.name}`;
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!
+      .click(),
+  );
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+  const action =
+    dialog.lastElementChild!.querySelector<HTMLButtonElement>("button")!;
+  return { dialog, action };
+}
+
+function freshMatch(entry: LibraryImportEntry): LibraryImportMatchCheck {
+  return {
+    kind: "found",
+    executableNames: ["confirmed.exe"],
+    executableMatches: [{ name: "confirmed.exe", sources: ["community"] }],
+    commit: {
+      entry: { ...entry, linkedExeNames: ["confirmed.exe"] },
+      metadata: {
+        id: entry.gameId,
+        igdbId: entry.igdbId,
+        name: entry.name,
+        coverUrl: "",
+        source: entry.source,
+      },
+      exeCacheEntries: [
+        {
+          exeName: "confirmed.exe",
+          state: "matched",
+          gameId: entry.gameId,
+          igdbId: entry.igdbId,
+          gameName: entry.name,
+          source: entry.source,
+          lastCheckedAt: entry.lastReadAt,
+        },
+      ],
+      scopedLinks: [],
+    },
+  };
+}
+
+it.each([
+  ["steam", "grid"],
+  ["steam", "large"],
+  ["steam", "list"],
+  ["xbox", "grid"],
+  ["xbox", "large"],
+  ["xbox", "list"],
+] as const)(
+  "keeps the %s match offer visible in %s review until a fresh match can be confirmed",
+  async (provider, view) => {
+    const entry = seedMatchReview(provider, view);
+    let finish!: (result: LibraryImportMatchCheck) => void;
+    checkLibraryMatch.mockReturnValue(
+      new Promise((resolve) => (finish = resolve)),
+    );
+    const { dialog, action } = await openMatchReview();
+
+    expect(
+      container.querySelector(
+        '[aria-label="Review tracking match for Steam favorite"]',
+      )?.textContent,
+    ).toContain("IGDB");
+    expect(action.textContent).toBe("Use match");
+    expect(action.disabled).toBe(true);
+    expect(dialog.textContent).toContain("startup-preview.exe");
+    expect(dialog.querySelector('[role="status"] li')?.textContent).toBe(
+      "startup-preview.exeIGDB",
+    );
+    expect(dialog.textContent).not.toContain("Check again");
+    expect(
+      dialog.querySelector('[role="status"]')?.getAttribute("aria-busy"),
+    ).toBe("true");
+    await act(() => action.click());
+    expect(checkLibraryMatch).toHaveBeenCalledTimes(1);
+    expect(useAppStore.getState().exeCache.size).toBe(0);
+
+    await act(() => finish(freshMatch(entry)));
+    expect(action.isConnected).toBe(true);
+    expect(action.textContent).toBe("Use match");
+    expect(action.disabled).toBe(false);
+    expect(dialog.textContent).toContain("confirmed.exe");
+    expect(dialog.querySelector('[role="status"] li')?.textContent).toBe(
+      "confirmed.exeCommunity",
+    );
+    expect(dialog.textContent).not.toContain("startup-preview.exe");
+    expect(useAppStore.getState().exeCache.size).toBe(0);
+
+    await act(() => action.click());
+    expect(useAppStore.getState().exeCache.has("confirmed.exe")).toBe(true);
+    expect(useAppStore.getState().exeCache.has("startup-preview.exe")).toBe(
+      false,
+    );
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  },
+);
+
+it.each(["not_found", "needs_install", "unsupported", "error"] as const)(
+  "removes the offered match when fresh validation returns %s",
+  async (outcome) => {
+    seedMatchReview("steam", "grid");
+    let finish!: (result: LibraryImportMatchCheck) => void;
+    let fail!: (error: Error) => void;
+    checkLibraryMatch.mockReturnValue(
+      new Promise((resolve, reject) => {
+        finish = resolve;
+        fail = reject;
+      }),
+    );
+    const { dialog, action } = await openMatchReview();
+    await act(() => {
+      if (outcome === "error") fail(new Error("Lookup unavailable"));
+      else if (outcome === "needs_install")
+        finish({ kind: "needs_install", executableNames: ["scoped.exe"] });
+      else finish({ kind: outcome });
+    });
+
+    expect(dialog.textContent).not.toContain("startup-preview.exe");
+    expect(dialog.textContent).not.toContain("Use match");
+    expect(action.textContent).toBe("Check again");
+    expect(action.disabled).toBe(false);
+    expect(useAppStore.getState().exeCache.size).toBe(0);
+  },
+);
+
+it("disables repeated manual checks while loading and allows retry after failure", async () => {
+  seedMatchReview("steam", "grid", false);
+  let fail!: (error: Error) => void;
+  checkLibraryMatch.mockReturnValue(
+    new Promise((_, reject) => (fail = reject)),
+  );
+  const { action } = await openMatchReview(false);
+  expect(action.textContent).toBe("Checking…");
+  expect(action.disabled).toBe(true);
+  await act(() => action.click());
+  expect(checkLibraryMatch).toHaveBeenCalledTimes(1);
+
+  await act(() => fail(new Error("Lookup unavailable")));
+  expect(action.textContent).toBe("Check again");
+  expect(action.disabled).toBe(false);
+  checkLibraryMatch.mockReturnValue(new Promise(() => {}));
+  await act(() => action.click());
+  expect(action.textContent).toBe("Checking…");
+  expect(action.disabled).toBe(true);
+  expect(checkLibraryMatch).toHaveBeenCalledTimes(2);
+});
+
+it("cancels a pending review without applying a late match", async () => {
+  const entry = seedMatchReview("steam", "grid");
+  let finish!: (result: LibraryImportMatchCheck) => void;
+  checkLibraryMatch.mockReturnValue(
+    new Promise((resolve) => (finish = resolve)),
+  );
+  const { dialog } = await openMatchReview();
+  const signal = checkLibraryMatch.mock.calls[0][0].signal!;
+  await act(() =>
+    dialog.querySelector<HTMLButtonElement>('[aria-label="Close"]')!.click(),
+  );
+  expect(signal.aborted).toBe(true);
+  await act(() => finish(freshMatch(entry)));
+  expect(useAppStore.getState().exeCache.size).toBe(0);
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
 });
 
 function counts() {

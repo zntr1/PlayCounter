@@ -111,6 +111,7 @@ import {
 } from "../../library/matchOffers";
 import {
   checkLibraryImportForMatches,
+  type LibraryExecutableMatch,
   type LibraryImportMatchCheck,
 } from "../../library/recheck";
 import {
@@ -2796,6 +2797,7 @@ export function GameLibraryCard({
   const libraryMatchPrompt = libraryMatchOffer ? (
     <LibraryMatchOffer
       gameName={game.name}
+      executableMatches={libraryMatchOffer.executableMatches}
       onCover={!isList}
       onReview={() => setShowMatchCheck(true)}
       onDismiss={() =>
@@ -4464,6 +4466,7 @@ export function GameLibraryCard({
               entry={matchCheckImportEntry.entry}
               install={matchCheckImportEntry.install}
               ignoredProcesses={ignoredProcesses}
+              offeredExecutableMatches={libraryMatchOffer?.executableMatches}
               onCancel={() => setShowMatchCheck(false)}
               onApplied={(executableNames) => {
                 setShowMatchCheck(false);
@@ -4881,6 +4884,7 @@ export function GameLibraryCard({
             entry={matchCheckImportEntry.entry}
             install={matchCheckImportEntry.install}
             ignoredProcesses={ignoredProcesses}
+            offeredExecutableMatches={libraryMatchOffer?.executableMatches}
             onCancel={() => setShowMatchCheck(false)}
             onApplied={(executableNames) => {
               setShowMatchCheck(false);
@@ -5432,6 +5436,7 @@ function LibraryImportMatchCheckDialog({
   entry,
   install,
   ignoredProcesses,
+  offeredExecutableMatches,
   onCancel,
   onApplied,
 }: {
@@ -5439,6 +5444,7 @@ function LibraryImportMatchCheckDialog({
   entry: LibraryImportEntry;
   install?: LibraryInstallEntry;
   ignoredProcesses: ReadonlySet<string>;
+  offeredExecutableMatches?: readonly LibraryExecutableMatch[];
   onCancel: () => void;
   onApplied: (executableNames: string[]) => void;
 }) {
@@ -5449,10 +5455,20 @@ function LibraryImportMatchCheckDialog({
   const [result, setResult] = useState<LibraryImportMatchCheck | null>(null);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
+  const checking = !result && !error && !isOffline;
+  // The startup offer is a preview only; applying still requires a fresh result.
+  const executableMatches =
+    result?.kind === "found"
+      ? result.executableMatches
+      : checking
+        ? (offeredExecutableMatches ?? [])
+        : [];
+  const showingMatch = executableMatches.length > 0;
 
   useEffect(() => {
     if (isOffline) return;
     let cancelled = false;
+    const controller = new AbortController();
     setResult(null);
     setError("");
     void checkLibraryImportForMatches({
@@ -5460,6 +5476,7 @@ function LibraryImportMatchCheckDialog({
       entry,
       install,
       ignoredProcesses,
+      signal: controller.signal,
     })
       .then((next) => {
         if (!cancelled) setResult(next);
@@ -5469,11 +5486,12 @@ function LibraryImportMatchCheckDialog({
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [apiEndpoint, attempt, entry, ignoredProcesses, install, isOffline]);
 
   function applyMatch() {
-    if (result?.kind !== "found") return;
+    if (isOffline || applying || result?.kind !== "found") return;
     setApplying(true);
     setError("");
     try {
@@ -5486,36 +5504,33 @@ function LibraryImportMatchCheckDialog({
   }
 
   const retry = () => setAttempt((value) => value + 1);
-  const footer =
-    result?.kind === "found" ? (
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button
-          variant="primary"
-          icon={Check}
-          loading={applying}
-          onClick={applyMatch}
-        >
-          Use {result.executableNames.length === 1 ? "match" : "matches"}
-        </Button>
-        <Button variant="ghost" disabled={applying} onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    ) : (
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button
-          variant="secondary"
-          icon={Search}
-          disabled={isOffline}
-          onClick={retry}
-        >
-          Check again
-        </Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Close
-        </Button>
-      </div>
-    );
+  const footer = (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <Button
+        variant={showingMatch ? "primary" : "secondary"}
+        icon={showingMatch ? Check : Search}
+        className="h-10"
+        loading={checking || applying}
+        aria-busy={checking || applying}
+        disabled={isOffline}
+        onClick={result?.kind === "found" ? applyMatch : retry}
+      >
+        {showingMatch
+          ? `Use ${executableMatches.length === 1 ? "match" : "matches"}`
+          : checking
+            ? "Checking…"
+            : "Check again"}
+      </Button>
+      <Button
+        variant="ghost"
+        className="h-10"
+        disabled={applying}
+        onClick={onCancel}
+      >
+        {showingMatch || checking ? "Cancel" : "Close"}
+      </Button>
+    </div>
+  );
 
   return (
     <Modal
@@ -5524,8 +5539,7 @@ function LibraryImportMatchCheckDialog({
       eyebrow={`${providerLabel} executable`}
       title={`Check matches for ${entry.name}`}
       subtitle={`${providerLabel} ${entry.provider === "steam" ? "AppID" : "Title ID"} ${entry.externalId}`}
-      icon={!result && !error && !isOffline ? Loader2 : Search}
-      iconSpin={!result && !error && !isOffline}
+      icon={Search}
       onClose={onCancel}
       footer={footer}
     >
@@ -5534,45 +5548,66 @@ function LibraryImportMatchCheckDialog({
         executable for this {providerLabel} game.
       </p>
 
-      <div className="mt-5" role="status" aria-live="polite">
+      <div
+        className={clsx(
+          "mt-5 h-36 overflow-y-auto break-words rounded-xl border p-5 text-sm",
+          isOffline
+            ? "border-warning-border bg-warning-tint text-warning"
+            : error
+              ? "border-danger-border bg-danger-tint text-danger"
+              : showingMatch
+                ? "border-success-border bg-success-tint text-success"
+                : result?.kind === "needs_install" ||
+                    result?.kind === "unsupported"
+                  ? "border-warning-border bg-warning-tint text-warning"
+                  : "border-border bg-bg/60 text-text-muted",
+        )}
+        role="status"
+        aria-live="polite"
+        aria-busy={checking}
+      >
         {isOffline ? (
-          <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
-            <div className="flex items-center gap-2 font-medium">
-              <WifiOff size={17} /> Checking the database needs an internet
-              connection.
-            </div>
+          <div className="flex items-center gap-2 font-medium">
+            <WifiOff size={17} className="shrink-0" /> Checking the database
+            needs an internet connection.
           </div>
         ) : error ? (
-          <div className="rounded-xl border border-danger-border bg-danger-tint p-5 text-sm text-danger">
+          <>
             <div className="font-semibold">The match check failed</div>
             <div className="mt-1 text-text-muted">{error}</div>
-          </div>
-        ) : !result ? (
-          <div className="grid gap-2" aria-busy>
-            {Array.from({ length: 2 }, (_, index) => (
-              <div
-                key={index}
-                className="h-[72px] animate-pulse rounded-xl border border-border bg-surface-hover"
-              />
-            ))}
-            <span className="sr-only">
-              Checking IGDB and community databases…
-            </span>
-          </div>
-        ) : result.kind === "found" ? (
-          <div className="rounded-xl border border-success-border bg-success-tint p-5 text-sm text-success">
+          </>
+        ) : showingMatch ? (
+          <>
             <div className="flex items-center gap-2 font-semibold">
-              <Check size={18} />{" "}
-              {result.executableNames.length === 1
+              <Check size={18} className="shrink-0" />{" "}
+              {executableMatches.length === 1
                 ? "Executable match found"
                 : "Executable matches found"}
             </div>
-            <div className="mt-2 font-mono text-xs text-text">
-              {result.executableNames.join(", ")}
-            </div>
+            <ul className="mt-2 space-y-2">
+              {executableMatches.map((match) => (
+                <li
+                  key={match.name.toLowerCase()}
+                  className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1"
+                >
+                  <span className="min-w-0 flex-1 break-all font-mono text-xs text-text">
+                    {match.name}
+                  </span>
+                  <GameMatchBadges sources={match.sources} variant="label" />
+                </li>
+              ))}
+            </ul>
+            {checking ? (
+              <span className="sr-only">Confirming the latest match…</span>
+            ) : null}
+          </>
+        ) : !result ? (
+          <div className="flex items-center gap-2">
+            <Loader2 size={18} className="shrink-0 animate-spin" />
+            Checking IGDB and community databases…
           </div>
         ) : result.kind === "needs_install" ? (
-          <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
+          <>
             <div className="font-semibold">Local confirmation required</div>
             <p className="mt-1 leading-5 text-text-muted">
               The database knows {result.executableNames.join(", ")}, but the
@@ -5580,21 +5615,21 @@ function LibraryImportMatchCheckDialog({
               {providerLabel} scan so PlayCounter can safely scope it to that
               folder.
             </p>
-          </div>
+          </>
         ) : result.kind === "unsupported" ? (
-          <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
+          <>
             This PlayCounter backend does not support {providerLabel} executable
             checks yet.
-          </div>
+          </>
         ) : (
-          <div className="rounded-xl border border-border bg-bg/60 p-5 text-sm text-text-muted">
+          <>
             <div className="font-semibold text-text">No match found yet</div>
             <p className="mt-1 leading-5">
               There is still no approved executable for this {providerLabel}{" "}
               game. You can check again after a Community suggestion has been
               approved.
             </p>
-          </div>
+          </>
         )}
       </div>
     </Modal>

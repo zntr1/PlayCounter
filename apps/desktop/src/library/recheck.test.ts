@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkLibraryImportForMatches } from "./recheck";
 import type { LibraryImportEntry } from "./types";
+import type { LibraryKnownExecutable } from "@playcounter/shared";
 
 const entry: LibraryImportEntry = {
   provider: "steam",
@@ -67,6 +68,9 @@ describe("Steam import match recheck", () => {
     expect(result.kind).toBe("found");
     if (result.kind !== "found") return;
     expect(result.executableNames).toEqual(["cs2.exe"]);
+    expect(result.executableMatches).toEqual([
+      { name: "cs2.exe", sources: ["community"] },
+    ]);
     expect(result.commit.entry.linkedExeNames).toEqual(["cs2.exe"]);
     expect(result.commit.entry.linkedExeSources).toEqual(["community"]);
     expect(result.commit.exeCacheEntries[0]).toMatchObject({
@@ -75,6 +79,62 @@ describe("Steam import match recheck", () => {
       gameId: 9,
     });
   });
+
+  it.each(["steam", "xbox"] as const)(
+    "keeps exact executable provenance for %s, including mixed evidence",
+    async (provider) => {
+      const evidence = (
+        value: string,
+        provenance: LibraryKnownExecutable["provenance"],
+        overrides: Partial<LibraryKnownExecutable> = {},
+      ): LibraryKnownExecutable => ({
+        platform: "windows",
+        kind: "exe",
+        value,
+        provenance,
+        verified: true,
+        ...overrides,
+      });
+      const response = await resolverResponse({
+        value: "community.exe",
+        verified: true,
+      }).json();
+      const resolved = {
+        ...response.results[0],
+        key: `${provider}:${entry.externalId}`,
+        executables: [
+          evidence("community.exe", "community"),
+          evidence("community.exe", "community"),
+          evidence("community.exe", "igdb", { platform: "linux" }),
+          evidence("igdb.exe", "igdb"),
+          evidence("shared.exe", "community"),
+          evidence(" SHARED.EXE ", "igdb"),
+          evidence("ignored.exe", "igdb"),
+          evidence("unusable.exe", "igdb", { verified: false }),
+        ],
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response(
+          JSON.stringify(provider === "xbox" ? resolved : { results: [resolved] }),
+          { status: 200 },
+        )),
+      );
+
+      const result = await checkLibraryImportForMatches({
+        apiEndpoint: "https://example.test",
+        entry: { ...entry, provider, linkedExeSources: ["custom", "igdb"] },
+        ignoredProcesses: new Set(["ignored.exe"]),
+      });
+      expect(result.kind).toBe("found");
+      if (result.kind !== "found") return;
+      expect(result.executableMatches).toEqual([
+        { name: "community.exe", sources: ["community"] },
+        { name: "igdb.exe", sources: ["igdb"] },
+        { name: "shared.exe", sources: ["community", "igdb"] },
+      ]);
+    },
+  );
 
   it("keeps unknown provider playtime unknown after a metadata recheck", async () => {
     vi.stubGlobal(
