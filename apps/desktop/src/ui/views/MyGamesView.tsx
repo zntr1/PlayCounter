@@ -2078,10 +2078,7 @@ export function MyGamesView() {
 
             {layout.panel === "provider-empty" &&
             activeImportableProviderConfig ? (
-              <ProviderImportCallout
-                config={activeImportableProviderConfig}
-                variant="provider-tab"
-              />
+              <ProviderImportCallout config={activeImportableProviderConfig} />
             ) : layout.panel === "unimported-empty" ? (
               <Panel className="px-6 py-12 text-center">
                 <h3 className="text-lg font-semibold text-text">
@@ -2277,34 +2274,69 @@ function EmptyLibraryPanel({
 }: {
   platform: ReturnType<typeof currentPlatform>;
 }) {
+  const setActiveView = useAppStore((state) => state.setActiveView);
+  const setLibraryImportProvider = useAppStore(
+    (state) => state.setLibraryImportProvider,
+  );
   const importProviders = importableProviderTabs(platform);
-  if (importProviders.length === 0) {
-    return (
-      <Panel className="px-4 py-12 text-center text-sm text-text-muted">
-        No discovered games have completed a session yet.
-      </Panel>
-    );
-  }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {importProviders.map((config) => (
-        <ProviderImportCallout
-          key={config.id}
-          config={config}
-          variant="first-import"
+    <Panel className="overflow-hidden text-center">
+      <div className="bg-gradient-to-b from-accent/[0.06] to-transparent px-6 py-10 sm:px-10 sm:py-12">
+        <img
+          src="/icon.png"
+          alt=""
+          aria-hidden="true"
+          className="mx-auto h-16 w-16 object-contain"
         />
-      ))}
-    </div>
+        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
+          No games detected yet
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted sm:text-base sm:leading-7">
+          Start a game from any launcher or a standalone install. Keep
+          PlayCounter running, and it will add recognized games here and track
+          your playtime automatically.
+        </p>
+      </div>
+      {importProviders.length > 0 ? (
+        <div className="border-t border-border/60 px-6 py-6">
+          <p className="text-sm text-text-muted">
+            You can also import games and past playtime. It&apos;s completely
+            optional.
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-3">
+            {importProviders.map((config) => (
+              <Button
+                key={config.id}
+                variant="secondary"
+                data-controller-item="view-link"
+                onClick={() => {
+                  setLibraryImportProvider(config.id);
+                  setActiveView("import");
+                }}
+              >
+                {config.iconUrl ? (
+                  <img
+                    src={config.iconUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-4 w-4 shrink-0 object-contain"
+                  />
+                ) : null}
+                {config.firstImportCtaLabel}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </Panel>
   );
 }
 
 function ProviderImportCallout({
   config,
-  variant,
 }: {
   config: ImportableProviderTabConfig;
-  variant: "first-import" | "provider-tab";
 }) {
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setLibraryImportProvider = useAppStore(
@@ -2322,12 +2354,10 @@ function ProviderImportCallout({
         />
       ) : null}
       <h3 className="mt-4 text-lg font-semibold text-text">
-        {variant === "first-import"
-          ? config.firstImportTitle
-          : config.emptyTitle}
+        {config.emptyTitle}
       </h3>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">
-        {variant === "first-import" ? config.firstImportBody : config.emptyBody}
+        {config.emptyBody}
       </p>
       <Button
         variant="primary"

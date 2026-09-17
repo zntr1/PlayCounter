@@ -11,8 +11,6 @@ type ProviderTabCopy = {
   importCtaLabel: string;
   emptyTitle: string;
   emptyBody: string;
-  firstImportTitle: string;
-  firstImportBody: string;
   firstImportCtaLabel: string;
 };
 
@@ -42,9 +40,6 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
     emptyTitle: "No Steam games imported yet",
     emptyBody:
       "PlayCounter reads Steam on this PC and brings in your games with their Steam playtime. You never have to sign in, and your game list stays on this PC.",
-    firstImportTitle: "No games tracked yet",
-    firstImportBody:
-      "PlayCounter adds games automatically as soon as it sees one running. You can also bring your Steam library in right now.",
     firstImportCtaLabel: "Import from Steam",
     import: { kind: "builtin", platforms: ["windows"] },
   },
@@ -58,9 +53,6 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
     emptyTitle: "No Xbox games imported yet",
     emptyBody:
       "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
-    firstImportTitle: "No games tracked yet",
-    firstImportBody:
-      "Bring in your Xbox playtime by signing in with Microsoft in your browser. Most games need your confirmation first. PlayCounter never sees your password and keeps nothing from your sign-in.",
     firstImportCtaLabel: "Import from Xbox",
     import: { kind: "builtin", platforms: ["windows", "macos", "linux"] },
   },
