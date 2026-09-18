@@ -55,8 +55,8 @@ export async function checkLibraryImportForMatches(input: {
   let resolved: ResolvedLibraryGame | undefined;
   if (input.entry.provider !== "steam") {
     // Keep the confirmed identity for providers that support a manual choice.
-    const { reverseResolveXboxGame } = await import("./providers/xbox");
-    const result = await reverseResolveXboxGame(
+    const { reverseResolveLibraryGame } = await import("./gameLookup");
+    const result = await reverseResolveLibraryGame(
       input.apiEndpoint,
       input.entry.gameId,
       input.signal,

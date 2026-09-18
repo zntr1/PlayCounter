@@ -21,9 +21,9 @@ import { importExeCandidates } from "../../library/exeCandidates";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { loadLibraryProvider } from "../../library/providers";
 import {
-  reverseResolveXboxGame,
-  searchXboxGames,
-} from "../../library/providers/xbox";
+  reverseResolveLibraryGame,
+  searchLibraryGames,
+} from "../../library/gameLookup";
 import { resolveLibraryGames } from "../../library/resolve";
 import { RATE_LIMIT_MESSAGE } from "../../rateLimitedFetch";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
@@ -393,7 +393,7 @@ export function ImportLibraryView() {
               ? previousMatch?.game?.id === existing.gameId
                 ? previousMatch.executables
                 : (
-                    await reverseResolveXboxGame(
+                    await reverseResolveLibraryGame(
                       apiEndpoint,
                       existing.gameId,
                       signal,
@@ -588,7 +588,7 @@ export function ImportLibraryView() {
     setAddingExternalId(scanned.externalId);
     setError(null);
     try {
-      const reverseMatch = await reverseResolveXboxGame(
+      const reverseMatch = await reverseResolveLibraryGame(
         apiEndpoint,
         selectedGame.id,
         signal,
@@ -779,8 +779,9 @@ export function ImportLibraryView() {
       {
         key: "attention",
         label: "Needs attention",
-        description:
-          providerId !== "steam"
+        description: isXbox
+          ? "Confirm which game this is before importing it."
+          : isBattleNet
             ? "Confirm the game and its executable before importing it."
             : "Pick the game file. Known matches are linked; unknown files can be shared with the community.",
         games: [] as ScannedLibraryGame[],
@@ -788,8 +789,9 @@ export function ImportLibraryView() {
       {
         key: "unavailable",
         label: "Unavailable right now",
-        description:
-          providerId !== "steam"
+        description: isXbox
+          ? "PlayCounter could not match this Xbox title to a game it knows."
+          : isBattleNet
             ? "Game details or installation data are unavailable. Try scanning again."
             : "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
         games: [] as ScannedLibraryGame[],
@@ -1130,7 +1132,7 @@ export function ImportLibraryView() {
                       browsedExecutable={browsedExecutables[game.externalId]}
                       ignoredProcesses={ignoredProcesses}
                       onAddAndShare={() => void addAndShareGame(game)}
-                      onXboxMatch={(match) => confirmAndImportGame(game, match)}
+                      onGameMatch={(match) => confirmAndImportGame(game, match)}
                       onBrowseExecutable={() => void browseExecutable(game)}
                       onManualExecutable={(relativePath) =>
                         setManualExecutables((current) => ({
@@ -1197,7 +1199,7 @@ export function ImportRow({
   manualExecutable,
   browsedExecutable,
   ignoredProcesses,
-  onXboxMatch,
+  onGameMatch,
   onAddAndShare,
   onBrowseExecutable,
   onManualExecutable,
@@ -1218,7 +1220,7 @@ export function ImportRow({
   browsedExecutable?: ScannedExecutable;
   ignoredProcesses: ReadonlySet<string>;
   onAddAndShare: () => void;
-  onXboxMatch: (game: GameMetadata) => Promise<void>;
+  onGameMatch: (game: GameMetadata) => Promise<void>;
   onBrowseExecutable: () => void;
   onManualExecutable: (value: string) => void;
   onSelected: (checked: boolean) => void;
@@ -1248,14 +1250,16 @@ export function ImportRow({
     resolved,
     ignoredProcesses,
   );
-  const xboxNeedsIdentity =
+  const needsIdentityConfirmation =
     provider !== "steam" &&
     hasImportableContent(game) &&
     resolved?.status !== "resolved";
   const showExeBlock =
     showExecutableChoice &&
     (showExeChoice ||
-      (xboxNeedsIdentity && game.installed && game.installPath !== undefined));
+      (needsIdentityConfirmation &&
+        game.installed &&
+        game.installPath !== undefined));
   const Row = showSelection ? "label" : "article";
   return (
     <Row
@@ -1345,7 +1349,7 @@ export function ImportRow({
             <p>
               {provider === "battlenet"
                 ? "Pick the game file PlayCounter should watch. The match is saved for this installation on your PC."
-                : xboxNeedsIdentity
+                : needsIdentityConfirmation
                   ? "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below."
                   : showAddAndShare
                     ? "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review."
@@ -1376,10 +1380,10 @@ export function ImportRow({
               >
                 Browse…
               </Button>
-              {showAddAndShare && !xboxNeedsIdentity ? (
+              {showAddAndShare && !needsIdentityConfirmation ? (
                 <Button
                   variant="primary"
-                  icon={Share2}
+                  icon={provider === "battlenet" ? CheckCircle2 : Share2}
                   loading={addingAndSharing}
                   disabled={!manualExecutable}
                   onClick={onAddAndShare}
@@ -1390,8 +1394,8 @@ export function ImportRow({
             </div>
           </div>
         ) : null}
-        {xboxNeedsIdentity ? (
-          <XboxMatchControls
+        {needsIdentityConfirmation ? (
+          <LibraryMatchControls
             apiEndpoint={apiEndpoint}
             provider={provider}
             candidates={resolved?.candidates ?? []}
@@ -1400,16 +1404,16 @@ export function ImportRow({
               `${LIBRARY_PROVIDER_LABELS[provider]} game ${game.externalId}`
             }
             importing={addingAndSharing}
-            onConfirm={onXboxMatch}
+            onConfirm={onGameMatch}
           />
         ) : null}
       </div>
     </Row>
   );
 }
-export function XboxMatchControls({
+export function LibraryMatchControls({
   apiEndpoint,
-  provider = "xbox",
+  provider,
   candidates,
   title,
   onConfirm,
@@ -1420,7 +1424,7 @@ export function XboxMatchControls({
   title: string;
   onConfirm: (game: GameMetadata) => Promise<void>;
   importing: boolean;
-  provider?: BuiltinImportProviderId;
+  provider: BuiltinImportProviderId;
 }) {
   const [query, setQuery] = useState(title);
   const [choices, setChoices] = useState(candidates);
@@ -1432,7 +1436,7 @@ export function XboxMatchControls({
   useEffect(() => {
     setSearching(false);
     return () => searchController.current?.abort();
-  }, [apiEndpoint]);
+  }, [apiEndpoint, provider]);
   const [message, setMessage] = useState(
     candidates.length > 0
       ? "Choose the exact game, then confirm the match."
@@ -1450,12 +1454,10 @@ export function XboxMatchControls({
     setSearching(true);
     setMessage("");
     try {
-      const games = await searchXboxGames(
-        apiEndpoint,
-        query,
-        controller.signal,
-        provider !== "battlenet",
-      );
+      const games = await searchLibraryGames(apiEndpoint, query, {
+        signal: controller.signal,
+        mainGamesAndRemastersOnly: provider === "xbox",
+      });
       if (controller.signal.aborted) return;
       setChoices(games);
       setSelectedIgdbId(games[0]?.igdbId ?? null);

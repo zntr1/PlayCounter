@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   scan: vi.fn(),
   lookup: vi.fn(),
   reverse: vi.fn(),
+  search: vi.fn(),
   run: vi.fn(),
   invoke: vi.fn(),
 }));
@@ -27,9 +28,9 @@ vi.mock("../../library/providers", () => ({
   }),
 }));
 vi.mock("../../library/resolve", () => ({ resolveLibraryGames: mocks.lookup }));
-vi.mock("../../library/providers/xbox", () => ({
-  reverseResolveXboxGame: mocks.reverse,
-  searchXboxGames: vi.fn(),
+vi.mock("../../library/gameLookup", () => ({
+  reverseResolveLibraryGame: mocks.reverse,
+  searchLibraryGames: mocks.search,
 }));
 vi.mock("../../library/importRun", () => ({ runLibraryImport: mocks.run }));
 
@@ -211,6 +212,80 @@ it("leaves multiple eligible game files for the user to choose", async () => {
   expect(addButton?.disabled).toBe(true);
   expect(mocks.run).not.toHaveBeenCalled();
 });
+
+it.each(["xbox", "battlenet"] as const)(
+  "keeps %s search filtering and executable linking separate during manual matching",
+  async (provider) => {
+    await act(() => store.setState({ libraryImportProvider: provider }));
+    const result = scanResult("Example Game");
+    const matchedGame = result.resolvedGames![0].game!;
+    const externalId = provider === "battlenet" ? "example" : "42";
+    result.games[0] = {
+      ...result.games[0],
+      externalId,
+      playtimeSeconds: null,
+      hasPlayedEvidence: provider === "battlenet" ? false : undefined,
+      installed: true,
+      installPath: String.raw`C:\Games\Example`,
+      executables: [
+        {
+          fileName: "Example.exe",
+          relativePath: "Example.exe",
+          sizeBytes: 1_000_000,
+          depth: 0,
+        },
+      ],
+    };
+    result.resolvedGames = [
+      {
+        key: `${provider}:${externalId}`,
+        status: "unknown",
+        executables: [],
+        candidates: [],
+      },
+    ];
+    mocks.scan.mockResolvedValue(result);
+    mocks.search.mockResolvedValue([matchedGame]);
+    mocks.reverse.mockResolvedValue({ game: matchedGame, executables: [] });
+    mocks.run.mockResolvedValue({ shareOutcomes: [] });
+
+    await click(
+      provider === "xbox" ? "Sign in and find games" : "Find installed games",
+    );
+    await click("Search IGDB");
+    expect(mocks.search).toHaveBeenCalledWith(
+      store.getState().settings.apiEndpoint,
+      "Example Game",
+      {
+        signal: expect.any(AbortSignal),
+        mainGamesAndRemastersOnly: provider === "xbox",
+      },
+    );
+    expect(mocks.run).not.toHaveBeenCalled();
+    await click("Confirm and Import");
+    expect(mocks.reverse).toHaveBeenCalledWith(
+      store.getState().settings.apiEndpoint,
+      matchedGame.id,
+      expect.any(AbortSignal),
+    );
+    const plan = mocks.run.mock.calls[0][0][0];
+    expect(plan.entry).toMatchObject({
+      provider,
+      externalId,
+      providerSeconds: null,
+      linkedExeNames: ["Example.exe"],
+    });
+    if (provider === "battlenet") {
+      expect(plan.exeCacheEntries).toEqual([]);
+      expect(plan.scopedLinks).toEqual([
+        expect.objectContaining({
+          provider: "battlenet",
+          pathPrefix: "c:\\games\\example",
+        }),
+      ]);
+    }
+  },
+);
 
 it.each([false, true])(
   "only removes missing Battle.net install status after a complete scan (partial=%s)",

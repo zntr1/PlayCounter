@@ -3,12 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 
-import {
-  reverseResolveXboxGame,
-  scanXboxLibrary,
-  searchXboxGames,
-  xboxProvider,
-} from "./xbox";
+import { scanXboxLibrary, xboxProvider } from "./xbox";
+import { reverseResolveLibraryGame, searchLibraryGames } from "../gameLookup";
 import { buildLibraryImportCommit } from "../importPlan";
 
 const endpoint = "https://api.playcounter.test";
@@ -433,7 +429,9 @@ describe("Xbox library provider", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      searchXboxGames(`${endpoint}/`, "Forza Horizon"),
+      searchLibraryGames(`${endpoint}/`, "Forza Horizon", {
+        mainGamesAndRemastersOnly: true,
+      }),
     ).resolves.toEqual([
       {
         id: 42,
@@ -487,7 +485,7 @@ describe("Xbox library provider", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const reverse = await reverseResolveXboxGame(endpoint, 42);
+    const reverse = await reverseResolveLibraryGame(endpoint, 42);
     const commit = buildLibraryImportCommit({
       provider: "xbox",
       scanned: {
