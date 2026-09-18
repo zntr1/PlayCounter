@@ -219,9 +219,14 @@ describe("Battle.net webview reader", () => {
     const window: Record<string, unknown> = {};
     const fetch = vi.fn(async (path: string) => {
       const index = path.endsWith("classic-games") ? 1 : 0;
-      return new Response(JSON.stringify(index ? classic : modern), {
+      const response = new Response(JSON.stringify(index ? classic : modern), {
         status: statuses[index],
+        headers: { "content-type": "application/json" },
       });
+      Object.defineProperty(response, "url", {
+        value: `https://account.battle.net${path}`,
+      });
+      return response;
     });
     const evaluate = () =>
       runInNewContext(reader, {
@@ -274,6 +279,14 @@ describe("Battle.net webview reader", () => {
       /Private|PRIVATE|998877|titleHasGameTime|cdKeys/,
     );
     expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/games-and-subs",
+      expect.objectContaining({
+        credentials: "same-origin",
+        redirect: "error",
+        cache: "no-store",
+      }),
+    );
   });
 
   it("does not read login forms or start requests on the sign-in page", () => {
@@ -287,6 +300,21 @@ describe("Battle.net webview reader", () => {
     evaluate();
     await vi.waitFor(() =>
       expect(evaluate()).toEqual({ status: "error", error: "expired" }),
+    );
+  });
+
+  it("rejects responses from an unexpected origin even if their shape looks valid", async () => {
+    const { evaluate, fetch } = harness({}, {});
+    fetch.mockImplementation(async () => {
+      const response = Response.json({ gameAccounts: [], classicGames: [] });
+      Object.defineProperty(response, "url", {
+        value: "https://evil.test/api/games-and-subs",
+      });
+      return response;
+    });
+    evaluate();
+    await vi.waitFor(() =>
+      expect(evaluate()).toEqual({ status: "error", error: "unavailable" }),
     );
   });
 

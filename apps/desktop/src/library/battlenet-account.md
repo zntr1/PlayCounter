@@ -21,6 +21,27 @@ Account identifiers, credentials, subscription details and CD keys are neither
 returned to the frontend nor sent to the PlayCounter API. Cancellation, closing
 the window, failure, success and the ten-minute timeout all destroy the window.
 
+Before loading any remote page, native code verifies that WebView2 actually
+created an InPrivate profile. Unsupported runtimes fail closed. Native web
+messaging, host objects, developer tools, password saving, autofill, extensions,
+permission prompts, popups and downloads are disabled in this window. Navigation
+allows exact HTTPS login hosts; the native title shows the current host. The game
+reader checks the account origin in both Rust and JavaScript, refuses redirects,
+and checks the returned endpoint before projecting metadata.
+
+Private cookies and browsing data are cleared before sign-in and explicitly
+cleared again before destroying the window. A retry stays blocked until cleanup
+finishes. Cleanup failure blocks further sign-ins until the app restarts. The
+main application's persistent profile is never cleared by this operation.
+
+The ignored Windows native regression test
+`private_profile_enforces_security_settings_and_clears_only_its_own_cookies`
+uses an isolated profile, `about:blank`, and synthetic cookies. Run it with
+`cargo test --lib private_profile_enforces_security_settings_and_clears_only_its_own_cookies -- --ignored`.
+It verifies private-mode enforcement, disabled native/password interfaces,
+working native script callbacks, cookie removal and preservation of the
+persistent profile. It never connects to Battle.net.
+
 Account membership does not prove that a game was played. Account imports retain
 unknown historical duration and no play evidence unless a local scan has a
 last-played date. Multiple regional accounts are deduplicated. A WoW account does

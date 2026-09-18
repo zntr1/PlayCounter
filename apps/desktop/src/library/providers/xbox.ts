@@ -90,6 +90,22 @@ export async function scanXboxLibrary(
   );
   const externalSignal = options.signal;
   ensureNotAborted(externalSignal);
+  const endpointUrl = new URL(apiEndpoint);
+  if (
+    endpointUrl.username ||
+    endpointUrl.password ||
+    endpointUrl.search ||
+    endpointUrl.hash ||
+    (endpointUrl.protocol !== "https:" &&
+      !(
+        endpointUrl.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(endpointUrl.hostname)
+      ))
+  ) {
+    throw new Error(
+      "Xbox sign-in requires an HTTPS API connection (or a local development server).",
+    );
+  }
 
   const requestController = new AbortController();
   const onExternalAbort = () => requestController.abort();
@@ -113,6 +129,8 @@ export async function scanXboxLibrary(
       `${apiEndpoint}/api/xbox/import/start`,
       {
         method: "POST",
+        redirect: "error",
+        cache: "no-store",
         signal: requestController.signal,
         onRateLimitWait: options.onRateLimitWait,
       },
@@ -146,7 +164,11 @@ export async function scanXboxLibrary(
       ensureNotAborted(requestController.signal);
       const resultResponse = await rateLimitedFetch(
         `${apiEndpoint}/api/xbox/import/result?attemptId=${encodeURIComponent(attemptId)}`,
-        { signal: requestController.signal },
+        {
+          signal: requestController.signal,
+          redirect: "error",
+          cache: "no-store",
+        },
       );
       if (resultResponse.status === 429) {
         options.onRateLimitWait?.(true);
@@ -258,6 +280,8 @@ async function cancelXboxImport(apiEndpoint: string, attemptId: string) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ attemptId } satisfies XboxImportCancelRequest),
       signal: controller.signal,
+      redirect: "error",
+      cache: "no-store",
     });
   } catch {
     // Best effort: the backend TTL still removes an abandoned attempt.
@@ -276,6 +300,21 @@ function parseXboxImportStart(value: unknown): XboxImportStartResponse {
     !record.authorizeUrl
   ) {
     throw new Error("Xbox import returned an invalid sign-in response.");
+  }
+  let url: URL;
+  try {
+    url = new URL(record.authorizeUrl);
+  } catch {
+    throw new Error("Xbox import returned an invalid sign-in URL.");
+  }
+  if (
+    url.origin !== "https://login.microsoftonline.com" ||
+    url.pathname !== "/consumers/oauth2/v2.0/authorize" ||
+    url.username ||
+    url.password ||
+    url.hash
+  ) {
+    throw new Error("Xbox import returned an unsupported sign-in URL.");
   }
   return {
     attemptId: record.attemptId,

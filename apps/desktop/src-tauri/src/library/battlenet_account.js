@@ -17,6 +17,7 @@
     try {
       const response = await fetch(`/api/${path}`, {
         credentials: "same-origin",
+        redirect: "error",
         cache: "no-store",
         signal: controller.signal,
         headers: { Accept: "application/json" },
@@ -25,6 +26,12 @@
         return { error: "expired" };
       }
       if (!response.ok) return { error: "unavailable" };
+      if (
+        response.redirected ||
+        response.url !== `https://account.battle.net/api/${path}` ||
+        !response.headers.get("content-type")?.includes("application/json")
+      )
+        return { error: "invalid" };
       const body = await response.text();
       if (body.length > 4_000_000) return { error: "invalid" };
       const rows = JSON.parse(body)?.[field];

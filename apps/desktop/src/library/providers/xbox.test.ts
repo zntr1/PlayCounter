@@ -19,6 +19,33 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("Xbox library provider", () => {
+  it("rejects unencrypted remote account APIs before starting authentication", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      scanXboxLibrary({ apiEndpoint: "http://api.example.com" }),
+    ).rejects.toThrow("HTTPS");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a spoofed authorization URL before showing it or opening a browser", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          attemptId: firstAttemptId,
+          authorizeUrl:
+            "https://login.microsoftonline.com.evil.test/consumers/oauth2/v2.0/authorize",
+        }),
+      ),
+    );
+    const onAuthorizeUrl = vi.fn();
+    await expect(
+      scanXboxLibrary({ apiEndpoint: endpoint, onAuthorizeUrl }),
+    ).rejects.toThrow("unsupported sign-in URL");
+    expect(onAuthorizeUrl).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
   it("waits and retries a throttled sign-in start before opening the browser", async () => {
     vi.useFakeTimers();
     const fetchMock = vi
