@@ -601,6 +601,26 @@ export function SettingsView() {
             />
           </SettingsRow>
           <SettingsRow
+            description={
+              'Show an "Update note" button in saved-session popups.'
+            }
+            title="Update note in popups"
+          >
+            <input
+              type="checkbox"
+              aria-label="Update note in popups"
+              checked={settings.overlayUpdateNote === true}
+              disabled={settings.desktopOverlaysEnabled !== true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayUpdateNote",
+                  event.target.checked,
+                )
+              }
+              className="h-5 w-5 accent-accent disabled:opacity-50"
+            />
+          </SettingsRow>
+          <SettingsRow
             description="Popup when you unlock a new playtime milestone."
             title="Milestones"
           >

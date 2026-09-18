@@ -245,7 +245,7 @@ export const TOURS: TourDefinition[] = [
         view: "games",
         anchor: a("demo-library-cards"),
         title: "See your note when you play",
-        body: "When you start one of your own games, Now Playing shows the note of its active playthrough. In Settings → Desktop notifications, turn on Notes in game-start popups to see it in the popup as well. After a session ends, the saved-session popup has an Update note button so you can write down where you stopped. Replay this guide any time from ? Help.",
+        body: "When you start one of your own games, Now Playing shows the note of its active playthrough. In Settings → Desktop notifications, turn on Notes in game-start popups to see it in the popup as well. Turn on Update note in popups to add a button to saved-session popups so you can write down where you stopped. Both options are off by default. Replay this guide any time from ? Help.",
       },
     ],
   },

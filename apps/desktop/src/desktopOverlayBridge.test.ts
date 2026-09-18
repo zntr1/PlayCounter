@@ -53,6 +53,7 @@ beforeEach(() => {
       overlayMonitor: "primary",
       overlayPlaythroughNames: false,
       overlayGameNotes: false,
+      overlayUpdateNote: false,
     },
   }));
 });
@@ -109,14 +110,23 @@ describe("desktop overlay bridge", () => {
     },
   );
 
-  it.each([undefined, false, true])(
-    "keeps saved-session playthrough names opt-in (%s) and preserves the note action",
-    async (enabled) => {
+  it.each([
+    { names: undefined, notes: undefined, updateNote: undefined },
+    { names: false, notes: false, updateNote: false },
+    { names: true, notes: true, updateNote: undefined },
+    { names: true, notes: true, updateNote: false },
+    { names: false, notes: false, updateNote: true },
+    { names: true, notes: true, updateNote: true },
+  ])(
+    "keeps saved-session playthrough names and note actions independently opt-in (%o)",
+    async ({ names, notes, updateNote }) => {
       useAppStore.setState((state) => ({
         settings: {
           ...state.settings,
           desktopOverlaysEnabled: true,
-          overlayPlaythroughNames: enabled,
+          overlayPlaythroughNames: names,
+          overlayGameNotes: notes,
+          overlayUpdateNote: updateNote,
         },
       }));
       initializeDesktopOverlays();
@@ -131,14 +141,21 @@ describe("desktop overlay bridge", () => {
       });
       await flush();
       const payload = (
-        showCalls()[0][1] as { payload: { body: string; action: string } }
+        showCalls()[0][1] as {
+          payload: { body: string; action?: string; actionLabel?: string };
+        }
       ).payload;
-      expect(payload.body.includes("Co-op")).toBe(enabled === true);
-      expect(payload.action).toBe("open-game-note:37");
+      expect(payload.body.includes("Co-op")).toBe(names === true);
+      expect(payload.action).toBe(
+        updateNote === true ? "open-game-note:37" : undefined,
+      );
+      expect(payload.actionLabel).toBe(
+        updateNote === true ? "Update note" : undefined,
+      );
     },
   );
 
-  it("opens the completed session's note rather than the current active playthrough", async () => {
+  it("opens the completed session's note only while popup note actions are enabled", async () => {
     const session = {
       id: 37,
       gameId: -1,
@@ -150,7 +167,11 @@ describe("desktop overlay bridge", () => {
       durationSeconds: 600,
       playthroughId: "old-run",
     };
-    useAppStore.setState({ recentSessions: [session], journalTarget: null });
+    useAppStore.setState((state) => ({
+      recentSessions: [session],
+      journalTarget: null,
+      settings: { ...state.settings, overlayUpdateNote: true },
+    }));
     initializeDesktopOverlays();
     await flush();
     const callback = listenMock.mock.calls.find(
@@ -162,6 +183,14 @@ describe("desktop overlay bridge", () => {
       playthroughId: "old-run",
       tab: "note",
     });
+    useAppStore.setState({ journalTarget: null });
+    useAppStore.getState().setDesktopOverlaySetting("overlayUpdateNote", false);
+    expect(invokeMock).toHaveBeenCalledWith(
+      "notification_overlay_close",
+      undefined,
+    );
+    callback?.({ payload: "open-game-note:37" } as never);
+    expect(useAppStore.getState().journalTarget).toBeNull();
   });
 
   it("shows current elapsed time on request with automatic popups disabled", async () => {

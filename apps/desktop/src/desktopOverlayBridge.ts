@@ -202,7 +202,9 @@ export function initializeDesktopOverlays() {
       (previous.settings.overlayGameNotes === true &&
         store.settings.overlayGameNotes !== true) ||
       (previous.settings.overlayPlaythroughNames === true &&
-        store.settings.overlayPlaythroughNames !== true)
+        store.settings.overlayPlaythroughNames !== true) ||
+      (previous.settings.overlayUpdateNote === true &&
+        store.settings.overlayUpdateNote !== true)
     ) {
       clearDesktopOverlays();
     }
@@ -234,6 +236,7 @@ export function initializeDesktopOverlays() {
         useAppStore.getState().setActiveView("discovered");
       } else if (/^open-game-note:\d+$/.test(payload)) {
         const store = useAppStore.getState();
+        if (store.settings.overlayUpdateNote !== true) return;
         const session = store.recentSessions.find(
           (s) => s.id === Number(payload.slice("open-game-note:".length)),
         );
@@ -307,6 +310,12 @@ export function emitOverlayEvent(event: TrackerOverlayEvent) {
       settings.overlayGameNotes !== true
     ) {
       gatedEvent = { ...gatedEvent, note: undefined };
+    }
+    if (
+      gatedEvent.type === "session-ended" &&
+      settings.overlayUpdateNote !== true
+    ) {
+      gatedEvent = { ...gatedEvent, sessionId: undefined };
     }
     const message = buildOverlayMessage(kind, gatedEvent, renderContext());
     state.queue.push(message);

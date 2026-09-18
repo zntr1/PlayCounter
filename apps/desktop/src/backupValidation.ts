@@ -333,6 +333,7 @@ const settings = object({}, {
   overlaySessionStarts: boolean,
   overlayPlaythroughNames: boolean,
   overlayGameNotes: boolean,
+  overlayUpdateNote: boolean,
   overlaySessionSummaries: boolean,
   overlayMilestones: boolean,
   overlayActionRequired: boolean,

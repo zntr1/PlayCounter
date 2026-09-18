@@ -539,6 +539,8 @@ export interface Settings {
   /** Show playthrough names in session popups. Absent = disabled. */
   overlayPlaythroughNames?: boolean;
   overlayGameNotes?: boolean;
+  /** Show the Update note action in saved-session popups. Absent = disabled. */
+  overlayUpdateNote?: boolean;
   overlaySessionSummaries?: boolean;
   overlayMilestones?: boolean;
   overlayActionRequired?: boolean;
