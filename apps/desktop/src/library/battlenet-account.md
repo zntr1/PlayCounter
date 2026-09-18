@@ -29,6 +29,12 @@ allows exact HTTPS login hosts; the native title shows the current host. The gam
 reader checks the account origin in both Rust and JavaScript, refuses redirects,
 and checks the returned endpoint before projecting metadata.
 
+The login allowlist includes the verified regional account hosts
+`eu.account.battle.net`, `us.account.battle.net` and `kr.account.battle.net`.
+An unsupported navigation returns an error and clears the session instead of
+leaving a blank sign-in window. Metadata reads remain restricted to the
+`account.battle.net` account page.
+
 Private cookies and browsing data are cleared before sign-in and explicitly
 cleared again before destroying the window. A retry stays blocked until cleanup
 finishes. Cleanup failure blocks further sign-ins until the app restarts. The
@@ -42,6 +48,12 @@ It verifies private-mode enforcement, disabled native/password interfaces,
 working native script callbacks, cookie removal and preservation of the
 persistent profile. It never connects to Battle.net.
 
+The separate live Windows smoke test runs the production sign-in command in an
+isolated app profile. It checks the visible account-name input and Continue
+button, cancellation and reopening, and cleanup after a blocked navigation.
+It never enters credentials or reads form values. Run it with
+`cargo test --test battlenet_account_login -- --ignored --nocapture`.
+
 Account membership does not prove that a game was played. Account imports retain
 unknown historical duration and no play evidence unless a local scan has a
 last-played date. Multiple regional accounts are deduplicated. A WoW account does
@@ -54,8 +66,8 @@ Games can be imported before installation, without executable mappings. A later
 local scan can attach installation-scoped links. Incomplete local scans preserve
 saved installation information instead of declaring missing titles uninstalled.
 
-For a live check, sign in with an account containing an uninstalled game, verify
-the review list, cancel and retry, then try another account. Verify MFA, expired
-sessions and any external identity provider used by that account. Unit tests
+For a complete live check, sign in with an account containing an uninstalled
+game, verify the review list, cancel and retry, then try another account. Verify
+MFA, expired sessions and any external identity provider used by that account. Unit tests
 cover response projection, expiry, partial results, cancellation, ID mapping and
 uninstalled imports, but cannot substitute for Blizzard's live login flow.

@@ -100,6 +100,11 @@ fn login_navigation(url: &tauri::Url) -> bool {
     // user content). Add federated hosts only after verifying their purpose.
     const HOSTS: &[&str] = &[
         "account.battle.net",
+        // The account portal redirects through oauth.battle.net to these
+        // regional account login hosts, not only the older region.battle.net.
+        "eu.account.battle.net",
+        "us.account.battle.net",
+        "kr.account.battle.net",
         "oauth.battle.net",
         "battle.net",
         "us.battle.net",
@@ -329,6 +334,8 @@ pub async fn library_battlenet_account_games(
         .lock()
         .map_err(|_| "Could not start Battle.net sign-in.")?
         .start(&id)?;
+    let (navigation_rejected, rejected_navigation) = oneshot::channel();
+    let navigation_rejected = Mutex::new(Some(navigation_rejected));
     let sign_in = tauri::WebviewWindowBuilder::new(
         &app,
         format!("battlenet-sign-in-{id}"),
@@ -342,7 +349,19 @@ pub async fn library_battlenet_account_games(
     .devtools(false)
     .browser_extensions_enabled(false)
     .general_autofill_enabled(false)
-    .on_navigation(|url| url.as_str() == "about:blank" || login_navigation(url))
+    .on_navigation(move |url| {
+        let allowed = url.as_str() == "about:blank" || login_navigation(url);
+        if !allowed {
+            if let Some(sender) = navigation_rejected
+                .lock()
+                .ok()
+                .and_then(|mut value| value.take())
+            {
+                let _ = sender.send(());
+            }
+        }
+        allowed
+    })
     .on_page_load(|window, payload| {
         if let Some(host) = payload.url().host_str() {
             let _ = window.set_title(&format!("Battle.net sign-in — {host}"));
@@ -377,6 +396,7 @@ pub async fn library_battlenet_account_games(
             let result = tokio::select! {
                 biased;
                 _ = cancelled => Err(CANCELLED.into()),
+                _ = rejected_navigation => Err("Battle.net tried to open an unsupported sign-in page. Update PlayCounter or use Find installed games.".into()),
                 result = tokio::time::timeout(Duration::from_secs(600), async {
                     setup?;
                     sign_in.navigate(ACCOUNT_URL.parse().expect("fixed Battle.net URL"))
@@ -452,6 +472,8 @@ mod tests {
             "https://user@account.battle.net/",
             "https://account.battle.net/login/",
             "https://oauth.battle.net/",
+            "https://eu.account.battle.net/overview",
+            "https://us.account.battle.net/games-and-subs",
         ] {
             assert!(!account_page(&value.parse().unwrap()));
         }
@@ -468,11 +490,19 @@ mod tests {
             "https://account.battle.net@evil.test/",
             "https://account.battle.net:444/",
             "http://account.battle.net/",
+            "https://eu.account.battle.net.evil.test/login/en/",
+            "https://eu.account.battle.net@evil.test/login/en/",
+            "http://eu.account.battle.net/login/en/",
+            "https://eu.account.battle.net:444/login/en/",
         ] {
             assert!(!login_navigation(&value.parse().unwrap()));
         }
         for value in [
             ACCOUNT_URL,
+            "https://oauth.battle.net/authorize",
+            "https://eu.account.battle.net/login/en/",
+            "https://us.account.battle.net/login/en/",
+            "https://kr.account.battle.net/login/ko/",
             "https://accounts.google.com/signin",
             "https://login.live.com/oauth20_authorize.srf",
         ] {

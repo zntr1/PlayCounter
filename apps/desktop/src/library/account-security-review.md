@@ -50,6 +50,17 @@ targets, and the explicitly run native security test passed after this correctio
 The original validation above covered the frontend build and native tests, not
 the desktop executable link.
 
+Login follow-up on 2026-09-19: the restricted host list omitted
+`eu.account.battle.net`, where the account portal redirects for sign-in. A new
+native live smoke test reproduced the blank window through the production
+command. Adding the verified EU, US and KR regional account hosts restored the
+visible account-name/Continue form. The test passed for cancellation and
+reopening, plus an intentionally blocked navigation returning an error and
+cleaning up its window. Metadata reads still require `account.battle.net`.
+The test uses an isolated profile and never enters or reads credentials. The
+desktop executable build, all Rust test targets, and the explicitly run native
+private-session security test also passed with this correction.
+
 After dependency updates, both workspace JavaScript audits report no advisories.
 `cargo audit` reports zero vulnerability entries, with remaining informational
 warnings for unmaintained upstream crates and Linux-only `glib` VariantStrIter
@@ -59,9 +70,12 @@ as a completely clean cross-platform audit.
 ## Limits and release follow-up
 
 The pre-hardening Battle.net flow was exercised with a real login. The stricter
-flow's session controls were exercised with the native synthetic test. Live MFA
-and every federated provider have not all been retested; an unlisted login host
-is intentionally blocked. A current Evergreen WebView2 runtime remains required.
+flow's session controls were exercised with the native synthetic test, and its
+live first-step login form, cancellation/retry and blocked-navigation cleanup
+were tested through the production native command. Completing authentication,
+MFA, account-library retrieval and every federated provider have not all been
+retested after hardening; an unlisted login host is intentionally blocked.
+A current Evergreen WebView2 runtime remains required.
 
 Cloud proxy/access-log settings were not inspected or changed. Confirm OAuth
 codes/state and result query strings are not retained there before deploying.
