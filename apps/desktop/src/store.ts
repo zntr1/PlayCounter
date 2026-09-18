@@ -46,6 +46,7 @@ import { stepView } from "./ui/tour/tourNavigation";
 import type {
   LibraryImportEntry,
   LibraryInstallEntry,
+  PlayCounterLibraryEntry,
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
@@ -404,6 +405,7 @@ export type AppState = {
   userIgnoredProcessesPath: string | null;
   exeCache: Map<string, ExeCacheEntry>;
   libraryImports: Map<string, LibraryImportEntry>;
+  playcounterLibrary: Map<string, PlayCounterLibraryEntry>;
   libraryInstalls: Map<string, LibraryInstallEntry>;
   scopedExeLinks: Map<string, ScopedExeLink>;
   launchTargets: Map<string, LaunchTarget>;
@@ -738,6 +740,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   userIgnoredProcessesPath: null,
   exeCache: new Map(),
   libraryImports: new Map(),
+  playcounterLibrary: new Map(),
   libraryInstalls: new Map(),
   scopedExeLinks: new Map(),
   launchTargets: new Map(),

@@ -17,10 +17,12 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 vi.mock("../../library/providers", () => ({
   loadLibraryProvider: async (provider: string) => ({
+    accountMode: provider === "battlenet" ? "none" : undefined,
     detect: async () => ({ provider, available: true, checkedPaths: [] }),
-    listAccounts: async () => [
-      { accountId: 1, mostRecent: true, gamesWithPlaytime: 1 },
-    ],
+    listAccounts: async () =>
+      provider === "battlenet"
+        ? []
+        : [{ accountId: 1, mostRecent: true, gamesWithPlaytime: 1 }],
     scan: mocks.scan,
   }),
 }));
@@ -103,7 +105,7 @@ it("opening the importer only detects local accounts and does not start API look
   expect(mocks.run).not.toHaveBeenCalled();
 });
 
-it.each(["steam", "xbox"] as const)(
+it.each(["steam", "xbox", "battlenet"] as const)(
   "preselects the only eligible %s game file and imports it only after confirmation",
   async (provider) => {
     await act(() => store.setState({ libraryImportProvider: provider }));
@@ -111,6 +113,9 @@ it.each(["steam", "xbox"] as const)(
     const matchedGame = result.resolvedGames![0].game!;
     result.games[0] = {
       ...result.games[0],
+      externalId: provider === "battlenet" ? "example" : "42",
+      playtimeSeconds: provider === "battlenet" ? null : 3600,
+      hasPlayedEvidence: provider === "battlenet" ? false : undefined,
       installed: true,
       installPath: String.raw`C:\Games\Example`,
       executables: [
@@ -136,13 +141,22 @@ it.each(["steam", "xbox"] as const)(
             executables: [],
             candidates: [matchedGame],
           }
-        : result.resolvedGames![0],
+        : {
+            ...result.resolvedGames![0],
+            key: provider === "battlenet" ? "battlenet:example" : "steam:42",
+          },
     ];
     mocks.scan.mockResolvedValue(result);
     mocks.reverse.mockResolvedValue({ game: matchedGame, executables: [] });
     mocks.run.mockResolvedValue({ shareOutcomes: [] });
 
-    await click(provider === "xbox" ? "Sign in and find games" : "Find games");
+    await click(
+      provider === "xbox"
+        ? "Sign in and find games"
+        : provider === "battlenet"
+          ? "Find installed games"
+          : "Find games",
+    );
     const picker = container.querySelector<HTMLSelectElement>(
       'select[aria-label="Game file for Example Game"]',
     );
@@ -150,7 +164,13 @@ it.each(["steam", "xbox"] as const)(
     expect(mocks.run).not.toHaveBeenCalled();
     expect(store.getState().libraryImports.size).toBe(0);
 
-    await click(provider === "xbox" ? "Confirm and Import" : "Add and Share");
+    await click(
+      provider === "xbox"
+        ? "Confirm and Import"
+        : provider === "battlenet"
+          ? "Add game"
+          : "Add and Share",
+    );
     expect(mocks.run).toHaveBeenCalledWith(
       [
         expect.objectContaining({
@@ -191,6 +211,37 @@ it("leaves multiple eligible game files for the user to choose", async () => {
   expect(addButton?.disabled).toBe(true);
   expect(mocks.run).not.toHaveBeenCalled();
 });
+
+it.each([false, true])(
+  "only removes missing Battle.net install status after a complete scan (partial=%s)",
+  async (partial) => {
+    await act(() =>
+      store.setState({
+        libraryImportProvider: "battlenet",
+        libraryInstalls: new Map([
+          [
+            "battlenet:wow",
+            {
+              provider: "battlenet",
+              externalId: "wow",
+              installPath: "C:\\Games\\WoW",
+              scannedAt: "2026-09-17T12:00:00Z",
+            },
+          ],
+        ]),
+      }),
+    );
+    mocks.scan.mockResolvedValue({
+      games: [],
+      resolvedGames: [],
+      warnings: partial ? ["Try again"] : [],
+      partial,
+    });
+    await click("Find installed games");
+    expect(store.getState().libraryInstalls.has("battlenet:wow")).toBe(partial);
+    expect(mocks.run).not.toHaveBeenCalled();
+  },
+);
 
 it("shows automatic cooldown recovery during a Steam lookup and still allows cancellation", async () => {
   const lookup = deferred<unknown>();

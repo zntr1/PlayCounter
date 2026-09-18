@@ -1,3 +1,4 @@
+import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import { providerFloorKey } from "../library/playtimeFloor";
 
@@ -31,9 +32,17 @@ export function trackingUnavailableMessage(
   providers: readonly LibraryProviderId[],
   canCheckMatches: boolean,
 ) {
+  if (providers.length === 0) {
+    return "PlayCounter does not know this game's file name yet. Run the game once so PlayCounter can find it, then check Discovered if it needs a match.";
+  }
+  if (providers.length === 1 && providers[0] === "battlenet") {
+    return canCheckMatches
+      ? "This game is imported from Battle.net. Use Check for Matches to link its game file for future tracking."
+      : "This game is imported from Battle.net. Run it once so PlayCounter can identify its game file.";
+  }
   const source =
     providers.length === 1
-      ? `${providers[0] === "xbox" ? "Xbox" : "Steam"} playtime`
+      ? `${LIBRARY_PROVIDER_LABELS[providers[0]]} playtime`
       : "Imported playtime";
   return canCheckMatches
     ? `${source} is already imported, but PlayCounter does not know this game's file name yet. Use Check for Matches, or install the game and run it once so PlayCounter can find it.`

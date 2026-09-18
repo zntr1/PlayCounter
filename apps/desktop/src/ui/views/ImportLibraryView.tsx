@@ -9,7 +9,10 @@ import {
   Search,
   Share2,
 } from "lucide-react";
-import type { XboxImportProgressStage } from "@playcounter/shared";
+import {
+  LIBRARY_PROVIDER_LABELS,
+  type XboxImportProgressStage,
+} from "@playcounter/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -91,7 +94,8 @@ export function ImportLibraryView() {
   }
   const session = importerSession;
   const isXbox = providerId === "xbox";
-  const providerName = isXbox ? "Xbox" : "Steam";
+  const isBattleNet = providerId === "battlenet";
+  const providerName = LIBRARY_PROVIDER_LABELS[providerId];
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const existingImports = useAppStore((state) => state.libraryImports);
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
@@ -229,9 +233,11 @@ export function ImportLibraryView() {
         setStatus(detected);
         setAccounts(localAccounts);
         setAccountId(
-          localAccounts.find((account) => account.mostRecent)?.accountId ??
-            localAccounts[0]?.accountId ??
-            null,
+          provider.accountMode === "none"
+            ? 0
+            : (localAccounts.find((account) => account.mostRecent)?.accountId ??
+                localAccounts[0]?.accountId ??
+                null),
         );
         setPhase("ready");
       } catch (cause) {
@@ -312,6 +318,22 @@ export function ImportLibraryView() {
         openAuthorizeUrl: !isXbox || !copyOnStart,
       });
       if (!isCurrentImport(signal)) return;
+      if (isBattleNet && !result.partial) {
+        const installedIds = new Set(
+          result.games
+            .filter((game) => game.installed)
+            .map((game) => game.externalId),
+        );
+        const state = useAppStore.getState();
+        for (const install of state.libraryInstalls.values()) {
+          if (
+            install.provider === "battlenet" &&
+            !installedIds.has(install.externalId)
+          ) {
+            state.removeLibraryInstall("battlenet", install.externalId);
+          }
+        }
+      }
       setScan(result);
       setManualExecutables(
         Object.fromEntries(
@@ -322,7 +344,22 @@ export function ImportLibraryView() {
               game.name,
               ignoredProcesses,
             );
+            const existing = existingImports.get(
+              libraryEntryKey(providerId, game.externalId),
+            );
+            const previousCandidates =
+              isBattleNet && existing
+                ? candidates.filter((candidate) =>
+                    existing.linkedExeNames.some(
+                      (name) =>
+                        name.toLowerCase() === candidate.fileName.toLowerCase(),
+                    ),
+                  )
+                : [];
             const preselected =
+              (previousCandidates.length === 1
+                ? previousCandidates[0]
+                : undefined) ??
               candidates.find((item) => item.declared) ??
               (candidates.length === 1 ? candidates[0] : undefined);
             return preselected
@@ -346,11 +383,24 @@ export function ImportLibraryView() {
       setCapability(lookup.capability);
       if (lookup.capability === "supported") {
         const byKey = new Map(lookup.games.map((game) => [game.key, game]));
-        if (isXbox) {
+        if (providerId !== "steam") {
           for (const game of result.games) {
-            const key = libraryEntryKey("xbox", game.externalId);
+            const key = libraryEntryKey(providerId, game.externalId);
             const existing = existingImports.get(key);
             if (!existing) continue;
+            const previousMatch = byKey.get(key);
+            const existingExecutables = isBattleNet
+              ? previousMatch?.game?.id === existing.gameId
+                ? previousMatch.executables
+                : (
+                    await reverseResolveXboxGame(
+                      apiEndpoint,
+                      existing.gameId,
+                      signal,
+                    )
+                  ).executables
+              : [];
+            if (!isCurrentImport(signal)) return;
             byKey.set(key, {
               key,
               status: "resolved",
@@ -361,7 +411,7 @@ export function ImportLibraryView() {
                 coverUrl: existing.coverUrl,
                 source: existing.source,
               },
-              executables: [],
+              executables: existingExecutables,
               candidates: byKey.get(key)?.candidates,
             });
           }
@@ -463,7 +513,9 @@ export function ImportLibraryView() {
         detail:
           failedShares > 0
             ? `Your library is available in My Games. ${failedShares} game ${failedShares === 1 ? "file needs" : "files need"} another try when you are back online.`
-            : "Your library and playtime are now available in My Games.",
+            : isBattleNet
+              ? "Your games are now in My Games, ready for future tracking."
+              : "Your library and playtime are now available in My Games.",
       });
     } catch (cause) {
       if (!isCurrentImport(signal)) return;
@@ -513,9 +565,11 @@ export function ImportLibraryView() {
       addToast({
         tone: "success",
         title: `${match.game?.name ?? game.name ?? "Game"} added to My Games`,
-        detail: importShareDetail(
-          result.shareOutcomes.map(({ outcome }) => outcome.kind),
-        ),
+        detail: isBattleNet
+          ? "The game file was linked for this installation on your PC."
+          : importShareDetail(
+              result.shareOutcomes.map(({ outcome }) => outcome.kind),
+            ),
       });
     } catch (cause) {
       if (!isCurrentImport(signal)) return;
@@ -524,11 +578,11 @@ export function ImportLibraryView() {
       if (isCurrentImport(signal)) setAddingExternalId(null);
     }
   }
-  async function confirmAndImportXboxGame(
+  async function confirmAndImportGame(
     scanned: ScannedLibraryGame,
     selectedGame: GameMetadata,
   ) {
-    const key = libraryEntryKey("xbox", scanned.externalId);
+    const key = libraryEntryKey(providerId, scanned.externalId);
     const { signal } = importAbortController.current;
     if (!isCurrentImport(signal)) return;
     setAddingExternalId(scanned.externalId);
@@ -548,14 +602,20 @@ export function ImportLibraryView() {
         candidates: resolved.get(key)?.candidates,
       };
       const commit = buildLibraryImportCommit({
-        provider: "xbox",
+        provider: providerId,
         scanned,
         resolved: resolvedGame,
         ignoredProcesses,
         selectedExecutable: selectedExecutableFor(scanned),
       });
       if (!commit)
-        throw new Error("The selected Xbox game cannot be imported.");
+        throw new Error(
+          `The selected ${providerName} game cannot be imported.`,
+        );
+      if (isBattleNet && commit.scopedLinks.length === 0)
+        throw new Error(
+          "Pick the game file to track before importing this game.",
+        );
 
       await backupImporterDataOnce(signal);
       if (!isCurrentImport(signal)) return;
@@ -568,12 +628,14 @@ export function ImportLibraryView() {
         next.delete(scanned.externalId);
         return next;
       });
-      const linkedCount = commit.exeCacheEntries.length;
+      const linkedCount =
+        commit.exeCacheEntries.length + commit.scopedLinks.length;
       addToast({
         tone: "success",
         title: `${reverseMatch.game.name} imported`,
-        detail:
-          linkedCount > 0
+        detail: isBattleNet
+          ? "The game file is linked to this installation for future tracking."
+          : linkedCount > 0
             ? `${linkedCount} known game ${linkedCount === 1 ? "file was" : "files were"} linked, so PlayCounter tracks this game once it is installed.`
             : "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
       });
@@ -717,23 +779,27 @@ export function ImportLibraryView() {
       {
         key: "attention",
         label: "Needs attention",
-        description: isXbox
-          ? "Confirm which game this is before importing it."
-          : "Pick the game file. Known matches are linked; unknown files can be shared with the community.",
+        description:
+          providerId !== "steam"
+            ? "Confirm the game and its executable before importing it."
+            : "Pick the game file. Known matches are linked; unknown files can be shared with the community.",
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "unavailable",
         label: "Unavailable right now",
-        description: isXbox
-          ? "PlayCounter could not match this Xbox title to a game it knows."
-          : "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
+        description:
+          providerId !== "steam"
+            ? "Game details or installation data are unavailable. Try scanning again."
+            : "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "imported",
         label: "Imported",
-        description: `Games already in My Games. Import one again to update its ${providerName} playtime.`,
+        description: isBattleNet
+          ? "Games already in My Games. Import again to refresh installation and last-played data."
+          : `Games already in My Games. Import one again to update its ${providerName} playtime.`,
         games: [] as ScannedLibraryGame[],
       },
     ];
@@ -763,6 +829,7 @@ export function ImportLibraryView() {
     existingImports,
     ignoredProcesses,
     isXbox,
+    isBattleNet,
     providerId,
     providerName,
     resolved,
@@ -781,7 +848,7 @@ export function ImportLibraryView() {
         label={
           isXbox
             ? "Preparing the Xbox import…"
-            : "Looking for Steam on this PC…"
+            : `Looking for ${providerName} on this PC…`
         }
       />
     );
@@ -797,7 +864,9 @@ export function ImportLibraryView() {
           <p className="mt-2 text-text-muted">
             {isXbox
               ? "The Xbox import is unavailable right now. Check your connection and try again."
-              : "PlayCounter looks for Steam in the Windows registry and in the usual install folders. You never have to sign in to Steam."}
+              : isBattleNet
+                ? "Install Battle.net and a game on this PC, then reopen this importer."
+                : "PlayCounter looks for Steam in the Windows registry and in the usual install folders. You never have to sign in to Steam."}
           </p>
           {error ? <ErrorNotice message={error} /> : null}
         </div>
@@ -814,7 +883,7 @@ export function ImportLibraryView() {
               ? authorizeUrl
                 ? xboxScanLabel(xboxProgress)
                 : "Connecting to Xbox…"
-              : "Scanning your Steam library…"
+              : `Scanning your ${providerName} library…`
         }
         onCancel={cancelImport}
         onCopySignInLink={
@@ -842,12 +911,16 @@ export function ImportLibraryView() {
             <h2 className="mt-2 text-xl font-semibold text-text">
               {isXbox
                 ? "Connect your Xbox account"
-                : "Pick a Steam account on this PC"}
+                : isBattleNet
+                  ? "Find installed Battle.net games"
+                  : "Pick a Steam account on this PC"}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
               {isXbox
                 ? "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done."
-                : "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers."}
+                : isBattleNet
+                  ? "Add installed games and their last-played date when available. Historical playtime is unavailable; PlayCounter tracks your future sessions. No sign-in needed."
+                  : "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers."}
             </p>
             {isXbox ? (
               <p className="mt-2 text-sm text-text-faint">
@@ -858,32 +931,34 @@ export function ImportLibraryView() {
             ) : null}
           </div>
           <div className="flex items-center gap-2">
-            <select
-              aria-label={`${providerName} account`}
-              value={accountId ?? ""}
-              onChange={(event) => {
-                importAbortController.current.abort();
-                importAbortController.current = new AbortController();
-                setAddingExternalId(null);
-                setBrowsingExternalId(null);
-                setAccountId(Number(event.target.value));
-                setScan(null);
-                setResolved(new Map());
-                setSelected(new Set());
-                setManualExecutables({});
-                setBrowsedExecutables({});
-                setCapability("unknown");
-                setError(null);
-              }}
-              className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text"
-            >
-              {accounts.map((account) => (
-                <option key={account.accountId} value={account.accountId}>
-                  {account.personaName ?? `Account ${account.accountId}`}
-                  {isXbox ? "" : ` · ${account.gamesWithPlaytime} games`}
-                </option>
-              ))}
-            </select>
+            {!isBattleNet ? (
+              <select
+                aria-label={`${providerName} account`}
+                value={accountId ?? ""}
+                onChange={(event) => {
+                  importAbortController.current.abort();
+                  importAbortController.current = new AbortController();
+                  setAddingExternalId(null);
+                  setBrowsingExternalId(null);
+                  setAccountId(Number(event.target.value));
+                  setScan(null);
+                  setResolved(new Map());
+                  setSelected(new Set());
+                  setManualExecutables({});
+                  setBrowsedExecutables({});
+                  setCapability("unknown");
+                  setError(null);
+                }}
+                className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text"
+              >
+                {accounts.map((account) => (
+                  <option key={account.accountId} value={account.accountId}>
+                    {account.personaName ?? `Account ${account.accountId}`}
+                    {isXbox ? "" : ` · ${account.gamesWithPlaytime} games`}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             {isXbox ? (
               <Button
                 variant="secondary"
@@ -907,14 +982,16 @@ export function ImportLibraryView() {
                 ? "Scan again"
                 : isXbox
                   ? "Sign in and find games"
-                  : "Find games"}
+                  : isBattleNet
+                    ? "Find installed games"
+                    : "Find games"}
             </Button>
           </div>
         </div>
       </Panel>
 
       {error ? <ErrorNotice message={error} /> : null}
-      {accounts.length === 0 ? (
+      {!isBattleNet && accounts.length === 0 ? (
         <Panel className="p-4 text-sm text-text-muted">
           {isXbox
             ? "The Xbox import could not be prepared. Please try again later."
@@ -923,9 +1000,16 @@ export function ImportLibraryView() {
       ) : null}
       {capability === "unsupported" ? (
         <Panel className="border-warning-border bg-warning-tint p-4 text-sm text-warning">
-          PlayCounter cannot look up Steam AppIDs right now. Your library was
-          scanned, but importing is switched off so you do not end up with
-          wrongly named games.
+          PlayCounter cannot look up {providerName} games right now. Your
+          library was scanned, but importing is switched off so you do not end
+          up with wrongly named games.
+        </Panel>
+      ) : null}
+      {scan?.warnings.length ? (
+        <Panel className="p-4 text-sm text-warning">
+          {scan.warnings.map((warning) => (
+            <p key={warning}>{warning}</p>
+          ))}
         </Panel>
       ) : null}
       {scan ? (
@@ -1046,9 +1130,7 @@ export function ImportLibraryView() {
                       browsedExecutable={browsedExecutables[game.externalId]}
                       ignoredProcesses={ignoredProcesses}
                       onAddAndShare={() => void addAndShareGame(game)}
-                      onXboxMatch={(match) =>
-                        confirmAndImportXboxGame(game, match)
-                      }
+                      onXboxMatch={(match) => confirmAndImportGame(game, match)}
                       onBrowseExecutable={() => void browseExecutable(game)}
                       onManualExecutable={(relativePath) =>
                         setManualExecutables((current) => ({
@@ -1167,8 +1249,8 @@ export function ImportRow({
     ignoredProcesses,
   );
   const xboxNeedsIdentity =
-    provider === "xbox" &&
-    hasImportableActivity(game) &&
+    provider !== "steam" &&
+    hasImportableContent(game) &&
     resolved?.status !== "resolved";
   const showExeBlock =
     showExecutableChoice &&
@@ -1205,16 +1287,18 @@ export function ImportRow({
           <h3 className="font-semibold text-text">
             {resolved?.game?.name ??
               game.name ??
-              `${provider === "xbox" ? "Xbox title" : "Steam App"} ${game.externalId}`}
+              `${LIBRARY_PROVIDER_LABELS[provider]} game ${game.externalId}`}
           </h3>
           {alreadyImported ? (
             <span className="text-xs font-medium text-success">
-              Already in My Games · import again to update playtime
+              {provider === "battlenet"
+                ? "Already in My Games · import again to refresh"
+                : "Already in My Games · import again to update playtime"}
             </span>
           ) : null}
           {!importable ? (
             <span className="text-xs font-medium text-warning">
-              {provider === "xbox" && hasImportableActivity(game)
+              {provider !== "steam" && hasImportableContent(game)
                 ? "Confirm which game this is"
                 : noImportablePlaytime
                   ? "No playtime to import"
@@ -1224,14 +1308,27 @@ export function ImportRow({
         </div>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
           <span>
-            {provider === "xbox" ? "Xbox title ID" : "AppID"} {game.externalId}
+            {provider === "battlenet"
+              ? "Product"
+              : provider === "xbox"
+                ? "Xbox title ID"
+                : "AppID"}{" "}
+            {game.externalId}
           </span>
           <span>
             {game.playtimeSeconds === null
-              ? "Playtime unknown"
+              ? provider === "battlenet"
+                ? "Historical playtime unavailable"
+                : "Playtime unknown"
               : formatDuration(game.playtimeSeconds, false)}
           </span>
           <span>{game.installed ? "Installed" : "Not installed"}</span>
+          {provider === "battlenet" && game.lastPlayedUnix ? (
+            <span>
+              Last played{" "}
+              {new Date(game.lastPlayedUnix * 1000).toLocaleDateString()}
+            </span>
+          ) : null}
           {provider === "steam" ? (
             resolved?.executables.length ? (
               <span>
@@ -1246,11 +1343,13 @@ export function ImportRow({
         {showExeBlock ? (
           <div className="mt-3 max-w-2xl text-xs text-text-muted">
             <p>
-              {xboxNeedsIdentity
-                ? "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below."
-                : showAddAndShare
-                  ? "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review."
-                  : "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review."}
+              {provider === "battlenet"
+                ? "Pick the game file PlayCounter should watch. The match is saved for this installation on your PC."
+                : xboxNeedsIdentity
+                  ? "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below."
+                  : showAddAndShare
+                    ? "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review."
+                    : "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review."}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
@@ -1285,7 +1384,7 @@ export function ImportRow({
                   disabled={!manualExecutable}
                   onClick={onAddAndShare}
                 >
-                  Add and Share
+                  {provider === "battlenet" ? "Add game" : "Add and Share"}
                 </Button>
               ) : null}
             </div>
@@ -1294,8 +1393,12 @@ export function ImportRow({
         {xboxNeedsIdentity ? (
           <XboxMatchControls
             apiEndpoint={apiEndpoint}
+            provider={provider}
             candidates={resolved?.candidates ?? []}
-            title={game.name ?? `Xbox title ${game.externalId}`}
+            title={
+              game.name ??
+              `${LIBRARY_PROVIDER_LABELS[provider]} game ${game.externalId}`
+            }
             importing={addingAndSharing}
             onConfirm={onXboxMatch}
           />
@@ -1306,6 +1409,7 @@ export function ImportRow({
 }
 export function XboxMatchControls({
   apiEndpoint,
+  provider = "xbox",
   candidates,
   title,
   onConfirm,
@@ -1316,6 +1420,7 @@ export function XboxMatchControls({
   title: string;
   onConfirm: (game: GameMetadata) => Promise<void>;
   importing: boolean;
+  provider?: BuiltinImportProviderId;
 }) {
   const [query, setQuery] = useState(title);
   const [choices, setChoices] = useState(candidates);
@@ -1349,6 +1454,7 @@ export function XboxMatchControls({
         apiEndpoint,
         query,
         controller.signal,
+        provider !== "battlenet",
       );
       if (controller.signal.aborted) return;
       setChoices(games);
@@ -1371,8 +1477,10 @@ export function XboxMatchControls({
   return (
     <div className="mt-3 max-w-2xl rounded-md border border-border bg-bg/50 p-3 text-xs text-text-muted">
       <p>
-        Xbox names are not always unique. Confirm the right game before its
-        playtime is added to your library.
+        Game names are not always unique. Confirm the right game before
+        {provider === "battlenet"
+          ? " adding it to your library."
+          : " its playtime is added to your library."}
       </p>
       <div className="mt-3 flex items-start gap-3">
         {selectedGame?.coverUrl ? (
@@ -1473,7 +1581,12 @@ function requiresExecutableChoice(
   }
   const knownNames = new Set(
     resolved.executables
-      .filter((item) => !matchesProcessPatternSet(item.value, ignoredProcesses))
+      .filter(
+        (item) =>
+          item.platform === "windows" &&
+          item.kind === "exe" &&
+          !matchesProcessPatternSet(item.value, ignoredProcesses),
+      )
       .map((item) => item.value.toLowerCase()),
   );
   const hasKnownLocalExe = game.executables.some((item) =>
@@ -1484,9 +1597,16 @@ function requiresExecutableChoice(
 
 export function hasImportableActivity(game: ScannedLibraryGame) {
   return (
-    game.playtimeSeconds === null ||
-    game.playtimeSeconds > 0 ||
+    (game.playtimeSeconds === null && game.hasPlayedEvidence !== false) ||
+    (game.playtimeSeconds ?? 0) > 0 ||
     game.lastPlayedUnix !== undefined
+  );
+}
+
+function hasImportableContent(game: ScannedLibraryGame) {
+  return (
+    hasImportableActivity(game) ||
+    (game.hasPlayedEvidence !== undefined && game.installed)
   );
 }
 
@@ -1497,7 +1617,7 @@ function isImportable(
   return (
     resolved?.status === "resolved" &&
     resolved.game?.igdbId !== undefined &&
-    hasImportableActivity(game)
+    hasImportableContent(game)
   );
 }
 
@@ -1532,8 +1652,8 @@ export function importGroupForGame(params: {
 }): ImportGroupKey {
   const { game, provider, resolved, ignoredProcesses } = params;
   if (params.completed || params.alreadyImported) return "imported";
-  if (!hasImportableActivity(game)) return "unavailable";
-  if (provider === "xbox" && resolved?.status !== "resolved")
+  if (!hasImportableContent(game)) return "unavailable";
+  if (provider !== "steam" && resolved?.status !== "resolved")
     return "attention";
   if (!isImportable(game, resolved)) return "unavailable";
   if (requiresExecutableChoice(game, resolved, ignoredProcesses)) {

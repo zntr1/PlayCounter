@@ -1,3 +1,4 @@
+import { isLibraryProvider, validLibraryExternalId } from "@playcounter/shared";
 import { requestJsonResponse, requestWithTimeout } from "./requestJson";
 import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
@@ -171,10 +172,12 @@ import { customLocalGameId } from "./library/localGameIds";
 import type {
   LibraryImportEntry,
   LibraryInstallEntry,
+  PlayCounterLibraryEntry,
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
 import { providerFloors } from "./library/playtimeFloor";
+import { normalizePlayCounterLibraryEntry } from "./library/playcounterLibrary";
 import {
   normalizeWindowsDir,
   resolveScopedLink,
@@ -230,6 +233,7 @@ type PersistedState = {
   emulatorLaunchCandidates?: EmulatorLaunchCandidate[];
   gameMetadata?: GameMetadata[];
   libraryImports?: LibraryImportEntry[];
+  playcounterLibrary?: PlayCounterLibraryEntry[];
   libraryInstalls?: LibraryInstallEntry[];
   scopedExeLinks?: ScopedExeLink[];
   ambiguousMatches?: AmbiguousProcessMatch[];
@@ -512,17 +516,14 @@ function applyBuildApiEndpoint(settings: Settings): Settings {
 const positiveInteger = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value > 0;
 
-const validExternalId = (value: unknown): value is string =>
-  typeof value === "string" && /^[1-9][0-9]{0,9}$/.test(value);
-
 export function normalizePersistedLibraryImport(
   value: unknown,
 ): LibraryImportEntry | null {
   if (!value || typeof value !== "object") return null;
   const entry = value as Partial<LibraryImportEntry>;
   if (
-    (entry.provider !== "steam" && entry.provider !== "xbox") ||
-    !validExternalId(entry.externalId) ||
+    !isLibraryProvider(entry.provider) ||
+    !validLibraryExternalId(entry.provider, entry.externalId) ||
     !positiveInteger(entry.igdbId) ||
     !positiveInteger(entry.gameId) ||
     (entry.source !== "igdb" && entry.source !== "community") ||
@@ -534,6 +535,8 @@ export function normalizePersistedLibraryImport(
       (typeof entry.providerSeconds !== "number" ||
         !Number.isFinite(entry.providerSeconds) ||
         entry.providerSeconds < 0)) ||
+    (entry.providerHasPlayedEvidence !== undefined &&
+      typeof entry.providerHasPlayedEvidence !== "boolean") ||
     !Array.isArray(entry.linkedExeNames) ||
     (entry.linkedExeSources !== undefined &&
       !Array.isArray(entry.linkedExeSources))
@@ -573,6 +576,9 @@ export function backfillLibraryExecutableCache(
     [...scopedExeLinks].map((entry) => entry.exeName.toLowerCase()),
   );
   for (const entry of libraryImports) {
+    // A Battle.net product/variant is identified by its folder. Backups may
+    // omit local paths; never reconstruct a basename-only match from them.
+    if (entry.provider === "battlenet") continue;
     const identifierSource = entry.linkedExeSources.includes("igdb")
       ? "igdb"
       : entry.linkedExeSources.includes("community")
@@ -872,8 +878,8 @@ export function hydrate() {
     if (!value || typeof value !== "object") return null;
     const entry = value as Partial<LibraryInstallEntry>;
     if (
-      (entry.provider !== "steam" && entry.provider !== "xbox") ||
-      !validExternalId(entry.externalId) ||
+      !isLibraryProvider(entry.provider) ||
+      !validLibraryExternalId(entry.provider, entry.externalId) ||
       typeof entry.installPath !== "string" ||
       !normalizeWindowsDir(entry.installPath) ||
       typeof entry.scannedAt !== "string"
@@ -886,8 +892,10 @@ export function hydrate() {
     if (!value || typeof value !== "object") return null;
     const entry = value as Partial<ScopedExeLink>;
     if (
-      (entry.provider !== "steam" && entry.provider !== "xbox") ||
-      !validExternalId(entry.externalId) ||
+      (entry.provider !== undefined && !isLibraryProvider(entry.provider)) ||
+      (entry.provider === undefined
+        ? entry.externalId !== undefined
+        : !validLibraryExternalId(entry.provider, entry.externalId)) ||
       !positiveInteger(entry.igdbId) ||
       typeof entry.gameId !== "number" ||
       !Number.isFinite(entry.gameId) ||
@@ -909,6 +917,11 @@ export function hydrate() {
     persisted.libraryImports,
     normalizePersistedLibraryImport,
     (entry) => libraryEntryKey(entry.provider, entry.externalId),
+  );
+  const playcounterLibrary = hydrateMap(
+    persisted.playcounterLibrary,
+    normalizePlayCounterLibraryEntry,
+    (entry) => `igdb#${entry.igdbId}`,
   );
   const libraryInstalls = hydrateMap(
     persisted.libraryInstalls,
@@ -1085,6 +1098,7 @@ export function hydrate() {
     emulatorLaunchCandidates,
     gameMetadata: gameMetadataMap,
     libraryImports,
+    playcounterLibrary,
     libraryInstalls,
     scopedExeLinks,
     recentSessions: hydratedSessions,
@@ -6007,6 +6021,18 @@ function untrackGameInternal(
   const state = useAppStore.getState();
   const identity = personalGameIdentity(state);
   const removedGameKeys = new Set(aliases.map(identity));
+  useAppStore.setState({
+    playcounterLibrary: new Map(
+      [...state.playcounterLibrary].filter(
+        ([, entry]) => !removedGameKeys.has(identity(entry)),
+      ),
+    ),
+    scopedExeLinks: new Map(
+      [...state.scopedExeLinks].filter(
+        ([, entry]) => !removedGameKeys.has(identity(entry)),
+      ),
+    ),
+  });
   const journalKeys = Object.keys(state.gameJournals).filter((key) =>
     removedGameKeys.has(identity(state.gameJournals[key].game)),
   );
@@ -6461,6 +6487,7 @@ export function clearLocalLibrary() {
     playtimeAdjustments: {},
     autoDetectedGameKeys: [],
     libraryImports: new Map(),
+    playcounterLibrary: new Map(),
     libraryInstalls: new Map(),
     scopedExeLinks: new Map(),
   });

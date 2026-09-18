@@ -31,6 +31,31 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     libraryImports.set(key, {
       ...commit.entry,
       importedAt: previous?.importedAt ?? commit.entry.importedAt,
+      providerLastPlayedAt: [
+        previous?.providerLastPlayedAt,
+        commit.entry.providerLastPlayedAt,
+      ]
+        .filter(
+          (date): date is string =>
+            Boolean(date) && Number.isFinite(Date.parse(date!)),
+        )
+        .sort((a, b) => Date.parse(b) - Date.parse(a))[0],
+      providerHasPlayedEvidence:
+        previous?.providerHasPlayedEvidence === true
+          ? true
+          : commit.entry.providerHasPlayedEvidence,
+      linkedExeNames: [
+        ...new Set([
+          ...(previous?.linkedExeNames ?? []),
+          ...commit.entry.linkedExeNames,
+        ]),
+      ],
+      linkedExeSources: [
+        ...new Set([
+          ...(previous?.linkedExeSources ?? []),
+          ...commit.entry.linkedExeSources,
+        ]),
+      ],
       providerSeconds: mergeProviderSeconds(
         previous?.providerSeconds,
         commit.entry.providerSeconds,
@@ -41,13 +66,14 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     gameMetadata.set(gameMetadataKey(commit.metadata), commit.metadata);
     for (const entry of commit.exeCacheEntries) {
       const existing = exeCache.get(entry.exeName.toLowerCase());
-      addBackfillSession(
-        backfillSessions,
-        backfilledExecutables,
-        existing,
-        entry,
-        now,
-      );
+      if (commit.entry.provider !== "battlenet")
+        addBackfillSession(
+          backfillSessions,
+          backfilledExecutables,
+          existing,
+          entry,
+          now,
+        );
       if (
         !existing ||
         existing.state !== "matched" ||
@@ -76,20 +102,21 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
       }
     }
     for (const link of commit.scopedLinks) {
-      addBackfillSession(
-        backfillSessions,
-        backfilledExecutables,
-        exeCache.get(link.exeName.toLowerCase()),
-        {
-          exeName: link.exeName,
-          gameId: link.gameId,
-          igdbId: link.igdbId,
-          gameName: link.gameName,
-          coverUrl: link.coverUrl,
-          source: link.source,
-        },
-        now,
-      );
+      if (commit.entry.provider !== "battlenet")
+        addBackfillSession(
+          backfillSessions,
+          backfilledExecutables,
+          exeCache.get(link.exeName.toLowerCase()),
+          {
+            exeName: link.exeName,
+            gameId: link.gameId,
+            igdbId: link.igdbId,
+            gameName: link.gameName,
+            coverUrl: link.coverUrl,
+            source: link.source,
+          },
+          now,
+        );
       const linkKey = scopedExeLinkKey(link.exeName, link.pathPrefix);
       if (linkKey) scopedExeLinks.set(linkKey, link);
     }

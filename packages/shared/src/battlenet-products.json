@@ -1,0 +1,107 @@
+[
+  {
+    "id": "wow",
+    "name": "World of Warcraft",
+    "slug": "world-of-warcraft",
+    "folder": "_retail_",
+    "executables": ["Wow.exe"]
+  },
+  {
+    "id": "wow_classic_era",
+    "name": "World of Warcraft Classic",
+    "slug": "world-of-warcraft-classic",
+    "folder": "_classic_era_",
+    "executables": ["WowClassic.exe"]
+  },
+  {
+    "id": "wow_classic",
+    "name": "World of Warcraft Classic (progression)",
+    "slug": null,
+    "folder": "_classic_",
+    "executables": ["WowClassic.exe"]
+  },
+  {
+    "id": "w3",
+    "name": "Warcraft III: Reforged",
+    "slug": "warcraft-iii-reforged",
+    "folder": "_retail_",
+    "executables": ["x86_64/Warcraft III.exe"]
+  },
+  {
+    "id": "fenris",
+    "name": "Diablo IV",
+    "slug": "diablo-iv",
+    "folder": "",
+    "executables": ["Diablo IV.exe"]
+  },
+  {
+    "id": "fen",
+    "name": "Diablo IV",
+    "slug": "diablo-iv",
+    "folder": "",
+    "executables": ["Diablo IV.exe"]
+  },
+  {
+    "id": "diablo3",
+    "name": "Diablo III",
+    "slug": "diablo-iii",
+    "folder": "",
+    "executables": ["x64/Diablo III64.exe", "Diablo III.exe"]
+  },
+  {
+    "id": "osi",
+    "name": "Diablo II: Resurrected",
+    "slug": "diablo-ii-resurrected",
+    "folder": "",
+    "executables": ["D2R.exe"]
+  },
+  {
+    "id": "prometheus",
+    "name": "Overwatch",
+    "slug": null,
+    "folder": "_retail_",
+    "executables": ["Overwatch.exe"]
+  },
+  {
+    "id": "hs_beta",
+    "name": "Hearthstone",
+    "slug": "hearthstone",
+    "folder": "",
+    "executables": ["Hearthstone.exe"]
+  },
+  {
+    "id": "heroes",
+    "name": "Heroes of the Storm",
+    "slug": "heroes-of-the-storm",
+    "folder": "",
+    "executables": []
+  },
+  {
+    "id": "s1",
+    "name": "StarCraft",
+    "slug": null,
+    "folder": "",
+    "executables": ["x86_64/StarCraft.exe", "x86/StarCraft.exe"]
+  },
+  {
+    "id": "s2",
+    "name": "StarCraft II",
+    "slug": null,
+    "folder": "",
+    "executables": []
+  },
+  {
+    "id": "anbs",
+    "name": "Diablo Immortal",
+    "slug": null,
+    "folder": "",
+    "executables": []
+  },
+  {
+    "id": "auks",
+    "name": "Call of Duty HQ",
+    "slug": null,
+    "folder": "",
+    "executables": []
+  }
+]

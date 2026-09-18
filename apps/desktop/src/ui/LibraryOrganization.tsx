@@ -411,7 +411,7 @@ export function LibraryOrganizationToolbar({
                 setFilter("installed", filters.installed ? undefined : true)
               }
             >
-              Installed (Steam / Xbox)
+              Installed (launchers)
             </Pill>
           </FilterGroup>
           <FilterGroup label="Emulator">

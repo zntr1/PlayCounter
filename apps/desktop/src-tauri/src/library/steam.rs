@@ -1,9 +1,9 @@
+use super::types::{LocalAccount, ProviderStatus, ScanResult, ScannedGame};
 use super::{
-    exe_scan::{path_string, scan_executables, ScannedExecutable, EXE_WALK_BUDGET},
+    exe_scan::{path_string, scan_executables, EXE_WALK_BUDGET},
     vdf,
 };
 use crate::launch::{LaunchError, LaunchErrorKind};
-use serde::Serialize;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs,
@@ -23,49 +23,6 @@ use windows_sys::Win32::{
 
 const MAX_SCANNED_APPS: usize = 5_000;
 const MAX_VDF_BYTES: u64 = 8 * 1024 * 1024;
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProviderStatus {
-    provider: &'static str,
-    available: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    root_path: Option<String>,
-    checked_paths: Vec<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LocalAccount {
-    account_id: u32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    persona_name: Option<String>,
-    most_recent: bool,
-    games_with_playtime: usize,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ScannedGame {
-    external_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    playtime_seconds: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_played_unix: Option<u64>,
-    installed: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    install_path: Option<String>,
-    executables: Vec<ScannedExecutable>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ScanResult {
-    games: Vec<ScannedGame>,
-    warnings: Vec<String>,
-    partial: bool,
-}
 
 #[derive(Default)]
 struct LoginUser {
@@ -148,7 +105,8 @@ pub fn scan(account_id: u32) -> Result<ScanResult, String> {
         games.push(ScannedGame {
             external_id: app_id,
             name: manifest.and_then(|value| value.name.clone()),
-            playtime_seconds: playtime.seconds,
+            playtime_seconds: Some(playtime.seconds),
+            has_played_evidence: None,
             last_played_unix: playtime.last_played,
             installed,
             install_path: install_path.as_ref().map(|value| path_string(value)),

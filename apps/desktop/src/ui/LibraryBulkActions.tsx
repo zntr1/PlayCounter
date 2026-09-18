@@ -1,6 +1,6 @@
 import { useLibraryPractice } from "./PersonalLibraryContext";
 import clsx from "clsx";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, MoveRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -25,6 +25,8 @@ export function LibraryBulkActions({
   onClear,
   onDone,
   onStatus,
+  moveToPlayCounterCount = 0,
+  onMoveToPlayCounter,
 }: {
   active: boolean;
   count: number;
@@ -33,6 +35,8 @@ export function LibraryBulkActions({
   onClear: () => void;
   onDone: () => void;
   onStatus: (status: GameStatus | null) => void;
+  moveToPlayCounterCount?: number;
+  onMoveToPlayCounter?: () => void;
 }) {
   const practice = useLibraryPractice();
   const menu = useAnchoredMenu();
@@ -61,7 +65,7 @@ export function LibraryBulkActions({
       data-tour={practice ? "demo-bulk-actions" : undefined}
       ref={barRef}
       tabIndex={-1}
-      aria-label="Bulk status actions"
+      aria-label="Bulk game actions"
       className="sticky top-0 z-40 rounded-xl border border-accent/30 bg-surface px-3 py-2 shadow-raised focus:outline-none"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -86,30 +90,55 @@ export function LibraryBulkActions({
         >
           Set status <ChevronDown size={14} />
         </button>
-        <Button
-          data-tour={practice ? "demo-bulk-select-all" : undefined}
-          variant="ghost"
-          disabled={!total || count === total}
-          data-controller-item="library-option"
-          onClick={() => {
-            onSelectAll();
-            barRef.current?.focus({ preventScroll: true });
-          }}
-        >
-          Select all {total} {total === 1 ? "result" : "results"}
-        </Button>
-        {count ? (
+        {onMoveToPlayCounter ? (
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-border" />
+            <Button
+              variant="secondary"
+              icon={MoveRight}
+              disabled={moveToPlayCounterCount === 0}
+              title={
+                count > 0 && moveToPlayCounterCount === 0
+                  ? "Selected games are already in PlayCounter"
+                  : "Move selected launcher games to PlayCounter"
+              }
+              data-controller-item="library-option"
+              onClick={() => {
+                menu.close();
+                onMoveToPlayCounter();
+              }}
+            >
+              Move to PlayCounter
+            </Button>
+          </div>
+        ) : null}
+        <div className="flex items-center gap-2">
+          <span aria-hidden className="mx-1 h-6 w-px shrink-0 bg-border" />
           <Button
+            data-tour={practice ? "demo-bulk-select-all" : undefined}
             variant="ghost"
+            disabled={!total || count === total}
             data-controller-item="library-option"
             onClick={() => {
-              onClear();
+              onSelectAll();
               barRef.current?.focus({ preventScroll: true });
             }}
           >
-            Clear selection
+            Select all {total} {total === 1 ? "result" : "results"}
           </Button>
-        ) : null}
+          {count ? (
+            <Button
+              variant="ghost"
+              data-controller-item="library-option"
+              onClick={() => {
+                onClear();
+                barRef.current?.focus({ preventScroll: true });
+              }}
+            >
+              Clear selection
+            </Button>
+          ) : null}
+        </div>
         <Button
           variant="secondary"
           className="ml-auto"

@@ -19,6 +19,7 @@ import { Button, IconButton } from "../primitives";
 import { tourCardPosition, type TourTargetRect } from "./tourCardPosition";
 import {
   CORE_TOUR_ID,
+  TOUR_CATEGORIES,
   TOURS,
   findTour,
   type TourEventName,
@@ -27,6 +28,11 @@ import { backStepIndex, nextStepIndex } from "./tourNavigation";
 import { shouldShowWelcome } from "./tourState";
 
 const TOUR_EVENT = "playcounter:tour-event";
+
+const HELP_TOUR_GROUPS = TOUR_CATEGORIES.map((category) => ({
+  ...category,
+  tours: TOURS.filter((tour) => tour.category === category.id),
+})).filter((group) => group.tours.length > 0);
 
 export function emitTourEvent(name: TourEventName) {
   window.dispatchEvent(new CustomEvent(TOUR_EVENT, { detail: { name } }));
@@ -81,25 +87,27 @@ export function HelpButton() {
           }}
         >
           <div className="border-b border-border px-4 py-3">
-            <div className="font-semibold text-text">Help & tutorials</div>
+            <h2 className="font-semibold text-text">Help & tutorials</h2>
             <div className="mt-0.5 text-xs text-text-muted">
-              Learn the basics or practice a common task.
+              Browse by topic and pick a guide to get started.
             </div>
           </div>
-          <div className="min-h-0 overflow-y-auto p-2">
-            {[
-              {
-                title: "New in 1.1.17",
-                tours: TOURS.filter((tour) => tour.release === "1.1.17"),
-              },
-              {
-                title: "More guides",
-                tours: TOURS.filter((tour) => tour.release !== "1.1.17"),
-              },
-            ].map((group) => (
-              <section key={group.title} className="mb-2 grid gap-1">
-                <h3 className="px-3 pb-1 pt-2 text-xs font-semibold text-accent">
+          <div className="min-h-0 overflow-y-auto px-2 pb-2">
+            {HELP_TOUR_GROUPS.map((group) => (
+              <section
+                key={group.id}
+                aria-labelledby={`help-category-${group.id}`}
+                className="mb-3 grid gap-1 last:mb-0"
+              >
+                <h3
+                  id={`help-category-${group.id}`}
+                  className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-surface px-3 py-2 text-xs font-semibold text-accent"
+                >
                   {group.title}
+                  <span className="text-[11px] font-normal text-text-faint">
+                    {group.tours.length}{" "}
+                    {group.tours.length === 1 ? "guide" : "guides"}
+                  </span>
                 </h3>
                 {group.tours.map((tour) => {
                   const complete = progress.completed[tour.id] === tour.version;
@@ -107,7 +115,7 @@ export function HelpButton() {
                     <button
                       key={tour.id}
                       type="button"
-                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-hover"
+                      className="flex scroll-mt-10 items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
                       onClick={() => startTour(tour.id)}
                     >
                       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent">
@@ -125,7 +133,7 @@ export function HelpButton() {
                           {tour.description}
                         </span>
                       </span>
-                      <span className="text-[11px] text-text-muted">
+                      <span className="shrink-0 whitespace-nowrap text-[11px] text-text-muted">
                         {complete ? "Replay" : tour.duration}
                       </span>
                     </button>

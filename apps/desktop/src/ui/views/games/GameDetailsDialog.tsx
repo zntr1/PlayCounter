@@ -1,15 +1,14 @@
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import {
   CalendarDays,
-  BookOpen,
   Clock3,
   ExternalLink,
   FolderOpen,
   Gamepad2,
   History,
   Info,
+  MoveRight,
   Star,
-  StickyNote,
   WifiOff,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
@@ -17,11 +16,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
 import type { ScopedExeLink } from "../../../library/types";
 import type { LaunchTarget } from "../../../store";
-import type { GameIdentityRef } from "../../../store";
 import { gameMetadataKey, useAppStore } from "../../../store";
-import { GAME_STATUSES, journalNote } from "../../../personalLibrary";
-import { STATUS_TONES, notePreview } from "../../journalStyles";
-import { useGameJournal } from "../../useGameJournal";
 import { GameCover } from "../../GameCover";
 import { ExeIcon } from "../../ExeIcon";
 import { Button } from "../../primitives";
@@ -51,11 +46,13 @@ import {
 const PROVIDER_LABEL: Record<LibraryProviderId, string> = {
   steam: "Steam",
   xbox: "Xbox",
+  battlenet: "Battle.net",
 };
 
 const PROVIDER_ID_LABEL: Record<LibraryProviderId, string> = {
   steam: "Steam AppID",
   xbox: "Xbox title ID",
+  battlenet: "Battle.net product",
 };
 
 export type GameDetailsTarget = {
@@ -193,11 +190,13 @@ export function GameDetailsDialog({
   game,
   launchTargets,
   onClose,
+  onMoveToPlayCounter,
 }: {
   game: GameDetailsTarget;
   /** Saved launch files owned by this game, in the card's own priority order. */
   launchTargets: readonly LaunchTarget[];
   onClose: () => void;
+  onMoveToPlayCounter?: () => void;
 }) {
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
@@ -321,15 +320,6 @@ export function GameDetailsDialog({
       }
     >
       <div className="grid gap-4">
-        <JournalSummary
-          game={{ ...game, gameName: game.name }}
-          onOpen={(tab) => {
-            onClose();
-            useAppStore
-              .getState()
-              .openGameJournal({ game: { ...game, gameName: game.name }, tab });
-          }}
-        />
         <div className="flex flex-wrap gap-5">
           <div className="w-40 shrink-0">
             {game.coverUrl ? (
@@ -544,7 +534,17 @@ export function GameDetailsDialog({
         </Section>
 
         {game.libraryImports.length > 0 ? (
-          <Section title="Where it came from" icon={CalendarDays}>
+          <Section
+            title="Where it came from"
+            icon={CalendarDays}
+            action={
+              onMoveToPlayCounter ? (
+                <Button icon={MoveRight} onClick={onMoveToPlayCounter}>
+                  Move to PlayCounter
+                </Button>
+              ) : undefined
+            }
+          >
             <div className="grid gap-3">
               {game.libraryImports.map((entry) => (
                 <div
@@ -702,75 +702,5 @@ export function GameDetailsDialog({
         </Section>
       </div>
     </Modal>
-  );
-}
-
-/** What you have written down about this game, stated before the button that
- *  opens it. An empty journal says what it is for instead of staying blank. */
-function JournalSummary({
-  game,
-  onOpen,
-}: {
-  game: GameIdentityRef;
-  onOpen: (tab: "note" | "playthroughs") => void;
-}) {
-  const journal = useGameJournal(game);
-  const note = journalNote(journal);
-  const status = journal.status;
-  return (
-    <div className="grid gap-3 rounded-xl border border-border bg-bg p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-faint">
-            Your journal
-          </span>
-          {status ? (
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium ${STATUS_TONES[status].chip}`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[status].dot}`}
-              />
-              {GAME_STATUSES[status]}
-            </span>
-          ) : null}
-          {journal.favorite ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-400">
-              <Star size={12} fill="currentColor" />
-              Favorite
-            </span>
-          ) : null}
-          {journal.playthroughs.length ? (
-            <span className="text-[11px] text-text-muted">
-              {journal.playthroughs.length} playthrough
-              {journal.playthroughs.length === 1 ? "" : "s"}
-            </span>
-          ) : null}
-        </div>
-        {note ? (
-          <button
-            type="button"
-            title="Open this note"
-            onClick={() => onOpen("note")}
-            className="mt-2 flex w-full items-start gap-2 text-left text-sm text-text-muted transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-          >
-            <StickyNote size={14} className="mt-0.5 shrink-0 text-accent" />
-            <span className="truncate">{notePreview(note)}</span>
-          </button>
-        ) : (
-          <p className="mt-2 text-sm text-text-muted">
-            Keep a note, track a replay, or put this game on a shelf.
-          </p>
-        )}
-      </div>
-      <Button
-        variant="secondary"
-        icon={BookOpen}
-        className="justify-self-start sm:justify-self-end"
-        onClick={() => onOpen("playthroughs")}
-      >
-        Open journal
-      </Button>
-    </div>
   );
 }

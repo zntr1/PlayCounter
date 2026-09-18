@@ -51,7 +51,13 @@ export interface EmulatorResolveResponse {
 }
 
 /** A locally installed or remotely linked game-library provider. */
-export type LibraryProviderId = "steam" | "xbox";
+export type LibraryProviderId = "steam" | "xbox" | "battlenet";
+export {
+  BATTLE_NET_PRODUCTS,
+  LIBRARY_PROVIDER_LABELS,
+  isLibraryProvider,
+  validLibraryExternalId,
+} from "./libraryProviders.js";
 
 export interface LibraryResolveRequest {
   items: Array<{

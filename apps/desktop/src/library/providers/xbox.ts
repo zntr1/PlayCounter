@@ -273,24 +273,22 @@ export async function searchXboxGames(
   apiEndpoint: string,
   rawQuery: string,
   signal?: AbortSignal,
+  mainGamesAndRemastersOnly = true,
 ): Promise<GameMetadata[]> {
   const query = rawQuery.trim();
   if (query.length < 2) return [];
   const endpoint = apiEndpoint.replace(/\/+$/, "");
   const response = await requestLibraryJson<unknown>(
-    `${endpoint}/api/games/search?query=${encodeURIComponent(query)}&mainGamesAndRemastersOnly=true`,
+    `${endpoint}/api/games/search?query=${encodeURIComponent(query)}&mainGamesAndRemastersOnly=${mainGamesAndRemastersOnly}`,
     { signal },
   );
   if (!response.ok) {
-    throw responseError(
-      response,
-      `Xbox game search failed (${response.status}).`,
-    );
+    throw responseError(response, `Game search failed (${response.status}).`);
   }
   const value = response.data;
   const record = asRecord(value);
   if (!record || !Array.isArray(record.games)) {
-    throw new Error("Xbox game search returned an invalid response.");
+    throw new Error("Game search returned an invalid response.");
   }
   return record.games.map(
     parseGameMetadata,

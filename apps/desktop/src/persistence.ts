@@ -45,6 +45,7 @@ type PersistableAppState = {
   emulatorLaunchCandidates?: ReadonlyMap<string, unknown>;
   gameMetadata: ReadonlyMap<string, unknown>;
   libraryImports?: ReadonlyMap<string, unknown>;
+  playcounterLibrary?: ReadonlyMap<string, unknown>;
   libraryInstalls?: ReadonlyMap<string, unknown>;
   scopedExeLinks?: ReadonlyMap<string, unknown>;
   recentSessions: Session[];
@@ -90,6 +91,7 @@ export type PersistedPayload = {
   emulatorLaunchCandidates?: unknown[];
   gameMetadata: unknown[];
   libraryImports?: unknown[];
+  playcounterLibrary?: unknown[];
   libraryInstalls?: unknown[];
   scopedExeLinks?: unknown[];
   sessions: Session[];
@@ -170,6 +172,7 @@ function buildPersistedPayload(
     ],
     gameMetadata: [...state.gameMetadata.values()],
     libraryImports: [...(state.libraryImports?.values() ?? [])],
+    playcounterLibrary: [...(state.playcounterLibrary?.values() ?? [])],
     libraryInstalls: [...(state.libraryInstalls?.values() ?? [])],
     scopedExeLinks: [...(state.scopedExeLinks?.values() ?? [])],
     sessions,

@@ -35,7 +35,11 @@ export function buildLibraryImportCommit(input: {
     scanned.executables.map((exe) => [exe.fileName.toLowerCase(), exe]),
   );
   const knownWindows = resolved.executables.filter(
-    (item) => item.platform === "windows" && item.kind === "exe",
+    (item) =>
+      item.platform === "windows" &&
+      item.kind === "exe" &&
+      (provider !== "battlenet" ||
+        localByName.has(item.value.trim().toLowerCase())),
   );
   const exeCacheEntries: ExeCacheEntry[] = [];
   const scopedLinks: ScopedExeLink[] = [];
@@ -75,6 +79,7 @@ export function buildLibraryImportCommit(input: {
     linked.add(name);
     linkedExeSources.add(executable.identifierSource);
     if (
+      provider !== "battlenet" &&
       executable.verified &&
       (!executable.ambiguous || provider === "steam")
     ) {
@@ -130,7 +135,10 @@ export function buildLibraryImportCommit(input: {
     if (!executableEvidence.has(selectedName.toLowerCase())) {
       linked.add(selectedName);
       linkedExeSources.add("custom");
-      if (manualExecutableNeedsScope(input.selectedExecutable)) {
+      if (
+        provider === "battlenet" ||
+        manualExecutableNeedsScope(input.selectedExecutable)
+      ) {
         scopedLinks.push(
           toCustomScopedLink(
             selectedName,
@@ -168,6 +176,7 @@ export function buildLibraryImportCommit(input: {
       scanned.playtimeSeconds === null
         ? null
         : Math.max(0, Math.floor(scanned.playtimeSeconds)),
+    providerHasPlayedEvidence: scanned.hasPlayedEvidence,
     providerLastPlayedAt: scanned.lastPlayedUnix
       ? new Date(scanned.lastPlayedUnix * 1000).toISOString()
       : undefined,

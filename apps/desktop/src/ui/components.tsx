@@ -1,3 +1,4 @@
+import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import type { PropsWithChildren, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -294,6 +295,15 @@ const providerMeta: Record<
   LibraryProviderId,
   Omit<OriginEntry, "key" | "unknownDuration">
 > = {
+  battlenet: {
+    label: "Battle.net",
+    tip: "Imported from Battle.net installations on this PC.",
+    iconUrl: battleNetIconUrl,
+    tone: "text-[#00aeef]",
+    coinTone: "shadow-raised",
+    chipTone: "border-[#00aeef]/40 bg-[#061e2b] text-[#00aeef]",
+    coinFill: true,
+  },
   steam: {
     label: "Steam",
     tip: "Imported from your local Steam library.",
@@ -320,7 +330,8 @@ const emulatorLabels: Record<string, string> = {
   pcsx2: "PCSX2",
 };
 
-const UNKNOWN_DURATION_TIP = "This source did not report how long you played.";
+const UNKNOWN_DURATION_TIP =
+  "Historical playtime is unavailable from this source.";
 
 function providerOrigin(
   provider: LibraryProviderId,

@@ -1,3 +1,4 @@
+import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import {
   AlertTriangle,
   Download,
@@ -128,7 +129,15 @@ export function SettingsView() {
     }
     return count;
   });
-  const forgetLibraryLabel = confirmForgetLibrary === "xbox" ? "Xbox" : "Steam";
+  const importedBattleNetCount = useAppStore(
+    (state) =>
+      [...state.libraryImports.values()].filter(
+        (entry) => entry.provider === "battlenet",
+      ).length,
+  );
+  const forgetLibraryLabel = confirmForgetLibrary
+    ? LIBRARY_PROVIDER_LABELS[confirmForgetLibrary]
+    : "";
   const emulatorLaunchTargetCount = useAppStore(
     (state) =>
       state.emulatorAutoBinaries.size +
@@ -981,7 +990,7 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Remove the playtime you imported from Steam or Xbox. Install paths and the game files linked to them always stay on this PC."
+        description="Remove data imported from Steam, Xbox, or Battle.net. Install paths and the game files linked to them always stay on this PC."
         title="Library import"
       >
         <SettingsRow
@@ -1016,6 +1025,23 @@ export function SettingsView() {
             onClick={() => setConfirmForgetLibrary("xbox")}
           >
             Forget {importedXboxCount || "all"}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          description="Removes Battle.net imports and their installation links. Sessions PlayCounter recorded itself are kept."
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="battlenet" variant="mark" />
+              Forget imported Battle.net data
+            </span>
+          }
+        >
+          <Button
+            variant="danger"
+            disabled={importedBattleNetCount === 0}
+            onClick={() => setConfirmForgetLibrary("battlenet")}
+          >
+            Forget {importedBattleNetCount || "all"}
           </Button>
         </SettingsRow>
       </SettingsPanel>

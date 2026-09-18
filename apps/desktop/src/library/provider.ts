@@ -20,6 +20,7 @@ export type LibraryScanOptions = {
 export type LocalLibraryProvider = {
   id: LibraryProviderId;
   label: string;
+  accountMode?: "none";
   detect(): Promise<ProviderStatus>;
   listAccounts(): Promise<LocalLibraryAccount[]>;
   scan(

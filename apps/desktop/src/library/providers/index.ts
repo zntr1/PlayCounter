@@ -5,6 +5,8 @@ export async function loadLibraryProvider(
   id: LibraryProviderId,
 ): Promise<LocalLibraryProvider> {
   switch (id) {
+    case "battlenet":
+      return (await import("./battlenet")).battleNetProvider;
     case "steam":
       return (await import("./steam")).steamProvider;
     case "xbox":

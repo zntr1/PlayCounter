@@ -56,7 +56,9 @@ export function untrackableLibraryImports() {
   }
   return [...state.libraryImports.values()].filter(
     (entry) =>
-      (entry.provider === "steam" || entry.provider === "xbox") &&
+      (entry.provider === "steam" ||
+        entry.provider === "xbox" ||
+        entry.provider === "battlenet") &&
       !tracked.has(entry.igdbId),
   );
 }

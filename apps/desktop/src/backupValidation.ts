@@ -92,7 +92,7 @@ function dictionary(validate: Validator): Validator {
 }
 
 const source = oneOf("igdb", "community", "custom");
-const provider = oneOf("steam", "xbox");
+const provider = oneOf("steam", "xbox", "battlenet");
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
@@ -175,7 +175,11 @@ const libraryImport = object(
     providerSeconds: nullable(nonnegative),
     linkedExeNames: array(nonempty),
   },
-  { providerLastPlayedAt: date, linkedExeSources: array(source) },
+  {
+    providerLastPlayedAt: date,
+    providerHasPlayedEvidence: boolean,
+    linkedExeSources: array(source),
+  },
 );
 const emulatorMapping = object(
   {
@@ -384,7 +388,7 @@ const validateBackupShape: Validator = object(
             {},
             {
               search: string,
-              source: oneOf("all", "steam", "xbox", "unimported"),
+              source: oneOf("all", "steam", "xbox", "battlenet", "unimported"),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),
               favorite: boolean,
               installed: boolean,
@@ -400,6 +404,24 @@ const validateBackupShape: Validator = object(
     exeCache: array(exeEntry),
     gameMetadata: array(game),
     libraryImports: array(libraryImport),
+    playcounterLibrary: array(
+      object(
+        {
+          gameId: positiveId,
+          igdbId: positiveId,
+          source: oneOf("igdb", "community"),
+          name: nonempty,
+          coverUrl: string,
+          addedAt: date,
+        },
+        {
+          lastPlayedAt: date,
+          aliases: array(
+            object({ gameId: integer }, { source: nullable(source) }),
+          ),
+        },
+      ),
+    ),
     emulatorMappings: array(emulatorMapping),
     emulatorObservations: array(observation),
     knownEmulators: array(

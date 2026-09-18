@@ -28,7 +28,11 @@ export type LibraryStatGame = {
   libraryImports: readonly {
     provider: LibraryProviderId;
     installed: boolean;
-    entry?: { providerSeconds: number | null };
+    entry?: {
+      providerSeconds: number | null;
+      providerHasPlayedEvidence?: boolean;
+      providerLastPlayedAt?: string;
+    };
   }[];
 };
 
@@ -89,11 +93,13 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     metric: "playtimeSeconds",
     format: "duration",
     label: ({ kind, providerLabel }) =>
-      providerLabel
-        ? `${providerLabel} lifetime playtime`
-        : kind === "unimported"
-          ? "Tracked playtime"
-          : "Total playtime",
+      providerLabel === "Battle.net"
+        ? "Tracked playtime"
+        : providerLabel
+          ? `${providerLabel} lifetime playtime`
+          : kind === "unimported"
+            ? "Tracked playtime"
+            : "Total playtime",
     help: "All playtime this tab adds up to.",
   },
   {
@@ -126,16 +132,23 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     metric: "played",
     format: "count",
     label: ({ providerLabel }) =>
-      providerLabel ? `Played on ${providerLabel}` : "With playtime",
-    help: "Games with any playtime on the clock.",
+      providerLabel === "Battle.net"
+        ? "With play activity"
+        : providerLabel
+          ? `Played on ${providerLabel}`
+          : "With play activity",
+    help: "Games with playtime or activity reported by their source.",
   },
   {
     id: "unplayed",
     kinds: ALL_KINDS,
     metric: "unplayed",
     format: "count",
-    label: () => "Never played",
-    help: "Games sitting at zero playtime.",
+    label: ({ providerLabel }) =>
+      !providerLabel || providerLabel === "Battle.net"
+        ? "No play activity found"
+        : "Never played",
+    help: "Games without playtime or activity reported by their source. Missing Battle.net history does not prove a game was never played.",
   },
   {
     id: "installed",
@@ -223,15 +236,31 @@ export function summarizeLibraryStats(
       : [];
     if (provider && providerEntries.length === 0) continue;
 
-    const seconds = provider
-      ? normalizedSeconds(floors[providerFloorKey(game)] ?? 0)
-      : normalizedSeconds(game.totalSeconds);
+    const seconds =
+      provider === "battlenet"
+        ? normalizedSeconds(game.recordedSeconds + game.adjustmentSeconds)
+        : provider
+          ? normalizedSeconds(floors[providerFloorKey(game)] ?? 0)
+          : normalizedSeconds(game.totalSeconds);
     // Xbox can report a game without a playtime figure. That is still evidence
     // the game was played, so it must not count as "never played".
     const unknownPlaytime =
       provider !== null &&
+      provider !== "battlenet" &&
       hasUnknownProviderPlaytime(providerEntries, provider);
-    const played = seconds > 0 || unknownPlaytime;
+    const battleNetActivity =
+      (provider === null || provider === "battlenet") &&
+      game.libraryImports.some(
+        (item) =>
+          item.provider === "battlenet" &&
+          (item.entry?.providerHasPlayedEvidence === true ||
+            Boolean(item.entry?.providerLastPlayedAt)),
+      );
+    const played =
+      seconds > 0 ||
+      unknownPlaytime ||
+      battleNetActivity ||
+      (provider === "battlenet" && game.sessionCount > 0);
     const lastPlayedAt = Date.parse(game.lastPlayedAt);
 
     metrics.games += 1;
