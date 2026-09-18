@@ -69,7 +69,6 @@ function customLinkRefsForCommits(
       entry.state === "matched" &&
       entry.source === "custom" &&
       entry.libraryProvider &&
-      entry.libraryProvider !== "battlenet" &&
       entry.libraryExternalId &&
       importedKeys.has(
         libraryEntryKey(entry.libraryProvider, entry.libraryExternalId),
@@ -83,7 +82,6 @@ function customLinkRefsForCommits(
     if (
       entry.source === "custom" &&
       entry.provider !== undefined &&
-      entry.provider !== "battlenet" &&
       entry.externalId !== undefined &&
       importedKeys.has(libraryEntryKey(entry.provider, entry.externalId)) &&
       entry.communitySuggestionId === undefined

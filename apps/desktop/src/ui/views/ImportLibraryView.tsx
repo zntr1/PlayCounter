@@ -565,11 +565,9 @@ export function ImportLibraryView() {
       addToast({
         tone: "success",
         title: `${match.game?.name ?? game.name ?? "Game"} added to My Games`,
-        detail: isBattleNet
-          ? "The game file was linked for this installation on your PC."
-          : importShareDetail(
-              result.shareOutcomes.map(({ outcome }) => outcome.kind),
-            ),
+        detail: importShareDetail(
+          result.shareOutcomes.map(({ outcome }) => outcome.kind),
+        ),
       });
     } catch (cause) {
       if (!isCurrentImport(signal)) return;
@@ -619,7 +617,7 @@ export function ImportLibraryView() {
 
       await backupImporterDataOnce(signal);
       if (!isCurrentImport(signal)) return;
-      await runLibraryImport([commit], signal);
+      const result = await runLibraryImport([commit], signal);
       if (!isCurrentImport(signal)) return;
       setResolved((current) => new Map(current).set(key, resolvedGame));
       setCompleted((current) => new Set(current).add(scanned.externalId));
@@ -634,7 +632,11 @@ export function ImportLibraryView() {
         tone: "success",
         title: `${reverseMatch.game.name} imported`,
         detail: isBattleNet
-          ? "The game file is linked to this installation for future tracking."
+          ? result.shareOutcomes.length > 0
+            ? importShareDetail(
+                result.shareOutcomes.map(({ outcome }) => outcome.kind),
+              )
+            : "The game file is linked to this installation for future tracking."
           : linkedCount > 0
             ? `${linkedCount} known game ${linkedCount === 1 ? "file was" : "files were"} linked, so PlayCounter tracks this game once it is installed.`
             : "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
@@ -1347,13 +1349,11 @@ export function ImportRow({
         {showExeBlock ? (
           <div className="mt-3 max-w-2xl text-xs text-text-muted">
             <p>
-              {provider === "battlenet"
-                ? "Pick the game file PlayCounter should watch. The match is saved for this installation on your PC."
-                : needsIdentityConfirmation
-                  ? "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below."
-                  : showAddAndShare
-                    ? "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review."
-                    : "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review."}
+              {needsIdentityConfirmation
+                ? "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below."
+                : showAddAndShare
+                  ? "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review."
+                  : "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review."}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
@@ -1383,12 +1383,12 @@ export function ImportRow({
               {showAddAndShare && !needsIdentityConfirmation ? (
                 <Button
                   variant="primary"
-                  icon={provider === "battlenet" ? CheckCircle2 : Share2}
+                  icon={Share2}
                   loading={addingAndSharing}
                   disabled={!manualExecutable}
                   onClick={onAddAndShare}
                 >
-                  {provider === "battlenet" ? "Add game" : "Add and Share"}
+                  Add and Share
                 </Button>
               ) : null}
             </div>

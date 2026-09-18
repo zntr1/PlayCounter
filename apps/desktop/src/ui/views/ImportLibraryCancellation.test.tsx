@@ -149,7 +149,9 @@ it.each(["steam", "xbox", "battlenet"] as const)(
     ];
     mocks.scan.mockResolvedValue(result);
     mocks.reverse.mockResolvedValue({ game: matchedGame, executables: [] });
-    mocks.run.mockResolvedValue({ shareOutcomes: [] });
+    mocks.run.mockResolvedValue({
+      shareOutcomes: [{ outcome: { kind: "submitted" } }],
+    });
 
     await click(
       provider === "xbox"
@@ -165,13 +167,7 @@ it.each(["steam", "xbox", "battlenet"] as const)(
     expect(mocks.run).not.toHaveBeenCalled();
     expect(store.getState().libraryImports.size).toBe(0);
 
-    await click(
-      provider === "xbox"
-        ? "Confirm and Import"
-        : provider === "battlenet"
-          ? "Add game"
-          : "Add and Share",
-    );
+    await click(provider === "xbox" ? "Confirm and Import" : "Add and Share");
     expect(mocks.run).toHaveBeenCalledWith(
       [
         expect.objectContaining({
@@ -183,6 +179,11 @@ it.each(["steam", "xbox", "battlenet"] as const)(
       ],
       expect.any(AbortSignal),
     );
+    if (provider === "battlenet") {
+      expect(store.getState().toasts[0].detail).toContain(
+        "sent to the community for review",
+      );
+    }
   },
 );
 
@@ -247,7 +248,9 @@ it.each(["xbox", "battlenet"] as const)(
     mocks.scan.mockResolvedValue(result);
     mocks.search.mockResolvedValue([matchedGame]);
     mocks.reverse.mockResolvedValue({ game: matchedGame, executables: [] });
-    mocks.run.mockResolvedValue({ shareOutcomes: [] });
+    mocks.run.mockResolvedValue({
+      shareOutcomes: [{ outcome: { kind: "failed" } }],
+    });
 
     await click(
       provider === "xbox" ? "Sign in and find games" : "Find installed games",
@@ -276,6 +279,9 @@ it.each(["xbox", "battlenet"] as const)(
       linkedExeNames: ["Example.exe"],
     });
     if (provider === "battlenet") {
+      expect(store.getState().toasts[0].detail).toContain(
+        "could not be verified or shared",
+      );
       expect(plan.exeCacheEntries).toEqual([]);
       expect(plan.scopedLinks).toEqual([
         expect.objectContaining({

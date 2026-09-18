@@ -70,7 +70,7 @@ afterEach(() => {
 });
 
 describe("bulk import requests", () => {
-  it("keeps a Battle.net executable choice local without submitting a global mapping", async () => {
+  it("shares a Battle.net executable choice for review while keeping its local installation scope", async () => {
     const plan = commit(1);
     plan.entry.provider = "battlenet";
     plan.entry.externalId = "wow_classic_era";
@@ -90,9 +90,19 @@ describe("bulk import requests", () => {
         setAt: plan.entry.importedAt,
       },
     ];
-    expect((await runLibraryImport([plan])).shareOutcomes).toEqual([]);
-    expect(submit).not.toHaveBeenCalled();
-    expect(useAppStore.getState().scopedExeLinks.size).toBe(1);
+    const result = await runLibraryImport([plan]);
+    const key = [...useAppStore.getState().scopedExeLinks.keys()][0];
+    expect(result.shareOutcomes).toEqual([
+      { ref: { kind: "scoped", key }, outcome: { kind: "submitted" } },
+    ]);
+    expect(submit).toHaveBeenCalledExactlyOnceWith(
+      { kind: "scoped", key },
+      undefined,
+    );
+    expect([...useAppStore.getState().scopedExeLinks.values()]).toEqual(
+      plan.scopedLinks,
+    );
+    expect(useAppStore.getState().exeCache.size).toBe(0);
   });
 
   it("resumes remaining submissions after a 429 without replaying the attempted write", async () => {

@@ -16,6 +16,7 @@ import {
 import { libraryStatCards, summarizeLibraryStats } from "../ui/myGamesStats";
 import { buildLibraryImportCommit } from "./importPlan";
 import { commitLibraryImports } from "./commit";
+import { runLibraryImport } from "./importRun";
 import { moveGameToPlayCounter } from "./moveToPlayCounter";
 import { providerFloors } from "./playtimeFloor";
 import { resolveScopedLink } from "./scopedLinks";
@@ -169,6 +170,108 @@ describe("Battle.net library", () => {
     expect(plan.entry.linkedExeNames).toEqual([]);
     expect(plan.scopedLinks).toEqual([]);
     expect(plan.exeCacheEntries).toEqual([]);
+  });
+
+  it.each([
+    { kind: "submitted", response: { id: 501, verified: false }, status: 200 },
+    {
+      kind: "already-known",
+      response: { igdbGame: resolved.game },
+      status: 200,
+    },
+    {
+      kind: "already-known",
+      response: { id: 501, verified: true },
+      status: 200,
+    },
+    { kind: "failed", response: { error: "Unavailable" }, status: 503 },
+  ])(
+    "preserves both WoW installation matches after sharing returns $kind ($response)",
+    async ({ kind, response, status }) => {
+      const other = commit(
+        {
+          ...scanned,
+          externalId: "wow_classic",
+          installPath: "C:\\Games\\WoW\\_classic_",
+        },
+        {
+          ...resolved,
+          game: {
+            ...resolved.game!,
+            id: 101,
+            igdbId: 102,
+            name: "Another WoW Classic version",
+          },
+        },
+      );
+      commitLibraryImports([other]);
+      const fetchMock = vi.fn(
+        async (_input: RequestInfo | URL, _init?: RequestInit) =>
+          Response.json(response, { status }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const plan = buildLibraryImportCommit({
+        provider: "battlenet",
+        scanned,
+        resolved: { ...resolved, executables: [] },
+        selectedExecutable: scanned.executables[0],
+        now: DATE,
+      })!;
+
+      const result = await runLibraryImport([plan]);
+
+      expect(result.shareOutcomes.map(({ outcome }) => outcome.kind)).toEqual([
+        kind,
+      ]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(String(fetchMock.mock.calls[0][0])).toMatch(
+        /\/api\/community\/suggestions$/,
+      );
+      expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+        exeName: "WowClassic.exe",
+        name: resolved.game!.name,
+        igdbId: resolved.game!.igdbId,
+        coverUrl: resolved.game!.coverUrl,
+      });
+      const state = useAppStore.getState();
+      expect(state.exeCache.size).toBe(0);
+      expect([...state.scopedExeLinks.values()]).toContainEqual(
+        other.scopedLinks[0],
+      );
+      const local = resolveScopedLink(
+        {
+          exeName: "WowClassic.exe",
+          exePath: `${scanned.installPath}\\WowClassic.exe`,
+        },
+        state.scopedExeLinks,
+      );
+      expect(local).toMatchObject({
+        igdbId: resolved.game!.igdbId,
+        provider: "battlenet",
+        externalId: "wow_classic_era",
+      });
+      if (kind === "submitted") {
+        expect(local).toMatchObject({
+          source: "custom",
+          communitySuggestionId: 501,
+          communitySuggestionVerified: false,
+        });
+      } else if (kind === "failed") {
+        expect(local).toMatchObject({ source: "custom", shareState: "failed" });
+      } else {
+        expect(local?.source).toBe(
+          "igdbGame" in response ? "igdb" : "community",
+        );
+      }
+    },
+  );
+
+  it("reuses known Battle.net executable evidence without a community submission", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await runLibraryImport([commit()])).shareOutcomes).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useAppStore.getState().scopedExeLinks.size).toBe(1);
   });
 
   it("retains the product ID, unknown duration, and scoped link after restart", async () => {
