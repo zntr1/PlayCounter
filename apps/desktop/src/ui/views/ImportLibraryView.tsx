@@ -1,5 +1,6 @@
 import {
   CheckCircle2,
+  Clock3,
   Copy,
   Download,
   FolderOpen,
@@ -40,7 +41,7 @@ import { useAppStore, type GameMetadata } from "../../store";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { STORAGE_KEY } from "../../persistence";
 import { Panel, ProviderBadge, formatDuration } from "../components";
-import { Button, Input } from "../primitives";
+import { Button, Input, Modal } from "../primitives";
 
 type Phase = "detecting" | "ready" | "scanning" | "importing" | "done";
 export type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
@@ -132,6 +133,10 @@ export function ImportLibraryView() {
     session.authorizeUrl,
   );
   const [waitingForServer, setWaitingForServer] = useState(false);
+  const [battleNetAccountScan, setBattleNetAccountScan] = useState(false);
+  const [pendingBattleNetScan, setPendingBattleNetScan] = useState<
+    "installed" | "account" | null
+  >(null);
   const [xboxProgress, setXboxProgress] =
     useState<XboxImportProgressStage>("authorization");
   const [activeImportGroup, setActiveImportGroup] =
@@ -173,6 +178,7 @@ export function ImportLibraryView() {
     setAuthorizeUrl(next.authorizeUrl);
     setWaitingForServer(false);
     setXboxProgress("authorization");
+    setPendingBattleNetScan(null);
     setActiveImportGroup("ready");
     setAddingExternalId(null);
     setBrowsingExternalId(null);
@@ -273,7 +279,17 @@ export function ImportLibraryView() {
     setBrowsingExternalId(null);
   }
 
-  async function scanAccount() {
+  function requestScan(includeBattleNetAccount = false) {
+    if (isBattleNet) {
+      setPendingBattleNetScan(
+        includeBattleNetAccount ? "account" : "installed",
+      );
+    } else {
+      void scanAccount();
+    }
+  }
+
+  async function scanAccount(includeBattleNetAccount = false) {
     if (accountId === null) return;
     const copyOnStart = copyAuthorizeUrlOnStart.current;
     copyAuthorizeUrlOnStart.current = false;
@@ -283,6 +299,7 @@ export function ImportLibraryView() {
     const { signal } = controller;
     setActiveImportGroup("ready");
     setPhase("scanning");
+    setBattleNetAccountScan(isBattleNet && includeBattleNetAccount);
     setError(null);
     setAuthorizeUrl(null);
     setXboxProgress("authorization");
@@ -316,6 +333,14 @@ export function ImportLibraryView() {
             }
           : undefined,
         openAuthorizeUrl: !isXbox || !copyOnStart,
+        ...(isBattleNet
+          ? {
+              battleNetAccount: includeBattleNetAccount,
+              battleNetProductIds: [...existingImports.values()]
+                .filter((entry) => entry.provider === "battlenet")
+                .map((entry) => entry.externalId),
+            }
+          : {}),
       });
       if (!isCurrentImport(signal)) return;
       if (isBattleNet && !result.partial) {
@@ -610,7 +635,7 @@ export function ImportLibraryView() {
         throw new Error(
           `The selected ${providerName} game cannot be imported.`,
         );
-      if (isBattleNet && commit.scopedLinks.length === 0)
+      if (isBattleNet && scanned.installed && commit.scopedLinks.length === 0)
         throw new Error(
           "Pick the game file to track before importing this game.",
         );
@@ -636,7 +661,9 @@ export function ImportLibraryView() {
             ? importShareDetail(
                 result.shareOutcomes.map(({ outcome }) => outcome.kind),
               )
-            : "The game file is linked to this installation for future tracking."
+            : scanned.installed
+              ? "The game file is linked to this installation for future tracking."
+              : "Added to My Games. After installing it, scan again to link its game file."
           : linkedCount > 0
             ? `${linkedCount} known game ${linkedCount === 1 ? "file was" : "files were"} linked, so PlayCounter tracks this game once it is installed.`
             : "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
@@ -869,7 +896,7 @@ export function ImportLibraryView() {
             {isXbox
               ? "The Xbox import is unavailable right now. Check your connection and try again."
               : isBattleNet
-                ? "Install Battle.net and a game on this PC, then reopen this importer."
+                ? "Battle.net import is available on Windows."
                 : "PlayCounter looks for Steam in the Windows registry and in the usual install folders. You never have to sign in to Steam."}
           </p>
           {error ? <ErrorNotice message={error} /> : null}
@@ -887,7 +914,9 @@ export function ImportLibraryView() {
               ? authorizeUrl
                 ? xboxScanLabel(xboxProgress)
                 : "Connecting to Xbox…"
-              : `Scanning your ${providerName} library…`
+              : isBattleNet && battleNetAccountScan && !scan
+                ? "Complete Battle.net sign-in in the window that opened. Reading your account games…"
+                : `Scanning your ${providerName} library…`
         }
         onCancel={cancelImport}
         onCopySignInLink={
@@ -901,6 +930,57 @@ export function ImportLibraryView() {
 
   return (
     <div className="grid gap-4">
+      {isBattleNet && pendingBattleNetScan !== null ? (
+        <Modal
+          labelId="battlenet-playtime-title"
+          title="Battle.net playtime"
+          icon={Clock3}
+          onClose={() => setPendingBattleNetScan(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setPendingBattleNetScan(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  const includeAccount = pendingBattleNetScan === "account";
+                  setPendingBattleNetScan(null);
+                  void scanAccount(includeAccount);
+                }}
+              >
+                OK
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-sm leading-6 text-text-muted">
+            <p>
+              Battle.net does not provide historical playtime. To include your
+              previous hours, you need to set each game&apos;s total yourself.
+            </p>
+            <p>
+              After importing, right-click a game in{" "}
+              <strong className="text-text">My Games</strong> and choose{" "}
+              <strong className="text-text">Adjust total playtime</strong>.
+            </p>
+            <div className="rounded-lg border border-border bg-bg/60 p-3">
+              <p className="font-semibold text-text">
+                World of Warcraft example
+              </p>
+              <p className="mt-1">
+                Type <code className="text-text">/played</code> on each of your
+                characters and add up their total time for the WoW version
+                you&apos;re importing.
+              </p>
+            </div>
+            <p>PlayCounter tracks new sessions automatically.</p>
+          </div>
+        </Modal>
+      ) : null}
       <Panel className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -909,21 +989,23 @@ export function ImportLibraryView() {
               <span className="text-sm text-text-muted">
                 {isXbox
                   ? "Playtime from your Xbox account"
-                  : "Library from this PC"}
+                  : isBattleNet
+                    ? "Account and installed games"
+                    : "Library from this PC"}
               </span>
             </div>
             <h2 className="mt-2 text-xl font-semibold text-text">
               {isXbox
                 ? "Connect your Xbox account"
                 : isBattleNet
-                  ? "Find installed Battle.net games"
+                  ? "Import your Battle.net games"
                   : "Pick a Steam account on this PC"}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
               {isXbox
                 ? "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done."
                 : isBattleNet
-                  ? "Add installed games and their last-played date when available. Historical playtime is unavailable; PlayCounter tracks your future sessions. No sign-in needed."
+                  ? "Sign in to include games from your account, even when they are not installed. You can also scan installed games without signing in."
                   : "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers."}
             </p>
             {isXbox ? (
@@ -933,8 +1015,14 @@ export function ImportLibraryView() {
                 browser window.
               </p>
             ) : null}
+            {isBattleNet ? (
+              <p className="mt-2 text-sm text-text-faint">
+                Sign-in opens in a temporary Battle.net window and is discarded
+                when the scan finishes. Each sign-in lets you choose an account.
+              </p>
+            ) : null}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {!isBattleNet ? (
               <select
                 aria-label={`${providerName} account`}
@@ -976,18 +1064,28 @@ export function ImportLibraryView() {
                 Copy sign-in link
               </Button>
             ) : null}
+            {isBattleNet ? (
+              <Button
+                variant="secondary"
+                icon={HardDrive}
+                disabled={accountId === null}
+                onClick={() => requestScan()}
+              >
+                Find installed games
+              </Button>
+            ) : null}
             <Button
               variant="primary"
               icon={scan ? RefreshCw : Download}
               disabled={accountId === null}
-              onClick={() => void scanAccount()}
+              onClick={() => requestScan(isBattleNet)}
             >
-              {scan
-                ? "Scan again"
-                : isXbox
-                  ? "Sign in and find games"
-                  : isBattleNet
-                    ? "Find installed games"
+              {isBattleNet
+                ? "Sign in and find games"
+                : scan
+                  ? "Scan again"
+                  : isXbox
+                    ? "Sign in and find games"
                     : "Find games"}
             </Button>
           </div>
@@ -1321,14 +1419,20 @@ export function ImportRow({
                 : "AppID"}{" "}
             {game.externalId}
           </span>
+          {provider !== "battlenet" ? (
+            <span>
+              {game.playtimeSeconds === null
+                ? "Playtime unknown"
+                : formatDuration(game.playtimeSeconds, false)}
+            </span>
+          ) : null}
           <span>
-            {game.playtimeSeconds === null
-              ? provider === "battlenet"
-                ? "Historical playtime unavailable"
-                : "Playtime unknown"
-              : formatDuration(game.playtimeSeconds, false)}
+            {game.installed
+              ? "Installed"
+              : game.installationStatusUnknown
+                ? "Installation not checked"
+                : "Not installed"}
           </span>
-          <span>{game.installed ? "Installed" : "Not installed"}</span>
           {provider === "battlenet" && game.lastPlayedUnix ? (
             <span>
               Last played{" "}
@@ -1608,6 +1712,7 @@ export function hasImportableActivity(game: ScannedLibraryGame) {
 function hasImportableContent(game: ScannedLibraryGame) {
   return (
     hasImportableActivity(game) ||
+    game.inAccountLibrary === true ||
     (game.hasPlayedEvidence !== undefined && game.installed)
   );
 }

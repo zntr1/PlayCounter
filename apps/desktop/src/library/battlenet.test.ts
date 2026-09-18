@@ -86,6 +86,68 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Battle.net library", () => {
+  it("imports an uninstalled account game without play history or any executable mapping", async () => {
+    const game = {
+      ...scanned,
+      installed: false,
+      installPath: undefined,
+      executables: [],
+      inAccountLibrary: true,
+    };
+    expect(hasImportableActivity(game)).toBe(false);
+    expect(
+      importGroupForGame({
+        game,
+        resolved,
+        provider: "battlenet",
+        alreadyImported: false,
+      }),
+    ).toBe("ready");
+    const plan = commit(game);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await runLibraryImport([plan]);
+    expect(plan.entry).toMatchObject({
+      providerSeconds: null,
+      providerHasPlayedEvidence: false,
+      linkedExeNames: [],
+    });
+    expect(plan.scopedLinks).toEqual([]);
+    expect(plan.exeCacheEntries).toEqual([]);
+    expect(useAppStore.getState().libraryImports.size).toBe(1);
+    expect(useAppStore.getState().libraryInstalls.size).toBe(0);
+    expect(useAppStore.getState().recentSessions).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves an existing installation when an account import has an incomplete local scan", () => {
+    const installed = commit();
+    commitLibraryImports([installed]);
+    const uncertain = commit({
+      ...scanned,
+      installed: false,
+      installPath: undefined,
+      executables: [],
+      inAccountLibrary: true,
+      installationStatusUnknown: true,
+    });
+    commitLibraryImports([uncertain]);
+    expect(
+      useAppStore.getState().libraryInstalls.get("battlenet:wow_classic_era"),
+    ).toEqual(installed.install);
+    expect(useAppStore.getState().scopedExeLinks.size).toBe(1);
+    commitLibraryImports([
+      commit({
+        ...scanned,
+        installed: false,
+        installPath: undefined,
+        executables: [],
+        inAccountLibrary: true,
+      }),
+    ]);
+    expect(useAppStore.getState().libraryInstalls.size).toBe(0);
+  });
+
   it("reports an older server's provider schema as unsupported, leaving the library untouched", async () => {
     vi.stubGlobal(
       "fetch",

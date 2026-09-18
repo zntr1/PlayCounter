@@ -37,7 +37,10 @@ export async function checkLibraryImportForMatches(input: {
   let scanned = importedGameAsScan(input.entry, input.install);
   if (input.entry.provider === "battlenet") {
     const { battleNetProvider } = await import("./providers/battlenet");
-    const local = await battleNetProvider.scan(0, { signal: input.signal });
+    const local = await battleNetProvider.scan(0, {
+      signal: input.signal,
+      battleNetProductIds: [input.entry.externalId],
+    });
     const found = local.games.find(
       (game) => game.externalId === input.entry.externalId,
     );

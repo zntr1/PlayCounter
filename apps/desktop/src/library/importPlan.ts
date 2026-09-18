@@ -187,6 +187,7 @@ export function buildLibraryImportCommit(input: {
   return {
     entry,
     metadata: game,
+    preserveInstall: scanned.installationStatusUnknown,
     install:
       installPath && scanned.installed
         ? {

@@ -1,4 +1,5 @@
 pub mod battlenet;
+pub mod battlenet_account;
 mod exe_scan;
 pub mod steam;
 mod types;

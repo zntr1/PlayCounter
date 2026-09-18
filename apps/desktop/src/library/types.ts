@@ -96,6 +96,10 @@ export type ScannedLibraryGame = {
   name?: string;
   playtimeSeconds: number | null;
   hasPlayedEvidence?: boolean;
+  /** Membership is independent of whether the provider has play history. */
+  inAccountLibrary?: boolean;
+  /** An incomplete local scan cannot establish that this game is uninstalled. */
+  installationStatusUnknown?: boolean;
   lastPlayedUnix?: number;
   installed: boolean;
   installPath?: string;
@@ -121,6 +125,7 @@ export type LibraryImportCommit = {
   entry: LibraryImportEntry;
   metadata: GameMetadata;
   install?: LibraryInstallEntry;
+  preserveInstall?: boolean;
   exeCacheEntries: ExeCacheEntry[];
   scopedLinks: ScopedExeLink[];
 };

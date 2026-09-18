@@ -293,7 +293,7 @@ export function App() {
       ? libraryImportProvider === "xbox"
         ? "Bring your Xbox games and playtime into PlayCounter"
         : libraryImportProvider === "battlenet"
-          ? "Add installed Battle.net games to PlayCounter"
+          ? "Add your Battle.net games to PlayCounter"
           : "Bring your Steam library and playtime into PlayCounter"
       : views[activeView].subtitle;
   const activeTour = useAppStore((state) => state.activeTour);

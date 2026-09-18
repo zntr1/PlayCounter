@@ -570,7 +570,9 @@ export function GameDetailsDialog({
                       label={`${PROVIDER_LABEL[entry.provider]} playtime`}
                       value={
                         entry.entry.providerSeconds === null
-                          ? "Not reported"
+                          ? entry.provider === "battlenet"
+                            ? "Not available"
+                            : "Not reported"
                           : duration(entry.entry.providerSeconds)
                       }
                     />

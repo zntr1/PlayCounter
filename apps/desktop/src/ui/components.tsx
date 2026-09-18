@@ -297,7 +297,7 @@ const providerMeta: Record<
 > = {
   battlenet: {
     label: "Battle.net",
-    tip: "Imported from Battle.net installations on this PC.",
+    tip: "Imported from your Battle.net account or installations on this PC.",
     iconUrl: battleNetIconUrl,
     tone: "text-[#00aeef]",
     coinTone: "shadow-raised",
@@ -337,7 +337,13 @@ function providerOrigin(
   provider: LibraryProviderId,
   unknownDuration = false,
 ): OriginEntry {
-  return { key: provider, ...providerMeta[provider], unknownDuration };
+  return {
+    key: provider,
+    ...providerMeta[provider],
+    // Battle.net explains historical playtime before scanning, instead of
+    // marking every imported game with a permanent question mark.
+    unknownDuration: provider !== "battlenet" && unknownDuration,
+  };
 }
 
 function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
@@ -423,8 +429,12 @@ function OriginGlyph({
   );
 }
 
+function originDescription(entry: OriginEntry) {
+  return `${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+}
+
 function originTip(entry: OriginEntry) {
-  return `${entry.label}: ${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+  return `${entry.label}: ${originDescription(entry)}`;
 }
 
 function OriginBadge({
@@ -642,11 +652,7 @@ export function GameProvenanceBadges({
                   glyph={<OriginGlyph entry={entry} variant="label" />}
                   tone={entry.tone}
                   label={entry.label}
-                  tip={
-                    entry.unknownDuration
-                      ? `${entry.tip} ${UNKNOWN_DURATION_TIP}`
-                      : entry.tip
-                  }
+                  tip={originDescription(entry)}
                 />
               ))}
             </>

@@ -62,12 +62,11 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
     label: "Battle.net",
     iconUrl: battleNetIconUrl,
     headline: "Battle.net library",
-    subtitle:
-      "Installed games imported from this PC. Historical playtime is unavailable.",
+    subtitle: "Games imported from your Battle.net account and this PC.",
     importCtaLabel: "Import more from Battle.net",
     emptyTitle: "No Battle.net games imported yet",
     emptyBody:
-      "Add Battle.net games installed on this PC, with their last-played date when available. PlayCounter tracks your future sessions. No sign-in needed.",
+      "Sign in to include games from your Battle.net account, or scan installed games without signing in. PlayCounter tracks your future sessions.",
     firstImportCtaLabel: "Import from Battle.net",
     import: { kind: "builtin", platforms: ["windows"] },
   },

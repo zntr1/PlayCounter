@@ -308,6 +308,7 @@ pub fn run() {
         .manage(emulator_launch::EmulatorLaunchGuard::default())
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
+        .manage(library::battlenet_account::AccountState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
             revealed: AtomicBool::new(false),
@@ -321,6 +322,7 @@ pub fn run() {
                         - tauri_plugin_window_state::StateFlags::VISIBLE,
                 )
                 .with_denylist(&[notification_overlay::OVERLAY_LABEL])
+                .with_filter(|label| !label.starts_with("battlenet-sign-in-"))
                 .build(),
         )
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -363,6 +365,8 @@ pub fn run() {
             library::library_list_accounts,
             library::library_scan,
             library::library_scan_xbox_local,
+            library::battlenet_account::library_battlenet_account_games,
+            library::battlenet_account::library_cancel_battlenet_account,
             library::library_inspect_executable,
             library::library_launch_app,
             emulator_launch::launch_emulator_content,

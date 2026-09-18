@@ -309,8 +309,8 @@ pub fn detect() -> ProviderStatus {
     let launcher = launcher_path();
     ProviderStatus {
         provider: "battlenet",
-        available: cfg!(windows)
-            && (database.as_ref().is_some_and(|path| path.is_file()) || launcher.is_some()),
+        // Account imports also work without the launcher or any installed games.
+        available: cfg!(windows),
         root_path: launcher.and_then(|path| path.parent().map(exe_scan::path_string)),
         checked_paths: database
             .as_ref()
@@ -339,6 +339,7 @@ fn scan_sources(
 ) -> Result<ScanResult, String> {
     let mut warnings = Vec::new();
     let mut installs = match database
+        .filter(|path| !matches!(path.try_exists(), Ok(false)))
         .map(read_bounded)
         .transpose()
         .and_then(|data| data.map(|data| parse_database(&data)).transpose())
@@ -653,6 +654,16 @@ mod tests {
         for id in ["../wow", "wow --exec=launch", "", "WoW", "bna.exe"] {
             assert!(!valid_id(id));
         }
+    }
+
+    #[test]
+    fn missing_launcher_data_is_an_empty_scan_not_a_failed_account_import() {
+        let missing =
+            std::env::temp_dir().join(format!("playcounter-missing-{}", uuid::Uuid::new_v4()));
+        let result = scan_sources(Some(&missing.join("product.db")), None, vec![]).unwrap();
+        assert!(result.games.is_empty());
+        assert!(result.warnings.is_empty());
+        assert!(!result.partial);
     }
 
     #[test]

@@ -62,7 +62,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
       ),
     });
     if (commit.install) libraryInstalls.set(key, commit.install);
-    else libraryInstalls.delete(key);
+    else if (!commit.preserveInstall) libraryInstalls.delete(key);
     gameMetadata.set(gameMetadataKey(commit.metadata), commit.metadata);
     for (const entry of commit.exeCacheEntries) {
       const existing = exeCache.get(entry.exeName.toLowerCase());
