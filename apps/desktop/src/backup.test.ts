@@ -308,6 +308,7 @@ describe("backup import", () => {
       "settings.libraryShowShelves",
       { settings: { libraryShowShelves: "false" } },
     ],
+    ["settings.overlayUpdateNote", { settings: { overlayUpdateNote: "true" } }],
     [
       "settings.pollingIntervalSeconds",
       { settings: { pollingIntervalSeconds: -5 } },
@@ -433,9 +434,16 @@ describe("backup import", () => {
     },
   );
 
-  it.each([1, 2])(
-    "imports and hydrates a valid version %s backup",
-    async (version) => {
+  it.each(
+    [1, 2].flatMap((version) =>
+      [undefined, false, true].map((overlayUpdateNote) => ({
+        version,
+        overlayUpdateNote,
+      })),
+    ),
+  )(
+    "imports and hydrates a valid backup (%o)",
+    async ({ version, overlayUpdateNote }) => {
       installLocalStorage(null);
       const state = useAppStore.getInitialState();
       const data = createTransferData(
@@ -445,6 +453,7 @@ describe("backup import", () => {
             ...state.settings,
             libraryShowShelves: false,
             libraryGridColumns: 6,
+            overlayUpdateNote,
           },
           recentSessions: [validSession],
           exeCache: new Map([
@@ -478,6 +487,9 @@ describe("backup import", () => {
       expect(() => hydrate()).not.toThrow();
       expect(useAppStore.getState().settings.libraryShowShelves).toBe(false);
       expect(useAppStore.getState().settings.libraryGridColumns).toBe(6);
+      expect(useAppStore.getState().settings.overlayUpdateNote).toBe(
+        overlayUpdateNote === true,
+      );
       expect(useAppStore.getState().recentSessions).toEqual([validSession]);
       expect(useAppStore.getState().exeCache.get("game.exe")?.gameId).toBe(42);
       expect(

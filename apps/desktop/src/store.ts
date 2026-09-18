@@ -336,6 +336,7 @@ export type DesktopOverlaySettingKey =
   | "overlaySessionStarts"
   | "overlayPlaythroughNames"
   | "overlayGameNotes"
+  | "overlayUpdateNote"
   | "overlaySessionSummaries"
   | "overlayMilestones"
   | "overlayActionRequired"
@@ -624,6 +625,7 @@ const defaultSettings: Settings = {
   overlaySessionStarts: true,
   overlayPlaythroughNames: false,
   overlayGameNotes: false,
+  overlayUpdateNote: false,
   overlaySessionSummaries: true,
   overlayMilestones: true,
   overlayActionRequired: true,

@@ -479,7 +479,7 @@ describe("desktop overlay settings", () => {
     await Promise.resolve();
   });
 
-  it("defaults notifications on with discoveries, playthrough names, and notes off", () => {
+  it("defaults notifications on with discoveries, playthrough names, notes, and note actions off", () => {
     expect(useAppStore.getInitialState().settings).toMatchObject({
       desktopOverlaysEnabled: true,
       overlayMonitor: "primary",
@@ -487,6 +487,7 @@ describe("desktop overlay settings", () => {
       overlaySessionStarts: true,
       overlayPlaythroughNames: false,
       overlayGameNotes: false,
+      overlayUpdateNote: false,
       overlaySessionSummaries: true,
       overlayMilestones: true,
       overlayActionRequired: true,
