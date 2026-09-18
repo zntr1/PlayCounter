@@ -42,6 +42,14 @@ Validation completed:
 - Backend: 118 tests passed; 39 PostgreSQL tests skipped because `PGTEST_URL` is not configured. Typecheck and build passed.
 - Both repositories passed `git diff --check`.
 
+Follow-up on 2026-09-19: the native test's manifest flags also reached the desktop
+binary, creating a duplicate Windows manifest and breaking executable linking.
+The test now has a separate integration-test target and its manifest flags use
+Cargo's test-only scope. The actual desktop executable build, all Rust test
+targets, and the explicitly run native security test passed after this correction.
+The original validation above covered the frontend build and native tests, not
+the desktop executable link.
+
 After dependency updates, both workspace JavaScript audits report no advisories.
 `cargo audit` reports zero vulnerability entries, with remaining informational
 warnings for unmaintained upstream crates and Linux-only `glib` VariantStrIter

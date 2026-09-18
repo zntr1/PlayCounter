@@ -37,7 +37,7 @@ main application's persistent profile is never cleared by this operation.
 The ignored Windows native regression test
 `private_profile_enforces_security_settings_and_clears_only_its_own_cookies`
 uses an isolated profile, `about:blank`, and synthetic cookies. Run it with
-`cargo test --lib private_profile_enforces_security_settings_and_clears_only_its_own_cookies -- --ignored`.
+`cargo test --test battlenet_account_security -- --ignored`.
 It verifies private-mode enforcement, disabled native/password interfaces,
 working native script callbacks, cookie removal and preservation of the
 persistent profile. It never connects to Battle.net.

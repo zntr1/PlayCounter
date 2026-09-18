@@ -131,14 +131,10 @@ const PRIVATE_SESSION_ERROR: &str = "Could not create a secure private Battle.ne
 const CLEANUP_ERROR: &str =
     "Could not clear the Battle.net sign-in session. Close PlayCounter before signing in again.";
 
-#[cfg(all(test, windows))]
-#[path = "battlenet_account_security_tests.rs"]
-mod security_tests;
-
 // Start at about:blank. Some old WebView2 runtimes silently ignore Wry's
 // incognito flag; no remote content may load until we verify the actual profile.
 #[cfg(windows)]
-async fn secure_window(window: &WebviewWindow) -> Result<(), String> {
+pub(super) async fn secure_window(window: &WebviewWindow) -> Result<(), String> {
     use webview2_com::{Microsoft::Web::WebView2::Win32::*, PermissionRequestedEventHandler};
     use windows_core::Interface;
 
@@ -188,7 +184,7 @@ async fn secure_window(window: &WebviewWindow) -> Result<(), String> {
 }
 
 #[cfg(windows)]
-async fn clear_private_data(window: &WebviewWindow) -> Result<(), String> {
+pub(super) async fn clear_private_data(window: &WebviewWindow) -> Result<(), String> {
     use webview2_com::{ClearBrowsingDataCompletedHandler, Microsoft::Web::WebView2::Win32::*};
     use windows_core::Interface;
 

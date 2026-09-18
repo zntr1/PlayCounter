@@ -1,6 +1,17 @@
 //! Native Windows security check. Uses only synthetic cookies and about:blank;
 //! never connects to an account website or touches the real application profile.
-use super::*;
+#![cfg(windows)]
+
+// Compile the production session helpers into this separate test executable so
+// its Windows manifest cannot affect the application or library unit tests.
+#[allow(dead_code)]
+#[path = "../src/library/battlenet_account.rs"]
+mod battlenet_account;
+
+use battlenet_account::{clear_private_data, secure_window};
+use std::{sync::Mutex, time::Duration};
+use tauri::{WebviewUrl, WebviewWindow};
+use tokio::sync::oneshot;
 use webview2_com::{GetCookiesCompletedHandler, Microsoft::Web::WebView2::Win32::*};
 use windows_core::{w, Interface};
 
