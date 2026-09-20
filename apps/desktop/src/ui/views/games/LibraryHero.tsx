@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { artSrcSet } from "../../artSrcSet";
 import { useLibrarySources } from "../../librarySources";
 import { useGameDetails } from "../../../gameDetails";
-import { useAppStore } from "../../../store";
+import { customHeroArtKey, useAppStore } from "../../../store";
 import { GameCover } from "../../GameCover";
 import {
   Button,
@@ -72,7 +72,11 @@ export function LibraryHero({
   });
 
   const ready = details.status === "ready" ? details.details : null;
+  const pickedArt = useAppStore(
+    (state) => state.customHeroArt[customHeroArtKey(game)],
+  );
   const artwork =
+    pickedArt ??
     ready?.heroUrls?.[0] ??
     ready?.artworkUrls?.[0] ??
     ready?.screenshotUrls?.[0];

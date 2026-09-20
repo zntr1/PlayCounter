@@ -443,6 +443,8 @@ export type AppState = {
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
+  /** Banner art picked by hand, keyed by customHeroArtKey. */
+  customHeroArt: Record<string, string>;
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
   tourProgress: TourProgress;
@@ -471,6 +473,7 @@ export type AppState = {
   closeCurrentReleaseNotes: (version: string) => void;
   setHistoryQuery: (query: string) => void;
   setLibraryQuery: (query: string) => void;
+  setCustomHeroArt: (key: string, url: string | null) => void;
   setHistoryGameKey: (key: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
   setActiveSessions: (sessions: ActiveSession[]) => void;
@@ -792,6 +795,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   archivedSeconds: 0,
   archivedGameSeconds: {},
   playtimeAdjustments: {},
+  customHeroArt: {},
   collapsedSections: [],
   autoDetectedGameKeys: [],
   tourProgress: defaultTourProgress(),
@@ -901,6 +905,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setHistoryQuery: (historyQuery) => set({ historyQuery }),
   setLibraryQuery: (libraryQuery) => set({ libraryQuery }),
+  setCustomHeroArt: (key, url) => {
+    set((state) => {
+      const customHeroArt = { ...state.customHeroArt };
+      if (url) customHeroArt[key] = url;
+      else delete customHeroArt[key];
+      return { customHeroArt };
+    });
+    persistSoon();
+  },
   setHistoryGameKey: (historyGameKey) => set({ historyGameKey }),
   adoptInstallIdentity: (installUuid) =>
     set((state) => {
@@ -1823,6 +1836,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 export function gameMetadataKey(game: Pick<GameMetadata, "id" | "source">) {
   return `${game.source}:${game.id}`;
+}
+
+/** Key for hand-picked banner art. Custom games have no source of their own. */
+export function customHeroArtKey(game: {
+  gameId: number;
+  source?: GameSource | null;
+}) {
+  return `${game.source ?? "custom"}:${game.gameId}`;
 }
 
 export function personalGameIdentity(

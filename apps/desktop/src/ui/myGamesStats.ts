@@ -56,6 +56,9 @@ export type LibraryStatDefinition = {
   metric: keyof LibraryStatMetrics;
   format: LibraryStatFormat;
   label: (context: LibraryStatLabelContext) => string;
+  /** One or two words for the summary chip beside the library title, where
+   *  the tab name already says which library these numbers describe. */
+  short: string;
   help: string;
 };
 
@@ -67,6 +70,7 @@ export type LibraryStatLabelContext = {
 export type LibraryStatCard = {
   id: LibraryStatCardId;
   label: string;
+  short: string;
   help: string;
   value: number;
   format: LibraryStatFormat;
@@ -85,6 +89,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     format: "count",
     label: ({ providerLabel }) =>
       providerLabel ? `${providerLabel} games` : "Games",
+    short: "games",
     help: "How many games this tab holds.",
   },
   {
@@ -100,6 +105,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
           : kind === "unimported"
             ? "Tracked playtime"
             : "Total playtime",
+    short: "played",
     help: "All playtime this tab adds up to.",
   },
   {
@@ -108,6 +114,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     metric: "trackedSeconds",
     format: "duration",
     label: () => "Watched by PlayCounter",
+    short: "watched",
     help: "How much of that playtime PlayCounter recorded itself.",
   },
   {
@@ -116,6 +123,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     metric: "recent",
     format: "count",
     label: () => `Played in ${RECENT_PLAY_WINDOW_DAYS} days`,
+    short: `in ${RECENT_PLAY_WINDOW_DAYS} days`,
     help: `Games you played in the last ${RECENT_PLAY_WINDOW_DAYS} days.`,
   },
   {
@@ -124,6 +132,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     metric: "sessions",
     format: "count",
     label: () => "Sessions tracked",
+    short: "sessions",
     help: "Play sessions PlayCounter recorded for these games.",
   },
   {
@@ -137,6 +146,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
         : providerLabel
           ? `Played on ${providerLabel}`
           : "With play activity",
+    short: "with activity",
     help: "Games with playtime or activity reported by their source.",
   },
   {
@@ -148,6 +158,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
       !providerLabel || providerLabel === "Battle.net"
         ? "No play activity found"
         : "Never played",
+    short: "never played",
     help: "Games without playtime or activity reported by their source. Missing Battle.net history does not prove a game was never played.",
   },
   {
@@ -156,6 +167,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     metric: "installed",
     format: "count",
     label: () => "Installed on this PC",
+    short: "installed",
     help: "Games this launcher currently has installed here.",
   },
   {
@@ -164,6 +176,7 @@ export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
     metric: "emulator",
     format: "count",
     label: () => "Through an emulator",
+    short: "emulated",
     help: "Games PlayCounter saw running inside an emulator.",
   },
 ];
@@ -300,6 +313,7 @@ export function libraryStatCards(
     .map((definition) => ({
       id: definition.id,
       label: definition.label(context),
+      short: definition.short,
       help: definition.help,
       value: metrics[definition.metric],
       format: definition.format,

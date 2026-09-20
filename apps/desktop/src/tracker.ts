@@ -256,6 +256,7 @@ type PersistedState = {
   archivedSeconds?: number;
   archivedGameSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
+  customHeroArt?: unknown;
   collapsedSections?: unknown;
   tours?: unknown;
   lastSeenReleaseNotesVersion?: unknown;
@@ -1147,6 +1148,7 @@ export function hydrate() {
       persisted.playtimeAdjustments,
       { signed: true },
     ),
+    customHeroArt: sanitizeCustomHeroArt(persisted.customHeroArt),
     collapsedSections: normalizeCollapsedSections(persisted.collapsedSections),
     autoDetectedGameKeys,
     tourProgress: normalizeTourProgress(
@@ -5926,7 +5928,10 @@ export async function setCustomGameCover(gameId: number, file: File | Blob) {
     extension,
     bytes,
   });
-  const coverUrl = convertFileSrc(coverPath);
+  // The file keeps its name, so the URL would not change on a second pick
+  // and the webview would keep showing the cached first image. A version
+  // query makes every new cover a new URL; the asset protocol ignores it.
+  const coverUrl = `${convertFileSrc(coverPath)}?v=${Date.now()}`;
   updateCustomGameCover(gameId, coverUrl);
   logRuntime(`custom game cover updated gameId=${gameId}`);
   persist();
@@ -6485,6 +6490,7 @@ export function clearLocalLibrary() {
     archivedPlaythroughSeconds: {},
     journalTarget: null,
     playtimeAdjustments: {},
+    customHeroArt: {},
     autoDetectedGameKeys: [],
     libraryImports: new Map(),
     playcounterLibrary: new Map(),
@@ -7070,6 +7076,22 @@ export function renameCustomGame(gameId: number, gameName: string) {
   });
   logRuntime(`custom game renamed gameId=${gameId} -> ${name}`);
   persist();
+}
+
+/** Only https image URLs survive; anything else is dropped silently. */
+function sanitizeCustomHeroArt(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  const result: Record<string, string> = {};
+  for (const [key, url] of Object.entries(value as Record<string, unknown>)) {
+    if (
+      typeof url === "string" &&
+      /^https:\/\//.test(url) &&
+      /^[a-z]+:-?\d+$/.test(key)
+    ) {
+      result[key] = url;
+    }
+  }
+  return result;
 }
 
 function updateCustomGameCover(gameId: number, coverUrl: string) {

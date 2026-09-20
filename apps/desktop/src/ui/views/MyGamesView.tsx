@@ -2,6 +2,7 @@ import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
 import { useLibraryPractice } from "../PersonalLibraryContext";
 import { publishLibrarySources, useLibrarySources } from "../librarySources";
 import { LibraryHero } from "./games/LibraryHero";
+import { ArtPickerDialog } from "../ArtPickerDialog";
 import { matchesFeaturedGame, pickFeaturedGame } from "./games/featuredGame";
 import clsx from "clsx";
 import {
@@ -138,7 +139,6 @@ import {
   GameProvenanceBadges,
   Panel,
   SourceBadge,
-  Stat,
   communitySuggestionApproval,
   formatDuration,
 } from "../components";
@@ -473,27 +473,48 @@ function formatGameActivity(game: GameSummary) {
     : `Added ${formatLastPlayed(game.lastPlayedAt)}`;
 }
 
-function LibraryStatRow({
+/* The summary used to be three big cards between the toolbar and the first
+   row of covers, which pushed the games themselves below the fold. It is one
+   chip beside the library's title now: the game count first, then whichever
+   numbers the user picked, divided like a segmented control. My History is
+   where these numbers are actually explored, so each segment only carries its
+   long label as a tooltip. */
+function LibrarySummaryChip({
+  countLabel,
+  countTitle,
   cards,
   showDurationDays,
 }: {
+  countLabel: string;
+  countTitle: string;
   cards: readonly LibraryStatCard[];
   showDurationDays: boolean;
 }) {
-  if (cards.length === 0) return null;
+  const stats = cards.filter((card) => card.id !== "games");
   return (
-    // auto-fit, not a fixed four: the row stays even whatever the user picks.
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-      {cards.map((card) => (
-        <Stat
+    // Fixed height with stretched segments: mixing mono digits and sans
+    // labels gives the segments different line boxes otherwise, and the
+    // dividers end up as short floating dashes.
+    <div className="flex h-7 shrink-0 items-stretch divide-x divide-border/70 rounded-full border border-border/70 bg-surface text-xs">
+      <span
+        title={countTitle}
+        className="flex items-center px-2.5 font-mono font-semibold tabular-nums text-text"
+      >
+        {countLabel}
+      </span>
+      {stats.map((card) => (
+        <span
           key={card.id}
-          label={card.label}
-          value={
-            card.format === "duration"
+          title={card.label}
+          className="hidden items-center gap-1 whitespace-nowrap px-2.5 text-text-muted lg:flex"
+        >
+          <span className="font-mono font-semibold tabular-nums text-text">
+            {card.format === "duration"
               ? formatDuration(card.value, showDurationDays)
-              : String(card.value)
-          }
-        />
+              : card.value}
+          </span>
+          {card.short}
+        </span>
       ))}
     </div>
   );
@@ -1574,9 +1595,16 @@ export function MyGamesView() {
     () => libraryStatDefinitionsForKind(activeTabKind),
     [activeTabKind],
   );
+  const displayedGames = useMemo(() => {
+    const sorted = filterByLibraryTab(matchingGames, activeLibraryTab);
+    sorted.sort((left, right) => compareMyGames(left, right, sortKey));
+    return sorted;
+  }, [activeLibraryTab, matchingGames, sortKey]);
+  // Counted from what the library actually shows, search included, so the
+  // numbers never contradict the count sitting right next to them.
   const statCards = useMemo(() => {
     if (!showStatCards || statCardIds.length === 0) return [];
-    const metrics = summarizeLibraryStats(tabGames, {
+    const metrics = summarizeLibraryStats(displayedGames, {
       provider: activeProviderConfig?.id,
       providerFloorSeconds: activeProviderConfig
         ? providerFloorRecord(
@@ -1599,13 +1627,8 @@ export function MyGamesView() {
     recentSortNow,
     showStatCards,
     statCardIds,
-    tabGames,
+    displayedGames,
   ]);
-  const displayedGames = useMemo(() => {
-    const sorted = filterByLibraryTab(matchingGames, activeLibraryTab);
-    sorted.sort((left, right) => compareMyGames(left, right, sortKey));
-    return sorted;
-  }, [activeLibraryTab, matchingGames, sortKey]);
   const bulkSelection = useLibrarySelection(
     displayedGames,
     `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}\u0000${editShelfFilters}`,
@@ -1753,22 +1776,45 @@ export function MyGamesView() {
                 query={query}
                 counts={shelfCounts}
                 leading={
-                  <div className="flex min-w-0 shrink-0 items-baseline gap-3 pr-2">
-                    <h2 className="truncate text-[22px] font-bold tracking-tight text-text">
+                  <div className="flex min-w-0 items-center gap-3 pr-2">
+                    <h2 className="shrink-0 truncate text-[22px] font-bold tracking-tight text-text">
                       {activeProviderConfig
                         ? activeProviderConfig.headline
                         : activeTabKind === "unimported"
                           ? "PlayCounter games"
                           : "All games"}
                     </h2>
-                    <span
-                      className="rounded-full border border-border/70 bg-surface px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-text-muted"
-                      title={`${visibleGames.length} of ${libraryGames.length} tracked ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}`}
-                    >
-                      {visibleGames.length === libraryGames.length
-                        ? visibleGames.length
-                        : `${visibleGames.length} / ${libraryGames.length}`}
-                    </span>
+                    <LibrarySummaryChip
+                      countLabel={
+                        visibleGames.length === libraryGames.length
+                          ? String(visibleGames.length)
+                          : `${visibleGames.length} / ${libraryGames.length}`
+                      }
+                      countTitle={`${visibleGames.length} of ${libraryGames.length} tracked ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}`}
+                      cards={statCards}
+                      showDurationDays={showDurationDays}
+                    />
+                    {/* The empty tab has its own big import callout; two
+                        buttons for the same thing would only compete. */}
+                    {layout.panel !== "provider-empty" &&
+                    activeImportableProviderConfig?.import.platforms.includes(
+                      platform,
+                    ) ? (
+                      <Button
+                        variant="secondary"
+                        icon={Download}
+                        data-controller-item="view-link"
+                        onClick={() => {
+                          setLibraryImportProvider(
+                            activeImportableProviderConfig.id,
+                          );
+                          setActiveView("import");
+                        }}
+                        className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
+                      >
+                        {activeImportableProviderConfig.importCtaLabel}
+                      </Button>
+                    ) : null}
                   </div>
                 }
                 selectionAction={
@@ -2001,13 +2047,14 @@ export function MyGamesView() {
                         htmlFor="library-show-stats"
                         className="text-sm font-medium text-text"
                       >
-                        Show the summary row
+                        Show the summary numbers
                       </label>
                       <p
                         id="library-show-stats-help"
                         className="mt-1 text-xs leading-5 text-text-faint"
                       >
-                        The number cards above your games.
+                        The line of numbers beside the library title. My History
+                        has the full picture.
                       </p>
                     </div>
                     <input
@@ -2029,7 +2076,8 @@ export function MyGamesView() {
                       </legend>
                       <p className="mt-1 text-xs leading-5 text-text-faint">
                         Pick which numbers to show. A tab only offers the ones
-                        that mean something there.
+                        that mean something there, and the game count always
+                        sits next to the title.
                       </p>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         {availableStatDefinitions.map((definition) => {
@@ -2090,65 +2138,6 @@ export function MyGamesView() {
                     ? "No games outside your imported libraries yet."
                     : `Showing ${visibleGames.length} ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}.`}
               </p>
-
-              {activeProviderConfig && layout.panel !== "provider-empty" ? (
-                <div className="grid gap-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold text-text">
-                        {activeProviderConfig.headline}
-                      </h3>
-                      <p className="text-sm text-text-muted">
-                        {activeProviderConfig.subtitle}
-                      </p>
-                    </div>
-                    {activeImportableProviderConfig?.import.platforms.includes(
-                      platform,
-                    ) ? (
-                      <Button
-                        variant="secondary"
-                        icon={Download}
-                        data-controller-item="view-link"
-                        onClick={() => {
-                          setLibraryImportProvider(
-                            activeImportableProviderConfig.id,
-                          );
-                          setActiveView("import");
-                        }}
-                      >
-                        {activeProviderConfig.importCtaLabel}
-                      </Button>
-                    ) : null}
-                  </div>
-                  <LibraryStatRow
-                    cards={statCards}
-                    showDurationDays={showDurationDays}
-                  />
-                </div>
-              ) : null}
-
-              {activeTabKind === "unimported" &&
-              layout.panel !== "unimported-empty" ? (
-                <div className="grid gap-3">
-                  <div>
-                    <h3 className="font-semibold text-text">PlayCounter</h3>
-                    <p className="text-sm text-text-muted">
-                      Everything that PlayCounter found and tracked for you.
-                    </p>
-                  </div>
-                  <LibraryStatRow
-                    cards={statCards}
-                    showDurationDays={showDurationDays}
-                  />
-                </div>
-              ) : null}
-
-              {activeTabKind === "all" && layout.panel === "games" ? (
-                <LibraryStatRow
-                  cards={statCards}
-                  showDurationDays={showDurationDays}
-                />
-              ) : null}
 
               <LibraryBulkActions
                 active={bulkSelection.active}
@@ -2624,6 +2613,7 @@ export function GameLibraryCard({
   const [showConvert, setShowConvert] = useState(false);
   const [convertName, setConvertName] = useState("");
   const [showRename, setShowRename] = useState(false);
+  const [showArtPicker, setShowArtPicker] = useState(false);
   const [renameName, setRenameName] = useState("");
   const [launching, setLaunching] = useState(false);
 
@@ -3761,7 +3751,17 @@ export function GameLibraryCard({
     setShowMoveToPlayCounter(true);
   };
   const renderDetailsDialog = () =>
-    showMoveToPlayCounter ? (
+    showArtPicker ? (
+      <ArtPickerDialog
+        game={{
+          gameId: game.gameId,
+          source: game.source,
+          name: game.name,
+          canEditCover,
+        }}
+        onClose={() => setShowArtPicker(false)}
+      />
+    ) : showMoveToPlayCounter ? (
       <MoveToPlayCounterDialog
         games={[game]}
         onClose={() => setShowMoveToPlayCounter(false)}
@@ -4105,6 +4105,20 @@ export function GameLibraryCard({
             ) : null}
           </>
         ) : null}
+        {!demo ? (
+          <>
+            <ContextMenuHeading>Artwork</ContextMenuHeading>
+            <ContextMenuItem
+              icon={ImagePlus}
+              onClick={() => {
+                contextMenu.close();
+                setShowArtPicker(true);
+              }}
+            >
+              Choose Artwork…
+            </ContextMenuItem>
+          </>
+        ) : null}
         {canEditCover ? (
           <>
             <ContextMenuHeading>Edit</ContextMenuHeading>
@@ -4236,6 +4250,10 @@ export function GameLibraryCard({
             detected={hasActiveSession}
           />
         ) : null}
+        {/* The cover is absolute inside this box so the 3:4 ratio wins. A
+            percentage height against an aspect-ratio box is indefinite, so a
+            cover in another ratio (SteamGridDB grids are 2:3) would otherwise
+            stretch the whole card. */}
         <div className="relative aspect-[3/4] w-full shrink-0 bg-surface-hover">
           {!demo || libraryPractice ? (
             <GameJournalBadges game={{ ...game, gameName: game.name }} />
@@ -4245,7 +4263,7 @@ export function GameLibraryCard({
               src={game.coverUrl}
               alt=""
               draggable={false}
-              className="game-card-cover-image h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              className="game-card-cover-image absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
             <div className="grid h-full place-items-center text-xs text-text-faint">
@@ -4310,6 +4328,13 @@ export function GameLibraryCard({
                 aria-label={`Open details for ${game.name}`}
                 title="Open details"
                 onClick={() => (demo ? demoNotice() : setShowDetails(true))}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+              />
+              <IconButton
+                icon={ImagePlus}
+                aria-label={`Choose artwork for ${game.name}`}
+                title="Choose artwork"
+                onClick={() => (demo ? demoNotice() : setShowArtPicker(true))}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               {canCheckMatches ? (

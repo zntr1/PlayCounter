@@ -452,6 +452,7 @@ const validateBackupShape: Validator = object(
     archivedSeconds: nonnegative,
     archivedGameSeconds: dictionary(nonnegative),
     playtimeAdjustments: dictionary(number),
+    customHeroArt: dictionary(string),
     collapsedSections: array(string),
     autoDetectedGameKeys: array(nonempty),
     tours: object({

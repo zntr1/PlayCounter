@@ -269,12 +269,15 @@ export function App() {
   const titleBarRef = useRef<HTMLElement>(null);
   // Key art in the title bar fades back to the plain bar as the banner
   // scrolls away. Written straight to a CSS variable: no re-render per frame.
-  const syncTitleBarFade = (content: HTMLElement) => {
+  const syncTitleBarArt = (content: HTMLElement) => {
+    const bar = titleBarRef.current;
+    if (!bar) return;
     const fade = Math.max(0, 1 - content.scrollTop / 180);
-    titleBarRef.current?.style.setProperty(
-      "--titlebar-art-fade",
-      fade.toFixed(3),
-    );
+    bar.style.setProperty("--titlebar-art-fade", fade.toFixed(3));
+    // The scroll container loses width to its scrollbar, the title bar does
+    // not. Both halves of the picture have to be cropped from the same width
+    // or it jumps sideways at the seam.
+    bar.style.setProperty("--content-width", `${content.clientWidth}px`);
   };
   const controllerModeRef = useRef(false);
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -450,8 +453,20 @@ export function App() {
     if (!content) return;
     content.scrollTop = 0;
     content.scrollLeft = 0;
-    syncTitleBarFade(content);
+    syncTitleBarArt(content);
   }, [activeTourId, activeView]);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    syncTitleBarArt(content);
+    // Fires when a scrollbar appears or disappears, which changes the width
+    // the art is cropped from without changing the element's own size.
+    const observer = new ResizeObserver(() => syncTitleBarArt(content));
+    observer.observe(content);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const handleControllerMode = (event: Event) => {
@@ -847,13 +862,15 @@ export function App() {
                   artFrame === "card"
                     ? {
                         left: "calc(28px * var(--zoom-ratio))",
-                        width: "calc(100% - 56px * var(--zoom-ratio))",
+                        width:
+                          "calc((var(--content-width, 100%) - 56px) * var(--zoom-ratio))",
                         height:
                           "calc(clamp(300px, 40vh, 360px) * var(--zoom-ratio) + 72px)",
                       }
                     : {
                         left: 0,
-                        width: "100%",
+                        width:
+                          "calc(var(--content-width, 100%) * var(--zoom-ratio))",
                         height: "calc(560px * var(--zoom-ratio) + 72px)",
                       }
                 }
@@ -918,7 +935,7 @@ export function App() {
             aria-busy={activeView === "games" && !renderGames}
             aria-label={`${activeViewLabel} content`}
             style={{ zoom: contentScale }}
-            onScroll={(event) => syncTitleBarFade(event.currentTarget)}
+            onScroll={(event) => syncTitleBarArt(event.currentTarget)}
             className={clsx(
               "controller-content absolute inset-0 isolate overflow-auto px-7 pb-8",
               titleBarArt ? "pt-0" : "pt-5",
@@ -928,7 +945,10 @@ export function App() {
               <div
                 aria-hidden="true"
                 className="view-backdrop pointer-events-none absolute inset-x-0 top-0 -z-10"
-                style={{ height: "calc(560px + var(--hero-lead, 0px))" }}
+                // 560px of art inside the content; the image reaches
+                // --hero-lead further up, behind the title bar, so both halves
+                // are one crop of the same picture.
+                style={{ height: "560px" }}
               >
                 <img
                   src={titleBarArt}

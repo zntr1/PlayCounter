@@ -427,6 +427,39 @@ export interface GameDetailsResponse {
   details: GameDetails[];
 }
 
+/* Artwork picker ─────────────────────────────────────────────────────────────
+   The desktop lets people pick a cover or banner from SteamGridDB for any
+   game, including tools IGDB does not know. The API key never leaves the
+   server, so search, listing and the image bytes all go through the API. */
+
+export interface ArtSearchGame {
+  /** SteamGridDB game id. */
+  id: number;
+  name: string;
+  verified: boolean;
+  releaseYear?: number;
+}
+
+export interface ArtSearchResponse {
+  games: ArtSearchGame[];
+}
+
+export interface ArtAsset {
+  id: number;
+  /** Full-size image. Fetch it through `/api/art/image?url=` from the desktop. */
+  url: string;
+  thumbUrl: string;
+  width: number;
+  height: number;
+}
+
+export interface ArtAssetsResponse {
+  /** Portrait covers, 600x900. */
+  covers: ArtAsset[];
+  /** Wide banners, 1920x620 or 3840x1240. */
+  heroes: ArtAsset[];
+}
+
 export interface Session {
   id: number;
   /** Local organization only; absent for the game's default playthrough.

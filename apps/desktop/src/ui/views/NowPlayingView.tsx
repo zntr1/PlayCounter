@@ -4,6 +4,7 @@ import { useGameDetails } from "../../gameDetails";
 import { useLibrarySources } from "../librarySources";
 import {
   createGameIdentityResolver,
+  customHeroArtKey,
   resolvedCanonicalGameKey,
   useAppStore,
   type ActiveSession,
@@ -110,7 +111,12 @@ export function NowPlayingView() {
         leadDetails.details.screenshotUrls?.[0] ??
         null)
       : null;
-  const nowArt = leadArt ?? leadSession?.coverUrl ?? null;
+  const pickedArt = useAppStore((state) =>
+    leadSession
+      ? state.customHeroArt[customHeroArtKey(leadSession)]
+      : undefined,
+  );
+  const nowArt = pickedArt ?? leadArt ?? leadSession?.coverUrl ?? null;
   useEffect(() => {
     useLibrarySources.setState({ nowArt });
     return () => useLibrarySources.setState({ nowArt: null });
