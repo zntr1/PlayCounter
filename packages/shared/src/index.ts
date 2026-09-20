@@ -416,6 +416,11 @@ export interface GameDetails {
   artworkUrls?: string[];
   /** In-game stills (IGDB "screenshots") as 1080p image URLs. */
   screenshotUrls?: string[];
+  /**
+   * Wide key art from SteamGridDB (1920x620 or larger), best rated first.
+   * The banner's first choice; absent from APIs without a SteamGridDB key.
+   */
+  heroUrls?: string[];
 }
 
 export interface GameDetailsResponse {

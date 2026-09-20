@@ -72,7 +72,10 @@ export function LibraryHero({
   });
 
   const ready = details.status === "ready" ? details.details : null;
-  const artwork = ready?.artworkUrls?.[0] ?? ready?.screenshotUrls?.[0];
+  const artwork =
+    ready?.heroUrls?.[0] ??
+    ready?.artworkUrls?.[0] ??
+    ready?.screenshotUrls?.[0];
   const facts = ready
     ? [
         ready.releaseYear?.toString() ??

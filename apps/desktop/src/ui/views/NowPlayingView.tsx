@@ -105,7 +105,8 @@ export function NowPlayingView() {
   const leadDetails = useGameDetails(leadSession?.igdbId);
   const leadArt =
     leadDetails.status === "ready"
-      ? (leadDetails.details.artworkUrls?.[0] ??
+      ? (leadDetails.details.heroUrls?.[0] ??
+        leadDetails.details.artworkUrls?.[0] ??
         leadDetails.details.screenshotUrls?.[0] ??
         null)
       : null;

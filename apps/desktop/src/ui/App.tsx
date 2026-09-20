@@ -824,14 +824,16 @@ export function App() {
           data-tauri-drag-region
           style={{ zoom: menuScale }}
           className={clsx(
-            "app-titlebar relative isolate flex shrink-0 items-stretch overflow-hidden",
+            // z-30 lifts help and notification popovers above the content;
+            // the art clips itself instead of the bar.
+            "app-titlebar relative z-30 flex shrink-0 items-stretch",
             titleBarArt ? "h-[72px] pb-2" : "h-16",
           )}
         >
           {titleBarArt ? (
             <div
               aria-hidden="true"
-              className="titlebar-art pointer-events-none absolute inset-0 -z-10"
+              className="titlebar-art pointer-events-none absolute inset-0 -z-10 overflow-hidden"
             >
               {/* Same box as the banner card, extended upward: the card
                   starts its crop --hero-lead lower, so this strip is exactly

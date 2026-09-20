@@ -15,6 +15,11 @@ export function SidebarSources({ collapsed }: { collapsed: boolean }) {
   const visible = useLibrarySources((state) => state.visible);
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
   const setActiveView = useAppStore((state) => state.setActiveView);
+  // The highlight means "this is what the library shows"; away from the
+  // library nothing is being shown, so nothing is highlighted.
+  const onLibrary = useAppStore(
+    (state) => state.activeView === "games" || state.activeView === "import",
+  );
 
   if (!visible || tabs.length === 0) return null;
 
@@ -33,7 +38,7 @@ export function SidebarSources({ collapsed }: { collapsed: boolean }) {
         className="flex flex-col gap-px"
       >
         {tabs.map((tab) => {
-          const selected = activeTab === tab.id;
+          const selected = onLibrary && activeTab === tab.id;
           const config =
             tab.kind === "provider" ? providerTabConfig(tab.id) : undefined;
           const iconUrl =
