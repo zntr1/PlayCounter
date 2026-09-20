@@ -10,7 +10,7 @@ export function LibraryTestShell() {
   return (
     <>
       <GlobalSearch />
-      <SidebarSources collapsed={false} />
+      <SidebarSources />
       <MyGamesView />
     </>
   );

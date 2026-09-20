@@ -68,6 +68,13 @@ export default {
           "0%": { opacity: "0", transform: "translateY(4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Sidebar labels arriving when the rail expands. Opacity and
+        // transform only, so the compositor carries it and the library next
+        // to it is never relaid out.
+        "label-in": {
+          "0%": { opacity: "0", transform: "translateX(-6px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
         "toast-in": {
           "0%": { opacity: "0", transform: "translateX(16px) scale(0.98)" },
           "100%": { opacity: "1", transform: "translateX(0) scale(1)" },
@@ -99,6 +106,7 @@ export default {
       animation: {
         pop: "pop 320ms ease-out",
         "fade-in": "fade-in 200ms ease-out",
+        "label-in": "label-in 180ms ease-out",
         "toast-in": "toast-in 220ms ease-out",
         "toast-out": "toast-out 260ms ease-in forwards",
         "modal-in": "modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1)",

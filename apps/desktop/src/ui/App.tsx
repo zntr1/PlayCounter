@@ -604,7 +604,7 @@ export function App() {
         data-collapsed={sidebarCollapsed ? "true" : undefined}
         style={{ zoom: menuScale }}
         className={clsx(
-          "app-sidebar flex shrink-0 flex-col transition-[width] duration-200",
+          "app-sidebar flex shrink-0 flex-col transition-[width] duration-200 ease-out motion-reduce:transition-none",
           sidebarCollapsed ? "w-[68px]" : "w-[248px]",
         )}
       >
@@ -615,17 +615,38 @@ export function App() {
             sidebarCollapsed ? "justify-center px-2" : "gap-2.5 pl-4 pr-2",
           )}
         >
-          <img
-            data-tauri-drag-region
-            src="/icon.png"
-            alt=""
-            className="h-9 w-9 shrink-0 object-contain"
-          />
-          {!sidebarCollapsed ? (
+          {/* Collapsed, the logo is the way back: a toggle of its own would
+              cost a second row on a rail that is all vertical space. */}
+          {sidebarCollapsed ? (
+            <button
+              type="button"
+              aria-label="Expand sidebar"
+              aria-expanded={false}
+              title="Expand sidebar (Ctrl+B)"
+              onClick={() => setSidebarCollapsed(false)}
+              className="group grid h-11 w-11 place-items-center rounded-xl transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              <img
+                src="/icon.png"
+                alt=""
+                className="h-8 w-8 object-contain transition group-hover:opacity-0"
+              />
+              <PanelLeftOpen
+                size={18}
+                className="col-start-1 row-start-1 text-text-muted opacity-0 transition group-hover:opacity-100"
+              />
+            </button>
+          ) : (
             <>
+              <img
+                data-tauri-drag-region
+                src="/icon.png"
+                alt=""
+                className="h-9 w-9 shrink-0 object-contain"
+              />
               <span
                 data-tauri-drag-region
-                className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight text-text"
+                className="min-w-0 flex-1 animate-label-in truncate text-lg font-bold tracking-tight text-text motion-reduce:animate-none"
               >
                 PlayCounter
               </span>
@@ -634,16 +655,8 @@ export function App() {
                 onClick={() => setSidebarCollapsed(true)}
               />
             </>
-          ) : null}
+          )}
         </div>
-        {sidebarCollapsed ? (
-          <div className="flex justify-center px-2 pb-1">
-            <SidebarToggle
-              collapsed
-              onClick={() => setSidebarCollapsed(false)}
-            />
-          </div>
-        ) : null}
         <nav
           data-controller-scroll
           className={clsx(
@@ -697,7 +710,7 @@ export function App() {
                   />
                 ) : null}
                 {sidebarCollapsed ? null : (
-                  <div className="px-3 pb-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted/70">
+                  <div className="animate-label-in px-3 pb-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted/70 motion-reduce:animate-none">
                     {section.label}
                   </div>
                 )}
@@ -706,7 +719,10 @@ export function App() {
                     const view = views[item];
                     // The source list stays wherever you are; only the
                     // chevron decides whether it is folded.
-                    const showSources = item === "games" && !sourcesCollapsed;
+                    const showSources =
+                      item === "games" &&
+                      !sourcesCollapsed &&
+                      !sidebarCollapsed;
                     return (
                       <div
                         key={item}
@@ -790,9 +806,7 @@ export function App() {
                             />
                           </button>
                         ) : null}
-                        {showSources ? (
-                          <SidebarSources collapsed={sidebarCollapsed} />
-                        ) : null}
+                        {showSources ? <SidebarSources /> : null}
                       </div>
                     );
                   })}

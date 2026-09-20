@@ -140,8 +140,13 @@
   box-shadow: 0 0 10px rgb(var(--color-accent) / 0.6);
 }
 
+/* On the rail the bar sits flush against the window edge, so the active view
+   is readable from the corner of the eye without a label. */
 .app-sidebar[data-collapsed="true"] .sidebar-button-active::before {
-  left: -6px;
+  left: -10px;
+  top: 20%;
+  bottom: 20%;
+  border-radius: 0 9999px 9999px 0;
 }
 
 /* Title-bar icons sit flush on the bar; the bordered look is for content. */
@@ -494,7 +499,7 @@ html[data-window="notification-overlay"] #overlay-root {
   box-shadow:
     0 18px 55px rgb(0 0 0 / 0.42),
     inset 0 1px 0 rgb(255 255 255 / 0.08);
-  contain: layout paint;
+  contain: layout;
   pointer-events: none;
   transition:
     transform 300ms cubic-bezier(0.2, 0.9, 0.25, 1),
@@ -1529,4 +1534,10 @@ body.shift-held
 
 :root[data-theme="light"] .active-hero {
   background: rgb(var(--color-surface) / 0.82);
+}
+
+/* Each card is an independent box: containment keeps a width change from
+   walking back out of it while the sidebar animates. */
+.game-library-card {
+  contain: layout;
 }

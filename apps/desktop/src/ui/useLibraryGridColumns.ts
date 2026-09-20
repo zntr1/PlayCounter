@@ -12,9 +12,11 @@ export function useLibraryGridColumns(
   requestedColumns: number | null,
 ) {
   const [grid, setGrid] = useState<HTMLDivElement | null>(null);
+  // Only the derived column counts live in state. Keeping the raw width here
+  // re-rendered the whole library on every observed pixel, which is every
+  // frame while the sidebar animates its width.
   const [measurement, setMeasurement] = useState({
-    width: 0,
-    gap: 0,
+    capacity: 0,
     presetColumns: 0,
     view,
   });
@@ -26,18 +28,23 @@ export function useLibraryGridColumns(
       // Hidden views have no layout; keep the last measurement until visible.
       if (!grid.clientWidth) return;
       const style = window.getComputedStyle(grid);
-      const width = grid.clientWidth;
       const gap = Number.parseFloat(style.columnGap) || 0;
+      const capacity = Math.max(
+        1,
+        Math.min(
+          MAX_LIBRARY_GRID_COLUMNS,
+          Math.floor((grid.clientWidth + gap) / (MIN_CARD_WIDTH + gap)),
+        ),
+      );
       const presetColumns = custom
         ? 0
         : (style.gridTemplateColumns.match(/[\d.]+px/g)?.length ?? 0);
       setMeasurement((current) =>
-        current.width === width &&
-        current.gap === gap &&
+        current.capacity === capacity &&
         current.presetColumns === presetColumns &&
         current.view === view
           ? current
-          : { width, gap, presetColumns, view },
+          : { capacity, presetColumns, view },
       );
     };
     measure();
@@ -54,18 +61,7 @@ export function useLibraryGridColumns(
     };
   }, [grid, view, custom]);
 
-  const capacity = measurement.width
-    ? Math.max(
-        1,
-        Math.min(
-          MAX_LIBRARY_GRID_COLUMNS,
-          Math.floor(
-            (measurement.width + measurement.gap) /
-              (MIN_CARD_WIDTH + measurement.gap),
-          ),
-        ),
-      )
-    : MAX_LIBRARY_GRID_COLUMNS;
+  const capacity = measurement.capacity || MAX_LIBRARY_GRID_COLUMNS;
   const presetColumns =
     (measurement.view === view && measurement.presetColumns) ||
     (view === "large" ? 3 : 4);

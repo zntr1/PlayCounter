@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { type LucideIcon } from "lucide-react";
+import { RailTooltip, useRailTooltip } from "./shell/RailTooltip";
 
 type SidebarButtonProps = {
   icon: LucideIcon;
@@ -39,40 +40,72 @@ export function SidebarButton({
   dataTour,
   controllerEnabled = false,
 }: SidebarButtonProps) {
-  const status = badge ? (
+  const tooltip = useRailTooltip(collapsed);
+  /* On the icon rail a status has no label to sit beside, so it becomes a
+     badge on the icon's own corner, ringed in the sidebar's colour the way a
+     presence dot is. A loose speck in the button's corner reads as a
+     rendering glitch rather than as state. */
+  const statusTitle = badge
+    ? `${badge} waiting for review`
+    : warn
+      ? "Needs your attention"
+      : isPlaying
+        ? "Currently tracking play session"
+        : undefined;
+  const dotRing = "ring-2 ring-[rgb(var(--color-bg))]";
+
+  const railStatus = badge ? (
     <span
       className={clsx(
-        "inline-flex items-center justify-center rounded-full bg-warning font-bold text-bg shadow-[0_0_10px_rgb(var(--color-warning)/0.3)]",
-        collapsed
-          ? "absolute -right-0.5 -top-0.5 h-4 min-w-[16px] px-1 text-[10px]"
-          : "ml-auto h-5 min-w-[20px] px-1.5 text-xs",
+        "absolute -right-1.5 -top-1.5 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-warning px-1 text-[10px] font-bold text-bg",
+        dotRing,
       )}
     >
       {badge}
     </span>
-  ) : warn ? (
-    <span
-      className={clsx(
-        "relative flex h-2.5 w-2.5 shrink-0 items-center justify-center",
-        collapsed ? "absolute right-1 top-1" : "ml-auto",
-      )}
-      title="Needs your attention"
-    >
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-40"></span>
-      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-warning shadow-[0_0_6px_rgb(var(--color-warning)/0.8)]"></span>
+  ) : warn || isPlaying ? (
+    <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+      <span
+        className={clsx(
+          "absolute inline-flex h-full w-full rounded-full opacity-50",
+          warn ? "animate-ping bg-warning" : "animate-pulse bg-success",
+        )}
+      />
+      <span
+        className={clsx(
+          "relative inline-flex h-2.5 w-2.5 rounded-full",
+          dotRing,
+          warn ? "bg-warning" : "bg-success",
+        )}
+      />
     </span>
-  ) : isPlaying ? (
-    <span
-      className={clsx(
-        "relative flex h-2.5 w-2.5 shrink-0 items-center justify-center",
-        collapsed ? "absolute right-1 top-1" : "ml-auto",
-      )}
-      title="Currently tracking play session"
-    >
-      <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-success opacity-50 duration-1000"></span>
-      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]"></span>
+  ) : null;
+
+  const rowStatus = badge ? (
+    <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-warning px-1.5 text-xs font-bold text-bg shadow-[0_0_10px_rgb(var(--color-warning)/0.3)]">
+      {badge}
     </span>
-  ) : count !== undefined && !collapsed ? (
+  ) : warn || isPlaying ? (
+    <span
+      className="relative ml-auto flex h-2.5 w-2.5 shrink-0 items-center justify-center"
+      title={statusTitle}
+    >
+      <span
+        className={clsx(
+          "absolute inline-flex h-full w-full rounded-full opacity-50",
+          warn ? "animate-ping bg-warning" : "animate-pulse bg-success",
+        )}
+      />
+      <span
+        className={clsx(
+          "relative inline-flex h-1.5 w-1.5 rounded-full",
+          warn
+            ? "bg-warning shadow-[0_0_6px_rgb(var(--color-warning)/0.8)]"
+            : "bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]",
+        )}
+      />
+    </span>
+  ) : count !== undefined ? (
     <span
       className={clsx(
         "ml-auto font-mono text-xs tabular-nums",
@@ -92,12 +125,16 @@ export function SidebarButton({
         active && controllerEnabled ? "true" : undefined
       }
       type="button"
-      onClick={onClick}
+      {...tooltip.triggerProps}
+      onClick={() => {
+        tooltip.hide();
+        onClick();
+      }}
       disabled={disabled}
-      title={title ?? (collapsed ? label : undefined)}
+      title={title}
       aria-label={collapsed ? label : undefined}
       className={clsx(
-        "sidebar-button group relative flex w-full items-center rounded-xl text-[15px] font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+        "sidebar-button group relative flex w-full items-center rounded-xl text-[15px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
         collapsed ? "h-11 justify-center px-0" : "h-11 gap-3 px-3",
         disabled && "cursor-not-allowed opacity-50",
         active
@@ -105,29 +142,43 @@ export function SidebarButton({
           : "text-text/75 hover:bg-surface-hover hover:text-text",
       )}
     >
-      {imageSrc ? (
-        <img
-          src={imageSrc}
-          alt=""
-          className={clsx(
-            "h-5 w-5 shrink-0 rounded-sm object-cover transition-transform duration-200",
-            !active && "group-hover:scale-110",
-            active && "scale-105",
-          )}
+      <span className="relative grid shrink-0 place-items-center">
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt=""
+            className={clsx(
+              "h-5 w-5 rounded-sm object-cover transition-transform duration-200",
+              !active && "group-hover:scale-110",
+              active && "scale-105",
+            )}
+          />
+        ) : (
+          <Icon
+            size={20}
+            strokeWidth={active ? 2.2 : 1.9}
+            className={clsx(
+              "transition-transform duration-200",
+              !active && "group-hover:scale-110 group-hover:text-text",
+              active && "scale-105 text-accent",
+            )}
+          />
+        )}
+        {collapsed ? railStatus : null}
+      </span>
+      {!collapsed ? (
+        <span className="animate-label-in truncate motion-reduce:animate-none">
+          {label}
+        </span>
+      ) : null}
+      {!collapsed ? rowStatus : null}
+      {collapsed ? (
+        <RailTooltip
+          anchor={tooltip.anchor}
+          label={label}
+          detail={title ?? statusTitle}
         />
-      ) : (
-        <Icon
-          size={20}
-          strokeWidth={active ? 2.2 : 1.9}
-          className={clsx(
-            "shrink-0 transition-transform duration-200",
-            !active && "group-hover:scale-110 group-hover:text-text",
-            active && "scale-105 text-accent",
-          )}
-        />
-      )}
-      {!collapsed ? <span className="truncate">{label}</span> : null}
-      {status}
+      ) : null}
     </button>
   );
 }
