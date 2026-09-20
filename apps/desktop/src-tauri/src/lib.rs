@@ -316,10 +316,14 @@ pub fn run() {
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 // VISIBLE is excluded so the plugin cannot show the window
-                // behind our back - we decide when it appears.
+                // behind our back - we decide when it appears. DECORATIONS is
+                // excluded because the window draws its own title bar: a state
+                // file saved by an older build would otherwise restore the
+                // native frame on top of it.
                 .with_state_flags(
                     tauri_plugin_window_state::StateFlags::all()
-                        - tauri_plugin_window_state::StateFlags::VISIBLE,
+                        - tauri_plugin_window_state::StateFlags::VISIBLE
+                        - tauri_plugin_window_state::StateFlags::DECORATIONS,
                 )
                 .with_denylist(&[notification_overlay::OVERLAY_LABEL])
                 .with_filter(|label| !label.starts_with("battlenet-sign-in-"))

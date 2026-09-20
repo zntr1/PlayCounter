@@ -10,7 +10,7 @@ import {
   type LibraryImportMatchCheck,
 } from "../../library/recheck";
 import { useLibraryMatchOffers } from "../../library/matchOffers";
-import { MyGamesView } from "./MyGamesView";
+import { LibraryTestShell } from "./libraryTestShell";
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -136,7 +136,7 @@ function seedMatchReview(
 }
 
 async function openMatchReview(offered = true) {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const label = offered
     ? `Review tracking match for ${steam.name}`
     : `Check matches for ${steam.name}`;
@@ -332,7 +332,7 @@ async function selectShelf(label: string) {
 }
 
 async function shelvesToggle() {
-  if (!container.querySelector("#library-show-shelves"))
+  if (!document.querySelector("#library-show-shelves"))
     await act(() =>
       container
         .querySelector<HTMLButtonElement>(
@@ -340,11 +340,11 @@ async function shelvesToggle() {
         )!
         .click(),
     );
-  return container.querySelector<HTMLInputElement>("#library-show-shelves")!;
+  return document.querySelector<HTMLInputElement>("#library-show-shelves")!;
 }
 
 async function setGridColumns(value: number) {
-  const slider = container.querySelector<HTMLInputElement>(
+  const slider = document.querySelector<HTMLInputElement>(
     "#library-grid-columns",
   )!;
   await act(() => {
@@ -360,9 +360,9 @@ it.each(["grid", "large"] as const)(
   "customizes %s columns, saves them, and resets even when the active preset is clicked",
   async (view) => {
     useAppStore.getState().setMyGamesCardSize(view);
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await shelvesToggle(); // Open Customize.
-    const slider = container.querySelector<HTMLInputElement>(
+    const slider = document.querySelector<HTMLInputElement>(
       "#library-grid-columns",
     )!;
     const grid = gameCard(local.gameName).parentElement!;
@@ -398,13 +398,13 @@ it.each(["grid", "large"] as const)(
           .libraryGridColumns,
       ).toBeNull();
     }
-    expect(container.querySelector("#library-grid-columns")).toBeNull();
+    expect(document.querySelector("#library-grid-columns")).toBeNull();
   },
 );
 
 it("fits custom columns to the window and restores the saved count when it grows", async () => {
   useAppStore.getState().setMyGamesGridColumns(6);
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await shelvesToggle();
   const grid = gameCard(local.gameName).parentElement!;
   let width = 1100;
@@ -418,10 +418,10 @@ it("fits custom columns to the window and restores the saved count when it grows
   await resize();
   expect(grid.style.gridTemplateColumns).toBe("repeat(4, minmax(0, 1fr))");
   expect(
-    container.querySelector<HTMLInputElement>("#library-grid-columns")!.value,
+    document.querySelector<HTMLInputElement>("#library-grid-columns")!.value,
   ).toBe("6");
   expect(
-    container.querySelector("#library-grid-columns-help")!.textContent,
+    document.querySelector("#library-grid-columns-help")!.textContent,
   ).toContain("Showing 4 per row to fit this window.");
   expect(
     JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.libraryGridColumns,
@@ -508,7 +508,7 @@ it.each(["grid", "large", "list"] as const)(
     seedLargeLibrary();
     useAppStore.getState().setMyGamesCardSize(view);
     container.setAttribute("data-controller-content", "true");
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     const card = gameCard("Paged game 001");
     expect(counts()).toEqual({ all: 120, unimported: 0, steam: 120 });
     expect(container.querySelectorAll(".game-library-card")).toHaveLength(12);
@@ -546,7 +546,7 @@ it.each(["grid", "large", "list"] as const)(
 it("lets keyboard users load every result without IntersectionObserver", async () => {
   vi.stubGlobal("IntersectionObserver", undefined);
   seedLargeLibrary(25);
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(12);
   const more = button("Show more games");
   expect(more.getAttribute("data-controller-item")).toBe("library-option");
@@ -581,7 +581,7 @@ it("defers hidden library session updates and refreshes on return while keeping 
   await act(() =>
     root.render(
       <Profiler id="library" onRender={onRender}>
-        <MyGamesView />
+        <LibraryTestShell />
       </Profiler>,
     ),
   );
@@ -636,7 +636,7 @@ it.each(["All games", "Favorites", "Weekend", "Saved search"])(
     });
     const { personalShelves, gameJournals } = useAppStore.getState();
     expect(useAppStore.getState().settings.libraryShowShelves).toBe(true);
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await selectShelf(selection);
     const toggle = await shelvesToggle();
     expect(toggle.checked).toBe(true);
@@ -648,7 +648,7 @@ it.each(["All games", "Favorites", "Weekend", "Saved search"])(
       ).toBeGreaterThan(0);
 
     await act(() =>
-      container
+      document
         .querySelector<HTMLLabelElement>('label[for="library-show-shelves"]')!
         .click(),
     );
@@ -691,13 +691,13 @@ it("shows shelves for older settings without a shelf preference", async () => {
   const settings = { ...useAppStore.getState().settings };
   delete settings.libraryShowShelves;
   useAppStore.setState({ settings });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   expect((await shelvesToggle()).checked).toBe(true);
   expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("2");
 });
 
 it("counts favorites and manual shelves across sources, then updates when membership changes", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
   await selectShelf("Favorites");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
@@ -731,7 +731,7 @@ it("counts status and saved filters independently of their selected source, incl
     name: "Not planned imports",
     filters: { status: "not-planned", source: "steam" },
   });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await setStatusFilter("Not planned");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1 });
   await selectShelf("Not planned imports");
@@ -768,7 +768,7 @@ it("counts a game once per source even with multiple imports", async () => {
       ["xbox:100", { ...steam, provider: "xbox", externalId: "100" }],
     ]),
   });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await selectShelf("Favorites");
   expect(counts()).toEqual({ all: 2, unimported: 1, steam: 1, xbox: 1 });
 });
@@ -822,7 +822,7 @@ it.each(["grid", "large", "list"] as const)(
   async (view) => {
     useAppStore.getState().setMyGamesCardSize(view);
     container.setAttribute("data-controller-content", "true");
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     expect(selectionCheckboxes()).toHaveLength(0);
     await enterSelection();
     const checkboxes = selectionCheckboxes();
@@ -868,7 +868,7 @@ it.each(["grid", "large", "list"] as const)(
 );
 
 it("uses the current source, search, shelf, and status filters for bulk assignment", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await selectShelf("Weekend");
   await selectSource("steam");
   await setStatusFilter("Not planned");
@@ -917,7 +917,7 @@ it("selects all results even while most cards have not rendered", async () => {
       entries.map((entry) => [`steam:${entry.externalId}`, entry]),
     ),
   });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await selectSource("steam");
   await enterSelection();
   expect(selectionCheckboxes().length).toBeLessThan(120);
@@ -935,7 +935,7 @@ it("selects all results even while most cards have not rendered", async () => {
 });
 
 it("works through No status games and offers explicit clearing", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await setStatusFilter("No status");
   await enterSelection();
   expect(selectionCheckboxes()).toHaveLength(2);
@@ -966,7 +966,7 @@ it("works through No status games and offers explicit clearing", async () => {
 });
 
 it("clears selection on filter changes and preserves it across layouts", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await enterSelection();
   await act(() => selectionCheckboxes()[0].click());
   await act(() => useAppStore.getState().setMyGamesCardSize("list"));
@@ -987,7 +987,7 @@ it("clears selection on filter changes and preserves it across layouts", async (
 });
 
 it("supports scoped Ctrl+A, keyboard menu navigation, and Escape without intercepting search editing", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await enterSelection();
   const search = container.querySelector<HTMLInputElement>(
     '[placeholder="Search games..."]',
@@ -1044,7 +1044,7 @@ it("supports scoped Ctrl+A, keyboard menu navigation, and Escape without interce
 it.each(["select button", "game", "search", "empty space"])(
   "shows selection mode clearly and exits with Escape from %s",
   async (focus) => {
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     const select = container.querySelector<HTMLButtonElement>(
       '[aria-label="Select games"]',
     )!;
@@ -1088,7 +1088,7 @@ it.each(["select button", "game", "search", "empty space"])(
 );
 
 it("keeps Escape scoped to the visible library and lets dialogs handle it first", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await enterSelection();
   const escape = () =>
     act(() =>
@@ -1122,7 +1122,7 @@ async function openFilters() {
 }
 
 it("creates a shelf first, previews the whole library, and saves filters to that same shelf", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await act(() => button("New shelf").click());
   const name = document.querySelector<HTMLInputElement>(
     '[aria-label="Shelf name"]',
@@ -1169,7 +1169,7 @@ it("creates a shelf first, previews the whole library, and saves filters to that
 it.each(["search", "source"] as const)(
   "saves a %s-only filter onto an existing shelf",
   async (rule) => {
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await selectShelf("Weekend");
     await openFilters();
     if (rule === "search") await inputSearch("  other  ");
@@ -1197,7 +1197,7 @@ it.each(["search", "source"] as const)(
 );
 
 it("discards shelf filter previews on Cancel and restores the existing manual games", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await selectShelf("Weekend");
   const journals = useAppStore.getState().gameJournals;
   await openFilters();
@@ -1221,7 +1221,7 @@ it("discards shelf filter previews on Cancel and restores the existing manual ga
 });
 
 it("edits an inactive shelf through its context menu and restores manual additions when filters are removed", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await act(() =>
     shelfChip("Weekend").dispatchEvent(
       new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
@@ -1255,7 +1255,7 @@ it("edits an inactive shelf through its context menu and restores manual additio
 });
 
 it("clears source and search with the other filters and offers shelf saving only on a custom shelf", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await selectSource("steam");
   await inputSearch("favorite");
   await openFilters();
@@ -1353,7 +1353,7 @@ it.each(["grid", "large", "list"] as const)(
   "does not drag the %s card through its modal or backdrop, and resumes after closing",
   async (view) => {
     useAppStore.getState().setMyGamesCardSize(view);
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     const card = gameCard(local.gameName);
     const journals = useAppStore.getState().gameJournals;
     const dialog = await openSessionModal();
@@ -1395,7 +1395,7 @@ it.each(["pending", "active"] as const)(
   "cancels a %s card drag when a modal opens and prevents the drop",
   async (phase) => {
     useAppStore.getState().savePersonalShelf({ name: "Co-op" });
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     const card = gameCard(local.gameName);
     const journals = useAppStore.getState().gameJournals;
     if (phase === "active") await startDrag(card);
@@ -1417,7 +1417,7 @@ it.each(["grid", "large", "list"] as const)(
   async (view) => {
     useAppStore.getState().setMyGamesCardSize(view);
     const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await enterSelection();
     const names = [local.gameName, "Local other", steam.name];
     for (const name of names)
@@ -1471,7 +1471,7 @@ it.each(["grid", "large", "list"] as const)(
 );
 
 it("keeps ordinary selection clicks and drags a single selected card without a count", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await enterSelection();
   const checkbox = gameCard(local.gameName).querySelector<HTMLButtonElement>(
     '[role="checkbox"]',
@@ -1501,7 +1501,7 @@ it("adds only missing games to shelves and Favorites and explains when all are a
   await act(() =>
     root.render(
       <Profiler id="library" onRender={onRender}>
-        <MyGamesView />
+        <LibraryTestShell />
       </Profiler>,
     ),
   );
@@ -1547,7 +1547,7 @@ it("adds only missing games to shelves and Favorites and explains when all are a
 
 it("rechecks every selected game's latest membership and keeps selection when Escape cancels a drag", async () => {
   const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await enterSelection();
   await act(() => button("Select all 4 results").click());
   const journals = useAppStore.getState().gameJournals;
@@ -1603,7 +1603,7 @@ it("drags all selected results from the current scope, including cards not yet r
       entries.map((entry) => [`steam:${entry.externalId}`, entry]),
     ),
   });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await selectSource("steam");
   await enterSelection();
   await act(() => button("Select all 120 results").click());
@@ -1625,7 +1625,7 @@ it("drags all selected results from the current scope, including cards not yet r
 });
 
 it("cancels shelf dragging when shelves are disabled and allows it again when enabled", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const card = gameCard(local.gameName);
   const { gameJournals } = useAppStore.getState();
   await startDrag(card);
@@ -1658,7 +1658,7 @@ it.each(["grid", "large", "list"] as const)(
       note: "Continue the quest",
     });
     const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await selectShelf("Weekend");
     const original = getGameJournal(useAppStore.getState(), local);
     const other = getGameJournal(useAppStore.getState(), steam);
@@ -1695,7 +1695,7 @@ it("explains blocked shelf drops without changing data, and ignores external or 
     name: "Unplayed",
     filters: { played: "unplayed" },
   });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const journals = useAppStore.getState().gameJournals;
   await act(() => {
     shelfChip("Weekend").dispatchEvent(new Event("drop", { bubbles: true }));
@@ -1729,7 +1729,7 @@ it("explains blocked shelf drops without changing data, and ignores external or 
 
 it("clears duplicate Favorites feedback when scrolling or leaving the library", async () => {
   useAppStore.setState({ activeView: "games" });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const journals = useAppStore.getState().gameJournals;
   await dropGame(gameCard(local.gameName), "Favorites");
   expect(document.querySelector(".library-game-drop-hint")?.textContent).toBe(
@@ -1754,7 +1754,7 @@ it("assigns an imported game to the same journal as its local alias", async () =
   };
   useAppStore.getState().updateGameJournal(alias, { note: "Steam campaign" });
   const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await dropGame(gameCard(steam.name), "Co-op");
   for (const identity of [steam, alias]) {
     expect(getGameJournal(useAppStore.getState(), identity)).toMatchObject({
@@ -1781,7 +1781,7 @@ it("preserves membership changes made during a drag and does not drag from card 
   const addedMeanwhile = useAppStore
     .getState()
     .savePersonalShelf({ name: "Later" })!;
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const card = gameCard(local.gameName);
   const control = card.querySelector('[title="Read note"]')!;
   await pointer(control, "pointerdown");
@@ -1804,7 +1804,7 @@ it("preserves membership changes made during a drag and does not drag from card 
 });
 
 it("rechecks membership on drop when a shelf's prepared hover hint is no longer current", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const card = gameCard(local.gameName);
   await startDrag(card);
   expect(shelfChip("Weekend").dataset.libraryDragBlocked).toBe("already-added");
@@ -1837,7 +1837,7 @@ it("rechecks membership on drop when a shelf's prepared hover hint is no longer 
 
 it("keeps small pointer movements as clicks and suppresses the release click after a real drag", async () => {
   const target = useAppStore.getState().savePersonalShelf({ name: "Co-op" })!;
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const card = gameCard(local.gameName);
   await pointer(card, "pointerdown");
   await pointer(window, "pointermove", { clientX: 123, clientY: 402 });
@@ -1870,7 +1870,7 @@ it.each(["before", "during"])(
     );
     container.scrollLeft = 30;
     container.scrollTop = 500;
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     const card = gameCard("Local other");
     const measureCard = vi
       .spyOn(card, "getBoundingClientRect")
@@ -1942,7 +1942,7 @@ it.each(["before", "during"])(
 it.each(["pointercancel", "blur", "pointerleave"])(
   "restores the card without assigning it after %s",
   async (type) => {
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     const journals = useAppStore.getState().gameJournals;
     const card = gameCard("Local other");
     await startDrag(card);
@@ -1963,7 +1963,7 @@ it.each(["pointercancel", "blur", "pointerleave"])(
 );
 
 it("cleans up a card drag when the library unmounts", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const card = gameCard("Local other");
   await startDrag(card);
   await act(() => root.render(null));
@@ -1977,7 +1977,7 @@ it("cleans up a card drag when the library unmounts", async () => {
 
 it("cleans up a drag when navigating away from the mounted library", async () => {
   useAppStore.setState({ activeView: "games" });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const card = gameCard("Local other");
   const journals = useAppStore.getState().gameJournals;
   await startDrag(card);
@@ -1998,7 +1998,7 @@ it("prepares blocked-shelf explanations before release without rerendering durin
   await act(() =>
     root.render(
       <Profiler id="library" onRender={onRender}>
-        <MyGamesView />
+        <LibraryTestShell />
       </Profiler>,
     ),
   );
@@ -2030,7 +2030,7 @@ it("prepares blocked-shelf explanations before release without rerendering durin
 });
 
 it("waits for release to look up the shelf and change membership, without measuring layout during movement", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const card = gameCard("Local other");
   const rail = container.querySelector<HTMLElement>(
     "[data-library-shelf-rail]",
@@ -2090,7 +2090,7 @@ it("waits for release to look up the shelf and change membership, without measur
 });
 
 it("uses the release position when dropping before the next pointer frame", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await startDrag(gameCard("Local other"));
   vi.mocked(document.elementFromPoint).mockImplementation((x) =>
     shelfChip(x >= 300 ? "Weekend" : "Favorites"),
@@ -2128,7 +2128,7 @@ it("uses the release position when dropping before the next pointer frame", asyn
 });
 
 it("discards queued pointer work when a drag is cancelled", async () => {
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await startDrag(gameCard("Local other"));
   const journals = useAppStore.getState().gameJournals;
   vi.mocked(document.elementFromPoint)

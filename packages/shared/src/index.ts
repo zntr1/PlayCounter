@@ -408,6 +408,14 @@ export interface GameDetails {
   platforms: string[];
   /** IGDB's aggregate score, 0-100, rounded. Absent when too few ratings. */
   rating?: number;
+  /**
+   * Wide promotional art (IGDB "artworks") as 1080p image URLs, first entry
+   * first. Empty for games IGDB has no artwork for, and absent from APIs
+   * released before this field existed.
+   */
+  artworkUrls?: string[];
+  /** In-game stills (IGDB "screenshots") as 1080p image URLs. */
+  screenshotUrls?: string[];
 }
 
 export interface GameDetailsResponse {
@@ -489,6 +497,14 @@ export type LibraryStatCardId =
   | "installed"
   | "emulator";
 
+/** Identity of the game pinned to the library banner. IGDB id first so the
+ *  pin survives a community merge; the local pair is the fallback. */
+export interface LibraryFeaturedGame {
+  gameId: number;
+  source: GameSource | null;
+  igdbId?: number;
+}
+
 export interface Settings {
   /** Global keyboard shortcuts. Null or absent means disabled. */
   showWindowHotkey?: string | null;
@@ -521,6 +537,12 @@ export interface Settings {
   libraryShowShelves?: boolean;
   /** Drop provider tabs that have no imported games. Absent = off, tabs stay. */
   libraryHideEmptyProviderTabs?: boolean;
+  /** Show the featured-game banner above the library. Absent = enabled. */
+  libraryShowHero?: boolean;
+  /** Game pinned to the library banner. Null or absent = the last played game. */
+  libraryFeaturedGame?: LibraryFeaturedGame | null;
+  /** Navigation reduced to an icon rail. Absent = expanded. */
+  sidebarCollapsed?: boolean;
   autoShareIgnoredProcesses: boolean;
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;

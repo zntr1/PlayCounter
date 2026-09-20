@@ -89,12 +89,13 @@ export function useLibrarySelection(
     if (restoreFocus.current) {
       restoreFocus.current = false;
       // Applying a status can remove every matching game and disable Select.
+      // The search field sits in the title bar, outside the library root.
       const target =
         rootRef.current?.querySelector<HTMLElement>(
           "[data-library-select]:not(:disabled)",
         ) ??
-        rootRef.current?.querySelector<HTMLElement>(
-          '[placeholder="Search games..."]',
+        document.querySelector<HTMLElement>(
+          '[role="search"] [placeholder="Search games..."]',
         );
       target?.focus({ preventScroll: true });
     }

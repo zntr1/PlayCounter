@@ -7,6 +7,7 @@ import type {
   Game,
   GameSource,
   IdentifierFlagReason,
+  LibraryFeaturedGame,
   LibraryStatCardId,
   Session,
   Settings,
@@ -389,6 +390,9 @@ export type AppState = {
   libraryImportProvider: BuiltinImportProviderId;
   historyQuery: string;
   historyGameKey: string | null;
+  /** Library search text. Lives here because the search field sits in the
+   *  window's title bar, outside the My Games view. Not persisted. */
+  libraryQuery: string;
   installUuid: string | null;
   contributionOwnerUuid: string | null;
   activeSessions: ActiveSession[];
@@ -461,6 +465,7 @@ export type AppState = {
   openCurrentReleaseNotes: () => void;
   closeCurrentReleaseNotes: (version: string) => void;
   setHistoryQuery: (query: string) => void;
+  setLibraryQuery: (query: string) => void;
   setHistoryGameKey: (key: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
   setActiveSessions: (sessions: ActiveSession[]) => void;
@@ -552,6 +557,9 @@ export type AppState = {
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
   setMyGamesHideEmptyProviderTabs: (enabled: boolean) => void;
+  setMyGamesShowHero: (enabled: boolean) => void;
+  setLibraryFeaturedGame: (game: LibraryFeaturedGame | null) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setEmulatorSetting: (
@@ -611,6 +619,9 @@ const defaultSettings: Settings = {
   libraryShowStatCards: true,
   libraryShowShelves: true,
   libraryHideEmptyProviderTabs: false,
+  libraryShowHero: true,
+  libraryFeaturedGame: null,
+  sidebarCollapsed: false,
   autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
@@ -724,6 +735,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   libraryTab: "all",
   libraryImportProvider: DEFAULT_IMPORT_PROVIDER,
   historyQuery: "",
+  libraryQuery: "",
   historyGameKey: null,
   installUuid: null,
   contributionOwnerUuid: null,
@@ -878,6 +890,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     get().markReleaseNotesSeen(version);
   },
   setHistoryQuery: (historyQuery) => set({ historyQuery }),
+  setLibraryQuery: (libraryQuery) => set({ libraryQuery }),
   setHistoryGameKey: (historyGameKey) => set({ historyGameKey }),
   adoptInstallIdentity: (installUuid) =>
     set((state) => {
@@ -1600,6 +1613,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowShelves: (libraryShowShelves) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowShelves },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowHero: (libraryShowHero) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowHero },
+    }));
+    persistSoon();
+  },
+  setLibraryFeaturedGame: (libraryFeaturedGame) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryFeaturedGame },
+    }));
+    persistSoon();
+  },
+  setSidebarCollapsed: (sidebarCollapsed) => {
+    set((state) => ({
+      settings: { ...state.settings, sidebarCollapsed },
     }));
     persistSoon();
   },

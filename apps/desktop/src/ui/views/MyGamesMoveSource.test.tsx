@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { useAppStore } from "../../store";
-import { MyGamesView } from "./MyGamesView";
+import { LibraryTestShell } from "./libraryTestShell";
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -127,7 +127,7 @@ it.each(["grid", "large", "list"] as const)(
       ]),
     });
     useAppStore.getState().setMyGamesCardSize(layout);
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await enterSelection();
     expect(button("Move to PlayCounter").disabled).toBe(true);
     await selectGame("Local game");
@@ -197,7 +197,7 @@ it("moves every selected game beyond the current render window and leaves filter
       ]),
     ),
   });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   const search = container.querySelector<HTMLInputElement>(
     '[placeholder="Search games..."]',
   )!;
@@ -230,7 +230,7 @@ it("moves every selected game beyond the current render window and leaves filter
 it("retains the entire bulk selection after a save error and allows retrying", async () => {
   importGame("steam");
   importGame("xbox", 2);
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await enterSelection();
   await act(() => button("Select all 2 results").click());
   await act(() => button("Move to PlayCounter").click());
@@ -267,7 +267,7 @@ it.each([
   async (provider, layout) => {
     importGame(provider);
     useAppStore.getState().setMyGamesCardSize(layout);
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await source(provider);
     await contextMenu();
     await act(() => button("Move to PlayCounter").click());
@@ -312,7 +312,7 @@ it.each([
 
 it("offers the same move from game details and merges an explicit re-import into one card", async () => {
   importGame("steam");
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await act(() =>
     container
       .querySelector<HTMLButtonElement>(
@@ -343,7 +343,7 @@ it("keeps archived hours from every former launcher identity in the same card", 
     archivedSeconds: 7200,
     archivedGameSeconds: { "igdb:1": 3600, "igdb:7": 3600 },
   });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   expect(container.querySelector(".game-library-card")?.textContent).toContain(
     "2h",
   );
@@ -358,7 +358,7 @@ it("keeps archived hours from every former launcher identity in the same card", 
 
 it("keeps the confirmation open with a save error and preserves the launcher association", async () => {
   importGame("steam");
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await contextMenu();
   await act(() => button("Move to PlayCounter").click());
   const fail = vi.spyOn(localStorage, "setItem").mockImplementation(() => {

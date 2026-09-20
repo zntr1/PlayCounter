@@ -304,6 +304,11 @@ const settings = object({}, {
   libraryShowStatCards: boolean,
   libraryShowShelves: boolean,
   libraryHideEmptyProviderTabs: boolean,
+  libraryShowHero: boolean,
+  libraryFeaturedGame: nullable(
+    object({ gameId: integer, source: nullable(source) }, { igdbId: integer }),
+  ),
+  sidebarCollapsed: boolean,
   libraryStatCards: array(
     oneOf(
       "games",

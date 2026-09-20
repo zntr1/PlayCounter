@@ -7,7 +7,7 @@ import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { STORAGE_KEY } from "../../persistence";
 import { useAppStore } from "../../store";
-import { MyGamesView } from "./MyGamesView";
+import { LibraryTestShell } from "./libraryTestShell";
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -128,13 +128,15 @@ it.each([
     expect(persisted.sessions).toEqual([]);
     expect(useAppStore.getState().recentSessions).toEqual([]);
 
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await openDetails();
     expect(lastPlayedFigure()).toBe(new Date(daysAgo(2)).toLocaleDateString());
 
     await act(() => {
       [
-        ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+        ...document.querySelectorAll<HTMLButtonElement>(
+          '[role="dialog"] button',
+        ),
       ]
         .find((button) => button.textContent === "Close")!
         .click();
@@ -172,7 +174,7 @@ it.each([
       ],
     });
     importGame({ lastPlayedAt: daysAgo(providerDaysAgo) });
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await openDetails();
     expect(lastPlayedFigure()).toBe(new Date(daysAgo(1)).toLocaleDateString());
   },
@@ -186,7 +188,7 @@ it.each([
   "shows $expected when $provider has $seconds seconds and no play date",
   async ({ provider, seconds, expected }) => {
     importGame({ provider, seconds, lastPlayedAt: null });
-    await act(() => root.render(<MyGamesView />));
+    await act(() => root.render(<LibraryTestShell />));
     await openDetails();
     expect(lastPlayedFigure()).toBe(expected);
   },
@@ -194,7 +196,7 @@ it.each([
 
 it("refreshes the displayed date on reimport without creating sessions or duplicates", async () => {
   importGame({ lastPlayedAt: daysAgo(20) });
-  await act(() => root.render(<MyGamesView />));
+  await act(() => root.render(<LibraryTestShell />));
   await openDetails();
   expect(lastPlayedFigure()).toBe(new Date(daysAgo(20)).toLocaleDateString());
 

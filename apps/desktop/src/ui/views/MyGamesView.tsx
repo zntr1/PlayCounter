@@ -1,5 +1,8 @@
 import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
 import { useLibraryPractice } from "../PersonalLibraryContext";
+import { publishLibrarySources } from "../librarySources";
+import { LibraryHero } from "./games/LibraryHero";
+import { matchesFeaturedGame, pickFeaturedGame } from "./games/featuredGame";
 import clsx from "clsx";
 import {
   AlertTriangle,
@@ -25,10 +28,13 @@ import {
   Loader2,
   MoveRight,
   Pencil,
+  Pin,
+  PinOff,
   Play,
   RotateCcw,
   Search,
   Send,
+  Settings2,
   SlidersHorizontal,
   Trash2,
   WifiOff,
@@ -145,6 +151,7 @@ import {
   IconButton,
   Input,
   Modal,
+  useAnchoredMenu,
   useContextMenu,
 } from "../primitives";
 import {
@@ -559,7 +566,8 @@ export function MyGamesView() {
     games: GameSummary[];
     skippedCount: number;
   } | null>(null);
-  const [query, setQuery] = useState("");
+  const query = useAppStore((state) => state.libraryQuery);
+  const setQuery = useAppStore((state) => state.setLibraryQuery);
   const selectShelf = useCallback((id: string) => {
     setShelfSelection(id);
     const saved = useAppStore
@@ -567,10 +575,20 @@ export function MyGamesView() {
       .personalShelves.find((s) => s.id === id)?.filters;
     const { source = "all", search = "", ...filters } = saved ?? {};
     setLibraryFilters(filters);
-    setQuery(search);
+    useAppStore.getState().setLibraryQuery(search);
     useAppStore.getState().setLibraryTab(source);
   }, []);
-  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const customizeMenu = useAnchoredMenu();
+  const showHero = useAppStore(
+    (state) => state.settings.libraryShowHero !== false,
+  );
+  const setMyGamesShowHero = useAppStore((state) => state.setMyGamesShowHero);
+  const featuredSetting = useAppStore(
+    (state) => state.settings.libraryFeaturedGame ?? null,
+  );
+  const setLibraryFeaturedGame = useAppStore(
+    (state) => state.setLibraryFeaturedGame,
+  );
   const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
   const launchLockRef = useRef<string | null>(null);
   const [launchingGameKey, setLaunchingGameKey] = useState<string | null>(null);
@@ -665,7 +683,7 @@ export function MyGamesView() {
     setLibraryFilters({});
     setQuery("");
     setLibraryTab("all");
-  }, [setLibraryTab]);
+  }, [setLibraryTab, setQuery]);
   const statCardSetting = useAppStore(
     (state) => state.settings.libraryStatCards,
   );
@@ -1620,6 +1638,17 @@ export function MyGamesView() {
     visibleGameCount: visibleGames.length,
     importSupported: importableProviderTabs(platform).length > 0,
   });
+  useEffect(() => {
+    publishLibrarySources({
+      tabs,
+      activeTab: activeLibraryTab,
+      visible: layout.showTabs,
+    });
+  });
+  const featured = useMemo(
+    () => (showHero ? pickFeaturedGame(games, featuredSetting) : null),
+    [featuredSetting, games, showHero],
+  );
   const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}`;
   const renderWindow = useLibraryRenderWindow(
     renderWindowKey,
@@ -1679,26 +1708,71 @@ export function MyGamesView() {
         <EmptyLibraryPanel platform={platform} />
       ) : (
         <>
-          <Panel dataTour="games-toolbar" className="overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4">
-              <div>
-                <h2 className="font-semibold text-text">Library</h2>
-                <p className="mt-1 text-sm text-text-muted">
-                  {visibleGames.length} of {libraryGames.length} tracked{" "}
+          {featured && !isCoreTourDemo ? (
+            <LibraryHero
+              key={`${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
+              game={featured.game}
+              pinned={featured.pinned}
+              showDurationDays={showDurationDays}
+              launchKey="library-hero"
+              launchBlocked={launchingGameKey !== null}
+              onAcquireLaunch={acquireLaunchLock}
+              onReleaseLaunch={releaseLaunchLock}
+              onPin={() =>
+                setLibraryFeaturedGame({
+                  gameId: featured.game.gameId,
+                  source: featured.game.source,
+                  igdbId: featured.game.igdbId,
+                })
+              }
+              onUnpin={() => setLibraryFeaturedGame(null)}
+              onHide={() => setMyGamesShowHero(false)}
+            />
+          ) : null}
+
+          <div data-tour="games-toolbar" className="grid gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-baseline gap-3">
+                <h2 className="truncate text-[22px] font-bold tracking-tight text-text">
                   {activeProviderConfig
-                    ? `${activeProviderConfig.label} games`
-                    : "games"}
-                </p>
+                    ? activeProviderConfig.headline
+                    : activeTabKind === "unimported"
+                      ? "PlayCounter games"
+                      : "All games"}
+                </h2>
+                <span
+                  className="rounded-full border border-border/70 bg-surface px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-text-muted"
+                  title={`${visibleGames.length} of ${libraryGames.length} tracked ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}`}
+                >
+                  {visibleGames.length === libraryGames.length
+                    ? visibleGames.length
+                    : `${visibleGames.length} / ${libraryGames.length}`}
+                </span>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <div className="flex items-center gap-1 rounded-md border border-border bg-bg p-1">
+                <select
+                  aria-label="Sort games"
+                  value={sortKey}
+                  onChange={(event) =>
+                    setMyGamesSortKey(event.target.value as MyGamesSortKey)
+                  }
+                  className={clsx(selectClass, "h-9 rounded-lg py-0 pr-8")}
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      Sort: {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
                   <button
                     type="button"
                     aria-label="Grid view"
+                    aria-pressed={view === "grid"}
                     title="Standard cards"
                     onClick={() => setMyGamesCardSize("grid")}
                     className={clsx(
-                      "grid h-8 w-8 place-items-center rounded transition",
+                      "grid h-full w-8 place-items-center rounded-md transition",
                       view === "grid"
                         ? "bg-accent text-accent-fg"
                         : "text-text-muted hover:bg-surface-hover hover:text-text",
@@ -1709,10 +1783,11 @@ export function MyGamesView() {
                   <button
                     type="button"
                     aria-label="Large card view"
+                    aria-pressed={view === "large"}
                     title="Large cards"
                     onClick={() => setMyGamesCardSize("large")}
                     className={clsx(
-                      "grid h-8 w-8 place-items-center rounded transition",
+                      "grid h-full w-8 place-items-center rounded-md transition",
                       view === "large"
                         ? "bg-accent text-accent-fg"
                         : "text-text-muted hover:bg-surface-hover hover:text-text",
@@ -1723,10 +1798,11 @@ export function MyGamesView() {
                   <button
                     type="button"
                     aria-label="List view"
+                    aria-pressed={view === "list"}
                     title="List"
                     onClick={() => setMyGamesCardSize("list")}
                     className={clsx(
-                      "grid h-8 w-8 place-items-center rounded transition",
+                      "grid h-full w-8 place-items-center rounded-md transition",
                       view === "list"
                         ? "bg-accent text-accent-fg"
                         : "text-text-muted hover:bg-surface-hover hover:text-text",
@@ -1735,25 +1811,64 @@ export function MyGamesView() {
                     <List size={15} />
                   </button>
                 </div>
-                <Button
-                  variant="secondary"
-                  icon={SlidersHorizontal}
+                <IconButton
+                  ref={customizeMenu.anchorRef}
+                  icon={Settings2}
                   aria-label="Customize library view"
-                  aria-expanded={customizeOpen}
+                  title="Customize"
+                  aria-haspopup="true"
+                  aria-expanded={customizeMenu.open}
                   aria-controls="library-customize"
                   data-controller-item="library-customize"
-                  onClick={() => setCustomizeOpen((open) => !open)}
-                >
-                  Customize
-                </Button>
+                  onClick={customizeMenu.toggle}
+                  className="h-9 w-9 rounded-lg"
+                />
               </div>
             </div>
 
-            {customizeOpen ? (
+            <ContextMenu
+              open={customizeMenu.open}
+              position={{
+                x: customizeMenu.position.x - 380 + 36,
+                y: customizeMenu.position.y,
+              }}
+              onClose={customizeMenu.close}
+              anchorRef={customizeMenu.anchorRef}
+            >
               <div
                 id="library-customize"
-                className="divide-y divide-border border-b border-border bg-bg px-4"
+                role="group"
+                aria-label="Customize library view"
+                className="w-[380px] max-w-[calc(100vw-2rem)] divide-y divide-border px-4 py-1"
               >
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div>
+                    <label
+                      htmlFor="library-show-hero"
+                      className="text-sm font-medium text-text"
+                    >
+                      Show the banner
+                    </label>
+                    <p
+                      id="library-show-hero-help"
+                      className="mt-1 text-xs leading-5 text-text-faint"
+                    >
+                      The featured game above your library. Pin any game to it
+                      from the banner menu.
+                    </p>
+                  </div>
+                  <input
+                    id="library-show-hero"
+                    type="checkbox"
+                    checked={showHero}
+                    aria-describedby="library-show-hero-help"
+                    data-controller-item="library-option"
+                    onChange={(event) =>
+                      setMyGamesShowHero(event.target.checked)
+                    }
+                    className="h-4 w-4 rounded border-border accent-accent"
+                  />
+                </div>
                 <LibraryAppearanceControls
                   view={view}
                   gridLayout={gridLayout}
@@ -1809,15 +1924,15 @@ export function MyGamesView() {
                           : "text-text-faint",
                       )}
                     >
-                      Hide empty import source tabs
+                      Hide empty sources
                     </label>
                     <p
                       id="library-hide-empty-tabs-help"
                       className="mt-1 text-xs leading-5 text-text-faint"
                     >
                       {canHideEmptyProviderTabs
-                        ? "Hide Steam and Xbox tabs with no imported games."
-                        : "All import source tabs have games."}
+                        ? "Hide Steam, Xbox or Battle.net in the sidebar while nothing is imported from them."
+                        : "All sources in the sidebar have games."}
                     </p>
                   </div>
                   <input
@@ -1910,7 +2025,7 @@ export function MyGamesView() {
                   </fieldset>
                 ) : null}
               </div>
-            ) : null}
+            </ContextMenu>
 
             <LibraryOrganizationToolbar
               showShelves={showShelves}
@@ -1948,96 +2063,7 @@ export function MyGamesView() {
                 </Button>
               }
             />
-            {layout.showTabs ? (
-              <div className="border-b border-border bg-bg px-4 pt-3">
-                <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-faint">
-                  Import source
-                </div>
-                <div
-                  role="tablist"
-                  aria-label="Game library source"
-                  className="-mb-px flex gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:thin]"
-                >
-                  {tabs.map((tab) => {
-                    const selected = activeLibraryTab === tab.id;
-                    const config =
-                      tab.kind === "provider"
-                        ? providerTabConfig(tab.id)
-                        : undefined;
-                    const tabIconUrl =
-                      tab.kind === "unimported" ? "/icon.png" : config?.iconUrl;
-                    return (
-                      <button
-                        key={tab.id}
-                        id={`library-tab-${tab.id}`}
-                        type="button"
-                        role="tab"
-                        aria-selected={selected}
-                        aria-controls="library-tabpanel"
-                        data-controller-item="library-tab"
-                        onClick={() => setLibraryTab(tab.id)}
-                        className={clsx(
-                          "library-tab flex shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-3 pb-2.5 pt-2.5 text-sm font-medium transition",
-                          selected
-                            ? "border-accent text-text"
-                            : "border-transparent text-text-muted hover:border-border-strong hover:text-text",
-                        )}
-                      >
-                        {tabIconUrl ? (
-                          <img
-                            src={tabIconUrl}
-                            alt=""
-                            aria-hidden="true"
-                            className="h-4 w-4 shrink-0"
-                          />
-                        ) : null}
-                        <span>{tab.label}</span>
-                        <span
-                          className={clsx(
-                            "rounded-full px-1.5 py-0.5 font-mono text-[11px]",
-                            selected
-                              ? "bg-accent/15 text-accent"
-                              : "bg-surface text-text-faint",
-                          )}
-                        >
-                          {tab.count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="grid gap-2 border-b border-border bg-bg px-4 py-3 lg:grid-cols-[minmax(220px,1fr)_220px]">
-              <div className="relative min-w-0">
-                <Search
-                  size={15}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
-                />
-                <Input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search games..."
-                  className="w-full bg-surface pl-9"
-                />
-              </div>
-              <select
-                aria-label="Sort games"
-                value={sortKey}
-                onChange={(event) =>
-                  setMyGamesSortKey(event.target.value as MyGamesSortKey)
-                }
-                className="min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.key} value={option.key}>
-                    Sort: {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </Panel>
+          </div>
 
           <div
             id="library-tabpanel"
@@ -2546,6 +2572,13 @@ export function GameLibraryCard({
         state.activeTour.stepIndex === 3),
   );
   const activeTour = useAppStore((state) => state.activeTour);
+  const setLibraryFeaturedGame = useAppStore(
+    (state) => state.setLibraryFeaturedGame,
+  );
+  const featuredInBanner = useAppStore((state) => {
+    const featured = state.settings.libraryFeaturedGame;
+    return Boolean(featured && matchesFeaturedGame(game, featured));
+  });
   const contextMenu = useContextMenu();
   const gameDragProps = libraryGameDragSourceProps(
     {
@@ -3769,6 +3802,25 @@ export function GameLibraryCard({
           Open Details
         </ContextMenuItem>
         {!demo ? (
+          <ContextMenuItem
+            icon={featuredInBanner ? PinOff : Pin}
+            onClick={() => {
+              contextMenu.close();
+              setLibraryFeaturedGame(
+                featuredInBanner
+                  ? null
+                  : {
+                      gameId: game.gameId,
+                      source: game.source,
+                      igdbId: game.igdbId,
+                    },
+              );
+            }}
+          >
+            {featuredInBanner ? "Unpin from banner" : "Pin to banner"}
+          </ContextMenuItem>
+        ) : null}
+        {!demo ? (
           <GameJournalMenu
             game={{ ...game, gameName: game.name }}
             onClose={contextMenu.close}
@@ -4151,7 +4203,7 @@ export function GameLibraryCard({
               : `${game.name}, ${hasPrimaryLaunchTarget ? "press A to play" : "no launch file saved"}`
             : undefined
         }
-        className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent hover:ring-2 hover:ring-accent/50 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
+        className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
       >
         {controllerNavigable ? (
           <button
@@ -4711,7 +4763,7 @@ export function GameLibraryCard({
             : `${game.name}, ${hasPrimaryLaunchTarget ? "press A to play" : "no launch file saved"}`
           : undefined
       }
-      className="game-library-card group relative isolate rounded-xl border border-border bg-surface shadow-raised transition duration-200 hover:border-accent hover:ring-2 hover:ring-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
+      className="game-library-card group relative isolate rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:border-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
     >
       {controllerNavigable ? (
         <button

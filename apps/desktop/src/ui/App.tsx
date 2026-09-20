@@ -10,22 +10,21 @@ import {
   Cpu,
   Download,
   Gamepad2,
-  Globe,
   Info,
   ListChecks,
   LoaderCircle,
   MessageSquarePlus,
-  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Play,
   Settings,
-  Sun,
   Trophy,
   Wifi,
   WifiOff,
   X,
 } from "lucide-react";
+import clsx from "clsx";
 import { getVersion } from "@tauri-apps/api/app";
-import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   Component,
@@ -52,6 +51,10 @@ import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
+import { GlobalSearch } from "./shell/GlobalSearch";
+import { HeaderMenu } from "./shell/HeaderMenu";
+import { SidebarSources } from "./shell/SidebarSources";
+import { WindowControls } from "./shell/WindowControls";
 import { XboxButtonGlyph, type XboxControl } from "./XboxButtonGlyph";
 import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
@@ -242,8 +245,6 @@ const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
   { label: "System", items: ["discovered", "settings", "dev"] },
 ];
 
-const WEBSITE_URL = "https://playcounter.app/";
-const DISCORD_URL = "https://discord.gg/t2nG3jaEEY";
 const STORAGE_KEY = "playcounter:v1";
 
 let startupPreferenceSynced = false;
@@ -376,8 +377,10 @@ export function App() {
   const emulatorTourDemo = emulatorTourDemoActive(activeTourId);
   const sidebarEmulatorBadge = (item: "dosbox" | "dolphin" | "pcsx2") =>
     emulatorTourDemo && item === "dolphin" ? 1 : emulatorReviewCount(item);
-  const theme = useAppStore((state) => state.settings.theme);
-  const setTheme = useAppStore((state) => state.setTheme);
+  const sidebarCollapsed = useAppStore(
+    (state) => state.settings.sidebarCollapsed === true,
+  );
+  const setSidebarCollapsed = useAppStore((state) => state.setSidebarCollapsed);
 
   useLayoutEffect(() => {
     const content = contentRef.current;
@@ -437,16 +440,16 @@ export function App() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (
-        !event.ctrlKey ||
-        !event.shiftKey ||
-        event.key.toLowerCase() !== "d"
-      ) {
-        return;
+      if (!event.ctrlKey || event.altKey || event.metaKey) return;
+      const key = event.key.toLowerCase();
+      if (event.shiftKey && key === "d") {
+        event.preventDefault();
+        setDevToolsEnabled((enabled) => !enabled);
+      } else if (!event.shiftKey && key === "b") {
+        event.preventDefault();
+        const { settings, setSidebarCollapsed } = useAppStore.getState();
+        setSidebarCollapsed(settings.sidebarCollapsed !== true);
       }
-
-      event.preventDefault();
-      setDevToolsEnabled((enabled) => !enabled);
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -503,45 +506,59 @@ export function App() {
     lastSeenReleaseNotesVersion,
   );
 
-  async function openExternalUrl(url: string, label: string) {
-    try {
-      if (isOffline) {
-        addToast({
-          tone: "info",
-          title: "Offline",
-          detail: `${label} unavailable offline.`,
-        });
-        return;
-      }
-      await invoke("open_external_url", { url });
-    } catch (error) {
-      addToast({
-        tone: "error",
-        title: `Could not open ${label}`,
-        detail: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
   return (
-    <main className="flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg">
+    <main className="app-shell flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg">
       <aside
         data-tour="sidebar"
-        className="flex w-[260px] flex-col border-r border-border bg-surface/50 shadow-sidebar backdrop-blur-xl"
+        data-collapsed={sidebarCollapsed ? "true" : undefined}
+        className={clsx(
+          "app-sidebar flex shrink-0 flex-col transition-[width] duration-200",
+          sidebarCollapsed ? "w-[68px]" : "w-[248px]",
+        )}
       >
-        <div className="flex items-center justify-center gap-3 px-4 py-8">
+        <div
+          data-tauri-drag-region
+          className={clsx(
+            "flex h-14 shrink-0 items-center",
+            sidebarCollapsed ? "justify-center px-2" : "gap-2.5 pl-4 pr-2",
+          )}
+        >
           <img
+            data-tauri-drag-region
             src="/icon.png"
             alt=""
-            className="h-14 w-14 shrink-0 object-contain"
+            className="h-8 w-8 shrink-0 object-contain"
           />
-          <div className="min-w-0">
-            <div className="truncate text-xl font-bold tracking-tight text-text">
-              PlayCounter
-            </div>
-          </div>
+          {!sidebarCollapsed ? (
+            <>
+              <span
+                data-tauri-drag-region
+                className="min-w-0 flex-1 truncate text-[17px] font-bold tracking-tight text-text"
+              >
+                PlayCounter
+              </span>
+              <SidebarToggle
+                collapsed={false}
+                onClick={() => setSidebarCollapsed(true)}
+              />
+            </>
+          ) : null}
         </div>
-        <nav data-controller-scroll className="flex-1 overflow-auto px-4 pb-4">
+        {sidebarCollapsed ? (
+          <div className="flex justify-center px-2 pb-1">
+            <SidebarToggle
+              collapsed
+              onClick={() => setSidebarCollapsed(false)}
+            />
+          </div>
+        ) : null}
+        <nav
+          data-controller-scroll
+          className={clsx(
+            "flex-1 overflow-y-auto overflow-x-hidden pb-4",
+            sidebarCollapsed ? "px-2.5" : "px-3",
+          )}
+        >
           {sidebarSections.map((section) => {
             if (
               section.label === "Emulators" &&
@@ -576,14 +593,21 @@ export function App() {
             return (
               <div
                 key={section.label}
-                className="mb-6"
+                className="mb-5"
                 data-tour={
                   section.label === "Emulators" ? "nav-emulators" : undefined
                 }
               >
-                <div className="px-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-text-muted/70">
-                  {section.label}
-                </div>
+                {sidebarCollapsed ? (
+                  <div
+                    className="mx-3 mb-2 h-px bg-border/60"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <div className="px-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-text-muted/70">
+                    {section.label}
+                  </div>
+                )}
                 <div className="flex flex-col gap-1">
                   {items.map((item) => {
                     const view = views[item];
@@ -593,6 +617,7 @@ export function App() {
                         icon={view.icon}
                         imageSrc={view.imageSrc}
                         label={view.label}
+                        collapsed={sidebarCollapsed}
                         active={
                           activeView === item ||
                           (item === "games" && activeView === "import")
@@ -637,12 +662,21 @@ export function App() {
               </div>
             );
           })}
+          {activeView === "games" || activeView === "import" ? (
+            <SidebarSources collapsed={sidebarCollapsed} />
+          ) : null}
         </nav>
-        <div className="border-t border-border/50 bg-surface/30 px-5 py-4">
+        <div
+          className={clsx(
+            "border-t border-border/50 py-3",
+            sidebarCollapsed ? "px-2" : "px-5",
+          )}
+        >
           <AppStatusIndicator
             apiEndpoint={apiEndpoint}
             health={backendHealth}
             version={appVersion}
+            compact={sidebarCollapsed}
           />
         </div>
       </aside>
@@ -652,65 +686,31 @@ export function App() {
       >
         <header
           data-tour="header"
-          className="flex h-16 items-center justify-between border-b border-border bg-surface px-7"
+          data-tauri-drag-region
+          className="app-titlebar flex h-14 shrink-0 items-stretch"
         >
-          <div>
-            <h1 className="text-xl font-semibold tracking-normal text-text">
-              {activeViewLabel}
-            </h1>
-            <p className="text-sm text-text-muted">{activeViewSubtitle}</p>
+          <div
+            data-tauri-drag-region
+            className="flex min-w-0 flex-1 items-center justify-center px-4"
+          >
+            <GlobalSearch />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="titlebar-actions flex shrink-0 items-center gap-1 pr-2">
             <HelpButton />
             <NotificationBell />
             <IconButton
-              aria-label={
-                theme === "dark"
-                  ? "Switch to light theme"
-                  : "Switch to dark theme"
-              }
+              aria-label="Send feedback"
               title={
-                theme === "dark"
-                  ? "Switch to light theme"
-                  : "Switch to dark theme"
+                isOffline ? "Feedback unavailable offline" : "Send feedback"
               }
-              icon={theme === "dark" ? Sun : Moon}
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            />
-            <IconButton
-              aria-label="Open PlayCounter website"
-              title={
-                isOffline
-                  ? "Website unavailable offline"
-                  : "Open PlayCounter website"
-              }
-              disabled={isOffline}
-              icon={Globe}
-              onClick={() => void openExternalUrl(WEBSITE_URL, "website")}
-            />
-            <IconButton
-              aria-label="Open PlayCounter Discord"
-              title={
-                isOffline
-                  ? "Discord unavailable offline"
-                  : "Open PlayCounter Discord"
-              }
-              disabled={isOffline}
-              onClick={() => void openExternalUrl(DISCORD_URL, "Discord")}
-            >
-              <DiscordIcon />
-            </IconButton>
-            <Button
-              variant="secondary"
               icon={MessageSquarePlus}
               data-tour="send-feedback"
               disabled={isOffline}
-              title={isOffline ? "Feedback unavailable offline" : undefined}
               onClick={() => setFeedbackOpen(true)}
-            >
-              Send feedback
-            </Button>
+            />
+            <HeaderMenu />
           </div>
+          <WindowControls />
         </header>
         <RequestWarning apiEndpoint={apiEndpoint} runtimeError={runtimeError} />
         {startupUpdate?.status === "available" ? (
@@ -752,8 +752,14 @@ export function App() {
             tabIndex={-1}
             aria-busy={activeView === "games" && !renderGames}
             aria-label={`${activeViewLabel} content`}
-            className="controller-content absolute inset-0 overflow-auto px-7 py-6"
+            className="controller-content absolute inset-0 overflow-auto px-7 pb-8 pt-5"
           >
+            {activeView !== "games" ? (
+              <ViewHeading
+                label={activeViewLabel}
+                subtitle={activeViewSubtitle}
+              />
+            ) : null}
             {activeView !== "import" && activeView !== "games"
               ? views[activeView].component
               : null}
@@ -869,6 +875,41 @@ export function App() {
   );
 }
 
+function SidebarToggle({
+  collapsed,
+  onClick,
+}: {
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={`${label} (Ctrl+B)`}
+      aria-expanded={!collapsed}
+      onClick={onClick}
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-text-faint transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+    >
+      {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+    </button>
+  );
+}
+
+/* The view's name used to live in the window header. The header is a title
+   bar now, so each view introduces itself at the top of its own content. */
+function ViewHeading({ label, subtitle }: { label: string; subtitle: string }) {
+  return (
+    <div className="mb-5">
+      <h1 className="text-[22px] font-bold tracking-tight text-text">
+        {label}
+      </h1>
+      <p className="mt-0.5 text-sm text-text-muted">{subtitle}</p>
+    </div>
+  );
+}
+
 function ControllerModeFooter() {
   return (
     <div
@@ -927,19 +968,6 @@ function ControllerHint({
       <XboxButtonGlyph button={button} />
       <span>{label}</span>
     </span>
-  );
-}
-
-function DiscordIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className="h-[15px] w-[15px]"
-    >
-      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.095.25-.193.371-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-    </svg>
   );
 }
 
@@ -1085,6 +1113,7 @@ function AppStatusIndicator({
   apiEndpoint,
   health,
   version,
+  compact = false,
 }: {
   apiEndpoint: string;
   health: {
@@ -1093,11 +1122,23 @@ function AppStatusIndicator({
     detail: string | null;
   };
   version: string | null;
+  compact?: boolean;
 }) {
   const environment = stageBadge(BUILD_STAGE);
   const title = health.checkedAt
     ? `${health.detail ?? health.status} - ${new Date(health.checkedAt).toLocaleTimeString()} - ${apiEndpoint}`
     : `Checking backend health - ${apiEndpoint}`;
+
+  if (compact) {
+    return (
+      <div
+        title={`${title} - ${environment.label} ${version ? `v${version}` : ""}`}
+        className="flex justify-center text-[11px] font-medium"
+      >
+        <BackendStatusIndicator health={health} iconOnly />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1121,18 +1162,27 @@ function AppStatusIndicator({
 
 function BackendStatusIndicator({
   health,
+  iconOnly = false,
 }: {
   health: {
     status: "checking" | "online" | "offline" | "reconnecting";
     checkedAt: string | null;
     detail: string | null;
   };
+  iconOnly?: boolean;
 }) {
+  const label = (text: string) =>
+    iconOnly ? (
+      <span className="sr-only">{text}</span>
+    ) : (
+      <span className="tracking-wide">{text}</span>
+    );
+
   if (health.status === "online") {
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 text-success drop-shadow-[0_0_6px_rgb(var(--color-success)/0.4)] transition-all">
         <Wifi size={13} strokeWidth={2.5} />
-        <span className="tracking-wide">Online</span>
+        {label("Online")}
       </span>
     );
   }
@@ -1141,7 +1191,7 @@ function BackendStatusIndicator({
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 text-warning drop-shadow-[0_0_6px_rgb(var(--color-warning)/0.4)] transition-all">
         <WifiOff size={13} strokeWidth={2.5} />
-        <span className="tracking-wide">Offline</span>
+        {label("Offline")}
       </span>
     );
   }
@@ -1150,7 +1200,7 @@ function BackendStatusIndicator({
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 text-info transition-all">
         <LoaderCircle size={13} strokeWidth={2.5} className="animate-spin" />
-        <span className="tracking-wide">Reconnecting</span>
+        {label("Reconnecting")}
       </span>
     );
   }
@@ -1158,7 +1208,7 @@ function BackendStatusIndicator({
   return (
     <span className="inline-flex shrink-0 items-center gap-1.5 text-text-muted transition-all">
       <LoaderCircle size={13} strokeWidth={2.5} className="animate-spin" />
-      <span className="tracking-wide">Checking</span>
+      {label("Checking")}
     </span>
   );
 }
