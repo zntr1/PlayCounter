@@ -15,11 +15,15 @@ export type LibraryScanOptions = {
   onXboxProgress?: (stage: XboxImportProgressStage) => void;
   onRateLimitWait?: (waiting: boolean) => void;
   openAuthorizeUrl?: boolean;
+  /** Explicit user action only; background scans must never open sign-in. */
+  battleNetAccount?: boolean;
+  battleNetProductIds?: readonly string[];
 };
 
 export type LocalLibraryProvider = {
   id: LibraryProviderId;
   label: string;
+  accountMode?: "none";
   detect(): Promise<ProviderStatus>;
   listAccounts(): Promise<LocalLibraryAccount[]>;
   scan(

@@ -48,7 +48,11 @@ export async function resolveLibraryGames(
       },
     );
     signal?.throwIfAborted();
-    if ([404, 405, 501].includes(response.status)) {
+    // Older servers reject the Battle.net provider in their Steam-only schema.
+    if (
+      [404, 405, 501].includes(response.status) ||
+      (provider === "battlenet" && response.status === 400)
+    ) {
       return { capability: "unsupported", games: [] };
     }
     if (!response.ok) {

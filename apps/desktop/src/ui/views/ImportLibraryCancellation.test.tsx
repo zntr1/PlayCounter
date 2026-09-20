@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   scan: vi.fn(),
   lookup: vi.fn(),
   reverse: vi.fn(),
+  search: vi.fn(),
   run: vi.fn(),
   invoke: vi.fn(),
 }));
@@ -17,17 +18,20 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 vi.mock("../../library/providers", () => ({
   loadLibraryProvider: async (provider: string) => ({
+    accountMode: provider === "battlenet" ? "none" : undefined,
     detect: async () => ({ provider, available: true, checkedPaths: [] }),
-    listAccounts: async () => [
-      { accountId: 1, mostRecent: true, gamesWithPlaytime: 1 },
-    ],
+    listAccounts: async () =>
+      provider === "battlenet"
+        ? []
+        : [{ accountId: 1, mostRecent: true, gamesWithPlaytime: 1 }],
     scan: mocks.scan,
   }),
 }));
 vi.mock("../../library/resolve", () => ({ resolveLibraryGames: mocks.lookup }));
-vi.mock("../../library/providers/xbox", () => ({
-  reverseResolveXboxGame: mocks.reverse,
-  searchXboxGames: vi.fn(),
+vi.mock("../../library/gameLookup", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../library/gameLookup")>()),
+  reverseResolveLibraryGame: mocks.reverse,
+  searchLibraryGames: mocks.search,
 }));
 vi.mock("../../library/importRun", () => ({ runLibraryImport: mocks.run }));
 
@@ -71,7 +75,7 @@ function scanResult(name: string): LibraryScanResult {
 }
 
 async function click(label: string) {
-  const button = [...container.querySelectorAll("button")].find(
+  const button = [...document.body.querySelectorAll("button")].find(
     (item) => item.textContent?.trim() === label,
   );
   expect(button, label).toBeDefined();
@@ -103,7 +107,170 @@ it("opening the importer only detects local accounts and does not start API look
   expect(mocks.run).not.toHaveBeenCalled();
 });
 
-it.each(["steam", "xbox"] as const)(
+it.each([
+  ["Find installed games", false],
+  ["Sign in and find games", true],
+] as const)(
+  "requires OK before a Battle.net scan starts via %s",
+  async (label, account) => {
+    await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+    mocks.scan.mockResolvedValue({
+      games: [],
+      resolvedGames: [],
+      warnings: [],
+      partial: false,
+    });
+    await click(label);
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog?.textContent).toContain("Adjust total playtime");
+    expect(dialog?.textContent).toContain("/played");
+    expect(mocks.scan).not.toHaveBeenCalled();
+    expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(mocks.lookup).not.toHaveBeenCalled();
+    await click("OK");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(mocks.scan).toHaveBeenCalledExactlyOnceWith(
+      0,
+      expect.objectContaining({ battleNetAccount: account }),
+    );
+    await click(label);
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(mocks.scan).toHaveBeenCalledTimes(1);
+    await click("Cancel");
+    expect(mocks.scan).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each(["Cancel", "Close", "Escape"])(
+  "does not scan when the Battle.net notice is dismissed with %s",
+  async (dismiss) => {
+    await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+    await click("Sign in and find games");
+    if (dismiss === "Cancel") {
+      await click("Cancel");
+    } else {
+      await act(() => {
+        if (dismiss === "Close")
+          document
+            .querySelector<HTMLButtonElement>(
+              '[role="dialog"] button[aria-label="Close"]',
+            )!
+            .click();
+        else
+          document.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+          );
+      });
+    }
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(mocks.scan).not.toHaveBeenCalled();
+    expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(mocks.lookup).not.toHaveBeenCalled();
+  },
+);
+
+it("clears a pending Battle.net notice when the provider changes", async () => {
+  await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+  await click("Find installed games");
+  await act(() => store.setState({ libraryImportProvider: "steam" }));
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(mocks.scan).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  "imports an uninstalled Battle.net account game after review (manual=%s)",
+  async (manual) => {
+    await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+    expect(mocks.scan).not.toHaveBeenCalled();
+    const result = scanResult("Account game");
+    const match = result.resolvedGames![0].game!;
+    result.games[0] = {
+      externalId: "example",
+      name: "Account game",
+      playtimeSeconds: null,
+      hasPlayedEvidence: false,
+      inAccountLibrary: true,
+      installed: false,
+      executables: [],
+    };
+    result.resolvedGames = [
+      {
+        key: "battlenet:example",
+        status: manual ? "unknown" : "resolved",
+        game: manual ? undefined : match,
+        candidates: [match],
+        executables: [],
+      },
+    ];
+    mocks.scan.mockResolvedValue(result);
+    mocks.reverse.mockResolvedValue({
+      game: match,
+      executables: [
+        {
+          platform: "windows",
+          kind: "exe",
+          value: "Example.exe",
+          provenance: "igdb",
+          verified: true,
+        },
+      ],
+    });
+    mocks.run.mockResolvedValue({ shareOutcomes: [] });
+    await click("Sign in and find games");
+    await click("OK");
+    expect(mocks.scan).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ battleNetAccount: true }),
+    );
+    expect(container.textContent).toContain("Not installed");
+    expect(
+      container.querySelector('select[aria-label^="Game file"]'),
+    ).toBeNull();
+    expect(mocks.run).not.toHaveBeenCalled();
+    await click(manual ? "Confirm and Import" : "Import 1");
+    expect(mocks.run).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          entry: expect.objectContaining({
+            provider: "battlenet",
+            providerSeconds: null,
+            providerHasPlayedEvidence: false,
+            linkedExeNames: [],
+          }),
+          exeCacheEntries: [],
+          scopedLinks: [],
+          install: undefined,
+        }),
+      ],
+      expect.any(AbortSignal),
+    );
+    expect(container.textContent).not.toContain("Pick the game file to track");
+    if (manual)
+      expect(store.getState().toasts[0].detail).toContain(
+        "After installing it",
+      );
+  },
+);
+
+it("cancels Battle.net sign-in on provider switch and does not apply late account results", async () => {
+  await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+  const pending = deferred<LibraryScanResult>();
+  mocks.scan.mockReturnValue(pending.promise);
+  await click("Sign in and find games");
+  await click("OK");
+  expect(container.textContent).toContain("Complete Battle.net sign-in");
+  const signal = mocks.scan.mock.calls[0][1].signal as AbortSignal;
+  await act(() => store.setState({ libraryImportProvider: "steam" }));
+  expect(signal.aborted).toBe(true);
+  await act(() => pending.resolve(scanResult("Previous account game")));
+  expect(container.textContent).not.toContain("Previous account game");
+  expect(mocks.lookup).not.toHaveBeenCalled();
+  expect(mocks.run).not.toHaveBeenCalled();
+});
+
+it.each(["steam", "xbox", "battlenet"] as const)(
   "preselects the only eligible %s game file and imports it only after confirmation",
   async (provider) => {
     await act(() => store.setState({ libraryImportProvider: provider }));
@@ -111,6 +278,9 @@ it.each(["steam", "xbox"] as const)(
     const matchedGame = result.resolvedGames![0].game!;
     result.games[0] = {
       ...result.games[0],
+      externalId: provider === "battlenet" ? "example" : "42",
+      playtimeSeconds: provider === "battlenet" ? null : 3600,
+      hasPlayedEvidence: provider === "battlenet" ? false : undefined,
       installed: true,
       installPath: String.raw`C:\Games\Example`,
       executables: [
@@ -136,13 +306,25 @@ it.each(["steam", "xbox"] as const)(
             executables: [],
             candidates: [matchedGame],
           }
-        : result.resolvedGames![0],
+        : {
+            ...result.resolvedGames![0],
+            key: provider === "battlenet" ? "battlenet:example" : "steam:42",
+          },
     ];
     mocks.scan.mockResolvedValue(result);
     mocks.reverse.mockResolvedValue({ game: matchedGame, executables: [] });
-    mocks.run.mockResolvedValue({ shareOutcomes: [] });
+    mocks.run.mockResolvedValue({
+      shareOutcomes: [{ outcome: { kind: "submitted" } }],
+    });
 
-    await click(provider === "xbox" ? "Sign in and find games" : "Find games");
+    await click(
+      provider === "xbox"
+        ? "Sign in and find games"
+        : provider === "battlenet"
+          ? "Find installed games"
+          : "Find games",
+    );
+    if (provider === "battlenet") await click("OK");
     const picker = container.querySelector<HTMLSelectElement>(
       'select[aria-label="Game file for Example Game"]',
     );
@@ -162,6 +344,11 @@ it.each(["steam", "xbox"] as const)(
       ],
       expect.any(AbortSignal),
     );
+    if (provider === "battlenet") {
+      expect(store.getState().toasts[0].detail).toContain(
+        "sent to the community for review",
+      );
+    }
   },
 );
 
@@ -191,6 +378,186 @@ it("leaves multiple eligible game files for the user to choose", async () => {
   expect(addButton?.disabled).toBe(true);
   expect(mocks.run).not.toHaveBeenCalled();
 });
+
+it("populates Battle.net review suggestions on the initial scan using a clean title", async () => {
+  await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+  const title = "Warcraft® III: Reign of Chaos®";
+  const result = scanResult(title);
+  result.games[0] = {
+    ...result.games[0],
+    externalId: "classic_example",
+    playtimeSeconds: null,
+    inAccountLibrary: true,
+  };
+  result.resolvedGames = [
+    { key: "battlenet:classic_example", status: "unknown", executables: [] },
+  ];
+  const candidate = {
+    id: 7,
+    igdbId: 8,
+    name: "Warcraft III: Reign of Chaos",
+    coverUrl: "",
+    source: "igdb",
+  };
+  mocks.scan.mockResolvedValue(result);
+  mocks.search.mockResolvedValue([candidate]);
+
+  await click("Sign in and find games");
+  await click("OK");
+
+  expect(mocks.search).toHaveBeenCalledExactlyOnceWith(
+    store.getState().settings.apiEndpoint,
+    "Warcraft III: Reign of Chaos",
+    expect.objectContaining({
+      signal: expect.any(AbortSignal),
+      mainGamesAndRemastersOnly: false,
+    }),
+  );
+  const select = container.querySelector<HTMLSelectElement>(
+    `select[aria-label="Game match for ${title}"]`,
+  );
+  expect(select?.selectedOptions[0].textContent).toContain(candidate.name);
+  expect(
+    container.querySelector<HTMLInputElement>(
+      'input[placeholder="Search for the game by name"]',
+    )?.value,
+  ).toBe(candidate.name);
+  expect(container.textContent).toContain("Confirm which game this is");
+  expect(mocks.run).not.toHaveBeenCalled();
+  expect(mocks.reverse).not.toHaveBeenCalled();
+  expect(store.getState().libraryImports.size).toBe(0);
+});
+
+it("keeps Battle.net manual review available when the initial suggestion search fails", async () => {
+  await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+  const result = scanResult("Warcraft® III");
+  result.games[0].externalId = "classic_example";
+  result.resolvedGames = [
+    { key: "battlenet:classic_example", status: "unknown", executables: [] },
+  ];
+  mocks.scan.mockResolvedValue(result);
+  mocks.search.mockRejectedValue(new Error("Search unavailable"));
+  await click("Find installed games");
+  await click("OK");
+  expect(container.textContent).toContain("No safe suggestion found");
+  expect(
+    container.querySelector<HTMLInputElement>(
+      'input[placeholder="Search for the game by name"]',
+    )?.value,
+  ).toBe("Warcraft III");
+});
+
+it.each(["xbox", "battlenet"] as const)(
+  "keeps %s search filtering and executable linking separate during manual matching",
+  async (provider) => {
+    await act(() => store.setState({ libraryImportProvider: provider }));
+    const result = scanResult("Example Game");
+    const matchedGame = result.resolvedGames![0].game!;
+    const externalId = provider === "battlenet" ? "example" : "42";
+    result.games[0] = {
+      ...result.games[0],
+      externalId,
+      playtimeSeconds: null,
+      hasPlayedEvidence: provider === "battlenet" ? false : undefined,
+      installed: true,
+      installPath: String.raw`C:\Games\Example`,
+      executables: [
+        {
+          fileName: "Example.exe",
+          relativePath: "Example.exe",
+          sizeBytes: 1_000_000,
+          depth: 0,
+        },
+      ],
+    };
+    result.resolvedGames = [
+      {
+        key: `${provider}:${externalId}`,
+        status: "unknown",
+        executables: [],
+        candidates: [],
+      },
+    ];
+    mocks.scan.mockResolvedValue(result);
+    mocks.search.mockResolvedValue([matchedGame]);
+    mocks.reverse.mockResolvedValue({ game: matchedGame, executables: [] });
+    mocks.run.mockResolvedValue({
+      shareOutcomes: [{ outcome: { kind: "failed" } }],
+    });
+
+    await click(
+      provider === "xbox" ? "Sign in and find games" : "Find installed games",
+    );
+    if (provider === "battlenet") await click("OK");
+    await click("Search IGDB");
+    expect(mocks.search).toHaveBeenCalledWith(
+      store.getState().settings.apiEndpoint,
+      "Example Game",
+      {
+        signal: expect.any(AbortSignal),
+        mainGamesAndRemastersOnly: provider === "xbox",
+      },
+    );
+    expect(mocks.run).not.toHaveBeenCalled();
+    await click("Confirm and Import");
+    expect(mocks.reverse).toHaveBeenCalledWith(
+      store.getState().settings.apiEndpoint,
+      matchedGame.id,
+      expect.any(AbortSignal),
+    );
+    const plan = mocks.run.mock.calls[0][0][0];
+    expect(plan.entry).toMatchObject({
+      provider,
+      externalId,
+      providerSeconds: null,
+      linkedExeNames: ["Example.exe"],
+    });
+    if (provider === "battlenet") {
+      expect(store.getState().toasts[0].detail).toContain(
+        "could not be verified or shared",
+      );
+      expect(plan.exeCacheEntries).toEqual([]);
+      expect(plan.scopedLinks).toEqual([
+        expect.objectContaining({
+          provider: "battlenet",
+          pathPrefix: "c:\\games\\example",
+        }),
+      ]);
+    }
+  },
+);
+
+it.each([false, true])(
+  "only removes missing Battle.net install status after a complete scan (partial=%s)",
+  async (partial) => {
+    await act(() =>
+      store.setState({
+        libraryImportProvider: "battlenet",
+        libraryInstalls: new Map([
+          [
+            "battlenet:wow",
+            {
+              provider: "battlenet",
+              externalId: "wow",
+              installPath: "C:\\Games\\WoW",
+              scannedAt: "2026-09-17T12:00:00Z",
+            },
+          ],
+        ]),
+      }),
+    );
+    mocks.scan.mockResolvedValue({
+      games: [],
+      resolvedGames: [],
+      warnings: partial ? ["Try again"] : [],
+      partial,
+    });
+    await click("Find installed games");
+    await click("OK");
+    expect(store.getState().libraryInstalls.has("battlenet:wow")).toBe(partial);
+    expect(mocks.run).not.toHaveBeenCalled();
+  },
+);
 
 it("shows automatic cooldown recovery during a Steam lookup and still allows cancellation", async () => {
   const lookup = deferred<unknown>();

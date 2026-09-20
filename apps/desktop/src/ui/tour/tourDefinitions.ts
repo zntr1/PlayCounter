@@ -13,6 +13,14 @@ export type TourAdvance =
 
 export type TourEventName = Extract<TourAdvance, { type: "event" }>["name"];
 
+export const TOUR_CATEGORIES = [
+  { id: "getting-started", title: "Getting started" },
+  { id: "library", title: "Your library" },
+  { id: "playtime", title: "Playtime & stats" },
+  { id: "detection", title: "Detection & launching" },
+  { id: "settings", title: "Settings & support" },
+] as const;
+
 export type TourStep = {
   id: string;
   title: string;
@@ -42,6 +50,7 @@ export type TourDefinition = {
   id: string;
   version: number;
   kind: "core" | "guide";
+  category: (typeof TOUR_CATEGORIES)[number]["id"];
   title: string;
   description: string;
   duration: string;
@@ -62,6 +71,7 @@ export const TOURS: TourDefinition[] = [
     id: "core",
     version: 1,
     kind: "core",
+    category: "getting-started",
     title: "Quick tour",
     description: "The essentials of PlayCounter in about a minute.",
     duration: "1 min",
@@ -131,6 +141,7 @@ export const TOURS: TourDefinition[] = [
     id: "notes-playthroughs",
     version: 1,
     kind: "guide",
+    category: "library",
     title: "Notes & playthroughs",
     description:
       "Write a note, start a new playthrough, and move a session into it.",
@@ -242,6 +253,7 @@ export const TOURS: TourDefinition[] = [
     id: "organize-library",
     version: 1,
     kind: "guide",
+    category: "library",
     title: "Favorites & shelves",
     description:
       "Mark favorites, build a shelf by hand, and let filters fill one automatically.",
@@ -342,6 +354,7 @@ export const TOURS: TourDefinition[] = [
     id: "library-progress",
     version: 1,
     kind: "guide",
+    category: "library",
     title: "Progress & card layout",
     description:
       "Set a progress status for several games at once and choose what game cards show.",
@@ -461,6 +474,7 @@ export const TOURS: TourDefinition[] = [
     id: "launch-games",
     version: 1,
     kind: "guide",
+    category: "detection",
     title: "Launch games directly",
     description:
       "Turn on direct launching, see how it works, and try the controller flow.",
@@ -533,6 +547,7 @@ export const TOURS: TourDefinition[] = [
     id: "log-playtime",
     version: 1,
     kind: "guide",
+    category: "playtime",
     title: "Log missed playtime",
     description: "Practice adding a session from a game's right-click menu.",
     duration: "2 min",
@@ -609,6 +624,7 @@ export const TOURS: TourDefinition[] = [
     id: "game-actions",
     version: 2,
     kind: "guide",
+    category: "library",
     title: "Manage a game in your library",
     description: "Everything in a game's right-click menu.",
     duration: "2 min",
@@ -688,6 +704,7 @@ export const TOURS: TourDefinition[] = [
     id: "fix-detection",
     version: 1,
     kind: "guide",
+    category: "detection",
     title: "Fix an unrecognized game",
     description: "Review and match an app PlayCounter found.",
     duration: "1 min",
@@ -753,6 +770,7 @@ export const TOURS: TourDefinition[] = [
     id: "stats",
     version: 1,
     kind: "guide",
+    category: "playtime",
     title: "Read your stats",
     description: "Explore sessions, charts, and milestones.",
     duration: "1 min",
@@ -790,6 +808,7 @@ export const TOURS: TourDefinition[] = [
     id: "settings",
     version: 1,
     kind: "guide",
+    category: "settings",
     title: "Personalize PlayCounter",
     description: "Walk through key settings and adjust them as you go.",
     duration: "2 min",
@@ -864,6 +883,7 @@ export const TOURS: TourDefinition[] = [
     version: 2,
     release: "1.1.17",
     kind: "guide",
+    category: "settings",
     title: "Back up or move your data",
     description:
       "Automatic backups, export, and restoring your data on another PC.",
@@ -934,6 +954,7 @@ export const TOURS: TourDefinition[] = [
     id: "feedback-replies",
     version: 1,
     kind: "guide",
+    category: "settings",
     release: "1.1.17",
     title: "Find replies to your feedback",
     description: "See where replies to your feedback show up.",
@@ -971,6 +992,7 @@ export const TOURS: TourDefinition[] = [
     version: 3,
     release: "1.1.17",
     kind: "guide",
+    category: "detection",
     title: "Track emulator games",
     description:
       "Learn how PlayCounter detects games running inside emulators.",
@@ -1057,6 +1079,7 @@ export const TOURS: TourDefinition[] = [
     id: "source-badges",
     version: 1,
     kind: "guide",
+    category: "detection",
     title: "Understand game badges",
     description: "Learn how PlayCounter recognized each of your games.",
     duration: "1 min",

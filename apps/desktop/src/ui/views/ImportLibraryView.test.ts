@@ -6,7 +6,7 @@ import ImportLibraryView, {
   importGroupForGame,
   ImportRow,
   hasImportableActivity,
-  XboxMatchControls,
+  LibraryMatchControls,
   xboxScanLabel,
 } from "./ImportLibraryView";
 
@@ -257,7 +257,7 @@ describe("library importer eligibility", () => {
         addingAndSharing: false,
         browsing: false,
         ignoredProcesses: new Set<string>(),
-        onXboxMatch: async () => undefined,
+        onGameMatch: async () => undefined,
         onAddAndShare: () => undefined,
         onBrowseExecutable: () => undefined,
         onManualExecutable: () => undefined,
@@ -300,7 +300,7 @@ describe("library importer eligibility", () => {
       addingAndSharing: false,
       browsing: false,
       ignoredProcesses: new Set<string>(),
-      onXboxMatch: async () => undefined,
+      onGameMatch: async () => undefined,
       onAddAndShare: () => undefined,
       onBrowseExecutable: () => undefined,
       onManualExecutable: () => undefined,
@@ -353,7 +353,7 @@ describe("library importer eligibility", () => {
         addingAndSharing: false,
         browsing: false,
         ignoredProcesses: new Set<string>(),
-        onXboxMatch: async () => undefined,
+        onGameMatch: async () => undefined,
         onAddAndShare: () => undefined,
         onBrowseExecutable: () => undefined,
         onManualExecutable: () => undefined,
@@ -368,8 +368,9 @@ describe("library importer eligibility", () => {
 
   it("renders the selected Xbox candidate cover", () => {
     const html = renderToStaticMarkup(
-      createElement(XboxMatchControls, {
+      createElement(LibraryMatchControls, {
         apiEndpoint: "https://api.example",
+        provider: "xbox",
         candidates: [
           {
             id: 42,
@@ -429,7 +430,7 @@ describe("library importer eligibility", () => {
         browsing: false,
         manualExecutable: "ForzaHorizon5.exe",
         ignoredProcesses: new Set<string>(),
-        onXboxMatch: async () => undefined,
+        onGameMatch: async () => undefined,
         onAddAndShare: () => undefined,
         onBrowseExecutable: () => undefined,
         onManualExecutable: () => undefined,

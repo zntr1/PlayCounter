@@ -66,7 +66,7 @@ describe("emulator picker model", () => {
       "DOS",
     );
     expect(stopped.tone).toBe("warning");
-    expect(stopped.description).toContain("stopped");
+    expect(stopped.description).toContain("The emulator was closed.");
   });
 
   it("only offers sharing for privacy-safe observations", () => {

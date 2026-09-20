@@ -1,4 +1,5 @@
 import type { LibraryProviderId, Platform } from "@playcounter/shared";
+import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import type { BuiltinImportProviderId } from "../library/importProviders";
@@ -55,6 +56,19 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
       "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
     firstImportCtaLabel: "Import from Xbox",
     import: { kind: "builtin", platforms: ["windows", "macos", "linux"] },
+  },
+  {
+    id: "battlenet",
+    label: "Battle.net",
+    iconUrl: battleNetIconUrl,
+    headline: "Battle.net library",
+    subtitle: "Games imported from your Battle.net account and this PC.",
+    importCtaLabel: "Import more from Battle.net",
+    emptyTitle: "No Battle.net games imported yet",
+    emptyBody:
+      "Sign in to include games from your Battle.net account, or scan installed games without signing in. PlayCounter tracks your future sessions.",
+    firstImportCtaLabel: "Import from Battle.net",
+    import: { kind: "builtin", platforms: ["windows"] },
   },
 ];
 

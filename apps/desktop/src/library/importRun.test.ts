@@ -70,6 +70,41 @@ afterEach(() => {
 });
 
 describe("bulk import requests", () => {
+  it("shares a Battle.net executable choice for review while keeping its local installation scope", async () => {
+    const plan = commit(1);
+    plan.entry.provider = "battlenet";
+    plan.entry.externalId = "wow_classic_era";
+    plan.entry.providerSeconds = null;
+    plan.exeCacheEntries = [];
+    plan.scopedLinks = [
+      {
+        exeName: "WowClassic.exe",
+        pathPrefix: "c:\\games\\wow\\_classic_era_",
+        gameId: -1,
+        igdbId: 1,
+        gameName: "WoW Classic",
+        coverUrl: "",
+        source: "custom",
+        provider: "battlenet",
+        externalId: "wow_classic_era",
+        setAt: plan.entry.importedAt,
+      },
+    ];
+    const result = await runLibraryImport([plan]);
+    const key = [...useAppStore.getState().scopedExeLinks.keys()][0];
+    expect(result.shareOutcomes).toEqual([
+      { ref: { kind: "scoped", key }, outcome: { kind: "submitted" } },
+    ]);
+    expect(submit).toHaveBeenCalledExactlyOnceWith(
+      { kind: "scoped", key },
+      undefined,
+    );
+    expect([...useAppStore.getState().scopedExeLinks.values()]).toEqual(
+      plan.scopedLinks,
+    );
+    expect(useAppStore.getState().exeCache.size).toBe(0);
+  });
+
   it("resumes remaining submissions after a 429 without replaying the attempted write", async () => {
     vi.stubGlobal(
       "fetch",

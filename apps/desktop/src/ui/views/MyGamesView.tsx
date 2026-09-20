@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   List,
   Loader2,
+  MoveRight,
   Pencil,
   Play,
   RotateCcw,
@@ -104,6 +105,7 @@ import {
   providerFloorsForProvider,
 } from "../../library/playtimeFloor";
 import { commitLibraryImports } from "../../library/commit";
+import { MoveToPlayCounterDialog } from "./games/MoveToPlayCounterDialog";
 import { LibraryMatchOffer } from "../LibraryMatchOffer";
 import {
   dismissLibraryMatchOffer,
@@ -553,6 +555,10 @@ export function MyGamesView() {
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval>(null);
   const [pendingStopTracking, setPendingStopTracking] =
     useState<PendingStopTracking>(null);
+  const [pendingBulkMove, setPendingBulkMove] = useState<{
+    games: GameSummary[];
+    skippedCount: number;
+  } | null>(null);
   const [query, setQuery] = useState("");
   const selectShelf = useCallback((id: string) => {
     setShelfSelection(id);
@@ -583,6 +589,7 @@ export function MyGamesView() {
   const exeCache = useAppStore((state) => state.exeCache);
   const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
   const libraryImports = useAppStore((state) => state.libraryImports);
+  const playcounterLibrary = useAppStore((state) => state.playcounterLibrary);
   const libraryInstalls = useAppStore((state) => state.libraryInstalls);
   const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
   const emulatorMappings = useAppStore((state) => state.emulatorMappings);
@@ -1210,6 +1217,36 @@ export function MyGamesView() {
       }
     }
 
+    for (const entry of playcounterLibrary.values()) {
+      const summaryKey = `igdb#${entry.igdbId}`;
+      let summary = summaries.get(summaryKey);
+      if (!summary) {
+        summary = createSummary({
+          gameId: entry.gameId,
+          igdbId: entry.igdbId,
+          name: entry.name,
+          coverUrl: entry.coverUrl,
+          source: entry.source,
+          lastPlayedAt: entry.lastPlayedAt ?? entry.addedAt,
+          exeName: "",
+          historyGameKey: summaryKey,
+        });
+        summaries.set(summaryKey, summary);
+      }
+      addAlias(summary, entry.gameId, entry.source, null);
+      for (const alias of entry.aliases ?? []) {
+        addAlias(summary, alias.gameId, alias.source, null);
+      }
+      if (entry.lastPlayedAt) {
+        summary.lastPlayedAt = mergeLastPlayedEvidence(
+          summary.lastPlayedAt,
+          entry.lastPlayedAt,
+          summariesWithPlayEvidence.has(summaryKey),
+        );
+        summariesWithPlayEvidence.add(summaryKey);
+      }
+    }
+
     for (const entry of libraryImports.values()) {
       const summaryKey = `igdb#${entry.igdbId}`;
       let summary = summaries.get(summaryKey);
@@ -1370,6 +1407,7 @@ export function MyGamesView() {
     hydratedGameMetadata,
     libraryImports,
     libraryInstalls,
+    playcounterLibrary,
     playtimeAdjustments,
     providerFloorSeconds,
     recentSortNow,
@@ -1556,6 +1594,15 @@ export function MyGamesView() {
     !tourDemo.active,
   );
   const libraryDrag = useLibraryGameDrag(bulkSelection.selectedGames);
+  const selectedLauncherGames = useMemo(
+    () =>
+      displayedGames.filter(
+        (game) =>
+          bulkSelection.selected.has(librarySelectionKey(game)) &&
+          game.libraryImports.length > 0,
+      ),
+    [displayedGames, bulkSelection.selected],
+  );
   const demoForTab = activeLibraryTab === "all" ? demoGames : [];
   const libraryGames =
     isCoreTourDemo && activeLibraryTab === "all"
@@ -2075,6 +2122,14 @@ export function MyGamesView() {
               onClear={bulkSelection.clear}
               onDone={bulkSelection.finish}
               onStatus={bulkSelection.applyStatus}
+              moveToPlayCounterCount={selectedLauncherGames.length}
+              onMoveToPlayCounter={() =>
+                setPendingBulkMove({
+                  games: selectedLauncherGames,
+                  skippedCount:
+                    bulkSelection.selected.size - selectedLauncherGames.length,
+                })
+              }
             />
 
             {layout.panel === "provider-empty" &&
@@ -2204,6 +2259,14 @@ export function MyGamesView() {
           </div>
         </>
       )}
+      {pendingBulkMove ? (
+        <MoveToPlayCounterDialog
+          games={pendingBulkMove.games}
+          skippedCount={pendingBulkMove.skippedCount}
+          onClose={() => setPendingBulkMove(null)}
+          onMoved={bulkSelection.finish}
+        />
+      ) : null}
       {pendingRemoval ? (
         <RemoveGameDialog
           game={pendingRemoval}
@@ -2503,6 +2566,7 @@ export function GameLibraryCard({
   const [showMatchCheck, setShowMatchCheck] = useState(false);
   const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
   const [showDetails, setShowDetails] = useState(false);
+  const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [cancelSuggestionTarget, setCancelSuggestionTarget] =
     useState<PendingCommunitySuggestionTarget | null>(null);
@@ -2632,6 +2696,9 @@ export function GameLibraryCard({
   );
   const xboxLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "xbox" && entry.installed,
+  );
+  const battleNetImportEntry = game.libraryImports.find(
+    (entry) => entry.provider === "battlenet",
   );
   const importedProviders = libraryProviders(game.libraryImports);
   const unknownDurationProviders = importedProviders.filter((provider) =>
@@ -2778,16 +2845,17 @@ export function GameLibraryCard({
       ? `Steam: ${formatDuration(game.providerFloorSeconds, showDurationDays)} · PlayCounter: ${formatDuration(localDisplayedSeconds, showDurationDays)} · shown: ${formatDuration(game.totalSeconds, showDurationDays)} (highest single source, never added together).`
       : undefined;
   const trackingUnavailable =
-    game.libraryImports.length > 0 &&
-    game.exeNames.length === 0 &&
-    game.emulatorContentKeys.length === 0;
+    game.exeNames.length === 0 && game.emulatorContentKeys.length === 0;
   const offeredImport = game.libraryImports.find(
     (item) =>
       libraryMatchOffers.get(libraryEntryKey(item.provider, item.externalId))
         ?.entry === item.entry,
   );
   const matchCheckImportEntry =
-    offeredImport ?? steamImportEntry ?? xboxImportEntry;
+    offeredImport ??
+    steamImportEntry ??
+    xboxImportEntry ??
+    battleNetImportEntry;
   const libraryMatchOffer =
     !demo && trackingUnavailable && offeredImport
       ? libraryMatchOffers.get(
@@ -3466,6 +3534,25 @@ export function GameLibraryCard({
       });
     }
   }
+  async function handleOpenBattleNet() {
+    if (!battleNetImportEntry) return;
+    contextMenu.close();
+    try {
+      const { loadLibraryProvider } = await import("../../library/providers");
+      const provider = await loadLibraryProvider("battlenet");
+      await provider.launch(battleNetImportEntry.externalId, "store");
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Could not open Battle.net",
+        detail:
+          error instanceof Error
+            ? error.message
+            : "Check that Battle.net is installed on this PC.",
+      });
+    }
+  }
+
   async function handleOpenXboxApp() {
     if (!xboxImportEntry) return;
     contextMenu.close();
@@ -3621,12 +3708,27 @@ export function GameLibraryCard({
     }
   }
 
+  const requestMoveToPlayCounter = () => {
+    contextMenu.close();
+    setShowDetails(false);
+    setShowMoveToPlayCounter(true);
+  };
   const renderDetailsDialog = () =>
-    showDetails ? (
+    showMoveToPlayCounter ? (
+      <MoveToPlayCounterDialog
+        games={[game]}
+        onClose={() => setShowMoveToPlayCounter(false)}
+      />
+    ) : showDetails ? (
       <GameDetailsDialog
         game={game}
         launchTargets={ownedLaunchTargets}
         onClose={() => setShowDetails(false)}
+        onMoveToPlayCounter={
+          !demo && game.libraryImports.length > 0
+            ? requestMoveToPlayCounter
+            : undefined
+        }
       />
     ) : null;
 
@@ -3709,6 +3811,17 @@ export function GameLibraryCard({
               onClick={() => void handleOpenXboxApp()}
             >
               Open Xbox app
+            </ContextMenuItem>
+          </>
+        ) : null}
+        {!demo && isWindows && battleNetImportEntry ? (
+          <>
+            <ContextMenuHeading>Battle.net</ContextMenuHeading>
+            <ContextMenuItem
+              icon={ExternalLink}
+              onClick={() => void handleOpenBattleNet()}
+            >
+              Open Battle.net
             </ContextMenuItem>
           </>
         ) : null}
@@ -3819,6 +3932,17 @@ export function GameLibraryCard({
                 </Fragment>
               );
             })}
+          </>
+        ) : null}
+        {!demo && game.libraryImports.length > 0 ? (
+          <>
+            <ContextMenuHeading>Source</ContextMenuHeading>
+            <ContextMenuItem
+              icon={MoveRight}
+              onClick={requestMoveToPlayCounter}
+            >
+              Move to PlayCounter
+            </ContextMenuItem>
           </>
         ) : null}
         <ContextMenuHeading>History</ContextMenuHeading>
@@ -4105,89 +4229,91 @@ export function GameLibraryCard({
           ) : null}
 
           {/* Hover Actions - Top Right (constructive first, destructive last) */}
-          <div
-            className={clsx(
-              "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/provenance:pointer-events-none peer-hover/provenance:!opacity-0",
-              trackingUnavailable &&
-                "peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0",
-              trackingUnavailable && !libraryMatchOffer ? "top-12" : "top-2",
-              launchTourDemo && "translate-x-0 opacity-100",
-            )}
-          >
-            <IconButton
-              icon={Info}
-              aria-label={`Open details for ${game.name}`}
-              title="Open details"
-              onClick={() => (demo ? demoNotice() : setShowDetails(true))}
-              className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-            />
-            {canCheckMatches ? (
+          {!selectionMode ? (
+            <div
+              className={clsx(
+                "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/provenance:pointer-events-none peer-hover/provenance:!opacity-0",
+                trackingUnavailable &&
+                  "peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0",
+                trackingUnavailable && !libraryMatchOffer ? "top-12" : "top-2",
+                launchTourDemo && "translate-x-0 opacity-100",
+              )}
+            >
               <IconButton
-                icon={Search}
-                aria-label={`Check matches for ${game.name}`}
-                title="Check for matches"
-                onClick={() => setShowMatchCheck(true)}
+                icon={Info}
+                aria-label={`Open details for ${game.name}`}
+                title="Open details"
+                onClick={() => (demo ? demoNotice() : setShowDetails(true))}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
-            ) : null}
-            {pendingCommunitySuggestion ? (
+              {canCheckMatches ? (
+                <IconButton
+                  icon={Search}
+                  aria-label={`Check matches for ${game.name}`}
+                  title="Check for matches"
+                  onClick={() => setShowMatchCheck(true)}
+                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+                />
+              ) : null}
+              {pendingCommunitySuggestion ? (
+                <IconButton
+                  icon={RotateCcw}
+                  aria-label={`Cancel community suggestion for ${game.name}`}
+                  title="Cancel suggestion"
+                  onClick={() =>
+                    setCancelSuggestionTarget(pendingCommunitySuggestion)
+                  }
+                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+                />
+              ) : canSuggestToCommunity ? (
+                <IconButton
+                  icon={Send}
+                  aria-label={`Suggest ${game.name} to the community`}
+                  title="Suggest to community"
+                  onClick={() => void handleShareAction()}
+                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+                />
+              ) : null}
+              {(game.source === "igdb" || game.source === "community") &&
+              game.exeNames[0] ? (
+                <IconButton
+                  icon={Flag}
+                  aria-label={`Report wrong match for ${game.name}`}
+                  title="Report wrong match"
+                  onClick={() => setReportOpen(true)}
+                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+                />
+              ) : null}
               <IconButton
-                icon={RotateCcw}
-                aria-label={`Cancel community suggestion for ${game.name}`}
-                title="Cancel suggestion"
-                onClick={() =>
-                  setCancelSuggestionTarget(pendingCommunitySuggestion)
+                icon={ClockPlus}
+                aria-label={`Log a missed session for ${game.name}`}
+                title="Log missed session"
+                onClick={(event) =>
+                  demo
+                    ? openDemoMenu(event.currentTarget)
+                    : setShowAddPlaytime(true)
                 }
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
-            ) : canSuggestToCommunity ? (
+              {onStopTracking ? (
+                <IconButton
+                  icon={Ban}
+                  aria-label={`Ignore ${game.name}`}
+                  title="Ignore game (never track again)"
+                  onClick={() => onStopTracking(game)}
+                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-warning hover:border-warning hover:text-white"
+                />
+              ) : null}
               <IconButton
-                icon={Send}
-                aria-label={`Suggest ${game.name} to the community`}
-                title="Suggest to community"
-                onClick={() => void handleShareAction()}
-                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
+                icon={Trash2}
+                intent="danger"
+                aria-label={`Remove ${game.name} from library`}
+                title="Remove from library"
+                onClick={() => onRemove(game)}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:!bg-danger-solid hover:!border-danger-solid hover:!text-white"
               />
-            ) : null}
-            {(game.source === "igdb" || game.source === "community") &&
-            game.exeNames[0] ? (
-              <IconButton
-                icon={Flag}
-                aria-label={`Report wrong match for ${game.name}`}
-                title="Report wrong match"
-                onClick={() => setReportOpen(true)}
-                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-              />
-            ) : null}
-            <IconButton
-              icon={ClockPlus}
-              aria-label={`Log a missed session for ${game.name}`}
-              title="Log missed session"
-              onClick={(event) =>
-                demo
-                  ? openDemoMenu(event.currentTarget)
-                  : setShowAddPlaytime(true)
-              }
-              className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-            />
-            {onStopTracking ? (
-              <IconButton
-                icon={Ban}
-                aria-label={`Ignore ${game.name}`}
-                title="Ignore game (never track again)"
-                onClick={() => onStopTracking(game)}
-                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-warning hover:border-warning hover:text-white"
-              />
-            ) : null}
-            <IconButton
-              icon={Trash2}
-              intent="danger"
-              aria-label={`Remove ${game.name} from library`}
-              title="Remove from library"
-              onClick={() => onRemove(game)}
-              className="bg-bg text-text-muted shadow-raised border-bg hover:!bg-danger-solid hover:!border-danger-solid hover:!text-white"
-            />
-          </div>
+            </div>
+          ) : null}
 
           {libraryMatchPrompt ? (
             <div className="absolute inset-x-2 bottom-2 z-30">
@@ -4815,38 +4941,40 @@ export function GameLibraryCard({
             </IconButton>
           ) : null}
 
-          <div
-            className={clsx(
-              "flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
-              launchTourDemo && "opacity-100",
-            )}
-          >
-            <IconButton
-              icon={ClockPlus}
-              aria-label={`Log a missed session for ${game.name}`}
-              title="Log missed session"
-              onClick={(event) =>
-                demo
-                  ? openDemoMenu(event.currentTarget)
-                  : setShowAddPlaytime(true)
-              }
-            />
-            {onStopTracking ? (
+          {!selectionMode ? (
+            <div
+              className={clsx(
+                "flex flex-col gap-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
+                launchTourDemo && "opacity-100",
+              )}
+            >
               <IconButton
-                icon={Ban}
-                aria-label={`Ignore ${game.name}`}
-                title="Ignore game (never track again)"
-                onClick={() => onStopTracking(game)}
+                icon={ClockPlus}
+                aria-label={`Log a missed session for ${game.name}`}
+                title="Log missed session"
+                onClick={(event) =>
+                  demo
+                    ? openDemoMenu(event.currentTarget)
+                    : setShowAddPlaytime(true)
+                }
               />
-            ) : null}
-            <IconButton
-              icon={Trash2}
-              intent="danger"
-              aria-label={`Remove ${game.name} from library`}
-              title="Remove from library"
-              onClick={() => onRemove(game)}
-            />
-          </div>
+              {onStopTracking ? (
+                <IconButton
+                  icon={Ban}
+                  aria-label={`Ignore ${game.name}`}
+                  title="Ignore game (never track again)"
+                  onClick={() => onStopTracking(game)}
+                />
+              ) : null}
+              <IconButton
+                icon={Trash2}
+                intent="danger"
+                aria-label={`Remove ${game.name} from library`}
+                title="Remove from library"
+                onClick={() => onRemove(game)}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
       <input
@@ -5538,7 +5666,7 @@ function LibraryImportMatchCheckDialog({
       labelId="library-match-check-title"
       eyebrow={`${providerLabel} executable`}
       title={`Check matches for ${entry.name}`}
-      subtitle={`${providerLabel} ${entry.provider === "steam" ? "AppID" : "Title ID"} ${entry.externalId}`}
+      subtitle={`${providerLabel} ${entry.provider === "battlenet" ? "product" : entry.provider === "steam" ? "AppID" : "Title ID"} ${entry.externalId}`}
       icon={Search}
       onClose={onCancel}
       footer={footer}
@@ -5550,13 +5678,13 @@ function LibraryImportMatchCheckDialog({
 
       <div
         className={clsx(
-          "mt-5 h-36 overflow-y-auto break-words rounded-xl border p-5 text-sm",
+          "mt-3 max-h-60 overflow-y-auto break-words rounded-xl border px-3 py-2.5 text-sm",
           isOffline
             ? "border-warning-border bg-warning-tint text-warning"
             : error
               ? "border-danger-border bg-danger-tint text-danger"
               : showingMatch
-                ? "border-success-border bg-success-tint text-success"
+                ? "border-success-border/35 bg-bg/60 text-success"
                 : result?.kind === "needs_install" ||
                     result?.kind === "unsupported"
                   ? "border-warning-border bg-warning-tint text-warning"
@@ -5584,13 +5712,13 @@ function LibraryImportMatchCheckDialog({
                 ? "Executable match found"
                 : "Executable matches found"}
             </div>
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-1.5 space-y-1.5">
               {executableMatches.map((match) => (
                 <li
                   key={match.name.toLowerCase()}
-                  className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1"
+                  className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5"
                 >
-                  <span className="min-w-0 flex-1 break-all font-mono text-xs text-text">
+                  <span className="min-w-0 max-w-full break-words font-mono text-xs leading-5 text-text">
                     {match.name}
                   </span>
                   <GameMatchBadges sources={match.sources} variant="label" />

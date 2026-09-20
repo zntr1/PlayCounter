@@ -34,13 +34,32 @@ export async function checkLibraryImportForMatches(input: {
   ignoredProcesses?: ReadonlySet<string>;
   signal?: AbortSignal;
 }): Promise<LibraryImportMatchCheck> {
-  const scanned = importedGameAsScan(input.entry, input.install);
+  let scanned = importedGameAsScan(input.entry, input.install);
+  if (input.entry.provider === "battlenet") {
+    const { battleNetProvider } = await import("./providers/battlenet");
+    const local = await battleNetProvider.scan(0, {
+      signal: input.signal,
+      battleNetProductIds: [input.entry.externalId],
+    });
+    const found = local.games.find(
+      (game) => game.externalId === input.entry.externalId,
+    );
+    if (!found)
+      return {
+        kind: "needs_install",
+        executableNames: input.entry.linkedExeNames,
+      };
+    scanned = {
+      ...found,
+      hasPlayedEvidence:
+        input.entry.providerHasPlayedEvidence || found.hasPlayedEvidence,
+    };
+  }
   let resolved: ResolvedLibraryGame | undefined;
-  if (input.entry.provider === "xbox") {
-    // Xbox imports use the game the user confirmed, rather than a global
-    // Xbox title identifier mapping.
-    const { reverseResolveXboxGame } = await import("./providers/xbox");
-    const result = await reverseResolveXboxGame(
+  if (input.entry.provider !== "steam") {
+    // Keep the confirmed identity for providers that support a manual choice.
+    const { reverseResolveLibraryGame } = await import("./gameLookup");
+    const result = await reverseResolveLibraryGame(
       input.apiEndpoint,
       input.entry.gameId,
       input.signal,
@@ -142,6 +161,7 @@ function importedGameAsScan(
     externalId: entry.externalId,
     name: entry.name,
     playtimeSeconds: entry.providerSeconds,
+    hasPlayedEvidence: entry.providerHasPlayedEvidence,
     lastPlayedUnix: Number.isFinite(lastPlayedMs)
       ? Math.floor(lastPlayedMs / 1_000)
       : undefined,

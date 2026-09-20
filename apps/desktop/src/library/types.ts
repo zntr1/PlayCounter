@@ -6,6 +6,7 @@ import type {
   LibraryProviderId,
 } from "@playcounter/shared";
 import type { ExeCacheEntry, GameMetadata } from "../store";
+import type { GameSecondsRef } from "../gameSeconds";
 
 export type LibraryImportEntry = {
   provider: LibraryProviderId;
@@ -17,6 +18,8 @@ export type LibraryImportEntry = {
   coverUrl: string;
   importedAt: string;
   providerSeconds: number | null;
+  /** False means no provider play evidence, not proof of never playing. */
+  providerHasPlayedEvidence?: boolean;
   providerLastPlayedAt?: string;
   lastReadAt: string;
   linkedExeNames: string[];
@@ -30,6 +33,19 @@ export type LibraryInstallEntry = {
   scannedAt: string;
 };
 
+/** Explicit library membership for games moved away from a launcher. */
+export type PlayCounterLibraryEntry = {
+  gameId: number;
+  igdbId: number;
+  source: Exclude<GameSource, "custom">;
+  name: string;
+  coverUrl: string;
+  addedAt: string;
+  lastPlayedAt?: string;
+  /** Keep archived totals addressable after their launcher entries disappear. */
+  aliases?: GameSecondsRef[];
+};
+
 export type ScopedExeLink = {
   exeName: string;
   pathPrefix: string;
@@ -40,8 +56,9 @@ export type ScopedExeLink = {
   igdbId: number;
   gameName: string;
   coverUrl: string;
-  provider: LibraryProviderId;
-  externalId: string;
+  /** Absent after moving to PlayCounter; the folder restriction still applies. */
+  provider?: LibraryProviderId;
+  externalId?: string;
   setAt: string;
   pendingCommunityGame?: Game;
   communitySuggestionId?: number;
@@ -78,6 +95,11 @@ export type ScannedLibraryGame = {
   externalId: string;
   name?: string;
   playtimeSeconds: number | null;
+  hasPlayedEvidence?: boolean;
+  /** Membership is independent of whether the provider has play history. */
+  inAccountLibrary?: boolean;
+  /** An incomplete local scan cannot establish that this game is uninstalled. */
+  installationStatusUnknown?: boolean;
   lastPlayedUnix?: number;
   installed: boolean;
   installPath?: string;
@@ -103,6 +125,7 @@ export type LibraryImportCommit = {
   entry: LibraryImportEntry;
   metadata: GameMetadata;
   install?: LibraryInstallEntry;
+  preserveInstall?: boolean;
   exeCacheEntries: ExeCacheEntry[];
   scopedLinks: ScopedExeLink[];
 };

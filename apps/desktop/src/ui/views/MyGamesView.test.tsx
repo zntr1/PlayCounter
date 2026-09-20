@@ -849,7 +849,7 @@ it.each(["grid", "large", "list"] as const)(
     ]);
     expect(container.textContent).not.toContain("4 games marked Finished");
     expect(
-      container.querySelector('[aria-label="Bulk status actions"]'),
+      container.querySelector('[aria-label="Bulk game actions"]'),
     ).toBeNull();
     expect(container.textContent).not.toContain("0 selected");
     expect(selectionCheckboxes()).toHaveLength(0);
@@ -883,7 +883,7 @@ it("uses the current source, search, shelf, and status filters for bulk assignme
     title: "1 game marked Finished",
   });
   expect(
-    container.querySelector('[aria-label="Bulk status actions"]'),
+    container.querySelector('[aria-label="Bulk game actions"]'),
   ).toBeNull();
   expect(
     container
@@ -961,7 +961,7 @@ it("works through No status games and offers explicit clearing", async () => {
   });
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
   expect(
-    container.querySelector('[aria-label="Bulk status actions"]'),
+    container.querySelector('[aria-label="Bulk game actions"]'),
   ).toBeNull();
 });
 

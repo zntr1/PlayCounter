@@ -1,3 +1,4 @@
+import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import { LibraryTourPractice } from "./tour/LibraryTourPractice";
 import { findTour } from "./tour/tourDefinitions";
 import {
@@ -285,13 +286,15 @@ export function App() {
   );
   const activeViewLabel =
     activeView === "import"
-      ? `Import from ${libraryImportProvider === "xbox" ? "Xbox" : "Steam"}`
+      ? `Import from ${LIBRARY_PROVIDER_LABELS[libraryImportProvider]}`
       : views[activeView].label;
   const activeViewSubtitle =
     activeView === "import"
       ? libraryImportProvider === "xbox"
         ? "Bring your Xbox games and playtime into PlayCounter"
-        : "Bring your Steam library and playtime into PlayCounter"
+        : libraryImportProvider === "battlenet"
+          ? "Add your Battle.net games to PlayCounter"
+          : "Bring your Steam library and playtime into PlayCounter"
       : views[activeView].subtitle;
   const activeTour = useAppStore((state) => state.activeTour);
   const activeTourId = activeTour?.tourId ?? null;

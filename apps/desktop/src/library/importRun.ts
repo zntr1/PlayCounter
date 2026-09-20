@@ -81,6 +81,8 @@ function customLinkRefsForCommits(
   for (const [key, entry] of state.scopedExeLinks) {
     if (
       entry.source === "custom" &&
+      entry.provider !== undefined &&
+      entry.externalId !== undefined &&
       importedKeys.has(libraryEntryKey(entry.provider, entry.externalId)) &&
       entry.communitySuggestionId === undefined
     ) {

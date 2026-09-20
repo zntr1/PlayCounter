@@ -1,3 +1,4 @@
+import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import type { PropsWithChildren, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -294,6 +295,15 @@ const providerMeta: Record<
   LibraryProviderId,
   Omit<OriginEntry, "key" | "unknownDuration">
 > = {
+  battlenet: {
+    label: "Battle.net",
+    tip: "Imported from your Battle.net account or installations on this PC.",
+    iconUrl: battleNetIconUrl,
+    tone: "text-[#00aeef]",
+    coinTone: "shadow-raised",
+    chipTone: "border-[#00aeef]/40 bg-[#061e2b] text-[#00aeef]",
+    coinFill: true,
+  },
   steam: {
     label: "Steam",
     tip: "Imported from your local Steam library.",
@@ -320,13 +330,20 @@ const emulatorLabels: Record<string, string> = {
   pcsx2: "PCSX2",
 };
 
-const UNKNOWN_DURATION_TIP = "This source did not report how long you played.";
+const UNKNOWN_DURATION_TIP =
+  "Historical playtime is unavailable from this source.";
 
 function providerOrigin(
   provider: LibraryProviderId,
   unknownDuration = false,
 ): OriginEntry {
-  return { key: provider, ...providerMeta[provider], unknownDuration };
+  return {
+    key: provider,
+    ...providerMeta[provider],
+    // Battle.net explains historical playtime before scanning, instead of
+    // marking every imported game with a permanent question mark.
+    unknownDuration: provider !== "battlenet" && unknownDuration,
+  };
 }
 
 function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
@@ -412,8 +429,12 @@ function OriginGlyph({
   );
 }
 
+function originDescription(entry: OriginEntry) {
+  return `${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+}
+
 function originTip(entry: OriginEntry) {
-  return `${entry.label}: ${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+  return `${entry.label}: ${originDescription(entry)}`;
 }
 
 function OriginBadge({
@@ -631,11 +652,7 @@ export function GameProvenanceBadges({
                   glyph={<OriginGlyph entry={entry} variant="label" />}
                   tone={entry.tone}
                   label={entry.label}
-                  tip={
-                    entry.unknownDuration
-                      ? `${entry.tip} ${UNKNOWN_DURATION_TIP}`
-                      : entry.tip
-                  }
+                  tip={originDescription(entry)}
                 />
               ))}
             </>
