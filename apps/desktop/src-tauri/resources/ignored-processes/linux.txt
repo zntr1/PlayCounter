@@ -18,6 +18,9 @@ kdeconnectd
 kwin_x11
 kwin_wayland
 pipewire
+playcounter
+playcounter-*
+playcounter_lib-*
 plasmashell
 pulseaudio
 steam

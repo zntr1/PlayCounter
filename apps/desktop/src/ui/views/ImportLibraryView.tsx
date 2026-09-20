@@ -22,6 +22,7 @@ import { importExeCandidates } from "../../library/exeCandidates";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { loadLibraryProvider } from "../../library/providers";
 import {
+  librarySearchQuery,
   reverseResolveLibraryGame,
   searchLibraryGames,
 } from "../../library/gameLookup";
@@ -439,6 +440,40 @@ export function ImportLibraryView() {
               executables: existingExecutables,
               candidates: byKey.get(key)?.candidates,
             });
+          }
+        }
+        if (isBattleNet) {
+          // Unknown account products have no catalog identity. Search titles
+          // sequentially for review suggestions, never for automatic matching.
+          for (const game of result.games) {
+            const key = libraryEntryKey(providerId, game.externalId);
+            const match = byKey.get(key);
+            const query = librarySearchQuery(game.name ?? "");
+            if (
+              match?.status === "resolved" ||
+              match?.candidates?.length ||
+              query.length < 2
+            )
+              continue;
+            try {
+              const candidates = await searchLibraryGames(apiEndpoint, query, {
+                signal,
+                mainGamesAndRemastersOnly: false,
+                onRateLimitWait: (waiting) => {
+                  if (isCurrentImport(signal)) setWaitingForServer(waiting);
+                },
+              });
+              if (!isCurrentImport(signal)) return;
+              byKey.set(key, {
+                key,
+                status: "unknown",
+                executables: match?.executables ?? [],
+                candidates,
+              });
+            } catch {
+              if (!isCurrentImport(signal)) return;
+              // A suggestion failure must leave manual search available.
+            }
           }
         }
         setResolved(byKey);
@@ -1530,7 +1565,7 @@ export function LibraryMatchControls({
   importing: boolean;
   provider: BuiltinImportProviderId;
 }) {
-  const [query, setQuery] = useState(title);
+  const [query, setQuery] = useState(() => librarySearchQuery(title));
   const [choices, setChoices] = useState(candidates);
   const [selectedIgdbId, setSelectedIgdbId] = useState<number | null>(
     candidates[0]?.igdbId ?? null,

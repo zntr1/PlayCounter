@@ -6,20 +6,28 @@ import type {
 } from "@playcounter/shared";
 import { responseError } from "../rateLimitedFetch";
 import type { GameMetadata } from "../store";
-import { requestLibraryJson } from "./request";
+import { requestLibraryJson, type RateLimitWaitListener } from "./request";
+
+export function librarySearchQuery(title: string): string {
+  return title.replace(/[®™℠]/gu, "").replace(/\s+/gu, " ").trim();
+}
 
 export async function searchLibraryGames(
   apiEndpoint: string,
   rawQuery: string,
-  options: { signal?: AbortSignal; mainGamesAndRemastersOnly: boolean },
+  options: {
+    signal?: AbortSignal;
+    mainGamesAndRemastersOnly: boolean;
+    onRateLimitWait?: RateLimitWaitListener;
+  },
 ): Promise<GameMetadata[]> {
   const { signal, mainGamesAndRemastersOnly } = options;
-  const query = rawQuery.trim();
+  const query = librarySearchQuery(rawQuery);
   if (query.length < 2) return [];
   const endpoint = apiEndpoint.replace(/\/+$/, "");
   const response = await requestLibraryJson<unknown>(
     `${endpoint}/api/games/search?query=${encodeURIComponent(query)}&mainGamesAndRemastersOnly=${mainGamesAndRemastersOnly}`,
-    { signal },
+    { signal, onRateLimitWait: options.onRateLimitWait },
   );
   if (!response.ok) {
     throw responseError(response, `Game search failed (${response.status}).`);

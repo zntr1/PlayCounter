@@ -14,6 +14,8 @@ atiesrxx.exe
 audiodg.exe
 backgroundtaskhost.exe
 battle.net.exe
+battlenet_account_login-*.exe
+battlenet_account_security-*.exe
 cargo.exe
 chrome.exe
 cmd.exe
@@ -64,6 +66,7 @@ officeclicktorun.exe
 openconsole.exe
 ossdbtoolsservice_main.exe
 playcounter.exe
+playcounter_lib-*.exe
 powershell.exe
 pwsh.exe
 quantumosc.exe

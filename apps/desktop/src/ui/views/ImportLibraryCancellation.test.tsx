@@ -28,7 +28,8 @@ vi.mock("../../library/providers", () => ({
   }),
 }));
 vi.mock("../../library/resolve", () => ({ resolveLibraryGames: mocks.lookup }));
-vi.mock("../../library/gameLookup", () => ({
+vi.mock("../../library/gameLookup", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../library/gameLookup")>()),
   reverseResolveLibraryGame: mocks.reverse,
   searchLibraryGames: mocks.search,
 }));
@@ -376,6 +377,74 @@ it("leaves multiple eligible game files for the user to choose", async () => {
   );
   expect(addButton?.disabled).toBe(true);
   expect(mocks.run).not.toHaveBeenCalled();
+});
+
+it("populates Battle.net review suggestions on the initial scan using a clean title", async () => {
+  await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+  const title = "Warcraft® III: Reign of Chaos®";
+  const result = scanResult(title);
+  result.games[0] = {
+    ...result.games[0],
+    externalId: "classic_example",
+    playtimeSeconds: null,
+    inAccountLibrary: true,
+  };
+  result.resolvedGames = [
+    { key: "battlenet:classic_example", status: "unknown", executables: [] },
+  ];
+  const candidate = {
+    id: 7,
+    igdbId: 8,
+    name: "Warcraft III: Reign of Chaos",
+    coverUrl: "",
+    source: "igdb",
+  };
+  mocks.scan.mockResolvedValue(result);
+  mocks.search.mockResolvedValue([candidate]);
+
+  await click("Sign in and find games");
+  await click("OK");
+
+  expect(mocks.search).toHaveBeenCalledExactlyOnceWith(
+    store.getState().settings.apiEndpoint,
+    "Warcraft III: Reign of Chaos",
+    expect.objectContaining({
+      signal: expect.any(AbortSignal),
+      mainGamesAndRemastersOnly: false,
+    }),
+  );
+  const select = container.querySelector<HTMLSelectElement>(
+    `select[aria-label="Game match for ${title}"]`,
+  );
+  expect(select?.selectedOptions[0].textContent).toContain(candidate.name);
+  expect(
+    container.querySelector<HTMLInputElement>(
+      'input[placeholder="Search for the game by name"]',
+    )?.value,
+  ).toBe(candidate.name);
+  expect(container.textContent).toContain("Confirm which game this is");
+  expect(mocks.run).not.toHaveBeenCalled();
+  expect(mocks.reverse).not.toHaveBeenCalled();
+  expect(store.getState().libraryImports.size).toBe(0);
+});
+
+it("keeps Battle.net manual review available when the initial suggestion search fails", async () => {
+  await act(() => store.setState({ libraryImportProvider: "battlenet" }));
+  const result = scanResult("Warcraft® III");
+  result.games[0].externalId = "classic_example";
+  result.resolvedGames = [
+    { key: "battlenet:classic_example", status: "unknown", executables: [] },
+  ];
+  mocks.scan.mockResolvedValue(result);
+  mocks.search.mockRejectedValue(new Error("Search unavailable"));
+  await click("Find installed games");
+  await click("OK");
+  expect(container.textContent).toContain("No safe suggestion found");
+  expect(
+    container.querySelector<HTMLInputElement>(
+      'input[placeholder="Search for the game by name"]',
+    )?.value,
+  ).toBe("Warcraft III");
 });
 
 it.each(["xbox", "battlenet"] as const)(

@@ -22,6 +22,9 @@ loginwindow
 mds
 mds_stores
 notificationcenter
+playcounter
+playcounter-*
+playcounter_lib-*
 powerd
 runningboardd
 safari
