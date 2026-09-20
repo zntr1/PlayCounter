@@ -1437,21 +1437,37 @@ body.shift-held
 
 /* Key art leaking into the title bar: mostly darkness, a hint of colour. */
 .titlebar-art {
-  opacity: 0.5;
-  animation: fade-in 400ms ease-out both;
+  opacity: calc(0.85 * var(--titlebar-art-fade, 1));
+  /* No forwards fill: the animation's final keyframe would pin opacity at 1
+     and swallow the scroll fade. */
+  animation: fade-in 400ms ease-out backwards;
+  transition: opacity 120ms linear;
 }
 
+/* Darkened evenly so the controls stay legible, and faded back to the page
+   colour at both upper corners so the picture appears to emerge from the
+   chrome rather than being pasted onto it. */
 .titlebar-art::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgb(var(--color-bg) / 0.78) 0%,
-    rgb(var(--color-bg) / 0.35) 100%
-  );
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--color-bg)) 0%,
+      rgb(var(--color-bg) / 0.7) 10%,
+      rgb(var(--color-bg) / 0) 28%,
+      rgb(var(--color-bg) / 0) 72%,
+      rgb(var(--color-bg) / 0.7) 90%,
+      rgb(var(--color-bg)) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(var(--color-bg) / 0.72) 0%,
+      rgb(var(--color-bg) / 0.5) 100%
+    );
 }
 
 :root[data-theme="light"] .titlebar-art {
-  opacity: 0.35;
+  opacity: calc(0.5 * var(--titlebar-art-fade, 1));
 }

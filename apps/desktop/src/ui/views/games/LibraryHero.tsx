@@ -115,14 +115,22 @@ export function LibraryHero({
             alt=""
             decoding="async"
             fetchPriority="high"
-            className="library-hero-art h-full w-full object-cover object-[72%_35%]"
+            style={{
+              top: "calc(var(--hero-lead, 0px) * -1)",
+              height: "calc(100% + var(--hero-lead, 0px))",
+            }}
+            className="library-hero-art absolute inset-x-0 w-full object-cover object-[72%_0%]"
           />
         ) : game.coverUrl ? (
           <GameCover
             src={game.coverUrl}
             alt=""
             loading="eager"
-            className="hero-backdrop h-full w-full scale-125 object-cover blur-3xl saturate-150"
+            style={{
+              top: "calc(var(--hero-lead, 0px) * -1)",
+              height: "calc(100% + var(--hero-lead, 0px))",
+            }}
+            className="hero-backdrop absolute inset-x-0 w-full scale-125 object-cover blur-3xl saturate-150"
           />
         ) : null}
         <div className="library-hero-shade absolute inset-0" />

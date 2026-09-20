@@ -34,6 +34,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ErrorInfo,
   type ReactNode,
   lazy,
@@ -264,6 +265,16 @@ let startupPreferenceSynced = false;
 
 export function App() {
   const contentRef = useRef<HTMLDivElement>(null);
+  const titleBarRef = useRef<HTMLElement>(null);
+  // Key art in the title bar fades back to the plain bar as the banner
+  // scrolls away. Written straight to a CSS variable: no re-render per frame.
+  const syncTitleBarFade = (content: HTMLElement) => {
+    const fade = Math.max(0, 1 - content.scrollTop / 180);
+    titleBarRef.current?.style.setProperty(
+      "--titlebar-art-fade",
+      fade.toFixed(3),
+    );
+  };
   const controllerModeRef = useRef(false);
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [controllerModeActive, setControllerModeActive] = useState(false);
@@ -429,6 +440,7 @@ export function App() {
     if (!content) return;
     content.scrollTop = 0;
     content.scrollLeft = 0;
+    syncTitleBarFade(content);
   }, [activeTourId, activeView]);
 
   useEffect(() => {
@@ -549,7 +561,19 @@ export function App() {
   );
 
   return (
-    <main className="app-shell flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg">
+    <main
+      className="app-shell flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg"
+      style={
+        {
+          // Content and menu zoom differently; the banner art has to line up
+          // across both, so both sides read the same ratio.
+          "--zoom-ratio": contentScale / menuScale,
+          // On My Games the bar is 72px tall: 64px of controls plus the
+          // 8px gap above the banner, so the key art covers the gap too.
+          "--hero-lead": `calc(72px / ${contentScale / menuScale})`,
+        } as CSSProperties
+      }
+    >
       <aside
         data-tour="sidebar"
         data-collapsed={sidebarCollapsed ? "true" : undefined}
@@ -785,20 +809,35 @@ export function App() {
         className="relative flex min-w-0 flex-1 flex-col"
       >
         <header
+          ref={titleBarRef}
           data-tour="header"
           data-tauri-drag-region
           style={{ zoom: menuScale }}
-          className="app-titlebar relative isolate flex h-16 shrink-0 items-stretch overflow-hidden"
+          className={clsx(
+            "app-titlebar relative isolate flex shrink-0 items-stretch overflow-hidden",
+            titleBarArt ? "h-[72px] pb-2" : "h-16",
+          )}
         >
           {titleBarArt ? (
             <div
               aria-hidden="true"
               className="titlebar-art pointer-events-none absolute inset-0 -z-10"
             >
+              {/* Same box as the banner card, extended upward: the card
+                  starts its crop --hero-lead lower, so this strip is exactly
+                  what sits above it. */}
               <img
                 src={titleBarArt}
                 alt=""
-                className="h-full w-full scale-110 object-cover object-[72%_0%] blur-md"
+                style={{
+                  // Replaced elements do not stretch between left and right;
+                  // the width has to be explicit.
+                  left: "calc(28px * var(--zoom-ratio))",
+                  width: "calc(100% - 56px * var(--zoom-ratio))",
+                  height:
+                    "calc(clamp(300px, 40vh, 360px) * var(--zoom-ratio) + 72px)",
+                }}
+                className="absolute top-0 object-cover object-[72%_0%]"
               />
             </div>
           ) : null}
@@ -856,9 +895,10 @@ export function App() {
             aria-busy={activeView === "games" && !renderGames}
             aria-label={`${activeViewLabel} content`}
             style={{ zoom: contentScale }}
+            onScroll={(event) => syncTitleBarFade(event.currentTarget)}
             className={clsx(
               "controller-content absolute inset-0 overflow-auto px-7 pb-8",
-              titleBarArt ? "pt-2" : "pt-5",
+              titleBarArt ? "pt-0" : "pt-5",
             )}
           >
             {activeView !== "games" ? (
