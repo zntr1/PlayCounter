@@ -17,6 +17,8 @@ export type LibrarySourcesState = {
   heroVisible: boolean;
   /** The banner's key art, so the title bar can carry its colour upward. */
   heroArt: string | null;
+  /** Key art of the game running on Now Playing; the whole view sits on it. */
+  nowArt: string | null;
 };
 
 export const useLibrarySources = create<LibrarySourcesState>(() => ({
@@ -25,6 +27,7 @@ export const useLibrarySources = create<LibrarySourcesState>(() => ({
   visible: false,
   heroVisible: false,
   heroArt: null,
+  nowArt: null,
 }));
 
 export function publishLibrarySources(next: LibrarySourcesState) {
@@ -33,6 +36,7 @@ export function publishLibrarySources(next: LibrarySourcesState) {
     current.visible === next.visible &&
     current.heroVisible === next.heroVisible &&
     current.heroArt === next.heroArt &&
+    current.nowArt === next.nowArt &&
     current.activeTab === next.activeTab &&
     sameTabs(current.tabs, next.tabs)
   ) {

@@ -12,6 +12,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { artSrcSet } from "../../artSrcSet";
 import { useLibrarySources } from "../../librarySources";
 import { useGameDetails } from "../../../gameDetails";
 import { useAppStore } from "../../../store";
@@ -110,7 +111,7 @@ export function LibraryHero({
         {artwork ? (
           <img
             src={artwork}
-            srcSet={heroArtSrcSet(artwork)}
+            srcSet={artSrcSet(artwork)}
             sizes="100vw"
             alt=""
             decoding="async"
@@ -278,13 +279,4 @@ export function LibraryHero({
       ) : null}
     </section>
   );
-}
-
-/* The API serves t_1080p (1920 wide). On a HiDPI screen, or with the content
-   zoomed, the banner needs more than that, and IGDB has a 2x rendition of
-   every size. Let the browser pick by device pixel ratio. */
-function heroArtSrcSet(url: string) {
-  const marker = "/t_1080p/";
-  if (!url.includes(marker)) return undefined;
-  return `${url} 1x, ${url.replace(marker, "/t_1080p_2x/")} 2x`;
 }

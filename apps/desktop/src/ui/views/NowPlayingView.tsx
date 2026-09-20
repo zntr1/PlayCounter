@@ -1,5 +1,7 @@
 import { AlertTriangle, Gamepad2, ListChecks } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useGameDetails } from "../../gameDetails";
+import { useLibrarySources } from "../librarySources";
 import {
   createGameIdentityResolver,
   resolvedCanonicalGameKey,
@@ -97,6 +99,21 @@ export function NowPlayingView() {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // The first running game paints the whole view; the title bar follows.
+  const leadSession = displayedActiveSessions[0];
+  const leadDetails = useGameDetails(leadSession?.igdbId);
+  const leadArt =
+    leadDetails.status === "ready"
+      ? (leadDetails.details.artworkUrls?.[0] ??
+        leadDetails.details.screenshotUrls?.[0] ??
+        null)
+      : null;
+  const nowArt = leadArt ?? leadSession?.coverUrl ?? null;
+  useEffect(() => {
+    useLibrarySources.setState({ nowArt });
+    return () => useLibrarySources.setState({ nowArt: null });
+  }, [nowArt]);
 
   useEffect(() => {
     if (showTourSession) {

@@ -58,6 +58,7 @@ import { HeaderMenu } from "./shell/HeaderMenu";
 import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
 import { useLibrarySources } from "./librarySources";
+import { artSrcSet } from "./artSrcSet";
 import {
   DEFAULT_CONTENT_SCALE,
   DEFAULT_MENU_SCALE,
@@ -427,7 +428,16 @@ export function App() {
   const heroArt = useLibrarySources((state) =>
     state.heroVisible ? state.heroArt : null,
   );
-  const titleBarArt = activeView === "games" && !practiceStep ? heroArt : null;
+  const nowArt = useLibrarySources((state) => state.nowArt);
+  // Two frames for the art: the banner card on My Games (inset by the page
+  // padding) and the whole content column on Now Playing.
+  const titleBarArt =
+    activeView === "games" && !practiceStep
+      ? heroArt
+      : activeView === "now"
+        ? nowArt
+        : null;
+  const artFrame: "card" | "full" = activeView === "now" ? "full" : "card";
   const libraryCount = useLibrarySources((state) =>
     state.visible
       ? state.tabs.find((tab) => tab.id === "all")?.count
@@ -829,15 +839,26 @@ export function App() {
               <img
                 src={titleBarArt}
                 alt=""
-                style={{
+                style={
                   // Replaced elements do not stretch between left and right;
                   // the width has to be explicit.
-                  left: "calc(28px * var(--zoom-ratio))",
-                  width: "calc(100% - 56px * var(--zoom-ratio))",
-                  height:
-                    "calc(clamp(300px, 40vh, 360px) * var(--zoom-ratio) + 72px)",
-                }}
-                className="absolute top-0 object-cover object-[72%_0%]"
+                  artFrame === "card"
+                    ? {
+                        left: "calc(28px * var(--zoom-ratio))",
+                        width: "calc(100% - 56px * var(--zoom-ratio))",
+                        height:
+                          "calc(clamp(300px, 40vh, 360px) * var(--zoom-ratio) + 72px)",
+                      }
+                    : {
+                        left: 0,
+                        width: "100%",
+                        height: "calc(560px * var(--zoom-ratio) + 72px)",
+                      }
+                }
+                className={clsx(
+                  "absolute top-0 object-cover",
+                  artFrame === "card" ? "object-[72%_0%]" : "object-[60%_0%]",
+                )}
               />
             </div>
           ) : null}
@@ -897,10 +918,30 @@ export function App() {
             style={{ zoom: contentScale }}
             onScroll={(event) => syncTitleBarFade(event.currentTarget)}
             className={clsx(
-              "controller-content absolute inset-0 overflow-auto px-7 pb-8",
+              "controller-content absolute inset-0 isolate overflow-auto px-7 pb-8",
               titleBarArt ? "pt-0" : "pt-5",
             )}
           >
+            {titleBarArt && artFrame === "full" ? (
+              <div
+                aria-hidden="true"
+                className="view-backdrop pointer-events-none absolute inset-x-0 top-0 -z-10"
+                style={{ height: "calc(560px + var(--hero-lead, 0px))" }}
+              >
+                <img
+                  src={titleBarArt}
+                  srcSet={artSrcSet(titleBarArt)}
+                  sizes="100vw"
+                  alt=""
+                  style={{
+                    top: "calc(var(--hero-lead, 0px) * -1)",
+                    height: "calc(100% + var(--hero-lead, 0px))",
+                  }}
+                  className="absolute inset-x-0 w-full object-cover object-[60%_0%]"
+                />
+                <div className="view-backdrop-shade absolute inset-0" />
+              </div>
+            ) : null}
             {activeView !== "games" ? (
               <ViewHeading
                 label={activeViewLabel}

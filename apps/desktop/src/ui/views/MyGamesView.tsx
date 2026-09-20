@@ -1651,6 +1651,7 @@ export function MyGamesView() {
       visible: layout.showTabs,
       heroVisible,
       heroArt: heroVisible ? useLibrarySources.getState().heroArt : null,
+      nowArt: useLibrarySources.getState().nowArt,
     });
   });
   useEffect(

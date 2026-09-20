@@ -1471,3 +1471,56 @@ body.shift-held
 :root[data-theme="light"] .titlebar-art {
   opacity: calc(0.5 * var(--titlebar-art-fade, 1));
 }
+
+/* Now Playing: the running game's key art behind the whole view, darkened
+   and fading into the page toward the bottom and the left. */
+.view-backdrop {
+  animation: fade-in 500ms ease-out backwards;
+}
+
+.view-backdrop-shade {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--color-bg) / 0.9) 0%,
+      rgb(var(--color-bg) / 0.55) 35%,
+      rgb(var(--color-bg) / 0.25) 70%,
+      rgb(var(--color-bg) / 0.45) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(var(--color-bg) / 0.2) 0%,
+      rgb(var(--color-bg) / 0.35) 55%,
+      rgb(var(--color-bg)) 100%
+    );
+}
+
+.active-hero {
+  background: rgb(var(--color-surface) / 0.72);
+  backdrop-filter: blur(18px);
+}
+
+.active-hero-figures {
+  background: rgb(var(--color-bg) / 0.55);
+}
+
+:root[data-theme="light"] .view-backdrop-shade {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--color-bg) / 0.94) 0%,
+      rgb(var(--color-bg) / 0.7) 35%,
+      rgb(var(--color-bg) / 0.45) 70%,
+      rgb(var(--color-bg) / 0.6) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(var(--color-bg) / 0.3) 0%,
+      rgb(var(--color-bg) / 0.5) 55%,
+      rgb(var(--color-bg)) 100%
+    );
+}
+
+:root[data-theme="light"] .active-hero {
+  background: rgb(var(--color-surface) / 0.82);
+}
