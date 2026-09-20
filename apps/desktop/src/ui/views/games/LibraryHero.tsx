@@ -7,13 +7,14 @@ import {
   Pin,
   PinOff,
   Play,
+  Sparkles,
   Star,
   EyeOff,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLibrarySources } from "../../librarySources";
 import { useGameDetails } from "../../../gameDetails";
 import { useAppStore } from "../../../store";
-import { formatDuration } from "../../components";
 import { GameCover } from "../../GameCover";
 import {
   Button,
@@ -35,7 +36,6 @@ import type { GameSummary } from "../MyGamesView";
 type LibraryHeroProps = {
   game: GameSummary;
   pinned: boolean;
-  showDurationDays: boolean;
   launchKey: string;
   launchBlocked: boolean;
   onAcquireLaunch: (key: string) => boolean;
@@ -48,7 +48,6 @@ type LibraryHeroProps = {
 export function LibraryHero({
   game,
   pinned,
-  showDurationDays,
   launchKey,
   launchBlocked,
   onAcquireLaunch,
@@ -80,8 +79,19 @@ export function LibraryHero({
         ready.genres.length > 0 ? ready.genres.slice(0, 3).join(" · ") : null,
       ].filter((part): part is string => Boolean(part))
     : [];
+  // Key art when there is some, the cover otherwise: the title bar tint
+  // should always follow the banner.
+  const titleBarArt = artwork ?? (game.coverUrl || null);
+  useEffect(() => {
+    useLibrarySources.setState({ heroArt: titleBarArt });
+    return () => useLibrarySources.setState({ heroArt: null });
+  }, [titleBarArt]);
   const played = game.hasLastPlayedEvidence || game.sessionCount > 0;
   const eyebrow = pinned ? "Featured" : played ? "Last played" : "Newest";
+  const playLabel =
+    launcher.launchLabel === "Play" && played
+      ? "Continue Playing"
+      : launcher.launchLabel;
 
   function showHistory() {
     menu.close();
@@ -94,15 +104,18 @@ export function LibraryHero({
     <section
       aria-label={`${eyebrow}: ${game.name}`}
       data-tour="library-hero"
-      className="library-hero relative isolate min-h-[300px] overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised"
+      className="library-hero relative isolate mb-6 h-[min(360px,40vh)] min-h-[300px] overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised"
     >
       <div aria-hidden className="absolute inset-0">
         {artwork ? (
           <img
             src={artwork}
+            srcSet={heroArtSrcSet(artwork)}
+            sizes="100vw"
             alt=""
             decoding="async"
-            className="library-hero-art h-full w-full object-cover object-[65%_center]"
+            fetchPriority="high"
+            className="library-hero-art h-full w-full object-cover object-[72%_35%]"
           />
         ) : game.coverUrl ? (
           <GameCover
@@ -117,18 +130,14 @@ export function LibraryHero({
 
       <div
         className={clsx(
-          "relative grid gap-6 p-7",
-          !artwork && game.coverUrl && "sm:grid-cols-[minmax(0,1fr)_180px]",
+          "relative grid h-full gap-6 px-9 py-8",
+          !artwork && game.coverUrl && "sm:grid-cols-[minmax(0,1fr)_170px]",
         )}
       >
-        <div className="flex min-h-[244px] max-w-2xl flex-col justify-center">
-          <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-text-muted">
-            {pinned ? (
-              <Pin size={12} className="text-accent" />
-            ) : (
-              <History size={12} />
-            )}
-            <span>{eyebrow}</span>
+        <div className="flex min-h-0 max-w-[560px] flex-col justify-center">
+          <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent">
+            {pinned ? <Pin size={13} /> : <Sparkles size={13} />}
+            <span>{pinned ? "Featured game" : eyebrow}</span>
             {journal.favorite ? (
               <span className="inline-flex items-center gap-1 text-amber-300">
                 <Star size={11} fill="currentColor" />
@@ -136,33 +145,20 @@ export function LibraryHero({
               </span>
             ) : null}
           </div>
-          <h2 className="library-hero-title text-balance text-4xl font-black leading-[1.05] tracking-tight text-text drop-shadow-sm sm:text-5xl">
+          <h2 className="library-hero-title text-balance font-serif text-[44px] font-bold leading-[1.05] tracking-tight text-text drop-shadow-md">
             {game.name}
           </h2>
           {facts.length > 0 ? (
-            <p className="mt-3 text-sm font-medium text-text-muted">
-              {facts.join("  ·  ")}
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">
+              {facts.join("   •   ")}
             </p>
           ) : null}
           {ready?.summary ? (
-            <p className="mt-3 line-clamp-2 max-w-xl text-[15px] leading-6 text-text/85">
+            <p className="mt-4 line-clamp-3 max-w-[500px] text-[15px] leading-[1.5] text-text/85">
               {ready.summary}
             </p>
           ) : null}
-          <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            <HeroFigure
-              label="Playtime"
-              value={formatDuration(game.totalSeconds, showDurationDays)}
-            />
-            <HeroFigure label="Sessions" value={String(game.sessionCount)} />
-            {played ? (
-              <HeroFigure
-                label="Last played"
-                value={new Date(game.lastPlayedAt).toLocaleDateString()}
-              />
-            ) : null}
-          </dl>
-          <div className="mt-5 flex flex-wrap items-center gap-2.5">
+          <div className="mt-6 flex flex-wrap items-center gap-3">
             {launcher.canLaunch ? (
               <Button
                 variant="primary"
@@ -173,26 +169,26 @@ export function LibraryHero({
                     ? "Already running"
                     : launcher.launching
                       ? "Starting…"
-                      : launcher.launchLabel
+                      : playLabel
                 }
-                aria-label={`${launcher.launchLabel}: ${game.name}`}
+                aria-label={`${playLabel}: ${game.name}`}
                 onClick={() => void launcher.launch()}
-                className="library-hero-play h-11 px-6 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
+                className="library-hero-play h-12 rounded-lg px-6 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
               >
                 {launcher.hasActiveSession
                   ? "Running"
                   : launcher.launching
                     ? "Starting…"
-                    : launcher.launchLabel}
+                    : playLabel}
               </Button>
             ) : null}
             <Button
               variant="secondary"
               icon={Info}
               onClick={() => setShowDetails(true)}
-              className="h-11 border-border/70 bg-bg/50 px-5 backdrop-blur"
+              className="h-12 rounded-lg border-2 border-text/25 bg-bg/40 px-5 text-[15px] font-semibold backdrop-blur hover:border-text/50 hover:bg-bg/60"
             >
-              More info
+              More Info
             </Button>
             <IconButton
               ref={menu.anchorRef}
@@ -202,18 +198,18 @@ export function LibraryHero({
               title="More"
               icon={MoreHorizontal}
               onClick={menu.toggle}
-              className="h-11 w-11 rounded-md border-border/70 bg-bg/50 backdrop-blur"
+              className="h-12 w-12 rounded-lg border-2 border-text/25 bg-bg/40 backdrop-blur hover:border-text/50 hover:bg-bg/60"
             />
           </div>
         </div>
         {!artwork && game.coverUrl ? (
-          <div className="hidden items-end justify-end sm:flex">
+          <div className="hidden items-center justify-end sm:flex">
             <GameCover
               src={game.coverUrl}
               alt=""
               highRes
               loading="eager"
-              className="aspect-[3/4] w-[180px] rounded-xl object-cover shadow-card-hover ring-1 ring-white/10"
+              className="aspect-[3/4] w-[170px] rounded-xl object-cover shadow-card-hover ring-1 ring-white/10"
             />
           </div>
         ) : null}
@@ -276,15 +272,11 @@ export function LibraryHero({
   );
 }
 
-function HeroFigure({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <dt className="text-[11px] font-semibold uppercase tracking-wider text-text-faint">
-        {label}
-      </dt>
-      <dd className="font-mono text-sm font-bold tabular-nums text-text">
-        {value}
-      </dd>
-    </div>
-  );
+/* The API serves t_1080p (1920 wide). On a HiDPI screen, or with the content
+   zoomed, the banner needs more than that, and IGDB has a 2x rendition of
+   every size. Let the browser pick by device pixel ratio. */
+function heroArtSrcSet(url: string) {
+  const marker = "/t_1080p/";
+  if (!url.includes(marker)) return undefined;
+  return `${url} 1x, ${url.replace(marker, "/t_1080p_2x/")} 2x`;
 }

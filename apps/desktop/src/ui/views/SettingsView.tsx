@@ -33,7 +33,13 @@ import {
   type UpdateCheckResult,
 } from "../../updater";
 import { Panel, ProviderBadge } from "../components";
-import { Button, Modal } from "../primitives";
+import { Button, Modal, selectClass } from "../primitives";
+import {
+  DEFAULT_CONTENT_SCALE,
+  DEFAULT_MENU_SCALE,
+  SCALE_OPTIONS,
+  normalizeInterfaceScale,
+} from "../../interfaceScale";
 import { DEFAULT_ACCENT_COLOR } from "../../theme";
 import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
@@ -153,6 +159,7 @@ export function SettingsView() {
     (state) => state.emulatorManualBinaries,
   );
   const setAccentColor = useAppStore((state) => state.setAccentColor);
+  const setInterfaceScale = useAppStore((state) => state.setInterfaceScale);
   const knownEmulators = useAppStore((state) => state.knownEmulators);
   const ignoredProcessCount = useAppStore(
     (state) => state.ignoredProcesses.size,
@@ -465,6 +472,51 @@ export function SettingsView() {
               Reset
             </Button>
           </div>
+        </SettingsRow>
+        <SettingsRow
+          description="Text, icons, covers and spacing in the main area scale together. Menus and dialogs keep their size."
+          title="Content size"
+        >
+          <select
+            aria-label="Content size"
+            value={String(
+              normalizeInterfaceScale(
+                settings.contentScale,
+                DEFAULT_CONTENT_SCALE,
+              ),
+            )}
+            onChange={(event) =>
+              setInterfaceScale("content", Number(event.target.value))
+            }
+            className={selectClass}
+          >
+            {SCALE_OPTIONS.map((option) => (
+              <option key={option.value} value={String(option.value)}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </SettingsRow>
+        <SettingsRow
+          description="The sidebar and the title bar with the search field."
+          title="Menu size"
+        >
+          <select
+            aria-label="Menu size"
+            value={String(
+              normalizeInterfaceScale(settings.menuScale, DEFAULT_MENU_SCALE),
+            )}
+            onChange={(event) =>
+              setInterfaceScale("menu", Number(event.target.value))
+            }
+            className={selectClass}
+          >
+            {SCALE_OPTIONS.map((option) => (
+              <option key={option.value} value={String(option.value)}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </SettingsRow>
       </SettingsPanel>
 

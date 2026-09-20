@@ -19,19 +19,18 @@ export function SidebarSources({ collapsed }: { collapsed: boolean }) {
   if (!visible || tabs.length === 0) return null;
 
   return (
-    <div className="sidebar-sources" data-tour="sidebar-sources">
-      {collapsed ? (
-        <div className="mx-3 mb-2 h-px bg-border/60" aria-hidden="true" />
-      ) : (
-        <div className="px-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-text-muted/70">
-          Sources
-        </div>
+    <div
+      className={clsx(
+        "sidebar-sources animate-fade-in",
+        collapsed ? "mt-0.5" : "mb-1 mt-0.5",
       )}
+      data-tour="sidebar-sources"
+    >
       <div
         role="tablist"
         aria-label="Game library source"
         aria-orientation="vertical"
-        className="flex flex-col gap-0.5"
+        className="flex flex-col gap-px"
       >
         {tabs.map((tab) => {
           const selected = activeTab === tab.id;
@@ -55,8 +54,8 @@ export function SidebarSources({ collapsed }: { collapsed: boolean }) {
                 setActiveView("games");
               }}
               className={clsx(
-                "library-tab group flex w-full items-center gap-3 rounded-lg text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-                collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
+                "library-tab group flex w-full items-center gap-3 rounded-xl text-[14px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                collapsed ? "h-9 justify-center px-0" : "h-10 px-3",
                 selected
                   ? "bg-surface-hover text-text"
                   : "text-text-muted hover:bg-surface-hover/60 hover:text-text",
@@ -68,13 +67,13 @@ export function SidebarSources({ collapsed }: { collapsed: boolean }) {
                   alt=""
                   aria-hidden="true"
                   className={clsx(
-                    "h-4 w-4 shrink-0 object-contain",
+                    "h-[18px] w-[18px] shrink-0 object-contain",
                     !selected && "opacity-80 group-hover:opacity-100",
                   )}
                 />
               ) : (
                 <Layers
-                  size={16}
+                  size={18}
                   className={clsx("shrink-0", selected && "text-accent")}
                 />
               )}

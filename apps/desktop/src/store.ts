@@ -16,6 +16,11 @@ import type {
 import { create } from "zustand";
 import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
 import {
+  DEFAULT_CONTENT_SCALE,
+  DEFAULT_MENU_SCALE,
+  normalizeInterfaceScale,
+} from "./interfaceScale";
+import {
   anchorDiscoveredReviewReminder,
   DISCOVERED_REVIEW_REMINDER_ID,
   type DiscoveredReviewReminder,
@@ -560,6 +565,7 @@ export type AppState = {
   setMyGamesShowHero: (enabled: boolean) => void;
   setLibraryFeaturedGame: (game: LibraryFeaturedGame | null) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  setSidebarSourcesCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setEmulatorSetting: (
@@ -592,6 +598,7 @@ export type AppState = {
   setApiEndpoint: (value: string) => void;
   setTheme: (theme: Theme) => void;
   setAccentColor: (color: string | null) => void;
+  setInterfaceScale: (region: "content" | "menu", scale: number) => void;
   toggleVerboseLogs: () => void;
   toggleBlacklist: (exeName: string, enabled: boolean) => void;
 };
@@ -622,6 +629,7 @@ const defaultSettings: Settings = {
   libraryShowHero: true,
   libraryFeaturedGame: null,
   sidebarCollapsed: false,
+  sidebarSourcesCollapsed: false,
   autoShareIgnoredProcesses: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
@@ -629,6 +637,8 @@ const defaultSettings: Settings = {
   verboseLogs: false,
   theme: "dark",
   accentColor: null,
+  contentScale: DEFAULT_CONTENT_SCALE,
+  menuScale: DEFAULT_MENU_SCALE,
   emulatorDetection: true,
   emulatorContentLookup: true,
   ignoredEmulatorIds: [],
@@ -1634,6 +1644,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
     persistSoon();
   },
+  setSidebarSourcesCollapsed: (sidebarSourcesCollapsed) => {
+    set((state) => ({
+      settings: { ...state.settings, sidebarSourcesCollapsed },
+    }));
+    persistSoon();
+  },
   setMyGamesStatCards: (libraryStatCards) => {
     set((state) => ({
       settings: { ...state.settings, libraryStatCards },
@@ -1772,6 +1788,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     const accentColor = normalizeAccentColor(color);
     set((state) => ({ settings: { ...state.settings, accentColor } }));
     applyTheme(useAppStore.getState().settings.theme, accentColor);
+    persistSoon();
+  },
+  setInterfaceScale: (region, scale) => {
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        [region === "content" ? "contentScale" : "menuScale"]:
+          normalizeInterfaceScale(
+            scale,
+            region === "content" ? DEFAULT_CONTENT_SCALE : DEFAULT_MENU_SCALE,
+          ),
+      },
+    }));
     persistSoon();
   },
   toggleVerboseLogs: () => {

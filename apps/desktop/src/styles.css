@@ -83,8 +83,24 @@
   --scrollbar-thumb-hover: #aeb6c4;
 }
 
+.sidebar-button-active {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-accent) / 0.26) 0%,
+    rgb(var(--color-accent) / 0.1) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--color-accent) / 0.22),
+    0 6px 18px rgb(var(--color-accent) / 0.12);
+}
+
 :root[data-theme="light"] .sidebar-button-active {
-  background: rgb(var(--color-accent) / 0.15);
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-accent) / 0.18) 0%,
+    rgb(var(--color-accent) / 0.07) 100%
+  );
+  box-shadow: inset 0 0 0 1px rgb(var(--color-accent) / 0.18);
 }
 
 /* App shell ─────────────────────────────────────────────────────────────────
@@ -101,8 +117,10 @@
 }
 
 .app-titlebar {
-  border-bottom: 1px solid rgb(var(--color-border) / 0.55);
   background: rgb(var(--color-bg));
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease;
 }
 
 [data-tauri-drag-region] {
@@ -130,8 +148,18 @@
 .titlebar-actions > button,
 .titlebar-actions > * > button,
 .titlebar-actions > * > span > button {
+  width: 2.5rem;
+  height: 2.5rem;
   border-color: transparent;
+  border-radius: 0.625rem;
   background: transparent;
+}
+
+.titlebar-actions > button > svg,
+.titlebar-actions > * > button > svg,
+.titlebar-actions > * > span > button > svg {
+  width: 19px;
+  height: 19px;
 }
 
 .titlebar-actions > button:hover,
@@ -142,7 +170,7 @@
 
 .window-control {
   display: grid;
-  width: 46px;
+  width: 52px;
   place-items: center;
   color: rgb(var(--color-text-muted));
   transition:
@@ -169,37 +197,34 @@
   display: none;
 }
 
-/* Library banner: artwork on the right, readable text on the left. */
+/* Library banner card: key art on the right, a dark wash on the left so the
+   title and summary read on any artwork. */
 .library-hero-shade {
   background:
     linear-gradient(
       90deg,
-      rgb(var(--color-surface)) 0%,
-      rgb(var(--color-surface) / 0.92) 32%,
-      rgb(var(--color-surface) / 0.45) 60%,
-      rgb(var(--color-surface) / 0.05) 100%
+      rgb(var(--color-surface) / 0.96) 0%,
+      rgb(var(--color-surface) / 0.85) 28%,
+      rgb(var(--color-surface) / 0.4) 52%,
+      rgb(var(--color-surface) / 0) 72%
     ),
     linear-gradient(
       180deg,
-      rgb(var(--color-surface) / 0) 40%,
-      rgb(var(--color-surface) / 0.85) 100%
+      rgb(var(--color-surface) / 0.15) 0%,
+      rgb(var(--color-surface) / 0) 30%,
+      rgb(var(--color-surface) / 0) 70%,
+      rgb(var(--color-surface) / 0.35) 100%
     );
 }
 
 :root[data-theme="light"] .library-hero-shade {
-  background:
-    linear-gradient(
-      90deg,
-      rgb(var(--color-surface)) 0%,
-      rgb(var(--color-surface) / 0.94) 36%,
-      rgb(var(--color-surface) / 0.55) 62%,
-      rgb(var(--color-surface) / 0.1) 100%
-    ),
-    linear-gradient(
-      180deg,
-      rgb(var(--color-surface) / 0) 45%,
-      rgb(var(--color-surface) / 0.9) 100%
-    );
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-surface) / 0.97) 0%,
+    rgb(var(--color-surface) / 0.9) 30%,
+    rgb(var(--color-surface) / 0.55) 55%,
+    rgb(var(--color-surface) / 0.1) 75%
+  );
 }
 
 .library-hero-art {
@@ -1408,4 +1433,25 @@ body.shift-held
   [data-tour="demo-journal"] [data-tour="demo-journal-columns"] {
     grid-template-columns: 160px minmax(0, 1fr);
   }
+}
+
+/* Key art leaking into the title bar: mostly darkness, a hint of colour. */
+.titlebar-art {
+  opacity: 0.5;
+  animation: fade-in 400ms ease-out both;
+}
+
+.titlebar-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--color-bg) / 0.78) 0%,
+    rgb(var(--color-bg) / 0.35) 100%
+  );
+}
+
+:root[data-theme="light"] .titlebar-art {
+  opacity: 0.35;
 }

@@ -1,4 +1,5 @@
 import type { Settings } from "@playcounter/shared";
+import { isInterfaceScale } from "./interfaceScale";
 import { isLibraryGridColumns } from "./ui/myGamesPresentation";
 import {
   GAME_STATUSES,
@@ -309,6 +310,7 @@ const settings = object({}, {
     object({ gameId: integer, source: nullable(source) }, { igdbId: integer }),
   ),
   sidebarCollapsed: boolean,
+  sidebarSourcesCollapsed: boolean,
   libraryStatCards: array(
     oneOf(
       "games",
@@ -329,6 +331,8 @@ const settings = object({}, {
   verboseLogs: boolean,
   theme: oneOf("dark", "light"),
   accentColor: nullable(string),
+  contentScale: check(isInterfaceScale),
+  menuScale: check(isInterfaceScale),
   emulatorDetection: boolean,
   emulatorContentLookup: boolean,
   ignoredEmulatorIds: array(nonempty),

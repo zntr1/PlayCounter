@@ -118,6 +118,8 @@ export function LibraryOrganizationToolbar({
   query,
   counts,
   selectionAction,
+  leading,
+  trailing,
 }: {
   showShelves: boolean;
   selection: string;
@@ -132,6 +134,10 @@ export function LibraryOrganizationToolbar({
   /** Games per shelf id, counted across every import source. */
   counts: Record<string, number>;
   selectionAction?: React.ReactNode;
+  /** Sits before the shelf chips: the library's title and count. */
+  leading?: React.ReactNode;
+  /** Sits after Filters: sort, view toggle, customize. */
+  trailing?: React.ReactNode;
 }) {
   const practice = useLibraryPractice();
   const shelves = usePersonalLibraryState((s) => s.personalShelves);
@@ -201,15 +207,16 @@ export function LibraryOrganizationToolbar({
     <div
       data-tour={practice ? "demo-organization" : undefined}
       ref={toolbarRef}
-      className="grid gap-3 border-b border-border px-4 py-3"
+      className="grid gap-3"
     >
-      <div className="flex items-start justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+        {leading}
         {showShelves ? (
           <div
             role="tablist"
             aria-label="Library shelf"
             data-library-shelf-rail=""
-            className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
+            className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5"
           >
             <Pill
               {...dropProps("all", false)}
@@ -300,6 +307,7 @@ export function LibraryOrganizationToolbar({
         >
           Filters{activeCount ? ` · ${activeCount}` : ""}
         </Button>
+        {trailing}
       </div>
 
       {expanded ? (

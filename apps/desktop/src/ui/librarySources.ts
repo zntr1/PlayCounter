@@ -13,18 +13,26 @@ export type LibrarySourcesState = {
   activeTab: LibraryTabId;
   /** False while the library is empty, when tabs would all read zero. */
   visible: boolean;
+  /** True while the featured-game banner is on screen. */
+  heroVisible: boolean;
+  /** The banner's key art, so the title bar can carry its colour upward. */
+  heroArt: string | null;
 };
 
 export const useLibrarySources = create<LibrarySourcesState>(() => ({
   tabs: [],
   activeTab: "all",
   visible: false,
+  heroVisible: false,
+  heroArt: null,
 }));
 
 export function publishLibrarySources(next: LibrarySourcesState) {
   const current = useLibrarySources.getState();
   if (
     current.visible === next.visible &&
+    current.heroVisible === next.heroVisible &&
+    current.heroArt === next.heroArt &&
     current.activeTab === next.activeTab &&
     sameTabs(current.tabs, next.tabs)
   ) {

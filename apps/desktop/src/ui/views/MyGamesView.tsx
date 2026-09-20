@@ -1,6 +1,6 @@
 import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
 import { useLibraryPractice } from "../PersonalLibraryContext";
-import { publishLibrarySources } from "../librarySources";
+import { publishLibrarySources, useLibrarySources } from "../librarySources";
 import { LibraryHero } from "./games/LibraryHero";
 import { matchesFeaturedGame, pickFeaturedGame } from "./games/featuredGame";
 import clsx from "clsx";
@@ -1638,16 +1638,28 @@ export function MyGamesView() {
     visibleGameCount: visibleGames.length,
     importSupported: importableProviderTabs(platform).length > 0,
   });
+  const featured = useMemo(
+    () => (showHero ? pickFeaturedGame(games, featuredSetting) : null),
+    [featuredSetting, games, showHero],
+  );
+  const heroVisible =
+    layout.panel !== "empty-library" && featured !== null && !isCoreTourDemo;
   useEffect(() => {
     publishLibrarySources({
       tabs,
       activeTab: activeLibraryTab,
       visible: layout.showTabs,
+      heroVisible,
+      heroArt: heroVisible ? useLibrarySources.getState().heroArt : null,
     });
   });
-  const featured = useMemo(
-    () => (showHero ? pickFeaturedGame(games, featuredSetting) : null),
-    [featuredSetting, games, showHero],
+  useEffect(
+    () => () =>
+      publishLibrarySources({
+        ...useLibrarySources.getState(),
+        heroVisible: false,
+      }),
+    [],
   );
   const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}`;
   const renderWindow = useLibraryRenderWindow(
@@ -1695,11 +1707,7 @@ export function MyGamesView() {
   }, []);
 
   return (
-    <div
-      ref={bulkSelection.rootRef}
-      onKeyDown={bulkSelection.onKeyDown}
-      className="grid gap-5"
-    >
+    <div ref={bulkSelection.rootRef} onKeyDown={bulkSelection.onKeyDown}>
       <LibraryGameDropHint
         hint={libraryDrag.hint}
         onDismiss={libraryDrag.dismissHint}
@@ -1708,12 +1716,11 @@ export function MyGamesView() {
         <EmptyLibraryPanel platform={platform} />
       ) : (
         <>
-          {featured && !isCoreTourDemo ? (
+          {heroVisible && featured ? (
             <LibraryHero
               key={`${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
               game={featured.game}
               pinned={featured.pinned}
-              showDurationDays={showDurationDays}
               launchKey="library-hero"
               launchBlocked={launchingGameKey !== null}
               onAcquireLaunch={acquireLaunchLock}
@@ -1730,558 +1737,564 @@ export function MyGamesView() {
             />
           ) : null}
 
-          <div data-tour="games-toolbar" className="grid gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex min-w-0 items-baseline gap-3">
-                <h2 className="truncate text-[22px] font-bold tracking-tight text-text">
-                  {activeProviderConfig
-                    ? activeProviderConfig.headline
-                    : activeTabKind === "unimported"
-                      ? "PlayCounter games"
-                      : "All games"}
-                </h2>
-                <span
-                  className="rounded-full border border-border/70 bg-surface px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-text-muted"
-                  title={`${visibleGames.length} of ${libraryGames.length} tracked ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}`}
-                >
-                  {visibleGames.length === libraryGames.length
-                    ? visibleGames.length
-                    : `${visibleGames.length} / ${libraryGames.length}`}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <select
-                  aria-label="Sort games"
-                  value={sortKey}
-                  onChange={(event) =>
-                    setMyGamesSortKey(event.target.value as MyGamesSortKey)
-                  }
-                  className={clsx(selectClass, "h-9 rounded-lg py-0 pr-8")}
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      Sort: {option.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
-                  <button
-                    type="button"
-                    aria-label="Grid view"
-                    aria-pressed={view === "grid"}
-                    title="Standard cards"
-                    onClick={() => setMyGamesCardSize("grid")}
-                    className={clsx(
-                      "grid h-full w-8 place-items-center rounded-md transition",
-                      view === "grid"
-                        ? "bg-accent text-accent-fg"
-                        : "text-text-muted hover:bg-surface-hover hover:text-text",
-                    )}
+          <div className="grid gap-5">
+            <div data-tour="games-toolbar" className="grid gap-3">
+              <LibraryOrganizationToolbar
+                showShelves={showShelves}
+                selection={shelfSelection}
+                onSelect={selectShelf}
+                filters={libraryFilters}
+                onFiltersChange={setLibraryFilters}
+                expanded={filtersOpen}
+                onExpandedChange={changeFiltersOpen}
+                onClearFilters={clearLibraryFilters}
+                source={activeLibraryTab}
+                query={query}
+                counts={shelfCounts}
+                leading={
+                  <div className="flex min-w-0 shrink-0 items-baseline gap-3 pr-2">
+                    <h2 className="truncate text-[22px] font-bold tracking-tight text-text">
+                      {activeProviderConfig
+                        ? activeProviderConfig.headline
+                        : activeTabKind === "unimported"
+                          ? "PlayCounter games"
+                          : "All games"}
+                    </h2>
+                    <span
+                      className="rounded-full border border-border/70 bg-surface px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-text-muted"
+                      title={`${visibleGames.length} of ${libraryGames.length} tracked ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}`}
+                    >
+                      {visibleGames.length === libraryGames.length
+                        ? visibleGames.length
+                        : `${visibleGames.length} / ${libraryGames.length}`}
+                    </span>
+                  </div>
+                }
+                selectionAction={
+                  <Button
+                    variant={bulkSelection.active ? "primary" : "ghost"}
+                    icon={CheckSquare}
+                    data-library-select=""
+                    aria-label="Select games"
+                    aria-pressed={bulkSelection.active}
+                    title={
+                      bulkSelection.active
+                        ? "Exit selection mode (Esc)"
+                        : "Select games to set their status"
+                    }
+                    data-controller-item="library-option"
+                    disabled={
+                      tourDemo.active ||
+                      (!displayedGames.length && !bulkSelection.active)
+                    }
+                    onClick={bulkSelection.toggleMode}
+                    className="shrink-0"
                   >
-                    <LayoutGrid size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Large card view"
-                    aria-pressed={view === "large"}
-                    title="Large cards"
-                    onClick={() => setMyGamesCardSize("large")}
-                    className={clsx(
-                      "grid h-full w-8 place-items-center rounded-md transition",
-                      view === "large"
-                        ? "bg-accent text-accent-fg"
-                        : "text-text-muted hover:bg-surface-hover hover:text-text",
-                    )}
-                  >
-                    <Grid2X2 size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="List view"
-                    aria-pressed={view === "list"}
-                    title="List"
-                    onClick={() => setMyGamesCardSize("list")}
-                    className={clsx(
-                      "grid h-full w-8 place-items-center rounded-md transition",
-                      view === "list"
-                        ? "bg-accent text-accent-fg"
-                        : "text-text-muted hover:bg-surface-hover hover:text-text",
-                    )}
-                  >
-                    <List size={15} />
-                  </button>
-                </div>
-                <IconButton
-                  ref={customizeMenu.anchorRef}
-                  icon={Settings2}
-                  aria-label="Customize library view"
-                  title="Customize"
-                  aria-haspopup="true"
-                  aria-expanded={customizeMenu.open}
-                  aria-controls="library-customize"
-                  data-controller-item="library-customize"
-                  onClick={customizeMenu.toggle}
-                  className="h-9 w-9 rounded-lg"
-                />
-              </div>
-            </div>
-
-            <ContextMenu
-              open={customizeMenu.open}
-              position={{
-                x: customizeMenu.position.x - 380 + 36,
-                y: customizeMenu.position.y,
-              }}
-              onClose={customizeMenu.close}
-              anchorRef={customizeMenu.anchorRef}
-            >
-              <div
-                id="library-customize"
-                role="group"
-                aria-label="Customize library view"
-                className="w-[380px] max-w-[calc(100vw-2rem)] divide-y divide-border px-4 py-1"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-show-hero"
-                      className="text-sm font-medium text-text"
+                    {bulkSelection.active ? "Selecting" : "Select"}
+                  </Button>
+                }
+                trailing={
+                  <div className="flex shrink-0 items-center gap-2">
+                    <select
+                      aria-label="Sort games"
+                      value={sortKey}
+                      onChange={(event) =>
+                        setMyGamesSortKey(event.target.value as MyGamesSortKey)
+                      }
+                      className={clsx(selectClass, "h-9 rounded-lg py-0 pr-8")}
                     >
-                      Show the banner
-                    </label>
-                    <p
-                      id="library-show-hero-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      The featured game above your library. Pin any game to it
-                      from the banner menu.
-                    </p>
-                  </div>
-                  <input
-                    id="library-show-hero"
-                    type="checkbox"
-                    checked={showHero}
-                    aria-describedby="library-show-hero-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesShowHero(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
-                <LibraryAppearanceControls
-                  view={view}
-                  gridLayout={gridLayout}
-                  showShelves={showShelves}
-                  showOrigin={showOrigin}
-                  showMatch={showMatch}
-                  showStatus={showStatus}
-                  showNotes={showNotes}
-                  setMyGamesGridColumns={setMyGamesGridColumns}
-                  setMyGamesShowShelves={setMyGamesShowShelves}
-                  setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
-                  setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
-                  setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
-                  setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
-                />
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-high-res-covers"
-                      className="text-sm font-medium text-text"
-                    >
-                      Sharper covers
-                    </label>
-                    <p
-                      id="library-high-res-covers-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      Load cover art at a larger size. Looks better on big
-                      cards, uses more data. Covers you set yourself are
-                      unaffected.
-                    </p>
-                  </div>
-                  <input
-                    id="library-high-res-covers"
-                    type="checkbox"
-                    checked={highResCovers}
-                    aria-describedby="library-high-res-covers-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesHighResCovers(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-hide-empty-tabs"
-                      className={clsx(
-                        "text-sm font-medium",
-                        canHideEmptyProviderTabs
-                          ? "text-text"
-                          : "text-text-faint",
-                      )}
-                    >
-                      Hide empty sources
-                    </label>
-                    <p
-                      id="library-hide-empty-tabs-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      {canHideEmptyProviderTabs
-                        ? "Hide Steam, Xbox or Battle.net in the sidebar while nothing is imported from them."
-                        : "All sources in the sidebar have games."}
-                    </p>
-                  </div>
-                  <input
-                    id="library-hide-empty-tabs"
-                    type="checkbox"
-                    checked={hideEmptyProviderTabs}
-                    disabled={!canHideEmptyProviderTabs}
-                    aria-describedby="library-hide-empty-tabs-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesHideEmptyProviderTabs(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                  <div>
-                    <label
-                      htmlFor="library-show-stats"
-                      className="text-sm font-medium text-text"
-                    >
-                      Show the summary row
-                    </label>
-                    <p
-                      id="library-show-stats-help"
-                      className="mt-1 text-xs leading-5 text-text-faint"
-                    >
-                      The number cards above your games.
-                    </p>
-                  </div>
-                  <input
-                    id="library-show-stats"
-                    type="checkbox"
-                    checked={showStatCards}
-                    aria-describedby="library-show-stats-help"
-                    data-controller-item="library-option"
-                    onChange={(event) =>
-                      setMyGamesShowStatCards(event.target.checked)
-                    }
-                    className="h-4 w-4 rounded border-border accent-accent"
-                  />
-                </div>
-                {showStatCards ? (
-                  <fieldset className="py-3">
-                    <legend className="text-sm font-medium text-text">
-                      Numbers on the {statTabLabel} tab
-                    </legend>
-                    <p className="mt-1 text-xs leading-5 text-text-faint">
-                      Pick which numbers to show. A tab only offers the ones
-                      that mean something there.
-                    </p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {availableStatDefinitions.map((definition) => {
-                        const checked = statCardIds.includes(definition.id);
-                        return (
-                          <label
-                            key={definition.id}
-                            className="flex items-start gap-2.5 rounded-md px-2 py-1.5 transition hover:bg-surface-hover"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              data-controller-item="library-option"
-                              onChange={(event) =>
-                                setMyGamesStatCards(
-                                  toggleLibraryStatCardIds(
-                                    statCardIds,
-                                    definition.id,
-                                    event.target.checked,
-                                  ),
-                                )
-                              }
-                              className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-accent"
-                            />
-                            <span className="min-w-0">
-                              <span className="block text-sm text-text">
-                                {definition.label({
-                                  kind: activeTabKind,
-                                  providerLabel: activeProviderConfig?.label,
-                                })}
-                              </span>
-                              <span className="block text-xs leading-5 text-text-faint">
-                                {definition.help}
-                              </span>
-                            </span>
-                          </label>
-                        );
-                      })}
+                      {sortOptions.map((option) => (
+                        <option key={option.key} value={option.key}>
+                          Sort: {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
+                      <button
+                        type="button"
+                        aria-label="Grid view"
+                        aria-pressed={view === "grid"}
+                        title="Standard cards"
+                        onClick={() => setMyGamesCardSize("grid")}
+                        className={clsx(
+                          "grid h-full w-8 place-items-center rounded-md transition",
+                          view === "grid"
+                            ? "bg-accent text-accent-fg"
+                            : "text-text-muted hover:bg-surface-hover hover:text-text",
+                        )}
+                      >
+                        <LayoutGrid size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Large card view"
+                        aria-pressed={view === "large"}
+                        title="Large cards"
+                        onClick={() => setMyGamesCardSize("large")}
+                        className={clsx(
+                          "grid h-full w-8 place-items-center rounded-md transition",
+                          view === "large"
+                            ? "bg-accent text-accent-fg"
+                            : "text-text-muted hover:bg-surface-hover hover:text-text",
+                        )}
+                      >
+                        <Grid2X2 size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="List view"
+                        aria-pressed={view === "list"}
+                        title="List"
+                        onClick={() => setMyGamesCardSize("list")}
+                        className={clsx(
+                          "grid h-full w-8 place-items-center rounded-md transition",
+                          view === "list"
+                            ? "bg-accent text-accent-fg"
+                            : "text-text-muted hover:bg-surface-hover hover:text-text",
+                        )}
+                      >
+                        <List size={15} />
+                      </button>
                     </div>
-                  </fieldset>
-                ) : null}
-              </div>
-            </ContextMenu>
-
-            <LibraryOrganizationToolbar
-              showShelves={showShelves}
-              selection={shelfSelection}
-              onSelect={selectShelf}
-              filters={libraryFilters}
-              onFiltersChange={setLibraryFilters}
-              expanded={filtersOpen}
-              onExpandedChange={changeFiltersOpen}
-              onClearFilters={clearLibraryFilters}
-              source={activeLibraryTab}
-              query={query}
-              counts={shelfCounts}
-              selectionAction={
-                <Button
-                  variant={bulkSelection.active ? "primary" : "ghost"}
-                  icon={CheckSquare}
-                  data-library-select=""
-                  aria-label="Select games"
-                  aria-pressed={bulkSelection.active}
-                  title={
-                    bulkSelection.active
-                      ? "Exit selection mode (Esc)"
-                      : "Select games to set their status"
-                  }
-                  data-controller-item="library-option"
-                  disabled={
-                    tourDemo.active ||
-                    (!displayedGames.length && !bulkSelection.active)
-                  }
-                  onClick={bulkSelection.toggleMode}
-                  className="shrink-0"
-                >
-                  {bulkSelection.active ? "Selecting" : "Select"}
-                </Button>
-              }
-            />
-          </div>
-
-          <div
-            id="library-tabpanel"
-            role={layout.showTabs ? "tabpanel" : undefined}
-            aria-labelledby={
-              layout.showTabs ? `library-tab-${activeLibraryTab}` : undefined
-            }
-            className="grid gap-5"
-          >
-            <p className="sr-only" aria-live="polite">
-              {layout.panel === "provider-empty" && activeProviderConfig
-                ? `No ${activeProviderConfig.label} games imported yet. Use Import from ${activeProviderConfig.label} to add them.`
-                : layout.panel === "unimported-empty"
-                  ? "No games outside your imported libraries yet."
-                  : `Showing ${visibleGames.length} ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}.`}
-            </p>
-
-            {activeProviderConfig && layout.panel !== "provider-empty" ? (
-              <div className="grid gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-text">
-                      {activeProviderConfig.headline}
-                    </h3>
-                    <p className="text-sm text-text-muted">
-                      {activeProviderConfig.subtitle}
-                    </p>
+                    <IconButton
+                      ref={customizeMenu.anchorRef}
+                      icon={Settings2}
+                      aria-label="Customize library view"
+                      title="Customize"
+                      aria-haspopup="true"
+                      aria-expanded={customizeMenu.open}
+                      aria-controls="library-customize"
+                      data-controller-item="library-customize"
+                      onClick={customizeMenu.toggle}
+                      className="h-9 w-9 rounded-lg"
+                    />
                   </div>
-                  {activeImportableProviderConfig?.import.platforms.includes(
-                    platform,
-                  ) ? (
-                    <Button
-                      variant="secondary"
-                      icon={Download}
-                      data-controller-item="view-link"
-                      onClick={() => {
-                        setLibraryImportProvider(
-                          activeImportableProviderConfig.id,
-                        );
-                        setActiveView("import");
-                      }}
-                    >
-                      {activeProviderConfig.importCtaLabel}
-                    </Button>
+                }
+              />
+
+              <ContextMenu
+                open={customizeMenu.open}
+                position={{
+                  x: customizeMenu.position.x - 380 + 36,
+                  y: customizeMenu.position.y,
+                }}
+                onClose={customizeMenu.close}
+                anchorRef={customizeMenu.anchorRef}
+              >
+                <div
+                  id="library-customize"
+                  role="group"
+                  aria-label="Customize library view"
+                  className="w-[380px] max-w-[calc(100vw-2rem)] divide-y divide-border px-4 py-1"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div>
+                      <label
+                        htmlFor="library-show-hero"
+                        className="text-sm font-medium text-text"
+                      >
+                        Show the banner
+                      </label>
+                      <p
+                        id="library-show-hero-help"
+                        className="mt-1 text-xs leading-5 text-text-faint"
+                      >
+                        The featured game above your library. Pin any game to it
+                        from the banner menu.
+                      </p>
+                    </div>
+                    <input
+                      id="library-show-hero"
+                      type="checkbox"
+                      checked={showHero}
+                      aria-describedby="library-show-hero-help"
+                      data-controller-item="library-option"
+                      onChange={(event) =>
+                        setMyGamesShowHero(event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-border accent-accent"
+                    />
+                  </div>
+                  <LibraryAppearanceControls
+                    view={view}
+                    gridLayout={gridLayout}
+                    showShelves={showShelves}
+                    showOrigin={showOrigin}
+                    showMatch={showMatch}
+                    showStatus={showStatus}
+                    showNotes={showNotes}
+                    setMyGamesGridColumns={setMyGamesGridColumns}
+                    setMyGamesShowShelves={setMyGamesShowShelves}
+                    setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
+                    setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
+                    setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
+                    setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div>
+                      <label
+                        htmlFor="library-high-res-covers"
+                        className="text-sm font-medium text-text"
+                      >
+                        Sharper covers
+                      </label>
+                      <p
+                        id="library-high-res-covers-help"
+                        className="mt-1 text-xs leading-5 text-text-faint"
+                      >
+                        Load cover art at a larger size. Looks better on big
+                        cards, uses more data. Covers you set yourself are
+                        unaffected.
+                      </p>
+                    </div>
+                    <input
+                      id="library-high-res-covers"
+                      type="checkbox"
+                      checked={highResCovers}
+                      aria-describedby="library-high-res-covers-help"
+                      data-controller-item="library-option"
+                      onChange={(event) =>
+                        setMyGamesHighResCovers(event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-border accent-accent"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div>
+                      <label
+                        htmlFor="library-hide-empty-tabs"
+                        className={clsx(
+                          "text-sm font-medium",
+                          canHideEmptyProviderTabs
+                            ? "text-text"
+                            : "text-text-faint",
+                        )}
+                      >
+                        Hide empty sources
+                      </label>
+                      <p
+                        id="library-hide-empty-tabs-help"
+                        className="mt-1 text-xs leading-5 text-text-faint"
+                      >
+                        {canHideEmptyProviderTabs
+                          ? "Hide Steam, Xbox or Battle.net in the sidebar while nothing is imported from them."
+                          : "All sources in the sidebar have games."}
+                      </p>
+                    </div>
+                    <input
+                      id="library-hide-empty-tabs"
+                      type="checkbox"
+                      checked={hideEmptyProviderTabs}
+                      disabled={!canHideEmptyProviderTabs}
+                      aria-describedby="library-hide-empty-tabs-help"
+                      data-controller-item="library-option"
+                      onChange={(event) =>
+                        setMyGamesHideEmptyProviderTabs(event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-border accent-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div>
+                      <label
+                        htmlFor="library-show-stats"
+                        className="text-sm font-medium text-text"
+                      >
+                        Show the summary row
+                      </label>
+                      <p
+                        id="library-show-stats-help"
+                        className="mt-1 text-xs leading-5 text-text-faint"
+                      >
+                        The number cards above your games.
+                      </p>
+                    </div>
+                    <input
+                      id="library-show-stats"
+                      type="checkbox"
+                      checked={showStatCards}
+                      aria-describedby="library-show-stats-help"
+                      data-controller-item="library-option"
+                      onChange={(event) =>
+                        setMyGamesShowStatCards(event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-border accent-accent"
+                    />
+                  </div>
+                  {showStatCards ? (
+                    <fieldset className="py-3">
+                      <legend className="text-sm font-medium text-text">
+                        Numbers on the {statTabLabel} tab
+                      </legend>
+                      <p className="mt-1 text-xs leading-5 text-text-faint">
+                        Pick which numbers to show. A tab only offers the ones
+                        that mean something there.
+                      </p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        {availableStatDefinitions.map((definition) => {
+                          const checked = statCardIds.includes(definition.id);
+                          return (
+                            <label
+                              key={definition.id}
+                              className="flex items-start gap-2.5 rounded-md px-2 py-1.5 transition hover:bg-surface-hover"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                data-controller-item="library-option"
+                                onChange={(event) =>
+                                  setMyGamesStatCards(
+                                    toggleLibraryStatCardIds(
+                                      statCardIds,
+                                      definition.id,
+                                      event.target.checked,
+                                    ),
+                                  )
+                                }
+                                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-accent"
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm text-text">
+                                  {definition.label({
+                                    kind: activeTabKind,
+                                    providerLabel: activeProviderConfig?.label,
+                                  })}
+                                </span>
+                                <span className="block text-xs leading-5 text-text-faint">
+                                  {definition.help}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
                   ) : null}
                 </div>
-                <LibraryStatRow
-                  cards={statCards}
-                  showDurationDays={showDurationDays}
-                />
-              </div>
-            ) : null}
+              </ContextMenu>
+            </div>
 
-            {activeTabKind === "unimported" &&
-            layout.panel !== "unimported-empty" ? (
-              <div className="grid gap-3">
-                <div>
-                  <h3 className="font-semibold text-text">PlayCounter</h3>
-                  <p className="text-sm text-text-muted">
-                    Everything that PlayCounter found and tracked for you.
-                  </p>
-                </div>
-                <LibraryStatRow
-                  cards={statCards}
-                  showDurationDays={showDurationDays}
-                />
-              </div>
-            ) : null}
-
-            {activeTabKind === "all" && layout.panel === "games" ? (
-              <LibraryStatRow
-                cards={statCards}
-                showDurationDays={showDurationDays}
-              />
-            ) : null}
-
-            <LibraryBulkActions
-              active={bulkSelection.active}
-              count={bulkSelection.selected.size}
-              total={displayedGames.length}
-              onSelectAll={bulkSelection.selectAll}
-              onClear={bulkSelection.clear}
-              onDone={bulkSelection.finish}
-              onStatus={bulkSelection.applyStatus}
-              moveToPlayCounterCount={selectedLauncherGames.length}
-              onMoveToPlayCounter={() =>
-                setPendingBulkMove({
-                  games: selectedLauncherGames,
-                  skippedCount:
-                    bulkSelection.selected.size - selectedLauncherGames.length,
-                })
+            <div
+              id="library-tabpanel"
+              role={layout.showTabs ? "tabpanel" : undefined}
+              aria-labelledby={
+                layout.showTabs ? `library-tab-${activeLibraryTab}` : undefined
               }
-            />
+              className="grid gap-5"
+            >
+              <p className="sr-only" aria-live="polite">
+                {layout.panel === "provider-empty" && activeProviderConfig
+                  ? `No ${activeProviderConfig.label} games imported yet. Use Import from ${activeProviderConfig.label} to add them.`
+                  : layout.panel === "unimported-empty"
+                    ? "No games outside your imported libraries yet."
+                    : `Showing ${visibleGames.length} ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}.`}
+              </p>
 
-            {layout.panel === "provider-empty" &&
-            activeImportableProviderConfig ? (
-              <ProviderImportCallout config={activeImportableProviderConfig} />
-            ) : layout.panel === "unimported-empty" ? (
-              <Panel className="px-6 py-12 text-center">
-                <h3 className="text-lg font-semibold text-text">
-                  Everything here came from an import
-                </h3>
-                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-muted">
-                  Games PlayCounter finds on its own show up here: a disc
-                  install, a game file you started yourself, an emulator, or
-                  anything you added by hand.
-                </p>
-              </Panel>
-            ) : layout.panel === "no-search-results" ? (
-              <Panel className="px-4 py-12 text-center text-sm text-text-muted">
-                {selectedShelf &&
-                !selectedShelf.filters &&
-                !filtersOpen &&
-                !shelfCounts[selectedShelf.id] &&
-                !query &&
-                !Object.keys(libraryFilters).length ? (
-                  <div className="mx-auto grid max-w-md justify-items-center gap-3">
-                    <h3 className="font-semibold text-text">
-                      This shelf is empty
-                    </h3>
-                    <p>
-                      Drag games onto this shelf, or save filters so it fills
-                      itself.
-                    </p>
-                    <Button
-                      icon={SlidersHorizontal}
-                      onClick={() => changeFiltersOpen(true)}
-                    >
-                      Add filters
-                    </Button>
+              {activeProviderConfig && layout.panel !== "provider-empty" ? (
+                <div className="grid gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-text">
+                        {activeProviderConfig.headline}
+                      </h3>
+                      <p className="text-sm text-text-muted">
+                        {activeProviderConfig.subtitle}
+                      </p>
+                    </div>
+                    {activeImportableProviderConfig?.import.platforms.includes(
+                      platform,
+                    ) ? (
+                      <Button
+                        variant="secondary"
+                        icon={Download}
+                        data-controller-item="view-link"
+                        onClick={() => {
+                          setLibraryImportProvider(
+                            activeImportableProviderConfig.id,
+                          );
+                          setActiveView("import");
+                        }}
+                      >
+                        {activeProviderConfig.importCtaLabel}
+                      </Button>
+                    ) : null}
                   </div>
-                ) : query ? (
-                  <>No games match &ldquo;{query}&rdquo;.</>
-                ) : showShelves ? (
-                  "No games match this shelf and these filters yet."
-                ) : (
-                  "No games match these filters yet."
-                )}
-              </Panel>
-            ) : (
-              <>
-                <div
-                  ref={gridLayout.gridRef}
-                  style={gridLayout.style}
-                  data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
-                  className={clsx(
-                    "grid",
-                    view === "grid" &&
-                      "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
-                    view === "large" &&
-                      "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
-                    view === "list" && "gap-3",
-                  )}
-                >
-                  {renderedGames.map((game) => {
-                    const isDemo = isTourDemoLibraryGame(game);
-                    const cardKey = isDemo
-                      ? `tour-demo-${game.gameId}-${tourDemo.resetToken}`
-                      : game.igdbId !== undefined
-                        ? `igdb#${game.igdbId}`
-                        : `${game.source ?? "unknown"}:${game.gameId}`;
-                    return (
-                      <MemoizedGameLibraryCard
-                        key={cardKey}
-                        launchKey={cardKey}
-                        launchBlocked={launchingGameKey !== null}
-                        onAcquireLaunch={acquireLaunchLock}
-                        onReleaseLaunch={releaseLaunchLock}
-                        onDragGame={libraryDrag.start}
-                        selectionMode={!isDemo && bulkSelection.active}
-                        selected={bulkSelection.selected.has(
-                          librarySelectionKey(game),
-                        )}
-                        onToggleSelection={bulkSelection.toggleGame}
-                        game={game}
-                        localLinks={localLinks}
-                        demo={isDemo}
-                        onDemoPlaytimeLogged={
-                          isDemo && tourDemo.tourId === "log-playtime"
-                            ? (durationSeconds) =>
-                                setDemoPlaytime((current) => ({
-                                  addedSeconds:
-                                    current.addedSeconds + durationSeconds,
-                                  addedSessions: current.addedSessions + 1,
-                                }))
-                            : undefined
-                        }
-                        showDurationDays={showDurationDays}
-                        showOrigin={showOrigin}
-                        showMatch={showMatch}
-                        view={view}
-                        onRemove={requestRemoval}
-                        onStopTracking={
-                          !isDemo && game.source
-                            ? requestStopTracking
-                            : undefined
-                        }
-                      />
-                    );
-                  })}
+                  <LibraryStatRow
+                    cards={statCards}
+                    showDurationDays={showDurationDays}
+                  />
                 </div>
-                {renderWindow.hasMore ? (
-                  <div
-                    ref={renderWindow.sentinelRef}
-                    className="flex justify-center py-2"
-                  >
-                    <Button
-                      variant="ghost"
-                      data-controller-item="library-option"
-                      loading={renderWindow.pending}
-                      onClick={renderWindow.loadMore}
-                    >
-                      Show more games
-                    </Button>
+              ) : null}
+
+              {activeTabKind === "unimported" &&
+              layout.panel !== "unimported-empty" ? (
+                <div className="grid gap-3">
+                  <div>
+                    <h3 className="font-semibold text-text">PlayCounter</h3>
+                    <p className="text-sm text-text-muted">
+                      Everything that PlayCounter found and tracked for you.
+                    </p>
                   </div>
-                ) : null}
-              </>
-            )}
+                  <LibraryStatRow
+                    cards={statCards}
+                    showDurationDays={showDurationDays}
+                  />
+                </div>
+              ) : null}
+
+              {activeTabKind === "all" && layout.panel === "games" ? (
+                <LibraryStatRow
+                  cards={statCards}
+                  showDurationDays={showDurationDays}
+                />
+              ) : null}
+
+              <LibraryBulkActions
+                active={bulkSelection.active}
+                count={bulkSelection.selected.size}
+                total={displayedGames.length}
+                onSelectAll={bulkSelection.selectAll}
+                onClear={bulkSelection.clear}
+                onDone={bulkSelection.finish}
+                onStatus={bulkSelection.applyStatus}
+                moveToPlayCounterCount={selectedLauncherGames.length}
+                onMoveToPlayCounter={() =>
+                  setPendingBulkMove({
+                    games: selectedLauncherGames,
+                    skippedCount:
+                      bulkSelection.selected.size -
+                      selectedLauncherGames.length,
+                  })
+                }
+              />
+
+              {layout.panel === "provider-empty" &&
+              activeImportableProviderConfig ? (
+                <ProviderImportCallout
+                  config={activeImportableProviderConfig}
+                />
+              ) : layout.panel === "unimported-empty" ? (
+                <Panel className="px-6 py-12 text-center">
+                  <h3 className="text-lg font-semibold text-text">
+                    Everything here came from an import
+                  </h3>
+                  <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-muted">
+                    Games PlayCounter finds on its own show up here: a disc
+                    install, a game file you started yourself, an emulator, or
+                    anything you added by hand.
+                  </p>
+                </Panel>
+              ) : layout.panel === "no-search-results" ? (
+                <Panel className="px-4 py-12 text-center text-sm text-text-muted">
+                  {selectedShelf &&
+                  !selectedShelf.filters &&
+                  !filtersOpen &&
+                  !shelfCounts[selectedShelf.id] &&
+                  !query &&
+                  !Object.keys(libraryFilters).length ? (
+                    <div className="mx-auto grid max-w-md justify-items-center gap-3">
+                      <h3 className="font-semibold text-text">
+                        This shelf is empty
+                      </h3>
+                      <p>
+                        Drag games onto this shelf, or save filters so it fills
+                        itself.
+                      </p>
+                      <Button
+                        icon={SlidersHorizontal}
+                        onClick={() => changeFiltersOpen(true)}
+                      >
+                        Add filters
+                      </Button>
+                    </div>
+                  ) : query ? (
+                    <>No games match &ldquo;{query}&rdquo;.</>
+                  ) : showShelves ? (
+                    "No games match this shelf and these filters yet."
+                  ) : (
+                    "No games match these filters yet."
+                  )}
+                </Panel>
+              ) : (
+                <>
+                  <div
+                    ref={gridLayout.gridRef}
+                    style={gridLayout.style}
+                    data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
+                    className={clsx(
+                      "grid",
+                      view === "grid" &&
+                        "grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-[repeat(auto-fill,minmax(216px,1fr))]",
+                      view === "large" &&
+                        "grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[repeat(auto-fill,minmax(300px,1fr))]",
+                      view === "list" && "gap-3",
+                    )}
+                  >
+                    {renderedGames.map((game) => {
+                      const isDemo = isTourDemoLibraryGame(game);
+                      const cardKey = isDemo
+                        ? `tour-demo-${game.gameId}-${tourDemo.resetToken}`
+                        : game.igdbId !== undefined
+                          ? `igdb#${game.igdbId}`
+                          : `${game.source ?? "unknown"}:${game.gameId}`;
+                      return (
+                        <MemoizedGameLibraryCard
+                          key={cardKey}
+                          launchKey={cardKey}
+                          launchBlocked={launchingGameKey !== null}
+                          onAcquireLaunch={acquireLaunchLock}
+                          onReleaseLaunch={releaseLaunchLock}
+                          onDragGame={libraryDrag.start}
+                          selectionMode={!isDemo && bulkSelection.active}
+                          selected={bulkSelection.selected.has(
+                            librarySelectionKey(game),
+                          )}
+                          onToggleSelection={bulkSelection.toggleGame}
+                          game={game}
+                          localLinks={localLinks}
+                          demo={isDemo}
+                          onDemoPlaytimeLogged={
+                            isDemo && tourDemo.tourId === "log-playtime"
+                              ? (durationSeconds) =>
+                                  setDemoPlaytime((current) => ({
+                                    addedSeconds:
+                                      current.addedSeconds + durationSeconds,
+                                    addedSessions: current.addedSessions + 1,
+                                  }))
+                              : undefined
+                          }
+                          showDurationDays={showDurationDays}
+                          showOrigin={showOrigin}
+                          showMatch={showMatch}
+                          view={view}
+                          onRemove={requestRemoval}
+                          onStopTracking={
+                            !isDemo && game.source
+                              ? requestStopTracking
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                  {renderWindow.hasMore ? (
+                    <div
+                      ref={renderWindow.sentinelRef}
+                      className="flex justify-center py-2"
+                    >
+                      <Button
+                        variant="ghost"
+                        data-controller-item="library-option"
+                        loading={renderWindow.pending}
+                        onClick={renderWindow.loadMore}
+                      >
+                        Show more games
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
           </div>
         </>
       )}

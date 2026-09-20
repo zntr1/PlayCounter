@@ -543,6 +543,8 @@ export interface Settings {
   libraryFeaturedGame?: LibraryFeaturedGame | null;
   /** Navigation reduced to an icon rail. Absent = expanded. */
   sidebarCollapsed?: boolean;
+  /** Source list under My Games folded away. Absent = shown. */
+  sidebarSourcesCollapsed?: boolean;
   autoShareIgnoredProcesses: boolean;
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;
@@ -550,6 +552,10 @@ export interface Settings {
   verboseLogs: boolean;
   theme: Theme;
   accentColor: string | null;
+  /** CSS zoom of the content area (1 = 100%). Absent = the app default. */
+  contentScale?: number;
+  /** CSS zoom of the sidebar and title bar (1 = 100%). Absent = 100%. */
+  menuScale?: number;
   emulatorDetection?: boolean;
   emulatorContentLookup?: boolean;
   ignoredEmulatorIds?: string[];

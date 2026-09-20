@@ -68,7 +68,7 @@ export function WindowControls() {
         onClick={run((win) => win.minimize())}
         className="window-control"
       >
-        <Minus size={15} strokeWidth={2} />
+        <Minus size={18} strokeWidth={2} />
       </button>
       <button
         type="button"
@@ -78,9 +78,9 @@ export function WindowControls() {
         className="window-control"
       >
         {maximized ? (
-          <Copy size={13} strokeWidth={2} className="-scale-x-100" />
+          <Copy size={15} strokeWidth={2} className="-scale-x-100" />
         ) : (
-          <Square size={12} strokeWidth={2} />
+          <Square size={14} strokeWidth={2} />
         )}
       </button>
       <button
@@ -90,7 +90,7 @@ export function WindowControls() {
         onClick={run((win) => win.close())}
         className="window-control window-control-close"
       >
-        <X size={16} strokeWidth={2} />
+        <X size={19} strokeWidth={2} />
       </button>
     </div>
   );

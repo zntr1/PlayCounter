@@ -38,11 +38,11 @@ export function GlobalSearch() {
   return (
     <div
       role="search"
-      className="global-search relative flex h-9 w-full max-w-[560px] items-center"
+      className="global-search relative flex h-11 w-full max-w-[640px] items-center"
     >
       <Search
-        size={15}
-        className="pointer-events-none absolute left-3.5 text-text-faint"
+        size={18}
+        className="pointer-events-none absolute left-4 z-10 text-text-faint"
       />
       <input
         ref={inputRef}
@@ -62,7 +62,7 @@ export function GlobalSearch() {
         aria-label={
           onLibrary ? "Search your games" : "Search your games (opens My Games)"
         }
-        className="global-search-input h-full w-full rounded-xl border border-border/70 bg-bg/60 pl-10 pr-[4.75rem] text-sm text-text outline-none transition placeholder:text-text-faint focus:border-accent/70 focus:bg-bg focus:ring-2 focus:ring-accent/25"
+        className="global-search-input h-full w-full rounded-xl border border-border/70 bg-bg/60 pl-11 pr-[5rem] text-[15px] text-text outline-none transition placeholder:text-text-faint focus:border-accent/70 focus:bg-bg focus:ring-2 focus:ring-accent/25"
       />
       {query ? (
         <button
@@ -72,14 +72,14 @@ export function GlobalSearch() {
             setQuery("");
             inputRef.current?.focus();
           }}
-          className="absolute right-12 grid h-6 w-6 place-items-center rounded-md text-text-faint transition hover:bg-surface-hover hover:text-text"
+          className="absolute right-[3.6rem] z-10 grid h-7 w-7 place-items-center rounded-md text-text-faint transition hover:bg-surface-hover hover:text-text"
         >
-          <X size={13} />
+          <X size={15} />
         </button>
       ) : null}
       <kbd
         aria-hidden="true"
-        className="pointer-events-none absolute right-2.5 hidden select-none items-center gap-0.5 rounded-md border border-border/70 bg-surface px-1.5 py-0.5 font-sans text-[10px] font-semibold tracking-wide text-text-faint sm:flex"
+        className="pointer-events-none absolute right-3 z-10 hidden select-none items-center gap-0.5 rounded-md border border-border/70 bg-surface px-2 py-1 font-sans text-[11px] font-semibold tracking-wide text-text-faint sm:flex"
       >
         Ctrl K
       </kbd>

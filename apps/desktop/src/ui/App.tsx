@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bug,
   Check,
+  ChevronDown,
   Cpu,
   Download,
   Gamepad2,
@@ -55,6 +56,12 @@ import { GlobalSearch } from "./shell/GlobalSearch";
 import { HeaderMenu } from "./shell/HeaderMenu";
 import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
+import { useLibrarySources } from "./librarySources";
+import {
+  DEFAULT_CONTENT_SCALE,
+  DEFAULT_MENU_SCALE,
+  normalizeInterfaceScale,
+} from "../interfaceScale";
 import { XboxButtonGlyph, type XboxControl } from "./XboxButtonGlyph";
 import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
@@ -236,13 +243,19 @@ const views: Record<
   },
 };
 
-const sidebarSections: Array<{ label: string; items: ViewId[] }> = [
+const sidebarSections: Array<{
+  id: string;
+  label: string;
+  items: ViewId[];
+}> = [
+  { id: "library", label: "Library", items: ["now", "games"] },
+  { id: "discover", label: "Discover", items: ["achievements", "history"] },
   {
-    label: "Library",
-    items: ["now", "games", "history", "achievements"],
+    id: "emulators",
+    label: "Tools",
+    items: ["emulating", "dosbox", "dolphin", "pcsx2"],
   },
-  { label: "Emulators", items: ["emulating", "dosbox", "dolphin", "pcsx2"] },
-  { label: "System", items: ["discovered", "settings", "dev"] },
+  { id: "system", label: "System", items: ["discovered", "settings", "dev"] },
 ];
 
 const STORAGE_KEY = "playcounter:v1";
@@ -380,7 +393,36 @@ export function App() {
   const sidebarCollapsed = useAppStore(
     (state) => state.settings.sidebarCollapsed === true,
   );
+  // On My Games the banner runs up behind the title bar, like a launcher's
+  // key art. Everywhere else the bar is an ordinary row above the content.
+  // Two independent zooms: navigation chrome and the content area. CSS zoom
+  // keeps pointer coordinates consistent; portals to <body> stay at 100%.
+  const contentScale = useAppStore((state) =>
+    normalizeInterfaceScale(state.settings.contentScale, DEFAULT_CONTENT_SCALE),
+  );
+  const menuScale = useAppStore((state) =>
+    normalizeInterfaceScale(state.settings.menuScale, DEFAULT_MENU_SCALE),
+  );
   const setSidebarCollapsed = useAppStore((state) => state.setSidebarCollapsed);
+  const sourcesCollapsed = useAppStore(
+    (state) => state.settings.sidebarSourcesCollapsed === true,
+  );
+  const setSidebarSourcesCollapsed = useAppStore(
+    (state) => state.setSidebarSourcesCollapsed,
+  );
+  const libraryTab = useAppStore((state) => state.libraryTab);
+  // The banner's key art continues upward behind the title bar, darkened and
+  // blurred, so the bar reads as part of the same picture.
+  const heroArt = useLibrarySources((state) =>
+    state.heroVisible ? state.heroArt : null,
+  );
+  const titleBarArt = activeView === "games" && !practiceStep ? heroArt : null;
+  const libraryCount = useLibrarySources((state) =>
+    state.visible
+      ? state.tabs.find((tab) => tab.id === "all")?.count
+      : undefined,
+  );
+  const setLibraryTab = useAppStore((state) => state.setLibraryTab);
 
   useLayoutEffect(() => {
     const content = contentRef.current;
@@ -511,6 +553,7 @@ export function App() {
       <aside
         data-tour="sidebar"
         data-collapsed={sidebarCollapsed ? "true" : undefined}
+        style={{ zoom: menuScale }}
         className={clsx(
           "app-sidebar flex shrink-0 flex-col transition-[width] duration-200",
           sidebarCollapsed ? "w-[68px]" : "w-[248px]",
@@ -519,7 +562,7 @@ export function App() {
         <div
           data-tauri-drag-region
           className={clsx(
-            "flex h-14 shrink-0 items-center",
+            "flex h-16 shrink-0 items-center",
             sidebarCollapsed ? "justify-center px-2" : "gap-2.5 pl-4 pr-2",
           )}
         >
@@ -527,13 +570,13 @@ export function App() {
             data-tauri-drag-region
             src="/icon.png"
             alt=""
-            className="h-8 w-8 shrink-0 object-contain"
+            className="h-9 w-9 shrink-0 object-contain"
           />
           {!sidebarCollapsed ? (
             <>
               <span
                 data-tauri-drag-region
-                className="min-w-0 flex-1 truncate text-[17px] font-bold tracking-tight text-text"
+                className="min-w-0 flex-1 truncate text-lg font-bold tracking-tight text-text"
               >
                 PlayCounter
               </span>
@@ -555,13 +598,14 @@ export function App() {
         <nav
           data-controller-scroll
           className={clsx(
-            "flex-1 overflow-y-auto overflow-x-hidden pb-4",
+            "flex-1 overflow-y-auto overflow-x-hidden pb-6 pt-2",
             sidebarCollapsed ? "px-2.5" : "px-3",
           )}
         >
-          {sidebarSections.map((section) => {
+          <div className="mx-3 mb-4 h-px bg-border/60" aria-hidden="true" />
+          {sidebarSections.map((section, sectionIndex) => {
             if (
-              section.label === "Emulators" &&
+              section.id === "emulators" &&
               !emulatorTourDemo &&
               (!emulatorDetectionEnabled ||
                 [...knownEmulators.keys()].every((id) =>
@@ -592,79 +636,135 @@ export function App() {
 
             return (
               <div
-                key={section.label}
-                className="mb-5"
+                key={section.id}
                 data-tour={
-                  section.label === "Emulators" ? "nav-emulators" : undefined
+                  section.id === "emulators" ? "nav-emulators" : undefined
                 }
               >
-                {sidebarCollapsed ? (
+                {sectionIndex > 0 ? (
                   <div
-                    className="mx-3 mb-2 h-px bg-border/60"
+                    className="mx-3 my-4 h-px bg-border/60"
                     aria-hidden="true"
                   />
-                ) : (
-                  <div className="px-3 pb-2 text-[11px] font-bold uppercase tracking-widest text-text-muted/70">
+                ) : null}
+                {sidebarCollapsed ? null : (
+                  <div className="px-3 pb-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted/70">
                     {section.label}
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
                   {items.map((item) => {
                     const view = views[item];
+                    // The source list stays wherever you are; only the
+                    // chevron decides whether it is folded.
+                    const showSources = item === "games" && !sourcesCollapsed;
                     return (
-                      <SidebarButton
+                      <div
                         key={item}
-                        icon={view.icon}
-                        imageSrc={view.imageSrc}
-                        label={view.label}
-                        collapsed={sidebarCollapsed}
-                        active={
-                          activeView === item ||
-                          (item === "games" && activeView === "import")
-                        }
-                        controllerEnabled={
-                          item !== "discovered" && item !== "dev"
-                        }
-                        dataTour={`nav-${item}`}
-                        badge={
-                          item === "discovered"
-                            ? needsReviewCount
-                            : item === "dosbox" ||
-                                item === "dolphin" ||
-                                item === "pcsx2"
-                              ? sidebarEmulatorBadge(item)
-                              : undefined
-                        }
-                        warn={item === "now" ? hasAmbiguousMatch : undefined}
-                        isPlaying={
-                          item === "now" && !hasAmbiguousMatch
-                            ? activeSessionsCount > 0
-                            : item === "emulating"
-                              ? emulatorTourDemo || emulatorIsRunning
-                              : undefined
-                        }
-                        onClick={() => {
-                          if (item === "discovered" && activeView === item) {
-                            window.dispatchEvent(
-                              new CustomEvent("playcounter:discovered-reset"),
-                            );
+                        className="relative flex flex-col gap-0.5"
+                      >
+                        <SidebarButton
+                          icon={view.icon}
+                          imageSrc={view.imageSrc}
+                          label={view.label}
+                          count={item === "games" ? libraryCount : undefined}
+                          trailingSpace={item === "games" && !sidebarCollapsed}
+                          collapsed={sidebarCollapsed}
+                          active={
+                            activeView === item ||
+                            (item === "games" && activeView === "import")
                           }
-                          if (item === "history") {
-                            setHistoryQuery("");
-                            setHistoryGameKey(null);
+                          controllerEnabled={
+                            item !== "discovered" && item !== "dev"
                           }
-                          setActiveView(item);
-                        }}
-                      />
+                          dataTour={`nav-${item}`}
+                          badge={
+                            item === "discovered"
+                              ? needsReviewCount
+                              : item === "dosbox" ||
+                                  item === "dolphin" ||
+                                  item === "pcsx2"
+                                ? sidebarEmulatorBadge(item)
+                                : undefined
+                          }
+                          warn={item === "now" ? hasAmbiguousMatch : undefined}
+                          isPlaying={
+                            item === "now" && !hasAmbiguousMatch
+                              ? activeSessionsCount > 0
+                              : item === "emulating"
+                                ? emulatorTourDemo || emulatorIsRunning
+                                : undefined
+                          }
+                          onClick={() => {
+                            if (item === "discovered" && activeView === item) {
+                              window.dispatchEvent(
+                                new CustomEvent("playcounter:discovered-reset"),
+                              );
+                            }
+                            if (item === "history") {
+                              setHistoryQuery("");
+                              setHistoryGameKey(null);
+                            }
+                            // Second click on My Games: back to the whole
+                            // library instead of staying on a source.
+                            if (
+                              item === "games" &&
+                              activeView === "games" &&
+                              libraryTab !== "all"
+                            ) {
+                              setLibraryTab("all");
+                            }
+                            setActiveView(item);
+                          }}
+                        />
+                        {item === "games" && !sidebarCollapsed ? (
+                          <button
+                            type="button"
+                            aria-label={
+                              sourcesCollapsed ? "Show sources" : "Hide sources"
+                            }
+                            title={
+                              sourcesCollapsed ? "Show sources" : "Hide sources"
+                            }
+                            aria-expanded={!sourcesCollapsed}
+                            onClick={() =>
+                              setSidebarSourcesCollapsed(!sourcesCollapsed)
+                            }
+                            className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-lg text-text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                          >
+                            <ChevronDown
+                              size={16}
+                              className={clsx(
+                                "transition-transform duration-200",
+                                sourcesCollapsed && "-rotate-90",
+                              )}
+                            />
+                          </button>
+                        ) : null}
+                        {showSources ? (
+                          <SidebarSources collapsed={sidebarCollapsed} />
+                        ) : null}
+                      </div>
                     );
                   })}
+                  {section.id === "system" ? (
+                    <SidebarButton
+                      icon={MessageSquarePlus}
+                      label="Help & Feedback"
+                      collapsed={sidebarCollapsed}
+                      active={feedbackOpen}
+                      disabled={isOffline}
+                      title={
+                        isOffline ? "Feedback unavailable offline" : undefined
+                      }
+                      dataTour="send-feedback"
+                      onClick={() => setFeedbackOpen(true)}
+                    />
+                  ) : null}
                 </div>
               </div>
             );
           })}
-          {activeView === "games" || activeView === "import" ? (
-            <SidebarSources collapsed={sidebarCollapsed} />
-          ) : null}
         </nav>
         <div
           className={clsx(
@@ -682,32 +782,35 @@ export function App() {
       </aside>
       <section
         data-controller-mode={controllerModeActive ? "true" : undefined}
-        className="flex min-w-0 flex-1 flex-col"
+        className="relative flex min-w-0 flex-1 flex-col"
       >
         <header
           data-tour="header"
           data-tauri-drag-region
-          className="app-titlebar flex h-14 shrink-0 items-stretch"
+          style={{ zoom: menuScale }}
+          className="app-titlebar relative isolate flex h-16 shrink-0 items-stretch overflow-hidden"
         >
+          {titleBarArt ? (
+            <div
+              aria-hidden="true"
+              className="titlebar-art pointer-events-none absolute inset-0 -z-10"
+            >
+              <img
+                src={titleBarArt}
+                alt=""
+                className="h-full w-full scale-110 object-cover object-[72%_0%] blur-md"
+              />
+            </div>
+          ) : null}
           <div
             data-tauri-drag-region
             className="flex min-w-0 flex-1 items-center justify-center px-4"
           >
             <GlobalSearch />
           </div>
-          <div className="titlebar-actions flex shrink-0 items-center gap-1 pr-2">
+          <div className="titlebar-actions flex shrink-0 items-center gap-1.5 pr-3">
             <HelpButton />
             <NotificationBell />
-            <IconButton
-              aria-label="Send feedback"
-              title={
-                isOffline ? "Feedback unavailable offline" : "Send feedback"
-              }
-              icon={MessageSquarePlus}
-              data-tour="send-feedback"
-              disabled={isOffline}
-              onClick={() => setFeedbackOpen(true)}
-            />
             <HeaderMenu />
           </div>
           <WindowControls />
@@ -752,7 +855,11 @@ export function App() {
             tabIndex={-1}
             aria-busy={activeView === "games" && !renderGames}
             aria-label={`${activeViewLabel} content`}
-            className="controller-content absolute inset-0 overflow-auto px-7 pb-8 pt-5"
+            style={{ zoom: contentScale }}
+            className={clsx(
+              "controller-content absolute inset-0 overflow-auto px-7 pb-8",
+              titleBarArt ? "pt-2" : "pt-5",
+            )}
           >
             {activeView !== "games" ? (
               <ViewHeading
