@@ -373,7 +373,7 @@ const playCounterOrigin: OriginEntry = {
   tone: "text-text-muted",
   coinTone: "",
   chipTone: "border-border bg-surface text-text-muted",
-  iconUrl: "/icon.png",
+  iconUrl: "/brand/playcounter-mark-small.svg",
   icon: Gamepad2,
   coinFill: true,
 };

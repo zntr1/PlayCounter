@@ -43,6 +43,8 @@ import {
   Suspense,
 } from "react";
 import { initializeTracker } from "../tracker";
+import { PlayCounterLoader } from "../brand/PlayCounterLoader";
+import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
 import {
   CONTROLLER_MODE_EVENT,
   deactivateControllerMode,
@@ -630,8 +632,8 @@ export function App() {
         <div
           data-tauri-drag-region
           className={clsx(
-            "flex h-16 shrink-0 items-center",
-            sidebarCollapsed ? "justify-center px-2" : "gap-2.5 pl-4 pr-2",
+            "flex h-[72px] shrink-0 items-center",
+            sidebarCollapsed ? "justify-center px-2" : "gap-2 px-4",
           )}
         >
           {/* Collapsed, the logo is the way back: a toggle of its own would
@@ -646,9 +648,10 @@ export function App() {
               className="group grid h-11 w-11 place-items-center rounded-xl transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
               <img
-                src="/icon.png"
+                src="/brand/playcounter-mark-small.svg"
                 alt=""
-                className="col-start-1 row-start-1 h-8 w-8 object-contain transition group-hover:opacity-0"
+                draggable={false}
+                className="col-start-1 row-start-1 h-9 w-9 object-contain transition group-hover:opacity-0"
               />
               <PanelLeftOpen
                 size={18}
@@ -659,15 +662,19 @@ export function App() {
             <>
               <img
                 data-tauri-drag-region
-                src="/icon.png"
+                src="/brand/playcounter-mark.svg"
                 alt=""
-                className="h-9 w-9 shrink-0 object-contain"
+                draggable={false}
+                className="h-11 w-11 shrink-0 object-contain"
               />
               <span
                 data-tauri-drag-region
-                className="min-w-0 flex-1 animate-label-in truncate text-lg font-bold tracking-tight text-text motion-reduce:animate-none"
+                className="min-w-0 flex-1 animate-label-in leading-none motion-reduce:animate-none"
               >
-                PlayCounter
+                <PlayCounterWordmark
+                  size={23}
+                  className="pointer-events-none"
+                />
               </span>
               <SidebarToggle
                 collapsed={false}
@@ -679,7 +686,7 @@ export function App() {
         <nav
           data-controller-scroll
           className={clsx(
-            "flex-1 overflow-y-auto overflow-x-hidden pb-6 pt-2",
+            "flex-1 overflow-y-auto overflow-x-hidden pb-6",
             sidebarCollapsed ? "px-2.5" : "px-3",
           )}
         >
@@ -1029,18 +1036,10 @@ export function App() {
               ? views[activeView].component
               : null}
             {activeView === "games" && !renderGames && !practiceStep ? (
-              <div role="status" className="grid gap-4">
-                <span className="sr-only">Loading your games…</span>
-                <div className="h-24 rounded-xl border border-border bg-surface" />
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {Array.from({ length: 4 }, (_, index) => (
-                    <div
-                      key={index}
-                      className="aspect-[3/4] rounded-xl border border-border bg-surface"
-                    />
-                  ))}
-                </div>
-              </div>
+              <PlayCounterLoader
+                label="Loading your games…"
+                className="min-h-[320px] text-text-muted"
+              />
             ) : null}
             {renderGames ? (
               <div hidden={activeView !== "games" || Boolean(practiceStep)}>

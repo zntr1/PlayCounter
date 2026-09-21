@@ -33,9 +33,9 @@ createRoot(document.getElementById("root")!).render(
   </React.StrictMode>,
 );
 
-// The native window starts hidden so no blank white frame is shown while the
-// webview boots and the saved geometry is restored. Reveal it once the first
-// frame is actually on screen.
+// Keep a fallback reveal after React paints. The small brand bootstrap normally
+// reveals the window earlier, once the startup artwork has painted; the native
+// command is idempotent and keeps autostart launches in the tray.
 requestAnimationFrame(() => {
   requestAnimationFrame(() => {
     void import("@tauri-apps/api/core")

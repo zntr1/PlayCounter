@@ -38,7 +38,9 @@ export function SidebarSources() {
           const config =
             tab.kind === "provider" ? providerTabConfig(tab.id) : undefined;
           const iconUrl =
-            tab.kind === "unimported" ? "/icon.png" : config?.iconUrl;
+            tab.kind === "unimported"
+              ? "/brand/playcounter-mark-small.svg"
+              : config?.iconUrl;
           return (
             <button
               key={tab.id}

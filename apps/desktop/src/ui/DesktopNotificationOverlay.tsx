@@ -82,7 +82,7 @@ export function DesktopNotificationOverlay({
                 <span>PC</span>
               ) : (
                 <img
-                  src="/icon.png"
+                  src="/brand/playcounter-mark.svg"
                   alt=""
                   className="desktop-overlay-logo"
                   onError={() => setLogoFailed(true)}

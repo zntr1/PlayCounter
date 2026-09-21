@@ -144,9 +144,15 @@ main[id] {
 }
 .brand img {
   flex: 0 0 auto;
+  object-fit: contain;
+}
+.brand .brand-mark {
   width: 34px;
   height: 34px;
-  object-fit: contain;
+}
+.brand .brand-wordmark {
+  width: auto;
+  height: 23px;
 }
 .desktop-nav {
   margin-left: auto;
@@ -898,9 +904,12 @@ td {
   .brand {
     font-size: 1.1rem;
   }
-  .brand img {
+  .brand .brand-mark {
     width: 30px;
     height: 30px;
+  }
+  .brand .brand-wordmark {
+    height: 21px;
   }
   .desktop-nav,
   .nav-download {

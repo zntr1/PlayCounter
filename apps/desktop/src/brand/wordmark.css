@@ -1,0 +1,43 @@
+.pc-wordmark {
+  --pc-wordmark-size: 19px;
+  display: inline-grid;
+  flex-shrink: 0;
+  vertical-align: middle;
+  line-height: 0;
+  width: calc(var(--pc-wordmark-size) * 5.225961538);
+  height: calc(var(--pc-wordmark-size) * 1);
+}
+.pc-wordmark > img {
+  grid-area: 1 / 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.pc-wordmark > .pc-wordmark__light {
+  display: none;
+}
+.pc-wordmark[data-surface="light"] > .pc-wordmark__dark,
+:root[data-theme="light"]
+  .pc-wordmark[data-surface="auto"]
+  > .pc-wordmark__dark {
+  display: none;
+}
+.pc-wordmark[data-surface="light"] > .pc-wordmark__light,
+:root[data-theme="light"]
+  .pc-wordmark[data-surface="auto"]
+  > .pc-wordmark__light {
+  display: block;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme])
+    .pc-wordmark[data-surface="auto"]
+    > .pc-wordmark__dark {
+    display: none;
+  }
+  :root:not([data-theme])
+    .pc-wordmark[data-surface="auto"]
+    > .pc-wordmark__light {
+    display: block;
+  }
+}

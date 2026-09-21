@@ -1,114 +1,145 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0f19" />
     <title>PlayCounter</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/brand/playcounter-mark-small.svg"
+    />
+    <link rel="stylesheet" href="/src/brand/wordmark.css" />
+    <script>
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem("playcounter:v1") || "null",
+        );
+        document.documentElement.dataset.theme =
+          saved?.settings?.theme === "light" ? "light" : "dark";
+      } catch {
+        /* Keep the same default dark theme as the app. */
+      }
+    </script>
     <style>
+      html {
+        --pc-boot-bg: #0b0f19;
+        --pc-boot-text: #e7e9ee;
+        color-scheme: dark;
+      }
+      html[data-theme="light"] {
+        --pc-boot-bg: #f4f5f8;
+        --pc-boot-text: #1b1e26;
+        color-scheme: light;
+      }
       html,
       body,
       #root {
         min-height: 100%;
         margin: 0;
-        background: #0b0f19;
+        background: var(--pc-boot-bg);
       }
-
-      /* Hide the loader once React populates #root */
-      #root:not(:empty) + #initial-loader {
+      html:not([data-pc-boot-failed]) #root:not(:empty) + #initial-loader {
         display: none;
       }
-
       #initial-loader {
         position: fixed;
         inset: 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        background: #0b0f19;
-        color: #e7e9ee;
-        font:
-          600 24px "Inter",
+        z-index: 9999;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 12px;
+        background: var(--pc-boot-bg);
+        color: var(--pc-boot-text);
+        font-family:
+          Inter,
           -apple-system,
           BlinkMacSystemFont,
           "Segoe UI",
           sans-serif;
-        z-index: 9999;
-        -webkit-user-select: none;
         user-select: none;
+        text-align: center;
       }
-
-      /* Keep the whole startup screen draggable before React mounts. */
-      #initial-loader * {
+      #initial-loader picture {
+        display: block;
+        pointer-events: none;
+        line-height: 0;
+      }
+      #initial-loader > picture img {
+        display: block;
+        width: 160px;
+        height: 128px;
+      }
+      #initial-loader .pc-boot-name {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: -0.8px;
         pointer-events: none;
       }
-
-      #initial-loader img {
-        width: 64px;
-        height: 64px;
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      #initial-loader .pc-boot-status {
+        margin: 0;
+        font-size: 13px;
+        opacity: 0.65;
+        pointer-events: none;
       }
-
-      .brand {
-        margin-bottom: 24px;
-        letter-spacing: 1px;
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      #initial-loader button {
+        border: 1px solid #84652d;
+        border-radius: 8px;
+        padding: 8px 16px;
+        background: #362a16;
+        color: #ffdf80;
+        font: inherit;
+        cursor: pointer;
       }
-
-      .progress-bar-container {
-        width: 180px;
-        height: 4px;
-        background: #2a2e39;
-        border-radius: 9999px;
-        overflow: hidden;
-        position: relative;
+      #initial-loader button[hidden] {
+        display: none;
       }
-
-      .progress-bar {
-        position: absolute;
-        top: 0;
-        left: 0;
-        height: 100%;
-        width: 30%;
-        background: rgb(var(--color-accent, 0 98 255));
-        border-radius: 9999px;
-        animation: loading 1.5s infinite ease-in-out;
-      }
-
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
-      }
-
-      @keyframes loading {
-        0% {
-          left: -30%;
-          width: 30%;
-        }
-        50% {
-          width: 50%;
-        }
-        100% {
-          left: 100%;
-          width: 30%;
-        }
+      #initial-loader button:focus-visible {
+        outline: 2px solid #ffdf80;
+        outline-offset: 4px;
       }
     </style>
   </head>
   <body>
     <div id="root"></div>
     <div id="initial-loader" data-tauri-drag-region>
-      <img src="/icon.png" alt="PlayCounter Icon" />
-      <div class="brand">PlayCounter</div>
-      <div class="progress-bar-container">
-        <div class="progress-bar"></div>
-      </div>
+      <picture>
+        <source
+          media="(prefers-reduced-motion: reduce)"
+          srcset="/brand/playcounter-loader-static.svg"
+        />
+        <img
+          src="/brand/playcounter-loader.svg"
+          width="160"
+          height="128"
+          alt=""
+        />
+      </picture>
+      <span
+        class="pc-wordmark pc-boot-name"
+        data-surface="auto"
+        style="--pc-wordmark-size: 26px"
+        aria-hidden="true"
+        ><img
+          class="pc-wordmark__dark"
+          src="/brand/playcounter-wordmark-on-dark.svg"
+          alt=""
+          width="1087"
+          height="208" /><img
+          class="pc-wordmark__light"
+          src="/brand/playcounter-wordmark-on-light.svg"
+          alt=""
+          width="1087"
+          height="208"
+      /></span>
+      <p class="pc-boot-status" role="status" aria-live="polite">
+        Starting PlayCounter…
+      </p>
+      <button id="pc-boot-retry" type="button" hidden>Try again</button>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/brand/bootstrap.ts"></script>
   </body>
 </html>

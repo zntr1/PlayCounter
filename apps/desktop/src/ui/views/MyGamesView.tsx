@@ -2459,7 +2459,7 @@ function EmptyLibraryPanel({
     <Panel className="overflow-hidden text-center">
       <div className="bg-gradient-to-b from-accent/[0.06] to-transparent px-6 py-10 sm:px-10 sm:py-12">
         <img
-          src="/icon.png"
+          src="/brand/playcounter-mark.svg"
           alt=""
           aria-hidden="true"
           className="mx-auto h-16 w-16 object-contain"

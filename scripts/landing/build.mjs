@@ -37,15 +37,16 @@ const shotUrl = (key) => `/images/${site.screenshots[key].file}`;
 const arrow = '<span aria-hidden="true">↗</span>';
 const download = (label = "Download for Windows", secondary = false) =>
   `<a class="button${secondary ? " secondary" : ""}" href="${site.download}">${label} <span aria-hidden="true">↓</span></a>`;
+const brand = `<img class="brand-mark" src="/brands/playcounter-mark.svg" width="34" height="34" alt="" /><img class="brand-wordmark" src="/brands/playcounter-wordmark-on-light.svg" width="1087" height="208" alt="PlayCounter" />`;
 
 function navigation() {
   const links =
     '<a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a>';
-  return `<a class="skip-link" href="#main">Skip to content</a><header class="site-header"><div class="nav-wrap"><a class="brand" href="/" aria-label="PlayCounter home"><img src="/icon.png" width="34" height="34" alt="" />PlayCounter</a><nav class="desktop-nav" aria-label="Main">${links}</nav><a class="nav-download" href="${site.download}">Download <span aria-hidden="true">↓</span></a><details class="mobile-menu"><summary>Menu</summary><nav aria-label="Mobile">${links}<a href="${site.download}">Download for Windows</a></nav></details></div></header>`;
+  return `<a class="skip-link" href="#main">Skip to content</a><header class="site-header"><div class="nav-wrap"><a class="brand" href="/" aria-label="PlayCounter home">${brand}</a><nav class="desktop-nav" aria-label="Main">${links}</nav><a class="nav-download" href="${site.download}">Download <span aria-hidden="true">↓</span></a><details class="mobile-menu"><summary>Menu</summary><nav aria-label="Mobile">${links}<a href="${site.download}">Download for Windows</a></nav></details></div></header>`;
 }
 
 function footer() {
-  return `<footer class="site-footer"><div class="footer-top"><a class="brand" href="/"><img src="/icon.png" width="30" height="30" alt="" />PlayCounter</a><p>Automatic playtime tracking for Windows.</p><nav aria-label="Footer"><a href="/guides/">Guides</a><a href="${site.repository}">Source code ${arrow}</a><a href="${site.discord}">Discord ${arrow}</a><a href="${site.releases}">Releases ${arrow}</a></nav></div><div class="footer-bottom"><span>© 2026 PlayCounter</span><div><a href="/is-playcounter-safe/">Downloads &amp; privacy</a><a href="/datenschutz">Privacy policy</a><a href="/impressum">Legal notice</a></div></div><p class="trademarks">Third-party game artwork and trademarks belong to their respective owners.</p></footer>`;
+  return `<footer class="site-footer"><div class="footer-top"><a class="brand" href="/" aria-label="PlayCounter home">${brand}</a><p>Automatic playtime tracking for Windows.</p><nav aria-label="Footer"><a href="/guides/">Guides</a><a href="${site.repository}">Source code ${arrow}</a><a href="${site.discord}">Discord ${arrow}</a><a href="${site.releases}">Releases ${arrow}</a></nav></div><div class="footer-bottom"><span>© 2026 PlayCounter</span><div><a href="/is-playcounter-safe/">Downloads &amp; privacy</a><a href="/datenschutz">Privacy policy</a><a href="/impressum">Legal notice</a></div></div><p class="trademarks">Third-party game artwork and trademarks belong to their respective owners.</p></footer>`;
 }
 
 function screenshot(key, { eager = false, caption = true } = {}) {
@@ -92,6 +93,7 @@ function shell({
 <meta name="application-name" content="PlayCounter" />
 ${noindex ? "" : `<link rel="canonical" href="${url(path)}" />`}
 <link rel="icon" href="/icon.png" />
+<link rel="icon" type="image/svg+xml" href="/brands/playcounter-mark-small.svg" />
 <link rel="apple-touch-icon" href="/icon.png" />
 <link rel="stylesheet" href="/styles.css?v=${assetVersion("styles.css")}" />
 <script src="/site.js?v=${assetVersion("site.js")}" defer></script>
@@ -419,6 +421,17 @@ export function buildOutputs() {
     "site.js",
     readFileSync(resolve(root, "scripts/landing/site.js"), "utf8"),
   );
+  for (const asset of [
+    "playcounter-mark.svg",
+    "playcounter-mark-small.svg",
+    "playcounter-wordmark-on-light.svg",
+    "Bricolage-Grotesque-OFL.txt",
+  ]) {
+    outputs.set(
+      `brands/${asset}`,
+      readFileSync(resolve(root, `apps/desktop/public/brand/${asset}`), "utf8"),
+    );
+  }
   return outputs;
 }
 
