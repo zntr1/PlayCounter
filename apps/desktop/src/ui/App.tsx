@@ -439,8 +439,8 @@ export function App() {
     (state) => state.setSidebarSourcesCollapsed,
   );
   const libraryTab = useAppStore((state) => state.libraryTab);
-  // The banner's key art continues upward behind the title bar, darkened and
-  // blurred, so the bar reads as part of the same picture.
+  // The title bar uses the same image frame as the banner and its lower
+  // continuation, darkened so the controls stay readable.
   const heroArt = useLibrarySources((state) =>
     state.heroVisible ? state.heroArt : null,
   );
@@ -606,6 +606,7 @@ export function App() {
   return (
     <main
       className="app-shell flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg"
+      data-banner-layout={compactBannerVisible ? "compact" : "full"}
       style={
         {
           // Content and menu zoom differently; the banner art has to line up
@@ -614,9 +615,6 @@ export function App() {
           // On My Games the bar is 72px tall: 64px of controls plus the
           // 8px gap above the banner, so the key art covers the gap too.
           "--hero-lead": `calc(72px / ${contentScale / menuScale})`,
-          "--banner-height": compactBannerVisible
-            ? "200px"
-            : "clamp(300px, 40vh, 360px)",
         } as CSSProperties
       }
     >
@@ -885,9 +883,9 @@ export function App() {
               aria-hidden="true"
               className="titlebar-art pointer-events-none absolute inset-0 -z-10 overflow-hidden"
             >
-              {/* Same box as the banner card, extended upward: the card
-                  starts its crop --hero-lead lower, so this strip is exactly
-                  what sits above it. */}
+              {/* Same image frame as the card and lower continuation. The
+                  card starts its crop --hero-lead lower, leaving this strip
+                  directly above it. */}
               <img
                 src={titleBarArt}
                 alt=""
@@ -900,7 +898,7 @@ export function App() {
                         width:
                           "calc((var(--content-width, 100%) - 56px) * var(--zoom-ratio))",
                         height:
-                          "calc(var(--banner-height) * var(--zoom-ratio) + 72px)",
+                          "calc((var(--banner-height) + var(--banner-tail)) * var(--zoom-ratio) + 72px)",
                       }
                     : {
                         left: 0,

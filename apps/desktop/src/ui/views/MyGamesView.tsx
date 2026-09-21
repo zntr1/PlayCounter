@@ -17,6 +17,7 @@ import {
   Clipboard,
   Check,
   CheckSquare,
+  ChevronDown,
   Clock3,
   ClockPlus,
   Download,
@@ -509,9 +510,12 @@ function LibrarySummaryChip({
       {showCount ? (
         <span
           title={countTitle}
-          className="flex min-h-[26px] items-center px-2.5 font-mono font-semibold tabular-nums text-text"
+          className="flex min-h-[26px] items-center gap-1 whitespace-nowrap px-2.5 text-text-muted"
         >
-          {countLabel}
+          <span className="font-mono font-semibold tabular-nums text-text">
+            {countLabel}
+          </span>
+          {" games"}
         </span>
       ) : null}
       {stats.map((card) => (
@@ -1884,7 +1888,7 @@ export function MyGamesView({
                 }
                 selectionAction={
                   <Button
-                    variant={bulkSelection.active ? "primary" : "ghost"}
+                    variant={bulkSelection.active ? "primary" : "secondary"}
                     icon={CheckSquare}
                     data-library-select=""
                     aria-label="Select games"
@@ -1900,27 +1904,37 @@ export function MyGamesView({
                       (!displayedGames.length && !bulkSelection.active)
                     }
                     onClick={bulkSelection.toggleMode}
-                    className="shrink-0"
+                    className="h-9 shrink-0"
                   >
                     {bulkSelection.active ? "Selecting" : "Select"}
                   </Button>
                 }
                 trailing={
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <select
-                      aria-label="Sort games"
-                      value={sortKey}
-                      onChange={(event) =>
-                        setMyGamesSortKey(event.target.value as MyGamesSortKey)
-                      }
-                      className={clsx(selectClass, "h-9 rounded-lg py-0 pr-8")}
-                    >
-                      {sortOptions.map((option) => (
-                        <option key={option.key} value={option.key}>
-                          Sort: {option.label}
-                        </option>
-                      ))}
-                    </select>
+                    <span className="relative inline-flex min-w-0">
+                      <select
+                        aria-label="Sort games"
+                        value={sortKey}
+                        onChange={(event) =>
+                          setMyGamesSortKey(event.target.value as MyGamesSortKey)
+                        }
+                        className={clsx(
+                          selectClass,
+                          "h-9 appearance-none rounded-lg !py-0 pr-8 font-medium",
+                        )}
+                      >
+                        {sortOptions.map((option) => (
+                          <option key={option.key} value={option.key}>
+                            Sort: {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={15}
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+                      />
+                    </span>
                     <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
                       <button
                         type="button"

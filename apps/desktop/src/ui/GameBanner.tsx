@@ -92,13 +92,12 @@ export function GameBanner({
         ready.genres.length > 0 ? ready.genres.slice(0, 3).join(" · ") : null,
       ].filter((part): part is string => Boolean(part))
     : [];
-  // Key art when there is some, the cover otherwise: the title bar tint
-  // should always follow the banner.
-  const titleBarArt = artwork ?? (game.coverUrl || null);
+  // One image continues through the title bar, card, and lower backdrop.
+  const backdropArt = artwork ?? (game.coverUrl || null);
   useEffect(() => {
-    onArtworkChange(titleBarArt);
+    onArtworkChange(backdropArt);
     return () => onArtworkChange(null);
-  }, [onArtworkChange, titleBarArt]);
+  }, [onArtworkChange, backdropArt]);
   const played = game.hasLastPlayedEvidence || game.sessionCount > 0;
   const eyebrow = shelfName
     ? `${shelfName} · ${pinned ? "Shelf banner" : "Library banner"}`
@@ -119,15 +118,12 @@ export function GameBanner({
     setActiveView("history");
   }
 
-  return (
+  const bannerCard = (
     <section
       aria-label={`${eyebrow}: ${game.name}`}
       data-tour={compact ? undefined : "library-hero"}
       data-banner-variant={variant}
-      className={clsx(
-        "library-hero relative isolate mb-6 overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised",
-        compact ? "h-[200px]" : "h-[min(360px,40vh)] min-h-[300px]",
-      )}
+      className="library-hero relative isolate h-[var(--banner-height)] overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised"
     >
       <div aria-hidden className="absolute inset-0">
         {artwork ? (
@@ -140,7 +136,8 @@ export function GameBanner({
             fetchPriority="high"
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
-              height: "calc(100% + var(--hero-lead, 0px))",
+              height:
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
             }}
             className="library-hero-art absolute inset-x-0 w-full object-cover object-[72%_0%]"
           />
@@ -151,7 +148,8 @@ export function GameBanner({
             loading="eager"
             style={{
               top: "calc(var(--hero-lead, 0px) * -1)",
-              height: "calc(100% + var(--hero-lead, 0px))",
+              height:
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
             }}
             className="hero-backdrop absolute inset-x-0 w-full scale-125 object-cover blur-3xl saturate-150"
           />
@@ -343,5 +341,31 @@ export function GameBanner({
         />
       ) : null}
     </section>
+  );
+
+  return (
+    <div className="library-banner relative mb-6" data-banner-layout={variant}>
+      {backdropArt ? (
+        <div
+          aria-hidden="true"
+          className="library-banner-continuation pointer-events-none absolute -z-10"
+        >
+          <img
+            src={backdropArt}
+            srcSet={artSrcSet(backdropArt)}
+            sizes="100vw"
+            alt=""
+            decoding="async"
+            style={{
+              top: "calc((var(--banner-height) + var(--hero-lead, 0px)) * -1)",
+              height:
+                "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
+            }}
+            className="absolute inset-x-0 w-full object-cover object-[72%_0%]"
+          />
+        </div>
+      ) : null}
+      {bannerCard}
+    </div>
   );
 }

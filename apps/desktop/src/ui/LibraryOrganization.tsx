@@ -12,7 +12,14 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   GAME_STATUSES,
   NAME_LIMIT,
@@ -146,6 +153,30 @@ export function LibraryOrganizationToolbar({
   const remove = usePersonalLibraryState((s) => s.deletePersonalShelf);
   const addToast = usePersonalLibraryState((s) => s.addToast);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const toolbarRowRef = useRef<HTMLDivElement>(null);
+  const fitToolbar = useCallback(() => {
+    const container = toolbarRef.current;
+    const row = toolbarRowRef.current;
+    if (!container || !row || !row.hasAttribute("data-heading")) return;
+    const availableWidth = container.getBoundingClientRect().width;
+    if (!availableWidth) return;
+
+    // Measure the complete row before painting. A fixed breakpoint can move
+    // shelves above the controls while the controls still need a second row.
+    row.setAttribute("data-measuring", "");
+    const requiredWidth = row.getBoundingClientRect().width;
+    row.removeAttribute("data-measuring");
+    row.toggleAttribute("data-single-row", requiredWidth <= availableWidth);
+  }, []);
+  // Labels, shelf counts, and summary settings can change the required width.
+  useLayoutEffect(fitToolbar);
+  useLayoutEffect(() => {
+    const container = toolbarRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(fitToolbar);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [fitToolbar]);
   const [editor, setEditor] = useState<PersonalShelf | "new" | null>(null);
   const [name, setName] = useState("");
   const [deleting, setDeleting] = useState<PersonalShelf | null>(null);
@@ -211,6 +242,7 @@ export function LibraryOrganizationToolbar({
       className="library-organization grid gap-3"
     >
       <div
+        ref={toolbarRowRef}
         className="library-toolbar"
         data-heading={leading ? "true" : undefined}
         data-shelves={showShelves ? "true" : undefined}
@@ -310,13 +342,11 @@ export function LibraryOrganizationToolbar({
             {selectionAction}
             <Button
               data-tour={practice ? "demo-filters-toggle" : undefined}
-              variant={
-                expanded ? "active" : activeCount ? "secondary" : "ghost"
-              }
+              variant={expanded ? "active" : "secondary"}
               icon={SlidersHorizontal}
               aria-expanded={expanded}
               aria-controls="library-filters"
-              className="shrink-0"
+              className="h-9 shrink-0"
               onClick={() => onExpandedChange(!expanded)}
             >
               Filters{activeCount ? ` · ${activeCount}` : ""}

@@ -202,6 +202,33 @@
   display: none;
 }
 
+/* The title bar and each banner share one image frame, including the strip
+   below the card. Keep both banner sizes and all crops in sync here. */
+[data-banner-layout="full"] {
+  --banner-height: clamp(300px, 40vh, 360px);
+  --banner-tail: 144px;
+}
+
+[data-banner-layout="compact"] {
+  --banner-height: 200px;
+  --banner-tail: 112px;
+}
+
+/* Show the next part of the same picture below the card. The page's
+   isolated stacking context keeps it behind headings and controls. */
+.library-banner-continuation {
+  inset: 100% 0 auto;
+  height: var(--banner-tail);
+  overflow: hidden;
+  opacity: 0.85;
+  --banner-shade-direction: 0deg;
+  mask-image: linear-gradient(180deg, #000 0%, #000 25%, transparent 100%);
+}
+
+:root[data-theme="light"] .library-banner-continuation {
+  opacity: 0.5;
+}
+
 /* Library banner card: key art on the right, a dark wash on the left so the
    title and summary read on any artwork. */
 .library-hero-shade {
@@ -1054,6 +1081,12 @@ select {
 }
 
 .library-toolbar {
+  /* Selected shelves and expanded controls need an opaque tint over artwork. */
+  --color-accent-tint: color-mix(
+    in srgb,
+    rgb(var(--color-accent)) 18%,
+    rgb(var(--color-surface))
+  );
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
@@ -1079,7 +1112,7 @@ select {
   }
 }
 
-@container library-toolbar (760px <= width < 1100px) {
+@container library-toolbar (min-width: 760px) {
   .library-toolbar[data-heading][data-shelves] .library-toolbar-heading {
     grid-area: 1 / 1;
   }
@@ -1098,31 +1131,32 @@ select {
   }
 }
 
-@container library-toolbar (min-width: 1100px) {
-  .library-toolbar[data-heading] {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+/* Use one row only when every group fits; otherwise preserve the two-row
+   grid with shelves below the heading and display controls below selection. */
+.library-toolbar:is([data-single-row], [data-measuring]) {
+  display: flex;
+  align-items: center;
+}
 
-  .library-toolbar[data-heading] .library-toolbar-heading {
-    flex: 0 1 auto;
-    max-width: 100%;
-  }
+.library-toolbar[data-measuring] {
+  width: max-content;
+}
 
-  .library-toolbar[data-heading] .library-toolbar-shelves {
-    flex: 1 0 auto;
-    max-width: 100%;
-    justify-content: flex-end;
-  }
+.library-toolbar:is([data-single-row], [data-measuring]) .library-toolbar-heading {
+  flex: 0 0 auto;
+}
 
-  .library-toolbar[data-heading] .library-toolbar-actions {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 16px;
-    margin-left: auto;
-  }
+.library-toolbar:is([data-single-row], [data-measuring]) .library-toolbar-shelves {
+  flex: 1 0 auto;
+  justify-content: flex-end;
+}
+
+.library-toolbar:is([data-single-row], [data-measuring]) .library-toolbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
 }
 
 @container library-toolbar (width < 560px) {
@@ -1543,10 +1577,11 @@ body.shift-held
   transition: opacity 120ms linear;
 }
 
-/* Darkened evenly so the controls stay legible, and faded back to the page
-   colour at both upper corners so the picture appears to emerge from the
-   chrome rather than being pasted onto it. */
-.titlebar-art::after {
+/* Both extensions keep image details, darken them for readable controls,
+   and feather the sides into the page. The lower strip reverses the vertical
+   shade so both extensions grow darker away from the card. */
+.titlebar-art::after,
+.library-banner-continuation::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1561,7 +1596,7 @@ body.shift-held
       rgb(var(--color-bg)) 100%
     ),
     linear-gradient(
-      180deg,
+      var(--banner-shade-direction, 180deg),
       rgb(var(--color-bg) / 0.72) 0%,
       rgb(var(--color-bg) / 0.5) 100%
     );
