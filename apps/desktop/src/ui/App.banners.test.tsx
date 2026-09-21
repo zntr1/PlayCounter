@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useAppStore } from "../store";
+import { customHeroArtKey, useAppStore, type ActiveSession } from "../store";
 import { STORAGE_KEY } from "../persistence";
 import { launchGame } from "../tracker";
 import { App } from "./App";
@@ -98,6 +98,66 @@ it("saves visibility separately for each view without mounting hidden library ca
   expect(
     JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.viewShowHero,
   ).toEqual({ history: true, settings: false });
+});
+
+it("keeps Now Playing on the first running game despite a saved library banner preference", async () => {
+  const running = ["First running game", "Second running game"].map(
+    (gameName, index): ActiveSession => ({
+      id: index + 1,
+      gameId: -3 - index,
+      source: "custom",
+      gameName,
+      exeName: `running${index + 1}.exe`,
+      coverUrl: `/running-${index + 1}-cover.jpg`,
+      startedAt: "2026-09-21T12:00:00Z",
+      checkpointedAt: "2026-09-21T12:00:00Z",
+    }),
+  );
+  useAppStore.setState({
+    activeView: "now",
+    activeSessions: running,
+    settings: {
+      ...useAppStore.getState().settings,
+      viewShowHero: { now: true, history: true },
+      libraryFeaturedGame: { gameId: -1, source: "custom" },
+    },
+    customHeroArt: {
+      [customHeroArtKey(running[0])]: "/first-running-banner.jpg",
+      [customHeroArtKey(entry(-1, "Library favorite"))]: "/library-banner.jpg",
+    },
+  });
+
+  function expectRunningGame(name: string, artwork: string) {
+    expect(banner()).toBeNull();
+    expect(container.querySelector(".active-hero h2")?.textContent).toBe(name);
+    for (const selector of [".titlebar-art img", ".view-backdrop img"]) {
+      expect(container.querySelector(selector)?.getAttribute("src")).toBe(
+        artwork,
+      );
+    }
+    expect(
+      [...container.querySelectorAll("button")].some((button) =>
+        /^(Show|Hide) banner$/.test(button.textContent?.trim() ?? ""),
+      ),
+    ).toBe(false);
+  }
+
+  await act(() => root.render(<App />));
+  expectRunningGame("First running game", "/first-running-banner.jpg");
+
+  await act(() => useAppStore.getState().setActiveView("history"));
+  expect(banner()?.querySelector("h2")?.textContent).toBe("Library favorite");
+  await act(() => useAppStore.getState().setActiveView("now"));
+  expectRunningGame("First running game", "/first-running-banner.jpg");
+
+  await act(() => useAppStore.setState({ activeSessions: [running[1]] }));
+  expectRunningGame("Second running game", running[1].coverUrl);
+
+  await act(() => useAppStore.setState({ activeSessions: [] }));
+  expect(banner()).toBeNull();
+  expect(container.querySelector(".titlebar-art")).toBeNull();
+  expect(container.querySelector(".view-backdrop")).toBeNull();
+  expect(container.textContent).toContain("No game detected");
 });
 
 it("loads a saved banner before opening My Games and follows new play evidence", async () => {

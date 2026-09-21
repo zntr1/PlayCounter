@@ -299,6 +299,7 @@ export function App() {
   const viewBannerEnabled = useAppStore(
     (state) =>
       activeView !== "games" &&
+      activeView !== "now" &&
       state.settings.viewShowHero?.[activeView] === true,
   );
   const setViewShowHero = useAppStore((state) => state.setViewShowHero);
@@ -447,18 +448,17 @@ export function App() {
   const nowArt = useLibrarySources((state) => state.nowArt);
   const hasFeaturedGame = useLibrarySources((state) => state.featured !== null);
   const compactBannerVisible = showViewBanner && hasFeaturedGame;
-  // Banner cards are inset by the page padding. Now Playing can instead use
-  // the running game's artwork across the whole content column.
+  // Now Playing always follows the first running game, including when older
+  // settings still have its optional library banner enabled.
   const titleBarArt =
-    activeView === "games" && !practiceStep
-      ? heroArt
-      : compactBannerVisible
-        ? viewBannerArt
-        : activeView === "now"
-          ? nowArt
+    activeView === "now"
+      ? nowArt
+      : activeView === "games" && !practiceStep
+        ? heroArt
+        : compactBannerVisible
+          ? viewBannerArt
           : null;
-  const artFrame: "card" | "full" =
-    activeView === "now" && !compactBannerVisible ? "full" : "card";
+  const artFrame: "card" | "full" = activeView === "now" ? "full" : "card";
   const libraryCount = useLibrarySources((state) =>
     state.visible
       ? state.tabs.find((tab) => tab.id === "all")?.count
@@ -1008,7 +1008,7 @@ export function App() {
                 label={activeViewLabel}
                 subtitle={activeViewSubtitle}
                 action={
-                  !activeTour ? (
+                  !activeTour && activeView !== "now" ? (
                     <Button
                       variant="ghost"
                       icon={viewBannerEnabled ? EyeOff : ImageIcon}
