@@ -106,6 +106,22 @@ describe("tour definitions", () => {
     );
   });
 
+  it("walks through the Playtime submenu before choosing a session action", () => {
+    const guide = TOURS.find((tour) => tour.id === "log-playtime")!;
+    const opening = guide.steps.find((step) => step.id === "open-playtime")!;
+    const action = guide.steps.find((step) => step.id === "pick-item")!;
+    expect(opening.anchor).toBe('[data-tour="demo-menu-playtime"]');
+    expect(opening.advanceOn).toEqual({
+      type: "anchor-present",
+      selector: '[data-tour="demo-menu-log-session"]',
+    });
+    // The flyout is portalled outside the parent menu. It needs its own
+    // allowed region, and closing it should return to the submenu step.
+    expect(action.allow).toContain('[data-tour="demo-playtime-menu"]');
+    expect(action.retreatWhenMissing).toBe('[data-tour="demo-playtime-menu"]');
+    expect(action.backTo).toBe("open-playtime");
+  });
+
   it("documents the My Games context-menu action groups", () => {
     const guide = TOURS.find((tour) => tour.id === "game-actions")!;
     expect(guide.demoGame).toBe(true);

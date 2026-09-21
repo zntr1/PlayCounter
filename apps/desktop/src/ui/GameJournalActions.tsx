@@ -18,9 +18,11 @@ import { useGameJournal } from "./useGameJournal";
 export function GameJournalMenu({
   game,
   onClose,
+  heading = true,
 }: {
   game: GameIdentityRef;
   onClose: () => void;
+  heading?: boolean;
 }) {
   const practice = useLibraryPractice();
   const journal = useGameJournal(game);
@@ -31,7 +33,17 @@ export function GameJournalMenu({
   );
   return (
     <>
-      <ContextMenuHeading>My library</ContextMenuHeading>
+      {heading ? <ContextMenuHeading>My library</ContextMenuHeading> : null}
+      <ContextMenuItem
+        dataTour={practice ? "demo-menu-favorite" : undefined}
+        icon={Star}
+        onClick={() => {
+          onClose();
+          update(game, { favorite: !journal.favorite });
+        }}
+      >
+        {journal.favorite ? "Remove from Favorites" : "Add to Favorites"}
+      </ContextMenuItem>
       <ContextMenuItem
         dataTour={practice ? "demo-menu-note" : undefined}
         icon={StickyNote}
@@ -52,16 +64,6 @@ export function GameJournalMenu({
       >
         Playthroughs
         {journal.playthroughs.length ? ` · ${journal.playthroughs.length}` : ""}
-      </ContextMenuItem>
-      <ContextMenuItem
-        dataTour={practice ? "demo-menu-favorite" : undefined}
-        icon={Star}
-        onClick={() => {
-          onClose();
-          update(game, { favorite: !journal.favorite });
-        }}
-      >
-        {journal.favorite ? "Remove from Favorites" : "Add to Favorites"}
       </ContextMenuItem>
       <ContextMenuItem
         dataTour={practice ? "demo-menu-organize" : undefined}

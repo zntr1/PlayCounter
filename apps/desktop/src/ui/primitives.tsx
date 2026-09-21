@@ -1,19 +1,27 @@
 import clsx from "clsx";
 import {
   forwardRef,
-  useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
-  type MouseEvent,
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { Check, Loader2, X, type LucideIcon } from "lucide-react";
+import { Loader2, X, type LucideIcon } from "lucide-react";
+import { hasOpenContextMenu } from "./ContextMenu";
+
+export {
+  ContextMenu,
+  ContextMenuItem,
+  ContextMenuSubmenu,
+  ContextMenuHeading,
+  ContextMenuSeparator,
+  useContextMenu,
+  useAnchoredMenu,
+} from "./ContextMenu";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "active";
 
@@ -201,15 +209,11 @@ export const Pill = forwardRef<HTMLButtonElement, PillProps>(function Pill(
   );
 });
 
-// Menus opened inside a dialog answer Escape first: closing a playthrough
-// picker should not also close the journal behind it.
-let openMenuCount = 0;
-
 // Closes an open overlay (modal, menu) when the user presses Escape.
 export function useEscapeKey(onClose: () => void) {
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === "Escape" && openMenuCount === 0) onClose();
+      if (event.key === "Escape" && !hasOpenContextMenu()) onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -382,210 +386,5 @@ export function Modal({
       </div>
     </div>,
     document.body,
-  );
-}
-
-export function useContextMenu() {
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-
-  const onContextMenu = useCallback((e: MouseEvent) => {
-    e.preventDefault();
-    setPosition({ x: e.clientX, y: e.clientY });
-    setOpen(true);
-  }, []);
-
-  const close = useCallback(() => setOpen(false), []);
-  const openAt = useCallback((nextPosition: { x: number; y: number }) => {
-    setPosition(nextPosition);
-    setOpen(true);
-  }, []);
-
-  return {
-    props: { onContextMenu },
-    open,
-    position,
-    close,
-    openAt,
-  };
-}
-
-/** A menu that hangs off its own trigger button: the picker pattern used for
- *  playthrough assignment and progress status. Keeps the native-select
- *  behaviour (click to open, Escape to close) without the native look. */
-export function useAnchoredMenu() {
-  const anchorRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const close = useCallback(() => setOpen(false), []);
-  const toggle = useCallback(() => {
-    const rect = anchorRef.current?.getBoundingClientRect();
-    if (rect) setPosition({ x: rect.left, y: rect.bottom + 6 });
-    setOpen((current) => !current);
-  }, []);
-  return { anchorRef, open, position, close, toggle };
-}
-
-export function ContextMenu({
-  open,
-  position,
-  onClose,
-  children,
-  anchorRef,
-  dataTour,
-  focusFirstItem,
-}: {
-  open: boolean;
-  position: { x: number; y: number };
-  onClose: () => void;
-  children: ReactNode;
-  /** Clicks on the trigger are the trigger's business, not an outside click. */
-  anchorRef?: RefObject<HTMLElement | null>;
-  dataTour?: string;
-  focusFirstItem?: boolean;
-}) {
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [adjustedPosition, setAdjustedPosition] = useState(position);
-
-  useLayoutEffect(() => {
-    if (!open) return;
-
-    if (menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      const x = Math.max(
-        8,
-        Math.min(position.x, window.innerWidth - rect.width - 8),
-      );
-      const y = Math.max(
-        8,
-        Math.min(position.y, window.innerHeight - rect.height - 8),
-      );
-      setAdjustedPosition({ x, y });
-    } else {
-      setAdjustedPosition(position);
-    }
-  }, [open, position]);
-
-  useEffect(() => {
-    if (!open) return;
-    openMenuCount += 1;
-
-    const handleGlobalClick = (e: globalThis.MouseEvent) => {
-      // Allow clicking inside the menu without closing immediately
-      // (item clicks will close it if they call onClose)
-      if (
-        (menuRef.current && menuRef.current.contains(e.target as Node)) ||
-        (anchorRef?.current && anchorRef.current.contains(e.target as Node))
-      ) {
-        return;
-      }
-      // Tutorial controls own their transition and cleanup. Closing a guided
-      // menu on mousedown here would trigger its retreat rule before the
-      // Skip/Back/Exit click can run.
-      if (e.target instanceof Element && e.target.closest("[data-tour-card]")) {
-        return;
-      }
-      onClose();
-    };
-    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    window.addEventListener("mousedown", handleGlobalClick);
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("blur", onClose);
-    return () => {
-      openMenuCount -= 1;
-      window.removeEventListener("mousedown", handleGlobalClick);
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("blur", onClose);
-    };
-  }, [open, onClose, anchorRef]);
-
-  useEffect(() => {
-    if (open && focusFirstItem) {
-      window.setTimeout(() =>
-        menuRef.current?.querySelector("button")?.focus(),
-      );
-    }
-  }, [focusFirstItem, open]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div
-      ref={menuRef}
-      data-tour={dataTour}
-      className="fixed z-50 max-h-[calc(100vh-1rem)] min-w-40 animate-fade-in overflow-x-hidden overflow-y-auto rounded-md border border-border bg-surface py-1 shadow-raised"
-      style={{
-        top: adjustedPosition.y,
-        left: adjustedPosition.x,
-      }}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      {children}
-    </div>,
-    document.body,
-  );
-}
-
-export function ContextMenuSeparator() {
-  return <div className="mx-2 my-1 h-px bg-border" />;
-}
-
-export function ContextMenuHeading({ children }: { children: ReactNode }) {
-  return (
-    <div className="mx-2 mb-1 mt-1 border-t border-border px-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-faint first:mt-0 first:border-t-0 first:pt-1">
-      {children}
-    </div>
-  );
-}
-
-export function ContextMenuItem({
-  icon: Icon,
-  danger,
-  disabled,
-  title,
-  selected,
-  onClick,
-  children,
-  dataTour,
-}: {
-  icon?: LucideIcon;
-  danger?: boolean;
-  disabled?: boolean;
-  title?: string;
-  /** Marks the current value when the menu stands in for a select. */
-  selected?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  dataTour?: string;
-}) {
-  return (
-    <button
-      data-tour={dataTour}
-      type="button"
-      disabled={disabled}
-      title={title}
-      role={selected === undefined ? undefined : "menuitemradio"}
-      aria-checked={selected}
-      className={clsx(
-        "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors",
-        disabled && "cursor-not-allowed opacity-50",
-        danger
-          ? "text-danger hover:bg-danger-tint"
-          : "text-text hover:bg-surface-hover",
-      )}
-      onClick={onClick}
-    >
-      {Icon && (
-        <Icon
-          size={14}
-          className={danger ? "text-danger" : "text-text-muted"}
-        />
-      )}
-      <span className="flex-1 truncate">{children}</span>
-      {selected ? <Check size={14} className="shrink-0 text-accent" /> : null}
-    </button>
   );
 }

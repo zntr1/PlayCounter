@@ -151,7 +151,7 @@ import {
 import {
   Button,
   ContextMenu,
-  ContextMenuHeading,
+  ContextMenuSubmenu,
   ContextMenuItem,
   ContextMenuSeparator,
   IconButton,
@@ -1916,7 +1916,9 @@ export function MyGamesView({
                         aria-label="Sort games"
                         value={sortKey}
                         onChange={(event) =>
-                          setMyGamesSortKey(event.target.value as MyGamesSortKey)
+                          setMyGamesSortKey(
+                            event.target.value as MyGamesSortKey,
+                          )
                         }
                         className={clsx(
                           selectClass,
@@ -2650,7 +2652,7 @@ export function GameLibraryCard({
   const showDemoContextMenu = useAppStore(
     (state) =>
       (state.activeTour?.tourId === "log-playtime" &&
-        state.activeTour.stepIndex === 5) ||
+        state.activeTour.stepIndex === 6) ||
       (state.activeTour?.tourId === "game-actions" &&
         state.activeTour.stepIndex >= 2) ||
       (state.activeTour?.tourId === "launch-games" &&
@@ -3013,6 +3015,11 @@ export function GameLibraryCard({
     (!demo &&
       (canConfigureLaunch ||
         (canLaunchExecutables && gameEmulatorMappings.length > 0)));
+  const showLaunchOptions =
+    showLaunchActions ||
+    steamActions.showOpenInLauncher ||
+    xboxActions.showOpenInLauncher ||
+    (!demo && isWindows && Boolean(battleNetImportEntry));
   const showMatchingActions =
     canCheckMatches ||
     Boolean(
@@ -3886,10 +3893,21 @@ export function GameLibraryCard({
         open={contextMenu.open}
         position={contextMenu.position}
         onClose={contextMenu.close}
+        returnFocusRef={contextMenu.anchorRef}
+        ariaLabel={`${game.name} actions`}
+        className="min-w-56"
         dataTour={demo ? "demo-context-menu" : undefined}
-        focusFirstItem={demo}
+        focusFirstItem
       >
-        <ContextMenuHeading>Info</ContextMenuHeading>
+        {showPlayButton ? (
+          <ContextMenuItem
+            icon={Play}
+            disabled={hasActiveSession || launching || launchBlocked}
+            onClick={handlePreferredLaunch}
+          >
+            Play
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuItem
           icon={Info}
           onClick={() => {
@@ -3900,210 +3918,6 @@ export function GameLibraryCard({
         >
           Open Details
         </ContextMenuItem>
-        {!demo ? (
-          <ContextMenuItem
-            icon={featuredInBanner ? PinOff : Pin}
-            onClick={() => {
-              contextMenu.close();
-              const featuredGame = featuredInBanner
-                ? null
-                : {
-                    gameId: game.gameId,
-                    source: game.source,
-                    igdbId: game.igdbId,
-                  };
-              if (bannerShelf)
-                saveBannerShelf({ ...bannerShelf, featuredGame });
-              else setLibraryFeaturedGame(featuredGame);
-            }}
-          >
-            {bannerShelf
-              ? featuredInBanner
-                ? "Use library banner"
-                : "Pin to shelf banner"
-              : featuredInBanner
-                ? "Unpin from banner"
-                : "Pin to banner"}
-          </ContextMenuItem>
-        ) : null}
-        {!demo ? (
-          <GameJournalMenu
-            game={{ ...game, gameName: game.name }}
-            onClose={contextMenu.close}
-          />
-        ) : null}
-        {steamActions.showOpenInLauncher ? (
-          <>
-            <ContextMenuHeading>Steam</ContextMenuHeading>
-            {steamActions.showPlayInLauncher ? (
-              <ContextMenuItem
-                icon={Play}
-                disabled={hasActiveSession || launching || launchBlocked}
-                onClick={() => void handleSteamLaunch()}
-              >
-                Play in Steam
-              </ContextMenuItem>
-            ) : null}
-            <ContextMenuItem
-              icon={ExternalLink}
-              onClick={() => void handleOpenInSteam()}
-            >
-              Open in Steam
-            </ContextMenuItem>
-          </>
-        ) : null}
-        {xboxActions.showOpenInLauncher ? (
-          <>
-            <ContextMenuHeading>Xbox</ContextMenuHeading>
-            {xboxActions.showPlayInLauncher ? (
-              <ContextMenuItem
-                icon={Play}
-                disabled={hasActiveSession || launching || launchBlocked}
-                onClick={() => void handleXboxLaunch()}
-              >
-                Play on Xbox
-              </ContextMenuItem>
-            ) : null}
-            <ContextMenuItem
-              icon={ExternalLink}
-              onClick={() => void handleOpenXboxApp()}
-            >
-              Open Xbox app
-            </ContextMenuItem>
-          </>
-        ) : null}
-        {!demo && isWindows && battleNetImportEntry ? (
-          <>
-            <ContextMenuHeading>Battle.net</ContextMenuHeading>
-            <ContextMenuItem
-              icon={ExternalLink}
-              onClick={() => void handleOpenBattleNet()}
-            >
-              Open Battle.net
-            </ContextMenuItem>
-          </>
-        ) : null}
-        {showLaunchActions ? (
-          <ContextMenuHeading>Launch</ContextMenuHeading>
-        ) : null}
-        {launchTourDemo ? (
-          <ContextMenuItem
-            dataTour="demo-menu-launch-file"
-            icon={FolderSearch}
-            onClick={demoNotice}
-          >
-            Set or change launch file…
-          </ContextMenuItem>
-        ) : null}
-        {!demo && canConfigureLaunch ? (
-          <>
-            {ownedLaunchTargets.length > 0
-              ? ownedLaunchTargets.map((target) => (
-                  <ContextMenuItem
-                    key={target.exeName.toLowerCase()}
-                    icon={Play}
-                    disabled={hasActiveSession || launching || launchBlocked}
-                    title={
-                      hasActiveSession
-                        ? "Already running"
-                        : launching
-                          ? "Starting…"
-                          : launchBlocked
-                            ? "Another game is starting"
-                            : undefined
-                    }
-                    onClick={() => void handleLaunch(target)}
-                  >
-                    {ownedLaunchTargets.length > 1
-                      ? `Play (${target.exeName})`
-                      : "Play"}
-                  </ContextMenuItem>
-                ))
-              : null}
-            <ContextMenuItem
-              icon={FolderSearch}
-              onClick={() => void handleSetLaunchFile()}
-            >
-              {ownedLaunchTargets.length > 0
-                ? "Change launch file…"
-                : "Set launch file…"}
-            </ContextMenuItem>
-            {primaryLaunchTarget ? (
-              <ContextMenuItem
-                icon={FolderOpen}
-                title={primaryLaunchTarget.path}
-                onClick={() => void handleOpenInExplorer()}
-              >
-                Open in Explorer
-              </ContextMenuItem>
-            ) : null}
-            {ownedLaunchTargets.length > 0 ? (
-              <ContextMenuItem icon={Trash2} onClick={handleForgetLaunchFile}>
-                Forget launch file
-              </ContextMenuItem>
-            ) : null}
-          </>
-        ) : null}
-        {!demo && canLaunchExecutables && gameEmulatorMappings.length > 0 ? (
-          <>
-            {gameEmulatorMappings.map((mapping) => {
-              const target = resolveEmulatorLaunchTarget(
-                mapping.contentKey,
-                emulatorAutoLaunchTargets,
-                emulatorManualLaunchTargets,
-              );
-              const candidate = emulatorLaunchCandidates.get(
-                mapping.contentKey,
-              );
-              return (
-                <Fragment key={mapping.contentKey}>
-                  {target ? (
-                    <ContextMenuItem
-                      icon={Play}
-                      disabled={hasActiveSession || launching || launchBlocked}
-                      onClick={() => void handleEmulatorLaunch(mapping)}
-                    >
-                      Play with {mapping.label} · {mapping.display}
-                    </ContextMenuItem>
-                  ) : candidate ? (
-                    <ContextMenuItem
-                      icon={Check}
-                      onClick={() => handleConfirmEmulatorCandidate(mapping)}
-                    >
-                      Use detected {candidate.displayName}
-                    </ContextMenuItem>
-                  ) : null}
-                  <ContextMenuItem
-                    icon={FolderSearch}
-                    onClick={() => void handleSetEmulatorLaunchFile(mapping)}
-                  >
-                    {target ? "Change" : "Set"} {mapping.label} game file…
-                  </ContextMenuItem>
-                  {target ? (
-                    <ContextMenuItem
-                      icon={Trash2}
-                      onClick={() => handleForgetEmulatorLaunchFile(mapping)}
-                    >
-                      Forget {mapping.label} game file
-                    </ContextMenuItem>
-                  ) : null}
-                </Fragment>
-              );
-            })}
-          </>
-        ) : null}
-        {!demo && game.libraryImports.length > 0 ? (
-          <>
-            <ContextMenuHeading>Source</ContextMenuHeading>
-            <ContextMenuItem
-              icon={MoveRight}
-              onClick={requestMoveToPlayCounter}
-            >
-              Move to PlayCounter
-            </ContextMenuItem>
-          </>
-        ) : null}
-        <ContextMenuHeading>History</ContextMenuHeading>
         <ContextMenuItem
           dataTour={demo ? "demo-menu-show-history" : undefined}
           icon={History}
@@ -4111,146 +3925,384 @@ export function GameLibraryCard({
         >
           Show History
         </ContextMenuItem>
-        <ContextMenuItem
-          dataTour={demo ? "demo-menu-log-session" : undefined}
-          icon={ClockPlus}
-          onClick={() => {
-            contextMenu.close();
-            setShowAddPlaytime(true);
-          }}
-        >
-          Log missed session
-        </ContextMenuItem>
-        <ContextMenuItem
-          dataTour={demo ? "demo-menu-adjust-playtime" : undefined}
-          icon={Clock3}
-          onClick={() => {
-            contextMenu.close();
-            setShowAdjustPlaytime(true);
-          }}
-        >
-          Adjust total playtime
-        </ContextMenuItem>
-        {showMatchingActions ? (
-          <ContextMenuHeading>Matching</ContextMenuHeading>
+        {!demo ? <ContextMenuSeparator /> : null}
+        {!demo ? (
+          <GameJournalMenu
+            heading={false}
+            game={{ ...game, gameName: game.name }}
+            onClose={contextMenu.close}
+          />
         ) : null}
-        {canCheckMatches ? (
+        {canEditCover ? (
           <ContextMenuItem
-            dataTour={demo ? "demo-menu-check-matches" : undefined}
-            icon={Search}
+            dataTour={demo ? "demo-menu-rename" : undefined}
+            icon={Pencil}
             onClick={() => {
               contextMenu.close();
-              setShowMatchCheck(true);
+              setRenameName(game.name);
+              setShowRename(true);
             }}
           >
-            Check for Matches
+            Rename Game
           </ContextMenuItem>
         ) : null}
-        {game.source && game.exeNames[0] ? (
-          <>
-            {pendingCommunitySuggestion ? (
-              <ContextMenuItem
-                icon={RotateCcw}
-                onClick={() => {
-                  contextMenu.close();
-                  setCancelSuggestionTarget(pendingCommunitySuggestion);
-                }}
-              >
-                Cancel Suggestion
-              </ContextMenuItem>
-            ) : canSuggestToCommunity ? (
-              <ContextMenuItem
-                dataTour={demo ? "demo-menu-suggest-community" : undefined}
-                icon={Send}
-                onClick={() => {
-                  contextMenu.close();
-                  void handleShareAction();
-                }}
-              >
-                Suggest to Community
-              </ContextMenuItem>
-            ) : null}
-            {game.source === "igdb" || game.source === "community" ? (
+        <ContextMenuSeparator />
+        {showLaunchOptions ? (
+          <ContextMenuSubmenu
+            label="Launch options"
+            icon={FolderSearch}
+            dataTour={demo ? "demo-menu-launch-options" : undefined}
+          >
+            {steamActions.showOpenInLauncher ? (
               <>
+                {steamActions.showPlayInLauncher ? (
+                  <ContextMenuItem
+                    icon={Play}
+                    disabled={hasActiveSession || launching || launchBlocked}
+                    onClick={() => void handleSteamLaunch()}
+                  >
+                    Play in Steam
+                  </ContextMenuItem>
+                ) : null}
                 <ContextMenuItem
-                  dataTour={demo ? "demo-menu-report-match" : undefined}
-                  icon={Flag}
-                  onClick={() => {
-                    contextMenu.close();
-                    setReportOpen(true);
-                  }}
+                  icon={ExternalLink}
+                  onClick={() => void handleOpenInSteam()}
                 >
-                  Report Wrong Match
-                </ContextMenuItem>
-                <ContextMenuItem
-                  dataTour={demo ? "demo-menu-convert-custom" : undefined}
-                  icon={Gamepad2}
-                  onClick={() => {
-                    contextMenu.close();
-                    setConvertName(game.name);
-                    setShowConvert(true);
-                  }}
-                >
-                  Convert to Custom Game
+                  Open in Steam
                 </ContextMenuItem>
               </>
             ) : null}
-          </>
-        ) : null}
-        {!demo ? (
-          <>
-            <ContextMenuHeading>Artwork</ContextMenuHeading>
-            <ContextMenuItem
-              icon={ImagePlus}
-              onClick={() => {
-                contextMenu.close();
-                setShowArtPicker(true);
-              }}
-            >
-              Choose Artwork…
-            </ContextMenuItem>
-          </>
-        ) : null}
-        {canEditCover ? (
-          <>
-            <ContextMenuHeading>Edit</ContextMenuHeading>
-            <ContextMenuItem
-              dataTour={demo ? "demo-menu-rename" : undefined}
-              icon={Pencil}
-              onClick={() => {
-                contextMenu.close();
-                setRenameName(game.name);
-                setShowRename(true);
-              }}
-            >
-              Rename Game
-            </ContextMenuItem>
-            <ContextMenuItem
-              dataTour={demo ? "demo-menu-set-cover" : undefined}
-              icon={ImagePlus}
-              onClick={() => {
-                contextMenu.close();
-                coverInputRef.current?.click();
-              }}
-            >
-              Set Cover
-            </ContextMenuItem>
-            <ContextMenuItem
-              dataTour={demo ? "demo-menu-paste-cover" : undefined}
-              icon={Clipboard}
-              onClick={() => void handlePasteCover()}
-            >
-              Paste Cover
-            </ContextMenuItem>
-            {game.coverUrl ? (
+            {xboxActions.showOpenInLauncher ? (
+              <>
+                {xboxActions.showPlayInLauncher ? (
+                  <ContextMenuItem
+                    icon={Play}
+                    disabled={hasActiveSession || launching || launchBlocked}
+                    onClick={() => void handleXboxLaunch()}
+                  >
+                    Play on Xbox
+                  </ContextMenuItem>
+                ) : null}
+                <ContextMenuItem
+                  icon={ExternalLink}
+                  onClick={() => void handleOpenXboxApp()}
+                >
+                  Open Xbox app
+                </ContextMenuItem>
+              </>
+            ) : null}
+            {!demo && isWindows && battleNetImportEntry ? (
+              <>
+                <ContextMenuItem
+                  icon={ExternalLink}
+                  onClick={() => void handleOpenBattleNet()}
+                >
+                  Open Battle.net
+                </ContextMenuItem>
+              </>
+            ) : null}
+            {launchTourDemo ? (
               <ContextMenuItem
-                dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                icon={Trash2}
-                onClick={handleClearCover}
+                dataTour="demo-menu-launch-file"
+                icon={FolderSearch}
+                onClick={demoNotice}
               >
-                Delete Cover
+                Set or change launch file…
               </ContextMenuItem>
             ) : null}
+            {!demo && canConfigureLaunch ? (
+              <>
+                {ownedLaunchTargets.length > 0
+                  ? ownedLaunchTargets.map((target) => (
+                      <ContextMenuItem
+                        key={target.exeName.toLowerCase()}
+                        icon={Play}
+                        disabled={
+                          hasActiveSession || launching || launchBlocked
+                        }
+                        title={
+                          hasActiveSession
+                            ? "Already running"
+                            : launching
+                              ? "Starting…"
+                              : launchBlocked
+                                ? "Another game is starting"
+                                : undefined
+                        }
+                        onClick={() => void handleLaunch(target)}
+                      >
+                        {ownedLaunchTargets.length > 1
+                          ? `Play (${target.exeName})`
+                          : "Play"}
+                      </ContextMenuItem>
+                    ))
+                  : null}
+                <ContextMenuItem
+                  icon={FolderSearch}
+                  onClick={() => void handleSetLaunchFile()}
+                >
+                  {ownedLaunchTargets.length > 0
+                    ? "Change launch file…"
+                    : "Set launch file…"}
+                </ContextMenuItem>
+                {primaryLaunchTarget ? (
+                  <ContextMenuItem
+                    icon={FolderOpen}
+                    title={primaryLaunchTarget.path}
+                    onClick={() => void handleOpenInExplorer()}
+                  >
+                    Open in Explorer
+                  </ContextMenuItem>
+                ) : null}
+                {ownedLaunchTargets.length > 0 ? (
+                  <ContextMenuItem
+                    icon={Trash2}
+                    onClick={handleForgetLaunchFile}
+                  >
+                    Forget launch file
+                  </ContextMenuItem>
+                ) : null}
+              </>
+            ) : null}
+            {!demo &&
+            canLaunchExecutables &&
+            gameEmulatorMappings.length > 0 ? (
+              <>
+                {gameEmulatorMappings.map((mapping) => {
+                  const target = resolveEmulatorLaunchTarget(
+                    mapping.contentKey,
+                    emulatorAutoLaunchTargets,
+                    emulatorManualLaunchTargets,
+                  );
+                  const candidate = emulatorLaunchCandidates.get(
+                    mapping.contentKey,
+                  );
+                  return (
+                    <Fragment key={mapping.contentKey}>
+                      {target ? (
+                        <ContextMenuItem
+                          icon={Play}
+                          disabled={
+                            hasActiveSession || launching || launchBlocked
+                          }
+                          onClick={() => void handleEmulatorLaunch(mapping)}
+                        >
+                          Play with {mapping.label} · {mapping.display}
+                        </ContextMenuItem>
+                      ) : candidate ? (
+                        <ContextMenuItem
+                          icon={Check}
+                          onClick={() =>
+                            handleConfirmEmulatorCandidate(mapping)
+                          }
+                        >
+                          Use detected {candidate.displayName}
+                        </ContextMenuItem>
+                      ) : null}
+                      <ContextMenuItem
+                        icon={FolderSearch}
+                        onClick={() =>
+                          void handleSetEmulatorLaunchFile(mapping)
+                        }
+                      >
+                        {target ? "Change" : "Set"} {mapping.label} game file…
+                      </ContextMenuItem>
+                      {target ? (
+                        <ContextMenuItem
+                          icon={Trash2}
+                          onClick={() =>
+                            handleForgetEmulatorLaunchFile(mapping)
+                          }
+                        >
+                          Forget {mapping.label} game file
+                        </ContextMenuItem>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
+              </>
+            ) : null}
+          </ContextMenuSubmenu>
+        ) : null}
+        <ContextMenuSubmenu
+          label="Playtime"
+          icon={Clock3}
+          dataTour={demo ? "demo-menu-playtime" : undefined}
+          menuDataTour={demo ? "demo-playtime-menu" : undefined}
+        >
+          <ContextMenuItem
+            dataTour={demo ? "demo-menu-log-session" : undefined}
+            icon={ClockPlus}
+            onClick={() => {
+              contextMenu.close();
+              setShowAddPlaytime(true);
+            }}
+          >
+            Log missed session
+          </ContextMenuItem>
+          <ContextMenuItem
+            dataTour={demo ? "demo-menu-adjust-playtime" : undefined}
+            icon={Clock3}
+            onClick={() => {
+              contextMenu.close();
+              setShowAdjustPlaytime(true);
+            }}
+          >
+            Adjust total playtime
+          </ContextMenuItem>
+        </ContextMenuSubmenu>
+        {!demo || canEditCover ? (
+          <ContextMenuSubmenu label="Artwork & banner" icon={ImagePlus}>
+            {!demo ? (
+              <>
+                <ContextMenuItem
+                  icon={ImagePlus}
+                  onClick={() => {
+                    contextMenu.close();
+                    setShowArtPicker(true);
+                  }}
+                >
+                  Choose Artwork…
+                </ContextMenuItem>
+              </>
+            ) : null}
+            {!demo ? (
+              <ContextMenuItem
+                icon={featuredInBanner ? PinOff : Pin}
+                onClick={() => {
+                  contextMenu.close();
+                  const featuredGame = featuredInBanner
+                    ? null
+                    : {
+                        gameId: game.gameId,
+                        source: game.source,
+                        igdbId: game.igdbId,
+                      };
+                  if (bannerShelf)
+                    saveBannerShelf({ ...bannerShelf, featuredGame });
+                  else setLibraryFeaturedGame(featuredGame);
+                }}
+              >
+                {bannerShelf
+                  ? featuredInBanner
+                    ? "Use library banner"
+                    : "Pin to shelf banner"
+                  : featuredInBanner
+                    ? "Unpin from banner"
+                    : "Pin to banner"}
+              </ContextMenuItem>
+            ) : null}
+            {canEditCover ? (
+              <>
+                <ContextMenuItem
+                  dataTour={demo ? "demo-menu-set-cover" : undefined}
+                  icon={ImagePlus}
+                  onClick={() => {
+                    contextMenu.close();
+                    coverInputRef.current?.click();
+                  }}
+                >
+                  Set Cover
+                </ContextMenuItem>
+                <ContextMenuItem
+                  dataTour={demo ? "demo-menu-paste-cover" : undefined}
+                  icon={Clipboard}
+                  onClick={() => void handlePasteCover()}
+                >
+                  Paste Cover
+                </ContextMenuItem>
+                {game.coverUrl ? (
+                  <ContextMenuItem
+                    dataTour={demo ? "demo-menu-delete-cover" : undefined}
+                    icon={Trash2}
+                    onClick={handleClearCover}
+                  >
+                    Delete Cover
+                  </ContextMenuItem>
+                ) : null}
+              </>
+            ) : null}
+          </ContextMenuSubmenu>
+        ) : null}
+        {showMatchingActions ? (
+          <ContextMenuSubmenu
+            label="Matching"
+            icon={Search}
+            dataTour={demo ? "demo-menu-matching" : undefined}
+          >
+            {canCheckMatches ? (
+              <ContextMenuItem
+                dataTour={demo ? "demo-menu-check-matches" : undefined}
+                icon={Search}
+                onClick={() => {
+                  contextMenu.close();
+                  setShowMatchCheck(true);
+                }}
+              >
+                Check for Matches
+              </ContextMenuItem>
+            ) : null}
+            {game.source && game.exeNames[0] ? (
+              <>
+                {pendingCommunitySuggestion ? (
+                  <ContextMenuItem
+                    icon={RotateCcw}
+                    onClick={() => {
+                      contextMenu.close();
+                      setCancelSuggestionTarget(pendingCommunitySuggestion);
+                    }}
+                  >
+                    Cancel Suggestion
+                  </ContextMenuItem>
+                ) : canSuggestToCommunity ? (
+                  <ContextMenuItem
+                    dataTour={demo ? "demo-menu-suggest-community" : undefined}
+                    icon={Send}
+                    onClick={() => {
+                      contextMenu.close();
+                      void handleShareAction();
+                    }}
+                  >
+                    Suggest to Community
+                  </ContextMenuItem>
+                ) : null}
+                {game.source === "igdb" || game.source === "community" ? (
+                  <>
+                    <ContextMenuItem
+                      dataTour={demo ? "demo-menu-report-match" : undefined}
+                      icon={Flag}
+                      onClick={() => {
+                        contextMenu.close();
+                        setReportOpen(true);
+                      }}
+                    >
+                      Report Wrong Match
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      dataTour={demo ? "demo-menu-convert-custom" : undefined}
+                      icon={Gamepad2}
+                      onClick={() => {
+                        contextMenu.close();
+                        setConvertName(game.name);
+                        setShowConvert(true);
+                      }}
+                    >
+                      Convert to Custom Game
+                    </ContextMenuItem>
+                  </>
+                ) : null}
+              </>
+            ) : null}
+          </ContextMenuSubmenu>
+        ) : null}
+        {!demo && game.libraryImports.length > 0 ? (
+          <>
+            <ContextMenuItem
+              icon={MoveRight}
+              onClick={requestMoveToPlayCounter}
+            >
+              Move to PlayCounter
+            </ContextMenuItem>
           </>
         ) : null}
         <ContextMenuSeparator />

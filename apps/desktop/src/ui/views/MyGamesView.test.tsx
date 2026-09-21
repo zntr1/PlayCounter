@@ -347,6 +347,7 @@ it.each(["grid", "large", "list"] as const)(
         new MouseEvent("contextmenu", { bubbles: true }),
       ),
     );
+    await act(() => button("Artwork & banner", document).click());
     await act(() => button("Pin to shelf banner", document).click());
     expect(bannerTitle()).toBe(local.gameName);
     expect(useAppStore.getState().settings.libraryFeaturedGame).toEqual(
