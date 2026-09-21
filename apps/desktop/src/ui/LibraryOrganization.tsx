@@ -208,20 +208,22 @@ export function LibraryOrganizationToolbar({
     <div
       data-tour={practice ? "demo-organization" : undefined}
       ref={toolbarRef}
-      className="grid gap-3"
+      className="library-organization grid gap-3"
     >
-      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
-        {leading}
-        {/* The shelf rail is what pushes the controls to the right edge.
-            Without it the whole row collapses rightwards and the heading
-            drifts off the left margin, so a plain spacer stands in. */}
-        {!showShelves ? <div className="flex-1" aria-hidden /> : null}
+      <div
+        className="library-toolbar"
+        data-heading={leading ? "true" : undefined}
+        data-shelves={showShelves ? "true" : undefined}
+      >
+        {leading ? (
+          <div className="library-toolbar-heading min-w-0">{leading}</div>
+        ) : null}
         {showShelves ? (
           <div
             role="tablist"
             aria-label="Library shelf"
             data-library-shelf-rail=""
-            className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5"
+            className="library-toolbar-shelves flex min-w-0 flex-wrap items-center gap-1.5"
           >
             <Pill
               {...dropProps("all", false)}
@@ -250,6 +252,7 @@ export function LibraryOrganizationToolbar({
             {shelves.map((shelf) => (
               <Pill
                 key={shelf.id}
+                className="max-w-full [&>svg]:shrink-0 [&>span:last-child]:shrink-0"
                 data-tour={
                   practice
                     ? shelf.filters
@@ -287,7 +290,9 @@ export function LibraryOrganizationToolbar({
                   shelfMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
                 }}
               >
-                {shelf.name}
+                <span className="min-w-0 truncate" title={shelf.name}>
+                  {shelf.name}
+                </span>
                 <LibraryGameHoverHint />
               </Pill>
             ))}
@@ -300,19 +305,27 @@ export function LibraryOrganizationToolbar({
             </Pill>
           </div>
         ) : null}
-        {selectionAction}
-        <Button
-          data-tour={practice ? "demo-filters-toggle" : undefined}
-          variant={expanded ? "active" : activeCount ? "secondary" : "ghost"}
-          icon={SlidersHorizontal}
-          aria-expanded={expanded}
-          aria-controls="library-filters"
-          className="shrink-0"
-          onClick={() => onExpandedChange(!expanded)}
-        >
-          Filters{activeCount ? ` · ${activeCount}` : ""}
-        </Button>
-        {trailing}
+        <div className="library-toolbar-actions">
+          <div className="library-toolbar-selection flex items-center gap-2">
+            {selectionAction}
+            <Button
+              data-tour={practice ? "demo-filters-toggle" : undefined}
+              variant={
+                expanded ? "active" : activeCount ? "secondary" : "ghost"
+              }
+              icon={SlidersHorizontal}
+              aria-expanded={expanded}
+              aria-controls="library-filters"
+              className="shrink-0"
+              onClick={() => onExpandedChange(!expanded)}
+            >
+              Filters{activeCount ? ` · ${activeCount}` : ""}
+            </Button>
+          </div>
+          {trailing ? (
+            <div className="library-toolbar-display min-w-0">{trailing}</div>
+          ) : null}
+        </div>
       </div>
 
       {expanded ? (

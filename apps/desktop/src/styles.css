@@ -1047,6 +1047,90 @@ select {
   }
 }
 
+/* Arrange whole toolbar groups using the content width, including sidebar
+   space and CSS zoom. Shelves never collapse into a narrow middle column. */
+.library-organization {
+  container: library-toolbar / inline-size;
+}
+
+.library-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 12px 16px;
+}
+
+.library-toolbar-heading,
+.library-toolbar-shelves {
+  grid-column: 1 / -1;
+}
+
+.library-toolbar-actions {
+  display: contents;
+}
+
+@container library-toolbar (min-width: 560px) {
+  .library-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .library-toolbar-display {
+    justify-self: end;
+  }
+}
+
+@container library-toolbar (760px <= width < 1100px) {
+  .library-toolbar[data-heading][data-shelves] .library-toolbar-heading {
+    grid-area: 1 / 1;
+  }
+
+  .library-toolbar[data-heading][data-shelves] .library-toolbar-selection {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+
+  .library-toolbar[data-heading][data-shelves] .library-toolbar-shelves {
+    grid-area: 2 / 1;
+  }
+
+  .library-toolbar[data-heading][data-shelves] .library-toolbar-display {
+    grid-area: 2 / 2;
+  }
+}
+
+@container library-toolbar (min-width: 1100px) {
+  .library-toolbar[data-heading] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .library-toolbar[data-heading] .library-toolbar-heading {
+    flex: 0 1 auto;
+    max-width: 100%;
+  }
+
+  .library-toolbar[data-heading] .library-toolbar-shelves {
+    flex: 1 0 auto;
+    max-width: 100%;
+    justify-content: flex-end;
+  }
+
+  .library-toolbar[data-heading] .library-toolbar-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+  }
+}
+
+@container library-toolbar (width < 560px) {
+  .library-summary-stat {
+    display: none;
+  }
+}
+
 /* Approved community suggestions get a small, celebratory level-up moment. */
 .level-up-cta {
   opacity: 1;

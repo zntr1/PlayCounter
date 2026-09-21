@@ -503,14 +503,13 @@ function LibrarySummaryChip({
   const stats = cards.filter((card) => card.id !== "games");
   if (!showCount && stats.length === 0) return null;
   return (
-    // Fixed height with stretched segments: mixing mono digits and sans
-    // labels gives the segments different line boxes otherwise, and the
-    // dividers end up as short floating dashes.
-    <div className="flex h-7 shrink-0 items-stretch divide-x divide-border/70 rounded-full border border-border/70 bg-surface text-xs">
+    // Stretched segments keep the dividers aligned; a long custom summary
+    // can wrap without pushing the toolbar outside its content column.
+    <div className="flex min-h-7 max-w-full flex-wrap items-stretch divide-x divide-border/70 rounded-2xl border border-border/70 bg-surface text-xs">
       {showCount ? (
         <span
           title={countTitle}
-          className="flex items-center px-2.5 font-mono font-semibold tabular-nums text-text"
+          className="flex min-h-[26px] items-center px-2.5 font-mono font-semibold tabular-nums text-text"
         >
           {countLabel}
         </span>
@@ -519,7 +518,7 @@ function LibrarySummaryChip({
         <span
           key={card.id}
           title={card.label}
-          className="hidden items-center gap-1 whitespace-nowrap px-2.5 text-text-muted lg:flex"
+          className="library-summary-stat flex min-h-[26px] items-center gap-1 whitespace-nowrap px-2.5 text-text-muted"
         >
           <span className="font-mono font-semibold tabular-nums text-text">
             {card.format === "duration"
@@ -1836,7 +1835,7 @@ export function MyGamesView({
                 query={query}
                 counts={shelfCounts}
                 leading={
-                  <div className="flex min-w-0 items-center gap-3 pr-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
                     <h2 className="shrink-0 truncate text-[22px] font-bold tracking-tight text-text">
                       {activeProviderConfig
                         ? activeProviderConfig.headline
@@ -1907,7 +1906,7 @@ export function MyGamesView({
                   </Button>
                 }
                 trailing={
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <select
                       aria-label="Sort games"
                       value={sortKey}
