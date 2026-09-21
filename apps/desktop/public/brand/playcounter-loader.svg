@@ -9,6 +9,11 @@
       animation-timing-function: linear;
       animation-iteration-count: infinite;
     }
+    /* The welcome screen opts into one cycle using the root's URL fragment. */
+    #pc-amber-mark:target [data-motion] {
+      animation-iteration-count: 1;
+      animation-fill-mode: forwards;
+    }
     #pc-amber-mark-hand, #pc-amber-mark-shadow { animation-name: pc-amber-mark-clockwise; }
     #pc-amber-mark-hand { transform-origin: 500px 319px; }
     #pc-amber-mark-shadow { transform-origin: 501px 323px; }

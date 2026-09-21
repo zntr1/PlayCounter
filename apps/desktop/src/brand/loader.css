@@ -7,21 +7,9 @@
   font-family: inherit;
   text-align: center;
 }
-.pc-loader__picture {
-  display: block;
-  line-height: 0;
-}
-.pc-loader__image {
-  display: block;
-  width: 160px;
-  height: 128px;
-  max-width: 60vw;
-  object-fit: contain;
-}
 .pc-loader__label {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
-  opacity: 0.66;
   line-height: 1.6;
 }

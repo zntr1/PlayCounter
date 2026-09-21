@@ -15,6 +15,7 @@ import {
   type XboxImportProgressStage,
 } from "@playcounter/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PlayCounterLoader } from "../../brand/PlayCounterLoader";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
@@ -1864,16 +1865,13 @@ function LoadingPanel({
   return (
     <Panel className="grid min-h-[320px] place-items-center p-8 text-center text-text-muted">
       <div>
-        <div role="status" aria-live="polite">
-          <RefreshCw size={28} className="mx-auto animate-spin text-accent" />
-          <p className="mt-3">{label}</p>
-          {onCopySignInLink ? (
-            <p className="mt-2 max-w-md text-sm text-text-faint">
-              Browser did not open, or opened the wrong account? Copy the
-              sign-in link and open it yourself.
-            </p>
-          ) : null}
-        </div>
+        <PlayCounterLoader label={label} />
+        {onCopySignInLink ? (
+          <p className="mt-2 max-w-md text-sm text-text-faint">
+            Browser did not open, or opened the wrong account? Copy the
+            sign-in link and open it yourself.
+          </p>
+        ) : null}
         {onCancel || onCopySignInLink ? (
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {onCopySignInLink ? (

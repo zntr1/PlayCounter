@@ -1,0 +1,12 @@
+.pc-animated-icon {
+  display: block;
+  flex-shrink: 0;
+  max-width: 100%;
+  line-height: 0;
+}
+.pc-animated-icon > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}

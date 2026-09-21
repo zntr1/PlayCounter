@@ -1,4 +1,5 @@
 import "./loader.css";
+import { PlayCounterAnimatedIcon } from "./PlayCounterAnimatedIcon";
 import { PlayCounterWordmark, type BrandSurface } from "./PlayCounterWordmark";
 
 export type PlayCounterLoaderProps = {
@@ -22,20 +23,7 @@ export function PlayCounterLoader({
       aria-live="polite"
       aria-atomic="true"
     >
-      <picture className="pc-loader__picture">
-        <source
-          media="(prefers-reduced-motion: reduce)"
-          srcSet={`${assetBase}/playcounter-loader-static.svg`}
-        />
-        <img
-          className="pc-loader__image"
-          src={`${assetBase}/playcounter-loader.svg`}
-          width={160}
-          height={128}
-          alt=""
-          draggable={false}
-        />
-      </picture>
+      <PlayCounterAnimatedIcon size={160} assetBase={assetBase} />
       <PlayCounterWordmark
         size={26}
         surface={surface}

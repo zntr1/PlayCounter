@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
 import { Button, IconButton } from "../primitives";
@@ -190,9 +191,7 @@ export function WelcomePrompt() {
     <ModalFrame onEscape={close}>
       <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised">
         <div className="shrink-0 px-6 pt-6">
-          <div className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-accent-tint text-accent">
-            <CircleHelp size={23} />
-          </div>
+          <PlayCounterAnimatedIcon size={72} once className="mb-4" />
           <h2 className="text-xl font-semibold text-text">
             Welcome to PlayCounter
           </h2>

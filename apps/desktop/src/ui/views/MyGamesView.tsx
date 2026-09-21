@@ -1,4 +1,5 @@
 import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
+import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { useLibraryPractice } from "../PersonalLibraryContext";
 import {
   publishLibraryHeroArt,
@@ -2573,10 +2574,7 @@ function LaunchStartingOverlay({
           compact ? "gap-3 px-4 py-2.5" : "flex-col gap-3 px-6 py-5",
         )}
       >
-        <Loader2
-          size={compact ? 20 : 30}
-          className="shrink-0 animate-spin text-accent"
-        />
+        <PlayCounterAnimatedIcon size={compact ? 40 : 64} />
         <div className={clsx("min-w-0 max-w-full", compact && "text-left")}>
           <div className="max-w-64 whitespace-normal break-words text-sm font-bold text-text">
             Starting {gameName}…

@@ -44,6 +44,7 @@ import {
 } from "react";
 import { initializeTracker } from "../tracker";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
+import { PlayCounterAnimatedIcon } from "../brand/PlayCounterAnimatedIcon";
 import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
 import {
   CONTROLLER_MODE_EVENT,
@@ -210,7 +211,10 @@ const views: Record<
         <ImporterErrorBoundary>
           <Suspense
             fallback={
-              <div className="text-sm text-text-muted">Loading importer…</div>
+              <PlayCounterLoader
+                label="Loading importer…"
+                className="min-h-[320px] text-text-muted"
+              />
             }
           >
             <ImportLibraryView />
@@ -937,17 +941,26 @@ export function App() {
         <RequestWarning apiEndpoint={apiEndpoint} runtimeError={runtimeError} />
         {startupUpdate?.status === "available" ? (
           <div className="flex items-center justify-between gap-4 border-b border-info-border bg-info-tint px-7 py-2 text-sm text-info">
-            <span className="min-w-0">
-              Version {startupUpdate.version} is available
-              {installingUpdate
-                ? ` - ${formatInstallProgress(installProgress)}`
-                : ""}
-            </span>
+            <div
+              className="flex min-w-0 items-center gap-3"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {installingUpdate ? <PlayCounterAnimatedIcon size={40} /> : null}
+              <span className="min-w-0">
+                Version {startupUpdate.version} is available
+                {installingUpdate
+                  ? ` - ${formatInstallProgress(installProgress)}`
+                  : ""}
+              </span>
+            </div>
             <div className="flex shrink-0 items-center gap-2">
               {!isEmptyDisplayNotes(startupDisplayNotes) ? (
                 <Button
                   variant="secondary"
                   onClick={() => setStartupNotesOpen(true)}
+                  disabled={installingUpdate}
                   className="px-3 py-1.5"
                 >
                   What's new
@@ -955,8 +968,9 @@ export function App() {
               ) : null}
               <Button
                 variant="primary"
-                icon={Download}
-                loading={installingUpdate}
+                icon={installingUpdate ? undefined : Download}
+                disabled={installingUpdate}
+                aria-busy={installingUpdate}
                 onClick={() => void handleInstallStartupUpdate()}
                 className="px-3 py-1.5"
               >

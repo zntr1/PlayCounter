@@ -13,6 +13,7 @@ import {
 import { getVersion } from "@tauri-apps/api/app";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
+import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import type { LibraryProviderId } from "@playcounter/shared";
 import {
   chooseEmulatorBinary,
@@ -1191,11 +1192,19 @@ export function SettingsView() {
             <p className="mt-1 text-sm text-text-muted">
               Check for a new PlayCounter version immediately.
             </p>
-            <p className="mt-2 text-sm text-text-muted">
-              {isOffline
-                ? "Update checks unavailable offline."
-                : formatUpdateStatus(updateStatus, updateResult, progressLabel)}
-            </p>
+            <div
+              className="mt-2 flex items-center gap-3 text-sm text-text-muted"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              {updateButtonDisabled ? <PlayCounterAnimatedIcon size={40} /> : null}
+              <span>
+                {isOffline && !updateButtonDisabled
+                  ? "Update checks unavailable offline."
+                  : formatUpdateStatus(updateStatus, updateResult, progressLabel)}
+              </span>
+            </div>
             {updateError ? (
               <p className="mt-2 break-words text-sm text-danger">
                 {updateError}
@@ -1216,8 +1225,8 @@ export function SettingsView() {
             {updateStatus === "available" || updateStatus === "installing" ? (
               <Button
                 variant="primary"
-                icon={Download}
-                loading={updateStatus === "installing"}
+                icon={updateStatus === "installing" ? undefined : Download}
+                aria-busy={updateStatus === "installing"}
                 onClick={() => void handleInstallUpdate()}
                 disabled={updateButtonDisabled || isOffline}
               >
@@ -1225,15 +1234,15 @@ export function SettingsView() {
               </Button>
             ) : null}
             <Button
-              icon={RotateCcw}
-              loading={updateStatus === "checking"}
+              icon={updateStatus === "checking" ? undefined : RotateCcw}
+              aria-busy={updateStatus === "checking"}
               onClick={() => void handleCheckForUpdate()}
               disabled={updateButtonDisabled || isOffline}
               title={
                 isOffline ? "Update checks unavailable offline" : undefined
               }
             >
-              Check
+              {updateStatus === "checking" ? "Checking…" : "Check"}
             </Button>
           </div>
         </div>
