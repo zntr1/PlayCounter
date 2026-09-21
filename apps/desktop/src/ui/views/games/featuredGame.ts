@@ -28,9 +28,11 @@ export function matchesFeaturedGame(
 export function pickFeaturedGame<T extends FeaturableGame>(
   games: readonly T[],
   featured: LibraryFeaturedGame | null | undefined,
+  fallback?: LibraryFeaturedGame | null,
 ): { game: T; pinned: boolean } | null {
-  if (featured) {
-    const pinned = games.find((game) => matchesFeaturedGame(game, featured));
+  for (const choice of [featured, fallback]) {
+    if (!choice) continue;
+    const pinned = games.find((game) => matchesFeaturedGame(game, choice));
     if (pinned) return { game: pinned, pinned: true };
   }
   const played = games.filter(

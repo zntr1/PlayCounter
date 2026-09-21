@@ -2,6 +2,7 @@ import { createPersonalLibraryActions } from "./personalLibraryStore";
 import type {
   ContributionCounts,
   ContributionStatus,
+  DesktopViewId,
   EmulatorLaunchContext,
   FeedbackReply,
   Game,
@@ -87,19 +88,7 @@ import {
   type Playthrough,
 } from "./personalLibrary";
 
-export type ViewId =
-  | "now"
-  | "emulating"
-  | "dosbox"
-  | "dolphin"
-  | "pcsx2"
-  | "games"
-  | "import"
-  | "discovered"
-  | "history"
-  | "achievements"
-  | "settings"
-  | "dev";
+export type ViewId = DesktopViewId;
 
 export type ProcessSnapshot = {
   exeName: string;
@@ -572,6 +561,7 @@ export type AppState = {
   setMyGamesHideEmptyProviderTabs: (enabled: boolean) => void;
   setMyGamesShowHero: (enabled: boolean) => void;
   setLibraryFeaturedGame: (game: LibraryFeaturedGame | null) => void;
+  setViewShowHero: (view: Exclude<ViewId, "games">, enabled: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSidebarSourcesCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
@@ -636,6 +626,7 @@ const defaultSettings: Settings = {
   libraryHideEmptyProviderTabs: false,
   libraryShowHero: true,
   libraryFeaturedGame: null,
+  viewShowHero: {},
   sidebarCollapsed: false,
   sidebarSourcesCollapsed: false,
   autoShareIgnoredProcesses: false,
@@ -1659,6 +1650,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLibraryFeaturedGame: (libraryFeaturedGame) => {
     set((state) => ({
       settings: { ...state.settings, libraryFeaturedGame },
+    }));
+    persistSoon();
+  },
+  setViewShowHero: (view, enabled) => {
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        viewShowHero: { ...state.settings.viewShowHero, [view]: enabled },
+      },
     }));
     persistSoon();
   },

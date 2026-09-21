@@ -288,6 +288,7 @@ export function createPersonalLibraryActions(
       const id = shelf.id ?? crypto.randomUUID();
       const state = get();
       const next = {
+        ...state.personalShelves.find((saved) => saved.id === id),
         ...shelf,
         id,
         name,

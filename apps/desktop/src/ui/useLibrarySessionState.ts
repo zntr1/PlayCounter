@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo } from "react";
 import { useAppStore, type AppState } from "../store";
 
-/** Keep the mounted library's session snapshot still while another view is open. */
+/** Refresh shared summaries only while the library or a compact banner needs them. */
 export function useLibrarySessionState() {
   const select = useMemo(() => {
     const initial = useAppStore.getState();
@@ -12,9 +12,10 @@ export function useLibrarySessionState() {
     };
     return (state: AppState) => {
       // The library stays mounted to retain its filters and scroll position.
-      // Updating its game summaries here would block interactions in Now Playing.
+      // Other views only need fresh summaries when their banner is enabled.
       if (
-        state.activeView === "games" &&
+        (state.activeView === "games" ||
+          state.settings.viewShowHero?.[state.activeView] === true) &&
         (state.recentSessions !== snapshot.recentSessions ||
           state.activeSessions !== snapshot.activeSessions ||
           state.archivedGameSeconds !== snapshot.archivedGameSeconds)

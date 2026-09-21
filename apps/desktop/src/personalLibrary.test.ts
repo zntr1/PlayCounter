@@ -606,6 +606,40 @@ describe("durable playthrough time", () => {
 });
 
 describe("saved library filters", () => {
+  it("preserves a shelf banner during partial edits and clears it explicitly", () => {
+    const state = useAppStore.getState();
+    const featuredGame = { gameId: 42, source: "igdb" as const, igdbId: 123 };
+    const id = state.savePersonalShelf({ name: "Weekend", featuredGame })!;
+    state.savePersonalShelf({
+      id,
+      name: "Weekends",
+      filters: { played: "played" },
+    });
+    expect(useAppStore.getState().personalShelves[0]).toMatchObject({
+      name: "Weekends",
+      featuredGame,
+      filters: { played: "played" },
+    });
+    state.setViewShowHero("history", true);
+    state.setViewShowHero("settings", true);
+    state.setViewShowHero("settings", false);
+    const data = createTransferData(
+      createPersistedPayload(useAppStore.getState()),
+    );
+    expect(() => validateBackupData(data, "data")).not.toThrow();
+    expect(data.settings).toMatchObject({
+      viewShowHero: { history: true, settings: false },
+    });
+    state.savePersonalShelf({
+      ...useAppStore.getState().personalShelves[0],
+      featuredGame: null,
+    });
+    expect(useAppStore.getState().personalShelves[0]).toMatchObject({
+      featuredGame: null,
+      filters: { played: "played" },
+    });
+  });
+
   const candidate: FilterableLibraryGame = {
     name: "RPG",
     totalSeconds: 0,

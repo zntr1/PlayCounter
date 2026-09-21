@@ -1,5 +1,5 @@
 import type { GameIdentityRef } from "./store";
-import type { Session } from "@playcounter/shared";
+import type { LibraryFeaturedGame, Session } from "@playcounter/shared";
 
 export const NOTE_LIMIT = 4000;
 export const NAME_LIMIT = 80;
@@ -46,6 +46,8 @@ export type PersonalShelf = {
   name: string;
   /** Absent for a shelf with manually selected games. */
   filters?: LibraryFilters;
+  /** Null or absent inherits the library's normal featured game. */
+  featuredGame?: LibraryFeaturedGame | null;
 };
 
 /** Defaults and inactive rules do not make a saved filter different. */

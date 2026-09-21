@@ -543,6 +543,20 @@ export interface LibraryFeaturedGame {
   igdbId?: number;
 }
 
+export type DesktopViewId =
+  | "now"
+  | "emulating"
+  | "dosbox"
+  | "dolphin"
+  | "pcsx2"
+  | "games"
+  | "import"
+  | "discovered"
+  | "history"
+  | "achievements"
+  | "settings"
+  | "dev";
+
 export interface Settings {
   /** Global keyboard shortcuts. Null or absent means disabled. */
   showWindowHotkey?: string | null;
@@ -579,6 +593,8 @@ export interface Settings {
   libraryShowHero?: boolean;
   /** Game pinned to the library banner. Null or absent = the last played game. */
   libraryFeaturedGame?: LibraryFeaturedGame | null;
+  /** Compact banners in other views are opt-in, independently of My Games. */
+  viewShowHero?: Partial<Record<Exclude<DesktopViewId, "games">, boolean>>;
   /** Navigation reduced to an icon rail. Absent = expanded. */
   sidebarCollapsed?: boolean;
   /** Source list under My Games folded away. Absent = shown. */

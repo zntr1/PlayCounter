@@ -331,6 +331,71 @@ async function selectShelf(label: string) {
   await act(() => shelfChip(label).click());
 }
 
+it.each(["grid", "large", "list"] as const)(
+  "keeps a shelf banner independent of the library banner in %s view",
+  async (view) => {
+    const globalChoice = { gameId: -2, source: "custom" as const };
+    useAppStore.getState().setMyGamesCardSize(view);
+    useAppStore.getState().setLibraryFeaturedGame(globalChoice);
+    await act(() => root.render(<LibraryTestShell />));
+    const bannerTitle = () =>
+      container.querySelector('[data-banner-variant="full"] h2')?.textContent;
+    await selectShelf("Weekend");
+    expect(bannerTitle()).toBe("Local other");
+    await act(() =>
+      gameCard(local.gameName).dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true }),
+      ),
+    );
+    await act(() => button("Pin to shelf banner", document).click());
+    expect(bannerTitle()).toBe(local.gameName);
+    expect(useAppStore.getState().settings.libraryFeaturedGame).toEqual(
+      globalChoice,
+    );
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).personalShelves[0]
+        .featuredGame,
+    ).toMatchObject({ gameId: local.gameId, source: "custom" });
+    await selectShelf("All games");
+    expect(bannerTitle()).toBe("Local other");
+    await selectShelf("Weekend");
+    expect(bannerTitle()).toBe(local.gameName);
+
+    // Renaming through the actual editor must keep the shelf's selection.
+    await act(() =>
+      shelfChip("Weekend").dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true }),
+      ),
+    );
+    await act(() => button("Edit", document).click());
+    const name = document.querySelector<HTMLInputElement>(
+      '[aria-label="Shelf name"]',
+    )!;
+    await act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(name, "Weekends");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(() => button("Save shelf", document).click());
+    expect(bannerTitle()).toBe(local.gameName);
+    expect(useAppStore.getState().personalShelves[0].featuredGame?.gameId).toBe(
+      local.gameId,
+    );
+    await act(() =>
+      shelfChip("Weekends").dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true }),
+      ),
+    );
+    await act(() => button("Use library banner", document).click());
+    expect(bannerTitle()).toBe("Local other");
+    expect(useAppStore.getState().settings.libraryFeaturedGame).toEqual(
+      globalChoice,
+    );
+  },
+);
+
 async function shelvesToggle() {
   if (!document.querySelector("#library-show-shelves"))
     await act(() =>

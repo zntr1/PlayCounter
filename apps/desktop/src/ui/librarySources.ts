@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { LibraryTabDescriptor, LibraryTabId } from "./libraryTabs";
+import type { GameSummary } from "./views/MyGamesView";
 
 /* The library's import-source tabs (All games, PlayCounter, Steam, …) are
    drawn in the sidebar, but their counts come out of the same game list that
@@ -17,6 +18,9 @@ export type LibrarySourcesState = {
   heroVisible: boolean;
   /** The banner's key art, so the title bar can carry its colour upward. */
   heroArt: string | null;
+  /** Global selection for other views; never includes a shelf override. */
+  featured: { game: GameSummary; pinned: boolean } | null;
+  ready: boolean;
   /** Key art of the game running on Now Playing; the whole view sits on it. */
   nowArt: string | null;
 };
@@ -27,6 +31,8 @@ export const useLibrarySources = create<LibrarySourcesState>(() => ({
   visible: false,
   heroVisible: false,
   heroArt: null,
+  featured: null,
+  ready: false,
   nowArt: null,
 }));
 
@@ -36,6 +42,8 @@ export function publishLibrarySources(next: LibrarySourcesState) {
     current.visible === next.visible &&
     current.heroVisible === next.heroVisible &&
     current.heroArt === next.heroArt &&
+    current.featured === next.featured &&
+    current.ready === next.ready &&
     current.nowArt === next.nowArt &&
     current.activeTab === next.activeTab &&
     sameTabs(current.tabs, next.tabs)
@@ -43,6 +51,10 @@ export function publishLibrarySources(next: LibrarySourcesState) {
     return;
   }
   useLibrarySources.setState(next);
+}
+
+export function publishLibraryHeroArt(heroArt: string | null) {
+  useLibrarySources.setState({ heroArt });
 }
 
 function sameTabs(

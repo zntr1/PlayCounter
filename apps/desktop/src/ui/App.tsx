@@ -10,8 +10,10 @@ import {
   ChevronDown,
   Cpu,
   Download,
+  EyeOff,
   Gamepad2,
   Info,
+  Image as ImageIcon,
   ListChecks,
   LoaderCircle,
   MessageSquarePlus,
@@ -58,6 +60,7 @@ import { HeaderMenu } from "./shell/HeaderMenu";
 import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
 import { useLibrarySources } from "./librarySources";
+import { ViewBanner } from "./ViewBanner";
 import { artSrcSet } from "./artSrcSet";
 import {
   DEFAULT_CONTENT_SCALE,
@@ -183,7 +186,8 @@ const views: Record<
     label: "My Games",
     subtitle: "Every game PlayCounter has tracked for you",
     icon: Gamepad2,
-    component: <MyGamesView />,
+    // Mounted separately so its shared data can load before the cards.
+    component: null,
   },
   import: {
     label: "Import library",
@@ -292,6 +296,13 @@ export function App() {
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
+  const viewBannerEnabled = useAppStore(
+    (state) =>
+      activeView !== "games" &&
+      state.settings.viewShowHero?.[activeView] === true,
+  );
+  const setViewShowHero = useAppStore((state) => state.setViewShowHero);
+  const [viewBannerArt, setViewBannerArt] = useState<string | null>(null);
   const [importerMounted, setImporterMounted] = useState(
     activeView === "import",
   );
@@ -302,14 +313,16 @@ export function App() {
   // Paint navigation first, then build the library in an interruptible render.
   // Keep it mounted after opening so filters, card state, and covers survive.
   const deferredGamesRequested = useDeferredValue(
-    activeView === "games",
+    activeView === "games" || viewBannerEnabled,
     false,
   );
   const [gamesMounted, setGamesMounted] = useState(false);
+  const [gamesOpened, setGamesOpened] = useState(false);
   const renderGames = gamesMounted || deferredGamesRequested;
   useEffect(() => {
     if (deferredGamesRequested) setGamesMounted(true);
-  }, [deferredGamesRequested]);
+    if (activeView === "games") setGamesOpened(true);
+  }, [activeView, deferredGamesRequested]);
   const libraryImportProvider = useAppStore(
     (state) => state.libraryImportProvider,
   );
@@ -330,6 +343,7 @@ export function App() {
   const tour = activeTourId ? findTour(activeTourId) : undefined;
   const practiceStep =
     tour?.practice && activeTour ? tour.steps[activeTour.stepIndex] : undefined;
+  const showViewBanner = viewBannerEnabled && !activeTour;
   const tourProgress = useAppStore((state) => state.tourProgress);
   const lastSeenReleaseNotesVersion = useAppStore(
     (state) => state.lastSeenReleaseNotesVersion,
@@ -408,8 +422,7 @@ export function App() {
   const sidebarCollapsed = useAppStore(
     (state) => state.settings.sidebarCollapsed === true,
   );
-  // On My Games the banner runs up behind the title bar, like a launcher's
-  // key art. Everywhere else the bar is an ordinary row above the content.
+  // Banner artwork continues behind the title bar at either banner size.
   // Two independent zooms: navigation chrome and the content area. CSS zoom
   // keeps pointer coordinates consistent; portals to <body> stay at 100%.
   const contentScale = useAppStore((state) =>
@@ -432,15 +445,20 @@ export function App() {
     state.heroVisible ? state.heroArt : null,
   );
   const nowArt = useLibrarySources((state) => state.nowArt);
-  // Two frames for the art: the banner card on My Games (inset by the page
-  // padding) and the whole content column on Now Playing.
+  const hasFeaturedGame = useLibrarySources((state) => state.featured !== null);
+  const compactBannerVisible = showViewBanner && hasFeaturedGame;
+  // Banner cards are inset by the page padding. Now Playing can instead use
+  // the running game's artwork across the whole content column.
   const titleBarArt =
     activeView === "games" && !practiceStep
       ? heroArt
-      : activeView === "now"
-        ? nowArt
-        : null;
-  const artFrame: "card" | "full" = activeView === "now" ? "full" : "card";
+      : compactBannerVisible
+        ? viewBannerArt
+        : activeView === "now"
+          ? nowArt
+          : null;
+  const artFrame: "card" | "full" =
+    activeView === "now" && !compactBannerVisible ? "full" : "card";
   const libraryCount = useLibrarySources((state) =>
     state.visible
       ? state.tabs.find((tab) => tab.id === "all")?.count
@@ -596,6 +614,9 @@ export function App() {
           // On My Games the bar is 72px tall: 64px of controls plus the
           // 8px gap above the banner, so the key art covers the gap too.
           "--hero-lead": `calc(72px / ${contentScale / menuScale})`,
+          "--banner-height": compactBannerVisible
+            ? "200px"
+            : "clamp(300px, 40vh, 360px)",
         } as CSSProperties
       }
     >
@@ -879,7 +900,7 @@ export function App() {
                         width:
                           "calc((var(--content-width, 100%) - 56px) * var(--zoom-ratio))",
                         height:
-                          "calc(clamp(300px, 40vh, 360px) * var(--zoom-ratio) + 72px)",
+                          "calc(var(--banner-height) * var(--zoom-ratio) + 72px)",
                       }
                     : {
                         left: 0,
@@ -978,10 +999,32 @@ export function App() {
                 <div className="view-backdrop-shade absolute inset-0" />
               </div>
             ) : null}
+            {activeView !== "games" && showViewBanner ? (
+              <ViewBanner
+                view={activeView}
+                onArtworkChange={setViewBannerArt}
+              />
+            ) : null}
             {activeView !== "games" ? (
               <ViewHeading
                 label={activeViewLabel}
                 subtitle={activeViewSubtitle}
+                action={
+                  !activeTour ? (
+                    <Button
+                      variant="ghost"
+                      icon={viewBannerEnabled ? EyeOff : ImageIcon}
+                      aria-pressed={viewBannerEnabled}
+                      title={`${viewBannerEnabled ? "Hide" : "Show"} banner in ${activeViewLabel}`}
+                      onClick={() =>
+                        setViewShowHero(activeView, !viewBannerEnabled)
+                      }
+                      className="shrink-0 text-xs"
+                    >
+                      {viewBannerEnabled ? "Hide banner" : "Show banner"}
+                    </Button>
+                  ) : undefined
+                }
               />
             ) : null}
             {activeView !== "import" && activeView !== "games"
@@ -1003,7 +1046,9 @@ export function App() {
             ) : null}
             {renderGames ? (
               <div hidden={activeView !== "games" || Boolean(practiceStep)}>
-                {views.games.component}
+                <MyGamesView
+                  renderContent={gamesOpened || activeView === "games"}
+                />
               </div>
             ) : null}
             {practiceStep && activeTourId ? (
@@ -1123,13 +1168,24 @@ function SidebarToggle({
 
 /* The view's name used to live in the window header. The header is a title
    bar now, so each view introduces itself at the top of its own content. */
-function ViewHeading({ label, subtitle }: { label: string; subtitle: string }) {
+function ViewHeading({
+  label,
+  subtitle,
+  action,
+}: {
+  label: string;
+  subtitle: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="mb-5">
-      <h1 className="text-[22px] font-bold tracking-tight text-text">
-        {label}
-      </h1>
-      <p className="mt-0.5 text-sm text-text-muted">{subtitle}</p>
+    <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-[22px] font-bold tracking-tight text-text">
+          {label}
+        </h1>
+        <p className="mt-0.5 text-sm text-text-muted">{subtitle}</p>
+      </div>
+      {action}
     </div>
   );
 }

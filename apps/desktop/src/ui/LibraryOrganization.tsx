@@ -6,6 +6,7 @@ import {
   FolderHeart,
   Pencil,
   Plus,
+  PinOff,
   Save,
   SlidersHorizontal,
   Star,
@@ -552,6 +553,17 @@ export function LibraryOrganizationToolbar({
           focusFirstItem
         >
           <ContextMenuHeading>{menuShelf.name}</ContextMenuHeading>
+          {menuShelf.featuredGame ? (
+            <ContextMenuItem
+              icon={PinOff}
+              onClick={() => {
+                closeShelfMenu();
+                save({ ...menuShelf, featuredGame: null });
+              }}
+            >
+              Use library banner
+            </ContextMenuItem>
+          ) : null}
           <ContextMenuItem
             icon={SlidersHorizontal}
             onClick={() => {
@@ -612,6 +624,7 @@ export function LibraryOrganizationToolbar({
               event.preventDefault();
               if (!name.trim()) return;
               const id = save({
+                ...(typeof editor === "object" ? editor : {}),
                 id: typeof editor === "object" ? editor.id : undefined,
                 name,
                 filters:
@@ -640,6 +653,12 @@ export function LibraryOrganizationToolbar({
               Drag games onto the shelf, or select the shelf, open Filters, and
               save them so the shelf fills itself.
             </p>
+            {!practice && typeof editor === "object" ? (
+              <p className="text-xs text-text-muted">
+                Right-click a game on this shelf and choose Pin to shelf banner
+                to give this shelf its own featured game.
+              </p>
+            ) : null}
           </form>
         </Modal>
       ) : null}

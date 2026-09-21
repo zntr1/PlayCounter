@@ -289,6 +289,35 @@ describe("backup import", () => {
       ],
     ),
     ["settings", { settings: [] }],
+    ["settings.viewShowHero", { settings: { viewShowHero: [] } }],
+    [
+      "settings.viewShowHero.history",
+      { settings: { viewShowHero: { history: "true" } } },
+    ],
+    [
+      "personalShelves[0].featuredGame.gameId",
+      {
+        personalShelves: [
+          {
+            id: "weekend",
+            name: "Weekend",
+            featuredGame: { gameId: "42", source: "igdb" },
+          },
+        ],
+      },
+    ],
+    [
+      "personalShelves[0].featuredGame.source",
+      {
+        personalShelves: [
+          {
+            id: "weekend",
+            name: "Weekend",
+            featuredGame: { gameId: 42, source: "steam" },
+          },
+        ],
+      },
+    ],
     ...[0, -1, 2.5, 49, "6"].map(
       (libraryGridColumns): [string, Record<string, unknown>] => [
         "settings.libraryGridColumns",
@@ -453,9 +482,18 @@ describe("backup import", () => {
             ...state.settings,
             libraryShowShelves: false,
             libraryGridColumns: 6,
+            viewShowHero: { history: true, settings: false },
             overlayUpdateNote,
           },
           recentSessions: [validSession],
+          personalShelves: [
+            {
+              id: "weekend",
+              name: "Weekend",
+              featuredGame: { gameId: 42, source: "igdb", igdbId: 500 },
+              filters: { played: "played" },
+            },
+          ],
           exeCache: new Map([
             [
               "game.exe",
@@ -487,6 +525,14 @@ describe("backup import", () => {
       expect(() => hydrate()).not.toThrow();
       expect(useAppStore.getState().settings.libraryShowShelves).toBe(false);
       expect(useAppStore.getState().settings.libraryGridColumns).toBe(6);
+      expect(useAppStore.getState().settings.viewShowHero).toEqual({
+        history: true,
+        settings: false,
+      });
+      expect(useAppStore.getState().personalShelves[0]).toMatchObject({
+        featuredGame: { gameId: 42, source: "igdb", igdbId: 500 },
+        filters: { played: "played" },
+      });
       expect(useAppStore.getState().settings.overlayUpdateNote).toBe(
         overlayUpdateNote === true,
       );

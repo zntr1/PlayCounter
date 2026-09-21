@@ -69,4 +69,30 @@ describe("pickFeaturedGame", () => {
       pinned: false,
     });
   });
+
+  it("uses a shelf choice before the library choice, with a safe fallback after removal", () => {
+    const shelfGame = game({ gameId: 4 });
+    const libraryGame = game({ gameId: 5 });
+    const recent = game({
+      gameId: 6,
+      sessionCount: 2,
+      lastPlayedAt: "2027-01-01T00:00:00Z",
+    });
+    const shelfChoice = { gameId: 4, source: "igdb" as const };
+    const libraryChoice = { gameId: 5, source: "igdb" as const };
+    expect(
+      pickFeaturedGame(
+        [shelfGame, libraryGame, recent],
+        shelfChoice,
+        libraryChoice,
+      )?.game,
+    ).toBe(shelfGame);
+    expect(
+      pickFeaturedGame([libraryGame, recent], shelfChoice, libraryChoice)?.game,
+    ).toBe(libraryGame);
+    expect(pickFeaturedGame([recent], shelfChoice, libraryChoice)).toEqual({
+      game: recent,
+      pinned: false,
+    });
+  });
 });

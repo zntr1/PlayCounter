@@ -288,6 +288,11 @@ const milestone = object(
   },
 );
 
+const featuredGame = object(
+  { gameId: integer, source: nullable(source) },
+  { igdbId: integer },
+);
+
 const settings = object({}, {
   showWindowHotkey: nullable(string),
   currentSessionHotkey: nullable(string),
@@ -306,9 +311,8 @@ const settings = object({}, {
   libraryShowShelves: boolean,
   libraryHideEmptyProviderTabs: boolean,
   libraryShowHero: boolean,
-  libraryFeaturedGame: nullable(
-    object({ gameId: integer, source: nullable(source) }, { igdbId: integer }),
-  ),
+  libraryFeaturedGame: nullable(featuredGame),
+  viewShowHero: dictionary(boolean),
   sidebarCollapsed: boolean,
   sidebarSourcesCollapsed: boolean,
   libraryStatCards: array(
@@ -394,6 +398,7 @@ const validateBackupShape: Validator = object(
       object(
         { id: nonempty, name: nonempty },
         {
+          featuredGame: nullable(featuredGame),
           filters: object(
             {},
             {

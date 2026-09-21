@@ -12,11 +12,10 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { artSrcSet } from "../../artSrcSet";
-import { useLibrarySources } from "../../librarySources";
-import { useGameDetails } from "../../../gameDetails";
-import { customHeroArtKey, useAppStore } from "../../../store";
-import { GameCover } from "../../GameCover";
+import { artSrcSet } from "./artSrcSet";
+import { useGameDetails } from "../gameDetails";
+import { customHeroArtKey, useAppStore } from "../store";
+import { GameCover } from "./GameCover";
 import {
   Button,
   ContextMenu,
@@ -24,19 +23,21 @@ import {
   ContextMenuSeparator,
   IconButton,
   useAnchoredMenu,
-} from "../../primitives";
-import { useGameJournal } from "../../useGameJournal";
-import { GameDetailsDialog } from "./GameDetailsDialog";
-import { useHeroLauncher } from "./useHeroLauncher";
-import type { GameSummary } from "../MyGamesView";
+} from "./primitives";
+import { useGameJournal } from "./useGameJournal";
+import { GameDetailsDialog } from "./views/games/GameDetailsDialog";
+import { useHeroLauncher } from "./views/games/useHeroLauncher";
+import type { GameSummary } from "./views/MyGamesView";
 
-/* The banner above the library: one game, big. Wide IGDB artwork when the
-   API has it, the game's own cover blown up and blurred when it does not, so
-   a community game without IGDB art still gets a banner instead of a gap. */
+/* One banner for the library, shelves, and other views. The compact variant
+   keeps the same artwork, actions, and fallback behavior in less space. */
 
-type LibraryHeroProps = {
+type GameBannerProps = {
   game: GameSummary;
   pinned: boolean;
+  variant?: "full" | "compact";
+  shelfName?: string;
+  onArtworkChange: (artwork: string | null) => void;
   launchKey: string;
   launchBlocked: boolean;
   onAcquireLaunch: (key: string) => boolean;
@@ -46,9 +47,12 @@ type LibraryHeroProps = {
   onHide: () => void;
 };
 
-export function LibraryHero({
+export function GameBanner({
   game,
   pinned,
+  variant = "full",
+  shelfName,
+  onArtworkChange,
   launchKey,
   launchBlocked,
   onAcquireLaunch,
@@ -56,7 +60,8 @@ export function LibraryHero({
   onPin,
   onUnpin,
   onHide,
-}: LibraryHeroProps) {
+}: GameBannerProps) {
+  const compact = variant === "compact";
   const [showDetails, setShowDetails] = useState(false);
   const menu = useAnchoredMenu();
   const details = useGameDetails(game.igdbId);
@@ -91,11 +96,17 @@ export function LibraryHero({
   // should always follow the banner.
   const titleBarArt = artwork ?? (game.coverUrl || null);
   useEffect(() => {
-    useLibrarySources.setState({ heroArt: titleBarArt });
-    return () => useLibrarySources.setState({ heroArt: null });
-  }, [titleBarArt]);
+    onArtworkChange(titleBarArt);
+    return () => onArtworkChange(null);
+  }, [onArtworkChange, titleBarArt]);
   const played = game.hasLastPlayedEvidence || game.sessionCount > 0;
-  const eyebrow = pinned ? "Featured" : played ? "Last played" : "Newest";
+  const eyebrow = shelfName
+    ? `${shelfName} · ${pinned ? "Shelf banner" : "Library banner"}`
+    : pinned
+      ? "Featured"
+      : played
+        ? "Last played"
+        : "Newest";
   const playLabel =
     launcher.launchLabel === "Play" && played
       ? "Continue Playing"
@@ -111,8 +122,12 @@ export function LibraryHero({
   return (
     <section
       aria-label={`${eyebrow}: ${game.name}`}
-      data-tour="library-hero"
-      className="library-hero relative isolate mb-6 h-[min(360px,40vh)] min-h-[300px] overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised"
+      data-tour={compact ? undefined : "library-hero"}
+      data-banner-variant={variant}
+      className={clsx(
+        "library-hero relative isolate mb-6 overflow-hidden rounded-2xl border border-border/60 bg-surface shadow-raised",
+        compact ? "h-[200px]" : "h-[min(360px,40vh)] min-h-[300px]",
+      )}
     >
       <div aria-hidden className="absolute inset-0">
         {artwork ? (
@@ -146,25 +161,49 @@ export function LibraryHero({
 
       <div
         className={clsx(
-          "relative grid h-full gap-6 px-9 py-8",
-          !artwork && game.coverUrl && "sm:grid-cols-[minmax(0,1fr)_170px]",
+          "relative grid h-full gap-6",
+          compact ? "px-6 py-5" : "px-9 py-8",
+          !compact &&
+            !artwork &&
+            game.coverUrl &&
+            "sm:grid-cols-[minmax(0,1fr)_170px]",
         )}
       >
-        <div className="flex min-h-0 max-w-[560px] flex-col justify-center">
-          <div className="mb-3 flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent">
+        <div
+          className={clsx(
+            "flex min-h-0 min-w-0 flex-col justify-center",
+            compact ? "max-w-[760px]" : "max-w-[560px]",
+          )}
+        >
+          <div
+            className={clsx(
+              "flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent",
+              compact ? "mb-2" : "mb-3",
+            )}
+          >
             {pinned ? <Pin size={13} /> : <Sparkles size={13} />}
-            <span>{pinned ? "Featured game" : eyebrow}</span>
-            {journal.favorite ? (
+            <span className="min-w-0 truncate">
+              {!shelfName && pinned ? "Featured game" : eyebrow}
+            </span>
+            {!compact && journal.favorite ? (
               <span className="inline-flex items-center gap-1 text-amber-300">
                 <Star size={11} fill="currentColor" />
                 Favorite
               </span>
             ) : null}
           </div>
-          <h2 className="library-hero-title shrink-0 text-balance font-serif text-[44px] font-bold leading-[1.05] tracking-tight text-text drop-shadow-md">
+          <h2
+            className={clsx(
+              "library-hero-title shrink-0 break-words font-serif font-bold tracking-tight text-text drop-shadow-md",
+              compact
+                ? "line-clamp-2 text-[28px] leading-tight"
+                : "text-balance text-[44px] leading-[1.05]",
+            )}
+            title={compact ? game.name : undefined}
+          >
             {game.name}
           </h2>
-          {facts.length > 0 ? (
+          {!compact && facts.length > 0 ? (
             <p className="mt-3 shrink-0 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">
               {facts.join("   •   ")}
             </p>
@@ -172,12 +211,17 @@ export function LibraryHero({
           {/* The banner is a fixed height, so a long summary has to give way
               rather than clip mid-line: it is the only part of the column that
               shrinks, and it scrolls once it runs out of room. */}
-          {ready?.summary ? (
+          {!compact && ready?.summary ? (
             <p className="scrollbar-hidden mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-y-auto text-[15px] leading-[1.5] text-text/85">
               {ready.summary}
             </p>
           ) : null}
-          <div className="mt-6 flex shrink-0 flex-wrap items-center gap-3">
+          <div
+            className={clsx(
+              "flex shrink-0 flex-wrap items-center gap-3",
+              compact ? "mt-4" : "mt-6",
+            )}
+          >
             {launcher.canLaunch ? (
               <Button
                 variant="primary"
@@ -192,7 +236,10 @@ export function LibraryHero({
                 }
                 aria-label={`${playLabel}: ${game.name}`}
                 onClick={() => void launcher.launch()}
-                className="library-hero-play h-12 rounded-lg px-6 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
+                className={clsx(
+                  "library-hero-play rounded-lg font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
+                  compact ? "h-9 px-4 text-sm" : "h-12 px-6 text-[15px]",
+                )}
               >
                 {launcher.hasActiveSession
                   ? "Running"
@@ -205,7 +252,10 @@ export function LibraryHero({
               variant="secondary"
               icon={Info}
               onClick={() => setShowDetails(true)}
-              className="h-12 rounded-lg border-2 border-text/25 bg-bg/40 px-5 text-[15px] font-semibold backdrop-blur hover:border-text/50 hover:bg-bg/60"
+              className={clsx(
+                "rounded-lg border-2 border-text/25 bg-bg/40 font-semibold backdrop-blur hover:border-text/50 hover:bg-bg/60",
+                compact ? "h-9 px-4 text-sm" : "h-12 px-5 text-[15px]",
+              )}
             >
               More Info
             </Button>
@@ -217,11 +267,14 @@ export function LibraryHero({
               title="More"
               icon={MoreHorizontal}
               onClick={menu.toggle}
-              className="h-12 w-12 rounded-lg border-2 border-text/25 bg-bg/40 backdrop-blur hover:border-text/50 hover:bg-bg/60"
+              className={clsx(
+                "rounded-lg border-2 border-text/25 bg-bg/40 backdrop-blur hover:border-text/50 hover:bg-bg/60",
+                compact ? "h-9 w-9" : "h-12 w-12",
+              )}
             />
           </div>
         </div>
-        {!artwork && game.coverUrl ? (
+        {!compact && !artwork && game.coverUrl ? (
           <div className="hidden items-center justify-end sm:flex">
             <GameCover
               src={game.coverUrl}
@@ -248,7 +301,7 @@ export function LibraryHero({
               onUnpin();
             }}
           >
-            Show last played game instead
+            {shelfName ? "Use library banner" : "Show last played game instead"}
           </ContextMenuItem>
         ) : (
           <ContextMenuItem
@@ -258,7 +311,9 @@ export function LibraryHero({
               onPin();
             }}
           >
-            Keep this game in the banner
+            {shelfName
+              ? "Keep this game for this shelf"
+              : "Keep this game in the banner"}
           </ContextMenuItem>
         )}
         <ContextMenuItem

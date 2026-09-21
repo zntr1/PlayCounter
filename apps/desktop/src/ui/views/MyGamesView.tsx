@@ -1,7 +1,12 @@
 import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
 import { useLibraryPractice } from "../PersonalLibraryContext";
-import { publishLibrarySources, useLibrarySources } from "../librarySources";
-import { LibraryHero } from "./games/LibraryHero";
+import {
+  publishLibraryHeroArt,
+  publishLibrarySources,
+  useLibrarySources,
+} from "../librarySources";
+import { GameBanner } from "../GameBanner";
+import { useLibraryLaunchLock } from "../libraryLaunchLock";
 import { ArtPickerDialog } from "../ArtPickerDialog";
 import { matchesFeaturedGame, pickFeaturedGame } from "./games/featuredGame";
 import clsx from "clsx";
@@ -190,6 +195,7 @@ import {
   matchesLibraryFilters,
   normalizeLibraryFilters,
   type LibraryFilters,
+  type PersonalShelf,
 } from "../../personalLibrary";
 import { CancelCommunitySuggestionDialog } from "../CancelCommunitySuggestionDialog";
 import type {
@@ -576,11 +582,16 @@ function activeDurationSeconds(activeSession: ActiveSession) {
   );
 }
 
-export function MyGamesView() {
+export function MyGamesView({
+  renderContent = true,
+}: {
+  renderContent?: boolean;
+}) {
   const [shelfSelection, setShelfSelection] = useState("all");
   const [libraryFilters, setLibraryFilters] = useState<LibraryFilters>({});
   const [filtersOpen, setFiltersOpen] = useState(false);
   const personalShelves = useAppStore((s) => s.personalShelves);
+  const savePersonalShelf = useAppStore((s) => s.savePersonalShelf);
   const journalFor = useLibraryJournalLookup();
   const tourDemo = useTourDemo();
   const [demoPlaytime, setDemoPlaytime] = useState({
@@ -618,8 +629,8 @@ export function MyGamesView() {
     (state) => state.setLibraryFeaturedGame,
   );
   const [recentSortNow, setRecentSortNow] = useState(() => Date.now());
-  const launchLockRef = useRef<string | null>(null);
-  const [launchingGameKey, setLaunchingGameKey] = useState<string | null>(null);
+  const { launchingGameKey, acquireLaunchLock, releaseLaunchLock } =
+    useLibraryLaunchLock();
   const {
     recentSessions: sessions,
     activeSessions,
@@ -769,19 +780,6 @@ export function MyGamesView() {
     [exeCache, scopedExeLinks],
   );
 
-  const acquireLaunchLock = useCallback((gameKey: string) => {
-    if (launchLockRef.current !== null) return false;
-    launchLockRef.current = gameKey;
-    setLaunchingGameKey(gameKey);
-    return true;
-  }, []);
-
-  const releaseLaunchLock = useCallback((gameKey: string) => {
-    if (launchLockRef.current !== gameKey) return;
-    launchLockRef.current = null;
-    setLaunchingGameKey(null);
-  }, []);
-
   useEffect(() => {
     void hydrateGameMetadata(
       sessions.map((session) => ({
@@ -792,9 +790,10 @@ export function MyGamesView() {
   }, [sessions]);
 
   useEffect(() => {
+    if (!renderContent) return;
     setDemoPlaytime({ addedSeconds: 0, addedSessions: 0 });
     setLibraryTab("all");
-  }, [tourDemo.active, tourDemo.resetToken]);
+  }, [renderContent, tourDemo.active, tourDemo.resetToken]);
 
   // Hovering a card reveals its .exe names only while Shift is held.
   useEffect(() => {
@@ -1691,12 +1690,28 @@ export function MyGamesView() {
     visibleGameCount: visibleGames.length,
     importSupported: importableProviderTabs(platform).length > 0,
   });
+  const defaultFeatured = useMemo(
+    () => pickFeaturedGame(games, featuredSetting),
+    [featuredSetting, games],
+  );
   const featured = useMemo(
-    () => (showHero ? pickFeaturedGame(games, featuredSetting) : null),
-    [featuredSetting, games, showHero],
+    () =>
+      selectedShelf?.featuredGame
+        ? pickFeaturedGame(games, selectedShelf.featuredGame, featuredSetting)
+        : defaultFeatured,
+    [defaultFeatured, featuredSetting, games, selectedShelf?.featuredGame],
+  );
+  const shelfBannerPinned = Boolean(
+    featured &&
+    selectedShelf?.featuredGame &&
+    matchesFeaturedGame(featured.game, selectedShelf.featuredGame),
   );
   const heroVisible =
-    layout.panel !== "empty-library" && featured !== null && !isCoreTourDemo;
+    renderContent &&
+    showHero &&
+    layout.panel !== "empty-library" &&
+    featured !== null &&
+    !isCoreTourDemo;
   useEffect(() => {
     publishLibrarySources({
       tabs,
@@ -1704,6 +1719,8 @@ export function MyGamesView() {
       visible: layout.showTabs,
       heroVisible,
       heroArt: heroVisible ? useLibrarySources.getState().heroArt : null,
+      featured: defaultFeatured,
+      ready: true,
       nowArt: useLibrarySources.getState().nowArt,
     });
   });
@@ -1760,6 +1777,10 @@ export function MyGamesView() {
     });
   }, []);
 
+  // Other views can request the shared library data without mounting cards.
+  // Once My Games has been opened, App keeps its content mounted as before.
+  if (!renderContent) return null;
+
   return (
     <div ref={bulkSelection.rootRef} onKeyDown={bulkSelection.onKeyDown}>
       <LibraryGameDropHint
@@ -1771,22 +1792,31 @@ export function MyGamesView() {
       ) : (
         <>
           {heroVisible && featured ? (
-            <LibraryHero
-              key={`${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
+            <GameBanner
+              key={`${selectedShelf?.id ?? "all"}:${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
               game={featured.game}
-              pinned={featured.pinned}
+              pinned={selectedShelf ? shelfBannerPinned : featured.pinned}
+              shelfName={selectedShelf?.name}
+              onArtworkChange={publishLibraryHeroArt}
               launchKey="library-hero"
               launchBlocked={launchingGameKey !== null}
               onAcquireLaunch={acquireLaunchLock}
               onReleaseLaunch={releaseLaunchLock}
-              onPin={() =>
-                setLibraryFeaturedGame({
+              onPin={() => {
+                const featuredGame = {
                   gameId: featured.game.gameId,
                   source: featured.game.source,
                   igdbId: featured.game.igdbId,
-                })
-              }
-              onUnpin={() => setLibraryFeaturedGame(null)}
+                };
+                if (selectedShelf)
+                  savePersonalShelf({ ...selectedShelf, featuredGame });
+                else setLibraryFeaturedGame(featuredGame);
+              }}
+              onUnpin={() => {
+                if (selectedShelf)
+                  savePersonalShelf({ ...selectedShelf, featuredGame: null });
+                else setLibraryFeaturedGame(null);
+              }}
               onHide={() => setMyGamesShowHero(false)}
             />
           ) : null}
@@ -2277,6 +2307,7 @@ export function MyGamesView() {
                           )}
                           onToggleSelection={bulkSelection.toggleGame}
                           game={game}
+                          bannerShelf={selectedShelf}
                           localLinks={localLinks}
                           demo={isDemo}
                           onDemoPlaytimeLogged={
@@ -2548,6 +2579,7 @@ function LaunchStartingOverlay({
 
 export function GameLibraryCard({
   game,
+  bannerShelf,
   localLinks,
   launchKey,
   launchBlocked,
@@ -2567,6 +2599,7 @@ export function GameLibraryCard({
   demo = false,
 }: {
   game: GameSummary;
+  bannerShelf?: PersonalShelf;
   localLinks: readonly LocalLink[];
   launchKey: string;
   launchBlocked: boolean;
@@ -2614,8 +2647,11 @@ export function GameLibraryCard({
   const setLibraryFeaturedGame = useAppStore(
     (state) => state.setLibraryFeaturedGame,
   );
+  const saveBannerShelf = useAppStore((state) => state.savePersonalShelf);
   const featuredInBanner = useAppStore((state) => {
-    const featured = state.settings.libraryFeaturedGame;
+    const featured = bannerShelf
+      ? bannerShelf.featuredGame
+      : state.settings.libraryFeaturedGame;
     return Boolean(featured && matchesFeaturedGame(game, featured));
   });
   const contextMenu = useContextMenu();
@@ -3856,18 +3892,25 @@ export function GameLibraryCard({
             icon={featuredInBanner ? PinOff : Pin}
             onClick={() => {
               contextMenu.close();
-              setLibraryFeaturedGame(
-                featuredInBanner
-                  ? null
-                  : {
-                      gameId: game.gameId,
-                      source: game.source,
-                      igdbId: game.igdbId,
-                    },
-              );
+              const featuredGame = featuredInBanner
+                ? null
+                : {
+                    gameId: game.gameId,
+                    source: game.source,
+                    igdbId: game.igdbId,
+                  };
+              if (bannerShelf)
+                saveBannerShelf({ ...bannerShelf, featuredGame });
+              else setLibraryFeaturedGame(featuredGame);
             }}
           >
-            {featuredInBanner ? "Unpin from banner" : "Pin to banner"}
+            {bannerShelf
+              ? featuredInBanner
+                ? "Use library banner"
+                : "Pin to shelf banner"
+              : featuredInBanner
+                ? "Unpin from banner"
+                : "Pin to banner"}
           </ContextMenuItem>
         ) : null}
         {!demo ? (
