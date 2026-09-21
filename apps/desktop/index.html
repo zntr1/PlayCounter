@@ -34,6 +34,13 @@
           "Segoe UI",
           sans-serif;
         z-index: 9999;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      /* Keep the whole startup screen draggable before React mounts. */
+      #initial-loader * {
+        pointer-events: none;
       }
 
       #initial-loader img {
@@ -95,7 +102,7 @@
   </head>
   <body>
     <div id="root"></div>
-    <div id="initial-loader">
+    <div id="initial-loader" data-tauri-drag-region>
       <img src="/icon.png" alt="PlayCounter Icon" />
       <div class="brand">PlayCounter</div>
       <div class="progress-bar-container">
