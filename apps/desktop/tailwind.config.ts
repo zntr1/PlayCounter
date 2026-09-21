@@ -75,6 +75,13 @@ export default {
           "0%": { opacity: "0", transform: "translateX(-6px)" },
           "100%": { opacity: "1", transform: "translateX(0)" },
         },
+        // Rail tooltips are centred on the button with translateY(-50%), so
+        // their entrance has to carry that offset through every frame or the
+        // label drops half its height and snaps back at the end.
+        "tooltip-in": {
+          "0%": { opacity: "0", transform: "translate(-4px, -50%)" },
+          "100%": { opacity: "1", transform: "translate(0, -50%)" },
+        },
         "toast-in": {
           "0%": { opacity: "0", transform: "translateX(16px) scale(0.98)" },
           "100%": { opacity: "1", transform: "translateX(0) scale(1)" },
@@ -107,6 +114,7 @@ export default {
         pop: "pop 320ms ease-out",
         "fade-in": "fade-in 200ms ease-out",
         "label-in": "label-in 180ms ease-out",
+        "tooltip-in": "tooltip-in 140ms ease-out",
         "toast-in": "toast-in 220ms ease-out",
         "toast-out": "toast-out 260ms ease-in forwards",
         "modal-in": "modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1)",

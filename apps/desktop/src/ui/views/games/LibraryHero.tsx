@@ -151,7 +151,7 @@ export function LibraryHero({
         )}
       >
         <div className="flex min-h-0 max-w-[560px] flex-col justify-center">
-          <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent">
+          <div className="mb-3 flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent">
             {pinned ? <Pin size={13} /> : <Sparkles size={13} />}
             <span>{pinned ? "Featured game" : eyebrow}</span>
             {journal.favorite ? (
@@ -161,20 +161,23 @@ export function LibraryHero({
               </span>
             ) : null}
           </div>
-          <h2 className="library-hero-title text-balance font-serif text-[44px] font-bold leading-[1.05] tracking-tight text-text drop-shadow-md">
+          <h2 className="library-hero-title shrink-0 text-balance font-serif text-[44px] font-bold leading-[1.05] tracking-tight text-text drop-shadow-md">
             {game.name}
           </h2>
           {facts.length > 0 ? (
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">
+            <p className="mt-3 shrink-0 text-[11px] font-semibold uppercase tracking-[0.22em] text-text-muted">
               {facts.join("   •   ")}
             </p>
           ) : null}
+          {/* The banner is a fixed height, so a long summary has to give way
+              rather than clip mid-line: it is the only part of the column that
+              shrinks, and it scrolls once it runs out of room. */}
           {ready?.summary ? (
-            <p className="mt-4 line-clamp-3 max-w-[500px] text-[15px] leading-[1.5] text-text/85">
+            <p className="scrollbar-hidden mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-y-auto text-[15px] leading-[1.5] text-text/85">
               {ready.summary}
             </p>
           ) : null}
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className="mt-6 flex shrink-0 flex-wrap items-center gap-3">
             {launcher.canLaunch ? (
               <Button
                 variant="primary"

@@ -1447,10 +1447,9 @@ it.each(["grid", "large", "list"] as const)(
     expect(document.querySelector(".library-game-drag-count")).toBeNull();
     expect(document.querySelector(".library-game-drag-preview")).toBeNull();
     expect(card.hasAttribute("data-library-drag-source")).toBe(false);
-    // The synthetic click following a drag must not deselect the source.
-    await act(() => checkbox.click());
-    expect(container.textContent).toContain("3 selected");
-    expect(checkbox.getAttribute("aria-checked")).toBe("true");
+    // Landing on a shelf finishes Select, the way applying a status does.
+    expect(container.textContent).not.toContain("3 selected");
+    expect(gameCard(steam.name).querySelector('[role="checkbox"]')).toBeNull();
     for (const game of [local, { ...local, gameId: -2 }, steam])
       expect(getGameJournal(useAppStore.getState(), game).shelfIds).toContain(
         target,
@@ -1530,6 +1529,12 @@ it("adds only missing games to shelves and Favorites and explains when all are a
     detail: "2 already in Weekend",
   });
   const journals = useAppStore.getState().gameJournals;
+  // The successful drop closed Select; the blocked case needs it open again.
+  expect(container.textContent).not.toContain("4 selected");
+  // The drop swallows the click that follows it, as a real release would.
+  await pointer(window, "pointerdown");
+  await enterSelection();
+  await act(() => button("Select all 4 results").click());
   await startDrag(gameCard(local.gameName));
   expect(shelfChip("Weekend").dataset.libraryDragBlocked).toBe("already-added");
   expect(
@@ -1538,6 +1543,8 @@ it("adds only missing games to shelves and Favorites and explains when all are a
   await releaseOnShelf("Weekend");
   expect(useAppStore.getState().gameJournals).toBe(journals);
   expect(useAppStore.getState().toasts).toHaveLength(1);
+  // A blocked drop changes nothing, so the selection is still standing.
+  expect(container.textContent).toContain("4 selected");
   await dropGame(gameCard(local.gameName), "Favorites");
   expect(shelfChip("Favorites").lastElementChild?.textContent).toBe("4");
   const favorites = useAppStore.getState().gameJournals;
@@ -1621,7 +1628,7 @@ it("drags all selected results from the current scope, including cards not yet r
   expect(
     getGameJournal(useAppStore.getState(), { ...local, gameId: -2 }).favorite,
   ).toBe(false);
-  expect(container.textContent).toContain("120 selected");
+  expect(container.textContent).not.toContain("120 selected");
 });
 
 it("cancels shelf dragging when shelves are disabled and allows it again when enabled", async () => {

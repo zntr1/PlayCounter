@@ -211,6 +211,10 @@ export function LibraryOrganizationToolbar({
     >
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
         {leading}
+        {/* The shelf rail is what pushes the controls to the right edge.
+            Without it the whole row collapses rightwards and the heading
+            drifts off the left margin, so a plain spacer stands in. */}
+        {!showShelves ? <div className="flex-1" aria-hidden /> : null}
         {showShelves ? (
           <div
             role="tablist"
@@ -298,7 +302,7 @@ export function LibraryOrganizationToolbar({
         {selectionAction}
         <Button
           data-tour={practice ? "demo-filters-toggle" : undefined}
-          variant={expanded || activeCount ? "secondary" : "ghost"}
+          variant={expanded ? "active" : activeCount ? "secondary" : "ghost"}
           icon={SlidersHorizontal}
           aria-expanded={expanded}
           aria-controls="library-filters"
@@ -500,11 +504,11 @@ export function LibraryOrganizationToolbar({
                 Save filters
               </Button>
             ) : null}
-            {selected ? (
-              <Button variant="ghost" onClick={closeFilters}>
-                Cancel
-              </Button>
-            ) : null}
+            {/* On a shelf this throws the draft away; with no shelf to revert
+                to there is nothing to discard, so it only shuts the drawer. */}
+            <Button variant="ghost" onClick={closeFilters}>
+              {selected ? "Cancel" : "Close"}
+            </Button>
             {selected?.filters ? (
               <Button
                 variant="ghost"

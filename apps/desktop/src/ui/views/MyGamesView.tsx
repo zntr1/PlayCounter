@@ -188,6 +188,7 @@ import { LibraryGameDropHint } from "../LibraryGameDropHint";
 import {
   DEFAULT_PLAYTHROUGH_NAME,
   matchesLibraryFilters,
+  normalizeLibraryFilters,
   type LibraryFilters,
 } from "../../personalLibrary";
 import { CancelCommunitySuggestionDialog } from "../CancelCommunitySuggestionDialog";
@@ -478,30 +479,36 @@ function formatGameActivity(game: GameSummary) {
    chip beside the library's title now: the game count first, then whichever
    numbers the user picked, divided like a segmented control. My History is
    where these numbers are actually explored, so each segment only carries its
-   long label as a tooltip. */
+   long label as a tooltip. The count is the "Games" card itself: it keeps the
+   first segment rather than repeating further down the row. */
 function LibrarySummaryChip({
   countLabel,
   countTitle,
+  showCount,
   cards,
   showDurationDays,
 }: {
   countLabel: string;
   countTitle: string;
+  showCount: boolean;
   cards: readonly LibraryStatCard[];
   showDurationDays: boolean;
 }) {
   const stats = cards.filter((card) => card.id !== "games");
+  if (!showCount && stats.length === 0) return null;
   return (
     // Fixed height with stretched segments: mixing mono digits and sans
     // labels gives the segments different line boxes otherwise, and the
     // dividers end up as short floating dashes.
     <div className="flex h-7 shrink-0 items-stretch divide-x divide-border/70 rounded-full border border-border/70 bg-surface text-xs">
-      <span
-        title={countTitle}
-        className="flex items-center px-2.5 font-mono font-semibold tabular-nums text-text"
-      >
-        {countLabel}
-      </span>
+      {showCount ? (
+        <span
+          title={countTitle}
+          className="flex items-center px-2.5 font-mono font-semibold tabular-nums text-text"
+        >
+          {countLabel}
+        </span>
+      ) : null}
       {stats.map((card) => (
         <span
           key={card.id}
@@ -700,6 +707,18 @@ export function MyGamesView() {
     },
     [selectedShelf, selectShelf],
   );
+  // A search started outside My Games widens the library to every game: the
+  // shelf, source and filters left over from last time would otherwise hide
+  // the very results the search was after. The text itself is kept.
+  const libraryScopeReset = useAppStore((state) => state.libraryScopeReset);
+  const lastScopeReset = useRef(libraryScopeReset);
+  useEffect(() => {
+    if (libraryScopeReset === lastScopeReset.current) return;
+    lastScopeReset.current = libraryScopeReset;
+    setShelfSelection("all");
+    setLibraryFilters({});
+    setFiltersOpen(false);
+  }, [libraryScopeReset]);
   const clearLibraryFilters = useCallback(() => {
     setLibraryFilters({});
     setQuery("");
@@ -1470,30 +1489,6 @@ export function MyGamesView() {
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
   const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
   const allLibraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
-  // Apply shelf rules before the source selection so every badge describes
-  // the games available in that source within the current view.
-  const shelfGames = useMemo(() => {
-    const savedFilterSelected = personalShelves.some(
-      (s) => s.id === shelfSelection && s.filters,
-    );
-    return games.filter((game) => {
-      const journal = journalFor({ ...game, gameName: game.name });
-      return (
-        (savedFilterSelected ||
-          editShelfFilters ||
-          matchesShelf(game, journal, shelfSelection, personalShelves)) &&
-        matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
-      );
-    });
-  }, [
-    games,
-    journalFor,
-    shelfSelection,
-    personalShelves,
-    editShelfFilters,
-    libraryFilters,
-    recentSortNow,
-  ]);
   // Each chip carries its own size, counted across every import source so the
   // number does not shift when the source tab changes.
   const shelfCounts = useMemo(() => {
@@ -1511,6 +1506,38 @@ export function MyGamesView() {
     }
     return counts;
   }, [games, journalFor, personalShelves]);
+  // Apply shelf rules before the source selection so every badge describes
+  // the games available in that source within the current view.
+  const shelfGames = useMemo(() => {
+    const savedFilterSelected = personalShelves.some(
+      (s) => s.id === shelfSelection && s.filters,
+    );
+    // Filters stand in for the shelf's own membership while there is a filter
+    // set to preview, and an empty shelf previews the whole library so the
+    // drawer has something to narrow. Cleared back to "any" on a shelf that
+    // holds games, they describe nothing: the shelf means its games again.
+    const previewFilters =
+      (savedFilterSelected || editShelfFilters) &&
+      (Object.keys(normalizeLibraryFilters(libraryFilters)).length > 0 ||
+        (shelfCounts[shelfSelection] ?? 0) === 0);
+    return games.filter((game) => {
+      const journal = journalFor({ ...game, gameName: game.name });
+      return (
+        (previewFilters ||
+          matchesShelf(game, journal, shelfSelection, personalShelves)) &&
+        matchesLibraryFilters(game, journal, libraryFilters, recentSortNow)
+      );
+    });
+  }, [
+    games,
+    journalFor,
+    shelfSelection,
+    personalShelves,
+    editShelfFilters,
+    libraryFilters,
+    recentSortNow,
+    shelfCounts,
+  ]);
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return needle
@@ -1634,7 +1661,10 @@ export function MyGamesView() {
     `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}\u0000${editShelfFilters}`,
     !tourDemo.active,
   );
-  const libraryDrag = useLibraryGameDrag(bulkSelection.selectedGames);
+  const libraryDrag = useLibraryGameDrag(
+    bulkSelection.selectedGames,
+    bulkSelection.finish,
+  );
   const selectedLauncherGames = useMemo(
     () =>
       displayedGames.filter(
@@ -1791,6 +1821,12 @@ export function MyGamesView() {
                           : `${visibleGames.length} / ${libraryGames.length}`
                       }
                       countTitle={`${visibleGames.length} of ${libraryGames.length} tracked ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}`}
+                      // Turning the whole summary off leaves the plain count:
+                      // "Games" is a choice among the numbers, not a way to
+                      // lose the count while the rest of the row is hidden.
+                      showCount={
+                        !showStatCards || statCardIds.includes("games")
+                      }
                       cards={statCards}
                       showDurationDays={showDurationDays}
                     />
@@ -2076,8 +2112,8 @@ export function MyGamesView() {
                       </legend>
                       <p className="mt-1 text-xs leading-5 text-text-faint">
                         Pick which numbers to show. A tab only offers the ones
-                        that mean something there, and the game count always
-                        sits next to the title.
+                        that mean something there, and the game count keeps the
+                        first slot next to the title.
                       </p>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         {availableStatDefinitions.map((definition) => {

@@ -835,7 +835,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             data-autofocus={target.tab === "organize" ? "" : undefined}
             onClick={shelfMenu.toggle}
           >
-            Shelf
+            Add to shelf
           </Pill>
           <ContextMenu
             dataTour={practice ? "demo-library-menu" : undefined}

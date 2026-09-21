@@ -629,7 +629,7 @@ export function App() {
               <img
                 src="/icon.png"
                 alt=""
-                className="h-8 w-8 object-contain transition group-hover:opacity-0"
+                className="col-start-1 row-start-1 h-8 w-8 object-contain transition group-hover:opacity-0"
               />
               <PanelLeftOpen
                 size={18}

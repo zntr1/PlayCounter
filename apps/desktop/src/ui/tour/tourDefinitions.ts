@@ -312,7 +312,7 @@ export const TOURS: TourDefinition[] = [
           a("demo-library-modal"),
         ],
         title: "Put games on your shelf",
-        body: "We switched back to All games. Drag a sample card onto your new shelf, then click the shelf to see the game there. Without dragging: right-click a card, choose Shelves & status, then Shelf. While you drag, a shelf that cannot take the game tells you why.",
+        body: "We switched back to All games. Drag a sample card onto your new shelf, then click the shelf to see the game there. Without dragging: right-click a card, choose Shelves & status, then Add to shelf. While you drag, a shelf that cannot take the game tells you why.",
       },
       {
         id: "filters",

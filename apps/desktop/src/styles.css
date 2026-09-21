@@ -1004,6 +1004,16 @@ select {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Scrolls, but the bar itself would cut into the artwork. */
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
 /* Guided tour overlay */
 .tour-spotlight {
   position: fixed;

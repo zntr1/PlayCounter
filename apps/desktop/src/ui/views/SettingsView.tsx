@@ -416,35 +416,6 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        title="Keyboard shortcuts"
-        description="Global hotkeys work while PlayCounter is running, including in the system tray."
-      >
-        <SettingsRow
-          title="Bring PlayCounter to front"
-          description="Show and focus PlayCounter from any app."
-        >
-          <HotkeyInput
-            setting="showWindowHotkey"
-            label="Bring PlayCounter to front"
-          />
-        </SettingsRow>
-        <SettingsRow
-          title="Show current session time"
-          description={
-            currentPlatform() === "macos"
-              ? "Desktop popups are not supported on macOS."
-              : "Show a brief popup without leaving your game, even when automatic popups are off. Press again to cycle through active games. Uses the display selected under Desktop popups."
-          }
-        >
-          <HotkeyInput
-            setting="currentSessionHotkey"
-            label="Show current session time"
-            disabled={currentPlatform() === "macos"}
-          />
-        </SettingsRow>
-      </SettingsPanel>
-
-      <SettingsPanel
         dataTour="settings-appearance"
         description="Personalize PlayCounter's interactive controls and highlights."
         title="Appearance"
@@ -517,6 +488,35 @@ export function SettingsView() {
               </option>
             ))}
           </select>
+        </SettingsRow>
+      </SettingsPanel>
+
+      <SettingsPanel
+        title="Keyboard shortcuts"
+        description="Global hotkeys work while PlayCounter is running, including in the system tray."
+      >
+        <SettingsRow
+          title="Bring PlayCounter to front"
+          description="Show and focus PlayCounter from any app."
+        >
+          <HotkeyInput
+            setting="showWindowHotkey"
+            label="Bring PlayCounter to front"
+          />
+        </SettingsRow>
+        <SettingsRow
+          title="Show current session time"
+          description={
+            currentPlatform() === "macos"
+              ? "Desktop popups are not supported on macOS."
+              : "Show a brief popup without leaving your game, even when automatic popups are off. Press again to cycle through active games. Uses the display selected under Desktop popups."
+          }
+        >
+          <HotkeyInput
+            setting="currentSessionHotkey"
+            label="Show current session time"
+            disabled={currentPlatform() === "macos"}
+          />
         </SettingsRow>
       </SettingsPanel>
 

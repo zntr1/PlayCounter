@@ -398,6 +398,10 @@ export type AppState = {
   /** Library search text. Lives here because the search field sits in the
    *  window's title bar, outside the My Games view. Not persisted. */
   libraryQuery: string;
+  /** Bumped when a search from another view opens My Games: the library then
+   *  drops the shelf, source and filters it was left on, so the search covers
+   *  everything. Not persisted. */
+  libraryScopeReset: number;
   installUuid: string | null;
   contributionOwnerUuid: string | null;
   activeSessions: ActiveSession[];
@@ -473,6 +477,7 @@ export type AppState = {
   closeCurrentReleaseNotes: (version: string) => void;
   setHistoryQuery: (query: string) => void;
   setLibraryQuery: (query: string) => void;
+  searchWholeLibrary: () => void;
   setCustomHeroArt: (key: string, url: string | null) => void;
   setHistoryGameKey: (key: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
@@ -749,6 +754,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   libraryImportProvider: DEFAULT_IMPORT_PROVIDER,
   historyQuery: "",
   libraryQuery: "",
+  libraryScopeReset: 0,
   historyGameKey: null,
   installUuid: null,
   contributionOwnerUuid: null,
@@ -905,6 +911,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setHistoryQuery: (historyQuery) => set({ historyQuery }),
   setLibraryQuery: (libraryQuery) => set({ libraryQuery }),
+  searchWholeLibrary: () =>
+    set((state) => ({
+      libraryTab: "all",
+      libraryScopeReset: state.libraryScopeReset + 1,
+    })),
   setCustomHeroArt: (key, url) => {
     set((state) => {
       const customHeroArt = { ...state.customHeroArt };

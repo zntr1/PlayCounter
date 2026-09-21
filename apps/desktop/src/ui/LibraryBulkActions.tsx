@@ -148,12 +148,6 @@ export function LibraryBulkActions({
           Done
         </Button>
       </div>
-      {!count ? (
-        <p className="px-1 pt-1 text-xs text-text-faint">
-          Click games to select them. Shift-click selects a range. Press Esc to
-          exit.
-        </p>
-      ) : null}
       <ContextMenu
         dataTour={practice ? "demo-library-menu" : undefined}
         open={menu.open && active && count > 0}

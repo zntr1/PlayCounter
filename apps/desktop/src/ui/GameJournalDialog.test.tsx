@@ -102,7 +102,7 @@ it("hides shelf controls while keeping progress, favorites, and shelf membership
   expect(document.querySelector('[aria-label="New shelf name"]')).toBeNull();
   expect(
     [...document.querySelectorAll("button")].some(
-      (item) => item.textContent?.trim() === "Shelf",
+      (item) => item.textContent?.trim() === "Add to shelf",
     ),
   ).toBe(false);
   await clickLabel("Progress status");
@@ -116,7 +116,7 @@ it("hides shelf controls while keeping progress, favorites, and shelf membership
   expect(
     document.querySelector('[aria-label="Remove Campaign from Weekend"]'),
   ).not.toBeNull();
-  await click("Shelf");
+  await click("Add to shelf");
   expect(
     document.querySelector('[aria-label="New shelf name"]'),
   ).not.toBeNull();

@@ -220,12 +220,19 @@ function createPreview(source: HTMLElement, rect: DOMRect) {
 }
 
 /** Pointer dragging gives us an opaque card and a return animation, including in WebView2. */
-export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
+export function useLibraryGameDrag(
+  selectedGames: readonly GameIdentityRef[],
+  /** Called once a dragged selection lands on a shelf, so Select can close
+   *  itself the way applying a status does. */
+  onSelectionAssigned?: () => void,
+) {
   const libraryApi = usePersonalLibraryApi();
   const selectedGamesRef = useRef(selectedGames);
+  const onSelectionAssignedRef = useRef(onSelectionAssigned);
   useLayoutEffect(() => {
     selectedGamesRef.current = selectedGames;
-  }, [selectedGames]);
+    onSelectionAssignedRef.current = onSelectionAssigned;
+  }, [selectedGames, onSelectionAssigned]);
   const cleanupRef = useRef<() => void>(() => {});
   const clickCleanupRef = useRef<() => void>(() => {});
   const [hint, setHint] = useState<ShelfDropHint | null>(null);
@@ -298,6 +305,7 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
       let frame = 0;
       let animation: Animation | undefined;
       let returning = false;
+      let draggingSelection = false;
       let clearHoverHints = () => {};
 
       function stopListening() {
@@ -352,12 +360,14 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
             return;
           const identity = personalGameIdentity(libraryApi.getState());
           const sourceKey = identity(game);
-          if (selection.some((selected) => identity(selected) === sourceKey))
+          if (selection.some((selected) => identity(selected) === sourceKey)) {
+            draggingSelection = true;
             games = [
               ...new Map(
                 [game, ...selection].map((entry) => [identity(entry), entry]),
               ).values(),
             ];
+          }
           origin = source.getBoundingClientRect();
           dragScale = Math.min(
             1,
@@ -443,15 +453,18 @@ export function useLibraryGameDrag(selectedGames: readonly GameIdentityRef[]) {
           if (blocked) {
             hintVisibleRef.current = true;
             setHint({ ...blocked, target });
-          } else if (!reducedMotion)
-            target.animate?.(
-              [
-                { transform: "scale(1)" },
-                { transform: "scale(1.08)", offset: 0.4 },
-                { transform: "scale(1)" },
-              ],
-              { duration: 280, easing: "ease-out" },
-            );
+          } else {
+            if (draggingSelection) onSelectionAssignedRef.current?.();
+            if (!reducedMotion)
+              target.animate?.(
+                [
+                  { transform: "scale(1)" },
+                  { transform: "scale(1.08)", offset: 0.4 },
+                  { transform: "scale(1)" },
+                ],
+                { duration: 280, easing: "ease-out" },
+              );
+          }
         }
         if (reducedMotion || !preview.animate) {
           cleanup();

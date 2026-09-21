@@ -347,13 +347,13 @@ export function ActiveGameHero({
         </div>
         <div className="px-6 py-4">
           <FigureLabel icon={Clock3}>Total playtime</FigureLabel>
-          <div className="mt-2 font-mono text-[26px] font-bold leading-none tabular-nums text-text">
+          <div className="mt-2.5 font-mono text-[34px] font-bold leading-none tabular-nums text-text">
             {formatDuration(lifetimeSeconds, showDurationDays)}
           </div>
         </div>
         <div className="px-6 py-4">
           <FigureLabel icon={BarChart3}>Sessions</FigureLabel>
-          <div className="mt-2 font-mono text-[26px] font-bold leading-none tabular-nums text-text">
+          <div className="mt-2.5 font-mono text-[34px] font-bold leading-none tabular-nums text-text">
             {lifetimeSessionCount}
           </div>
         </div>
