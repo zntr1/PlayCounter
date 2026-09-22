@@ -181,7 +181,7 @@ export function GameBanner({
           >
             {pinned ? <Pin size={13} /> : <Sparkles size={13} />}
             <span className="min-w-0 truncate">
-              {!shelfName && pinned ? "Featured game" : eyebrow}
+              {!shelfName && pinned ? "Pinned game" : eyebrow}
             </span>
             {!compact && journal.favorite ? (
               <span className="inline-flex items-center gap-1 text-amber-300">
