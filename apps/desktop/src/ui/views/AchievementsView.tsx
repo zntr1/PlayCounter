@@ -2,6 +2,7 @@ import { useMemo, useState, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
   CalendarCheck,
+  ChevronDown,
   Flame,
   Gamepad2,
   Joystick,
@@ -303,21 +304,51 @@ function MilestoneLadder({
           </div>
         }
       />
-      {history.length > 0 ? (
-        <div className="ml-4 border-l-2 border-border pl-4">
-          <div className="mb-2 flex items-baseline justify-between gap-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-text-faint">
-              Earlier months
-            </h3>
-            <span className="text-xs text-text-faint">
-              Milestones shown; exact past totals are not stored
-            </span>
-          </div>
+      {history.length > 0 ? <EarlierMonths history={history} /> : null}
+    </div>
+  );
+}
+
+function EarlierMonths({
+  history,
+}: {
+  history: ReturnType<typeof buildMonthHistory>;
+}) {
+  const [open, setOpen] = useState(false);
+  const bodyId = "achievements-earlier-months";
+
+  return (
+    <div className="ml-4 border-l-2 border-border pl-4">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={() => setOpen((value) => !value)}
+        className="flex items-center gap-1.5 rounded-md py-1 pr-2 text-xs font-bold uppercase tracking-[0.16em] text-text-faint transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <ChevronDown
+          aria-hidden="true"
+          size={14}
+          className={clsx(
+            "transition-transform duration-200",
+            !open && "-rotate-90",
+          )}
+        />
+        Earlier months
+        <span className="font-mono normal-case tracking-normal text-text-faint">
+          {history.length}
+        </span>
+      </button>
+      {open ? (
+        <div id={bodyId} className="mt-2">
           <div className="grid gap-2 lg:grid-cols-2">
             {history.map((month) => (
               <MonthHistoryRow key={month.monthKey} month={month} />
             ))}
           </div>
+          <p className="mt-2 text-xs text-text-faint">
+            Milestones shown; exact past totals are not stored
+          </p>
         </div>
       ) : null}
     </div>
