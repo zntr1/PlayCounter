@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { DailyTotal } from "../../historyStats";
 import { quantileLevel, quantileThresholds } from "../../historyStats";
 import { formatDuration } from "../components";
@@ -17,6 +17,24 @@ const weekCount = 53;
 const cellGap = 3;
 const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+type CalendarCell = {
+  key: string;
+  dateLabel: string;
+  total: DailyTotal | undefined;
+  isOutside: boolean;
+};
+
+function calendarCellSize(width: number) {
+  if (width === 0) return 0;
+  return Math.max(
+    11,
+    Math.min(
+      28,
+      Math.floor((width - 40 - (weekCount - 1) * cellGap) / weekCount),
+    ),
+  );
+}
+
 export function CalendarHeatmap({
   totals,
   nowMs,
@@ -28,19 +46,8 @@ export function CalendarHeatmap({
   showDurationDays: boolean;
   resolveGameName: (key: string | null) => string | null;
 }) {
-  const [scrollRef, availableWidth] = useElementWidth<HTMLDivElement>();
-  const cellRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const tooltip = useChartTooltip();
-  const cellSize = Math.max(
-    11,
-    Math.min(
-      28,
-      Math.floor(
-        (availableWidth - 40 - (weekCount - 1) * cellGap) / weekCount,
-      ) || 11,
-    ),
-  );
+  const [scrollRef, cellSize] =
+    useElementWidth<HTMLDivElement>(calendarCellSize);
   const columnSize = cellSize + cellGap;
   const today = useMemo(() => {
     const value = new Date(nowMs);
@@ -61,7 +68,9 @@ export function CalendarHeatmap({
         const date = addDays(firstDay, index);
         const isOutside = date < dataStart || date > today;
         return {
-          date,
+          // Sidebar/window resizing changes cell sizes, not their dates.
+          // Formatting all 371 labels again on each frame stalls the animation.
+          dateLabel: formatAccessibleDate(date),
           key: localDateKey(date),
           total: isOutside ? undefined : totals.get(localDateKey(date)),
           isOutside,
@@ -80,13 +89,6 @@ export function CalendarHeatmap({
     }
   }, [cellSize, scrollRef]);
 
-  useEffect(() => {
-    const todayIndex = cells.findIndex(
-      (cell) => cell.key === localDateKey(today),
-    );
-    if (todayIndex >= 0) setActiveIndex(todayIndex);
-  }, [cells, today]);
-
   const months = useMemo(() => {
     const result: Array<{ label: string; column: number }> = [];
     let previous = -1;
@@ -103,38 +105,13 @@ export function CalendarHeatmap({
     return result;
   }, [firstDay]);
 
-  function content(index: number) {
-    const cell = cells[index];
-    const total = cell.total;
-    return (
-      <div className="grid gap-1">
-        <div className="font-semibold">{formatAccessibleDate(cell.date)}</div>
-        <div>{formatDuration(total?.seconds ?? 0, showDurationDays)}</div>
-        <div className="text-text-muted">
-          {total?.sessionCount ?? 0} session
-          {(total?.sessionCount ?? 0) === 1 ? "" : "s"}
-          {total?.topGameKey
-            ? ` · ${resolveGameName(total.topGameKey) ?? "Unknown game"}`
-            : ""}
-        </div>
-      </div>
-    );
-  }
-
-  function focusIndex(index: number) {
-    const next = Math.max(0, Math.min(cells.length - 1, index));
-    if (cells[next]?.isOutside) return;
-    setActiveIndex(next);
-    cellRefs.current[next]?.focus();
-  }
-
   return (
     <figure aria-labelledby="activity-calendar-title">
       <figcaption className="sr-only" id="activity-calendar-title">
         Daily playtime over the last 52 weeks
       </figcaption>
       <div ref={scrollRef} className="overflow-x-auto pb-2">
-        {availableWidth === 0 ? (
+        {cellSize === 0 ? (
           <div
             className="grid min-h-36 place-items-center text-text-faint"
             role="status"
@@ -185,66 +162,19 @@ export function CalendarHeatmap({
                   gap: cellGap,
                 }}
               >
-                {cells.map((cell, index) => {
-                  const level = quantileLevel(
-                    cell.total?.seconds ?? 0,
-                    thresholds,
-                  );
-                  const background = cell.isOutside
-                    ? "transparent"
-                    : level === 0
-                      ? "rgb(var(--color-surface-hover))"
-                      : heatmapColor(level, thresholds.length)!;
-                  return (
-                    <button
-                      key={cell.key}
-                      ref={(element) => {
-                        cellRefs.current[index] = element;
-                      }}
-                      type="button"
-                      role="gridcell"
-                      tabIndex={index === activeIndex ? 0 : -1}
-                      disabled={cell.isOutside}
-                      aria-label={`${formatAccessibleDate(cell.date)}: ${formatDuration(cell.total?.seconds ?? 0, showDurationDays)}`}
-                      className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
-                      style={{ width: cellSize, height: cellSize, background }}
-                      onPointerEnter={(event) => {
-                        if (cell.isOutside) return;
-                        setActiveIndex(index);
-                        tooltip.show(event.currentTarget, content(index));
-                      }}
-                      onPointerLeave={tooltip.hide}
-                      onFocus={(event) => {
-                        if (!cell.isOutside)
-                          tooltip.show(event.currentTarget, content(index));
-                      }}
-                      onBlur={tooltip.hide}
-                      onKeyDown={(event) => {
-                        const weekday = index % 7;
-                        const move =
-                          event.key === "ArrowUp" && weekday > 0
-                            ? -1
-                            : event.key === "ArrowDown" && weekday < 6
-                              ? 1
-                              : event.key === "ArrowLeft"
-                                ? -7
-                                : event.key === "ArrowRight"
-                                  ? 7
-                                  : undefined;
-                        if (move !== undefined) {
-                          event.preventDefault();
-                          focusIndex(index + move);
-                        }
-                      }}
-                    />
-                  );
-                })}
+                <CalendarCells
+                  cells={cells}
+                  thresholds={thresholds}
+                  todayKey={localDateKey(today)}
+                  showDurationDays={showDurationDays}
+                  resolveGameName={resolveGameName}
+                />
               </div>
             </div>
           </div>
         )}
       </div>
-      {availableWidth > 0 ? (
+      {cellSize > 0 ? (
         <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] text-text-faint">
           <span>Less</span>
           <span className="h-[11px] w-[11px] rounded-[2px] bg-surface-hover" />
@@ -258,7 +188,113 @@ export function CalendarHeatmap({
           <span>More</span>
         </div>
       ) : null}
-      <ChartTooltip state={tooltip.state} onClose={tooltip.hide} />
     </figure>
   );
 }
+
+// CSS grid resizes the cells. Their data and interactions do not need to be
+// rebuilt while the sidebar animates or the native window is being resized.
+const CalendarCells = memo(function CalendarCells({
+  cells,
+  thresholds,
+  todayKey,
+  showDurationDays,
+  resolveGameName,
+}: {
+  cells: CalendarCell[];
+  thresholds: number[];
+  todayKey: string;
+  showDurationDays: boolean;
+  resolveGameName: (key: string | null) => string | null;
+}) {
+  const cellRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const tooltip = useChartTooltip();
+
+  useEffect(() => {
+    const todayIndex = cells.findIndex((cell) => cell.key === todayKey);
+    if (todayIndex >= 0) setActiveIndex(todayIndex);
+  }, [cells, todayKey]);
+
+  function content(index: number) {
+    const cell = cells[index];
+    const total = cell.total;
+    return (
+      <div className="grid gap-1">
+        <div className="font-semibold">{cell.dateLabel}</div>
+        <div>{formatDuration(total?.seconds ?? 0, showDurationDays)}</div>
+        <div className="text-text-muted">
+          {total?.sessionCount ?? 0} session
+          {(total?.sessionCount ?? 0) === 1 ? "" : "s"}
+          {total?.topGameKey
+            ? ` · ${resolveGameName(total.topGameKey) ?? "Unknown game"}`
+            : ""}
+        </div>
+      </div>
+    );
+  }
+
+  function focusIndex(index: number) {
+    const next = Math.max(0, Math.min(cells.length - 1, index));
+    if (cells[next]?.isOutside) return;
+    setActiveIndex(next);
+    cellRefs.current[next]?.focus();
+  }
+
+  return (
+    <>
+      {cells.map((cell, index) => {
+        const level = quantileLevel(cell.total?.seconds ?? 0, thresholds);
+        const background = cell.isOutside
+          ? "transparent"
+          : level === 0
+            ? "rgb(var(--color-surface-hover))"
+            : heatmapColor(level, thresholds.length)!;
+        return (
+          <button
+            key={cell.key}
+            ref={(element) => {
+              cellRefs.current[index] = element;
+            }}
+            type="button"
+            role="gridcell"
+            tabIndex={index === activeIndex ? 0 : -1}
+            disabled={cell.isOutside}
+            aria-label={`${cell.dateLabel}: ${formatDuration(cell.total?.seconds ?? 0, showDurationDays)}`}
+            className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
+            style={{ background }}
+            onPointerEnter={(event) => {
+              if (cell.isOutside) return;
+              setActiveIndex(index);
+              tooltip.show(event.currentTarget, content(index));
+            }}
+            onPointerLeave={tooltip.hide}
+            onFocus={(event) => {
+              if (!cell.isOutside)
+                tooltip.show(event.currentTarget, content(index));
+            }}
+            onBlur={tooltip.hide}
+            onKeyDown={(event) => {
+              const weekday = index % 7;
+              const move =
+                event.key === "ArrowUp" && weekday > 0
+                  ? -1
+                  : event.key === "ArrowDown" && weekday < 6
+                    ? 1
+                    : event.key === "ArrowLeft"
+                      ? -7
+                      : event.key === "ArrowRight"
+                        ? 7
+                        : undefined;
+              if (move !== undefined) {
+                event.preventDefault();
+                focusIndex(index + move);
+              }
+            }}
+          />
+        );
+      })}
+      <ChartTooltip state={tooltip.state} onClose={tooltip.hide} />
+    </>
+  );
+});

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { quantileLevel, quantileThresholds } from "../../historyStats";
 import { formatDuration } from "../components";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
@@ -15,6 +15,10 @@ const weekdayLabels = [
 ];
 const gap = 3;
 
+function rhythmCellSize(width: number) {
+  return Math.max(14, Math.min(40, Math.floor((width - 68 - 23 * gap) / 24)));
+}
+
 export function RhythmHeatmap({
   matrix,
   showDurationDays,
@@ -22,22 +26,7 @@ export function RhythmHeatmap({
   matrix: number[][];
   showDurationDays: boolean;
 }) {
-  const values = matrix.flat();
-  const thresholds = quantileThresholds(values);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const refs = useRef<Array<HTMLButtonElement | null>>([]);
-  const tooltip = useChartTooltip();
-  const [figureRef, availableWidth] = useElementWidth<HTMLElement>();
-  const cellSize = Math.max(
-    14,
-    Math.min(40, Math.floor((availableWidth - 68 - 23 * gap) / 24) || 14),
-  );
-
-  function focusIndex(index: number) {
-    const next = Math.max(0, Math.min(values.length - 1, index));
-    setActiveIndex(next);
-    refs.current[next]?.focus();
-  }
+  const [figureRef, cellSize] = useElementWidth<HTMLElement>(rhythmCellSize);
 
   return (
     <figure
@@ -84,67 +73,92 @@ export function RhythmHeatmap({
               gap,
             }}
           >
-            {values.map((seconds, index) => {
-              const day = Math.floor(index / 24);
-              const hour = index % 24;
-              const level = quantileLevel(seconds, thresholds);
-              const content = (
-                <div className="grid gap-1">
-                  <div className="font-semibold">
-                    {weekdayLabels[day]}, {String(hour).padStart(2, "0")}:00
-                  </div>
-                  <div>{formatDuration(seconds, showDurationDays)}</div>
-                </div>
-              );
-              return (
-                <button
-                  key={`${day}-${hour}`}
-                  ref={(element) => {
-                    refs.current[index] = element;
-                  }}
-                  type="button"
-                  role="gridcell"
-                  tabIndex={index === activeIndex ? 0 : -1}
-                  aria-label={`${weekdayLabels[day]} at ${hour}:00: ${formatDuration(seconds, showDurationDays)}`}
-                  className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
-                  style={{
-                    background:
-                      level === 0
-                        ? "rgb(var(--color-surface-hover))"
-                        : heatmapColor(level, thresholds.length)!,
-                  }}
-                  onPointerEnter={(event) => {
-                    setActiveIndex(index);
-                    tooltip.show(event.currentTarget, content);
-                  }}
-                  onPointerLeave={tooltip.hide}
-                  onFocus={(event) =>
-                    tooltip.show(event.currentTarget, content)
-                  }
-                  onBlur={tooltip.hide}
-                  onKeyDown={(event) => {
-                    const move =
-                      event.key === "ArrowLeft" && hour > 0
-                        ? -1
-                        : event.key === "ArrowRight" && hour < 23
-                          ? 1
-                          : event.key === "ArrowUp" && day > 0
-                            ? -24
-                            : event.key === "ArrowDown" && day < 6
-                              ? 24
-                              : undefined;
-                    if (move !== undefined) {
-                      event.preventDefault();
-                      focusIndex(index + move);
-                    }
-                  }}
-                />
-              );
-            })}
+            <RhythmCells matrix={matrix} showDurationDays={showDurationDays} />
           </div>
         </div>
       </div>
-      <ChartTooltip state={tooltip.state} onClose={tooltip.hide} />
     </figure>
   );
 }
+
+// Cell size belongs to the parent grid; keep the buttons stable during resize.
+const RhythmCells = memo(function RhythmCells({
+  matrix,
+  showDurationDays,
+}: {
+  matrix: number[][];
+  showDurationDays: boolean;
+}) {
+  const values = matrix.flat();
+  const thresholds = quantileThresholds(values);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const tooltip = useChartTooltip();
+
+  function focusIndex(index: number) {
+    const next = Math.max(0, Math.min(values.length - 1, index));
+    setActiveIndex(next);
+    refs.current[next]?.focus();
+  }
+
+  return (
+    <>
+      {values.map((seconds, index) => {
+        const day = Math.floor(index / 24);
+        const hour = index % 24;
+        const level = quantileLevel(seconds, thresholds);
+        const content = (
+          <div className="grid gap-1">
+            <div className="font-semibold">
+              {weekdayLabels[day]}, {String(hour).padStart(2, "0")}:00
+            </div>
+            <div>{formatDuration(seconds, showDurationDays)}</div>
+          </div>
+        );
+        return (
+          <button
+            key={`${day}-${hour}`}
+            ref={(element) => {
+              refs.current[index] = element;
+            }}
+            type="button"
+            role="gridcell"
+            tabIndex={index === activeIndex ? 0 : -1}
+            aria-label={`${weekdayLabels[day]} at ${hour}:00: ${formatDuration(seconds, showDurationDays)}`}
+            className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
+            style={{
+              background:
+                level === 0
+                  ? "rgb(var(--color-surface-hover))"
+                  : heatmapColor(level, thresholds.length)!,
+            }}
+            onPointerEnter={(event) => {
+              setActiveIndex(index);
+              tooltip.show(event.currentTarget, content);
+            }}
+            onPointerLeave={tooltip.hide}
+            onFocus={(event) => tooltip.show(event.currentTarget, content)}
+            onBlur={tooltip.hide}
+            onKeyDown={(event) => {
+              const move =
+                event.key === "ArrowLeft" && hour > 0
+                  ? -1
+                  : event.key === "ArrowRight" && hour < 23
+                    ? 1
+                    : event.key === "ArrowUp" && day > 0
+                      ? -24
+                      : event.key === "ArrowDown" && day < 6
+                        ? 24
+                        : undefined;
+              if (move !== undefined) {
+                event.preventDefault();
+                focusIndex(index + move);
+              }
+            }}
+          />
+        );
+      })}
+      <ChartTooltip state={tooltip.state} onClose={tooltip.hide} />
+    </>
+  );
+});

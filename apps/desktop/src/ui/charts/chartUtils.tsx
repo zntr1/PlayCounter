@@ -16,18 +16,30 @@ export function heatmapColor(level: number, stepCount: number) {
   return heatmapColors[index];
 }
 
-export function useElementWidth<T extends HTMLElement>() {
+const identityWidth = (width: number) => width;
+
+export function useElementWidth<T extends HTMLElement>(
+  selectWidth: (width: number) => number = identityWidth,
+) {
   const ref = useRef<T>(null);
-  const [width, setWidth] = useState(0);
+  const [width, setWidth] = useState(() => selectWidth(0));
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
+    let lastWidth: number | undefined;
     const observer = new ResizeObserver(([entry]) => {
-      setWidth(Math.max(0, Math.round(entry.contentRect.width)));
+      // Heatmaps only need an update when their cell size changes, not for
+      // every intermediate pixel of a sidebar or window resize.
+      const nextWidth = selectWidth(
+        Math.max(0, Math.round(entry.contentRect.width)),
+      );
+      if (nextWidth === lastWidth) return;
+      lastWidth = nextWidth;
+      setWidth(nextWidth);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [selectWidth]);
   return [ref, width] as const;
 }
 
