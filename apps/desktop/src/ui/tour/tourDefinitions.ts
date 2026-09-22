@@ -798,16 +798,16 @@ export const TOURS: TourDefinition[] = [
       {
         id: "sessions",
         view: "history",
-        anchor: a("history-toolbar"),
-        title: "Find a session",
-        body: "Use search and filters to narrow the timeline, then open a game or session for details.",
+        anchor: a("history-hero"),
+        title: "Start with the highlights",
+        body: "The range chips scope the whole page. Each highlight jumps to the sessions or the calendar behind it.",
       },
       {
         id: "charts",
         view: "history",
-        anchor: a("history-playtime-chart"),
-        title: "See your patterns",
-        body: "Playtime over time is your first overview. More charts below reveal your top games, busiest days, and how your habits change.",
+        anchor: a("history-toolbar"),
+        title: "Sessions, Insights, Games",
+        body: "Sessions is your journal, grouped by day. Insights holds the charts and your play habits. Games ranks everything you played. Right-click or hold a session for its menu.",
       },
       {
         id: "milestones",

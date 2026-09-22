@@ -299,10 +299,13 @@ export function App() {
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
+  // My Games and Now Playing carry their own hero; My History too, built
+  // from the play history itself, so the pinned-game banner stays off there.
   const viewBannerEnabled = useAppStore(
     (state) =>
       activeView !== "games" &&
       activeView !== "now" &&
+      activeView !== "history" &&
       state.settings.viewShowHero?.[activeView] === true,
   );
   const setViewShowHero = useAppStore((state) => state.setViewShowHero);
@@ -1038,7 +1041,9 @@ export function App() {
                 label={activeViewLabel}
                 subtitle={activeViewSubtitle}
                 action={
-                  !activeTour && activeView !== "now" ? (
+                  !activeTour &&
+                  activeView !== "now" &&
+                  activeView !== "history" ? (
                     <Button
                       variant="ghost"
                       icon={viewBannerEnabled ? EyeOff : ImageIcon}

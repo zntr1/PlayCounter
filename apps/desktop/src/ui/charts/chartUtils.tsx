@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
+/* Four steps of the accent so heatmaps sit in the same palette as every
+   other chart; alpha keeps the ramp readable in the light theme too. */
 export const heatmapColors = [
-  "#d8f3df",
-  "#91dda7",
-  "#3fc66a",
-  "#00a83d",
+  "rgb(var(--color-accent) / 0.3)",
+  "rgb(var(--color-accent) / 0.52)",
+  "rgb(var(--color-accent) / 0.76)",
+  "rgb(var(--color-accent))",
 ] as const;
 
 export function heatmapColor(level: number, stepCount: number) {

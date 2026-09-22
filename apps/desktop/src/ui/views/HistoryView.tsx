@@ -1,7 +1,16 @@
 import type { GameSource, Session } from "@playcounter/shared";
 import clsx from "clsx";
 import { GameCover } from "../GameCover";
-import { ChevronDown, Search, Timer, Trash2, X } from "lucide-react";
+import {
+  BarChart3,
+  ChevronDown,
+  Gamepad2,
+  ListOrdered,
+  Timer,
+  Trash2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import {
   useCallback,
   useDeferredValue,
@@ -9,11 +18,14 @@ import {
   useMemo,
   useRef,
   useState,
+  type KeyboardEvent,
 } from "react";
 import {
   getSessionGameKey,
-  historyRange,
+  groupSessionsByDay,
+  sessionMarkers,
   type HistoryFilter,
+  type HistoryHighlight,
 } from "../../historyStats";
 import {
   createGameIdentityResolver,
@@ -21,10 +33,13 @@ import {
   useAppStore,
 } from "../../store";
 import { hydrateGameMetadata, removeHistorySession } from "../../tracker";
-import { SectionToggle, useSectionCollapse } from "../CollapsibleSection";
-import { Panel, formatDuration } from "../components";
-import { Button, Input, Modal } from "../primitives";
+import { TopGamesBars } from "../charts/TopGamesBars";
+import { formatDuration } from "../components";
+import { Button, Modal } from "../primitives";
+import { findTour } from "../tour/tourDefinitions";
+import { HistoryHero, type HeroArtworkGame } from "./history/HistoryHero";
 import {
+  getHistoryAnalytics,
   hasCachedHistoryInsights,
   HistoryInsights,
 } from "./history/HistoryInsights";
@@ -34,18 +49,18 @@ import {
 } from "./history/HistorySessionRow";
 
 type HistorySort = "newest" | "oldest" | "duration";
-
-const historyFilters: Array<{ id: HistoryFilter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "today", label: "Today" },
-  { id: "week", label: "7 days" },
-  { id: "month", label: "30 days" },
-];
+type HistoryTab = "sessions" | "insights" | "games";
 
 const historySorts: Array<{ id: HistorySort; label: string }> = [
   { id: "newest", label: "Newest first" },
   { id: "oldest", label: "Oldest first" },
   { id: "duration", label: "Longest first" },
+];
+
+const TABS: Array<{ id: HistoryTab; label: string; icon: LucideIcon }> = [
+  { id: "sessions", label: "Sessions", icon: ListOrdered },
+  { id: "insights", label: "Insights", icon: BarChart3 },
+  { id: "games", label: "Games", icon: Gamepad2 },
 ];
 
 function fallbackGameName(exeName: string) {
@@ -99,15 +114,20 @@ export function HistoryView() {
     (state) => state.settings.showDurationDays,
   );
   const addToast = useAppStore((state) => state.addToast);
+  // The tour's chart step points at the Insights tab; open it for the tour.
+  const tourWantsInsights = useAppStore((state) => {
+    const active = state.activeTour;
+    if (!active) return false;
+    const step = findTour(active.tourId)?.steps[active.stepIndex];
+    return step?.anchor === '[data-tour="history-playtime-chart"]';
+  });
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [sort, setSort] = useState<HistorySort>("newest");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [tab, setTab] = useState<HistoryTab>("sessions");
+  const [detailedChart, setDetailedChart] = useState(false);
   const [visibleCount, setVisibleCount] = useState(25);
   const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
-  const timelineSection = useSectionCollapse("history.timeline");
   const viewRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
   const timelineBodyRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
   const [insightsReady, setInsightsReady] = useState(() =>
@@ -132,6 +152,16 @@ export function HistoryView() {
   }, [insightsReady]);
 
   useEffect(() => {
+    if (tourWantsInsights) setTab("insights");
+  }, [tourWantsInsights]);
+
+  // A game filter set from elsewhere (banner menu, game details) lands on
+  // the journal, which is where it applies.
+  useEffect(() => {
+    if (selectedGameKey) setTab("sessions");
+  }, [selectedGameKey]);
+
+  useEffect(() => {
     const scroller = viewRef.current?.parentElement;
     const toolbar = viewRef.current?.querySelector(".history-toolbar");
     if (!scroller || !toolbar) return;
@@ -146,19 +176,6 @@ export function HistoryView() {
       scroller.removeEventListener("scroll", updateElevation);
       toolbar.classList.remove("history-toolbar-elevated");
     };
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -234,28 +251,19 @@ export function HistoryView() {
     [lookupMetadata],
   );
 
-  const gameOptions = useMemo(() => {
-    if (!showSuggestions) return [];
-    const options = new Map<
-      string,
-      { key: string; name: string; sessionCount: number }
-    >();
+  const gamesByKey = useMemo(() => {
+    const games = new Map<string, { name: string; coverUrl: string }>();
     for (const session of sessions) {
       const key = getSessionGameKey(session, resolveIgdbId);
-      const existing = options.get(key);
-      if (existing) existing.sessionCount += 1;
-      else {
-        options.set(key, {
-          key,
-          name: resolveGame(session).name,
-          sessionCount: 1,
-        });
-      }
+      if (!games.has(key)) games.set(key, resolveGame(session));
     }
-    return [...options.values()].sort((left, right) =>
-      left.name.localeCompare(right.name),
-    );
-  }, [resolveGame, resolveIgdbId, sessions, showSuggestions]);
+    return games;
+  }, [resolveGame, resolveIgdbId, sessions]);
+  const resolveGameCover = useCallback(
+    (key: string | null) =>
+      key ? (gamesByKey.get(key)?.coverUrl ?? null) : null,
+    [gamesByKey],
+  );
 
   const gameFilteredSessions = useMemo(() => {
     const needle = deferredQuery.trim().toLowerCase();
@@ -272,10 +280,22 @@ export function HistoryView() {
     });
   }, [deferredQuery, resolveGame, resolveIgdbId, selectedGameKey, sessions]);
 
-  const selectedRange = useMemo(
-    () => historyRange(filter, nowMs),
-    [filter, nowMs],
+  const analytics = useMemo(
+    () =>
+      getHistoryAnalytics(
+        gameFilteredSessions,
+        filter,
+        nowMs,
+        resolveIgdbId,
+        resolveGame,
+      ),
+    [filter, gameFilteredSessions, nowMs, resolveGame, resolveIgdbId],
   );
+  const markers = useMemo(
+    () => sessionMarkers(sessions, resolveIgdbId),
+    [resolveIgdbId, sessions],
+  );
+  const { selectedRange } = analytics;
   const timelineSessions = useMemo(() => {
     if (!selectedRange) return gameFilteredSessions;
     return gameFilteredSessions.filter((session) => {
@@ -292,13 +312,10 @@ export function HistoryView() {
       if (sort === "oldest") {
         return Date.parse(left.startedAt) - Date.parse(right.startedAt);
       }
-      if (sort === "duration") {
-        return (
-          (right.durationSeconds ?? 0) - (left.durationSeconds ?? 0) ||
-          Date.parse(right.startedAt) - Date.parse(left.startedAt)
-        );
-      }
-      return 0;
+      return (
+        (right.durationSeconds ?? 0) - (left.durationSeconds ?? 0) ||
+        Date.parse(right.startedAt) - Date.parse(left.startedAt)
+      );
     });
     return result;
   }, [sort, timelineSessions]);
@@ -311,56 +328,89 @@ export function HistoryView() {
     () => sortedSessions.slice(0, visibleCount),
     [sortedSessions, visibleCount],
   );
-  const groups = useMemo(() => {
-    const today = new Date(nowMs);
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const weekStart = new Date(today);
-    weekStart.setDate(weekStart.getDate() - 6);
-    const bucketFor = (startedAt: string) => {
-      const value = Date.parse(startedAt);
-      if (value >= today.getTime()) return "Today";
-      if (value >= yesterday.getTime()) return "Yesterday";
-      if (value >= weekStart.getTime()) return "Earlier this week";
-      return "Earlier";
-    };
-    return ["Today", "Yesterday", "Earlier this week", "Earlier"]
-      .map((label) => {
-        const items = visibleSessions.filter(
-          (session) => bucketFor(session.startedAt) === label,
-        );
-        return {
-          label,
-          items,
-          seconds: items.reduce(
-            (sum, session) => sum + (session.durationSeconds ?? 0),
-            0,
-          ),
-        };
-      })
-      .filter((group) => group.items.length > 0);
-  }, [nowMs, visibleSessions]);
-
-  const suggestionNeedle = query.trim().toLowerCase();
-  const suggestions = gameOptions.filter((game) =>
-    game.name.toLowerCase().includes(suggestionNeedle),
+  const maxVisibleSeconds = useMemo(
+    () =>
+      Math.max(
+        1,
+        ...visibleSessions.map((session) => session.durationSeconds ?? 0),
+      ),
+    [visibleSessions],
   );
+  const groups = useMemo(
+    () => (sort === "duration" ? [] : groupSessionsByDay(visibleSessions)),
+    [sort, visibleSessions],
+  );
+
+  // Key art for the hero: the most played game in range, when it has an IGDB
+  // identity to look up. Anything else falls back to its cover.
+  const artworkGame = useMemo((): HeroArtworkGame | null => {
+    const mostPlayed = analytics.highlights.find(
+      (highlight) => highlight.kind === "mostPlayed",
+    );
+    if (!mostPlayed || mostPlayed.kind !== "mostPlayed") return null;
+    const session = gameFilteredSessions.find(
+      (entry) => getSessionGameKey(entry, resolveIgdbId) === mostPlayed.gameKey,
+    );
+    if (!session) return null;
+    const resolved = resolveIgdbId(
+      session.gameId,
+      session.source,
+      session.gameName,
+    );
+    const igdbId =
+      session.igdbId ??
+      (resolved === null
+        ? undefined
+        : (resolved ??
+          (session.source === "igdb" && session.gameId > 0
+            ? session.gameId
+            : undefined)));
+    return {
+      gameId: session.gameId,
+      source: session.source,
+      igdbId,
+      coverUrl: mostPlayed.coverUrl,
+    };
+  }, [analytics.highlights, gameFilteredSessions, resolveIgdbId]);
+
   const clearGameFilter = useCallback(() => {
     setQuery("");
     setSelectedGameKey(null);
-    setShowSuggestions(false);
-    setHighlightedIndex(-1);
   }, [setQuery, setSelectedGameKey]);
   const selectGame = useCallback(
-    (key: string, name: string) => {
+    (key: string) => {
       setSelectedGameKey(key);
-      setQuery(name);
-      setShowSuggestions(false);
-      setHighlightedIndex(-1);
+      setTab("sessions");
     },
-    [setQuery, setSelectedGameKey],
+    [setSelectedGameKey],
   );
+  const handleHighlight = useCallback(
+    (highlight: HistoryHighlight) => {
+      switch (highlight.kind) {
+        case "longestSession":
+          setSelectedGameKey(highlight.gameKey);
+          setSort("duration");
+          setTab("sessions");
+          break;
+        case "mostPlayed":
+        case "mostSessions":
+        case "comeback":
+          setSelectedGameKey(highlight.gameKey);
+          setSort("newest");
+          setTab("sessions");
+          break;
+        case "bestStreak":
+        case "busiestDay":
+          setTab("insights");
+          break;
+      }
+    },
+    [setSelectedGameKey],
+  );
+  const selectedGameName = selectedGameKey
+    ? (gamesByKey.get(selectedGameKey)?.name ?? query)
+    : null;
+
   const pendingDeletionGame = pendingDeletion
     ? resolveGame(pendingDeletion)
     : null;
@@ -436,264 +486,272 @@ export function HistoryView() {
     focusTimelineSession(nextSessionId);
   }, [addToast, focusTimelineSession, pendingDeletion, pendingDeletionGame]);
 
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const index = TABS.findIndex((entry) => entry.id === tab);
+    const step = event.key === "ArrowRight" ? 1 : -1;
+    const next = TABS[(index + step + TABS.length) % TABS.length]!;
+    setTab(next.id);
+    document.getElementById(`history-tab-${next.id}`)?.focus();
+  };
+  const gamesInRange = analytics.games.filter((game) => game.key).length;
+  const tabCounts: Record<HistoryTab, number | null> = {
+    sessions: timelineSessions.length,
+    insights: null,
+    games: gamesInRange,
+  };
+
   return (
     <div ref={viewRef} className="flex min-w-0 flex-col gap-6">
-      <Panel
-        dataTour="history-toolbar"
-        className="history-toolbar sticky top-0 z-30 flex min-w-0 flex-wrap items-center justify-between gap-4 bg-surface p-4"
+      <HistoryHero
+        filter={filter}
+        onFilterChange={setFilter}
+        rangeStats={analytics.rangeStats}
+        allTimeStats={analytics.allTimeStats}
+        highlights={analytics.highlights}
+        firstSessionMs={analytics.firstSessionMs}
+        showDurationDays={showDurationDays}
+        artworkGame={artworkGame}
+        resolveGameCover={resolveGameCover}
+        onHighlight={handleHighlight}
+      />
+
+      <div
+        data-tour="history-toolbar"
+        className="history-toolbar sticky top-0 z-30 -mx-1 flex min-w-0 flex-wrap items-end justify-between gap-3 rounded-b-lg border-b border-border bg-bg px-1"
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          {historyFilters.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              onClick={() => setFilter(entry.id)}
-              className={clsx(
-                "rounded-full border px-4 py-1.5 text-sm font-semibold transition-all",
-                filter === entry.id
-                  ? "border-accent bg-accent text-accent-fg shadow-sm"
-                  : "border-border bg-surface text-text-muted hover:border-text-muted/30 hover:text-text",
-              )}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-3 sm:flex-none">
-          <label className="sr-only" htmlFor="history-sort">
-            Sort sessions
-          </label>
-          <div className="relative shrink-0">
-            <select
-              id="history-sort"
-              value={sort}
-              onChange={(event) => setSort(event.target.value as HistorySort)}
-              className="appearance-none rounded-full border border-border bg-surface py-2 pl-3 pr-9 text-sm text-text-muted outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
-            >
-              {historySorts.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              aria-hidden="true"
-              size={14}
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-faint"
-            />
-          </div>
-          <div
-            ref={searchRef}
-            className="relative min-w-0 flex-1 sm:w-72 sm:flex-none"
-          >
-            <Search
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
-            />
-            <Input
-              value={query}
-              role="combobox"
-              aria-expanded={showSuggestions && suggestions.length > 0}
-              aria-controls="history-game-suggestions"
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setSelectedGameKey(null);
-                setShowSuggestions(true);
-                setHighlightedIndex(-1);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  clearGameFilter();
-                  return;
-                }
-                if (!showSuggestions || suggestions.length === 0) return;
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  setHighlightedIndex((index) =>
-                    Math.min(index + 1, suggestions.length - 1),
-                  );
-                } else if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  setHighlightedIndex((index) => Math.max(index - 1, 0));
-                } else if (event.key === "Enter" && highlightedIndex >= 0) {
-                  event.preventDefault();
-                  const match = suggestions[highlightedIndex];
-                  selectGame(match.key, match.name);
-                }
-              }}
-              placeholder="Search games or file names..."
-              className="w-full rounded-full bg-surface py-2 pl-9 pr-16 text-sm"
-            />
-            {query || selectedGameKey ? (
+        <div
+          role="tablist"
+          aria-label="History sections"
+          onKeyDown={handleTabKeyDown}
+          className="flex gap-1"
+        >
+          {TABS.map(({ id, label, icon: Icon }) => {
+            const selected = tab === id;
+            const count = tabCounts[id];
+            return (
               <button
+                key={id}
                 type="button"
-                onClick={clearGameFilter}
-                className="absolute right-8 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-text-faint transition-colors hover:bg-surface-hover hover:text-text"
-                aria-label="Clear search"
+                role="tab"
+                id={`history-tab-${id}`}
+                data-tour={
+                  id === "insights" ? "history-playtime-chart" : undefined
+                }
+                aria-selected={selected}
+                aria-controls={`history-panel-${id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setTab(id)}
+                className={clsx(
+                  "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                  selected
+                    ? "text-accent after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
+                    : "text-text-muted hover:text-text",
+                )}
               >
-                <X size={14} />
+                <Icon size={15} />
+                {label}
+                {count !== null ? (
+                  <span
+                    className={clsx(
+                      "font-mono text-[11px] tabular-nums",
+                      selected ? "text-accent/70" : "text-text-faint",
+                    )}
+                  >
+                    {count.toLocaleString()}
+                  </span>
+                ) : null}
               </button>
-            ) : null}
-            <ChevronDown
-              size={14}
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-faint"
-            />
-            {showSuggestions && suggestions.length > 0 ? (
-              <ul
-                id="history-game-suggestions"
-                className="absolute left-0 right-0 top-full z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-surface shadow-raised"
-              >
-                {suggestions.map((game, index) => (
-                  <li key={game.key}>
-                    <button
-                      type="button"
-                      className={clsx(
-                        "w-full px-4 py-2 text-left text-sm text-text",
-                        index === highlightedIndex
-                          ? "bg-accent/20 text-accent"
-                          : "hover:bg-surface-hover",
-                      )}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        selectGame(game.key, game.name);
-                      }}
-                      onMouseEnter={() => setHighlightedIndex(index)}
-                    >
-                      {game.name}
-                      <span className="ml-2 text-xs text-text-faint">
-                        {formatSessionCount(game.sessionCount)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+            );
+          })}
         </div>
-      </Panel>
-
-      {insightsReady ? (
-        <HistoryInsights
-          sessions={gameFilteredSessions}
-          filter={filter}
-          nowMs={nowMs}
-          showDurationDays={showDurationDays}
-          resolveGame={resolveGame}
-          resolveIgdbId={resolveIgdbId}
-          onSelectGame={selectGame}
-        />
-      ) : (
-        <HistoryInsightsPlaceholder />
-      )}
-
-      <div onMouseDownCapture={focusSessionFromTimelineClick}>
-        <Panel className="overflow-hidden">
-          <div
-            className={clsx(
-              "flex flex-wrap items-center justify-between gap-3 px-5 py-4",
-              !timelineSection.collapsed && "border-b border-border",
-            )}
-          >
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-text">
-                Session timeline
-              </h2>
-              <p className="mt-0.5 text-sm text-text-muted">
-                {sessions[0]
-                  ? `Last session ${formatStartTime(sessions[0].startedAt)}`
-                  : "Completed sessions will appear here."}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="rounded-md border border-border bg-surface-hover px-3 py-1.5 text-sm font-medium text-text-muted">
-                Showing{" "}
-                <span className="font-mono text-text">
-                  {timelineSessions.length}
-                </span>{" "}
-                of{" "}
-                <span className="font-mono text-text">{sessions.length}</span>{" "}
-                sessions
-              </div>
-              <SectionToggle
-                collapsed={timelineSection.collapsed}
-                onToggle={timelineSection.toggle}
-                controls="session-timeline-body"
-                label="Session timeline"
+        {tab === "sessions" ? (
+          <div className="flex flex-wrap items-center gap-2 pb-2">
+            {selectedGameKey ? (
+              <span className="inline-flex max-w-[280px] items-center gap-1.5 rounded-lg border border-accent/45 bg-accent/10 py-1 pl-2.5 pr-1 text-[13px] font-semibold text-text">
+                <span className="truncate">{selectedGameName}</span>
+                <button
+                  type="button"
+                  aria-label="Clear game filter"
+                  onClick={clearGameFilter}
+                  className="grid h-5 w-5 place-items-center rounded-md text-text-muted transition hover:bg-accent/20 hover:text-text"
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            ) : null}
+            <label className="sr-only" htmlFor="history-sort">
+              Sort sessions
+            </label>
+            <div className="relative shrink-0">
+              <select
+                id="history-sort"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as HistorySort)}
+                className="appearance-none rounded-lg border border-border bg-surface py-1.5 pl-3 pr-8 text-[13px] text-text-muted outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+              >
+                {historySorts.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                aria-hidden="true"
+                size={14}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint"
               />
             </div>
           </div>
-          {!timelineSection.collapsed ? (
-            <div
-              ref={timelineBodyRef}
-              id="session-timeline-body"
-              className="p-4 sm:p-5"
-            >
-              {sessions.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
-                  <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-surface-hover text-text-faint">
-                    <Timer size={32} />
-                  </div>
-                  <h3 className="mb-1 text-lg font-bold text-text">
-                    No history yet
-                  </h3>
-                  <p className="text-sm text-text-muted">
-                    Start playing a tracked game to build your timeline.
-                  </p>
-                </div>
-              ) : groups.length === 0 ? (
-                <div className="py-12 text-center text-sm font-medium text-text-muted">
-                  No sessions match your filters.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-8">
-                  {groups.map((group) => (
-                    <section key={group.label} data-history-session-group>
-                      <div className="mb-4 flex items-baseline justify-between px-2">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-bold text-text">
-                            {group.label}
-                          </h3>
-                          <span className="rounded-full bg-surface-hover px-2.5 py-0.5 text-xs font-semibold text-text-muted">
-                            {formatSessionCount(group.items.length)}
-                          </span>
-                        </div>
-                        <span className="font-mono text-sm font-bold text-text-muted">
-                          {formatDuration(group.seconds, showDurationDays)}{" "}
-                          shown
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {group.items.map((session) => (
-                          <HistorySessionRow
-                            key={session.id}
-                            session={session}
-                            metadata={lookupMetadata(session)}
-                            resolveIgdbId={resolveIgdbId}
-                            selectedGameKey={selectedGameKey}
-                            onFilterGame={selectGame}
-                            onClearGameFilter={clearGameFilter}
-                            onRequestDelete={setPendingDeletion}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                  {visibleSessions.length < sortedSessions.length ? (
-                    <div className="flex justify-center">
-                      <Button
-                        onClick={() => setVisibleCount((count) => count + 25)}
-                      >
-                        Show 25 more
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          ) : null}
-        </Panel>
+        ) : null}
       </div>
+
+      {tab === "sessions" ? (
+        <div
+          id="history-panel-sessions"
+          role="tabpanel"
+          aria-labelledby="history-tab-sessions"
+          onMouseDownCapture={focusSessionFromTimelineClick}
+        >
+          <div ref={timelineBodyRef} id="session-timeline-body">
+            {sessions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+                <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-surface-hover text-text-faint">
+                  <Timer size={32} />
+                </div>
+                <h3 className="mb-1 text-lg font-bold text-text">
+                  No history yet
+                </h3>
+                <p className="text-sm text-text-muted">
+                  Start playing a tracked game to build your journal.
+                </p>
+              </div>
+            ) : sortedSessions.length === 0 ? (
+              <div className="py-12 text-center text-sm font-medium text-text-muted">
+                No sessions match your filters.
+              </div>
+            ) : sort === "duration" ? (
+              <div className="flex flex-col gap-1.5">
+                {visibleSessions.map((session) => (
+                  <HistorySessionRow
+                    key={session.id}
+                    session={session}
+                    metadata={lookupMetadata(session)}
+                    marker={markers.get(session.id)}
+                    maxSeconds={maxVisibleSeconds}
+                    showDate
+                    resolveIgdbId={resolveIgdbId}
+                    selectedGameKey={selectedGameKey}
+                    onFilterGame={selectGame}
+                    onClearGameFilter={clearGameFilter}
+                    onRequestDelete={setPendingDeletion}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {groups.map((month) => (
+                  <section key={month.monthKey} data-history-session-group>
+                    <div className="flex items-baseline gap-3 px-1 pb-2 pt-4 text-[11px] font-bold uppercase tracking-[0.14em] text-text-faint">
+                      <span>
+                        {new Date(month.monthMs).toLocaleDateString([], {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </span>
+                      <span className="h-px flex-1 bg-border" />
+                      <span className="font-mono text-xs font-semibold normal-case tracking-normal text-text-muted">
+                        {formatSessionCount(month.sessionCount)} ·{" "}
+                        {formatDuration(month.seconds, showDurationDays)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {month.days.map((day) => (
+                        <DayGroup
+                          key={day.dateKey}
+                          dayMs={day.dayMs}
+                          nowMs={nowMs}
+                          seconds={day.seconds}
+                          count={day.items.length}
+                          showDurationDays={showDurationDays}
+                        >
+                          {day.items.map((session) => (
+                            <HistorySessionRow
+                              key={session.id}
+                              session={session}
+                              metadata={lookupMetadata(session)}
+                              marker={markers.get(session.id)}
+                              maxSeconds={maxVisibleSeconds}
+                              resolveIgdbId={resolveIgdbId}
+                              selectedGameKey={selectedGameKey}
+                              onFilterGame={selectGame}
+                              onClearGameFilter={clearGameFilter}
+                              onRequestDelete={setPendingDeletion}
+                            />
+                          ))}
+                        </DayGroup>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+            {visibleSessions.length < sortedSessions.length ? (
+              <div className="mt-6 flex justify-center">
+                <Button onClick={() => setVisibleCount((count) => count + 25)}>
+                  Show 25 more
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "insights" ? (
+        <div
+          id="history-panel-insights"
+          role="tabpanel"
+          aria-labelledby="history-tab-insights"
+        >
+          {insightsReady ? (
+            <HistoryInsights
+              sessions={gameFilteredSessions}
+              filter={filter}
+              nowMs={nowMs}
+              showDurationDays={showDurationDays}
+              resolveGame={resolveGame}
+              resolveIgdbId={resolveIgdbId}
+              detailedChart={detailedChart}
+              onDetailedChartChange={setDetailedChart}
+            />
+          ) : (
+            <HistoryInsightsPlaceholder />
+          )}
+        </div>
+      ) : null}
+
+      {tab === "games" ? (
+        <div
+          id="history-panel-games"
+          role="tabpanel"
+          aria-labelledby="history-tab-games"
+        >
+          {gamesInRange === 0 ? (
+            <div className="py-12 text-center text-sm text-text-muted">
+              No games in this range.
+            </div>
+          ) : (
+            <TopGamesBars
+              games={analytics.games}
+              showDurationDays={showDurationDays}
+              nowMs={nowMs}
+              onSelectGame={selectGame}
+            />
+          )}
+        </div>
+      ) : null}
+
       {pendingDeletion && pendingDeletionGame ? (
         <DeleteSessionDialog
           session={pendingDeletion}
@@ -704,6 +762,59 @@ export function HistoryView() {
           onConfirm={confirmDeletion}
         />
       ) : null}
+    </div>
+  );
+}
+
+/* One day of the journal: the date column on the left, its sessions on the
+   right. The column sticks under the tab bar while the day scrolls by. */
+function DayGroup({
+  dayMs,
+  nowMs,
+  seconds,
+  count,
+  showDurationDays,
+  children,
+}: {
+  dayMs: number;
+  nowMs: number;
+  seconds: number;
+  count: number;
+  showDurationDays: boolean;
+  children: React.ReactNode;
+}) {
+  const today = new Date(nowMs);
+  today.setHours(0, 0, 0, 0);
+  const daysAgo = Math.round((today.getTime() - dayMs) / 86_400_000);
+  const day = new Date(dayMs);
+  const weekday =
+    daysAgo === 0
+      ? "Today"
+      : daysAgo === 1
+        ? "Yesterday"
+        : day.toLocaleDateString([], { weekday: "long" });
+  return (
+    <div className="grid gap-2 py-1.5 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-4">
+      <div className="flex items-baseline gap-2 sm:sticky sm:top-14 sm:block sm:self-start sm:pl-1 sm:pt-2.5">
+        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-faint">
+          {weekday}
+        </div>
+        <div
+          className={clsx(
+            "text-[15px] font-bold leading-tight",
+            daysAgo === 0 ? "text-accent" : "text-text",
+          )}
+        >
+          {day.toLocaleDateString([], { day: "numeric", month: "short" })}
+        </div>
+        <div className="font-mono text-xs text-text-muted sm:mt-1">
+          <span className="font-semibold text-text">
+            {formatDuration(seconds, showDurationDays)}
+          </span>{" "}
+          · {formatSessionCount(count)}
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">{children}</div>
     </div>
   );
 }
@@ -790,20 +901,12 @@ function HistoryInsightsPlaceholder() {
       aria-label="Loading history insights"
       aria-busy="true"
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-        {Array.from({ length: 6 }, (_, index) => (
-          <div
-            key={index}
-            className="h-[70px] animate-pulse rounded-lg border border-border bg-surface"
-          />
-        ))}
+      <div className="h-[270px] animate-pulse rounded-lg border border-border bg-surface" />
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)]">
+        <div className="h-[240px] animate-pulse rounded-lg border border-border bg-surface" />
+        <div className="h-[240px] animate-pulse rounded-lg border border-border bg-surface" />
       </div>
-      <Panel className="h-[270px] animate-pulse bg-surface" />
-      <Panel className="h-[240px] animate-pulse bg-surface" />
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,2fr)_minmax(520px,3fr)]">
-        <Panel className="h-[300px] animate-pulse bg-surface" />
-        <Panel className="h-[300px] animate-pulse bg-surface" />
-      </div>
+      <div className="h-[300px] animate-pulse rounded-lg border border-border bg-surface" />
     </div>
   );
 }

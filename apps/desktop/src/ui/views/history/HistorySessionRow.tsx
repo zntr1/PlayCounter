@@ -1,18 +1,20 @@
 import type { GameSource, Session } from "@playcounter/shared";
+import clsx from "clsx";
 import {
   ArrowLeft,
-  CalendarDays,
-  Clock3,
   Filter,
+  RotateCcw,
+  Sparkles,
   Timer,
   StickyNote,
   BookOpen,
   Trash2,
+  Trophy,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { getSessionGameKey } from "../../../historyStats";
+import { getSessionGameKey, type SessionMarker } from "../../../historyStats";
 import { emulatorSessionProvenance } from "../../../emulators/provenance";
 import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
@@ -59,12 +61,19 @@ function formatTimeRange(startedAt: string, endedAt: string | null) {
   });
   return start.toDateString() === end.toDateString()
     ? `${startTime} – ${endTime}`
-    : `${startTime} – next day`;
+    : `${startTime} – ${endTime} next day`;
 }
 
+/* One session in the journal. The day column next to it carries the date, so
+   the row only says when it ran and how long, with a bar against the longest
+   session in view so a marathon reads at a glance. Markers call out the
+   sessions worth noticing: firsts, records and comebacks. */
 export const HistorySessionRow = memo(function HistorySessionRow({
   session,
   metadata,
+  marker,
+  maxSeconds = 0,
+  showDate = false,
   resolveIgdbId,
   selectedGameKey,
   onFilterGame,
@@ -73,6 +82,10 @@ export const HistorySessionRow = memo(function HistorySessionRow({
 }: {
   session: Session;
   metadata?: HistoryRowMetadata;
+  marker?: SessionMarker;
+  /** Longest session in view; the row's bar is relative to it. */
+  maxSeconds?: number;
+  showDate?: boolean;
   resolveIgdbId: GameIdentityResolver;
   selectedGameKey: string | null;
   onFilterGame: (key: string, name: string) => void;
@@ -112,6 +125,8 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   const coverUrl = session.coverUrl ?? metadata?.coverUrl;
   const gameKey = getSessionGameKey(session, resolveIgdbId);
   const isActiveGameFilter = selectedGameKey === gameKey;
+  const seconds = session.durationSeconds ?? 0;
+  const barWidth = `${Math.max(1.5, Math.min(100, (seconds / Math.max(1, maxSeconds, seconds)) * 100))}%`;
 
   function requestDelete() {
     contextMenu.close();
@@ -236,7 +251,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       onPointerCancel={cancelFilterHold}
       onLostPointerCapture={cancelFilterHold}
       onKeyDown={handleKeyDown}
-      className="group relative grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] gap-4 rounded-xl border border-border bg-surface px-4 py-3 outline-none transition hover:border-accent/40 hover:shadow-raised focus:border-accent/60 focus:ring-2 focus:ring-accent/40"
+      className="group relative grid animate-fade-in grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-border bg-surface px-3 py-2.5 outline-none transition hover:border-accent/40 hover:shadow-raised focus:border-accent/60 focus:ring-2 focus:ring-accent/40 sm:grid-cols-[auto_minmax(0,1fr)_minmax(150px,190px)_auto] sm:gap-4"
     >
       {holdPosition ? (
         <span
@@ -289,34 +304,31 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           alt=""
           loading="lazy"
           draggable={false}
-          className="h-[52px] w-10 shrink-0 rounded object-cover shadow-sm"
+          className="h-[58px] w-11 shrink-0 rounded-md object-cover shadow-sm"
         />
       ) : (
-        <div className="grid h-[52px] w-10 shrink-0 place-items-center rounded bg-surface-hover text-text-faint shadow-sm">
+        <div className="grid h-[58px] w-11 shrink-0 place-items-center rounded-md bg-surface-hover text-text-faint shadow-sm">
           <Timer size={16} />
         </div>
       )}
       <div className="flex min-w-0 flex-col justify-center">
-        <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-base font-bold text-text">{gameName}</h3>
-          <SourceBadge
-            source={source}
-            approval={session.emulator ? provenance.approval : undefined}
-            emulator={Boolean(session.emulator)}
-          />
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <h3 className="truncate text-[15px] font-bold leading-tight text-text">
+            {gameName}
+          </h3>
+          <span className="grid h-[21px] w-[21px] shrink-0 place-items-center [&>*]:scale-[0.8]">
+            <SourceBadge
+              source={source}
+              variant="mark"
+              approval={session.emulator ? provenance.approval : undefined}
+              emulator={Boolean(session.emulator)}
+            />
+          </span>
           {session.emulator ? (
             <EmulatorBadge
               emulatorId={session.emulator.emulatorId}
               label={session.emulator.label}
             />
-          ) : null}
-          {session.origin === "manual" ? (
-            <span
-              title="Entered manually"
-              className="rounded-full border border-border bg-surface-hover px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted"
-            >
-              Manual
-            </span>
           ) : null}
           {!session.emulator && source === "custom" ? (
             <CommunityApprovalBadge
@@ -329,42 +341,76 @@ export const HistorySessionRow = memo(function HistorySessionRow({
               }
             />
           ) : null}
-        </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-muted">
           <SessionPlaythroughPicker session={session} compact />
-          <span className="truncate">
+          {marker?.longest ? (
+            <MarkerTag tone="record" icon={Trophy}>
+              Longest session
+            </MarkerTag>
+          ) : marker?.gameRecord ? (
+            <MarkerTag tone="record" icon={Trophy}>
+              Personal best
+            </MarkerTag>
+          ) : null}
+          {marker?.first ? (
+            <MarkerTag tone="first" icon={Sparkles}>
+              First session
+            </MarkerTag>
+          ) : null}
+          {marker?.comebackDays ? (
+            <MarkerTag tone="first" icon={RotateCcw}>
+              Back after {marker.comebackDays} days
+            </MarkerTag>
+          ) : null}
+        </div>
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12.5px] text-text-muted">
+          {showDate ? (
+            <>
+              <span className="whitespace-nowrap">
+                {formatSessionDate(session.startedAt)}
+              </span>
+              <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
+            </>
+          ) : null}
+          <span className="whitespace-nowrap tabular-nums">
+            {formatTimeRange(session.startedAt, session.endedAt)}
+          </span>
+          <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
+          <span className="truncate text-text-faint">
             {session.emulator
               ? `${session.emulator.label} · ${session.emulator.display}`
               : session.exeName}
           </span>
-          <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <CalendarDays size={13} className="text-text-faint" />
-            {formatSessionDate(session.startedAt)}
-          </span>
-          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-            <Clock3 size={13} className="text-text-faint" />
-            {formatTimeRange(session.startedAt, session.endedAt)}
-          </span>
+          {session.origin === "manual" ? (
+            <span
+              title="Entered manually"
+              className="rounded-full border border-border bg-surface-hover px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-text-muted"
+            >
+              Manual
+            </span>
+          ) : null}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-4">
-        <div className="text-right">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-text-faint">
-            Playtime
-          </div>
-          <div className="font-mono text-[15px] font-bold text-accent">
-            {formatDuration(session.durationSeconds ?? 0, showDurationDays)}
-          </div>
+      <div className="min-w-0 text-right">
+        <div className="font-mono text-[15px] font-bold leading-none tabular-nums text-accent">
+          {formatDuration(seconds, showDurationDays)}
         </div>
-        <IconButton
-          icon={Trash2}
-          intent="danger"
-          aria-label={`Remove history entry for ${gameName}`}
-          onClick={requestDelete}
-          className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100 group-focus-within:grid group-focus-within:opacity-100"
-        />
+        <div
+          aria-hidden="true"
+          className="mt-1.5 hidden h-1 overflow-hidden rounded-full bg-surface-hover sm:block"
+        >
+          <span
+            className="block h-full rounded-full bg-gradient-to-r from-accent/50 to-accent"
+            style={{ width: barWidth }}
+          />
+        </div>
       </div>
+      <IconButton
+        icon={Trash2}
+        intent="danger"
+        aria-label={`Remove history entry for ${gameName}`}
+        onClick={requestDelete}
+        className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100 group-focus-within:grid group-focus-within:opacity-100"
+      />
       <ContextMenu
         open={contextMenu.open}
         position={contextMenu.position}
@@ -406,3 +452,25 @@ export const HistorySessionRow = memo(function HistorySessionRow({
     </article>
   );
 });
+
+function MarkerTag({
+  tone,
+  icon: Icon,
+  children,
+}: {
+  tone: "record" | "first";
+  icon: typeof Trophy;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-px text-[9px] font-bold uppercase tracking-[0.08em]",
+        tone === "record" ? "bg-accent/15 text-accent" : "bg-info/15 text-info",
+      )}
+    >
+      <Icon aria-hidden="true" size={9} />
+      {children}
+    </span>
+  );
+}

@@ -20,6 +20,9 @@ vi.mock("@tauri-apps/plugin-autostart", () => ({
 vi.mock("./views/HistoryView", () => ({
   HistoryView: () => <p>History content</p>,
 }));
+vi.mock("./views/AchievementsView", () => ({
+  AchievementsView: () => <p>Achievements content</p>,
+}));
 vi.mock("./views/SettingsView", () => ({
   SettingsView: () => <p>Settings content</p>,
 }));
@@ -49,7 +52,7 @@ beforeEach(() => {
   useLibrarySources.setState(useLibrarySources.getInitialState(), true);
   useLibraryLaunchLock.setState(useLibraryLaunchLock.getInitialState(), true);
   useAppStore.setState({
-    activeView: "history",
+    activeView: "achievements",
     lastSeenReleaseNotesVersion: "1.1.18",
     exeCache: new Map([
       ["game-1.exe", entry(-1, "Library favorite")],
@@ -91,13 +94,26 @@ it("saves visibility separately for each view without mounting hidden library ca
   expect(banner()).not.toBeNull();
   await toggle("Hide banner");
   expect(banner()).toBeNull();
-  await act(() => useAppStore.getState().setActiveView("history"));
+  await act(() => useAppStore.getState().setActiveView("achievements"));
   expect(banner()).not.toBeNull();
   await act(() => useAppStore.getState().setMyGamesShowHero(false));
   expect(banner()).not.toBeNull();
   expect(
     JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.viewShowHero,
-  ).toEqual({ history: true, settings: false });
+  ).toEqual({ achievements: true, settings: false });
+});
+
+it("shows no pinned-game banner or toggle on My History", async () => {
+  useAppStore.getState().setViewShowHero("history", true);
+  useAppStore.getState().setActiveView("history");
+  await act(() => root.render(<App />));
+  expect(banner()).toBeNull();
+  expect(container.textContent).toContain("History content");
+  expect(
+    [...container.querySelectorAll("button")].some((button) =>
+      /^(Show|Hide) banner$/.test(button.textContent?.trim() ?? ""),
+    ),
+  ).toBe(false);
 });
 
 it("keeps Now Playing on the first running game despite a saved library banner preference", async () => {
@@ -118,7 +134,7 @@ it("keeps Now Playing on the first running game despite a saved library banner p
     activeSessions: running,
     settings: {
       ...useAppStore.getState().settings,
-      viewShowHero: { now: true, history: true },
+      viewShowHero: { now: true, achievements: true },
       libraryFeaturedGame: { gameId: -1, source: "custom" },
     },
     customHeroArt: {
@@ -145,7 +161,7 @@ it("keeps Now Playing on the first running game despite a saved library banner p
   await act(() => root.render(<App />));
   expectRunningGame("First running game", "/first-running-banner.jpg");
 
-  await act(() => useAppStore.getState().setActiveView("history"));
+  await act(() => useAppStore.getState().setActiveView("achievements"));
   expect(banner()?.querySelector("h2")?.textContent).toBe("Library favorite");
   await act(() => useAppStore.getState().setActiveView("now"));
   expectRunningGame("First running game", "/first-running-banner.jpg");
@@ -161,7 +177,7 @@ it("keeps Now Playing on the first running game despite a saved library banner p
 });
 
 it("loads a saved banner before opening My Games and follows new play evidence", async () => {
-  useAppStore.getState().setViewShowHero("history", true);
+  useAppStore.getState().setViewShowHero("achievements", true);
   await act(() => root.render(<App />));
   expect(banner()?.querySelector("h2")?.textContent).toBe("Library favorite");
   await act(() =>
@@ -203,7 +219,7 @@ it("uses the global banner on other views after visiting a shelf with its own ba
     name: "Weekend",
     featuredGame: { gameId: -2, source: "custom" },
   });
-  useAppStore.getState().setViewShowHero("history", true);
+  useAppStore.getState().setViewShowHero("achievements", true);
   await act(() => root.render(<App />));
   const shelf = [
     ...container.querySelectorAll<HTMLButtonElement>(
@@ -214,7 +230,7 @@ it("uses the global banner on other views after visiting a shelf with its own ba
   expect(
     container.querySelector('[data-banner-variant="full"] h2')?.textContent,
   ).toBe("Shelf favorite");
-  await act(() => useAppStore.getState().setActiveView("history"));
+  await act(() => useAppStore.getState().setActiveView("achievements"));
   expect(banner()?.querySelector("h2")?.textContent).toBe("Library favorite");
   await act(() => useAppStore.getState().setActiveView("games"));
   expect(
@@ -242,7 +258,7 @@ it("keeps a launch in progress locked when switching to another banner", async (
       ],
     ]),
   });
-  useAppStore.getState().setViewShowHero("history", true);
+  useAppStore.getState().setViewShowHero("achievements", true);
   await act(() => root.render(<App />));
   const play = banner()!.querySelector<HTMLButtonElement>(
     '[aria-label="Play: Library favorite"]',

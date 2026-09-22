@@ -928,6 +928,55 @@ select {
   animation: history-filter-hold-progress 0.75s linear forwards;
 }
 
+/* History hero: the most played game's key art behind the headline, washed
+   on the left like the library banner, plus a faint accent glow when there is
+   no art to show. */
+/* Opacity only: the image may carry Tailwind's scale and blur when a cover
+   stands in for wide art, and a transform or filter here would override them. */
+.history-hero-art {
+  animation: history-hero-art-in 700ms ease-out both;
+}
+
+@keyframes history-hero-art-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.history-hero-shade {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--color-surface) / 0.97) 0%,
+      rgb(var(--color-surface) / 0.9) 30%,
+      rgb(var(--color-surface) / 0.7) 55%,
+      rgb(var(--color-surface) / 0.55) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(var(--color-surface) / 0.2) 0%,
+      rgb(var(--color-surface) / 0) 40%,
+      rgb(var(--color-surface) / 0.35) 100%
+    );
+}
+
+.history-hero-glow {
+  background:
+    radial-gradient(
+      720px 300px at 12% 0%,
+      rgb(var(--color-accent) / 0.16),
+      transparent 62%
+    ),
+    radial-gradient(
+      560px 260px at 95% 100%,
+      rgb(var(--color-info) / 0.1),
+      transparent 60%
+    );
+}
+
 .history-toolbar {
   transition:
     border-color 180ms ease,

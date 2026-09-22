@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DailyTotal } from "../../historyStats";
 import { quantileLevel, quantileThresholds } from "../../historyStats";
 import { formatDuration } from "../components";
@@ -13,7 +13,7 @@ import {
   useElementWidth,
 } from "./chartUtils";
 
-const weekCount = 53;
+const maxWeekCount = 53;
 const cellGap = 3;
 const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -24,7 +24,7 @@ type CalendarCell = {
   isOutside: boolean;
 };
 
-function calendarCellSize(width: number) {
+function calendarCellSize(width: number, weekCount: number) {
   if (width === 0) return 0;
   return Math.max(
     11,
@@ -46,9 +46,6 @@ export function CalendarHeatmap({
   showDurationDays: boolean;
   resolveGameName: (key: string | null) => string | null;
 }) {
-  const [scrollRef, cellSize] =
-    useElementWidth<HTMLDivElement>(calendarCellSize);
-  const columnSize = cellSize + cellGap;
   const today = useMemo(() => {
     const value = new Date(nowMs);
     value.setHours(0, 0, 0, 0);
@@ -62,6 +59,19 @@ export function CalendarHeatmap({
     const mondayOffset = (dataStart.getDay() + 6) % 7;
     return addDays(dataStart, -mondayOffset);
   }, [dataStart]);
+  // Only the weeks with data: a history that started in spring is not a
+  // year of empty cells with a busy corner.
+  const weekCount = useMemo(() => {
+    const days =
+      Math.round((today.getTime() - firstDay.getTime()) / 86_400_000) + 1;
+    return Math.max(1, Math.min(maxWeekCount, Math.ceil(days / 7)));
+  }, [firstDay, today]);
+  const selectCellSize = useCallback(
+    (width: number) => calendarCellSize(width, weekCount),
+    [weekCount],
+  );
+  const [scrollRef, cellSize] = useElementWidth<HTMLDivElement>(selectCellSize);
+  const columnSize = cellSize + cellGap;
   const cells = useMemo(
     () =>
       Array.from({ length: weekCount * 7 }, (_, index) => {
@@ -76,7 +86,7 @@ export function CalendarHeatmap({
           isOutside,
         };
       }),
-    [dataStart, firstDay, today, totals],
+    [dataStart, firstDay, today, totals, weekCount],
   );
   const thresholds = useMemo(
     () => quantileThresholds(cells.map((cell) => cell.total?.seconds ?? 0)),
@@ -103,12 +113,12 @@ export function CalendarHeatmap({
       }
     }
     return result;
-  }, [firstDay]);
+  }, [firstDay, weekCount]);
 
   return (
     <figure aria-labelledby="activity-calendar-title">
       <figcaption className="sr-only" id="activity-calendar-title">
-        Daily playtime over the last 52 weeks
+        Daily playtime by week
       </figcaption>
       <div ref={scrollRef} className="overflow-x-auto pb-2">
         {cellSize === 0 ? (

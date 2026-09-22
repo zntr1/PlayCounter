@@ -4,20 +4,27 @@ import { useAppStore } from "../../store";
 
 /* One search field for the whole window, sitting in the title bar. On My
    Games it filters the library directly, within whatever shelf and source are
-   open. Anywhere else, typing jumps to My Games on Enter with the text already
+   open. On My History it filters the session journal by game or file name.
+   Anywhere else, typing jumps to My Games on Enter with the text already
    applied and the library widened to every game, since a search started from
    another view has no shelf in mind. Ctrl+F focuses it from any view. */
 
 export const LIBRARY_SEARCH_PLACEHOLDER = "Search games...";
+export const HISTORY_SEARCH_PLACEHOLDER = "Search history...";
 
 export function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const activeView = useAppStore((state) => state.activeView);
-  const query = useAppStore((state) => state.libraryQuery);
-  const setQuery = useAppStore((state) => state.setLibraryQuery);
+  const onLibrary = activeView === "games";
+  const onHistory = activeView === "history";
+  const query = useAppStore((state) =>
+    onHistory ? state.historyQuery : state.libraryQuery,
+  );
+  const setLibraryQuery = useAppStore((state) => state.setLibraryQuery);
+  const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
+  const setQuery = onHistory ? setHistoryQuery : setLibraryQuery;
   const setActiveView = useAppStore((state) => state.setActiveView);
   const searchWholeLibrary = useAppStore((state) => state.searchWholeLibrary);
-  const onLibrary = activeView === "games";
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -52,7 +59,7 @@ export function GlobalSearch() {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !onLibrary) {
+          if (event.key === "Enter" && !onLibrary && !onHistory) {
             event.preventDefault();
             searchWholeLibrary();
             setActiveView("games");
@@ -61,9 +68,15 @@ export function GlobalSearch() {
             setQuery("");
           }
         }}
-        placeholder={LIBRARY_SEARCH_PLACEHOLDER}
+        placeholder={
+          onHistory ? HISTORY_SEARCH_PLACEHOLDER : LIBRARY_SEARCH_PLACEHOLDER
+        }
         aria-label={
-          onLibrary ? "Search your games" : "Search your games (opens My Games)"
+          onHistory
+            ? "Search your history"
+            : onLibrary
+              ? "Search your games"
+              : "Search your games (opens My Games)"
         }
         className="global-search-input h-full w-full rounded-xl border border-border/70 bg-bg/60 pl-11 pr-[5rem] text-[15px] text-text outline-none transition placeholder:text-text-faint focus:border-accent/70 focus:bg-bg focus:ring-2 focus:ring-accent/25"
       />

@@ -33,13 +33,31 @@ const podiumStyles = [
 
 type RankedGame = { game: TopGame; rank: number };
 
+function formatLastPlayed(lastPlayedMs: number, nowMs: number) {
+  if (!lastPlayedMs) return "";
+  const today = new Date(nowMs);
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(lastPlayedMs);
+  day.setHours(0, 0, 0, 0);
+  const daysAgo = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+  if (daysAgo === 0) return "Today";
+  if (daysAgo === 1) return "Yesterday";
+  return day.toLocaleDateString([], {
+    day: "numeric",
+    month: "short",
+    ...(day.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
 export function TopGamesBars({
   games,
   showDurationDays,
+  nowMs,
   onSelectGame,
 }: {
   games: TopGame[];
   showDurationDays: boolean;
+  nowMs: number;
   onSelectGame: (key: string, name: string) => void;
 }) {
   const tooltip = useChartTooltip();
@@ -78,7 +96,18 @@ export function TopGamesBars({
       ) : null}
 
       {listGames.length > 0 ? (
-        <div className="mt-3 grid gap-1 border-t border-border/60 pt-2">
+        <div className="mt-4 grid gap-1">
+          <div
+            aria-hidden="true"
+            className="hidden grid-cols-[28px_28px_minmax(0,1fr)_110px_110px_96px] gap-3 px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-text-faint sm:grid"
+          >
+            <span />
+            <span />
+            <span>Game</span>
+            <span className="text-right">Playtime</span>
+            <span className="text-right">Sessions</span>
+            <span className="text-right">Last played</span>
+          </div>
           {listGames.map(({ game, rank }) => (
             <ListGame
               key={game.key ?? "other"}
@@ -86,6 +115,7 @@ export function TopGamesBars({
               rank={rank}
               maxSeconds={maxSeconds}
               showDurationDays={showDurationDays}
+              lastPlayed={formatLastPlayed(game.lastPlayedMs, nowMs)}
               onSelectGame={onSelectGame}
               onOtherEnter={(element) =>
                 tooltip.show(
@@ -182,6 +212,7 @@ function ListGame({
   rank,
   maxSeconds,
   showDurationDays,
+  lastPlayed,
   onSelectGame,
   onOtherEnter,
   onOtherLeave,
@@ -190,37 +221,53 @@ function ListGame({
   rank: number;
   maxSeconds: number;
   showDurationDays: boolean;
+  lastPlayed: string;
   onSelectGame: (key: string, name: string) => void;
   onOtherEnter: (element: HTMLElement) => void;
   onOtherLeave: () => void;
 }) {
+  const average =
+    game.sessionCount > 0 ? Math.round(game.seconds / game.sessionCount) : 0;
   const content = (
     <>
       <span className="text-center font-mono text-[11px] font-bold text-text-faint">
         {game.key ? rank + 1 : "-"}
       </span>
-      <GameCover game={game} className="h-6 w-5" />
+      <GameCover game={game} className="h-9 w-7" />
       <span className="min-w-0">
-        <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-xs font-semibold text-text">
-            {game.name}
-          </span>
-          <span className="shrink-0 font-mono text-xs font-semibold text-text-muted">
-            {formatDuration(game.seconds, showDurationDays)} ·{" "}
-            {Math.round(game.share * 100)}%
-          </span>
+        <span className="block truncate text-[13px] font-semibold text-text">
+          {game.name}
         </span>
-        <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-surface-hover">
+        <span className="mt-1 block h-1 overflow-hidden rounded-full bg-surface-hover">
           <span
-            className="block h-full rounded-full bg-accent/60"
+            className="block h-full rounded-full bg-accent/70"
             style={{ width: `${(game.seconds / maxSeconds) * 100}%` }}
           />
         </span>
       </span>
+      <span className="text-right">
+        <span className="block font-mono text-[13px] font-semibold tabular-nums text-text">
+          {formatDuration(game.seconds, showDurationDays)}
+        </span>
+        <span className="block text-[11px] text-text-faint">
+          {Math.round(game.share * 100)} %
+        </span>
+      </span>
+      <span className="hidden text-right sm:block">
+        <span className="block font-mono text-[13px] font-semibold tabular-nums text-text">
+          {game.sessionCount}
+        </span>
+        <span className="block text-[11px] text-text-faint">
+          avg {formatDuration(average, showDurationDays)}
+        </span>
+      </span>
+      <span className="hidden text-right text-xs text-text-muted sm:block">
+        {lastPlayed}
+      </span>
     </>
   );
   const className =
-    "grid w-full grid-cols-[18px_20px_minmax(0,1fr)] items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left transition-colors hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+    "grid w-full grid-cols-[28px_28px_minmax(0,1fr)_110px] items-center gap-3 rounded-lg border border-transparent px-2 py-1.5 text-left transition-colors hover:border-border hover:bg-surface-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:grid-cols-[28px_28px_minmax(0,1fr)_110px_110px_96px]";
 
   return game.key ? (
     <button
