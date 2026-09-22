@@ -316,7 +316,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           <h3 className="truncate text-[15px] font-bold leading-tight text-text">
             {gameName}
           </h3>
-          <span className="grid h-[21px] w-[21px] shrink-0 place-items-center [&>*]:scale-[0.8]">
+          <span className="flex h-[21px] w-[21px] shrink-0 items-center justify-center [&>*]:scale-[0.8]">
             <SourceBadge
               source={source}
               variant="mark"

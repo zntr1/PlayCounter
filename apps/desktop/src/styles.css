@@ -401,6 +401,18 @@
     0 4px 9px rgb(99 52 28 / 0.16);
 }
 
+:root[data-theme="light"] .top-game-stat-1 {
+  color: #7a5200;
+}
+
+:root[data-theme="light"] .top-game-stat-2 {
+  color: #303844;
+}
+
+:root[data-theme="light"] .top-game-stat-3 {
+  color: #7a3d1a;
+}
+
 .achievement-badge {
   border: 1px solid;
   box-shadow:
