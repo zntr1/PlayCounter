@@ -202,8 +202,12 @@
   display: none;
 }
 
-/* The title bar and each banner share one image frame, including the strip
-   below the card. Keep both banner sizes and all crops in sync here. */
+/* The title bar and each banner share one image frame, including the page
+   gutters and the strip below the card. Match the content's px-7 padding. */
+[data-banner-layout] {
+  --banner-side-bleed: 28px;
+}
+
 [data-banner-layout="full"] {
   --banner-height: clamp(300px, 40vh, 360px);
   --banner-tail: 144px;
@@ -214,19 +218,39 @@
   --banner-tail: 112px;
 }
 
-/* Show the next part of the same picture below the card. The page's
-   isolated stacking context keeps it behind headings and controls. */
+/* Continue the same picture around the card, fading out through the side
+   gutters and below it. Only this decorative layer is masked. */
 .library-banner-continuation {
-  inset: 100% 0 auto;
-  height: var(--banner-tail);
+  inset: 0 calc(var(--banner-side-bleed) * -1) auto;
+  height: calc(var(--banner-height) + var(--banner-tail));
   overflow: hidden;
   opacity: 0.85;
   --banner-shade-direction: 0deg;
-  mask-image: linear-gradient(180deg, #000 0%, #000 25%, transparent 100%);
+  mask-image:
+    linear-gradient(
+      180deg,
+      #000 calc(var(--banner-height) + var(--banner-tail) * 0.25),
+      transparent 100%
+    ),
+    linear-gradient(
+      90deg,
+      transparent,
+      #000 var(--banner-side-bleed),
+      #000 calc(100% - var(--banner-side-bleed)),
+      transparent
+    );
+  mask-composite: intersect;
 }
 
 :root[data-theme="light"] .library-banner-continuation {
   opacity: 0.5;
+}
+
+/* Compensate for the card's border so its crop lines up with the backdrop. */
+.library-banner-art {
+  left: calc((var(--banner-side-bleed) + 1px) * -1);
+  width: calc(100% + (var(--banner-side-bleed) + 1px) * 2);
+  max-width: none;
 }
 
 /* Library banner card: key art on the right, a dark wash on the left so the
@@ -1599,6 +1623,15 @@ body.shift-held
       rgb(var(--color-bg) / 0.72) 0%,
       rgb(var(--color-bg) / 0.5) 100%
     );
+}
+
+/* The continuation's mask handles the side fade across the narrow gutters. */
+.library-banner-continuation::after {
+  background: linear-gradient(
+    var(--banner-shade-direction),
+    rgb(var(--color-bg) / 0.72) 0%,
+    rgb(var(--color-bg) / 0.5) 100%
+  );
 }
 
 :root[data-theme="light"] .titlebar-art {

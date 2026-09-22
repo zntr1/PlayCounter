@@ -92,7 +92,7 @@ export function GameBanner({
         ready.genres.length > 0 ? ready.genres.slice(0, 3).join(" · ") : null,
       ].filter((part): part is string => Boolean(part))
     : [];
-  // One image continues through the title bar, card, and lower backdrop.
+  // One image continues through the title bar, card, and surrounding backdrop.
   const backdropArt = artwork ?? (game.coverUrl || null);
   useEffect(() => {
     onArtworkChange(backdropArt);
@@ -139,7 +139,7 @@ export function GameBanner({
               height:
                 "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
             }}
-            className="library-hero-art absolute inset-x-0 w-full object-cover object-[72%_0%]"
+            className="library-banner-art library-hero-art absolute object-cover object-[72%_0%]"
           />
         ) : game.coverUrl ? (
           <GameCover
@@ -151,7 +151,7 @@ export function GameBanner({
               height:
                 "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
             }}
-            className="hero-backdrop absolute inset-x-0 w-full scale-125 object-cover blur-3xl saturate-150"
+            className="library-banner-art hero-backdrop absolute scale-125 object-cover blur-3xl saturate-150"
           />
         ) : null}
         <div className="library-hero-shade absolute inset-0" />
@@ -357,7 +357,7 @@ export function GameBanner({
             alt=""
             decoding="async"
             style={{
-              top: "calc((var(--banner-height) + var(--hero-lead, 0px)) * -1)",
+              top: "calc(var(--hero-lead, 0px) * -1)",
               height:
                 "calc(var(--banner-height) + var(--hero-lead, 0px) + var(--banner-tail))",
             }}

@@ -906,9 +906,9 @@ export function App() {
                   // the width has to be explicit.
                   artFrame === "card"
                     ? {
-                        left: "calc(28px * var(--zoom-ratio))",
+                        left: 0,
                         width:
-                          "calc((var(--content-width, 100%) - 56px) * var(--zoom-ratio))",
+                          "calc(var(--content-width, 100%) * var(--zoom-ratio))",
                         height:
                           "calc((var(--banner-height) + var(--banner-tail)) * var(--zoom-ratio) + 72px)",
                       }
