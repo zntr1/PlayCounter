@@ -8,16 +8,16 @@
 :root {
   color-scheme: dark;
 
-  --color-bg: 11 15 25;
-  --color-surface: 17 24 39;
-  --color-surface-hover: 30 41 59;
-  --color-border: 46 58 80;
-  --color-text: 231 233 238;
-  --color-text-muted: 154 161 173;
-  --color-text-faint: 123 132 148;
-  --color-accent: 110 166 255;
-  --color-accent-hover: 136 182 255;
-  --color-accent-tint: rgba(110, 166, 255, 0.13);
+  --color-bg: 13 13 14;
+  --color-surface: 21 21 23;
+  --color-surface-hover: 32 32 35;
+  --color-border: 50 50 55;
+  --color-text: 236 236 236;
+  --color-text-muted: 160 160 166;
+  --color-text-faint: 122 122 130;
+  --color-accent: 239 193 96;
+  --color-accent-hover: 242 204 125;
+  --color-accent-tint: rgba(239, 193, 96, 0.13);
   --color-accent-fg: 15 16 20;
   --color-success: 74 222 128;
   --color-success-tint: 20 83 45;
@@ -40,23 +40,23 @@
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
   --shadow-sidebar: 4px 0 24px rgba(0, 0, 0, 0.2);
   --shadow-card-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
-  --scrollbar-thumb: #263043;
-  --scrollbar-thumb-hover: #34405a;
+  --scrollbar-thumb: #2c2c30;
+  --scrollbar-thumb-hover: #3a3a40;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-bg: 244 245 248;
+  --color-bg: 245 245 246;
   --color-surface: 255 255 255;
-  --color-surface-hover: 238 240 244;
-  --color-border: 196 201 211;
-  --color-text: 27 30 38;
-  --color-text-muted: 91 100 114;
-  --color-text-faint: 102 112 128;
-  --color-accent: 3 79 201;
-  --color-accent-hover: 5 70 174;
-  --color-accent-tint: rgba(3, 79, 201, 0.1);
+  --color-surface-hover: 240 240 242;
+  --color-border: 205 205 210;
+  --color-text: 27 27 30;
+  --color-text-muted: 96 96 104;
+  --color-text-faint: 108 108 116;
+  --color-accent: 116 80 0;
+  --color-accent-hover: 96 66 0;
+  --color-accent-tint: rgba(116, 80, 0, 0.1);
   --color-accent-fg: 255 255 255;
   --color-success: 21 128 61;
   --color-success-tint: 220 252 231;
@@ -77,10 +77,10 @@
   --color-community-border: 167 139 250;
 
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.1);
-  --shadow-sidebar: 4px 0 24px rgba(31, 41, 55, 0.08);
-  --shadow-card-hover: 0 8px 30px rgba(31, 41, 55, 0.14);
-  --scrollbar-thumb: #c6ccd6;
-  --scrollbar-thumb-hover: #aeb6c4;
+  --shadow-sidebar: 4px 0 24px rgba(20, 20, 22, 0.08);
+  --shadow-card-hover: 0 8px 30px rgba(20, 20, 22, 0.14);
+  --scrollbar-thumb: #cfcfd4;
+  --scrollbar-thumb-hover: #b8b8bf;
 }
 
 .sidebar-button-active {
@@ -363,15 +363,9 @@
 }
 
 .emulator-badge {
-  border-color: rgb(3 79 201);
-  background: rgb(3 79 201);
-  color: rgb(255 255 255);
-}
-
-:root[data-theme="light"] .emulator-badge {
-  border-color: rgb(110 166 255);
-  background: rgb(110 166 255);
-  color: rgb(15 16 20);
+  border-color: rgb(var(--color-accent));
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-accent-fg));
 }
 
 :root[data-theme="light"] .top-game-pedestal-1 {

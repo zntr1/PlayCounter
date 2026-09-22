@@ -9,19 +9,19 @@ export type AccentPalette = {
   foreground: string;
 };
 
-export const DEFAULT_ACCENT_COLOR = "#0062ff";
+export const DEFAULT_ACCENT_COLOR = "#efc160";
 
 const DARK_SURFACES: RgbColor[] = [
-  { r: 15, g: 16, b: 20 },
-  { r: 22, g: 24, b: 31 },
-  { r: 30, g: 33, b: 42 },
+  { r: 13, g: 13, b: 14 },
+  { r: 21, g: 21, b: 23 },
+  { r: 32, g: 32, b: 35 },
 ];
 const LIGHT_SURFACES: RgbColor[] = [
-  { r: 244, g: 245, b: 248 },
+  { r: 245, g: 245, b: 246 },
   { r: 255, g: 255, b: 255 },
-  { r: 238, g: 240, b: 244 },
+  { r: 240, g: 240, b: 242 },
 ];
-const DARK_FOREGROUND: RgbColor = { r: 15, g: 16, b: 20 };
+const DARK_FOREGROUND: RgbColor = { r: 13, g: 13, b: 14 };
 const LIGHT_FOREGROUND: RgbColor = { r: 255, g: 255, b: 255 };
 const MINIMUM_TEXT_CONTRAST = 4.5;
 const ACCENT_PROPERTIES = [
