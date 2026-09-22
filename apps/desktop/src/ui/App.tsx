@@ -1343,36 +1343,31 @@ function ToastCard({
   onDismiss: () => void;
 }) {
   const [leaving, setLeaving] = useState(false);
+  // Errors stay twice as long: they carry detail worth reading.
+  const lifetimeMs = toast.tone === "error" ? 8400 : 4200;
+  // The parent re-renders on every store change; keep the latest callback
+  // without restarting the exit timer, or a burst of toasts keeps a fading
+  // card stuck on screen.
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
   useEffect(() => {
-    const hideTimer = window.setTimeout(() => setLeaving(true), 4200);
+    const hideTimer = window.setTimeout(() => setLeaving(true), lifetimeMs);
     return () => window.clearTimeout(hideTimer);
-  }, []);
+  }, [lifetimeMs]);
 
   useEffect(() => {
     if (!leaving) return;
-    const removeTimer = window.setTimeout(onDismiss, 260);
+    const removeTimer = window.setTimeout(() => onDismissRef.current(), 260);
     return () => window.clearTimeout(removeTimer);
-  }, [leaving, onDismiss]);
+  }, [leaving]);
 
   const presentation =
     toast.tone === "success"
-      ? {
-          icon: Check,
-          label: "Success",
-          toneClass: "app-toast-success",
-        }
+      ? { icon: Check, toneClass: "app-toast-success" }
       : toast.tone === "error"
-        ? {
-            icon: AlertTriangle,
-            label: "Something went wrong",
-            toneClass: "app-toast-error",
-          }
-        : {
-            icon: Info,
-            label: "Heads up",
-            toneClass: "app-toast-info",
-          };
+        ? { icon: AlertTriangle, toneClass: "app-toast-error" }
+        : { icon: Info, toneClass: "app-toast-info" };
   const ToneIcon = presentation.icon;
 
   return (
@@ -1380,22 +1375,22 @@ function ToastCard({
       aria-atomic="true"
       aria-live={toast.tone === "error" ? "assertive" : "polite"}
       className={`app-toast pointer-events-auto ${presentation.toneClass} ${leaving ? "animate-toast-out" : "animate-toast-in"}`}
+      style={{ "--toast-lifetime": `${lifetimeMs}ms` } as CSSProperties}
     >
-      <div className="flex items-start gap-3.5 p-3.5">
+      <div className="flex items-start gap-3 py-3 pl-4 pr-2.5">
         <span aria-hidden="true" className="app-toast-symbol">
           {toast.emoji ? (
-            <span className="text-xl leading-none">{toast.emoji}</span>
+            <span className="text-base leading-none">{toast.emoji}</span>
           ) : (
-            <ToneIcon size={18} strokeWidth={2.4} />
+            <ToneIcon size={18} strokeWidth={2.2} />
           )}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="app-toast-kicker">{presentation.label}</div>
-          <div className="mt-0.5 break-words text-sm font-semibold leading-5 text-text">
+          <div className="break-words text-sm font-medium leading-5 text-text">
             {toast.title}
           </div>
           {toast.detail ? (
-            <div className="mt-1 break-words text-xs leading-[1.45] text-text-muted">
+            <div className="mt-0.5 break-words text-xs leading-[1.45] text-text-muted">
               {toast.detail}
             </div>
           ) : null}
@@ -1404,9 +1399,9 @@ function ToastCard({
           type="button"
           aria-label="Dismiss notification"
           onClick={() => setLeaving(true)}
-          className="app-toast-dismiss grid h-7 w-7 shrink-0 place-items-center rounded-lg text-text-muted transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="app-toast-dismiss -mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <X size={14} />
+          <X size={15} />
         </button>
       </div>
       <div aria-hidden="true" className="app-toast-progress" />

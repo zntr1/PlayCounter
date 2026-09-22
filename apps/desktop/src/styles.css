@@ -774,44 +774,28 @@ html[data-window="notification-overlay"] #overlay-root {
   animation-delay: 820ms;
 }
 
-/* In-app feedback uses the same layered surface language as the desktop
-   overlay, condensed into an interactive toast-sized card. */
+/* In-app feedback: a flat surface card with a tone bar. The desktop overlay
+   keeps its layered look; a toast is read in a second and closed. */
 .app-toast {
   --toast-accent: var(--color-info);
+  --toast-lifetime: 4200ms;
 
   position: relative;
-  isolation: isolate;
   overflow: hidden;
-  border: 1px solid rgb(var(--color-border) / 0.78);
-  border-left: 3px solid rgb(var(--toast-accent) / 0.9);
-  border-radius: 15px;
-  background:
-    radial-gradient(
-      circle at 100% 0%,
-      rgb(var(--toast-accent) / 0.14),
-      transparent 44%
-    ),
-    linear-gradient(
-      145deg,
-      rgb(var(--color-surface) / 0.98),
-      rgb(var(--color-bg) / 0.96)
-    );
-  box-shadow:
-    var(--shadow-raised),
-    inset 0 1px 0 rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(var(--color-border) / 0.9);
+  border-radius: 10px;
+  background: rgb(var(--color-surface));
+  box-shadow: var(--shadow-raised);
 }
 
 .app-toast::before {
   position: absolute;
-  z-index: -1;
-  width: 90px;
-  height: 90px;
-  border-radius: 999px;
-  background: rgb(var(--toast-accent) / 0.08);
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: rgb(var(--toast-accent));
   content: "";
-  filter: blur(28px);
-  left: -36px;
-  top: -48px;
 }
 
 .app-toast-success {
@@ -828,41 +812,21 @@ html[data-window="notification-overlay"] #overlay-root {
 
 .app-toast-symbol {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(var(--toast-accent) / 0.38);
-  border-radius: 11px;
-  background:
-    linear-gradient(145deg, rgb(var(--toast-accent) / 0.18), transparent),
-    rgb(var(--color-surface-hover) / 0.76);
+  margin-top: 1px;
   color: rgb(var(--toast-accent));
-  box-shadow:
-    0 7px 18px rgb(0 0 0 / 0.14),
-    inset 0 1px 0 rgb(255 255 255 / 0.08);
-}
-
-.app-toast-kicker {
-  overflow: hidden;
-  color: rgb(var(--toast-accent));
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .app-toast-dismiss {
-  border: 1px solid transparent;
-  background: rgb(var(--color-surface-hover) / 0.4);
+  color: rgb(var(--color-text-muted));
 }
 
 .app-toast-dismiss:hover {
-  border-color: rgb(var(--color-border) / 0.7);
-  background: rgb(var(--color-surface-hover) / 0.86);
+  color: rgb(var(--color-text));
+  background: rgb(var(--color-surface-hover));
 }
 
 .app-toast-progress {
@@ -871,8 +835,8 @@ html[data-window="notification-overlay"] #overlay-root {
   bottom: 0;
   left: 0;
   height: 2px;
-  animation: toast-lifetime 4.2s linear forwards;
-  background: rgb(var(--toast-accent) / 0.78);
+  animation: toast-lifetime var(--toast-lifetime) linear forwards;
+  background: rgb(var(--toast-accent) / 0.5);
   transform-origin: left;
 }
 
