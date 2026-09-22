@@ -133,12 +133,10 @@ it.each([
     expect(lastPlayedFigure()).toBe(new Date(daysAgo(2)).toLocaleDateString());
 
     await act(() => {
-      [
-        ...document.querySelectorAll<HTMLButtonElement>(
-          '[role="dialog"] button',
-        ),
-      ]
-        .find((button) => button.textContent === "Close")!
+      document
+        .querySelector<HTMLButtonElement>(
+          '[role="dialog"] button[aria-label="Close"]',
+        )!
         .click();
       useAppStore.getState().setMyGamesCardSize("list");
     });

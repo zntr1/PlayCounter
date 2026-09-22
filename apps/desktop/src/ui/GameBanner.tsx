@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import type { GameDetails } from "@playcounter/shared";
 import {
   History,
   Info,
@@ -31,6 +32,21 @@ import type { GameSummary } from "./views/MyGamesView";
 
 /* One banner for the library, shelves, and other views. The compact variant
    keeps the same artwork, actions, and fallback behavior in less space. */
+
+/** Wide art for a game, best source first: hand-picked, SteamGridDB hero,
+ *  IGDB artwork, IGDB screenshot. The banner and the details dialog share
+ *  this so a game looks the same in both. `undefined` means "use the cover". */
+export function heroArtwork(
+  pickedArt: string | undefined,
+  details: GameDetails | null,
+) {
+  return (
+    pickedArt ??
+    details?.heroUrls?.[0] ??
+    details?.artworkUrls?.[0] ??
+    details?.screenshotUrls?.[0]
+  );
+}
 
 type GameBannerProps = {
   game: GameSummary;
@@ -80,11 +96,7 @@ export function GameBanner({
   const pickedArt = useAppStore(
     (state) => state.customHeroArt[customHeroArtKey(game)],
   );
-  const artwork =
-    pickedArt ??
-    ready?.heroUrls?.[0] ??
-    ready?.artworkUrls?.[0] ??
-    ready?.screenshotUrls?.[0];
+  const artwork = heroArtwork(pickedArt, ready);
   const facts = ready
     ? [
         ready.releaseYear?.toString() ??
@@ -336,7 +348,10 @@ export function GameBanner({
       {showDetails ? (
         <GameDetailsDialog
           game={game}
-          launchTargets={launcher.launchTargets}
+          launchKey={`${launchKey}:details`}
+          launchBlocked={launchBlocked}
+          onAcquireLaunch={onAcquireLaunch}
+          onReleaseLaunch={onReleaseLaunch}
           onClose={() => setShowDetails(false)}
         />
       ) : null}

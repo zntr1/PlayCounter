@@ -179,12 +179,11 @@ it.each(emulators)(
     );
     expectCommunity(document.querySelector('[role="dialog"]')!);
     await act(() => {
-      const buttons = [
-        ...document.querySelectorAll<HTMLButtonElement>(
-          '[role="dialog"] button',
-        ),
-      ];
-      buttons.find((button) => button.textContent === "Close")!.click();
+      document
+        .querySelector<HTMLButtonElement>(
+          '[role="dialog"] button[aria-label="Close"]',
+        )!
+        .click();
       useAppStore.getState().setMyGamesCardSize("list");
     });
     expectCommunity();

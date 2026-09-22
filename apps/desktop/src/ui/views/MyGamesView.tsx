@@ -3923,7 +3923,10 @@ export function GameLibraryCard({
     ) : showDetails ? (
       <GameDetailsDialog
         game={game}
-        launchTargets={ownedLaunchTargets}
+        launchKey={`${launchKey}:details`}
+        launchBlocked={launchBlocked}
+        onAcquireLaunch={onAcquireLaunch}
+        onReleaseLaunch={onReleaseLaunch}
         onClose={() => setShowDetails(false)}
         onMoveToPlayCounter={
           !demo && game.libraryImports.length > 0
@@ -3987,6 +3990,32 @@ export function GameLibraryCard({
         >
           Show History
         </ContextMenuItem>
+        {!demo ? (
+          <ContextMenuItem
+            icon={featuredInBanner ? PinOff : Pin}
+            onClick={() => {
+              contextMenu.close();
+              const featuredGame = featuredInBanner
+                ? null
+                : {
+                    gameId: game.gameId,
+                    source: game.source,
+                    igdbId: game.igdbId,
+                  };
+              if (bannerShelf)
+                saveBannerShelf({ ...bannerShelf, featuredGame });
+              else setLibraryFeaturedGame(featuredGame);
+            }}
+          >
+            {bannerShelf
+              ? featuredInBanner
+                ? "Use library banner"
+                : "Pin to shelf banner"
+              : featuredInBanner
+                ? "Unpin from banner"
+                : "Pin to banner"}
+          </ContextMenuItem>
+        ) : null}
         {!demo ? <ContextMenuSeparator /> : null}
         {!demo ? (
           <GameJournalMenu
@@ -4213,76 +4242,44 @@ export function GameLibraryCard({
             Adjust total playtime
           </ContextMenuItem>
         </ContextMenuSubmenu>
-        {!demo || canEditCover ? (
-          <ContextMenuSubmenu label="Artwork & banner" icon={ImagePlus}>
-            {!demo ? (
-              <>
-                <ContextMenuItem
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    setShowArtPicker(true);
-                  }}
-                >
-                  Choose Artwork…
-                </ContextMenuItem>
-              </>
-            ) : null}
-            {!demo ? (
+        {!demo ? (
+          <ContextMenuItem
+            icon={ImagePlus}
+            onClick={() => {
+              contextMenu.close();
+              setShowArtPicker(true);
+            }}
+          >
+            Choose banner…
+          </ContextMenuItem>
+        ) : null}
+        {canEditCover ? (
+          <ContextMenuSubmenu label="Cover" icon={ImagePlus}>
+            <ContextMenuItem
+              dataTour={demo ? "demo-menu-set-cover" : undefined}
+              icon={ImagePlus}
+              onClick={() => {
+                contextMenu.close();
+                coverInputRef.current?.click();
+              }}
+            >
+              Set Cover
+            </ContextMenuItem>
+            <ContextMenuItem
+              dataTour={demo ? "demo-menu-paste-cover" : undefined}
+              icon={Clipboard}
+              onClick={() => void handlePasteCover()}
+            >
+              Paste Cover
+            </ContextMenuItem>
+            {game.coverUrl ? (
               <ContextMenuItem
-                icon={featuredInBanner ? PinOff : Pin}
-                onClick={() => {
-                  contextMenu.close();
-                  const featuredGame = featuredInBanner
-                    ? null
-                    : {
-                        gameId: game.gameId,
-                        source: game.source,
-                        igdbId: game.igdbId,
-                      };
-                  if (bannerShelf)
-                    saveBannerShelf({ ...bannerShelf, featuredGame });
-                  else setLibraryFeaturedGame(featuredGame);
-                }}
+                dataTour={demo ? "demo-menu-delete-cover" : undefined}
+                icon={Trash2}
+                onClick={handleClearCover}
               >
-                {bannerShelf
-                  ? featuredInBanner
-                    ? "Use library banner"
-                    : "Pin to shelf banner"
-                  : featuredInBanner
-                    ? "Unpin from banner"
-                    : "Pin to banner"}
+                Delete Cover
               </ContextMenuItem>
-            ) : null}
-            {canEditCover ? (
-              <>
-                <ContextMenuItem
-                  dataTour={demo ? "demo-menu-set-cover" : undefined}
-                  icon={ImagePlus}
-                  onClick={() => {
-                    contextMenu.close();
-                    coverInputRef.current?.click();
-                  }}
-                >
-                  Set Cover
-                </ContextMenuItem>
-                <ContextMenuItem
-                  dataTour={demo ? "demo-menu-paste-cover" : undefined}
-                  icon={Clipboard}
-                  onClick={() => void handlePasteCover()}
-                >
-                  Paste Cover
-                </ContextMenuItem>
-                {game.coverUrl ? (
-                  <ContextMenuItem
-                    dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                    icon={Trash2}
-                    onClick={handleClearCover}
-                  >
-                    Delete Cover
-                  </ContextMenuItem>
-                ) : null}
-              </>
             ) : null}
           </ContextMenuSubmenu>
         ) : null}

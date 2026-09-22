@@ -322,6 +322,12 @@ it("offers the same move from game details and merges an explicit re-import into
       )!
       .click(),
   );
+  // Launcher imports live on the dialog's Files tab.
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>("#game-details-tab-files")!
+      .click(),
+  );
   await act(() => button("Move to PlayCounter").click());
   await act(() => button("Move to PlayCounter").click());
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);

@@ -283,6 +283,7 @@ export function Modal({
   icon: Icon,
   iconSpin = false,
   media,
+  header,
   onClose,
   footer,
   className,
@@ -300,6 +301,12 @@ export function Modal({
   iconSpin?: boolean;
   /** Replaces the icon tile, e.g. with the game's cover art. */
   media?: ReactNode;
+  /**
+   * Replaces the whole standard header (eyebrow, title, subtitle, close
+   * button). The caller then owns the close button and must render an
+   * element with id `labelId` for the dialog's accessible name.
+   */
+  header?: ReactNode;
   onClose: () => void;
   footer?: ReactNode;
   className?: string;
@@ -333,42 +340,44 @@ export function Modal({
           className,
         )}
       >
-        <div className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
-          <div className="flex items-start gap-3">
-            {media ?? null}
-            {!media && Icon ? (
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
-                <Icon
-                  size={21}
-                  className={
-                    iconSpin
-                      ? "animate-spin motion-reduce:animate-none"
-                      : undefined
-                  }
-                />
-              </div>
-            ) : null}
-            <div className="min-w-0 flex-1">
-              {eyebrow ? (
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-                  {eyebrow}
+        {header ?? (
+          <div className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
+            <div className="flex items-start gap-3">
+              {media ?? null}
+              {!media && Icon ? (
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
+                  <Icon
+                    size={21}
+                    className={
+                      iconSpin
+                        ? "animate-spin motion-reduce:animate-none"
+                        : undefined
+                    }
+                  />
                 </div>
               ) : null}
-              <h2 id={labelId} className="mt-0.5 text-xl font-bold text-text">
-                {title}
-              </h2>
-              {subtitle ? (
-                <p
-                  className="mt-1 truncate text-sm text-text-muted"
-                  title={subtitle}
-                >
-                  {subtitle}
-                </p>
-              ) : null}
+              <div className="min-w-0 flex-1">
+                {eyebrow ? (
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+                    {eyebrow}
+                  </div>
+                ) : null}
+                <h2 id={labelId} className="mt-0.5 text-xl font-bold text-text">
+                  {title}
+                </h2>
+                {subtitle ? (
+                  <p
+                    className="mt-1 truncate text-sm text-text-muted"
+                    title={subtitle}
+                  >
+                    {subtitle}
+                  </p>
+                ) : null}
+              </div>
+              <IconButton icon={X} aria-label="Close" onClick={onClose} />
             </div>
-            <IconButton icon={X} aria-label="Close" onClick={onClose} />
           </div>
-        </div>
+        )}
         <div
           data-controller-scroll
           className={clsx(
