@@ -2,6 +2,7 @@ import {
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
+import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import {
   FolderHeart,
   Pencil,
@@ -11,6 +12,7 @@ import {
   SlidersHorizontal,
   Star,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   useCallback,
@@ -90,6 +92,25 @@ export function matchesShelf(
       : journal.shelfIds.includes(shelf.id);
 }
 
+export function countShelfGames(
+  games: readonly OrganizedGame[],
+  journalFor: (game: GameIdentityRef) => GameJournal,
+  shelves: readonly PersonalShelf[],
+) {
+  const counts: Record<string, number> = {
+    all: games.length,
+    favorites: 0,
+  };
+  for (const shelf of shelves) counts[shelf.id] = 0;
+  for (const game of games) {
+    const journal = journalFor({ ...game, gameName: game.name });
+    if (journal.favorite) counts.favorites += 1;
+    for (const shelf of shelves)
+      if (matchesShelf(game, journal, shelf.id, shelves)) counts[shelf.id] += 1;
+  }
+  return counts;
+}
+
 /* The shelf rail ─────────────────────────────────────────────────────────────
    Shelves were hidden behind a dropdown, so nobody could see what they had
    made. They are chips now: one row, one click, each carrying its own count.
@@ -135,11 +156,11 @@ export function LibraryOrganizationToolbar({
   filters: LibraryFilters;
   onFiltersChange: (filters: LibraryFilters) => void;
   expanded: boolean;
-  onExpandedChange: (open: boolean) => void;
+  onExpandedChange: (open: boolean, saved?: boolean) => void;
   onClearFilters: () => void;
   source: LibraryTabId;
   query: string;
-  /** Games per shelf id, counted across every import source. */
+  /** Games per shelf id within the selected library source. */
   counts: Record<string, number>;
   selectionAction?: React.ReactNode;
   /** Sits before the shelf chips: the library's title and count. */
@@ -197,6 +218,12 @@ export function LibraryOrganizationToolbar({
     search: query,
   });
   const activeCount = Object.keys(draftFilters).length;
+  const sourceLabel =
+    source === "all"
+      ? null
+      : source === "unimported"
+        ? "PlayCounter"
+        : LIBRARY_PROVIDER_LABELS[source];
   const filtersChanged =
     selected &&
     JSON.stringify(draftFilters) !==
@@ -218,8 +245,8 @@ export function LibraryOrganizationToolbar({
     if (value === undefined) delete next[key];
     onFiltersChange(next);
   }
-  function closeFilters() {
-    onExpandedChange(false);
+  function closeFilters(saved = false) {
+    onExpandedChange(false, saved);
     focusFiltersButton();
   }
   function focusFiltersButton() {
@@ -382,6 +409,33 @@ export function LibraryOrganizationToolbar({
               </p>
             </div>
           ) : null}
+          {sourceLabel ? (
+            <FilterGroup label="Library">
+              <Pill
+                selected
+                aria-label={`Clear ${sourceLabel} library filter`}
+                title="Show games from all libraries"
+                onClick={() => setFilter("source", "all")}
+              >
+                {sourceLabel}
+                <X size={12} aria-hidden className="shrink-0" />
+              </Pill>
+            </FilterGroup>
+          ) : null}
+          {draftFilters.search ? (
+            <FilterGroup label="Search">
+              <Pill
+                selected
+                className="min-w-0 max-w-full"
+                aria-label={`Clear search filter: ${draftFilters.search}`}
+                title={`Clear search filter: ${draftFilters.search}`}
+                onClick={() => setFilter("search", "")}
+              >
+                <span className="min-w-0 truncate">{draftFilters.search}</span>
+                <X size={12} aria-hidden className="shrink-0" />
+              </Pill>
+            </FilterGroup>
+          ) : null}
           <FilterGroup label="Progress">
             <Pill
               selected={!filters.status}
@@ -537,7 +591,7 @@ export function LibraryOrganizationToolbar({
                 disabled={!activeCount || !filtersChanged}
                 onClick={() => {
                   save({ ...selected, filters: draftFilters });
-                  closeFilters();
+                  closeFilters(true);
                   addToast({
                     tone: "success",
                     title: "Filters saved",
@@ -550,7 +604,7 @@ export function LibraryOrganizationToolbar({
             ) : null}
             {/* On a shelf this throws the draft away; with no shelf to revert
                 to there is nothing to discard, so it only shuts the drawer. */}
-            <Button variant="ghost" onClick={closeFilters}>
+            <Button variant="ghost" onClick={() => closeFilters()}>
               {selected ? "Cancel" : "Close"}
             </Button>
             {selected?.filters ? (

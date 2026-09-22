@@ -183,6 +183,7 @@ import { useLibrarySessionState } from "../useLibrarySessionState";
 import { selectClass } from "../primitives";
 import {
   LibraryOrganizationToolbar,
+  countShelfGames,
   matchesShelf,
   useLibraryJournalLookup,
 } from "../LibraryOrganization";
@@ -616,10 +617,12 @@ export function MyGamesView({
     const saved = useAppStore
       .getState()
       .personalShelves.find((s) => s.id === id)?.filters;
-    const { source = "all", search = "", ...filters } = saved ?? {};
+    const { source, search = "", ...filters } = saved ?? {};
     setLibraryFilters(filters);
     useAppStore.getState().setLibraryQuery(search);
-    useAppStore.getState().setLibraryTab(source);
+    // Regular shelves narrow the current library. Only an explicitly saved
+    // source filter should switch to another library.
+    if (source) useAppStore.getState().setLibraryTab(source);
   }, []);
   const customizeMenu = useAnchoredMenu();
   const showHero = useAppStore(
@@ -715,9 +718,20 @@ export function MyGamesView({
     ? personalShelves.find((shelf) => shelf.id === shelfSelection)
     : undefined;
   const editShelfFilters = filtersOpen && Boolean(selectedShelf);
+  const sourceBeforeFilterEdit = useRef(libraryTab);
   const changeFiltersOpen = useCallback(
-    (open: boolean) => {
-      if (!open && selectedShelf) selectShelf(selectedShelf.id);
+    (open: boolean, saved = false) => {
+      if (open)
+        sourceBeforeFilterEdit.current = useAppStore.getState().libraryTab;
+      if (!open && selectedShelf) {
+        selectShelf(selectedShelf.id);
+        const savedSource = useAppStore
+          .getState()
+          .personalShelves.find((shelf) => shelf.id === selectedShelf.id)
+          ?.filters?.source;
+        if (!saved && !savedSource)
+          useAppStore.getState().setLibraryTab(sourceBeforeFilterEdit.current);
+      }
       setFiltersOpen(open);
     },
     [selectedShelf, selectShelf],
@@ -1498,23 +1512,11 @@ export function MyGamesView({
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
   const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
   const allLibraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
-  // Each chip carries its own size, counted across every import source so the
-  // number does not shift when the source tab changes.
-  const shelfCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      all: games.length,
-      favorites: 0,
-    };
-    for (const shelf of personalShelves) counts[shelf.id] = 0;
-    for (const game of games) {
-      const journal = journalFor({ ...game, gameName: game.name });
-      if (journal.favorite) counts.favorites += 1;
-      for (const shelf of personalShelves)
-        if (matchesShelf(game, journal, shelf.id, personalShelves))
-          counts[shelf.id] += 1;
-    }
-    return counts;
-  }, [games, journalFor, personalShelves]);
+  // Only shelves empty across the full library should preview every game.
+  const allShelfCounts = useMemo(
+    () => countShelfGames(games, journalFor, personalShelves),
+    [games, journalFor, personalShelves],
+  );
   // Apply shelf rules before the source selection so every badge describes
   // the games available in that source within the current view.
   const shelfGames = useMemo(() => {
@@ -1528,7 +1530,7 @@ export function MyGamesView({
     const previewFilters =
       (savedFilterSelected || editShelfFilters) &&
       (Object.keys(normalizeLibraryFilters(libraryFilters)).length > 0 ||
-        (shelfCounts[shelfSelection] ?? 0) === 0);
+        (allShelfCounts[shelfSelection] ?? 0) === 0);
     return games.filter((game) => {
       const journal = journalFor({ ...game, gameName: game.name });
       return (
@@ -1545,7 +1547,7 @@ export function MyGamesView({
     editShelfFilters,
     libraryFilters,
     recentSortNow,
-    shelfCounts,
+    allShelfCounts,
   ]);
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -1629,6 +1631,13 @@ export function MyGamesView({
         ?.games ?? []
     );
   }, [activeLibraryTab, games, providerTabGames, unimportedGames]);
+  const shelfCounts = useMemo(
+    () =>
+      sourceGames === games
+        ? allShelfCounts
+        : countShelfGames(sourceGames, journalFor, personalShelves),
+    [sourceGames, games, allShelfCounts, journalFor, personalShelves],
+  );
   const tabGames = useMemo(
     () => filterByLibraryTab(shelfGames, activeLibraryTab),
     [shelfGames, activeLibraryTab],
@@ -1851,7 +1860,11 @@ export function MyGamesView({
                 selection={shelfSelection}
                 onSelect={selectShelf}
                 filters={libraryFilters}
-                onFiltersChange={setLibraryFilters}
+                onFiltersChange={({ source, search, ...filters }) => {
+                  setLibraryFilters(filters);
+                  if (source !== undefined) setLibraryTab(source);
+                  if (search !== undefined) setQuery(search);
+                }}
                 expanded={filtersOpen}
                 onExpandedChange={changeFiltersOpen}
                 onClearFilters={clearLibraryFilters}
@@ -2312,7 +2325,7 @@ export function MyGamesView({
                   {selectedShelf &&
                   !selectedShelf.filters &&
                   !filtersOpen &&
-                  !shelfCounts[selectedShelf.id] &&
+                  !allShelfCounts[selectedShelf.id] &&
                   !query &&
                   !Object.keys(libraryFilters).length ? (
                     <div className="mx-auto grid max-w-md justify-items-center gap-3">

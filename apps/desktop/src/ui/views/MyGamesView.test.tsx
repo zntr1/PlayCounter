@@ -704,6 +704,7 @@ it.each(["All games", "Favorites", "Weekend", "Saved search"])(
     expect(useAppStore.getState().settings.libraryShowShelves).toBe(true);
     await act(() => root.render(<LibraryTestShell />));
     await selectShelf(selection);
+    const source = useAppStore.getState().libraryTab;
     const toggle = await shelvesToggle();
     expect(toggle.checked).toBe(true);
     expect(toggle.matches(":disabled")).toBe(false);
@@ -726,7 +727,10 @@ it.each(["All games", "Favorites", "Weekend", "Saved search"])(
     ).toBe(false);
     expect(container.querySelector('[aria-label="Library shelf"]')).toBeNull();
     expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
-    expect(container.querySelectorAll(".game-library-card")).toHaveLength(4);
+    expect(useAppStore.getState().libraryTab).toBe(source);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(
+      source === "steam" ? 2 : 4,
+    );
     expect(
       container.querySelector<HTMLInputElement>(
         '[placeholder="Search games..."]',
@@ -745,8 +749,12 @@ it.each(["All games", "Favorites", "Weekend", "Saved search"])(
 
     await act(() => toggle.click());
     expect(shelfChip("All games").getAttribute("aria-selected")).toBe("true");
-    expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("2");
-    expect(shelfChip("Favorites").lastElementChild?.textContent).toBe("2");
+    expect(shelfChip("Weekend").lastElementChild?.textContent).toBe(
+      source === "steam" ? "1" : "2",
+    );
+    expect(shelfChip("Favorites").lastElementChild?.textContent).toBe(
+      source === "steam" ? "1" : "2",
+    );
     await selectShelf("Saved search");
     expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
     expect(gameCard(steam.name)).toBeDefined();
@@ -827,6 +835,117 @@ it("shows shelves for older settings without a shelf preference", async () => {
   await act(() => root.render(<LibraryTestShell />));
   expect((await shelvesToggle()).checked).toBe(true);
   expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("2");
+});
+
+it("scopes every shelf count to the selected library and keeps that source when opening shelves", async () => {
+  const xbox: LibraryImportEntry = {
+    ...steam,
+    provider: "xbox",
+    externalId: "300",
+    gameId: 3,
+    igdbId: 300,
+    name: "Xbox favorite",
+  };
+  const battlenet: LibraryImportEntry = {
+    ...steam,
+    provider: "battlenet",
+    externalId: "400",
+    gameId: 4,
+    igdbId: 400,
+    name: "Battle.net favorite",
+  };
+  useAppStore.setState({
+    libraryImports: new Map([
+      ...useAppStore.getState().libraryImports,
+      ["xbox:100", { ...steam, provider: "xbox" }],
+      ["xbox:101", { ...steam, provider: "xbox", externalId: "101" }],
+      ["xbox:300", xbox],
+      ["battlenet:400", battlenet],
+    ]),
+  });
+  useAppStore.getState().updateGameJournal(xbox, { favorite: true });
+  useAppStore.getState().updateGameJournal(battlenet, {
+    favorite: true,
+    status: "not-planned",
+    shelfIds: [shelf],
+  });
+  useAppStore.getState().savePersonalShelf({
+    name: "Not planned",
+    filters: { status: "not-planned" },
+  });
+  await act(() => root.render(<LibraryTestShell />));
+
+  for (const [source, allCount, favoriteCount, manualCount, filteredCount] of [
+    ["all", 6, 4, 3, 3],
+    ["xbox", 2, 2, 1, 1],
+    ["steam", 2, 1, 1, 1],
+    ["battlenet", 1, 1, 1, 1],
+    ["unimported", 2, 1, 1, 1],
+    ["all", 6, 4, 3, 3],
+  ] as const) {
+    await selectSource(source);
+    for (const [label, count] of [
+      ["Favorites", favoriteCount],
+      ["Weekend", manualCount],
+      ["Not planned", filteredCount],
+      ["All games", allCount],
+    ] as const) {
+      expect(Number(shelfChip(label).lastElementChild?.textContent)).toBe(
+        count,
+      );
+      await selectShelf(label);
+      expect(useAppStore.getState().libraryTab).toBe(source);
+      expect(container.querySelectorAll(".game-library-card")).toHaveLength(
+        count,
+      );
+    }
+  }
+
+  await selectSource("xbox");
+  await act(() =>
+    useAppStore.getState().updateGameJournal(steam, {
+      favorite: false,
+      shelfIds: [],
+    }),
+  );
+  expect(shelfChip("All games").lastElementChild?.textContent).toBe("2");
+  expect(shelfChip("Favorites").lastElementChild?.textContent).toBe("1");
+  expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("0");
+});
+
+it("keeps a shelf with games in other libraries empty in Xbox while editing its filters", async () => {
+  useAppStore.setState({
+    libraryImports: new Map([
+      ...useAppStore.getState().libraryImports,
+      [
+        "xbox:200",
+        {
+          ...steam,
+          provider: "xbox",
+          gameId: 2,
+          igdbId: 200,
+          externalId: "200",
+        },
+      ],
+    ]),
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await selectSource("xbox");
+  expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("0");
+  await selectShelf("Weekend");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
+  expect(container.textContent).toContain("No games match this shelf");
+  expect(container.textContent).not.toContain("This shelf is empty");
+
+  await openFilters();
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
+  await selectSource("steam");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+  await act(() => button("Cancel").click());
+  expect(useAppStore.getState().libraryTab).toBe("xbox");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
+  await selectSource("all");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
 });
 
 it("counts favorites and manual shelves across sources, then updates when membership changes", async () => {
@@ -1385,6 +1504,93 @@ it("edits an inactive shelf through its context menu and restores manual additio
   expect(shelfChip("Weekend").getAttribute("data-library-drop-shelf")).toBe(
     shelf,
   );
+});
+
+it.each([
+  ["steam", "Steam"],
+  ["xbox", "Xbox"],
+  ["battlenet", "Battle.net"],
+  ["unimported", "PlayCounter"],
+] as const)(
+  "shows the active %s library and search filters and lets users remove them independently",
+  async (source, label) => {
+    useAppStore.setState({
+      libraryImports: new Map([
+        ...useAppStore.getState().libraryImports,
+        ["xbox:100", { ...steam, provider: "xbox" }],
+        ["battlenet:100", { ...steam, provider: "battlenet" }],
+      ]),
+    });
+    await act(() => root.render(<LibraryTestShell />));
+    await selectSource(source);
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[aria-controls="library-filters"]',
+    )!;
+    expect(toggle.textContent).toBe("Filters · 1");
+    await openFilters();
+    const libraryFilter = container.querySelector<HTMLButtonElement>(
+      `[aria-label="Clear ${label} library filter"]`,
+    )!;
+    expect(libraryFilter.textContent).toBe(label);
+    expect(libraryFilter.getAttribute("aria-pressed")).toBe("true");
+
+    await setStatusFilter("Not planned");
+    await inputSearch("favorite");
+    expect(toggle.textContent).toBe("Filters · 3");
+    const searchFilter = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Clear search filter: favorite"]',
+    )!;
+    expect(searchFilter.textContent).toBe("favorite");
+    expect(searchFilter.getAttribute("aria-pressed")).toBe("true");
+
+    await act(() => libraryFilter.click());
+    expect(useAppStore.getState().libraryTab).toBe("all");
+    expect(useAppStore.getState().libraryQuery).toBe("favorite");
+    expect(toggle.textContent).toBe("Filters · 2");
+    expect(libraryFilter.isConnected).toBe(false);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+
+    await act(() => searchFilter.click());
+    expect(useAppStore.getState().libraryQuery).toBe("");
+    expect(toggle.textContent).toBe("Filters · 1");
+    expect(searchFilter.isConnected).toBe(false);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+
+    await act(() => button("Clear filters").click());
+    expect(toggle.textContent).toBe("Filters");
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(4);
+  },
+);
+
+it("keeps a removed library filter cleared after saving the remaining shelf filters", async () => {
+  useAppStore.getState().savePersonalShelf({
+    name: "Filtered favorites",
+    filters: { source: "steam", search: "favorite", status: "not-planned" },
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await selectShelf("Filtered favorites");
+  await openFilters();
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>(
+        '[aria-label="Clear Steam library filter"]',
+      )!
+      .click(),
+  );
+  expect(useAppStore.getState().libraryTab).toBe("all");
+  await act(() => button("Save filters").click());
+  expect(useAppStore.getState().libraryTab).toBe("all");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+  expect(
+    useAppStore
+      .getState()
+      .personalShelves.find((s) => s.name === "Filtered favorites")?.filters,
+  ).toEqual({ search: "favorite", status: "not-planned" });
+  await selectShelf("All games");
+  await selectShelf("Filtered favorites");
+  expect(useAppStore.getState().libraryTab).toBe("all");
+  expect(useAppStore.getState().libraryQuery).toBe("favorite");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
 });
 
 it("clears source and search with the other filters and offers shelf saving only on a custom shelf", async () => {
