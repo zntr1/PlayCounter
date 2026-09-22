@@ -17,15 +17,16 @@ import {
   useAppStore,
 } from "../../store";
 import { providerFloors } from "../../library/playtimeFloor";
-import { AchievementCard } from "./achievements/AchievementCard";
 import { AchievementHero } from "./achievements/AchievementHero";
 import { GameLadderRow } from "./achievements/GameLadderRow";
+import { LadderRow } from "./achievements/LadderRow";
 import { MonthHistoryRow } from "./achievements/MonthHistoryRow";
 import {
   GROUP_META,
   buildAchievementCatalog,
   buildGameLadders,
   buildMonthHistory,
+  monthLabel,
   recentUnlocks,
   summarizeAchievements,
   type AchievementCatalogItem,
@@ -147,6 +148,12 @@ export function AchievementsView() {
     ).length;
   }, [catalog, metrics.games]);
   const gameItems = catalog.get("game") ?? [];
+  const milestoneLadders = MILESTONE_GROUPS.map((group) => ({
+    category: group.id,
+    rungs: (catalog.get(group.id) ?? []).filter(
+      (item) => group.id !== "month" || item.scope === metrics.monthKey,
+    ),
+  })).filter((ladder) => ladderMatchesStatus(ladder.rungs, status));
   const tabCounts: Record<Tab, { unlocked: number; total: number }> = {
     milestones: { unlocked: summary.fixedUnlocked, total: summary.fixedTotal },
     games: {
@@ -236,34 +243,21 @@ export function AchievementsView() {
           id="achievements-panel-milestones"
           role="tabpanel"
           aria-labelledby="achievements-tab-milestones"
-          className="grid gap-8"
+          className="grid gap-3"
         >
-          {MILESTONE_GROUPS.map((group) => {
-            const items = catalog.get(group.id) ?? [];
-            const matching = items.filter((item) =>
-              matchesStatus(item, status),
-            );
-            if (status !== "all" && matching.length === 0) return null;
-            return (
-              <MilestoneSection
-                key={group.id}
-                category={group.id}
-                items={items}
-                matching={matching}
+          {milestoneLadders.length > 0 ? (
+            milestoneLadders.map((ladder) => (
+              <MilestoneLadder
+                key={ladder.category}
+                category={ladder.category}
+                rungs={ladder.rungs}
                 currentMonthKey={metrics.monthKey}
                 monthHistory={status === "in-progress" ? [] : monthHistory}
               />
-            );
-          })}
-          {status !== "all" &&
-          MILESTONE_GROUPS.every(
-            (group) =>
-              !(catalog.get(group.id) ?? []).some((item) =>
-                matchesStatus(item, status),
-              ),
-          ) ? (
+            ))
+          ) : (
             <NoFilterResults />
-          ) : null}
+          )}
         </div>
       ) : (
         <div
@@ -282,57 +276,35 @@ export function AchievementsView() {
   );
 }
 
-function MilestoneSection({
+function MilestoneLadder({
   category,
-  items,
-  matching,
+  rungs,
   currentMonthKey,
   monthHistory,
 }: {
   category: AchievementGroupId;
-  items: AchievementCatalogItem[];
-  matching: AchievementCatalogItem[];
+  rungs: AchievementCatalogItem[];
   currentMonthKey: string;
   monthHistory: ReturnType<typeof buildMonthHistory>;
 }) {
   const meta = GROUP_META.find((group) => group.id === category)!;
   const Icon = GROUP_ICONS[category];
-  const counted =
-    category === "month"
-      ? items.filter((item) => item.scope === currentMonthKey)
-      : items;
-  const unlocked = counted.filter((item) => item.milestone).length;
-  const visible =
-    category === "month"
-      ? matching.filter((item) => item.scope === currentMonthKey)
-      : matching;
+  const history = category === "month" ? monthHistory : [];
 
   return (
-    <section aria-labelledby={`achievements-group-${category}`}>
-      <div className="mb-3 flex items-end justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <Icon aria-hidden="true" size={16} className="shrink-0 text-accent" />
-          <h2
-            id={`achievements-group-${category}`}
-            className="text-base font-bold tracking-tight text-text"
-          >
-            {meta.label}
-          </h2>
-          <span className="font-mono text-xs tabular-nums text-text-faint">
-            {unlocked}/{counted.length}
-          </span>
-        </div>
-        <p className="hidden truncate text-xs text-text-muted sm:block">
-          {meta.caption}
-        </p>
-      </div>
-      {visible.length > 0 ? (
-        <CardGrid items={visible} />
-      ) : category !== "month" || monthHistory.length === 0 ? (
-        <NoFilterResults />
-      ) : null}
-      {category === "month" && monthHistory.length > 0 ? (
-        <div className="mt-4">
+    <div className="grid gap-2">
+      <LadderRow
+        title={meta.label}
+        subtitle={ladderSubtitle(category, rungs, currentMonthKey)}
+        rungs={rungs}
+        leading={
+          <div className="grid h-[72px] w-12 place-items-center rounded-lg bg-accent/10 text-accent shadow-raised">
+            <Icon aria-hidden="true" size={22} />
+          </div>
+        }
+      />
+      {history.length > 0 ? (
+        <div className="ml-4 border-l-2 border-border pl-4">
           <div className="mb-2 flex items-baseline justify-between gap-4">
             <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-text-faint">
               Earlier months
@@ -342,14 +314,33 @@ function MilestoneSection({
             </span>
           </div>
           <div className="grid gap-2 lg:grid-cols-2">
-            {monthHistory.map((month) => (
+            {history.map((month) => (
               <MonthHistoryRow key={month.monthKey} month={month} />
             ))}
           </div>
         </div>
       ) : null}
-    </section>
+    </div>
   );
+}
+
+function ladderSubtitle(
+  category: AchievementGroupId,
+  rungs: AchievementCatalogItem[],
+  currentMonthKey: string,
+) {
+  const current = Math.max(0, rungs[0]?.currentValue ?? 0);
+  const value = current.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const unit = rungs[0]?.unit ?? "hours";
+  const progress =
+    unit === "hours"
+      ? `${value}h played`
+      : unit === "days"
+        ? `${value}-day streak`
+        : `${value} approved`;
+  return category === "month"
+    ? `${monthLabel(currentMonthKey)} · ${progress}`
+    : progress;
 }
 
 function GameSection({
@@ -361,14 +352,9 @@ function GameSection({
   hiddenGameCount: number;
   status: StatusFilter;
 }) {
-  const visible = ladders.filter((ladder) => {
-    if (status === "all") return true;
-    if (status === "unlocked")
-      return ladder.rungs.some((rung) => rung.milestone);
-    return ladder.rungs.some(
-      (rung) => !rung.milestone && rung.isNext && rung.ratio > 0,
-    );
-  });
+  const visible = ladders.filter((ladder) =>
+    ladderMatchesStatus(ladder.rungs, status),
+  );
 
   if (ladders.length === 0 && status === "all") {
     return (
@@ -401,16 +387,6 @@ function GameSection({
   );
 }
 
-function CardGrid({ items }: { items: AchievementCatalogItem[] }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-      {items.map((item) => (
-        <AchievementCard key={item.id} item={item} />
-      ))}
-    </div>
-  );
-}
-
 function NoFilterResults() {
   return (
     <div className="rounded-xl border border-dashed border-border py-10 text-center text-sm font-medium text-text-muted">
@@ -419,12 +395,13 @@ function NoFilterResults() {
   );
 }
 
-function matchesStatus(item: AchievementCatalogItem, status: StatusFilter) {
-  if (status === "unlocked") return Boolean(item.milestone);
-  if (status === "in-progress") {
-    return !item.milestone && item.ratio > 0 && item.isNext;
-  }
-  return true;
+function ladderMatchesStatus(
+  rungs: AchievementCatalogItem[],
+  status: StatusFilter,
+) {
+  if (status === "all") return true;
+  if (status === "unlocked") return rungs.some((rung) => rung.milestone);
+  return rungs.some((rung) => !rung.milestone && rung.isNext && rung.ratio > 0);
 }
 
 /* The closest locked milestone per ladder, most advanced first. Game rungs
