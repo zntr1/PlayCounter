@@ -1165,16 +1165,19 @@ select {
   width: max-content;
 }
 
-.library-toolbar:is([data-single-row], [data-measuring]) .library-toolbar-heading {
+.library-toolbar:is([data-single-row], [data-measuring])
+  .library-toolbar-heading {
   flex: 0 0 auto;
 }
 
-.library-toolbar:is([data-single-row], [data-measuring]) .library-toolbar-shelves {
+.library-toolbar:is([data-single-row], [data-measuring])
+  .library-toolbar-shelves {
   flex: 1 0 auto;
   justify-content: flex-end;
 }
 
-.library-toolbar:is([data-single-row], [data-measuring]) .library-toolbar-actions {
+.library-toolbar:is([data-single-row], [data-measuring])
+  .library-toolbar-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -1543,6 +1546,46 @@ body.shift-held
     transform: none;
   }
 }
+/* Customize options: a real checkbox drawn as a switch, so ids, labels and
+   keyboard behaviour stay those of a checkbox. */
+.pc-switch {
+  appearance: none;
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: rgb(var(--color-text-faint) / 0.45);
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+.pc-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  transition: transform 150ms ease;
+}
+.pc-switch:checked {
+  background: rgb(var(--color-accent));
+}
+.pc-switch:checked::after {
+  transform: translateX(16px);
+}
+.pc-switch:focus-visible {
+  outline: 2px solid rgb(var(--color-accent));
+  outline-offset: 2px;
+}
+.pc-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* Keep the practice controls and their instructions visible together. */
 [data-tour="demo-library-customize"] p {
   display: none;

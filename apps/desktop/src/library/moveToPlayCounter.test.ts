@@ -116,7 +116,7 @@ describe("moving a selection to PlayCounter", () => {
       ]);
       expect(useAppStore.getState().playtimeAdjustments).toEqual({
         "igdb:1": 3000,
-        "igdb:2": 6300,
+        "igdb:2": 9900,
         "custom:-20": 1800,
       });
       expect(useAppStore.getState().recentSessions).toEqual(
@@ -130,7 +130,7 @@ describe("moving a selection to PlayCounter", () => {
       expect(useAppStore.getState().playcounterLibrary.size).toBe(2);
       expect(useAppStore.getState().playtimeAdjustments).toEqual({
         "igdb:1": 3000,
-        "igdb:2": 6300,
+        "igdb:2": 9900,
         "custom:-20": 1800,
       });
     } finally {
@@ -239,23 +239,38 @@ describe("moving to PlayCounter", () => {
     },
   );
 
-  it("handles several providers and aliases as one game, using the highest total", () => {
-    useAppStore.getState().setLibraryImport({
-      ...imported,
-      provider: "xbox",
-      gameId: 7,
-      providerSeconds: 7200,
-    });
-    useAppStore.setState({
-      recentSessions: [session(1200), session(600, { id: 11, gameId: 7 })],
-    });
-    moveGameToPlayCounter(game);
-    expect([...useAppStore.getState().libraryImports.keys()]).toEqual([
-      "steam:200",
-    ]);
-    expect(useAppStore.getState().playtimeAdjustments["igdb:1"]).toBe(5400);
-    expect(useAppStore.getState().playcounterLibrary.size).toBe(1);
-  });
+  it.each([
+    { local: 1200, expectedAdjustment: 9000, expectedTotal: 10800 },
+    { local: 12000, expectedAdjustment: 0, expectedTotal: 12600 },
+  ])(
+    "preserves combined launcher time or higher local time across aliases: $local",
+    ({ local, expectedAdjustment, expectedTotal }) => {
+      useAppStore.getState().setLibraryImport({
+        ...imported,
+        provider: "xbox",
+        gameId: 7,
+        providerSeconds: 7200,
+      });
+      useAppStore.setState({
+        recentSessions: [session(local), session(600, { id: 11, gameId: 7 })],
+      });
+      moveGameToPlayCounter(game);
+      expect([...useAppStore.getState().libraryImports.keys()]).toEqual([
+        "steam:200",
+      ]);
+      expect(useAppStore.getState().playtimeAdjustments["igdb:1"] ?? 0).toBe(
+        expectedAdjustment,
+      );
+      hydrate();
+      expect(
+        effectiveTotalSeconds(
+          local + 600,
+          useAppStore.getState().playtimeAdjustments["igdb:1"] ?? 0,
+        ),
+      ).toBe(expectedTotal);
+      expect(useAppStore.getState().playcounterLibrary.size).toBe(1);
+    },
+  );
 
   it("keeps a running session and adds only its future seconds to the transferred total", () => {
     const active = {

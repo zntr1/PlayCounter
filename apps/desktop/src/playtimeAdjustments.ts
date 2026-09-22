@@ -22,9 +22,9 @@ export function displayTotalSeconds(
 }
 
 /**
- * Provider totals are historical floors, never adjustments. Keeping them
- * separate prevents newly tracked sessions from being added on top of Steam's
- * already-overlapping lifetime counter.
+ * The sum of launcher lifetime totals is a historical floor, never an
+ * adjustment. PlayCounter tracking can overlap those totals, so use the
+ * higher of its adjusted time and the combined launcher time.
  */
 export function effectiveTotalSeconds(
   recordedSeconds: number,

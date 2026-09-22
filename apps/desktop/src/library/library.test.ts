@@ -388,7 +388,7 @@ describe("library import", () => {
     ).toEqual(["cs2.exe"]);
   });
 
-  it("merges multiple provider records into the highest IGDB floor", () => {
+  it("uses the highest total for duplicate records from the same launcher", () => {
     const base: LibraryImportEntry = {
       provider: "steam",
       externalId: "730",

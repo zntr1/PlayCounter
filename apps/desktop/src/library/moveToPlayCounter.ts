@@ -13,6 +13,7 @@ import {
   type GameIdentityRef,
 } from "../store";
 import { libraryEntryKey, type LibraryImportEntry } from "./types";
+import { providerFloors } from "./playtimeFloor";
 
 type MoveTarget = GameIdentityRef & { aliases?: GameIdentityRef[] };
 type MoveChanges = Pick<
@@ -169,7 +170,7 @@ function applyGameMove(
   const totalSeconds = effectiveTotalSeconds(
     recordedSeconds,
     adjustmentSecondsFor(state.playtimeAdjustments, aliases),
-    Math.max(...imports.map((entry) => entry.providerSeconds ?? 0)),
+    providerFloors(imports).reduce((total, floor) => total + floor.seconds, 0),
   );
   for (const alias of aliases) delete playtimeAdjustments[alias];
   const adjustment = Math.round(totalSeconds - recordedSeconds);

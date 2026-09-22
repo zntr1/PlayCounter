@@ -21,23 +21,37 @@ export function providerFloorKey(game: {
 export function providerFloors(
   entries: Iterable<LibraryImportEntry>,
 ): ProviderFloor[] {
-  const floors = new Map<string, ProviderFloor>();
+  const floors = new Map<string, Map<LibraryProviderId, ProviderFloor>>();
   for (const entry of entries) {
     if (entry.providerSeconds === null) continue;
     const seconds = Math.max(0, Math.round(entry.providerSeconds));
     if (!Number.isFinite(seconds) || seconds === 0) continue;
     const canonicalKey = providerFloorKey(entry);
-    const current = floors.get(canonicalKey);
+    const providers =
+      floors.get(canonicalKey) ?? new Map<LibraryProviderId, ProviderFloor>();
+    const current = providers.get(entry.provider);
     if (!current || seconds > current.seconds) {
-      floors.set(canonicalKey, {
+      providers.set(entry.provider, {
         canonicalKey,
         seconds,
         name: entry.name,
         coverUrl: entry.coverUrl,
       });
+      floors.set(canonicalKey, providers);
     }
   }
-  return [...floors.values()];
+  // Launcher counters are independent. Keep one lifetime total per launcher,
+  // then sum them before comparing with overlapping PlayCounter tracking.
+  return [...floors.values()].map((providers) => {
+    const values = [...providers.values()];
+    const largest = values.reduce((current, floor) =>
+      floor.seconds > current.seconds ? floor : current,
+    );
+    return {
+      ...largest,
+      seconds: values.reduce((total, floor) => total + floor.seconds, 0),
+    };
+  });
 }
 
 export function providerFloorsForProvider(

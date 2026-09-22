@@ -459,7 +459,7 @@ export const TOURS: TourDefinition[] = [
         scrollIntoView: true,
         allow: [a("demo-library-stage")],
         title: "Choose which details to show",
-        body: "Switch Show status on game cards and Show notes on game cards off and on to watch the badges on the sample covers disappear and return. Show shelves hides or shows the whole shelf row above the library. Hiding a badge only changes what you see; your statuses, notes, and shelves are kept.",
+        body: "Switch Status on cards and Notes on cards off and on to watch the badges on the sample covers disappear and return. Shelves hides or shows the whole shelf row above the library. Hiding a badge only changes what you see; your statuses, notes, and shelves are kept.",
       },
       {
         id: "finish",

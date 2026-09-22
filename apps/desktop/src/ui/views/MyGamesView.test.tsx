@@ -135,6 +135,45 @@ function seedMatchReview(
   return entry;
 }
 
+it.each([4, 6])(
+  "shows combined launcher time or higher PlayCounter time on every source tab (%sh tracked)",
+  async (trackedHours) => {
+    useAppStore.setState({
+      exeCache: new Map(),
+      archivedSeconds: trackedHours * 3600,
+      archivedGameSeconds: { "igdb:1": trackedHours * 3600 },
+      libraryImports: new Map([
+        ["steam:100", { ...steam, providerSeconds: 2 * 3600 }],
+        [
+          "xbox:200",
+          {
+            ...steam,
+            provider: "xbox",
+            externalId: "200",
+            gameId: 2,
+            providerSeconds: 3 * 3600,
+          },
+        ],
+      ]),
+    });
+    useAppStore.getState().setMyGamesCardSize("grid");
+    await act(() => root.render(<LibraryTestShell />));
+
+    const expected = `${Math.max(5, trackedHours)}h 0m`;
+    for (const source of ["all", "steam", "xbox"]) {
+      await selectSource(source);
+      expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+      const time = gameCard(steam.name).querySelector(
+        '[title^="Launchers combined:"]',
+      );
+      expect(time?.textContent).toBe(expected);
+      expect(time?.getAttribute("title")).toBe(
+        `Launchers combined: 5h 0m · PlayCounter: ${trackedHours}h 0m · shown: ${expected} (higher total).`,
+      );
+    }
+  },
+);
+
 async function openMatchReview(offered = true) {
   await act(() => root.render(<LibraryTestShell />));
   const label = offered

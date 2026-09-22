@@ -1,4 +1,9 @@
-import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
+import {
+  CustomizeSection,
+  LibraryCardControls,
+  LibraryLayoutControls,
+  OptionRow,
+} from "../LibraryAppearanceControls";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { useLibraryPractice } from "../PersonalLibraryContext";
 import {
@@ -31,7 +36,9 @@ import {
   History,
   ImagePlus,
   Info,
+  FolderTree,
   LayoutGrid,
+  PanelTop,
   List,
   Loader2,
   MoveRight,
@@ -2036,7 +2043,7 @@ export function MyGamesView({
               <ContextMenu
                 open={customizeMenu.open}
                 position={{
-                  x: customizeMenu.position.x - 380 + 36,
+                  x: customizeMenu.position.x - 400 + 36,
                   y: customizeMenu.position.y,
                 }}
                 onClose={customizeMenu.close}
@@ -2046,225 +2053,151 @@ export function MyGamesView({
                   id="library-customize"
                   role="group"
                   aria-label="Customize library view"
-                  className="w-[380px] max-w-[calc(100vw-2rem)] divide-y divide-border px-4 py-1"
+                  className="w-[400px] max-w-[calc(100vw-2rem)]"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div>
-                      <label
-                        htmlFor="library-show-hero"
-                        className="text-sm font-medium text-text"
-                      >
-                        Show the banner
-                      </label>
-                      <p
-                        id="library-show-hero-help"
-                        className="mt-1 text-xs leading-5 text-text-faint"
-                      >
-                        The featured game above your library. Pin any game to it
-                        from the banner menu.
+                  <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-3.5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent-tint text-accent">
+                      <Settings2 size={18} />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="text-base font-bold text-text">
+                        Customize Library
+                      </h2>
+                      <p className="text-xs text-text-faint">
+                        Adjust how your library looks and behaves.
                       </p>
                     </div>
-                    <input
-                      id="library-show-hero"
-                      type="checkbox"
-                      checked={showHero}
-                      aria-describedby="library-show-hero-help"
-                      data-controller-item="library-option"
-                      onChange={(event) =>
-                        setMyGamesShowHero(event.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-border accent-accent"
-                    />
+                  </header>
+                  <div className="grid gap-3 p-3">
+                    <CustomizeSection
+                      icon={PanelTop}
+                      title="Layout"
+                      hint="The main structure of your library."
+                    >
+                      <OptionRow
+                        id="library-show-hero"
+                        label="Hero banner"
+                        help="The featured game above your library."
+                        checked={showHero}
+                        onChange={setMyGamesShowHero}
+                      />
+                      <LibraryLayoutControls
+                        view={view}
+                        gridLayout={gridLayout}
+                        showShelves={showShelves}
+                        setMyGamesGridColumns={setMyGamesGridColumns}
+                        setMyGamesShowShelves={setMyGamesShowShelves}
+                      />
+                      <OptionRow
+                        id="library-high-res-covers"
+                        label="Sharper covers"
+                        help="Larger cover art. Looks better on big cards, uses more data."
+                        checked={highResCovers}
+                        onChange={setMyGamesHighResCovers}
+                      />
+                    </CustomizeSection>
+
+                    <CustomizeSection
+                      icon={LayoutGrid}
+                      title="Card details"
+                      hint="What each game card shows."
+                    >
+                      <LibraryCardControls
+                        showOrigin={showOrigin}
+                        showMatch={showMatch}
+                        showStatus={showStatus}
+                        showNotes={showNotes}
+                        setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
+                        setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
+                        setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
+                        setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                      />
+                    </CustomizeSection>
+
+                    <CustomizeSection
+                      icon={FolderTree}
+                      title="Library structure"
+                      hint="How your games are grouped."
+                    >
+                      <OptionRow
+                        id="library-show-provider-tabs"
+                        label="Launcher groups"
+                        help="Steam, Xbox and Battle.net as their own entries under My Games."
+                        checked={showProviderTabs}
+                        onChange={setMyGamesShowProviderTabs}
+                      />
+                      <OptionRow
+                        id="library-hide-empty-tabs"
+                        label="Hide empty sources"
+                        help={
+                          !showProviderTabs
+                            ? "Turn on launcher groups to choose which sources appear."
+                            : !hasImportedGames
+                              ? "Launcher groups appear after you import games."
+                              : canHideEmptyProviderTabs
+                                ? "Hide launchers you have not imported from yet."
+                                : "All sources in the sidebar have games."
+                        }
+                        checked={hideEmptyProviderTabs}
+                        disabled={!canHideEmptyProviderTabs}
+                        onChange={setMyGamesHideEmptyProviderTabs}
+                      />
+                      <OptionRow
+                        id="library-show-stats"
+                        label="Summary numbers"
+                        help="The line of numbers beside the library title."
+                        checked={showStatCards}
+                        onChange={setMyGamesShowStatCards}
+                      />
+                      {showStatCards ? (
+                        <fieldset className="py-2.5">
+                          <legend className="text-[13px] font-medium text-text">
+                            Numbers on the {statTabLabel} tab
+                          </legend>
+                          <p className="text-xs leading-4 text-text-faint">
+                            The game count always keeps the first slot.
+                          </p>
+                          <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                            {availableStatDefinitions.map((definition) => {
+                              const checked = statCardIds.includes(
+                                definition.id,
+                              );
+                              return (
+                                <label
+                                  key={definition.id}
+                                  title={definition.help}
+                                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-text transition hover:bg-surface-hover"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    data-controller-item="library-option"
+                                    onChange={(event) =>
+                                      setMyGamesStatCards(
+                                        toggleLibraryStatCardIds(
+                                          statCardIds,
+                                          definition.id,
+                                          event.target.checked,
+                                        ),
+                                      )
+                                    }
+                                    className="h-4 w-4 shrink-0 rounded border-border accent-accent"
+                                  />
+                                  <span className="min-w-0 truncate">
+                                    {definition.label({
+                                      kind: activeTabKind,
+                                      providerLabel:
+                                        activeProviderConfig?.label,
+                                    })}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
+                      ) : null}
+                    </CustomizeSection>
                   </div>
-                  <LibraryAppearanceControls
-                    view={view}
-                    gridLayout={gridLayout}
-                    showShelves={showShelves}
-                    showOrigin={showOrigin}
-                    showMatch={showMatch}
-                    showStatus={showStatus}
-                    showNotes={showNotes}
-                    setMyGamesGridColumns={setMyGamesGridColumns}
-                    setMyGamesShowShelves={setMyGamesShowShelves}
-                    setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
-                    setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
-                    setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
-                    setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
-                  />
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div>
-                      <label
-                        htmlFor="library-high-res-covers"
-                        className="text-sm font-medium text-text"
-                      >
-                        Sharper covers
-                      </label>
-                      <p
-                        id="library-high-res-covers-help"
-                        className="mt-1 text-xs leading-5 text-text-faint"
-                      >
-                        Load cover art at a larger size. Looks better on big
-                        cards, uses more data. Covers you set yourself are
-                        unaffected.
-                      </p>
-                    </div>
-                    <input
-                      id="library-high-res-covers"
-                      type="checkbox"
-                      checked={highResCovers}
-                      aria-describedby="library-high-res-covers-help"
-                      data-controller-item="library-option"
-                      onChange={(event) =>
-                        setMyGamesHighResCovers(event.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-border accent-accent"
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div>
-                      <label
-                        htmlFor="library-show-provider-tabs"
-                        className="text-sm font-medium text-text"
-                      >
-                        Show launcher groups
-                      </label>
-                      <p
-                        id="library-show-provider-tabs-help"
-                        className="mt-1 text-xs leading-5 text-text-faint"
-                      >
-                        Group imported games by launcher under My Games. Turn
-                        off to browse all games in a single menu item.
-                      </p>
-                    </div>
-                    <input
-                      id="library-show-provider-tabs"
-                      type="checkbox"
-                      checked={showProviderTabs}
-                      aria-describedby="library-show-provider-tabs-help"
-                      data-controller-item="library-option"
-                      onChange={(event) =>
-                        setMyGamesShowProviderTabs(event.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-border accent-accent"
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div>
-                      <label
-                        htmlFor="library-hide-empty-tabs"
-                        className={clsx(
-                          "text-sm font-medium",
-                          canHideEmptyProviderTabs
-                            ? "text-text"
-                            : "text-text-faint",
-                        )}
-                      >
-                        Hide empty sources
-                      </label>
-                      <p
-                        id="library-hide-empty-tabs-help"
-                        className="mt-1 text-xs leading-5 text-text-faint"
-                      >
-                        {!showProviderTabs
-                          ? "Turn on launcher groups to choose which sources appear."
-                          : !hasImportedGames
-                            ? "Launcher groups appear after you import games."
-                            : canHideEmptyProviderTabs
-                              ? "Hide Steam, Xbox or Battle.net in the sidebar while nothing is imported from them."
-                              : "All sources in the sidebar have games."}
-                      </p>
-                    </div>
-                    <input
-                      id="library-hide-empty-tabs"
-                      type="checkbox"
-                      checked={hideEmptyProviderTabs}
-                      disabled={!canHideEmptyProviderTabs}
-                      aria-describedby="library-hide-empty-tabs-help"
-                      data-controller-item="library-option"
-                      onChange={(event) =>
-                        setMyGamesHideEmptyProviderTabs(event.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-border accent-accent disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div>
-                      <label
-                        htmlFor="library-show-stats"
-                        className="text-sm font-medium text-text"
-                      >
-                        Show the summary numbers
-                      </label>
-                      <p
-                        id="library-show-stats-help"
-                        className="mt-1 text-xs leading-5 text-text-faint"
-                      >
-                        The line of numbers beside the library title. My History
-                        has the full picture.
-                      </p>
-                    </div>
-                    <input
-                      id="library-show-stats"
-                      type="checkbox"
-                      checked={showStatCards}
-                      aria-describedby="library-show-stats-help"
-                      data-controller-item="library-option"
-                      onChange={(event) =>
-                        setMyGamesShowStatCards(event.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-border accent-accent"
-                    />
-                  </div>
-                  {showStatCards ? (
-                    <fieldset className="py-3">
-                      <legend className="text-sm font-medium text-text">
-                        Numbers on the {statTabLabel} tab
-                      </legend>
-                      <p className="mt-1 text-xs leading-5 text-text-faint">
-                        Pick which numbers to show. A tab only offers the ones
-                        that mean something there, and the game count keeps the
-                        first slot next to the title.
-                      </p>
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {availableStatDefinitions.map((definition) => {
-                          const checked = statCardIds.includes(definition.id);
-                          return (
-                            <label
-                              key={definition.id}
-                              className="flex items-start gap-2.5 rounded-md px-2 py-1.5 transition hover:bg-surface-hover"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                data-controller-item="library-option"
-                                onChange={(event) =>
-                                  setMyGamesStatCards(
-                                    toggleLibraryStatCardIds(
-                                      statCardIds,
-                                      definition.id,
-                                      event.target.checked,
-                                    ),
-                                  )
-                                }
-                                className="mt-0.5 h-4 w-4 shrink-0 rounded border-border accent-accent"
-                              />
-                              <span className="min-w-0">
-                                <span className="block text-sm text-text">
-                                  {definition.label({
-                                    kind: activeTabKind,
-                                    providerLabel: activeProviderConfig?.label,
-                                  })}
-                                </span>
-                                <span className="block text-xs leading-5 text-text-faint">
-                                  {definition.help}
-                                </span>
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </fieldset>
-                  ) : null}
                 </div>
               </ContextMenu>
             </div>
@@ -2763,6 +2696,9 @@ export function GameLibraryCard({
   const [convertName, setConvertName] = useState("");
   const [showRename, setShowRename] = useState(false);
   const [showArtPicker, setShowArtPicker] = useState(false);
+  const [artPickerTab, setArtPickerTab] = useState<"banner" | "cover">(
+    "banner",
+  );
   const [renameName, setRenameName] = useState("");
   const [launching, setLaunching] = useState(false);
 
@@ -3028,7 +2964,7 @@ export function GameLibraryCard({
   );
   const playtimeTitle =
     game.libraryImports.length > 0
-      ? `Steam: ${formatDuration(game.providerFloorSeconds, showDurationDays)} · PlayCounter: ${formatDuration(localDisplayedSeconds, showDurationDays)} · shown: ${formatDuration(game.totalSeconds, showDurationDays)} (highest single source, never added together).`
+      ? `Launchers combined: ${formatDuration(game.providerFloorSeconds, showDurationDays)} · PlayCounter: ${formatDuration(localDisplayedSeconds, showDurationDays)} · shown: ${formatDuration(game.totalSeconds, showDurationDays)} (higher total).`
       : undefined;
   const trackingUnavailable =
     game.exeNames.length === 0 && game.emulatorContentKeys.length === 0;
@@ -3913,6 +3849,7 @@ export function GameLibraryCard({
           name: game.name,
           canEditCover,
         }}
+        initialTab={artPickerTab}
         onClose={() => setShowArtPicker(false)}
       />
     ) : showMoveToPlayCounter ? (
@@ -4243,45 +4180,66 @@ export function GameLibraryCard({
           </ContextMenuItem>
         </ContextMenuSubmenu>
         {!demo ? (
-          <ContextMenuItem
-            icon={ImagePlus}
-            onClick={() => {
-              contextMenu.close();
-              setShowArtPicker(true);
-            }}
-          >
-            Choose banner…
-          </ContextMenuItem>
-        ) : null}
-        {canEditCover ? (
-          <ContextMenuSubmenu label="Cover" icon={ImagePlus}>
+          canEditCover ? (
+            <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
+              <ContextMenuItem
+                icon={ImagePlus}
+                onClick={() => {
+                  contextMenu.close();
+                  setArtPickerTab("banner");
+                  setShowArtPicker(true);
+                }}
+              >
+                Choose banner…
+              </ContextMenuItem>
+              <ContextMenuItem
+                icon={ImagePlus}
+                onClick={() => {
+                  contextMenu.close();
+                  setArtPickerTab("cover");
+                  setShowArtPicker(true);
+                }}
+              >
+                Choose cover…
+              </ContextMenuItem>
+              <ContextMenuItem
+                icon={ImagePlus}
+                onClick={() => {
+                  contextMenu.close();
+                  coverInputRef.current?.click();
+                }}
+              >
+                Upload cover
+              </ContextMenuItem>
+              <ContextMenuItem
+                dataTour={demo ? "demo-menu-paste-cover" : undefined}
+                icon={Clipboard}
+                onClick={() => void handlePasteCover()}
+              >
+                Paste Cover
+              </ContextMenuItem>
+              {game.coverUrl ? (
+                <ContextMenuItem
+                  dataTour={demo ? "demo-menu-delete-cover" : undefined}
+                  icon={Trash2}
+                  onClick={handleClearCover}
+                >
+                  Delete Cover
+                </ContextMenuItem>
+              ) : null}
+            </ContextMenuSubmenu>
+          ) : (
             <ContextMenuItem
-              dataTour={demo ? "demo-menu-set-cover" : undefined}
               icon={ImagePlus}
               onClick={() => {
                 contextMenu.close();
-                coverInputRef.current?.click();
+                setArtPickerTab("banner");
+                setShowArtPicker(true);
               }}
             >
-              Set Cover
+              Choose banner…
             </ContextMenuItem>
-            <ContextMenuItem
-              dataTour={demo ? "demo-menu-paste-cover" : undefined}
-              icon={Clipboard}
-              onClick={() => void handlePasteCover()}
-            >
-              Paste Cover
-            </ContextMenuItem>
-            {game.coverUrl ? (
-              <ContextMenuItem
-                dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                icon={Trash2}
-                onClick={handleClearCover}
-              >
-                Delete Cover
-              </ContextMenuItem>
-            ) : null}
-          </ContextMenuSubmenu>
+          )
         ) : null}
         {showMatchingActions ? (
           <ContextMenuSubmenu
@@ -4537,7 +4495,11 @@ export function GameLibraryCard({
                 icon={ImagePlus}
                 aria-label={`Choose artwork for ${game.name}`}
                 title="Choose artwork"
-                onClick={() => (demo ? demoNotice() : setShowArtPicker(true))}
+                onClick={() => {
+                  if (demo) return demoNotice();
+                  setArtPickerTab("banner");
+                  setShowArtPicker(true);
+                }}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               {canCheckMatches ? (

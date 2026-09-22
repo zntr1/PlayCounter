@@ -25,9 +25,11 @@ type Tab = "banner" | "cover";
 
 export function ArtPickerDialog({
   game,
+  initialTab = "banner",
   onClose,
 }: {
   game: ArtPickerGame;
+  initialTab?: Tab;
   onClose: () => void;
 }) {
   const addToast = useAppStore((state) => state.addToast);
@@ -43,7 +45,7 @@ export function ArtPickerDialog({
     heroes: ArtAsset[];
   } | null>(null);
   const [loadingAssets, setLoadingAssets] = useState(false);
-  const [tab, setTab] = useState<Tab>("banner");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [applying, setApplying] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const searchRun = useRef(0);
