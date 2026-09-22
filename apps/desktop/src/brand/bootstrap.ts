@@ -26,7 +26,7 @@ async function revealPaintedLoader() {
     const { invoke, isTauri } = await import("@tauri-apps/api/core");
     if (isTauri()) await invoke("main_window_ready");
   } catch {
-    // Existing main.tsx reveal and the Rust fallback remain in place.
+    // main.tsx also reveals after painting if the app wins the startup race.
   }
 }
 

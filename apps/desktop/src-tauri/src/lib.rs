@@ -8,13 +8,13 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Mutex,
     },
-    time::Duration,
 };
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, TrayIcon, TrayIconBuilder, TrayIconEvent},
     Manager, Wry,
 };
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 mod automatic_backups;
 mod controller;
@@ -40,11 +40,12 @@ struct TrayState {
 
 /// The main window is created hidden so Windows never shows a bare white frame
 /// while the webview boots and the saved geometry is restored. It is revealed
-/// once the UI has painted - unless autostart launched us, in which case we
-/// stay in the tray.
+/// only once the frontend confirms that its draggable loader or app has painted.
+/// Autostart launches stay in the tray.
 struct StartupWindow {
     autostart: bool,
     revealed: AtomicBool,
+    display_state_restored: AtomicBool,
 }
 
 impl StartupWindow {
@@ -312,21 +313,39 @@ pub fn run() {
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
             revealed: AtomicBool::new(false),
+            display_state_restored: AtomicBool::new(false),
         })
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                // VISIBLE is excluded so the plugin cannot show the window
-                // behind our back - we decide when it appears. DECORATIONS is
-                // excluded because the window draws its own title bar: a state
-                // file saved by an older build would otherwise restore the
-                // native frame on top of it.
-                .with_state_flags(
-                    tauri_plugin_window_state::StateFlags::all()
-                        - tauri_plugin_window_state::StateFlags::VISIBLE
-                        - tauri_plugin_window_state::StateFlags::DECORATIONS,
-                )
+                // Restore geometry while hidden. Maximizing/fullscreen can
+                // reveal a native window too, so defer those until first show.
+                // Visibility and decorations always belong to the app.
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION)
                 .with_denylist(&[notification_overlay::OVERLAY_LABEL])
                 .with_filter(|label| !label.starts_with("battlenet-sign-in-"))
+                .build(),
+        )
+        .plugin(
+            tauri::plugin::Builder::<Wry>::new("startup-window")
+                .on_event(|app, event| {
+                    if matches!(event, tauri::RunEvent::Exit)
+                        && app
+                            .state::<StartupWindow>()
+                            .display_state_restored
+                            .load(Ordering::SeqCst)
+                    {
+                        // Run after window-state's geometry save. Until first
+                        // show, retain its cached maximized/fullscreen values:
+                        // quitting from autostart must not replace them with
+                        // the temporary hidden window's normal state.
+                        let _ = app.save_window_state(
+                            StateFlags::SIZE
+                                | StateFlags::POSITION
+                                | StateFlags::MAXIMIZED
+                                | StateFlags::FULLSCREEN,
+                        );
+                    }
+                })
                 .build(),
         )
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -389,16 +408,10 @@ pub fn run() {
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
-            // Safety net: if the webview never gets far enough to call
-            // main_window_ready, show the window anyway rather than leaving the
-            // user with nothing but a tray icon.
-            let reveal_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(Duration::from_secs(8)).await;
-                reveal_handle
-                    .state::<StartupWindow>()
-                    .reveal(&reveal_handle);
-            });
+            // The loader (including its startup-error/retry state) and the app
+            // call main_window_ready after painting. A timer must not bypass
+            // that handshake: a slow WebView would expose an empty, immovable
+            // frameless window before its drag region exists.
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -465,6 +478,11 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 
 fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        let startup = app.state::<StartupWindow>();
+        startup.revealed.store(true, Ordering::SeqCst);
+        if !startup.display_state_restored.swap(true, Ordering::SeqCst) {
+            let _ = window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN);
+        }
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
