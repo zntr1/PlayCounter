@@ -1,5 +1,6 @@
-import { AlertTriangle, Gamepad2, ListChecks } from "lucide-react";
+import { AlertTriangle, ListChecks } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { useGameDetails } from "../../gameDetails";
 import { useLibrarySources } from "../librarySources";
 import {
@@ -139,9 +140,11 @@ export function NowPlayingView() {
       {!hasActivity ? (
         <Panel className="grid min-h-[360px] place-items-center rounded-2xl p-8 text-center">
           <div className="max-w-md">
-            <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-border bg-surface-hover text-text-faint">
-              <Gamepad2 size={28} />
-            </div>
+            <PlayCounterAnimatedIcon
+              size={96}
+              playback="slow"
+              className="mx-auto mb-5"
+            />
             <h2 className="text-2xl font-semibold text-text">
               No game detected
             </h2>

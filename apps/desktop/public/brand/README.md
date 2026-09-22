@@ -9,8 +9,9 @@ palette, animation keyframes, or outlined Bricolage Grotesque lettering.
 - `playcounter-wordmark-on-*.svg`: lettering for dark and light surfaces.
 - `playcounter-logo-on-*.svg`: complete static icon and wordmark lockups.
 - `playcounter-loader.svg`: startup, library import, game launch and update
-  animation, only while work is pending. The welcome screen uses
-  `#pc-amber-mark` to play one cycle and then hold the resting pose.
+  animation while work is pending. The welcome screen uses `#pc-amber-mark`
+  to play one cycle and then hold the resting pose. The idle Now Playing view
+  uses `#pc-amber-mark-slow` for a relaxed slow loop.
 - `playcounter-loader-static.svg`: reduced-motion alternative.
 
 The matching ICO, ICNS and PNG exports live in `src-tauri/icons/`; `public/icon.png`
@@ -19,7 +20,8 @@ remains available as a raster fallback. Lettering attribution is included in
 `src/brand/`.
 
 `PlayCounterAnimatedIcon` supplies the decorative symbol, including reduced-motion
-support. Pair it with visible progress text; use `PlayCounterLoader` for larger
+support. Its `playback` prop selects the normal loop, one cycle, or the slow loop.
+Pair pending work with visible progress text; use `PlayCounterLoader` for larger
 loading panels that also need the wordmark.
 
 The startup bootstrap imports the application immediately and reveals the native

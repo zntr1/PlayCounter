@@ -2,6 +2,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" id="pc-amber-mark" viewBox="0 0 1000 800" xml:space="preserve" role="img" aria-labelledby="pc-amber-mark-title pc-amber-mark-description">
   <title id="pc-amber-mark-title">PlayCounter Amber — track, pause, resume</title>
   <desc id="pc-amber-mark-description">A golden-yellow and amber controller with a stopwatch. At twelve o'clock its top button presses and the hand pauses. A second press resumes the clockwise sweep.</desc>
+  <view id="pc-amber-mark-slow" viewBox="0 0 1000 800" />
   <style>
     #pc-amber-mark [data-motion] {
       transform-box: view-box;
@@ -13,6 +14,10 @@
     #pc-amber-mark:target [data-motion] {
       animation-iteration-count: 1;
       animation-fill-mode: forwards;
+    }
+    /* The idle Now Playing view uses a slower loop from the same artwork. */
+    #pc-amber-mark-slow:target ~ g {
+      --pc-cycle: 15s;
     }
     #pc-amber-mark-hand, #pc-amber-mark-shadow { animation-name: pc-amber-mark-clockwise; }
     #pc-amber-mark-hand { transform-origin: 500px 319px; }

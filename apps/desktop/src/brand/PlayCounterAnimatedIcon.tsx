@@ -2,7 +2,7 @@ import "./animatedIcon.css";
 
 type PlayCounterAnimatedIconProps = {
   size?: number;
-  once?: boolean;
+  playback?: "loop" | "once" | "slow";
   assetBase?: string;
   className?: string;
 };
@@ -10,10 +10,17 @@ type PlayCounterAnimatedIconProps = {
 /** Decorative: pair with a visible status label when work is pending. */
 export function PlayCounterAnimatedIcon({
   size = 64,
-  once = false,
+  playback = "loop",
   assetBase = "/brand",
   className = "",
 }: PlayCounterAnimatedIconProps) {
+  const fragment =
+    playback === "once"
+      ? "#pc-amber-mark"
+      : playback === "slow"
+        ? "#pc-amber-mark-slow"
+        : "";
+
   return (
     <picture
       className={`pc-animated-icon ${className}`}
@@ -25,7 +32,7 @@ export function PlayCounterAnimatedIcon({
         srcSet={`${assetBase}/playcounter-loader-static.svg`}
       />
       <img
-        src={`${assetBase}/playcounter-loader.svg${once ? "#pc-amber-mark" : ""}`}
+        src={`${assetBase}/playcounter-loader.svg${fragment}`}
         width={size}
         height={size * 0.8}
         alt=""
