@@ -35,7 +35,6 @@ import {
 } from "./achievements/achievementCatalog";
 
 type Tab = "milestones" | "games";
-type StatusFilter = "all" | "unlocked" | "in-progress";
 
 const TABS: Array<{ id: Tab; label: string; icon: LucideIcon }> = [
   { id: "milestones", label: "Milestones", icon: Medal },
@@ -51,17 +50,10 @@ const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
   emulator: Joystick,
 };
 
-const STATUS_FILTERS: Array<{ id: StatusFilter; label: string }> = [
-  { id: "all", label: "All" },
-  { id: "unlocked", label: "Unlocked" },
-  { id: "in-progress", label: "In progress" },
-];
-
 const MILESTONE_GROUPS = GROUP_META.filter((group) => group.id !== "game");
 
 export function AchievementsView() {
   const [tab, setTab] = useState<Tab>("milestones");
-  const [status, setStatus] = useState<StatusFilter>("all");
   const awardedMilestones = useAppStore((state) => state.awardedMilestones);
   const sessions = useAppStore((state) => state.recentSessions);
   const archivedSeconds = useAppStore((state) => state.archivedSeconds);
@@ -154,7 +146,7 @@ export function AchievementsView() {
     rungs: (catalog.get(group.id) ?? []).filter(
       (item) => group.id !== "month" || item.scope === metrics.monthKey,
     ),
-  })).filter((ladder) => ladderMatchesStatus(ladder.rungs, status));
+  }));
   const tabCounts: Record<Tab, { unlocked: number; total: number }> = {
     milestones: { unlocked: summary.fixedUnlocked, total: summary.fixedTotal },
     games: {
@@ -219,24 +211,6 @@ export function AchievementsView() {
             );
           })}
         </div>
-        <div className="mb-2 flex items-center rounded-full border border-border bg-surface p-1">
-          {STATUS_FILTERS.map((filter) => (
-            <button
-              key={filter.id}
-              type="button"
-              aria-pressed={status === filter.id}
-              onClick={() => setStatus(filter.id)}
-              className={clsx(
-                "rounded-full px-3 py-1 text-xs font-semibold transition",
-                status === filter.id
-                  ? "bg-surface-hover text-text shadow-sm"
-                  : "text-text-muted hover:text-text",
-              )}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {tab === "milestones" ? (
@@ -246,19 +220,15 @@ export function AchievementsView() {
           aria-labelledby="achievements-tab-milestones"
           className="grid gap-3"
         >
-          {milestoneLadders.length > 0 ? (
-            milestoneLadders.map((ladder) => (
-              <MilestoneLadder
-                key={ladder.category}
-                category={ladder.category}
-                rungs={ladder.rungs}
-                currentMonthKey={metrics.monthKey}
-                monthHistory={status === "in-progress" ? [] : monthHistory}
-              />
-            ))
-          ) : (
-            <NoFilterResults />
-          )}
+          {milestoneLadders.map((ladder) => (
+            <MilestoneLadder
+              key={ladder.category}
+              category={ladder.category}
+              rungs={ladder.rungs}
+              currentMonthKey={metrics.monthKey}
+              monthHistory={monthHistory}
+            />
+          ))}
         </div>
       ) : (
         <div
@@ -269,7 +239,6 @@ export function AchievementsView() {
           <GameSection
             ladders={gameLadders}
             hiddenGameCount={hiddenGameCount}
-            status={status}
           />
         </div>
       )}
@@ -377,17 +346,11 @@ function ladderSubtitle(
 function GameSection({
   ladders,
   hiddenGameCount,
-  status,
 }: {
   ladders: ReturnType<typeof buildGameLadders>;
   hiddenGameCount: number;
-  status: StatusFilter;
 }) {
-  const visible = ladders.filter((ladder) =>
-    ladderMatchesStatus(ladder.rungs, status),
-  );
-
-  if (ladders.length === 0 && status === "all") {
+  if (ladders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12 text-center">
         <div className="mb-3 grid h-14 w-14 place-items-center rounded-full bg-surface-hover text-text-faint">
@@ -400,11 +363,10 @@ function GameSection({
       </div>
     );
   }
-  if (visible.length === 0) return <NoFilterResults />;
 
   return (
     <div className="grid gap-3">
-      {visible.map((ladder) => (
+      {ladders.map((ladder) => (
         <GameLadderRow key={ladder.key} ladder={ladder} />
       ))}
       {hiddenGameCount > 0 ? (
@@ -416,23 +378,6 @@ function GameSection({
       ) : null}
     </div>
   );
-}
-
-function NoFilterResults() {
-  return (
-    <div className="rounded-xl border border-dashed border-border py-10 text-center text-sm font-medium text-text-muted">
-      No achievements match this filter.
-    </div>
-  );
-}
-
-function ladderMatchesStatus(
-  rungs: AchievementCatalogItem[],
-  status: StatusFilter,
-) {
-  if (status === "all") return true;
-  if (status === "unlocked") return rungs.some((rung) => rung.milestone);
-  return rungs.some((rung) => !rung.milestone && rung.isNext && rung.ratio > 0);
 }
 
 /* The closest locked milestone per ladder, most advanced first. Game rungs
