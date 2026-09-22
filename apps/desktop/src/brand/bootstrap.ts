@@ -1,3 +1,6 @@
+// Wire the splash controls independently of React, including failed startups.
+const windowControlsReady = setupBootWindowControls();
+
 // Start the existing application immediately. No minimum splash duration.
 // The early reveal uses PlayCounter's existing idempotent native
 // command, which preserves its autostart-to-tray behaviour.
@@ -16,7 +19,33 @@ void import("../main").catch((error: unknown) => {
   }
 });
 
+async function setupBootWindowControls() {
+  const controls = document.getElementById("pc-boot-window-controls");
+  if (!controls || !("__TAURI_INTERNALS__" in window)) return;
+
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const win = getCurrentWindow();
+    const actions = {
+      "pc-boot-minimize": () => win.minimize(),
+      // Use the same close request as the app; Rust handles hiding to the tray.
+      "pc-boot-close": () => win.close(),
+    };
+    for (const [id, action] of Object.entries(actions)) {
+      document.getElementById(id)?.addEventListener("click", () => {
+        void action().catch((error: unknown) =>
+          console.warn("window control failed", error),
+        );
+      });
+    }
+    controls.hidden = false;
+  } catch (error) {
+    console.warn("startup window controls unavailable", error);
+  }
+}
+
 async function revealPaintedLoader() {
+  await windowControlsReady;
   const logo = document.querySelector<HTMLImageElement>("#initial-loader img");
   // A failed image must never prevent the native window from opening.
   if (logo) await logo.decode().catch(() => {});
