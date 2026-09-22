@@ -4,6 +4,11 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import type { Session } from "@playcounter/shared";
 import { validateBackupData } from "./backupValidation";
 import {
+  normalizeFeedbackReplyCursor,
+  type FeedbackReplyCursor,
+} from "./notifications";
+import { DEFAULT_API_ENDPOINT } from "./store";
+import {
   readPersistedRecord,
   STORAGE_KEY,
   writePersistedRecord,
@@ -43,7 +48,6 @@ const DEVICE_LOCAL_KEYS = [
 ];
 const NOTIFICATION_STATE_KEYS = [
   "notifications",
-  "feedbackReplyCursor",
   "discoveredReviewReminder",
   "suppressStartupNotificationsOnce",
   "suppressContributionNotificationsOnce",
@@ -58,7 +62,7 @@ function readPersistedRaw(): Record<string, unknown> {
 
 /**
  * Backups transfer durable user data, not machine-local ignore decisions or
- * notification delivery state. Achievement and contribution acknowledgement
+ * notification inboxes. Achievement, contribution, and feedback delivery
  * markers remain in the payload so importing a current backup does not turn
  * already processed events into new ones.
  */
@@ -80,6 +84,54 @@ export function createTransferData(
   }
 
   return data;
+}
+
+function restoreFeedbackReplyCursor(
+  data: Record<string, unknown>,
+  existing: Record<string, unknown>,
+  exportedAt: string,
+): FeedbackReplyCursor | null {
+  if (typeof data.installUuid !== "string") return null;
+  const installUuid = data.installUuid.trim().toLowerCase();
+  // Hydration uses the API endpoint compiled into this build.
+  const endpoint = DEFAULT_API_ENDPOINT.replace(/\/+$/, "");
+  const imported = normalizeFeedbackReplyCursor(data.feedbackReplyCursor);
+  const cursors = [
+    imported,
+    normalizeFeedbackReplyCursor(existing.feedbackReplyCursor),
+  ].filter(
+    (cursor): cursor is FeedbackReplyCursor =>
+      cursor !== null &&
+      cursor.installUuid.trim().toLowerCase() === installUuid &&
+      cursor.endpoint === endpoint,
+  );
+  const restored: FeedbackReplyCursor = { installUuid, endpoint, afterId: "0" };
+  for (const cursor of cursors) {
+    if (BigInt(cursor.afterId) > BigInt(restored.afterId))
+      restored.afterId = cursor.afterId;
+    if (
+      cursor.suppressThrough &&
+      (!restored.suppressThrough ||
+        Date.parse(cursor.suppressThrough) >
+          Date.parse(restored.suppressThrough))
+    )
+      restored.suppressThrough = cursor.suppressThrough;
+  }
+  if (!cursors.length) {
+    const savedEndpoint = (
+      data.settings as { apiEndpoint?: string } | undefined
+    )?.apiEndpoint?.replace(/\/+$/, "");
+    if (imported || (savedEndpoint && savedEndpoint !== endpoint)) return null;
+    // Older exports omitted the cursor. Silence historical replies while
+    // still delivering replies sent after the backup was created.
+    const exportedTime = Date.parse(exportedAt);
+    restored.suppressThrough = new Date(
+      Number.isFinite(exportedTime)
+        ? Math.min(exportedTime, Date.now())
+        : Date.now(),
+    ).toISOString();
+  }
+  return restored;
 }
 
 function defaultExportName() {
@@ -184,6 +236,11 @@ export async function importLocalData(): Promise<ImportResult> {
   }
 
   const existing = localStorage.getItem(STORAGE_KEY);
+  data.feedbackReplyCursor = restoreFeedbackReplyCursor(
+    data,
+    readPersistedRaw(),
+    envelope.exportedAt,
+  );
   let backupPath: string | null = null;
   if (existing) {
     backupPath = await invoke<string>("backup_local_data", {

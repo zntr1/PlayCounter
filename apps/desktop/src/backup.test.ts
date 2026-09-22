@@ -21,10 +21,15 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 
 import { createTransferData, exportLocalData, importLocalData } from "./backup";
 import { createPersistedPayload, STORAGE_KEY } from "./persistence";
-import { useAppStore } from "./store";
+import { DEFAULT_API_ENDPOINT, useAppStore } from "./store";
 import { hydrate } from "./tracker";
 
 const installUuid = "550e8400-e29b-41d4-a716-446655440000";
+const feedbackReplyCursor = {
+  endpoint: DEFAULT_API_ENDPOINT.replace(/\/+$/, ""),
+  installUuid,
+  afterId: "9007199254740993",
+};
 const validAward = {
   id: "milestone:total:10",
   kind: "milestone-total",
@@ -132,6 +137,7 @@ describe("backup transfer data", () => {
       settings: { theme: "light" },
       awardedMilestones: [{ id: "milestone:total:10" }],
       seenContributionStatus: { contribution: "verified" },
+      feedbackReplyCursor,
       notifications: [{ id: "old-notification" }],
       lastSeenReleaseNotesVersion: "1.1.4",
       discoveredReviewReminder: {
@@ -225,6 +231,7 @@ describe("backup transfer data", () => {
       settings: { theme: "light" },
       awardedMilestones: [{ id: "milestone:total:10" }],
       seenContributionStatus: { contribution: "verified" },
+      feedbackReplyCursor,
       exeCache: [{ exeName: "game.exe", state: "matched" }],
       libraryImports: [
         {
@@ -262,6 +269,7 @@ describe("backup transfer data", () => {
     installLocalStorage(
       JSON.stringify({
         installUuid,
+        feedbackReplyCursor,
         notifications: [{ id: "old-notification" }],
         blacklist: ["ignored.exe"],
         sessions: [],
@@ -278,6 +286,7 @@ describe("backup transfer data", () => {
     const envelope = JSON.parse(write?.[1]?.contents as string);
     expect(envelope.version).toBe(2);
     expect(envelope.data.installUuid).toBe(installUuid);
+    expect(envelope.data.feedbackReplyCursor).toEqual(feedbackReplyCursor);
     expect(envelope.data).not.toHaveProperty("notifications");
     expect(envelope.data).not.toHaveProperty("blacklist");
   });
@@ -413,6 +422,29 @@ describe("backup import", () => {
       { tours: { version: 1, welcomeVersion: 1, completed: [] } },
     ],
     ["installUuid", { installUuid: "broken" }],
+    ["feedbackReplyCursor", { feedbackReplyCursor: [] }],
+    [
+      "feedbackReplyCursor.installUuid",
+      {
+        feedbackReplyCursor: { ...feedbackReplyCursor, installUuid: "broken" },
+      },
+    ],
+    [
+      "feedbackReplyCursor.endpoint",
+      { feedbackReplyCursor: { ...feedbackReplyCursor, endpoint: "" } },
+    ],
+    ...[42, "-1", "9223372036854775808"].map(
+      (afterId): [string, Record<string, unknown>] => [
+        "feedbackReplyCursor.afterId",
+        { feedbackReplyCursor: { ...feedbackReplyCursor, afterId } },
+      ],
+    ),
+    [
+      "feedbackReplyCursor.suppressThrough",
+      {
+        feedbackReplyCursor: { ...feedbackReplyCursor, suppressThrough: "bad" },
+      },
+    ],
   ];
 
   it.each(invalidCases)(
@@ -621,6 +653,118 @@ describe("backup import", () => {
     });
     expect(imported).not.toHaveProperty("blacklist");
     expect(reloadMock).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    {
+      name: "restores the exported cursor on a new PC",
+      imported: feedbackReplyCursor,
+      current: null,
+      expected: feedbackReplyCursor,
+    },
+    {
+      name: "keeps a newer local cursor when restoring an older backup",
+      imported: feedbackReplyCursor,
+      current: { ...feedbackReplyCursor, afterId: "9007199254740994" },
+      expected: { ...feedbackReplyCursor, afterId: "9007199254740994" },
+    },
+    {
+      name: "keeps a newer exported cursor",
+      imported: { ...feedbackReplyCursor, afterId: "9007199254740994" },
+      current: feedbackReplyCursor,
+      expected: { ...feedbackReplyCursor, afterId: "9007199254740994" },
+    },
+    {
+      name: "uses a matching local cursor for legacy backups",
+      imported: undefined,
+      current: feedbackReplyCursor,
+      expected: feedbackReplyCursor,
+    },
+    {
+      name: "ignores another installation's local cursor",
+      imported: feedbackReplyCursor,
+      current: {
+        ...feedbackReplyCursor,
+        installUuid: "11111111-1111-4111-8111-111111111111",
+        afterId: "9007199254740994",
+      },
+      expected: feedbackReplyCursor,
+    },
+    {
+      name: "ignores another API endpoint's local cursor",
+      imported: feedbackReplyCursor,
+      current: {
+        ...feedbackReplyCursor,
+        endpoint: "https://another-api.test",
+        afterId: "9007199254740994",
+      },
+      expected: feedbackReplyCursor,
+    },
+    {
+      name: "silences legacy replies only through the backup date",
+      imported: undefined,
+      current: null,
+      expected: {
+        ...feedbackReplyCursor,
+        afterId: "0",
+        suppressThrough: "2026-08-19T00:00:00.000Z",
+      },
+    },
+    {
+      name: "does not apply an exported marker for another API endpoint",
+      imported: {
+        ...feedbackReplyCursor,
+        endpoint: "https://another-api.test",
+      },
+      current: null,
+      expected: null,
+    },
+    {
+      name: "does not apply an exported marker for another installation",
+      imported: {
+        ...feedbackReplyCursor,
+        installUuid: "11111111-1111-4111-8111-111111111111",
+      },
+      current: null,
+      expected: null,
+    },
+    {
+      name: "preserves a partially synchronized legacy baseline",
+      imported: feedbackReplyCursor,
+      current: {
+        ...feedbackReplyCursor,
+        afterId: "1",
+        suppressThrough: "2026-08-19T00:00:00.000Z",
+      },
+      expected: {
+        ...feedbackReplyCursor,
+        suppressThrough: "2026-08-19T00:00:00.000Z",
+      },
+    },
+  ])("$name", async ({ imported, current, expected }) => {
+    const values = installLocalStorage(
+      current ? JSON.stringify({ feedbackReplyCursor: current }) : null,
+    );
+    openMock.mockResolvedValue("backup.json");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "read_text_file")
+        return backup({
+          installUuid,
+          sessions: [],
+          feedbackReplyCursor: imported,
+        });
+      if (command === "backup_local_data") return "safety-backup.json";
+      if (command === "adopt_install_uuid") return installUuid;
+      return undefined;
+    });
+
+    await expect(importLocalData()).resolves.toMatchObject({ imported: true });
+    const restored = JSON.parse(values.get(STORAGE_KEY) ?? "{}");
+    expect(restored.feedbackReplyCursor).toEqual(expected);
+    expect(restored.notifications).toEqual([]);
+    useAppStore.setState(useAppStore.getInitialState(), true);
+    hydrate();
+    expect(useAppStore.getState().feedbackReplyCursor).toEqual(expected);
   });
 
   it("still imports when the running version cannot be read", async () => {

@@ -42,6 +42,8 @@ export type FeedbackReplyCursor = {
   endpoint: string;
   installUuid: string;
   afterId: string;
+  /** Legacy backup cutoff, retained until the reply backlog is synchronized. */
+  suppressThrough?: string;
 };
 
 export function isFeedbackReplyId(value: unknown): value is string {
@@ -62,13 +64,19 @@ export function normalizeFeedbackReplyCursor(
     !cursor.endpoint ||
     typeof cursor.installUuid !== "string" ||
     !cursor.installUuid ||
-    !isFeedbackReplyId(cursor.afterId)
+    !isFeedbackReplyId(cursor.afterId) ||
+    (cursor.suppressThrough !== undefined &&
+      (typeof cursor.suppressThrough !== "string" ||
+        !Number.isFinite(Date.parse(cursor.suppressThrough))))
   )
     return null;
   return {
     endpoint: cursor.endpoint.replace(/\/+$/, ""),
     installUuid: cursor.installUuid,
     afterId: cursor.afterId,
+    ...(cursor.suppressThrough !== undefined
+      ? { suppressThrough: cursor.suppressThrough }
+      : {}),
   };
 }
 

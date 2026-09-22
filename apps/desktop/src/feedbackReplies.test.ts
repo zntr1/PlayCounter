@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import type { FeedbackReply } from "@playcounter/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createBackupContents, createTransferData } from "./backup";
 import {
   FEEDBACK_REPLY_POLL_MS,
   startFeedbackReplies,
@@ -9,7 +10,7 @@ import {
   displayNotificationTitle,
   normalizeFeedbackReplyCursor,
 } from "./notifications";
-import { readPersistedRecord } from "./persistence";
+import { readPersistedRecord, writePersistedRecord } from "./persistence";
 import { useAppStore } from "./store";
 import { hydrate } from "./tracker";
 
@@ -112,6 +113,135 @@ describe("feedback reply inbox", () => {
     expect(useAppStore.getState().notifications).toEqual([]);
     expect(useAppStore.getState().feedbackReplyCursor?.afterId).toBe("2");
   });
+
+  it("keeps dismissed replies dismissed through backup transfer and still delivers new replies", async () => {
+    fetchMock.mockResolvedValueOnce(page());
+    stop = startFeedbackReplies();
+    await settle();
+    useAppStore.getState().dismissNotification("feedback-reply:1");
+    await settle();
+    stop();
+    const exported = JSON.parse(createBackupContents());
+    localStorage.clear();
+    writePersistedRecord(createTransferData(exported.data));
+    useAppStore.setState(useAppStore.getInitialState(), true);
+    hydrate();
+    stop = startFeedbackReplies();
+    await settle();
+
+    expect(JSON.parse(String(fetchMock.mock.lastCall?.[1]?.body)).afterId).toBe(
+      "1",
+    );
+    expect(useAppStore.getState().notifications).toEqual([]);
+    expect(useAppStore.getState().toasts).toEqual([]);
+    fetchMock.mockResolvedValueOnce(page([reply("2")]));
+    await vi.advanceTimersByTimeAsync(FEEDBACK_REPLY_POLL_MS);
+    expect(
+      useAppStore.getState().notifications.map((entry) => entry.id),
+    ).toEqual(["feedback-reply:2"]);
+    expect(useAppStore.getState().toasts).toHaveLength(1);
+  });
+
+  it("resumes a legacy backup baseline after a failed page and restart without hiding newer replies", async () => {
+    const suppressThrough = "2026-09-13T10:00:00Z";
+    useAppStore.setState({
+      feedbackReplyCursor: {
+        endpoint: useAppStore
+          .getState()
+          .settings.apiEndpoint.replace(/\/+$/, ""),
+        installUuid,
+        afterId: "0",
+        suppressThrough,
+      },
+    });
+    fetchMock
+      .mockResolvedValueOnce(
+        page([{ ...reply("1"), createdAt: "2026-09-12T10:00:00Z" }], true),
+      )
+      .mockRejectedValueOnce(new Error("offline"));
+    stop = startFeedbackReplies();
+    await settle();
+    expect(useAppStore.getState().notifications).toEqual([]);
+    expect(useAppStore.getState().toasts).toEqual([]);
+    expect(readPersistedRecord().feedbackReplyCursor).toMatchObject({
+      afterId: "1",
+      suppressThrough,
+    });
+    stop();
+    useAppStore.setState(useAppStore.getInitialState(), true);
+    hydrate();
+    fetchMock.mockResolvedValueOnce(
+      page([reply("2"), { ...reply("3"), createdAt: "2026-09-13T10:01:00Z" }]),
+    );
+    stop = startFeedbackReplies();
+    await settle();
+    expect(JSON.parse(String(fetchMock.mock.lastCall?.[1]?.body)).afterId).toBe(
+      "1",
+    );
+    expect(
+      useAppStore.getState().notifications.map((entry) => entry.id),
+    ).toEqual(["feedback-reply:3"]);
+    expect(useAppStore.getState().toasts).toHaveLength(1);
+    expect(readPersistedRecord().feedbackReplyCursor).toMatchObject({
+      afterId: "3",
+    });
+    expect(readPersistedRecord().feedbackReplyCursor).not.toHaveProperty(
+      "suppressThrough",
+    );
+  });
+
+  it("clears a legacy cutoff after an empty successful sync", async () => {
+    useAppStore.setState({
+      feedbackReplyCursor: {
+        endpoint: useAppStore
+          .getState()
+          .settings.apiEndpoint.replace(/\/+$/, ""),
+        installUuid,
+        afterId: "0",
+        suppressThrough: "2026-09-14T00:00:00Z",
+      },
+    });
+    stop = startFeedbackReplies();
+    await settle();
+    expect(readPersistedRecord().feedbackReplyCursor).not.toHaveProperty(
+      "suppressThrough",
+    );
+    // A newly delivered reply still arrives even if the clocks differ.
+    fetchMock.mockResolvedValueOnce(page());
+    await vi.advanceTimersByTimeAsync(FEEDBACK_REPLY_POLL_MS);
+    expect(
+      useAppStore.getState().notifications.map((entry) => entry.id),
+    ).toEqual(["feedback-reply:1"]);
+  });
+
+  it.each(["installation", "endpoint"])(
+    "does not apply another %s's legacy cutoff",
+    async (scope) => {
+      useAppStore.setState({
+        feedbackReplyCursor: {
+          endpoint:
+            scope === "endpoint"
+              ? "https://another-api.test"
+              : useAppStore.getState().settings.apiEndpoint.replace(/\/+$/, ""),
+          installUuid: scope === "installation" ? secondUuid : installUuid,
+          afterId: "50",
+          suppressThrough: "2026-09-14T00:00:00Z",
+        },
+      });
+      fetchMock.mockResolvedValueOnce(page());
+      stop = startFeedbackReplies();
+      await settle();
+      expect(
+        JSON.parse(String(fetchMock.mock.lastCall?.[1]?.body)).afterId,
+      ).toBe("0");
+      expect(
+        useAppStore.getState().notifications.map((entry) => entry.id),
+      ).toEqual(["feedback-reply:1"]);
+      expect(useAppStore.getState().feedbackReplyCursor).not.toHaveProperty(
+        "suppressThrough",
+      );
+    },
+  );
 
   it("adds context to an existing read reply without restoring dismissed replies or advancing the cursor", async () => {
     const readAt = "2026-09-13T11:00:00Z";

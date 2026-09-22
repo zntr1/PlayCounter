@@ -118,7 +118,14 @@ export function startFeedbackReplies(): () => void {
             requestedContext.add(notificationId);
         }
         current.receiveFeedbackReplies(
-          { endpoint, installUuid, afterId },
+          {
+            endpoint,
+            installUuid,
+            afterId,
+            ...(page.hasMore && sameOwner && marker.suppressThrough
+              ? { suppressThrough: marker.suppressThrough }
+              : {}),
+          },
           page.items,
         );
         if (!page.hasMore) return;

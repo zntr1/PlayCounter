@@ -1,5 +1,6 @@
 import type { Settings } from "@playcounter/shared";
 import { isInterfaceScale } from "./interfaceScale";
+import { isFeedbackReplyId } from "./notifications";
 import { isLibraryGridColumns } from "./ui/myGamesPresentation";
 import {
   GAME_STATUSES,
@@ -366,6 +367,16 @@ const validateBackupShape: Validator = object(
   {
     installUuid: nullable(uuid),
     contributionOwnerUuid: nullable(uuid),
+    feedbackReplyCursor: nullable(
+      object(
+        {
+          endpoint: nonempty,
+          installUuid: uuid,
+          afterId: check(isFeedbackReplyId),
+        },
+        { suppressThrough: date },
+      ),
+    ),
     settings,
     sessions: array(session),
     gameJournals: dictionary(

@@ -1396,14 +1396,26 @@ export const useAppStore = create<AppState>((set, get) => ({
           return { ...notification, feedbackMessage };
         });
       const cursorAdvanced = BigInt(cursor.afterId) > BigInt(afterId);
-      if (sameOwner && !cursorAdvanced && !changed) return state;
+      const suppressionChanged =
+        sameOwner && previous.suppressThrough !== cursor.suppressThrough;
+      if (sameOwner && !cursorAdvanced && !suppressionChanged && !changed)
+        return state;
+      const suppressThrough =
+        sameOwner && previous.suppressThrough
+          ? Date.parse(previous.suppressThrough)
+          : -Infinity;
       const fresh = replies.filter(
-        (reply) => BigInt(reply.id) > BigInt(afterId),
+        (reply) =>
+          BigInt(reply.id) > BigInt(afterId) &&
+          Date.parse(reply.createdAt) > suppressThrough,
       );
       received = fresh.length;
       changed = true;
       return {
-        feedbackReplyCursor: sameOwner && !cursorAdvanced ? previous : cursor,
+        feedbackReplyCursor:
+          sameOwner && !cursorAdvanced
+            ? { ...cursor, afterId: previous.afterId }
+            : cursor,
         notifications: [
           ...fresh.map(feedbackReplyNotification).reverse(),
           ...retained,
