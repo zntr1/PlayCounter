@@ -169,7 +169,7 @@ export function AchievementsView() {
     <div className="flex min-w-0 flex-col gap-6">
       <AchievementHero summary={summary} nextUp={nextUp} recent={recent} />
 
-      <div className="sticky top-0 z-30 -mx-1 flex min-w-0 flex-wrap items-end justify-between gap-3 border-b border-border bg-bg/95 px-1 pt-1 backdrop-blur">
+      <div className="flex min-w-0 flex-wrap items-end justify-between gap-3 border-b border-border">
         <div
           role="tablist"
           aria-label="Achievement sections"
