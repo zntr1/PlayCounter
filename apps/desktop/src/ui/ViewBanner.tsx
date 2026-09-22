@@ -16,6 +16,10 @@ export function ViewBanner({
   const ready = useLibrarySources((state) => state.ready);
   const setFeatured = useAppStore((state) => state.setLibraryFeaturedGame);
   const setVisible = useAppStore((state) => state.setViewShowHero);
+  const showDetails = useAppStore(
+    (state) => state.settings.viewBannerDetails === true,
+  );
+  const setShowDetails = useAppStore((state) => state.setViewBannerDetails);
   const { launchingGameKey, acquireLaunchLock, releaseLaunchLock } =
     useLibraryLaunchLock();
 
@@ -35,7 +39,7 @@ export function ViewBanner({
   return (
     <GameBanner
       key={`${featured.game.source ?? "unknown"}:${featured.game.gameId}`}
-      variant="compact"
+      variant={showDetails ? "full" : "compact"}
       game={featured.game}
       pinned={featured.pinned}
       onArtworkChange={onArtworkChange}
@@ -52,6 +56,7 @@ export function ViewBanner({
       }
       onUnpin={() => setFeatured(null)}
       onHide={() => setVisible(view, false)}
+      onToggleDetails={() => setShowDetails(!showDetails)}
     />
   );
 }

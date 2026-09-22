@@ -315,6 +315,7 @@ const settings = object({}, {
   libraryShowHero: boolean,
   libraryFeaturedGame: nullable(featuredGame),
   viewShowHero: dictionary(boolean),
+  viewBannerDetails: boolean,
   sidebarCollapsed: boolean,
   sidebarSourcesCollapsed: boolean,
   libraryStatCards: array(

@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import type { GameDetails } from "@playcounter/shared";
 import {
+  Expand,
   History,
   Info,
   Loader2,
@@ -8,6 +9,7 @@ import {
   Pin,
   PinOff,
   Play,
+  Shrink,
   Sparkles,
   Star,
   EyeOff,
@@ -61,6 +63,9 @@ type GameBannerProps = {
   onPin: () => void;
   onUnpin: () => void;
   onHide: () => void;
+  /** Switch between the compact card and the full details. Only banners
+   *  outside My Games offer this; the library banner is always full. */
+  onToggleDetails?: () => void;
 };
 
 export function GameBanner({
@@ -76,6 +81,7 @@ export function GameBanner({
   onPin,
   onUnpin,
   onHide,
+  onToggleDetails,
 }: GameBannerProps) {
   const compact = variant === "compact";
   const [showDetails, setShowDetails] = useState(false);
@@ -333,6 +339,17 @@ export function GameBanner({
         >
           Show history
         </ContextMenuItem>
+        {onToggleDetails ? (
+          <ContextMenuItem
+            icon={compact ? Expand : Shrink}
+            onClick={() => {
+              menu.close();
+              onToggleDetails();
+            }}
+          >
+            {compact ? "Show more banner details" : "Hide banner details"}
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuSeparator />
         <ContextMenuItem
           icon={EyeOff}

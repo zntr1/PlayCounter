@@ -82,6 +82,19 @@ function toggle(label: "Show banner" | "Hide banner") {
   return act(() => button!.click());
 }
 
+async function menuItem(label: string) {
+  const more = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="More banner options"]',
+  );
+  expect(more).not.toBeNull();
+  await act(() => more!.click());
+  const item = [
+    ...document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ].find((element) => element.textContent?.trim() === label);
+  expect(item).toBeDefined();
+  await act(() => item!.click());
+}
+
 it("saves visibility separately for each view without mounting hidden library cards", async () => {
   await act(() => root.render(<App />));
   expect(banner()).toBeNull();
@@ -101,6 +114,25 @@ it("saves visibility separately for each view without mounting hidden library ca
   expect(
     JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.viewShowHero,
   ).toEqual({ achievements: true, settings: false });
+});
+
+it("lets the banner menu switch between the compact card and full details", async () => {
+  useAppStore.getState().setViewShowHero("achievements", true);
+  await act(() => root.render(<App />));
+  expect(banner()).not.toBeNull();
+  expect(container.querySelector("main")?.dataset.bannerLayout).toBe("compact");
+  await menuItem("Show more banner details");
+  expect(banner()).toBeNull();
+  expect(
+    container.querySelector('[data-banner-variant="full"] h2')?.textContent,
+  ).toBe("Library favorite");
+  expect(container.querySelector("main")?.dataset.bannerLayout).toBe("full");
+  expect(
+    JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings.viewBannerDetails,
+  ).toBe(true);
+  await menuItem("Hide banner details");
+  expect(banner()).not.toBeNull();
+  expect(container.querySelector("main")?.dataset.bannerLayout).toBe("compact");
 });
 
 it("shows no pinned-game banner or toggle on My History", async () => {

@@ -597,6 +597,9 @@ export interface Settings {
   libraryFeaturedGame?: LibraryFeaturedGame | null;
   /** Compact banners in other views are opt-in, independently of My Games. */
   viewShowHero?: Partial<Record<Exclude<DesktopViewId, "games">, boolean>>;
+  /** Banners in other views show the full details (facts and summary) like
+   *  My Games instead of the compact card. Absent = compact. */
+  viewBannerDetails?: boolean;
   /** Navigation reduced to an icon rail. Absent = expanded. */
   sidebarCollapsed?: boolean;
   /** Source list under My Games folded away. Absent = shown. */

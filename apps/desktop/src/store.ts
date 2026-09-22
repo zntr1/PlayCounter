@@ -563,6 +563,7 @@ export type AppState = {
   setMyGamesShowHero: (enabled: boolean) => void;
   setLibraryFeaturedGame: (game: LibraryFeaturedGame | null) => void;
   setViewShowHero: (view: Exclude<ViewId, "games">, enabled: boolean) => void;
+  setViewBannerDetails: (enabled: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSidebarSourcesCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
@@ -629,6 +630,7 @@ const defaultSettings: Settings = {
   libraryShowHero: true,
   libraryFeaturedGame: null,
   viewShowHero: {},
+  viewBannerDetails: false,
   sidebarCollapsed: false,
   sidebarSourcesCollapsed: false,
   autoShareIgnoredProcesses: false,
@@ -1680,6 +1682,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...state.settings,
         viewShowHero: { ...state.settings.viewShowHero, [view]: enabled },
       },
+    }));
+    persistSoon();
+  },
+  setViewBannerDetails: (viewBannerDetails) => {
+    set((state) => ({
+      settings: { ...state.settings, viewBannerDetails },
     }));
     persistSoon();
   },

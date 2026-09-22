@@ -454,6 +454,9 @@ export function App() {
   const nowArt = useLibrarySources((state) => state.nowArt);
   const hasFeaturedGame = useLibrarySources((state) => state.featured !== null);
   const compactBannerVisible = showViewBanner && hasFeaturedGame;
+  const viewBannerDetails = useAppStore(
+    (state) => state.settings.viewBannerDetails === true,
+  );
   // Now Playing always follows the first running game, including when older
   // settings still have its optional library banner enabled.
   const titleBarArt =
@@ -623,7 +626,9 @@ export function App() {
   return (
     <main
       className="app-shell flex h-screen min-h-[620px] bg-bg text-text selection:bg-accent selection:text-bg"
-      data-banner-layout={compactBannerVisible ? "compact" : "full"}
+      data-banner-layout={
+        compactBannerVisible && !viewBannerDetails ? "compact" : "full"
+      }
       style={
         {
           // Content and menu zoom differently; the banner art has to line up
