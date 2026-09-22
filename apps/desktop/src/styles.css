@@ -1636,11 +1636,10 @@ body.shift-held
 
 /* Key art leaking into the title bar: mostly darkness, a hint of colour. */
 .titlebar-art {
-  opacity: calc(0.85 * var(--titlebar-art-fade, 1));
-  /* No forwards fill: the animation's final keyframe would pin opacity at 1
-     and swallow the scroll fade. */
-  animation: fade-in 400ms ease-out backwards;
-  transition: opacity 120ms linear;
+  --titlebar-art-opacity: 0.85;
+  opacity: var(--titlebar-art-opacity);
+  /* Follow scrolling directly and keep this small artwork strip composited. */
+  will-change: opacity;
 }
 
 /* Both extensions keep image details, darken them for readable controls,
@@ -1678,7 +1677,7 @@ body.shift-held
 }
 
 :root[data-theme="light"] .titlebar-art {
-  opacity: calc(0.5 * var(--titlebar-art-fade, 1));
+  --titlebar-art-opacity: 0.5;
 }
 
 /* Now Playing: the running game's key art behind the whole view, darkened

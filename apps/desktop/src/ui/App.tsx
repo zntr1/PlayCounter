@@ -277,17 +277,14 @@ let startupPreferenceSynced = false;
 export function App() {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleBarRef = useRef<HTMLElement>(null);
-  // Key art in the title bar fades back to the plain bar as the banner
-  // scrolls away. Written straight to a CSS variable: no re-render per frame.
-  const syncTitleBarArt = (content: HTMLElement) => {
-    const bar = titleBarRef.current;
-    if (!bar) return;
-    const fade = Math.max(0, 1 - content.scrollTop / 180);
-    bar.style.setProperty("--titlebar-art-fade", fade.toFixed(3));
-    // The scroll container loses width to its scrollbar, the title bar does
-    // not. Both halves of the picture have to be cropped from the same width
-    // or it jumps sideways at the seam.
-    bar.style.setProperty("--content-width", `${content.clientWidth}px`);
+  const titleBarArtRef = useRef<HTMLDivElement>(null);
+  // Fade only the artwork layer. Changing an inherited header variable and
+  // then measuring width here forces style recalculation on every scroll.
+  const syncTitleBarFade = (content: HTMLElement) => {
+    const art = titleBarArtRef.current;
+    if (!art) return;
+    const fade = Math.max(0, Math.min(1, 1 - content.scrollTop / 180));
+    art.style.opacity = `calc(var(--titlebar-art-opacity) * ${fade.toFixed(3)})`;
   };
   const controllerModeRef = useRef(false);
   const [appVersion, setAppVersion] = useState<string | null>(null);
@@ -478,19 +475,29 @@ export function App() {
     if (!content) return;
     content.scrollTop = 0;
     content.scrollLeft = 0;
-    syncTitleBarArt(content);
+    syncTitleBarFade(content);
   }, [activeTourId, activeView]);
 
   useLayoutEffect(() => {
     const content = contentRef.current;
-    if (!content) return;
-    syncTitleBarArt(content);
-    // Fires when a scrollbar appears or disappears, which changes the width
-    // the art is cropped from without changing the element's own size.
-    const observer = new ResizeObserver(() => syncTitleBarArt(content));
+    if (content) syncTitleBarFade(content);
+  }, [titleBarArt]);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    const bar = titleBarRef.current;
+    if (!content || !bar) return;
+    // Match the banner's crop when the content resizes, including when its
+    // scrollbar appears or disappears. Scrolling needs no width measurement.
+    const syncWidth = () => {
+      const width = `${content.clientWidth}px`;
+      if (bar.style.getPropertyValue("--content-width") !== width)
+        bar.style.setProperty("--content-width", width);
+    };
+    syncWidth();
+    const observer = new ResizeObserver(syncWidth);
     observer.observe(content);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -892,6 +899,7 @@ export function App() {
         >
           {titleBarArt ? (
             <div
+              ref={titleBarArtRef}
               aria-hidden="true"
               className="titlebar-art pointer-events-none absolute inset-0 -z-10 overflow-hidden"
             >
@@ -990,7 +998,7 @@ export function App() {
             aria-busy={activeView === "games" && !renderGames}
             aria-label={`${activeViewLabel} content`}
             style={{ zoom: contentScale }}
-            onScroll={(event) => syncTitleBarArt(event.currentTarget)}
+            onScroll={(event) => syncTitleBarFade(event.currentTarget)}
             className={clsx(
               "controller-content absolute inset-0 isolate overflow-auto px-7 pb-8",
               titleBarArt ? "pt-0" : "pt-5",
