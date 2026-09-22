@@ -309,6 +309,7 @@ const settings = object({}, {
   libraryHighResCovers: boolean,
   libraryShowStatCards: boolean,
   libraryShowShelves: boolean,
+  libraryShowProviderTabs: boolean,
   libraryHideEmptyProviderTabs: boolean,
   libraryShowHero: boolean,
   libraryFeaturedGame: nullable(featuredGame),

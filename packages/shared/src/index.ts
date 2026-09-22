@@ -587,6 +587,8 @@ export interface Settings {
   libraryShowStatCards?: boolean;
   /** Show library shelves and their controls. Absent = enabled. */
   libraryShowShelves?: boolean;
+  /** Show launcher groups under My Games when imports exist. Absent = enabled. */
+  libraryShowProviderTabs?: boolean;
   /** Drop provider tabs that have no imported games. Absent = off, tabs stay. */
   libraryHideEmptyProviderTabs?: boolean;
   /** Show the featured-game banner above the library. Absent = enabled. */

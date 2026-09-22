@@ -558,6 +558,7 @@ export type AppState = {
   setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
+  setMyGamesShowProviderTabs: (enabled: boolean) => void;
   setMyGamesHideEmptyProviderTabs: (enabled: boolean) => void;
   setMyGamesShowHero: (enabled: boolean) => void;
   setLibraryFeaturedGame: (game: LibraryFeaturedGame | null) => void;
@@ -623,6 +624,7 @@ const defaultSettings: Settings = {
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
   libraryShowStatCards: true,
   libraryShowShelves: true,
+  libraryShowProviderTabs: true,
   libraryHideEmptyProviderTabs: false,
   libraryShowHero: true,
   libraryFeaturedGame: null,
@@ -1626,6 +1628,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowStatCards: (libraryShowStatCards) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowStatCards },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowProviderTabs: (libraryShowProviderTabs) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowProviderTabs },
+      libraryTab: libraryShowProviderTabs ? state.libraryTab : "all",
     }));
     persistSoon();
   },

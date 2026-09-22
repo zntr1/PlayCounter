@@ -753,6 +753,73 @@ it.each(["All games", "Favorites", "Weekend", "Saved search"])(
   },
 );
 
+it.each(["steam", "unimported"])(
+  "hides launcher groups from Customize while %s is selected and restores them without losing imports",
+  async (source) => {
+    const { libraryImports, exeCache } = useAppStore.getState();
+    await act(() => root.render(<LibraryTestShell />));
+    await selectSource(source);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+    await shelvesToggle();
+    const toggle = document.querySelector<HTMLInputElement>(
+      "#library-show-provider-tabs",
+    )!;
+    expect(toggle.checked).toBe(true);
+    expect(toggle.disabled).toBe(false);
+
+    await act(() => toggle.click());
+    expect(useAppStore.getState().libraryTab).toBe("all");
+    expect(
+      container.querySelector('[aria-label="Game library source"]'),
+    ).toBeNull();
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(4);
+    expect(
+      container
+        .querySelector("#library-tabpanel")
+        ?.hasAttribute("aria-labelledby"),
+    ).toBe(false);
+    expect(
+      document.querySelector<HTMLInputElement>("#library-hide-empty-tabs")!
+        .disabled,
+    ).toBe(true);
+    expect(
+      JSON.parse(localStorage.getItem(STORAGE_KEY)!).settings,
+    ).toMatchObject({
+      libraryShowProviderTabs: false,
+      libraryHideEmptyProviderTabs: true,
+    });
+    expect(useAppStore.getState().libraryImports).toBe(libraryImports);
+    expect(useAppStore.getState().exeCache).toBe(exeCache);
+
+    await act(() => toggle.click());
+    expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
+    expect(
+      container
+        .querySelector("#library-tab-all")
+        ?.getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      document.querySelector<HTMLInputElement>("#library-hide-empty-tabs")!
+        .disabled,
+    ).toBe(false);
+    await selectSource("steam");
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(2);
+  },
+);
+
+it("shows launcher groups for older settings without a preference", async () => {
+  const settings = { ...useAppStore.getState().settings };
+  delete settings.libraryShowProviderTabs;
+  useAppStore.setState({ settings });
+  await act(() => root.render(<LibraryTestShell />));
+  await shelvesToggle();
+  expect(
+    document.querySelector<HTMLInputElement>("#library-show-provider-tabs")!
+      .checked,
+  ).toBe(true);
+  expect(counts()).toEqual({ all: 4, unimported: 2, steam: 2 });
+});
+
 it("shows shelves for older settings without a shelf preference", async () => {
   const settings = { ...useAppStore.getState().settings };
   delete settings.libraryShowShelves;

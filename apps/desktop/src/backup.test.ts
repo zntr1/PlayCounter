@@ -112,6 +112,20 @@ beforeEach(() => {
 });
 
 describe("backup transfer data", () => {
+  it.each([undefined, true, false])(
+    "hydrates launcher group visibility from %s with compatible defaults",
+    (libraryShowProviderTabs) => {
+      installLocalStorage(
+        JSON.stringify({ settings: { libraryShowProviderTabs } }),
+      );
+      useAppStore.setState(useAppStore.getInitialState(), true);
+      hydrate();
+      expect(useAppStore.getState().settings.libraryShowProviderTabs).toBe(
+        libraryShowProviderTabs !== false,
+      );
+    },
+  );
+
   it("keeps durable progress but excludes notifications and ignored processes", () => {
     const result = createTransferData({
       sessions: [{ id: 1 }],
@@ -339,6 +353,10 @@ describe("backup import", () => {
     ],
     ["settings.overlayUpdateNote", { settings: { overlayUpdateNote: "true" } }],
     [
+      "settings.libraryShowProviderTabs",
+      { settings: { libraryShowProviderTabs: "false" } },
+    ],
+    [
       "settings.pollingIntervalSeconds",
       { settings: { pollingIntervalSeconds: -5 } },
     ],
@@ -481,6 +499,7 @@ describe("backup import", () => {
           settings: {
             ...state.settings,
             libraryShowShelves: false,
+            libraryShowProviderTabs: false,
             libraryGridColumns: 6,
             viewShowHero: { history: true, settings: false },
             overlayUpdateNote,
@@ -524,6 +543,9 @@ describe("backup import", () => {
       useAppStore.setState(state, true);
       expect(() => hydrate()).not.toThrow();
       expect(useAppStore.getState().settings.libraryShowShelves).toBe(false);
+      expect(useAppStore.getState().settings.libraryShowProviderTabs).toBe(
+        false,
+      );
       expect(useAppStore.getState().settings.libraryGridColumns).toBe(6);
       expect(useAppStore.getState().settings.viewShowHero).toEqual({
         history: true,

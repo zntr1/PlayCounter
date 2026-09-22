@@ -12,7 +12,9 @@ import type { GameSummary } from "./views/MyGamesView";
 export type LibrarySourcesState = {
   tabs: LibraryTabDescriptor[];
   activeTab: LibraryTabId;
-  /** False while the library is empty, when tabs would all read zero. */
+  /** The All games count, also available when source navigation is hidden. */
+  gameCount: number;
+  /** True when the library has launcher groups to navigate. */
   visible: boolean;
   /** True while the featured-game banner is on screen. */
   heroVisible: boolean;
@@ -28,6 +30,7 @@ export type LibrarySourcesState = {
 export const useLibrarySources = create<LibrarySourcesState>(() => ({
   tabs: [],
   activeTab: "all",
+  gameCount: 0,
   visible: false,
   heroVisible: false,
   heroArt: null,
@@ -40,6 +43,7 @@ export function publishLibrarySources(next: LibrarySourcesState) {
   const current = useLibrarySources.getState();
   if (
     current.visible === next.visible &&
+    current.gameCount === next.gameCount &&
     current.heroVisible === next.heroVisible &&
     current.heroArt === next.heroArt &&
     current.featured === next.featured &&

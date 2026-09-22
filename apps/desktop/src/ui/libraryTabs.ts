@@ -49,8 +49,18 @@ export function visibleLibraryTabs(input: {
   allTabCount: number;
   unimportedGameCount: number;
   providers: readonly ProviderTabInput[];
+  showProviders?: boolean;
   hideEmptyProviders?: boolean;
 }): LibraryTabDescriptor[] {
+  // Source navigation is useful only after games have been imported. Otherwise
+  // My Games already shows the whole PlayCounter library in one place.
+  if (
+    input.showProviders === false ||
+    input.allTabCount === 0 ||
+    !input.providers.some((provider) => provider.gameCount > 0)
+  ) {
+    return [];
+  }
   const providers = input.providers.filter(
     (provider) =>
       providerTabVisible(provider) &&

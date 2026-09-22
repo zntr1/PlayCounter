@@ -45,7 +45,7 @@ describe("library tabs", () => {
     expect(filterByLibraryTab([imported], "steam")).toEqual([imported]);
   });
 
-  it("only builds a tab strip when a provider is visible", () => {
+  it("keeps PlayCounter-only libraries flat even when imports are supported", () => {
     const hiddenProvider = {
       provider: "steam" as const,
       label: "Steam",
@@ -66,16 +66,43 @@ describe("library tabs", () => {
         unimportedGameCount: 2,
         providers: [{ ...hiddenProvider, importSupported: true }],
       }),
-    ).toEqual([
-      { id: "all", kind: "all", label: "All games", count: 2 },
-      {
-        id: "unimported",
-        kind: "unimported",
-        label: "PlayCounter",
-        count: 2,
-      },
-      { id: "steam", kind: "provider", label: "Steam", count: 0 },
-    ]);
+    ).toEqual([]);
+  });
+
+  it("keeps empty libraries flat", () => {
+    expect(
+      visibleLibraryTabs({
+        allTabCount: 0,
+        unimportedGameCount: 0,
+        providers: [
+          {
+            provider: "steam",
+            label: "Steam",
+            importSupported: true,
+            gameCount: 0,
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("can hide populated launcher groups and resolve back to All games", () => {
+    const tabs = visibleLibraryTabs({
+      allTabCount: 2,
+      unimportedGameCount: 1,
+      providers: [
+        {
+          provider: "steam",
+          label: "Steam",
+          importSupported: true,
+          gameCount: 1,
+        },
+      ],
+      showProviders: false,
+    });
+    expect(tabs).toEqual([]);
+    expect(resolveLibraryTab("steam", tabs)).toBe("all");
+    expect(resolveLibraryTab("unimported", tabs)).toBe("all");
   });
 
   it("places PlayCounter before providers and keeps it visible at zero", () => {
@@ -211,14 +238,14 @@ describe("library tabs", () => {
 
   it("falls back from an unavailable requested tab", () => {
     const tabs = visibleLibraryTabs({
-      allTabCount: 1,
+      allTabCount: 2,
       unimportedGameCount: 1,
       providers: [
         {
           provider: "steam",
           label: "Steam",
           importSupported: true,
-          gameCount: 0,
+          gameCount: 1,
         },
       ],
     });

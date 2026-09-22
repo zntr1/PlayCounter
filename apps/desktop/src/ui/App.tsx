@@ -466,9 +466,10 @@ export function App() {
           : null;
   const artFrame: "card" | "full" = activeView === "now" ? "full" : "card";
   const libraryCount = useLibrarySources((state) =>
-    state.visible
-      ? state.tabs.find((tab) => tab.id === "all")?.count
-      : undefined,
+    state.ready ? state.gameCount : undefined,
+  );
+  const hasLibrarySources = useLibrarySources(
+    (state) => state.visible && state.tabs.length > 0,
   );
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
 
@@ -747,12 +748,12 @@ export function App() {
                 <div className="flex flex-col gap-1">
                   {items.map((item) => {
                     const view = views[item];
-                    // The source list stays wherever you are; only the
-                    // chevron decides whether it is folded.
-                    const showSources =
+                    const canExpandSources =
                       item === "games" &&
-                      !sourcesCollapsed &&
+                      hasLibrarySources &&
                       !sidebarCollapsed;
+                    // Keep available source groups accessible across views.
+                    const showSources = canExpandSources && !sourcesCollapsed;
                     return (
                       <div
                         key={item}
@@ -763,7 +764,7 @@ export function App() {
                           imageSrc={view.imageSrc}
                           label={view.label}
                           count={item === "games" ? libraryCount : undefined}
-                          trailingSpace={item === "games" && !sidebarCollapsed}
+                          trailingSpace={canExpandSources}
                           collapsed={sidebarCollapsed}
                           active={
                             activeView === item ||
@@ -812,7 +813,7 @@ export function App() {
                             setActiveView(item);
                           }}
                         />
-                        {item === "games" && !sidebarCollapsed ? (
+                        {canExpandSources ? (
                           <button
                             type="button"
                             aria-label={

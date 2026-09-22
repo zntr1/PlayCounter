@@ -746,6 +746,12 @@ export function MyGamesView({
     (state) => state.setMyGamesShowStatCards,
   );
   const setMyGamesStatCards = useAppStore((state) => state.setMyGamesStatCards);
+  const showProviderTabs = useAppStore(
+    (state) => state.settings.libraryShowProviderTabs !== false,
+  );
+  const setMyGamesShowProviderTabs = useAppStore(
+    (state) => state.setMyGamesShowProviderTabs,
+  );
   const hideEmptyProviderTabs = useAppStore(
     (state) => state.settings.libraryHideEmptyProviderTabs === true,
   );
@@ -1578,10 +1584,17 @@ export function MyGamesView({
     () => filterByLibraryTab(games, "unimported"),
     [games],
   );
-  const canHideEmptyProviderTabs = hasEmptyProviderTabs(providerTabInputs);
+  const hasImportedGames = providerTabInputs.some(
+    (provider) => provider.gameCount > 0,
+  );
+  const canHideEmptyProviderTabs =
+    showProviderTabs &&
+    hasImportedGames &&
+    hasEmptyProviderTabs(providerTabInputs);
   // Tab visibility and import prompts still depend on the full library:
   // a shelf with no matches must not hide a source or imply it was never imported.
   const tabs = visibleLibraryTabs({
+    showProviders: showProviderTabs,
     hideEmptyProviders: hideEmptyProviderTabs,
     allTabCount: allLibraryGames.length,
     unimportedGameCount: unimportedGames.length,
@@ -1595,6 +1608,9 @@ export function MyGamesView({
           (tab.id === "all" ? demoGames.length : 0),
   }));
   const activeLibraryTab = resolveLibraryTab(libraryTab, tabs);
+  useEffect(() => {
+    if (libraryTab !== activeLibraryTab) setLibraryTab(activeLibraryTab);
+  }, [activeLibraryTab, libraryTab, setLibraryTab]);
   const activeTabDescriptor = tabs.find((tab) => tab.id === activeLibraryTab);
   const activeProviderConfig =
     activeTabDescriptor?.kind === "provider"
@@ -1720,6 +1736,9 @@ export function MyGamesView({
     publishLibrarySources({
       tabs,
       activeTab: activeLibraryTab,
+      gameCount: isCoreTourDemo
+        ? demoGames.length
+        : matchingGames.length + demoGames.length,
       visible: layout.showTabs,
       heroVisible,
       heroArt: heroVisible ? useLibrarySources.getState().heroArt : null,
@@ -2091,6 +2110,34 @@ export function MyGamesView({
                   <div className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div>
                       <label
+                        htmlFor="library-show-provider-tabs"
+                        className="text-sm font-medium text-text"
+                      >
+                        Show launcher groups
+                      </label>
+                      <p
+                        id="library-show-provider-tabs-help"
+                        className="mt-1 text-xs leading-5 text-text-faint"
+                      >
+                        Group imported games by launcher under My Games. Turn
+                        off to browse all games in a single menu item.
+                      </p>
+                    </div>
+                    <input
+                      id="library-show-provider-tabs"
+                      type="checkbox"
+                      checked={showProviderTabs}
+                      aria-describedby="library-show-provider-tabs-help"
+                      data-controller-item="library-option"
+                      onChange={(event) =>
+                        setMyGamesShowProviderTabs(event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-border accent-accent"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div>
+                      <label
                         htmlFor="library-hide-empty-tabs"
                         className={clsx(
                           "text-sm font-medium",
@@ -2105,9 +2152,13 @@ export function MyGamesView({
                         id="library-hide-empty-tabs-help"
                         className="mt-1 text-xs leading-5 text-text-faint"
                       >
-                        {canHideEmptyProviderTabs
-                          ? "Hide Steam, Xbox or Battle.net in the sidebar while nothing is imported from them."
-                          : "All sources in the sidebar have games."}
+                        {!showProviderTabs
+                          ? "Turn on launcher groups to choose which sources appear."
+                          : !hasImportedGames
+                            ? "Launcher groups appear after you import games."
+                            : canHideEmptyProviderTabs
+                              ? "Hide Steam, Xbox or Battle.net in the sidebar while nothing is imported from them."
+                              : "All sources in the sidebar have games."}
                       </p>
                     </div>
                     <input
