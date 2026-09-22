@@ -287,6 +287,9 @@ it("targets journal fields, session assignment, and Mark finished precisely", as
   expect(target().tagName).toBe("TEXTAREA");
   expect(document.activeElement).toBe(target());
   await goTo("create-run");
+  expect(target().textContent).toBe("Add playthrough");
+  expect(document.activeElement).toBe(target());
+  await act(() => target().click());
   expect(target().getAttribute("aria-label")).toBe("New playthrough name");
   expect(document.activeElement).toBe(target());
   await enter(target() as HTMLInputElement, "Co-op test");

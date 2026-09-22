@@ -192,7 +192,7 @@ export const TOURS: TourDefinition[] = [
         scrollIntoView: true,
         allow: [a("demo-new-playthrough")],
         title: "Start a new playthrough",
-        body: "Type a name such as “Speedrun” in the box at the bottom left and press Enter. Each playthrough gets its own note, its own playtime, and its own list of sessions. Everything you played before stays in Default playthrough.",
+        body: "Click Add playthrough under the list, type a name such as “Speedrun” and press Enter. Each playthrough gets its own note, its own playtime, and its own list of sessions. Everything you played before stays in Default playthrough.",
       },
       {
         id: "active-run",

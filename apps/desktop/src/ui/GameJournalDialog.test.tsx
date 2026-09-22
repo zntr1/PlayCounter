@@ -147,6 +147,7 @@ it("offers a default playthrough for an existing game and keeps its history when
   expect(document.body.textContent).toContain("Recorded sessions · 1");
   expect(document.body.textContent).not.toContain("Unassigned");
 
+  await click("Add playthrough");
   await type(
     document.querySelector<HTMLInputElement>(
       '[aria-label="New playthrough name"]',
