@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import {
   BadgeCheck,
   CalendarCheck,
   Flame,
   Gamepad2,
   Joystick,
+  Medal,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -15,11 +16,9 @@ import {
   resolvedCanonicalGameKey,
   useAppStore,
 } from "../../store";
-import { SectionToggle, useSectionCollapse } from "../CollapsibleSection";
-import { Panel } from "../components";
 import { providerFloors } from "../../library/playtimeFloor";
 import { AchievementCard } from "./achievements/AchievementCard";
-import { AchievementSummary } from "./achievements/AchievementSummary";
+import { AchievementHero } from "./achievements/AchievementHero";
 import { GameLadderRow } from "./achievements/GameLadderRow";
 import { MonthHistoryRow } from "./achievements/MonthHistoryRow";
 import {
@@ -33,8 +32,13 @@ import {
   type AchievementGroupId,
 } from "./achievements/achievementCatalog";
 
-type CategoryFilter = "all" | AchievementGroupId;
+type Tab = "milestones" | "games";
 type StatusFilter = "all" | "unlocked" | "in-progress";
+
+const TABS: Array<{ id: Tab; label: string; icon: LucideIcon }> = [
+  { id: "milestones", label: "Milestones", icon: Medal },
+  { id: "games", label: "Game ladders", icon: Gamepad2 },
+];
 
 const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
   total: Trophy,
@@ -51,8 +55,10 @@ const STATUS_FILTERS: Array<{ id: StatusFilter; label: string }> = [
   { id: "in-progress", label: "In progress" },
 ];
 
+const MILESTONE_GROUPS = GROUP_META.filter((group) => group.id !== "game");
+
 export function AchievementsView() {
-  const [category, setCategory] = useState<CategoryFilter>("all");
+  const [tab, setTab] = useState<Tab>("milestones");
   const [status, setStatus] = useState<StatusFilter>("all");
   const awardedMilestones = useAppStore((state) => state.awardedMilestones);
   const sessions = useAppStore((state) => state.recentSessions);
@@ -122,7 +128,11 @@ export function AchievementsView() {
     () => summarizeAchievements(catalog, metrics.monthKey),
     [catalog, metrics.monthKey],
   );
-  const recent = useMemo(() => recentUnlocks(catalog), [catalog]);
+  const recent = useMemo(() => recentUnlocks(catalog, 3), [catalog]);
+  const nextUp = useMemo(
+    () => nextMilestones(catalog, metrics.monthKey, 3),
+    [catalog, metrics.monthKey],
+  );
   const monthHistory = useMemo(
     () => buildMonthHistory(catalog, metrics.monthKey),
     [catalog, metrics.monthKey],
@@ -136,48 +146,72 @@ export function AchievementsView() {
       ([key, game]) => game.hours > 0 && !displayed.has(key),
     ).length;
   }, [catalog, metrics.games]);
-  const visibleCount = GROUP_META.filter(
-    (group) => category === "all" || category === group.id,
-  ).reduce(
-    (count, group) =>
-      count +
-      (catalog.get(group.id) ?? []).filter((item) =>
-        matchesStatus(item, status),
-      ).length,
-    0,
-  );
+  const gameItems = catalog.get("game") ?? [];
+  const tabCounts: Record<Tab, { unlocked: number; total: number }> = {
+    milestones: { unlocked: summary.fixedUnlocked, total: summary.fixedTotal },
+    games: {
+      unlocked: gameItems.filter((item) => item.milestone).length,
+      total: gameItems.length,
+    },
+  };
+
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const index = TABS.findIndex((entry) => entry.id === tab);
+    const step = event.key === "ArrowRight" ? 1 : -1;
+    const next = TABS[(index + step + TABS.length) % TABS.length]!;
+    setTab(next.id);
+    document.getElementById(`achievements-tab-${next.id}`)?.focus();
+  };
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <AchievementSummary summary={summary} recent={recent} />
+      <AchievementHero summary={summary} nextUp={nextUp} recent={recent} />
 
-      <Panel className="sticky top-0 z-30 flex min-w-0 flex-wrap items-center justify-between gap-4 p-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <FilterButton
-            active={category === "all"}
-            onClick={() => setCategory("all")}
-          >
-            All ·{" "}
-            {formatCount(
-              flattenCatalog(catalog).filter((item) => item.milestone).length,
-            )}
-            /{formatCount(flattenCatalog(catalog).length)}
-          </FilterButton>
-          {GROUP_META.map((group) => {
-            const items = catalog.get(group.id) ?? [];
+      <div className="sticky top-0 z-30 -mx-1 flex min-w-0 flex-wrap items-end justify-between gap-3 border-b border-border bg-bg/95 px-1 pt-1 backdrop-blur">
+        <div
+          role="tablist"
+          aria-label="Achievement sections"
+          onKeyDown={handleTabKeyDown}
+          className="flex gap-1"
+        >
+          {TABS.map(({ id, label, icon: Icon }) => {
+            const selected = tab === id;
+            const counts = tabCounts[id];
             return (
-              <FilterButton
-                key={group.id}
-                active={category === group.id}
-                onClick={() => setCategory(group.id)}
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`achievements-tab-${id}`}
+                aria-selected={selected}
+                aria-controls={`achievements-panel-${id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setTab(id)}
+                className={clsx(
+                  "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                  selected
+                    ? "text-accent after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
+                    : "text-text-muted hover:text-text",
+                )}
               >
-                {group.shortLabel} ·{" "}
-                {items.filter((item) => item.milestone).length}/{items.length}
-              </FilterButton>
+                <Icon size={15} />
+                {label}
+                <span
+                  className={clsx(
+                    "font-mono text-[11px] tabular-nums",
+                    selected ? "text-accent/70" : "text-text-faint",
+                  )}
+                >
+                  {counts.unlocked.toLocaleString()}/
+                  {counts.total.toLocaleString()}
+                </span>
+              </button>
             );
           })}
         </div>
-        <div className="flex items-center rounded-full border border-border bg-bg p-1">
+        <div className="mb-2 flex items-center rounded-full border border-border bg-surface p-1">
           {STATUS_FILTERS.map((filter) => (
             <button
               key={filter.id}
@@ -195,156 +229,111 @@ export function AchievementsView() {
             </button>
           ))}
         </div>
-        <p className="sr-only" aria-live="polite">
-          Showing {visibleCount} achievements
-        </p>
-      </Panel>
-
-      <div className="grid gap-6">
-        {GROUP_META.filter(
-          (group) => category === "all" || category === group.id,
-        ).map((group) => {
-          const items = catalog.get(group.id) ?? [];
-          const matching = items.filter((item) => matchesStatus(item, status));
-          if (category === "all" && status !== "all" && matching.length === 0) {
-            return null;
-          }
-          return (
-            <AchievementSection
-              key={group.id}
-              category={group.id}
-              items={items}
-              matching={matching}
-              currentMonthKey={metrics.monthKey}
-              monthHistory={monthHistory}
-              gameLadders={gameLadders}
-              hiddenGameCount={hiddenGameCount}
-              status={status}
-            />
-          );
-        })}
       </div>
+
+      {tab === "milestones" ? (
+        <div
+          id="achievements-panel-milestones"
+          role="tabpanel"
+          aria-labelledby="achievements-tab-milestones"
+          className="grid gap-8"
+        >
+          {MILESTONE_GROUPS.map((group) => {
+            const items = catalog.get(group.id) ?? [];
+            const matching = items.filter((item) =>
+              matchesStatus(item, status),
+            );
+            if (status !== "all" && matching.length === 0) return null;
+            return (
+              <MilestoneSection
+                key={group.id}
+                category={group.id}
+                items={items}
+                matching={matching}
+                currentMonthKey={metrics.monthKey}
+                monthHistory={status === "in-progress" ? [] : monthHistory}
+              />
+            );
+          })}
+          {status !== "all" &&
+          MILESTONE_GROUPS.every(
+            (group) =>
+              !(catalog.get(group.id) ?? []).some((item) =>
+                matchesStatus(item, status),
+              ),
+          ) ? (
+            <NoFilterResults />
+          ) : null}
+        </div>
+      ) : (
+        <div
+          id="achievements-panel-games"
+          role="tabpanel"
+          aria-labelledby="achievements-tab-games"
+        >
+          <GameSection
+            ladders={gameLadders}
+            hiddenGameCount={hiddenGameCount}
+            status={status}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-function AchievementSection({
+function MilestoneSection({
   category,
   items,
   matching,
   currentMonthKey,
   monthHistory,
-  gameLadders,
-  hiddenGameCount,
-  status,
 }: {
   category: AchievementGroupId;
   items: AchievementCatalogItem[];
   matching: AchievementCatalogItem[];
   currentMonthKey: string;
   monthHistory: ReturnType<typeof buildMonthHistory>;
-  gameLadders: ReturnType<typeof buildGameLadders>;
-  hiddenGameCount: number;
-  status: StatusFilter;
 }) {
   const meta = GROUP_META.find((group) => group.id === category)!;
   const Icon = GROUP_ICONS[category];
-  const unlocked = items.filter((item) => item.milestone).length;
-  const progress = items.length === 0 ? 0 : (unlocked / items.length) * 100;
-  const section = useSectionCollapse(`achievements.${category}`);
-  const bodyId = `achievement-section-${category}`;
+  const counted =
+    category === "month"
+      ? items.filter((item) => item.scope === currentMonthKey)
+      : items;
+  const unlocked = counted.filter((item) => item.milestone).length;
+  const visible =
+    category === "month"
+      ? matching.filter((item) => item.scope === currentMonthKey)
+      : matching;
 
   return (
-    <Panel className="overflow-hidden">
-      <div
-        className={clsx(
-          "px-5 py-4",
-          !section.collapsed && "border-b border-border",
-        )}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent">
-              <Icon aria-hidden="true" size={18} />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold tracking-tight text-text">
-                {meta.label}
-              </h2>
-              <p className="mt-0.5 text-xs text-text-muted">{meta.caption}</p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-semibold text-text-muted">
-              {unlocked} / {items.length} unlocked
-            </span>
-            <SectionToggle
-              collapsed={section.collapsed}
-              onToggle={section.toggle}
-              controls={bodyId}
-              label={meta.label}
-            />
-          </div>
+    <section aria-labelledby={`achievements-group-${category}`}>
+      <div className="mb-3 flex items-end justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Icon aria-hidden="true" size={16} className="shrink-0 text-accent" />
+          <h2
+            id={`achievements-group-${category}`}
+            className="text-base font-bold tracking-tight text-text"
+          >
+            {meta.label}
+          </h2>
+          <span className="font-mono text-xs tabular-nums text-text-faint">
+            {unlocked}/{counted.length}
+          </span>
         </div>
-        <div
-          className="mt-3 h-1 overflow-hidden rounded-full bg-surface-hover"
-          role="progressbar"
-          aria-label={`${meta.label} completion`}
-          aria-valuemin={0}
-          aria-valuemax={items.length}
-          aria-valuenow={unlocked}
-          aria-valuetext={`${unlocked} of ${items.length} unlocked`}
-        >
-          <div
-            className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <p className="hidden truncate text-xs text-text-muted sm:block">
+          {meta.caption}
+        </p>
       </div>
-      {!section.collapsed ? (
-        <div id={bodyId} className="p-4 sm:p-5">
-          {category === "game" ? (
-            <GameSection
-              ladders={gameLadders}
-              hiddenGameCount={hiddenGameCount}
-              status={status}
-            />
-          ) : category === "month" ? (
-            <MonthSection
-              items={matching.filter((item) => item.scope === currentMonthKey)}
-              history={status === "in-progress" ? [] : monthHistory}
-            />
-          ) : matching.length > 0 ? (
-            <CardGrid items={matching} />
-          ) : (
-            <NoFilterResults />
-          )}
-        </div>
+      {visible.length > 0 ? (
+        <CardGrid items={visible} />
+      ) : category !== "month" || monthHistory.length === 0 ? (
+        <NoFilterResults />
       ) : null}
-    </Panel>
-  );
-}
-
-function MonthSection({
-  items,
-  history,
-}: {
-  items: AchievementCatalogItem[];
-  history: ReturnType<typeof buildMonthHistory>;
-}) {
-  return (
-    <div className="grid gap-6">
-      {items.length > 0 ? (
-        <div>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.16em] text-text-faint">
-            This month
-          </h3>
-          <CardGrid items={items} />
-        </div>
-      ) : null}
-      {history.length > 0 ? (
-        <div>
-          <div className="mb-3 flex items-baseline justify-between gap-4">
+      {category === "month" && monthHistory.length > 0 ? (
+        <div className="mt-4">
+          <div className="mb-2 flex items-baseline justify-between gap-4">
             <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-text-faint">
               Earlier months
             </h3>
@@ -353,14 +342,13 @@ function MonthSection({
             </span>
           </div>
           <div className="grid gap-2 lg:grid-cols-2">
-            {history.map((month) => (
+            {monthHistory.map((month) => (
               <MonthHistoryRow key={month.monthKey} month={month} />
             ))}
           </div>
         </div>
       ) : null}
-      {items.length === 0 && history.length === 0 ? <NoFilterResults /> : null}
-    </div>
+    </section>
   );
 }
 
@@ -431,32 +419,6 @@ function NoFilterResults() {
   );
 }
 
-function FilterButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={clsx(
-        "rounded-full border px-3 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50",
-        active
-          ? "border-accent bg-accent text-accent-fg shadow-sm"
-          : "border-border bg-surface text-text-muted hover:border-text-muted/30 hover:text-text",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 function matchesStatus(item: AchievementCatalogItem, status: StatusFilter) {
   if (status === "unlocked") return Boolean(item.milestone);
   if (status === "in-progress") {
@@ -465,10 +427,22 @@ function matchesStatus(item: AchievementCatalogItem, status: StatusFilter) {
   return true;
 }
 
-function flattenCatalog(catalog: ReturnType<typeof buildAchievementCatalog>) {
-  return [...catalog.values()].flat();
-}
-
-function formatCount(value: number) {
-  return value.toLocaleString();
+/* The closest locked milestone per ladder, most advanced first. Game rungs
+ * stay out so the hero speaks about the same 29 items as the ring. */
+function nextMilestones(
+  catalog: ReturnType<typeof buildAchievementCatalog>,
+  currentMonthKey: string,
+  limit: number,
+) {
+  return [...catalog.values()]
+    .flat()
+    .filter(
+      (item) =>
+        item.category !== "game" &&
+        !item.milestone &&
+        item.isNext &&
+        (item.category !== "month" || item.scope === currentMonthKey),
+    )
+    .sort((left, right) => right.ratio - left.ratio)
+    .slice(0, limit);
 }
