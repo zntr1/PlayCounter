@@ -70,9 +70,11 @@ const headerButton = "!rounded-lg !px-4 !py-2 !text-sm";
 export function SessionPlaythroughPicker({
   session,
   compact = false,
+  showDefault = !compact,
 }: {
   session: Session | ActiveSession;
   compact?: boolean;
+  showDefault?: boolean;
 }) {
   const practice = useLibraryPractice();
   const journal = useGameJournal(session);
@@ -81,8 +83,13 @@ export function SessionPlaythroughPicker({
   const menu = useAnchoredMenu();
   const current = session.playthroughId ?? null;
 
-  if (!journal.playthroughs.length)
-    return compact ? null : (
+  if (!journal.playthroughs.length) {
+    if (!showDefault) return null;
+    return compact ? (
+      <span className="text-xs text-text-muted">
+        {DEFAULT_PLAYTHROUGH_NAME}
+      </span>
+    ) : (
       <Button
         variant="ghost"
         icon={BookOpen}
@@ -94,6 +101,7 @@ export function SessionPlaythroughPicker({
         {DEFAULT_PLAYTHROUGH_NAME}
       </Button>
     );
+  }
 
   return (
     <>
@@ -740,7 +748,11 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                           )}
                         </td>
                         <td className="px-3 py-1.5 [&>button]:w-full [&>button]:max-w-none [&>button]:justify-between">
-                          <SessionPlaythroughPicker session={s} compact />
+                          <SessionPlaythroughPicker
+                            session={s}
+                            compact
+                            showDefault
+                          />
                         </td>
                       </tr>
                     ))}
@@ -753,7 +765,11 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                           {formatDuration(s.durationSeconds ?? 0, showDays)}
                         </td>
                         <td className="px-3 py-1.5 [&>button]:w-full [&>button]:max-w-none [&>button]:justify-between">
-                          <SessionPlaythroughPicker session={s} compact />
+                          <SessionPlaythroughPicker
+                            session={s}
+                            compact
+                            showDefault
+                          />
                         </td>
                       </tr>
                     ))}
