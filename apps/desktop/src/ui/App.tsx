@@ -59,7 +59,7 @@ import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
 import { GlobalSearch } from "./shell/GlobalSearch";
-import { HeaderMenu } from "./shell/HeaderMenu";
+import { HeaderLinks } from "./shell/HeaderLinks";
 import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
 import { useLibrarySources } from "./librarySources";
@@ -946,7 +946,7 @@ export function App() {
           <div className="titlebar-actions flex shrink-0 items-center gap-1.5 pr-3">
             <HelpButton />
             <NotificationBell />
-            <HeaderMenu />
+            <HeaderLinks />
           </div>
           <WindowControls />
         </header>

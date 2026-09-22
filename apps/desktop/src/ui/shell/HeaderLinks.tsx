@@ -1,32 +1,17 @@
-import { Globe, MoreHorizontal, Moon, Sun } from "lucide-react";
+import { Globe } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { forwardRef } from "react";
 import { useAppStore, useIsOffline } from "../../store";
-import {
-  ContextMenu,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  IconButton,
-  useAnchoredMenu,
-} from "../primitives";
+import { IconButton } from "../primitives";
 
 const WEBSITE_URL = "https://playcounter.app/";
 const DISCORD_URL = "https://discord.gg/t2nG3jaEEY";
 
-/* Theme, website and Discord used to be three separate header buttons. They
-   are rarely pressed, so they share one "more" menu now and leave the title
-   bar to the things used every session: search, help, notifications,
-   feedback. */
-
-export function HeaderMenu() {
-  const menu = useAnchoredMenu();
-  const theme = useAppStore((state) => state.settings.theme);
-  const setTheme = useAppStore((state) => state.setTheme);
+export function HeaderLinks() {
   const addToast = useAppStore((state) => state.addToast);
   const isOffline = useIsOffline();
 
   async function openExternalUrl(url: string, label: string) {
-    menu.close();
     try {
       if (isOffline) {
         addToast({
@@ -49,48 +34,23 @@ export function HeaderMenu() {
   return (
     <>
       <IconButton
-        ref={menu.anchorRef}
-        aria-label="More options"
-        title="More"
-        aria-haspopup="menu"
-        aria-expanded={menu.open}
-        icon={MoreHorizontal}
-        onClick={menu.toggle}
+        aria-label="PlayCounter website"
+        title={
+          isOffline ? "Website unavailable offline" : "PlayCounter website"
+        }
+        icon={Globe}
+        disabled={isOffline}
+        onClick={() => void openExternalUrl(WEBSITE_URL, "website")}
         className="header-icon-button"
       />
-      <ContextMenu
-        open={menu.open}
-        position={menu.position}
-        onClose={menu.close}
-        anchorRef={menu.anchorRef}
-      >
-        <ContextMenuItem
-          icon={theme === "dark" ? Sun : Moon}
-          onClick={() => {
-            setTheme(theme === "dark" ? "light" : "dark");
-            menu.close();
-          }}
-        >
-          {theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          icon={Globe}
-          disabled={isOffline}
-          title={isOffline ? "Website unavailable offline" : undefined}
-          onClick={() => void openExternalUrl(WEBSITE_URL, "website")}
-        >
-          PlayCounter website
-        </ContextMenuItem>
-        <ContextMenuItem
-          icon={DiscordIcon}
-          disabled={isOffline}
-          title={isOffline ? "Discord unavailable offline" : undefined}
-          onClick={() => void openExternalUrl(DISCORD_URL, "Discord")}
-        >
-          Discord community
-        </ContextMenuItem>
-      </ContextMenu>
+      <IconButton
+        aria-label="Discord community"
+        title={isOffline ? "Discord unavailable offline" : "Discord community"}
+        icon={DiscordIcon}
+        disabled={isOffline}
+        onClick={() => void openExternalUrl(DISCORD_URL, "Discord")}
+        className="header-icon-button"
+      />
     </>
   );
 }

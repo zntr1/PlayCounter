@@ -6,7 +6,9 @@ import {
   FolderOpen,
   Gamepad2,
   Info,
+  Moon,
   RotateCcw,
+  Sun,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -159,6 +161,7 @@ export function SettingsView() {
   const emulatorManualBinaries = useAppStore(
     (state) => state.emulatorManualBinaries,
   );
+  const setTheme = useAppStore((state) => state.setTheme);
   const setAccentColor = useAppStore((state) => state.setAccentColor);
   const setInterfaceScale = useAppStore((state) => state.setInterfaceScale);
   const knownEmulators = useAppStore((state) => state.knownEmulators);
@@ -418,9 +421,21 @@ export function SettingsView() {
 
       <SettingsPanel
         dataTour="settings-appearance"
-        description="Personalize PlayCounter's interactive controls and highlights."
+        description="Personalize PlayCounter's theme, colors, and interface size."
         title="Appearance"
       >
+        <SettingsRow description="Choose a light or dark theme." title="Theme">
+          <Button
+            icon={settings.theme === "dark" ? Sun : Moon}
+            onClick={() =>
+              setTheme(settings.theme === "dark" ? "light" : "dark")
+            }
+          >
+            {settings.theme === "dark"
+              ? "Switch to light theme"
+              : "Switch to dark theme"}
+          </Button>
+        </SettingsRow>
         <SettingsRow
           description="Choose an accent color. PlayCounter adjusts it automatically for readable contrast in both themes."
           title="Accent color"
@@ -1198,11 +1213,17 @@ export function SettingsView() {
               aria-live="polite"
               aria-atomic="true"
             >
-              {updateButtonDisabled ? <PlayCounterAnimatedIcon size={40} /> : null}
+              {updateButtonDisabled ? (
+                <PlayCounterAnimatedIcon size={40} />
+              ) : null}
               <span>
                 {isOffline && !updateButtonDisabled
                   ? "Update checks unavailable offline."
-                  : formatUpdateStatus(updateStatus, updateResult, progressLabel)}
+                  : formatUpdateStatus(
+                      updateStatus,
+                      updateResult,
+                      progressLabel,
+                    )}
               </span>
             </div>
             {updateError ? (
