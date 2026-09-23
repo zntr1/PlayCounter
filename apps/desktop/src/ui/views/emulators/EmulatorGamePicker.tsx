@@ -368,7 +368,7 @@ function GameGrid({
                 {game.releaseYear ? `${game.releaseYear} · ` : ""}
                 {platformLabel}
               </span>
-              <span className="mt-2 block text-xs font-medium text-accent">
+              <span className="mt-2 block text-xs font-medium text-accent-ink">
                 {current
                   ? "Currently linked"
                   : onSelectAndShare

@@ -160,7 +160,7 @@ export function SidebarButton({
             className={clsx(
               "transition-transform duration-200",
               !active && "group-hover:scale-110 group-hover:text-text",
-              active && "scale-105 text-accent",
+              active && "scale-105 text-accent-ink",
             )}
           />
         )}

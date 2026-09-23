@@ -171,7 +171,7 @@ export function NotificationsPanel({
                       setActiveView(action.view);
                       onClose();
                     }}
-                    className="mt-1 text-xs font-medium text-accent transition hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                    className="mt-1 text-xs font-medium text-accent-ink transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                   >
                     {notification.action.label}
                     <span aria-hidden="true"> →</span>

@@ -1097,7 +1097,7 @@ export function App() {
           {controllerModeActive ? (
             <div
               aria-hidden="true"
-              className="controller-scroll-focus-indicator pointer-events-none absolute right-5 top-5 z-40 flex items-center gap-2 rounded-full border border-accent/60 bg-bg/95 px-3 py-2 text-xs font-semibold text-accent shadow-raised backdrop-blur"
+              className="controller-scroll-focus-indicator pointer-events-none absolute right-5 top-5 z-40 flex items-center gap-2 rounded-full border border-accent/60 bg-bg/95 px-3 py-2 text-xs font-semibold text-accent-ink shadow-raised backdrop-blur"
             >
               <XboxButtonGlyph button="RIGHT_STICK" size="small" />
               <span>Scrolling this view</span>
@@ -1226,7 +1226,7 @@ function ControllerModeFooter() {
       aria-label="Controller mode controls"
       className="flex h-[49px] shrink-0 items-center justify-between gap-6 overflow-hidden border-t border-border/50 bg-surface/30 px-7 text-xs font-medium text-text-muted backdrop-blur-xl"
     >
-      <div className="flex shrink-0 items-center gap-2 font-semibold text-accent">
+      <div className="flex shrink-0 items-center gap-2 font-semibold text-accent-ink">
         <span className="grid h-7 w-7 place-items-center rounded-full border border-accent/40 bg-accent/10 shadow-[0_0_12px_rgb(var(--color-accent)/0.22)]">
           <Gamepad2 size={15} strokeWidth={2.4} />
         </span>

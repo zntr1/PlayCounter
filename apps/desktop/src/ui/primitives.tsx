@@ -34,7 +34,7 @@ const buttonVariants: Record<ButtonVariant, string> = {
   ghost: "text-text-muted hover:bg-surface-hover hover:text-text",
   // A toggle that is currently on, in the same language as a selected Pill.
   active:
-    "border border-accent/70 bg-accent-tint text-accent hover:border-accent",
+    "border border-accent/70 bg-accent-tint text-accent-ink hover:border-accent",
   danger: "bg-danger-solid text-white hover:bg-danger-solid-hover",
 };
 
@@ -187,7 +187,7 @@ export const Pill = forwardRef<HTMLButtonElement, PillProps>(function Pill(
       className={clsx(
         "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50",
         selected
-          ? "border-accent/70 bg-accent-tint text-accent"
+          ? "border-accent/70 bg-accent-tint text-accent-ink"
           : "border-border bg-surface text-text-muted hover:border-accent/40 hover:bg-surface-hover hover:text-text",
         className,
       )}
@@ -199,7 +199,7 @@ export const Pill = forwardRef<HTMLButtonElement, PillProps>(function Pill(
         <span
           className={clsx(
             "ml-0.5 font-mono text-[11px] tabular-nums",
-            selected ? "text-accent/80" : "text-text-faint",
+            selected ? "text-accent-ink/80" : "text-text-faint",
           )}
         >
           {count}
@@ -345,7 +345,7 @@ export function Modal({
             <div className="flex items-start gap-3">
               {media ?? null}
               {!media && Icon ? (
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent shadow-sm">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent-tint text-accent-ink shadow-sm">
                   <Icon
                     size={21}
                     className={
@@ -358,7 +358,7 @@ export function Modal({
               ) : null}
               <div className="min-w-0 flex-1">
                 {eyebrow ? (
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
                     {eyebrow}
                   </div>
                 ) : null}

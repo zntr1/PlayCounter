@@ -21,6 +21,7 @@ export default {
           hover: rgb("--color-accent-hover"),
           tint: "var(--color-accent-tint)",
           fg: rgb("--color-accent-fg"),
+          ink: rgb("--color-accent-ink"),
         },
         success: {
           DEFAULT: rgb("--color-success"),

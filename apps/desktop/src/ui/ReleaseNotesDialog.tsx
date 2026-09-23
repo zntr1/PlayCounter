@@ -58,7 +58,7 @@ export function ReleaseNotesDialog({
                   <span className="text-xs text-text-muted">
                     {tour.duration}
                   </span>
-                  <ArrowRight size={14} className="shrink-0 text-accent" />
+                  <ArrowRight size={14} className="shrink-0 text-accent-ink" />
                 </button>
               ))}
             </div>
@@ -72,7 +72,7 @@ export function ReleaseNotesDialog({
             }
           >
             {sections.length > 1 ? (
-              <h3 className="mb-3 text-sm font-semibold text-accent">
+              <h3 className="mb-3 text-sm font-semibold text-accent-ink">
                 Version {section.version}
               </h3>
             ) : null}
@@ -91,7 +91,7 @@ function ReleaseNotesContent({ notes }: { notes: DisplayNotes }) {
         <p className="text-base leading-relaxed text-text">{notes.headline}</p>
       ) : null}
       {notes.highlights.length > 0 ? (
-        <ul className="grid list-disc gap-3 pl-5 text-sm leading-relaxed text-text-muted marker:text-accent">
+        <ul className="grid list-disc gap-3 pl-5 text-sm leading-relaxed text-text-muted marker:text-accent-ink">
           {notes.highlights.map((highlight, index) => (
             <li key={`${index}:${highlight}`}>{highlight}</li>
           ))}

@@ -88,7 +88,7 @@ function Panel({
     <section className="rounded-xl border border-border bg-bg p-4">
       <header className="mb-3 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-text">
-          <Icon size={15} className="text-accent" />
+          <Icon size={15} className="text-accent-ink" />
           {title}
         </h3>
         {action}
@@ -109,7 +109,7 @@ function Figure({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-accent/20 bg-accent-tint text-accent">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-accent/20 bg-accent-tint text-accent-ink">
         <Icon size={17} />
       </span>
       <div className="min-w-0">
@@ -387,7 +387,7 @@ export function GameDetailsDialog({
         </div>
 
         <div className="flex min-w-0 flex-col">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent-ink">
             <Gamepad2 size={13} />
             Game details
           </div>
@@ -448,7 +448,7 @@ export function GameDetailsDialog({
                     className={clsx(
                       "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                       selected
-                        ? "bg-surface/80 text-accent backdrop-blur after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
+                        ? "bg-surface/80 text-accent-ink backdrop-blur after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
                         : "text-text-muted hover:bg-surface/50 hover:text-text",
                     )}
                   >
@@ -458,7 +458,7 @@ export function GameDetailsDialog({
                       <span
                         className={clsx(
                           "font-mono text-[11px] tabular-nums",
-                          selected ? "text-accent/80" : "text-text-faint",
+                          selected ? "text-accent-ink/80" : "text-text-faint",
                         )}
                       >
                         {fileCount}

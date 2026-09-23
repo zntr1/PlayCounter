@@ -546,7 +546,7 @@ export function HistoryView() {
                 className={clsx(
                   "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                   selected
-                    ? "text-accent after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
+                    ? "text-accent-ink after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
                     : "text-text-muted hover:text-text",
                 )}
               >
@@ -556,7 +556,7 @@ export function HistoryView() {
                   <span
                     className={clsx(
                       "font-mono text-[11px] tabular-nums",
-                      selected ? "text-accent/70" : "text-text-faint",
+                      selected ? "text-accent-ink/70" : "text-text-faint",
                     )}
                   >
                     {count.toLocaleString()}
@@ -802,7 +802,7 @@ function DayGroup({
         <div
           className={clsx(
             "text-[15px] font-bold leading-tight",
-            daysAgo === 0 ? "text-accent" : "text-text",
+            daysAgo === 0 ? "text-accent-ink" : "text-text",
           )}
         >
           {day.toLocaleDateString([], { day: "numeric", month: "short" })}

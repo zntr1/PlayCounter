@@ -2056,7 +2056,7 @@ export function MyGamesView({
                   className="w-[400px] max-w-[calc(100vw-2rem)]"
                 >
                   <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-3.5">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent-tint text-accent">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent-tint text-accent-ink">
                       <Settings2 size={18} />
                     </span>
                     <div className="min-w-0">
@@ -4659,7 +4659,7 @@ export function GameLibraryCard({
               type="button"
               disabled={game.sessionCount === 0}
               onClick={handleShowHistory}
-              className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent disabled:no-underline"
+              className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
               aria-label={`Show ${game.sessionCount} session${game.sessionCount === 1 ? "" : "s"} for ${game.name} in history`}
             >
               {game.sessionCount} session
@@ -4757,7 +4757,7 @@ export function GameLibraryCard({
                 ? "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
                 : playButtonRunning
                   ? "border-success-border bg-success-tint text-success disabled:opacity-100"
-                  : "border-accent/30 bg-accent-tint text-accent hover:bg-accent hover:text-accent-fg",
+                  : "border-accent/30 bg-accent-tint text-accent-ink hover:bg-accent hover:text-accent-fg",
             )}
           >
             {!showPlayButton ? (
@@ -5171,7 +5171,7 @@ export function GameLibraryCard({
                 "shrink-0",
                 playButtonRunning
                   ? "border-success-border bg-success-tint disabled:opacity-100"
-                  : "border-accent/30 bg-accent-tint text-accent hover:border-accent hover:bg-accent hover:text-accent-fg",
+                  : "border-accent/30 bg-accent-tint text-accent-ink hover:border-accent hover:bg-accent hover:text-accent-fg",
               )}
             >
               {playButtonRunning ? (
@@ -5562,7 +5562,7 @@ function AddPlaytimeDialog({
       </p>
 
       <div className="mt-4 flex gap-3 rounded-xl border border-accent/20 bg-accent-tint px-3.5 py-3 text-sm">
-        <History size={17} className="mt-0.5 shrink-0 text-accent" />
+        <History size={17} className="mt-0.5 shrink-0 text-accent-ink" />
         <div>
           <div className="font-semibold text-text">Added to History</div>
           <p className="mt-0.5 leading-5 text-text-muted">
@@ -5749,7 +5749,7 @@ function AdjustPlaytimeDialog({
         ) : null}
         <div className="flex items-center justify-between gap-3 border-t border-accent/20 bg-accent-tint px-4 py-3">
           <span className="font-semibold text-text">Current total</span>
-          <span className="font-mono text-base font-bold text-accent">
+          <span className="font-mono text-base font-bold text-accent-ink">
             {formatDuration(game.totalSeconds)}
           </span>
         </div>
@@ -6281,7 +6281,7 @@ function MatchCheckDialog({
                     </span>
                   </span>
                   {selected ? (
-                    <Check size={18} className="shrink-0 text-accent" />
+                    <Check size={18} className="shrink-0 text-accent-ink" />
                   ) : null}
                 </>
               );

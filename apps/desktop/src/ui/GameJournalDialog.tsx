@@ -334,7 +334,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             )}
             <div className="min-w-0 flex-1 self-center">
               <div className="min-w-0">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
                   Journal
                 </div>
                 <h2
@@ -535,7 +535,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             </div>
             <div className="text-right">
               <div className={eyebrowClass}>Playtime</div>
-              <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-accent">
+              <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-accent-ink">
                 {formatDuration(selectedSeconds, showDays)}
               </div>
             </div>
@@ -886,7 +886,7 @@ function LedgerRow({
         {active ? (
           <span
             title="New sessions count towards this playthrough"
-            className="ml-auto shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent"
+            className="ml-auto shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-ink"
           >
             Active
           </span>

@@ -193,7 +193,7 @@ export function GameBanner({
         >
           <div
             className={clsx(
-              "flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent",
+              "flex shrink-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent-ink",
               compact ? "mb-2" : "mb-3",
             )}
           >

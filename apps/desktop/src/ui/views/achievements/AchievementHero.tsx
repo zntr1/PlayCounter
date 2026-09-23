@@ -99,7 +99,7 @@ function ProgressRing({ summary }: { summary: AchievementSummaryData }) {
         </div>
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-ink">
           Milestones
         </p>
         <p className="mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight text-text">

@@ -113,7 +113,7 @@ export function HistoryHero({
       />
       <div className="relative grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-8 lg:p-7">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-accent">
+          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-accent-ink">
             <BarChart3 aria-hidden="true" size={12} />
             {rangeLabel}
           </p>

@@ -23,7 +23,7 @@ export function CustomizeSection({
   return (
     <section className="rounded-xl border border-border bg-bg px-3.5 pb-1 pt-3">
       <header className="mb-1 flex items-center gap-2.5">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-accent/20 bg-accent-tint text-accent">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-accent/20 bg-accent-tint text-accent-ink">
           <Icon size={15} />
         </span>
         <div className="min-w-0">

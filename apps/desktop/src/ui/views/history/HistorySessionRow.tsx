@@ -286,13 +286,13 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             <ArrowLeft
               size={15}
               strokeWidth={2.75}
-              className="text-accent [grid-area:1/1]"
+              className="text-accent-ink [grid-area:1/1]"
             />
           ) : (
             <Filter
               size={14}
               strokeWidth={2.75}
-              className="text-accent [grid-area:1/1]"
+              className="text-accent-ink [grid-area:1/1]"
             />
           )}
         </span>
@@ -391,7 +391,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
         </div>
       </div>
       <div className="min-w-0 text-right">
-        <div className="font-mono text-[15px] font-bold leading-none tabular-nums text-accent">
+        <div className="font-mono text-[15px] font-bold leading-none tabular-nums text-accent-ink">
           {formatDuration(seconds, showDurationDays)}
         </div>
         <div
@@ -466,7 +466,7 @@ function MarkerTag({
     <span
       className={clsx(
         "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-px text-[9px] font-bold uppercase tracking-[0.08em]",
-        tone === "record" ? "bg-accent/15 text-accent" : "bg-info/15 text-info",
+        tone === "record" ? "bg-accent/15 text-accent-ink" : "bg-info/15 text-info",
       )}
     >
       <Icon aria-hidden="true" size={9} />

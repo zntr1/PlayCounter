@@ -279,7 +279,7 @@ function ListGame({
           <span className="font-mono text-[13px] font-semibold tabular-nums text-text">
             {formatDuration(game.seconds, showDurationDays)}
           </span>
-          <span className="rounded-full bg-accent/15 px-1.5 py-px font-mono text-[10px] font-bold tabular-nums text-accent">
+          <span className="rounded-full bg-accent/15 px-1.5 py-px font-mono text-[10px] font-bold tabular-nums text-accent-ink">
             {Math.round(game.share * 100)}%
           </span>
         </span>

@@ -14,7 +14,7 @@ export const STATUS_TONES: Record<GameStatus, { dot: string; chip: string }> = {
   },
   finished: {
     dot: "bg-accent",
-    chip: "border-accent/50 bg-accent-tint text-accent",
+    chip: "border-accent/50 bg-accent-tint text-accent-ink",
   },
   "want-to-play": {
     dot: "bg-text-muted",

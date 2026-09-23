@@ -7,6 +7,8 @@ export type AccentPalette = {
   hover: RgbColor;
   tint: string;
   foreground: string;
+  /** Accent used as text: darkened until it reads on every surface. */
+  ink: RgbColor;
 };
 
 export const DEFAULT_ACCENT_COLOR = "#efc160";
@@ -17,9 +19,9 @@ const DARK_SURFACES: RgbColor[] = [
   { r: 32, g: 32, b: 35 },
 ];
 const LIGHT_SURFACES: RgbColor[] = [
-  { r: 245, g: 245, b: 246 },
-  { r: 255, g: 255, b: 255 },
-  { r: 240, g: 240, b: 242 },
+  { r: 242, g: 236, b: 225 },
+  { r: 255, g: 252, b: 245 },
+  { r: 246, g: 240, b: 230 },
 ];
 const DARK_FOREGROUND: RgbColor = { r: 13, g: 13, b: 14 };
 const LIGHT_FOREGROUND: RgbColor = { r: 255, g: 255, b: 255 };
@@ -29,6 +31,7 @@ const ACCENT_PROPERTIES = [
   "--color-accent-hover",
   "--color-accent-tint",
   "--color-accent-fg",
+  "--color-accent-ink",
 ] as const;
 
 export function normalizeAccentColor(value: unknown) {
@@ -45,7 +48,11 @@ export function deriveAccentPalette(
   const selected = parseHexColor(color) ?? parseHexColor(DEFAULT_ACCENT_COLOR)!;
   const surfaces = theme === "dark" ? DARK_SURFACES : LIGHT_SURFACES;
   const contrastTarget = theme === "dark" ? LIGHT_FOREGROUND : DARK_FOREGROUND;
-  const accent = ensureContrast(selected, surfaces, contrastTarget);
+  // Text set in the accent colour needs 4.5:1 on every surface. Dark mode
+  // uses that colour as the fill too; light mode keeps the fill as picked and
+  // only darkens the ink, so buttons never turn to mud.
+  const ink = ensureContrast(selected, surfaces, contrastTarget);
+  const accent = theme === "dark" ? ink : selected;
   const hover = mixColors(
     accent,
     theme === "dark" ? LIGHT_FOREGROUND : DARK_FOREGROUND,
@@ -60,8 +67,9 @@ export function deriveAccentPalette(
   return {
     accent,
     hover,
-    tint: `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${theme === "dark" ? 0.13 : 0.1})`,
+    tint: `rgba(${accent.r}, ${accent.g}, ${accent.b}, ${theme === "dark" ? 0.13 : 0.14})`,
     foreground: toRgbTriple(foreground),
+    ink,
   };
 }
 
@@ -82,6 +90,7 @@ export function applyTheme(theme: Theme, accentColor: string | null = null) {
   root.style.setProperty("--color-accent-hover", toRgbTriple(palette.hover));
   root.style.setProperty("--color-accent-tint", palette.tint);
   root.style.setProperty("--color-accent-fg", palette.foreground);
+  root.style.setProperty("--color-accent-ink", toRgbTriple(palette.ink));
 }
 
 function ensureContrast(

@@ -1221,7 +1221,7 @@ export function ImportLibraryView() {
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         isActive
-                          ? "bg-accent/15 text-accent"
+                          ? "bg-accent/15 text-accent-ink"
                           : "bg-surface-hover text-text-muted"
                       }`}
                     >

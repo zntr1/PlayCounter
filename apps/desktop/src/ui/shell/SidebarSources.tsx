@@ -74,7 +74,7 @@ export function SidebarSources() {
               ) : (
                 <Layers
                   size={18}
-                  className={clsx("shrink-0", selected && "text-accent")}
+                  className={clsx("shrink-0", selected && "text-accent-ink")}
                 />
               )}
               <span className="min-w-0 flex-1 truncate text-left">

@@ -352,13 +352,13 @@ function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
     emulatorId,
     label: label ?? emulatorLabels[emulatorId] ?? emulatorId,
     tip: "Played through this emulator.",
-    tone: "text-accent",
+    tone: "text-accent-ink",
     // The emulator logos carry their own colour and shape (DOSBox is an opaque
     // square, Dolphin a transparent silhouette), so the mark stays bare: a ring
-    // around them reads as a second, mismatched badge. `text-accent` only
+    // around them reads as a second, mismatched badge. `text-accent-ink` only
     // colours the `Cpu` fallback. The solid `.emulator-badge` fill is kept for
     // the labelled chip.
-    coinTone: "text-accent",
+    coinTone: "text-accent-ink",
     chipTone: "emulator-badge",
     iconUrl: emulatorAssetUrls[emulatorId],
     icon: Cpu,

@@ -302,7 +302,7 @@ export function ActiveGameHero({
               />
             ) : null}
             {session.emulator ? (
-              <span className="rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">
+              <span className="rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent-ink">
                 {session.emulator.label} · {session.emulator.display}
               </span>
             ) : (
@@ -327,7 +327,7 @@ export function ActiveGameHero({
               }
               className="mt-4 inline-flex max-w-xl items-start gap-2 self-start rounded-lg border border-border/70 bg-bg/40 px-3 py-2 text-left text-sm text-text-muted backdrop-blur transition hover:border-accent/50 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
-              <StickyNote size={14} className="mt-0.5 shrink-0 text-accent" />
+              <StickyNote size={14} className="mt-0.5 shrink-0 text-accent-ink" />
               <span className="truncate">{notePreview(activeNote)}</span>
             </button>
           ) : summary ? (
@@ -341,7 +341,7 @@ export function ActiveGameHero({
       <div className="active-hero-figures relative mx-7 mb-7 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] divide-x divide-border/60 rounded-xl border border-border/60">
         <div className="px-6 py-4">
           <FigureLabel icon={Play}>This session</FigureLabel>
-          <div className="mt-1.5 font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-accent drop-shadow-[0_0_18px_rgb(var(--color-accent)/0.35)]">
+          <div className="mt-1.5 font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-accent-ink drop-shadow-[0_0_18px_rgb(var(--color-accent)/0.35)]">
             {formatClock(elapsedSeconds)}
           </div>
         </div>
@@ -371,7 +371,7 @@ function FigureLabel({
 }) {
   return (
     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">
-      <Icon size={14} className="text-accent" />
+      <Icon size={14} className="text-accent-ink" />
       {children}
     </div>
   );

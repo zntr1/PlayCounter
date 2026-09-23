@@ -1059,7 +1059,7 @@ function TriageWizardCard({
       <div className="border-b border-border bg-surface-hover/30 px-6 py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent-ink">
               {currentIndex}
             </span>
             <span className="text-sm font-medium text-text-muted">
@@ -1193,7 +1193,7 @@ function TriageWizardCard({
             </h3>
           </div>
           {executable.isTutorial ? (
-            <span className="rounded-full border border-accent/30 bg-accent-tint px-2.5 py-1 text-xs font-semibold text-accent">
+            <span className="rounded-full border border-accent/30 bg-accent-tint px-2.5 py-1 text-xs font-semibold text-accent-ink">
               Tutorial sample · not saved
             </span>
           ) : null}
@@ -1217,7 +1217,7 @@ function TriageWizardCard({
             </div>
           ) : null}
           {isRetrying && (
-            <span className="mt-2 animate-pulse text-sm font-medium text-accent">
+            <span className="mt-2 animate-pulse text-sm font-medium text-accent-ink">
               Checking database...
             </span>
           )}

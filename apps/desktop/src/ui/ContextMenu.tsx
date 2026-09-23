@@ -402,7 +402,7 @@ const MenuItemButton = forwardRef<HTMLButtonElement, ItemProps>(
             <Check
               size={14}
               aria-hidden="true"
-              className="shrink-0 text-accent"
+              className="shrink-0 text-accent-ink"
             />
           ) : null)}
       </button>

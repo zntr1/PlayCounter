@@ -793,7 +793,7 @@ export function SettingsView() {
             description="Move through PlayCounter with a controller. Needs direct game launching turned on."
             title={
               <span className="flex items-center gap-2">
-                <Gamepad2 size={17} className="text-accent" />
+                <Gamepad2 size={17} className="text-accent-ink" />
                 Controller navigation
               </span>
             }

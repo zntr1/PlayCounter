@@ -59,7 +59,7 @@ export function AchievementCard({ item }: { item: AchievementCatalogItem }) {
               NEW
             </span>
           ) : item.isNext && !unlocked ? (
-            <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-accent">
+            <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-accent-ink">
               NEXT
             </span>
           ) : null}

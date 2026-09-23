@@ -143,11 +143,11 @@ export function EmulatorPickerCard({
     >
       <div className="border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface p-5">
         <div className="flex items-start gap-4">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent/10 text-accent">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-accent/20 bg-accent/10 text-accent-ink">
             <Gamepad2 size={20} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold uppercase tracking-wider text-accent">
+            <div className="text-xs font-semibold uppercase tracking-wider text-accent-ink">
               {copy.eyebrow}
             </div>
             <h2
@@ -172,7 +172,7 @@ export function EmulatorPickerCard({
             </div>
           </div>
           {phase === "resolving" ? (
-            <Loader2 size={20} className="shrink-0 animate-spin text-accent" />
+            <Loader2 size={20} className="shrink-0 animate-spin text-accent-ink" />
           ) : null}
         </div>
       </div>

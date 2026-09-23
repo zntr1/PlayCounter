@@ -192,7 +192,7 @@ export function AchievementsView() {
                 className={clsx(
                   "relative inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
                   selected
-                    ? "text-accent after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
+                    ? "text-accent-ink after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-accent"
                     : "text-text-muted hover:text-text",
                 )}
               >
@@ -201,7 +201,7 @@ export function AchievementsView() {
                 <span
                   className={clsx(
                     "font-mono text-[11px] tabular-nums",
-                    selected ? "text-accent/70" : "text-text-faint",
+                    selected ? "text-accent-ink/70" : "text-text-faint",
                   )}
                 >
                   {counts.unlocked.toLocaleString()}/
@@ -268,7 +268,7 @@ function MilestoneLadder({
         subtitle={ladderSubtitle(category, rungs, currentMonthKey)}
         rungs={rungs}
         leading={
-          <div className="grid h-[72px] w-12 place-items-center rounded-lg bg-accent/10 text-accent shadow-raised">
+          <div className="grid h-[72px] w-12 place-items-center rounded-lg bg-accent/10 text-accent-ink shadow-raised">
             <Icon aria-hidden="true" size={22} />
           </div>
         }

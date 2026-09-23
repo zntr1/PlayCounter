@@ -81,7 +81,7 @@ function Rung({ rung }: { rung: AchievementCatalogItem }) {
         {thresholdLabel(rung)}
       </span>
       {isNext ? (
-        <span className="mt-0.5 max-w-full truncate text-[9px] font-semibold text-accent">
+        <span className="mt-0.5 max-w-full truncate text-[9px] font-semibold text-accent-ink">
           {remainderShort(rung)}
         </span>
       ) : null}

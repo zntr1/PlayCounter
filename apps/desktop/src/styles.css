@@ -19,6 +19,7 @@
   --color-accent-hover: 242 204 125;
   --color-accent-tint: rgba(239, 193, 96, 0.13);
   --color-accent-fg: 15 16 20;
+  --color-accent-ink: 239 193 96;
   --color-success: 74 222 128;
   --color-success-tint: 20 83 45;
   --color-success-border: 34 197 94;
@@ -47,23 +48,27 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-bg: 245 245 246;
-  --color-surface: 255 255 255;
-  --color-surface-hover: 240 240 242;
-  --color-border: 205 205 210;
-  --color-text: 27 27 30;
-  --color-text-muted: 96 96 104;
-  --color-text-faint: 108 108 116;
-  --color-accent: 116 80 0;
-  --color-accent-hover: 96 66 0;
-  --color-accent-tint: rgba(116, 80, 0, 0.1);
-  --color-accent-fg: 255 255 255;
+  /* Paper: a warm cream canvas with off-white cards. The accent stays the
+     bright amber fill it is in dark mode; text set in the accent colour uses
+     the darker ink so it stays readable on light surfaces. */
+  --color-bg: 242 236 225;
+  --color-surface: 255 252 245;
+  --color-surface-hover: 246 240 230;
+  --color-border: 216 206 188;
+  --color-text: 40 34 26;
+  --color-text-muted: 112 102 88;
+  --color-text-faint: 140 130 116;
+  --color-accent: 214 150 28;
+  --color-accent-hover: 196 136 22;
+  --color-accent-tint: rgba(214, 150, 28, 0.14);
+  --color-accent-fg: 34 24 6;
+  --color-accent-ink: 128 80 0;
   --color-success: 21 128 61;
   --color-success-tint: 220 252 231;
   --color-success-border: 134 239 172;
-  --color-warning: 180 83 9;
-  --color-warning-tint: 254 243 199;
-  --color-warning-border: 245 158 11;
+  --color-warning: 154 103 0;
+  --color-warning-tint: 255 246 214;
+  --color-warning-border: 232 190 90;
   --color-danger: 220 38 38;
   --color-danger-solid: 225 29 72;
   --color-danger-solid-hover: 190 18 60;
@@ -76,11 +81,12 @@
   --color-community-tint: 237 233 254;
   --color-community-border: 167 139 250;
 
-  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.1);
-  --shadow-sidebar: 4px 0 24px rgba(20, 20, 22, 0.08);
-  --shadow-card-hover: 0 8px 30px rgba(20, 20, 22, 0.14);
-  --scrollbar-thumb: #cfcfd4;
-  --scrollbar-thumb-hover: #b8b8bf;
+  --shadow-raised:
+    0 1px 2px rgba(60, 44, 20, 0.06), 0 4px 16px rgba(60, 44, 20, 0.1);
+  --shadow-sidebar: 4px 0 24px rgba(60, 44, 20, 0.08);
+  --shadow-card-hover: 0 8px 30px rgba(60, 44, 20, 0.16);
+  --scrollbar-thumb: #d3cab8;
+  --scrollbar-thumb-hover: #bfb4a0;
 }
 
 .sidebar-button-active {
@@ -112,6 +118,16 @@
   background: linear-gradient(
     180deg,
     rgb(var(--color-surface)) 0%,
+    rgb(var(--color-bg)) 100%
+  );
+}
+
+/* Light keeps the sidebar a step darker than the page so the shell has an
+   edge; dark gets that from the surface-to-bg gradient already. */
+:root[data-theme="light"] .app-sidebar {
+  background: linear-gradient(
+    180deg,
+    rgb(235 228 214) 0%,
     rgb(var(--color-bg)) 100%
   );
 }
@@ -243,7 +259,7 @@
 }
 
 :root[data-theme="light"] .library-banner-continuation {
-  opacity: 0.5;
+  opacity: 0.7;
 }
 
 /* Compensate for the card's border so its crop lines up with the backdrop. */
@@ -273,13 +289,15 @@
     );
 }
 
+/* Light: a short wash that covers the text column and then gets out of the
+   way, so the art keeps its colour instead of fading into the card. */
 :root[data-theme="light"] .library-hero-shade {
   background: linear-gradient(
     90deg,
-    rgb(var(--color-surface) / 0.97) 0%,
-    rgb(var(--color-surface) / 0.9) 30%,
-    rgb(var(--color-surface) / 0.55) 55%,
-    rgb(var(--color-surface) / 0.1) 75%
+    rgb(var(--color-surface) / 0.96) 0%,
+    rgb(var(--color-surface) / 0.93) 34%,
+    rgb(var(--color-surface) / 0.5) 50%,
+    rgb(var(--color-surface) / 0) 64%
   );
 }
 
@@ -1279,7 +1297,7 @@ select {
   [data-library-drop-shelf]:not([data-library-drag-blocked]) {
   border-color: rgb(var(--color-accent) / 0.6);
   background-color: var(--color-accent-tint);
-  color: rgb(var(--color-accent));
+  color: rgb(var(--color-accent-ink));
 }
 
 .library-game-dragging
@@ -1411,7 +1429,7 @@ select {
   border: 1px solid rgb(var(--color-accent) / 0.2);
   border-radius: 8px;
   background: var(--color-accent-tint);
-  color: rgb(var(--color-accent));
+  color: rgb(var(--color-accent-ink));
 }
 
 @keyframes library-game-drop-hint {
@@ -1695,8 +1713,47 @@ body.shift-held
   );
 }
 
+/* Light has no darkness for the bleed to sit in, so shade it less and let
+   the picture carry more colour around the card. */
+:root[data-theme="light"] .library-banner-continuation::after {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--color-bg)) 0%,
+      rgb(var(--color-bg)) 34%,
+      rgb(var(--color-bg) / 0.5) 50%,
+      rgb(var(--color-bg) / 0) 64%
+    ),
+    linear-gradient(
+      var(--banner-shade-direction),
+      rgb(var(--color-bg) / 0.45) 0%,
+      rgb(var(--color-bg) / 0.3) 100%
+    );
+}
+
+/* The title bar strip follows the card: cream over the text column, art only
+   where the card shows it too. */
+:root[data-theme="light"] .titlebar-art::after {
+  background:
+    linear-gradient(
+      90deg,
+      rgb(var(--color-bg)) 0%,
+      rgb(var(--color-bg)) 34%,
+      rgb(var(--color-bg) / 0.5) 50%,
+      rgb(var(--color-bg) / 0) 64%,
+      rgb(var(--color-bg) / 0) 72%,
+      rgb(var(--color-bg) / 0.7) 90%,
+      rgb(var(--color-bg)) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgb(var(--color-bg) / 0.45) 0%,
+      rgb(var(--color-bg) / 0.3) 100%
+    );
+}
+
 :root[data-theme="light"] .titlebar-art {
-  --titlebar-art-opacity: 0.5;
+  --titlebar-art-opacity: 0.65;
 }
 
 /* Now Playing: the running game's key art behind the whole view, darkened
