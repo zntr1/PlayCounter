@@ -258,8 +258,10 @@
   mask-composite: intersect;
 }
 
+/* Light keeps the art inside the card: no bleed into the gutters, the strip
+   below or the title bar. */
 :root[data-theme="light"] .library-banner-continuation {
-  opacity: 0.7;
+  display: none;
 }
 
 /* Compensate for the card's border so its crop lines up with the backdrop. */
@@ -294,10 +296,10 @@
 :root[data-theme="light"] .library-hero-shade {
   background: linear-gradient(
     90deg,
-    rgb(var(--color-surface) / 0.96) 0%,
-    rgb(var(--color-surface) / 0.93) 34%,
-    rgb(var(--color-surface) / 0.5) 50%,
-    rgb(var(--color-surface) / 0) 64%
+    rgb(var(--color-surface) / 0.92) 0%,
+    rgb(var(--color-surface) / 0.86) 30%,
+    rgb(var(--color-surface) / 0.4) 46%,
+    rgb(var(--color-surface) / 0) 58%
   );
 }
 
@@ -1714,35 +1716,8 @@ body.shift-held
   );
 }
 
-/* Light has no darkness for the bleed to sit in, so shade it less and let
-   the picture carry more colour around the card. */
-:root[data-theme="light"] .library-banner-continuation::after {
-  background: linear-gradient(
-    var(--banner-shade-direction),
-    rgb(var(--color-bg) / 0.45) 0%,
-    rgb(var(--color-bg) / 0.3) 100%
-  );
-}
-
-:root[data-theme="light"] .titlebar-art::after {
-  background:
-    linear-gradient(
-      90deg,
-      rgb(var(--color-bg)) 0,
-      rgb(var(--color-bg) / 0) var(--banner-side-bleed, 28px),
-      rgb(var(--color-bg) / 0) 72%,
-      rgb(var(--color-bg) / 0.7) 90%,
-      rgb(var(--color-bg)) 100%
-    ),
-    linear-gradient(
-      180deg,
-      rgb(var(--color-bg) / 0.45) 0%,
-      rgb(var(--color-bg) / 0.3) 100%
-    );
-}
-
 :root[data-theme="light"] .titlebar-art {
-  --titlebar-art-opacity: 0.7;
+  --titlebar-art-opacity: 0;
 }
 
 /* Now Playing: the running game's key art behind the whole view, darkened
