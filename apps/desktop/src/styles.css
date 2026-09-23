@@ -1679,8 +1679,10 @@ body.shift-held
   will-change: opacity;
 }
 
-/* Both extensions keep image details, darken them for readable controls,
-   and feather the sides into the page. The lower strip reverses the vertical
+/* Both extensions keep image details and darken them for readable controls.
+   The title bar feathers into the sidebar over the same gutter width as the
+   strip next to the card, so the two fades match where they meet; on the right
+   it fades under the window buttons. The lower strip reverses the vertical
    shade so both extensions grow darker away from the card. */
 .titlebar-art::after,
 .library-banner-continuation::after {
@@ -1690,9 +1692,8 @@ body.shift-held
   background:
     linear-gradient(
       90deg,
-      rgb(var(--color-bg)) 0%,
-      rgb(var(--color-bg) / 0.7) 10%,
-      rgb(var(--color-bg) / 0) 28%,
+      rgb(var(--color-bg)) 0,
+      rgb(var(--color-bg) / 0) var(--banner-side-bleed, 28px),
       rgb(var(--color-bg) / 0) 72%,
       rgb(var(--color-bg) / 0.7) 90%,
       rgb(var(--color-bg)) 100%
@@ -1716,31 +1717,19 @@ body.shift-held
 /* Light has no darkness for the bleed to sit in, so shade it less and let
    the picture carry more colour around the card. */
 :root[data-theme="light"] .library-banner-continuation::after {
-  background:
-    linear-gradient(
-      90deg,
-      rgb(var(--color-bg)) 0%,
-      rgb(var(--color-bg)) 34%,
-      rgb(var(--color-bg) / 0.5) 50%,
-      rgb(var(--color-bg) / 0) 64%
-    ),
-    linear-gradient(
-      var(--banner-shade-direction),
-      rgb(var(--color-bg) / 0.45) 0%,
-      rgb(var(--color-bg) / 0.3) 100%
-    );
+  background: linear-gradient(
+    var(--banner-shade-direction),
+    rgb(var(--color-bg) / 0.45) 0%,
+    rgb(var(--color-bg) / 0.3) 100%
+  );
 }
 
-/* The title bar strip follows the card: cream over the text column, art only
-   where the card shows it too. */
 :root[data-theme="light"] .titlebar-art::after {
   background:
     linear-gradient(
       90deg,
-      rgb(var(--color-bg)) 0%,
-      rgb(var(--color-bg)) 34%,
-      rgb(var(--color-bg) / 0.5) 50%,
-      rgb(var(--color-bg) / 0) 64%,
+      rgb(var(--color-bg)) 0,
+      rgb(var(--color-bg) / 0) var(--banner-side-bleed, 28px),
       rgb(var(--color-bg) / 0) 72%,
       rgb(var(--color-bg) / 0.7) 90%,
       rgb(var(--color-bg)) 100%
@@ -1753,7 +1742,7 @@ body.shift-held
 }
 
 :root[data-theme="light"] .titlebar-art {
-  --titlebar-art-opacity: 0.65;
+  --titlebar-art-opacity: 0.7;
 }
 
 /* Now Playing: the running game's key art behind the whole view, darkened
