@@ -151,15 +151,11 @@ export function HelpButton() {
 
 export function WelcomePrompt() {
   const [ready, setReady] = useState(false);
-  const [helpImprove, setHelpImprove] = useState(true);
   const progress = useAppStore((state) => state.tourProgress);
   const [enableLauncher, setEnableLauncher] = useState(true);
   const markSeen = useAppStore((state) => state.markTourWelcomeSeen);
   const startTour = useAppStore((state) => state.startTour);
   const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
-  const setAutoShareIgnoredProcesses = useAppStore(
-    (state) => state.setAutoShareIgnoredProcesses,
-  );
   const launcherAvailable = currentPlatform() === "windows";
 
   useEffect(() => {
@@ -169,16 +165,12 @@ export function WelcomePrompt() {
   const visible = ready && shouldShowWelcome(progress);
 
   useEffect(() => {
-    if (visible) {
-      setHelpImprove(true);
-      setEnableLauncher(true);
-    }
+    if (visible) setEnableLauncher(true);
   }, [visible]);
 
   if (!visible) return null;
 
   const close = () => {
-    setAutoShareIgnoredProcesses(helpImprove);
     if (launcherAvailable) {
       setLauncherSetting("gameLaunchingEnabled", enableLauncher);
     }
@@ -197,29 +189,9 @@ export function WelcomePrompt() {
             play, no matter where they came from. A quick tour shows you around.
           </p>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
-            <input
-              type="checkbox"
-              checked={helpImprove}
-              onChange={(event) => setHelpImprove(event.target.checked)}
-              className="mt-1 h-5 w-5 shrink-0 accent-accent"
-            />
-            <span>
-              <span className="block font-semibold text-text">
-                Help improve PlayCounter
-              </span>
-              <span className="mt-1 block text-sm leading-5 text-text-muted">
-                When you ignore an app that isn&apos;t a game, PlayCounter
-                anonymously shares its file name (like discord.exe) so other
-                players don&apos;t have to ignore it too. Your playtime and game
-                history aren&apos;t included. You can change this anytime in
-                Settings.
-              </span>
-            </span>
-          </label>
-          {launcherAvailable ? (
-            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
+        {launcherAvailable ? (
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
               <input
                 type="checkbox"
                 checked={enableLauncher}
@@ -237,8 +209,8 @@ export function WelcomePrompt() {
                 </span>
               </span>
             </label>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         <div className="shrink-0 px-6 pb-6 pt-2">
           <div className="grid gap-1">
             <Button
