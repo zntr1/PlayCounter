@@ -13,8 +13,10 @@
     "windows": [
       {
         "title": "PlayCounter",
-        "width": 1460,
-        "height": 760,
+        "width": 1740,
+        "height": 900,
+        "center": true,
+        "preventOverflow": true,
         "minWidth": 920,
         "minHeight": 620,
         "visible": false,
