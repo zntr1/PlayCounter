@@ -7,7 +7,7 @@ import {
 import type { Toast } from "../../store";
 import { TOUR_DEMO_GAME } from "./tourDemoGame";
 
-export const LIBRARY_TOUR_GRID_COLUMNS = 5;
+export const LIBRARY_TOUR_GRID_COLUMNS = 3;
 
 export const LIBRARY_TOUR_GAME = {
   ...TOUR_DEMO_GAME,

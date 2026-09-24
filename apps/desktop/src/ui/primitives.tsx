@@ -211,14 +211,32 @@ export const Pill = forwardRef<HTMLButtonElement, PillProps>(function Pill(
 });
 
 // Closes an open overlay (modal, menu) when the user presses Escape.
-export function useEscapeKey(onClose: () => void) {
+export function useEscapeKey(
+  onClose: () => void,
+  containerRef?: RefObject<HTMLElement | null>,
+) {
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === "Escape" && !hasOpenContextMenu()) onClose();
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        hasOpenContextMenu()
+      )
+        return;
+      if (containerRef) {
+        const dialogs = [
+          ...document.querySelectorAll<HTMLElement>(
+            '[role="dialog"]:not([data-tour-card])',
+          ),
+        ].filter((dialog) => dialog.getClientRects().length > 0);
+        if (dialogs.length && dialogs.at(-1) !== containerRef.current) return;
+      }
+      event.preventDefault();
+      onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, containerRef]);
 }
 
 export type ModalSize = "sm" | "md" | "lg" | "wide" | "xl" | "full";
@@ -270,7 +288,11 @@ export function useDialogFocus(containerRef: RefObject<HTMLElement | null>) {
     return () => {
       container.removeEventListener("keydown", handleKeyDown);
       requestAnimationFrame(() => {
-        if (document.activeElement === document.body) previous?.focus?.();
+        if (document.activeElement === document.body)
+          (previous?.isConnected
+            ? previous
+            : document.querySelector<HTMLElement>("[data-tour-card]")
+          )?.focus();
       });
     };
   }, [containerRef]);
@@ -318,12 +340,13 @@ export function Modal({
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  useEscapeKey(onClose);
+  useEscapeKey(onClose, panelRef);
   useDialogFocus(panelRef);
 
   return createPortal(
     <div
       data-tour={backdropDataTour}
+      data-modal-backdrop
       className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm sm:p-6"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -344,7 +367,10 @@ export function Modal({
         )}
       >
         {header ?? (
-          <div className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
+          <div
+            data-modal-header
+            className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6"
+          >
             <div className="flex items-start gap-3">
               {media ?? null}
               {!media && Icon ? (
@@ -391,7 +417,10 @@ export function Modal({
           {children}
         </div>
         {footer ? (
-          <div className="shrink-0 border-t border-border bg-surface px-5 py-4 sm:px-6">
+          <div
+            data-modal-footer
+            className="shrink-0 border-t border-border bg-surface px-5 py-4 sm:px-6"
+          >
             {footer}
           </div>
         ) : null}

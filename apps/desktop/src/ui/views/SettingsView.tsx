@@ -776,6 +776,8 @@ export function SettingsView() {
             title="Launch games directly"
           >
             <input
+              data-tour="settings-launch-direct"
+              aria-label="Launch games directly"
               type="checkbox"
               checked={settings.gameLaunchingEnabled === true}
               disabled={settings.rememberLaunchPaths === false}
@@ -805,6 +807,8 @@ export function SettingsView() {
             <input
               type="checkbox"
               checked={settings.controllerNavigationEnabled === true}
+              data-tour="settings-controller-navigation"
+              aria-label="Controller navigation"
               disabled={settings.gameLaunchingEnabled !== true}
               onChange={(event) =>
                 setLauncherSetting(

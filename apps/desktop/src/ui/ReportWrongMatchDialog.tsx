@@ -7,16 +7,20 @@ export function ReportWrongMatchDialog({
   onCancel,
   onDifferentGame,
   onNotAGame,
+  demo = false,
 }: {
   exeName: string;
   gameName: string;
   onCancel: () => void;
   onDifferentGame: () => void;
   onNotAGame: () => void;
+  demo?: boolean;
 }) {
   const label = exeName || "this app";
   return (
     <Modal
+      dataTour={demo ? "demo-report-dialog" : undefined}
+      backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="md"
       labelId="wrong-match-dialog-title"
       eyebrow="Wrong match"
@@ -32,6 +36,11 @@ export function ReportWrongMatchDialog({
         </div>
       }
     >
+      {demo ? (
+        <p className="mb-3 text-xs text-text-muted">
+          Practice only · no report will be submitted.
+        </p>
+      ) : null}
       <p className="text-sm leading-6 text-text-muted">
         {gameName ? (
           <>

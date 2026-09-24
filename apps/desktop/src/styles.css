@@ -1637,39 +1637,145 @@ body.shift-held
   flex-shrink: 0;
 }
 .tour-practice-space {
-  padding-right: 410px;
+  position: fixed;
+  z-index: 50;
+  inset: 76px 426px 16px 16px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgb(var(--color-bg));
 }
-[data-tour-practice-card] {
-  top: 104px;
+.tour-guide-card {
+  top: 76px;
   right: 16px;
-  max-height: calc(100vh - 120px) !important;
+  width: 390px;
+  max-height: calc(100dvh - 92px);
 }
-[data-tour="demo-library-modal"] {
-  padding-right: 430px !important;
-  padding-bottom: 24px !important;
+body[data-tour-dock="side"] [data-tour-viewport] {
+  margin-right: 418px;
 }
-[data-tour="demo-library-modal"] > [role="dialog"] {
-  max-height: calc(100vh - 48px);
+body[data-tour-dock="side"] [data-modal-backdrop],
+body[data-tour-dock="side"] [data-tour="demo-log-session-backdrop"] {
+  right: 418px;
+  padding: 16px;
+}
+body[data-tour-dock] [data-modal-backdrop] > [role="dialog"] {
+  max-height: calc(100dvh - 32px);
 }
 @media (max-width: 1199px) {
+  body[data-tour-dock] {
+    --tour-guide-height: min(240px, 40dvh);
+  }
+  body[data-tour-dock] [data-tour-viewport] {
+    margin-bottom: calc(
+      var(--tour-guide-space, var(--tour-guide-height)) + 24px
+    );
+  }
+  body[data-tour-dock] .app-sidebar {
+    margin-bottom: calc(
+      var(--tour-guide-space, var(--tour-guide-height)) + 24px
+    );
+  }
+  body[data-tour-dock] [data-modal-header] {
+    padding: 12px 16px;
+  }
+  body[data-tour-dock] [data-modal-footer] {
+    padding: 8px 16px;
+  }
+  body[data-tour-dock] #community-suggestion-form {
+    display: block;
+    overflow-y: auto;
+  }
+  body[data-tour-dock] #community-suggestion-form > div {
+    padding: 12px;
+    overflow: visible;
+  }
+  body[data-tour-dock] .game-details-heading {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px 16px 0;
+  }
   .tour-practice-space {
-    position: fixed;
-    top: 96px;
-    left: 16px;
+    inset: 64px 16px
+      calc(var(--tour-guide-space, var(--tour-guide-height)) + 32px) 16px;
+  }
+  .tour-guide-card {
+    top: auto;
     bottom: 16px;
-    width: calc(100vw - 400px);
-    overflow: auto;
-    padding: 8px;
-    z-index: 50;
+    left: 16px;
+    width: auto;
+    max-height: var(--tour-guide-height);
   }
-  [data-tour-practice-card] {
-    width: 350px;
+  body[data-tour-dock] [data-modal-backdrop],
+  body[data-tour-dock] [data-tour="demo-log-session-backdrop"] {
+    bottom: calc(var(--tour-guide-space, var(--tour-guide-height)) + 32px);
+    padding: 12px;
   }
-  [data-tour="demo-library-modal"] {
-    padding-right: 390px !important;
+  body[data-tour-dock] [data-modal-backdrop] > [role="dialog"] {
+    max-height: calc(
+      100dvh - var(--tour-guide-space, var(--tour-guide-height)) - 56px
+    );
   }
-  [data-tour="demo-journal"] [data-tour="demo-journal-columns"] {
-    grid-template-columns: 160px minmax(0, 1fr);
+  body[data-tour-dock] [data-context-menu-tree] {
+    max-height: calc(
+      100dvh - var(--tour-guide-space, var(--tour-guide-height)) - 56px
+    );
+  }
+}
+
+/* Size the journal from its actual panel, rather than the whole window. */
+.game-journal {
+  container-type: inline-size;
+}
+@container (max-width: 1000px) {
+  .game-journal .journal-header {
+    padding: 12px 16px;
+  }
+  .game-journal .journal-header-main {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .game-journal .journal-header-cover {
+    width: 44px;
+    height: 60px;
+  }
+  .game-journal .journal-header-title {
+    font-size: 20px;
+    white-space: normal;
+  }
+  .game-journal .journal-header-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .game-journal .journal-header-actions > button:first-child {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+  }
+  .game-journal .journal-header-title {
+    padding-right: 32px;
+  }
+  .game-journal .journal-columns {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+}
+@container (max-width: 620px) {
+  .game-journal .journal-columns {
+    display: block;
+    overflow-y: auto;
+  }
+  .game-journal .journal-columns > div {
+    overflow: visible;
+  }
+  .game-journal .journal-columns [role="listbox"] {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .game-journal .journal-columns [role="option"] {
+    flex: 1 1 180px;
   }
 }
 
@@ -1788,4 +1894,28 @@ body.shift-held
    walking back out of it while the sidebar animates. */
 .game-library-card {
   contain: layout;
+}
+
+@media (max-height: 720px) {
+  .game-journal .journal-header {
+    padding: 10px 16px;
+  }
+  .game-journal > div:last-child {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .game-journal textarea {
+    height: 82px;
+    min-height: 82px;
+  }
+}
+body[data-tour-dock="left"] .tour-guide-card {
+  right: auto;
+  left: 16px;
+}
+body[data-tour-dock="left"] [data-tour-viewport] {
+  margin-left: 418px;
+}
+body[data-tour-dock="bottom"] [data-tour="demo-feedback-panel"] {
+  max-height: calc(100dvh - var(--tour-guide-space, 240px) - 100px);
 }

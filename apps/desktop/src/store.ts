@@ -867,7 +867,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!state.activeTour) return state;
       const tour = findTour(state.activeTour.tourId);
       return {
-        activeView: state.activeTour.returnView,
+        activeView:
+          outcome === "completed"
+            ? (tour?.finishView ?? state.activeTour.returnView)
+            : state.activeTour.returnView,
         activeTour: null,
         demoResetToken: state.demoResetToken + 1,
         helpMenuOpen: false,

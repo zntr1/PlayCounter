@@ -152,6 +152,8 @@ import {
   GameOriginBadges,
   GameProvenanceBadges,
   Panel,
+  ProviderBadge,
+  EmulatorBadge,
   SourceBadge,
   communitySuggestionApproval,
   formatDuration,
@@ -215,8 +217,10 @@ import type {
   IdentifierFlagReason,
   LibraryProviderId,
 } from "@playcounter/shared";
-import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
+import { TOUR_DEMO_GAME, TOUR_DEMO_EMULATOR } from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
+import { TourSampleSearch } from "../tour/TourSampleSearch";
+import { StatsPractice } from "../tour/TourStatsPractice";
 import {
   LAST_PLAYED_PROMOTION_DELAY_MS,
   compareMyGames,
@@ -290,8 +294,7 @@ const sortOptions: Array<{ key: SortKey; label: string }> = [
   { key: "sessions", label: "Sessions" },
 ];
 
-const GTA_V_TOUR_COVER =
-  "https://images.igdb.com/igdb/image/upload/t_cover_big/co2lbd.webp";
+const GTA_V_TOUR_COVER = "/tour/gta-v-cover.webp";
 
 export type GameSummary = {
   kind: LibraryGameKind;
@@ -359,6 +362,7 @@ function makeTourDemoGame(
   addedSessions: number,
   showSourceBadges: boolean,
   source: GameSource | null = null,
+  adjustmentSeconds = 0,
 ): GameSummary {
   const totalSeconds = 7_200 + addedSeconds;
   return {
@@ -373,10 +377,10 @@ function makeTourDemoGame(
         ? [source]
         : [],
     aliases: [],
-    totalSeconds,
+    totalSeconds: totalSeconds + adjustmentSeconds,
     sessionSeconds: totalSeconds,
     archivedSeconds: 0,
-    adjustmentSeconds: 0,
+    adjustmentSeconds,
     recordedSeconds: totalSeconds,
     sessionCount: 3 + addedSessions,
     historyGameKey: null,
@@ -609,6 +613,7 @@ export function MyGamesView({
   const [demoPlaytime, setDemoPlaytime] = useState({
     addedSeconds: 0,
     addedSessions: 0,
+    adjustmentSeconds: 0,
   });
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval>(null);
   const [pendingStopTracking, setPendingStopTracking] =
@@ -673,7 +678,10 @@ export function MyGamesView({
   const gridColumns = useAppStore(
     (state) => state.settings.libraryGridColumns ?? null,
   );
-  const gridLayout = useLibraryGridColumns(cardSize, gridColumns);
+  const gridLayout = useLibraryGridColumns(
+    cardSize,
+    tourDemo.active ? 3 : gridColumns,
+  );
   const sortKey = useAppStore(
     (state) => state.settings.librarySortKey ?? "recent",
   );
@@ -822,7 +830,11 @@ export function MyGamesView({
 
   useEffect(() => {
     if (!renderContent) return;
-    setDemoPlaytime({ addedSeconds: 0, addedSessions: 0 });
+    setDemoPlaytime({
+      addedSeconds: 0,
+      addedSessions: 0,
+      adjustmentSeconds: 0,
+    });
     setLibraryTab("all");
   }, [renderContent, tourDemo.active, tourDemo.resetToken]);
 
@@ -1505,24 +1517,48 @@ export function MyGamesView({
     userIgnoredProcesses,
   ]);
 
-  const demoGames = useMemo(() => {
+  const demoGames = useMemo<GameSummary[]>(() => {
     if (!tourDemo.active) return [];
     if (tourDemo.tourId === "core") return makeCoreTourDemoGames();
+    if (tourDemo.tourId === "emulators")
+      return [
+        {
+          ...makeCoreTourDemoGames()[0],
+          gameId: TOUR_DEMO_EMULATOR.gameId,
+          name: TOUR_DEMO_EMULATOR.gameName,
+          coverUrl: TOUR_DEMO_EMULATOR.coverUrl,
+          source: "igdb",
+          sources: ["igdb"],
+          totalSeconds: 24000,
+          sessionSeconds: 24000,
+          recordedSeconds: 24000,
+          sessionCount: 5,
+          emulatorIds: ["dolphin"],
+          emulatorLabels: ["Dolphin"],
+          exeNames: ["dolphin.exe"],
+        },
+      ];
     return [
       makeTourDemoGame(
         demoPlaytime.addedSeconds,
         demoPlaytime.addedSessions,
         tourDemo.tourId === "source-badges",
         tourDemo.tourId === "game-actions" ? "community" : null,
+        demoPlaytime.adjustmentSeconds,
       ),
     ];
   }, [demoPlaytime, tourDemo.active, tourDemo.tourId]);
   const isCoreTourDemo = tourDemo.active && tourDemo.tourId === "core";
-  const allLibraryGames = isCoreTourDemo ? demoGames : [...demoGames, ...games];
+  const allLibraryGames = tourDemo.active ? demoGames : games;
   // Only shelves empty across the full library should preview every game.
   const allShelfCounts = useMemo(
-    () => countShelfGames(games, journalFor, personalShelves),
-    [games, journalFor, personalShelves],
+    () =>
+      countShelfGames(
+        tourDemo.active ? demoGames : games,
+        journalFor,
+        personalShelves,
+      ),
+    [games, demoGames, tourDemo.active, journalFor, personalShelves],
   );
   // Apply shelf rules before the source selection so every badge describes
   // the games available in that source within the current view.
@@ -1666,18 +1702,21 @@ export function MyGamesView({
   // numbers never contradict the count sitting right next to them.
   const statCards = useMemo(() => {
     if (!showStatCards || statCardIds.length === 0) return [];
-    const metrics = summarizeLibraryStats(displayedGames, {
-      provider: activeProviderConfig?.id,
-      providerFloorSeconds: activeProviderConfig
-        ? providerFloorRecord(
-            providerFloorsForProvider(
-              libraryImports.values(),
-              activeProviderConfig.id,
-            ),
-          )
-        : undefined,
-      nowMs: recentSortNow,
-    });
+    const metrics = summarizeLibraryStats(
+      tourDemo.active ? demoGames : displayedGames,
+      {
+        provider: activeProviderConfig?.id,
+        providerFloorSeconds: activeProviderConfig
+          ? providerFloorRecord(
+              providerFloorsForProvider(
+                libraryImports.values(),
+                activeProviderConfig.id,
+              ),
+            )
+          : undefined,
+        nowMs: recentSortNow,
+      },
+    );
     return libraryStatCards(statCardIds, metrics, {
       kind: activeTabKind,
       providerLabel: activeProviderConfig?.label,
@@ -1690,6 +1729,8 @@ export function MyGamesView({
     showStatCards,
     statCardIds,
     displayedGames,
+    demoGames,
+    tourDemo.active,
   ]);
   const bulkSelection = useLibrarySelection(
     displayedGames,
@@ -1822,6 +1863,33 @@ export function MyGamesView({
 
   return (
     <div ref={bulkSelection.rootRef} onKeyDown={bulkSelection.onKeyDown}>
+      {tourDemo.active && tourDemo.tourId === "source-badges" ? (
+        <div
+          data-tour="demo-origin-examples"
+          className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 text-sm"
+        >
+          <h3 className="font-semibold">
+            Badge examples: origin and recognition
+          </h3>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-text-muted">Launcher origin</span>
+            <ProviderBadge provider="steam" />
+            <ProviderBadge provider="xbox" />
+            <ProviderBadge provider="battlenet" />
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-text-muted">Emulator</span>
+            <EmulatorBadge emulatorId="dolphin" label="Dolphin" />
+            <span className="text-text-muted">File match</span>
+            <SourceBadge source="community" />
+          </div>
+          <p className="text-xs text-text-muted">
+            An origin badge describes where a game came from. A file match
+            explains how it was recognized. Neither alone proves a launch file
+            is saved on this PC.
+          </p>
+        </div>
+      ) : null}
       <LibraryGameDropHint
         hint={libraryDrag.hint}
         onDismiss={libraryDrag.dismissHint}
@@ -2288,7 +2356,13 @@ export function MyGamesView({
                 <>
                   <div
                     ref={gridLayout.gridRef}
-                    style={gridLayout.style}
+                    style={
+                      tourDemo.active && cardSize !== "list"
+                        ? {
+                            gridTemplateColumns: `repeat(${Math.min(gridLayout.columns, 2)}, minmax(0, 260px))`,
+                          }
+                        : gridLayout.style
+                    }
                     data-tour={isCoreTourDemo ? "core-library-demo" : undefined}
                     className={clsx(
                       "grid",
@@ -2324,12 +2398,23 @@ export function MyGamesView({
                           localLinks={localLinks}
                           demo={isDemo}
                           onDemoPlaytimeLogged={
-                            isDemo && tourDemo.tourId === "log-playtime"
+                            isDemo
                               ? (durationSeconds) =>
                                   setDemoPlaytime((current) => ({
+                                    ...current,
                                     addedSeconds:
                                       current.addedSeconds + durationSeconds,
                                     addedSessions: current.addedSessions + 1,
+                                  }))
+                              : undefined
+                          }
+                          onDemoTotalAdjusted={
+                            isDemo
+                              ? (total) =>
+                                  setDemoPlaytime((current) => ({
+                                    ...current,
+                                    adjustmentSeconds:
+                                      total - 7200 - current.addedSeconds,
                                   }))
                               : undefined
                           }
@@ -2588,7 +2673,7 @@ function LaunchStartingOverlay({
 }
 
 export function GameLibraryCard({
-  game,
+  game: originalGame,
   bannerShelf,
   localLinks,
   launchKey,
@@ -2602,6 +2687,7 @@ export function GameLibraryCard({
   onRemove,
   onStopTracking,
   onDemoPlaytimeLogged,
+  onDemoTotalAdjusted,
   onDragGame,
   selectionMode,
   selected,
@@ -2622,12 +2708,36 @@ export function GameLibraryCard({
   onRemove: (game: GameSummary) => void;
   onStopTracking?: (game: GameSummary) => void;
   onDemoPlaytimeLogged?: (durationSeconds: number) => void;
+  onDemoTotalAdjusted?: (seconds: number) => void;
   onDragGame: StartLibraryGameDrag;
   selectionMode: boolean;
   selected: boolean;
   onToggleSelection: (key: string, range: boolean) => void;
   demo?: boolean;
 }) {
+  const [demoTotal, setDemoTotal] = useState<number | null>(null);
+  const [demoIdentity, setDemoIdentity] = useState<{
+    name: string;
+    source: GameSource;
+  } | null>(null);
+  const game = useMemo(
+    () =>
+      demo
+        ? {
+            ...originalGame,
+            ...(demoIdentity
+              ? { ...demoIdentity, sources: [demoIdentity.source] }
+              : {}),
+            ...(demoTotal !== null
+              ? {
+                  totalSeconds: demoTotal,
+                  adjustmentSeconds: demoTotal - originalGame.recordedSeconds,
+                }
+              : {}),
+          }
+        : originalGame,
+    [demo, demoTotal, demoIdentity, originalGame],
+  );
   const libraryPractice = useLibraryPractice();
   // The tour walks through both halves, so its demo card always shows them.
   const originVisible = (demo && !libraryPractice) || showOrigin;
@@ -2644,10 +2754,17 @@ export function GameLibraryCard({
   const removeLibraryInstall = useAppStore(
     (state) => state.removeLibraryInstall,
   );
+  const [demoAction, setDemoAction] = useState<
+    "history" | "matching" | "remove" | "launch" | null
+  >(null);
+  const [demoRemoved, setDemoRemoved] = useState(false);
+  const [demoLaunchPath, setDemoLaunchPath] = useState<string | null>(
+    TOUR_DEMO_GAME.exePath,
+  );
   const showDemoContextMenu = useAppStore(
     (state) =>
       (state.activeTour?.tourId === "log-playtime" &&
-        state.activeTour.stepIndex === 6) ||
+        [2, 3, 6].includes(state.activeTour.stepIndex)) ||
       (state.activeTour?.tourId === "game-actions" &&
         state.activeTour.stepIndex >= 2) ||
       (state.activeTour?.tourId === "launch-games" &&
@@ -2679,7 +2796,12 @@ export function GameLibraryCard({
   const cardRef = useRef<HTMLElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
-  const [showAddPlaytime, setShowAddPlaytime] = useState(false);
+  const [showAddPlaytime, setShowAddPlaytime] = useState(
+    () =>
+      demo &&
+      activeTour?.tourId === "log-playtime" &&
+      activeTour.stepIndex === 4,
+  );
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
   const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
@@ -2708,6 +2830,13 @@ export function GameLibraryCard({
       contextMenu.close();
       return;
     }
+    setDemoAction(null);
+    setShowDetails(false);
+    setShowConvert(false);
+    setReportOpen(false);
+    setShowAdjustPlaytime(false);
+    setShowAddPlaytime(false);
+    setDemoRemoved(false);
     const frame = requestAnimationFrame(() => {
       const rect = cardRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -2717,7 +2846,11 @@ export function GameLibraryCard({
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [demo, showDemoContextMenu]);
+  }, [
+    demo,
+    showDemoContextMenu,
+    showDemoContextMenu ? activeTour?.stepIndex : null,
+  ]);
   const hasActiveSession = useAppStore((state) =>
     state.activeSessions.some((session) =>
       game.aliases.some(
@@ -2871,7 +3004,7 @@ export function GameLibraryCard({
     ? emulatorLaunchCandidates.get(primaryEmulatorMapping.contentKey)
     : undefined;
   const showPlayButton =
-    launchTourDemo ||
+    (launchTourDemo && Boolean(demoLaunchPath)) ||
     (!demo &&
       canLaunchExecutables &&
       Boolean(
@@ -2882,6 +3015,7 @@ export function GameLibraryCard({
       ));
   const showLaunchFooter =
     showPlayButton ||
+    launchTourDemo ||
     (!demo &&
       canLaunchExecutables &&
       (canConfigureLaunch || gameEmulatorMappings.length > 0));
@@ -3052,6 +3186,15 @@ export function GameLibraryCard({
     const exeName = game.exeNames[0];
     const name = convertName.trim();
     if (!exeName || !name) return;
+    if (demo) {
+      setDemoIdentity({ name, source: "custom" });
+      setShowConvert(false);
+      emitTourEvent(
+        "demo.action-completed",
+        `Sample converted to ${name}. Its time is kept and nothing is shared.`,
+      );
+      return;
+    }
     convertToCustomGame(exeName, name);
     addToast({
       tone: "success",
@@ -3269,7 +3412,11 @@ export function GameLibraryCard({
   }
 
   const handleShowHistory = () => {
-    if (demo) return demoNotice();
+    if (demo) {
+      contextMenu.close();
+      setDemoAction("history");
+      return;
+    }
     setHistoryQuery(game.name);
     setHistoryGameKey(game.historyGameKey);
     setActiveView("history");
@@ -3283,6 +3430,7 @@ export function GameLibraryCard({
   ) => {
     if (demo) {
       setShowAddPlaytime(false);
+      if (demoTotal !== null) setDemoTotal(demoTotal + durationSeconds);
       onDemoPlaytimeLogged?.(durationSeconds);
       addToast({
         tone: "success",
@@ -3318,7 +3466,12 @@ export function GameLibraryCard({
   const handleAdjustPlaytime = (targetSeconds: number) => {
     if (demo) {
       setShowAdjustPlaytime(false);
-      demoNotice();
+      if (onDemoTotalAdjusted) onDemoTotalAdjusted(targetSeconds);
+      else setDemoTotal(targetSeconds);
+      emitTourEvent(
+        "demo.action-completed",
+        `Sample total updated to ${formatDuration(targetSeconds)}. No session was added.`,
+      );
       return;
     }
     try {
@@ -3430,8 +3583,12 @@ export function GameLibraryCard({
   async function handleLaunch(target = primaryLaunchTarget) {
     contextMenu.close();
     if (launchTourDemo) {
-      emitTourEvent("mygames.demo-launch-attempted");
-      demoNotice();
+      emitTourEvent(
+        "mygames.demo-launch-attempted",
+        demoLaunchPath
+          ? "Sample launch complete. No program was started."
+          : "This sample has no saved launch file. Set one in Launch options to restore Play.",
+      );
       return;
     }
     if (!target) {
@@ -3767,6 +3924,10 @@ export function GameLibraryCard({
   }
 
   function handleLaunchFooterClick(element: HTMLElement) {
+    if (launchTourDemo && !demoLaunchPath) {
+      setDemoAction("launch");
+      return;
+    }
     if (showPlayButton) {
       handlePreferredLaunch();
     } else if (primaryEmulatorMapping && primaryEmulatorCandidate) {
@@ -3865,6 +4026,10 @@ export function GameLibraryCard({
         onAcquireLaunch={onAcquireLaunch}
         onReleaseLaunch={onReleaseLaunch}
         onClose={() => setShowDetails(false)}
+        onDemoHistory={() => {
+          setShowDetails(false);
+          setDemoAction("history");
+        }}
         onMoveToPlayCounter={
           !demo && game.libraryImports.length > 0
             ? requestMoveToPlayCounter
@@ -3912,9 +4077,9 @@ export function GameLibraryCard({
         ) : null}
         <ContextMenuItem
           icon={Info}
+          dataTour={demo ? "demo-menu-details" : undefined}
           onClick={() => {
             contextMenu.close();
-            if (demo) return demoNotice();
             setShowDetails(true);
           }}
         >
@@ -3980,6 +4145,7 @@ export function GameLibraryCard({
             label="Launch options"
             icon={FolderSearch}
             dataTour={demo ? "demo-menu-launch-options" : undefined}
+            menuDataTour={demo ? "demo-launch-menu" : undefined}
           >
             {steamActions.showOpenInLauncher ? (
               <>
@@ -4033,7 +4199,10 @@ export function GameLibraryCard({
               <ContextMenuItem
                 dataTour="demo-menu-launch-file"
                 icon={FolderSearch}
-                onClick={demoNotice}
+                onClick={() => {
+                  contextMenu.close();
+                  setDemoAction("launch");
+                }}
               >
                 Set or change launch file…
               </ContextMenuItem>
@@ -4154,6 +4323,11 @@ export function GameLibraryCard({
         ) : null}
         <ContextMenuSubmenu
           label="Playtime"
+          defaultOpen={
+            demo &&
+            activeTour?.tourId === "log-playtime" &&
+            activeTour.stepIndex === 3
+          }
           icon={Clock3}
           dataTour={demo ? "demo-menu-playtime" : undefined}
           menuDataTour={demo ? "demo-playtime-menu" : undefined}
@@ -4246,6 +4420,7 @@ export function GameLibraryCard({
             label="Matching"
             icon={Search}
             dataTour={demo ? "demo-menu-matching" : undefined}
+            menuDataTour={demo ? "demo-matching-menu" : undefined}
           >
             {canCheckMatches ? (
               <ContextMenuItem
@@ -4253,7 +4428,8 @@ export function GameLibraryCard({
                 icon={Search}
                 onClick={() => {
                   contextMenu.close();
-                  setShowMatchCheck(true);
+                  if (demo) setDemoAction("matching");
+                  else setShowMatchCheck(true);
                 }}
               >
                 Check for Matches
@@ -4277,6 +4453,10 @@ export function GameLibraryCard({
                     icon={Send}
                     onClick={() => {
                       contextMenu.close();
+                      if (demo) {
+                        setDemoAction("matching");
+                        return;
+                      }
                       void handleShareAction();
                     }}
                   >
@@ -4340,13 +4520,104 @@ export function GameLibraryCard({
           icon={Trash2}
           danger
           onClick={() => {
-            onRemove(game);
+            if (demo) setDemoAction("remove");
+            else onRemove(game);
             contextMenu.close();
           }}
         >
           Remove from Library
         </ContextMenuItem>
       </ContextMenu>
+    );
+  };
+
+  const renderDemoAction = () => {
+    if (!demo || !demoAction) return null;
+    if (demoAction === "matching")
+      return (
+        <TourSampleSearch
+          exeName={game.exeNames[0] ?? "Wow.exe"}
+          onClose={() => setDemoAction(null)}
+          onConfirm={(choice) => {
+            setDemoIdentity({ name: choice.name, source: "igdb" });
+            setDemoAction(null);
+            emitTourEvent(
+              "demo.action-completed",
+              `Sample reviewed as ${choice.name}. Nothing was submitted or saved to your library.`,
+            );
+          }}
+        />
+      );
+    if (demoAction === "remove")
+      return (
+        <RemoveGameDialog
+          demo
+          game={game}
+          onCancel={() => setDemoAction(null)}
+          onConfirm={(clearHistory) => {
+            setDemoAction(null);
+            setDemoRemoved(true);
+            emitTourEvent(
+              "demo.action-completed",
+              clearHistory
+                ? "Sample removed together with its history, notes, playthroughs, and shelf membership."
+                : "Sample removed. Its history is kept; notes, playthroughs, and shelf membership are removed.",
+            );
+          }}
+        />
+      );
+    return (
+      <Modal
+        dataTour="demo-game-action-dialog"
+        backdropDataTour="demo-library-modal"
+        labelId="demo-game-action-title"
+        size="xl"
+        title={
+          demoAction === "history" ? "Sample history" : "Sample launch file"
+        }
+        onClose={() => setDemoAction(null)}
+        footer={<Button onClick={() => setDemoAction(null)}>Done</Button>}
+      >
+        {demoAction === "history" ? (
+          <StatsPractice game={game} />
+        ) : (
+          <div className="grid gap-4 text-sm">
+            <p className="break-all">
+              {demoLaunchPath ?? "No launch file saved for this sample."}
+            </p>
+            <p className="text-text-muted">
+              Choose a sample file or forget it. A real file picker would let
+              you select the game's executable; this practice never opens or
+              starts a program.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => {
+                  setDemoLaunchPath(TOUR_DEMO_GAME.exePath);
+                  emitTourEvent(
+                    "demo.action-completed",
+                    "Sample launch file selected. The path is local to this exercise.",
+                  );
+                }}
+              >
+                Use sample Wow.exe
+              </Button>
+              <Button
+                disabled={!demoLaunchPath}
+                onClick={() => {
+                  setDemoLaunchPath(null);
+                  emitTourEvent(
+                    "demo.action-completed",
+                    "Sample launch path forgotten. Game history is unchanged.",
+                  );
+                }}
+              >
+                Forget sample file
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     );
   };
 
@@ -4368,6 +4639,21 @@ export function GameLibraryCard({
           : undefined,
       }
     : {};
+
+  if (demoRemoved)
+    return (
+      <div
+        data-tour="demo-action-result"
+        className="rounded-xl border border-border bg-surface p-4"
+      >
+        <p role="status" className="mb-3 text-sm">
+          Sample removed from this practice library.
+        </p>
+        <Button onClick={() => setDemoRemoved(false)}>
+          Restore sample card
+        </Button>
+      </div>
+    );
 
   if (!isList) {
     return (
@@ -4488,7 +4774,7 @@ export function GameLibraryCard({
                 icon={Info}
                 aria-label={`Open details for ${game.name}`}
                 title="Open details"
-                onClick={() => (demo ? demoNotice() : setShowDetails(true))}
+                onClick={() => setShowDetails(true)}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               <IconButton
@@ -4825,6 +5111,7 @@ export function GameLibraryCard({
         ) : null}
         {renderContextMenu()}
         {renderDetailsDialog()}
+        {renderDemoAction()}
         {showAddPlaytime ? (
           <AddPlaytimeDialog
             game={game}
@@ -4878,6 +5165,7 @@ export function GameLibraryCard({
         ) : null}
         {reportOpen ? (
           <ReportWrongMatchDialog
+            demo={demo}
             exeName={game.exeNames[0] ?? ""}
             gameName={game.name}
             onCancel={() => setReportOpen(false)}
@@ -4885,7 +5173,16 @@ export function GameLibraryCard({
               setReportOpen(false);
               setShareOpen(true);
             }}
-            onNotAGame={() => void handleNegativeReport()}
+            onNotAGame={() => {
+              if (demo) {
+                setReportOpen(false);
+                setDemoRemoved(true);
+                emitTourEvent(
+                  "demo.action-completed",
+                  "Sample ignored. No anonymous report was sent.",
+                );
+              } else void handleNegativeReport();
+            }}
           />
         ) : null}
         {cancelSuggestionTarget ? (
@@ -4918,6 +5215,7 @@ export function GameLibraryCard({
         ) : null}
         {showConvert ? (
           <GameNameDialog
+            demo={demo}
             title="Convert to a custom game"
             subtitle={game.name}
             description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
@@ -4930,6 +5228,7 @@ export function GameLibraryCard({
         ) : null}
         {showRename ? (
           <GameNameDialog
+            demo={demo}
             title="Rename game"
             subtitle={game.name}
             description="Changes the display name of this custom game everywhere, including recorded sessions."
@@ -5245,6 +5544,7 @@ export function GameLibraryCard({
       />
       {renderContextMenu()}
       {renderDetailsDialog()}
+      {renderDemoAction()}
       {showAddPlaytime ? (
         <AddPlaytimeDialog
           game={game}
@@ -5298,14 +5598,25 @@ export function GameLibraryCard({
       ) : null}
       {reportOpen ? (
         <ReportWrongMatchDialog
+          demo={demo}
           exeName={game.exeNames[0] ?? ""}
           gameName={game.name}
           onCancel={() => setReportOpen(false)}
           onDifferentGame={() => {
             setReportOpen(false);
-            setShareOpen(true);
+            if (demo) setDemoAction("matching");
+            else setShareOpen(true);
           }}
-          onNotAGame={() => void handleNegativeReport()}
+          onNotAGame={() => {
+            if (demo) {
+              setReportOpen(false);
+              setDemoRemoved(true);
+              emitTourEvent(
+                "demo.action-completed",
+                "Sample ignored. No anonymous report was sent.",
+              );
+            } else void handleNegativeReport();
+          }}
         />
       ) : null}
       {cancelSuggestionTarget ? (
@@ -5338,6 +5649,7 @@ export function GameLibraryCard({
       ) : null}
       {showConvert ? (
         <GameNameDialog
+          demo={demo}
           title="Convert to a custom game"
           subtitle={game.name}
           description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
@@ -5350,6 +5662,7 @@ export function GameLibraryCard({
       ) : null}
       {showRename ? (
         <GameNameDialog
+          demo={demo}
           title="Rename game"
           subtitle={game.name}
           description="Changes the display name of this custom game everywhere, including recorded sessions."
@@ -5438,13 +5751,17 @@ function RemoveGameDialog({
   game,
   onCancel,
   onConfirm,
+  demo = false,
 }: {
   game: Exclude<PendingRemoval, null>;
   onCancel: () => void;
   onConfirm: (removeHistory: boolean) => void;
+  demo?: boolean;
 }) {
   return (
     <Modal
+      dataTour={demo ? "demo-remove-dialog" : undefined}
+      backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="sm"
       labelId="remove-game-dialog-title"
       eyebrow="My Games"
@@ -5677,6 +5994,10 @@ function AdjustPlaytimeDialog({
 
   return (
     <Modal
+      dataTour={game.kind === "tour-demo" ? "demo-adjust-dialog" : undefined}
+      backdropDataTour={
+        game.kind === "tour-demo" ? "demo-library-modal" : undefined
+      }
       size="sm"
       labelId="adjust-playtime-title"
       eyebrow="Library total"
@@ -6325,6 +6646,7 @@ function GameNameDialog({
   onNameChange,
   onCancel,
   onConfirm,
+  demo = false,
 }: {
   title: string;
   subtitle: string;
@@ -6334,9 +6656,12 @@ function GameNameDialog({
   onNameChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
+  demo?: boolean;
 }) {
   return (
     <Modal
+      dataTour={demo ? "demo-game-name-dialog" : undefined}
+      backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="sm"
       labelId="game-name-dialog-title"
       eyebrow="Custom game"

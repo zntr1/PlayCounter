@@ -23,7 +23,9 @@ describe("tour definitions", () => {
           ).toBe(true);
         } else {
           expect(
-            Boolean(step.advanceOn) || (tour.practice && step.manualAdvance),
+            Boolean(step.advanceOn) ||
+              (Boolean(tour.practice || tour.simulation || tour.demoGame) &&
+                step.manualAdvance),
           ).toBe(true);
           expect(step.anchor).toContain('data-tour="demo-');
           expect(
@@ -61,7 +63,7 @@ describe("tour definitions", () => {
 
   it("documents the emulator live view and management page", () => {
     const guide = TOURS.find((tour) => tour.id === "emulators")!;
-    expect(guide.version).toBe(3);
+    expect(guide.version).toBe(4);
     expect(guide.steps.map((step) => step.id)).toEqual([
       "intro",
       "settings",
@@ -85,12 +87,14 @@ describe("tour definitions", () => {
       guide.steps.find((step) => step.id === "emulator-page")?.body,
     ).toContain("all of its game matches");
     const confirm = guide.steps.find((step) => step.id === "confirm")!;
-    expect(confirm.anchor).toBe('[data-tour="demo-emulator-confirm"]');
+    expect(confirm.anchorTargets).toContain(
+      '[data-tour="demo-emulator-confirm"]',
+    );
     expect(confirm.body).toContain("the game you just started");
     expect(confirm.body).not.toContain("the file");
     const fixMatch = guide.steps.find((step) => step.id === "fix-match")!;
-    expect(fixMatch.body).toContain("Change game");
-    expect(fixMatch.body).toContain("Forget game");
+    expect(fixMatch.body).toContain("Change");
+    expect(fixMatch.body).toContain("Forget");
     expect(fixMatch.body).toContain("Share match");
   });
 
@@ -128,6 +132,7 @@ describe("tour definitions", () => {
     expect(guide.steps.map((step) => step.id)).toEqual([
       "intro",
       "open-menu",
+      "details",
       "history",
       "playtime",
       "matches",
@@ -175,7 +180,7 @@ describe("tour definitions", () => {
     expect(
       release.filter((tour) => tour.practice).map((tour) => tour.id),
     ).toEqual(["notes-playthroughs", "organize-library", "library-progress"]);
-    for (const id of ["backup-data", "feedback-replies", "emulators"]) {
+    for (const id of ["backup-data", "feedback-replies"]) {
       expect(
         release
           .find((tour) => tour.id === id)

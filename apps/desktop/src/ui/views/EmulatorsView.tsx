@@ -1,5 +1,7 @@
 import { EyeOff, Gamepad2, RotateCcw, Unlink } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { TourSampleSearch } from "../tour/TourSampleSearch";
+import { emitTourEvent } from "../tour/TourUI";
 import {
   forgetEmulatorMapping,
   restoreEmulatorContent,
@@ -173,9 +175,22 @@ function EmulatorView({
     }
     return stats;
   }, [sessions]);
-  const demoMapping = useMemo(() => tourDemoEmulatorMapping(), []);
+  const [demoMapping, setDemoMapping] = useState(tourDemoEmulatorMapping);
+  const [demoAction, setDemoAction] = useState<
+    "change" | "forget" | "share" | null
+  >(null);
+  const [demoForgotten, setDemoForgotten] = useState(false);
+  useEffect(() => {
+    setDemoMapping(tourDemoEmulatorMapping());
+    setDemoForgotten(false);
+    setDemoAction(null);
+  }, [activeTourId]);
   const displayedObservations = demo ? [] : observations;
-  const displayedGameMappings = demo ? [demoMapping] : gameMappings;
+  const displayedGameMappings = demo
+    ? demoForgotten
+      ? []
+      : [demoMapping]
+    : gameMappings;
   const displayedIgnoredMappings = demo ? [] : ignoredMappings;
   const displayedIgnoredCount = demo
     ? TOUR_DEMO_EMULATOR_STATS.ignored
@@ -353,10 +368,29 @@ function EmulatorView({
                 stats={statsFor(mapping)}
                 showDurationDays={showDurationDays}
                 demo={demo}
-                onChange={demo ? undefined : () => setChanging(mapping)}
+                onDemoConfirm={
+                  demo
+                    ? () => {
+                        setDemoMapping((current) => ({
+                          ...current,
+                          needsConfirmation: false,
+                        }));
+                        emitTourEvent(
+                          "demo.action-completed",
+                          "Sample confirmed. The check badge is gone; its recorded sessions stay intact.",
+                        );
+                      }
+                    : undefined
+                }
+                onDemoShare={demo ? () => setDemoAction("share") : undefined}
+                onChange={
+                  demo
+                    ? () => setDemoAction("change")
+                    : () => setChanging(mapping)
+                }
                 onForget={
                   demo
-                    ? undefined
+                    ? () => setDemoAction("forget")
                     : () => {
                         setForgettingBusy(false);
                         setForgetting(mapping);
@@ -367,6 +401,84 @@ function EmulatorView({
           </div>
         )}
       </section>
+
+      {demo && demoForgotten ? (
+        <div
+          data-tour="demo-emulator-result"
+          className="rounded-xl border border-border bg-surface p-4"
+        >
+          <p role="status" className="mb-3 text-sm">
+            Sample match forgotten. The five sample sessions remain in History.
+          </p>
+          <Button
+            onClick={() => {
+              setDemoForgotten(false);
+              setDemoMapping(tourDemoEmulatorMapping());
+            }}
+          >
+            Restore sample match
+          </Button>
+        </div>
+      ) : null}
+      {demo && demoAction === "change" ? (
+        <TourSampleSearch
+          exeName={TOUR_DEMO_EMULATOR.display}
+          onClose={() => setDemoAction(null)}
+          onConfirm={(choice) => {
+            setDemoMapping((current) => ({
+              ...current,
+              gameId: choice.igdbId,
+              gameName: choice.name,
+              coverUrl: choice.coverUrl,
+              needsConfirmation: false,
+            }));
+            setDemoAction(null);
+            emitTourEvent(
+              "demo.action-completed",
+              `Sample match changed to ${choice.name}. Nothing was shared.`,
+            );
+          }}
+        />
+      ) : null}
+      {demo && (demoAction === "forget" || demoAction === "share") ? (
+        <Modal
+          dataTour="demo-emulator-confirmation"
+          backdropDataTour="demo-library-modal"
+          labelId="demo-emulator-action-title"
+          title={
+            demoAction === "forget"
+              ? "Forget this sample match?"
+              : "Preview sharing a match"
+          }
+          onClose={() => setDemoAction(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setDemoAction(null)}>Cancel</Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  if (demoAction === "forget") setDemoForgotten(true);
+                  emitTourEvent(
+                    "demo.action-completed",
+                    demoAction === "forget"
+                      ? "Sample match forgotten. Recorded history remains."
+                      : "Sharing preview finished. No match was submitted.",
+                  );
+                  setDemoAction(null);
+                }}
+              >
+                {demoAction === "forget" ? "Forget sample" : "Finish preview"}
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-sm text-text-muted">
+            {demoAction === "forget"
+              ? "This removes the sample file-to-game link. Recorded sessions are kept. In the app, you choose the game again when this content next appears."
+              : "Share match sends a recognized file or disc ID and the chosen game for Community review. Full local paths stay on your PC. This preview sends nothing."}
+          </p>
+        </Modal>
+      ) : null}
 
       {displayedIgnoredMappings.length > 0 ? (
         <section

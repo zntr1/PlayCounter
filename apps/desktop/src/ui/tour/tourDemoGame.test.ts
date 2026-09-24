@@ -24,9 +24,7 @@ describe("emulator tour demo", () => {
     expect(mapping.contentKey).toMatch(/^playcounter-tour:/);
     expect(mapping.decision).toBe("game");
     expect(mapping.needsConfirmation).toBe(true);
-    expect(mapping.coverUrl).toBe(
-      "https://images.igdb.com/igdb/image/upload/t_cover_big/co3ohz.webp",
-    );
+    expect(mapping.coverUrl).toBe("/tour/zelda-wind-waker-cover.webp");
     expect(session.id).toBeLessThan(0);
     expect(session.igdbId).toBeUndefined();
     expect(

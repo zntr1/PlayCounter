@@ -17,7 +17,7 @@ import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
 import { Button, IconButton } from "../primitives";
-import { tourCardPosition, type TourTargetRect } from "./tourCardPosition";
+import type { TourTargetRect } from "./tourCardPosition";
 import {
   CORE_TOUR_ID,
   TOUR_CATEGORIES,
@@ -35,8 +35,10 @@ const HELP_TOUR_GROUPS = TOUR_CATEGORIES.map((category) => ({
   tours: TOURS.filter((tour) => tour.category === category.id),
 })).filter((group) => group.tours.length > 0);
 
-export function emitTourEvent(name: TourEventName) {
-  window.dispatchEvent(new CustomEvent(TOUR_EVENT, { detail: { name } }));
+export function emitTourEvent(name: TourEventName, message?: string) {
+  window.dispatchEvent(
+    new CustomEvent(TOUR_EVENT, { detail: { name, message } }),
+  );
 }
 
 export function useTourDemo() {
@@ -66,8 +68,18 @@ export function HelpButton() {
     const close = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      rootRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    };
     window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
+    window.addEventListener("keydown", escape);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", escape);
+    };
   }, [open, setOpen]);
 
   return (
@@ -76,12 +88,15 @@ export function HelpButton() {
         <IconButton
           aria-label="Help and tutorials"
           title="Help and tutorials"
+          aria-expanded={open}
+          aria-controls="help-tutorials"
           icon={CircleHelp}
           onClick={() => setOpen(!open)}
         />
       </span>
       {open ? (
         <div
+          id="help-tutorials"
           className="absolute right-0 top-11 z-50 flex max-h-[calc(100vh-100px)] w-[420px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
           onKeyDown={(event) => {
             if (event.key === "Escape") setOpen(false);
@@ -204,8 +219,8 @@ export function WelcomePrompt() {
                 Built by one developer.
               </span>{" "}
               PlayCounter is new, so expect a few rough edges. Spot one? Use{" "}
-              <span className="font-medium text-text">Help & Feedback</span>.
-              I read every message and reply in the app.
+              <span className="font-medium text-text">Help & Feedback</span>. I
+              read every message and reply in the app.
             </p>
           </div>
         </div>
@@ -288,24 +303,71 @@ function ModalFrame({
 export function TourOverlay() {
   const active = useAppStore((state) => state.activeTour);
   if (!active) return null;
-  return <TourRunner />;
+  return <TourRunner key={active.tourId} />;
 }
 
 function TourRunner() {
   const active = useAppStore((state) => state.activeTour)!;
   const startTour = useAppStore((state) => state.startTour);
   const goTo = useAppStore((state) => state.goToTourStep);
-  const endTour = useAppStore((state) => state.endTour);
-  const openGuides = useAppStore((state) => state.finishTourAndOpenHelp);
+  const finishTour = useAppStore((state) => state.endTour);
+  const skipped = useRef(false);
+  const endTour = (outcome: "completed" | "dismissed") => {
+    finishTour(
+      outcome === "completed" && skipped.current ? "dismissed" : outcome,
+    );
+    if (outcome === "completed" && tour?.finishView)
+      useAppStore.getState().setActiveView(tour.finishView);
+  };
+  const openGuides = () => {
+    endTour("completed");
+    useAppStore.getState().setHelpMenuOpen(true);
+  };
   const tour = findTour(active.tourId);
   const step = tour?.steps[active.stepIndex];
+  const sandbox = Boolean(tour?.practice || tour?.simulation);
+  const [outcome, setOutcome] = useState<string | null>(null);
   const [rect, setRect] = useState<TourTargetRect | null>(null);
-  const [positionRect, setPositionRect] = useState<TourTargetRect | null>(null);
   const [additionalRects, setAdditionalRects] = useState<TourTargetRect[]>([]);
   const [missing, setMissing] = useState(false);
-  const [cardHeight, setCardHeight] = useState(260);
   const cardRef = useRef<HTMLDivElement>(null);
+  const outcomeRef = useRef<HTMLParagraphElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const measure = () =>
+      document.body.style.setProperty(
+        "--tour-guide-space",
+        `${card.getBoundingClientRect().height}px`,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(card);
+    return () => {
+      observer.disconnect();
+      document.body.style.removeProperty("--tour-guide-space");
+    };
+  }, []);
+
+  // Reserve space in the viewport, including portalled dialogs. All measurements
+  // stay in viewport pixels, independent of the app's content zoom.
+  useLayoutEffect(() => {
+    const update = () => {
+      document.body.dataset.tourDock =
+        window.innerWidth < 1200
+          ? "bottom"
+          : tour?.id === "feedback-replies" && step?.id !== "send"
+            ? "left"
+            : "side";
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => {
+      delete document.body.dataset.tourDock;
+      window.removeEventListener("resize", update);
+    };
+  }, [tour?.id, step?.id]);
 
   useLayoutEffect(() => {
     previousFocus.current = document.activeElement as HTMLElement | null;
@@ -324,15 +386,10 @@ function TourRunner() {
   }, []);
 
   useLayoutEffect(() => {
-    if (
-      !step?.anchor ||
-      (step.cardPlacement !== "below" && !step.scrollIntoView)
-    )
-      return;
+    if (!step?.anchor) return;
     const scrollTarget = () => {
       findTourTarget(step)?.scrollIntoView({
-        block:
-          step.cardPlacement === "below" || tour?.practice ? "start" : "center",
+        block: "nearest",
         inline: "nearest",
         behavior: "instant",
       });
@@ -345,14 +402,26 @@ function TourRunner() {
     };
   }, [step, tour?.practice]);
 
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-    const measure = () => setCardHeight(card.scrollHeight);
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [missing, step]);
+  useEffect(() => {
+    setOutcome(null);
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      if (detail.message) setOutcome(detail.message);
+    };
+    window.addEventListener(TOUR_EVENT, handler);
+    return () => window.removeEventListener(TOUR_EVENT, handler);
+  }, [step]);
+
+  useEffect(() => {
+    if (!outcome) return;
+    const frame = requestAnimationFrame(() =>
+      outcomeRef.current?.scrollIntoView({
+        block: "nearest",
+        behavior: "instant",
+      }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [outcome]);
 
   useEffect(() => {
     if (!step) {
@@ -367,7 +436,7 @@ function TourRunner() {
       if (element) {
         if (element !== previousTarget) {
           const layer = element.closest('[role="dialog"], [role="menu"]');
-          if (step.scrollIntoView || step.cardPlacement === "below" || layer) {
+          if (element) {
             element.scrollIntoView({
               block: "nearest",
               inline: "nearest",
@@ -388,52 +457,56 @@ function TourRunner() {
           previousTarget = element;
         }
         const measured = tourTargetRect(element);
-        const positionElement = step.positionAnchor
-          ? findTourElement(step.positionAnchor)
-          : null;
-        const measuredPosition = positionElement
-          ? tourTargetRect(positionElement)
-          : null;
-        setPositionRect((current) =>
-          current &&
-          measuredPosition &&
-          sameRects([current], [measuredPosition])
-            ? current
-            : measuredPosition,
-        );
+        // Responsive card sizing can finish after the first scroll. Keep the
+        // opening control reachable while that initial layout settles.
+        if (!measured && performance.now() - started < 2000) {
+          element.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+            behavior: "instant",
+          });
+        }
         setRect((current) =>
           current && measured && sameRects([current], [measured])
             ? current
             : measured,
         );
-        const measuredAdditional = (step.additionalAnchors ?? []).flatMap(
-          (selector) => {
-            const additional = findTourElement(selector);
-            const layer = element.closest('[role="dialog"], [role="menu"]');
-            if (
-              additional === element ||
-              (layer && additional && !layer.contains(additional))
-            )
-              return [];
-            const rect = additional ? tourTargetRect(additional) : null;
-            return rect ? [rect] : [];
-          },
-        );
+        const measuredAdditional = [
+          ...(step.additionalAnchors ?? []),
+          ...(sandbox
+            ? [
+                '[data-tour="demo-library-stage"]',
+                '[data-tour="demo-journal"]',
+                '[data-tour="demo-library-menu"]',
+                '[data-tour="demo-shelf-editor"]',
+                '[data-tour="demo-sample-search"]',
+              ]
+            : []),
+        ].flatMap((selector) => {
+          const additional = findTourElement(selector);
+          const layer = element.closest('[role="dialog"], [role="menu"]');
+          if (
+            additional === element ||
+            (layer && additional && !layer.contains(additional))
+          )
+            return [];
+          const rect = additional ? tourTargetRect(additional) : null;
+          return rect ? [rect] : [];
+        });
         setAdditionalRects((current) =>
           sameRects(current, measuredAdditional) ? current : measuredAdditional,
         );
         setMissing(false);
       } else {
         setRect(null);
-        setPositionRect(null);
-        setAdditionalRects([]);
+        setAdditionalRects((current) => (current.length ? [] : current));
         if (step.anchor && performance.now() - started > 1500) setMissing(true);
       }
       frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(frame);
-  }, [endTour, step]);
+  }, [finishTour, step, sandbox]);
 
   useEffect(() => {
     if (tour?.id === "fix-detection" && step?.id === "intro") {
@@ -443,8 +516,7 @@ function TourRunner() {
 
   useEffect(() => {
     if (!tour || !step) return;
-    const present = (selector: string) =>
-      Boolean(document.querySelector(selector));
+    const present = (selector: string) => Boolean(findTourElement(selector));
     const tick = () => {
       if (
         step.advanceOn?.type === "anchor-present" &&
@@ -476,7 +548,7 @@ function TourRunner() {
       const next = nextStepIndex(tour.steps, active.stepIndex, 1, (selector) =>
         Boolean(document.querySelector(selector)),
       );
-      if (next < tour.steps.length) goTo(next);
+      if (!step.manualAdvance && next < tour.steps.length) goTo(next);
     };
     window.addEventListener(TOUR_EVENT, handler);
     return () => window.removeEventListener(TOUR_EVENT, handler);
@@ -484,7 +556,16 @@ function TourRunner() {
 
   useEffect(() => {
     if (!step) return;
-    const allow = step.allow ?? [];
+    const allow = [
+      ...(step.allow ?? []),
+      ...(step.interactive && sandbox
+        ? [
+            '[data-tour="demo-library-stage"]',
+            '[data-tour="demo-library-modal"]',
+            '[data-tour="demo-library-menu"]',
+          ]
+        : []),
+    ];
     const isAllowed = (event: Event) => {
       const path = event.composedPath();
       return path.some(
@@ -495,6 +576,7 @@ function TourRunner() {
       );
     };
     const block = (event: Event) => {
+      if (event.type === "wheel") return;
       if (isAllowed(event)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -551,7 +633,7 @@ function TourRunner() {
       document.removeEventListener("focusin", focus, true);
       document.removeEventListener("keydown", tab, true);
     };
-  }, [step]);
+  }, [step, sandbox]);
 
   useEffect(() => {
     if (!step) return;
@@ -623,11 +705,10 @@ function TourRunner() {
       window.removeEventListener("keydown", handleArrowNavigation, true);
       window.removeEventListener("keydown", handler);
     };
-  }, [active.stepIndex, endTour, step, tour]);
+  }, [active.stepIndex, finishTour, step, tour]);
 
   if (!tour || !step) return null;
-  const present = (selector: string) =>
-    Boolean(document.querySelector(selector));
+  const present = (selector: string) => Boolean(findTourElement(selector));
   const back = () => {
     const index = backStepIndex(tour.steps, active.stepIndex, present);
     if (index >= 0) goTo(index, true);
@@ -638,6 +719,7 @@ function TourRunner() {
     else goTo(index);
   };
   const skipInteractive = () => {
+    skipped.current = true;
     let index = step.skipTo
       ? tour.steps.findIndex((candidate) => candidate.id === step.skipTo)
       : active.stepIndex + 1;
@@ -656,14 +738,22 @@ function TourRunner() {
     startTour("settings");
   };
   const isLast = active.stepIndex === tour.steps.length - 1;
-  const style = tour.practice
-    ? undefined
-    : tourCardPosition(positionRect ?? rect, step.cardPlacement, cardHeight, {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
   const hasOwnBackdrop = step.id === "fill-dialog";
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
+  // Keep the surrounding practice visible without drawing nested rings around
+  // both the active control and its enclosing stage or dialog.
+  const outlinedRects = rect
+    ? [
+        rect,
+        ...additionalRects.filter(
+          (other) =>
+            other.left >= rect.left + rect.width ||
+            other.left + other.width <= rect.left ||
+            other.top >= rect.top + rect.height ||
+            other.top + other.height <= rect.top,
+        ),
+      ]
+    : [];
 
   return createPortal(
     <div
@@ -695,14 +785,14 @@ function TourRunner() {
           <rect
             width="100%"
             height="100%"
-            fill="rgb(0 0 0 / 0.62)"
+            fill={step.interactive ? "rgb(0 0 0 / 0.28)" : "rgb(0 0 0 / 0.48)"}
             mask="url(#tour-backdrop-mask)"
           />
         </svg>
       ) : !hasOwnBackdrop && !rect ? (
         <div className="absolute inset-0 bg-black/60" />
       ) : null}
-      {highlightedRects.map((highlight, index) => (
+      {outlinedRects.map((highlight, index) => (
         <div
           key={index}
           className="tour-ring"
@@ -722,10 +812,9 @@ function TourRunner() {
         aria-labelledby="tour-step-title"
         aria-modal={!step.interactive}
         tabIndex={-1}
-        className="pointer-events-auto fixed max-h-[calc(100vh-32px)] w-[390px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-2xl border border-border bg-surface p-5 text-text shadow-raised outline-none"
-        style={style}
+        className="tour-guide-card pointer-events-auto fixed flex flex-col rounded-2xl border border-border bg-surface text-text shadow-raised outline-none"
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-4">
           <div className="text-xs font-semibold uppercase tracking-wider text-accent-ink">
             {tour.title} · {active.stepIndex + 1}/{tour.steps.length}
           </div>
@@ -738,37 +827,54 @@ function TourRunner() {
             <X size={16} />
           </button>
         </div>
-        <h2 id="tour-step-title" className="mt-2 text-lg font-semibold">
-          {step.title}
-        </h2>
-        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-text-muted">
-          {step.body}
-        </p>
-        {step.keyboardHint ? (
-          <p className="mt-2 text-xs text-text-muted">{step.keyboardHint}</p>
-        ) : null}
-        {missing ? (
-          <p className="mt-2 text-xs text-warning">
-            This control is not available right now. You can still continue.
-            {tour.practice ? (
-              <button
-                type="button"
-                className="ml-1 underline"
-                onClick={() => goTo(active.stepIndex, true)}
-              >
-                Show this step
-              </button>
-            ) : null}
+        <div className="min-h-0 overflow-y-auto px-5 pb-1">
+          <h2 id="tour-step-title" className="mt-2 text-lg font-semibold">
+            {step.title}
+          </h2>
+          <p className="mt-2 whitespace-pre-line text-sm leading-6 text-text-muted">
+            {step.body}
           </p>
-        ) : null}
+          {step.keyboardHint ? (
+            <p className="mt-2 text-xs text-text-muted">{step.keyboardHint}</p>
+          ) : null}
+          {missing ? (
+            <p className="mt-2 text-xs text-warning">
+              This control is not available right now. You can still continue.
+              {tour.practice || tour.demoGame || tour.simulation ? (
+                <button
+                  type="button"
+                  className="ml-1 underline"
+                  onClick={() => goTo(active.stepIndex, true)}
+                >
+                  Show this step
+                </button>
+              ) : null}
+            </p>
+          ) : null}
+          {outcome ? (
+            <p
+              ref={outcomeRef}
+              role="status"
+              className="mt-2 text-sm text-success"
+            >
+              {outcome}
+            </p>
+          ) : null}
+          {isLast && skipped.current ? (
+            <p className="mt-2 text-xs text-text-muted">
+              You skipped an exercise. Replay this guide from Help to try it
+              later.
+            </p>
+          ) : null}
+        </div>
         {tour.id === CORE_TOUR_ID && isLast ? (
-          <div className="mt-5 grid gap-2">
+          <div className="grid shrink-0 gap-2 px-5 py-3">
             <Button
               variant="primary"
               className="w-full"
               onClick={continueWithPersonalization}
             >
-              Personalize PlayCounter (1 min)
+              Personalize PlayCounter ({findTour("settings")?.duration})
             </Button>
             <div className="flex items-center justify-between gap-2">
               <Button onClick={back}>Back</Button>
@@ -781,7 +887,7 @@ function TourRunner() {
             </div>
           </div>
         ) : (
-          <div className="mt-5 flex items-center justify-between gap-2">
+          <div className="flex shrink-0 items-center justify-between gap-2 px-5 py-3">
             <Button disabled={active.stepIndex === 0} onClick={back}>
               Back
             </Button>
@@ -804,7 +910,15 @@ function TourRunner() {
               ) : null}
               {!step.interactive || step.manualAdvance ? (
                 <Button variant="primary" onClick={advance}>
-                  {isLast ? "Finish" : "Next"}
+                  {isLast
+                    ? tour.finishView === "games"
+                      ? "Open My Games"
+                      : tour.finishView === "history"
+                        ? "Open My History"
+                        : tour.finishView === "discovered"
+                          ? "Open Discovered"
+                          : "Finish"
+                    : "Next"}
                 </Button>
               ) : null}
             </div>

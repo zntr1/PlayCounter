@@ -24,7 +24,7 @@ it("keeps every practice action out of the real store and persistence, even with
   });
   const before = useAppStore.getState();
   const demo = createLibraryTourStore(before.settings);
-  expect(demo.getState().settings.libraryGridColumns).toBe(5);
+  expect(demo.getState().settings.libraryGridColumns).toBe(3);
   const shelf = demo.getState().savePersonalShelf({ name: "Weekend" })!;
   demo.getState().updateGameJournal(LIBRARY_TOUR_GAME, {
     note: "Practice note",

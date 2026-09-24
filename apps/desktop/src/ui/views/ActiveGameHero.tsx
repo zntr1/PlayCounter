@@ -224,7 +224,7 @@ export function ActiveGameHero({
                 onClick={onReport}
                 className="rounded-lg border border-border/60 bg-bg/40 text-text-muted backdrop-blur hover:border-warning-border hover:bg-warning-tint hover:text-warning"
               >
-                Wrong game?
+                Something wrong?
               </Button>
             ) : null}
           </div>

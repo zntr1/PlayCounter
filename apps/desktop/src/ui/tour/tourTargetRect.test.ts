@@ -32,6 +32,27 @@ it("follows menu and dialog controls in priority order, ignoring hidden copies",
   expect(findTourTarget(step)?.textContent).toBe("New shelf");
 });
 
+it("follows a secondary practice dialog while preserving its fields and newer menus", () => {
+  document.body.innerHTML =
+    '<button data-tour="shelf">Shelf</button><div data-tour="demo-library-modal"><section role="dialog"><input data-tour="name"></section></div>';
+  const dialog = document.querySelector('[role="dialog"]');
+  const step = { interactive: true, anchor: '[data-tour="shelf"]' };
+  expect(findTourTarget(step)).toBe(dialog);
+  expect(
+    findTourTarget({ ...step, anchorTargets: ['[data-tour="name"]'] }),
+  ).toBe(dialog?.firstElementChild);
+  const menu = document.createElement("div");
+  menu.setAttribute("role", "menu");
+  menu.innerHTML = '<button data-tour="move">Move session</button>';
+  document.body.append(menu);
+  expect(
+    findTourTarget({ ...step, anchorTargets: ['[data-tour="move"]'] }),
+  ).toBe(menu.firstElementChild);
+  expect(findTourTarget({ ...step, interactive: false })?.textContent).toBe(
+    "Shelf",
+  );
+});
+
 it("clips a highlight to the visible area of a scrolling journal", () => {
   const panel = document.createElement("div");
   panel.style.overflowY = "auto";

@@ -109,7 +109,7 @@ type DiscoveredExecutable = ProcessSnapshot & {
   isTutorial?: boolean;
 };
 
-const TOUR_DISCOVERED_EXECUTABLE: DiscoveredExecutable = {
+export const TOUR_DISCOVERED_EXECUTABLE: DiscoveredExecutable = {
   key: `playcounter-tour:${TOUR_DEMO_GAME.exeName.toLowerCase()}`,
   exeName: TOUR_DEMO_GAME.exeName,
   exePath: TOUR_DEMO_GAME.exePath,
@@ -999,7 +999,7 @@ function notifyIgnoredProcessSuggestionOutcome(
   });
 }
 
-function TriageWizardCard({
+export function TriageWizardCard({
   executable,
   reviewOptions,
   queueLength,
@@ -1606,6 +1606,7 @@ export function CommunitySuggestionForm({
   selection,
   state,
   title = "Suggest community game",
+  practice = false,
   onApplyCandidate,
   onCancel,
   onLoadMore,
@@ -1623,6 +1624,7 @@ export function CommunitySuggestionForm({
   selection: CommunityMetadataCandidate | null;
   state: "idle" | "loading" | "loading-more" | "saving" | "saved" | "error";
   title?: string;
+  practice?: boolean;
   onApplyCandidate: (candidate: CommunityMetadataCandidate) => void;
   onCancel: () => void;
   onLoadMore?: (options: CommunityMetadataSearchOptions) => void;
@@ -1677,7 +1679,11 @@ export function CommunitySuggestionForm({
           icon={Send}
           disabled={!canSubmit}
         >
-          {state === "saving" ? "Adding…" : "Add and share"}
+          {state === "saving"
+            ? "Adding…"
+            : practice
+              ? "Confirm sample match"
+              : "Add and share"}
         </Button>
       </div>
     </div>
@@ -1685,14 +1691,16 @@ export function CommunitySuggestionForm({
 
   return (
     <Modal
+      dataTour={practice ? "demo-sample-search" : undefined}
+      backdropDataTour={practice ? "demo-library-modal" : undefined}
       size="wide"
       labelId="community-suggestion-dialog-title"
-      eyebrow="Community"
+      eyebrow={practice ? "Practice · nothing is submitted" : "Community"}
       title={title}
       subtitle={`Link the correct game to ${exeName}`}
       icon={Send}
       onClose={onCancel}
-      bodyClassName="flex overflow-hidden p-0 sm:p-0"
+      bodyClassName="flex overflow-hidden !p-0"
       footer={footer}
     >
       <form
@@ -1865,7 +1873,9 @@ export function CommunitySuggestionForm({
                           <span>
                             {missingCover
                               ? "No cover available"
-                              : `ID: ${candidate.igdbId}`}
+                              : practice
+                                ? "Sample"
+                                : `ID: ${candidate.igdbId}`}
                           </span>
                           {candidate.releaseYear && (
                             <span className="shrink-0 rounded-md bg-surface-hover px-1.5 py-0.5">

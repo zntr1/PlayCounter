@@ -1,12 +1,15 @@
 import { CheckSquare, SlidersHorizontal } from "lucide-react";
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { emitTourEvent } from "./TourUI";
 import { useStore } from "zustand";
+import { createPortal } from "react-dom";
 import {
   matchesLibraryFilters,
   type LibraryFilters,
 } from "../../personalLibrary";
 import { getGameJournal, useAppStore } from "../../store";
 import { GameJournalHost } from "../GameJournalDialog";
+import { DesktopNotificationOverlay } from "../DesktopNotificationOverlay";
 import { LibraryAppearanceControls } from "../LibraryAppearanceControls";
 import { LibraryBulkActions } from "../LibraryBulkActions";
 import { LibraryGameDropHint } from "../LibraryGameDropHint";
@@ -18,6 +21,7 @@ import {
 import { PersonalLibraryContext } from "../PersonalLibraryContext";
 import { useLibraryGameDrag } from "../libraryGameDrag";
 import { Button } from "../primitives";
+import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import {
   librarySelectionKey,
   useLibrarySelection,
@@ -41,11 +45,12 @@ export function LibraryTourPractice({
   const [store] = useState(() =>
     createLibraryTourStore(useAppStore.getState().settings),
   );
-  return (
+  return createPortal(
     <PersonalLibraryContext.Provider value={store}>
       <PracticeLibrary store={store} tourId={tourId} stepId={stepId} />
       <GameJournalHost key={stepId} />
-    </PersonalLibraryContext.Provider>
+    </PersonalLibraryContext.Provider>,
+    document.body,
   );
 }
 
@@ -62,12 +67,30 @@ function PracticeLibrary({
   const settings = useStore(store, (s) => s.settings);
   const shelves = useStore(store, (s) => s.personalShelves);
   const notice = useStore(store, (s) => s.notice);
+  useEffect(() => {
+    if (notice) emitTourEvent("demo.action-completed", notice.title);
+  }, [notice]);
   const sessions = useStore(store, (s) => s.recentSessions);
   const journalFor = useLibraryJournalLookup();
   const [shelfId, setShelfId] = useState("all");
   const [filters, setFilters] = useState<LibraryFilters>({});
   const [expanded, setExpanded] = useState(false);
   const [customize, setCustomize] = useState(false);
+  const [popupNames, setPopupNames] = useState(false);
+  const [popupNotes, setPopupNotes] = useState(false);
+  const [popupUpdate, setPopupUpdate] = useState(false);
+  const [popupKind, setPopupKind] = useState<
+    "session-start" | "session-summary"
+  >("session-start");
+  useStore(store, (s) => s.gameJournals);
+  const sampleJournal = getGameJournal(store.getState(), LIBRARY_TOUR_GAME);
+  const activePlaythrough = sampleJournal.playthroughs.find(
+    (run) => run.id === sampleJournal.activePlaythroughId,
+  );
+  const gridLayout = useLibraryGridColumns(
+    "grid",
+    settings.libraryGridColumns ?? LIBRARY_TOUR_GRID_COLUMNS,
+  );
   const games = useMemo(
     () =>
       makeCoreTourDemoGames().map((game, index) => {
@@ -131,7 +154,7 @@ function PracticeLibrary({
   useLayoutEffect(() => {
     store.setState({ notice: null });
     if (tourId === "notes-playthroughs") {
-      if (["intro", "open-journal", "finish"].includes(stepId)) {
+      if (["intro", "open-journal", "popups", "finish"].includes(stepId)) {
         store.getState().openGameJournal(null);
         return;
       }
@@ -242,6 +265,94 @@ function PracticeLibrary({
             </Button>
           ) : null}
         </div>
+        {tourId === "notes-playthroughs" && stepId === "popups" ? (
+          <div
+            data-tour="demo-popup-preview"
+            className="grid gap-4 rounded-lg border border-border p-4"
+          >
+            <p className="text-sm text-text-muted">
+              Preview the active playthrough's note. These switches only change
+              this sample.
+            </p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              {[
+                ["Playthrough names in popups", popupNames, setPopupNames],
+                ["Notes in game-start popups", popupNotes, setPopupNotes],
+                ["Update note in popups", popupUpdate, setPopupUpdate],
+              ].map(([label, checked, change]) => (
+                <label key={String(label)} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(checked)}
+                    onChange={(event) =>
+                      (change as (value: boolean) => void)(event.target.checked)
+                    }
+                  />
+                  {String(label)}
+                </label>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                aria-pressed={popupKind === "session-start"}
+                onClick={() => setPopupKind("session-start")}
+              >
+                Game started
+              </Button>
+              <Button
+                aria-pressed={popupKind === "session-summary"}
+                onClick={() => setPopupKind("session-summary")}
+              >
+                Session saved
+              </Button>
+            </div>
+            <DesktopNotificationOverlay
+              preview
+              message={{
+                id: "tour-popup",
+                sequence: 0,
+                kind: popupKind,
+                priority: 1,
+                kicker:
+                  popupKind === "session-start"
+                    ? "Now playing"
+                    : "Session saved",
+                title: LIBRARY_TOUR_GAME.name,
+                body: [
+                  popupNames
+                    ? (activePlaythrough?.name ?? "Default playthrough")
+                    : "",
+                  popupNotes && popupKind === "session-start"
+                    ? (activePlaythrough?.note ?? sampleJournal.note)
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+                coverUrl: LIBRARY_TOUR_GAME.coverUrl,
+                metric: popupKind === "session-summary" ? "45m" : undefined,
+                action:
+                  popupUpdate && popupKind === "session-summary"
+                    ? "open-game-note:-1"
+                    : undefined,
+                actionLabel: "Update note",
+                theme: settings.theme === "light" ? "light" : "dark",
+                accentColor: null,
+                reducedMotion: true,
+                durationMs: 5000,
+                createdAtMs: 0,
+                expiresAtMs: 0,
+              }}
+              onFinished={() => {}}
+              onAction={() =>
+                store.getState().openGameJournal({
+                  game: LIBRARY_TOUR_GAME,
+                  tab: "note",
+                  playthroughId: sampleJournal.activePlaythroughId,
+                })
+              }
+            />
+          </div>
+        ) : null}
         {customize ? (
           <div
             data-tour="demo-library-customize"
@@ -249,13 +360,7 @@ function PracticeLibrary({
           >
             <LibraryAppearanceControls
               view="grid"
-              gridLayout={{
-                columns:
-                  settings.libraryGridColumns ?? LIBRARY_TOUR_GRID_COLUMNS,
-                sliderValue:
-                  settings.libraryGridColumns ?? LIBRARY_TOUR_GRID_COLUMNS,
-                maxColumns: 8,
-              }}
+              gridLayout={gridLayout}
               showShelves={settings.libraryShowShelves !== false}
               showOrigin={settings.libraryShowOriginBadges !== false}
               showMatch={settings.libraryShowMatchBadges !== false}
@@ -324,11 +429,10 @@ function PracticeLibrary({
           </p>
         ) : null}
         <div
+          ref={gridLayout.gridRef}
           data-tour="demo-library-cards"
           className="grid items-start gap-3"
-          style={{
-            gridTemplateColumns: `repeat(${settings.libraryGridColumns ?? LIBRARY_TOUR_GRID_COLUMNS}, minmax(0, 1fr))`,
-          }}
+          style={gridLayout.style}
         >
           {visible.map((game) => (
             <GameLibraryCard

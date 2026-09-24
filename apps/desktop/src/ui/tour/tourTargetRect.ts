@@ -22,22 +22,45 @@ export function findTourElement(selector: string): HTMLElement | null {
 
 /** A dialog/menu action takes over from the button that opened it. */
 export function findTourTarget(
-  step: Pick<TourStep, "anchor" | "anchorTargets">,
+  step: Pick<TourStep, "anchor" | "anchorTargets" | "interactive">,
 ) {
+  const dialog = step.interactive
+    ? [
+        ...document.querySelectorAll<HTMLElement>(
+          '[data-tour="demo-library-modal"] [role="dialog"]',
+        ),
+      ]
+        .filter(
+          (element) =>
+            !element.closest('[hidden], [inert], [aria-hidden="true"]'),
+        )
+        .at(-1)
+    : undefined;
   for (const selector of [
     ...(step.anchorTargets ?? []),
     ...(step.anchor ? [step.anchor] : []),
   ]) {
     const element = findTourElement(selector);
-    if (element) return element;
+    if (element) {
+      const menu = element.closest('[role="menu"]');
+      const newerMenu =
+        dialog &&
+        menu &&
+        dialog.compareDocumentPosition(menu) & Node.DOCUMENT_POSITION_FOLLOWING;
+      return dialog && !dialog.contains(element) && !newerMenu
+        ? dialog
+        : element;
+    }
   }
-  return null;
+  return dialog ?? null;
 }
 
 export function tourFocusTarget(element: HTMLElement | null) {
   const selector =
     'button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"]):not(:disabled)';
   if (element?.matches(selector)) return element;
+  const preferred = element?.querySelector<HTMLElement>("[data-autofocus]");
+  if (preferred?.matches(selector)) return preferred;
   return element?.querySelector<HTMLElement>(selector) ?? null;
 }
 

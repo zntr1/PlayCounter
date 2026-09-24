@@ -1,5 +1,6 @@
 import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import { LibraryTourPractice } from "./tour/LibraryTourPractice";
+import { TourPracticeSurface } from "./tour/TourPracticeSurface";
 import { findTour } from "./tour/tourDefinitions";
 import {
   AlertTriangle,
@@ -350,7 +351,9 @@ export function App() {
   const activeTourId = activeTour?.tourId ?? null;
   const tour = activeTourId ? findTour(activeTourId) : undefined;
   const practiceStep =
-    tour?.practice && activeTour ? tour.steps[activeTour.stepIndex] : undefined;
+    (tour?.practice || tour?.simulation) && activeTour
+      ? tour.steps[activeTour.stepIndex]
+      : undefined;
   const showViewBanner = viewBannerEnabled && !activeTour;
   const tourProgress = useAppStore((state) => state.tourProgress);
   const lastSeenReleaseNotesVersion = useAppStore(
@@ -997,7 +1000,7 @@ export function App() {
             </div>
           </div>
         ) : null}
-        <div className="relative min-h-0 flex-1">
+        <div data-tour-viewport className="relative min-h-0 flex-1">
           <div
             ref={contentRef}
             data-tour="content"
@@ -1066,7 +1069,9 @@ export function App() {
                 }
               />
             ) : null}
-            {activeView !== "import" && activeView !== "games"
+            {!tour?.simulation &&
+            activeView !== "import" &&
+            activeView !== "games"
               ? views[activeView].component
               : null}
             {activeView === "games" && !renderGames && !practiceStep ? (
@@ -1082,7 +1087,13 @@ export function App() {
                 />
               </div>
             ) : null}
-            {practiceStep && activeTourId ? (
+            {practiceStep && tour?.simulation ? (
+              <TourPracticeSurface
+                key={tour.id}
+                tour={tour}
+                stepId={practiceStep.id}
+              />
+            ) : practiceStep && activeTourId ? (
               <LibraryTourPractice
                 key={activeTourId}
                 tourId={activeTourId}
@@ -1090,7 +1101,9 @@ export function App() {
               />
             ) : null}
             {renderImporter ? (
-              <div hidden={activeView !== "import"}>
+              <div
+                hidden={activeView !== "import" || Boolean(tour?.simulation)}
+              >
                 {views.import.component}
               </div>
             ) : null}

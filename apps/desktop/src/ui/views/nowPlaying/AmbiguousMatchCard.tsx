@@ -331,14 +331,16 @@ function Headline({
   );
 }
 
-function CandidateTile({
+export function CandidateTile({
   exeName,
   game,
   ended,
+  onSelect,
 }: {
   exeName: string;
   game: Game;
   ended: boolean;
+  onSelect?: (game: Game) => void;
 }) {
   const addToast = useAppStore((state) => state.addToast);
 
@@ -348,6 +350,7 @@ function CandidateTile({
       aria-label={`Track ${exeName} as ${game.name}`}
       title={ended ? `Save this time as ${game.name}` : `Track as ${game.name}`}
       onClick={() => {
+        if (onSelect) return onSelect(game);
         selectAmbiguousMatch(exeName, game);
         addToast({
           tone: "success",

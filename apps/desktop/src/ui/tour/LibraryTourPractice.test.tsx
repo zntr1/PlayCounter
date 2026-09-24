@@ -5,7 +5,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useAppStore } from "../../store";
 import { NotificationBell } from "../NotificationBell";
 import { LibraryTourPractice } from "./LibraryTourPractice";
-import { TourOverlay } from "./TourUI";
+import { HelpButton, TourOverlay } from "./TourUI";
+import { TourPracticeSurface } from "./TourPracticeSurface";
+import { removeHistorySession, selectAmbiguousMatch } from "../../tracker";
 import { TOURS, findTour } from "./tourDefinitions";
 import { findTourElement, findTourTarget } from "./tourTargetRect";
 import { readFileSync } from "node:fs";
@@ -35,6 +37,13 @@ function Harness({ overlay = false }: { overlay?: boolean }) {
   const tour = active ? findTour(active.tourId) : undefined;
   return (
     <>
+      {active && tour?.simulation ? (
+        <TourPracticeSurface
+          key={tour.id}
+          tour={tour}
+          stepId={tour.steps[active.stepIndex].id}
+        />
+      ) : null}
       {active && tour?.practice ? (
         <LibraryTourPractice
           key={tour.id}
@@ -180,10 +189,15 @@ it.each(["favorite", "fill-shelf"])(
   },
 );
 
-async function enter(input: HTMLInputElement, value: string) {
+async function enter(
+  input: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) {
   await act(() => {
     Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
+      input instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype,
       "value",
     )!.set!.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -270,6 +284,169 @@ it("guides Select, each sample card, Set status, the menu choice, and the result
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
+it("closes Help with Escape while focus is still on its trigger", async () => {
+  await act(() => root.render(<HelpButton />));
+  const trigger = document.querySelector<HTMLButtonElement>(
+    '[aria-label="Help and tutorials"]',
+  )!;
+  await act(() => {
+    trigger.focus();
+    trigger.click();
+  });
+  expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  await act(() =>
+    trigger.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    ),
+  );
+  expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(trigger);
+});
+
+it("focuses direct launching without allowing the adjacent path-removal setting", async () => {
+  await act(() =>
+    root.render(
+      <>
+        <div data-tour="settings-launcher">
+          <input data-decoy type="checkbox" defaultChecked />
+          <input data-tour="settings-launch-direct" type="checkbox" />
+        </div>
+        <TourOverlay />
+      </>,
+    ),
+  );
+  await act(() => {
+    useAppStore.getState().startTour("launch-games");
+    useAppStore.getState().goToTourStep(1);
+  });
+  await frame();
+  expect(document.activeElement?.getAttribute("data-tour")).toBe(
+    "settings-launch-direct",
+  );
+  const decoy = document.querySelector<HTMLInputElement>("[data-decoy]")!;
+  await act(() => decoy.click());
+  expect(decoy.checked).toBe(true);
+});
+
+it("lets a learner cancel and confirm deletion inside the private journal", async () => {
+  await start("notes-playthroughs", "finish-run");
+  const clickDelete = () =>
+    document
+      .querySelector<HTMLButtonElement>('[aria-label="Delete playthrough"]')!
+      .click();
+  await act(clickDelete);
+  const button = (text: string) =>
+    [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '[data-tour="demo-journal"] button',
+      ),
+    ].find((b) => b.textContent === text)!;
+  await act(() => button("Cancel").click());
+  expect(button("Cancel")).toBeUndefined();
+  await act(clickDelete);
+  await act(() => button("Delete playthrough").click());
+  expect(
+    document.querySelector('[data-tour="demo-playthrough-list"]')?.textContent,
+  ).not.toContain("Speedrun");
+  expect(useAppStore.getState().gameJournals).toEqual({});
+});
+
+it("previews the learner's note and opens its private journal from Update note", async () => {
+  await start("notes-playthroughs", "note");
+  await enter(target() as HTMLTextAreaElement, "Remember the bridge quest");
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>('[data-tour="demo-note-save"]')!
+      .click(),
+  );
+  await goTo("popups");
+  const preview = () =>
+    document.querySelector('[data-tour="demo-popup-preview"]')!;
+  const toggle = (name: string) =>
+    [...preview().querySelectorAll("label")]
+      .find((e) => e.textContent === name)!
+      .querySelector<HTMLInputElement>("input")!;
+  await act(() => toggle("Notes in game-start popups").click());
+  expect(
+    preview().querySelector(".desktop-overlay-card")?.textContent,
+  ).toContain("Remember the bridge quest");
+  await act(() => {
+    toggle("Update note in popups").click();
+    [...preview().querySelectorAll<HTMLButtonElement>("button")]
+      .find((b) => b.textContent === "Session saved")!
+      .click();
+  });
+  await act(() =>
+    [...preview().querySelectorAll<HTMLButtonElement>("button")]
+      .find((b) => b.textContent === "Update note")!
+      .click(),
+  );
+  expect(
+    (
+      document.querySelector(
+        '[data-tour="demo-note-input"]',
+      ) as HTMLTextAreaElement
+    ).value,
+  ).toBe("Remember the bridge quest");
+  expect(useAppStore.getState().gameJournals).toEqual({});
+});
+
+it.each(TOURS.filter((tour) => tour.simulation))(
+  "prepares every isolated simulation target in $id",
+  async (tour) => {
+    await act(() => {
+      root.render(<Harness />);
+      useAppStore.getState().startTour(tour.id);
+    });
+    for (let index = 0; index < tour.steps.length; index++) {
+      await act(() => useAppStore.getState().goToTourStep(index));
+      expect(findTourTarget(tour.steps[index])).not.toBeNull();
+    }
+  },
+);
+
+it("selects an ambiguous sample without saving a real executable choice", async () => {
+  await start("fix-detection", "ambiguous");
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>(
+        '[data-tour="demo-ambiguous"] [aria-label^="Track "]',
+      )!
+      .click(),
+  );
+  expect(
+    document.querySelector('[data-tour="demo-library-result"]')?.textContent,
+  ).toContain("Sample selected");
+  expect(selectAmbiguousMatch).not.toHaveBeenCalled();
+  expect(useAppStore.getState().exeCache.size).toBe(0);
+});
+
+it("deletes sample history through the real dialog without calling the tracker", async () => {
+  await start("stats", "sessions");
+  const before = useAppStore.getState().recentSessions;
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>(
+        '[aria-label^="Remove history entry for"]',
+      )!
+      .click(),
+  );
+  await act(() =>
+    [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '[data-tour="demo-history-delete"] button',
+      ),
+    ]
+      .find((b) => b.textContent === "Delete session")!
+      .click(),
+  );
+  expect(removeHistorySession).not.toHaveBeenCalled();
+  expect(useAppStore.getState().recentSessions).toBe(before);
+  expect(document.querySelectorAll("[data-history-session-row]")).toHaveLength(
+    5,
+  );
+});
+
 it("targets the status filter and Save filters, then the saved shelf", async () => {
   await start("organize-library", "filters");
   expect(target().textContent).toBe("In progress");
@@ -313,13 +490,13 @@ it("targets journal fields, session assignment, and Mark finished precisely", as
   expect(target().textContent).toBe("Finished");
 });
 
-it("starts at five columns and focuses the actual Customize controls", async () => {
+it("starts at readable columns and focuses the actual Customize controls", async () => {
   await start("library-progress", "open-customize");
   expect(target().textContent).toBe("Customize");
   const cards = document.querySelector<HTMLElement>(
     '[data-tour="demo-library-cards"]',
   )!;
-  expect(cards.style.gridTemplateColumns).toBe("repeat(5, minmax(0, 1fr))");
+  expect(cards.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
   await act(() => target().click());
   await act(
     () => new Promise<void>((resolve) => window.setTimeout(resolve, 120)),
@@ -328,8 +505,8 @@ it("starts at five columns and focuses the actual Customize controls", async () 
   expect(currentStep().id).toBe("customize");
   const slider = target() as HTMLInputElement;
   expect(slider.type).toBe("range");
-  expect(slider.value).toBe("5");
-  expect(Number(slider.max)).toBeGreaterThanOrEqual(5);
+  expect(slider.value).toBe("3");
+  expect(Number(slider.max)).toBeGreaterThanOrEqual(3);
   expect(document.activeElement).toBe(slider);
   await enter(slider, "6");
   expect(cards.style.gridTemplateColumns).toBe("repeat(6, minmax(0, 1fr))");
@@ -455,12 +632,11 @@ it("places feedback instructions outside the notification panel beneath the bell
     expect(panel.classList.contains("right-0")).toBe(true);
     const guide = document.querySelector<HTMLElement>("[data-tour-card]")!;
     expect(guide.hasAttribute("data-tour-practice-card")).toBe(false);
-    expect(guide.style.left).toBe("204px");
-    expect(guide.style.top).toBe("90px");
-    expect(Number.parseFloat(guide.style.left) + 390).toBeLessThan(
-      panel.getBoundingClientRect().left,
+    expect(guide.classList.contains("tour-guide-card")).toBe(true);
+    expect(document.body.dataset.tourDock).toBe(
+      window.innerWidth < 1200 ? "bottom" : "left",
     );
-    // Positioning uses the whole panel; the spotlight still targets the reply detail.
+    // The spotlight still targets the reply detail.
     expect(target().getAttribute("data-tour")).toBe(
       step === "bell" ? "demo-feedback-notification" : "demo-feedback-original",
     );

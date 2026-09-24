@@ -8,7 +8,7 @@ import {
   ContextMenuSubmenu,
   hasOpenContextMenu,
 } from "./ContextMenu";
-import { useEscapeKey } from "./primitives";
+import { Modal, useEscapeKey } from "./primitives";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -90,6 +90,45 @@ async function key(value: string) {
     ),
   );
 }
+
+it("closes only the topmost dialog on Escape", async () => {
+  vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(
+    () => [new DOMRect(0, 0, 400, 300)] as unknown as DOMRectList,
+  );
+  function NestedDialogs() {
+    const [inner, setInner] = useState(true);
+    return (
+      <>
+        <Modal
+          title="Sample history"
+          labelId="history-title"
+          onClose={dialogClosed}
+        >
+          History
+        </Modal>
+        {inner ? (
+          <Modal
+            title="Sample journal"
+            labelId="journal-title"
+            onClose={() => {
+              closed();
+              setInner(false);
+            }}
+          >
+            Journal
+          </Modal>
+        ) : null}
+      </>
+    );
+  }
+  await act(() => root.render(<NestedDialogs />));
+  await key("Escape");
+  expect(closed).toHaveBeenCalledTimes(1);
+  expect(dialogClosed).not.toHaveBeenCalled();
+  expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+  await key("Escape");
+  expect(dialogClosed).toHaveBeenCalledTimes(1);
+});
 
 it("navigates each level, skips disabled actions, and restores the parent trigger", async () => {
   await act(() => root.render(<Example />));

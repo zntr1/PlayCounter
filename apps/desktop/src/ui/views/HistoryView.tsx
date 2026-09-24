@@ -37,6 +37,11 @@ import { TopGamesBars } from "../charts/TopGamesBars";
 import { formatDuration } from "../components";
 import { Button, Modal } from "../primitives";
 import { findTour } from "../tour/tourDefinitions";
+import {
+  useLibraryPractice,
+  usePersonalLibraryApi,
+  usePersonalLibraryState,
+} from "../PersonalLibraryContext";
 import { HistoryHero, type HeroArtworkGame } from "./history/HistoryHero";
 import {
   getHistoryAnalytics,
@@ -103,23 +108,33 @@ function useHistoryNow() {
 }
 
 export function HistoryView() {
-  const query = useAppStore((state) => state.historyQuery);
-  const setQuery = useAppStore((state) => state.setHistoryQuery);
-  const selectedGameKey = useAppStore((state) => state.historyGameKey);
-  const setSelectedGameKey = useAppStore((state) => state.setHistoryGameKey);
-  const sessions = useAppStore((state) => state.recentSessions);
-  const exeCache = useAppStore((state) => state.exeCache);
-  const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
+  const practice = useLibraryPractice();
+  const libraryApi = usePersonalLibraryApi();
+  const realQuery = useAppStore((state) => state.historyQuery);
+  const setRealQuery = useAppStore((state) => state.setHistoryQuery);
+  const realGameKey = useAppStore((state) => state.historyGameKey);
+  const setRealGameKey = useAppStore((state) => state.setHistoryGameKey);
+  const [sampleQuery, setSampleQuery] = useState("");
+  const [sampleGameKey, setSampleGameKey] = useState<string | null>(null);
+  const query = practice ? sampleQuery : realQuery;
+  const setQuery = practice ? setSampleQuery : setRealQuery;
+  const selectedGameKey = practice ? sampleGameKey : realGameKey;
+  const setSelectedGameKey = practice ? setSampleGameKey : setRealGameKey;
+  const sessions = usePersonalLibraryState((state) => state.recentSessions);
+  const exeCache = usePersonalLibraryState((state) => state.exeCache);
+  const hydratedGameMetadata = usePersonalLibraryState(
+    (state) => state.gameMetadata,
+  );
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
-  const addToast = useAppStore((state) => state.addToast);
+  const addToast = usePersonalLibraryState((state) => state.addToast);
   // The tour's chart step points at the Insights tab; open it for the tour.
   const tourWantsInsights = useAppStore((state) => {
     const active = state.activeTour;
     if (!active) return false;
     const step = findTour(active.tourId)?.steps[active.stepIndex];
-    return step?.anchor === '[data-tour="history-playtime-chart"]';
+    return active.tourId === "stats" && step?.id === "charts";
   });
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [sort, setSort] = useState<HistorySort>("newest");
@@ -476,7 +491,13 @@ export function HistoryView() {
     const nextSessionId = nextRow?.dataset.historySessionId
       ? Number(nextRow.dataset.historySessionId)
       : null;
-    removeHistorySession(pendingDeletion.id);
+    if (practice)
+      libraryApi.setState((state) => ({
+        recentSessions: state.recentSessions.filter(
+          (session) => session.id !== pendingDeletion.id,
+        ),
+      }));
+    else removeHistorySession(pendingDeletion.id);
     addToast({
       tone: "success",
       title: "Session removed",
@@ -484,7 +505,14 @@ export function HistoryView() {
     });
     setPendingDeletion(null);
     focusTimelineSession(nextSessionId);
-  }, [addToast, focusTimelineSession, pendingDeletion, pendingDeletionGame]);
+  }, [
+    addToast,
+    focusTimelineSession,
+    pendingDeletion,
+    pendingDeletionGame,
+    practice,
+    libraryApi,
+  ]);
 
   const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -834,8 +862,11 @@ function DeleteSessionDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const practice = useLibraryPractice();
   return (
     <Modal
+      dataTour={practice ? "demo-history-delete" : undefined}
+      backdropDataTour={practice ? "demo-library-modal" : undefined}
       size="sm"
       labelId="delete-history-session-title"
       eyebrow="My History"

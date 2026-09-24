@@ -18,6 +18,10 @@ import { getSessionGameKey, type SessionMarker } from "../../../historyStats";
 import { emulatorSessionProvenance } from "../../../emulators/provenance";
 import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
+import {
+  useLibraryPractice,
+  usePersonalLibraryApi,
+} from "../../PersonalLibraryContext";
 import { useAppStore, type GameIdentityResolver } from "../../../store";
 import {
   CommunityApprovalBadge,
@@ -93,6 +97,8 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   onRequestDelete: (session: Session) => void;
 }) {
   const contextMenu = useContextMenu();
+  const libraryApi = usePersonalLibraryApi();
+  const practice = useLibraryPractice();
   const rowRef = useRef<HTMLElement>(null);
   const holdRef = useRef<{
     pointerId: number;
@@ -412,6 +418,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
         className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100 group-focus-within:grid group-focus-within:opacity-100"
       />
       <ContextMenu
+        dataTour={practice ? "demo-library-menu" : undefined}
         open={contextMenu.open}
         position={contextMenu.position}
         onClose={contextMenu.close}
@@ -420,7 +427,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           icon={StickyNote}
           onClick={() => {
             contextMenu.close();
-            useAppStore.getState().openGameJournal({
+            libraryApi.getState().openGameJournal({
               game: { ...session, gameName },
               tab: "note",
               playthroughId: session.playthroughId ?? null,
@@ -433,7 +440,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           icon={BookOpen}
           onClick={() => {
             contextMenu.close();
-            useAppStore.getState().openGameJournal({
+            libraryApi.getState().openGameJournal({
               game: { ...session, gameName },
               tab: "playthroughs",
               playthroughId: session.playthroughId ?? null,
@@ -466,7 +473,9 @@ function MarkerTag({
     <span
       className={clsx(
         "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-px text-[9px] font-bold uppercase tracking-[0.08em]",
-        tone === "record" ? "bg-accent/15 text-accent-ink" : "bg-info/15 text-info",
+        tone === "record"
+          ? "bg-accent/15 text-accent-ink"
+          : "bg-info/15 text-info",
       )}
     >
       <Icon aria-hidden="true" size={9} />

@@ -41,6 +41,8 @@ import {
 import { summarizeGameSessions } from "../../gameDetailsStats";
 import { useHeroLauncher } from "./useHeroLauncher";
 import type { GameSummary } from "../MyGamesView";
+import { emitTourEvent } from "../../tour/TourUI";
+import { tourSessionsForGame } from "../../tour/tourDemoGame";
 
 /* The game details dialog ────────────────────────────────────────────────────
    A hero header (the same artwork the library banner shows) with the cover,
@@ -183,6 +185,7 @@ export function GameDetailsDialog({
   onReleaseLaunch,
   onClose,
   onMoveToPlayCounter,
+  onDemoHistory,
 }: {
   game: GameSummary;
   /** Own lock key, distinct from the opener's, so closing the dialog never
@@ -193,12 +196,22 @@ export function GameDetailsDialog({
   onReleaseLaunch: (key: string) => void;
   onClose: () => void;
   onMoveToPlayCounter?: () => void;
+  onDemoHistory?: () => void;
 }) {
+  const demo = game.kind === "tour-demo";
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
-  const sessions = useAppStore((state) => state.recentSessions);
-  const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
+  const realSessions = useAppStore((state) => state.recentSessions);
+  const realScopedExeLinks = useAppStore((state) => state.scopedExeLinks);
+  const sessions = useMemo(
+    () => (demo ? tourSessionsForGame(game) : realSessions),
+    [demo, game, realSessions],
+  );
+  const scopedExeLinks = useMemo(
+    () => (demo ? new Map<string, ScopedExeLink>() : realScopedExeLinks),
+    [demo, realScopedExeLinks],
+  );
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
@@ -206,7 +219,7 @@ export function GameDetailsDialog({
   const pickedArt = useAppStore(
     (state) => state.customHeroArt[customHeroArtKey(game)],
   );
-  const details = useGameDetails(game.igdbId);
+  const details = useGameDetails(demo ? undefined : game.igdbId);
   // Release year already known from matching, so the title line is never empty
   // while the details request is in flight.
   const cachedReleaseYear = useAppStore((state) =>
@@ -216,12 +229,15 @@ export function GameDetailsDialog({
         )?.releaseYear
       : undefined,
   );
-  const launcher = useHeroLauncher(game, {
+  const realLauncher = useHeroLauncher(game, {
     launchKey,
     launchBlocked,
     onAcquireLaunch,
     onReleaseLaunch,
   });
+  const launcher = demo
+    ? { ...realLauncher, canLaunch: false, launchTargets: [] }
+    : realLauncher;
   const [tab, setTab] = useState<DetailsTab>("general");
   const tabRefs = useRef<Record<DetailsTab, HTMLButtonElement | null>>({
     general: null,
@@ -263,7 +279,7 @@ export function GameDetailsDialog({
   const duration = (seconds: number) =>
     formatDuration(Math.max(0, seconds), showDurationDays);
   const resolved = details.status === "ready" ? details.details : null;
-  const artwork = heroArtwork(pickedArt, resolved);
+  const artwork = heroArtwork(demo ? undefined : pickedArt, resolved);
   const igdbUrl =
     resolved?.igdbUrl ??
     `https://www.igdb.com/search?type=1&q=${encodeURIComponent(game.name)}`;
@@ -280,6 +296,13 @@ export function GameDetailsDialog({
     game.libraryImports.length;
 
   async function openOnIgdb() {
+    if (demo) {
+      emitTourEvent(
+        "demo.action-completed",
+        "This is a sample. A real game's IGDB link opens its database page.",
+      );
+      return;
+    }
     try {
       await invoke("open_external_url", { url: igdbUrl });
     } catch (error) {
@@ -292,6 +315,7 @@ export function GameDetailsDialog({
   }
 
   async function revealPath(path: string) {
+    if (demo) return;
     try {
       await invoke("reveal_executable", { path });
     } catch (error) {
@@ -304,6 +328,10 @@ export function GameDetailsDialog({
   }
 
   function showHistory() {
+    if (demo) {
+      onDemoHistory?.();
+      return;
+    }
     setHistoryQuery(game.name);
     setHistoryGameKey(game.historyGameKey);
     setActiveView("history");
@@ -369,7 +397,7 @@ export function GameDetailsDialog({
         className="absolute right-4 top-4 z-10 bg-bg/40 backdrop-blur"
       />
 
-      <div className="relative grid gap-5 px-5 pt-5 sm:grid-cols-[150px_minmax(0,1fr)] sm:px-6 sm:pt-6">
+      <div className="game-details-heading relative grid gap-5 px-5 pt-5 sm:grid-cols-[150px_minmax(0,1fr)] sm:px-6 sm:pt-6">
         <div className="hidden sm:block">
           {game.coverUrl ? (
             // Always the larger art here: one image, opened deliberately.
@@ -442,6 +470,7 @@ export function GameDetailsDialog({
                     role="tab"
                     id={`game-details-tab-${id}`}
                     aria-selected={selected}
+                    data-autofocus={selected || undefined}
                     aria-controls={`game-details-panel-${id}`}
                     tabIndex={selected ? 0 : -1}
                     onClick={() => setTab(id)}
@@ -819,6 +848,9 @@ export function GameDetailsDialog({
 
   return (
     <Modal
+      dataTour={demo ? "demo-game-details" : undefined}
+      backdropDataTour={demo ? "demo-library-modal" : undefined}
+      className="game-details-dialog"
       size="xl"
       labelId="game-details-title"
       title={game.name}

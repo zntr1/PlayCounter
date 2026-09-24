@@ -200,13 +200,24 @@ function MenuPanel({
     const place = () => {
       const rect = panel.getBoundingClientRect();
       const trigger = triggerRef?.current?.getBoundingClientRect();
+      const guide = document
+        .querySelector<HTMLElement>("[data-tour-card]")
+        ?.getBoundingClientRect();
+      const viewportWidth =
+        document.body.dataset.tourDock === "side" && guide
+          ? guide.left - 16
+          : window.innerWidth;
+      const viewportHeight =
+        document.body.dataset.tourDock === "bottom" && guide
+          ? guide.top - 16
+          : window.innerHeight;
       let x = trigger ? trigger.right - 1 : position.x;
-      if (trigger && x + rect.width > window.innerWidth - 8)
+      if (trigger && x + rect.width > viewportWidth - 8)
         x = trigger.left - rect.width + 1;
       const y = trigger ? trigger.top - 5 : position.y;
       const next = {
-        x: Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)),
-        y: Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)),
+        x: Math.max(8, Math.min(x, viewportWidth - rect.width - 8)),
+        y: Math.max(8, Math.min(y, viewportHeight - rect.height - 8)),
       };
       setAdjustedPosition((current) =>
         current.x === next.x && current.y === next.y ? current : next,
@@ -216,6 +227,8 @@ function MenuPanel({
     const observer =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
     observer?.observe(panel);
+    const guide = document.querySelector("[data-tour-card]");
+    if (guide) observer?.observe(guide);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     return () => {
@@ -433,12 +446,14 @@ export function ContextMenuSubmenu({
   children,
   dataTour,
   menuDataTour,
+  defaultOpen = false,
 }: {
   label: string;
   icon?: LucideIcon;
   children: ReactNode;
   dataTour?: string;
   menuDataTour?: string;
+  defaultOpen?: boolean;
 }) {
   const level = useContext(MenuLevel)!;
   const id = useId();
@@ -450,6 +465,9 @@ export function ContextMenuSubmenu({
   };
   useEffect(() => cancelHover, []);
   const open = level.activeSubmenu === id;
+  useLayoutEffect(() => {
+    if (defaultOpen) level.setActiveSubmenu(id);
+  }, [defaultOpen, id, level.setActiveSubmenu]);
   const show = (focus: boolean) => {
     cancelHover();
     level.setActiveSubmenu(id);

@@ -46,6 +46,8 @@ export function LinkedGameCard({
   demo = false,
   onChange,
   onForget,
+  onDemoConfirm,
+  onDemoShare,
 }: {
   mapping: EmulatorMapping;
   stats: LinkedGameStats | null;
@@ -53,6 +55,8 @@ export function LinkedGameCard({
   demo?: boolean;
   onChange?: () => void;
   onForget?: () => void;
+  onDemoConfirm?: () => void;
+  onDemoShare?: () => void;
 }) {
   const detectionSource = emulatorDetectionSourceLabel(mapping.detectionSource);
   const provenance = emulatorMappingProvenance(mapping);
@@ -75,8 +79,10 @@ export function LinkedGameCard({
         visible: true,
         action: "share",
         label: "Share match",
-        disabled: true,
-        reason: DEMO_ACTION_REASON,
+        disabled: !onDemoShare,
+        reason: onDemoShare
+          ? "Preview sharing this sample match"
+          : DEMO_ACTION_REASON,
       } as const)
     : emulatorShareControl(mapping, shareContext);
   const community = communityStatus(share, shareable);
@@ -85,7 +91,7 @@ export function LinkedGameCard({
     : `Recognized from ${mapping.display}`;
 
   async function submitShare() {
-    if (demo) return;
+    if (demo) return onDemoShare?.();
     if (!shareControl.visible || shareControl.disabled || sharing) return;
     setSharing(true);
     const outcome = await shareEmulatorMapping(mapping.contentKey);
@@ -206,16 +212,16 @@ export function LinkedGameCard({
         {mapping.needsConfirmation ? (
           <button
             type="button"
-            disabled={demo}
+            disabled={demo && !onDemoConfirm}
             title={
-              demo
+              demo && !onDemoConfirm
                 ? DEMO_ACTION_REASON
                 : "PlayCounter already tracks this game. Confirm to remove the note."
             }
             data-tour={demo ? "demo-emulator-confirm" : undefined}
             onClick={
               demo
-                ? undefined
+                ? onDemoConfirm
                 : () => confirmEmulatorMapping(mapping.contentKey)
             }
             className="flex w-full items-center justify-center gap-2 border-t border-warning-border bg-warning-tint px-3 py-2 text-xs font-semibold text-warning transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
@@ -235,7 +241,7 @@ export function LinkedGameCard({
               label={sharing ? "Sharing…" : shareControl.label}
               disabled={shareControl.disabled || sharing}
               title={shareControl.reason ?? shareControl.label}
-              onClick={demo ? undefined : () => void submitShare()}
+              onClick={() => void submitShare()}
               className="w-full border-b border-border text-community hover:text-community"
             />
           ) : null}
@@ -243,16 +249,16 @@ export function LinkedGameCard({
             <FooterAction
               icon={Repeat2}
               label="Change"
-              disabled={demo}
-              title={demo ? DEMO_ACTION_REASON : "Change game"}
-              onClick={demo ? undefined : onChange}
+              disabled={!onChange}
+              title={demo && !onChange ? DEMO_ACTION_REASON : "Change game"}
+              onClick={onChange}
             />
             <FooterAction
               icon={RotateCcw}
               label="Forget"
-              disabled={demo}
-              title={demo ? DEMO_ACTION_REASON : "Forget game"}
-              onClick={demo ? undefined : onForget}
+              disabled={!onForget}
+              title={demo && !onForget ? DEMO_ACTION_REASON : "Forget game"}
+              onClick={onForget}
             />
           </div>
         </div>

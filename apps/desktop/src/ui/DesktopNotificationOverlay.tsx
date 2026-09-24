@@ -8,10 +8,13 @@ export function DesktopNotificationOverlay({
   message,
   onAction,
   onFinished,
+  preview = false,
 }: {
   message: DesktopOverlayMessage | null;
   onAction: (id: string) => void;
   onFinished: (id: string) => void;
+  /** Keep a tour preview visible without changing the main window's theme. */
+  preview?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>("enter");
   const [coverFailed, setCoverFailed] = useState(false);
@@ -22,6 +25,10 @@ export function DesktopNotificationOverlay({
   // frame paint -- a visible flash before the enter animation starts.
   useLayoutEffect(() => {
     if (!message) return;
+    if (preview) {
+      setPhase("hold");
+      return;
+    }
     applyTheme(message.theme, message.accentColor);
     setCoverFailed(false);
     setLogoFailed(false);
@@ -37,7 +44,7 @@ export function DesktopNotificationOverlay({
       ),
     ];
     return () => handles.forEach((handle) => window.clearTimeout(handle));
-  }, [message, onFinished]);
+  }, [message, onFinished, preview]);
 
   if (!message) return null;
 

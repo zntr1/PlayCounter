@@ -315,17 +315,17 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
       backdropDataTour={practice ? "demo-library-modal" : undefined}
       labelId="game-journal-title"
       size="xl"
-      className="h-[88vh] max-h-[960px] !max-w-7xl"
+      className="game-journal h-[88vh] max-h-[960px] !max-w-7xl"
       bodyClassName="flex flex-col !overflow-hidden !p-0"
       title={target.game.gameName ?? "Game journal"}
       header={
-        <div className="relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
-          <div className="flex items-start gap-5">
+        <div className="journal-header relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
+          <div className="journal-header-main flex items-start gap-5">
             {target.game.coverUrl ? (
               <GameCover
                 src={target.game.coverUrl}
                 alt=""
-                className="h-[118px] w-[88px] shrink-0 rounded-xl object-cover shadow-raised ring-1 ring-white/10"
+                className="journal-header-cover h-[118px] w-[88px] shrink-0 rounded-xl object-cover shadow-raised ring-1 ring-white/10"
               />
             ) : (
               <div className="grid h-[118px] w-[88px] shrink-0 place-items-center rounded-xl bg-surface-hover text-text-faint ring-1 ring-white/10">
@@ -339,7 +339,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 </div>
                 <h2
                   id="game-journal-title"
-                  className="mt-0.5 truncate text-2xl font-bold leading-tight text-text sm:text-3xl"
+                  className="journal-header-title mt-0.5 truncate text-2xl font-bold leading-tight text-text sm:text-3xl"
                   title={target.game.gameName ?? undefined}
                 >
                   {target.game.gameName ?? "Game journal"}
@@ -349,7 +349,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-3">
+            <div className="journal-header-actions flex shrink-0 flex-col items-end gap-3">
               <IconButton icon={X} aria-label="Close" onClick={close} />
               <GameShelfStrip target={target} />
             </div>
@@ -373,7 +373,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     >
       <div
         data-tour={practice ? "demo-journal-columns" : undefined}
-        className="grid min-h-0 flex-1 md:grid-cols-[288px_minmax(0,1fr)]"
+        className="journal-columns grid min-h-0 flex-1 md:grid-cols-[288px_minmax(0,1fr)]"
       >
         <div className="flex min-h-0 flex-col border-border md:border-r">
           <div className="px-5 pb-2 pt-4">

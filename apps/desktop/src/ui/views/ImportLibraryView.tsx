@@ -1558,6 +1558,8 @@ export function LibraryMatchControls({
   title,
   onConfirm,
   importing,
+  searchGames,
+  practice = false,
 }: {
   apiEndpoint: string;
   candidates: GameMetadata[];
@@ -1565,6 +1567,8 @@ export function LibraryMatchControls({
   onConfirm: (game: GameMetadata) => Promise<void>;
   importing: boolean;
   provider: BuiltinImportProviderId;
+  searchGames?: (query: string) => Promise<GameMetadata[]>;
+  practice?: boolean;
 }) {
   const [query, setQuery] = useState(() => librarySearchQuery(title));
   const [choices, setChoices] = useState(candidates);
@@ -1594,10 +1598,12 @@ export function LibraryMatchControls({
     setSearching(true);
     setMessage("");
     try {
-      const games = await searchLibraryGames(apiEndpoint, query, {
-        signal: controller.signal,
-        mainGamesAndRemastersOnly: provider === "xbox",
-      });
+      const games = searchGames
+        ? await searchGames(query)
+        : await searchLibraryGames(apiEndpoint, query, {
+            signal: controller.signal,
+            mainGamesAndRemastersOnly: provider === "xbox",
+          });
       if (controller.signal.aborted) return;
       setChoices(games);
       setSelectedIgdbId(games[0]?.igdbId ?? null);
@@ -1652,8 +1658,8 @@ export function LibraryMatchControls({
             {choices.map((candidate) => (
               <option key={candidate.igdbId} value={candidate.igdbId}>
                 {candidate.name}
-                {candidate.releaseYear ? ` · ${candidate.releaseYear}` : ""} ·
-                IGDB {candidate.igdbId}
+                {candidate.releaseYear ? ` · ${candidate.releaseYear}` : ""}
+                {practice ? " · Sample" : ` · IGDB ${candidate.igdbId}`}
               </option>
             ))}
           </select>
@@ -1687,7 +1693,7 @@ export function LibraryMatchControls({
           loading={searching}
           disabled={query.trim().length < 2}
         >
-          Search IGDB
+          {practice ? "Search samples" : "Search IGDB"}
         </Button>
       </form>
       {message ? (
@@ -1868,8 +1874,8 @@ function LoadingPanel({
         <PlayCounterLoader label={label} />
         {onCopySignInLink ? (
           <p className="mt-2 max-w-md text-sm text-text-faint">
-            Browser did not open, or opened the wrong account? Copy the
-            sign-in link and open it yourself.
+            Browser did not open, or opened the wrong account? Copy the sign-in
+            link and open it yourself.
           </p>
         ) : null}
         {onCancel || onCopySignInLink ? (

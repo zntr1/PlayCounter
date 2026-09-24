@@ -1,5 +1,28 @@
 import type { EmulatorMapping } from "../../emulators/types";
 import type { ActiveSession } from "../../store";
+import type { Session } from "@playcounter/shared";
+import type { GameSummary } from "../views/MyGamesView";
+
+export function tourSessionsForGame(game: GameSummary): Session[] {
+  const count = Math.max(0, game.sessionCount);
+  const total = Math.max(0, Math.round(game.sessionSeconds));
+  return Array.from({ length: count }, (_, index) => {
+    const durationSeconds =
+      Math.floor(total / count) + (index < total % count ? 1 : 0);
+    const endedAt = Date.now() - (index + 1) * 86400000;
+    return {
+      id: -500 - index,
+      gameId: game.gameId,
+      gameName: game.name,
+      source: game.source ?? undefined,
+      coverUrl: game.coverUrl ?? undefined,
+      exeName: game.exeNames[0] ?? "sample.exe",
+      startedAt: new Date(endedAt - durationSeconds * 1000).toISOString(),
+      endedAt: new Date(endedAt).toISOString(),
+      durationSeconds,
+    };
+  });
+}
 
 export const TOUR_DEMO_GAME = {
   gameId: -1,
@@ -22,7 +45,7 @@ export const TOUR_DEMO_EMULATOR = {
   display: "Zelda Wind Waker.rvz",
   gameId: -2,
   gameName: "The Legend of Zelda: The Wind Waker",
-  coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/co3ohz.webp",
+  coverUrl: "/tour/zelda-wind-waker-cover.webp",
 } as const;
 
 export const TOUR_DEMO_EMULATOR_STATS = {
