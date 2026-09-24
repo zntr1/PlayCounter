@@ -153,10 +153,7 @@ export function WelcomePrompt() {
   const [ready, setReady] = useState(false);
   const [helpImprove, setHelpImprove] = useState(true);
   const progress = useAppStore((state) => state.tourProgress);
-  const gameLaunchingEnabled = useAppStore(
-    (state) => state.settings.gameLaunchingEnabled === true,
-  );
-  const [enableLauncher, setEnableLauncher] = useState(gameLaunchingEnabled);
+  const [enableLauncher, setEnableLauncher] = useState(true);
   const markSeen = useAppStore((state) => state.markTourWelcomeSeen);
   const startTour = useAppStore((state) => state.startTour);
   const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
@@ -174,9 +171,9 @@ export function WelcomePrompt() {
   useEffect(() => {
     if (visible) {
       setHelpImprove(true);
-      setEnableLauncher(gameLaunchingEnabled);
+      setEnableLauncher(true);
     }
-  }, [gameLaunchingEnabled, visible]);
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -213,10 +210,11 @@ export function WelcomePrompt() {
                 Help improve PlayCounter
               </span>
               <span className="mt-1 block text-sm leading-5 text-text-muted">
-                When you ignore an unrecognized process, share its executable
-                name, platform, and anonymous install ID for community review.
-                Playtime and game history are never included. You can change
-                this anytime in Settings.
+                When you ignore an app that isn&apos;t a game, PlayCounter
+                anonymously shares its file name (like discord.exe) so other
+                players don&apos;t have to ignore it too. Your playtime and game
+                history aren&apos;t included. You can change this anytime in
+                Settings.
               </span>
             </span>
           </label>

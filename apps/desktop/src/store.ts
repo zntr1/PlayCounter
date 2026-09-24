@@ -630,7 +630,7 @@ const defaultSettings: Settings = {
   libraryShowHero: true,
   libraryFeaturedGame: null,
   viewShowHero: {},
-  viewBannerDetails: false,
+  viewBannerDetails: true,
   sidebarCollapsed: false,
   sidebarSourcesCollapsed: false,
   autoShareIgnoredProcesses: false,

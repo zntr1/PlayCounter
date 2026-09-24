@@ -54,6 +54,10 @@ beforeEach(() => {
   useAppStore.setState({
     activeView: "achievements",
     lastSeenReleaseNotesVersion: "1.1.18",
+    settings: {
+      ...useAppStore.getState().settings,
+      viewBannerDetails: false,
+    },
     exeCache: new Map([
       ["game-1.exe", entry(-1, "Library favorite")],
       ["game-2.exe", entry(-2, "Shelf favorite")],
