@@ -1753,6 +1753,11 @@ body.shift-held
   backdrop-filter: blur(6px);
 }
 
+/* The quick tour bundles wide artwork; keep its detail visible in the demo. */
+.active-hero[data-tour="now-playing-demo"] {
+  backdrop-filter: none;
+}
+
 .active-hero-figures {
   background: rgb(var(--color-bg) / 0.5);
   backdrop-filter: blur(10px);

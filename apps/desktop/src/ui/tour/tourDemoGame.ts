@@ -6,7 +6,9 @@ export const TOUR_DEMO_GAME = {
   name: "World of Warcraft",
   exeName: "Wow.exe",
   exePath: "C:\\Games\\World of Warcraft\\_retail_\\Wow.exe",
-  coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/co2l7z.webp",
+  // Bundled artwork keeps the quick tour ready even on a first, offline run.
+  coverUrl: "/tour/world-of-warcraft-cover.webp",
+  bannerUrl: "/tour/world-of-warcraft-banner.jpg",
 } as const;
 
 export const EMULATOR_TOUR_ID = "emulators";

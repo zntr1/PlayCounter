@@ -117,7 +117,9 @@ export function NowPlayingView() {
       ? state.customHeroArt[customHeroArtKey(leadSession)]
       : undefined,
   );
-  const nowArt = pickedArt ?? leadArt ?? leadSession?.coverUrl ?? null;
+  const nowArt = showTourSession
+    ? TOUR_DEMO_GAME.bannerUrl
+    : (pickedArt ?? leadArt ?? leadSession?.coverUrl ?? null);
   useEffect(() => {
     useLibrarySources.setState({ nowArt });
     return () => useLibrarySources.setState({ nowArt: null });
