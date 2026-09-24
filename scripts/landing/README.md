@@ -3,7 +3,10 @@
 The public site is committed static HTML in `landing/`. Its source is here so
 navigation, metadata, download facts and support lists stay consistent across
 pages. No runtime framework, third-party scripts, analytics or external fonts
-are required. The small local script only improves the native mobile menu.
+are required. Headings use the self-hosted Bricolage Grotesque file in `fonts/`.
+The small local script adds the mobile menu, the homepage's "Current session"
+timer, the WoW `/played` calculator and the one-time logo animation; every page
+works without it.
 
 ```sh
 corepack pnpm landing:build
@@ -34,7 +37,8 @@ before the deployment action runs.
   content hash in their URLs so new markup receives the current assets.
 - `legal/`: retained bilingual policy and legal text. Keep factual data-flow
   disclosures aligned with the desktop and backend; copy edits are not a legal
-  clearance. The September update adds Steam and emulator disclosures.
+  clearance. The September update adds Steam and emulator disclosures; the 1.2.0
+  update adds the Battle.net import, PCSX2 and the self-hosted heading font.
 
 `site.reviewed` is the explicit date of the full September 2026 content review;
 it is not the build date. Do not bump it on every build or ordinary release.
@@ -45,11 +49,16 @@ The roughly 200-user milestone is the owner's September 2026 estimate since
 the June launch. It is not a count of online installations, monthly active users
 or installer downloads. Update it only with a new confirmed milestone.
 
-Screenshots in `landing/images/` show the real 1.1.16 React interface with example
-data, labeled on the page. Future captures should use the current public UI and
-an example library, without exposing accounts or paths. Change the filenames
-when replacing them: versioned images are cached for a year. Game art and the
-Steam, Xbox, DOSBox and Dolphin marks come from the existing repository assets.
+Screenshots in `landing/images/` (`*-v1-2-0`) show the real 1.2.0 React interface
+with an example library, labeled on the page. App windows ship as 2000px WebP
+with a `-1000` variant; guide steps are 2x crops with the control to click ringed
+in amber, and `site.mjs` holds their display size. They were captured from the
+Vite dev server with a seeded store and stubbed native calls, so no real account,
+process or path appears. Future captures should do the same with the current
+public UI. Change the filenames when replacing them: versioned images are cached
+for a year. Game art comes from the existing landing covers and Steam's public
+store CDN; the launcher and emulator marks come from the repository's `assets/`.
+The older `*-v1-1-16` files stay because the repository README still uses them.
 
 Retired URLs are recorded in `site.mjs`. The generic Windows page merges into
 the homepage; the old gaming-habits page points to the actual totals section.

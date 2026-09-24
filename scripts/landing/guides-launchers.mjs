@@ -18,13 +18,28 @@ export const launcherGuides = [
       {
         id: "import",
         title: "Import into PlayCounter",
-        html: "<ol><li>Use Steam on this PC so its local account and game data are available.</li><li>In PlayCounter, open <strong>My Games → Steam → Import from Steam</strong>. If you have already imported, the action is <strong>Import more from Steam</strong>.</li><li>Pick the local Steam account, then select <strong>Find games</strong>.</li><li>Review the games, confirm any uncertain matches and import your selection.</li></ol><p>The importer brings in available game totals. It does not ask for your Steam password or require another Steam sign-in.</p>",
-        screenshot: "steam",
+        intro:
+          "<p>Worth doing once: the import brings in the playtime Steam recorded, so your totals start with your real hours instead of zero. New Steam sessions are tracked either way, with or without an import.</p>",
+        steps: [
+          {
+            title: "Open Steam in My Games",
+            html: "<p>In the sidebar under <strong>My Games</strong>, select <strong>Steam</strong>, then <strong>Import from Steam</strong>. After your first import, the button says <strong>Import more from Steam</strong>.</p>",
+          },
+          {
+            title: "Pick your Steam account, then Find games",
+            html: "<p>PlayCounter lists the Steam accounts that signed in on this PC. It reads Steam data already on your PC, so there is no password and no extra sign-in.</p>",
+            image: "steam-import",
+          },
+          {
+            title: "Review and import",
+            html: "<p>Confirm any uncertain matches, keep the games you want and import them. They arrive with the playtime Steam reports.</p>",
+          },
+        ],
       },
       {
         id: "missing-time",
         title: "If a game or its hours are missing",
-        html: '<p>Check that you selected the right local Steam account. Open Steam online and let it refresh, then run the import again. The importer can only use data Steam has made available locally; an absent value is not proof that you never played the game.</p><p>Imported hours do not create old sessions in <strong>My History</strong>. For a matched game, PlayCounter uses the higher of the local total and the largest imported total to avoid adding overlapping hours. <a href="/total-playtime-across-all-launchers/#totals">See an example</a>.</p>',
+        html: '<p>Check that you selected the right local Steam account. Open Steam online and let it refresh, then run the import again. The importer can only use data Steam has made available locally; an absent value is not proof that you never played the game.</p><p>Imported hours do not create old sessions in <strong>My History</strong>. For a matched game, PlayCounter compares the imported launcher hours with the time it tracked itself and shows the higher number, so overlapping hours are not counted twice. <a href="/total-playtime-across-all-launchers/#totals">See an example</a>.</p>',
       },
       {
         id: "new-sessions",
@@ -42,6 +57,7 @@ export const launcherGuides = [
         url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/steam.ts`,
       },
     ],
+    thumb: "steam-import",
     related: [
       "total-playtime-across-all-launchers",
       "check-playtime-xbox-game-pass",
@@ -64,7 +80,24 @@ export const launcherGuides = [
       {
         id: "import",
         title: "Import Xbox hours into PlayCounter",
-        html: '<ol><li>Open <strong>My Games → Xbox → Import from Xbox</strong>.</li><li>Select <strong>Sign in and find games</strong>. Complete the Microsoft sign-in in your browser with the account you use for Xbox.</li><li>Return to PlayCounter and review the detected games. Confirm the correct game for entries that need a match.</li><li>Import your selection. Available Xbox playtime is included in the game totals.</li></ol><p>PlayCounter does not see your Microsoft password. The API temporarily handles authorization and Xbox game data for the import; the sign-in is discarded afterward. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+        intro:
+          "<p>Worth doing if Xbox has hours you want to keep: the import brings in the playtime Xbox reports for your games. New PC Game Pass sessions are tracked either way, with or without an import.</p>",
+        steps: [
+          {
+            title: "Open Xbox in My Games",
+            html: "<p>In the sidebar under <strong>My Games</strong>, select <strong>Xbox</strong>, then <strong>Import from Xbox</strong>.</p>",
+          },
+          {
+            title: "Select Sign in and find games",
+            html: "<p>The Microsoft sign-in opens in your browser. Use the account that belongs to your Xbox gamertag. If you are not sure which one it is, copy the sign-in link and open it in a private browser window.</p>",
+            image: "xbox-import",
+          },
+          {
+            title: "Confirm the games and import",
+            html: "<p>Back in PlayCounter, review the detected games and confirm the correct game where a match is needed. Import your selection; available Xbox playtime is included in the game totals.</p>",
+          },
+        ],
+        html: '<p>PlayCounter does not see your Microsoft password. The API temporarily handles authorization and Xbox game data for the import; the sign-in is discarded afterward. <a href="/datenschutz#en">Import privacy details</a>.</p>',
       },
       {
         id: "tracking",
@@ -87,6 +120,7 @@ export const launcherGuides = [
         url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/xbox.ts`,
       },
     ],
+    thumb: "xbox-import",
     related: ["check-playtime-on-steam", "total-playtime-across-all-launchers"],
   },
   {
@@ -106,12 +140,12 @@ export const launcherGuides = [
       {
         id: "sessions",
         title: "Keep a local session history with PlayCounter",
-        html: "<ol><li>Open PlayCounter before starting your Epic game.</li><li>Launch the game from Epic as usual.</li><li>Check <strong>Now Playing</strong> to confirm the matched title.</li><li>After closing the game, open <strong>My History</strong> for the recorded session and <strong>My Games</strong> for its total.</li></ol><p>If the game is unknown or the title is wrong, review its process in <strong>Discovered</strong>. You can choose a local match.</p>",
+        html: '<ol><li>Open PlayCounter before starting your Epic game.</li><li>Launch the game from Epic as usual.</li><li>Check <strong>Now Playing</strong> to confirm the matched title.</li><li>After closing the game, open <strong>My History</strong> for the recorded session and <strong>My Games</strong> for its total.</li></ol><p>If the game is unknown or the title is wrong, review its process in <strong>Discovered</strong>. You can choose a local match. <a href="/game-not-detected/">How to add a game</a>.</p>',
       },
       {
         id: "previous",
         title: "What happens to earlier Epic hours?",
-        html: "<p>There is currently no historical Epic importer in PlayCounter. New tracking works without one. If you want to include an older total, use a manual playtime adjustment; it does not recreate earlier session dates.</p><p>Steam and Xbox are the available historical importers. They are optional additions to automatic tracking across launchers.</p>",
+        html: '<p>There is currently no Epic importer in PlayCounter. New tracking works without one. To include your Epic hours from before, copy the Time Played value into <a href="/adjust-total-playtime/">Adjust total playtime</a>; it does not recreate earlier session dates.</p><p>Steam and Xbox imports bring in playtime. The Battle.net import only adds a game list. All three are optional additions to automatic tracking across launchers.</p>',
       },
     ],
     sources: [
@@ -153,7 +187,7 @@ export const launcherGuides = [
       {
         id: "history",
         title: "Earlier hours remain a separate source",
-        html: "<p>PlayCounter currently has no historical GOG importer. It records new sessions while running, and you can manually adjust a total if you want to include older time. GALAXY’s existing statistics remain available in GALAXY.</p>",
+        html: '<p>PlayCounter currently has no GOG importer. It records new sessions while running. To include older time, <a href="/adjust-total-playtime/">set the game’s total yourself</a>. GALAXY’s existing statistics remain available in GALAXY.</p>',
       },
     ],
     sources: [
@@ -186,7 +220,7 @@ export const launcherGuides = [
       {
         id: "imports",
         title: "Can EA hours be imported?",
-        html: "<p>PlayCounter does not currently import historical hours directly from EA. Automatic tracking starts recording new local sessions while the app is running.</p><p>If the same game has a reported Steam or Xbox total, those importers can bring in the available value. Confirm the correct title and edition during review; PlayCounter does not simply add provider totals together.</p>",
+        html: '<p>PlayCounter does not currently import historical hours directly from EA. Automatic tracking starts recording new local sessions while the app is running. To include your earlier EA hours, enter the My Playtime value with <a href="/adjust-total-playtime/">Adjust total playtime</a>.</p><p>If the same game has a reported Steam or Xbox total, those importers can bring in the available value. Confirm the correct title and edition during review. <a href="/total-playtime-across-all-launchers/#totals">How imported totals combine</a>.</p>',
       },
     ],
     sources: [
@@ -219,7 +253,7 @@ export const launcherGuides = [
       {
         id: "scope",
         title: "Earlier hours and different editions",
-        html: "<p>PlayCounter does not currently have a historical Ubisoft importer. Its local history starts with sessions it records. You can manually adjust a total to include earlier hours you have verified.</p><p>When selecting a local match, check the title and edition, especially for games with separate test clients or multiple releases. A local PC session is runtime and can include menus or idle time; it is not a match-only statistic.</p>",
+        html: '<p>PlayCounter does not currently have a Ubisoft importer. Its local history starts with sessions it records. To include earlier hours you have verified, <a href="/adjust-total-playtime/">adjust the game’s total</a>.</p><p>When selecting a local match, check the title and edition, especially for games with separate test clients or multiple releases. A local PC session is runtime and can include menus or idle time; it is not a match-only statistic.</p>',
       },
     ],
     sources: [
@@ -233,31 +267,80 @@ export const launcherGuides = [
   {
     slug: "check-playtime-battle-net",
     category: "Launcher guides",
-    title: "Check Battle.net game playtime, including WoW",
+    title: "Track Battle.net playtime, including WoW",
     description:
-      "Check World of Warcraft character time with /played and record local sessions for recognized Battle.net games with PlayCounter on Windows.",
+      "Battle.net games are tracked without any import. Start your game as usual, set your earlier hours once, and import your game list only if you want it.",
     answer:
-      "In World of Warcraft, type /played in chat to see the current character’s time. Other Battle.net games provide their own statistics. PlayCounter records recognized PC game processes into one local library and session history.",
+      "You don’t need to import or connect anything. Keep PlayCounter running and start your game from Battle.net as usual: it shows up in Now Playing and is tracked automatically. Battle.net shares no playtime, so to include your earlier hours, set the game’s total once with Adjust total playtime. The Battle.net import is optional and only adds your game list.",
+    thumb: "battlenet-now",
+    glance: [
+      ["Just play", "#tracking"],
+      ["Add earlier hours", "#earlier-hours"],
+      ["Import is optional", "#import"],
+    ],
     sections: [
       {
-        id: "wow",
-        title: "World of Warcraft: use /played",
-        html: "<ol><li>Log into the WoW character you want to check.</li><li>Open chat, type <code>/played</code> and press Enter.</li><li>Read the total shown for that character. Repeat for other characters if you want their individual totals.</li></ol><p>This is a character statistic. It is not automatically your account’s total across every character, realm and game version.</p>",
-      },
-      {
-        id: "other-games",
-        title: "For other Blizzard games",
-        html: "<p>Check the game’s own profile or statistics screen. A counter may describe a hero, character, mode or match history rather than all time the application was running. Use the label in the game to understand what is included.</p><p>PlayCounter’s local session history provides a consistent record of runtime from the point you start using it. It does not reconstruct earlier character or match statistics.</p>",
-      },
-      {
         id: "tracking",
-        title: "Record a Battle.net session",
-        html: "<ol><li>Leave PlayCounter running and launch the game from Battle.net.</li><li>Confirm the game in <strong>Now Playing</strong>.</li><li>If a match is missing, use <strong>Discovered</strong> to choose the game process and correct title.</li><li>Close the game after playing and find the session in <strong>My History</strong>.</li></ol><p>Match the game, not the Battle.net launcher. Check the selected title when using different WoW versions or test clients. PlayCounter records game runtime; it does not split a WoW session by character.</p>",
+        title: "Just play: no import needed",
+        html: '<p>PlayCounter recognizes Battle.net games by the running game, the same way it tracks games from any other launcher. You don’t need to import them or connect your Battle.net account.</p><ol><li>Keep PlayCounter running, even in the tray.</li><li>Start your game from Battle.net as usual. It appears in <strong>Now Playing</strong> with a running timer.</li><li>Close the game when you are done. The session appears in <strong>My History</strong> and counts toward the game’s total in <strong>My Games</strong>.</li></ol><p>PlayCounter tracks the game itself, such as <code>Wow.exe</code>, not the Battle.net launcher, and it does not split a WoW session by character. In the screenshot, nothing was imported: the Battle.net source shows 0 games, and World of Warcraft is tracked anyway. If a game doesn’t show up, <a href="/game-not-detected/">add it in Discovered</a>.</p>',
+        screenshot: "battlenet-now",
+      },
+      {
+        id: "earlier-hours",
+        title: "Add the hours you played before",
+        intro:
+          "<p>Battle.net doesn’t share playtime, with or without an import. Set each game’s earlier total once, and PlayCounter adds your new sessions on top.</p>",
+        steps: [
+          {
+            title: "Find your earlier total",
+            html: '<p>In World of Warcraft, type <code>/played</code> on each character and add the totals up. The <a href="/check-playtime-world-of-warcraft/">WoW playtime guide</a> has a calculator for that. For other Blizzard games, check the game’s own profile or statistics screen and note what it counts.</p>',
+          },
+          {
+            title:
+              "Right-click the game, then Playtime → Adjust total playtime",
+            html: "<p>In <strong>My Games</strong>, right-click the game. Open <strong>Playtime</strong> and choose <strong>Adjust total playtime</strong>.</p>",
+            image: "adjust-menu",
+          },
+          {
+            title: "Enter the full total and save",
+            html: "<p>Type the complete hours and minutes, not only the missing part, then select <strong>Save total</strong>. Your history stays unchanged.</p>",
+            image: "adjust-dialog",
+          },
+        ],
       },
       {
         id: "import",
-        title: "Can earlier Battle.net hours be imported?",
-        html: "<p>There is currently no Battle.net history importer. You can add a manual session or adjust a game total if you want to include older time. Steam and Xbox imports can supply available totals for games reported by those services.</p>",
+        title: "Optional: import your Battle.net games",
+        intro:
+          "<p>The import brings no playtime and doesn’t change tracking. It is only useful if you want your Battle.net games in My Games before you play them, including games that are not installed, with covers and launch options.</p>",
+        steps: [
+          {
+            title: "Open Battle.net in My Games",
+            html: "<p>In the sidebar under <strong>My Games</strong>, select <strong>Battle.net</strong>. Then select <strong>Import from Battle.net</strong>.</p>",
+            image: "battlenet-library",
+          },
+          {
+            title: "Choose how to find your games",
+            html: "<p><strong>Find installed games</strong> only scans this PC and needs no sign-in. <strong>Sign in and find games</strong> also includes games from your Battle.net account that are not installed.</p>",
+            image: "battlenet-import",
+          },
+          {
+            title: "Read the playtime note, then select OK",
+            html: "<p>PlayCounter reminds you that Battle.net has no past playtime to import. If you chose to sign in, complete the Battle.net sign-in in the window that opens.</p>",
+            image: "battlenet-notice",
+          },
+          {
+            title: "Review and import",
+            html: "<p>Recognized games wait in <strong>Ready to import</strong>. Uncheck anything you don’t want and select <strong>Import</strong>. Games under <strong>Needs attention</strong> ask you to confirm the right game first.</p>",
+            image: "battlenet-review",
+          },
+        ],
+        html: '<p>The sign-in window is temporary and is discarded when the scan finishes. Only the list of games leaves it: your password, account details and CD keys are not passed to PlayCounter. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+      },
+      {
+        id: "versions",
+        title: "WoW Retail and Classic are separate games",
+        html: "<p>World of Warcraft and each Classic version have their own entry, playtime and sessions in PlayCounter. When you set a total, add up only the characters of that version. Check the selected title when a match asks for your review.</p>",
       },
     ],
     sources: [
@@ -265,11 +348,12 @@ export const launcherGuides = [
         label: "Blizzard Support: checking World of Warcraft time played",
         url: "https://us.battle.net/support/en/article/21163",
       },
+      {
+        label: "PlayCounter: Battle.net importer",
+        url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/battlenet.ts`,
+      },
     ],
-    related: [
-      "total-playtime-across-all-launchers",
-      "how-automatic-game-detection-works",
-    ],
+    related: ["check-playtime-world-of-warcraft", "adjust-total-playtime"],
   },
   {
     slug: "check-playtime-rockstar-launcher",
@@ -298,7 +382,7 @@ export const launcherGuides = [
       {
         id: "earlier",
         title: "Bring in earlier time where available",
-        html: "<p>PlayCounter has no direct historical Rockstar importer. A Steam import can bring in the available Steam total for your copy. For other earlier hours, manual sessions and total adjustments are available.</p>",
+        html: '<p>PlayCounter has no direct Rockstar importer. A Steam import can bring in the available Steam total for your copy. For other earlier hours, <a href="/adjust-total-playtime/">log a missed session or adjust the total</a>.</p>',
       },
     ],
     sources: [
@@ -327,7 +411,7 @@ export const launcherGuides = [
       {
         id: "local-games",
         title: "Add a small, new or unreleased game",
-        html: "<p>Game-jam entries and early builds may not have a metadata match. Assign a local title so you can track the game without waiting for a catalog entry. You can also submit a game match for community review when appropriate.</p><p>Generic names such as <code>game.exe</code> are shared by unrelated projects. Confirm the correct local game instead of assuming the filename uniquely identifies it. Review the entry again if a new build changes its executable.</p>",
+        html: '<p>Game-jam entries and early builds may not have a metadata match. <a href="/game-not-detected/">Add the game in Discovered</a> with a local title so you can track it without waiting for a catalog entry. You can also submit a game match for community review when appropriate.</p><p>Generic names such as <code>game.exe</code> are shared by unrelated projects. Confirm the correct local game instead of assuming the filename uniquely identifies it. Review the entry again if a new build changes its executable.</p>',
       },
       {
         id: "browser",
@@ -337,7 +421,7 @@ export const launcherGuides = [
       {
         id: "history",
         title: "Keep your new sessions together",
-        html: "<p>Recorded sessions appear in <strong>My History</strong>, and the game total appears in <strong>My Games</strong>. There is no historical itch.io importer; tracking begins with sessions recorded while PlayCounter is running.</p>",
+        html: '<p>Recorded sessions appear in <strong>My History</strong>, and the game total appears in <strong>My Games</strong>. There is no itch.io importer; tracking begins with sessions recorded while PlayCounter is running. You can <a href="/adjust-total-playtime/">add earlier hours yourself</a>.</p>',
       },
     ],
     sources: [

@@ -75,6 +75,16 @@
       "statusCode": 301
     },
     {
+      "route": "/adjust-total-playtime/index",
+      "redirect": "/adjust-total-playtime/",
+      "statusCode": 301
+    },
+    {
+      "route": "/game-not-detected/index",
+      "redirect": "/game-not-detected/",
+      "statusCode": 301
+    },
+    {
       "route": "/track-playtime-outside-steam/index",
       "redirect": "/track-playtime-outside-steam/",
       "statusCode": 301
@@ -145,6 +155,11 @@
       "statusCode": 301
     },
     {
+      "route": "/check-playtime-world-of-warcraft/index",
+      "redirect": "/check-playtime-world-of-warcraft/",
+      "statusCode": 301
+    },
+    {
       "route": "/check-playtime-minecraft/index",
       "redirect": "/check-playtime-minecraft/",
       "statusCode": 301
@@ -166,6 +181,12 @@
     },
     {
       "route": "/images/*",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "route": "/fonts/*",
       "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"
       }

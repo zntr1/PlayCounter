@@ -1,13 +1,14 @@
 # PlayCounter
 
-> Free automatic playtime tracking for Windows, across launchers and standalone games. Import available Steam and Xbox hours and track supported emulated games.
+> Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam and Xbox hours and your Battle.net games.
 
-- Public Windows release: 1.1.16, published 2026-09-08.
+- Public Windows release: 1.2.0. Coming soon to Steam.
 - Free desktop app; no PlayCounter account required. Desktop source is MIT-licensed. The current production API is private.
-- Automatic tracking follows recognized running games, regardless of launcher. Unknown or ambiguous games can be reviewed locally.
-- Historical importers: Steam (local account files) and Xbox (optional Microsoft sign-in; playtime availability varies by game).
-- Imported totals do not recreate sessions. For a matched game, the displayed total is the higher local total or largest imported provider total, not their sum.
-- Dedicated per-game emulator detection: DOSBox and Dolphin. Recognition depends on exposed game identifiers or titles.
+- Automatic tracking follows recognized running games, regardless of launcher. Unknown or ambiguous games can be reviewed locally in Discovered.
+- Imports: Steam (local account files, with playtime), Xbox (optional Microsoft sign-in; playtime availability varies by game) and Battle.net (optional: installed games or account sign-in, game list only, no historical playtime; Battle.net games are tracked without it).
+- Imported and adjusted totals do not recreate sessions. For a matched game, the displayed total is the higher of the PlayCounter total (tracked sessions plus any manual adjustment) and the sum of the imported launcher totals, counting each launcher once.
+- Earlier hours from launchers without a playtime import can be set with Adjust total playtime; a single missed session can be logged with its date.
+- Dedicated per-game emulator detection: DOSBox, Dolphin and PCSX2. Recognition depends on exposed game identifiers, files or titles.
 - Recorded sessions and history stay on the PC. Matching, metadata, updates and pseudonymous installation presence use online services; optional imports have additional data flows.
 
 ## Official pages
@@ -15,6 +16,8 @@
 - [Features, imports and download](https://playcounter.app/)
 - [Guides](https://playcounter.app/guides/)
 - [Playtime totals](https://playcounter.app/total-playtime-across-all-launchers/)
+- [Set a game's total playtime](https://playcounter.app/adjust-total-playtime/)
+- [Battle.net and World of Warcraft](https://playcounter.app/check-playtime-battle-net/)
 - [Emulator support](https://playcounter.app/playtime-tracker-for-emulators/)
 - [Privacy policy](https://playcounter.app/datenschutz#en)
 - [Download verification and source](https://playcounter.app/is-playcounter-safe/)

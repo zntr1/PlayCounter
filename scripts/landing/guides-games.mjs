@@ -2,6 +2,74 @@ import { site } from "./site.mjs";
 
 export const gameGuides = [
   {
+    slug: "check-playtime-world-of-warcraft",
+    category: "Game guides",
+    title: "How to see your total WoW playtime across characters",
+    description:
+      "World of Warcraft’s /played shows one character at a time. Add up all your characters with the calculator, then keep your WoW total in PlayCounter.",
+    answer:
+      "Type /played on each World of Warcraft character and note its Total time played. Add the characters up with the calculator below. To keep that total, set it in PlayCounter with Adjust total playtime; new sessions are then added automatically.",
+    thumb: "adjust-dialog",
+    glance: [
+      ["/played on each character", "#played"],
+      ["Add them up", "#calculator"],
+      ["Set it in PlayCounter", "#playcounter"],
+    ],
+    sections: [
+      {
+        id: "played",
+        title: "Check /played on each character",
+        html: '<ol><li>Log in to a character.</li><li>Open chat, type <code>/played</code> and press <kbd>Enter</kbd>.</li><li>Note the line <strong>Total time played</strong>. Repeat for every character you want to include.</li></ol><figure class="chat-mock"><div class="chat-window" role="img" aria-label="Example chat after typing /played: Total time played: 9 days, 14 hours, 20 minutes, 12 seconds. Time played this level: 1 day, 2 hours, 41 minutes, 3 seconds."><p class="chat-input">/played</p><p class="chat-system is-key">Total time played: 9 days, 14 hours, 20 minutes, 12 seconds</p><p class="chat-system">Time played this level: 1 day, 2 hours, 41 minutes, 3 seconds</p></div><figcaption>Example output. The first line is the one you need.</figcaption></figure><p><code>/played</code> counts one character on one realm. It does not add up your other characters, and Retail and Classic characters are counted separately.</p>',
+      },
+      {
+        id: "calculator",
+        title: "Add up all your characters",
+        html: '<form class="played-calc" data-played-calc aria-labelledby="calc-title"><div class="calc-head"><h3 id="calc-title">/played calculator</h3><p>Enter the <strong>Total time played</strong> of each character. Seconds are left out.</p></div><div class="calc-table" role="group" aria-label="Characters"><div class="calc-row calc-labels" aria-hidden="true"><span>Character</span><span>Days</span><span>Hours</span><span>Minutes</span><span></span></div><div data-calc-rows><div class="calc-row" data-calc-row><label class="calc-field"><span class="calc-caption" aria-hidden="true">Character</span><input type="text" value="Paladin" aria-label="Character 1 name" maxlength="40" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Days</span><input type="number" min="0" inputmode="numeric" value="9" aria-label="Character 1 days" data-unit="d" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Hours</span><input type="number" min="0" inputmode="numeric" value="14" aria-label="Character 1 hours" data-unit="h" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Minutes</span><input type="number" min="0" inputmode="numeric" value="20" aria-label="Character 1 minutes" data-unit="m" /></label><button type="button" class="calc-remove" data-calc-remove aria-label="Remove character 1" hidden>×</button></div><div class="calc-row" data-calc-row><label class="calc-field"><span class="calc-caption" aria-hidden="true">Character</span><input type="text" value="Mage" aria-label="Character 2 name" maxlength="40" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Days</span><input type="number" min="0" inputmode="numeric" value="2" aria-label="Character 2 days" data-unit="d" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Hours</span><input type="number" min="0" inputmode="numeric" value="21" aria-label="Character 2 hours" data-unit="h" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Minutes</span><input type="number" min="0" inputmode="numeric" value="5" aria-label="Character 2 minutes" data-unit="m" /></label><button type="button" class="calc-remove" data-calc-remove aria-label="Remove character 2" hidden>×</button></div><div class="calc-row" data-calc-row><label class="calc-field"><span class="calc-caption" aria-hidden="true">Character</span><input type="text" value="Hunter" aria-label="Character 3 name" maxlength="40" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Days</span><input type="number" min="0" inputmode="numeric" value="0" aria-label="Character 3 days" data-unit="d" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Hours</span><input type="number" min="0" inputmode="numeric" value="17" aria-label="Character 3 hours" data-unit="h" /></label><label class="calc-field"><span class="calc-caption" aria-hidden="true">Minutes</span><input type="number" min="0" inputmode="numeric" value="40" aria-label="Character 3 minutes" data-unit="m" /></label><button type="button" class="calc-remove" data-calc-remove aria-label="Remove character 3" hidden>×</button></div></div></div><button type="button" class="calc-add" data-calc-add hidden>+ Add character</button><output class="calc-total" data-calc-total aria-live="polite"><span class="calc-total-label">Enter in PlayCounter</span><span class="calc-total-value"><strong data-calc-hours>317</strong> hours <strong data-calc-minutes>5</strong> minutes</span><span class="calc-total-days" data-calc-days>= 13 days, 5 hours, 5 minutes</span></output></form><p>The example shows three characters. Change the numbers to yours, or add a row per character.</p>',
+      },
+      {
+        id: "playcounter",
+        title: "Keep the total in PlayCounter",
+        intro:
+          '<p>World of Warcraft needs to be in My Games first: play it once with PlayCounter running, no import needed. <a href="/check-playtime-battle-net/">Importing it from Battle.net</a> works too. Then set the total:</p>',
+        steps: [
+          {
+            title:
+              "Right-click the game, then Playtime → Adjust total playtime",
+            html: "<p>In <strong>My Games</strong>, right-click World of Warcraft. Open <strong>Playtime</strong> and choose <strong>Adjust total playtime</strong>.</p>",
+            image: "adjust-menu",
+          },
+          {
+            title: "Enter the calculator’s result and save",
+            html: "<p>Type the hours and minutes into <strong>New total</strong> and select <strong>Save total</strong>. Enter the full number: <code>/played</code> already includes the sessions PlayCounter recorded.</p>",
+            image: "adjust-dialog",
+          },
+          {
+            title: "Done: new sessions add up from here",
+            html: "<p>The game card shows your new total. Every session from now on is added to it automatically. Your history is not changed.</p>",
+            image: "adjust-result",
+          },
+        ],
+      },
+      {
+        id: "differences",
+        title: "Why PlayCounter and /played can drift apart",
+        html: "<p><code>/played</code> counts the time a character is logged in. PlayCounter counts the time the game runs, including the login screen, character selection and loading screens. Over months, PlayCounter’s number usually ends up a little higher. To line them up again, repeat the steps with a fresh <code>/played</code> sum.</p>",
+      },
+      {
+        id: "versions",
+        title: "Retail, Classic and several accounts",
+        html: "<p>Retail World of Warcraft and each Classic version are separate games in PlayCounter. Add up only the characters of the version you are setting. Characters from several WoW accounts on this PC count toward the same game, so include them in the sum.</p>",
+      },
+    ],
+    sources: [
+      {
+        label: "Blizzard Support: checking World of Warcraft time played",
+        url: "https://us.battle.net/support/en/article/21163",
+      },
+    ],
+    related: ["check-playtime-battle-net", "adjust-total-playtime"],
+  },
+  {
     slug: "check-playtime-minecraft",
     category: "Game guides",
     title: "How to check and track Minecraft playtime",
@@ -28,7 +96,7 @@ export const gameGuides = [
       {
         id: "modpacks",
         title: "What about modpacks, worlds and earlier hours?",
-        html: "<p>PlayCounter records the matched game process. It does not automatically split that time by world, server or modpack. Different launchers may use different Java installations, so confirm the match when switching setups.</p><p>New local sessions start when PlayCounter is running. It does not read old Java world statistics into a historical import. You can manually add a session or adjust a total if you want to include earlier time.</p>",
+        html: '<p>PlayCounter records the matched game process. It does not automatically split that time by world, server or modpack. Different launchers may use different Java installations, so confirm the match when switching setups.</p><p>New local sessions start when PlayCounter is running. It does not read old Java world statistics into a historical import. To include earlier time, <a href="/adjust-total-playtime/">log a session or adjust the total</a>.</p>',
       },
     ],
     sources: [
@@ -74,7 +142,7 @@ export const gameGuides = [
       {
         id: "earlier",
         title: "Include earlier time",
-        html: "<p>PlayCounter currently has no Epic history importer. The Epic counter remains the place to check earlier PC hours; you can use a manual adjustment if you want to include a known total locally.</p><p>The optional Xbox importer can bring in a reported Xbox value where available. It is not a live console tracker, and overlapping totals are not automatically added together.</p>",
+        html: '<p>PlayCounter currently has no Epic history importer. The Epic counter remains the place to check earlier PC hours; to include that total, enter it with <a href="/adjust-total-playtime/">Adjust total playtime</a>.</p><p>The optional Xbox importer can bring in a reported Xbox value where available. It is not a live console tracker, and overlapping totals are not automatically added together.</p>',
       },
     ],
     sources: [
@@ -115,7 +183,7 @@ export const gameGuides = [
       {
         id: "lifetime",
         title: "Can I recover all my earlier Roblox hours?",
-        html: "<p>PlayCounter does not have a Roblox history importer. A recent weekly report should not be presented as a lifetime total, and account age or badge counts cannot reconstruct an exact one. You can add earlier known time manually if you have a record you want to keep.</p>",
+        html: '<p>PlayCounter does not have a Roblox history importer. A recent weekly report should not be presented as a lifetime total, and account age or badge counts cannot reconstruct an exact one. You can <a href="/adjust-total-playtime/">add earlier known time yourself</a> if you have a record you want to keep.</p>',
       },
     ],
     sources: [
@@ -156,7 +224,7 @@ export const gameGuides = [
       {
         id: "history",
         title: "Local history and earlier hours",
-        html: "<p>There is no Riot historical importer in PlayCounter. It records new sessions while it is running, and manual entries or total adjustments are available for previous time you want to add.</p><p>If a generic process name has several possible matches, choose the correct local title. Your choice is not published as a universal match for all Riot-related processes.</p>",
+        html: '<p>There is no Riot historical importer in PlayCounter. It records new sessions while it is running. For previous time you want to add, use <a href="/adjust-total-playtime/">a missed session or a total adjustment</a>.</p><p>If a generic process name has several possible matches, choose the correct local title. Your choice is not published as a universal match for all Riot-related processes.</p>',
       },
     ],
     sources: [
