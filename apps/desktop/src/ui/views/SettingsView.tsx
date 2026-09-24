@@ -49,6 +49,7 @@ import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
 import { AutomaticBackupSettings } from "../AutomaticBackupSettings";
 import { ResetPlayCounterDialog } from "../ResetPlayCounterDialog";
+import { ResetSettingsDialog } from "../ResetSettingsDialog";
 import { HotkeyInput } from "../HotkeyInput";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
 import { TutorialSettingsPanel } from "../tour/TourUI";
@@ -101,6 +102,7 @@ export function SettingsView() {
     useState<LaunchFileForgetScope | null>(null);
   const [confirmImport, setConfirmImport] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmResetSettings, setConfirmResetSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [emulatorSyncing, setEmulatorSyncing] = useState<string | null>(null);
@@ -1175,9 +1177,26 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        title="Reset PlayCounter"
-        description="Erase your local data and start fresh. Existing backups are kept."
+        title="Reset"
+        description="Restore default settings or start fresh. Existing backups are kept."
       >
+        <SettingsRow
+          title="Restore default settings"
+          description="Reset app preferences while keeping your games, play history, and backup preferences."
+        >
+          <Button
+            icon={RotateCcw}
+            disabled={
+              startupSyncing ||
+              importing ||
+              exporting ||
+              updateStatus === "installing"
+            }
+            onClick={() => setConfirmResetSettings(true)}
+          >
+            Reset settings
+          </Button>
+        </SettingsRow>
         <SettingsRow
           title="Start over"
           description="Clear your library, history, and app settings, then restart PlayCounter. Your backup files are preserved."
@@ -1358,6 +1377,19 @@ export function SettingsView() {
               </Button>
             </div>
           }
+        />
+      ) : null}
+      {confirmResetSettings ? (
+        <ResetSettingsDialog
+          onCancel={() => setConfirmResetSettings(false)}
+          onReset={() => {
+            setConfirmResetSettings(false);
+            addToast({
+              tone: "success",
+              title: "Settings reset",
+              detail: "Default app settings have been restored.",
+            });
+          }}
         />
       ) : null}
       {confirmReset ? (

@@ -33,7 +33,11 @@ import {
   EMPTY_CONTRIBUTION_COUNTS,
   feedbackReplyNotification,
 } from "./notifications";
-import { persistAppState } from "./persistence";
+import {
+  createPersistedPayload,
+  persistAppState,
+  writePersistedRecord,
+} from "./persistence";
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
@@ -599,6 +603,7 @@ export type AppState = {
   setTheme: (theme: Theme) => void;
   setAccentColor: (color: string | null) => void;
   setInterfaceScale: (region: "content" | "menu", scale: number) => void;
+  restoreDefaultSettings: () => void;
   toggleVerboseLogs: () => void;
   toggleBlacklist: (exeName: string, enabled: boolean) => void;
 };
@@ -663,6 +668,10 @@ const defaultSettings: Settings = {
 
 let nextRuntimeLogId = 0;
 let nextToastId = 0;
+
+export function createDefaultSettings(): Settings {
+  return structuredClone(defaultSettings);
+}
 
 function addSessionsToArchive(
   archivedSeconds: number,
@@ -810,7 +819,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   demoResetToken: 0,
   helpMenuOpen: false,
   cleanup: null,
-  settings: defaultSettings,
+  settings: createDefaultSettings(),
   setActiveView: (activeView) => set({ activeView }),
   setLibraryTab: (libraryTab) => set({ libraryTab }),
   setLibraryImportProvider: (libraryImportProvider) =>
@@ -1571,6 +1580,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     persistSoon();
   },
   setCleanup: (cleanup) => set({ cleanup }),
+  restoreDefaultSettings: () => {
+    const settings = createDefaultSettings();
+    // A settings reset must never trim history to make room. Save the current
+    // durable data with only its settings replaced, or report the write failure.
+    writePersistedRecord(createPersistedPayload({ ...get(), settings }));
+    set({ settings });
+    applyTheme(settings.theme, settings.accentColor);
+  },
   setLaunchOnStartup: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, launchOnStartup: enabled },

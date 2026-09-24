@@ -386,6 +386,13 @@ export async function initializeTracker() {
   syncTrayNowPlaying();
   scheduleTraySync();
   unsubscribeTraySync = useAppStore.subscribe((state, previousState) => {
+    if (
+      processTimer !== undefined &&
+      state.settings.pollingIntervalSeconds !==
+        previousState.settings.pollingIntervalSeconds
+    ) {
+      scheduleProcessPolling(state.settings.pollingIntervalSeconds);
+    }
     if (state.activeSessions !== previousState.activeSessions) {
       syncTrayNowPlaying();
       scheduleTraySync();
