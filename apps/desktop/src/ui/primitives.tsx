@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 import { Loader2, X, type LucideIcon } from "lucide-react";
 import { hasOpenContextMenu } from "./ContextMenu";
+import { ModalWindowDragRegion } from "./shell/ModalWindowDragRegion";
 
 export {
   ContextMenu,
@@ -327,6 +328,7 @@ export function Modal({
         if (event.target === event.currentTarget) onClose();
       }}
     >
+      <ModalWindowDragRegion />
       <div
         ref={panelRef}
         data-tour={dataTour}
@@ -335,7 +337,7 @@ export function Modal({
         aria-labelledby={labelId}
         tabIndex={-1}
         className={clsx(
-          "flex max-h-[90vh] w-full animate-modal-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised outline-none motion-reduce:animate-none",
+          "relative flex max-h-[90vh] w-full animate-modal-in flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised outline-none motion-reduce:animate-none",
           modalSizes[size],
           className,
         )}

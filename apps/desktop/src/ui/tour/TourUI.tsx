@@ -4,7 +4,7 @@ import {
   tourFocusTarget,
   tourTargetRect,
 } from "./tourTargetRect";
-import { Check, CircleHelp, X } from "lucide-react";
+import { Check, CircleHelp, MessageSquareHeart, X } from "lucide-react";
 import {
   useEffect,
   useLayoutEffect,
@@ -180,14 +180,34 @@ export function WelcomePrompt() {
     <ModalFrame onEscape={close}>
       <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] select-text flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised">
         <div className="shrink-0 px-6 pt-6">
-          <PlayCounterAnimatedIcon size={72} playback="once" className="mb-4" />
-          <h2 className="text-xl font-semibold text-text">
-            Welcome to PlayCounter
-          </h2>
-          <p className="mt-2 leading-6 text-text-muted">
-            PlayCounter watches for games you launch and tracks how long you
-            play, no matter where they came from. A quick tour shows you around.
-          </p>
+          <div className="flex flex-col items-center text-center">
+            <PlayCounterAnimatedIcon
+              size={72}
+              playback="once"
+              className="mb-4"
+            />
+            <h2 className="text-xl font-semibold text-text">
+              Welcome to PlayCounter
+            </h2>
+            <p className="mt-2 leading-6 text-text-muted">
+              PlayCounter watches for games you launch and tracks how long you
+              play, no matter where they came from. A quick tour shows you
+              around.
+            </p>
+          </div>
+          <div className="mt-4 flex items-start gap-3 rounded-xl bg-bg p-3">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent-ink">
+              <MessageSquareHeart size={16} />
+            </span>
+            <p className="text-xs leading-5 text-text-muted">
+              <span className="font-medium text-text">
+                Built by one developer.
+              </span>{" "}
+              PlayCounter is new, so expect a few rough edges. Spot one? Use{" "}
+              <span className="font-medium text-text">Help & Feedback</span>.
+              I read every message and reply in the app.
+            </p>
+          </div>
         </div>
         {launcherAvailable ? (
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
