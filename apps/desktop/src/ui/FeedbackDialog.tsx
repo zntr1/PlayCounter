@@ -122,11 +122,11 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      size="md"
+      size="lg"
       labelId="feedback-dialog-title"
       eyebrow="Support"
       title="Send feedback"
-      subtitle="Report bugs, ask questions, suggest features or give Feedback :)."
+      subtitle="Report a bug, ask a question, suggest a feature or give feedback :)"
       icon={MessageSquarePlus}
       onClose={onClose}
       footer={
@@ -188,7 +188,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           maxLength={4000}
-          rows={6}
+          rows={9}
           data-autofocus
           placeholder={activeType.placeholder}
           className="min-w-0 resize-none rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-faint outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"

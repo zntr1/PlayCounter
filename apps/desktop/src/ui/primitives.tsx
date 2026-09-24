@@ -221,11 +221,12 @@ export function useEscapeKey(onClose: () => void) {
   }, [onClose]);
 }
 
-export type ModalSize = "sm" | "md" | "wide" | "xl" | "full";
+export type ModalSize = "sm" | "md" | "lg" | "wide" | "xl" | "full";
 
 const modalSizes: Record<ModalSize, string> = {
   sm: "max-w-md",
   md: "max-w-lg",
+  lg: "max-w-2xl",
   wide: "max-w-4xl",
   xl: "max-w-5xl",
   full: "h-[80vh] max-w-none",
