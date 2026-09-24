@@ -75,6 +75,8 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
 
   // Commit the entire selection before publishing any of it to the UI.
   const result = persistAppState({ ...state, ...changes });
+  if (result.status === "suspended")
+    throw new Error("PlayCounter is being reset.");
   if (result.status === "failed") throw result.error;
   useAppStore.setState({
     ...changes,

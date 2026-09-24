@@ -25,6 +25,7 @@ mod launch;
 mod library;
 mod notification_overlay;
 mod process;
+mod reset;
 mod session;
 mod shell_open;
 
@@ -310,6 +311,7 @@ pub fn run() {
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
         .manage(library::battlenet_account::AccountState::default())
+        .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
             revealed: AtomicBool::new(false),
@@ -328,6 +330,12 @@ pub fn run() {
         .plugin(
             tauri::plugin::Builder::<Wry>::new("startup-window")
                 .on_event(|app, event| {
+                    if matches!(event, tauri::RunEvent::Exit)
+                        && app.state::<reset::ResetState>().0.load(Ordering::SeqCst)
+                    {
+                        let _ = reset::clear_window_state(app);
+                        return;
+                    }
                     if matches!(event, tauri::RunEvent::Exit)
                         && app
                             .state::<StartupWindow>()
@@ -370,6 +378,7 @@ pub fn run() {
             read_text_file,
             write_text_file,
             backup_local_data,
+            reset::reset_local_data,
             automatic_backups::default_backup_directory,
             automatic_backups::write_automatic_backup,
             automatic_backups::open_backup_directory,

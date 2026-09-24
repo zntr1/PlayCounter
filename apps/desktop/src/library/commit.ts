@@ -170,6 +170,8 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     archivedPlaythroughSeconds: archive.archivedPlaythroughSeconds,
   };
   const result = persistAppState(candidate);
+  if (result.status === "suspended")
+    throw new Error("PlayCounter is being reset.");
   if (result.status === "failed") throw result.error;
   useAppStore.setState({
     libraryImports,

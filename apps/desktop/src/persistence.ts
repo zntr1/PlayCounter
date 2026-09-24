@@ -133,6 +133,7 @@ export type PersistedProjection = Pick<
 >;
 
 export type PersistResult =
+  | ({ status: "suspended" } & PersistedProjection)
   | ({ status: "saved" } & PersistedProjection)
   | ({
       status: "trimmed";
@@ -288,6 +289,19 @@ type PersistenceCache = {
 // field encodings without retaining older versions of the application state.
 const persistenceCaches = new WeakMap<Storage, PersistenceCache>();
 
+// A reset keeps writes disabled until the app restarts, including late scan
+// results and already queued store updates. A failed reset may only be retried
+// or followed by a reload; resuming this in-memory state could resurrect data.
+let persistenceSuspended = false;
+
+export function suspendPersistenceForReset() {
+  persistenceSuspended = true;
+}
+
+export function isPersistenceSuspended() {
+  return persistenceSuspended;
+}
+
 function samePersistedValue(left: unknown, right: unknown): boolean {
   return (
     Object.is(left, right) ||
@@ -328,6 +342,12 @@ function writePayload(
 }
 
 export function persistAppState(state: PersistableAppState): PersistResult {
+  if (persistenceSuspended) {
+    return {
+      status: "suspended",
+      ...projection(createPersistedPayload(state)),
+    };
+  }
   // Accessing localStorage itself can throw when storage is unavailable.
   let storage: Storage;
   try {
@@ -427,6 +447,7 @@ export function readPersistedRecord(
 }
 
 export function writePersistedRecord(data: Record<string, unknown>) {
+  if (persistenceSuspended) throw new Error("PlayCounter is being reset.");
   persistenceCaches.delete(localStorage);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }

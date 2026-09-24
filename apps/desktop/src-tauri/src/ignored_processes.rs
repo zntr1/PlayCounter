@@ -83,7 +83,7 @@ pub fn user_file_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .ok_or_else(|| "User ignored processes folder is unavailable.".to_string())
 }
 
-fn user_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn user_file_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app
         .path()
         .app_config_dir()

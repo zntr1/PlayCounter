@@ -705,6 +705,7 @@ function persistSoon() {
   queueMicrotask(() => {
     const state = useAppStore.getState();
     const result = persistAppState(state);
+    if (result.status === "suspended") return;
     if (result.status !== "failed") {
       useAppStore.setState({
         recentSessions: result.sessions,

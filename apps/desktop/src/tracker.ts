@@ -122,6 +122,7 @@ import {
 } from "./gameSeconds";
 import { nextAdjustmentSeconds } from "./playtimeAdjustments";
 import {
+  isPersistenceSuspended,
   persistAppState,
   readPersistedRecord,
   STORAGE_KEY,
@@ -325,6 +326,10 @@ const ignoredProcessSuggestionRequests = new Map<
 >();
 
 let initialized = false;
+let startupTimer: number | undefined;
+let startupWork: Promise<void> | undefined;
+let readyTimer: number | undefined;
+let readyWork: Promise<void> | undefined;
 let backendHealthTimer: number | undefined;
 let contributionsTimer: number | undefined;
 let stopFeedbackReplies: (() => void) | undefined;
@@ -369,7 +374,7 @@ const launcherBlacklist = [
 ];
 
 export async function initializeTracker() {
-  if (initialized) return;
+  if (initialized || isPersistenceSuspended()) return;
   initialized = true;
   logRuntime("tracker initialize started");
 
@@ -395,9 +400,24 @@ export async function initializeTracker() {
   });
   logRuntime("tracker state hydrated");
 
-  window.setTimeout(() => {
-    void finishTrackerStartup();
+  startupTimer = window.setTimeout(() => {
+    startupWork = finishTrackerStartup();
   }, 1_000);
+}
+
+export async function stopTrackerForReset() {
+  window.clearTimeout(startupTimer);
+  window.clearTimeout(readyTimer);
+  await Promise.allSettled([startupWork, readyWork]);
+  // Startup may have scheduled these while we were waiting for native work.
+  window.clearTimeout(readyTimer);
+  useAppStore.getState().cleanup?.();
+  if (trayTimer) window.clearInterval(trayTimer);
+  unsubscribeTraySync?.();
+  disposeDesktopOverlays();
+  disposeHotkeys();
+  disposeControllerBridge();
+  await scanInFlight;
 }
 
 async function finishTrackerStartup() {
@@ -465,8 +485,8 @@ async function finishTrackerStartup() {
     initialized = false;
   });
 
-  window.setTimeout(() => {
-    void (async () => {
+  readyTimer = window.setTimeout(() => {
+    readyWork = (async () => {
       const suppressStartupNotifications =
         useAppStore.getState().suppressStartupNotificationsOnce;
       if (identityResolved) {
@@ -4893,6 +4913,7 @@ function scheduleProcessPolling(intervalSeconds: number) {
 }
 
 export function persist() {
+  if (isPersistenceSuspended()) return;
   let state = useAppStore.getState();
   const reconciled = reconcileSessionPlaythroughs(state);
   if (
@@ -4903,6 +4924,7 @@ export function persist() {
     state = useAppStore.getState();
   }
   const result = persistAppState(state);
+  if (result.status === "suspended") return;
   if (result.status !== "failed") {
     useAppStore.setState((current) => {
       const recentSessions = sameArrayItems(
@@ -6789,6 +6811,7 @@ async function backfillCanonicalGameIds() {
 }
 
 async function requestProcessScan(reason: string) {
+  if (isPersistenceSuspended()) return;
   if (scanInFlight) {
     scanQueued = true;
     logRuntime(`scan ${reason} queued; scan already running`);
@@ -6806,7 +6829,7 @@ async function runQueuedProcessScans(initialReason: string) {
       scanQueued = false;
       await runProcessScan(reason);
       reason = "queued";
-    } while (scanQueued);
+    } while (scanQueued && !isPersistenceSuspended());
   } catch (error) {
     logRuntime(`scan ${reason} failed: ${formatError(error)}`);
     useAppStore.getState().setProcessScanError(formatError(error));

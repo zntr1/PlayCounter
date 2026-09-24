@@ -59,6 +59,24 @@ pub fn adopt_install_uuid(app: AppHandle, value: String) -> Result<String, Strin
     Ok(value)
 }
 
+pub fn reset_install_uuid(app: &AppHandle) -> Result<(), String> {
+    let mut cached = install_uuid_cache()
+        .lock()
+        .map_err(|_| "Install UUID cache is unavailable.".to_string())?;
+    let path = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("install-uuid.txt");
+    match fs::remove_file(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.to_string()),
+    }
+    *cached = None;
+    Ok(())
+}
+
 fn normalize_uuid(value: &str) -> Option<String> {
     Uuid::parse_str(value.trim())
         .ok()

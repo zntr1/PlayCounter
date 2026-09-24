@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { createBackupContents, createTransferData } from "./backup";
 import { validateBackupData } from "./backupValidation";
-import { createPersistedPayload } from "./persistence";
+import { createPersistedPayload, isPersistenceSuspended } from "./persistence";
 import { useAppStore } from "./store";
 
 // Machine-local preferences live outside the transferable app data. Restoring
@@ -108,6 +108,7 @@ function readPreferences(): AutomaticBackupPreferences {
 }
 
 function persistPreferences(preferences: AutomaticBackupPreferences) {
+  if (isPersistenceSuspended()) return;
   localStorage.setItem(
     AUTOMATIC_BACKUP_STORAGE_KEY,
     JSON.stringify(preferences),
@@ -151,6 +152,7 @@ export function setAutomaticBackupPreferences(
 
 /** Called once after app data hydrates. Checks also catch up after sleep. */
 export function initializeAutomaticBackups() {
+  if (isPersistenceSuspended()) return;
   if (stopScheduler) return;
   if (!useAutomaticBackupStore.getState().loaded) {
     try {
@@ -193,10 +195,17 @@ export function disposeAutomaticBackups() {
   stopScheduler = null;
 }
 
+export async function stopAutomaticBackupsForReset() {
+  disposeAutomaticBackups();
+  // Finish any native writer before restarting, preserving its latest backup.
+  await inFlight;
+}
+
 /** Manual and scheduled snapshots share a lock and the same retention limit. */
 export function runAutomaticBackup(
   force = false,
 ): Promise<BackupResult | null> {
+  if (isPersistenceSuspended()) return Promise.resolve(null);
   if (inFlight) return inFlight;
   const { preferences, loaded } = useAutomaticBackupStore.getState();
   if (

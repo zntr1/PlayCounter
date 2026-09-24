@@ -48,6 +48,7 @@ import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
 import { AutomaticBackupSettings } from "../AutomaticBackupSettings";
+import { ResetPlayCounterDialog } from "../ResetPlayCounterDialog";
 import { HotkeyInput } from "../HotkeyInput";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
 import { TutorialSettingsPanel } from "../tour/TourUI";
@@ -99,6 +100,7 @@ export function SettingsView() {
   const [confirmForgetLaunchFiles, setConfirmForgetLaunchFiles] =
     useState<LaunchFileForgetScope | null>(null);
   const [confirmImport, setConfirmImport] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [emulatorSyncing, setEmulatorSyncing] = useState<string | null>(null);
@@ -1173,6 +1175,25 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
+        title="Reset PlayCounter"
+        description="Erase your local data and start fresh. Existing backups are kept."
+      >
+        <SettingsRow
+          title="Start over"
+          description="Clear your library, history, and app settings, then restart PlayCounter. Your backup files are preserved."
+        >
+          <Button
+            variant="danger"
+            icon={Trash2}
+            disabled={importing || exporting || updateStatus === "installing"}
+            onClick={() => setConfirmReset(true)}
+          >
+            Reset PlayCounter
+          </Button>
+        </SettingsRow>
+      </SettingsPanel>
+
+      <SettingsPanel
         description="Tutorials and task guides are available from the Help menu in the top-right corner."
         title="Help & tutorials"
       >
@@ -1338,6 +1359,9 @@ export function SettingsView() {
             </div>
           }
         />
+      ) : null}
+      {confirmReset ? (
+        <ResetPlayCounterDialog onCancel={() => setConfirmReset(false)} />
       ) : null}
       {confirmImport ? (
         <ImportDataDialog
