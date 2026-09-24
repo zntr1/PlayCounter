@@ -595,6 +595,72 @@ main[id] {
   margin-top: 16px;
   font-size: 0.88rem;
 }
+.popular {
+  margin-top: 64px;
+}
+.popular-note {
+  max-width: 620px;
+  margin: 10px auto 0;
+  font-size: 0.92rem;
+}
+.game-tiles {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.game-tiles a {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  height: 100%;
+  padding: 20px 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+  text-decoration: none;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+.game-tiles a:hover {
+  border-color: rgba(239, 193, 96, 0.5);
+  transform: translateY(-2px);
+}
+.game-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--raised);
+  color: var(--ivory);
+  transition: color 0.2s ease;
+}
+.game-tiles a:hover .game-icon {
+  color: var(--amber);
+}
+.game-glyph {
+  width: 26px;
+  height: 26px;
+}
+.game-name {
+  color: var(--ivory);
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.game-hook {
+  color: var(--faint);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
 
 /* Sections */
 .section {
@@ -1625,6 +1691,9 @@ td {
 }
 
 @media (max-width: 1100px) {
+  .game-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
   .tour-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
@@ -1755,6 +1824,12 @@ td {
   .played-calc {
     padding: 18px;
   }
+  .game-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .game-tiles li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
   .calc-labels {
     display: none;
   }
@@ -1787,6 +1862,7 @@ td {
   }
   .button,
   .guide-card,
+  .game-tiles a,
   .screenshot a,
   .faq-list summary::after {
     transition: none;

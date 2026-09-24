@@ -85,6 +85,24 @@ const sessionMarks = `<svg class="session-marks" viewBox="0 0 1200 8" preserveAs
   )
   .join("")}</svg>`;
 
+// Game glyphs from scripts/landing/icons: Simple Icons are filled paths,
+// Lucide icons are strokes. Both are inlined so CSS can color them.
+function gameGlyph(file) {
+  const svg = readFileSync(
+    resolve(root, `scripts/landing/icons/${file}`),
+    "utf8",
+  );
+  const inner = svg
+    .slice(svg.indexOf(">", svg.indexOf("<svg")) + 1, svg.lastIndexOf("</svg>"))
+    .replace(/<title>[^<]*<\/title>/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const paint = svg.includes('stroke="currentColor"')
+    ? 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+    : 'fill="currentColor"';
+  return `<svg class="game-glyph" viewBox="0 0 24 24" ${paint} aria-hidden="true" focusable="false">${inner}</svg>`;
+}
+
 function navigation() {
   const links =
     '<a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a>';
@@ -253,6 +271,51 @@ function home() {
     "Dolphin",
     "PCSX2",
   ];
+  // Popular games whose own playtime is hard to find; each links to its guide.
+  const popularGames = [
+    [
+      "Minecraft",
+      "pickaxe.svg",
+      "In-game stats per world",
+      "/check-playtime-minecraft/",
+    ],
+    [
+      "Roblox",
+      "roblox.svg",
+      "Only recent screen time",
+      "/check-playtime-roblox/",
+    ],
+    [
+      "Fortnite",
+      "fortnite.svg",
+      "Epic shows PC time only",
+      "/check-playtime-fortnite/",
+    ],
+    [
+      "League of Legends",
+      "leagueoflegends.svg",
+      "Match history, no total",
+      "/check-playtime-riot-games/#league",
+    ],
+    [
+      "VALORANT",
+      "valorant.svg",
+      "Match history, no total",
+      "/check-playtime-riot-games/#valorant",
+    ],
+    [
+      "World of Warcraft",
+      "swords.svg",
+      "/played per character",
+      "/check-playtime-world-of-warcraft/",
+    ],
+    [
+      "GTA & Red Dead",
+      "rockstargames.svg",
+      "Per save or character",
+      "/check-playtime-rockstar-launcher/",
+    ],
+  ];
   const importerCards = site.importers
     .map(
       (item) =>
@@ -275,7 +338,7 @@ function home() {
   ];
   const body = `<main id="main">
 <section class="hero"><div class="hero-atmosphere" aria-hidden="true">${dial}</div><div class="wrap hero-copy"><p class="eyebrow">Free playtime tracker for Windows</p><h1>Every session <span>counts.</span></h1><p class="hero-lede">PlayCounter records how long you play, automatically. Start your games from Steam, Battle.net, Epic, a disc or an emulator: they all land in one library with one clear total each.</p><div class="hero-actions">${download()}<a class="button secondary" href="#features">See the app <span aria-hidden="true">↓</span></a></div><p class="download-meta">Free · No PlayCounter account · Windows</p>${steamSoon}</div><div class="wrap hero-shot"><div class="app-frame">${screenshot("library", { eager: true, caption: false })}<div class="session-chip" data-session-chip hidden aria-hidden="true">${animatedMark("", 52)}<span class="session-chip-body"><span class="session-chip-kicker">Current session</span><span class="session-chip-title">playcounter.app</span></span><span class="session-chip-time"><span>Session time</span><strong data-session-time>0:00</strong></span></div></div><p class="hero-caption">PlayCounter ${site.version} · Example data · <span class="milestone"><span aria-hidden="true" class="status-dot"></span>${site.milestone}</span></p>${sessionMarks}</div></section>
-<section class="sources wrap" aria-labelledby="sources-title"><h2 id="sources-title" class="sources-title">Wherever your games come from</h2><ul class="source-list">${sources.map((source) => `<li>${source}</li>`).join("")}</ul><p class="sources-note">No importer or special launch setup needed for tracking. <a href="/supported-games/">Which games are recognized?</a></p></section>
+<section class="sources wrap" aria-labelledby="sources-title"><h2 id="sources-title" class="sources-title">Wherever your games come from</h2><ul class="source-list">${sources.map((source) => `<li>${source}</li>`).join("")}</ul><p class="sources-note">No importer or special launch setup needed for tracking. <a href="/supported-games/">Which games are recognized?</a></p><div class="popular"><h2 class="sources-title" id="popular-title">Popular games with hidden playtime</h2><p class="popular-note">These games don’t show one clear total. PlayCounter tracks them on your PC, and each guide shows where the game keeps its own numbers.</p><ul class="game-tiles" aria-labelledby="popular-title">${popularGames.map(([name, icon, hook, href]) => `<li><a href="${href}"><span class="game-icon">${gameGlyph(icon)}</span><span class="game-name">${esc(name)}</span><span class="game-hook">${esc(hook)}</span></a></li>`).join("")}</ul></div></section>
 <section id="features" class="section"><div class="wrap section-heading"><p class="eyebrow">Inside the app</p><h2>Launch. Play. It’s recorded.</h2><p>A live timer while you play. A library, a history and milestones to come back to.</p></div><div class="wrap tour">${tour.map((item, index) => `<article class="tour-row${index % 2 ? " is-flipped" : ""}"><div class="tour-copy"><p class="view-label">${icon(item.icon)}${item.view}</p><h3>${item.title}</h3><p>${item.text}</p></div>${screenshot(item.shot, { sizes: "(min-width: 1260px) 760px, (min-width: 900px) 62vw, calc(100vw - 32px)" })}</article>`).join("")}</div><p class="wrap section-note">Your recorded sessions, notes and history stay on your PC. Game matching and a few other features use online services. <a href="/datenschutz#en">What the app sends online</a>.</p></section>
 <section id="imports" class="section section-tint"><div class="wrap"><div class="section-heading"><p class="eyebrow">Imports</p><h2>Bring your earlier hours along.</h2><p>Tracking works without any import. Steam and Xbox imports are worth it: they bring in the hours those launchers recorded, so your totals start with your real playtime. Battle.net shares no playtime, so its import is optional.</p></div><div class="support-grid three">${importerCards}</div><div class="import-explainer"><div><h3>Every other launcher works too</h3><p>Battle.net, Epic, GOG, EA, Ubisoft, Riot, itch.io and standalone games are tracked as you play, no import needed. To include hours from before, set the game’s total yourself. <a href="/adjust-total-playtime/">How to adjust a total</a>.</p></div><div><h3>How totals add up</h3><p>Each launcher counts once. PlayCounter adds up the imported launcher totals, compares that with the time it tracked itself and shows the higher number. <a href="/total-playtime-across-all-launchers/#totals">See an example</a>.</p></div></div></div></section>
 <section id="emulators" class="section"><div class="wrap"><div class="section-heading"><p class="eyebrow">Emulators</p><h2>The game, not just the emulator.</h2><p>Dedicated detection for DOSBox, Dolphin and PCSX2 gives each recognized game its own cover, total and sessions.</p></div><div class="support-grid three">${emulatorCards}</div>${screenshot("dosbox")}<p class="section-note">Some matches need your review. <a href="/playtime-tracker-for-emulators/">See supported variants, setup and detection details <span aria-hidden="true">→</span></a></p></div></section>
