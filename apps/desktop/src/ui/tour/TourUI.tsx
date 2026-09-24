@@ -178,7 +178,7 @@ export function WelcomePrompt() {
   };
   return createPortal(
     <ModalFrame onEscape={close}>
-      <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised">
+      <div className="flex max-h-[calc(100vh-2rem)] w-[440px] max-w-[calc(100vw-32px)] select-text flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-raised">
         <div className="shrink-0 px-6 pt-6">
           <PlayCounterAnimatedIcon size={72} playback="once" className="mb-4" />
           <h2 className="text-xl font-semibold text-text">
@@ -254,6 +254,8 @@ function ModalFrame({
   }, [onEscape]);
   return (
     <div
+      // The backdrop covers the title bar, so it must also allow window dragging.
+      data-tauri-drag-region
       className="fixed inset-0 z-[70] grid place-items-center bg-black/65 p-4"
       role="dialog"
       aria-modal="true"
