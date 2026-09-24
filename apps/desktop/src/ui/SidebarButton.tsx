@@ -131,7 +131,8 @@ export function SidebarButton({
         onClick();
       }}
       disabled={disabled}
-      title={title}
+      // The rail shows `title` inside its own label; a second tooltip would stack.
+      title={collapsed ? undefined : title}
       aria-label={collapsed ? label : undefined}
       className={clsx(
         "sidebar-button group relative flex w-full items-center rounded-xl text-[15px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",

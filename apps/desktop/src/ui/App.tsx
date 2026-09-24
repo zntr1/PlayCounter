@@ -59,6 +59,7 @@ import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
 import { GlobalSearch } from "./shell/GlobalSearch";
+import { GlobalTooltip } from "./shell/GlobalTooltip";
 import { HeaderLinks } from "./shell/HeaderLinks";
 import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
@@ -1170,6 +1171,7 @@ export function App() {
       <WelcomePrompt />
       <GameJournalHost />
       <TourOverlay />
+      <GlobalTooltip />
     </main>
   );
 }

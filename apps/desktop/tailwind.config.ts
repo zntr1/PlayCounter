@@ -83,6 +83,10 @@ export default {
           "0%": { opacity: "0", transform: "translate(-4px, -50%)" },
           "100%": { opacity: "1", transform: "translate(0, -50%)" },
         },
+        "tip-in": {
+          "0%": { opacity: "0", transform: "translateY(-2px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
         "toast-in": {
           "0%": { opacity: "0", transform: "translateX(16px) scale(0.98)" },
           "100%": { opacity: "1", transform: "translateX(0) scale(1)" },
@@ -116,6 +120,7 @@ export default {
         "fade-in": "fade-in 200ms ease-out",
         "label-in": "label-in 180ms ease-out",
         "tooltip-in": "tooltip-in 140ms ease-out",
+        "tip-in": "tip-in 120ms ease-out",
         "toast-in": "toast-in 220ms ease-out",
         "toast-out": "toast-out 260ms ease-in forwards",
         "modal-in": "modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1)",
