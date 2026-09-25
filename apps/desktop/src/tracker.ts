@@ -179,6 +179,11 @@ import type {
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
+import { forgetSteamAutoAdd } from "./library/steamAutoAddState";
+import {
+  syncSteamLibrary,
+  syncSteamLibraryThrottled,
+} from "./library/steamAutoAdd";
 import { providerFloors } from "./library/playtimeFloor";
 import { normalizePlayCounterLibraryEntry } from "./library/playcounterLibrary";
 import {
@@ -461,7 +466,7 @@ async function finishTrackerStartup() {
 
   logRuntime("process listener skipped; polling is active");
 
-  stopFocusLaunchVerification = verifyLaunchTargetsOnFocus();
+  stopFocusLaunchVerification = recheckLibraryOnFocus();
 
   useAppStore.getState().setCleanup(() => {
     logRuntime("tracker cleanup running");
@@ -514,6 +519,7 @@ async function finishTrackerStartup() {
       await recheckPendingCommunityApprovals("startup");
       await requestProcessScan("startup");
       await verifyLaunchTargets("startup");
+      await syncSteamLibrary("startup");
       if (suppressStartupNotifications) {
         baselineDiscoveredReviewReminder();
         useAppStore.setState({ suppressStartupNotificationsOnce: false });
@@ -1593,12 +1599,15 @@ type LibraryInstallReport = {
   status: LaunchPathStatus;
 };
 
-/** Nobody sees Play before the window gets focus, so that is when to recheck. */
-function verifyLaunchTargetsOnFocus() {
+/** Nobody sees the library before the window gets focus, so that is when to
+ * recheck launch sources and pick up newly installed Steam games. */
+function recheckLibraryOnFocus() {
   if (typeof document === "undefined") return undefined;
   const verify = () => {
-    if (useAppStore.getState().settings.gameLaunchingEnabled !== true) return;
-    void verifyLaunchTargetsThrottled("focus");
+    if (useAppStore.getState().settings.gameLaunchingEnabled === true) {
+      void verifyLaunchTargetsThrottled("focus");
+    }
+    void syncSteamLibraryThrottled("focus");
   };
   const verifyWhenVisible = () => {
     if (document.visibilityState === "visible") verify();
@@ -6075,6 +6084,7 @@ export function untrackGame(
 }
 
 export function forgetImportedLibraryData(provider: LibraryProviderId) {
+  if (provider === "steam") forgetSteamAutoAdd();
   const state = useAppStore.getState();
   const exeCache = new Map(state.exeCache);
   const launchTargets = new Map(state.launchTargets);

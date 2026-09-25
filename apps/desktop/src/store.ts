@@ -73,6 +73,7 @@ import {
   DEFAULT_IMPORT_PROVIDER,
   type BuiltinImportProviderId,
 } from "./library/importProviders";
+import { dismissSteamApps } from "./library/steamAutoAddState";
 import type { LibraryTabId } from "./ui/libraryTabs";
 import {
   isLibraryGridColumns,
@@ -572,6 +573,7 @@ export type AppState = {
   setSidebarSourcesCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
+  setAutoAddSteamGames: (enabled: boolean) => void;
   setEmulatorSetting: (
     key: "emulatorDetection" | "emulatorContentLookup",
     enabled: boolean,
@@ -664,6 +666,7 @@ const defaultSettings: Settings = {
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
+  autoAddSteamGames: true,
 };
 
 let nextRuntimeLogId = 0;
@@ -1124,6 +1127,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     persistSoon();
   },
   removeLibraryImport: (provider, externalId) => {
+    // A removed Steam game must not be added back automatically.
+    if (provider === "steam") dismissSteamApps([externalId]);
     set((state) => {
       const key = libraryEntryKey(provider, externalId);
       const libraryImports = new Map(state.libraryImports);
@@ -1733,6 +1738,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAutoShareIgnoredProcesses: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, autoShareIgnoredProcesses: enabled },
+    }));
+    persistSoon();
+  },
+  setAutoAddSteamGames: (enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, autoAddSteamGames: enabled },
     }));
     persistSoon();
   },

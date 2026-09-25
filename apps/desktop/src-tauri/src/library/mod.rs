@@ -31,9 +31,13 @@ pub async fn library_list_accounts(provider: String) -> Result<Vec<types::LocalA
 }
 
 #[tauri::command]
-pub async fn library_scan(provider: String, account_id: u32) -> Result<types::ScanResult, String> {
+pub async fn library_scan(
+    provider: String,
+    account_id: u32,
+    app_ids: Option<Vec<String>>,
+) -> Result<types::ScanResult, String> {
     tauri::async_runtime::spawn_blocking(move || match provider.as_str() {
-        "steam" => steam::scan(account_id),
+        "steam" => steam::scan(account_id, app_ids.as_deref()),
         "battlenet" => battlenet::scan(),
         _ => Err("PlayCounter cannot import from this launcher.".to_string()),
     })
@@ -86,6 +90,17 @@ pub async fn library_launch_app(
     })
     .await
     .map_err(|error| LaunchError::new(LaunchErrorKind::SpawnFailed, error.to_string()))?
+}
+
+/// Completely installed Steam apps, without the slow executable walk. `None`
+/// when Steam is not installed.
+#[tauri::command]
+pub async fn library_steam_installed_apps() -> Result<Option<Vec<steam::InstalledApp>>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        steam::Installs::read().map(|installs| installs.installed_apps())
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 /// Rechecks a stored Steam or Xbox install when a saved game file vanished, so

@@ -19,6 +19,7 @@ import { PlayCounterLoader } from "../../brand/PlayCounterLoader";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
+import { rememberSteamImportAccount } from "../../library/steamAutoAddState";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { loadLibraryProvider } from "../../library/providers";
@@ -556,6 +557,7 @@ export function ImportLibraryView() {
       await backupImporterDataOnce(signal);
       if (!isCurrentImport(signal)) return;
       const result = await runLibraryImport(commits, signal);
+      rememberImportedSteamAccount();
       if (!isCurrentImport(signal)) return;
       const failedShares = result.shareOutcomes.filter(
         ({ outcome }) => outcome.kind === "failed",
@@ -617,6 +619,7 @@ export function ImportLibraryView() {
       await backupImporterDataOnce(signal);
       if (!isCurrentImport(signal)) return;
       const result = await runLibraryImport([commit], signal);
+      rememberImportedSteamAccount();
       if (!isCurrentImport(signal)) return;
       setSelected((current) => {
         const next = new Set(current);
@@ -679,6 +682,7 @@ export function ImportLibraryView() {
       await backupImporterDataOnce(signal);
       if (!isCurrentImport(signal)) return;
       const result = await runLibraryImport([commit], signal);
+      rememberImportedSteamAccount();
       if (!isCurrentImport(signal)) return;
       setResolved((current) => new Map(current).set(key, resolvedGame));
       setCompleted((current) => new Set(current).add(scanned.externalId));
@@ -759,6 +763,13 @@ export function ImportLibraryView() {
       setError(formatError(cause));
     } finally {
       if (isCurrentImport(signal)) setBrowsingExternalId(null);
+    }
+  }
+
+  /** A successful Steam import opts this PC into adding new Steam games. */
+  function rememberImportedSteamAccount() {
+    if (providerId === "steam" && accountId !== null) {
+      rememberSteamImportAccount(accountId);
     }
   }
 

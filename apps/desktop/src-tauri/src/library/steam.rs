@@ -22,6 +22,8 @@ use windows_sys::Win32::{
 };
 
 const MAX_SCANNED_APPS: usize = 5_000;
+/// Steamworks Common Redistributables: installed with most games, never a game.
+const REDISTRIBUTABLES_APP_ID: &str = "228980";
 const MAX_VDF_BYTES: u64 = 8 * 1024 * 1024;
 
 #[derive(Default)]
@@ -94,13 +96,53 @@ pub fn accounts() -> Result<Vec<LocalAccount>, String> {
     Ok(accounts)
 }
 
-pub fn scan(account_id: u32) -> Result<ScanResult, String> {
+/// Scans the account's played games plus every completely installed game.
+/// `only_app_ids` limits the result (and the slow executable walk) to those
+/// apps, for picking up newly installed games in the background.
+pub fn scan(account_id: u32, only_app_ids: Option<&[String]>) -> Result<ScanResult, String> {
     let (root, _) = find_steam_root();
     let root = root.ok_or_else(|| "Steam installation was not found.".to_string())?;
-    let playtimes = read_playtimes(&root, account_id)?;
+    scan_root(&root, account_id, only_app_ids)
+}
+
+fn scan_root(
+    root: &Path,
+    account_id: u32,
+    only_app_ids: Option<&[String]>,
+) -> Result<ScanResult, String> {
+    let mut playtimes = read_playtimes(root, account_id)?;
     let mut warnings = Vec::new();
-    let manifests = read_manifests(&root, &mut warnings);
+    let manifests = read_manifests(root, &mut warnings);
+    let never_played = manifests
+        .iter()
+        .filter(|(app_id, manifest)| {
+            !playtimes.contains_key(*app_id)
+                && app_id.as_str() != REDISTRIBUTABLES_APP_ID
+                && manifest_installed(manifest)
+        })
+        .map(|(app_id, _)| app_id.clone())
+        .collect::<Vec<_>>();
+    if let Some(only) = only_app_ids {
+        playtimes.retain(|app_id, _| only.contains(app_id));
+    }
     let mut games = Vec::with_capacity(playtimes.len().min(MAX_SCANNED_APPS));
+    for app_id in never_played {
+        if only_app_ids.is_some_and(|only| !only.contains(&app_id)) {
+            continue;
+        }
+        let manifest = &manifests[&app_id];
+        games.push(ScannedGame {
+            name: manifest.name.clone(),
+            // Steam knows this installed game has no playtime yet.
+            playtime_seconds: Some(0),
+            has_played_evidence: Some(false),
+            last_played_unix: None,
+            installed: true,
+            install_path: Some(path_string(&manifest.install_path)),
+            executables: Vec::new(),
+            external_id: app_id,
+        });
+    }
     for (app_id, playtime) in playtimes {
         let manifest = manifests.get(&app_id);
         let install_path = manifest.map(|value| value.install_path.clone());
@@ -189,6 +231,31 @@ impl Installs {
             Some(manifest) => Some(manifest_installed(manifest)),
             None => self.all_libraries_reachable.then_some(false),
         }
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledApp {
+    pub app_id: String,
+    pub install_path: String,
+}
+
+impl Installs {
+    pub fn installed_apps(&self) -> Vec<InstalledApp> {
+        let mut apps = self
+            .manifests
+            .iter()
+            .filter(|(app_id, manifest)| {
+                app_id.as_str() != REDISTRIBUTABLES_APP_ID && manifest_installed(manifest)
+            })
+            .map(|(app_id, manifest)| InstalledApp {
+                app_id: app_id.clone(),
+                install_path: path_string(&manifest.install_path),
+            })
+            .collect::<Vec<_>>();
+        apps.sort_by(|left, right| left.app_id.cmp(&right.app_id));
+        apps
     }
 }
 
@@ -574,6 +641,75 @@ mod tests {
             );
             let _ = fs::remove_dir_all(root);
         }
+    }
+
+    fn add_manifest(root: &Path, app_id: &str, name: &str, installdir: &str) {
+        let steamapps = root.join("steamapps");
+        fs::write(
+            steamapps.join(format!("appmanifest_{app_id}.acf")),
+            format!(
+                "\"AppState\"\n{{\n\t\"appid\"\t\t\"{app_id}\"\n\t\"name\"\t\t\"{name}\"\n\t\"StateFlags\"\t\t\"4\"\n\t\"installdir\"\t\t\"{installdir}\"\n}}\n"
+            ),
+        )
+        .unwrap();
+        fs::create_dir_all(steamapps.join("common").join(installdir)).unwrap();
+    }
+
+    fn add_playtime(root: &Path, account_id: u32, app_id: &str, minutes: u32) {
+        let config = root
+            .join("userdata")
+            .join(account_id.to_string())
+            .join("config");
+        fs::create_dir_all(&config).unwrap();
+        fs::write(
+            config.join("localconfig.vdf"),
+            format!(
+                "\"UserLocalConfigStore\"\n{{\n\"Software\"\n{{\n\"Valve\"\n{{\n\"Steam\"\n{{\n\"apps\"\n{{\n\"{app_id}\"\n{{\n\"Playtime\"\t\"{minutes}\"\n}}\n}}\n}}\n}}\n}}\n}}\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn lists_installed_games_that_were_never_played() {
+        let root = steam_root_with_manifest("730", "4", true);
+        add_manifest(&root, "440", "Played Game", "Played Game");
+        add_manifest(
+            &root,
+            "228980",
+            "Steamworks Common Redistributables",
+            "Steamworks Shared",
+        );
+        add_playtime(&root, 7, "440", 10);
+
+        let result = scan_root(&root, 7, None).unwrap();
+        let ids = result
+            .games
+            .iter()
+            .map(|game| game.external_id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, ["440", "730"]);
+        let played = &result.games[0];
+        assert_eq!(played.playtime_seconds, Some(600));
+        assert_eq!(played.has_played_evidence, None);
+        let never_played = &result.games[1];
+        assert_eq!(never_played.playtime_seconds, Some(0));
+        assert_eq!(never_played.has_played_evidence, Some(false));
+        assert!(never_played.installed);
+        assert_eq!(never_played.name.as_deref(), Some("Test Game"));
+
+        let only = scan_root(&root, 7, Some(&["730".to_string()])).unwrap();
+        assert_eq!(only.games.len(), 1);
+        assert_eq!(only.games[0].external_id, "730");
+
+        let apps = Installs::read_from(&root).installed_apps();
+        assert_eq!(
+            apps.iter()
+                .map(|app| app.app_id.as_str())
+                .collect::<Vec<_>>(),
+            ["440", "730"]
+        );
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

@@ -637,4 +637,6 @@ export interface Settings {
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
+  /** Add newly installed Steam games after the first Steam import. Absent = enabled. */
+  autoAddSteamGames?: boolean;
 }

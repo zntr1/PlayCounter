@@ -464,6 +464,7 @@ pub fn run() {
             library::library_launch_app,
             library::library_install_exists,
             library::library_verify_installs,
+            library::library_steam_installed_apps,
             emulator_launch::launch_emulator_content,
             emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,
