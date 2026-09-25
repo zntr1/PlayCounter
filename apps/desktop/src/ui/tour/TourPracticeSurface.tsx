@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import type { GameMetadata } from "../../store";
-import { Button, Pill } from "../primitives";
+import { Button, Pill, Select } from "../primitives";
 import {
   TriageWizardCard,
   TOUR_DISCOVERED_EXECUTABLE,
@@ -219,9 +219,8 @@ function ImportPractice() {
       </p>
       <label data-tour="demo-import-executable" className="grid gap-2 text-sm">
         Game executable
-        <select
+        <Select
           aria-label="Game executable"
-          className="rounded border border-border bg-surface p-2"
           value={executable}
           onChange={(event) => setExecutable(event.target.value)}
         >
@@ -229,7 +228,7 @@ function ImportPractice() {
             Diablo IV.exe · eligible game file
           </option>
           <option disabled>Uninstall.exe · installer excluded</option>
-        </select>
+        </Select>
       </label>
       <p className="text-xs text-text-muted">
         One eligible file is selected for you. This selection does not import

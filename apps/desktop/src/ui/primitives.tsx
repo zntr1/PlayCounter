@@ -8,9 +8,10 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
   type RefObject,
+  type SelectHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, X, type LucideIcon } from "lucide-react";
+import { ChevronDown, Loader2, X, type LucideIcon } from "lucide-react";
 import { hasOpenContextMenu } from "./ContextMenu";
 import { ModalWindowDragRegion } from "./shell/ModalWindowDragRegion";
 
@@ -146,7 +147,7 @@ export function Input({ className, ...rest }: InputProps) {
   return (
     <input
       className={clsx(
-        "min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-faint outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30",
+        "pc-input min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-faint outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30",
         className,
       )}
       {...rest}
@@ -154,10 +155,56 @@ export function Input({ className, ...rest }: InputProps) {
   );
 }
 
-// Native select, themed to match Input. Kept for genuine form fields; the
-// browsing surfaces use Pill groups and anchored menus instead.
-export const selectClass =
-  "min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30";
+/** Native inputs retain their labels, keyboard behavior and change events. */
+export const Switch = forwardRef<HTMLInputElement, Omit<InputProps, "type">>(
+  function Switch({ className, ...rest }, ref) {
+    return (
+      <input
+        {...rest}
+        ref={ref}
+        type="checkbox"
+        className={clsx("pc-switch", className)}
+      />
+    );
+  },
+);
+
+type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
+  containerClassName?: string;
+};
+
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  function Select(
+    { className, containerClassName, disabled, children, ...rest },
+    ref,
+  ) {
+    return (
+      <span
+        className={clsx("relative inline-flex min-w-0", containerClassName)}
+      >
+        <select
+          {...rest}
+          ref={ref}
+          disabled={disabled}
+          className={clsx(
+            "pc-select min-w-0 w-full appearance-none rounded-md border border-border bg-surface py-2 pl-3 pr-9 text-sm text-text outline-none transition hover:border-text-faint focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-50",
+            className,
+          )}
+        >
+          {children}
+        </select>
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className={clsx(
+            "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-text-muted",
+            disabled && "opacity-50",
+          )}
+        />
+      </span>
+    );
+  },
+);
 
 type PillProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   selected?: boolean;

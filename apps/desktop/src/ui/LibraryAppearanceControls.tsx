@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useLibraryPractice } from "./PersonalLibraryContext";
+import { Switch } from "./primitives";
 
 /* Building blocks for the Customize popover in My Games, shared with the
    practice library in the tour. Every option stays a real checkbox with a
@@ -70,16 +71,14 @@ export function OptionRow({
           {help}
         </p>
       </div>
-      <input
+      <Switch
         data-tour={dataTour}
         id={id}
-        type="checkbox"
         checked={checked}
         disabled={disabled}
         aria-describedby={`${id}-help`}
         data-controller-item="library-option"
         onChange={(event) => onChange(event.target.checked)}
-        className="pc-switch"
       />
     </div>
   );
@@ -123,6 +122,16 @@ export function LibraryLayoutControls({
   setMyGamesShowShelves,
 }: LayoutProps) {
   const { practice, fieldId } = useFieldId();
+  const rangeProgress =
+    gridLayout.maxColumns > 1
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            ((gridLayout.sliderValue - 1) / (gridLayout.maxColumns - 1)) * 100,
+          ),
+        )
+      : 0;
   return (
     <>
       <OptionRow
@@ -172,7 +181,12 @@ export function LibraryLayoutControls({
             onChange={(event) =>
               setMyGamesGridColumns(event.currentTarget.valueAsNumber)
             }
-            className="mt-2 h-5 w-full cursor-pointer accent-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="pc-range mt-2 w-full"
+            style={
+              {
+                "--range-progress": `${rangeProgress}%`,
+              } as CSSProperties
+            }
           />
         </div>
       ) : null}

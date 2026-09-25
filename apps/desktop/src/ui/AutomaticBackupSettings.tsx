@@ -9,7 +9,7 @@ import {
   useAutomaticBackupStore,
 } from "../automaticBackups";
 import { useAppStore } from "../store";
-import { Button, selectClass } from "./primitives";
+import { Button, Select, Switch } from "./primitives";
 
 export function AutomaticBackupSettings() {
   const {
@@ -79,9 +79,8 @@ export function AutomaticBackupSettings() {
             open the app.
           </p>
         </div>
-        <input
+        <Switch
           data-tour="settings-backup-enabled"
-          type="checkbox"
           aria-label="Automatic backups"
           aria-describedby="automatic-backups-description"
           checked={preferences.enabled}
@@ -89,7 +88,7 @@ export function AutomaticBackupSettings() {
           onChange={(event) =>
             setAutomaticBackupPreferences({ enabled: event.target.checked })
           }
-          className="mt-1 h-4 w-4 shrink-0 accent-accent disabled:opacity-50"
+          className="mt-1"
         />
       </div>
       <div
@@ -98,7 +97,7 @@ export function AutomaticBackupSettings() {
       >
         <label className="grid gap-1.5 text-sm text-text-muted">
           Schedule
-          <select
+          <Select
             data-tour="settings-backup-interval"
             value={preferences.interval}
             disabled={busy}
@@ -107,15 +106,14 @@ export function AutomaticBackupSettings() {
                 interval: event.target.value as "daily" | "weekly",
               })
             }
-            className={`${selectClass} disabled:opacity-50`}
           >
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
-          </select>
+          </Select>
         </label>
         <label className="grid gap-1.5 text-sm text-text-muted">
           Keep
-          <select
+          <Select
             data-tour="settings-backup-keep"
             value={preferences.keepCount}
             disabled={busy}
@@ -124,7 +122,6 @@ export function AutomaticBackupSettings() {
                 keepCount: Number(event.target.value),
               })
             }
-            className={`${selectClass} disabled:opacity-50`}
           >
             {[...new Set([5, 10, 30, preferences.keepCount])]
               .sort((a, b) => a - b)
@@ -133,7 +130,7 @@ export function AutomaticBackupSettings() {
                   Last {count} backups
                 </option>
               ))}
-          </select>
+          </Select>
         </label>
         <Button
           data-tour="settings-backup-now"

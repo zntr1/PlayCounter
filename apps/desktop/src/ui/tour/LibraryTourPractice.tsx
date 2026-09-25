@@ -20,7 +20,7 @@ import {
 } from "../LibraryOrganization";
 import { PersonalLibraryContext } from "../PersonalLibraryContext";
 import { useLibraryGameDrag } from "../libraryGameDrag";
-import { Button } from "../primitives";
+import { Button, Switch } from "../primitives";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import {
   librarySelectionKey,
@@ -402,9 +402,11 @@ function PracticeLibrary({
                 ["Notes in game-start popups", popupNotes, setPopupNotes],
                 ["Update note in popups", popupUpdate, setPopupUpdate],
               ].map(([label, checked, change]) => (
-                <label key={String(label)} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
+                <label
+                  key={String(label)}
+                  className="flex cursor-pointer items-center gap-2"
+                >
+                  <Switch
                     checked={Boolean(checked)}
                     onChange={(event) =>
                       (change as (value: boolean) => void)(event.target.checked)

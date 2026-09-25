@@ -23,7 +23,6 @@ import {
   Clipboard,
   Check,
   CheckSquare,
-  ChevronDown,
   Clock3,
   ClockPlus,
   Download,
@@ -169,6 +168,7 @@ import {
   Modal,
   useAnchoredMenu,
   useContextMenu,
+  Select,
 } from "../primitives";
 import {
   initialMatchSelection,
@@ -189,7 +189,6 @@ import {
 } from "../useLibrarySelection";
 import { useGameJournal } from "../useGameJournal";
 import { useLibrarySessionState } from "../useLibrarySessionState";
-import { selectClass } from "../primitives";
 import {
   LibraryOrganizationToolbar,
   countShelfGames,
@@ -2021,32 +2020,20 @@ export function MyGamesView({
                 }
                 trailing={
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="relative inline-flex min-w-0">
-                      <select
-                        aria-label="Sort games"
-                        value={sortKey}
-                        onChange={(event) =>
-                          setMyGamesSortKey(
-                            event.target.value as MyGamesSortKey,
-                          )
-                        }
-                        className={clsx(
-                          selectClass,
-                          "h-9 appearance-none rounded-lg !py-0 pr-8 font-medium",
-                        )}
-                      >
-                        {sortOptions.map((option) => (
-                          <option key={option.key} value={option.key}>
-                            Sort: {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown
-                        size={15}
-                        aria-hidden="true"
-                        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted"
-                      />
-                    </span>
+                    <Select
+                      aria-label="Sort games"
+                      value={sortKey}
+                      onChange={(event) =>
+                        setMyGamesSortKey(event.target.value as MyGamesSortKey)
+                      }
+                      className="h-9 rounded-lg !py-0 font-medium"
+                    >
+                      {sortOptions.map((option) => (
+                        <option key={option.key} value={option.key}>
+                          Sort: {option.label}
+                        </option>
+                      ))}
+                    </Select>
                     <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
                       <button
                         type="button"
@@ -5780,7 +5767,7 @@ function StopTrackingDialog({
       icon={Ban}
       onClose={onCancel}
       footer={
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
             Ignore game
           </Button>
@@ -5841,7 +5828,7 @@ function RemoveGameDialog({
       icon={Trash2}
       onClose={onCancel}
       footer={
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
             Remove
           </Button>
@@ -5963,10 +5950,9 @@ function AddPlaytimeDialog({
         {!demo ? (
           <label className="mb-4 grid gap-2 text-sm text-text-muted">
             Playthrough
-            <select
+            <Select
               aria-label="Manual session playthrough"
               value={playthroughId}
-              className={selectClass}
               onChange={(event) => setPlaythroughId(event.target.value)}
             >
               <option value="">{DEFAULT_PLAYTHROUGH_NAME}</option>
@@ -5975,7 +5961,7 @@ function AddPlaytimeDialog({
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         ) : null}
         <div className="mb-3">

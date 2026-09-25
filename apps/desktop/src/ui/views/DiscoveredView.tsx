@@ -51,7 +51,15 @@ import {
   sortReviewExecutables,
   type IgnoredProcessSort,
 } from "../discoveredSort";
-import { AnimatedCount, Button, IconButton, Input, Modal } from "../primitives";
+import {
+  AnimatedCount,
+  Button,
+  IconButton,
+  Input,
+  Modal,
+  Select,
+  Switch,
+} from "../primitives";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import {
   type CommunityMetadataSearchOptions,
@@ -736,34 +744,32 @@ export function DiscoveredView() {
           })}
           {shouldShowRunningUserProcessesOnly(filter) ? (
             <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-sm text-text-muted">
-              <input
-                type="checkbox"
+              <Switch
                 checked={runningOnly}
                 onChange={(event) => {
                   setRunningOnly(event.target.checked);
                   setIgnoredPage(1);
                 }}
-                className="h-4 w-4 accent-accent"
               />
               Running user processes only ({runningCount})
             </label>
           ) : null}
           {filter === "ignored" ? (
-            <select
+            <Select
               aria-label="Sort ignored apps"
               value={ignoredSort}
               onChange={(event) => {
                 setIgnoredSort(event.target.value as IgnoredProcessSort);
                 setIgnoredPage(1);
               }}
-              className="min-w-0 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+              className="h-9 rounded-lg !py-0 text-[13px]"
             >
               <option value="lastAdded">Sort: Last ignored</option>
               <option value="az">Sort: A–Z</option>
               <option value="za">Sort: Z–A</option>
               <option value="userFirst">Sort: User first</option>
               <option value="systemFirst">Sort: System first</option>
-            </select>
+            </Select>
           ) : null}
         </div>
 
@@ -1795,19 +1801,19 @@ export function CommunitySuggestionForm({
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
               Sort by
-              <select
+              <Select
                 value={sort}
                 onChange={(event) => {
                   setSort(event.target.value as CommunityMetadataSort);
                   onSearchOptionsChange?.();
                 }}
                 disabled={busy || isOffline}
-                className="h-9 rounded-md border border-border bg-surface px-3 text-sm text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
+                className="h-9 !py-0"
               >
                 <option value="relevance">IGDB relevance</option>
                 <option value="release-desc">Newest release</option>
                 <option value="release-asc">Oldest release</option>
-              </select>
+              </Select>
             </label>
             {!releaseYearValid ? (
               <span className="pb-2 text-xs text-danger">

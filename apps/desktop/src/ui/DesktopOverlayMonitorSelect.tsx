@@ -5,7 +5,7 @@ import {
   type DesktopOverlayMonitor,
 } from "../desktopOverlayBridge";
 import { useAppStore } from "../store";
-import { Button } from "./primitives";
+import { Button, Select } from "./primitives";
 
 export function DesktopOverlayMonitorSelect() {
   const selected = useAppStore(
@@ -52,12 +52,12 @@ export function DesktopOverlayMonitorSelect() {
   return (
     <div className="grid max-w-[18rem] gap-2">
       <div className="flex items-center gap-2">
-        <select
+        <Select
           aria-label="Popup monitor"
           value={selected}
           disabled={!enabled}
           onChange={(event) => setMonitor(event.target.value)}
-          className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text disabled:opacity-50"
+          containerClassName="flex-1"
         >
           <option value="primary">Primary monitor (default)</option>
           {monitors.map((monitor) => (
@@ -72,7 +72,7 @@ export function DesktopOverlayMonitorSelect() {
               Saved monitor{loading || error ? "" : " (disconnected)"}
             </option>
           ) : null}
-        </select>
+        </Select>
         <Button
           icon={RotateCcw}
           loading={loading}

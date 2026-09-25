@@ -16,7 +16,7 @@ import { createPortal } from "react-dom";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
-import { Button, IconButton } from "../primitives";
+import { Button, IconButton, Switch } from "../primitives";
 import type { TourTargetRect } from "./tourCardPosition";
 import {
   CORE_TOUR_ID,
@@ -229,11 +229,10 @@ export function WelcomePrompt() {
         {launcherAvailable ? (
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
-              <input
-                type="checkbox"
+              <Switch
                 checked={enableLauncher}
                 onChange={(event) => setEnableLauncher(event.target.checked)}
-                className="mt-1 h-5 w-5 shrink-0 accent-accent"
+                className="mt-1"
               />
               <span>
                 <span className="block font-semibold text-text">

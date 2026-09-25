@@ -24,7 +24,7 @@ export function CancelCommunitySuggestionDialog({
       icon={RotateCcw}
       onClose={onCancel}
       footer={
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
           <Button variant="secondary" onClick={onConfirm} disabled={isOffline}>
             Cancel suggestion
           </Button>

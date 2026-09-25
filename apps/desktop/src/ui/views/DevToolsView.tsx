@@ -7,7 +7,7 @@ import {
   seedFakeHistory,
 } from "../../tracker";
 import { Panel } from "../components";
-import { Button, Modal } from "../primitives";
+import { Button, Modal, Switch } from "../primitives";
 
 export function DevToolsView() {
   const [confirmClearLibrary, setConfirmClearLibrary] = useState(false);
@@ -80,12 +80,7 @@ export function DevToolsView() {
           />
         </label>
         <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.verboseLogs}
-            onChange={toggleVerboseLogs}
-            className="h-4 w-4 accent-accent"
-          />
+          <Switch checked={settings.verboseLogs} onChange={toggleVerboseLogs} />
           <span>Verbose log</span>
         </label>
       </Panel>

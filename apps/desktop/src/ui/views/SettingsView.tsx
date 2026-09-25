@@ -36,7 +36,7 @@ import {
   type UpdateCheckResult,
 } from "../../updater";
 import { Panel, ProviderBadge } from "../components";
-import { Button, Modal, selectClass } from "../primitives";
+import { Button, Modal, Select, Switch } from "../primitives";
 import {
   DEFAULT_CONTENT_SCALE,
   DEFAULT_MENU_SCALE,
@@ -385,14 +385,13 @@ export function SettingsView() {
           description="Strongly recommended. PlayCounter starts when you sign in, so no game session is missed. If this is off, tracking only works after you open the app yourself."
           title="Launch on startup"
         >
-          <input
-            type="checkbox"
+          <Switch
+            aria-label="Launch on startup"
             checked={settings.launchOnStartup}
             disabled={startupSyncing}
             onChange={(event) =>
               void handleLaunchOnStartupChange(event.target.checked)
             }
-            className="h-5 w-5 accent-accent disabled:opacity-50"
           />
         </SettingsRow>
         {!settings.launchOnStartup && !startupSyncing ? (
@@ -414,11 +413,10 @@ export function SettingsView() {
           description="Shows long playtimes as days and hours instead of total hours."
           title="Show days in playtime"
         >
-          <input
-            type="checkbox"
+          <Switch
+            aria-label="Show days in playtime"
             checked={settings.showDurationDays}
             onChange={(event) => setShowDurationDays(event.target.checked)}
-            className="h-5 w-5 accent-accent"
           />
         </SettingsRow>
       </SettingsPanel>
@@ -450,7 +448,7 @@ export function SettingsView() {
               aria-label="Choose accent color"
               value={settings.accentColor ?? DEFAULT_ACCENT_COLOR}
               onChange={(event) => setAccentColor(event.target.value)}
-              className="h-9 w-11 cursor-pointer rounded-md border border-border bg-surface p-1"
+              className="pc-color-input h-9 w-11 cursor-pointer rounded-md border border-border bg-surface p-1 outline-none transition hover:border-text-faint focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
             />
             <span className="w-[4.5rem] font-mono text-xs text-text-muted">
               {settings.accentColor ?? DEFAULT_ACCENT_COLOR}
@@ -468,7 +466,7 @@ export function SettingsView() {
           description="Text, icons, covers and spacing in the main area scale together. Menus and dialogs keep their size."
           title="Content size"
         >
-          <select
+          <Select
             aria-label="Content size"
             value={String(
               normalizeInterfaceScale(
@@ -479,20 +477,19 @@ export function SettingsView() {
             onChange={(event) =>
               setInterfaceScale("content", Number(event.target.value))
             }
-            className={selectClass}
           >
             {SCALE_OPTIONS.map((option) => (
               <option key={option.value} value={String(option.value)}>
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </SettingsRow>
         <SettingsRow
           description="The sidebar and the title bar with the search field."
           title="Menu size"
         >
-          <select
+          <Select
             aria-label="Menu size"
             value={String(
               normalizeInterfaceScale(settings.menuScale, DEFAULT_MENU_SCALE),
@@ -500,14 +497,13 @@ export function SettingsView() {
             onChange={(event) =>
               setInterfaceScale("menu", Number(event.target.value))
             }
-            className={selectClass}
           >
             {SCALE_OPTIONS.map((option) => (
               <option key={option.value} value={String(option.value)}>
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </SettingsRow>
       </SettingsPanel>
 
@@ -551,8 +547,8 @@ export function SettingsView() {
             description="Show popups even while PlayCounter is open and focused, or running in the tray."
             title="Show desktop popups"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="Show desktop popups"
               checked={settings.desktopOverlaysEnabled === true}
               onChange={(event) =>
                 setDesktopOverlaySetting(
@@ -560,7 +556,6 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent"
             />
           </SettingsRow>
           <SettingsRow
@@ -573,8 +568,8 @@ export function SettingsView() {
             description="Popup when PlayCounter needs you to pick between possible games. Click it to open Now Playing."
             title="Choices that need review"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="Choices that need review"
               checked={settings.overlayActionRequired !== false}
               disabled={settings.desktopOverlaysEnabled !== true}
               onChange={(event) =>
@@ -583,15 +578,14 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
             description="Popup when PlayCounter recognizes a game for the first time."
             title="First-time detections"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="First-time detections"
               checked={settings.overlayFirstDetections !== false}
               disabled={settings.desktopOverlaysEnabled !== true}
               onChange={(event) =>
@@ -600,15 +594,14 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
             description="Popup each time tracking starts."
             title="Every game start"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="Every game start"
               checked={settings.overlaySessionStarts === true}
               disabled={settings.desktopOverlaysEnabled !== true}
               onChange={(event) =>
@@ -617,15 +610,14 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
             description="Popup after sessions of 10 minutes or more."
             title="Session summaries"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="Session summaries"
               checked={settings.overlaySessionSummaries !== false}
               disabled={settings.desktopOverlaysEnabled !== true}
               onChange={(event) =>
@@ -634,15 +626,13 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
             description="Show the playthrough name in game-start and saved-session popups."
             title="Playthrough names in popups"
           >
-            <input
-              type="checkbox"
+            <Switch
               aria-label="Playthrough names in popups"
               checked={settings.overlayPlaythroughNames === true}
               disabled={settings.desktopOverlaysEnabled !== true}
@@ -652,15 +642,13 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
             description="Show the note of the game's active playthrough in the popup when a game starts."
             title="Notes in game-start popups"
           >
-            <input
-              type="checkbox"
+            <Switch
               aria-label="Notes in game-start popups"
               checked={settings.overlayGameNotes === true}
               disabled={settings.desktopOverlaysEnabled !== true}
@@ -670,7 +658,6 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
@@ -679,8 +666,7 @@ export function SettingsView() {
             }
             title="Update note in popups"
           >
-            <input
-              type="checkbox"
+            <Switch
               aria-label="Update note in popups"
               checked={settings.overlayUpdateNote === true}
               disabled={settings.desktopOverlaysEnabled !== true}
@@ -690,15 +676,14 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
             description="Popup when you unlock a new playtime milestone."
             title="Milestones"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="Milestones"
               checked={settings.overlayMilestones !== false}
               disabled={settings.desktopOverlaysEnabled !== true}
               onChange={(event) =>
@@ -707,15 +692,14 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <SettingsRow
             description="Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included."
             title="New discoveries"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="New discoveries"
               checked={settings.overlayDiscoveries === true}
               disabled={settings.desktopOverlaysEnabled !== true}
               onChange={(event) =>
@@ -724,7 +708,6 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           {settings.desktopOverlaysEnabled === true ? (
@@ -759,8 +742,8 @@ export function SettingsView() {
             description="Keep the file paths of the games and emulators PlayCounter recognized on this PC. Turning this off deletes the saved paths and stops PlayCounter from learning new ones."
             title="Remember launch paths"
           >
-            <input
-              type="checkbox"
+            <Switch
+              aria-label="Remember launch paths"
               checked={settings.rememberLaunchPaths !== false}
               onChange={(event) => {
                 if (event.target.checked) {
@@ -769,23 +752,20 @@ export function SettingsView() {
                   setConfirmForgetLaunchFiles("all");
                 }
               }}
-              className="h-5 w-5 accent-accent"
             />
           </SettingsRow>
           <SettingsRow
             description="Show Play buttons in My Games and let PlayCounter start games for you. Needs remembered launch paths."
             title="Launch games directly"
           >
-            <input
+            <Switch
               data-tour="settings-launch-direct"
               aria-label="Launch games directly"
-              type="checkbox"
               checked={settings.gameLaunchingEnabled === true}
               disabled={settings.rememberLaunchPaths === false}
               onChange={(event) =>
                 setLauncherSetting("gameLaunchingEnabled", event.target.checked)
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
 
@@ -805,8 +785,7 @@ export function SettingsView() {
               </span>
             }
           >
-            <input
-              type="checkbox"
+            <Switch
               checked={settings.controllerNavigationEnabled === true}
               data-tour="settings-controller-navigation"
               aria-label="Controller navigation"
@@ -817,7 +796,6 @@ export function SettingsView() {
                   event.target.checked,
                 )
               }
-              className="h-5 w-5 accent-accent disabled:opacity-50"
             />
           </SettingsRow>
           <div className="grid gap-3 border-t border-border pt-4">
@@ -872,27 +850,25 @@ export function SettingsView() {
           description="Reads the loaded game file, the window title, and the start-up options of the emulator on this PC to work out which game is running. Full paths and window titles never leave your PC."
           title="Detect emulator games"
         >
-          <input
-            type="checkbox"
+          <Switch
+            aria-label="Detect emulator games"
             checked={settings.emulatorDetection ?? true}
             onChange={(event) =>
               setEmulatorSetting("emulatorDetection", event.target.checked)
             }
-            className="h-5 w-5 accent-accent"
           />
         </SettingsRow>
         <SettingsRow
           description="Sends the recognized game file name or disc ID to look it up in the database. Folder paths and unclear window titles stay on this PC."
           title="Look up recognized content"
         >
-          <input
-            type="checkbox"
+          <Switch
+            aria-label="Look up recognized content"
             checked={settings.emulatorContentLookup ?? true}
             disabled={!(settings.emulatorDetection ?? true)}
             onChange={(event) =>
               setEmulatorSetting("emulatorContentLookup", event.target.checked)
             }
-            className="h-5 w-5 accent-accent disabled:opacity-50"
           />
         </SettingsRow>
         {displayedEmulators.size > 0 ? (
@@ -1016,13 +992,12 @@ export function SettingsView() {
           description="When you ignore an app PlayCounter does not recognize, it sends the file name, your platform, and an anonymous install ID. Playtime and game history are never sent."
           title="Share apps you ignore"
         >
-          <input
-            type="checkbox"
+          <Switch
+            aria-label="Share apps you ignore"
             checked={settings.autoShareIgnoredProcesses}
             onChange={(event) =>
               setAutoShareIgnoredProcesses(event.target.checked)
             }
-            className="h-5 w-5 accent-accent"
           />
         </SettingsRow>
         <SettingsRow

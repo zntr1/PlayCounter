@@ -3,7 +3,6 @@ import clsx from "clsx";
 import { GameCover } from "../GameCover";
 import {
   BarChart3,
-  ChevronDown,
   Gamepad2,
   ListOrdered,
   Timer,
@@ -35,7 +34,7 @@ import {
 import { hydrateGameMetadata, removeHistorySession } from "../../tracker";
 import { TopGamesBars } from "../charts/TopGamesBars";
 import { formatDuration } from "../components";
-import { Button, Modal } from "../primitives";
+import { Button, Modal, Select } from "../primitives";
 import { findTour } from "../tour/tourDefinitions";
 import {
   useLibraryPractice,
@@ -612,25 +611,19 @@ export function HistoryView() {
             <label className="sr-only" htmlFor="history-sort">
               Sort sessions
             </label>
-            <div className="relative shrink-0">
-              <select
-                id="history-sort"
-                value={sort}
-                onChange={(event) => setSort(event.target.value as HistorySort)}
-                className="appearance-none rounded-lg border border-border bg-surface py-1.5 pl-3 pr-8 text-[13px] text-text-muted outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
-              >
-                {historySorts.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                aria-hidden="true"
-                size={14}
-                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint"
-              />
-            </div>
+            <Select
+              id="history-sort"
+              value={sort}
+              onChange={(event) => setSort(event.target.value as HistorySort)}
+              containerClassName="shrink-0"
+              className="h-9 rounded-lg !py-0 text-[13px]"
+            >
+              {historySorts.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label}
+                </option>
+              ))}
+            </Select>
           </div>
         ) : null}
       </div>

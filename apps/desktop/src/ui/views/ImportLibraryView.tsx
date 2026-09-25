@@ -43,7 +43,7 @@ import { useAppStore, type GameMetadata } from "../../store";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { STORAGE_KEY } from "../../persistence";
 import { Panel, ProviderBadge, formatDuration } from "../components";
-import { Button, Input, Modal } from "../primitives";
+import { Button, Input, Modal, Select } from "../primitives";
 
 type Phase = "detecting" | "ready" | "scanning" | "importing" | "done";
 export type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
@@ -1060,7 +1060,7 @@ export function ImportLibraryView() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {!isBattleNet ? (
-              <select
+              <Select
                 aria-label={`${providerName} account`}
                 value={accountId ?? ""}
                 onChange={(event) => {
@@ -1077,7 +1077,6 @@ export function ImportLibraryView() {
                   setCapability("unknown");
                   setError(null);
                 }}
-                className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text"
               >
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
@@ -1085,7 +1084,7 @@ export function ImportLibraryView() {
                     {isXbox ? "" : ` · ${account.gamesWithPlaytime} games`}
                   </option>
                 ))}
-              </select>
+              </Select>
             ) : null}
             {isXbox ? (
               <Button
@@ -1496,11 +1495,12 @@ export function ImportRow({
                   : "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review."}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
+              <Select
                 aria-label={`Game file for ${resolved?.game?.name ?? game.name ?? game.externalId}`}
                 value={manualExecutable ?? ""}
                 onChange={(event) => onManualExecutable(event.target.value)}
-                className="min-w-64 flex-1 rounded-md border border-border bg-bg px-3 py-2 text-sm text-text"
+                containerClassName="flex-1 basis-64"
+                className="!bg-bg"
               >
                 <option value="">Pick a game file…</option>
                 {executableOptions.map((candidate) => (
@@ -1511,7 +1511,7 @@ export function ImportRow({
                     {candidate.relativePath}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button
                 variant="secondary"
                 icon={FolderOpen}
@@ -1646,11 +1646,11 @@ export function LibraryMatchControls({
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
-          <select
+          <Select
             aria-label={`Game match for ${title}`}
             value={selectedIgdbId ?? ""}
             onChange={(event) => setSelectedIgdbId(Number(event.target.value))}
-            className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text"
+            containerClassName="flex-1"
           >
             {choices.length === 0 ? (
               <option value="">No game selected</option>
@@ -1662,7 +1662,7 @@ export function LibraryMatchControls({
                 {practice ? " · Sample" : ` · IGDB ${candidate.igdbId}`}
               </option>
             ))}
-          </select>
+          </Select>
           <Button
             variant="primary"
             loading={importing}
