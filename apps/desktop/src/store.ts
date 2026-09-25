@@ -574,6 +574,7 @@ export type AppState = {
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setAutoAddInstalledGames: (enabled: boolean) => void;
+  setShowInstallInSteam: (enabled: boolean) => void;
   setEmulatorSetting: (
     key: "emulatorDetection" | "emulatorContentLookup",
     enabled: boolean,
@@ -667,6 +668,7 @@ const defaultSettings: Settings = {
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
   autoAddInstalledGames: true,
+  showInstallInSteam: false,
 };
 
 let nextRuntimeLogId = 0;
@@ -1744,6 +1746,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAutoAddInstalledGames: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, autoAddInstalledGames: enabled },
+    }));
+    persistSoon();
+  },
+  setShowInstallInSteam: (enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, showInstallInSteam: enabled },
     }));
     persistSoon();
   },

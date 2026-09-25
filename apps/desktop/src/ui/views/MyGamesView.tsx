@@ -2934,6 +2934,9 @@ export function GameLibraryCard({
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
+  const installInSteamEnabled = useAppStore(
+    (state) => state.settings.showInstallInSteam === true,
+  );
   const isWindows = currentPlatform() === "windows";
   const canLaunchExecutables = isWindows && launcherEnabled;
   const canConfigureLaunch =
@@ -3040,6 +3043,7 @@ export function GameLibraryCard({
   // An imported Steam game that is no longer installed offers Steam's
   // installer where Play would be.
   const showInstallInSteam =
+    installInSteamEnabled &&
     !showPlayButton &&
     !demo &&
     canLaunchExecutables &&

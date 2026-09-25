@@ -111,6 +111,9 @@ export function SettingsView() {
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
+  const setShowInstallInSteam = useAppStore(
+    (state) => state.setShowInstallInSteam,
+  );
   const setAutoAddInstalledGames = useAppStore(
     (state) => state.setAutoAddInstalledGames,
   );
@@ -769,6 +772,23 @@ export function SettingsView() {
               onChange={(event) =>
                 setLauncherSetting("gameLaunchingEnabled", event.target.checked)
               }
+            />
+          </SettingsRow>
+
+          <SettingsRow
+            description="For imported Steam games that are no longer installed, show a button that opens Steam's installer where Play would be. Needs direct game launching turned on."
+            title={
+              <span className="flex items-center gap-2">
+                <ProviderBadge provider="steam" variant="mark" />
+                Show Install in Steam
+              </span>
+            }
+          >
+            <Switch
+              aria-label="Show Install in Steam"
+              checked={settings.showInstallInSteam === true}
+              disabled={settings.gameLaunchingEnabled !== true}
+              onChange={(event) => setShowInstallInSteam(event.target.checked)}
             />
           </SettingsRow>
 

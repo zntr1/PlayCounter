@@ -75,8 +75,9 @@ function installButtons() {
   );
 }
 
-it("offers Steam's installer for an uninstalled import instead of Play", async () => {
+it("offers Steam's installer for an uninstalled import when turned on", async () => {
   useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
+  useAppStore.getState().setShowInstallInSteam(true);
   await act(() => root.render(<App />));
 
   expect(installButtons().length).toBeGreaterThan(0);
@@ -100,7 +101,14 @@ it("offers Steam's installer for an uninstalled import instead of Play", async (
   expect(installButtons()).toHaveLength(0);
 });
 
+it("keeps the installer hidden by default", async () => {
+  useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
+  await act(() => root.render(<App />));
+  expect(installButtons()).toHaveLength(0);
+});
+
 it("keeps the installer hidden while PlayCounter may not launch games", async () => {
+  useAppStore.getState().setShowInstallInSteam(true);
   useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
   await act(() => root.render(<App />));
   expect(installButtons()).toHaveLength(0);

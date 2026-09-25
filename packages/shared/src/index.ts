@@ -640,4 +640,7 @@ export interface Settings {
   /** Add newly installed Steam and Battle.net games after the first import
    * from that launcher. Absent = enabled. */
   autoAddInstalledGames?: boolean;
+  /** Offer Steam's installer for imported Steam games that are not installed.
+   * Absent = disabled. */
+  showInstallInSteam?: boolean;
 }

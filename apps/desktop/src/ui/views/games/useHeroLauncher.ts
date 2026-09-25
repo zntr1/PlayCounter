@@ -57,6 +57,9 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
+  const installInSteamEnabled = useAppStore(
+    (state) => state.settings.showInstallInSteam === true,
+  );
   const hasActiveSession = useAppStore((state) =>
     state.activeSessions.some((session) =>
       game.aliases.some(
@@ -126,6 +129,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
   // An imported Steam game that is no longer installed offers Steam's
   // installer instead of a Play that would only open it.
   const canInstall =
+    installInSteamEnabled &&
     canLaunchExecutables &&
     !canLaunch &&
     Boolean(steamImportEntry) &&
