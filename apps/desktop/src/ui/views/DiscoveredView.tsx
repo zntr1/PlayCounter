@@ -119,6 +119,8 @@ type DiscoveredExecutable = ProcessSnapshot & {
   status: DiscoveryStatus;
   cacheEntry: ExeCacheEntry | null;
   isTutorial?: boolean;
+  /** The game folder a watched folder turned up this file in. */
+  foundIn?: string;
 };
 
 export const TOUR_DISCOVERED_EXECUTABLE: DiscoveredExecutable = {
@@ -521,6 +523,7 @@ export function DiscoveredView() {
           {
             exeName,
             exePath: folderFinds[key]?.exePath ?? null,
+            foundIn: folderFinds[key]?.folderPath,
             key,
             isRunning: false,
             cacheEntry: entry,
@@ -1222,6 +1225,14 @@ export function TriageWizardCard({
             />
             {executable.isRunning ? "Running right now" : "Not running"}
           </div>
+          {executable.foundIn ? (
+            <div
+              className="max-w-full truncate text-xs text-text-faint"
+              title={executable.foundIn}
+            >
+              Found in {executable.foundIn}
+            </div>
+          ) : null}
           {trackedSecondsFor(executable.cacheEntry) >= 60 ? (
             <div className="mt-1 text-xs text-text-faint">
               Tracked so far:{" "}
@@ -1442,6 +1453,14 @@ function DiscoveredExecutableRow({
           {matchedName ? (
             <div className="mt-1 truncate text-sm font-medium text-text-muted">
               {matchedName}
+            </div>
+          ) : null}
+          {executable.foundIn ? (
+            <div
+              className="mt-1 truncate text-xs text-text-faint"
+              title={executable.foundIn}
+            >
+              Found in {executable.foundIn}
             </div>
           ) : null}
           {trackedSecondsFor(executable.cacheEntry) >= 60 ? (
