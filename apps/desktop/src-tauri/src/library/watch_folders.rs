@@ -17,6 +17,15 @@ pub struct GameFolder {
     pub name: String,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WatchFolderListing {
+    pub game_folders: Vec<GameFolder>,
+    /// Watched folders that could be read. A folder on an unplugged drive is
+    /// left out, so its games are not mistaken for deleted ones.
+    pub readable: Vec<String>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameFolderScan {
@@ -26,15 +35,25 @@ pub struct GameFolderScan {
 }
 
 #[tauri::command]
-pub async fn watch_folder_game_folders(folders: Vec<String>) -> Vec<GameFolder> {
+pub async fn watch_folder_game_folders(folders: Vec<String>) -> WatchFolderListing {
     tauri::async_runtime::spawn_blocking(move || {
-        folders
-            .iter()
-            .flat_map(|folder| game_folders(folder))
-            .collect()
+        let mut listing = WatchFolderListing {
+            game_folders: Vec::new(),
+            readable: Vec::new(),
+        };
+        for folder in folders {
+            if let Some(found) = game_folders(&folder) {
+                listing.game_folders.extend(found);
+                listing.readable.push(folder);
+            }
+        }
+        listing
     })
     .await
-    .unwrap_or_default()
+    .unwrap_or(WatchFolderListing {
+        game_folders: Vec::new(),
+        readable: Vec::new(),
+    })
 }
 
 #[tauri::command]
@@ -44,13 +63,15 @@ pub async fn watch_folder_scan(path: String) -> Result<GameFolderScan, String> {
         .map_err(|error| error.to_string())?
 }
 
-fn game_folders(watch_folder: &str) -> Vec<GameFolder> {
-    if !is_absolute_windows_path(watch_folder) || launcher_managed(Path::new(watch_folder)) {
-        return Vec::new();
+/// `None` when the watched folder cannot be read right now.
+fn game_folders(watch_folder: &str) -> Option<Vec<GameFolder>> {
+    if !is_absolute_windows_path(watch_folder) {
+        return None;
     }
-    let Ok(entries) = fs::read_dir(watch_folder) else {
-        return Vec::new();
-    };
+    let entries = fs::read_dir(watch_folder).ok()?;
+    if launcher_managed(Path::new(watch_folder)) {
+        return Some(Vec::new());
+    }
     let mut folders = entries
         .flatten()
         .take(MAX_CHILDREN_PER_FOLDER)
@@ -70,7 +91,7 @@ fn game_folders(watch_folder: &str) -> Vec<GameFolder> {
         })
         .collect::<Vec<_>>();
     folders.sort_by(|left, right| left.path.cmp(&right.path));
-    folders
+    Some(folders)
 }
 
 fn scan_game_folder(path: &str) -> Result<GameFolderScan, String> {
@@ -143,6 +164,7 @@ mod tests {
 
         let watch = path_string(&root);
         let names = game_folders(&watch)
+            .unwrap()
             .into_iter()
             .map(|folder| folder.name)
             .collect::<Vec<_>>();
@@ -150,8 +172,10 @@ mod tests {
 
         // Watching a Steam library itself finds nothing.
         let steam = path_string(&root.join("SteamLibrary").join("steamapps"));
-        assert!(game_folders(&steam).is_empty());
-        assert!(game_folders("relative\\folder").is_empty());
+        assert_eq!(game_folders(&steam).unwrap().len(), 0);
+        // Unreadable or invalid watched folders are reported as such.
+        assert!(game_folders(&path_string(&root.join("Missing"))).is_none());
+        assert!(game_folders("relative\\folder").is_none());
         let _ = fs::remove_dir_all(root);
     }
 

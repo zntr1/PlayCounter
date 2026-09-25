@@ -51,7 +51,9 @@ beforeEach(() => {
   });
   writeWatchFolders({
     folders: ["D:\\Games"],
-    seen: ["d:\\games\\unknown"],
+    seen: {
+      "d:\\games\\unknown": { kind: "discovered", exeName: "Tool.exe" },
+    },
     pending: {
       "tool.exe": {
         exePath: "D:\\Games\\Unknown\\Tool.exe",
