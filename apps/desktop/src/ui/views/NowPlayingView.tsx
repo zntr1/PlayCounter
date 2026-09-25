@@ -13,6 +13,7 @@ import {
 } from "../../store";
 import {
   applyKnownGameMatch,
+  ignoreTrackedProcessLocally,
   markCommunitySuggestionRejected,
   reportNegativeMatch,
   suggestTrackedGameToCommunity,
@@ -26,6 +27,7 @@ import { CommunitySuggestionForm } from "./DiscoveredView";
 import { ActiveGameHero } from "./ActiveGameHero";
 import {
   AmbiguousMatchCard,
+  notifyDismissOutcome,
   notifyNegativeReportOutcome,
 } from "./nowPlaying/AmbiguousMatchCard";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
@@ -137,6 +139,12 @@ export function NowPlayingView() {
     notifyNegativeReportOutcome(session.exeName, outcome, addToast);
   }
 
+  async function handleNotPlaying(session: ActiveSession) {
+    setReportTarget(null);
+    const outcome = await ignoreTrackedProcessLocally(session.exeName);
+    notifyDismissOutcome(session.exeName, outcome, addToast);
+  }
+
   return (
     <>
       {!hasActivity ? (
@@ -243,12 +251,14 @@ export function NowPlayingView() {
         <ReportWrongMatchDialog
           exeName={reportTarget.exeName}
           gameName={reportTarget.gameName}
+          coverUrl={reportTarget.coverUrl}
           onCancel={() => setReportTarget(null)}
           onDifferentGame={() => {
             setCorrectionExeName(reportTarget.exeName);
             setReportTarget(null);
           }}
           onNotAGame={() => void handleNegativeReport(reportTarget)}
+          onNotPlaying={() => void handleNotPlaying(reportTarget)}
         />
       ) : null}
       {correctionExeName ? (

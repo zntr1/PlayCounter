@@ -5168,6 +5168,7 @@ export function GameLibraryCard({
             demo={demo}
             exeName={game.exeNames[0] ?? ""}
             gameName={game.name}
+            coverUrl={game.coverUrl}
             onCancel={() => setReportOpen(false)}
             onDifferentGame={() => {
               setReportOpen(false);
@@ -5601,6 +5602,7 @@ export function GameLibraryCard({
           demo={demo}
           exeName={game.exeNames[0] ?? ""}
           gameName={game.name}
+          coverUrl={game.coverUrl}
           onCancel={() => setReportOpen(false)}
           onDifferentGame={() => {
             setReportOpen(false);

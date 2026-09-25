@@ -4715,6 +4715,15 @@ export async function dismissAmbiguousMatch(exeName: string) {
   return outcome;
 }
 
+// "I'm not playing this right now" on a tracked session: the user is unsure
+// what the file is, so it is only ignored here and never reported.
+export async function ignoreTrackedProcessLocally(exeName: string) {
+  const outcome = await ignoreProcessLocally(exeName);
+  void requestProcessScan("after tracked process ignored");
+  logRuntime(`tracked process ignored locally ${exeName}`);
+  return outcome;
+}
+
 type SessionEndReason =
   | "process-ended"
   | "recovered-checkpoint"

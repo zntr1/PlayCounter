@@ -431,7 +431,7 @@ export function notifyNegativeReportOutcome(
   });
 }
 
-function notifyDismissOutcome(
+export function notifyDismissOutcome(
   exeName: string,
   outcome: LocalProcessIgnoreOutcome,
   addToast: (toast: Omit<Toast, "id">) => void,
