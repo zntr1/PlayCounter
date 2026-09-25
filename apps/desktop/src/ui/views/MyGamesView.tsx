@@ -136,6 +136,7 @@ import {
   type LibraryExecutableMatch,
   type LibraryImportMatchCheck,
 } from "../../library/recheck";
+import { forgetUninstalledLibraryInstalls } from "../../library/installRecheck";
 import {
   libraryLaunchErrorMessage,
   shouldForgetLibraryInstallOnLaunchError,
@@ -3668,6 +3669,7 @@ export function GameLibraryCard({
     } catch (error) {
       const message = launchErrorMessage(error, game.name);
       addToast({ tone: "error", ...message });
+      void forgetUninstalledLibraryInstalls(error, game.libraryImports);
     } finally {
       if (!keepLaunchFeedback) {
         setLaunching(false);

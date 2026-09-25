@@ -83,6 +83,19 @@ pub async fn library_launch_app(
     .map_err(|error| LaunchError::new(LaunchErrorKind::SpawnFailed, error.to_string()))?
 }
 
+/// Rechecks a stored Steam or Xbox install when a saved game file vanished, so
+/// a game that was uninstalled outside PlayCounter loses its Play action.
+#[tauri::command]
+pub async fn library_install_exists(provider: String, external_id: String) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || match provider.as_str() {
+        "steam" => Ok(steam::is_installed(&external_id)),
+        "xbox" => Ok(xbox::is_installed(&external_id)),
+        _ => Err("PlayCounter cannot check installs for this launcher.".to_string()),
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 fn require_local_provider(provider: &str) -> Result<(), String> {
     if matches!(provider, "steam" | "xbox" | "battlenet") {
         Ok(())

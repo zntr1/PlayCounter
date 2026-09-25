@@ -39,7 +39,13 @@ struct LocalPlaytime {
 struct Manifest {
     name: Option<String>,
     install_path: PathBuf,
+    /// Steam's StateFlags "fully installed" bit. It stays set while an update is
+    /// pending, so an outdated game still counts; a partial download does not.
+    fully_installed: bool,
 }
+
+/// Steam's AppState StateFlags bit for a completely installed app.
+const STATE_FULLY_INSTALLED: u64 = 4;
 
 pub fn detect() -> ProviderStatus {
     let (root, checked_paths) = find_steam_root();
@@ -98,10 +104,7 @@ pub fn scan(account_id: u32) -> Result<ScanResult, String> {
     for (app_id, playtime) in playtimes {
         let manifest = manifests.get(&app_id);
         let install_path = manifest.map(|value| value.install_path.clone());
-        let installed = install_path
-            .as_ref()
-            .map(|path| path.is_dir())
-            .unwrap_or(false);
+        let installed = manifest.is_some_and(manifest_installed);
         games.push(ScannedGame {
             external_id: app_id,
             name: manifest.and_then(|value| value.name.clone()),
@@ -156,11 +159,35 @@ pub fn scan(account_id: u32) -> Result<ScanResult, String> {
     })
 }
 
+/// Whether Steam still has this app completely installed on this PC.
+pub fn is_installed(external_id: &str) -> bool {
+    let (root, _) = find_steam_root();
+    root.is_some_and(|root| app_installed(&root, external_id))
+}
+
+fn app_installed(root: &Path, app_id: &str) -> bool {
+    read_manifests(root, &mut Vec::new())
+        .get(app_id)
+        .is_some_and(manifest_installed)
+}
+
+fn manifest_installed(manifest: &Manifest) -> bool {
+    manifest.fully_installed && manifest.install_path.is_dir()
+}
+
 pub fn launch_app(external_id: &str, mode: &str) -> Result<(), LaunchError> {
     let url = steam_url(external_id, mode)?;
 
     #[cfg(windows)]
     {
+        // steam://rungameid never fails: for a missing game Steam just offers to
+        // install it. Check first so a stale import reports "not installed".
+        if mode == "play" && !is_installed(external_id) {
+            return Err(LaunchError::new(
+                LaunchErrorKind::NotFound,
+                "Steam no longer has this game installed.",
+            ));
+        }
         crate::shell_open::open_url(&url).map_err(|error| {
             LaunchError::new(
                 LaunchErrorKind::SpawnFailed,
@@ -384,6 +411,9 @@ fn read_manifests(root: &Path, warnings: &mut Vec<String>) -> HashMap<String, Ma
                 Manifest {
                     name: vdf::text(state, "name").map(str::to_string),
                     install_path: steamapps.join("common").join(install_dir),
+                    // A manifest without StateFlags proves nothing either way.
+                    fully_installed: vdf::text(state, "StateFlags")
+                        .is_none_or(|flags| parse_u64(Some(flags)) & STATE_FULLY_INSTALLED != 0),
                 },
             );
         }
@@ -442,6 +472,60 @@ mod tests {
             assert!(steam_url(invalid, "play").is_err(), "accepted {invalid}");
         }
         assert!(steam_url("730", "other").is_err());
+    }
+
+    fn steam_root_with_manifest(app_id: &str, state_flags: &str, create_folder: bool) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("playcounter-steam-{}", uuid::Uuid::new_v4()));
+        let steamapps = root.join("steamapps");
+        fs::create_dir_all(&steamapps).unwrap();
+        fs::write(
+            steamapps.join("libraryfolders.vdf"),
+            "\"libraryfolders\"
+{
+}
+",
+        )
+        .unwrap();
+        fs::write(
+            steamapps.join(format!("appmanifest_{app_id}.acf")),
+            format!(
+                "\"AppState\"
+{{
+	\"appid\"		\"{app_id}\"
+	\"name\"		\"Test Game\"
+	\"StateFlags\"		\"{state_flags}\"
+	\"installdir\"		\"Test Game\"
+}}
+"
+            ),
+        )
+        .unwrap();
+        if create_folder {
+            fs::create_dir_all(steamapps.join("common").join("Test Game")).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn counts_only_complete_steam_installs_as_installed() {
+        for (flags, folder, expected) in [
+            ("4", true, true),     // fully installed
+            ("6", true, true),     // update pending, still playable through Steam
+            ("1026", true, false), // partial download: installed bit not set
+            ("4", false, false),   // folder deleted
+        ] {
+            let root = steam_root_with_manifest("730", flags, folder);
+            assert_eq!(
+                app_installed(&root, "730"),
+                expected,
+                "StateFlags {flags}, folder {folder}"
+            );
+            assert!(
+                !app_installed(&root, "440"),
+                "unknown app counted as installed"
+            );
+            let _ = fs::remove_dir_all(root);
+        }
     }
 
     #[test]

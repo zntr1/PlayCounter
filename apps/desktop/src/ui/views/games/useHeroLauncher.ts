@@ -9,6 +9,7 @@ import {
   launchErrorMessage,
   launchTargetsForGame,
 } from "../../../gameLaunch";
+import { forgetUninstalledLibraryInstalls } from "../../../library/installRecheck";
 import {
   libraryLaunchErrorMessage,
   shouldForgetLibraryInstallOnLaunchError,
@@ -243,6 +244,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       );
     } catch (error) {
       addToast({ tone: "error", ...launchErrorMessage(error, game.name) });
+      void forgetUninstalledLibraryInstalls(error, game.libraryImports);
     } finally {
       if (!keepLaunchFeedback) {
         setLaunching(false);

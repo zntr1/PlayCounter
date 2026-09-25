@@ -463,6 +463,25 @@ pub fn launch_app(external_id: &str, mode: &str) -> Result<(), LaunchError> {
     }
 }
 
+/// Whether Windows still has this Xbox title registered. Off Windows the answer
+/// is unknown, which must not be read as uninstalled.
+pub fn is_installed(external_id: &str) -> bool {
+    let Ok(title_id) = parse_external_id(external_id, "play") else {
+        return false;
+    };
+
+    #[cfg(windows)]
+    {
+        find_application_user_model_id(title_id).is_some()
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = title_id;
+        true
+    }
+}
+
 fn parse_external_id(external_id: &str, mode: &str) -> Result<u32, LaunchError> {
     if mode != "play" {
         return Err(LaunchError::new(

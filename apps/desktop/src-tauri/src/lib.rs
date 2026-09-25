@@ -462,6 +462,7 @@ pub fn run() {
             library::battlenet_account::library_cancel_battlenet_account,
             library::library_inspect_executable,
             library::library_launch_app,
+            library::library_install_exists,
             emulator_launch::launch_emulator_content,
             emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,
