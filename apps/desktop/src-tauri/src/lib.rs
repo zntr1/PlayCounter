@@ -45,20 +45,18 @@ struct TrayState {
 /// Autostart launches stay in the tray.
 struct StartupWindow {
     autostart: bool,
-    revealed: AtomicBool,
+    progress: Mutex<StartupProgress>,
     display_state_restored: AtomicBool,
 }
 
-impl StartupWindow {
-    fn reveal(&self, app: &tauri::AppHandle) {
-        if self.autostart {
-            return;
-        }
-        if self.revealed.swap(true, Ordering::SeqCst) {
-            return;
-        }
-        show_main_window(app);
-    }
+#[derive(Default)]
+struct StartupProgress {
+    painted: bool,
+    /// The tray, a hotkey or a second launch asked for the window before the
+    /// frontend painted. The frameless window has no move or close controls
+    /// until then, so it opens as soon as the loader is on screen.
+    open_requested: bool,
+    revealed: bool,
 }
 
 #[derive(Deserialize)]
@@ -78,7 +76,15 @@ struct PrivacyContext {
 /// Called by the frontend once the first frame is on screen.
 #[tauri::command]
 fn main_window_ready(app: tauri::AppHandle) {
-    app.state::<StartupWindow>().reveal(&app);
+    let startup = app.state::<StartupWindow>();
+    let show = {
+        let mut progress = startup.progress.lock().unwrap();
+        progress.painted = true;
+        !progress.revealed && (!startup.autostart || progress.open_requested)
+    };
+    if show {
+        show_main_window(&app);
+    }
 }
 
 #[tauri::command]
@@ -314,7 +320,7 @@ pub fn run() {
         .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
-            revealed: AtomicBool::new(false),
+            progress: Mutex::new(StartupProgress::default()),
             display_state_restored: AtomicBool::new(false),
         })
         .plugin(
@@ -486,9 +492,16 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 fn show_main_window(app: &tauri::AppHandle) {
+    let startup = app.state::<StartupWindow>();
+    {
+        let mut progress = startup.progress.lock().unwrap();
+        if !progress.painted {
+            progress.open_requested = true;
+            return;
+        }
+        progress.revealed = true;
+    }
     if let Some(window) = app.get_webview_window("main") {
-        let startup = app.state::<StartupWindow>();
-        startup.revealed.store(true, Ordering::SeqCst);
         if !startup.display_state_restored.swap(true, Ordering::SeqCst) {
             let _ = window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN);
         }
