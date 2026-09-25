@@ -14,6 +14,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
+import {
+  DEFAULT_MENU_SCALE,
+  normalizeInterfaceScale,
+} from "../../interfaceScale";
 import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
 import { Button, IconButton, Switch } from "../primitives";
@@ -61,7 +65,35 @@ export function HelpButton() {
   const setOpen = useAppStore((state) => state.setHelpMenuOpen);
   const startTour = useAppStore((state) => state.startTour);
   const progress = useAppStore((state) => state.tourProgress);
+  const menuScale = useAppStore((state) =>
+    normalizeInterfaceScale(state.settings.menuScale, DEFAULT_MENU_SCALE),
+  );
+  const [categoryId, setCategoryId] = useState(HELP_TOUR_GROUPS[0].id);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    // The title bar can be scaled independently. Keep the wider picker inside
+    // the window, even when its right edge cannot stay under the Help button.
+    const position = () => {
+      const root = rootRef.current;
+      const panel = panelRef.current;
+      if (!root || !panel) return;
+      const anchor = root.getBoundingClientRect();
+      const width = Math.min(640, (window.innerWidth - 32) / menuScale);
+      const left = Math.max(
+        16,
+        Math.min(anchor.right, window.innerWidth - 16) - width * menuScale,
+      );
+      panel.style.width = `${width}px`;
+      panel.style.right = `${(anchor.right - left - width * menuScale) / menuScale}px`;
+      panel.style.maxHeight = `${Math.max(0, (window.innerHeight - panel.getBoundingClientRect().top - 16) / menuScale)}px`;
+    };
+    position();
+    window.addEventListener("resize", position);
+    return () => window.removeEventListener("resize", position);
+  }, [open, menuScale]);
 
   useEffect(() => {
     if (!open) return;
@@ -98,66 +130,137 @@ export function HelpButton() {
       </span>
       {open ? (
         <div
+          ref={panelRef}
           id="help-tutorials"
-          className="absolute right-0 top-11 z-50 flex max-h-[calc(100vh-100px)] w-[420px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setOpen(false);
-          }}
+          className="absolute right-0 top-11 z-50 flex w-[640px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
         >
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="font-semibold text-text">Help & tutorials</h2>
-            <div className="mt-0.5 text-xs text-text-muted">
-              Browse by topic and pick a guide to get started.
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div>
+              <h2 className="font-semibold text-text">Help & tutorials</h2>
+              <div className="mt-0.5 text-xs text-text-muted">
+                Choose a topic, then pick a guide.
+              </div>
             </div>
+            <IconButton
+              aria-label="Close help"
+              icon={X}
+              onClick={() => {
+                setOpen(false);
+                rootRef.current
+                  ?.querySelector<HTMLButtonElement>("button")
+                  ?.focus();
+              }}
+            />
           </div>
-          <div className="min-h-0 overflow-y-auto px-2 pb-2">
-            {HELP_TOUR_GROUPS.map((group) => (
-              <section
-                key={group.id}
-                aria-labelledby={`help-category-${group.id}`}
-                className="mb-3 grid gap-1 last:mb-0"
-              >
-                <h3
-                  id={`help-category-${group.id}`}
-                  className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-surface px-3 py-2 text-xs font-semibold text-accent-ink"
-                >
-                  {group.title}
-                  <span className="text-[11px] font-normal text-text-faint">
-                    {group.tours.length}{" "}
-                    {group.tours.length === 1 ? "guide" : "guides"}
-                  </span>
-                </h3>
-                {group.tours.map((tour) => {
-                  const complete = progress.completed[tour.id] === tour.version;
-                  return (
-                    <button
-                      key={tour.id}
-                      type="button"
-                      className="flex scroll-mt-10 items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
-                      onClick={() => startTour(tour.id)}
+          <div className="flex h-[400px] min-h-0">
+            <div
+              role="tablist"
+              aria-label="Guide categories"
+              aria-orientation="vertical"
+              className="flex w-[188px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface-hover/30 p-2"
+            >
+              {HELP_TOUR_GROUPS.map((group, index) => {
+                const selected = group.id === categoryId;
+                return (
+                  <button
+                    key={group.id}
+                    id={`help-category-${group.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-controls={`help-guides-${group.id}`}
+                    tabIndex={selected ? 0 : -1}
+                    className={`flex shrink-0 items-center justify-between gap-2 rounded-lg px-3 py-3 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 ${
+                      selected
+                        ? "bg-accent-tint text-accent-ink"
+                        : "text-text-muted hover:bg-surface-hover hover:text-text"
+                    }`}
+                    onClick={() => setCategoryId(group.id)}
+                    onKeyDown={(event) => {
+                      let next = index;
+                      if (event.key === "ArrowDown") next += 1;
+                      else if (event.key === "ArrowUp") next -= 1;
+                      else if (event.key === "Home") next = 0;
+                      else if (event.key === "End")
+                        next = HELP_TOUR_GROUPS.length - 1;
+                      else return;
+                      event.preventDefault();
+                      const target =
+                        HELP_TOUR_GROUPS[
+                          (next + HELP_TOUR_GROUPS.length) %
+                            HELP_TOUR_GROUPS.length
+                        ];
+                      setCategoryId(target.id);
+                      document
+                        .getElementById(`help-category-${target.id}`)
+                        ?.focus();
+                    }}
+                  >
+                    <span>{group.title}</span>
+                    <span
+                      aria-label={`${group.tours.length} ${group.tours.length === 1 ? "guide" : "guides"}`}
+                      className="shrink-0 rounded-md bg-surface px-1.5 py-0.5 text-[10px] tabular-nums"
                     >
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent-ink">
-                        {complete ? (
-                          <Check size={16} />
-                        ) : (
-                          <CircleHelp size={16} />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-text">
-                          {tour.title}
-                        </span>
-                        <span className="block text-xs leading-relaxed text-text-muted">
-                          {tour.description}
-                        </span>
-                      </span>
-                      <span className="shrink-0 whitespace-nowrap text-[11px] text-text-muted">
-                        {complete ? "Replay" : tour.duration}
-                      </span>
-                    </button>
-                  );
-                })}
-              </section>
+                      {group.tours.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {HELP_TOUR_GROUPS.map((group) => (
+              <div
+                key={group.id}
+                id={`help-guides-${group.id}`}
+                role="tabpanel"
+                aria-labelledby={`help-category-${group.id}`}
+                hidden={group.id !== categoryId}
+                className={
+                  group.id === categoryId
+                    ? "flex min-w-0 flex-1 flex-col"
+                    : undefined
+                }
+              >
+                {group.id === categoryId ? (
+                  <>
+                    <h3 className="shrink-0 px-4 pb-2 pt-4 text-sm font-semibold text-text">
+                      {group.title}
+                    </h3>
+                    <div className="min-h-0 overflow-y-auto px-2 pb-2">
+                      {group.tours.map((tour) => {
+                        const complete =
+                          progress.completed[tour.id] === tour.version;
+                        return (
+                          <button
+                            key={tour.id}
+                            type="button"
+                            className="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
+                            onClick={() => startTour(tour.id)}
+                          >
+                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent-ink">
+                              {complete ? (
+                                <Check size={16} />
+                              ) : (
+                                <CircleHelp size={16} />
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-baseline justify-between gap-3 text-sm font-medium text-text">
+                                <span>{tour.title}</span>
+                                <span className="shrink-0 whitespace-nowrap text-[11px] font-normal text-text-muted">
+                                  {complete ? "Replay" : tour.duration}
+                                </span>
+                              </span>
+                              <span className="block text-xs leading-relaxed text-text-muted">
+                                {tour.description}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
+              </div>
             ))}
           </div>
         </div>
