@@ -282,10 +282,10 @@ it.each([
     dialog = document.querySelector('[role="dialog"]')!;
     await act(() => button("Move to PlayCounter", dialog).click());
     expect(useAppStore.getState().libraryImports.size).toBe(0);
-    expect(useAppStore.getState().libraryTab).toBe("all");
-    expect(
-      container.querySelector('[aria-label="Game library source"]'),
-    ).toBeNull();
+    // The launcher tab stays so the game can be imported again.
+    expect(useAppStore.getState().libraryTab).toBe(provider);
+    expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
+    await source("unimported");
     expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
     expect(
       container.querySelector(".game-library-card")?.textContent,

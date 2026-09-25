@@ -45,8 +45,8 @@ describe("library tabs", () => {
     expect(filterByLibraryTab([imported], "steam")).toEqual([imported]);
   });
 
-  it("keeps PlayCounter-only libraries flat even when imports are supported", () => {
-    const hiddenProvider = {
+  it("offers importable launchers before the first import", () => {
+    const steam = {
       provider: "steam" as const,
       label: "Steam",
       importSupported: false,
@@ -56,7 +56,7 @@ describe("library tabs", () => {
       visibleLibraryTabs({
         allTabCount: 2,
         unimportedGameCount: 2,
-        providers: [hiddenProvider],
+        providers: [steam],
       }),
     ).toEqual([]);
 
@@ -64,9 +64,27 @@ describe("library tabs", () => {
       visibleLibraryTabs({
         allTabCount: 2,
         unimportedGameCount: 2,
-        providers: [{ ...hiddenProvider, importSupported: true }],
-      }),
-    ).toEqual([]);
+        providers: [{ ...steam, importSupported: true }],
+      }).map((tab) => tab.id),
+    ).toEqual(["all", "unimported", "steam"]);
+  });
+
+  it("ignores hiding empty sources until something is imported", () => {
+    expect(
+      visibleLibraryTabs({
+        allTabCount: 2,
+        unimportedGameCount: 2,
+        providers: [
+          {
+            provider: "steam",
+            label: "Steam",
+            importSupported: true,
+            gameCount: 0,
+          },
+        ],
+        hideEmptyProviders: true,
+      }).map((tab) => tab.id),
+    ).toEqual(["all", "unimported", "steam"]);
   });
 
   it("keeps empty libraries flat", () => {
@@ -152,31 +170,6 @@ describe("library tabs", () => {
         hideEmptyProviders: true,
       }).map((tab) => tab.id),
     ).toEqual(["all", "unimported", "xbox"]);
-  });
-
-  it("drops the strip when hiding leaves no provider tab", () => {
-    const providers = [
-      {
-        provider: "steam" as const,
-        label: "Steam",
-        importSupported: true,
-        gameCount: 0,
-      },
-      {
-        provider: "xbox" as const,
-        label: "Xbox",
-        importSupported: true,
-        gameCount: 0,
-      },
-    ];
-    expect(
-      visibleLibraryTabs({
-        allTabCount: 4,
-        unimportedGameCount: 4,
-        providers,
-        hideEmptyProviders: true,
-      }),
-    ).toEqual([]);
   });
 
   it("still hides the strip when no provider tab exists at all", () => {

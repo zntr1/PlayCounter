@@ -52,19 +52,19 @@ export function visibleLibraryTabs(input: {
   showProviders?: boolean;
   hideEmptyProviders?: boolean;
 }): LibraryTabDescriptor[] {
-  // Source navigation is useful only after games have been imported. Otherwise
-  // My Games already shows the whole PlayCounter library in one place.
-  if (
-    input.showProviders === false ||
-    input.allTabCount === 0 ||
-    !input.providers.some((provider) => provider.gameCount > 0)
-  ) {
+  // An empty library shows its own import buttons, so it stays flat. Once a
+  // game is tracked, the empty launcher tabs are the only way to import.
+  if (input.showProviders === false || input.allTabCount === 0) {
     return [];
   }
+  // Before the first import, hiding empty sources would hide every launcher
+  // and with it every way to import, so the setting only applies afterwards.
+  const hideEmpty =
+    input.hideEmptyProviders === true &&
+    input.providers.some((provider) => provider.gameCount > 0);
   const providers = input.providers.filter(
     (provider) =>
-      providerTabVisible(provider) &&
-      (!input.hideEmptyProviders || provider.gameCount > 0),
+      providerTabVisible(provider) && (!hideEmpty || provider.gameCount > 0),
   );
   // Without a provider tab there is nothing to switch between: All games and
   // PlayCounter would list the same games. Drop the whole strip instead of

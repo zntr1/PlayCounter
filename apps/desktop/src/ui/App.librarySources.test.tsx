@@ -83,23 +83,28 @@ function sources() {
   return container.querySelector('[aria-label="Game library source"]');
 }
 
-it.each([false, true])(
-  "keeps My Games non-expandable without launcher imports (empty: %s)",
-  async (empty) => {
-    if (empty) useAppStore.setState({ exeCache: new Map() });
-    await act(() => root.render(<App />));
-    expect(sourceToggle()).toBeNull();
-    expect(sources()).toBeNull();
-    expect(
-      container.querySelector('[data-tour="nav-games"]')?.textContent,
-    ).toBe(`My Games${empty ? 0 : 1}`);
-    expect(useAppStore.getState().settings.libraryHideEmptyProviderTabs).toBe(
-      false,
-    );
-  },
-);
+it("keeps an empty My Games non-expandable", async () => {
+  useAppStore.setState({ exeCache: new Map() });
+  await act(() => root.render(<App />));
+  expect(sourceToggle()).toBeNull();
+  expect(sources()).toBeNull();
+  expect(container.querySelector('[data-tour="nav-games"]')?.textContent).toBe(
+    "My Games0",
+  );
+});
 
-it("expands only while launcher groups exist and clears a removed source selection", async () => {
+it("offers launcher imports once a game is tracked, before any import", async () => {
+  useAppStore.getState().setMyGamesHideEmptyProviderTabs(true);
+  await act(() => root.render(<App />));
+  expect(sourceToggle()?.getAttribute("aria-expanded")).toBe("true");
+  await act(() =>
+    container.querySelector<HTMLButtonElement>("#library-tab-steam")!.click(),
+  );
+  expect(useAppStore.getState().libraryTab).toBe("steam");
+  expect(container.textContent).toContain("Import from Steam");
+});
+
+it("keeps launcher groups after the last import is removed", async () => {
   await act(() => root.render(<App />));
   await act(() =>
     useAppStore.setState({
@@ -118,10 +123,9 @@ it("expands only while launcher groups exist and clears a removed source selecti
   expect(useAppStore.getState().libraryTab).toBe("steam");
 
   await act(() => useAppStore.setState({ libraryImports: new Map() }));
-  expect(sourceToggle()).toBeNull();
-  expect(sources()).toBeNull();
-  expect(useAppStore.getState().libraryTab).toBe("all");
-  expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
+  expect(sources()).not.toBeNull();
+  expect(useAppStore.getState().libraryTab).toBe("steam");
+  expect(container.querySelectorAll(".game-library-card")).toHaveLength(0);
 });
 
 it("removes the expandable structure when launcher groups are hidden and restores the saved collapse preference", async () => {

@@ -2190,7 +2190,7 @@ export function MyGamesView({
                           !showProviderTabs
                             ? "Turn on launcher groups to choose which sources appear."
                             : !hasImportedGames
-                              ? "Launcher groups appear after you import games."
+                              ? "Available after you import games."
                               : canHideEmptyProviderTabs
                                 ? "Hide launchers you have not imported from yet."
                                 : "All sources in the sidebar have games."
