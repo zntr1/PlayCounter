@@ -45,3 +45,12 @@ pub struct ScanResult {
     pub warnings: Vec<String>,
     pub partial: bool,
 }
+
+/// A game a launcher has installed on this PC, listed without the slower
+/// executable walk.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledGame {
+    pub external_id: String,
+    pub install_path: String,
+}

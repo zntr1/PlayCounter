@@ -111,8 +111,8 @@ export function SettingsView() {
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
-  const setAutoAddSteamGames = useAppStore(
-    (state) => state.setAutoAddSteamGames,
+  const setAutoAddInstalledGames = useAppStore(
+    (state) => state.setAutoAddInstalledGames,
   );
   const setAutoShareIgnoredProcesses = useAppStore(
     (state) => state.setAutoShareIgnoredProcesses,
@@ -1065,23 +1065,20 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Keep your Steam games up to date, or remove data imported from Steam, Xbox, or Battle.net. Install paths and the game files linked to them always stay on this PC."
+        description="Keep your launcher games up to date, or remove data imported from Steam, Xbox, or Battle.net. Install paths and the game files linked to them always stay on this PC."
         title="Library import"
       >
         {currentPlatform() === "windows" ? (
           <SettingsRow
-            description="After your first Steam import, games you install in Steam show up in My Games on their own. Games you remove from PlayCounter are not added again."
-            title={
-              <span className="flex items-center gap-2">
-                <ProviderBadge provider="steam" variant="mark" />
-                Add new Steam games automatically
-              </span>
-            }
+            description="After your first import from Steam or Battle.net, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is."
+            title="Add new games automatically"
           >
             <Switch
-              aria-label="Add new Steam games automatically"
-              checked={settings.autoAddSteamGames !== false}
-              onChange={(event) => setAutoAddSteamGames(event.target.checked)}
+              aria-label="Add new games automatically"
+              checked={settings.autoAddInstalledGames !== false}
+              onChange={(event) =>
+                setAutoAddInstalledGames(event.target.checked)
+              }
             />
           </SettingsRow>
         ) : null}

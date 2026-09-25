@@ -14,7 +14,7 @@ import {
 } from "../store";
 import { libraryEntryKey, type LibraryImportEntry } from "./types";
 import { providerFloors } from "./playtimeFloor";
-import { dismissSteamApps } from "./steamAutoAddState";
+import { dismissLauncherGames } from "./libraryAutoAddState";
 
 type MoveTarget = GameIdentityRef & { aliases?: GameIdentityRef[] };
 type MoveChanges = Pick<
@@ -87,14 +87,8 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
     archivedGameSeconds: result.archivedGameSeconds,
     archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
   });
-  // A game moved away from Steam must not come back as a new Steam game.
-  dismissSteamApps(
-    moves.flatMap(([, { imports }]) =>
-      imports
-        .filter((entry) => entry.provider === "steam")
-        .map((entry) => entry.externalId),
-    ),
-  );
+  // A game moved away from its launcher must not come back as a new game.
+  dismissLauncherGames(moves.flatMap(([, { imports }]) => imports));
   return moves.length;
 }
 

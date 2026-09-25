@@ -1,6 +1,6 @@
 use super::{
-    exe_scan,
-    types::{ProviderStatus, ScanResult, ScannedGame},
+    exe_scan::{self, ScannedExecutable},
+    types::{InstalledGame, ProviderStatus, ScanResult, ScannedGame},
 };
 use crate::launch::{LaunchError, LaunchErrorKind};
 use serde::Deserialize;
@@ -207,12 +207,53 @@ pub(super) fn game_executable(name: &str) -> bool {
     .any(|part| name.contains(part))
 }
 
+fn find_executables(
+    id: &str,
+    product: Option<&Product>,
+    root: &Path,
+    deadline: Instant,
+) -> Result<Vec<ScannedExecutable>, String> {
+    // Prefer known game entry points so asset folders do not exhaust the walk.
+    let mut executables = product
+        .map(|product| {
+            product
+                .executables
+                .iter()
+                .filter_map(|relative| {
+                    let executable = root.join(relative);
+                    let candidate = exe_scan::executable_from_path(
+                        &exe_scan::path_string(root),
+                        &exe_scan::path_string(&executable),
+                    )
+                    .ok()?;
+                    game_executable(&candidate.file_name).then_some(candidate)
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if executables.is_empty() {
+        let (scanned, capped) = exe_scan::scan_executables(root, deadline);
+        executables = scanned
+            .into_iter()
+            .filter(|candidate| game_executable(&candidate.file_name))
+            .collect();
+        if capped {
+            return Err(format!("The executable scan for {id} was incomplete. Try again after Battle.net finishes updating."));
+        }
+    }
+    if executables.is_empty() {
+        return Err(format!("{id} has no installed game executable yet. Finish installing it in Battle.net, then scan again."));
+    }
+    Ok(executables)
+}
+
 fn inspect_install(
     install: Installation,
     catalog: &[Product],
     config: &serde_json::Value,
     now: u64,
-    deadline: Instant,
+    // `None` lists the installation without looking for its executables.
+    deadline: Option<Instant>,
 ) -> Result<Option<ScannedGame>, String> {
     if !install.path.is_absolute()
         || install
@@ -255,37 +296,10 @@ fn inspect_install(
     if !canonical_root.starts_with(&canonical_install) {
         return Err("Battle.net game folder is outside its installation.".into());
     }
-    // Prefer known game entry points so asset folders do not exhaust the walk.
-    let mut executables = product
-        .map(|product| {
-            product
-                .executables
-                .iter()
-                .filter_map(|relative| {
-                    let executable = root.join(relative);
-                    let candidate = exe_scan::executable_from_path(
-                        &exe_scan::path_string(&root),
-                        &exe_scan::path_string(&executable),
-                    )
-                    .ok()?;
-                    game_executable(&candidate.file_name).then_some(candidate)
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    if executables.is_empty() {
-        let (scanned, capped) = exe_scan::scan_executables(&root, deadline);
-        executables = scanned
-            .into_iter()
-            .filter(|candidate| game_executable(&candidate.file_name))
-            .collect();
-        if capped {
-            return Err(format!("The executable scan for {} was incomplete. Try again after Battle.net finishes updating.", install.id));
-        }
-    }
-    if executables.is_empty() {
-        return Err(format!("{} has no installed game executable yet. Finish installing it in Battle.net, then scan again.", install.id));
-    }
+    let executables = match deadline {
+        Some(deadline) => find_executables(&install.id, product, &root, deadline)?,
+        None => Vec::new(),
+    };
     let last_played_unix = last_played(config, &install.id, now);
     Ok(Some(ScannedGame {
         external_id: install.id.clone(),
@@ -320,22 +334,55 @@ pub fn detect() -> ProviderStatus {
 }
 
 pub fn scan() -> Result<ScanResult, String> {
+    scan_local(true)
+}
+
+/// Installed games with their folders, without the slower executable lookup.
+pub fn installed_games() -> Vec<InstalledGame> {
+    scan_local(false)
+        .map(|result| {
+            result
+                .games
+                .into_iter()
+                .filter_map(|game| {
+                    Some(InstalledGame {
+                        install_path: game.install_path?,
+                        external_id: game.external_id,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn scan_local(with_executables: bool) -> Result<ScanResult, String> {
     if !cfg!(windows) {
         return Err("Battle.net import is available on Windows.".into());
     }
-    scan_sources(
+    scan_installs(
         database_path().as_deref(),
         std::env::var_os("APPDATA")
             .map(|base| PathBuf::from(base).join("Battle.net/Battle.net.config"))
             .as_deref(),
         registry_installs(),
+        with_executables,
     )
 }
 
+#[cfg(test)]
 fn scan_sources(
     database: Option<&Path>,
     config_path: Option<&Path>,
     registry: Vec<Installation>,
+) -> Result<ScanResult, String> {
+    scan_installs(database, config_path, registry, true)
+}
+
+fn scan_installs(
+    database: Option<&Path>,
+    config_path: Option<&Path>,
+    registry: Vec<Installation>,
+    with_executables: bool,
 ) -> Result<ScanResult, String> {
     let mut warnings = Vec::new();
     let mut installs = match database
@@ -385,7 +432,13 @@ fn scan_sources(
             warnings.push("Battle.net scan reached its time limit. Scan again to retry.".into());
             break;
         }
-        match inspect_install(install, &catalog, &config, now, deadline) {
+        match inspect_install(
+            install,
+            &catalog,
+            &config,
+            now,
+            with_executables.then_some(deadline),
+        ) {
             Ok(Some(game)) => {
                 seen.insert(game.external_id.clone());
                 games.push(game);
@@ -664,6 +717,35 @@ mod tests {
         assert!(result.games.is_empty());
         assert!(result.warnings.is_empty());
         assert!(!result.partial);
+    }
+
+    #[test]
+    fn lists_an_installation_without_looking_for_executables() {
+        let root = std::env::temp_dir().join(format!("playcounter-bnet-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(root.join("_classic_era_")).unwrap();
+        fs::write(
+            root.join(".build.info"),
+            "Active!DEC:1|Product!STRING:0\n1|wow_classic_era\n",
+        )
+        .unwrap();
+        let installation = || Installation {
+            id: "wow_classic_era".into(),
+            path: root.clone(),
+            name: None,
+        };
+
+        // Still downloading: no executable yet, so a full scan reports it.
+        let full = scan_installs(None, None, vec![installation()], true).unwrap();
+        assert!(full.games.is_empty());
+        let listed = scan_installs(None, None, vec![installation()], false).unwrap();
+        assert_eq!(listed.games.len(), 1);
+        assert!(listed.games[0].executables.is_empty());
+        assert!(listed.games[0]
+            .install_path
+            .as_ref()
+            .unwrap()
+            .ends_with("_classic_era_"));
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

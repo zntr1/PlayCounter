@@ -179,11 +179,11 @@ import type {
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
-import { forgetSteamAutoAdd } from "./library/steamAutoAddState";
+import { forgetLauncherAutoAdd } from "./library/libraryAutoAddState";
 import {
-  syncSteamLibrary,
-  syncSteamLibraryThrottled,
-} from "./library/steamAutoAdd";
+  syncLibraryInstalls,
+  syncLibraryInstallsThrottled,
+} from "./library/libraryAutoSync";
 import { providerFloors } from "./library/playtimeFloor";
 import { normalizePlayCounterLibraryEntry } from "./library/playcounterLibrary";
 import {
@@ -519,7 +519,7 @@ async function finishTrackerStartup() {
       await recheckPendingCommunityApprovals("startup");
       await requestProcessScan("startup");
       await verifyLaunchTargets("startup");
-      await syncSteamLibrary("startup");
+      await syncLibraryInstalls("startup");
       if (suppressStartupNotifications) {
         baselineDiscoveredReviewReminder();
         useAppStore.setState({ suppressStartupNotificationsOnce: false });
@@ -1600,14 +1600,14 @@ type LibraryInstallReport = {
 };
 
 /** Nobody sees the library before the window gets focus, so that is when to
- * recheck launch sources and pick up newly installed Steam games. */
+ * recheck launch sources and pick up newly installed launcher games. */
 function recheckLibraryOnFocus() {
   if (typeof document === "undefined") return undefined;
   const verify = () => {
     if (useAppStore.getState().settings.gameLaunchingEnabled === true) {
       void verifyLaunchTargetsThrottled("focus");
     }
-    void syncSteamLibraryThrottled("focus");
+    void syncLibraryInstallsThrottled("focus");
   };
   const verifyWhenVisible = () => {
     if (document.visibilityState === "visible") verify();
@@ -6084,7 +6084,7 @@ export function untrackGame(
 }
 
 export function forgetImportedLibraryData(provider: LibraryProviderId) {
-  if (provider === "steam") forgetSteamAutoAdd();
+  forgetLauncherAutoAdd(provider);
   const state = useAppStore.getState();
   const exeCache = new Map(state.exeCache);
   const launchTargets = new Map(state.launchTargets);

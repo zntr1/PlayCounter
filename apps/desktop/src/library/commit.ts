@@ -9,7 +9,7 @@ import {
 import { scopedExeLinkKey } from "./scopedLinks";
 import { scopedLocalGameId } from "./localGameIds";
 import { libraryEntryKey, type LibraryImportCommit } from "./types";
-import { undismissSteamApps } from "./steamAutoAddState";
+import { undismissLauncherGames } from "./libraryAutoAddState";
 import { evaluateMilestones } from "../milestones";
 import { providerFloors } from "./playtimeFloor";
 import { splitStoredSessions } from "../sessionPersistence";
@@ -188,12 +188,8 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     archivedGameSeconds: result.archivedGameSeconds,
     archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
   });
-  // Importing a Steam game again takes back an earlier removal.
-  undismissSteamApps(
-    commits
-      .filter((commit) => commit.entry.provider === "steam")
-      .map((commit) => commit.entry.externalId),
-  );
+  // Importing a game again takes back an earlier removal.
+  undismissLauncherGames(commits.map((commit) => commit.entry));
   return result;
 }
 

@@ -19,7 +19,7 @@ import { PlayCounterLoader } from "../../brand/PlayCounterLoader";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
-import { rememberSteamImportAccount } from "../../library/steamAutoAddState";
+import { rememberSteamImportAccount } from "../../library/libraryAutoAddState";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { loadLibraryProvider } from "../../library/providers";

@@ -92,25 +92,17 @@ pub async fn library_launch_app(
     .map_err(|error| LaunchError::new(LaunchErrorKind::SpawnFailed, error.to_string()))?
 }
 
-/// Completely installed Steam apps, without the slow executable walk. `None`
-/// when Steam is not installed.
+/// Games a launcher has completely installed on this PC, without the slow
+/// executable walk. `None` when the launcher itself is not installed.
 #[tauri::command]
-pub async fn library_steam_installed_apps() -> Result<Option<Vec<steam::InstalledApp>>, String> {
-    tauri::async_runtime::spawn_blocking(|| {
-        steam::Installs::read().map(|installs| installs.installed_apps())
-    })
-    .await
-    .map_err(|error| error.to_string())
-}
-
-/// Rechecks a stored Steam or Xbox install when a saved game file vanished, so
-/// a game that was uninstalled outside PlayCounter loses its Play action.
-#[tauri::command]
-pub async fn library_install_exists(provider: String, external_id: String) -> Result<bool, String> {
+pub async fn library_installed_games(
+    provider: String,
+) -> Result<Option<Vec<types::InstalledGame>>, String> {
     tauri::async_runtime::spawn_blocking(move || match provider.as_str() {
-        "steam" => Ok(steam::install_state(&external_id) != Some(false)),
-        "xbox" => Ok(xbox::is_installed(&external_id)),
-        _ => Err("PlayCounter cannot check installs for this launcher.".to_string()),
+        "steam" => Ok(steam::Installs::read().map(|installs| installs.installed_games())),
+        "xbox" => Ok(Some(xbox::installed_games())),
+        "battlenet" => Ok(Some(battlenet::installed_games())),
+        _ => Err("PlayCounter cannot list games for this launcher.".to_string()),
     })
     .await
     .map_err(|error| error.to_string())?

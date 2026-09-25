@@ -1,4 +1,4 @@
-use super::types::{LocalAccount, ProviderStatus, ScanResult, ScannedGame};
+use super::types::{InstalledGame, LocalAccount, ProviderStatus, ScanResult, ScannedGame};
 use super::{
     exe_scan::{path_string, scan_executables, EXE_WALK_BUDGET},
     vdf,
@@ -234,27 +234,20 @@ impl Installs {
     }
 }
 
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InstalledApp {
-    pub app_id: String,
-    pub install_path: String,
-}
-
 impl Installs {
-    pub fn installed_apps(&self) -> Vec<InstalledApp> {
+    pub fn installed_games(&self) -> Vec<InstalledGame> {
         let mut apps = self
             .manifests
             .iter()
             .filter(|(app_id, manifest)| {
                 app_id.as_str() != REDISTRIBUTABLES_APP_ID && manifest_installed(manifest)
             })
-            .map(|(app_id, manifest)| InstalledApp {
-                app_id: app_id.clone(),
+            .map(|(app_id, manifest)| InstalledGame {
+                external_id: app_id.clone(),
                 install_path: path_string(&manifest.install_path),
             })
             .collect::<Vec<_>>();
-        apps.sort_by(|left, right| left.app_id.cmp(&right.app_id));
+        apps.sort_by(|left, right| left.external_id.cmp(&right.external_id));
         apps
     }
 }
@@ -702,10 +695,10 @@ mod tests {
         assert_eq!(only.games.len(), 1);
         assert_eq!(only.games[0].external_id, "730");
 
-        let apps = Installs::read_from(&root).installed_apps();
+        let apps = Installs::read_from(&root).installed_games();
         assert_eq!(
             apps.iter()
-                .map(|app| app.app_id.as_str())
+                .map(|app| app.external_id.as_str())
                 .collect::<Vec<_>>(),
             ["440", "730"]
         );

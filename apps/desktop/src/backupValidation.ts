@@ -357,7 +357,7 @@ const settings = object({}, {
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,
-  autoAddSteamGames: boolean,
+  autoAddInstalledGames: boolean,
 } satisfies Record<keyof Settings, Validator>);
 
 /** Validate only transfer data, after machine-local/transient fields are removed.
