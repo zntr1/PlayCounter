@@ -68,6 +68,7 @@ import {
   untrackGame,
   verifyLaunchTargets,
 } from "./tracker";
+import { libraryEntryKey } from "./library/types";
 
 function entry(overrides: Partial<ExeCacheEntry> = {}): ExeCacheEntry {
   return {
@@ -2273,6 +2274,68 @@ describe("game launching", () => {
       "verify_launch_paths",
       expect.anything(),
     );
+  });
+
+  describe("launcher installs", () => {
+    const install = (provider: "steam" | "xbox", externalId: string) => ({
+      provider,
+      externalId,
+      installPath: `D:\\Games\\${externalId}`,
+      scannedAt: "2026-09-25T12:00:00.000Z",
+    });
+
+    it("forgets uninstalled games and keeps ones it cannot check", async () => {
+      useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", true);
+      useAppStore.getState().setLibraryInstall(install("steam", "730"));
+      useAppStore.getState().setLibraryInstall(install("steam", "440"));
+      useAppStore.getState().setLibraryInstall(install("xbox", "123"));
+      invokeMock.mockImplementation(async (command: string) =>
+        command === "library_verify_installs"
+          ? [
+              { provider: "steam", externalId: "730", status: "missing" },
+              { provider: "steam", externalId: "440", status: "unreadable" },
+              { provider: "xbox", externalId: "123", status: "ok" },
+            ]
+          : [],
+      );
+
+      await expect(verifyLaunchTargets("installs")).resolves.toBe(1);
+      expect(invokeMock).toHaveBeenCalledWith("library_verify_installs", {
+        installs: [
+          {
+            provider: "steam",
+            externalId: "730",
+            installPath: String.raw`D:\Games\730`,
+          },
+          {
+            provider: "steam",
+            externalId: "440",
+            installPath: String.raw`D:\Games\440`,
+          },
+          {
+            provider: "xbox",
+            externalId: "123",
+            installPath: String.raw`D:\Games\123`,
+          },
+        ],
+      });
+      expect([...useAppStore.getState().libraryInstalls.keys()]).toEqual([
+        libraryEntryKey("steam", "440"),
+        libraryEntryKey("xbox", "123"),
+      ]);
+    });
+
+    it("leaves installs alone while launching is disabled", async () => {
+      useAppStore.getState().setLauncherSetting("gameLaunchingEnabled", false);
+      useAppStore.getState().setLibraryInstall(install("steam", "730"));
+
+      await expect(verifyLaunchTargets("installs-disabled")).resolves.toBe(0);
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "library_verify_installs",
+        expect.anything(),
+      );
+      expect(useAppStore.getState().libraryInstalls.size).toBe(1);
+    });
   });
 
   it("captures an ambiguous executable for only the selected local game", () => {

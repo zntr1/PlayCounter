@@ -463,6 +463,7 @@ pub fn run() {
             library::library_inspect_executable,
             library::library_launch_app,
             library::library_install_exists,
+            library::library_verify_installs,
             emulator_launch::launch_emulator_content,
             emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,

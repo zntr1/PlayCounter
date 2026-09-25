@@ -1,7 +1,7 @@
 use crate::{
     launch::{
-        is_absolute_windows_path, is_definitely_missing, map_spawn_error, LaunchError,
-        LaunchErrorKind, LaunchPathReport, LaunchPathStatus,
+        is_absolute_windows_path, is_missing_at, map_spawn_error, LaunchError, LaunchErrorKind,
+        LaunchPathReport, LaunchPathStatus,
     },
     process::{self, ProcessScanner, ProcessSnapshot},
 };
@@ -268,7 +268,7 @@ fn verify_file(path: &Path, label: &str) -> Result<(), LaunchError> {
             LaunchErrorKind::NotAFile,
             format!("The configured {label} is not a file."),
         )),
-        Err(error) if is_definitely_missing(&error) => Err(LaunchError::new(
+        Err(error) if is_missing_at(path, &error) => Err(LaunchError::new(
             LaunchErrorKind::NotFound,
             format!("PlayCounter no longer finds the configured {label}."),
         )),
@@ -443,10 +443,10 @@ fn verify_content_path(request: EmulatorContentPathRequest) -> LaunchPathReport 
         {
             LaunchPathStatus::Invalid
         }
-        Ok(validated) => match fs::metadata(validated) {
+        Ok(validated) => match fs::metadata(&validated) {
             Ok(metadata) if metadata.is_file() => LaunchPathStatus::Ok,
             Ok(_) => LaunchPathStatus::NotAFile,
-            Err(error) if is_definitely_missing(&error) => LaunchPathStatus::Missing,
+            Err(error) if is_missing_at(&validated, &error) => LaunchPathStatus::Missing,
             Err(_) => LaunchPathStatus::Unreadable,
         },
     };

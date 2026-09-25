@@ -3,7 +3,7 @@ use super::{
     exe_scan::{path_string, scan_executables, EXE_WALK_BUDGET},
     vdf,
 };
-use crate::launch::{LaunchError, LaunchErrorKind};
+use crate::launch::{volume_is_present, LaunchError, LaunchErrorKind};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs,
@@ -159,16 +159,42 @@ pub fn scan(account_id: u32) -> Result<ScanResult, String> {
     })
 }
 
-/// Whether Steam still has this app completely installed on this PC.
-pub fn is_installed(external_id: &str) -> bool {
-    let (root, _) = find_steam_root();
-    root.is_some_and(|root| app_installed(&root, external_id))
+/// Steam's local install records, read once so many games can be checked.
+pub struct Installs {
+    manifests: HashMap<String, Manifest>,
+    /// False while a Steam library sits on a drive that is not connected; its
+    /// games can then be neither confirmed nor ruled out.
+    all_libraries_reachable: bool,
 }
 
-fn app_installed(root: &Path, app_id: &str) -> bool {
-    read_manifests(root, &mut Vec::new())
-        .get(app_id)
-        .is_some_and(manifest_installed)
+impl Installs {
+    /// `None` when Steam itself is not found on this PC.
+    pub fn read() -> Option<Self> {
+        let (root, _) = find_steam_root();
+        root.map(|root| Self::read_from(&root))
+    }
+
+    fn read_from(root: &Path) -> Self {
+        let (manifests, all_libraries_reachable) = read_manifest_index(root, &mut Vec::new());
+        Self {
+            manifests,
+            all_libraries_reachable,
+        }
+    }
+
+    /// `Some(true)` when the app is completely installed, `Some(false)` when it
+    /// is not, and `None` when an offline library might still hold it.
+    pub fn state(&self, app_id: &str) -> Option<bool> {
+        match self.manifests.get(app_id) {
+            Some(manifest) => Some(manifest_installed(manifest)),
+            None => self.all_libraries_reachable.then_some(false),
+        }
+    }
+}
+
+/// Whether Steam still has this app installed; `None` when it cannot tell.
+pub fn install_state(external_id: &str) -> Option<bool> {
+    Installs::read().and_then(|installs| installs.state(external_id))
 }
 
 fn manifest_installed(manifest: &Manifest) -> bool {
@@ -182,7 +208,7 @@ pub fn launch_app(external_id: &str, mode: &str) -> Result<(), LaunchError> {
     {
         // steam://rungameid never fails: for a missing game Steam just offers to
         // install it. Check first so a stale import reports "not installed".
-        if mode == "play" && !is_installed(external_id) {
+        if mode == "play" && install_state(external_id) == Some(false) {
             return Err(LaunchError::new(
                 LaunchErrorKind::NotFound,
                 "Steam no longer has this game installed.",
@@ -371,14 +397,25 @@ fn read_playtimes(root: &Path, account_id: u32) -> Result<BTreeMap<String, Local
 }
 
 fn read_manifests(root: &Path, warnings: &mut Vec<String>) -> HashMap<String, Manifest> {
+    read_manifest_index(root, warnings).0
+}
+
+/// Also reports whether every Steam library was reachable. A library whose
+/// drive is present but whose folder is gone no longer holds any games.
+fn read_manifest_index(
+    root: &Path,
+    warnings: &mut Vec<String>,
+) -> (HashMap<String, Manifest>, bool) {
     let libraries = read_library_paths(root).unwrap_or_else(|error| {
         warnings.push(error);
         vec![root.to_path_buf()]
     });
     let mut result = HashMap::new();
+    let mut all_libraries_reachable = true;
     for library in libraries {
         let steamapps = library.join("steamapps");
         let Ok(entries) = fs::read_dir(&steamapps) else {
+            all_libraries_reachable &= volume_is_present(&library);
             continue;
         };
         for entry in entries.flatten() {
@@ -418,7 +455,7 @@ fn read_manifests(root: &Path, warnings: &mut Vec<String>) -> HashMap<String, Ma
             );
         }
     }
-    result
+    (result, all_libraries_reachable)
 }
 
 fn read_library_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
@@ -475,28 +512,35 @@ mod tests {
     }
 
     fn steam_root_with_manifest(app_id: &str, state_flags: &str, create_folder: bool) -> PathBuf {
+        steam_root_with_libraries(app_id, state_flags, create_folder, &[])
+    }
+
+    fn steam_root_with_libraries(
+        app_id: &str,
+        state_flags: &str,
+        create_folder: bool,
+        extra_libraries: &[&Path],
+    ) -> PathBuf {
         let root = std::env::temp_dir().join(format!("playcounter-steam-{}", uuid::Uuid::new_v4()));
         let steamapps = root.join("steamapps");
         fs::create_dir_all(&steamapps).unwrap();
+        let folders = extra_libraries
+            .iter()
+            .enumerate()
+            .map(|(index, path)| {
+                let path = path_string(path).replace('\\', "\\\\");
+                format!("\t\"{index}\"\n\t{{\n\t\t\"path\"\t\t\"{path}\"\n\t}}\n")
+            })
+            .collect::<String>();
         fs::write(
             steamapps.join("libraryfolders.vdf"),
-            "\"libraryfolders\"
-{
-}
-",
+            format!("\"libraryfolders\"\n{{\n{folders}}}\n"),
         )
         .unwrap();
         fs::write(
             steamapps.join(format!("appmanifest_{app_id}.acf")),
             format!(
-                "\"AppState\"
-{{
-	\"appid\"		\"{app_id}\"
-	\"name\"		\"Test Game\"
-	\"StateFlags\"		\"{state_flags}\"
-	\"installdir\"		\"Test Game\"
-}}
-"
+                "\"AppState\"\n{{\n\t\"appid\"\t\t\"{app_id}\"\n\t\"name\"\t\t\"Test Game\"\n\t\"StateFlags\"\t\t\"{state_flags}\"\n\t\"installdir\"\t\t\"Test Game\"\n}}\n"
             ),
         )
         .unwrap();
@@ -515,17 +559,47 @@ mod tests {
             ("4", false, false),   // folder deleted
         ] {
             let root = steam_root_with_manifest("730", flags, folder);
+            let installs = Installs::read_from(&root);
             assert_eq!(
-                app_installed(&root, "730"),
-                expected,
+                installs.state("730"),
+                Some(expected),
                 "StateFlags {flags}, folder {folder}"
             );
-            assert!(
-                !app_installed(&root, "440"),
+            assert_eq!(
+                installs.state("440"),
+                Some(false),
                 "unknown app counted as installed"
             );
             let _ = fs::remove_dir_all(root);
         }
+    }
+
+    #[test]
+    fn a_removed_library_folder_on_a_present_drive_holds_no_games() {
+        let removed =
+            std::env::temp_dir().join(format!("playcounter-gone-{}", uuid::Uuid::new_v4()));
+        let root = steam_root_with_libraries("730", "4", true, &[&removed]);
+        let installs = Installs::read_from(&root);
+        assert_eq!(installs.state("730"), Some(true));
+        assert_eq!(installs.state("440"), Some(false));
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn an_offline_library_leaves_games_it_might_hold_unknown() {
+        let Some(offline) = ('D'..='Z')
+            .rev()
+            .map(|letter| PathBuf::from(format!(r"{letter}:\SteamLibrary")))
+            .find(|path| !volume_is_present(path))
+        else {
+            return;
+        };
+        let root = steam_root_with_libraries("730", "4", true, &[&offline]);
+        let installs = Installs::read_from(&root);
+        assert_eq!(installs.state("730"), Some(true));
+        assert_eq!(installs.state("440"), None);
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

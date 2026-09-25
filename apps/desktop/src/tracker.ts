@@ -73,6 +73,7 @@ import {
   shouldForgetOnLaunchError,
   type LaunchOutcome,
   type LaunchPathReport,
+  type LaunchPathStatus,
 } from "./gameLaunch";
 import {
   emulatorTargetCompatibility,
@@ -363,7 +364,8 @@ const emulatorLaunchInFlight = new Map<string, number>();
 let launchVerificationInFlight: Promise<number> | undefined;
 let lastLaunchVerificationAt = 0;
 const LAUNCH_REENTRY_GUARD_MS = 3_000;
-const LAUNCH_VERIFICATION_THROTTLE_MS = 5 * 60 * 1_000;
+const LAUNCH_VERIFICATION_THROTTLE_MS = 60 * 1_000;
+let stopFocusLaunchVerification: (() => void) | undefined;
 
 const launcherBlacklist = [
   "epicgameslauncher.exe",
@@ -459,8 +461,12 @@ async function finishTrackerStartup() {
 
   logRuntime("process listener skipped; polling is active");
 
+  stopFocusLaunchVerification = verifyLaunchTargetsOnFocus();
+
   useAppStore.getState().setCleanup(() => {
     logRuntime("tracker cleanup running");
+    stopFocusLaunchVerification?.();
+    stopFocusLaunchVerification = undefined;
     if (backendHealthTimer) window.clearInterval(backendHealthTimer);
     backendHealthTimer = undefined;
     if (contributionsTimer) window.clearInterval(contributionsTimer);
@@ -1446,10 +1452,17 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
     ...state.emulatorManualLaunchTargets.values(),
     ...state.emulatorLaunchCandidates.values(),
   ];
+  // Launcher installs only matter for Play, so they are checked only while
+  // PlayCounter may launch games.
+  const installs =
+    state.settings.gameLaunchingEnabled === true
+      ? [...state.libraryInstalls.values()]
+      : [];
   if (
     normalTargets.length === 0 &&
     binaryTargets.length === 0 &&
-    contentTargets.length === 0
+    contentTargets.length === 0 &&
+    installs.length === 0
   ) {
     return 0;
   }
@@ -1474,6 +1487,15 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
               ]),
             ).values(),
           ],
+        })
+      : [];
+    const installReports = installs.length
+      ? await invoke<LibraryInstallReport[]>("library_verify_installs", {
+          installs: installs.map(({ provider, externalId, installPath }) => ({
+            provider,
+            externalId,
+            installPath,
+          })),
         })
       : [];
     const staleExecutablePaths = new Set(
@@ -1539,10 +1561,19 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
       useAppStore.getState().setEmulatorLaunchCandidates(validCandidates);
       pruned += currentCandidates.length - validCandidates.length;
     }
+    for (const report of installReports) {
+      if (report.status !== "missing") continue;
+      const key = libraryEntryKey(report.provider, report.externalId);
+      if (!useAppStore.getState().libraryInstalls.has(key)) continue;
+      useAppStore
+        .getState()
+        .removeLibraryInstall(report.provider, report.externalId);
+      pruned += 1;
+    }
     if (pruned > 0) persist();
     lastLaunchVerificationAt = Date.now();
     logRuntime(
-      `launch targets verified reason=${reason} checked=${normalTargets.length + binaryTargets.length + contentTargets.length} pruned=${pruned}`,
+      `launch targets verified reason=${reason} checked=${normalTargets.length + binaryTargets.length + contentTargets.length + installs.length} pruned=${pruned}`,
     );
     return pruned;
   })();
@@ -1554,6 +1585,30 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
   } finally {
     launchVerificationInFlight = undefined;
   }
+}
+
+type LibraryInstallReport = {
+  provider: LibraryProviderId;
+  externalId: string;
+  status: LaunchPathStatus;
+};
+
+/** Nobody sees Play before the window gets focus, so that is when to recheck. */
+function verifyLaunchTargetsOnFocus() {
+  if (typeof document === "undefined") return undefined;
+  const verify = () => {
+    if (useAppStore.getState().settings.gameLaunchingEnabled !== true) return;
+    void verifyLaunchTargetsThrottled("focus");
+  };
+  const verifyWhenVisible = () => {
+    if (document.visibilityState === "visible") verify();
+  };
+  window.addEventListener("focus", verify);
+  document.addEventListener("visibilitychange", verifyWhenVisible);
+  return () => {
+    window.removeEventListener("focus", verify);
+    document.removeEventListener("visibilitychange", verifyWhenVisible);
+  };
 }
 
 export function verifyLaunchTargetsThrottled(reason = "my-games") {
