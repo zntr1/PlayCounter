@@ -164,9 +164,12 @@ export function SessionPlaythroughPicker({
 
 export function GameJournalHost() {
   const target = usePersonalLibraryState((s) => s.journalTarget);
+  // Keyed by game only: reopening the same game on another tab or playthrough
+  // (a guide moving to its next step) updates the open dialog instead of
+  // rebuilding it, which flashed the whole modal.
   return target ? (
     <GameJournalDialog
-      key={`${target.game.source}:${target.game.gameId}:${target.tab}:${target.playthroughId}`}
+      key={`${target.game.source}:${target.game.gameId}`}
       target={target}
     />
   ) : null;
@@ -176,17 +179,26 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const libraryApi = usePersonalLibraryApi();
   const practice = useLibraryPractice();
   const journal = useGameJournal(target.game);
-  const [selected, setSelected] = useState<string | null>(
+  const targetSelection =
     target.playthroughId === undefined
       ? journal.activePlaythroughId
-      : target.playthroughId,
-  );
+      : target.playthroughId;
+  const [selected, setSelected] = useState<string | null>(targetSelection);
   const playthrough = journal.playthroughs.find((p) => p.id === selected);
   const storedNote = playthrough?.note ?? journal.note;
   const [draft, setDraft] = useState(storedNote);
   const [name, setName] = useState("");
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [shownTarget, setShownTarget] = useState(target);
+  if (shownTarget !== target) {
+    // Same reset a fresh dialog would get, without remounting it.
+    setShownTarget(target);
+    setSelected(targetSelection);
+    setName("");
+    setAdding(false);
+    setDeleting(false);
+  }
   const sessions = usePersonalLibraryState((s) => s.recentSessions);
   const activeSessions = usePersonalLibraryState((s) => s.activeSessions);
   const archived = usePersonalLibraryState((s) => s.archivedPlaythroughSeconds);

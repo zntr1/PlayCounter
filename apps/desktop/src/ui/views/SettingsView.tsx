@@ -512,6 +512,7 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
+        dataTour="settings-shortcuts"
         title="Keyboard shortcuts"
         description="Global hotkeys work while PlayCounter is running, including in the system tray."
       >

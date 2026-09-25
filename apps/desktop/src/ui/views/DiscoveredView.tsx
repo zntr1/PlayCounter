@@ -1225,6 +1225,7 @@ export function TriageWizardCard({
 
         {isCustomGameEntryOpen ? (
           <form
+            data-tour="discovered-custom-entry"
             className="mb-8 flex items-center gap-2 rounded-md border border-border bg-surface-hover p-3"
             onSubmit={(event) => {
               event.preventDefault();

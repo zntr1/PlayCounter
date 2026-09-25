@@ -84,7 +84,9 @@ export function HelpButton() {
 
   return (
     <div ref={rootRef} className="relative">
-      <span data-tour="help">
+      {/* inline-flex: an inline span measures only its line box, which made the
+          guide's highlight ring flatter than the button. */}
+      <span data-tour="help" className="inline-flex">
         <IconButton
           aria-label="Help and tutorials"
           title="Help and tutorials"
@@ -312,11 +314,15 @@ function TourRunner() {
   const goTo = useAppStore((state) => state.goToTourStep);
   const finishTour = useAppStore((state) => state.endTour);
   const skipped = useRef(false);
+  // Reaching the end finishes the guide, even with a skipped exercise; the
+  // last step still suggests replaying it. Closing the last step with ✕ or
+  // Escape counts as finishing it too.
   const endTour = (outcome: "completed" | "dismissed") => {
-    finishTour(
-      outcome === "completed" && skipped.current ? "dismissed" : outcome,
-    );
-    if (outcome === "completed" && tour?.finishView)
+    const finished =
+      outcome === "completed" ||
+      (tour !== undefined && active.stepIndex === tour.steps.length - 1);
+    finishTour(finished ? "completed" : "dismissed");
+    if (finished && tour?.finishView)
       useAppStore.getState().setActiveView(tour.finishView);
   };
   const openGuides = () => {
@@ -355,11 +361,7 @@ function TourRunner() {
   useLayoutEffect(() => {
     const update = () => {
       document.body.dataset.tourDock =
-        window.innerWidth < 1200
-          ? "bottom"
-          : tour?.id === "feedback-replies" && step?.id !== "send"
-            ? "left"
-            : "side";
+        window.innerWidth < 1200 ? "bottom" : "side";
     };
     update();
     window.addEventListener("resize", update);
@@ -367,7 +369,35 @@ function TourRunner() {
       delete document.body.dataset.tourDock;
       window.removeEventListener("resize", update);
     };
-  }, [tour?.id, step?.id]);
+  }, []);
+
+  // A side-docked card would cover a popover at the top right, such as the
+  // notification panel. Sit directly to its left instead.
+  const [cardRight, setCardRight] = useState<number | null>(null);
+  useEffect(() => {
+    const selector = step?.positionAnchor;
+    if (!selector) {
+      setCardRight(null);
+      return;
+    }
+    let frame = 0;
+    const update = () => {
+      const anchor = findTourElement(selector);
+      const bounds = anchor?.getBoundingClientRect();
+      const width = cardRef.current?.offsetWidth ?? 390;
+      const right =
+        window.innerWidth >= 1200 && bounds && bounds.width > 0
+          ? Math.min(
+              window.innerWidth - width - 16,
+              Math.round(window.innerWidth - bounds.left + 16),
+            )
+          : null;
+      setCardRight(right);
+      frame = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(frame);
+  }, [step?.positionAnchor]);
 
   useLayoutEffect(() => {
     previousFocus.current = document.activeElement as HTMLElement | null;
@@ -431,18 +461,25 @@ function TourRunner() {
     let frame = 0;
     let previousTarget: HTMLElement | null = null;
     const started = performance.now();
+    // Images and responsive cards can move a target after the first scroll.
+    // Keep pulling it fully into view briefly, unless the reader scrolls.
+    let revealUntil = 0;
+    const stopReveal = () => {
+      revealUntil = 0;
+    };
+    window.addEventListener("wheel", stopReveal, { passive: true });
+    window.addEventListener("touchmove", stopReveal, { passive: true });
     const update = () => {
       const element = findTourTarget(step);
       if (element) {
         if (element !== previousTarget) {
           const layer = element.closest('[role="dialog"], [role="menu"]');
-          if (element) {
-            element.scrollIntoView({
-              block: "nearest",
-              inline: "nearest",
-              behavior: "instant",
-            });
-          }
+          element.scrollIntoView({
+            block: "nearest",
+            inline: "nearest",
+            behavior: "instant",
+          });
+          revealUntil = performance.now() + 1500;
           // Follow a newly opened menu/dialog without taking focus away from
           // someone reading or navigating the guide's own controls.
           if (
@@ -457,9 +494,10 @@ function TourRunner() {
           previousTarget = element;
         }
         const measured = tourTargetRect(element);
-        // Responsive card sizing can finish after the first scroll. Keep the
-        // opening control reachable while that initial layout settles.
-        if (!measured && performance.now() - started < 2000) {
+        if (
+          performance.now() < revealUntil &&
+          !fullyVisible(element, measured)
+        ) {
           element.scrollIntoView({
             block: "nearest",
             inline: "nearest",
@@ -505,7 +543,11 @@ function TourRunner() {
       frame = requestAnimationFrame(update);
     };
     frame = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("wheel", stopReveal);
+      window.removeEventListener("touchmove", stopReveal);
+    };
   }, [finishTour, step, sandbox]);
 
   useEffect(() => {
@@ -548,10 +590,37 @@ function TourRunner() {
       const next = nextStepIndex(tour.steps, active.stepIndex, 1, (selector) =>
         Boolean(document.querySelector(selector)),
       );
-      if (!step.manualAdvance && next < tour.steps.length) goTo(next);
+      // A step with Next still moves on by itself once its task is done.
+      if (next < tour.steps.length) goTo(next);
     };
     window.addEventListener(TOUR_EVENT, handler);
     return () => window.removeEventListener(TOUR_EVENT, handler);
+  }, [active.stepIndex, goTo, step, tour]);
+
+  // On a sample game's free-practice step, Next closes any dialog opened
+  // there. Closing it yourself counts as Next. A short grace period lets one
+  // dialog hand over to the next without skipping ahead.
+  useEffect(() => {
+    if (!tour?.demoGame || !step?.interactive || !step.manualAdvance) return;
+    let opened = false;
+    let closedAt = 0;
+    const tick = () => {
+      if (findTourTarget(step)?.closest('[role="dialog"]')) {
+        opened = true;
+        closedAt = 0;
+        return;
+      }
+      if (!opened) return;
+      closedAt ||= Date.now();
+      if (Date.now() - closedAt < 300) return;
+      opened = false;
+      const next = nextStepIndex(tour.steps, active.stepIndex, 1, (selector) =>
+        Boolean(findTourElement(selector)),
+      );
+      if (next < tour.steps.length) goTo(next);
+    };
+    const timer = window.setInterval(tick, 100);
+    return () => window.clearInterval(timer);
   }, [active.stepIndex, goTo, step, tour]);
 
   useEffect(() => {
@@ -577,7 +646,7 @@ function TourRunner() {
     };
     const block = (event: Event) => {
       if (event.type === "wheel") return;
-      if (isAllowed(event)) return;
+      if (isAllowed(event) || isWindowChrome(event)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
@@ -594,7 +663,8 @@ function TourRunner() {
       document.addEventListener(name, block, { capture: true, passive: false }),
     );
     const focus = (event: FocusEvent) => {
-      if (!isAllowed(event)) cardRef.current?.focus({ preventScroll: true });
+      if (!isAllowed(event) && !isWindowChrome(event))
+        cardRef.current?.focus({ preventScroll: true });
     };
     document.addEventListener("focusin", focus, true);
     const tab = (event: KeyboardEvent) => {
@@ -646,16 +716,21 @@ function TourRunner() {
     });
 
     const handleArrowNavigation = (event: KeyboardEvent) => {
-      // Arrow keys belong to text fields, sliders, menus and the playthrough
-      // ledger. Navigate the guide only while its own card has focus.
+      // Page through the guide from anywhere, except inside controls that
+      // use the arrow keys themselves: text fields, sliders, menus, tabs,
+      // the playthrough ledger and chart cells.
       if (
         event.isComposing ||
         event.defaultPrevented ||
-        (step.interactive &&
-          !(
-            event.target instanceof Element &&
-            event.target.closest("[data-tour-card]")
-          ))
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        (!(
+          event.target instanceof Element &&
+          event.target.closest("[data-tour-card]")
+        ) &&
+          usesArrowKeys(event.target))
       )
         return;
       if (event.key === "ArrowRight") {
@@ -670,7 +745,28 @@ function TourRunner() {
       }
     };
 
+    // Space always pages the guide, even on a focused checkbox or button, so
+    // it never toggles a setting by accident. Typing a space still works.
+    const handleSpace = (event: KeyboardEvent) => {
+      if (
+        event.key !== " " ||
+        event.isComposing ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        acceptsText(event.target)
+      )
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (event.type !== "keydown" || event.repeat) return;
+      if (step.interactive && !step.manualAdvance) skipInteractive();
+      else advance();
+    };
+
     window.addEventListener("keydown", handleArrowNavigation, true);
+    window.addEventListener("keydown", handleSpace, true);
+    window.addEventListener("keyup", handleSpace, true);
     const handler = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
       if (event.key === "Escape") {
@@ -689,7 +785,7 @@ function TourRunner() {
       }
       if (
         !step.interactive &&
-        ["Enter", " "].includes(event.key) &&
+        event.key === "Enter" &&
         !(
           event.target instanceof Element &&
           event.target.closest("button,a,input,textarea,select")
@@ -703,6 +799,8 @@ function TourRunner() {
     return () => {
       cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", handleArrowNavigation, true);
+      window.removeEventListener("keydown", handleSpace, true);
+      window.removeEventListener("keyup", handleSpace, true);
       window.removeEventListener("keydown", handler);
     };
   }, [active.stepIndex, finishTour, step, tour]);
@@ -812,6 +910,7 @@ function TourRunner() {
         aria-labelledby="tour-step-title"
         aria-modal={!step.interactive}
         tabIndex={-1}
+        style={cardRight === null ? undefined : { right: cardRight }}
         className="tour-guide-card pointer-events-auto fixed flex flex-col rounded-2xl border border-border bg-surface text-text shadow-raised outline-none"
       >
         <div className="flex shrink-0 items-start justify-between gap-3 px-5 pt-4">
@@ -927,6 +1026,66 @@ function TourRunner() {
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** The window must stay movable and closable while a guide is running: the
+ *  empty title bar (and a dialog's drag strip) and the window buttons. */
+function isWindowChrome(event: Event) {
+  const target = event.target;
+  return (
+    target instanceof Element &&
+    (target.hasAttribute("data-tauri-drag-region") ||
+      Boolean(target.closest(".window-controls")))
+  );
+}
+
+/** Text fields keep the space bar during a guide. */
+export function acceptsText(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('[contenteditable="true"], textarea')) return true;
+  return (
+    target instanceof HTMLInputElement &&
+    ![
+      "button",
+      "checkbox",
+      "color",
+      "file",
+      "image",
+      "radio",
+      "range",
+      "reset",
+      "submit",
+    ].includes(target.type)
+  );
+}
+
+/** Controls that handle the arrow keys themselves keep them during a guide. */
+export function usesArrowKeys(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('[contenteditable="true"], textarea, select')) return true;
+  if (
+    target instanceof HTMLInputElement &&
+    !["button", "checkbox", "color", "file", "reset", "submit"].includes(
+      target.type,
+    )
+  )
+    return true;
+  return Boolean(
+    target.closest(
+      '[role="grid"], [role="listbox"], [role="menu"], [role="menubar"], [role="radiogroup"], [role="slider"], [role="spinbutton"], [role="tablist"], [role="tree"]',
+    ) || target.matches("button[tabindex]"),
+  );
+}
+
+/** A target counts as shown once no scroll panel or window edge clips it.
+ *  Targets taller or wider than their panel can never be fully shown. */
+function fullyVisible(element: Element, visible: TourTargetRect | null) {
+  if (!visible) return false;
+  const bounds = element.getBoundingClientRect();
+  return (
+    visible.width >= Math.min(bounds.width, window.innerWidth) - 1 &&
+    visible.height >= Math.min(bounds.height, window.innerHeight) - 1
   );
 }
 

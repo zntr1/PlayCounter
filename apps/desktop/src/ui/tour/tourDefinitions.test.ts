@@ -139,9 +139,84 @@ describe("tour definitions", () => {
       "wrong-match",
       "remove",
     ]);
-    expect(
-      guide.steps.slice(2).every((step) => step.backTo === "open-menu"),
-    ).toBe(true);
+    // Back returns to the previous action, not all the way to the menu step.
+    const index = (id: string) =>
+      guide.steps.findIndex((step) => step.id === id);
+    expect(backStepIndex(guide.steps, index("playtime"), () => true)).toBe(
+      index("history"),
+    );
+    // Targets follow the open flyout to the action a step is about.
+    const step = (id: string) => guide.steps.find((entry) => entry.id === id)!;
+    expect(step("matches").anchorTargets).toContain(
+      '[data-tour="demo-menu-check-matches"]',
+    );
+    expect(step("remove").additionalAnchors).toContain(
+      '[data-tour="demo-menu-ignore"]',
+    );
+  });
+
+  it("rings the action a step names once its flyout or dialog is open", () => {
+    const flyouts: Record<string, string[]> = {
+      "demo-menu-playtime": [
+        "demo-playtime-menu",
+        "demo-menu-log-session",
+        "demo-menu-adjust-playtime",
+      ],
+      "demo-menu-launch-options": ["demo-launch-menu", "demo-menu-launch-file"],
+      "demo-menu-matching": [
+        "demo-matching-menu",
+        "demo-menu-check-matches",
+        "demo-menu-report-match",
+      ],
+    };
+    for (const tour of TOURS) {
+      for (const step of tour.steps) {
+        const targets = step.anchorTargets ?? [];
+        for (const [trigger, items] of Object.entries(flyouts)) {
+          const at = targets.indexOf(`[data-tour="${trigger}"]`);
+          if (at < 0) continue;
+          // Something inside the open flyout must win over its trigger.
+          expect(
+            targets
+              .slice(0, at)
+              .some((target) =>
+                items.some((item) => target === `[data-tour="${item}"]`),
+              ),
+            `${tour.id}/${step.id}`,
+          ).toBe(true);
+        }
+        // Every dialog the practice menu opens is followed, Ignore included.
+        if (targets.includes('[data-tour="demo-remove-dialog"]'))
+          expect(targets, `${tour.id}/${step.id}`).toContain(
+            '[data-tour="demo-ignore-dialog"]',
+          );
+      }
+    }
+    const step = (tourId: string, id: string) =>
+      TOURS.find((tour) => tour.id === tourId)!.steps.find(
+        (entry) => entry.id === id,
+      )!;
+    expect(step("log-playtime", "alternative").anchorTargets).toContain(
+      '[data-tour="demo-menu-adjust-playtime"]',
+    );
+    expect(step("launch-games", "set-forget").anchorTargets).toContain(
+      '[data-tour="demo-menu-launch-file"]',
+    );
+    for (const [id, button] of [
+      ["add-share", "add-share"],
+      ["add-custom", "add-custom"],
+      ["ignore", "ignore"],
+      ["skip", "skip"],
+    ])
+      expect(step("fix-detection", id).anchorTargets).toContain(
+        `[data-tour="demo-discovery"] [data-tour="discovered-${button}"]`,
+      );
+    expect(step("emulators", "fix-match").anchorTargets).toContain(
+      '[data-tour="demo-emulator-actions"]',
+    );
+    expect(step("import-library", "confirm").anchorTargets).toContain(
+      '[data-tour="demo-import-match"]',
+    );
   });
 
   it("explains the opt-in launcher and its controller flow", () => {
@@ -173,6 +248,29 @@ describe("tour definitions", () => {
         }
       }
     }
+  });
+
+  it("walks through every preference section in Personalize PlayCounter", () => {
+    const guide = TOURS.find((tour) => tour.id === "settings")!;
+    expect(guide.steps.map((step) => step.id)).toEqual([
+      "intro",
+      "general",
+      "appearance",
+      "shortcuts",
+      "notifications",
+      "launcher",
+      "emulators",
+      "sharing",
+      "backup",
+      "updates",
+    ]);
+    // Windows-only panels are skipped elsewhere instead of showing an empty step.
+    for (const id of ["notifications", "launcher"])
+      expect(guide.steps.find((step) => step.id === id)?.optional).toBe(true);
+    // Import replaces data: the backup step only points at the panel.
+    expect(guide.steps.find((step) => step.id === "backup")?.interactive).toBe(
+      undefined,
+    );
   });
 
   it("offers read-only backup and feedback guides alongside the practice tours", () => {

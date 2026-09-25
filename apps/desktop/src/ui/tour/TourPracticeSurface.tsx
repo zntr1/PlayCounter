@@ -195,7 +195,7 @@ function ImportPractice() {
   ];
   return (
     <div data-tour="demo-import" className="grid gap-4">
-      <div className="flex flex-wrap gap-2">
+      <div data-tour="demo-import-providers" className="flex flex-wrap gap-2">
         {(["steam", "xbox", "battlenet"] as const).map((id) => (
           <Pill
             key={id}
@@ -217,7 +217,7 @@ function ImportPractice() {
         Import is optional. Automatic detection works with games from any
         launcher. Review the game and its executable before importing.
       </p>
-      <label className="grid gap-2 text-sm">
+      <label data-tour="demo-import-executable" className="grid gap-2 text-sm">
         Game executable
         <select
           aria-label="Game executable"
@@ -235,31 +235,33 @@ function ImportPractice() {
         One eligible file is selected for you. This selection does not import
         anything.
       </p>
-      <Suspense
-        fallback={
-          <p className="text-sm text-text-muted">Loading sample review…</p>
-        }
-      >
-        <LibraryMatchControls
-          practice
-          key={provider}
-          provider={provider}
-          apiEndpoint=""
-          candidates={candidates}
-          title="Diablo IV"
-          importing={false}
-          searchGames={async (query) =>
-            candidates.filter((game) =>
-              game.name.toLowerCase().includes(query.trim().toLowerCase()),
-            )
+      <div data-tour="demo-import-match">
+        <Suspense
+          fallback={
+            <p className="text-sm text-text-muted">Loading sample review…</p>
           }
-          onConfirm={async (game) =>
-            setResult(
-              `Sample imported: ${game.name} (${executable}). ${provider === "battlenet" ? "Battle.net does not supply past playtime here." : "Imported launcher time is a total, not a list of PlayCounter sessions."} Future tracked sessions build your History.`,
-            )
-          }
-        />
-      </Suspense>
+        >
+          <LibraryMatchControls
+            practice
+            key={provider}
+            provider={provider}
+            apiEndpoint=""
+            candidates={candidates}
+            title="Diablo IV"
+            importing={false}
+            searchGames={async (query) =>
+              candidates.filter((game) =>
+                game.name.toLowerCase().includes(query.trim().toLowerCase()),
+              )
+            }
+            onConfirm={async (game) =>
+              setResult(
+                `Sample imported: ${game.name} (${executable}). ${provider === "battlenet" ? "Battle.net does not supply past playtime here." : "Imported launcher time is a total, not a list of PlayCounter sessions."} Future tracked sessions build your History.`,
+              )
+            }
+          />
+        </Suspense>
+      </div>
       {result ? <Result>{result}</Result> : null}
     </div>
   );

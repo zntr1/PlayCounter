@@ -1654,6 +1654,10 @@ body.shift-held
 body[data-tour-dock="side"] [data-tour-viewport] {
   margin-right: 418px;
 }
+/* Leave room for the highlight ring when a guide scrolls to a control. */
+body[data-tour-dock] [data-tour] {
+  scroll-margin: 16px;
+}
 body[data-tour-dock="side"] [data-modal-backdrop],
 body[data-tour-dock="side"] [data-tour="demo-log-session-backdrop"] {
   right: 418px;
@@ -1908,13 +1912,6 @@ body[data-tour-dock] [data-modal-backdrop] > [role="dialog"] {
     height: 82px;
     min-height: 82px;
   }
-}
-body[data-tour-dock="left"] .tour-guide-card {
-  right: auto;
-  left: 16px;
-}
-body[data-tour-dock="left"] [data-tour-viewport] {
-  margin-left: 418px;
 }
 body[data-tour-dock="bottom"] [data-tour="demo-feedback-panel"] {
   max-height: calc(100dvh - var(--tour-guide-space, 240px) - 100px);

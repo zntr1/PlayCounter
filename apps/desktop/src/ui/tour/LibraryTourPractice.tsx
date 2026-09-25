@@ -1,5 +1,5 @@
 import { CheckSquare, SlidersHorizontal } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { emitTourEvent } from "./TourUI";
 import { useStore } from "zustand";
 import { createPortal } from "react-dom";
@@ -35,6 +35,65 @@ import {
 } from "./libraryTourStore";
 import type { StoreApi } from "zustand";
 
+type ExerciseProgress = {
+  favorites: number;
+  onShelf: number;
+  shelfFilters: boolean;
+  statusFilter: string | null;
+  allSelected: boolean;
+  withStatus: number;
+  samples: number;
+  columns: number | null;
+  detailCycles: number;
+  note: string;
+  playthroughs: number;
+  runNote: string;
+  moved: number;
+  finishedRuns: number;
+};
+
+/** Whether the learner did what the step asks, compared with its start. */
+export function exerciseDone(
+  step: string,
+  before: ExerciseProgress,
+  now: ExerciseProgress,
+) {
+  switch (step) {
+    case "notes-playthroughs:note":
+      return now.note.trim() !== "" && now.note !== before.note;
+    case "notes-playthroughs:create-run":
+      return now.playthroughs > before.playthroughs;
+    case "notes-playthroughs:active-run":
+      return now.runNote.trim() !== "" && now.runNote !== before.runNote;
+    case "notes-playthroughs:move-session":
+      return now.moved > before.moved;
+    case "notes-playthroughs:finish-run":
+      return now.finishedRuns > before.finishedRuns;
+    case "organize-library:favorite":
+      return now.favorites > before.favorites;
+    case "organize-library:fill-shelf":
+      return now.onShelf > before.onShelf;
+    case "organize-library:filters":
+      return (
+        now.statusFilter === "playing" && before.statusFilter !== "playing"
+      );
+    case "organize-library:save-filters":
+      return now.shelfFilters && !before.shelfFilters;
+    case "library-progress:filter":
+      return now.statusFilter === "none" && before.statusFilter !== "none";
+    case "library-progress:select-games":
+      return now.allSelected && !before.allSelected;
+    case "library-progress:apply":
+      return now.withStatus === now.samples && before.withStatus < now.samples;
+    case "library-progress:customize":
+      return now.columns !== before.columns;
+    case "library-progress:card-details":
+      return now.detailCycles > before.detailCycles;
+    default:
+      return false;
+  }
+}
+
 export function LibraryTourPractice({
   tourId,
   stepId,
@@ -48,7 +107,7 @@ export function LibraryTourPractice({
   return createPortal(
     <PersonalLibraryContext.Provider value={store}>
       <PracticeLibrary store={store} tourId={tourId} stepId={stepId} />
-      <GameJournalHost key={stepId} />
+      <GameJournalHost />
     </PersonalLibraryContext.Provider>,
     document.body,
   );
@@ -229,10 +288,73 @@ function PracticeLibrary({
     }
   }, [store, tourId, stepId, resetToken]);
 
+  // Exercise steps move on by themselves once the learner has done what the
+  // step asks. Only a change made during the step counts, so going Back to a
+  // finished exercise waits for Next instead of bouncing forward again.
+  const detailCycles = useRef(0);
+  const shelf = shelves[0];
+  const samples = games.map((game) => journalFor(game));
+  const progress: ExerciseProgress = {
+    favorites: samples.filter((journal) => journal.favorite).length,
+    onShelf: shelf
+      ? samples.filter((journal) => journal.shelfIds.includes(shelf.id)).length
+      : 0,
+    shelfFilters: Boolean(shelf?.filters && Object.keys(shelf.filters).length),
+    statusFilter: filters.status ?? null,
+    allSelected:
+      visible.length > 0 && selection.selected.size >= visible.length,
+    withStatus: samples.filter((journal) => journal.status !== null).length,
+    samples: samples.length,
+    columns: settings.libraryGridColumns ?? null,
+    detailCycles: detailCycles.current,
+    note: sampleJournal.note,
+    playthroughs: sampleJournal.playthroughs.length,
+    runNote: sampleJournal.playthroughs.at(-1)?.note ?? "",
+    moved: sessions.filter(
+      (session) =>
+        session.gameId === LIBRARY_TOUR_GAME.gameId &&
+        sampleJournal.playthroughs.some(
+          (run) => run.id === session.playthroughId,
+        ),
+    ).length,
+    finishedRuns: sampleJournal.playthroughs.filter((run) => run.completedAt)
+      .length,
+  };
+  const progressKey = JSON.stringify(progress);
+  const entry = useRef<{ step: string; progress: ExerciseProgress } | null>(
+    null,
+  );
+  useEffect(() => {
+    const step = `${tourId}:${stepId}:${resetToken}`;
+    if (entry.current?.step !== step) {
+      entry.current = { step, progress };
+      return;
+    }
+    if (!exerciseDone(`${tourId}:${stepId}`, entry.current.progress, progress))
+      return;
+    // A short pause shows the result before the next step replaces it; a
+    // slider that keeps moving restarts it.
+    const timer = window.setTimeout(
+      () => emitTourEvent("demo.step-completed"),
+      700,
+    );
+    return () => window.clearTimeout(timer);
+    // `progress` is read whenever its serialized form changes.
+  }, [tourId, stepId, resetToken, progressKey]);
+
   function setting<K extends keyof typeof settings>(
     key: K,
     value: (typeof settings)[K],
   ) {
+    // Switching a card detail off and on again completes that exercise.
+    if (
+      value === true &&
+      (key === "libraryShowStatusBadges" ||
+        key === "libraryShowNoteBadges" ||
+        key === "libraryShowShelves") &&
+      store.getState().settings[key] === false
+    )
+      detailCycles.current += 1;
     store.setState((state) => ({
       settings: { ...state.settings, [key]: value },
     }));

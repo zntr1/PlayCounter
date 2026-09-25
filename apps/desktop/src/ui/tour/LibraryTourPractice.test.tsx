@@ -634,11 +634,225 @@ it("places feedback instructions outside the notification panel beneath the bell
     expect(guide.hasAttribute("data-tour-practice-card")).toBe(false);
     expect(guide.classList.contains("tour-guide-card")).toBe(true);
     expect(document.body.dataset.tourDock).toBe(
-      window.innerWidth < 1200 ? "bottom" : "left",
+      window.innerWidth < 1200 ? "bottom" : "side",
     );
     // The spotlight still targets the reply detail.
     expect(target().getAttribute("data-tour")).toBe(
       step === "bell" ? "demo-feedback-notification" : "demo-feedback-original",
     );
   }
+});
+
+it("docks the feedback guide directly left of the notification panel on wide windows", async () => {
+  vi.stubGlobal("innerWidth", 1400);
+  vi.stubGlobal("innerHeight", 850);
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      const marker = this.getAttribute("data-tour");
+      if (marker === "demo-feedback-panel")
+        return new DOMRect(994, 90, 390, 440);
+      if (marker?.startsWith("demo-feedback-"))
+        return new DOMRect(1034, 230, 310, 180);
+      return new DOMRect(0, 0, 0, 0);
+    },
+  );
+  await act(() => {
+    root.render(
+      <>
+        <NotificationBell />
+        <TourOverlay />
+      </>,
+    );
+    useAppStore.getState().startTour("feedback-replies");
+  });
+  const guide = () => document.querySelector<HTMLElement>("[data-tour-card]")!;
+  // The first step has no popover yet, so the card keeps its usual dock.
+  expect(guide().style.right).toBe("");
+  for (const step of ["bell", "context"]) {
+    await act(() =>
+      useAppStore
+        .getState()
+        .goToTourStep(
+          findTour("feedback-replies")!.steps.findIndex(
+            (entry) => entry.id === step,
+          ),
+        ),
+    );
+    expect(document.body.dataset.tourDock).toBe("side");
+    // 1400 - 994 + 16: the card's right edge sits 16px left of the panel.
+    expect(guide().style.right).toBe("422px");
+  }
+});
+
+it("keeps the practice journal mounted while the notes guide moves between steps", async () => {
+  const tour = findTour("notes-playthroughs")!;
+  const goTo = (id: string) =>
+    act(() =>
+      useAppStore
+        .getState()
+        .goToTourStep(tour.steps.findIndex((step) => step.id === id)),
+    );
+  await act(() => {
+    root.render(<Harness />);
+    useAppStore.getState().startTour(tour.id);
+  });
+  await goTo("note");
+  const journal = document.querySelector('[data-tour="demo-journal"]');
+  expect(journal).not.toBeNull();
+  // Rebuilding the dialog on every step flashed the whole modal.
+  for (const id of ["create-run", "active-run", "move-session", "finish-run"]) {
+    await goTo(id);
+    expect(document.querySelector('[data-tour="demo-journal"]'), id).toBe(
+      journal,
+    );
+  }
+});
+
+it("pages through a guide with the arrow keys from outside its card", async () => {
+  const settings = findTour("settings")!;
+  const general = settings.steps.findIndex((step) => step.id === "general");
+  await act(() => {
+    root.render(<Harness overlay />);
+    useAppStore.getState().startTour("settings");
+  });
+  await act(() => useAppStore.getState().goToTourStep(general));
+  const press = (target: EventTarget, key: string) =>
+    act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true }),
+      );
+    });
+  // An interactive step: focus usually sits on the setting just changed.
+  await press(document.body, "ArrowRight");
+  expect(useAppStore.getState().activeTour?.stepIndex).toBe(general + 1);
+  await press(document.body, "ArrowLeft");
+  expect(useAppStore.getState().activeTour?.stepIndex).toBe(general);
+  // Text fields and other arrow-key controls keep their arrows.
+  const field = document.createElement("input");
+  document.body.append(field);
+  await press(field, "ArrowRight");
+  expect(useAppStore.getState().activeTour?.stepIndex).toBe(general);
+  field.remove();
+});
+
+it("leaves the title bar and window buttons usable during a guide", async () => {
+  await act(() => {
+    root.render(<Harness overlay />);
+    useAppStore.getState().startTour("settings");
+  });
+  const titleBar = document.createElement("div");
+  titleBar.setAttribute("data-tauri-drag-region", "");
+  const controls = document.createElement("div");
+  controls.className = "window-controls";
+  const minimize = document.createElement("button");
+  controls.append(minimize);
+  const other = document.createElement("button");
+  document.body.append(titleBar, controls, other);
+  const reached = vi.fn();
+  for (const element of [titleBar, minimize, other])
+    element.addEventListener("mousedown", () => reached(element));
+  for (const element of [titleBar, minimize, other])
+    element.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+    );
+  expect(reached.mock.calls.map(([element]) => element)).toEqual([
+    titleBar,
+    minimize,
+  ]);
+  titleBar.remove();
+  controls.remove();
+  other.remove();
+});
+
+it("moves on by itself once the sample games have a status, but not when you come back", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const tour = findTour("library-progress")!;
+  const apply = tour.steps.findIndex((step) => step.id === "apply");
+  await act(() => {
+    root.render(<Harness overlay />);
+    useAppStore.getState().startTour(tour.id);
+  });
+  // Entering "apply" after a skipped selection selects both samples.
+  await act(() => useAppStore.getState().goToTourStep(apply));
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>('[data-tour="demo-bulk-set-status"]')!
+      .click(),
+  );
+  await act(() =>
+    document
+      .querySelector<HTMLElement>('[data-tour="demo-bulk-status-playing"]')!
+      .click(),
+  );
+  expect(useAppStore.getState().activeTour?.stepIndex).toBe(apply);
+  await act(() => vi.advanceTimersByTime(800));
+  expect(useAppStore.getState().activeTour?.stepIndex).toBe(apply + 1);
+  // Back to the finished exercise: it waits for Next instead of bouncing on.
+  await act(() => useAppStore.getState().goToTourStep(apply, true));
+  await act(() => vi.advanceTimersByTime(2000));
+  expect(useAppStore.getState().activeTour?.stepIndex).toBe(apply);
+  vi.useRealTimers();
+});
+
+it("records a guide as finished even when an exercise was skipped", async () => {
+  const tour = findTour("organize-library")!;
+  await act(() => {
+    root.render(<Harness overlay />);
+    useAppStore.getState().startTour(tour.id);
+  });
+  await act(() =>
+    useAppStore
+      .getState()
+      .goToTourStep(tour.steps.findIndex((step) => step.id === "create-shelf")),
+  );
+  const button = (label: string) =>
+    [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        "[data-tour-card] button",
+      ),
+    ].find((candidate) => candidate.textContent === label)!;
+  await act(() => button("Skip step").click());
+  await act(() => useAppStore.getState().goToTourStep(tour.steps.length - 1));
+  expect(document.body.textContent).toContain("You skipped an exercise");
+  await act(() => button("Open My Games").click());
+  expect(useAppStore.getState().activeTour).toBeNull();
+  expect(useAppStore.getState().tourProgress.completed[tour.id]).toBe(
+    tour.version,
+  );
+});
+
+it("finishes a guide when its last step is closed with Escape or ✕", async () => {
+  const tour = findTour("organize-library")!;
+  const escape = () =>
+    act(() =>
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })),
+    );
+  await act(() => {
+    root.render(<Harness overlay />);
+    useAppStore.getState().startTour(tour.id);
+  });
+  // Leaving early does not count.
+  await escape();
+  expect(useAppStore.getState().activeTour).toBeNull();
+  expect(
+    useAppStore.getState().tourProgress.completed[tour.id],
+  ).toBeUndefined();
+  await act(() => useAppStore.getState().startTour(tour.id));
+  await act(() => useAppStore.getState().goToTourStep(tour.steps.length - 1));
+  await escape();
+  expect(useAppStore.getState().activeTour).toBeNull();
+  expect(useAppStore.getState().tourProgress.completed[tour.id]).toBe(
+    tour.version,
+  );
+  const other = findTour("library-progress")!;
+  await act(() => useAppStore.getState().startTour(other.id));
+  await act(() => useAppStore.getState().goToTourStep(other.steps.length - 1));
+  await act(() =>
+    document
+      .querySelector<HTMLButtonElement>('[aria-label="Exit tutorial"]')!
+      .click(),
+  );
+  expect(useAppStore.getState().tourProgress.completed[other.id]).toBe(
+    other.version,
+  );
 });

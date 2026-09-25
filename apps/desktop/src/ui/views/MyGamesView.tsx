@@ -219,6 +219,7 @@ import type {
 } from "@playcounter/shared";
 import { TOUR_DEMO_GAME, TOUR_DEMO_EMULATOR } from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
+import { findTour } from "../tour/tourDefinitions";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
 import { StatsPractice } from "../tour/TourStatsPractice";
 import {
@@ -295,6 +296,7 @@ const sortOptions: Array<{ key: SortKey; label: string }> = [
 ];
 
 const GTA_V_TOUR_COVER = "/tour/gta-v-cover.webp";
+const DEMO_LAUNCH_MS = 2_500;
 
 export type GameSummary = {
   kind: LibraryGameKind;
@@ -2755,7 +2757,7 @@ export function GameLibraryCard({
     (state) => state.removeLibraryInstall,
   );
   const [demoAction, setDemoAction] = useState<
-    "history" | "matching" | "remove" | "launch" | null
+    "history" | "matching" | "remove" | "ignore" | "launch" | null
   >(null);
   const [demoRemoved, setDemoRemoved] = useState(false);
   const [demoLaunchPath, setDemoLaunchPath] = useState<string | null>(
@@ -2771,6 +2773,7 @@ export function GameLibraryCard({
         state.activeTour.stepIndex === 3),
   );
   const activeTour = useAppStore((state) => state.activeTour);
+  const launchTourDemo = demo && activeTour?.tourId === "launch-games";
   const setLibraryFeaturedGame = useAppStore(
     (state) => state.setLibraryFeaturedGame,
   );
@@ -2824,19 +2827,41 @@ export function GameLibraryCard({
   const [renameName, setRenameName] = useState("");
   const [launching, setLaunching] = useState(false);
 
-  useEffect(() => {
-    if (!demo || libraryPractice) return;
-    if (!showDemoContextMenu) {
-      contextMenu.close();
-      return;
-    }
+  const closeDemoDialogs = () => {
     setDemoAction(null);
     setShowDetails(false);
     setShowConvert(false);
     setReportOpen(false);
     setShowAdjustPlaytime(false);
     setShowAddPlaytime(false);
+    setShowMatchCheck(false);
     setDemoRemoved(false);
+  };
+  // Next on a free-practice step closes whatever the learner opened there,
+  // including when the next step shows another view.
+  const previousDemoStep = useRef(activeTour);
+  useEffect(() => {
+    const left = previousDemoStep.current;
+    previousDemoStep.current = activeTour;
+    if (!demo || libraryPractice || !left) return;
+    if (
+      left.tourId === activeTour?.tourId &&
+      left.stepIndex === activeTour.stepIndex
+    )
+      return;
+    if (findTour(left.tourId)?.steps[left.stepIndex]?.manualAdvance) {
+      contextMenu.close();
+      closeDemoDialogs();
+    }
+  }, [activeTour?.tourId, activeTour?.stepIndex]);
+
+  useEffect(() => {
+    if (!demo || libraryPractice) return;
+    if (!showDemoContextMenu) {
+      contextMenu.close();
+      return;
+    }
+    closeDemoDialogs();
     const frame = requestAnimationFrame(() => {
       const rect = cardRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -2861,7 +2886,18 @@ export function GameLibraryCard({
     ),
   );
   useEffect(() => {
-    if (!launching || hasActiveSession) return;
+    if (!launching || !launchTourDemo) return;
+    const timeout = window.setTimeout(() => {
+      setLaunching(false);
+      emitTourEvent(
+        "mygames.demo-launch-attempted",
+        "Sample launch complete. No program was started.",
+      );
+    }, DEMO_LAUNCH_MS);
+    return () => window.clearTimeout(timeout);
+  }, [launchTourDemo, launching]);
+  useEffect(() => {
+    if (!launching || hasActiveSession || launchTourDemo) return;
     const timeout = window.setTimeout(() => {
       setLaunching(false);
       onReleaseLaunch(launchKey);
@@ -2877,6 +2913,7 @@ export function GameLibraryCard({
     game.name,
     hasActiveSession,
     launchKey,
+    launchTourDemo,
     launching,
     onReleaseLaunch,
   ]);
@@ -2911,7 +2948,6 @@ export function GameLibraryCard({
   );
   const isWindows = currentPlatform() === "windows";
   const canLaunchExecutables = isWindows && launcherEnabled;
-  const launchTourDemo = demo && activeTour?.tourId === "launch-games";
   const canConfigureLaunch =
     canLaunchExecutables &&
     game.exeNames.some((exeName) => /\.exe$/i.test(exeName));
@@ -3583,12 +3619,13 @@ export function GameLibraryCard({
   async function handleLaunch(target = primaryLaunchTarget) {
     contextMenu.close();
     if (launchTourDemo) {
-      emitTourEvent(
-        "mygames.demo-launch-attempted",
-        demoLaunchPath
-          ? "Sample launch complete. No program was started."
-          : "This sample has no saved launch file. Set one in Launch options to restore Play.",
-      );
+      // Show the usual Starting… state first; the sample finishes on a timer.
+      if (demoLaunchPath) setLaunching(true);
+      else
+        emitTourEvent(
+          "mygames.demo-launch-attempted",
+          "This sample has no saved launch file. Set one in Launch options to restore Play.",
+        );
       return;
     }
     if (!target) {
@@ -4503,12 +4540,13 @@ export function GameLibraryCard({
           </>
         ) : null}
         <ContextMenuSeparator />
-        {onStopTracking ? (
+        {onStopTracking || demo ? (
           <ContextMenuItem
             dataTour={demo ? "demo-menu-ignore" : undefined}
             icon={Ban}
             onClick={() => {
-              onStopTracking(game);
+              if (demo) setDemoAction("ignore");
+              else onStopTracking?.(game);
               contextMenu.close();
             }}
           >
@@ -4544,6 +4582,32 @@ export function GameLibraryCard({
             emitTourEvent(
               "demo.action-completed",
               `Sample reviewed as ${choice.name}. Nothing was submitted or saved to your library.`,
+            );
+          }}
+        />
+      );
+    if (demoAction === "ignore")
+      return (
+        <StopTrackingDialog
+          demo
+          game={{
+            gameId: game.gameId,
+            source: game.source ?? "community",
+            name: game.name,
+            exeNames: game.exeNames,
+            emulatorLabels: game.emulatorLabels,
+            sessionCount: game.sessionCount,
+            aliases: game.aliases,
+          }}
+          onCancel={() => setDemoAction(null)}
+          onConfirm={(clearHistory) => {
+            setDemoAction(null);
+            setDemoRemoved(true);
+            emitTourEvent(
+              "demo.action-completed",
+              clearHistory
+                ? "Sample ignored and its history cleared. Nothing on this PC was blocked."
+                : "Sample ignored. Its history is kept, and nothing on this PC was blocked.",
             );
           }}
         />
@@ -5172,7 +5236,8 @@ export function GameLibraryCard({
             onCancel={() => setReportOpen(false)}
             onDifferentGame={() => {
               setReportOpen(false);
-              setShareOpen(true);
+              if (demo) setDemoAction("matching");
+              else setShareOpen(true);
             }}
             onNotAGame={() => {
               if (demo) {
@@ -5696,13 +5761,17 @@ function StopTrackingDialog({
   game,
   onCancel,
   onConfirm,
+  demo = false,
 }: {
   game: Exclude<PendingStopTracking, null>;
   onCancel: () => void;
   onConfirm: (clearHistory: boolean) => void;
+  demo?: boolean;
 }) {
   return (
     <Modal
+      dataTour={demo ? "demo-ignore-dialog" : undefined}
+      backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="sm"
       labelId="stop-tracking-dialog-title"
       eyebrow="My Games"
