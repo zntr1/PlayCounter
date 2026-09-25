@@ -1,5 +1,24 @@
 [
   {
+    "version": "1.2.0",
+    "releasedAt": "2026-09-25",
+    "headline": "A whole new look, Battle.net import, and a My History that tells the story of your playtime.",
+    "highlights": [
+      "For everyone: PlayCounter has a new look. A graphite dark theme with amber accents, a warm light theme, its own title bar with search, and a sidebar you can collapse. Game artwork now fills the banner on top of My Games and the background of Now Playing.",
+      "For Battle.net players: import your Battle.net games from My Games. Scan the games installed on this PC, or sign in to find the games on your account. Sign-in runs in a private window and PlayCounter only reads your game list. Battle.net does not share past playtime, so add it yourself with 'Adjust total playtime' (in World of Warcraft, /played shows it).",
+      "For stats fans: My History is rebuilt. It opens with one big number for the time range you pick and highlights like your longest session, best streak, and most played game. Below are three tabs: a day-by-day session journal, Insights with charts, calendar and play habits, and Games with your top games.",
+      "For achievement hunters: Achievements now show your overall progress, what is next, and your latest unlock at the top. Milestones and game ladders are shown as rows. Hover a step to see when you unlocked it or how much is left.",
+      "For collectors: pick your own artwork from SteamGridDB. Choose a banner for any game, and a cover for your own entries and tools. Right-click a game and choose 'Cover and Banner', or use the picture button on its card.",
+      "Game details and the game journal have a new layout. Details open with a large artwork header, a General tab with description, playtime and quick actions, and a Files tab with the tracked game files. In the journal, playthroughs are cards; double-click one to make it active.",
+      "Make it fit your screen: set Content size and Menu size separately in Settings → Appearance. The banner can switch between compact and full details, Customize in My Games is sorted into clear sections, and launcher groups in the sidebar can be turned off.",
+      "Press Ctrl+F from any view to search your whole library. On My History, the same search filters your sessions.",
+      "For emulator players: the Emulators view has a new header with your playtime and cards for the linked games.",
+      "Wrong game detected? The 'Report wrong match' dialog is clearer, and Now Playing has a new 'I'm not playing this right now' option. It ignores the file on this PC only and never reports it.",
+      "More control: Settings → Reset can restore default settings or start over completely. Your backup files are always kept. If PlayCounter runs in the tray, the tray menu now shows when an update is ready. The 'Update note' button in saved-session popups is now optional; turn on 'Update note in popups' in Settings.",
+      "For new players: a larger start window, a simpler welcome, and Steam, Xbox and Battle.net imports are easy to find as soon as your first game is tracked. Guides under ? Help are sorted into categories. 'Share apps you ignore' now stays off unless you turn it on in Settings."
+    ]
+  },
+  {
     "version": "1.1.18",
     "releasedAt": "2026-09-17",
     "headline": "Some fixes, some improvements! :)",
