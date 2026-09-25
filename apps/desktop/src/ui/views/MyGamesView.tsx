@@ -3037,8 +3037,17 @@ export function GameLibraryCard({
         steamLaunchEntry ||
         xboxLaunchEntry,
       ));
+  // An imported Steam game that is no longer installed offers Steam's
+  // installer where Play would be.
+  const showInstallInSteam =
+    !showPlayButton &&
+    !demo &&
+    canLaunchExecutables &&
+    Boolean(steamImportEntry) &&
+    !steamLaunchEntry;
   const showLaunchFooter =
     showPlayButton ||
+    showInstallInSteam ||
     launchTourDemo ||
     (!demo &&
       canLaunchExecutables &&
@@ -3828,6 +3837,23 @@ export function GameLibraryCard({
     }
   }
 
+  async function handleInstallInSteam() {
+    if (!steamImportEntry) return;
+    contextMenu.close();
+    try {
+      const provider = await import("../../library/providers").then((module) =>
+        module.loadLibraryProvider("steam"),
+      );
+      await provider.launch(steamImportEntry.externalId, "install");
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: `Could not open ${game.name} in Steam`,
+        detail: launchErrorDetail(error),
+      });
+    }
+  }
+
   async function handleOpenInSteam() {
     if (!steamImportEntry) return;
     contextMenu.close();
@@ -3956,6 +3982,8 @@ export function GameLibraryCard({
     }
     if (showPlayButton) {
       handlePreferredLaunch();
+    } else if (showInstallInSteam) {
+      void handleInstallInSteam();
     } else if (primaryEmulatorMapping && primaryEmulatorCandidate) {
       handleConfirmEmulatorCandidate(primaryEmulatorMapping);
     } else if (primaryEmulatorMapping) {
@@ -4099,6 +4127,13 @@ export function GameLibraryCard({
             onClick={handlePreferredLaunch}
           >
             Play
+          </ContextMenuItem>
+        ) : showInstallInSteam ? (
+          <ContextMenuItem
+            icon={Download}
+            onClick={() => void handleInstallInSteam()}
+          >
+            Install in Steam
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem
@@ -5071,20 +5106,24 @@ export function GameLibraryCard({
             aria-label={
               showPlayButton
                 ? playState.ariaLabel
-                : primaryEmulatorCandidate
-                  ? `Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping?.label ?? "emulator"} game file for ${game.name}`
-                  : gameEmulatorMappings.length > 1
-                    ? `Choose an emulator launch option for ${game.name}`
-                    : `Set launch file for ${game.name}`
+                : showInstallInSteam
+                  ? `Install ${game.name} in Steam`
+                  : primaryEmulatorCandidate
+                    ? `Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping?.label ?? "emulator"} game file for ${game.name}`
+                    : gameEmulatorMappings.length > 1
+                      ? `Choose an emulator launch option for ${game.name}`
+                      : `Set launch file for ${game.name}`
             }
             title={
               showPlayButton
                 ? playState.title
-                : primaryEmulatorCandidate
-                  ? `Confirm ${primaryEmulatorCandidate.displayName} for ${game.name}`
-                  : gameEmulatorMappings.length > 1
-                    ? "Choose emulator game…"
-                    : "Set launch file…"
+                : showInstallInSteam
+                  ? "Install in Steam"
+                  : primaryEmulatorCandidate
+                    ? `Confirm ${primaryEmulatorCandidate.displayName} for ${game.name}`
+                    : gameEmulatorMappings.length > 1
+                      ? "Choose emulator game…"
+                      : "Set launch file…"
             }
             data-tour={launchTourDemo ? "demo-launch-play" : undefined}
             disabled={showPlayButton && playState.disabled}
@@ -5092,14 +5131,19 @@ export function GameLibraryCard({
             className={clsx(
               "flex shrink-0 items-center justify-center gap-2 border-t font-semibold transition disabled:cursor-not-allowed",
               isLarge ? "h-12 text-sm" : "h-10 text-xs",
-              !showPlayButton
+              !showPlayButton && !showInstallInSteam
                 ? "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
                 : playButtonRunning
                   ? "border-success-border bg-success-tint text-success disabled:opacity-100"
                   : "border-accent/30 bg-accent-tint text-accent-ink hover:bg-accent hover:text-accent-fg",
             )}
           >
-            {!showPlayButton ? (
+            {showInstallInSteam ? (
+              <>
+                <Download size={isLarge ? 16 : 14} />
+                Install in Steam
+              </>
+            ) : !showPlayButton ? (
               <>
                 {primaryEmulatorCandidate ? (
                   <>
@@ -5549,6 +5593,14 @@ export function GameLibraryCard({
                 <Play size={15} />
               )}
             </IconButton>
+          ) : showInstallInSteam ? (
+            <IconButton
+              icon={Download}
+              aria-label={`Install ${game.name} in Steam`}
+              title="Install in Steam"
+              onClick={() => void handleInstallInSteam()}
+              className="shrink-0 border-accent/30 bg-accent-tint text-accent-ink hover:border-accent hover:bg-accent hover:text-accent-fg"
+            />
           ) : null}
 
           {!selectionMode ? (

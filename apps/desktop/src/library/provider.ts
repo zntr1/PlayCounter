@@ -30,5 +30,8 @@ export type LocalLibraryProvider = {
     accountId: number,
     options?: LibraryScanOptions,
   ): Promise<LibraryScanResult>;
-  launch(externalId: string, mode?: "play" | "store"): Promise<void>;
+  launch(
+    externalId: string,
+    mode?: "play" | "store" | "install",
+  ): Promise<void>;
 };

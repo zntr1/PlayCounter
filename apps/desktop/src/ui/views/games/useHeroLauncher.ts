@@ -6,6 +6,7 @@ import {
 import { adapterFor } from "../../../emulators/registry";
 import {
   findManualLaunchTarget,
+  launchErrorDetail,
   launchErrorMessage,
   launchTargetsForGame,
 } from "../../../gameLaunch";
@@ -87,6 +88,9 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     ];
   }, [exeCache, game.aliases, game.exeNames, launchTargets, manualTarget]);
   const primaryLaunchTarget = ownedLaunchTargets[0];
+  const steamImportEntry = game.libraryImports.find(
+    (entry) => entry.provider === "steam",
+  );
   const steamLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "steam" && entry.installed,
   );
@@ -119,6 +123,13 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       steamLaunchEntry ||
       xboxLaunchEntry,
     );
+  // An imported Steam game that is no longer installed offers Steam's
+  // installer instead of a Play that would only open it.
+  const canInstall =
+    canLaunchExecutables &&
+    !canLaunch &&
+    Boolean(steamImportEntry) &&
+    !steamLaunchEntry;
   const launchLabel =
     xboxLaunchEntry && !manualTarget
       ? "Play on Xbox"
@@ -253,10 +264,27 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     }
   }
 
+  async function install() {
+    if (!steamImportEntry) return;
+    try {
+      const module = await import("../../../library/providers");
+      const library = await module.loadLibraryProvider("steam");
+      await library.launch(steamImportEntry.externalId, "install");
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: `Could not open ${game.name} in Steam`,
+        detail: launchErrorDetail(error),
+      });
+    }
+  }
+
   return {
     launching,
     hasActiveSession,
     canLaunch,
+    canInstall,
+    install,
     launchLabel,
     launchTargets: ownedLaunchTargets,
     launch,

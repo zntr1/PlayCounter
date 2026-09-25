@@ -247,6 +247,7 @@ fn steam_url(external_id: &str, mode: &str) -> Result<String, LaunchError> {
     }
     let action = match mode {
         "play" => "rungameid",
+        "install" => "install",
         "store" => "store",
         _ => {
             return Err(LaunchError::new(
@@ -505,6 +506,7 @@ mod tests {
     fn validates_steam_protocol_inputs_without_launching() {
         assert_eq!(steam_url("730", "play").unwrap(), "steam://rungameid/730");
         assert_eq!(steam_url("730", "store").unwrap(), "steam://store/730");
+        assert_eq!(steam_url("730", "install").unwrap(), "steam://install/730");
         for invalid in ["", "0", "012", "12a", "1 && calc", "../../x"] {
             assert!(steam_url(invalid, "play").is_err(), "accepted {invalid}");
         }
