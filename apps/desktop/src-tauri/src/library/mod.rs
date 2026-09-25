@@ -138,10 +138,14 @@ pub async fn library_verify_installs(
             .any(|install| install.provider == "steam")
             .then(steam::Installs::read)
             .flatten();
+        let battlenet = installs
+            .iter()
+            .any(|install| install.provider == "battlenet")
+            .then(battlenet::InstalledProducts::read);
         installs
             .into_iter()
             .map(|install| {
-                let status = install_status(&install, steam.as_ref());
+                let status = install_status(&install, steam.as_ref(), battlenet.as_ref());
                 InstallCheckReport {
                     provider: install.provider,
                     external_id: install.external_id,
@@ -157,6 +161,7 @@ pub async fn library_verify_installs(
 fn install_status(
     install: &InstallCheckRequest,
     steam: Option<&steam::Installs>,
+    battlenet: Option<&battlenet::InstalledProducts>,
 ) -> LaunchPathStatus {
     if !cfg!(windows) {
         return LaunchPathStatus::Unreadable;
@@ -171,11 +176,16 @@ fn install_status(
     let installed = match install.provider.as_str() {
         "steam" => steam.and_then(|installs| installs.state(&install.external_id)),
         "xbox" => Some(xbox::is_installed(&install.external_id)),
-        "battlenet" => match fs::metadata(path) {
-            Ok(metadata) => Some(metadata.is_dir()),
-            Err(error) if is_missing_at(path, &error) => Some(false),
-            Err(_) => None,
-        },
+        "battlenet" => {
+            let folder_exists = match fs::metadata(path) {
+                Ok(metadata) => Some(metadata.is_dir()),
+                Err(error) if is_missing_at(path, &error) => Some(false),
+                Err(_) => None,
+            };
+            battlenet
+                .and_then(|products| products.state(&install.external_id, folder_exists))
+                .or(folder_exists.filter(|exists| !exists))
+        }
         _ => return LaunchPathStatus::Invalid,
     };
     match installed {

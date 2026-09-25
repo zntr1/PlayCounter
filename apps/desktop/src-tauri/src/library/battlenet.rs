@@ -338,6 +338,47 @@ pub fn scan() -> Result<ScanResult, String> {
 }
 
 /// Installed games with their folders, without the slower executable lookup.
+/// Battle.net's own record of what is installed, read once per check.
+pub struct InstalledProducts {
+    ids: BTreeSet<String>,
+    /// False when some launcher data could not be read, so a product that is
+    /// missing from the list may still be installed.
+    complete: bool,
+}
+
+impl InstalledProducts {
+    pub fn read() -> Self {
+        match scan_local(false) {
+            Ok(result) => Self {
+                complete: !result.partial,
+                ids: result
+                    .games
+                    .into_iter()
+                    .map(|game| game.external_id)
+                    .collect(),
+            },
+            Err(_) => Self {
+                ids: BTreeSet::new(),
+                complete: false,
+            },
+        }
+    }
+
+    /// `Some(true)` when Battle.net lists the product as installed,
+    /// `Some(false)` when it no longer does, `None` when it cannot tell.
+    /// A folder left behind by an uninstall does not count as installed.
+    pub fn state(&self, id: &str, folder_exists: Option<bool>) -> Option<bool> {
+        if self.ids.contains(id) {
+            return Some(true);
+        }
+        match folder_exists {
+            Some(false) => Some(false),
+            Some(true) => self.complete.then_some(false),
+            None => None,
+        }
+    }
+}
+
 pub fn installed_games() -> Vec<InstalledGame> {
     scan_local(false)
         .map(|result| {
@@ -717,6 +758,21 @@ mod tests {
         assert!(result.games.is_empty());
         assert!(result.warnings.is_empty());
         assert!(!result.partial);
+    }
+
+    #[test]
+    fn a_folder_left_behind_by_an_uninstall_is_not_installed() {
+        let products = |complete| InstalledProducts {
+            ids: BTreeSet::from(["w3".to_string()]),
+            complete,
+        };
+        assert_eq!(products(true).state("w3", Some(true)), Some(true));
+        assert_eq!(products(true).state("wow", Some(false)), Some(false));
+        // Leftover folder (settings, screenshots) after an uninstall.
+        assert_eq!(products(true).state("wow", Some(true)), Some(false));
+        // Launcher data only partly readable: the leftover proves nothing.
+        assert_eq!(products(false).state("wow", Some(true)), None);
+        assert_eq!(products(true).state("wow", None), None);
     }
 
     #[test]
