@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   Component,
@@ -101,6 +102,11 @@ import {
   type InstallProgress,
   type UpdateCheckResult,
 } from "../updater";
+import {
+  planUpdateNotice,
+  UPDATE_FIRST_CHECK_DELAY_MS,
+  type UpdateCheckOutcome,
+} from "../updateNotice";
 import {
   decideReleaseNotesDisplay,
   findUnseenReleaseNotes,
@@ -548,15 +554,50 @@ export function App() {
       .then(setAppVersion)
       .catch(() => setAppVersion(null));
 
-    const updateCheckTimer = window.setTimeout(() => {
-      void checkForUpdate()
-        .then((result) => {
-          if (result.status === "available") setStartupUpdate(result);
-        })
-        .catch(() => undefined);
-    }, 8_000);
+    let cancelled = false;
+    let hadSuccessfulCheck = false;
+    let updateCheckTimer: number | undefined;
 
-    return () => window.clearTimeout(updateCheckTimer);
+    async function runUpdateCheck() {
+      let outcome: UpdateCheckOutcome = "failed";
+      try {
+        const result = await checkForUpdate();
+        outcome = result.status;
+        if (!cancelled && result.status === "available") {
+          setStartupUpdate(result);
+          void invoke("set_tray_update", { version: result.version }).catch(
+            () => undefined,
+          );
+        }
+      } catch {
+        outcome = "failed";
+      }
+      if (cancelled) return;
+
+      const plan = planUpdateNotice({
+        outcome,
+        hadSuccessfulCheck,
+        gameRunning: useAppStore.getState().activeSessions.length > 0,
+      });
+      if (outcome !== "failed") hadSuccessfulCheck = true;
+      if (plan.reveal) {
+        void invoke("show_main_window_for_update").catch(() => undefined);
+      }
+      updateCheckTimer = window.setTimeout(
+        () => void runUpdateCheck(),
+        plan.nextCheckMs,
+      );
+    }
+
+    updateCheckTimer = window.setTimeout(
+      () => void runUpdateCheck(),
+      UPDATE_FIRST_CHECK_DELAY_MS,
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(updateCheckTimer);
+    };
   }, []);
 
   useEffect(() => {

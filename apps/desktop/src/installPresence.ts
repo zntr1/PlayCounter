@@ -59,6 +59,7 @@ export function shouldSendInstallPresence(input: {
 export async function reportInstallPresence(input: {
   installUuid: string | null;
   apiEndpoint: string;
+  appVersion?: string | null;
   marker: InstallPresenceMarker | null;
   now?: number;
   request: InstallPresenceRequestFn;
@@ -79,7 +80,10 @@ export async function reportInstallPresence(input: {
   const endpoint = normalizeInstallPresenceEndpoint(input.apiEndpoint);
   const sentAt = new Date(now).toISOString();
   try {
-    const result = await input.request(endpoint, { installUuid });
+    const result = await input.request(endpoint, {
+      installUuid,
+      ...(input.appVersion ? { appVersion: input.appVersion } : {}),
+    });
     if (result.ok) return { endpoint, installUuid, sentAt, kind: "success" };
     if (result.status === 404 || result.status === 405) {
       return { endpoint, installUuid, sentAt, kind: "unsupported" };

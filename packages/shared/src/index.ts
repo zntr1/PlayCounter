@@ -519,6 +519,8 @@ export interface FeedbackRepliesResponse {
 
 export interface InstallPresencePayload {
   installUuid: string;
+  /** Desktop app version, e.g. "1.2.0". Absent from clients before 1.2.0. */
+  appVersion?: string;
 }
 
 export type Theme = "dark" | "light";

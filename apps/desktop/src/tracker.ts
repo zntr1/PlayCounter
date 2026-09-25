@@ -36,6 +36,7 @@ import type {
   Session,
   Settings,
 } from "@playcounter/shared";
+import { getVersion } from "@tauri-apps/api/app";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -4864,9 +4865,11 @@ async function sendInstallPresenceIfDue() {
 
   installPresencePingInFlight = (async () => {
     const state = useAppStore.getState();
+    const appVersion = await getVersion().catch(() => null);
     const marker = await reportInstallPresence({
       installUuid: state.installUuid,
       apiEndpoint: state.settings.apiEndpoint,
+      appVersion: typeof appVersion === "string" ? appVersion : null,
       marker: state.installPresenceMarker,
       request: async (endpoint, payload) => {
         const response = await requestWithTimeout(

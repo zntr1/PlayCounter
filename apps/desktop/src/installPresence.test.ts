@@ -138,6 +138,33 @@ describe("install presence reporting", () => {
     });
   });
 
+  it("sends the app version when it is known", async () => {
+    const request = vi.fn(async () => ({ ok: true, status: 204 }));
+
+    await reportInstallPresence({
+      installUuid,
+      apiEndpoint: endpoint,
+      appVersion: "1.2.0",
+      marker: null,
+      now,
+      request,
+    });
+    await reportInstallPresence({
+      installUuid,
+      apiEndpoint: endpoint,
+      appVersion: null,
+      marker: null,
+      now,
+      request,
+    });
+
+    expect(request).toHaveBeenNthCalledWith(1, endpoint, {
+      installUuid,
+      appVersion: "1.2.0",
+    });
+    expect(request).toHaveBeenNthCalledWith(2, endpoint, { installUuid });
+  });
+
   it.each([
     [404, "unsupported"],
     [405, "unsupported"],

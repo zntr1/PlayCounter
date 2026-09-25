@@ -31,12 +31,16 @@ mod shell_open;
 
 const TRAY_STATUS_IDLE: &str = "No game active";
 const TRAY_STATUS_PREFIX: &str = "Playing ";
+/// Index of "Open PlayCounter" in the tray menu built by `setup_tray`.
+const TRAY_UPDATE_POSITION: usize = 4;
 const WEBSITE_URL: &str = "https://playcounter.app/";
 const DISCORD_URL: &str = "https://discord.gg/t2nG3jaEEY";
 
 struct TrayState {
     icon: Mutex<Option<TrayIcon<Wry>>>,
+    menu: Mutex<Option<Menu<Wry>>>,
     status_item: Mutex<Option<MenuItem<Wry>>>,
+    update_item: Mutex<Option<MenuItem<Wry>>>,
 }
 
 /// The main window is created hidden so Windows never shows a bare white frame
@@ -286,6 +290,53 @@ fn update_tray_now_playing(
     set_tray_status(&app, &format_tray_status(&sessions))
 }
 
+/// Adds, renames or removes the tray entry that points at a pending update.
+#[tauri::command]
+fn set_tray_update(app: tauri::AppHandle, version: Option<String>) -> Result<(), String> {
+    let tray_state = app.state::<TrayState>();
+    let menu = tray_state.menu.lock().unwrap();
+    let Some(menu) = menu.as_ref() else {
+        return Ok(());
+    };
+    let mut update_item = tray_state.update_item.lock().unwrap();
+    match (version, update_item.as_ref()) {
+        (Some(version), Some(item)) => item
+            .set_text(format_tray_update(&version))
+            .map_err(|error| error.to_string()),
+        (Some(version), None) => {
+            let item = MenuItem::with_id(
+                &app,
+                "tray_update",
+                format_tray_update(&version),
+                true,
+                None::<&str>,
+            )
+            .map_err(|error| error.to_string())?;
+            // Above "Open PlayCounter".
+            menu.insert(&item, TRAY_UPDATE_POSITION)
+                .map_err(|error| error.to_string())?;
+            *update_item = Some(item);
+            Ok(())
+        }
+        (None, Some(item)) => {
+            menu.remove(item).map_err(|error| error.to_string())?;
+            *update_item = None;
+            Ok(())
+        }
+        (None, None) => Ok(()),
+    }
+}
+
+fn format_tray_update(version: &str) -> String {
+    escape_menu_text(&format!("Update available ({version})"))
+}
+
+/// Autostart keeps the window hidden; a found update brings it forward once.
+#[tauri::command]
+fn show_main_window_for_update(app: tauri::AppHandle) {
+    show_main_window(&app);
+}
+
 fn configure_macos_test_storage(config: &mut tauri::Config) {
     if config.identifier != "app.playcounter.desktop.test" {
         return;
@@ -310,7 +361,9 @@ pub fn run() {
     tauri::Builder::default()
         .manage(TrayState {
             icon: Mutex::new(None),
+            menu: Mutex::new(None),
             status_item: Mutex::new(None),
+            update_item: Mutex::new(None),
         })
         .manage(controller::ControllerWatcher::default())
         .manage(emulator_launch::EmulatorLaunchGuard::default())
@@ -393,6 +446,8 @@ pub fn run() {
             open_microsoft_signin_url,
             open_xbox_app,
             update_tray_now_playing,
+            set_tray_update,
+            show_main_window_for_update,
             scan_processes,
             privacy_context,
             get_exe_icon,
@@ -470,7 +525,7 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            "tray_open" => show_main_window(app),
+            "tray_open" | "tray_update" => show_main_window(app),
             "tray_quit" => app.exit(0),
             _ => {}
         })
@@ -487,6 +542,7 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     let tray_state = app.state::<TrayState>();
     *tray_state.status_item.lock().unwrap() = Some(status_item);
+    *tray_state.menu.lock().unwrap() = Some(menu);
     *tray_state.icon.lock().unwrap() = Some(tray);
     Ok(())
 }
