@@ -464,6 +464,8 @@ pub fn run() {
             library::library_launch_app,
             library::library_verify_installs,
             library::library_installed_games,
+            library::watch_folders::watch_folder_game_folders,
+            library::watch_folders::watch_folder_scan,
             emulator_launch::launch_emulator_content,
             emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,

@@ -67,6 +67,8 @@ import {
   suggestTrackedGameToCommunity,
   untrackGame,
   verifyLaunchTargets,
+  adoptFolderGame,
+  noteFolderExecutable,
 } from "./tracker";
 import { libraryEntryKey } from "./library/types";
 
@@ -2388,6 +2390,49 @@ describe("game launching", () => {
     });
 
     expect(useAppStore.getState().launchTargets.size).toBe(0);
+  });
+});
+
+describe("games found in watched folders", () => {
+  const found = {
+    id: 42,
+    igdbId: 42,
+    name: "Celeste",
+    coverUrl: "",
+    source: "igdb" as const,
+  };
+
+  it("adds a found game with its launch file, keeping an existing one", () => {
+    adoptFolderGame(
+      "Celeste.exe",
+      String.raw`D:\Games\Celeste\Celeste.exe`,
+      found,
+    );
+    expect(useAppStore.getState().exeCache.get("celeste.exe")).toMatchObject({
+      state: "matched",
+      gameId: 42,
+    });
+    expect(useAppStore.getState().launchTargets.get("celeste.exe")?.path).toBe(
+      String.raw`D:\Games\Celeste\Celeste.exe`,
+    );
+
+    adoptFolderGame("Celeste.exe", String.raw`E:\Copy\Celeste.exe`, found);
+    expect(useAppStore.getState().launchTargets.get("celeste.exe")?.path).toBe(
+      String.raw`D:\Games\Celeste\Celeste.exe`,
+    );
+  });
+
+  it("notes an unclear find once, without touching a known file", () => {
+    noteFolderExecutable("Tool.exe");
+    expect(useAppStore.getState().exeCache.get("tool.exe")?.state).toBe(
+      "unmatched",
+    );
+
+    adoptFolderGame("Known.exe", String.raw`D:\Games\Known\Known.exe`, found);
+    noteFolderExecutable("Known.exe");
+    expect(useAppStore.getState().exeCache.get("known.exe")?.state).toBe(
+      "matched",
+    );
   });
 });
 

@@ -4,6 +4,7 @@ mod exe_scan;
 pub mod steam;
 mod types;
 mod vdf;
+pub mod watch_folders;
 pub mod xbox;
 
 use crate::launch::{

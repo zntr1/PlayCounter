@@ -72,6 +72,10 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "../primitives";
+import {
+  pendingFolderFind,
+  readWatchFolders,
+} from "../../library/watchFolderState";
 
 // Single floating heart shown briefly after a successful "Add & Share".
 // Lives outside the heavy view so firing it never re-renders the list.
@@ -433,6 +437,9 @@ export function DiscoveredView() {
       return;
     }
     correction.reset();
+    // A file found in a watched folder is best searched by its folder name.
+    const folderFind = pendingFolderFind(exeName);
+    if (folderFind) correction.setSearch(folderFind.folderName);
     setSuggestionTarget({ key: exeName.toLowerCase(), exeName });
   }
 
@@ -497,6 +504,7 @@ export function DiscoveredView() {
       }
     }
 
+    const folderFinds = readWatchFolders().pending;
     const saved = [...savedByKey].flatMap(
       ([key, entry]): DiscoveredExecutable[] => {
         const exeName = entry?.exeName ?? key;
@@ -512,7 +520,7 @@ export function DiscoveredView() {
         return [
           {
             exeName,
-            exePath: null,
+            exePath: folderFinds[key]?.exePath ?? null,
             key,
             isRunning: false,
             cacheEntry: entry,

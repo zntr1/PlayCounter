@@ -48,6 +48,7 @@ import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
 import { AutomaticBackupSettings } from "../AutomaticBackupSettings";
+import { WatchFoldersSettings } from "../WatchFoldersSettings";
 import { ResetPlayCounterDialog } from "../ResetPlayCounterDialog";
 import { ResetSettingsDialog } from "../ResetSettingsDialog";
 import { HotkeyInput } from "../HotkeyInput";
@@ -1102,6 +1103,7 @@ export function SettingsView() {
             />
           </SettingsRow>
         ) : null}
+        {currentPlatform() === "windows" ? <WatchFoldersSettings /> : null}
         <SettingsRow
           description="Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept."
           title={
