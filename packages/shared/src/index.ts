@@ -1,5 +1,9 @@
 export type GameSource = "igdb" | "community" | "custom";
 
+/** What an entry is. Tools (Discord, Spotify, launchers) are recognized like
+ *  games but never tracked as games. */
+export type GameKind = "game" | "tool";
+
 export interface Game {
   id: number;
   igdbId?: number;
@@ -7,6 +11,9 @@ export interface Game {
   coverUrl: string;
   source: GameSource;
   releaseYear?: number;
+  /** Absent = "game". Match results only carry tools for clients that set
+   *  `supportsTools`. */
+  kind?: GameKind;
 }
 
 export type EmulatorContentKind =
@@ -212,6 +219,8 @@ export interface MatchProcessRequestItem {
 
 export interface MatchProcessesRequest {
   processes: MatchProcessRequestItem[];
+  /** Clients without it never get tool entries in any response field. */
+  supportsTools?: boolean;
 }
 
 // Community game ids that were merged into `gameId` and no longer exist. A
@@ -276,6 +285,8 @@ export interface CommunityGameSuggestionPayload {
   // before this field existed still only send the name.
   igdbId?: number;
   installUuid?: string;
+  /** Absent = "game". A tool has no igdbId and may carry a SteamGridDB cover. */
+  kind?: GameKind;
 }
 
 export interface CommunityGameSuggestionResponse {
@@ -349,6 +360,8 @@ export interface Contribution {
   mergedFromGameIds?: number[];
   gameName: string;
   coverUrl: string;
+  /** Absent = "game". */
+  gameKind?: GameKind;
   status: ContributionStatus;
   reviewNote?: string;
   reviewedAt?: string;
@@ -374,6 +387,7 @@ export interface EmulatorContribution extends EmulatorContentRef {
 
 export interface ContributionsResponse {
   items: Contribution[];
+  /** Game contributions only; tool items (gameKind "tool") are not counted. */
   counts: ContributionCounts;
   /** Absent on API builds released before emulator contributions. */
   emulator?: {
@@ -559,6 +573,7 @@ export type DesktopViewId =
   | "discovered"
   | "history"
   | "achievements"
+  | "software"
   | "settings"
   | "dev";
 
@@ -612,6 +627,9 @@ export interface Settings {
   /** Source list under My Games folded away. Absent = shown. */
   sidebarSourcesCollapsed?: boolean;
   autoShareIgnoredProcesses: boolean;
+  /** Count time for recognized software (Discord, launchers, ...) on the
+   *  Software page. Absent = off. */
+  trackTools?: boolean;
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;
   apiEndpoint: string;

@@ -118,6 +118,7 @@ export function SettingsView() {
   const setAutoAddInstalledGames = useAppStore(
     (state) => state.setAutoAddInstalledGames,
   );
+  const setTrackTools = useAppStore((state) => state.setTrackTools);
   const setAutoShareIgnoredProcesses = useAppStore(
     (state) => state.setAutoShareIgnoredProcesses,
   );
@@ -1018,6 +1019,16 @@ export function SettingsView() {
         description="Tune how PlayCounter finds apps and retries unknown ones."
         title="Discovery"
       >
+        <SettingsRow
+          description="Count how long apps like Discord, Spotify and launchers run, on their own Software page. They never appear in Now Playing and never count toward your game stats."
+          title="Track software"
+        >
+          <Switch
+            aria-label="Track software"
+            checked={settings.trackTools === true}
+            onChange={(event) => setTrackTools(event.target.checked)}
+          />
+        </SettingsRow>
         <SettingsRow
           dataTour="settings-sharing"
           description="When you ignore an app PlayCounter does not recognize, it sends the file name, your platform, and an anonymous install ID. Playtime and game history are never sent."

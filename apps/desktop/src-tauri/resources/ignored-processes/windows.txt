@@ -1,6 +1,8 @@
 # PlayCounter built-in ignored processes for Windows.
 # One executable name per line. Lines starting with # are ignored.
 # Wildcards: * matches any text, ? matches one character.
+# Software such as discord.exe or steam.exe is deliberately not listed: the
+# server knows it as a tool, and tools never become games.
 
 1password-browsersupport.exe
 1password.exe
@@ -13,7 +15,6 @@ atieclxx.exe
 atiesrxx.exe
 audiodg.exe
 backgroundtaskhost.exe
-battle.net.exe
 battlenet_account_login-*.exe
 battlenet_account_security-*.exe
 cargo.exe
@@ -30,10 +31,8 @@ ctfmon.exe
 dashost.exe
 dllhost.exe
 dwm.exe
-eadesktop.exe
 eartrumpet.exe
 easytuneengineservice.exe
-epicgameslauncher.exe
 esbuild.exe
 explorer.exe
 firefox.exe
@@ -91,7 +90,6 @@ smartscreen.exe
 smss.exe
 spoolsv.exe
 startmenuexperiencehost.exe
-steam.exe
 steamservice.exe
 steamwebhelper.exe
 sunshine.exe
@@ -102,7 +100,6 @@ systemsettings.exe
 taskhostw.exe
 taskmgr.exe
 textinputhost.exe
-ubisoftconnect.exe
 unsecapp.exe
 userinit.exe
 useroobebroker.exe
@@ -147,7 +144,6 @@ unitycrashhandler64.exe
 vgc.exe
 vgm.exe
 werfault.exe
-xboxpcapp.exe
 xboxpcappft.exe
 xboxpctray.exe
 xgamehelper.exe
@@ -440,7 +436,6 @@ focusvolumecontrol.exe
 msrdc.exe
 plex update service.exe
 qtwebengineprocess.exe
-upc.exe
 autoclicker.exe
 com.barraider.spotify.exe
 com.barraider.windowsmover.exe
@@ -942,7 +937,6 @@ curseforge.exe
 crwindowsclientservice.exe
 defenderaiplatformhost.exe
 dell.*.exe
-discord.exe
 discord_clips.exe
 dism.exe
 docker*.exe
@@ -965,7 +959,6 @@ fnplicensingservice64.exe
 fulltrustnotifier.exe
 fvcontainer.exe
 fvcontainer.system.exe
-galaxyclient.exe
 galaxyclientservice.exe
 galaxycommunication.exe
 galaxyupdater.exe
@@ -1135,7 +1128,6 @@ servicehost.exe
 singleclientservicesupdater.exe
 slui.exe
 sndvol.exe
-spotify.exe
 spotify_installer-*.exe
 spotifyxboxgamebarwebview.exe
 ss_conn_service.exe

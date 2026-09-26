@@ -9,6 +9,7 @@ import {
 } from "./automaticBackups";
 import type {
   CommunityGameAlias,
+  CommunityGameSuggestionPayload,
   CommunityGameSuggestionResponse,
   CommunitySuggestionCancelPayload,
   CommunitySuggestionCancelResponse,
@@ -122,6 +123,13 @@ import {
   gameSecondsKeys,
   sanitizeGameSecondsRecord,
 } from "./gameSeconds";
+import {
+  carryDiscoveredSeconds,
+  creditToolUsage,
+  sanitizeToolUsage,
+  toolIdentityKey,
+  type RunningTool,
+} from "./toolUsage";
 import { nextAdjustmentSeconds } from "./playtimeAdjustments";
 import {
   isPersistenceSuspended,
@@ -270,6 +278,7 @@ type PersistedState = {
   archivedGameSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
   customHeroArt?: unknown;
+  toolUsage?: unknown;
   collapsedSections?: unknown;
   tours?: unknown;
   lastSeenReleaseNotesVersion?: unknown;
@@ -1199,6 +1208,7 @@ export function hydrate() {
       { signed: true },
     ),
     customHeroArt: sanitizeCustomHeroArt(persisted.customHeroArt),
+    toolUsage: sanitizeToolUsage(persisted.toolUsage),
     collapsedSections: normalizeCollapsedSections(persisted.collapsedSections),
     autoDetectedGameKeys,
     tourProgress: normalizeTourProgress(
@@ -2085,10 +2095,47 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   }
 
   accumulateUnmatchedRuntime(runningProcessKeys);
+  creditRunningTools(candidates);
   syncDiscoveredReviewReminder();
 
   persist();
   logRuntime(`scan complete durationMs=${Date.now() - startedAt}`);
+}
+
+let lastToolTickAt: number | undefined;
+
+export function resetToolTickForTests() {
+  lastToolTickAt = undefined;
+}
+
+// Software (Discord, launchers) is counted apart from games, see toolUsage.ts.
+// Tools never start sessions, so Now Playing, history and stats stay games
+// only. The first scan after start credits nothing: time while PlayCounter was
+// closed is never guessed.
+function creditRunningTools(processes: ProcessSnapshot[]) {
+  const now = Date.now();
+  const previous = lastToolTickAt;
+  lastToolTickAt = now;
+  const state = useAppStore.getState();
+  if (state.settings.trackTools !== true) return;
+  const running: RunningTool[] = [];
+  for (const process of processes) {
+    const exeKey = processCacheKey(process);
+    const entry = state.exeCache.get(exeKey);
+    if (entry?.state !== "tool" || entry.gameId === undefined) continue;
+    running.push({
+      toolKey: toolIdentityKey(entry),
+      exeKey,
+      exePath: process.exePath,
+    });
+  }
+  const toolUsage = creditToolUsage(
+    state.toolUsage,
+    running,
+    previous ?? now,
+    now,
+  );
+  if (toolUsage !== state.toolUsage) useAppStore.setState({ toolUsage });
 }
 
 function syncDiscoveredReviewReminder() {
@@ -2816,7 +2863,7 @@ async function resolveProcesses(
           method: "POST",
           headers: { "content-type": "application/json" },
           timeoutMs: API_REQUEST_TIMEOUT_MS,
-          body: JSON.stringify({ processes: batch }),
+          body: JSON.stringify({ processes: batch, supportsTools: true }),
         },
       );
       if (!response.ok) throw responseError(response);
@@ -2862,6 +2909,17 @@ async function resolveProcesses(
     const result = resultsByExe.get(processCacheKey(process));
     // Failed batches stay uncached so a later scan can retry them.
     if (!result) continue;
+    if (result.game?.kind === "tool") {
+      cacheToolResult(process.exeName, result.game);
+      continue;
+    }
+    const cachedEntry = useAppStore
+      .getState()
+      .exeCache.get(processCacheKey(process));
+    if (cachedEntry?.state === "tool") {
+      keepOrReclassifyTool(process.exeName, result.game);
+      continue;
+    }
     if (result.ambiguousGames?.length) {
       cacheAmbiguousMatch(
         process,
@@ -2876,8 +2934,11 @@ async function resolveProcesses(
       matches.push({ process, game });
       continue;
     }
-    const pendingCommunityGame =
-      result.pendingCommunityGame ?? result.pendingCommunityGames?.[0];
+    // Someone else's pending tool says nothing about a game for this exe.
+    const pendingCommunityGame = [
+      result.pendingCommunityGame,
+      ...(result.pendingCommunityGames ?? []),
+    ].find((game) => game && game.kind !== "tool");
     if (pendingCommunityGame) {
       cachePendingCommunityMatch(process.exeName, pendingCommunityGame);
       continue;
@@ -2905,7 +2966,7 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
           method: "POST",
           headers: { "content-type": "application/json" },
           timeoutMs: API_REQUEST_TIMEOUT_MS,
-          body: JSON.stringify({ processes: batch }),
+          body: JSON.stringify({ processes: batch, supportsTools: true }),
         },
       );
       if (!response.ok) throw responseError(response);
@@ -2913,21 +2974,29 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
       const body = response.data;
       for (const result of body.matches) {
         const aliases = result.communityGameAliases;
+        if (result.game?.kind === "tool") {
+          applyToolReclassification(result.key, result.game);
+          continue;
+        }
         // The surviving game can be the match or one of the picker candidates -
         // an exe that IGDB and the community both map is ambiguous by design.
         const communityGames = [
           ...(result.verifiedCommunityGames ?? []),
           result.game,
           ...(result.ambiguousGames ?? []),
-        ].filter((game): game is Game => game?.source === "community");
+        ].filter(
+          (game): game is Game =>
+            game?.source === "community" && game.kind !== "tool",
+        );
 
         if (applyMergedCommunityGame(result.key, communityGames, aliases)) {
           continue;
         }
 
-        const pendingCommunityGames =
+        const pendingCommunityGames = (
           result.pendingCommunityGames ??
-          (result.pendingCommunityGame ? [result.pendingCommunityGame] : []);
+          (result.pendingCommunityGame ? [result.pendingCommunityGame] : [])
+        ).filter((game) => game.kind !== "tool");
         const suggestionOutcome = applyCommunitySuggestionOutcome(
           result.key,
           communityGames,
@@ -4308,8 +4377,306 @@ export function resolveCachedProcess(
       return { state: "skipped" };
     }
   }
+  // Tools are counted from the cache (creditRunningTools) and re-checked as
+  // rarely as unmatched exes, so a reclassification still reaches them.
+  if (cached?.state === "tool") {
+    const checkedAt = Date.parse(cached.lastCheckedAt);
+    if (Number.isFinite(checkedAt) && now - checkedAt < ttlMs) {
+      return { state: "skipped" };
+    }
+  }
 
   return { state: "query" };
+}
+
+// A tool never becomes a matched game. It gets its own cache state, so Now
+// Playing, the library and every stat skip it without a filter of their own.
+function cacheToolResult(exeName: string, tool: Game) {
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  const existing = state.exeCache.get(key);
+  // A custom game the user created keeps winning, like over any database match.
+  if (existing?.state === "matched" && existing.source === "custom") {
+    verboseRuntime(
+      `match cache preserved custom game ${exeName} over tool ${tool.name}`,
+    );
+    return;
+  }
+  state.removeAmbiguousMatch(exeName);
+  if (existing?.state === "unmatched") {
+    const openSeconds = existing.runningSince
+      ? (Date.now() - Date.parse(existing.runningSince)) / 1000
+      : 0;
+    const discoveredSeconds =
+      (existing.trackedSeconds ?? 0) +
+      (Number.isFinite(openSeconds) ? Math.max(0, openSeconds) : 0);
+    useAppStore.setState((current) => ({
+      toolUsage: carryDiscoveredSeconds(
+        current.toolUsage,
+        key,
+        discoveredSeconds,
+      ),
+    }));
+  }
+  // The user's own shared tool was approved: keep its suggestion marker.
+  const ownSuggestion =
+    existing?.state === "tool" && existing.communitySuggestionId === tool.id;
+  logRuntime(`match cache tool ${exeName} -> ${tool.name}`);
+  state.setExeCacheEntry({
+    exeName,
+    state: "tool",
+    gameId: tool.id,
+    gameName: tool.name,
+    coverUrl: tool.coverUrl,
+    source: tool.source,
+    lastCheckedAt: new Date().toISOString(),
+    ...(ownSuggestion
+      ? {
+          communitySuggestionId: tool.id,
+          communitySuggestionVerified: true,
+          communitySuggestionStatus: "verified" as const,
+        }
+      : {}),
+  });
+}
+
+// A tool was re-checked and the server no longer calls it a tool. A community
+// tool follows the server when it became a game. A tool the user marked here,
+// or one the server no longer knows at all, stays a tool.
+function keepOrReclassifyTool(exeName: string, game: Game | null) {
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (existing?.state !== "tool") return;
+  if (game && existing.source === "community") {
+    logRuntime(`tool became a game ${exeName} -> ${game.name}`);
+    cacheMatchResult(exeName, game);
+    return;
+  }
+  useAppStore.getState().setExeCacheEntry({
+    ...existing,
+    lastCheckedAt: new Date().toISOString(),
+  });
+}
+
+// An admin moved a community game to the tools. Its running session ends with
+// the next scan, because the exe no longer matches a game. Sessions already
+// recorded stay in the game history. The user's own custom games are left
+// alone.
+function applyToolReclassification(exeName: string, tool: Game) {
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  if (existing?.state !== "matched" || existing.source !== "community") return;
+  logRuntime(`community game became a tool ${exeName} -> ${tool.name}`);
+  cacheToolResult(exeName, tool);
+  persist();
+}
+
+export type MarkAsSoftwareOutcome =
+  | { kind: "local" }
+  | { kind: "submitted" | "already-known" | "rejected" }
+  | { kind: "failed"; error: string };
+
+/**
+ * "It's software" in Discovered: the exe becomes a local tool at once and
+ * leaves Discovered. Shared, it is filed as a tool suggestion and reviewed per
+ * executable like a game. Rejected, it stays a local tool.
+ */
+export async function markExecutableAsSoftware(
+  exeName: string,
+  input: { name: string; coverUrl?: string; share: boolean },
+): Promise<MarkAsSoftwareOutcome> {
+  const name = input.name.trim();
+  if (!name) throw new Error("A name is required.");
+  const coverUrl = input.coverUrl?.trim() ?? "";
+  cacheToolResult(exeName, {
+    id: customGameId(exeName),
+    name,
+    coverUrl,
+    source: "custom",
+  });
+  persist();
+  void requestProcessScan("after marking software");
+  if (!input.share) return { kind: "local" };
+
+  const state = useAppStore.getState();
+  const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions`;
+  try {
+    const payload: CommunityGameSuggestionPayload = {
+      exeName,
+      name,
+      ...(coverUrl ? { coverUrl } : {}),
+      installUuid: state.installUuid ?? undefined,
+      kind: "tool",
+    };
+    const response = await requestJsonResponse<CommunityGameSuggestionResponse>(
+      endpoint,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!response.ok) throw responseError(response);
+    const result = response.data;
+    if (result.id === undefined) throw new Error("Unexpected response");
+    const entry = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+    if (entry?.state !== "tool") return { kind: "submitted" };
+    if (result.verified) {
+      // The exe was already an approved tool; use the shared entry.
+      useAppStore.getState().setExeCacheEntry({
+        ...entry,
+        gameId: result.id,
+        source: "community",
+        communitySuggestionId: result.id,
+        communitySuggestionVerified: true,
+        communitySuggestionStatus: "verified",
+        communitySuggestionNote: undefined,
+      });
+      persist();
+      return { kind: "already-known" };
+    }
+    useAppStore.getState().setExeCacheEntry({
+      ...entry,
+      communitySuggestionId: result.id,
+      communitySuggestionVerified: false,
+      communitySuggestionStatus: result.rejected ? "rejected" : "pending",
+      communitySuggestionNote: result.reviewNote,
+    });
+    persist();
+    logRuntime(
+      `software suggestion ${exeName} -> ${name} id=${result.id} rejected=${Boolean(result.rejected)}`,
+    );
+    return { kind: result.rejected ? "rejected" : "submitted" };
+  } catch (error) {
+    logRuntime(`software suggestion failed ${exeName}: ${formatError(error)}`);
+    return { kind: "failed", error: formatError(error) };
+  }
+}
+
+/** Art for a tool marked on this PC. Shared tools use the community's art. */
+export function setLocalToolCover(toolKey: string, coverUrl: string) {
+  useAppStore.setState((state) => {
+    let exeCache = state.exeCache;
+    for (const [key, entry] of state.exeCache) {
+      if (
+        entry.state !== "tool" ||
+        entry.source !== "custom" ||
+        toolIdentityKey(entry) !== toolKey
+      ) {
+        continue;
+      }
+      if (exeCache === state.exeCache) exeCache = new Map(state.exeCache);
+      exeCache.set(key, { ...entry, coverUrl });
+    }
+    return { exeCache };
+  });
+  persist();
+}
+
+/** Undoes "It's software" for a tool marked on this PC: its executables go
+ *  back to Discovered, and a suggestion still in review is withdrawn. Counted
+ *  hours stay stored in case it is marked again. */
+export function unmarkLocalTool(toolKey: string) {
+  const lastCheckedAt = new Date().toISOString();
+  const entries = [...useAppStore.getState().exeCache.values()].filter(
+    (entry) =>
+      entry.state === "tool" &&
+      entry.source === "custom" &&
+      toolIdentityKey(entry) === toolKey,
+  );
+  if (entries.length === 0) return;
+  useAppStore.setState((state) => {
+    const exeCache = new Map(state.exeCache);
+    for (const entry of entries) {
+      exeCache.set(entry.exeName.toLowerCase(), {
+        exeName: entry.exeName,
+        state: "unmatched",
+        lastCheckedAt,
+      });
+    }
+    return { exeCache };
+  });
+  persist();
+  for (const entry of entries) {
+    if (
+      entry.communitySuggestionStatus === "pending" &&
+      entry.communitySuggestionId !== undefined
+    ) {
+      void withdrawToolSuggestion(entry.exeName, entry.communitySuggestionId);
+    }
+  }
+}
+
+// "Not Software" takes the user's claim back. The server removes this
+// install's submission, and the pending identifier too when nobody else sent
+// it. Best effort: offline, the suggestion simply stays in review.
+async function withdrawToolSuggestion(exeName: string, gameId: number) {
+  const state = useAppStore.getState();
+  if (!state.installUuid || isOfflineStatus(state.backendHealth.status)) {
+    return;
+  }
+  const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions/cancel`;
+  const payload: CommunitySuggestionCancelPayload = {
+    exeName,
+    gameId,
+    installUuid: state.installUuid,
+  };
+  try {
+    const response =
+      await requestJsonResponse<CommunitySuggestionCancelResponse>(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify(payload),
+      });
+    if (!response.ok) throw responseError(response);
+    logRuntime(
+      `software suggestion withdrawn ${exeName} -> ${gameId} status=${response.data.status}`,
+    );
+  } catch (error) {
+    logRuntime(
+      `software suggestion withdraw failed ${exeName}: ${formatError(error)}`,
+    );
+  }
+}
+
+// Shared tools wait as local "tool" entries. Approval moves them to the
+// community entry; rejection keeps the local tool with the review note.
+function applyToolContributions(
+  exeCache: Map<string, ExeCacheEntry>,
+  contributions: Contribution[],
+) {
+  let next = exeCache;
+  for (const contribution of contributions) {
+    if (contribution.gameKind !== "tool") continue;
+    const key = contribution.value.toLowerCase();
+    const entry = next.get(key);
+    if (
+      entry?.state !== "tool" ||
+      entry.communitySuggestionId === undefined ||
+      (entry.communitySuggestionId !== contribution.gameId &&
+        !contribution.mergedFromGameIds?.includes(entry.communitySuggestionId))
+    ) {
+      continue;
+    }
+    const approved = contribution.status === "verified";
+    if (next === exeCache) next = new Map(exeCache);
+    next.set(key, {
+      ...entry,
+      communitySuggestionId: contribution.gameId,
+      communitySuggestionVerified: approved,
+      communitySuggestionStatus: contribution.status,
+      communitySuggestionNote: contribution.reviewNote,
+      ...(approved
+        ? {
+            gameId: contribution.gameId,
+            source: "community" as const,
+            gameName: contribution.gameName,
+            coverUrl: contribution.coverUrl || entry.coverUrl,
+          }
+        : {}),
+    });
+  }
+  return next;
 }
 
 // Folds elapsed runtime for every discovered-but-unmatched executable forward
@@ -5361,6 +5728,7 @@ export async function pollContributions(
       }
       return {
         ...localLinks,
+        exeCache: applyToolContributions(localLinks.exeCache, body.items),
         activeSessions: current.activeSessions.map(updateSession),
         recentSessions: current.recentSessions.map(updateSession),
         emulatorMappings,
@@ -6656,6 +7024,7 @@ export function clearLocalLibrary() {
     journalTarget: null,
     playtimeAdjustments: {},
     customHeroArt: {},
+    toolUsage: {},
     autoDetectedGameKeys: [],
     libraryImports: new Map(),
     playcounterLibrary: new Map(),

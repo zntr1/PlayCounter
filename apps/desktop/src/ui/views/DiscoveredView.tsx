@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import {
+  AppWindow,
   Check,
   CheckCircle,
   EyeOff,
@@ -40,6 +41,7 @@ import {
   type DiscoveryStatus,
 } from "../../discoveredReview";
 import { ExeIcon } from "../ExeIcon";
+import { SoftwareDialog } from "../SoftwareDialog";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import { Panel, SourceBadge } from "../components";
 import {
@@ -258,6 +260,7 @@ export function DiscoveredView() {
   const [pendingExe, setPendingExe] = useState<string | null>(null);
   const [customGameExe, setCustomGameExe] = useState<string | null>(null);
   const [customGameName, setCustomGameName] = useState("");
+  const [softwareTarget, setSoftwareTarget] = useState<string | null>(null);
   const [suggestionTarget, setSuggestionTarget] = useState<{
     key: string;
     exeName: string;
@@ -854,6 +857,13 @@ export function DiscoveredView() {
                       }
                       startCommunitySuggestion(activeReviewItem.exeName);
                     }}
+                    onMarkSoftware={() => {
+                      if (activeReviewItem.isTutorial) {
+                        showTutorialProcessNotice();
+                        return;
+                      }
+                      setSoftwareTarget(activeReviewItem.exeName);
+                    }}
                     onSkip={handleSkip}
                     onSelectReview={(key) => setActiveReviewKey(key)}
                   />
@@ -912,6 +922,7 @@ export function DiscoveredView() {
                     onSuggest={() =>
                       startCommunitySuggestion(executable.exeName)
                     }
+                    onMarkSoftware={() => setSoftwareTarget(executable.exeName)}
                     onUnignore={() =>
                       void updateUserIgnored(executable.exeName, false)
                     }
@@ -956,6 +967,13 @@ export function DiscoveredView() {
           )}
         </div>
       </Panel>
+      {softwareTarget ? (
+        <SoftwareDialog
+          exeName={softwareTarget}
+          isOffline={isOffline}
+          onClose={() => setSoftwareTarget(null)}
+        />
+      ) : null}
       {suggestionTarget ? (
         <CommunitySuggestionForm
           key={suggestionTarget.key}
@@ -1029,6 +1047,7 @@ export function TriageWizardCard({
   onCancelCustomGame,
   onCustomGameNameChange,
   onIgnore,
+  onMarkSoftware,
   onRecheck,
   onSaveCustomGame,
   onStartCustomGame,
@@ -1052,6 +1071,7 @@ export function TriageWizardCard({
   onSaveCustomGame: () => void;
   onStartCustomGame: () => void;
   onSuggest: () => void;
+  onMarkSoftware: () => void;
   onSkip: () => void;
   onSelectReview: (key: string) => void;
 }) {
@@ -1283,7 +1303,7 @@ export function TriageWizardCard({
           </form>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Button
             data-tour="discovered-add-share"
             variant="primary"
@@ -1308,6 +1328,16 @@ export function TriageWizardCard({
             className="h-12 w-full text-sm"
           >
             Add as Custom
+          </Button>
+          <Button
+            variant="secondary"
+            icon={AppWindow}
+            disabled={isPending || isRetrying || isCustomGameEntryOpen}
+            title="Discord, Spotify, a launcher: counted apart from your games"
+            onClick={onMarkSoftware}
+            className="h-12 w-full text-sm"
+          >
+            It's Software
           </Button>
           <Button
             data-tour="discovered-ignore"
@@ -1347,6 +1377,7 @@ function DiscoveredExecutableRow({
   onCancelCustomGame,
   onCustomGameNameChange,
   onIgnore,
+  onMarkSoftware,
   onRecheck,
   onSaveCustomGame,
   onStartCustomGame,
@@ -1370,6 +1401,7 @@ function DiscoveredExecutableRow({
   onSaveCustomGame: () => void;
   onStartCustomGame: () => void;
   onSuggest: () => void;
+  onMarkSoftware: () => void;
   onUnignore: () => void;
   allowTrackingChanges: boolean;
   unmatchedRetryDays: number;
@@ -1513,6 +1545,12 @@ function DiscoveredExecutableRow({
                   title="Add as custom game (do not share)"
                   disabled={isPending || isRetrying}
                   onClick={onStartCustomGame}
+                />
+                <IconButton
+                  icon={AppWindow}
+                  title="It's software (Discord, Spotify, a launcher)"
+                  disabled={isPending || isRetrying}
+                  onClick={onMarkSoftware}
                 />
                 <IconButton
                   icon={RotateCcw}

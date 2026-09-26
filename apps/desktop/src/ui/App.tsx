@@ -4,6 +4,7 @@ import { TourPracticeSurface } from "./tour/TourPracticeSurface";
 import { findTour } from "./tour/tourDefinitions";
 import {
   AlertTriangle,
+  AppWindow,
   ArrowLeft,
   BarChart3,
   Bug,
@@ -88,6 +89,7 @@ import { NowEmulatingView } from "./views/NowEmulatingView";
 import { DolphinView, DosboxView, Pcsx2View } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
+import { SoftwareView } from "./views/SoftwareView";
 import { HelpButton, TourOverlay, WelcomePrompt } from "./tour/TourUI";
 import { emulatorTourDemoActive } from "./tour/tourDemoGame";
 import { shouldShowWelcome } from "./tour/tourState";
@@ -196,6 +198,12 @@ const views: Record<
     imageSrc: emulatorAssetUrls.pcsx2,
     component: <Pcsx2View />,
   },
+  software: {
+    label: "Software",
+    subtitle: "Apps like Discord and launchers, kept apart from your games",
+    icon: AppWindow,
+    component: <SoftwareView />,
+  },
   games: {
     label: "My Games",
     subtitle: "Every game PlayCounter has tracked for you",
@@ -276,7 +284,7 @@ const sidebarSections: Array<{
   {
     id: "emulators",
     label: "Tools",
-    items: ["emulating", "dosbox", "dolphin", "pcsx2"],
+    items: ["emulating", "dosbox", "dolphin", "pcsx2", "software"],
   },
   { id: "system", label: "System", items: ["discovered", "settings", "dev"] },
 ];
@@ -410,6 +418,7 @@ export function App() {
   const ignoredEmulatorSet = new Set(
     ignoredEmulatorIds.map((id) => id.toLowerCase()),
   );
+  const trackTools = useAppStore((state) => state.settings.trackTools === true);
   const emulatorIsRunning = useAppStore((state) => {
     if (state.settings.emulatorDetection === false) return false;
     const ignored = new Set(
@@ -765,18 +774,20 @@ export function App() {
         >
           <div className="mx-3 mb-4 h-px bg-border/60" aria-hidden="true" />
           {sidebarSections.map((section, sectionIndex) => {
-            if (
+            // The Tools section holds the emulators and Software; each part
+            // hides on its own.
+            const emulatorsHidden =
               section.id === "emulators" &&
               !emulatorTourDemo &&
               (!emulatorDetectionEnabled ||
                 [...knownEmulators.keys()].every((id) =>
                   ignoredEmulatorSet.has(id.toLowerCase()),
-                ))
-            ) {
-              return null;
-            }
+                ));
             const items = section.items.filter(
               (item) =>
+                (item === "software"
+                  ? trackTools || activeView === "software"
+                  : !emulatorsHidden) &&
                 (item !== "dev" || devToolsEnabled) &&
                 (item !== "emulating" ||
                   emulatorTourDemo ||

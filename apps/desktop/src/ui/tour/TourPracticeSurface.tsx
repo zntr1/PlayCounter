@@ -149,6 +149,11 @@ function DetectionPractice({ stepId }: { stepId: string }) {
                 "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.",
               )
             }
+            onMarkSoftware={() =>
+              setResult(
+                "Sample marked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
+              )
+            }
             onSkip={() =>
               setResult(
                 "Skipped for now. In Discovered, this app stays in Needs review.",
