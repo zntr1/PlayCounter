@@ -783,6 +783,7 @@ export function SettingsView() {
           </SettingsRow>
 
           <SettingsRow
+            dataTour="settings-install-in-steam"
             description="For imported Steam games that are no longer installed, show a button that opens Steam's installer where Play would be. Needs direct game launching turned on."
             title={
               <span className="flex items-center gap-2">
@@ -1092,11 +1093,13 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
+        dataTour="settings-library-import"
         description="Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, or Epic Games. Install paths and the game files linked to them always stay on this PC."
         title="Library import"
       >
         {currentPlatform() === "windows" ? (
           <SettingsRow
+            dataTour="settings-auto-add"
             description="After your first import from Steam, Battle.net or Epic Games, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is."
             title="Add new games automatically"
           >

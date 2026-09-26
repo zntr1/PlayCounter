@@ -490,6 +490,9 @@ function PracticeLibrary({
               showMatch={settings.libraryShowMatchBadges !== false}
               showStatus={settings.libraryShowStatusBadges !== false}
               showNotes={settings.libraryShowNoteBadges !== false}
+              showTrackingWarnings={
+                settings.libraryShowTrackingWarnings !== false
+              }
               setMyGamesGridColumns={(v) => setting("libraryGridColumns", v)}
               setMyGamesShowShelves={(v) => setting("libraryShowShelves", v)}
               setMyGamesShowOriginBadges={(v) =>
@@ -503,6 +506,9 @@ function PracticeLibrary({
               }
               setMyGamesShowNoteBadges={(v) =>
                 setting("libraryShowNoteBadges", v)
+              }
+              setMyGamesShowTrackingWarnings={(v) =>
+                setting("libraryShowTrackingWarnings", v)
               }
             />
           </div>
@@ -571,6 +577,9 @@ function PracticeLibrary({
               showDurationDays={settings.showDurationDays}
               showOrigin={settings.libraryShowOriginBadges !== false}
               showMatch={settings.libraryShowMatchBadges !== false}
+              showTrackingWarning={
+                settings.libraryShowTrackingWarnings !== false
+              }
               view="grid"
               onRemove={() => {}}
               onDragGame={drag.start}

@@ -99,10 +99,12 @@ type CardProps = {
   showMatch: boolean;
   showStatus: boolean;
   showNotes: boolean;
+  showTrackingWarnings: boolean;
   setMyGamesShowOriginBadges: (value: boolean) => void;
   setMyGamesShowMatchBadges: (value: boolean) => void;
   setMyGamesShowStatusBadges: (value: boolean) => void;
   setMyGamesShowNoteBadges: (value: boolean) => void;
+  setMyGamesShowTrackingWarnings: (value: boolean) => void;
 };
 
 function useFieldId() {
@@ -200,10 +202,12 @@ export function LibraryCardControls({
   showMatch,
   showStatus,
   showNotes,
+  showTrackingWarnings,
   setMyGamesShowOriginBadges,
   setMyGamesShowMatchBadges,
   setMyGamesShowStatusBadges,
   setMyGamesShowNoteBadges,
+  setMyGamesShowTrackingWarnings,
 }: CardProps) {
   const { practice, fieldId } = useFieldId();
   return (
@@ -237,6 +241,13 @@ export function LibraryCardControls({
         checked={showNotes}
         dataTour={practice ? "demo-show-notes" : undefined}
         onChange={setMyGamesShowNoteBadges}
+      />
+      <OptionRow
+        id={fieldId("show-tracking-warnings")}
+        label="Tracking warnings"
+        help="The warning sign on games with no known .exe yet."
+        checked={showTrackingWarnings}
+        onChange={setMyGamesShowTrackingWarnings}
       />
     </>
   );

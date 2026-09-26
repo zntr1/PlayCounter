@@ -700,6 +700,9 @@ export function MyGamesView({
   const showNotes = useAppStore(
     (state) => state.settings.libraryShowNoteBadges !== false,
   );
+  const showTrackingWarnings = useAppStore(
+    (state) => state.settings.libraryShowTrackingWarnings !== false,
+  );
   const setMyGamesCardSize = useAppStore((state) => state.setMyGamesCardSize);
   const setMyGamesGridColumns = useAppStore(
     (state) => state.setMyGamesGridColumns,
@@ -716,6 +719,9 @@ export function MyGamesView({
   );
   const setMyGamesShowNoteBadges = useAppStore(
     (state) => state.setMyGamesShowNoteBadges,
+  );
+  const setMyGamesShowTrackingWarnings = useAppStore(
+    (state) => state.setMyGamesShowTrackingWarnings,
   );
   const highResCovers = useAppStore(
     (state) => state.settings.libraryHighResCovers === true,
@@ -2167,10 +2173,14 @@ export function MyGamesView({
                         showMatch={showMatch}
                         showStatus={showStatus}
                         showNotes={showNotes}
+                        showTrackingWarnings={showTrackingWarnings}
                         setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
                         setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
                         setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
                         setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                        setMyGamesShowTrackingWarnings={
+                          setMyGamesShowTrackingWarnings
+                        }
                       />
                     </CustomizeSection>
 
@@ -2413,6 +2423,7 @@ export function MyGamesView({
                           showDurationDays={showDurationDays}
                           showOrigin={showOrigin}
                           showMatch={showMatch}
+                          showTrackingWarning={showTrackingWarnings}
                           view={view}
                           onRemove={requestRemoval}
                           onStopTracking={
@@ -2675,6 +2686,7 @@ export function GameLibraryCard({
   showDurationDays,
   showOrigin,
   showMatch,
+  showTrackingWarning,
   view,
   onRemove,
   onStopTracking,
@@ -2696,6 +2708,7 @@ export function GameLibraryCard({
   showDurationDays: boolean;
   showOrigin: boolean;
   showMatch: boolean;
+  showTrackingWarning: boolean;
   view: ViewMode;
   onRemove: (game: GameSummary) => void;
   onStopTracking?: (game: GameSummary) => void;
@@ -3199,6 +3212,8 @@ export function GameLibraryCard({
     (game.source && game.exeNames[0]) ||
     (trackingUnavailable && matchCheckImportEntry),
   );
+  const trackingWarningVisible =
+    showTrackingWarning && trackingUnavailable && !libraryMatchOffer;
   const trackingWarningMessage = trackingUnavailableMessage(
     importedProviders,
     canCheckMatches,
@@ -4855,7 +4870,7 @@ export function GameLibraryCard({
             />
           ) : null}
 
-          {trackingUnavailable && !libraryMatchOffer ? (
+          {trackingWarningVisible ? (
             <div className="peer/tracking-warning group/tracking-warning absolute right-2 top-2 z-40">
               <span
                 role="img"
@@ -4885,9 +4900,9 @@ export function GameLibraryCard({
             <div
               className={clsx(
                 "game-card-hover-actions absolute right-2 z-30 flex translate-x-2 flex-col gap-1.5 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 focus-within:translate-x-0 focus-within:opacity-100 peer-hover/provenance:pointer-events-none peer-hover/provenance:!opacity-0",
-                trackingUnavailable &&
+                trackingWarningVisible &&
                   "peer-focus-within/tracking-warning:pointer-events-none peer-focus-within/tracking-warning:!opacity-0 peer-hover/tracking-warning:pointer-events-none peer-hover/tracking-warning:!opacity-0",
-                trackingUnavailable && !libraryMatchOffer ? "top-12" : "top-2",
+                trackingWarningVisible ? "top-12" : "top-2",
                 launchTourDemo && "translate-x-0 opacity-100",
               )}
             >

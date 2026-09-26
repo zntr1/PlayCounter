@@ -560,6 +560,7 @@ export type AppState = {
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
   setMyGamesShowStatusBadges: (enabled: boolean) => void;
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
+  setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
   setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
   setMyGamesShowShelves: (enabled: boolean) => void;
@@ -629,6 +630,7 @@ const defaultSettings: Settings = {
   libraryShowMatchBadges: true,
   libraryShowStatusBadges: true,
   libraryShowNoteBadges: true,
+  libraryShowTrackingWarnings: true,
   libraryHighResCovers: false,
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
   libraryShowStatCards: true,
@@ -1658,6 +1660,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowNoteBadges: (libraryShowNoteBadges) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowNoteBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowTrackingWarnings: (libraryShowTrackingWarnings) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowTrackingWarnings },
     }));
     persistSoon();
   },

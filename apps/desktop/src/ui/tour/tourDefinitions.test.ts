@@ -228,6 +228,7 @@ describe("tour definitions", () => {
       "learned",
       "set-forget",
       "limits",
+      "uninstalled",
       "privacy",
       "controller",
     ]);
@@ -261,16 +262,18 @@ describe("tour definitions", () => {
       "launcher",
       "emulators",
       "sharing",
+      "library-import",
       "backup",
       "updates",
     ]);
     // Windows-only panels are skipped elsewhere instead of showing an empty step.
     for (const id of ["notifications", "launcher"])
       expect(guide.steps.find((step) => step.id === id)?.optional).toBe(true);
-    // Import replaces data: the backup step only points at the panel.
-    expect(guide.steps.find((step) => step.id === "backup")?.interactive).toBe(
-      undefined,
-    );
+    // Import replaces data and Forget deletes it: these steps only point.
+    for (const id of ["backup", "library-import"])
+      expect(guide.steps.find((step) => step.id === id)?.interactive).toBe(
+        undefined,
+      );
   });
 
   it("offers read-only backup and feedback guides alongside the practice tours", () => {
