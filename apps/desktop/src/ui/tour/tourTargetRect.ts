@@ -55,9 +55,11 @@ export function findTourTarget(
   return dialog ?? null;
 }
 
+/** Read-only fields are skipped: the hotkey recorder starts listening on
+ *  focus and would swallow the keys that page through the guide. */
 export function tourFocusTarget(element: HTMLElement | null) {
   const selector =
-    'button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"]):not(:disabled)';
+    'button:not(:disabled),a[href],input:not(:disabled):not([readonly]),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"]):not(:disabled)';
   if (element?.matches(selector)) return element;
   const preferred = element?.querySelector<HTMLElement>("[data-autofocus]");
   if (preferred?.matches(selector)) return preferred;

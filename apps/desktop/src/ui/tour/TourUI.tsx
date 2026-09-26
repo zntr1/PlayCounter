@@ -33,6 +33,13 @@ import { backStepIndex, nextStepIndex } from "./tourNavigation";
 import { shouldShowWelcome } from "./tourState";
 
 const TOUR_EVENT = "playcounter:tour-event";
+// A real dialog the app opened from a highlighted control, e.g. a confirmation
+// behind a setting. It belongs to that control: it takes clicks and keys, and
+// its own backdrop replaces the guide's. Practice dialogs carry data-tour and
+// stay under the guide's control.
+const APP_MODAL = "[data-modal-backdrop]:not([data-tour])";
+const insideAppModal = (target: EventTarget | null) =>
+  target instanceof Element && Boolean(target.closest(APP_MODAL));
 
 const HELP_TOUR_GROUPS = TOUR_CATEGORIES.map((category) => ({
   ...category,
@@ -438,6 +445,7 @@ function TourRunner() {
   const [rect, setRect] = useState<TourTargetRect | null>(null);
   const [additionalRects, setAdditionalRects] = useState<TourTargetRect[]>([]);
   const [missing, setMissing] = useState(false);
+  const [appModalOpen, setAppModalOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const outcomeRef = useRef<HTMLParagraphElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -572,6 +580,7 @@ function TourRunner() {
     window.addEventListener("wheel", stopReveal, { passive: true });
     window.addEventListener("touchmove", stopReveal, { passive: true });
     const update = () => {
+      setAppModalOpen(Boolean(document.querySelector(APP_MODAL)));
       const element = findTourTarget(step);
       if (element) {
         if (element !== previousTarget) {
@@ -729,6 +738,7 @@ function TourRunner() {
     if (!step) return;
     const allow = [
       ...(step.allow ?? []),
+      APP_MODAL,
       ...(step.interactive && sandbox
         ? [
             '[data-tour="demo-library-stage"]',
@@ -771,6 +781,8 @@ function TourRunner() {
     document.addEventListener("focusin", focus, true);
     const tab = (event: KeyboardEvent) => {
       if (event.key !== "Tab" || event.defaultPrevented) return;
+      // An open dialog keeps Tab inside itself.
+      if (document.querySelector(APP_MODAL)) return;
       const selector =
         'button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])';
       const roots = [
@@ -828,6 +840,7 @@ function TourRunner() {
         event.ctrlKey ||
         event.metaKey ||
         event.shiftKey ||
+        insideAppModal(event.target) ||
         (!(
           event.target instanceof Element &&
           event.target.closest("[data-tour-card]")
@@ -856,7 +869,8 @@ function TourRunner() {
         event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
-        acceptsText(event.target)
+        acceptsText(event.target) ||
+        insideAppModal(event.target)
       )
         return;
       event.preventDefault();
@@ -870,7 +884,12 @@ function TourRunner() {
     window.addEventListener("keydown", handleSpace, true);
     window.addEventListener("keyup", handleSpace, true);
     const handler = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing) return;
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        insideAppModal(event.target)
+      )
+        return;
       if (event.key === "Escape") {
         // An open practice dialog or menu handles its own Escape first.
         const insideCard =
@@ -938,22 +957,25 @@ function TourRunner() {
     startTour("settings");
   };
   const isLast = active.stepIndex === tour.steps.length - 1;
-  const hasOwnBackdrop = step.id === "fill-dialog";
+  const hasOwnBackdrop = step.id === "fill-dialog" || appModalOpen;
   const highlightedRects = rect ? [rect, ...additionalRects] : [];
   // Keep the surrounding practice visible without drawing nested rings around
   // both the active control and its enclosing stage or dialog.
-  const outlinedRects = rect
-    ? [
-        rect,
-        ...additionalRects.filter(
-          (other) =>
-            other.left >= rect.left + rect.width ||
-            other.left + other.width <= rect.left ||
-            other.top >= rect.top + rect.height ||
-            other.top + other.height <= rect.top,
-        ),
-      ]
-    : [];
+  // A ring drawn over an app dialog would sit on top of it; the dialog's own
+  // backdrop already sets the section apart.
+  const outlinedRects =
+    rect && !appModalOpen
+      ? [
+          rect,
+          ...additionalRects.filter(
+            (other) =>
+              other.left >= rect.left + rect.width ||
+              other.left + other.width <= rect.left ||
+              other.top >= rect.top + rect.height ||
+              other.top + other.height <= rect.top,
+          ),
+        ]
+      : [];
 
   return createPortal(
     <div

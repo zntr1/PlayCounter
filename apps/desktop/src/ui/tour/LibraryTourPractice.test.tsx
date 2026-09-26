@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useAppStore } from "../../store";
@@ -855,4 +855,107 @@ it("finishes a guide when its last step is closed with Escape or ✕", async () 
   expect(useAppStore.getState().tourProgress.completed[other.id]).toBe(
     other.version,
   );
+});
+
+it("lets a dialog opened from a highlighted setting take clicks and keys, below no guide ring", async () => {
+  const { Modal } = await import("../primitives");
+  const confirmed = vi.fn();
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      return this.getAttribute("data-tour") === "settings-launcher"
+        ? new DOMRect(200, 100, 500, 400)
+        : new DOMRect(0, 0, 0, 0);
+    },
+  );
+  function Section() {
+    const [open, setOpen] = useState(false);
+    return (
+      <div data-tour="settings-launcher">
+        <button data-open onClick={() => setOpen(true)}>
+          Turn off
+        </button>
+        {open ? (
+          <Modal
+            labelId="confirm-title"
+            title="Stop remembering launch paths?"
+            onClose={() => setOpen(false)}
+          >
+            <button
+              data-confirm
+              onClick={() => {
+                confirmed();
+                setOpen(false);
+              }}
+            >
+              Stop remembering
+            </button>
+          </Modal>
+        ) : null}
+      </div>
+    );
+  }
+  await act(() =>
+    root.render(
+      <>
+        <Section />
+        <TourOverlay />
+      </>,
+    ),
+  );
+  await act(() => useAppStore.getState().startTour("settings"));
+  await goTo("launcher");
+  expect(document.querySelector(".tour-ring")).not.toBeNull();
+
+  const open = () =>
+    act(() =>
+      document.querySelector<HTMLButtonElement>("[data-open]")!.click(),
+    );
+  await open();
+  await frame();
+  expect(document.querySelector(".tour-ring")).toBeNull();
+
+  // Escape closes the dialog, not the guide.
+  await act(() =>
+    document
+      .querySelector("[data-confirm]")!
+      .dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+  );
+  expect(document.querySelector("[data-confirm]")).toBeNull();
+  expect(useAppStore.getState().activeTour).not.toBeNull();
+
+  await open();
+  await act(() =>
+    document.querySelector<HTMLButtonElement>("[data-confirm]")!.click(),
+  );
+  expect(confirmed).toHaveBeenCalledTimes(1);
+  expect(document.querySelector("[data-confirm]")).toBeNull();
+  await frame();
+  expect(document.querySelector(".tour-ring")).not.toBeNull();
+});
+
+it("does not start the hotkey recorder when the guide reaches Keyboard shortcuts", async () => {
+  await act(() =>
+    root.render(
+      <>
+        <div data-tour="settings-shortcuts">
+          <input readOnly aria-label="Bring PlayCounter to front hotkey" />
+          <button disabled>Save</button>
+          <button>Clear</button>
+        </div>
+        <TourOverlay />
+      </>,
+    ),
+  );
+  await act(() => useAppStore.getState().startTour("settings"));
+  await goTo("shortcuts");
+  await frame();
+  expect(document.activeElement?.textContent).toBe("Clear");
+  await act(() =>
+    document.activeElement!.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+    ),
+  );
+  expect(currentStep().id).not.toBe("shortcuts");
 });
