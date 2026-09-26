@@ -146,6 +146,46 @@ class ImporterErrorBoundary extends Component<
   }
 }
 
+// A page that throws while rendering must not take the whole window with it:
+// tracking and update checks start from App and keep running, and switching
+// to another page tries again.
+class PageErrorBoundary extends Component<
+  { view: string; children: ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error(`${this.props.view} page failed to render`, error, info);
+  }
+
+  componentDidUpdate(previous: { view: string }) {
+    if (this.state.error && previous.view !== this.props.view) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div
+          role="alert"
+          className="mt-5 rounded-lg border border-danger-border bg-danger-tint px-4 py-3 text-sm text-danger"
+        >
+          This page couldn't be shown: {this.state.error.message}. Tracking
+          keeps running. Open another page, or send feedback if this keeps
+          happening.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function backToMyGames() {
   const { libraryImportProvider, setActiveView, setLibraryTab } =
     useAppStore.getState();
@@ -1101,54 +1141,58 @@ export function App() {
                 <div className="view-backdrop-shade absolute inset-0" />
               </div>
             ) : null}
-            {activeView !== "games" && showViewBanner && !parkedInTray ? (
-              <ViewBanner
-                view={activeView}
-                onArtworkChange={setViewBannerArt}
-              />
-            ) : null}
-            {activeView !== "games" ? (
-              <ViewHeading
-                label={activeViewLabel}
-                subtitle={activeViewSubtitle}
-                action={
-                  !activeTour &&
-                  activeView !== "now" &&
-                  activeView !== "history" ? (
-                    <Button
-                      variant="ghost"
-                      icon={viewBannerEnabled ? EyeOff : ImageIcon}
-                      aria-pressed={viewBannerEnabled}
-                      title={`${viewBannerEnabled ? "Hide" : "Show"} banner in ${activeViewLabel}`}
-                      onClick={() =>
-                        setViewShowHero(activeView, !viewBannerEnabled)
-                      }
-                      className="shrink-0 text-xs"
-                    >
-                      {viewBannerEnabled ? "Hide banner" : "Show banner"}
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ) : null}
-            {!tour?.simulation &&
-            !parkedInTray &&
-            activeView !== "import" &&
-            activeView !== "games"
-              ? views[activeView].component
-              : null}
-            {activeView === "games" && !renderGames && !practiceStep ? (
-              <PlayCounterLoader
-                label="Loading your games…"
-                className="min-h-[320px] text-text-muted"
-              />
-            ) : null}
+            <PageErrorBoundary view={activeView}>
+              {activeView !== "games" && showViewBanner && !parkedInTray ? (
+                <ViewBanner
+                  view={activeView}
+                  onArtworkChange={setViewBannerArt}
+                />
+              ) : null}
+              {activeView !== "games" ? (
+                <ViewHeading
+                  label={activeViewLabel}
+                  subtitle={activeViewSubtitle}
+                  action={
+                    !activeTour &&
+                    activeView !== "now" &&
+                    activeView !== "history" ? (
+                      <Button
+                        variant="ghost"
+                        icon={viewBannerEnabled ? EyeOff : ImageIcon}
+                        aria-pressed={viewBannerEnabled}
+                        title={`${viewBannerEnabled ? "Hide" : "Show"} banner in ${activeViewLabel}`}
+                        onClick={() =>
+                          setViewShowHero(activeView, !viewBannerEnabled)
+                        }
+                        className="shrink-0 text-xs"
+                      >
+                        {viewBannerEnabled ? "Hide banner" : "Show banner"}
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : null}
+              {!tour?.simulation &&
+              !parkedInTray &&
+              activeView !== "import" &&
+              activeView !== "games"
+                ? views[activeView].component
+                : null}
+              {activeView === "games" && !renderGames && !practiceStep ? (
+                <PlayCounterLoader
+                  label="Loading your games…"
+                  className="min-h-[320px] text-text-muted"
+                />
+              ) : null}
+            </PageErrorBoundary>
             {renderGames ? (
               <div hidden={activeView !== "games" || Boolean(practiceStep)}>
-                <MyGamesView
-                  renderContent={gamesOpened || activeView === "games"}
-                  parked={parkedInTray}
-                />
+                <PageErrorBoundary view={activeView}>
+                  <MyGamesView
+                    renderContent={gamesOpened || activeView === "games"}
+                    parked={parkedInTray}
+                  />
+                </PageErrorBoundary>
               </div>
             ) : null}
             {practiceStep && tour?.simulation ? (
