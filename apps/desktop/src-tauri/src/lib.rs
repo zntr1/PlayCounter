@@ -376,6 +376,7 @@ pub fn run() {
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
         .manage(library::battlenet_account::AccountState::default())
+        .manage(library::epic_account::EpicAccountState::default())
         .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
@@ -390,6 +391,7 @@ pub fn run() {
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION)
                 .with_filter(|label| {
                     !label.starts_with("battlenet-sign-in-")
+                        && !label.starts_with("epic-sign-in-")
                         && !label.starts_with(notification_overlay::OVERLAY_LABEL_PREFIX)
                 })
                 .build(),
@@ -468,8 +470,14 @@ pub fn run() {
             library::library_scan_xbox_local,
             library::battlenet_account::library_battlenet_account_games,
             library::battlenet_account::library_cancel_battlenet_account,
+            library::epic_account::library_epic_account_games,
+            library::epic_account::library_cancel_epic_account,
             library::library_inspect_executable,
             library::library_launch_app,
+            library::library_verify_installs,
+            library::library_installed_games,
+            library::watch_folders::watch_folder_game_folders,
+            library::watch_folders::watch_folder_scan,
             emulator_launch::launch_emulator_content,
             emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,

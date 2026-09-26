@@ -1,6 +1,7 @@
 #[cfg(any(windows, test))]
 use super::exe_scan::EXE_WALK_BUDGET;
 use super::exe_scan::{self, path_string, ScannedExecutable};
+use super::types::InstalledGame;
 use crate::launch::{LaunchError, LaunchErrorKind};
 use quick_xml::{events::Event, reader::Reader, XmlVersion};
 use serde::Serialize;
@@ -460,6 +461,76 @@ pub fn launch_app(external_id: &str, mode: &str) -> Result<(), LaunchError> {
             LaunchErrorKind::Unsupported,
             "Local Xbox launching is only available on Windows.",
         ))
+    }
+}
+
+/// Registered Xbox games on this PC, read from their MicrosoftGame.config
+/// without the executable walk.
+pub fn installed_games() -> Vec<InstalledGame> {
+    #[cfg(windows)]
+    {
+        let mut games = Vec::new();
+        for root in xbox_game_roots() {
+            let Ok(entries) = fs::read_dir(&root) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let Ok(file_type) = entry.file_type() else {
+                    continue;
+                };
+                if !file_type.is_dir() || file_type.is_symlink() {
+                    continue;
+                }
+                let Some(config_path) = game_config_path(&entry.path()) else {
+                    continue;
+                };
+                let Some(install_path) = config_path.parent() else {
+                    continue;
+                };
+                let Some(title_id) = read_game_config(&config_path)
+                    .ok()
+                    .and_then(|config| config.title_id)
+                    .and_then(|value| {
+                        u32::from_str_radix(value.trim().trim_start_matches("0x"), 16).ok()
+                    })
+                    .filter(|id| *id != 0)
+                else {
+                    continue;
+                };
+                if !install_is_registered(install_path) {
+                    continue;
+                }
+                games.push(InstalledGame {
+                    external_id: title_id.to_string(),
+                    install_path: path_string(install_path),
+                });
+            }
+        }
+        games
+    }
+
+    #[cfg(not(windows))]
+    {
+        Vec::new()
+    }
+}
+
+/// Whether Windows still has this Xbox title registered. Off Windows the answer
+/// is unknown, which must not be read as uninstalled.
+pub fn is_installed(external_id: &str) -> bool {
+    let Ok(title_id) = parse_external_id(external_id, "play") else {
+        return false;
+    };
+
+    #[cfg(windows)]
+    {
+        find_application_user_model_id(title_id).is_some()
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = title_id;
+        true
     }
 }
 

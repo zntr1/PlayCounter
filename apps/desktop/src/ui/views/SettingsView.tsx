@@ -48,6 +48,7 @@ import { currentPlatform } from "../../platform";
 import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
 import { AutomaticBackupSettings } from "../AutomaticBackupSettings";
+import { WatchFoldersSettings } from "../WatchFoldersSettings";
 import { ResetPlayCounterDialog } from "../ResetPlayCounterDialog";
 import { ResetSettingsDialog } from "../ResetSettingsDialog";
 import { HotkeyInput } from "../HotkeyInput";
@@ -111,6 +112,12 @@ export function SettingsView() {
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
+  const setShowInstallInSteam = useAppStore(
+    (state) => state.setShowInstallInSteam,
+  );
+  const setAutoAddInstalledGames = useAppStore(
+    (state) => state.setAutoAddInstalledGames,
+  );
   const setAutoShareIgnoredProcesses = useAppStore(
     (state) => state.setAutoShareIgnoredProcesses,
   );
@@ -146,6 +153,12 @@ export function SettingsView() {
     (state) =>
       [...state.libraryImports.values()].filter(
         (entry) => entry.provider === "battlenet",
+      ).length,
+  );
+  const importedEpicCount = useAppStore(
+    (state) =>
+      [...state.libraryImports.values()].filter(
+        (entry) => entry.provider === "epic",
       ).length,
   );
   const forgetLibraryLabel = confirmForgetLibrary
@@ -769,6 +782,23 @@ export function SettingsView() {
             />
           </SettingsRow>
 
+          <SettingsRow
+            description="For imported Steam games that are no longer installed, show a button that opens Steam's installer where Play would be. Needs direct game launching turned on."
+            title={
+              <span className="flex items-center gap-2">
+                <ProviderBadge provider="steam" variant="mark" />
+                Show Install in Steam
+              </span>
+            }
+          >
+            <Switch
+              aria-label="Show Install in Steam"
+              checked={settings.showInstallInSteam === true}
+              disabled={settings.gameLaunchingEnabled !== true}
+              onChange={(event) => setShowInstallInSteam(event.target.checked)}
+            />
+          </SettingsRow>
+
           <div className="rounded-lg border border-border bg-bg/40 px-4 py-3 text-xs leading-5 text-text-muted">
             PlayCounter starts the game file you picked directly, or hands a
             saved game file to a supported emulator. Games managed by a
@@ -1062,9 +1092,24 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Remove data imported from Steam, Xbox, or Battle.net. Install paths and the game files linked to them always stay on this PC."
+        description="Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, or Epic Games. Install paths and the game files linked to them always stay on this PC."
         title="Library import"
       >
+        {currentPlatform() === "windows" ? (
+          <SettingsRow
+            description="After your first import from Steam, Battle.net or Epic Games, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is."
+            title="Add new games automatically"
+          >
+            <Switch
+              aria-label="Add new games automatically"
+              checked={settings.autoAddInstalledGames !== false}
+              onChange={(event) =>
+                setAutoAddInstalledGames(event.target.checked)
+              }
+            />
+          </SettingsRow>
+        ) : null}
+        {currentPlatform() === "windows" ? <WatchFoldersSettings /> : null}
         <SettingsRow
           description="Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept."
           title={
@@ -1114,6 +1159,23 @@ export function SettingsView() {
             onClick={() => setConfirmForgetLibrary("battlenet")}
           >
             Forget {importedBattleNetCount || "all"}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          description="Removes the Epic Games mark, the imported Epic playtime, the game files Epic linked, and where they are installed. Sessions PlayCounter recorded itself are kept."
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="epic" variant="mark" />
+              Forget imported Epic Games data
+            </span>
+          }
+        >
+          <Button
+            variant="danger"
+            disabled={importedEpicCount === 0}
+            onClick={() => setConfirmForgetLibrary("epic")}
+          >
+            Forget {importedEpicCount || "all"}
           </Button>
         </SettingsRow>
       </SettingsPanel>

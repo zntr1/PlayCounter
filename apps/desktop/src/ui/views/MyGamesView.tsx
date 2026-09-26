@@ -1,3 +1,4 @@
+import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import {
   CustomizeSection,
   LibraryCardControls,
@@ -136,6 +137,7 @@ import {
   type LibraryExecutableMatch,
   type LibraryImportMatchCheck,
 } from "../../library/recheck";
+import { forgetUninstalledLibraryInstalls } from "../../library/installRecheck";
 import {
   libraryLaunchErrorMessage,
   shouldForgetLibraryInstallOnLaunchError,
@@ -1877,6 +1879,7 @@ export function MyGamesView({
             <ProviderBadge provider="steam" />
             <ProviderBadge provider="xbox" />
             <ProviderBadge provider="battlenet" />
+            <ProviderBadge provider="epic" />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-text-muted">Emulator</span>
@@ -2179,7 +2182,7 @@ export function MyGamesView({
                       <OptionRow
                         id="library-show-provider-tabs"
                         label="Launcher groups"
-                        help="Steam, Xbox and Battle.net as their own entries under My Games."
+                        help="Steam, Xbox, Battle.net and Epic Games as their own entries under My Games."
                         checked={showProviderTabs}
                         onChange={setMyGamesShowProviderTabs}
                       />
@@ -2933,6 +2936,9 @@ export function GameLibraryCard({
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
+  const installInSteamEnabled = useAppStore(
+    (state) => state.settings.showInstallInSteam === true,
+  );
   const isWindows = currentPlatform() === "windows";
   const canLaunchExecutables = isWindows && launcherEnabled;
   const canConfigureLaunch =
@@ -2978,6 +2984,12 @@ export function GameLibraryCard({
   const battleNetImportEntry = game.libraryImports.find(
     (entry) => entry.provider === "battlenet",
   );
+  const epicImportEntry = game.libraryImports.find(
+    (entry) => entry.provider === "epic",
+  );
+  const epicLaunchEntry = game.libraryImports.find(
+    (entry) => entry.provider === "epic" && entry.installed,
+  );
   const importedProviders = libraryProviders(game.libraryImports);
   const unknownDurationProviders = importedProviders.filter((provider) =>
     hasUnknownProviderPlaytime(game.libraryImports, provider),
@@ -3002,6 +3014,13 @@ export function GameLibraryCard({
     launcherEnabled,
     hasImport: Boolean(xboxImportEntry),
     installed: Boolean(xboxLaunchEntry),
+  });
+  const epicActions = libraryContextActions({
+    demo,
+    isWindows,
+    launcherEnabled,
+    hasImport: Boolean(epicImportEntry),
+    installed: Boolean(epicLaunchEntry),
   });
   const gameEmulatorMappings = useMemo(
     () =>
@@ -3034,10 +3053,21 @@ export function GameLibraryCard({
         primaryLaunchTarget ||
         primaryEmulatorTarget ||
         steamLaunchEntry ||
-        xboxLaunchEntry,
+        xboxLaunchEntry ||
+        epicLaunchEntry,
       ));
+  // An imported Steam game that is no longer installed offers Steam's
+  // installer where Play would be.
+  const showInstallInSteam =
+    installInSteamEnabled &&
+    !showPlayButton &&
+    !demo &&
+    canLaunchExecutables &&
+    Boolean(steamImportEntry) &&
+    !steamLaunchEntry;
   const showLaunchFooter =
     showPlayButton ||
+    showInstallInSteam ||
     launchTourDemo ||
     (!demo &&
       canLaunchExecutables &&
@@ -3062,14 +3092,21 @@ export function GameLibraryCard({
             ariaLabel: `Play ${game.name} in Steam`,
             title: "Play in Steam",
           }
-        : basePlayState;
+        : epicLaunchEntry && !primaryLaunchTarget && !primaryEmulatorTarget
+          ? {
+              ...basePlayState,
+              ariaLabel: `Play ${game.name} in Epic Games`,
+              title: "Play in Epic Games",
+            }
+          : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && !selectionMode && canLaunchExecutables;
   const hasPrimaryLaunchTarget = Boolean(
     primaryLaunchTarget ||
     primaryEmulatorTarget ||
     steamLaunchEntry ||
-    xboxLaunchEntry,
+    xboxLaunchEntry ||
+    epicLaunchEntry,
   );
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
@@ -3134,7 +3171,8 @@ export function GameLibraryCard({
     offeredImport ??
     steamImportEntry ??
     xboxImportEntry ??
-    battleNetImportEntry;
+    battleNetImportEntry ??
+    epicImportEntry;
   const libraryMatchOffer =
     !demo && trackingUnavailable && offeredImport
       ? libraryMatchOffers.get(
@@ -3174,6 +3212,7 @@ export function GameLibraryCard({
     showLaunchActions ||
     steamActions.showOpenInLauncher ||
     xboxActions.showOpenInLauncher ||
+    epicActions.showOpenInLauncher ||
     (!demo && isWindows && Boolean(battleNetImportEntry));
   const showMatchingActions =
     canCheckMatches ||
@@ -3668,6 +3707,7 @@ export function GameLibraryCard({
     } catch (error) {
       const message = launchErrorMessage(error, game.name);
       addToast({ tone: "error", ...message });
+      void forgetUninstalledLibraryInstalls(error, game.libraryImports);
     } finally {
       if (!keepLaunchFeedback) {
         setLaunching(false);
@@ -3734,8 +3774,12 @@ export function GameLibraryCard({
     }
   }
 
-  async function handleSteamLaunch() {
-    if (!steamLaunchEntry) return;
+  /** Starts an installed game through the launcher it was imported from. */
+  async function handleLauncherLaunch(
+    providerId: "steam" | "xbox" | "epic",
+    entry: { externalId: string } | undefined,
+  ) {
+    if (!entry) return;
     contextMenu.close();
     if (hasActiveSession) {
       addToast({
@@ -3757,20 +3801,24 @@ export function GameLibraryCard({
     let keepLaunchFeedback = false;
     try {
       const provider = await import("../../library/providers").then((module) =>
-        module.loadLibraryProvider("steam"),
+        module.loadLibraryProvider(providerId),
       );
-      await provider.launch(steamLaunchEntry.externalId);
+      await provider.launch(entry.externalId);
       keepLaunchFeedback = true;
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
     } catch (error) {
       if (shouldForgetLibraryInstallOnLaunchError(error)) {
-        removeLibraryInstall("steam", steamLaunchEntry.externalId);
+        removeLibraryInstall(providerId, entry.externalId);
       }
       addToast({
         tone: "error",
-        ...libraryLaunchErrorMessage(error, game.name, "Steam"),
+        ...libraryLaunchErrorMessage(
+          error,
+          game.name,
+          LIBRARY_PROVIDER_LABELS[providerId],
+        ),
       });
     } finally {
       if (!keepLaunchFeedback) {
@@ -3780,49 +3828,25 @@ export function GameLibraryCard({
     }
   }
 
-  async function handleXboxLaunch() {
-    if (!xboxLaunchEntry) return;
+  const handleSteamLaunch = () =>
+    handleLauncherLaunch("steam", steamLaunchEntry);
+  const handleXboxLaunch = () => handleLauncherLaunch("xbox", xboxLaunchEntry);
+  const handleEpicLaunch = () => handleLauncherLaunch("epic", epicLaunchEntry);
+
+  async function handleInstallInSteam() {
+    if (!steamImportEntry) return;
     contextMenu.close();
-    if (hasActiveSession) {
-      addToast({
-        tone: "info",
-        title: `${game.name} is already running`,
-        detail: "PlayCounter is already tracking this game.",
-      });
-      return;
-    }
-    if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
-      addToast({
-        tone: "info",
-        title: "A game is already starting",
-        detail: "Wait for PlayCounter to finish the current launch first.",
-      });
-      return;
-    }
-    setLaunching(true);
-    let keepLaunchFeedback = false;
     try {
       const provider = await import("../../library/providers").then((module) =>
-        module.loadLibraryProvider("xbox"),
+        module.loadLibraryProvider("steam"),
       );
-      await provider.launch(xboxLaunchEntry.externalId);
-      keepLaunchFeedback = true;
-      void scanProcessesNow().catch((error) =>
-        console.warn("post-launch process scan failed", error),
-      );
+      await provider.launch(steamImportEntry.externalId, "install");
     } catch (error) {
-      if (shouldForgetLibraryInstallOnLaunchError(error)) {
-        removeLibraryInstall("xbox", xboxLaunchEntry.externalId);
-      }
       addToast({
         tone: "error",
-        ...libraryLaunchErrorMessage(error, game.name, "Xbox"),
+        title: `Could not open ${game.name} in Steam`,
+        detail: launchErrorDetail(error),
       });
-    } finally {
-      if (!keepLaunchFeedback) {
-        setLaunching(false);
-        onReleaseLaunch(launchKey);
-      }
     }
   }
 
@@ -3857,6 +3881,22 @@ export function GameLibraryCard({
           error instanceof Error
             ? error.message
             : "Check that Battle.net is installed on this PC.",
+      });
+    }
+  }
+
+  async function handleOpenEpic() {
+    if (!epicImportEntry) return;
+    contextMenu.close();
+    try {
+      const { loadLibraryProvider } = await import("../../library/providers");
+      const provider = await loadLibraryProvider("epic");
+      await provider.launch(epicImportEntry.externalId, "store");
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Could not open Epic Games",
+        detail: formatError(error),
       });
     }
   }
@@ -3942,6 +3982,8 @@ export function GameLibraryCard({
       void handleEmulatorLaunch(primaryEmulatorMapping);
     } else if (steamLaunchEntry) {
       void handleSteamLaunch();
+    } else if (epicLaunchEntry) {
+      void handleEpicLaunch();
     } else {
       void handleLaunch();
     }
@@ -3954,6 +3996,8 @@ export function GameLibraryCard({
     }
     if (showPlayButton) {
       handlePreferredLaunch();
+    } else if (showInstallInSteam) {
+      void handleInstallInSteam();
     } else if (primaryEmulatorMapping && primaryEmulatorCandidate) {
       handleConfirmEmulatorCandidate(primaryEmulatorMapping);
     } else if (primaryEmulatorMapping) {
@@ -4098,6 +4142,13 @@ export function GameLibraryCard({
           >
             Play
           </ContextMenuItem>
+        ) : showInstallInSteam ? (
+          <ContextMenuItem
+            icon={Download}
+            onClick={() => void handleInstallInSteam()}
+          >
+            Install in Steam
+          </ContextMenuItem>
         ) : null}
         <ContextMenuItem
           icon={Info}
@@ -4216,6 +4267,25 @@ export function GameLibraryCard({
                   onClick={() => void handleOpenBattleNet()}
                 >
                   Open Battle.net
+                </ContextMenuItem>
+              </>
+            ) : null}
+            {epicActions.showOpenInLauncher ? (
+              <>
+                {epicActions.showPlayInLauncher ? (
+                  <ContextMenuItem
+                    icon={Play}
+                    disabled={hasActiveSession || launching || launchBlocked}
+                    onClick={() => void handleEpicLaunch()}
+                  >
+                    Play in Epic Games
+                  </ContextMenuItem>
+                ) : null}
+                <ContextMenuItem
+                  icon={ExternalLink}
+                  onClick={() => void handleOpenEpic()}
+                >
+                  Open Epic Games
                 </ContextMenuItem>
               </>
             ) : null}
@@ -5069,20 +5139,24 @@ export function GameLibraryCard({
             aria-label={
               showPlayButton
                 ? playState.ariaLabel
-                : primaryEmulatorCandidate
-                  ? `Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping?.label ?? "emulator"} game file for ${game.name}`
-                  : gameEmulatorMappings.length > 1
-                    ? `Choose an emulator launch option for ${game.name}`
-                    : `Set launch file for ${game.name}`
+                : showInstallInSteam
+                  ? `Install ${game.name} in Steam`
+                  : primaryEmulatorCandidate
+                    ? `Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping?.label ?? "emulator"} game file for ${game.name}`
+                    : gameEmulatorMappings.length > 1
+                      ? `Choose an emulator launch option for ${game.name}`
+                      : `Set launch file for ${game.name}`
             }
             title={
               showPlayButton
                 ? playState.title
-                : primaryEmulatorCandidate
-                  ? `Confirm ${primaryEmulatorCandidate.displayName} for ${game.name}`
-                  : gameEmulatorMappings.length > 1
-                    ? "Choose emulator game…"
-                    : "Set launch file…"
+                : showInstallInSteam
+                  ? "Install in Steam"
+                  : primaryEmulatorCandidate
+                    ? `Confirm ${primaryEmulatorCandidate.displayName} for ${game.name}`
+                    : gameEmulatorMappings.length > 1
+                      ? "Choose emulator game…"
+                      : "Set launch file…"
             }
             data-tour={launchTourDemo ? "demo-launch-play" : undefined}
             disabled={showPlayButton && playState.disabled}
@@ -5090,14 +5164,19 @@ export function GameLibraryCard({
             className={clsx(
               "flex shrink-0 items-center justify-center gap-2 border-t font-semibold transition disabled:cursor-not-allowed",
               isLarge ? "h-12 text-sm" : "h-10 text-xs",
-              !showPlayButton
+              !showPlayButton && !showInstallInSteam
                 ? "border-border text-text-faint hover:bg-surface-hover hover:text-text-muted"
                 : playButtonRunning
                   ? "border-success-border bg-success-tint text-success disabled:opacity-100"
                   : "border-accent/30 bg-accent-tint text-accent-ink hover:bg-accent hover:text-accent-fg",
             )}
           >
-            {!showPlayButton ? (
+            {showInstallInSteam ? (
+              <>
+                <Download size={isLarge ? 16 : 14} />
+                Install in Steam
+              </>
+            ) : !showPlayButton ? (
               <>
                 {primaryEmulatorCandidate ? (
                   <>
@@ -5547,6 +5626,14 @@ export function GameLibraryCard({
                 <Play size={15} />
               )}
             </IconButton>
+          ) : showInstallInSteam ? (
+            <IconButton
+              icon={Download}
+              aria-label={`Install ${game.name} in Steam`}
+              title="Install in Steam"
+              onClick={() => void handleInstallInSteam()}
+              className="shrink-0 border-accent/30 bg-accent-tint text-accent-ink hover:border-accent hover:bg-accent hover:text-accent-fg"
+            />
           ) : null}
 
           {!selectionMode ? (
@@ -6300,7 +6387,7 @@ function LibraryImportMatchCheckDialog({
       labelId="library-match-check-title"
       eyebrow={`${providerLabel} executable`}
       title={`Check matches for ${entry.name}`}
-      subtitle={`${providerLabel} ${entry.provider === "battlenet" ? "product" : entry.provider === "steam" ? "AppID" : "Title ID"} ${entry.externalId}`}
+      subtitle={`${providerLabel} ${entry.provider === "battlenet" ? "product" : entry.provider === "steam" ? "AppID" : entry.provider === "epic" ? "app name" : "Title ID"} ${entry.externalId}`}
       icon={Search}
       onClose={onCancel}
       footer={footer}

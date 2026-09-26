@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarDays,
   Clock3,
+  Download,
   ExternalLink,
   FolderOpen,
   Gamepad2,
@@ -58,12 +59,14 @@ const PROVIDER_LABEL: Record<LibraryProviderId, string> = {
   steam: "Steam",
   xbox: "Xbox",
   battlenet: "Battle.net",
+  epic: "Epic Games",
 };
 
 const PROVIDER_ID_LABEL: Record<LibraryProviderId, string> = {
   steam: "Steam AppID",
   xbox: "Xbox title ID",
   battlenet: "Battle.net product",
+  epic: "Epic app name",
 };
 
 type DetailsTab = "general" | "files";
@@ -236,7 +239,12 @@ export function GameDetailsDialog({
     onReleaseLaunch,
   });
   const launcher = demo
-    ? { ...realLauncher, canLaunch: false, launchTargets: [] }
+    ? {
+        ...realLauncher,
+        canLaunch: false,
+        canInstall: false,
+        launchTargets: [],
+      }
     : realLauncher;
   const [tab, setTab] = useState<DetailsTab>("general");
   const tabRefs = useRef<Record<DetailsTab, HTMLButtonElement | null>>({
@@ -634,6 +642,16 @@ export function GameDetailsDialog({
                 : launcher.launching
                   ? "Starting…"
                   : launcher.launchLabel}
+            </Button>
+          ) : launcher.canInstall ? (
+            <Button
+              variant="primary"
+              icon={Download}
+              aria-label={`Install ${game.name} in Steam`}
+              onClick={() => void launcher.install()}
+              className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
+            >
+              Install in Steam
             </Button>
           ) : null}
           <Button

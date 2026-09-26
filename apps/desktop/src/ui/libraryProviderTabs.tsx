@@ -1,5 +1,6 @@
 import type { LibraryProviderId, Platform } from "@playcounter/shared";
 import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
+import epicIconUrl from "../../../../assets/epic/epic.svg";
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import type { BuiltinImportProviderId } from "../library/importProviders";
@@ -68,6 +69,19 @@ export const PROVIDER_TAB_CONFIGS: readonly ProviderTabConfig[] = [
     emptyBody:
       "Sign in to include games from your Battle.net account, or scan installed games without signing in. PlayCounter tracks your future sessions.",
     firstImportCtaLabel: "Import from Battle.net",
+    import: { kind: "builtin", platforms: ["windows"] },
+  },
+  {
+    id: "epic",
+    label: "Epic Games",
+    iconUrl: epicIconUrl,
+    headline: "Epic Games library",
+    subtitle: "Games imported from your Epic Games account and this PC.",
+    importCtaLabel: "Import more from Epic Games",
+    emptyTitle: "No Epic Games games imported yet",
+    emptyBody:
+      "Sign in to bring in your Epic Games library with its playtime, or scan installed games without signing in. PlayCounter tracks your future sessions.",
+    firstImportCtaLabel: "Import from Epic Games",
     import: { kind: "builtin", platforms: ["windows"] },
   },
 ];

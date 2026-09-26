@@ -256,11 +256,17 @@ export function summarizeLibraryStats(
           ? normalizedSeconds(floors[providerFloorKey(game)] ?? 0)
           : normalizedSeconds(game.totalSeconds);
     // Xbox can report a game without a playtime figure. That is still evidence
-    // the game was played, so it must not count as "never played".
+    // the game was played, so it must not count as "never played". An Epic
+    // game found only on this PC has no playtime and no such evidence.
     const unknownPlaytime =
       provider !== null &&
       provider !== "battlenet" &&
-      hasUnknownProviderPlaytime(providerEntries, provider);
+      hasUnknownProviderPlaytime(
+        providerEntries.filter(
+          (item) => item.entry?.providerHasPlayedEvidence !== false,
+        ),
+        provider,
+      );
     const battleNetActivity =
       (provider === null || provider === "battlenet") &&
       game.libraryImports.some(

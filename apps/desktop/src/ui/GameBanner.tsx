@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import type { GameDetails } from "@playcounter/shared";
 import {
+  Download,
   Expand,
   History,
   Info,
@@ -262,6 +263,19 @@ export function GameBanner({
                   : launcher.launching
                     ? "Starting…"
                     : playLabel}
+              </Button>
+            ) : launcher.canInstall ? (
+              <Button
+                variant="primary"
+                icon={Download}
+                aria-label={`Install ${game.name} in Steam`}
+                onClick={() => void launcher.install()}
+                className={clsx(
+                  "library-hero-play rounded-lg font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
+                  compact ? "h-9 px-4 text-sm" : "h-12 px-6 text-[15px]",
+                )}
+              >
+                Install in Steam
               </Button>
             ) : null}
             <Button

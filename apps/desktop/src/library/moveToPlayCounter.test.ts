@@ -109,7 +109,9 @@ describe("moving a selection to PlayCounter", () => {
       expect(
         moveGamesToPlayCounter([game, other, local, { ...game, gameId: 99 }]),
       ).toBe(2);
-      expect(save).toHaveBeenCalledTimes(1);
+      expect(
+        save.mock.calls.filter(([key]) => key === STORAGE_KEY),
+      ).toHaveLength(1);
       expect(publish).toHaveBeenCalledTimes(1);
       expect([...useAppStore.getState().libraryImports.values()]).toEqual([
         unrelated,

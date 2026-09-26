@@ -18,6 +18,8 @@ export type LibraryScanOptions = {
   /** Explicit user action only; background scans must never open sign-in. */
   battleNetAccount?: boolean;
   battleNetProductIds?: readonly string[];
+  /** Explicit user action only; background scans must never open sign-in. */
+  epicAccount?: boolean;
 };
 
 export type LocalLibraryProvider = {
@@ -30,5 +32,8 @@ export type LocalLibraryProvider = {
     accountId: number,
     options?: LibraryScanOptions,
   ): Promise<LibraryScanResult>;
-  launch(externalId: string, mode?: "play" | "store"): Promise<void>;
+  launch(
+    externalId: string,
+    mode?: "play" | "store" | "install",
+  ): Promise<void>;
 };

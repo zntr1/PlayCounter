@@ -33,7 +33,7 @@ export type GameJournal = {
 };
 export type LibraryFilters = {
   search?: string;
-  source?: "all" | "steam" | "xbox" | "battlenet" | "unimported";
+  source?: "all" | "steam" | "xbox" | "battlenet" | "epic" | "unimported";
   status?: GameStatus | "none";
   favorite?: boolean;
   installed?: boolean;

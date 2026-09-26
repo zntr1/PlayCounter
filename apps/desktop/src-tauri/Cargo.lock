@@ -2749,6 +2749,8 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "quick-xml",
+ "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "sysinfo",

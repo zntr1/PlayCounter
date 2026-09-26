@@ -111,6 +111,30 @@ describe("my games stats", () => {
     });
   });
 
+  it("does not count an Epic game found only on this PC as played", () => {
+    const epicImport = (
+      providerSeconds: number | null,
+      providerHasPlayedEvidence: boolean,
+    ) => ({
+      provider: "epic" as const,
+      installed: true,
+      entry: { providerSeconds, providerHasPlayedEvidence },
+    });
+    const metrics = summarizeLibraryStats(
+      [
+        game(1, { igdbId: 10, libraryImports: [epicImport(null, false)] }),
+        game(2, { igdbId: 20, libraryImports: [epicImport(3_600, true)] }),
+      ],
+      {
+        provider: "epic",
+        providerFloorSeconds: { "igdb#20": 3_600 },
+        nowMs: NOW,
+      },
+    );
+
+    expect(metrics).toMatchObject({ games: 2, played: 1, unplayed: 1 });
+  });
+
   it("counts recent play from sessions, not from the date a game was added", () => {
     const metrics = summarizeLibraryStats(
       [

@@ -36,6 +36,8 @@ export async function resolveLibraryGames(
         key: `${provider}:${game.externalId}`,
         provider,
         externalId: game.externalId,
+        // IGDB indexes Epic offers, not app names; the title is the lookup.
+        ...(provider === "epic" && game.name ? { title: game.name } : {}),
       }));
     const response = await requestLibraryJson<LibraryResolveResponse>(
       libraryResolveUrl(apiEndpoint),
@@ -48,10 +50,11 @@ export async function resolveLibraryGames(
       },
     );
     signal?.throwIfAborted();
-    // Older servers reject the Battle.net provider in their Steam-only schema.
+    // Older servers reject newer providers in their Steam-only schema.
     if (
       [404, 405, 501].includes(response.status) ||
-      (provider === "battlenet" && response.status === 400)
+      ((provider === "battlenet" || provider === "epic") &&
+        response.status === 400)
     ) {
       return { capability: "unsupported", games: [] };
     }

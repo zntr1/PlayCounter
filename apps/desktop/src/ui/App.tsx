@@ -63,11 +63,13 @@ import { SidebarButton } from "./SidebarButton";
 import { GlobalSearch } from "./shell/GlobalSearch";
 import { GlobalTooltip } from "./shell/GlobalTooltip";
 import { HeaderLinks } from "./shell/HeaderLinks";
+import { MyGamesImportMenu } from "./shell/MyGamesImportMenu";
 import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
 import { useLibrarySources } from "./librarySources";
 import { ViewBanner } from "./ViewBanner";
 import { artSrcSet } from "./artSrcSet";
+import { useContextMenu } from "./ContextMenu";
 import {
   DEFAULT_CONTENT_SCALE,
   DEFAULT_MENU_SCALE,
@@ -351,7 +353,9 @@ export function App() {
         ? "Bring your Xbox games and playtime into PlayCounter"
         : libraryImportProvider === "battlenet"
           ? "Add your Battle.net games to PlayCounter"
-          : "Bring your Steam library and playtime into PlayCounter"
+          : libraryImportProvider === "epic"
+            ? "Bring your Epic Games library and playtime into PlayCounter"
+            : "Bring your Steam library and playtime into PlayCounter"
       : views[activeView].subtitle;
   const activeTour = useAppStore((state) => state.activeTour);
   const activeTourId = activeTour?.tourId ?? null;
@@ -456,6 +460,7 @@ export function App() {
     (state) => state.setSidebarSourcesCollapsed,
   );
   const libraryTab = useAppStore((state) => state.libraryTab);
+  const importMenu = useContextMenu();
   // The title bar uses the same image frame as the banner and its lower
   // continuation, darkened so the controls stay readable.
   const heroArt = useLibrarySources((state) =>
@@ -834,6 +839,11 @@ export function App() {
                             item !== "discovered" && item !== "dev"
                           }
                           dataTour={`nav-${item}`}
+                          onContextMenu={
+                            item === "games"
+                              ? importMenu.props.onContextMenu
+                              : undefined
+                          }
                           badge={
                             item === "discovered"
                               ? needsReviewCount
@@ -898,6 +908,14 @@ export function App() {
                           </button>
                         ) : null}
                         {showSources ? <SidebarSources /> : null}
+                        {item === "games" ? (
+                          <MyGamesImportMenu
+                            open={importMenu.open}
+                            position={importMenu.position}
+                            onClose={importMenu.close}
+                            anchorRef={importMenu.anchorRef}
+                          />
+                        ) : null}
                       </div>
                     );
                   })}

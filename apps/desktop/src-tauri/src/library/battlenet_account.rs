@@ -7,20 +7,22 @@ use tokio::sync::oneshot;
 
 const ACCOUNT_URL: &str = "https://account.battle.net/oauth2/authorization/account-settings";
 const READ_LIBRARY: &str = include_str!("battlenet_account.js");
-const CANCELLED: &str = "Battle.net sign-in was cancelled.";
+pub(super) const CANCELLED: &str = "Battle.net sign-in was cancelled.";
 
 #[derive(Default)]
 pub struct AccountState(Mutex<Sessions>);
 
+/// One sign-in window at a time. Also used by the Epic Games account import.
 #[derive(Default)]
-struct Sessions {
+pub(super) struct Sessions {
     active: Option<(String, Option<oneshot::Sender<()>>)>,
     // Cancellation can arrive while the start command is still queued.
     cancelled: VecDeque<String>,
 }
 
 impl Sessions {
-    fn start(&mut self, id: &str) -> Result<oneshot::Receiver<()>, String> {
+    /// Fails with exactly `CANCELLED` when this attempt was cancelled first.
+    pub(super) fn start(&mut self, id: &str) -> Result<oneshot::Receiver<()>, String> {
         if let Some(index) = self.cancelled.iter().position(|item| item == id) {
             self.cancelled.remove(index);
             return Err(CANCELLED.into());
@@ -33,7 +35,7 @@ impl Sessions {
         Ok(receiver)
     }
 
-    fn cancel(&mut self, id: &str) {
+    pub(super) fn cancel(&mut self, id: &str) {
         if self.active.as_ref().is_some_and(|(active, _)| active == id) {
             // Keep the slot until private browsing data has been cleared and
             // the window destroyed. Cancellation alone must not allow overlap.
@@ -48,7 +50,7 @@ impl Sessions {
         }
     }
 
-    fn finish(&mut self, id: &str) {
+    pub(super) fn finish(&mut self, id: &str) {
         if self.active.as_ref().is_some_and(|(active, _)| active == id) {
             self.active = None;
         }

@@ -94,7 +94,7 @@ function dictionary(validate: Validator): Validator {
 }
 
 const source = oneOf("igdb", "community", "custom");
-const provider = oneOf("steam", "xbox", "battlenet");
+const provider = oneOf("steam", "xbox", "battlenet", "epic");
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
@@ -357,6 +357,8 @@ const settings = object({}, {
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,
+  autoAddInstalledGames: boolean,
+  showInstallInSteam: boolean,
 } satisfies Record<keyof Settings, Validator>);
 
 /** Validate only transfer data, after machine-local/transient fields are removed.
@@ -416,7 +418,14 @@ const validateBackupShape: Validator = object(
             {},
             {
               search: string,
-              source: oneOf("all", "steam", "xbox", "battlenet", "unimported"),
+              source: oneOf(
+                "all",
+                "steam",
+                "xbox",
+                "battlenet",
+                "epic",
+                "unimported",
+              ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),
               favorite: boolean,
               installed: boolean,

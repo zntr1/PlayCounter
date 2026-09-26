@@ -7,6 +7,8 @@ export async function loadLibraryProvider(
   switch (id) {
     case "battlenet":
       return (await import("./battlenet")).battleNetProvider;
+    case "epic":
+      return (await import("./epic")).epicProvider;
     case "steam":
       return (await import("./steam")).steamProvider;
     case "xbox":

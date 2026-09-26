@@ -72,6 +72,10 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
 } from "../primitives";
+import {
+  pendingFolderFind,
+  readWatchFolders,
+} from "../../library/watchFolderState";
 
 // Single floating heart shown briefly after a successful "Add & Share".
 // Lives outside the heavy view so firing it never re-renders the list.
@@ -115,6 +119,8 @@ type DiscoveredExecutable = ProcessSnapshot & {
   status: DiscoveryStatus;
   cacheEntry: ExeCacheEntry | null;
   isTutorial?: boolean;
+  /** The game folder a watched folder turned up this file in. */
+  foundIn?: string;
 };
 
 export const TOUR_DISCOVERED_EXECUTABLE: DiscoveredExecutable = {
@@ -433,6 +439,9 @@ export function DiscoveredView() {
       return;
     }
     correction.reset();
+    // A file found in a watched folder is best searched by its folder name.
+    const folderFind = pendingFolderFind(exeName);
+    if (folderFind) correction.setSearch(folderFind.folderName);
     setSuggestionTarget({ key: exeName.toLowerCase(), exeName });
   }
 
@@ -497,6 +506,7 @@ export function DiscoveredView() {
       }
     }
 
+    const folderFinds = readWatchFolders().pending;
     const saved = [...savedByKey].flatMap(
       ([key, entry]): DiscoveredExecutable[] => {
         const exeName = entry?.exeName ?? key;
@@ -512,7 +522,8 @@ export function DiscoveredView() {
         return [
           {
             exeName,
-            exePath: null,
+            exePath: folderFinds[key]?.exePath ?? null,
+            foundIn: folderFinds[key]?.folderPath,
             key,
             isRunning: false,
             cacheEntry: entry,
@@ -1214,6 +1225,14 @@ export function TriageWizardCard({
             />
             {executable.isRunning ? "Running right now" : "Not running"}
           </div>
+          {executable.foundIn ? (
+            <div
+              className="max-w-full truncate text-xs text-text-faint"
+              title={executable.foundIn}
+            >
+              Found in {executable.foundIn}
+            </div>
+          ) : null}
           {trackedSecondsFor(executable.cacheEntry) >= 60 ? (
             <div className="mt-1 text-xs text-text-faint">
               Tracked so far:{" "}
@@ -1434,6 +1453,14 @@ function DiscoveredExecutableRow({
           {matchedName ? (
             <div className="mt-1 truncate text-sm font-medium text-text-muted">
               {matchedName}
+            </div>
+          ) : null}
+          {executable.foundIn ? (
+            <div
+              className="mt-1 truncate text-xs text-text-faint"
+              title={executable.foundIn}
+            >
+              Found in {executable.foundIn}
             </div>
           ) : null}
           {trackedSecondsFor(executable.cacheEntry) >= 60 ? (

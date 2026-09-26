@@ -73,6 +73,7 @@ import {
   shouldForgetOnLaunchError,
   type LaunchOutcome,
   type LaunchPathReport,
+  type LaunchPathStatus,
 } from "./gameLaunch";
 import {
   emulatorTargetCompatibility,
@@ -178,6 +179,16 @@ import type {
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
+import { forgetLauncherAutoAdd } from "./library/libraryAutoAddState";
+import {
+  syncLibraryInstalls,
+  syncLibraryInstallsThrottled,
+} from "./library/libraryAutoSync";
+import {
+  scanWatchFolders,
+  scanWatchFoldersThrottled,
+  startWatchFolderLinks,
+} from "./library/watchFolders";
 import { providerFloors } from "./library/playtimeFloor";
 import { normalizePlayCounterLibraryEntry } from "./library/playcounterLibrary";
 import {
@@ -363,7 +374,9 @@ const emulatorLaunchInFlight = new Map<string, number>();
 let launchVerificationInFlight: Promise<number> | undefined;
 let lastLaunchVerificationAt = 0;
 const LAUNCH_REENTRY_GUARD_MS = 3_000;
-const LAUNCH_VERIFICATION_THROTTLE_MS = 5 * 60 * 1_000;
+const LAUNCH_VERIFICATION_THROTTLE_MS = 60 * 1_000;
+let stopFocusLaunchVerification: (() => void) | undefined;
+let stopWatchFolderLinks: (() => void) | undefined;
 
 const launcherBlacklist = [
   "epicgameslauncher.exe",
@@ -459,8 +472,15 @@ async function finishTrackerStartup() {
 
   logRuntime("process listener skipped; polling is active");
 
+  stopFocusLaunchVerification = recheckLibraryOnFocus();
+  stopWatchFolderLinks = startWatchFolderLinks();
+
   useAppStore.getState().setCleanup(() => {
     logRuntime("tracker cleanup running");
+    stopFocusLaunchVerification?.();
+    stopFocusLaunchVerification = undefined;
+    stopWatchFolderLinks?.();
+    stopWatchFolderLinks = undefined;
     if (backendHealthTimer) window.clearInterval(backendHealthTimer);
     backendHealthTimer = undefined;
     if (contributionsTimer) window.clearInterval(contributionsTimer);
@@ -508,6 +528,8 @@ async function finishTrackerStartup() {
       await recheckPendingCommunityApprovals("startup");
       await requestProcessScan("startup");
       await verifyLaunchTargets("startup");
+      await syncLibraryInstalls("startup");
+      await scanWatchFolders("startup");
       if (suppressStartupNotifications) {
         baselineDiscoveredReviewReminder();
         useAppStore.setState({ suppressStartupNotificationsOnce: false });
@@ -1446,10 +1468,17 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
     ...state.emulatorManualLaunchTargets.values(),
     ...state.emulatorLaunchCandidates.values(),
   ];
+  // Launcher installs only matter for Play, so they are checked only while
+  // PlayCounter may launch games.
+  const installs =
+    state.settings.gameLaunchingEnabled === true
+      ? [...state.libraryInstalls.values()]
+      : [];
   if (
     normalTargets.length === 0 &&
     binaryTargets.length === 0 &&
-    contentTargets.length === 0
+    contentTargets.length === 0 &&
+    installs.length === 0
   ) {
     return 0;
   }
@@ -1474,6 +1503,15 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
               ]),
             ).values(),
           ],
+        })
+      : [];
+    const installReports = installs.length
+      ? await invoke<LibraryInstallReport[]>("library_verify_installs", {
+          installs: installs.map(({ provider, externalId, installPath }) => ({
+            provider,
+            externalId,
+            installPath,
+          })),
         })
       : [];
     const staleExecutablePaths = new Set(
@@ -1539,10 +1577,19 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
       useAppStore.getState().setEmulatorLaunchCandidates(validCandidates);
       pruned += currentCandidates.length - validCandidates.length;
     }
+    for (const report of installReports) {
+      if (report.status !== "missing") continue;
+      const key = libraryEntryKey(report.provider, report.externalId);
+      if (!useAppStore.getState().libraryInstalls.has(key)) continue;
+      useAppStore
+        .getState()
+        .removeLibraryInstall(report.provider, report.externalId);
+      pruned += 1;
+    }
     if (pruned > 0) persist();
     lastLaunchVerificationAt = Date.now();
     logRuntime(
-      `launch targets verified reason=${reason} checked=${normalTargets.length + binaryTargets.length + contentTargets.length} pruned=${pruned}`,
+      `launch targets verified reason=${reason} checked=${normalTargets.length + binaryTargets.length + contentTargets.length + installs.length} pruned=${pruned}`,
     );
     return pruned;
   })();
@@ -1554,6 +1601,34 @@ export async function verifyLaunchTargets(reason: string): Promise<number> {
   } finally {
     launchVerificationInFlight = undefined;
   }
+}
+
+type LibraryInstallReport = {
+  provider: LibraryProviderId;
+  externalId: string;
+  status: LaunchPathStatus;
+};
+
+/** Nobody sees the library before the window gets focus, so that is when to
+ * recheck launch sources and pick up newly installed launcher games. */
+function recheckLibraryOnFocus() {
+  if (typeof document === "undefined") return undefined;
+  const verify = () => {
+    if (useAppStore.getState().settings.gameLaunchingEnabled === true) {
+      void verifyLaunchTargetsThrottled("focus");
+    }
+    void syncLibraryInstallsThrottled("focus");
+    void scanWatchFoldersThrottled("focus");
+  };
+  const verifyWhenVisible = () => {
+    if (document.visibilityState === "visible") verify();
+  };
+  window.addEventListener("focus", verify);
+  document.addEventListener("visibilitychange", verifyWhenVisible);
+  return () => {
+    window.removeEventListener("focus", verify);
+    document.removeEventListener("visibilitychange", verifyWhenVisible);
+  };
 }
 
 export function verifyLaunchTargetsThrottled(reason = "my-games") {
@@ -3458,6 +3533,54 @@ export function applyKnownGameMatch(exeName: string, game: Game) {
   cacheMatchResult(exeName, game);
   persist();
   void requestProcessScan("after known game match applied");
+}
+
+/** Matches executables found in a watched folder like running processes. */
+export async function lookupFolderExecutables(
+  executables: readonly { exeName: string; exePath: string }[],
+) {
+  const state = useAppStore.getState();
+  const results = new Map<string, MatchProcessesResponse["matches"][number]>();
+  for (const batch of processLookupBatches(
+    executables.map(({ exeName, exePath }) => ({ exeName, exePath })),
+  )) {
+    const response = await requestJsonResponse<MatchProcessesResponse>(
+      `${state.settings.apiEndpoint}/api/match-processes`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        body: JSON.stringify({ processes: batch }),
+      },
+    );
+    if (!response.ok) throw responseError(response);
+    for (const result of response.data.matches) {
+      results.set(result.key.toLowerCase(), result);
+    }
+  }
+  return results;
+}
+
+/** A confident find: the game joins the library and Play gets its file. */
+export function adoptFolderGame(exeName: string, exePath: string, game: Game) {
+  cacheMatchResult(exeName, game);
+  const state = useAppStore.getState();
+  if (!state.launchTargets.has(exeName.toLowerCase())) {
+    state.setLaunchTarget({
+      exeName,
+      path: exePath,
+      owner: { gameId: game.id, source: game.source ?? null },
+    });
+  }
+  persist();
+  logRuntime(`watched folder game added ${exeName} -> ${game.name}`);
+}
+
+/** An unclear find waits in Discovered like an unknown running game. */
+export function noteFolderExecutable(exeName: string) {
+  if (useAppStore.getState().exeCache.has(exeName.toLowerCase())) return;
+  cacheMatchResult(exeName, null);
+  persist();
 }
 
 // Manual "check for matches": runs the exe through the normal match pipeline
@@ -6020,6 +6143,7 @@ export function untrackGame(
 }
 
 export function forgetImportedLibraryData(provider: LibraryProviderId) {
+  forgetLauncherAutoAdd(provider);
   const state = useAppStore.getState();
   const exeCache = new Map(state.exeCache);
   const launchTargets = new Map(state.launchTargets);

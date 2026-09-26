@@ -1,5 +1,8 @@
 use serde::Serialize;
-use std::{fs, io, path::PathBuf};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 #[cfg(windows)]
 use std::process::{Command, Stdio};
@@ -99,7 +102,7 @@ fn resolve_launch_target(raw: &str) -> Result<(PathBuf, Option<PathBuf>), Launch
             LaunchErrorKind::NotAFile,
             format!("{} is not a program file.", path.display()),
         )),
-        Err(error) if is_definitely_missing(&error) => Err(LaunchError::new(
+        Err(error) if is_missing_at(&path, &error) => Err(LaunchError::new(
             LaunchErrorKind::NotFound,
             format!("PlayCounter no longer finds {}.", path.display()),
         )),
@@ -108,6 +111,19 @@ fn resolve_launch_target(raw: &str) -> Result<(PathBuf, Option<PathBuf>), Launch
             format!("Could not read {}: {error}", path.display()),
         )),
     }
+}
+
+/// A missing file only counts as gone while its drive or network share is
+/// reachable. An unplugged USB drive or an unmounted share reports the same
+/// "path not found", but the game is still there once the drive returns.
+pub(crate) fn is_missing_at(path: &Path, error: &io::Error) -> bool {
+    is_definitely_missing(error) && volume_is_present(path)
+}
+
+pub(crate) fn volume_is_present(path: &Path) -> bool {
+    path.ancestors()
+        .last()
+        .is_some_and(|root| !root.as_os_str().is_empty() && fs::metadata(root).is_ok())
 }
 
 pub(crate) fn is_definitely_missing(error: &io::Error) -> bool {
@@ -196,10 +212,10 @@ pub async fn reveal_executable(path: String) -> Result<(), LaunchError> {
 fn verify_launch_path(path: String) -> LaunchPathReport {
     let status = match validate_launch_path(&path) {
         Err(_) => LaunchPathStatus::Invalid,
-        Ok(validated) => match fs::metadata(validated) {
+        Ok(validated) => match fs::metadata(&validated) {
             Ok(metadata) if metadata.is_file() => LaunchPathStatus::Ok,
             Ok(_) => LaunchPathStatus::NotAFile,
-            Err(error) if is_definitely_missing(&error) => LaunchPathStatus::Missing,
+            Err(error) if is_missing_at(&validated, &error) => LaunchPathStatus::Missing,
             Err(_) => LaunchPathStatus::Unreadable,
         },
     };
@@ -264,6 +280,27 @@ mod tests {
         }
         for code in [5, 21, 53, 1231] {
             assert!(!is_definitely_missing(&io::Error::from_raw_os_error(code)));
+        }
+    }
+
+    #[test]
+    fn a_file_on_an_absent_drive_is_not_reported_missing() {
+        let error = io::Error::from_raw_os_error(3);
+        assert!(is_missing_at(
+            &std::env::temp_dir().join("playcounter-missing.exe"),
+            &error
+        ));
+        #[cfg(windows)]
+        if let Some(drive) = ('D'..='Z')
+            .rev()
+            .map(|letter| PathBuf::from(format!("{letter}:\\")))
+            .find(|drive| fs::metadata(drive).is_err())
+        {
+            assert!(!volume_is_present(&drive.join("Games").join("Game.exe")));
+            assert!(!is_missing_at(
+                &drive.join("Games").join("Game.exe"),
+                &error
+            ));
         }
     }
 
