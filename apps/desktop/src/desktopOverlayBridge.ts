@@ -194,8 +194,7 @@ export function initializeDesktopOverlays() {
     const masterNow = store.settings.desktopOverlaysEnabled === true;
     const masterBefore = previous.settings.desktopOverlaysEnabled === true;
     if (masterNow !== masterBefore) {
-      if (masterNow) void safeInvoke("notification_overlay_prepare");
-      else clearDesktopOverlays();
+      if (!masterNow) clearDesktopOverlays();
       return;
     }
     if (
@@ -251,9 +250,6 @@ export function initializeDesktopOverlays() {
       }
     }),
   );
-  if (useAppStore.getState().settings.desktopOverlaysEnabled === true) {
-    void safeInvoke("notification_overlay_prepare");
-  }
 
   // Devtools escape hatch for checking popup layouts without playing a game:
   // __playcounterOverlayPreview("session-summary")

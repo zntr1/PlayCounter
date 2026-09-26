@@ -9,7 +9,6 @@ import type {
 } from "./desktopOverlayProtocol";
 export {
   OVERLAY_ACTION_EVENT,
-  OVERLAY_CLEAR_EVENT,
   OVERLAY_FINISHED_EVENT,
   OVERLAY_SHOW_EVENT,
 } from "./desktopOverlayProtocol";
@@ -37,7 +36,10 @@ export const PASSIVE_MIN_GAP_MS = 8_000;
 export const PASSIVE_BUDGET_WINDOW_MS = 600_000;
 export const PASSIVE_BUDGET_COUNT = 3;
 export const MAX_PENDING = 3;
-export const SAFETY_MARGIN_MS = 1_800;
+/* The card's own clock starts once its window has booted, and the window is
+   only created when the card is shown, so the margin covers a cold start
+   while a game is still loading. */
+export const SAFETY_MARGIN_MS = 5_000;
 export const DISCOVERY_BURST_MS = 30_000;
 export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 

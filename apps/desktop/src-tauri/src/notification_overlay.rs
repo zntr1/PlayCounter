@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::sync::{atomic::AtomicBool, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64},
+    Mutex,
+};
 
-pub const OVERLAY_LABEL: &str = "notification-overlay";
+/// Every overlay window gets this prefix plus a counter.
+pub const OVERLAY_LABEL_PREFIX: &str = "notification-overlay-";
 pub const MAIN_LABEL: &str = "main";
 pub const SHOW_EVENT: &str = "playcounter:overlay-show";
-pub const CLEAR_EVENT: &str = "playcounter:overlay-clear";
 pub const FINISHED_EVENT: &str = "playcounter:overlay-finished";
 pub const ACTION_EVENT: &str = "playcounter:overlay-action";
 
@@ -47,6 +50,11 @@ pub struct OverlayState {
     ready: AtomicBool,
     current_id: Mutex<Option<String>>,
     current_action: Mutex<Option<String>>,
+    /// The overlay window exists only while a card is on screen: a hidden
+    /// webview still holds its own renderer process. A fresh label per window
+    /// means a new card never waits for the previous window to finish closing.
+    window_label: Mutex<Option<String>>,
+    windows_opened: AtomicU64,
 }
 
 #[derive(Serialize)]
@@ -163,13 +171,28 @@ mod imp {
     use std::sync::atomic::Ordering;
     use tauri::{Emitter, Manager};
 
-    fn ensure_window(app: &tauri::AppHandle) -> Result<tauri::WebviewWindow, String> {
-        if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
+    fn open_window(
+        app: &tauri::AppHandle,
+        state: &OverlayState,
+    ) -> Result<tauri::WebviewWindow, String> {
+        let mut label = state
+            .window_label
+            .lock()
+            .map_err(|error| error.to_string())?;
+        if let Some(window) = label
+            .as_deref()
+            .and_then(|label| app.get_webview_window(label))
+        {
             return Ok(window);
         }
+        state.ready.store(false, Ordering::Release);
+        let next = format!(
+            "{OVERLAY_LABEL_PREFIX}{}",
+            state.windows_opened.fetch_add(1, Ordering::Relaxed)
+        );
         let window = tauri::WebviewWindowBuilder::new(
             app,
-            OVERLAY_LABEL,
+            &next,
             tauri::WebviewUrl::App("overlay.html".into()),
         )
         .title("PlayCounter notification")
@@ -190,7 +213,22 @@ mod imp {
         window
             .set_ignore_cursor_events(true)
             .map_err(|error| error.to_string())?;
+        *label = Some(next);
         Ok(window)
+    }
+
+    /// Callers hold `current_id` and have already cleared the card.
+    fn close_window(app: &tauri::AppHandle, state: &OverlayState) -> Result<(), String> {
+        state.ready.store(false, Ordering::Release);
+        let label = state
+            .window_label
+            .lock()
+            .map_err(|error| error.to_string())?
+            .take();
+        if let Some(window) = label.and_then(|label| app.get_webview_window(&label)) {
+            window.destroy().map_err(|error| error.to_string())?;
+        }
+        Ok(())
     }
 
     fn selected_monitor(
@@ -237,27 +275,26 @@ mod imp {
         Ok(())
     }
 
-    pub fn prepare(app: &tauri::AppHandle) -> Result<(), String> {
-        ensure_window(app).map(|_| ())
-    }
-
     pub fn show(
         app: &tauri::AppHandle,
         state: &OverlayState,
         payload: OverlayPayload,
     ) -> Result<(), String> {
-        let window = ensure_window(app)?;
+        // Held until the card is set, so a hide for the previous card cannot
+        // close the window this one is about to use.
+        let mut current = state.current_id.lock().map_err(|error| error.to_string())?;
+        let window = open_window(app, state)?;
         position_window(app, &window, &payload)?;
         window
             .set_ignore_cursor_events(payload.action.is_none())
             .map_err(|error| error.to_string())?;
-        *state.current_id.lock().map_err(|error| error.to_string())? = Some(payload.id.clone());
+        *current = Some(payload.id.clone());
         *state
             .current_action
             .lock()
             .map_err(|error| error.to_string())? = payload.action.clone();
         if state.ready.load(Ordering::Acquire) {
-            app.emit_to(OVERLAY_LABEL, SHOW_EVENT, payload)
+            app.emit_to(window.label(), SHOW_EVENT, payload)
                 .map_err(|error| error.to_string())?;
         } else {
             *state.pending.lock().map_err(|error| error.to_string())? = Some(payload);
@@ -270,14 +307,6 @@ mod imp {
         if current.as_deref() != Some(id) {
             return Ok(());
         }
-        if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
-            window.hide().map_err(|error| error.to_string())?;
-            window
-                .set_ignore_cursor_events(true)
-                .map_err(|error| error.to_string())?;
-            app.emit_to(OVERLAY_LABEL, CLEAR_EVENT, ())
-                .map_err(|error| error.to_string())?;
-        }
         current.take();
         state
             .current_action
@@ -289,17 +318,14 @@ mod imp {
             .lock()
             .map_err(|error| error.to_string())?
             .take();
-        Ok(())
+        close_window(app, state)
     }
 
     pub fn close(app: &tauri::AppHandle, state: &OverlayState) -> Result<(), String> {
+        let mut current = state.current_id.lock().map_err(|error| error.to_string())?;
+        current.take();
         state
             .pending
-            .lock()
-            .map_err(|error| error.to_string())?
-            .take();
-        state
-            .current_id
             .lock()
             .map_err(|error| error.to_string())?
             .take();
@@ -308,26 +334,23 @@ mod imp {
             .lock()
             .map_err(|error| error.to_string())?
             .take();
-        if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
-            window.hide().map_err(|error| error.to_string())?;
-            window
-                .set_ignore_cursor_events(true)
-                .map_err(|error| error.to_string())?;
-            app.emit_to(OVERLAY_LABEL, CLEAR_EVENT, ())
-                .map_err(|error| error.to_string())?;
-        }
-        Ok(())
+        close_window(app, state)
     }
 
     pub fn ready(app: &tauri::AppHandle, state: &OverlayState) -> Result<(), String> {
         state.ready.store(true, Ordering::Release);
-        if let Some(payload) = state
+        let payload = state
             .pending
             .lock()
             .map_err(|error| error.to_string())?
-            .take()
-        {
-            app.emit_to(OVERLAY_LABEL, SHOW_EVENT, payload)
+            .take();
+        let label = state
+            .window_label
+            .lock()
+            .map_err(|error| error.to_string())?
+            .clone();
+        if let (Some(payload), Some(label)) = (payload, label) {
+            app.emit_to(label.as_str(), SHOW_EVENT, payload)
                 .map_err(|error| error.to_string())?;
         }
         Ok(())
@@ -338,18 +361,13 @@ mod imp {
         if current.as_deref() != Some(id) {
             return Ok(());
         }
-        if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
-            window.hide().map_err(|error| error.to_string())?;
-            window
-                .set_ignore_cursor_events(true)
-                .map_err(|error| error.to_string())?;
-        }
         current.take();
         state
             .current_action
             .lock()
             .map_err(|error| error.to_string())?
             .take();
+        close_window(app, state)?;
         app.emit_to(MAIN_LABEL, FINISHED_EVENT, id)
             .map_err(|error| error.to_string())
     }
@@ -367,18 +385,13 @@ mod imp {
         let Some(action) = action else {
             return Ok(());
         };
-        if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
-            window.hide().map_err(|error| error.to_string())?;
-            window
-                .set_ignore_cursor_events(true)
-                .map_err(|error| error.to_string())?;
-        }
         current.take();
         state
             .pending
             .lock()
             .map_err(|error| error.to_string())?
             .take();
+        close_window(app, state)?;
         app.emit_to(MAIN_LABEL, ACTION_EVENT, action)
             .map_err(|error| error.to_string())?;
         app.emit_to(MAIN_LABEL, FINISHED_EVENT, id)
@@ -493,9 +506,6 @@ mod imp {
 mod imp {
     use super::*;
 
-    pub fn prepare(_app: &tauri::AppHandle) -> Result<(), String> {
-        Err(UNSUPPORTED.to_string())
-    }
     pub fn show(
         _app: &tauri::AppHandle,
         _state: &OverlayState,
@@ -539,8 +549,14 @@ fn main_only(window: &tauri::Window) -> Result<(), String> {
     }
 }
 
-fn overlay_only(window: &tauri::Window) -> Result<(), String> {
-    if window.label() == OVERLAY_LABEL {
+/// Only the open overlay window may report. A closing one can still call in
+/// after the next card's window opened, and must not act for it.
+fn overlay_only(window: &tauri::Window, state: &OverlayState) -> Result<(), String> {
+    let label = state
+        .window_label
+        .lock()
+        .map_err(|error| error.to_string())?;
+    if label.as_deref() == Some(window.label()) {
         Ok(())
     } else {
         Err("unauthorized window".to_string())
@@ -581,15 +597,6 @@ pub fn notification_overlay_monitors(
             }
         })
         .collect())
-}
-
-#[tauri::command(async)]
-pub fn notification_overlay_prepare(
-    app: tauri::AppHandle,
-    window: tauri::Window,
-) -> Result<(), String> {
-    main_only(&window)?;
-    imp::prepare(&app)
 }
 
 #[tauri::command]
@@ -644,7 +651,7 @@ pub fn notification_overlay_ready(
     window: tauri::Window,
     state: tauri::State<'_, OverlayState>,
 ) -> Result<(), String> {
-    overlay_only(&window)?;
+    overlay_only(&window, &state)?;
     imp::ready(&app, &state)
 }
 
@@ -655,7 +662,7 @@ pub fn notification_overlay_finished(
     state: tauri::State<'_, OverlayState>,
     id: String,
 ) -> Result<(), String> {
-    overlay_only(&window)?;
+    overlay_only(&window, &state)?;
     imp::finished(&app, &state, &id)
 }
 
@@ -666,7 +673,7 @@ pub fn notification_overlay_activate(
     state: tauri::State<'_, OverlayState>,
     id: String,
 ) -> Result<(), String> {
-    overlay_only(&window)?;
+    overlay_only(&window, &state)?;
     imp::activate(&app, &state, &id)
 }
 

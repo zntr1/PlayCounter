@@ -9,6 +9,7 @@ import {
   overlayGate,
   passiveEligibleAt,
   resetOverlaySequenceForTests,
+  SAFETY_MARGIN_MS,
   type DesktopOverlayKind,
   type DesktopOverlayMessage,
 } from "./desktopOverlays";
@@ -260,7 +261,7 @@ describe("DesktopOverlayQueue", () => {
       hide,
     });
     queue.push(item);
-    scheduler.advance(item.durationMs + 1_799);
+    scheduler.advance(item.durationMs + SAFETY_MARGIN_MS - 1);
     expect(hide).not.toHaveBeenCalled();
     scheduler.advance(1);
     expect(hide).toHaveBeenCalledWith(item.id);

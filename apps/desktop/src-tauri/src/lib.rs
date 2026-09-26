@@ -81,13 +81,19 @@ struct PrivacyContext {
 #[tauri::command]
 fn main_window_ready(app: tauri::AppHandle) {
     let startup = app.state::<StartupWindow>();
-    let show = {
+    let (show, stays_in_tray) = {
         let mut progress = startup.progress.lock().unwrap();
         progress.painted = true;
-        !progress.revealed && (!startup.autostart || progress.open_requested)
+        let waiting = !progress.revealed;
+        let open = !startup.autostart || progress.open_requested;
+        (waiting && open, waiting && !open)
     };
     if show {
         show_main_window(&app);
+    } else if stays_in_tray {
+        if let Some(window) = app.get_webview_window("main") {
+            set_webview_memory_low(&window, true);
+        }
     }
 }
 
@@ -382,8 +388,10 @@ pub fn run() {
                 // reveal a native window too, so defer those until first show.
                 // Visibility and decorations always belong to the app.
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION)
-                .with_denylist(&[notification_overlay::OVERLAY_LABEL])
-                .with_filter(|label| !label.starts_with("battlenet-sign-in-"))
+                .with_filter(|label| {
+                    !label.starts_with("battlenet-sign-in-")
+                        && !label.starts_with(notification_overlay::OVERLAY_LABEL_PREFIX)
+                })
                 .build(),
         )
         .plugin(
@@ -466,7 +474,6 @@ pub fn run() {
             emulator_launch::verify_emulator_content_paths,
             controller::controller_watch_start,
             controller::controller_watch_stop,
-            notification_overlay::notification_overlay_prepare,
             notification_overlay::notification_overlay_monitors,
             notification_overlay::notification_overlay_wait_for_game_window,
             notification_overlay::notification_overlay_show,
@@ -491,6 +498,9 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
+                if let Some(window) = window.app_handle().get_webview_window(window.label()) {
+                    set_webview_memory_low(&window, true);
+                }
             }
         })
         .run(context)
@@ -561,11 +571,43 @@ fn show_main_window(app: &tauri::AppHandle) {
         if !startup.display_state_restored.swap(true, Ordering::SeqCst) {
             let _ = window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN);
         }
+        set_webview_memory_low(&window, false);
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
 }
+
+/// While the window sits in the tray, ask WebView2 to shrink its processes.
+/// Scripts keep running, so the tracker is unaffected. WebView2 never switches
+/// back by itself: every reveal has to set it to normal again.
+#[cfg(windows)]
+fn set_webview_memory_low(window: &tauri::WebviewWindow, low: bool) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW,
+        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL,
+    };
+    use windows_core::Interface;
+
+    let level = if low {
+        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW
+    } else {
+        COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL
+    };
+    let _ = window.with_webview(move |platform| unsafe {
+        // Best effort: older WebView2 runtimes lack the interface.
+        if let Ok(webview) = platform
+            .controller()
+            .CoreWebView2()
+            .and_then(|webview| webview.cast::<ICoreWebView2_19>())
+        {
+            let _ = webview.SetMemoryUsageTargetLevel(level);
+        }
+    });
+}
+
+#[cfg(not(windows))]
+fn set_webview_memory_low(_window: &tauri::WebviewWindow, _low: bool) {}
 
 fn set_tray_status(app: &tauri::AppHandle, status: &str) -> Result<(), String> {
     let tray_state = app.state::<TrayState>();

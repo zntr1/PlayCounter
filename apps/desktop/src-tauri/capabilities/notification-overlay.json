@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "notification-overlay",
   "description": "Minimal permissions for the transient notification overlay window.",
-  "windows": ["notification-overlay"],
+  "windows": ["notification-overlay-*"],
   "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
 }
