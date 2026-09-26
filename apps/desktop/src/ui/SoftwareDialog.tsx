@@ -15,11 +15,14 @@ function defaultSoftwareName(exeName: string) {
 
 export function SoftwareDialog({
   exeName,
+  suggestedName,
   isOffline,
   onClose,
   onSaved,
 }: {
   exeName: string;
+  /** The product name from the exe, when known. */
+  suggestedName?: string | null;
   isOffline: boolean;
   onClose: () => void;
   onSaved?: () => void;
@@ -27,7 +30,9 @@ export function SoftwareDialog({
   const addToast = useAppStore((state) => state.addToast);
   const trackTools = useAppStore((state) => state.settings.trackTools === true);
   const setTrackTools = useAppStore((state) => state.setTrackTools);
-  const [name, setName] = useState(() => defaultSoftwareName(exeName));
+  const [name, setName] = useState(
+    () => suggestedName?.trim() || defaultSoftwareName(exeName),
+  );
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [share, setShare] = useState(!isOffline);
   const [picking, setPicking] = useState(false);

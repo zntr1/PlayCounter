@@ -2094,7 +2094,12 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     logRuntime("scan no match; app remains idle");
   }
 
-  accumulateUnmatchedRuntime(runningProcessKeys);
+  accumulateUnmatchedRuntime(
+    runningProcessKeys,
+    new Map(
+      candidates.map((process) => [processCacheKey(process), process.exePath]),
+    ),
+  );
   creditRunningTools(candidates);
   syncDiscoveredReviewReminder();
 
@@ -4289,6 +4294,7 @@ function cachePendingCommunityMatch(exeName: string, game: Game) {
       existing?.state === "unmatched" ? existing.trackedSeconds : undefined,
     runningSince:
       existing?.state === "unmatched" ? existing.runningSince : undefined,
+    exePath: existing?.state === "unmatched" ? existing.exePath : undefined,
   });
   logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
 }
@@ -4683,7 +4689,10 @@ function applyToolContributions(
 // on each scan. Running exes accumulate; stopped exes have their open window
 // closed; ignored exes have any accumulated time deleted. The accumulated time
 // is later credited to a game by backfillTrackedRuntime when the exe is matched.
-function accumulateUnmatchedRuntime(runningKeys: Set<string>) {
+function accumulateUnmatchedRuntime(
+  runningKeys: Set<string>,
+  runningPaths: ReadonlyMap<string, string | null> = new Map(),
+) {
   const state = useAppStore.getState();
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
@@ -4709,23 +4718,30 @@ function accumulateUnmatchedRuntime(runningKeys: Set<string>) {
 
     const running = runningKeys.has(key);
     if (running) {
+      let next = entry;
+      // Remember where it runs from: Discovered shows the folder, icon and
+      // product name after the app has stopped too.
+      const exePath = runningPaths.get(key);
+      if (exePath && entry.exePath !== exePath) next = { ...next, exePath };
       if (!entry.runningSince) {
         // Open a new running window; nothing folded yet.
-        exeCache.set(key, { ...entry, runningSince: nowIso });
-        changed = true;
+        next = { ...next, runningSince: nowIso };
       } else {
         const since = Date.parse(entry.runningSince);
         const elapsedMs = Number.isFinite(since) ? now - since : 0;
         // Fold at most once per checkpoint interval to avoid rewriting state on
         // every ~5s scan. The open remainder is added at read time / backfill.
         if (elapsedMs >= SESSION_CHECKPOINT_INTERVAL_MS) {
-          exeCache.set(key, {
-            ...entry,
+          next = {
+            ...next,
             trackedSeconds: (entry.trackedSeconds ?? 0) + elapsedMs / 1000,
             runningSince: nowIso,
-          });
-          changed = true;
+          };
         }
+      }
+      if (next !== entry) {
+        exeCache.set(key, next);
+        changed = true;
       }
     } else if (entry.runningSince) {
       const since = Date.parse(entry.runningSince);
@@ -4804,6 +4820,7 @@ function cacheMatchResult(exeName: string, game: Game | null) {
         existing?.state === "unmatched" ? existing.trackedSeconds : undefined,
       runningSince:
         existing?.state === "unmatched" ? existing.runningSince : undefined,
+      exePath: existing?.state === "unmatched" ? existing.exePath : undefined,
     });
     return;
   }

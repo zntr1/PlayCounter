@@ -131,6 +131,28 @@ describe("backup transfer data", () => {
     },
   );
 
+  it("leaves the last seen path of Discovered apps on this PC", () => {
+    const result = createTransferData({
+      exeCache: [
+        {
+          exeName: "Tool.exe",
+          state: "unmatched",
+          lastCheckedAt: "2026-09-26T00:00:00.000Z",
+          exePath: "C:/Apps/Tool.exe",
+          trackedSeconds: 60,
+        },
+      ],
+    });
+    expect(result.exeCache).toEqual([
+      {
+        exeName: "Tool.exe",
+        state: "unmatched",
+        lastCheckedAt: "2026-09-26T00:00:00.000Z",
+        trackedSeconds: 60,
+      },
+    ]);
+  });
+
   it("keeps durable progress but excludes notifications and ignored processes", () => {
     const result = createTransferData({
       sessions: [{ id: 1 }],

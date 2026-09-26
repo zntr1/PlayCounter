@@ -53,6 +53,7 @@ import {
   suggestIgnoredProcess,
   persist,
   pollContributions,
+  recheckExecutable,
   removeGameHistory,
   reportNegativeMatch,
   revealGameExecutable,
@@ -4920,5 +4921,39 @@ describe("community suggestion cancellation", () => {
       cancelCommunitySuggestion("Legacy-Two.exe", 343),
     ).resolves.toEqual({ kind: "unavailable" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Discovered app paths", () => {
+  it("remembers where an unknown app runs from and keeps it through a re-check", async () => {
+    useAppStore.getState().setExeCacheEntry({
+      exeName: "Tool.exe",
+      state: "unmatched",
+      lastCheckedAt: new Date().toISOString(),
+    });
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "scan_processes"
+        ? [{ exeName: "Tool.exe", exePath: "C:/Apps/Tool.exe", pid: 7 }]
+        : undefined,
+    );
+
+    await scanProcessesNow();
+    expect(useAppStore.getState().exeCache.get("tool.exe")?.exePath).toBe(
+      "C:/Apps/Tool.exe",
+    );
+
+    // The app stopped, so only the re-check itself can keep the path.
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "scan_processes" ? [] : undefined,
+    );
+    const fetchMock = vi.fn(async () =>
+      Response.json({ matches: [{ key: "tool.exe", game: null }] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await recheckExecutable("Tool.exe");
+    expect(fetchMock).toHaveBeenCalled();
+    expect(useAppStore.getState().exeCache.get("tool.exe")?.exePath).toBe(
+      "C:/Apps/Tool.exe",
+    );
   });
 });

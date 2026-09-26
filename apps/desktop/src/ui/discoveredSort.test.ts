@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findReviewExecutables, sortReviewExecutables } from "./discoveredSort";
+import { sortReviewExecutables } from "./discoveredSort";
 
 type ReviewItem = {
   exeName: string;
@@ -89,28 +89,5 @@ describe("sortReviewExecutables", () => {
       "Zulu.exe",
       "alpha.exe",
     ]);
-  });
-});
-
-describe("findReviewExecutables", () => {
-  const items = [
-    reviewItem("helper.exe", {
-      exePath: "C:\\Games\\Mixtape\\helper.exe",
-    }),
-    reviewItem("Mixtape.exe", {
-      exePath: "D:\\SteamLibrary\\Mixtape.exe",
-    }),
-    reviewItem("another-mixtape-tool.exe"),
-  ];
-
-  it("finds executable names and paths, prioritizing name prefixes", () => {
-    expect(
-      findReviewExecutables(items, "mixtape").map((item) => item.exeName),
-    ).toEqual(["Mixtape.exe", "another-mixtape-tool.exe", "helper.exe"]);
-  });
-
-  it("returns no suggestions for an empty query and respects the limit", () => {
-    expect(findReviewExecutables(items, "   ")).toEqual([]);
-    expect(findReviewExecutables(items, "exe", 2)).toHaveLength(2);
   });
 });

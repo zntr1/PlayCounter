@@ -156,6 +156,7 @@ const exeEntry = object(
     communityUpgradeGame: game,
     dismissedCommunityUpgradeGameId: positiveId,
     dismissedCommunityUpgradeSource: source,
+    exePath: string,
     shareState: oneOf("unshared", "failed"),
     libraryProvider: provider,
     libraryExternalId: nonempty,

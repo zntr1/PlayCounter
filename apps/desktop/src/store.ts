@@ -185,6 +185,9 @@ export type ExeCacheEntry = {
   // added on the fly when read or credited). Cleared on hydrate so time spent
   // while the app was closed is never credited.
   runningSince?: string;
+  /** Last seen path of an unmatched executable, so Discovered can show its
+   *  folder, icon and product name after it stops. Stays on this PC. */
+  exePath?: string;
 };
 
 export type LaunchTargetOwner = {

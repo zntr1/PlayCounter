@@ -124,9 +124,6 @@ function DetectionPractice({ stepId }: { stepId: string }) {
         <div data-tour="demo-discovery">
           <TriageWizardCard
             executable={TOUR_DISCOVERED_EXECUTABLE}
-            reviewOptions={[TOUR_DISCOVERED_EXECUTABLE]}
-            queueLength={1}
-            currentIndex={1}
             customGameName={name}
             isCustomGameEntryOpen={custom}
             isOffline={false}
@@ -164,7 +161,6 @@ function DetectionPractice({ stepId }: { stepId: string }) {
                 "Sample check complete. Use Add & Share to review a match.",
               )
             }
-            onSelectReview={() => {}}
           />
         </div>
       )}

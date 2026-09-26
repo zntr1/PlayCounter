@@ -19,6 +19,7 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 mod automatic_backups;
 mod controller;
 mod emulator_launch;
+mod exe_details;
 mod hotkeys;
 mod ignored_processes;
 mod launch;
@@ -304,6 +305,17 @@ async fn get_exe_icon(exe_path: String) -> Result<String, String> {
     .map_err(|error| error.to_string())?
 }
 
+/// Product name and publisher of an executable, for Discovered.
+#[tauri::command]
+async fn get_exe_details(exe_path: String) -> Result<exe_details::ExeDetails, String> {
+    if !Path::new(&exe_path).is_file() {
+        return Err("Executable not found.".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || exe_details::read(&exe_path))
+        .await
+        .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn update_tray_now_playing(
     app: tauri::AppHandle,
@@ -478,6 +490,7 @@ pub fn run() {
             scan_processes,
             privacy_context,
             get_exe_icon,
+            get_exe_details,
             launch::launch_executable,
             launch::reveal_executable,
             launch::verify_launch_paths,
