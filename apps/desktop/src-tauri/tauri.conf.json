@@ -22,7 +22,8 @@
         "visible": false,
         "decorations": false,
         "shadow": true,
-        "backgroundColor": "#0d0d0e"
+        "backgroundColor": "#0d0d0e",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IntensiveWakeUpThrottling --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling"
       }
     ],
     "security": {

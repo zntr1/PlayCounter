@@ -7,6 +7,8 @@
 #[allow(dead_code)]
 #[path = "../src/library/battlenet_account.rs"]
 mod battlenet_account;
+#[path = "../src/webview_args.rs"]
+mod webview_args;
 
 use battlenet_account::{clear_private_data, secure_window};
 use std::{sync::Mutex, time::Duration};

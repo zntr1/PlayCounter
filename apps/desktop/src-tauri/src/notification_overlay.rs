@@ -196,6 +196,7 @@ mod imp {
             tauri::WebviewUrl::App("overlay.html".into()),
         )
         .title("PlayCounter notification")
+        .additional_browser_args(crate::webview_args::WEBVIEW_BROWSER_ARGS)
         .inner_size(CARD_LOGICAL_WIDTH, CARD_LOGICAL_HEIGHT)
         .decorations(false)
         .resizable(false)

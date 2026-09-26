@@ -5,6 +5,8 @@
 #[allow(dead_code)]
 #[path = "../src/library/battlenet_account.rs"]
 mod battlenet_account;
+#[path = "../src/webview_args.rs"]
+mod webview_args;
 
 use battlenet_account::{
     library_battlenet_account_games, library_cancel_battlenet_account, AccountState,

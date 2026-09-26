@@ -344,6 +344,7 @@ pub async fn library_battlenet_account_games(
         WebviewUrl::External("about:blank".parse().unwrap()),
     )
     .title("Battle.net sign-in — PlayCounter")
+    .additional_browser_args(crate::webview_args::WEBVIEW_BROWSER_ARGS)
     .inner_size(1000.0, 760.0)
     .min_inner_size(640.0, 560.0)
     .visible(false)

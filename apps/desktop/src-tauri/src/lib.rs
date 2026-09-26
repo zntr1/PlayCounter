@@ -28,6 +28,7 @@ mod process;
 mod reset;
 mod session;
 mod shell_open;
+mod webview_args;
 
 const TRAY_STATUS_IDLE: &str = "No game active";
 const TRAY_STATUS_PREFIX: &str = "Playing ";
@@ -612,8 +613,21 @@ fn set_main_window_in_tray(window: &tauri::WebviewWindow, in_tray: bool) {
         "playcounter:main-window-in-tray",
         in_tray,
     );
+    set_webview_visible(window, !in_tray);
     set_webview_memory_low(window, in_tray);
 }
+
+/// Hiding the window alone leaves the page thinking it is on screen: it keeps
+/// rendering and its visibilityState stays "visible". Tell WebView2 as well.
+#[cfg(windows)]
+fn set_webview_visible(window: &tauri::WebviewWindow, visible: bool) {
+    let _ = window.with_webview(move |platform| unsafe {
+        let _ = platform.controller().SetIsVisible(visible);
+    });
+}
+
+#[cfg(not(windows))]
+fn set_webview_visible(_window: &tauri::WebviewWindow, _visible: bool) {}
 
 /// While the window sits in the tray, ask WebView2 to shrink its processes.
 /// Scripts keep running, so the tracker is unaffected. WebView2 never switches
