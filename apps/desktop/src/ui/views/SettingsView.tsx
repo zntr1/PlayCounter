@@ -1109,7 +1109,12 @@ export function SettingsView() {
             />
           </SettingsRow>
         ) : null}
-        {currentPlatform() === "windows" ? <WatchFoldersSettings /> : null}
+        {currentPlatform() === "windows" ? (
+          <>
+            <WatchFoldersSettings />
+            <div role="separator" className="border-t border-border" />
+          </>
+        ) : null}
         <SettingsRow
           description="Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept."
           title={
