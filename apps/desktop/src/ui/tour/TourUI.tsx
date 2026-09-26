@@ -331,8 +331,8 @@ export function WelcomePrompt() {
                 Built by one developer.
               </span>{" "}
               PlayCounter is new, so expect a few rough edges. Spot one? Use{" "}
-              <span className="font-medium text-text">Help & Feedback</span>. I
-              read every message and reply in the app.
+              <span className="font-medium text-text">Help & Feedback</span> or join our Discord. I
+              read every message and reply.
             </p>
           </div>
         </div>
