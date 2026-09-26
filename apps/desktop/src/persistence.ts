@@ -294,12 +294,21 @@ const persistenceCaches = new WeakMap<Storage, PersistenceCache>();
 // or followed by a reload; resuming this in-memory state could resurrect data.
 let persistenceSuspended = false;
 
+// Saved data that failed to load stays untouched: saving the empty or partial
+// state that replaced it would erase it. Saves and automatic backups stay off
+// for this run, while a backup can still be restored over it.
+let loadFailed = false;
+
 export function suspendPersistenceForReset() {
   persistenceSuspended = true;
 }
 
+export function blockPersistenceAfterFailedLoad() {
+  loadFailed = true;
+}
+
 export function isPersistenceSuspended() {
-  return persistenceSuspended;
+  return persistenceSuspended || loadFailed;
 }
 
 function samePersistedValue(left: unknown, right: unknown): boolean {
@@ -342,7 +351,7 @@ function writePayload(
 }
 
 export function persistAppState(state: PersistableAppState): PersistResult {
-  if (persistenceSuspended) {
+  if (isPersistenceSuspended()) {
     return {
       status: "suspended",
       ...projection(createPersistedPayload(state)),

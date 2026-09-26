@@ -1,0 +1,202 @@
+{
+  "installUuid": "0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0",
+  "settings": {
+    "shareAnonymousLiveData": true,
+    "launchOnStartup": true,
+    "pollingIntervalSeconds": 30,
+    "heartbeatIntervalSeconds": 60,
+    "unmatchedRetryDays": 7,
+    "apiEndpoint": "https://api.playcounter.app",
+    "verboseLogs": false
+  },
+  "exeCache": [
+    {
+      "exeName": "eldenring.exe",
+      "state": "matched",
+      "gameId": 1001,
+      "gameName": "Elden Ring",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.jpg",
+      "source": "igdb",
+      "lastCheckedAt": "2026-05-30T17:59:00.000Z"
+    },
+    {
+      "exeName": "Hades.exe",
+      "state": "matched",
+      "gameId": 1002,
+      "gameName": "Hades",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg",
+      "source": "igdb",
+      "lastCheckedAt": "2026-06-01T19:59:00.000Z"
+    },
+    {
+      "exeName": "myindie.exe",
+      "state": "matched",
+      "gameId": -1280780723,
+      "gameName": "My Indie Game",
+      "coverUrl": "",
+      "source": "custom",
+      "lastCheckedAt": "2026-06-02T09:59:00.000Z"
+    },
+    {
+      "exeName": "Stardew Valley.exe",
+      "state": "matched",
+      "gameId": 1003,
+      "gameName": "Stardew Valley",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/coa93h.jpg",
+      "source": "community",
+      "communitySuggestionId": 77,
+      "communitySuggestionVerified": true,
+      "lastCheckedAt": "2026-06-03T11:59:00.000Z"
+    },
+    {
+      "exeName": "helper.exe",
+      "state": "unmatched",
+      "lastCheckedAt": "2026-06-03T12:00:00.000Z"
+    }
+  ],
+  "gameMetadata": [
+    {
+      "id": 1001,
+      "name": "Elden Ring",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.jpg",
+      "source": "igdb"
+    },
+    {
+      "id": 1002,
+      "name": "Hades",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg",
+      "source": "igdb"
+    },
+    {
+      "id": 1003,
+      "name": "Stardew Valley",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/coa93h.jpg",
+      "source": "community"
+    }
+  ],
+  "sessions": [
+    {
+      "id": 1,
+      "gameId": 1001,
+      "gameName": "Elden Ring",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/1001.jpg",
+      "source": "igdb",
+      "exeName": "eldenring.exe",
+      "startedAt": "2026-05-30T18:00:00.000Z",
+      "endedAt": "2026-05-30T20:00:00.000Z",
+      "durationSeconds": 7200
+    },
+    {
+      "id": 2,
+      "gameId": 1001,
+      "gameName": "Elden Ring",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/1001.jpg",
+      "source": "igdb",
+      "exeName": "eldenring.exe",
+      "startedAt": "2026-05-31T18:00:00.000Z",
+      "endedAt": "2026-05-31T19:30:00.000Z",
+      "durationSeconds": 5400
+    },
+    {
+      "id": 3,
+      "gameId": 1002,
+      "gameName": "Hades",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/1002.jpg",
+      "source": "igdb",
+      "exeName": "Hades.exe",
+      "startedAt": "2026-06-01T20:00:00.000Z",
+      "endedAt": "2026-06-01T20:50:00.000Z",
+      "durationSeconds": 3000
+    },
+    {
+      "id": 4,
+      "gameId": -1280780723,
+      "gameName": "My Indie Game",
+      "coverUrl": "",
+      "source": "custom",
+      "exeName": "myindie.exe",
+      "startedAt": "2026-06-02T10:00:00.000Z",
+      "endedAt": "2026-06-02T10:20:00.000Z",
+      "durationSeconds": 1200
+    },
+    {
+      "id": 5,
+      "gameId": 1003,
+      "gameName": "Stardew Valley",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/1003.jpg",
+      "source": "community",
+      "exeName": "Stardew Valley.exe",
+      "startedAt": "2026-06-03T11:00:00.000Z",
+      "endedAt": "2026-06-03T12:00:00.000Z",
+      "durationSeconds": 3600,
+      "communitySuggestionId": 77,
+      "communitySuggestionVerified": true
+    }
+  ],
+  "activeSessions": [
+    {
+      "id": 6,
+      "gameId": 1002,
+      "gameName": "Hades",
+      "exeName": "Hades.exe",
+      "coverUrl": "https://images.igdb.com/igdb/image/upload/t_cover_big/co39vc.jpg",
+      "source": "igdb",
+      "startedAt": "2026-06-04T20:00:00.000Z",
+      "checkpointedAt": "2026-06-04T20:30:00.000Z"
+    }
+  ],
+  "ambiguousMatches": [
+    {
+      "exeName": "game.exe",
+      "exePath": null,
+      "candidates": [
+        {
+          "id": 2001,
+          "name": "Some Game",
+          "coverUrl": "",
+          "source": "igdb"
+        },
+        {
+          "id": 2002,
+          "name": "Some Game 2",
+          "coverUrl": "",
+          "source": "igdb"
+        }
+      ],
+      "detectedAt": "2026-06-03T12:00:00.000Z",
+      "endedAt": "2026-06-03T12:30:00.000Z"
+    }
+  ],
+  "blacklist": ["notagame.exe"],
+  "contributionOwnerUuid": "0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0",
+  "notifications": [
+    {
+      "id": "suggestion-verified:77",
+      "kind": "suggestion-verified",
+      "title": "Stardew Valley was approved",
+      "createdAt": "2026-06-05T10:00:00.000Z",
+      "readAt": "2026-06-05T11:00:00.000Z"
+    }
+  ],
+  "seenContributionStatus": {
+    "77": "verified"
+  },
+  "contributionCounts": {
+    "suggested": 1,
+    "verified": 1,
+    "pending": 0,
+    "rejected": 0
+  },
+  "awardedMilestoneIds": ["milestone:total:36000"],
+  "milestonesInitializedAt": "2026-06-05T10:00:00.000Z",
+  "archivedSeconds": 50000,
+  "archivedGameSeconds": {
+    "igdb:1001": 40000,
+    "igdb:1002": 10000
+  },
+  "playtimeAdjustments": {
+    "igdb:1002": 1800,
+    "custom:-1280780723": -600
+  },
+  "collapsedSections": ["discovered"]
+}

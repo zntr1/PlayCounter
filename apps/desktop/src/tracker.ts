@@ -124,11 +124,13 @@ import {
 } from "./gameSeconds";
 import { nextAdjustmentSeconds } from "./playtimeAdjustments";
 import {
+  blockPersistenceAfterFailedLoad,
   isPersistenceSuspended,
   persistAppState,
   readPersistedRecord,
   STORAGE_KEY,
 } from "./persistence";
+import { sanitizePersistedShape } from "./persistedShape";
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions, splitStoredSessions } from "./sessionPersistence";
 import {
@@ -376,6 +378,7 @@ let lastLaunchVerificationAt = 0;
 const LAUNCH_REENTRY_GUARD_MS = 3_000;
 const LAUNCH_VERIFICATION_THROTTLE_MS = 60 * 1_000;
 let stopFocusLaunchVerification: (() => void) | undefined;
+let savedDataUnreadable = false;
 let stopWatchFolderLinks: (() => void) | undefined;
 
 const launcherBlacklist = [
@@ -392,7 +395,24 @@ export async function initializeTracker() {
   initialized = true;
   logRuntime("tracker initialize started");
 
-  hydrate();
+  try {
+    hydrate();
+  } catch (error) {
+    logRuntime(`saved data failed to load: ${formatError(error)}`);
+    blockPersistenceAfterFailedLoad();
+  }
+  // Whatever replaced saved data that failed to load must never be saved over
+  // it. Nothing runs that could save until an update, a restore or a reset.
+  if (isPersistenceSuspended()) {
+    useAppStore
+      .getState()
+      .setRuntimeError(
+        savedDataUnreadable
+          ? "PlayCounter can't read its saved data. To protect it, tracking and saving are paused. Restore a backup with Import data in Settings, or reset PlayCounter to start over."
+          : "PlayCounter couldn't load your saved data. To protect it, tracking and saving are paused. Your data is still there and an update can fix this. Please send feedback.",
+      );
+    return;
+  }
   initializeAutomaticBackups();
   initializeDesktopOverlays();
   initializeHotkeys();
@@ -6992,8 +7012,12 @@ async function runProcessScan(reason: string) {
 }
 
 function readPersisted(): PersistedState {
-  return readPersistedRecord(() =>
-    logRuntime("persisted state parse failed; using empty state"),
+  return sanitizePersistedShape(
+    readPersistedRecord(() => {
+      logRuntime("persisted state parse failed; saving paused");
+      savedDataUnreadable = true;
+      blockPersistenceAfterFailedLoad();
+    }),
   ) as PersistedState;
 }
 
