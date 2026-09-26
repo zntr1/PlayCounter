@@ -181,6 +181,48 @@ export function summarizeToolUsage(
   return summary;
 }
 
+export type ToolUsageDetails = {
+  /** First and last local day with counted time (YYYY-MM-DD). */
+  firstDay: string | null;
+  lastDay: string | null;
+  daysUsed: number;
+  /** Counted time per day the app ran; Discovered time has no days. */
+  averagePerDaySeconds: number;
+  longestDay: { day: string; seconds: number } | null;
+};
+
+/** Everything the per-day buckets already tell, across a tool's exes. */
+export function describeToolUsage(
+  records: readonly (ToolUsageRecord | undefined)[],
+): ToolUsageDetails {
+  const byDay = new Map<string, number>();
+  for (const record of records) {
+    for (const [day, seconds] of Object.entries(record?.days ?? {})) {
+      byDay.set(day, (byDay.get(day) ?? 0) + seconds);
+    }
+  }
+  const days = [...byDay.keys()].sort();
+  let longestDay: ToolUsageDetails["longestDay"] = null;
+  let countedSeconds = 0;
+  for (const [day, seconds] of byDay) {
+    countedSeconds += seconds;
+    if (
+      !longestDay ||
+      seconds > longestDay.seconds ||
+      (seconds === longestDay.seconds && day > longestDay.day)
+    ) {
+      longestDay = { day, seconds };
+    }
+  }
+  return {
+    firstDay: days[0] ?? null,
+    lastDay: days.at(-1) ?? null,
+    daysUsed: days.length,
+    averagePerDaySeconds: days.length > 0 ? countedSeconds / days.length : 0,
+    longestDay,
+  };
+}
+
 /** Drops malformed persisted or imported usage instead of failing hydration. */
 export function sanitizeToolUsage(value: unknown): ToolUsage {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};

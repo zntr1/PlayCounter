@@ -9,7 +9,7 @@ import {
   List,
   Undo2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { useAppStore, type ExeCacheEntry } from "../../store";
 import {
   setToolArt,
@@ -17,7 +17,10 @@ import {
   unmarkLocalTool,
 } from "../../tracker";
 import {
+  describeToolUsage,
+  localDayKey,
   summarizeToolUsage,
+  type ToolUsageDetails,
   toolIdentityKey,
   type ToolUsage,
   type ToolUsageSummary,
@@ -32,7 +35,7 @@ import {
   useContextMenu,
 } from "../ContextMenu";
 import { ExeIcon } from "../ExeIcon";
-import { Button } from "../primitives";
+import { Button, Modal } from "../primitives";
 
 /* Software such as Discord, Spotify and launchers. Kept apart from games on
    purpose: no sessions, no Now Playing, no stats. Just how long each app ran,
@@ -51,6 +54,7 @@ type SoftwareRow = {
   exePath: string | null;
   running: boolean;
   summary: ToolUsageSummary;
+  details: ToolUsageDetails;
 };
 
 export function buildSoftwareRows(input: {
@@ -92,6 +96,7 @@ export function buildSoftwareRows(input: {
       exePath: records.find((record) => record?.exePath)?.exePath ?? null,
       running,
       summary,
+      details: describeToolUsage(records),
     });
   }
   return rows.sort(
@@ -119,6 +124,7 @@ export function SoftwareView() {
     (state) => state.settings.showDurationDays,
   );
   const [artTarget, setArtTarget] = useState<SoftwareRow | null>(null);
+  const [detailsKey, setDetailsKey] = useState<string | null>(null);
 
   const rows = useMemo(
     () =>
@@ -133,6 +139,8 @@ export function SoftwareView() {
       }),
     [exeCache, processes, toolUsage, userIgnoredProcesses],
   );
+
+  const detailsRow = rows.find((row) => row.toolKey === detailsKey) ?? null;
 
   if (!trackTools) {
     return (
@@ -200,6 +208,7 @@ export function SoftwareView() {
               key={row.toolKey}
               row={row}
               format={format}
+              onOpen={() => setDetailsKey(row.toolKey)}
               onChangeArt={() => setArtTarget(row)}
             />
           ))}
@@ -211,6 +220,7 @@ export function SoftwareView() {
               key={row.toolKey}
               row={row}
               format={format}
+              onOpen={() => setDetailsKey(row.toolKey)}
               onChangeArt={() => setArtTarget(row)}
             />
           ))}
@@ -228,8 +238,164 @@ export function SoftwareView() {
           onPickCover={(url) => setToolArt(artTarget.exeNames, url)}
         />
       ) : null}
+      {detailsRow ? (
+        <SoftwareDetailsDialog
+          row={detailsRow}
+          format={format}
+          onClose={() => setDetailsKey(null)}
+        />
+      ) : null}
     </div>
   );
+}
+
+/** "18 Sept", with the year only when it is not this year. */
+function formatDay(day: string) {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year, month - 1, date).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    ...(year === new Date().getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+function lastUsedLabel(row: SoftwareRow, now = Date.now()) {
+  if (row.running) return "Running now";
+  const day = row.details.lastDay;
+  if (!day) return "–";
+  const today = new Date(now);
+  if (day === localDayKey(now)) return "Today";
+  const yesterday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - 1,
+  ).getTime();
+  if (day === localDayKey(yesterday)) return "Yesterday";
+  return formatDay(day);
+}
+
+/* What the stored hours already tell about one app. No session history is
+   kept for software, so everything here is per day. */
+function SoftwareDetailsDialog({
+  row,
+  format,
+  onClose,
+}: {
+  row: SoftwareRow;
+  format: (seconds: number) => string;
+  onClose: () => void;
+}) {
+  const { details, summary } = row;
+  // Durations and counts in mono like elsewhere; dates and words in text.
+  const stats: Array<{
+    label: string;
+    value: string;
+    note?: string;
+    mono?: boolean;
+  }> = [
+    { label: "Total", value: format(summary.totalSeconds), mono: true },
+    { label: "This week", value: format(summary.weekSeconds), mono: true },
+    { label: "Today", value: format(summary.todaySeconds), mono: true },
+    { label: "Days used", value: String(details.daysUsed), mono: true },
+    {
+      label: "First tracked",
+      value: details.firstDay ? formatDay(details.firstDay) : "–",
+    },
+    { label: "Last used", value: lastUsedLabel(row) },
+    {
+      label: "Average day",
+      value: format(details.averagePerDaySeconds),
+      mono: true,
+    },
+    {
+      label: "Longest day",
+      value: details.longestDay ? format(details.longestDay.seconds) : "–",
+      mono: true,
+      note: details.longestDay ? formatDay(details.longestDay.day) : undefined,
+    },
+  ];
+  return (
+    <Modal
+      labelId="software-details-title"
+      eyebrow="Software"
+      title={row.name}
+      subtitle={row.exeNames.join(", ")}
+      media={
+        <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-md border border-border/60 bg-surface-hover">
+          {row.art ? (
+            <img src={row.art} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="grid h-full w-full place-items-center">
+              <ExeIcon
+                exePath={row.exePath}
+                className="h-6 w-6"
+                fallback={<AppWindow size={16} className="text-text-faint" />}
+              />
+            </div>
+          )}
+        </div>
+      }
+      onClose={onClose}
+      bodyClassName="grid gap-4"
+      footer={
+        <div className="flex justify-end">
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      }
+    >
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="min-w-0 rounded-lg border border-border/70 bg-bg/40 px-3 py-2.5"
+          >
+            <div className="text-[11px] uppercase tracking-wider text-text-faint">
+              {stat.label}
+            </div>
+            <div
+              className={clsx(
+                "mt-0.5 truncate text-sm text-text",
+                stat.mono && "font-mono",
+              )}
+              title={stat.value}
+            >
+              {stat.value}
+            </div>
+            {stat.note ? (
+              <div className="truncate text-[11px] text-text-faint">
+                {stat.note}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-text-faint">
+        Counted only while the app runs and your PC is awake. Time from before
+        it was tracked counts toward the total only.
+      </p>
+    </Modal>
+  );
+}
+
+/** Opens on clicks inside the card only: the context menu renders in a
+ *  portal, and React would bubble its clicks up here too. */
+function openOnClick(onOpen: () => void) {
+  return (event: MouseEvent<HTMLElement>) => {
+    if (event.currentTarget.contains(event.target as Node)) onOpen();
+  };
+}
+
+/** Enter and Space open a card or row like a click. */
+function openOnKey(onOpen: () => void) {
+  return (event: KeyboardEvent<HTMLElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen();
+    }
+  };
 }
 
 /* Without art the app's own icon stands in: small and sharp in front, blown
@@ -255,18 +421,25 @@ function SoftwareIconTile({ exePath }: { exePath: string | null }) {
 function SoftwareCard({
   row,
   format,
+  onOpen,
   onChangeArt,
 }: {
   row: SoftwareRow;
   format: (seconds: number) => string;
+  onOpen: () => void;
   onChangeArt: () => void;
 }) {
   const contextMenu = useContextMenu();
   return (
     <article
       {...contextMenu.props}
+      role="button"
+      tabIndex={0}
+      aria-label={`${row.name}, details`}
+      onClick={openOnClick(onOpen)}
+      onKeyDown={openOnKey(onOpen)}
       title={`${row.name} · this week ${format(row.summary.weekSeconds)}\n${row.exeNames.join(", ")}`}
-      className="group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover"
+      className="group relative isolate flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
       <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden bg-surface-hover">
         {row.art ? (
@@ -319,10 +492,12 @@ function SoftwareCard({
 function SoftwareRowItem({
   row,
   format,
+  onOpen,
   onChangeArt,
 }: {
   row: SoftwareRow;
   format: (seconds: number) => string;
+  onOpen: () => void;
   onChangeArt: () => void;
 }) {
   const contextMenu = useContextMenu();
@@ -335,7 +510,12 @@ function SoftwareRowItem({
   return (
     <div
       {...contextMenu.props}
-      className="flex items-center gap-4 px-4 py-3"
+      role="button"
+      tabIndex={0}
+      aria-label={`${row.name}, details`}
+      onClick={openOnClick(onOpen)}
+      onKeyDown={openOnKey(onOpen)}
+      className="flex cursor-pointer items-center gap-4 px-4 py-3 transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
       title={row.exeNames.join(", ")}
     >
       <div className="relative grid h-12 w-8 shrink-0 place-items-center overflow-hidden rounded-md border border-border/60 bg-surface-hover">

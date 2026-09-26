@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   carryDiscoveredSeconds,
   creditToolUsage,
+  describeToolUsage,
   localDayKey,
   MAX_TOOL_TICK_GAP_MS,
   sanitizeToolUsage,
@@ -182,5 +183,36 @@ describe("tool art picked on this PC", () => {
     expect(
       sanitizeToolUsage({ "a.exe": { days: {}, artUrl: "https://x/a.png" } }),
     ).toEqual({ "a.exe": { days: {}, artUrl: "https://x/a.png" } });
+  });
+});
+
+describe("tool usage details", () => {
+  it("merges a tool's exes per day", () => {
+    expect(
+      describeToolUsage([
+        { days: { "2026-09-20": 600, "2026-09-26": 3600 } },
+        {
+          days: { "2026-09-26": 1800, "2026-09-10": 60 },
+          carriedSeconds: 9000,
+        },
+        undefined,
+      ]),
+    ).toEqual({
+      firstDay: "2026-09-10",
+      lastDay: "2026-09-26",
+      daysUsed: 3,
+      averagePerDaySeconds: (600 + 5400 + 60) / 3,
+      longestDay: { day: "2026-09-26", seconds: 5400 },
+    });
+  });
+
+  it("is empty without counted days", () => {
+    expect(describeToolUsage([{ days: {}, carriedSeconds: 60 }])).toEqual({
+      firstDay: null,
+      lastDay: null,
+      daysUsed: 0,
+      averagePerDaySeconds: 0,
+      longestDay: null,
+    });
   });
 });
