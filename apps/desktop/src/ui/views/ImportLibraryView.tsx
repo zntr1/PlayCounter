@@ -1578,12 +1578,30 @@ export function ImportRow({
             }
             importing={addingAndSharing}
             onConfirm={onGameMatch}
+            searchWhenVisible={
+              startsUnchecked(provider, game) &&
+              Boolean(game.name) &&
+              !resolved?.candidates?.length
+            }
           />
         ) : null}
       </div>
     </Row>
   );
 }
+
+// Rows that search on their own take turns, so scrolling past many of them
+// does not fire a burst of lookups at once.
+let visibleSearchQueue: Promise<unknown> = Promise.resolve();
+function queueVisibleSearch(task: () => Promise<void>) {
+  const run = visibleSearchQueue.then(task, task);
+  visibleSearchQueue = run.catch(() => undefined);
+  return run;
+}
+
+const NO_SUGGESTION_MESSAGE =
+  "No safe suggestion found. Search for the game by name.";
+
 export function LibraryMatchControls({
   apiEndpoint,
   provider,
@@ -1593,6 +1611,7 @@ export function LibraryMatchControls({
   importing,
   searchGames,
   practice = false,
+  searchWhenVisible = false,
 }: {
   apiEndpoint: string;
   candidates: GameMetadata[];
@@ -1602,6 +1621,8 @@ export function LibraryMatchControls({
   provider: BuiltinImportProviderId;
   searchGames?: (query: string) => Promise<GameMetadata[]>;
   practice?: boolean;
+  /** Search the title once the row scrolls into view, instead of on click. */
+  searchWhenVisible?: boolean;
 }) {
   const [query, setQuery] = useState(() => librarySearchQuery(title));
   const [choices, setChoices] = useState(candidates);
@@ -1610,6 +1631,8 @@ export function LibraryMatchControls({
   );
   const [searching, setSearching] = useState(false);
   const searchController = useRef<AbortController | null>(null);
+  const visibleSearchDone = useRef(false);
+  const container = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     setSearching(false);
     return () => searchController.current?.abort();
@@ -1617,34 +1640,103 @@ export function LibraryMatchControls({
   const [message, setMessage] = useState(
     candidates.length > 0
       ? "Choose the exact game, then confirm the match."
-      : "No safe suggestion found. Search for the game by name.",
+      : NO_SUGGESTION_MESSAGE,
   );
   const selectedGame = choices.find(
     (candidate) => candidate.igdbId === selectedIgdbId,
   );
 
+  function findGames(searchQuery: string, signal: AbortSignal) {
+    return searchGames
+      ? searchGames(searchQuery)
+      : searchLibraryGames(apiEndpoint, searchQuery, {
+          signal,
+          mainGamesAndRemastersOnly: provider === "xbox",
+        });
+  }
+
+  function showResults(games: GameMetadata[]) {
+    setChoices(games);
+    setSelectedIgdbId(games[0]?.igdbId ?? null);
+    setMessage(
+      games.length > 0
+        ? "Choose the exact game, then confirm the match."
+        : "No matching games found. Try the English title or another spelling.",
+    );
+  }
+
+  useEffect(() => {
+    const element = container.current;
+    const autoQuery = librarySearchQuery(title);
+    if (
+      !searchWhenVisible ||
+      !element ||
+      autoQuery.length < 2 ||
+      typeof IntersectionObserver === "undefined"
+    )
+      return;
+    let pending: AbortController | null = null;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (visibleSearchDone.current) {
+        observer.disconnect();
+        return;
+      }
+      if (entry?.isIntersecting) {
+        if (pending) return;
+        const controller = new AbortController();
+        pending = controller;
+        searchController.current = controller;
+        setSearching(true);
+        setMessage("");
+        void queueVisibleSearch(async () => {
+          try {
+            if (controller.signal.aborted) return;
+            const games = await findGames(autoQuery, controller.signal);
+            if (controller.signal.aborted) return;
+            visibleSearchDone.current = true;
+            observer.disconnect();
+            showResults(games);
+          } catch (cause) {
+            if (controller.signal.aborted) return;
+            visibleSearchDone.current = true;
+            observer.disconnect();
+            setChoices([]);
+            setSelectedIgdbId(null);
+            setMessage(formatError(cause));
+          } finally {
+            if (pending === controller) pending = null;
+            if (!controller.signal.aborted) setSearching(false);
+          }
+        });
+      } else if (pending) {
+        // Scrolled away before its turn: free the queue for visible rows.
+        pending.abort();
+        pending = null;
+        setSearching(false);
+        setMessage(NO_SUGGESTION_MESSAGE);
+      }
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      pending?.abort();
+    };
+    // findGames and showResults only read props listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiEndpoint, provider, searchGames, searchWhenVisible, title]);
+
   async function runSearch() {
     if (query.trim().length < 2) return;
+    visibleSearchDone.current = true;
     searchController.current?.abort();
     const controller = new AbortController();
     searchController.current = controller;
     setSearching(true);
     setMessage("");
     try {
-      const games = searchGames
-        ? await searchGames(query)
-        : await searchLibraryGames(apiEndpoint, query, {
-            signal: controller.signal,
-            mainGamesAndRemastersOnly: provider === "xbox",
-          });
+      const games = await findGames(query, controller.signal);
       if (controller.signal.aborted) return;
-      setChoices(games);
-      setSelectedIgdbId(games[0]?.igdbId ?? null);
-      setMessage(
-        games.length > 0
-          ? "Choose the exact game, then confirm the match."
-          : "No matching games found. Try the English title or another spelling.",
-      );
+      showResults(games);
     } catch (cause) {
       if (controller.signal.aborted) return;
       setChoices([]);
@@ -1656,7 +1748,10 @@ export function LibraryMatchControls({
   }
 
   return (
-    <div className="mt-3 max-w-2xl rounded-md border border-border bg-bg/50 p-3 text-xs text-text-muted">
+    <div
+      ref={container}
+      className="mt-3 max-w-2xl rounded-md border border-border bg-bg/50 p-3 text-xs text-text-muted"
+    >
       <p>
         Game names are not always unique. Confirm the right game before
         {provider === "battlenet"
