@@ -366,13 +366,17 @@ function handleControllerEvent(
     return;
   }
 
+  navigateItems(event.action);
+}
+
+function navigateItems(action: ControllerAction) {
   const items = controllerItems();
   if (items.length === 0) return;
   const contentRoot = document.querySelector<HTMLElement>(
     '[data-controller-content="true"]',
   );
   if (contentRoot && document.activeElement === contentRoot) {
-    if (event.action === "left") {
+    if (action === "left") {
       focusActiveNavigationItem();
       return;
     }
@@ -381,16 +385,16 @@ function handleControllerEvent(
     );
     if (preferred) {
       focusItem(preferred);
-      if (event.action === "confirm") activateItem(preferred);
+      if (action === "confirm") activateItem(preferred);
     }
     return;
   }
   const current = items.findIndex((item) => item === document.activeElement);
   if (
-    event.action === "up" ||
-    event.action === "down" ||
-    event.action === "left" ||
-    event.action === "right"
+    action === "up" ||
+    action === "down" ||
+    action === "left" ||
+    action === "right"
   ) {
     if (current < 0) {
       focusItem(preferredControllerItem(items));
@@ -405,15 +409,15 @@ function handleControllerEvent(
       : [];
 
     if (navigationItems.includes(selected)) {
-      if (event.action === "right") {
+      if (action === "right") {
         const preferred = preferredControllerItem(contentItems);
         if (preferred) focusItem(preferred);
         else if (contentRoot) {
           clearControllerSelection();
           contentRoot.focus({ preventScroll: true });
         }
-      } else if (event.action === "up" || event.action === "down") {
-        moveWithinItems(navigationItems, selected, event.action);
+      } else if (action === "up" || action === "down") {
+        moveWithinItems(navigationItems, selected, action);
       }
       return;
     }
@@ -427,17 +431,11 @@ function handleControllerEvent(
         const cardRects: ControllerItemRect[] = gameCards.map((item) =>
           item.getBoundingClientRect(),
         );
-        if (
-          event.action === "left" &&
-          isLeftmostVisualItem(cardRects, cardIndex)
-        ) {
+        if (action === "left" && isLeftmostVisualItem(cardRects, cardIndex)) {
           focusActiveNavigationItem();
           return;
         }
-        if (
-          event.action === "up" &&
-          isTopmostVisualItem(cardRects, cardIndex)
-        ) {
+        if (action === "up" && isTopmostVisualItem(cardRects, cardIndex)) {
           const controlsAbove = contentItems.filter(
             (item) =>
               !gameCards.includes(item) &&
@@ -453,19 +451,73 @@ function handleControllerEvent(
             return;
           }
         }
-        moveWithinItems(gameCards, selected, event.action);
+        moveWithinItems(gameCards, selected, action);
         return;
       }
-      moveWithinItems(contentItems, selected, event.action);
+      moveWithinItems(contentItems, selected, action);
       return;
     }
 
-    moveWithinItems(items, selected, event.action);
-  } else if (event.action === "confirm") {
+    moveWithinItems(items, selected, action);
+  } else if (action === "confirm") {
     const selected = items[current < 0 ? 0 : current];
     focusItem(selected);
     activateItem(selected);
   }
+}
+
+const KEYBOARD_ACTIONS: Partial<Record<string, ControllerAction>> = {
+  ArrowUp: "up",
+  ArrowDown: "down",
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  Enter: "confirm",
+  " ": "confirm",
+};
+
+const TEXT_ENTRY =
+  'textarea, select, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])';
+
+// Arrow keys move through the library like the stick, and Enter/Space act as
+// the A button. This works without the controller setting, only while the
+// library is open and focus is on nothing or on a controller item.
+function handleLibraryKeyDown(
+  state: ControllerBridgeState,
+  event: KeyboardEvent,
+) {
+  const action = KEYBOARD_ACTIONS[event.key];
+  if (
+    !action ||
+    event.defaultPrevented ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey ||
+    bridge !== state ||
+    state.disposed ||
+    !state.armed
+  )
+    return;
+  const store = useAppStore.getState();
+  if (
+    store.activeView !== "games" ||
+    store.activeTour ||
+    store.settings.gameLaunchingEnabled !== true ||
+    document.querySelector('[role="dialog"][aria-modal="true"]')
+  )
+    return;
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && focused.matches(TEXT_ENTRY)) return;
+  const onItem =
+    focused instanceof HTMLElement && focused.matches("[data-controller-item]");
+  const onNothing =
+    !focused ||
+    focused === document.body ||
+    (focused instanceof HTMLElement &&
+      focused.matches('[data-controller-content="true"]'));
+  if (action === "confirm" ? !onItem : !onItem && !onNothing) return;
+  event.preventDefault();
+  navigateItems(action);
 }
 
 export function initializeControllerBridge() {
@@ -489,6 +541,10 @@ export function initializeControllerBridge() {
       }
     }),
   );
+  const onKeyDown = (event: KeyboardEvent) =>
+    handleLibraryKeyDown(state, event);
+  window.addEventListener("keydown", onKeyDown);
+  state.teardown.push(() => window.removeEventListener("keydown", onKeyDown));
   track(
     state,
     listen<ControllerEvent>("controller-input", ({ payload }) =>

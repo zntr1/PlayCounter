@@ -118,3 +118,91 @@ it("does not move focus back after the user leaves a loading library", () => {
   expect(document.activeElement).toBe(navigation);
   expect(frames).toHaveLength(0);
 });
+
+function showLibrary() {
+  useAppStore.setState((state) => ({
+    activeView: "games",
+    settings: { ...state.settings, controllerNavigationEnabled: false },
+  }));
+  content.innerHTML = `
+    <input id="search" type="search" data-controller-item="library-option" />
+    <article id="card-a" data-controller-item="game-card" tabindex="-1">
+      <button data-controller-launch="game" hidden></button>A
+    </article>
+    <article id="card-b" data-controller-item="game-card" tabindex="-1">
+      <button data-controller-launch="game" hidden></button>B
+    </article>
+  `;
+  content.setAttribute("aria-busy", "false");
+  for (const element of content.querySelectorAll<HTMLElement>("*"))
+    element.scrollIntoView = vi.fn();
+  // Two cards side by side in one row.
+  for (const [id, left] of [
+    ["card-a", 0],
+    ["card-b", 200],
+  ] as const)
+    content.querySelector<HTMLElement>(`#${id}`)!.getBoundingClientRect = () =>
+      ({ top: 100, left, width: 180, height: 240 }) as DOMRect;
+  const launch = (card: string) =>
+    content.querySelector<HTMLButtonElement>(
+      `#${card} [data-controller-launch]`,
+    )!;
+  const launches = { a: vi.fn(), b: vi.fn() };
+  launch("card-a").addEventListener("click", launches.a);
+  launch("card-b").addEventListener("click", launches.b);
+  return launches;
+}
+
+function press(key: string) {
+  const event = new KeyboardEvent("keydown", {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
+  (document.activeElement ?? document.body).dispatchEvent(event);
+  return event;
+}
+
+it("moves between library cards with the arrow keys and launches with Enter or Space", () => {
+  const launches = showLibrary();
+  press("ArrowRight");
+  expect(document.activeElement?.id).toBe("card-a");
+  expect(document.activeElement?.getAttribute("data-controller-selected")).toBe(
+    "true",
+  );
+  expect(press("ArrowRight").defaultPrevented).toBe(true);
+  expect(document.activeElement?.id).toBe("card-b");
+  press("Enter");
+  expect(launches.b).toHaveBeenCalledTimes(1);
+  press("ArrowLeft");
+  press(" ");
+  expect(launches.a).toHaveBeenCalledTimes(1);
+});
+
+it("leaves arrow keys alone while typing in a text field", () => {
+  showLibrary();
+  const search = document.querySelector<HTMLElement>("#search")!;
+  search.focus();
+  expect(press("ArrowRight").defaultPrevented).toBe(false);
+  expect(press("Enter").defaultPrevented).toBe(false);
+  expect(document.activeElement).toBe(search);
+});
+
+it("ignores library keys outside the library and when launching is off", () => {
+  const launches = showLibrary();
+  useAppStore.getState().setActiveView("now");
+  expect(press("ArrowRight").defaultPrevented).toBe(false);
+  useAppStore.getState().setActiveView("games");
+  useAppStore.setState((state) => ({
+    settings: { ...state.settings, gameLaunchingEnabled: false },
+  }));
+  expect(press("ArrowRight").defaultPrevented).toBe(false);
+  expect(document.activeElement).toBe(document.body);
+  expect(launches.a).not.toHaveBeenCalled();
+});
+
+it("does not launch with Enter when no card is selected", () => {
+  const launches = showLibrary();
+  expect(press("Enter").defaultPrevented).toBe(false);
+  expect(launches.a).not.toHaveBeenCalled();
+});
