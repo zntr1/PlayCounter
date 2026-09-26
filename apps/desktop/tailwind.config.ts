@@ -125,6 +125,10 @@ export default {
         "toast-out": "toast-out 260ms ease-in forwards",
         "modal-in": "modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1)",
         "heart-float": "heart-float 1.4s ease-out forwards",
+        // Tailwind's ping and pulse, but a few runs instead of endless ones:
+        // an attention dot needn't keep the GPU busy for hours.
+        "ping-few": "ping 1s cubic-bezier(0, 0, 0.2, 1) 3",
+        "pulse-few": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 3",
       },
       gridTemplateColumns: {
         14: "repeat(14, minmax(0, 1fr))",

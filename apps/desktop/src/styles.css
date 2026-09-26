@@ -109,6 +109,15 @@
   box-shadow: inset 0 0 0 1px rgb(var(--color-accent) / 0.18);
 }
 
+/* A looping animation redraws the page every frame, even while a game has the
+   focus and needs the GPU. Freeze them all while the window is in the
+   background; pauseIdleAnimations.ts sets the class. */
+body.window-idle *,
+body.window-idle *::before,
+body.window-idle *::after {
+  animation-play-state: paused !important;
+}
+
 /* App shell ─────────────────────────────────────────────────────────────────
    The window draws its own frame: the sidebar's logo row and the title bar
    are drag regions (data-tauri-drag-region), the three window buttons at the
@@ -1040,8 +1049,14 @@ select {
   }
 }
 
+/* A few sparkles, then still; hovering sparkles again. Endless loops keep the
+   GPU busy for an effect nobody watches. */
 .chart-game-cover {
-  animation: chart-cover-sparkle 2.4s ease-in-out infinite;
+  animation: chart-cover-sparkle 2.4s ease-in-out 3;
+}
+
+.chart-game-cover:hover {
+  animation-iteration-count: infinite;
 }
 
 .chart-game-cover-zoom::after {
@@ -1263,7 +1278,13 @@ select {
     transparent
   );
   transform: translateX(-180%) rotate(14deg);
-  animation: level-up-sheen 3.2s ease-in-out infinite;
+  animation: level-up-sheen 3.2s ease-in-out 3;
+}
+
+/* Like the chart covers: a few runs catch the eye, hovering replays them. */
+.level-up-cta:hover::after,
+.level-up-cta:hover .level-up-arrow {
+  animation-iteration-count: infinite;
 }
 
 .level-up-cta:hover {
@@ -1551,7 +1572,7 @@ body.shift-held
 }
 
 .level-up-arrow {
-  animation: level-up-arrow 1.55s ease-in-out infinite;
+  animation: level-up-arrow 1.55s ease-in-out 6;
 }
 
 @keyframes level-up-sheen {

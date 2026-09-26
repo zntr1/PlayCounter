@@ -744,7 +744,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                       <tr key={`live-${s.id}`}>
                         <td className="whitespace-nowrap px-3 py-2">
                           <span className="inline-flex items-center gap-2 text-success">
-                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-success" />
                             Playing now
                           </span>
                         </td>

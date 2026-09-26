@@ -5118,7 +5118,7 @@ export function GameLibraryCard({
             ) : playButtonRunning ? (
               <>
                 <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-success opacity-50 duration-1000" />
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
                 </span>
                 Running
@@ -5528,7 +5528,7 @@ export function GameLibraryCard({
             >
               {playButtonRunning ? (
                 <span className="relative flex h-2.5 w-2.5 items-center justify-center">
-                  <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-success opacity-50 duration-1000" />
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
                 </span>
               ) : playState.loading ? (
