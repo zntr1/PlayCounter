@@ -88,7 +88,7 @@ export function HelpButton() {
       const panel = panelRef.current;
       if (!root || !panel) return;
       const anchor = root.getBoundingClientRect();
-      const width = Math.min(640, (window.innerWidth - 32) / menuScale);
+      const width = Math.min(720, (window.innerWidth - 32) / menuScale);
       const left = Math.max(
         16,
         Math.min(anchor.right, window.innerWidth - 16) - width * menuScale,
@@ -139,7 +139,7 @@ export function HelpButton() {
         <div
           ref={panelRef}
           id="help-tutorials"
-          className="absolute right-0 top-11 z-50 flex w-[640px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
+          className="absolute right-0 top-11 z-50 flex w-[720px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised"
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
@@ -159,7 +159,9 @@ export function HelpButton() {
               }}
             />
           </div>
-          <div className="flex h-[400px] min-h-0">
+          {/* As tall as the longest guide list; it only scrolls when the
+              window is too short. */}
+          <div className="flex min-h-0">
             <div
               role="tablist"
               aria-label="Guide categories"
@@ -214,61 +216,59 @@ export function HelpButton() {
                 );
               })}
             </div>
-            {HELP_TOUR_GROUPS.map((group) => (
-              <div
-                key={group.id}
-                id={`help-guides-${group.id}`}
-                role="tabpanel"
-                aria-labelledby={`help-category-${group.id}`}
-                hidden={group.id !== categoryId}
-                className={
-                  group.id === categoryId
-                    ? "flex min-w-0 flex-1 flex-col"
-                    : undefined
-                }
-              >
-                {group.id === categoryId ? (
-                  <>
-                    <h3 className="shrink-0 px-4 pb-2 pt-4 text-sm font-semibold text-text">
-                      {group.title}
-                    </h3>
-                    <div className="min-h-0 overflow-y-auto px-2 pb-2">
-                      {group.tours.map((tour) => {
-                        const complete =
-                          progress.completed[tour.id] === tour.version;
-                        return (
-                          <button
-                            key={tour.id}
-                            type="button"
-                            className="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
-                            onClick={() => startTour(tour.id)}
-                          >
-                            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent-ink">
-                              {complete ? (
-                                <Check size={16} />
-                              ) : (
-                                <CircleHelp size={16} />
-                              )}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-baseline justify-between gap-3 text-sm font-medium text-text">
-                                <span>{tour.title}</span>
-                                <span className="shrink-0 whitespace-nowrap text-[11px] font-normal text-text-muted">
-                                  {complete ? "Replay" : tour.duration}
-                                </span>
-                              </span>
-                              <span className="block text-xs leading-relaxed text-text-muted">
-                                {tour.description}
+            {/* Every list shares one grid cell so switching topics never
+                resizes the panel; hidden lists only keep their height. */}
+            <div className="grid min-w-0 flex-1 grid-rows-[minmax(0,1fr)]">
+              {HELP_TOUR_GROUPS.map((group) => (
+                <div
+                  key={group.id}
+                  id={`help-guides-${group.id}`}
+                  role="tabpanel"
+                  aria-labelledby={`help-category-${group.id}`}
+                  aria-hidden={group.id !== categoryId}
+                  className={`col-start-1 row-start-1 flex min-h-0 min-w-0 flex-col ${
+                    group.id === categoryId ? "" : "invisible"
+                  }`}
+                >
+                  <h3 className="shrink-0 px-4 pb-2 pt-4 text-sm font-semibold text-text">
+                    {group.title}
+                  </h3>
+                  <div className="min-h-0 overflow-y-auto px-2 pb-2">
+                    {group.tours.map((tour) => {
+                      const complete =
+                        progress.completed[tour.id] === tour.version;
+                      return (
+                        <button
+                          key={tour.id}
+                          type="button"
+                          className="flex w-full items-start gap-3 rounded-lg px-2 py-3 text-left hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
+                          onClick={() => startTour(tour.id)}
+                        >
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent-tint text-accent-ink">
+                            {complete ? (
+                              <Check size={16} />
+                            ) : (
+                              <CircleHelp size={16} />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-baseline justify-between gap-3 text-sm font-medium text-text">
+                              <span>{tour.title}</span>
+                              <span className="shrink-0 whitespace-nowrap text-[11px] font-normal text-text-muted">
+                                {complete ? "Replay" : tour.duration}
                               </span>
                             </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            ))}
+                            <span className="block text-xs leading-relaxed text-text-muted">
+                              {tour.description}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       ) : null}
