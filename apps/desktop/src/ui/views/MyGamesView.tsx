@@ -235,7 +235,7 @@ import {
   type LibraryGameKind,
 } from "../libraryGameKind";
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
-import { XboxButtonGlyph } from "../XboxButtonGlyph";
+import { LaunchKeyHint } from "./games/LaunchKeyHint";
 import {
   findManualLaunchTarget,
   launchErrorDetail,
@@ -5209,8 +5209,8 @@ export function GameLibraryCard({
               </>
             ) : (
               <>
-                {/* Under controller nav the selected card swaps the play icon
-                    for the A glyph, so the button doubles as the button hint. */}
+                {/* The selected card swaps the play icon for the key that
+                    launches it, so the button doubles as the button hint. */}
                 <Play
                   size={isLarge ? 16 : 14}
                   className={clsx(
@@ -5218,11 +5218,7 @@ export function GameLibraryCard({
                       "group-data-[controller-selected=true]:hidden",
                   )}
                 />
-                {controllerNavigable ? (
-                  <span className="hidden group-data-[controller-selected=true]:inline-flex">
-                    <XboxButtonGlyph button="A" size="small" />
-                  </span>
-                ) : null}
+                {controllerNavigable ? <LaunchKeyHint /> : null}
                 Play
               </>
             )}
@@ -5618,9 +5614,7 @@ export function GameLibraryCard({
                     size={15}
                     className="group-data-[controller-selected=true]:hidden"
                   />
-                  <span className="hidden group-data-[controller-selected=true]:inline-flex">
-                    <XboxButtonGlyph button="A" size="small" />
-                  </span>
+                  <LaunchKeyHint compact />
                 </>
               ) : (
                 <Play size={15} />

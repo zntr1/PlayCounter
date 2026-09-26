@@ -126,6 +126,7 @@ function showLibrary() {
   }));
   content.innerHTML = `
     <input id="search" type="search" data-controller-item="library-option" />
+    <button id="select" data-controller-item="library-option">Select games</button>
     <article id="card-a" data-controller-item="game-card" tabindex="-1">
       <button data-controller-launch="game" hidden></button>A
     </article>
@@ -205,4 +206,104 @@ it("does not launch with Enter when no card is selected", () => {
   const launches = showLibrary();
   expect(press("Enter").defaultPrevented).toBe(false);
   expect(launches.a).not.toHaveBeenCalled();
+});
+
+it("keeps arrow keys working after Space opens another view from the sidebar", () => {
+  showLibrary();
+  const [nowNav, gamesNav] = ["#nav-now", "#nav-games"].map(
+    (id) => document.querySelector<HTMLElement>(id)!,
+  );
+  nowNav.getBoundingClientRect = () =>
+    ({ top: 0, left: 0, width: 160, height: 40 }) as DOMRect;
+  gamesNav.getBoundingClientRect = () =>
+    ({ top: 50, left: 0, width: 160, height: 40 }) as DOMRect;
+  gamesNav.setAttribute("data-controller-active-view", "true");
+  nowNav.addEventListener("click", () => {
+    useAppStore.getState().setActiveView("now");
+    gamesNav.removeAttribute("data-controller-active-view");
+    nowNav.setAttribute("data-controller-active-view", "true");
+    content.innerHTML = "<p>Now playing</p>";
+  });
+
+  press("ArrowRight");
+  press("ArrowLeft");
+  expect(document.activeElement).toBe(gamesNav);
+  press("ArrowUp");
+  expect(document.activeElement).toBe(nowNav);
+  press(" ");
+  frame();
+  expect(useAppStore.getState().activeView).toBe("now");
+  expect(document.activeElement).toBe(content);
+  expect(
+    document.querySelector('[data-controller-selected="true"]'),
+  ).toBeNull();
+
+  // Up and Down scroll the view natively; Left goes back to the sidebar.
+  expect(press("ArrowDown").defaultPrevented).toBe(false);
+  press("ArrowLeft");
+  expect(document.activeElement).toBe(nowNav);
+  expect(nowNav.getAttribute("data-controller-selected")).toBe("true");
+  press("ArrowDown");
+  expect(document.activeElement).toBe(gamesNav);
+});
+
+it("leaves other views' arrow keys alone when nothing is selected", () => {
+  useAppStore.getState().setActiveView("now");
+  expect(press("ArrowDown").defaultPrevented).toBe(false);
+  expect(press("ArrowLeft").defaultPrevented).toBe(false);
+  expect(document.activeElement).toBe(document.body);
+});
+
+it("drops the ring when focus moves away or the mouse is pressed", () => {
+  showLibrary();
+  press("ArrowRight");
+  const card = document.querySelector<HTMLElement>("#card-a")!;
+  expect(card.getAttribute("data-controller-selected")).toBe("true");
+  document.querySelector<HTMLElement>("#search")!.focus();
+  expect(card.hasAttribute("data-controller-selected")).toBe(false);
+
+  card.focus();
+  press("ArrowRight");
+  const next = document.querySelector<HTMLElement>("#card-b")!;
+  expect(next.getAttribute("data-controller-selected")).toBe("true");
+  document.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  expect(next.hasAttribute("data-controller-selected")).toBe(false);
+});
+
+it("keeps the arrow keys off the controls above the cards", () => {
+  showLibrary();
+  press("ArrowRight");
+  const card = document.querySelector<HTMLElement>("#card-a")!;
+  expect(press("ArrowUp").defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(card);
+
+  const select = document.querySelector<HTMLElement>("#select")!;
+  select.focus();
+  expect(press("ArrowDown").defaultPrevented).toBe(false);
+  expect(press("Enter").defaultPrevented).toBe(false);
+  expect(document.activeElement).toBe(select);
+
+  // The controller still climbs from the top row into those controls.
+  useAppStore.setState((state) => ({
+    settings: { ...state.settings, controllerNavigationEnabled: true },
+  }));
+  card.focus();
+  input("up");
+  expect(document.activeElement).toBe(select);
+});
+
+it("lets go of the selected card and its ring on Escape", () => {
+  showLibrary();
+  press("ArrowRight");
+  const card = document.querySelector<HTMLElement>("#card-a")!;
+  expect(card.getAttribute("data-controller-selected")).toBe("true");
+  expect(press("Escape").defaultPrevented).toBe(false);
+  expect(document.activeElement).toBe(document.body);
+  expect(card.hasAttribute("data-controller-selected")).toBe(false);
+
+  // Escape in a text field stays with the field.
+  const search = document.querySelector<HTMLElement>("#search")!;
+  search.focus();
+  press("Escape");
+  expect(document.activeElement).toBe(search);
 });

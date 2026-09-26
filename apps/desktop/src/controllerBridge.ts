@@ -94,7 +94,15 @@ function track(
   });
 }
 
-function controllerItems() {
+// The keyboard walks only the cards and the sidebar. The controls above the
+// cards keep their own keyboard behavior.
+const KEYBOARD_ROLES = new Set(["game-card", "navigation"]);
+
+function isKeyboardItem(item: Element) {
+  return KEYBOARD_ROLES.has(item.getAttribute("data-controller-item") ?? "");
+}
+
+function controllerItems(keyboard = false) {
   if (typeof document === "undefined") return [];
   const dialogs = [
     ...document.querySelectorAll<HTMLElement>(
@@ -107,6 +115,7 @@ function controllerItems() {
     (item, index, items) => {
       if (items.indexOf(item) !== index || item.offsetParent === null)
         return false;
+      if (keyboard && !isKeyboardItem(item)) return false;
       if (
         item.hasAttribute("disabled") ||
         item.getAttribute("aria-disabled") === "true" ||
@@ -193,13 +202,17 @@ function focusFirstItemWhenReady(state: ControllerBridgeState, attempt = 0) {
   );
 }
 
-function focusViewContentWhenReady(view = useAppStore.getState().activeView) {
+function focusViewContentWhenReady(
+  keyboard: boolean,
+  view = useAppStore.getState().activeView,
+) {
   if (!globalThis.requestAnimationFrame) return;
   globalThis.requestAnimationFrame(() => {
+    // Not gated on the controller setting: the keyboard opens views too.
     if (
       useAppStore.getState().activeView !== view ||
       !bridge ||
-      !shouldWatch(bridge)
+      bridge.disposed
     )
       return;
     const content = document.querySelector<HTMLElement>(
@@ -207,10 +220,10 @@ function focusViewContentWhenReady(view = useAppStore.getState().activeView) {
     );
     if (!content) return;
     if (content.getAttribute("aria-busy") === "true") {
-      focusViewContentWhenReady(view);
+      focusViewContentWhenReady(keyboard, view);
       return;
     }
-    const contentItems = controllerItems().filter((item) =>
+    const contentItems = controllerItems(keyboard).filter((item) =>
       content.contains(item),
     );
     const preferred = preferredControllerItem(contentItems);
@@ -257,12 +270,12 @@ function moveWithinItems(
   focusItem(items[nextControllerIndex(rects, current, action)]);
 }
 
-function activateItem(item: HTMLElement | undefined) {
+function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
   if (!item) return;
   const role = item.getAttribute("data-controller-item");
   if (role === "navigation" || role === "view-link") {
     item.click();
-    focusViewContentWhenReady();
+    focusViewContentWhenReady(keyboard);
     return;
   }
   const launchControl = item.matches("[data-controller-launch]")
@@ -369,8 +382,8 @@ function handleControllerEvent(
   navigateItems(event.action);
 }
 
-function navigateItems(action: ControllerAction) {
-  const items = controllerItems();
+function navigateItems(action: ControllerAction, keyboard = false) {
+  const items = controllerItems(keyboard);
   if (items.length === 0) return;
   const contentRoot = document.querySelector<HTMLElement>(
     '[data-controller-content="true"]',
@@ -385,7 +398,7 @@ function navigateItems(action: ControllerAction) {
     );
     if (preferred) {
       focusItem(preferred);
-      if (action === "confirm") activateItem(preferred);
+      if (action === "confirm") activateItem(preferred, keyboard);
     }
     return;
   }
@@ -462,7 +475,7 @@ function navigateItems(action: ControllerAction) {
   } else if (action === "confirm") {
     const selected = items[current < 0 ? 0 : current];
     focusItem(selected);
-    activateItem(selected);
+    activateItem(selected, keyboard);
   }
 }
 
@@ -473,15 +486,19 @@ const KEYBOARD_ACTIONS: Partial<Record<string, ControllerAction>> = {
   ArrowRight: "right",
   Enter: "confirm",
   " ": "confirm",
+  Escape: "back",
 };
 
 const TEXT_ENTRY =
   'textarea, select, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])';
 
-// Arrow keys move through the library like the stick, and Enter/Space act as
-// the A button. This works without the controller setting, only while the
-// library is open and focus is on nothing or on a controller item.
-function handleLibraryKeyDown(
+// Arrow keys move like the stick between the cards and the sidebar, and
+// Enter/Space act as the A button. This works without the controller setting.
+// From a card or sidebar item it works in every view, so the sidebar can be
+// used to leave the library. With nothing selected, only the library's cards
+// take the keys; other views keep native arrow scrolling, and Left returns
+// from their content to the sidebar.
+function handleKeyboardNavigation(
   state: ControllerBridgeState,
   event: KeyboardEvent,
 ) {
@@ -500,7 +517,6 @@ function handleLibraryKeyDown(
     return;
   const store = useAppStore.getState();
   if (
-    store.activeView !== "games" ||
     store.activeTour ||
     store.settings.gameLaunchingEnabled !== true ||
     document.querySelector('[role="dialog"][aria-modal="true"]')
@@ -508,16 +524,30 @@ function handleLibraryKeyDown(
     return;
   const focused = document.activeElement;
   if (focused instanceof HTMLElement && focused.matches(TEXT_ENTRY)) return;
-  const onItem =
-    focused instanceof HTMLElement && focused.matches("[data-controller-item]");
-  const onNothing =
-    !focused ||
-    focused === document.body ||
-    (focused instanceof HTMLElement &&
-      focused.matches('[data-controller-content="true"]'));
-  if (action === "confirm" ? !onItem : !onItem && !onNothing) return;
+  const content = document.querySelector('[data-controller-content="true"]');
+  const onItem = focused instanceof HTMLElement && isKeyboardItem(focused);
+  // Escape lets go of the selected card or sidebar item and its ring. It is
+  // not prevented, so other Escape handlers still see it.
+  if (action === "back") {
+    if (!onItem) return;
+    clearControllerSelection();
+    focused.blur();
+    return;
+  }
+  if (!onItem) {
+    const onNothing =
+      !focused || focused === document.body || focused === content;
+    if (action === "confirm" || !onNothing) return;
+    const toSidebar = action === "left" && focused === content;
+    const toCards =
+      store.activeView === "games" &&
+      controllerItems(true).some(
+        (item) => item.getAttribute("data-controller-item") === "game-card",
+      );
+    if (!toSidebar && !toCards) return;
+  }
   event.preventDefault();
-  navigateItems(action);
+  navigateItems(action, true);
 }
 
 export function initializeControllerBridge() {
@@ -542,9 +572,25 @@ export function initializeControllerBridge() {
     }),
   );
   const onKeyDown = (event: KeyboardEvent) =>
-    handleLibraryKeyDown(state, event);
+    handleKeyboardNavigation(state, event);
+  // The ring marks the focused item only: focus moving elsewhere (Tab, a
+  // click, a view opening) or a mouse press takes it away.
+  const onFocusIn = (event: FocusEvent) => {
+    for (const item of document.querySelectorAll<HTMLElement>(
+      '[data-controller-selected="true"]',
+    )) {
+      if (item !== event.target)
+        item.removeAttribute("data-controller-selected");
+    }
+  };
   window.addEventListener("keydown", onKeyDown);
-  state.teardown.push(() => window.removeEventListener("keydown", onKeyDown));
+  window.addEventListener("focusin", onFocusIn);
+  window.addEventListener("pointerdown", clearControllerSelection);
+  state.teardown.push(() => {
+    window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("focusin", onFocusIn);
+    window.removeEventListener("pointerdown", clearControllerSelection);
+  });
   track(
     state,
     listen<ControllerEvent>("controller-input", ({ payload }) =>

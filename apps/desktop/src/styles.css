@@ -354,6 +354,21 @@ body.window-idle *::after {
   box-shadow: inset 0 0 0 2px rgb(var(--color-accent) / 0.85);
 }
 
+/* The selected card's play button names the key that launches it: the A glyph
+   while a controller drives the app, Enter while the keyboard does. */
+.launch-key-hint {
+  display: none;
+}
+
+:root:not([data-controller-mode="true"])
+  .game-library-card[data-controller-selected="true"]
+  .launch-key-hint--keyboard,
+:root[data-controller-mode="true"]
+  .game-library-card[data-controller-selected="true"]
+  .launch-key-hint--controller {
+  display: inline-flex;
+}
+
 .controller-scroll-focus-indicator {
   opacity: 0;
   transform: translateY(-4px);
