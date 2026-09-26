@@ -36,6 +36,7 @@ export type LibraryFilters = {
   source?: "all" | "steam" | "xbox" | "battlenet" | "epic" | "unimported";
   status?: GameStatus | "none";
   favorite?: boolean;
+  /** Launchable (Play can start it). Keeps its old saved name for shelves and backups. */
   installed?: boolean;
   played?: "played" | "unplayed";
   emulator?: "dosbox" | "dolphin" | "pcsx2";
@@ -396,6 +397,8 @@ export type FilterableLibraryGame = {
     installed: boolean;
     entry: { providerSeconds: number | null };
   }>;
+  /** Play can start it; see isLaunchable. Absent counts as not launchable. */
+  launchable?: boolean;
 };
 
 export function matchesLibraryFilters(
@@ -426,7 +429,7 @@ export function matchesLibraryFilters(
   if (filters.favorite && !journal.favorite) return false;
   if (
     filters.installed !== undefined &&
-    game.libraryImports.some((entry) => entry.installed) !== filters.installed
+    Boolean(game.launchable) !== filters.installed
   )
     return false;
   if (filters.emulator && !game.emulatorIds.includes(filters.emulator))

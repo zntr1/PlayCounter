@@ -247,6 +247,7 @@ import {
   resolveEmulatorLaunchTarget,
 } from "../../emulatorLaunch";
 import { adapterFor } from "../../emulators/registry";
+import { isLaunchable, launchableEmulatorMappings } from "../../launchable";
 import {
   emulatorMappingProvenance,
   emulatorSessionProvenance,
@@ -340,6 +341,8 @@ export type GameSummary = {
     install?: LibraryInstallEntry;
   }>;
   providerFloorSeconds: number;
+  /** Play can start it; see isLaunchable. Absent on tour sample games. */
+  launchable?: boolean;
 };
 
 type PendingRemoval = {
@@ -675,6 +678,14 @@ export function MyGamesView({
   const libraryInstalls = useAppStore((state) => state.libraryInstalls);
   const hydratedGameMetadata = useAppStore((state) => state.gameMetadata);
   const emulatorMappings = useAppStore((state) => state.emulatorMappings);
+  const launchTargets = useAppStore((state) => state.launchTargets);
+  const manualLaunchTargets = useAppStore((state) => state.manualLaunchTargets);
+  const emulatorAutoLaunchTargets = useAppStore(
+    (state) => state.emulatorAutoLaunchTargets,
+  );
+  const emulatorManualLaunchTargets = useAppStore(
+    (state) => state.emulatorManualLaunchTargets,
+  );
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
@@ -1504,6 +1515,14 @@ export function MyGamesView({
         summary.adjustmentSeconds,
         summary.providerFloorSeconds,
       );
+      summary.launchable = isLaunchable(summary, {
+        launchTargets,
+        manualLaunchTargets,
+        exeCache,
+        emulatorMappings,
+        emulatorAutoLaunchTargets,
+        emulatorManualLaunchTargets,
+      });
     }
 
     return [...summaries.values()].sort((left, right) =>
@@ -1514,10 +1533,14 @@ export function MyGamesView({
     archivedGameSeconds,
     blacklist,
     exeCache,
+    emulatorAutoLaunchTargets,
+    emulatorManualLaunchTargets,
     emulatorMappings,
     hydratedGameMetadata,
+    launchTargets,
     libraryImports,
     libraryInstalls,
+    manualLaunchTargets,
     playcounterLibrary,
     playtimeAdjustments,
     providerFloorSeconds,
@@ -3043,13 +3066,7 @@ export function GameLibraryCard({
   });
   const gameEmulatorMappings = useMemo(
     () =>
-      game.emulatorContentKeys.flatMap((contentKey) => {
-        const mapping = emulatorMappings.get(contentKey);
-        return mapping?.decision === "game" &&
-          adapterFor(mapping.emulatorId)?.launch
-          ? [mapping]
-          : [];
-      }),
+      launchableEmulatorMappings(game.emulatorContentKeys, emulatorMappings),
     [emulatorMappings, game.emulatorContentKeys],
   );
   const primaryEmulatorMapping =
@@ -3064,17 +3081,17 @@ export function GameLibraryCard({
   const primaryEmulatorCandidate = primaryEmulatorMapping
     ? emulatorLaunchCandidates.get(primaryEmulatorMapping.contentKey)
     : undefined;
+  const hasPrimaryLaunchTarget = isLaunchable(game, {
+    launchTargets,
+    manualLaunchTargets,
+    exeCache,
+    emulatorMappings,
+    emulatorAutoLaunchTargets,
+    emulatorManualLaunchTargets,
+  });
   const showPlayButton =
     (launchTourDemo && Boolean(demoLaunchPath)) ||
-    (!demo &&
-      canLaunchExecutables &&
-      Boolean(
-        primaryLaunchTarget ||
-        primaryEmulatorTarget ||
-        steamLaunchEntry ||
-        xboxLaunchEntry ||
-        epicLaunchEntry,
-      ));
+    (!demo && canLaunchExecutables && hasPrimaryLaunchTarget);
   // An imported Steam game that is no longer installed offers Steam's
   // installer where Play would be.
   const showInstallInSteam =
@@ -3120,13 +3137,6 @@ export function GameLibraryCard({
           : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && !selectionMode && canLaunchExecutables;
-  const hasPrimaryLaunchTarget = Boolean(
-    primaryLaunchTarget ||
-    primaryEmulatorTarget ||
-    steamLaunchEntry ||
-    xboxLaunchEntry ||
-    epicLaunchEntry,
-  );
   const canEditCover = game.source === "custom";
   const primaryExeName = game.exeNames[0];
   const primaryExeEntry = primaryExeName

@@ -517,11 +517,24 @@ export function LibraryOrganizationToolbar({
             </Pill>
             <Pill
               selected={filters.installed === true}
+              title="Games PlayCounter can start: an installed Steam, Xbox or Epic copy, or a known .exe or ROM on this PC"
               onClick={() =>
                 setFilter("installed", filters.installed ? undefined : true)
               }
             >
-              Installed (launchers)
+              Launchable
+            </Pill>
+            <Pill
+              selected={filters.installed === false}
+              title="Games PlayCounter can't start yet. Play one once or set its .exe to make it launchable."
+              onClick={() =>
+                setFilter(
+                  "installed",
+                  filters.installed === false ? undefined : false,
+                )
+              }
+            >
+              Not launchable
             </Pill>
           </FilterGroup>
           <FilterGroup label="Emulator">

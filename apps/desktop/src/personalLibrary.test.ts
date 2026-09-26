@@ -742,15 +742,37 @@ describe("saved library filters", () => {
       ),
     ).toThrow("status");
   });
+  it("filters launchable games by the Play check, not by launcher imports", () => {
+    const journal = emptyJournal(game);
+    const importedOnly = { ...candidate, launchable: false };
+    const exeOnly = { ...candidate, libraryImports: [], launchable: true };
+    expect(
+      matchesLibraryFilters(importedOnly, journal, { installed: true }),
+    ).toBe(false);
+    expect(
+      matchesLibraryFilters(importedOnly, journal, { installed: false }),
+    ).toBe(true);
+    expect(matchesLibraryFilters(exeOnly, journal, { installed: true })).toBe(
+      true,
+    );
+    expect(matchesLibraryFilters(exeOnly, journal, { installed: false })).toBe(
+      false,
+    );
+  });
   it("does not call unknown provider time unplayed", () => {
     expect(
-      matchesLibraryFilters(candidate, emptyJournal(game), {
-        installed: true,
-        played: "unplayed",
-      }),
+      matchesLibraryFilters(
+        { ...candidate, launchable: true },
+        emptyJournal(game),
+        {
+          installed: true,
+          played: "unplayed",
+        },
+      ),
     ).toBe(false);
     const known = {
       ...candidate,
+      launchable: true,
       libraryImports: [
         { provider: "steam", installed: true, entry: { providerSeconds: 0 } },
       ],

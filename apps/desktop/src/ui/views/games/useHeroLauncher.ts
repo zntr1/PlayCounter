@@ -4,13 +4,13 @@ import {
   emulatorLaunchErrorMessage,
   resolveEmulatorLaunchTarget,
 } from "../../../emulatorLaunch";
-import { adapterFor } from "../../../emulators/registry";
 import {
   findManualLaunchTarget,
   launchErrorDetail,
   launchErrorMessage,
   launchTargetsForGame,
 } from "../../../gameLaunch";
+import { isLaunchable, launchableEmulatorMappings } from "../../../launchable";
 import { forgetUninstalledLibraryInstalls } from "../../../library/installRecheck";
 import {
   libraryLaunchErrorMessage,
@@ -105,13 +105,10 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     (entry) => entry.provider === "epic" && entry.installed,
   );
   const emulatorMapping = useMemo(() => {
-    const mappings = game.emulatorContentKeys.flatMap((contentKey) => {
-      const mapping = emulatorMappings.get(contentKey);
-      return mapping?.decision === "game" &&
-        adapterFor(mapping.emulatorId)?.launch
-        ? [mapping]
-        : [];
-    });
+    const mappings = launchableEmulatorMappings(
+      game.emulatorContentKeys,
+      emulatorMappings,
+    );
     return mappings.length === 1 ? mappings[0] : undefined;
   }, [emulatorMappings, game.emulatorContentKeys]);
   const emulatorTarget = emulatorMapping
@@ -124,13 +121,14 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
 
   const canLaunch =
     canLaunchExecutables &&
-    Boolean(
-      primaryLaunchTarget ||
-      emulatorTarget ||
-      steamLaunchEntry ||
-      xboxLaunchEntry ||
-      epicLaunchEntry,
-    );
+    isLaunchable(game, {
+      launchTargets,
+      manualLaunchTargets,
+      exeCache,
+      emulatorMappings,
+      emulatorAutoLaunchTargets,
+      emulatorManualLaunchTargets,
+    });
   // An imported Steam game that is no longer installed offers Steam's
   // installer instead of a Play that would only open it.
   const canInstall =
