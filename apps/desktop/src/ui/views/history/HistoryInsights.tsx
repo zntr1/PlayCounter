@@ -1,6 +1,6 @@
 import type { Session } from "@playcounter/shared";
 import clsx from "clsx";
-import { memo, type ReactNode, useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { GameIdentityResolver } from "../../../store";
 import {
   bucketSessions,
@@ -20,7 +20,7 @@ import { ColumnChart } from "../../charts/ColumnChart";
 import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
 import { addDays } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
-import { SectionToggle, useSectionCollapse } from "../../CollapsibleSection";
+import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
 
 export type ResolvedGame = { name: string; coverUrl: string };
 
@@ -137,40 +137,6 @@ export function hasCachedHistoryInsights(sessions: Session[], nowMs: number) {
   return cached?.dayKey === localDayKey(nowMs) && cached.filters.has("all");
 }
 
-function PanelHeading({
-  id,
-  title,
-  caption,
-  action,
-  collapsed = false,
-}: {
-  id: string;
-  title: string;
-  caption: string;
-  action?: ReactNode;
-  collapsed?: boolean;
-}) {
-  return (
-    <div
-      className={clsx(
-        "flex min-w-0 items-start justify-between gap-4",
-        collapsed ? "mb-0" : "mb-5",
-      )}
-    >
-      <div className="min-w-0">
-        <h2
-          id={id}
-          className="text-xs font-bold uppercase tracking-[0.14em] text-text-faint"
-        >
-          {title}
-        </h2>
-        <p className="mt-1 text-sm text-text-muted">{caption}</p>
-      </div>
-      {action}
-    </div>
-  );
-}
-
 const weekdayNames = [
   "Monday",
   "Tuesday",
@@ -247,47 +213,41 @@ export const HistoryInsights = memo(function HistoryInsights({
   return (
     <div className="grid min-w-0 gap-6">
       <Panel dataTour="history-playtime-chart" className="min-w-0 p-5">
-        <PanelHeading
+        <SectionHeading
           id="playtime-chart-heading"
           title="Playtime over time"
           caption={`${formatDuration(chartTotal, showDurationDays)} logged · ${chart.title}`}
           collapsed={playtimeSection.collapsed}
+          onToggle={playtimeSection.toggle}
+          controls="playtime-chart-body"
           action={
-            <div className="flex items-center gap-2">
-              {!playtimeSection.collapsed && canDetail ? (
-                <div
-                  role="group"
-                  aria-label="Chart detail"
-                  className="inline-flex overflow-hidden rounded-lg border border-border"
-                >
-                  {[
-                    { id: false, label: "Overview" },
-                    { id: true, label: "Detailed" },
-                  ].map((option) => (
-                    <button
-                      key={String(option.id)}
-                      type="button"
-                      aria-pressed={detailed === option.id}
-                      onClick={() => onDetailedChartChange(option.id)}
-                      className={clsx(
-                        "px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
-                        detailed === option.id
-                          ? "bg-surface-hover text-text"
-                          : "text-text-muted hover:text-text",
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <SectionToggle
-                collapsed={playtimeSection.collapsed}
-                onToggle={playtimeSection.toggle}
-                controls="playtime-chart-body"
-                label="Playtime over time"
-              />
-            </div>
+            !playtimeSection.collapsed && canDetail ? (
+              <div
+                role="group"
+                aria-label="Chart detail"
+                className="inline-flex overflow-hidden rounded-lg border border-border"
+              >
+                {[
+                  { id: false, label: "Overview" },
+                  { id: true, label: "Detailed" },
+                ].map((option) => (
+                  <button
+                    key={String(option.id)}
+                    type="button"
+                    aria-pressed={detailed === option.id}
+                    onClick={() => onDetailedChartChange(option.id)}
+                    className={clsx(
+                      "px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                      detailed === option.id
+                        ? "bg-surface-hover text-text"
+                        : "text-text-muted hover:text-text",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null
           }
         />
         {!playtimeSection.collapsed ? (
@@ -323,19 +283,13 @@ export const HistoryInsights = memo(function HistoryInsights({
             calendarSection.collapsed && "self-start",
           )}
         >
-          <PanelHeading
+          <SectionHeading
             id="activity-heading"
             title="Activity calendar"
             caption={calendarCaption}
             collapsed={calendarSection.collapsed}
-            action={
-              <SectionToggle
-                collapsed={calendarSection.collapsed}
-                onToggle={calendarSection.toggle}
-                controls="activity-calendar-body"
-                label="Activity calendar"
-              />
-            }
+            onToggle={calendarSection.toggle}
+            controls="activity-calendar-body"
           />
           {!calendarSection.collapsed ? (
             <div id="activity-calendar-body">
@@ -360,19 +314,13 @@ export const HistoryInsights = memo(function HistoryInsights({
             habitsSection.collapsed && "self-start",
           )}
         >
-          <PanelHeading
+          <SectionHeading
             id="habits-heading"
             title="Play habits"
             caption={chart.title}
             collapsed={habitsSection.collapsed}
-            action={
-              <SectionToggle
-                collapsed={habitsSection.collapsed}
-                onToggle={habitsSection.toggle}
-                controls="habits-body"
-                label="Play habits"
-              />
-            }
+            onToggle={habitsSection.toggle}
+            controls="habits-body"
           />
           {!habitsSection.collapsed ? (
             <div id="habits-body">
@@ -392,19 +340,13 @@ export const HistoryInsights = memo(function HistoryInsights({
       </div>
 
       <Panel className="min-w-0 p-5">
-        <PanelHeading
+        <SectionHeading
           id="rhythm-heading"
           title="When you play"
           caption={`Weekday × hour · ${chart.title}`}
           collapsed={rhythmSection.collapsed}
-          action={
-            <SectionToggle
-              collapsed={rhythmSection.collapsed}
-              onToggle={rhythmSection.toggle}
-              controls="rhythm-body"
-              label="When you play"
-            />
-          }
+          onToggle={rhythmSection.toggle}
+          controls="rhythm-body"
         />
         {!rhythmSection.collapsed ? (
           <div id="rhythm-body">
