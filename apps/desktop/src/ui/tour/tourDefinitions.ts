@@ -147,7 +147,7 @@ export const TOURS: TourDefinition[] = [
   {
     id: "import-library",
     version: 2,
-    release: "1.2.1",
+    release: "1.2.2",
     kind: "guide",
     category: "library",
     title: "Import a launcher library",
@@ -206,7 +206,7 @@ export const TOURS: TourDefinition[] = [
   {
     id: "watch-folders",
     version: 1,
-    release: "1.2.1",
+    release: "1.2.2",
     kind: "guide",
     category: "library",
     title: "Watch folders for new games",
@@ -633,7 +633,7 @@ export const TOURS: TourDefinition[] = [
   {
     id: "launch-games",
     version: 4,
-    release: "1.2.1",
+    release: "1.2.2",
     kind: "guide",
     category: "detection",
     title: "Launch games directly",

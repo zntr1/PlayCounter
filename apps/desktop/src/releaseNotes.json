@@ -1,6 +1,6 @@
 [
   {
-    "version": "1.2.1",
+    "version": "1.2.2",
     "releasedAt": "2026-09-26",
     "headline": "Epic Games import, a library that keeps up with your launchers, and watched folders for games from anywhere.",
     "highlights": [
@@ -9,8 +9,9 @@
       "Play buttons stay accurate. When you uninstall a game in Steam, Xbox or Battle.net, its Play button goes away on its own, and Steam no longer opens a reinstall dialog when you press Play. Reinstall the game and Play comes back without importing again. A USB drive or network share that is not connected no longer erases your saved launch paths.",
       "Watched folders for games outside any launcher: add a folder like C:\\Games in Settings → Library import. Every folder inside it counts as one game. When PlayCounter is sure which game it is, the game is added and Play works right away, even before your first session. Anything unclear waits in Discovered and shows the folder it was found in. Watched folders need 'Remember launch paths' and stay on this PC.",
       "Play from the keyboard: the arrow keys move through My Games between cards and into the sidebar, and Enter or Space starts the selected game. It works whenever game launching is on, no controller needed. Escape lets go of the selection.",
+      "New guide under ? Help: 'Watch folders for new games'. The guides for importing and launching now also cover Epic Games, new installs and uninstalled games. Start them right from these release notes.",
       "Steam imports now also include installed games you have not played yet. If you like, turn on 'Show Install in Steam' in Settings to get an Install button for imported Steam games that are no longer installed.",
-      "Right-click My Games in the sidebar to jump straight to the Steam, Xbox, Battle.net or Epic Games import.",
+      "Right-click My Games in the sidebar to jump straight to the Steam, Xbox, Battle.net or Epic Games import. Don't need the warning sign on games without a known .exe? Turn off 'Tracking warnings' under Customize → Card details in My Games.",
       "Easier on your games: PlayCounter pauses its animations while it is in the background, so it no longer costs FPS in games that share the GPU. It also uses less memory while it waits in the tray.",
       "Fewer non-games in Discovered: many more everyday apps, like 7-Zip, Adobe tools, AnyDesk and Audacity, are now ignored automatically. Thanks to everyone who shares the apps they ignore.",
       "Fixes: dialogs opened during a guide/tour can be clicked again, a guide no longer starts the hotkey recorder when it reaches Keyboard shortcuts, and Battle.net games no longer count as installed when an uninstall left their folder behind."
