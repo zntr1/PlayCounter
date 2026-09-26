@@ -58,7 +58,7 @@ export const gameGuides = [
       {
         id: "versions",
         title: "Retail, Classic and several accounts",
-        html: "<p>Retail World of Warcraft and each Classic version are separate games in PlayCounter. Add up only the characters of the version you are setting. Characters from several WoW accounts on this PC count toward the same game, so include them in the sum.</p>",
+        html: '<p>Retail World of Warcraft and each Classic version are separate games in PlayCounter. Add up only the characters of the version you are setting. Characters from several WoW accounts on this PC count toward the same game, so include them in the sum.</p><p>Getting ready for World of Warcraft: Forever? <a href="/track-playtime-wow-forever/">Set up tracking before launch day</a>.</p>',
       },
     ],
     sources: [
@@ -68,6 +68,73 @@ export const gameGuides = [
       },
     ],
     related: ["check-playtime-battle-net", "adjust-total-playtime"],
+  },
+  {
+    slug: "track-playtime-wow-forever",
+    category: "Game guides",
+    title: "How to track your WoW Forever playtime from day one",
+    description:
+      "Set up PlayCounter before WoW Forever launches on November 4, 2026, so your sessions are recorded from day one. Free, automatic, no add-on needed.",
+    answer:
+      "Install PlayCounter now and leave Launch on startup on, so it waits in the tray. When World of Warcraft: Forever launches on November 4, 2026, start it from Battle.net as usual: PlayCounter records each session automatically. On your first launch, check Now Playing once to confirm the title. No PlayCounter account, import or add-on needed.",
+    thumb: "battlenet-now",
+    glance: [
+      ["Set up before launch", "#setup"],
+      ["Check your first session", "#first-launch"],
+      ["Add earlier /played time", "#played"],
+    ],
+    sections: [
+      {
+        id: "why",
+        title: "Why set it up before launch day",
+        html: "<p>Blizzard’s global launch date for World of Warcraft: Forever is <strong>November 4, 2026</strong>, at 3:00 p.m. PST. The beta runs from September 17 to October 21, 2026. Access is included with a World of Warcraft subscription or game time.</p><p>In the game, <code>/played</code> shows the time of one character. There is no history of your sessions, no playtime per day and no total across all your characters. Those only exist if something records them while you play, so set PlayCounter up before your first Forever session.</p>",
+      },
+      {
+        id: "setup",
+        title: "Set up PlayCounter before launch day",
+        steps: [
+          {
+            title: "Install PlayCounter",
+            html: "<p>Download the free Windows installer from this page and run it. There is no PlayCounter account to create.</p>",
+          },
+          {
+            title: "Keep Launch on startup on",
+            html: "<p>It is on by default. PlayCounter then starts when you sign in to Windows and waits in the tray, so no session is missed because you forgot to open it. The switch is in <strong>Settings → General</strong>.</p>",
+          },
+          {
+            title: "Start Forever from Battle.net as usual",
+            html: "<p>You don’t launch the game through PlayCounter and don’t need to import anything first. PlayCounter notices the running game by itself.</p>",
+          },
+        ],
+      },
+      {
+        id: "first-launch",
+        title: "Check your first Forever session once",
+        html: '<p>PlayCounter already recognizes the Forever beta as World of Warcraft: Forever. The launch version may start from a different game file, so check once in your first session after launch:</p><ol><li>While Forever is running, open <strong>Now Playing</strong> in PlayCounter.</li><li>If it shows World of Warcraft: Forever with a running timer, you are done. Later sessions are recorded the same way.</li><li>If Now Playing shows nothing, open <strong>Discovered</strong>, choose <strong>Add &amp; Share</strong> on the running WoW file and pick World of Warcraft: Forever. Your match then helps other players too. <a href="/game-not-detected/">How to add a game</a>.</li><li>If it shows a different game, select the flag for <strong>Report wrong match</strong>, choose <strong>It belongs to a different game</strong> and pick the right one.</li></ol><p>PlayCounter only records games it knows, so this one check makes sure your first hours count.</p>',
+        screenshot: "battlenet-now",
+      },
+      {
+        id: "played",
+        title: "Played before installing PlayCounter?",
+        html: '<p>Type <code>/played</code> on each Forever character and add the totals up with the <a href="/check-playtime-world-of-warcraft/#calculator">/played calculator</a>. Then set the sum once in PlayCounter: right-click the game in <strong>My Games</strong>, open <strong>Playtime</strong> and choose <strong>Adjust total playtime</strong>. New sessions are added on top. <a href="/adjust-total-playtime/">Step by step with screenshots</a>.</p>',
+      },
+      {
+        id: "differences",
+        title: "What PlayCounter counts",
+        html: '<p>PlayCounter measures how long the game runs, including the login screen, character selection and loading screens. It does not split a session by character. <code>/played</code> only counts the time you are logged in to a character, so PlayCounter’s number usually ends up a little higher. <a href="/check-playtime-world-of-warcraft/#differences">Why the two drift apart</a>.</p>',
+      },
+    ],
+    sources: [
+      {
+        label: "Blizzard: World of Warcraft: Forever launch and beta dates",
+        url: "https://news.blizzard.com/en-us/article/24301508/pre-purchase-world-of-warcraft-forever-upgrades-and-begin-your-next-journey-in-azeroth",
+      },
+      {
+        label: "Blizzard Support: checking World of Warcraft time played",
+        url: "https://us.battle.net/support/en/article/21163",
+      },
+    ],
+    related: ["check-playtime-world-of-warcraft", "check-playtime-battle-net"],
   },
   {
     slug: "check-playtime-minecraft",
@@ -142,7 +209,7 @@ export const gameGuides = [
       {
         id: "earlier",
         title: "Include earlier time",
-        html: '<p>PlayCounter currently has no Epic history importer. The Epic counter remains the place to check earlier PC hours; to include that total, enter it with <a href="/adjust-total-playtime/">Adjust total playtime</a>.</p><p>The optional Xbox importer can bring in a reported Xbox value where available. It is not a live console tracker, and overlapping totals are not automatically added together.</p>',
+        html: '<p>The Epic Games import brings in the Fortnite hours Epic recorded: in <strong>My Games</strong>, select <strong>Epic Games</strong>, then <strong>Import from Epic Games</strong> and sign in. <a href="/check-playtime-epic-games/#import">Epic import step by step</a>.</p><p>The optional Xbox importer can bring in a reported Xbox value where available. It is not a live console tracker, and overlapping totals are not automatically added together.</p>',
       },
     ],
     sources: [

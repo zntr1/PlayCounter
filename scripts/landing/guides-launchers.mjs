@@ -126,16 +126,42 @@ export const launcherGuides = [
   {
     slug: "check-playtime-epic-games",
     category: "Launcher guides",
-    title: "How to check playtime in Epic Games",
+    title: "How to check and import your Epic Games playtime",
     description:
-      "Find hours played in the Epic Games Launcher and record new Epic game sessions alongside your other PC games with PlayCounter.",
+      "Find hours played in the Epic Games Launcher, import your Epic library with its playtime into PlayCounter, and track new Epic sessions automatically.",
     answer:
-      "Open the Epic Games Launcher Library, use a game’s three-dot menu and look for You’ve Played. You can also switch the library to list view to see Time Played.",
+      "Open the Epic Games Launcher Library, use a game’s three-dot menu and look for You’ve Played, or switch the library to list view to see Time Played. To bring those hours into PlayCounter, open My Games, choose Epic Games and select Import from Epic Games.",
+    glance: [
+      ["Find hours in Epic", "#epic"],
+      ["Import into PlayCounter", "#import"],
+      ["Track new sessions", "#sessions"],
+    ],
     sections: [
       {
         id: "epic",
         title: "Find your Epic game hours",
         html: '<ol><li>Open the <strong>Epic Games Launcher</strong> and choose <strong>Library</strong>.</li><li>Find the game and open its <strong>three-dot menu</strong>.</li><li>Look for <strong>You’ve Played</strong>. For a list of games, switch the library to <strong>list view</strong> and check <strong>Time Played</strong>.</li></ol><p>These are the hours recorded by Epic. For Fortnite, use the same library view; <a href="/check-playtime-fortnite/">see the Fortnite guide</a> for PC and account scope.</p>',
+      },
+      {
+        id: "import",
+        title: "Import your Epic hours into PlayCounter",
+        intro:
+          "<p>Worth doing once: signing in brings in the playtime Epic recorded, so your totals start with your real hours instead of zero. New Epic sessions are tracked either way, with or without an import.</p>",
+        steps: [
+          {
+            title: "Open Epic Games in My Games",
+            html: "<p>In the sidebar under <strong>My Games</strong>, select <strong>Epic Games</strong>, then <strong>Import from Epic Games</strong>. After your first import, the button says <strong>Import more from Epic Games</strong>.</p>",
+          },
+          {
+            title: "Choose how to find your games",
+            html: "<p><strong>Sign in and find games</strong> brings in your Epic library with the playtime Epic recorded, including games that are not installed. <strong>Find installed games</strong> only scans this PC and needs no sign-in; those games arrive without earlier hours.</p>",
+          },
+          {
+            title: "Review and import",
+            html: "<p>Recognized games wait in <strong>Ready to import</strong>. Games you never played and have not installed start unchecked, because Epic accounts often collect many free games: check the ones you want. Games under <strong>Needs attention</strong> ask you to confirm the right game first. Then select <strong>Import</strong>.</p>",
+          },
+        ],
+        html: '<p>You sign in directly with Epic in a temporary private window; PlayCounter does not see your password. The sign-in is ended when the import is done and is not stored. Only your game list and playtime reach the app, and the PlayCounter API only receives Epic game IDs and titles to look them up. <a href="/datenschutz#en">Import privacy details</a>.</p>',
       },
       {
         id: "sessions",
@@ -144,8 +170,8 @@ export const launcherGuides = [
       },
       {
         id: "previous",
-        title: "What happens to earlier Epic hours?",
-        html: '<p>There is currently no Epic importer in PlayCounter. New tracking works without one. To include your Epic hours from before, copy the Time Played value into <a href="/adjust-total-playtime/">Adjust total playtime</a>; it does not recreate earlier session dates.</p><p>Steam and Xbox imports bring in playtime. The Battle.net import only adds a game list. All three are optional additions to automatic tracking across launchers.</p>',
+        title: "How imported Epic hours add up",
+        html: '<p>Imported hours do not create old sessions in <strong>My History</strong>. Epic’s total counts once, next to any Steam or Xbox total for the same game. PlayCounter compares that sum with the time it tracked itself and shows the higher number, so overlapping hours are not counted twice. <a href="/total-playtime-across-all-launchers/#totals">See an example</a>.</p><p>Run the import again to refresh Epic’s totals. If a game has no Epic hours, for example because you only scanned installed games, <a href="/adjust-total-playtime/">set its earlier total yourself</a>.</p>',
       },
     ],
     sources: [
@@ -157,8 +183,12 @@ export const launcherGuides = [
         label: "Epic Games: Fortnite playtime in library list view",
         url: "https://www.epicgames.com/help/c-34254770/c-39122868/a12322560?lang=en-US",
       },
+      {
+        label: "PlayCounter: Epic Games importer",
+        url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/epic.ts`,
+      },
     ],
-    related: ["check-playtime-fortnite", "track-playtime-outside-steam"],
+    related: ["check-playtime-fortnite", "total-playtime-across-all-launchers"],
   },
   {
     slug: "check-playtime-gog-galaxy",

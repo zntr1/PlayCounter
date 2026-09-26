@@ -15,7 +15,7 @@
 <link rel="icon" type="image/svg+xml" href="/brands/playcounter-mark-small.svg" />
 <link rel="apple-touch-icon" href="/icon.png" />
 <link rel="preload" href="/fonts/pc-font-a97232426709.woff2" as="font" type="font/woff2" crossorigin />
-<link rel="stylesheet" href="/styles.css?v=9b63de29dc3d" />
+<link rel="stylesheet" href="/styles.css?v=20ff367c1854" />
 <script src="/site.js?v=d2e20e8863eb" defer></script>
 <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 <meta property="og:title" content="Datenschutzerklärung / Privacy Policy | PlayCounter" />
@@ -42,7 +42,7 @@
       "url": "https://playcounter.app/",
       "name": "PlayCounter",
       "inLanguage": "en",
-      "description": "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam and Xbox hours and your Battle.net games."
+      "description": "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox and Epic hours and your Battle.net games."
     },
     {
       "@type": "Organization",
@@ -60,7 +60,7 @@
 <body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><div class="nav-wrap"><a class="brand" href="/" aria-label="PlayCounter home"><img class="brand-mark" src="/brands/playcounter-mark.svg" width="34" height="34" alt="" /><img class="brand-wordmark" src="/brands/playcounter-wordmark-on-dark.svg" width="1087" height="208" alt="PlayCounter" /></a><nav class="desktop-nav" aria-label="Main"><a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a></nav><a class="nav-download" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download <span aria-hidden="true">↓</span></a><details class="mobile-menu"><summary>Menu</summary><nav aria-label="Mobile"><a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a><a href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download for Windows</a></nav></details></div></header><main id="main" class="article-wrap legal article-body"><p class="lede">Datenschutz</p>
 <h1>Datenschutzerklärung</h1>
 <p class="lang-jump"><a href="#en">English version below ↓</a></p>
-<p class="updated">Stand: 24. September 2026</p>
+<p class="updated">Stand: 26. September 2026</p>
 
 <p>
   Diese Datenschutzerklärung gilt für die Website
@@ -254,6 +254,27 @@
   gelöscht. Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a
   DSGVO; du kannst den Vorgang jederzeit abbrechen.
 </p>
+<h3>Optionaler Epic-Games-Import</h3>
+<p>
+  Wenn du den Epic-Games-Import startest, liest PlayCounter lokal aus den
+  Installationsdateien des Epic Games Launchers, welche Epic-Spiele auf diesem
+  PC installiert sind. Zur Auflösung von Spielnamen und Cover-Bildern werden
+  Epic-Spielkennungen (App-Namen) und Spieltitel an die API übermittelt.
+  Installationspfade und Spielzeiten werden dabei nicht hochgeladen.
+</p>
+<p>
+  Wählst du zusätzlich die Anmeldung, öffnet PlayCounter die Anmeldeseite von
+  Epic Games in einem temporären, privaten Fenster. Die Anmeldung erfolgt direkt
+  bei Epic Games; PlayCounter sieht dein Passwort nicht. Aus dem Fenster
+  übernimmt die App nur einen einmaligen Autorisierungscode. Damit ruft die App
+  direkt von deinem PC aus bei Epic Games deine Spielebibliothek, Spieltitel und
+  die von Epic erfassten Spielzeiten ab. Das Zugriffstoken wird nicht
+  gespeichert und nach dem Import widerrufen. An unsere API werden daraus nur
+  Spielkennungen und Titel übermittelt; die Spielzeiten bleiben auf deinem
+  Gerät. Cookies und Browserdaten dieses Fensters werden nach der Anmeldung
+  gelöscht. Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a
+  DSGVO; du kannst den Vorgang jederzeit abbrechen.
+</p>
 <h3>Community-Spiele-Vorschläge</h3>
 <p>
   Wenn du ein noch nicht erkanntes Spiel zur Community-Datenbank vorschlägst,
@@ -314,7 +335,9 @@
   Empfänger bzw. eingesetzte Dienste sind
   <strong>Microsoft</strong> (Microsoft-Anmeldung, Xbox Live sowie Azure als
   Hosting von Website und API), <strong>Blizzard Entertainment</strong>
-  (Battle.net-Anmeldung, nur wenn du sie beim Battle.net-Import wählst), der für
+  (Battle.net-Anmeldung, nur wenn du sie beim Battle.net-Import wählst),
+  <strong>Epic Games</strong> (Epic-Anmeldung, Spielebibliothek und
+  Spielzeiten, nur wenn du die Anmeldung beim Epic-Games-Import wählst), der für
   die API konfigurierte
   <strong>Microsoft Azure Database for PostgreSQL</strong> (serverseitige
   Matching-, Vorschlags-, Feedback- und Präsenzdaten),
@@ -423,7 +446,7 @@
 <section lang="en" aria-labelledby="privacy-policy-title">
   <p class="lede" id="en">Privacy</p>
   <h2 id="privacy-policy-title">Privacy Policy</h2>
-  <p class="updated">Last updated: 24 September 2026</p>
+  <p class="updated">Last updated: 26 September 2026</p>
 
   <p>
     This privacy policy covers the
@@ -588,6 +611,26 @@
     your consent under Art. 6(1)(a) GDPR; you can cancel the process at any
     time.
   </p>
+  <h3>Optional Epic Games import</h3>
+  <p>
+    When you start an Epic Games import, PlayCounter reads locally from the Epic
+    Games Launcher’s installation files which Epic games are installed on this
+    PC. Epic game identifiers (app names) and game titles are sent to the API to
+    resolve game names and cover artwork. Installation paths and playtime are
+    not uploaded in that process.
+  </p>
+  <p>
+    If you also choose to sign in, PlayCounter opens Epic Games’ sign-in page in
+    a temporary private window. You sign in directly with Epic Games;
+    PlayCounter does not see your password. The app takes only a one-time
+    authorization code from that window. With it, the app retrieves your game
+    library, game titles and the playtime Epic recorded directly from Epic Games,
+    from your PC. The access token is not stored and is revoked after the
+    import. Of this data, only game identifiers and titles are sent to our API;
+    the playtime stays on your device. The window’s cookies and browsing data
+    are deleted after sign-in. The legal basis is your consent under Art.
+    6(1)(a) GDPR; you can cancel the process at any time.
+  </p>
   <h3>Community game suggestions</h3>
   <p>
     If you suggest an unrecognised game to the community database, the
@@ -640,7 +683,9 @@
     Recipients and services used are <strong>Microsoft</strong> (Microsoft
     sign-in, Xbox Live, and Azure hosting for the website and API),
     <strong>Blizzard Entertainment</strong> (Battle.net sign-in, only if you
-    choose it during a Battle.net import), the
+    choose it during a Battle.net import), <strong>Epic Games</strong> (Epic
+    sign-in, game library and playtime, only if you choose to sign in during an
+    Epic Games import), the
     <strong>Microsoft Azure Database for PostgreSQL</strong> (server-side
     matching, suggestion, feedback and presence data), <strong>GitHub</strong>
     (updates, downloads and source repository),

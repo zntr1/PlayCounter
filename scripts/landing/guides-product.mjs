@@ -6,21 +6,21 @@ export const productGuides = [
     category: "Using PlayCounter",
     title: "See your game playtime across launchers",
     description:
-      "Build one PC game library with automatic tracking, Steam and Xbox imports, clear playtime totals and local session history in PlayCounter.",
+      "Build one PC game library with automatic tracking, Steam, Xbox and Epic imports, clear playtime totals and local session history in PlayCounter.",
     answer:
-      "PlayCounter brings your tracked PC games, your Steam and Xbox playtime and your Battle.net games into My Games. Keep it running while you play, then use the library and history views to see your hours.",
+      "PlayCounter brings your tracked PC games, your Steam, Xbox and Epic playtime and your Battle.net games into My Games. Keep it running while you play, then use the library and history views to see your hours.",
     thumb: "library",
     sections: [
       {
         id: "library",
         title: "Start with one library",
-        html: "<ol><li>Install PlayCounter and leave it running. Launch your games from their usual launcher or shortcut.</li><li>Open <strong>My Games</strong> to see recognized games with their covers and recorded hours.</li><li>Use the <strong>Steam</strong>, <strong>Xbox</strong> and <strong>Battle.net</strong> sources in the sidebar to import the games and previous playtime you want to include.</li><li>Review uncertain matches before importing. The <strong>All games</strong> tab brings the results together.</li></ol>",
+        html: "<ol><li>Install PlayCounter and leave it running. Launch your games from their usual launcher or shortcut.</li><li>Open <strong>My Games</strong> to see recognized games with their covers and recorded hours.</li><li>Use the <strong>Steam</strong>, <strong>Xbox</strong>, <strong>Epic Games</strong> and <strong>Battle.net</strong> sources in the sidebar to import the games and previous playtime you want to include.</li><li>Review uncertain matches before importing. The <strong>All games</strong> tab brings the results together.</li></ol>",
         screenshot: "library",
       },
       {
         id: "imports",
         title: "Bring in earlier hours",
-        html: '<p>Steam import reads the available library and playtime from a Steam account on this PC. Xbox import uses a Microsoft sign-in and the playtime that individual games report to Xbox. Battle.net import only adds your Battle.net games, without playtime, so you can skip it. These are optional imports; automatic PC tracking does not depend on them.</p><p>PlayCounter does not import historical hours from Battle.net, Epic, GOG, EA, Ubisoft or other launchers. Their recognized PC games are still tracked as you play, and you can <a href="/adjust-total-playtime/">set a game’s earlier total yourself</a>. An imported or adjusted total is a starting reference, not a reconstruction of past sessions.</p>',
+        html: '<p>Steam import reads the available library and playtime from a Steam account on this PC. Xbox import uses a Microsoft sign-in and the playtime that individual games report to Xbox. Epic import uses an Epic sign-in and the playtime Epic recorded. Battle.net import only adds your Battle.net games, without playtime, so you can skip it. These are optional imports; automatic PC tracking does not depend on them.</p><p>PlayCounter does not import historical hours from Battle.net, GOG, EA, Ubisoft or other launchers. Their recognized PC games are still tracked as you play, and you can <a href="/adjust-total-playtime/">set a game’s earlier total yourself</a>. An imported or adjusted total is a starting reference, not a reconstruction of past sessions.</p>',
       },
       {
         id: "totals",
@@ -64,12 +64,12 @@ export const productGuides = [
       {
         id: "when",
         title: "When you need this",
-        html: "<p>Steam and Xbox imports bring in playtime automatically. Most other launchers don’t share it, so PlayCounter starts from the sessions it records itself. Set the total yourself when:</p><ul><li>You played a game from Battle.net, Epic, GOG, EA, Ubisoft, Riot or itch.io before installing PlayCounter.</li><li>You know a total from somewhere else, like a game’s statistics screen or WoW’s <code>/played</code>.</li><li>A total is wrong and you want to correct it.</li></ul>",
+        html: "<p>Steam, Xbox and Epic imports bring in playtime automatically. Most other launchers don’t share it, so PlayCounter starts from the sessions it records itself. Set the total yourself when:</p><ul><li>You played a game from Battle.net, GOG, EA, Ubisoft, Riot or itch.io before installing PlayCounter.</li><li>You know a total from somewhere else, like a game’s statistics screen or WoW’s <code>/played</code>.</li><li>A total is wrong and you want to correct it.</li></ul>",
       },
       {
         id: "find",
         title: "Find the total you want to enter",
-        html: '<div class="table-wrap"><table><thead><tr><th>Where you played</th><th>Where the number is</th></tr></thead><tbody><tr><td><a href="/check-playtime-battle-net/">Battle.net</a></td><td>No launcher total. Use the game’s own statistics, such as <a href="/check-playtime-world-of-warcraft/">/played in WoW</a>.</td></tr><tr><td><a href="/check-playtime-epic-games/">Epic Games</a></td><td>Library in list view, column Time Played.</td></tr><tr><td><a href="/check-playtime-gog-galaxy/">GOG GALAXY</a></td><td>The game’s page in your GALAXY library.</td></tr><tr><td><a href="/check-playtime-ea-app/">EA app</a></td><td>Menu, then Settings, then My Playtime.</td></tr><tr><td><a href="/check-playtime-ubisoft-connect/">Ubisoft Connect</a></td><td>The game’s statistics, where available.</td></tr><tr><td><a href="/check-playtime-minecraft/">Minecraft Java</a></td><td>Esc, then Statistics, then Time Played, per world.</td></tr><tr><td>Steam and Xbox</td><td>Nothing to do: <a href="/check-playtime-on-steam/">the imports</a> bring the hours in.</td></tr></tbody></table></div>',
+        html: '<div class="table-wrap"><table><thead><tr><th>Where you played</th><th>Where the number is</th></tr></thead><tbody><tr><td><a href="/check-playtime-battle-net/">Battle.net</a></td><td>No launcher total. Use the game’s own statistics, such as <a href="/check-playtime-world-of-warcraft/">/played in WoW</a>.</td></tr><tr><td><a href="/check-playtime-gog-galaxy/">GOG GALAXY</a></td><td>The game’s page in your GALAXY library.</td></tr><tr><td><a href="/check-playtime-ea-app/">EA app</a></td><td>Menu, then Settings, then My Playtime.</td></tr><tr><td><a href="/check-playtime-ubisoft-connect/">Ubisoft Connect</a></td><td>The game’s statistics, where available.</td></tr><tr><td><a href="/check-playtime-minecraft/">Minecraft Java</a></td><td>Esc, then Statistics, then Time Played, per world.</td></tr><tr><td>Steam, Xbox and Epic Games</td><td>Nothing to do: <a href="/check-playtime-on-steam/">the imports</a> bring the hours in. For Epic, <a href="/check-playtime-epic-games/#import">sign in during the import</a>.</td></tr></tbody></table></div>',
       },
       {
         id: "adjust",
@@ -113,8 +113,8 @@ export const productGuides = [
       },
       {
         id: "imports",
-        title: "How this works with Steam and Xbox hours",
-        html: '<p>Imported Steam and Xbox hours are kept per launcher and added together. PlayCounter shows the higher of that sum and its own total, which includes your adjustment. For an imported game, an adjusted total therefore only changes the number when it is higher than the imported hours. <a href="/total-playtime-across-all-launchers/#totals">Totals explained with an example</a>.</p>',
+        title: "How this works with Steam, Xbox and Epic hours",
+        html: '<p>Imported Steam, Xbox and Epic hours are kept per launcher and added together. PlayCounter shows the higher of that sum and its own total, which includes your adjustment. For an imported game, an adjusted total therefore only changes the number when it is higher than the imported hours. <a href="/total-playtime-across-all-launchers/#totals">Totals explained with an example</a>.</p>',
       },
     ],
     sources: [
@@ -222,7 +222,7 @@ export const productGuides = [
       {
         id: "previous-time",
         title: "Include previous playtime",
-        html: '<p>Steam and Xbox have dedicated importers for available earlier hours, and Battle.net games can be imported without hours. For other sources, PlayCounter records sessions from when you start using it. <a href="/adjust-total-playtime/">Add older time yourself</a> with a missed session or a total adjustment.</p><p>A local session measures how long the game process runs. Menus and idle time can be included; it is not a count of active inputs or completed matches.</p>',
+        html: '<p>Steam, Xbox and Epic Games have dedicated importers for available earlier hours, and Battle.net games can be imported without hours. For other sources, PlayCounter records sessions from when you start using it. <a href="/adjust-total-playtime/">Add older time yourself</a> with a missed session or a total adjustment.</p><p>A local session measures how long the game process runs. Menus and idle time can be included; it is not a count of active inputs or completed matches.</p>',
       },
     ],
     sources: [
@@ -317,7 +317,7 @@ export const productGuides = [
     category: "Using PlayCounter",
     title: "Which games does PlayCounter support?",
     description:
-      "Understand PlayCounter game detection across Windows launchers, Steam, Xbox and Battle.net imports, DOSBox, Dolphin and PCSX2, and local matches for unknown games.",
+      "Understand PlayCounter game detection across Windows launchers, Steam, Xbox, Epic and Battle.net imports, DOSBox, Dolphin and PCSX2, and local matches for unknown games.",
     answer:
       "PlayCounter detects games from their running processes on Windows. There is no required launcher: recognized games from Steam, Epic, Xbox, GOG, EA, Ubisoft, Battle.net and standalone installations can all appear in one library.",
     sections: [
@@ -328,8 +328,8 @@ export const productGuides = [
       },
       {
         id: "importers",
-        title: "Imports: Steam, Xbox and Battle.net",
-        html: '<p>Dedicated importers support <strong>Steam</strong> and <strong>Xbox, including available Game Pass history</strong>, with playtime, and <strong>Battle.net</strong> for your game list without playtime. The Battle.net import is optional, since its games are tracked without it. Steam reads local account data; Xbox uses a Microsoft sign-in; Battle.net scans this PC or uses an optional sign-in. Each lets you review the games before importing.</p><p>Other launchers do not need an importer for new automatic tracking. Importing brings in available earlier totals and does not recreate past sessions. <a href="/adjust-total-playtime/">Set earlier hours yourself</a> where no playtime import exists.</p>',
+        title: "Imports: Steam, Xbox, Epic and Battle.net",
+        html: '<p>Dedicated importers support <strong>Steam</strong>, <strong>Xbox, including available Game Pass history</strong>, and <strong>Epic Games</strong> with playtime, and <strong>Battle.net</strong> for your game list without playtime. The Battle.net import is optional, since its games are tracked without it. Steam reads local account data; Xbox uses a Microsoft sign-in; Epic uses an Epic sign-in for playtime or scans installed games without one; Battle.net scans this PC or uses an optional sign-in. Each lets you review the games before importing.</p><p>Other launchers do not need an importer for new automatic tracking. Importing brings in available earlier totals and does not recreate past sessions. <a href="/adjust-total-playtime/">Set earlier hours yourself</a> where no playtime import exists.</p>',
       },
       {
         id: "emulators",
@@ -380,7 +380,7 @@ export const productGuides = [
       {
         id: "data",
         title: "What the app sends online",
-        html: '<p>PlayCounter keeps recorded sessions and history locally. Normal Windows matching sends executable filenames rather than full paths. Emulator matching can send extracted content identifiers or titles. The app automatically sends a pseudonymous installation ID at startup and roughly hourly, including while in the tray; these presence reports do not contain game names or history.</p><p>Steam import reads local files and resolves game IDs online. Optional Xbox import temporarily processes Microsoft authorization and Xbox account game data through the API. Battle.net import reads installed games on this PC; its optional sign-in runs in a temporary private window, and only the game list leaves it. Feedback and match submissions are sent when you choose those actions. The <a href="/datenschutz#en">privacy policy</a> covers these flows and retention.</p>',
+        html: '<p>PlayCounter keeps recorded sessions and history locally. Normal Windows matching sends executable filenames rather than full paths. Emulator matching can send extracted content identifiers or titles. The app automatically sends a pseudonymous installation ID at startup and roughly hourly, including while in the tray; these presence reports do not contain game names or history.</p><p>Steam import reads local files and resolves game IDs online. Optional Xbox import temporarily processes Microsoft authorization and Xbox account game data through the API. Epic import reads installed games on this PC; its optional sign-in runs in a temporary private window, reads your Epic library and playtime, and is ended after the import. Battle.net import reads installed games on this PC; its optional sign-in runs in a temporary private window, and only the game list leaves it. Feedback and match submissions are sent when you choose those actions. The <a href="/datenschutz#en">privacy policy</a> covers these flows and retention.</p>',
       },
     ],
     sources: [

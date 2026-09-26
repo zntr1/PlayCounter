@@ -160,6 +160,11 @@
       "statusCode": 301
     },
     {
+      "route": "/track-playtime-wow-forever/index",
+      "redirect": "/track-playtime-wow-forever/",
+      "statusCode": 301
+    },
+    {
       "route": "/check-playtime-minecraft/index",
       "redirect": "/check-playtime-minecraft/",
       "statusCode": 301

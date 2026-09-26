@@ -605,7 +605,7 @@ main[id] {
 }
 .game-tiles {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 12px;
   margin: 24px 0 0;
   padding: 0;

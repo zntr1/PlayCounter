@@ -16,7 +16,7 @@ export const site = {
   repository: "https://github.com/zntr1/PlayCounter",
   discord: "https://discord.gg/t2nG3jaEEY",
   description:
-    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam and Xbox hours and your Battle.net games.",
+    "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox and Epic hours and your Battle.net games.",
   milestone: "Around 200 users since our launch in June.",
   // The milestone is the owner's approximate cumulative user estimate, September 2026.
   // It is not the presence endpoint's online installation count or a download count.
@@ -220,6 +220,18 @@ export const site = {
       guideLabel: "Import Xbox playtime",
     },
     {
+      id: "epic",
+      name: "Epic Games",
+      logo: "/brands/epic.svg",
+      method: "With Epic sign-in",
+      brings: "Games + your Epic hours",
+      isNew: true,
+      detail:
+        "Sign in to bring in your Epic library with the playtime Epic recorded. Or just scan installed games without signing in; their earlier hours then stay unknown.",
+      guide: "/check-playtime-epic-games/",
+      guideLabel: "Import Epic playtime",
+    },
+    {
       id: "battlenet",
       name: "Battle.net",
       logo: "/brands/battlenet.svg",
@@ -282,7 +294,7 @@ export const faq = [
   ],
   [
     "Can I bring in hours from before I installed it?",
-    'Yes. Steam and Xbox imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
+    'Yes. Steam, Xbox and Epic imports bring in the playtime those services report. For Battle.net and every other launcher, set a game’s earlier total yourself with Adjust total playtime. Neither creates past sessions in your history. <a href="/adjust-total-playtime/">How to set a total</a>.',
   ],
   [
     "Which emulators are supported?",
@@ -290,7 +302,7 @@ export const faq = [
   ],
   [
     "What stays on my PC, and what goes online?",
-    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
+    'Your recorded sessions and history stay on your PC. Game matching uses online identifier lookups, and the app sends a pseudonymous installation heartbeat. Imports look up game IDs; the optional Xbox, Epic and Battle.net sign-ins have their own data flows. Emulator matching can send game identifiers or titles. <a href="/datenschutz#en">Read the privacy policy</a>.',
   ],
   [
     "Is PlayCounter coming to Steam?",
