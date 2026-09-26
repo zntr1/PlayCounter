@@ -68,7 +68,7 @@ export function SidebarButton({
       <span
         className={clsx(
           "absolute inline-flex h-full w-full rounded-full opacity-50",
-          warn ? "animate-ping bg-warning" : "animate-pulse bg-success",
+          warn ? "animate-ping-few bg-warning" : "bg-success",
         )}
       />
       <span
@@ -93,7 +93,7 @@ export function SidebarButton({
       <span
         className={clsx(
           "absolute inline-flex h-full w-full rounded-full opacity-50",
-          warn ? "animate-ping bg-warning" : "animate-pulse bg-success",
+          warn ? "animate-ping-few bg-warning" : "bg-success",
         )}
       />
       <span

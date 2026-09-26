@@ -212,7 +212,7 @@ export function ActiveGameHero({
         <div className="flex min-w-0 flex-col">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-lg border border-success-border/70 bg-success-tint/70 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-success">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
               {statusLabel}
             </div>
             {canReport ? (

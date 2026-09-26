@@ -160,7 +160,7 @@ export function EmulatorPickerCard({
             <div className="mt-3 flex flex-wrap gap-2">
               {observation.runningSince ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-tint px-2.5 py-1 text-xs font-medium text-success">
-                  <Radio size={13} className="animate-pulse" /> Tracking now
+                  <Radio size={13} /> Tracking now
                 </span>
               ) : null}
               {pendingSeconds >= 60 ? (

@@ -188,11 +188,7 @@ export function EmulatorHero({
                   : "border-border bg-bg/50 text-text-faint",
               )}
             >
-              <Radio
-                aria-hidden="true"
-                size={12}
-                className={running ? "animate-pulse" : undefined}
-              />
+              <Radio aria-hidden="true" size={12} />
               {running
                 ? `${runningCount} game${runningCount === 1 ? "" : "s"} running`
                 : "Nothing running"}

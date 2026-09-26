@@ -725,7 +725,7 @@ export function DiscoveredView() {
                 )}
               >
                 {needsAttention && !active ? (
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-warning" />
+                  <span className="h-1.5 w-1.5 animate-pulse-few rounded-full bg-warning" />
                 ) : null}
                 {entry.label}
                 <AnimatedCount
