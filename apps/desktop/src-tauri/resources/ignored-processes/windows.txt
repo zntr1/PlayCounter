@@ -20,7 +20,6 @@ battlenet_account_security-*.exe
 cargo.exe
 chrome.exe
 cmd.exe
-code.exe
 codex.exe
 conhost.exe
 cowork-svc.exe
@@ -330,9 +329,7 @@ baidunetdisk*.exe
 beeper x64 *.exe
 bitwarden.exe
 bsglauncher.exe
-chatgpt.exe
 cloudflare warp.exe
-cloudmusic.exe
 cloudmusic_reporter.exe
 creative.app.exe
 dbeaver.exe
@@ -344,7 +341,6 @@ ealaunchhelper.exe
 ealocalhostsvc.exe
 easteamproxy.exe
 edgegameassist.exe
-emby.client.winui.exe
 epicgamesupdater.exe*
 epiconlineserviceshost.exe
 epiconlineservicesinstallhelper.exe
@@ -355,11 +351,9 @@ fdm.exe
 flow.launcher.exe
 fxsound.exe
 gamebar crosshair.exe
-gamejoltclient.exe
 gamejoltrunner.exe
 githubdesktop.exe
 googleplaygamesservices.exe
-itunes.exe
 ituneshelper.exe
 itunesvisualizerhost.exe
 jellyfin.exe
@@ -375,7 +369,6 @@ mcafee-security*.exe
 medal.exe
 medalencoder.exe
 medalsteamutils.exe
-ms-teams.exe
 mullvad-daemon.exe
 nearby_share.exe
 nvidia app.exe
@@ -385,13 +378,10 @@ onegamelauncher.exe
 onegamelauncherservice.exe
 onenotecapture.exe
 onenotem.exe
-olk.exe
 opera_autoupdate.exe
 opera_crashreporter.exe
 overwolf*.exe
-playnite.desktopapp.exe
 qbittorrent.exe
-qq.exe
 raycast.exe
 raycast.uiaccess.exe
 remotedesktopcompanion.exe
@@ -419,10 +409,7 @@ wallpaper32.exe
 wallpaper64.exe
 wallpaperservice64.exe
 wechatappex.exe
-wegame.exe
 wegame_env.exe
-weixin.exe
-whatsapp.root.exe
 windhawk.exe
 windirstat.exe
 wispr flow*.exe
@@ -430,7 +417,6 @@ wps.exe
 wpscloudsvr.exe
 wpsupdate.exe
 yxqxunyou.exe
-zoom.exe
 deskpins.exe
 focusvolumecontrol.exe
 msrdc.exe
@@ -443,7 +429,6 @@ com.javanpoirier.audiomixer.exe
 com.reedhaffner.sharex.exe
 gameplaytime.exe
 hamachi-2.exe
-kook.exe
 ocamtask.exe
 
 # Curated from community-reported Windows, OEM, driver, and peripheral processes
@@ -745,7 +730,6 @@ widgets.exe
 widgetservice.exe
 windowsdisplaysettings.exe
 winrtutil64.exe
-winword.exe
 workloadssessionhost.exe
 workloadssessionmanager.exe
 wpcmon.exe
@@ -776,7 +760,6 @@ clinfo.exe
 clippy-driver.exe
 cmake.exe
 collect2.exe
-devenv.exe
 diskinfo64.exe
 diskspd.exe
 duplicati.commandline.configuretool.exe
@@ -864,7 +847,6 @@ aacambientlighting.exe
 aackingstondramhal_x64.exe
 aackingstondramhal_x86.exe
 accountscontrolhost.exe
-acrobat.exe
 acrocef.exe
 addinutil.exe
 adminservice.exe
@@ -892,7 +874,6 @@ armsvc.exe
 assistant_installer.exe
 aswidsagent.exe
 atkexcomsvc.exe
-audacity.exe
 avgsvc.exe
 avgtoolssvc.exe
 avgui.exe
@@ -909,7 +890,6 @@ braveupdate.exe
 browser_assistant.exe
 bzip3.exe
 calc.exe
-capcut.exe
 castsrv.exe
 ccleaner.exe
 ccleaner_service.exe
@@ -918,7 +898,6 @@ cefviewwing.exe
 chatgpt classic.exe
 chatgpt installer.exe
 cheatengine-x86_64-sse4-avx2.exe
-clipchamp.exe
 clipesu.exe
 clipesuconsumer.exe
 codex-windows-sandbox-service.exe
@@ -933,7 +912,6 @@ crashreport.exe
 creative cloud helper.exe
 cscript.exe
 curse.agent.host.exe
-curseforge.exe
 crwindowsclientservice.exe
 defenderaiplatformhost.exe
 dell.*.exe
@@ -948,7 +926,6 @@ elevoccontrolservice.exe
 elytra-setup.exe
 esrv.exe
 esrv_svc.exe
-excel.exe
 extensioncardhal_x86.exe
 extensionlauncher.exe
 ffmpeg7.exe
@@ -1034,14 +1011,12 @@ mc-neo-host.exe
 messagingplugin.exe
 microsoft.aad.brokerplugin.exe
 microsoft.cmdpal.*.exe
-microsoft.media.player.exe
 mighost.exe
 millennium.crashhandler64.exe
 minecraftinstaller.exe
 mmc.exe
 modorganizer.exe
 mpam-*.exe
-mpv.exe
 ms-teamsupdate.exe
 mscopilot_proxy.exe
 msdtc.exe
@@ -1056,7 +1031,6 @@ nearby_share_launcher.exe
 ngenuity2helper.exe
 nordupdateservice.exe
 nordvpn-service.exe
-notion.exe
 nteglobalbrowser.exe
 nteglobalupdate.exe
 nvcplui.exe
@@ -1066,7 +1040,6 @@ nvoawrappercache.exe
 nvrla.exe
 nvshim.exe
 obs-*.exe
-obs64.exe
 officesvcmgr.exe
 old-uninstaller.exe
 old_chrome.exe
@@ -1074,14 +1047,12 @@ old_msedge.exe
 oleddisplayservice.exe
 olkpushnotificationbackgroundtask.exe
 oneapp.igcc.winservice.lace.exe
-onenote.exe
 oo2reck.exe
 oo2recm.exe
 opera_autoupdate.exe*
 opera_gx_splash.exe
 parfait_crash_handler.exe
 pcaui.exe
-photoshop.exe
 playnite.browserprocess.exe
 plugscheduler.exe
 pnkbstra.exe
@@ -1145,7 +1116,6 @@ tailscaled.exe
 tasklist.exe
 teamprojectslocalhub.exe
 teamviewer_service.exe
-telegram.exe
 tlauncher.exe
 translucenttb.exe
 ubisoftgamelauncher.exe
@@ -1165,12 +1135,10 @@ uv.exe
 vcredist*.exe
 vedetector.exe
 vivaldi.exe
-vlc.exe
 vmmem
 vmms.exe
 vmwp.exe
 voicemod.exe
-vscodium.exe
 vulkandriverquery.exe
 wa_3rd_party_host_32.exe
 wa_3rd_party_host_64.exe
@@ -1188,7 +1156,6 @@ wisememoryoptimzer.exe
 wixstdba.exe
 wlrmdr.exe
 wmic.exe
-wmplayer.exe
 wpctok.exe
 wsc_proxy.exe
 wsl.exe
