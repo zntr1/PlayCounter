@@ -109,15 +109,6 @@
   box-shadow: inset 0 0 0 1px rgb(var(--color-accent) / 0.18);
 }
 
-/* A looping animation redraws the page every frame, even while a game has the
-   focus and needs the GPU. Freeze them all while the window is in the
-   background; pauseIdleAnimations.ts sets the class. */
-body.window-idle *,
-body.window-idle *::before,
-body.window-idle *::after {
-  animation-play-state: paused !important;
-}
-
 /* App shell ─────────────────────────────────────────────────────────────────
    The window draws its own frame: the sidebar's logo row and the title bar
    are drag regions (data-tauri-drag-region), the three window buttons at the
