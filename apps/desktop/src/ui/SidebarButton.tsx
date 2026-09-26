@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { type LucideIcon } from "lucide-react";
+import type { MouseEvent } from "react";
 import { RailTooltip, useRailTooltip } from "./shell/RailTooltip";
 
 type SidebarButtonProps = {
@@ -19,6 +20,7 @@ type SidebarButtonProps = {
   disabled?: boolean;
   title?: string;
   onClick: () => void;
+  onContextMenu?: (event: MouseEvent) => void;
   dataTour?: string;
   controllerEnabled?: boolean;
 };
@@ -37,6 +39,7 @@ export function SidebarButton({
   disabled = false,
   title,
   onClick,
+  onContextMenu,
   dataTour,
   controllerEnabled = false,
 }: SidebarButtonProps) {
@@ -130,6 +133,14 @@ export function SidebarButton({
         tooltip.hide();
         onClick();
       }}
+      onContextMenu={
+        onContextMenu
+          ? (event) => {
+              tooltip.hide();
+              onContextMenu(event);
+            }
+          : undefined
+      }
       disabled={disabled}
       // The rail shows `title` inside its own label; a second tooltip would stack.
       title={collapsed ? undefined : title}
