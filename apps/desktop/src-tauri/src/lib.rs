@@ -92,9 +92,24 @@ fn main_window_ready(app: tauri::AppHandle) {
         show_main_window(&app);
     } else if stays_in_tray {
         if let Some(window) = app.get_webview_window("main") {
-            set_webview_memory_low(&window, true);
+            set_main_window_in_tray(&window, true);
         }
     }
+}
+
+/// Called by the frontend after it dropped its views in the tray. WebView2
+/// trimmed its memory when the window was hidden, and removing the views
+/// brought much of it back, so switch the memory target once more.
+#[tauri::command]
+fn main_window_parked(app: tauri::AppHandle) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+    if window.is_visible().unwrap_or(true) {
+        return;
+    }
+    set_webview_memory_low(&window, false);
+    set_webview_memory_low(&window, true);
 }
 
 #[tauri::command]
@@ -438,6 +453,7 @@ pub fn run() {
         ))
         .invoke_handler(tauri::generate_handler![
             main_window_ready,
+            main_window_parked,
             hotkeys::set_global_hotkey,
             install_uuid,
             adopt_install_uuid,
@@ -507,7 +523,7 @@ pub fn run() {
                 api.prevent_close();
                 let _ = window.hide();
                 if let Some(window) = window.app_handle().get_webview_window(window.label()) {
-                    set_webview_memory_low(&window, true);
+                    set_main_window_in_tray(&window, true);
                 }
             }
         })
@@ -579,11 +595,24 @@ fn show_main_window(app: &tauri::AppHandle) {
         if !startup.display_state_restored.swap(true, Ordering::SeqCst) {
             let _ = window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN);
         }
-        set_webview_memory_low(&window, false);
+        set_main_window_in_tray(&window, false);
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+/// Tells the page whether the main window sits in the tray, so it can stop
+/// rendering its views there, and sets WebView2's memory target to match.
+fn set_main_window_in_tray(window: &tauri::WebviewWindow, in_tray: bool) {
+    use tauri::Emitter;
+
+    let _ = window.emit_to(
+        window.label(),
+        "playcounter:main-window-in-tray",
+        in_tray,
+    );
+    set_webview_memory_low(window, in_tray);
 }
 
 /// While the window sits in the tray, ask WebView2 to shrink its processes.

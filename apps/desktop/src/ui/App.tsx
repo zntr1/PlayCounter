@@ -70,6 +70,7 @@ import { useLibrarySources } from "./librarySources";
 import { ViewBanner } from "./ViewBanner";
 import { artSrcSet } from "./artSrcSet";
 import { useContextMenu } from "./ContextMenu";
+import { useParkedInTray } from "./useParkedInTray";
 import {
   DEFAULT_CONTENT_SCALE,
   DEFAULT_MENU_SCALE,
@@ -309,6 +310,7 @@ export function App() {
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
+  const parkedInTray = useParkedInTray();
   // My Games and Now Playing carry their own hero; My History too, built
   // from the play history itself, so the pinned-game banner stays off there.
   const viewBannerEnabled = useAppStore(
@@ -474,8 +476,9 @@ export function App() {
   );
   // Now Playing always follows the first running game, including when older
   // settings still have its optional library banner enabled.
-  const titleBarArt =
-    activeView === "now"
+  const titleBarArt = parkedInTray
+    ? null
+    : activeView === "now"
       ? nowArt
       : activeView === "games" && !practiceStep
         ? heroArt
@@ -1098,7 +1101,7 @@ export function App() {
                 <div className="view-backdrop-shade absolute inset-0" />
               </div>
             ) : null}
-            {activeView !== "games" && showViewBanner ? (
+            {activeView !== "games" && showViewBanner && !parkedInTray ? (
               <ViewBanner
                 view={activeView}
                 onArtworkChange={setViewBannerArt}
@@ -1129,6 +1132,7 @@ export function App() {
               />
             ) : null}
             {!tour?.simulation &&
+            !parkedInTray &&
             activeView !== "import" &&
             activeView !== "games"
               ? views[activeView].component
@@ -1143,6 +1147,7 @@ export function App() {
               <div hidden={activeView !== "games" || Boolean(practiceStep)}>
                 <MyGamesView
                   renderContent={gamesOpened || activeView === "games"}
+                  parked={parkedInTray}
                 />
               </div>
             ) : null}

@@ -603,8 +603,11 @@ function activeDurationSeconds(activeSession: ActiveSession) {
 
 export function MyGamesView({
   renderContent = true,
+  parked = false,
 }: {
   renderContent?: boolean;
+  // In the tray: drop the cards and banner but keep shelf, filters and tab.
+  parked?: boolean;
 }) {
   const [shelfSelection, setShelfSelection] = useState("all");
   const [libraryFilters, setLibraryFilters] = useState<LibraryFilters>({});
@@ -1794,6 +1797,7 @@ export function MyGamesView({
   );
   const heroVisible =
     renderContent &&
+    !parked &&
     showHero &&
     layout.panel !== "empty-library" &&
     featured !== null &&
@@ -1821,7 +1825,9 @@ export function MyGamesView({
       }),
     [],
   );
-  const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}`;
+  // Parking unmounts the cards and the scroll sentinel; leaving the tray
+  // starts a fresh window whose observer watches the new sentinel.
+  const renderWindowKey = `${activeLibraryTab}\u0000${query}\u0000${sortKey}\u0000${view}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}\u0000${parked}`;
   const renderWindow = useLibraryRenderWindow(
     renderWindowKey,
     visibleGames.length,
@@ -1867,8 +1873,9 @@ export function MyGamesView({
   }, []);
 
   // Other views can request the shared library data without mounting cards.
-  // Once My Games has been opened, App keeps its content mounted as before.
-  if (!renderContent) return null;
+  // Once My Games has been opened, App keeps its content mounted as before,
+  // except while the window is parked in the tray.
+  if (!renderContent || parked) return null;
 
   return (
     <div ref={bulkSelection.rootRef} onKeyDown={bulkSelection.onKeyDown}>
