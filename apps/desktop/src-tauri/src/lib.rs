@@ -370,6 +370,7 @@ pub fn run() {
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
         .manage(library::battlenet_account::AccountState::default())
+        .manage(library::epic_account::EpicAccountState::default())
         .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
@@ -383,7 +384,9 @@ pub fn run() {
                 // Visibility and decorations always belong to the app.
                 .with_state_flags(StateFlags::SIZE | StateFlags::POSITION)
                 .with_denylist(&[notification_overlay::OVERLAY_LABEL])
-                .with_filter(|label| !label.starts_with("battlenet-sign-in-"))
+                .with_filter(|label| {
+                    !label.starts_with("battlenet-sign-in-") && !label.starts_with("epic-sign-in-")
+                })
                 .build(),
         )
         .plugin(
@@ -460,6 +463,8 @@ pub fn run() {
             library::library_scan_xbox_local,
             library::battlenet_account::library_battlenet_account_games,
             library::battlenet_account::library_cancel_battlenet_account,
+            library::epic_account::library_epic_account_games,
+            library::epic_account::library_cancel_epic_account,
             library::library_inspect_executable,
             library::library_launch_app,
             library::library_verify_installs,

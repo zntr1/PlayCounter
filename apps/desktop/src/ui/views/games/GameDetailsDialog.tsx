@@ -59,12 +59,14 @@ const PROVIDER_LABEL: Record<LibraryProviderId, string> = {
   steam: "Steam",
   xbox: "Xbox",
   battlenet: "Battle.net",
+  epic: "Epic Games",
 };
 
 const PROVIDER_ID_LABEL: Record<LibraryProviderId, string> = {
   steam: "Steam AppID",
   xbox: "Xbox title ID",
   battlenet: "Battle.net product",
+  epic: "Epic app name",
 };
 
 type DetailsTab = "general" | "files";

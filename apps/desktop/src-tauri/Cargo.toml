@@ -30,6 +30,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "sync"
 uuid = { version = "1", features = ["v4"] }
 systemicons = "0.9.13"
 base64 = "0.22.1"
+# Same client and TLS stack as tauri-plugin-updater, for the Epic account import.
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.38.2"

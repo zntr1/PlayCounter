@@ -51,7 +51,7 @@ export interface EmulatorResolveResponse {
 }
 
 /** A locally installed or remotely linked game-library provider. */
-export type LibraryProviderId = "steam" | "xbox" | "battlenet";
+export type LibraryProviderId = "steam" | "xbox" | "battlenet" | "epic";
 export {
   BATTLE_NET_PRODUCTS,
   LIBRARY_PROVIDER_LABELS,
@@ -66,6 +66,9 @@ export interface LibraryResolveRequest {
     provider: LibraryProviderId;
     /** Provider-native id. Steam uses its decimal AppID. */
     externalId: string;
+    /** Store title. Only Epic sends it: IGDB does not index Epic app names,
+     *  so the server matches the exact title among IGDB's Epic entries. */
+    title?: string;
   }>;
 }
 

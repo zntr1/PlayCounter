@@ -155,6 +155,12 @@ export function SettingsView() {
         (entry) => entry.provider === "battlenet",
       ).length,
   );
+  const importedEpicCount = useAppStore(
+    (state) =>
+      [...state.libraryImports.values()].filter(
+        (entry) => entry.provider === "epic",
+      ).length,
+  );
   const forgetLibraryLabel = confirmForgetLibrary
     ? LIBRARY_PROVIDER_LABELS[confirmForgetLibrary]
     : "";
@@ -1086,12 +1092,12 @@ export function SettingsView() {
       </SettingsPanel>
 
       <SettingsPanel
-        description="Keep your launcher games up to date, or remove data imported from Steam, Xbox, or Battle.net. Install paths and the game files linked to them always stay on this PC."
+        description="Keep your launcher games up to date, or remove data imported from Steam, Xbox, Battle.net, or Epic Games. Install paths and the game files linked to them always stay on this PC."
         title="Library import"
       >
         {currentPlatform() === "windows" ? (
           <SettingsRow
-            description="After your first import from Steam or Battle.net, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is."
+            description="After your first import from Steam, Battle.net or Epic Games, games you install there show up in My Games on their own. Games you remove from PlayCounter are not added again. Xbox games still need an Xbox import, because Xbox does not tell PlayCounter which game an installation is."
             title="Add new games automatically"
           >
             <Switch
@@ -1153,6 +1159,23 @@ export function SettingsView() {
             onClick={() => setConfirmForgetLibrary("battlenet")}
           >
             Forget {importedBattleNetCount || "all"}
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          description="Removes the Epic Games mark, the imported Epic playtime, the game files Epic linked, and where they are installed. Sessions PlayCounter recorded itself are kept."
+          title={
+            <span className="flex items-center gap-2">
+              <ProviderBadge provider="epic" variant="mark" />
+              Forget imported Epic Games data
+            </span>
+          }
+        >
+          <Button
+            variant="danger"
+            disabled={importedEpicCount === 0}
+            onClick={() => setConfirmForgetLibrary("epic")}
+          >
+            Forget {importedEpicCount || "all"}
           </Button>
         </SettingsRow>
       </SettingsPanel>

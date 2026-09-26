@@ -1,3 +1,4 @@
+import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import { useEffect, useMemo, useState } from "react";
 import {
   emulatorLaunchErrorMessage,
@@ -100,6 +101,9 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
   const xboxLaunchEntry = game.libraryImports.find(
     (entry) => entry.provider === "xbox" && entry.installed,
   );
+  const epicLaunchEntry = game.libraryImports.find(
+    (entry) => entry.provider === "epic" && entry.installed,
+  );
   const emulatorMapping = useMemo(() => {
     const mappings = game.emulatorContentKeys.flatMap((contentKey) => {
       const mapping = emulatorMappings.get(contentKey);
@@ -124,7 +128,8 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       primaryLaunchTarget ||
       emulatorTarget ||
       steamLaunchEntry ||
-      xboxLaunchEntry,
+      xboxLaunchEntry ||
+      epicLaunchEntry,
     );
   // An imported Steam game that is no longer installed offers Steam's
   // installer instead of a Play that would only open it.
@@ -139,7 +144,9 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       ? "Play on Xbox"
       : steamLaunchEntry && !primaryLaunchTarget && !emulatorTarget
         ? "Play in Steam"
-        : "Play";
+        : epicLaunchEntry && !primaryLaunchTarget && !emulatorTarget
+          ? "Play in Epic Games"
+          : "Play";
 
   // Same feedback windows as the card: a launch that never shows up as a
   // session releases the lock after 8s, one that did lets the overlay linger.
@@ -203,9 +210,13 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
           });
           return;
         }
-      } else if (xboxLaunchEntry || steamLaunchEntry) {
-        const provider = xboxLaunchEntry ? "xbox" : "steam";
-        const entry = (xboxLaunchEntry ?? steamLaunchEntry)!;
+      } else if (xboxLaunchEntry || steamLaunchEntry || epicLaunchEntry) {
+        const provider = xboxLaunchEntry
+          ? "xbox"
+          : steamLaunchEntry
+            ? "steam"
+            : "epic";
+        const entry = (xboxLaunchEntry ?? steamLaunchEntry ?? epicLaunchEntry)!;
         try {
           const module = await import("../../../library/providers");
           const library = await module.loadLibraryProvider(provider);
@@ -219,7 +230,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
             ...libraryLaunchErrorMessage(
               error,
               game.name,
-              provider === "xbox" ? "Xbox" : "Steam",
+              LIBRARY_PROVIDER_LABELS[provider],
             ),
           });
           return;

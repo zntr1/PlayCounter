@@ -99,6 +99,9 @@ export function ImportLibraryView() {
   const session = importerSession;
   const isXbox = providerId === "xbox";
   const isBattleNet = providerId === "battlenet";
+  const isEpic = providerId === "epic";
+  /** Installed games on this PC, plus an optional account sign-in. */
+  const scansInstalls = isBattleNet || isEpic;
   const providerName = LIBRARY_PROVIDER_LABELS[providerId];
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const existingImports = useAppStore((state) => state.libraryImports);
@@ -136,7 +139,7 @@ export function ImportLibraryView() {
     session.authorizeUrl,
   );
   const [waitingForServer, setWaitingForServer] = useState(false);
-  const [battleNetAccountScan, setBattleNetAccountScan] = useState(false);
+  const [accountSignInScan, setAccountSignInScan] = useState(false);
   const [pendingBattleNetScan, setPendingBattleNetScan] = useState<
     "installed" | "account" | null
   >(null);
@@ -282,17 +285,15 @@ export function ImportLibraryView() {
     setBrowsingExternalId(null);
   }
 
-  function requestScan(includeBattleNetAccount = false) {
+  function requestScan(includeAccount = false) {
     if (isBattleNet) {
-      setPendingBattleNetScan(
-        includeBattleNetAccount ? "account" : "installed",
-      );
+      setPendingBattleNetScan(includeAccount ? "account" : "installed");
     } else {
-      void scanAccount();
+      void scanAccount(includeAccount);
     }
   }
 
-  async function scanAccount(includeBattleNetAccount = false) {
+  async function scanAccount(includeAccount = false) {
     if (accountId === null) return;
     const copyOnStart = copyAuthorizeUrlOnStart.current;
     copyAuthorizeUrlOnStart.current = false;
@@ -302,7 +303,7 @@ export function ImportLibraryView() {
     const { signal } = controller;
     setActiveImportGroup("ready");
     setPhase("scanning");
-    setBattleNetAccountScan(isBattleNet && includeBattleNetAccount);
+    setAccountSignInScan(scansInstalls && includeAccount);
     setError(null);
     setAuthorizeUrl(null);
     setXboxProgress("authorization");
@@ -336,9 +337,10 @@ export function ImportLibraryView() {
             }
           : undefined,
         openAuthorizeUrl: !isXbox || !copyOnStart,
+        ...(isEpic ? { epicAccount: includeAccount } : {}),
         ...(isBattleNet
           ? {
-              battleNetAccount: includeBattleNetAccount,
+              battleNetAccount: includeAccount,
               battleNetProductIds: [...existingImports.values()]
                 .filter((entry) => entry.provider === "battlenet")
                 .map((entry) => entry.externalId),
@@ -346,7 +348,7 @@ export function ImportLibraryView() {
           : {}),
       });
       if (!isCurrentImport(signal)) return;
-      if (isBattleNet && !result.partial) {
+      if (scansInstalls && !result.partial) {
         const installedIds = new Set(
           result.games
             .filter((game) => game.installed)
@@ -355,10 +357,10 @@ export function ImportLibraryView() {
         const state = useAppStore.getState();
         for (const install of state.libraryInstalls.values()) {
           if (
-            install.provider === "battlenet" &&
+            install.provider === providerId &&
             !installedIds.has(install.externalId)
           ) {
-            state.removeLibraryInstall("battlenet", install.externalId);
+            state.removeLibraryInstall(providerId, install.externalId);
           }
         }
       }
@@ -376,7 +378,7 @@ export function ImportLibraryView() {
               libraryEntryKey(providerId, game.externalId),
             );
             const previousCandidates =
-              isBattleNet && existing
+              scansInstalls && existing
                 ? candidates.filter((candidate) =>
                     existing.linkedExeNames.some(
                       (name) =>
@@ -417,7 +419,7 @@ export function ImportLibraryView() {
             const existing = existingImports.get(key);
             if (!existing) continue;
             const previousMatch = byKey.get(key);
-            const existingExecutables = isBattleNet
+            const existingExecutables = scansInstalls
               ? previousMatch?.game?.id === existing.gameId
                 ? previousMatch.executables
                 : (
@@ -444,17 +446,20 @@ export function ImportLibraryView() {
             });
           }
         }
-        if (isBattleNet) {
+        if (scansInstalls) {
           // Unknown account products have no catalog identity. Search titles
           // sequentially for review suggestions, never for automatic matching.
           for (const game of result.games) {
             const key = libraryEntryKey(providerId, game.externalId);
             const match = byKey.get(key);
             const query = librarySearchQuery(game.name ?? "");
+            // Never-played Epic games can number in the hundreds; their row
+            // keeps manual search instead of one lookup each.
             if (
               match?.status === "resolved" ||
               match?.candidates?.length ||
-              query.length < 2
+              query.length < 2 ||
+              startsUnchecked(providerId, game)
             )
               continue;
             try {
@@ -500,7 +505,7 @@ export function ImportLibraryView() {
                     resolved: byKey.get(key),
                     alreadyImported: existingImports.has(key),
                     ignoredProcesses,
-                  }) === "ready"
+                  }) === "ready" && !startsUnchecked(providerId, game)
                 );
               })
               .map((game) => game.externalId),
@@ -849,7 +854,9 @@ export function ImportLibraryView() {
       {
         key: "ready",
         label: "Ready to import",
-        description: "Nothing left to decide. Pick the games and import them.",
+        description: isEpic
+          ? "Nothing left to decide. Games you never played on Epic start unchecked; pick the ones you want."
+          : "Nothing left to decide. Pick the games and import them.",
         games: [] as ScannedLibraryGame[],
       },
       {
@@ -857,7 +864,7 @@ export function ImportLibraryView() {
         label: "Needs attention",
         description: isXbox
           ? "Confirm which game this is before importing it."
-          : isBattleNet
+          : scansInstalls
             ? "Confirm the game and its executable before importing it."
             : "Pick the game file. Known matches are linked; unknown files can be shared with the community.",
         games: [] as ScannedLibraryGame[],
@@ -869,7 +876,9 @@ export function ImportLibraryView() {
           ? "PlayCounter could not match this Xbox title to a game it knows."
           : isBattleNet
             ? "Game details or installation data are unavailable. Try scanning again."
-            : "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
+            : isEpic
+              ? "Game details are unavailable. Try scanning again."
+              : "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
         games: [] as ScannedLibraryGame[],
       },
       {
@@ -877,7 +886,9 @@ export function ImportLibraryView() {
         label: "Imported",
         description: isBattleNet
           ? "Games already in My Games. Import again to refresh installation and last-played data."
-          : `Games already in My Games. Import one again to update its ${providerName} playtime.`,
+          : isEpic
+            ? "Games already in My Games. Sign in and import again to update their Epic playtime and installation."
+            : `Games already in My Games. Import one again to update its ${providerName} playtime.`,
         games: [] as ScannedLibraryGame[],
       },
     ];
@@ -908,6 +919,8 @@ export function ImportLibraryView() {
     ignoredProcesses,
     isXbox,
     isBattleNet,
+    isEpic,
+    scansInstalls,
     providerId,
     providerName,
     resolved,
@@ -942,8 +955,8 @@ export function ImportLibraryView() {
           <p className="mt-2 text-text-muted">
             {isXbox
               ? "The Xbox import is unavailable right now. Check your connection and try again."
-              : isBattleNet
-                ? "Battle.net import is available on Windows."
+              : scansInstalls
+                ? `${providerName} import is available on Windows.`
                 : "PlayCounter looks for Steam in the Windows registry and in the usual install folders. You never have to sign in to Steam."}
           </p>
           {error ? <ErrorNotice message={error} /> : null}
@@ -961,8 +974,10 @@ export function ImportLibraryView() {
               ? authorizeUrl
                 ? xboxScanLabel(xboxProgress)
                 : "Connecting to Xbox…"
-              : isBattleNet && battleNetAccountScan && !scan
-                ? "Complete Battle.net sign-in in the window that opened. Reading your account games…"
+              : accountSignInScan && !scan
+                ? isEpic
+                  ? "Complete Epic Games sign-in in the window that opened. Reading your library and playtime…"
+                  : "Complete Battle.net sign-in in the window that opened. Reading your account games…"
                 : `Scanning your ${providerName} library…`
         }
         onCancel={cancelImport}
@@ -1036,7 +1051,7 @@ export function ImportLibraryView() {
               <span className="text-sm text-text-muted">
                 {isXbox
                   ? "Playtime from your Xbox account"
-                  : isBattleNet
+                  : scansInstalls
                     ? "Account and installed games"
                     : "Library from this PC"}
               </span>
@@ -1046,14 +1061,18 @@ export function ImportLibraryView() {
                 ? "Connect your Xbox account"
                 : isBattleNet
                   ? "Import your Battle.net games"
-                  : "Pick a Steam account on this PC"}
+                  : isEpic
+                    ? "Import your Epic Games library"
+                    : "Pick a Steam account on this PC"}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
               {isXbox
                 ? "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done."
                 : isBattleNet
                   ? "Sign in to include games from your account, even when they are not installed. You can also scan installed games without signing in."
-                  : "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers."}
+                  : isEpic
+                    ? "Sign in to bring in your Epic library with the playtime Epic recorded. You can also scan installed games without signing in; their past playtime then stays unknown."
+                    : "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers."}
             </p>
             {isXbox ? (
               <p className="mt-2 text-sm text-text-faint">
@@ -1062,15 +1081,16 @@ export function ImportLibraryView() {
                 browser window.
               </p>
             ) : null}
-            {isBattleNet ? (
+            {scansInstalls ? (
               <p className="mt-2 text-sm text-text-faint">
-                Sign-in opens in a temporary Battle.net window and is discarded
-                when the scan finishes. Each sign-in lets you choose an account.
+                Sign-in opens in a temporary {providerName} window and is
+                discarded when the scan finishes. Each sign-in lets you choose
+                an account.
               </p>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!isBattleNet ? (
+            {!scansInstalls ? (
               <Select
                 aria-label={`${providerName} account`}
                 value={accountId ?? ""}
@@ -1110,7 +1130,7 @@ export function ImportLibraryView() {
                 Copy sign-in link
               </Button>
             ) : null}
-            {isBattleNet ? (
+            {scansInstalls ? (
               <Button
                 variant="secondary"
                 icon={HardDrive}
@@ -1124,9 +1144,9 @@ export function ImportLibraryView() {
               variant="primary"
               icon={scan ? RefreshCw : Download}
               disabled={accountId === null}
-              onClick={() => requestScan(isBattleNet)}
+              onClick={() => requestScan(scansInstalls)}
             >
-              {isBattleNet
+              {scansInstalls
                 ? "Sign in and find games"
                 : scan
                   ? "Scan again"
@@ -1139,7 +1159,7 @@ export function ImportLibraryView() {
       </Panel>
 
       {error ? <ErrorNotice message={error} /> : null}
-      {!isBattleNet && accounts.length === 0 ? (
+      {!scansInstalls && accounts.length === 0 ? (
         <Panel className="p-4 text-sm text-text-muted">
           {isXbox
             ? "The Xbox import could not be prepared. Please try again later."
@@ -1462,7 +1482,9 @@ export function ImportRow({
               ? "Product"
               : provider === "xbox"
                 ? "Xbox title ID"
-                : "AppID"}{" "}
+                : provider === "epic"
+                  ? "App name"
+                  : "AppID"}{" "}
             {game.externalId}
           </span>
           {provider !== "battlenet" ? (
@@ -1752,6 +1774,22 @@ function requiresExecutableChoice(
     knownNames.has(item.fileName.toLowerCase()),
   );
   return !hasKnownLocalExe && game.installPath !== undefined;
+}
+
+/**
+ * An Epic game you own but never played and have not installed: importable,
+ * but only when you pick it. Accounts collect many free games.
+ */
+export function startsUnchecked(
+  provider: BuiltinImportProviderId,
+  game: ScannedLibraryGame,
+) {
+  return (
+    provider === "epic" &&
+    game.inAccountLibrary === true &&
+    !game.installed &&
+    !hasImportableActivity(game)
+  );
 }
 
 export function hasImportableActivity(game: ScannedLibraryGame) {

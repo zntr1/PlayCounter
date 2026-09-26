@@ -204,6 +204,35 @@ describe("adding newly installed games automatically", () => {
     );
   });
 
+  it("adds new Epic Games games after an Epic import", async () => {
+    useAppStore.setState({
+      libraryImports: new Map([imported("epic", "Sugar")]),
+    });
+    mockLaunchers(
+      {
+        epic: [
+          { externalId: "Sugar", installPath: gamePath("rocketleague") },
+          { externalId: "Hades", installPath: gamePath("Hades") },
+        ],
+      },
+      {
+        epic: [scanned("Sugar", "Rocket League"), scanned("Hades", "Hades")],
+      },
+    );
+    vi.mocked(resolveLibraryGames).mockResolvedValue({
+      capability: "supported",
+      games: [resolvedGame("epic", "Hades", 113112)],
+    });
+
+    await expect(syncLibraryInstalls("test")).resolves.toBe(1);
+    expect(importedIds()).toEqual(["epic:Hades", "epic:Sugar"]);
+    expect(resolveLibraryGames).toHaveBeenCalledWith(
+      expect.any(String),
+      "epic",
+      [scanned("Hades", "Hades")],
+    );
+  });
+
   it("restores reinstalled Xbox games but never adds unknown Xbox installs", async () => {
     useAppStore.setState({
       libraryImports: new Map([imported("xbox", "1234")]),

@@ -351,7 +351,9 @@ export function App() {
         ? "Bring your Xbox games and playtime into PlayCounter"
         : libraryImportProvider === "battlenet"
           ? "Add your Battle.net games to PlayCounter"
-          : "Bring your Steam library and playtime into PlayCounter"
+          : libraryImportProvider === "epic"
+            ? "Bring your Epic Games library and playtime into PlayCounter"
+            : "Bring your Steam library and playtime into PlayCounter"
       : views[activeView].subtitle;
   const activeTour = useAppStore((state) => state.activeTour);
   const activeTourId = activeTour?.tourId ?? null;

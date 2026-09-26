@@ -1,5 +1,7 @@
 pub mod battlenet;
 pub mod battlenet_account;
+pub mod epic;
+pub mod epic_account;
 mod exe_scan;
 pub mod steam;
 mod types;
@@ -16,9 +18,11 @@ use std::{fs, path::Path};
 
 #[tauri::command]
 pub async fn library_detect_providers() -> Result<Vec<types::ProviderStatus>, String> {
-    tauri::async_runtime::spawn_blocking(|| vec![steam::detect(), battlenet::detect()])
-        .await
-        .map_err(|error| error.to_string())
+    tauri::async_runtime::spawn_blocking(|| {
+        vec![steam::detect(), battlenet::detect(), epic::detect()]
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -40,6 +44,7 @@ pub async fn library_scan(
     tauri::async_runtime::spawn_blocking(move || match provider.as_str() {
         "steam" => steam::scan(account_id, app_ids.as_deref()),
         "battlenet" => battlenet::scan(),
+        "epic" => epic::scan(),
         _ => Err("PlayCounter cannot import from this launcher.".to_string()),
     })
     .await
@@ -58,6 +63,12 @@ pub async fn library_inspect_executable(
         if provider == "battlenet" && !battlenet::game_executable(&candidate.file_name) {
             return Err(
                 "Pick the game's executable, rather than a Battle.net launcher or helper."
+                    .to_string(),
+            );
+        }
+        if provider == "epic" && !epic::game_executable(&candidate.file_name) {
+            return Err(
+                "Pick the game's executable, rather than an Epic Games launcher or helper."
                     .to_string(),
             );
         }
@@ -84,6 +95,7 @@ pub async fn library_launch_app(
         "steam" => steam::launch_app(&external_id, &mode),
         "xbox" => xbox::launch_app(&external_id, &mode),
         "battlenet" => battlenet::launch_app(&external_id, &mode),
+        "epic" => epic::launch_app(&external_id, &mode),
         _ => Err(LaunchError::new(
             LaunchErrorKind::Unsupported,
             "PlayCounter cannot import from this launcher.",
@@ -103,6 +115,7 @@ pub async fn library_installed_games(
         "steam" => Ok(steam::Installs::read().map(|installs| installs.installed_games())),
         "xbox" => Ok(Some(xbox::installed_games())),
         "battlenet" => Ok(Some(battlenet::installed_games())),
+        "epic" => Ok(Some(epic::installed_games())),
         _ => Err("PlayCounter cannot list games for this launcher.".to_string()),
     })
     .await
@@ -142,10 +155,15 @@ pub async fn library_verify_installs(
             .iter()
             .any(|install| install.provider == "battlenet")
             .then(battlenet::InstalledProducts::read);
+        let epic = installs
+            .iter()
+            .any(|install| install.provider == "epic")
+            .then(epic::InstalledApps::read);
         installs
             .into_iter()
             .map(|install| {
-                let status = install_status(&install, steam.as_ref(), battlenet.as_ref());
+                let status =
+                    install_status(&install, steam.as_ref(), battlenet.as_ref(), epic.as_ref());
                 InstallCheckReport {
                     provider: install.provider,
                     external_id: install.external_id,
@@ -162,6 +180,7 @@ fn install_status(
     install: &InstallCheckRequest,
     steam: Option<&steam::Installs>,
     battlenet: Option<&battlenet::InstalledProducts>,
+    epic: Option<&epic::InstalledApps>,
 ) -> LaunchPathStatus {
     if !cfg!(windows) {
         return LaunchPathStatus::Unreadable;
@@ -186,6 +205,7 @@ fn install_status(
                 .and_then(|products| products.state(&install.external_id, folder_exists))
                 .or(folder_exists.filter(|exists| !exists))
         }
+        "epic" => epic.and_then(|apps| apps.state(&install.external_id)),
         _ => return LaunchPathStatus::Invalid,
     };
     match installed {
@@ -196,7 +216,7 @@ fn install_status(
 }
 
 fn require_local_provider(provider: &str) -> Result<(), String> {
-    if matches!(provider, "steam" | "xbox" | "battlenet") {
+    if matches!(provider, "steam" | "xbox" | "battlenet" | "epic") {
         Ok(())
     } else {
         Err("PlayCounter cannot import from this launcher.".to_string())

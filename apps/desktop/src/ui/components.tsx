@@ -1,4 +1,5 @@
 import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
+import epicIconUrl from "../../../../assets/epic/epic.svg";
 import type { PropsWithChildren, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -302,6 +303,15 @@ const providerMeta: Record<
     tone: "text-[#00aeef]",
     coinTone: "shadow-raised",
     chipTone: "border-[#00aeef]/40 bg-[#061e2b] text-[#00aeef]",
+    coinFill: true,
+  },
+  epic: {
+    label: "Epic Games",
+    tip: "Imported from your Epic Games account or installations on this PC.",
+    iconUrl: epicIconUrl,
+    tone: "text-text",
+    coinTone: "shadow-raised",
+    chipTone: "border-white/25 bg-[#2a2a2a] text-white",
     coinFill: true,
   },
   steam: {

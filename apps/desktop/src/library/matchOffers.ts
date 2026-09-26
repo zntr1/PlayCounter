@@ -58,7 +58,8 @@ export function untrackableLibraryImports() {
     (entry) =>
       (entry.provider === "steam" ||
         entry.provider === "xbox" ||
-        entry.provider === "battlenet") &&
+        entry.provider === "battlenet" ||
+        entry.provider === "epic") &&
       !tracked.has(entry.igdbId),
   );
 }
