@@ -50,6 +50,53 @@ describe("My Games sorting", () => {
     ).toBe("2026-08-26T12:00:00.000Z");
   });
 
+  it("ranks real play dates ahead of fresh imports and undated playtime", () => {
+    const unplayedImport = game(1, {
+      lastPlayedAt: "2026-08-26T12:00:00.000Z",
+      hasLastPlayedEvidence: false,
+    });
+    const providerHistory = game(2, {
+      lastPlayedAt: "2026-08-18T12:00:00.000Z",
+      hasLastPlayedEvidence: true,
+    });
+    const localHistory = game(3, { sessionCount: 1 });
+    const undatedPlaytime = game(4, {
+      totalSeconds: 7_200,
+      lastPlayedAt: "2026-08-26T12:00:00.000Z",
+      hasLastPlayedEvidence: false,
+    });
+
+    expect(
+      [unplayedImport, undatedPlaytime, providerHistory, localHistory].sort(
+        (left, right) => compareMyGames(left, right, "recent"),
+      ),
+    ).toEqual([localHistory, providerHistory, unplayedImport, undatedPlaytime]);
+  });
+
+  it("orders games without valid play dates by name, ignoring import dates", () => {
+    const olderImport = game(1, {
+      name: "Alpha",
+      hasLastPlayedEvidence: false,
+    });
+    const newerImport = game(2, {
+      name: "Bravo",
+      lastPlayedAt: "2026-08-26T12:00:00.000Z",
+      hasLastPlayedEvidence: false,
+    });
+    const invalidDate = game(3, {
+      name: "Charlie",
+      lastPlayedAt: "invalid",
+      hasLastPlayedEvidence: true,
+    });
+    const played = game(4, { sessionCount: 1 });
+
+    expect(
+      [invalidDate, newerImport, olderImport, played].sort((left, right) =>
+        compareMyGames(left, right, "recent"),
+      ),
+    ).toEqual([played, olderImport, newerImport, invalidDate]);
+  });
+
   it("waits 30 seconds before promoting an active game", () => {
     const startedAt = "2026-08-19T12:00:00.000Z";
     const startedAtMs = Date.parse(startedAt);
@@ -98,6 +145,7 @@ describe("My Games sorting", () => {
       lastPlayedAt: "2026-08-19T10:00:00.000Z",
     });
     const completed = game(2, {
+      sessionCount: 1,
       lastPlayedAt: "2026-08-19T12:00:00.000Z",
     });
 

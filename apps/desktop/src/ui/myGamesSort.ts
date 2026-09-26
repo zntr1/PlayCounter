@@ -9,11 +9,19 @@ export type MyGamesSortValue = {
   totalSeconds: number;
   sessionCount: number;
   lastPlayedAt: string;
+  hasLastPlayedEvidence?: boolean;
   activeStartedAt?: string;
 };
 
 function newestFirst(left: string, right: string) {
   return Date.parse(right) - Date.parse(left);
+}
+
+function lastPlayedTime(game: MyGamesSortValue) {
+  // Undated entries keep an added/import date for display, not recent-play rank.
+  if (!game.hasLastPlayedEvidence && game.sessionCount === 0) return 0;
+  const timestamp = Date.parse(game.lastPlayedAt);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 export function mergeLastPlayedEvidence(
@@ -72,7 +80,7 @@ export function compareMyGames(
       order =
         leftActive && rightActive
           ? newestFirst(left.activeStartedAt!, right.activeStartedAt!)
-          : newestFirst(left.lastPlayedAt, right.lastPlayedAt);
+          : lastPlayedTime(right) - lastPlayedTime(left);
       break;
     }
   }

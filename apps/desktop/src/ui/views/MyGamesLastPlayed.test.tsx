@@ -48,11 +48,15 @@ afterEach(async () => {
 });
 
 function importGame({
+  gameId = 1,
+  name = NAME,
   provider = "steam",
   lastPlayedAt = daysAgo(2),
   seconds = 7_200,
   linked = false,
 }: {
+  gameId?: number;
+  name?: string;
   provider?: LibraryProviderId;
   lastPlayedAt?: string | null;
   seconds?: number | null;
@@ -62,7 +66,7 @@ function importGame({
     provider,
     now: daysAgo(0),
     scanned: {
-      externalId: "100",
+      externalId: String(gameId * 100),
       playtimeSeconds: seconds,
       lastPlayedUnix: lastPlayedAt
         ? Date.parse(lastPlayedAt) / 1_000
@@ -71,12 +75,12 @@ function importGame({
       executables: [],
     },
     resolved: {
-      key: `${provider}:100`,
+      key: `${provider}:${gameId * 100}`,
       status: "resolved",
       game: {
-        id: 1,
-        igdbId: 100,
-        name: NAME,
+        id: gameId,
+        igdbId: gameId * 100,
+        name,
         coverUrl: "",
         source: "igdb",
       },
@@ -114,6 +118,59 @@ function lastPlayedFigure() {
   expect(label).toBeDefined();
   return label!.nextElementSibling!.textContent;
 }
+
+it.each([
+  { provider: "steam" as const, linked: false },
+  { provider: "steam" as const, linked: true },
+  { provider: "xbox" as const, linked: false },
+  { provider: "battlenet" as const, linked: false },
+])(
+  "keeps unplayed $provider imports below real play dates (linked: $linked)",
+  async ({ provider, linked }) => {
+    importGame({
+      gameId: 2,
+      name: "Provider history",
+      provider: "xbox",
+      seconds: null,
+      lastPlayedAt: daysAgo(7),
+    });
+    useAppStore.setState({
+      recentSessions: [
+        {
+          id: 3,
+          gameId: 3,
+          igdbId: 300,
+          source: "igdb",
+          gameName: "Local history",
+          exeName: "local.exe",
+          startedAt: new Date(Date.parse(daysAgo(1)) - 3_600_000).toISOString(),
+          endedAt: daysAgo(1),
+          durationSeconds: 3_600,
+        },
+      ],
+    });
+    importGame({ provider, linked, seconds: 0, lastPlayedAt: null });
+
+    await act(() => root.render(<LibraryTestShell />));
+    const displayedNames = () =>
+      [...container.querySelectorAll(".game-library-card")].map((card) =>
+        card
+          .querySelector('[aria-label^="Open details for "]')!
+          .getAttribute("aria-label"),
+      );
+    const expected = [
+      "Open details for Local history",
+      "Open details for Provider history",
+      `Open details for ${NAME}`,
+    ];
+    expect(displayedNames()).toEqual(expected);
+
+    await act(() =>
+      importGame({ provider, linked, seconds: 0, lastPlayedAt: null }),
+    );
+    expect(displayedNames()).toEqual(expected);
+  },
+);
 
 it.each([
   { provider: "steam" as const, linked: false, seconds: 7_200 },

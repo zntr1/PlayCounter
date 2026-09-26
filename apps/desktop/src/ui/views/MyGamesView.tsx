@@ -1506,9 +1506,8 @@ export function MyGamesView({
       );
     }
 
-    return [...summaries.values()].sort(
-      (left, right) =>
-        Date.parse(right.lastPlayedAt) - Date.parse(left.lastPlayedAt),
+    return [...summaries.values()].sort((left, right) =>
+      compareMyGames(left, right, "recent"),
     );
   }, [
     activeSessions,
