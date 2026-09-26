@@ -584,6 +584,7 @@ export type AppState = {
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
   setTrackTools: (enabled: boolean) => void;
+  setSoftwareLayout: (layout: "grid" | "list") => void;
   setAutoAddInstalledGames: (enabled: boolean) => void;
   setShowInstallInSteam: (enabled: boolean) => void;
   setEmulatorSetting: (
@@ -1766,6 +1767,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTrackTools: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, trackTools: enabled },
+    }));
+    persistSoon();
+  },
+  setSoftwareLayout: (layout) => {
+    set((state) => ({
+      settings: { ...state.settings, softwareLayout: layout },
     }));
     persistSoon();
   },

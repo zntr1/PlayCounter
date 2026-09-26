@@ -630,6 +630,8 @@ export interface Settings {
   /** Count time for recognized software (Discord, launchers, ...) on the
    *  Software page. Absent = off. */
   trackTools?: boolean;
+  /** Cards or rows on the Software page. Absent = cards. */
+  softwareLayout?: "grid" | "list";
   pollingIntervalSeconds: number;
   unmatchedRetryDays: number;
   apiEndpoint: string;

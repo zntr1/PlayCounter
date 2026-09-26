@@ -62,3 +62,39 @@ describe("Software page rows", () => {
     });
   });
 });
+
+describe("Software art", () => {
+  it("prefers art picked on this PC over the shared art, then the app icon", () => {
+    const rows = buildSoftwareRows({
+      exeCache: new Map<string, ExeCacheEntry>([
+        tool("Discord.exe", {
+          gameId: 7,
+          gameName: "Discord",
+          coverUrl: "https://shared/discord.png",
+        }),
+        tool("Spotify.exe", {
+          gameId: 8,
+          gameName: "Spotify",
+          coverUrl: "https://shared/spotify.png",
+        }),
+        tool("Steam.exe", { gameId: 10, gameName: "Steam" }),
+      ]),
+      toolUsage: {
+        "discord.exe": { days: { [today]: 60 }, artUrl: "https://mine/d.png" },
+        "spotify.exe": { days: { [today]: 60 } },
+        "steam.exe": { days: { [today]: 60 } },
+      },
+      runningExeKeys: new Set(),
+      userIgnoredProcesses: new Set(),
+      now,
+    });
+    const art = Object.fromEntries(
+      rows.map((row) => [row.name, [row.art, row.localArt]]),
+    );
+    expect(art).toEqual({
+      Discord: ["https://mine/d.png", true],
+      Spotify: ["https://shared/spotify.png", false],
+      Steam: ["", false],
+    });
+  });
+});

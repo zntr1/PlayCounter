@@ -15,6 +15,8 @@ export type ToolUsageRecord = {
   /** Time collected while the executable waited in Discovered. Its days are
    *  unknown, so it only counts toward the total. */
   carriedSeconds?: number;
+  /** Art picked on this PC. Wins over the shared art and stays here. */
+  artUrl?: string;
 };
 
 /** Lowercase executable name → usage. */
@@ -127,6 +129,26 @@ export function carryDiscoveredSeconds(
   };
 }
 
+/** Sets (or with null clears) the art picked on this PC for every
+ *  executable of one tool. */
+export function withToolArt(
+  usage: ToolUsage,
+  exeKeys: readonly string[],
+  artUrl: string | null,
+): ToolUsage {
+  const next = { ...usage };
+  for (const exeKey of exeKeys) {
+    const record = next[exeKey] ?? { days: {} };
+    if (artUrl) {
+      next[exeKey] = { ...record, artUrl };
+    } else {
+      const { artUrl: _artUrl, ...rest } = record;
+      next[exeKey] = rest;
+    }
+  }
+  return next;
+}
+
 /** Today, this week (Monday to Sunday, like My History) and all time. */
 export function summarizeToolUsage(
   records: readonly (ToolUsageRecord | undefined)[],
@@ -182,6 +204,9 @@ export function sanitizeToolUsage(value: unknown): ToolUsage {
     const record: ToolUsageRecord = { days };
     if (typeof input.exePath === "string" && input.exePath) {
       record.exePath = input.exePath;
+    }
+    if (typeof input.artUrl === "string" && input.artUrl) {
+      record.artUrl = input.artUrl;
     }
     if (
       typeof input.carriedSeconds === "number" &&

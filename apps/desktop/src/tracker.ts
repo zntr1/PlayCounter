@@ -128,6 +128,7 @@ import {
   creditToolUsage,
   sanitizeToolUsage,
   toolIdentityKey,
+  withToolArt,
   type RunningTool,
 } from "./toolUsage";
 import { nextAdjustmentSeconds } from "./playtimeAdjustments";
@@ -4558,23 +4559,16 @@ export async function markExecutableAsSoftware(
   }
 }
 
-/** Art for a tool marked on this PC. Shared tools use the community's art. */
-export function setLocalToolCover(toolKey: string, coverUrl: string) {
-  useAppStore.setState((state) => {
-    let exeCache = state.exeCache;
-    for (const [key, entry] of state.exeCache) {
-      if (
-        entry.state !== "tool" ||
-        entry.source !== "custom" ||
-        toolIdentityKey(entry) !== toolKey
-      ) {
-        continue;
-      }
-      if (exeCache === state.exeCache) exeCache = new Map(state.exeCache);
-      exeCache.set(key, { ...entry, coverUrl });
-    }
-    return { exeCache };
-  });
+/** Art picked on this PC for a tool, or null to go back to the shared art
+ *  or the app's icon. Kept per executable, like the hours. */
+export function setToolArt(exeNames: readonly string[], artUrl: string | null) {
+  useAppStore.setState((state) => ({
+    toolUsage: withToolArt(
+      state.toolUsage,
+      exeNames.map((exeName) => exeName.toLowerCase()),
+      artUrl,
+    ),
+  }));
   persist();
 }
 

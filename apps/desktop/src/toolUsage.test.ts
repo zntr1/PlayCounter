@@ -9,6 +9,7 @@ import {
   summarizeToolUsage,
   type RunningTool,
   type ToolUsageRecord,
+  withToolArt,
 } from "./toolUsage";
 
 // Local times, so the tests hold in every timezone.
@@ -155,5 +156,31 @@ describe("tool usage helpers", () => {
       "discord.exe": { exePath: "C:\\d.exe", days: { "2026-09-26": 12 } },
     });
     expect(sanitizeToolUsage([])).toEqual({});
+  });
+});
+
+describe("tool art picked on this PC", () => {
+  it("is stored on every exe of the tool and can be cleared", () => {
+    const usage = withToolArt(
+      { "upc.exe": { days: { "2026-09-26": 5 } } },
+      ["upc.exe", "ubisoftconnect.exe"],
+      "https://cdn2.steamgriddb.com/grid/u.png",
+    );
+    expect(usage["upc.exe"]).toEqual({
+      days: { "2026-09-26": 5 },
+      artUrl: "https://cdn2.steamgriddb.com/grid/u.png",
+    });
+    expect(usage["ubisoftconnect.exe"].artUrl).toBe(
+      "https://cdn2.steamgriddb.com/grid/u.png",
+    );
+    const cleared = withToolArt(usage, ["upc.exe", "ubisoftconnect.exe"], null);
+    expect(cleared["upc.exe"]).toEqual({ days: { "2026-09-26": 5 } });
+    expect(cleared["ubisoftconnect.exe"]).toEqual({ days: {} });
+  });
+
+  it("survives sanitizing", () => {
+    expect(
+      sanitizeToolUsage({ "a.exe": { days: {}, artUrl: "https://x/a.png" } }),
+    ).toEqual({ "a.exe": { days: {}, artUrl: "https://x/a.png" } });
   });
 });

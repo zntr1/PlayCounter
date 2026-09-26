@@ -335,6 +335,7 @@ const settings = object({}, {
   ),
   autoShareIgnoredProcesses: boolean,
   trackTools: boolean,
+  softwareLayout: oneOf("grid", "list"),
   pollingIntervalSeconds: nonnegative,
   unmatchedRetryDays: nonnegative,
   apiEndpoint: nonempty,
@@ -486,7 +487,7 @@ const validateBackupShape: Validator = object(
     toolUsage: dictionary(
       object(
         { days: dictionary(nonnegative) },
-        { exePath: string, carriedSeconds: nonnegative },
+        { exePath: string, carriedSeconds: nonnegative, artUrl: string },
       ),
     ),
     collapsedSections: array(string),

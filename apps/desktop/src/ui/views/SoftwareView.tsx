@@ -5,11 +5,14 @@ import {
   EyeOff,
   Gamepad2,
   Image as ImageIcon,
+  LayoutGrid,
+  List,
+  Undo2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAppStore, type ExeCacheEntry } from "../../store";
 import {
-  setLocalToolCover,
+  setToolArt,
   setUserIgnoredProcess,
   unmarkLocalTool,
 } from "../../tracker";
@@ -38,7 +41,10 @@ import { Button } from "../primitives";
 type SoftwareRow = {
   toolKey: string;
   name: string;
-  coverUrl: string;
+  /** Art picked on this PC, else the shared art; empty for the app icon. */
+  art: string;
+  /** True when the art was picked on this PC and can be reset. */
+  localArt: boolean;
   local: boolean;
   shareStatus?: ExeCacheEntry["communitySuggestionStatus"];
   exeNames: string[];
@@ -70,13 +76,16 @@ export function buildSoftwareRows(input: {
     const running = exeKeys.some((exeKey) => input.runningExeKeys.has(exeKey));
     if (!running && summary.totalSeconds < 1) continue;
     const first = entries[0];
+    const pickedArt = records.find((record) => record?.artUrl)?.artUrl;
     rows.push({
       toolKey,
       name: first.gameName ?? first.exeName,
-      coverUrl:
+      art:
+        pickedArt ??
         entries.find((entry) => entry.coverUrl)?.coverUrl ??
         first.coverUrl ??
         "",
+      localArt: Boolean(pickedArt),
       local: first.source === "custom",
       shareStatus: first.communitySuggestionStatus,
       exeNames: entries.map((entry) => entry.exeName),
@@ -96,6 +105,10 @@ export function buildSoftwareRows(input: {
 export function SoftwareView() {
   const trackTools = useAppStore((state) => state.settings.trackTools === true);
   const setTrackTools = useAppStore((state) => state.setTrackTools);
+  const layout = useAppStore(
+    (state) => state.settings.softwareLayout ?? "grid",
+  );
+  const setSoftwareLayout = useAppStore((state) => state.setSoftwareLayout);
   const exeCache = useAppStore((state) => state.exeCache);
   const toolUsage = useAppStore((state) => state.toolUsage);
   const processes = useAppStore((state) => state.processes);
@@ -136,25 +149,68 @@ export function SoftwareView() {
     );
   }
 
+  const format = (seconds: number) =>
+    seconds < 60 ? "–" : formatDuration(seconds, showDurationDays);
+
   return (
     <div className="grid gap-3">
-      <p className="text-sm text-text-muted">
-        Counted only while an app runs and your PC is awake. Never part of your
-        game stats.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-text-muted">
+          Counted only while an app runs and your PC is awake. Never part of
+          your game stats.
+        </p>
+        {rows.length > 0 ? (
+          <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
+            {(
+              [
+                ["grid", "Cards", LayoutGrid],
+                ["list", "List", List],
+              ] as const
+            ).map(([value, label, Icon]) => (
+              <button
+                key={value}
+                type="button"
+                aria-label={`${label} view`}
+                aria-pressed={layout === value}
+                title={label}
+                onClick={() => setSoftwareLayout(value)}
+                className={clsx(
+                  "grid h-full w-8 place-items-center rounded-md transition",
+                  layout === value
+                    ? "bg-accent text-accent-fg"
+                    : "text-text-muted hover:bg-surface-hover hover:text-text",
+                )}
+              >
+                <Icon size={15} />
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       {rows.length === 0 ? (
         <Panel className="px-5 py-10 text-center text-sm text-text-muted">
           No software yet. Discord, Spotify and launchers show up here once they
           run. Other apps can be tracked from Discovered with “Track as
           software”.
         </Panel>
+      ) : layout === "grid" ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
+          {rows.map((row) => (
+            <SoftwareCard
+              key={row.toolKey}
+              row={row}
+              format={format}
+              onChangeArt={() => setArtTarget(row)}
+            />
+          ))}
+        </div>
       ) : (
         <Panel className="divide-y divide-border">
           {rows.map((row) => (
             <SoftwareRowItem
               key={row.toolKey}
               row={row}
-              showDurationDays={showDurationDays}
+              format={format}
               onChangeArt={() => setArtTarget(row)}
             />
           ))}
@@ -169,51 +225,112 @@ export function SoftwareView() {
             canEditCover: true,
           }}
           onClose={() => setArtTarget(null)}
-          onPickCover={(url) => setLocalToolCover(artTarget.toolKey, url)}
+          onPickCover={(url) => setToolArt(artTarget.exeNames, url)}
         />
       ) : null}
     </div>
   );
 }
 
-function SoftwareRowItem({
+/* Without art the app's own icon stands in: small and sharp in front, blown
+   up and blurred behind it, so the tile carries the app's colours. */
+function SoftwareIconTile({ exePath }: { exePath: string | null }) {
+  return (
+    <div className="absolute inset-0 grid place-items-center overflow-hidden bg-surface-hover">
+      <ExeIcon
+        exePath={exePath}
+        className="absolute inset-0 h-full w-full scale-150 object-cover opacity-40 blur-2xl"
+      />
+      <div className="relative grid h-16 w-16 place-items-center rounded-2xl border border-border/60 bg-surface/80 shadow-raised backdrop-blur-sm">
+        <ExeIcon
+          exePath={exePath}
+          className="h-8 w-8"
+          fallback={<AppWindow size={26} className="text-text-faint" />}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SoftwareCard({
   row,
-  showDurationDays,
+  format,
   onChangeArt,
 }: {
   row: SoftwareRow;
-  showDurationDays: boolean;
+  format: (seconds: number) => string;
   onChangeArt: () => void;
 }) {
   const contextMenu = useContextMenu();
-  const addToast = useAppStore((state) => state.addToast);
-  const format = (seconds: number) =>
-    seconds < 60 ? "–" : formatDuration(seconds, showDurationDays);
+  return (
+    <article
+      {...contextMenu.props}
+      title={`${row.name} · this week ${format(row.summary.weekSeconds)}\n${row.exeNames.join(", ")}`}
+      className="group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover"
+    >
+      <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden bg-surface-hover">
+        {row.art ? (
+          <img
+            src={row.art}
+            alt=""
+            loading="lazy"
+            draggable={false}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <SoftwareIconTile exePath={row.exePath} />
+        )}
+        {row.running ? (
+          <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-semibold text-success backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.7)]" />
+            Running
+          </span>
+        ) : null}
+      </div>
+      <div className="min-w-0 px-3 py-2.5">
+        <div className="truncate text-sm font-semibold text-text">
+          {row.name}
+        </div>
+        <div className="mt-0.5 truncate font-mono text-xs text-text-muted">
+          {format(row.summary.totalSeconds)}
+        </div>
+        {row.summary.todaySeconds >= 60 ? (
+          <div className="truncate text-[11px] text-text-faint">
+            {format(row.summary.todaySeconds)} today
+          </div>
+        ) : null}
+        {row.local ? (
+          <div className="mt-0.5 truncate text-[11px] text-text-faint">
+            {row.shareStatus === "pending"
+              ? "Shared, awaiting review"
+              : "Only on this PC"}
+          </div>
+        ) : null}
+      </div>
+      <SoftwareMenu
+        row={row}
+        contextMenu={contextMenu}
+        onChangeArt={onChangeArt}
+      />
+    </article>
+  );
+}
+
+function SoftwareRowItem({
+  row,
+  format,
+  onChangeArt,
+}: {
+  row: SoftwareRow;
+  format: (seconds: number) => string;
+  onChangeArt: () => void;
+}) {
+  const contextMenu = useContextMenu();
   const note = row.local
     ? row.shareStatus === "pending"
       ? "Shared, awaiting review"
       : "Only on this PC"
     : null;
-
-  async function ignore() {
-    contextMenu.close();
-    try {
-      for (const exeName of row.exeNames) {
-        await setUserIgnoredProcess(exeName, true);
-      }
-      addToast({
-        tone: "info",
-        title: `${row.name} ignored`,
-        detail: "PlayCounter no longer counts it. Its hours stay stored.",
-      });
-    } catch (error) {
-      addToast({
-        tone: "error",
-        title: "Could not ignore the app",
-        detail: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
 
   return (
     <div
@@ -222,9 +339,9 @@ function SoftwareRowItem({
       title={row.exeNames.join(", ")}
     >
       <div className="relative grid h-12 w-8 shrink-0 place-items-center overflow-hidden rounded-md border border-border/60 bg-surface-hover">
-        {row.coverUrl ? (
+        {row.art ? (
           <img
-            src={row.coverUrl}
+            src={row.art}
             alt=""
             loading="lazy"
             className="h-full w-full object-cover"
@@ -258,57 +375,105 @@ function SoftwareRowItem({
       <SoftwareStat label="Today" value={format(row.summary.todaySeconds)} />
       <SoftwareStat label="This week" value={format(row.summary.weekSeconds)} />
       <SoftwareStat label="Total" value={format(row.summary.totalSeconds)} />
+      <SoftwareMenu
+        row={row}
+        contextMenu={contextMenu}
+        onChangeArt={onChangeArt}
+      />
+    </div>
+  );
+}
 
-      <ContextMenu
-        open={contextMenu.open}
-        position={contextMenu.position}
-        onClose={contextMenu.close}
+function SoftwareMenu({
+  row,
+  contextMenu,
+  onChangeArt,
+}: {
+  row: SoftwareRow;
+  contextMenu: ReturnType<typeof useContextMenu>;
+  onChangeArt: () => void;
+}) {
+  const addToast = useAppStore((state) => state.addToast);
+
+  async function ignore() {
+    contextMenu.close();
+    try {
+      for (const exeName of row.exeNames) {
+        await setUserIgnoredProcess(exeName, true);
+      }
+      addToast({
+        tone: "info",
+        title: `${row.name} ignored`,
+        detail: "PlayCounter no longer counts it. Its hours stay stored.",
+      });
+    } catch (error) {
+      addToast({
+        tone: "error",
+        title: "Could not ignore the app",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return (
+    <ContextMenu
+      open={contextMenu.open}
+      position={contextMenu.position}
+      onClose={contextMenu.close}
+    >
+      <ContextMenuItem
+        icon={ImageIcon}
+        onClick={() => {
+          contextMenu.close();
+          onChangeArt();
+        }}
       >
-        {row.local ? (
-          <ContextMenuItem
-            icon={ImageIcon}
-            onClick={() => {
-              contextMenu.close();
-              onChangeArt();
-            }}
-          >
-            Change Art
-          </ContextMenuItem>
-        ) : null}
+        Change Art
+      </ContextMenuItem>
+      {row.localArt ? (
         <ContextMenuItem
-          icon={Copy}
+          icon={Undo2}
           onClick={() => {
             contextMenu.close();
-            void navigator.clipboard.writeText(row.exeNames.join(", "));
+            setToolArt(row.exeNames, null);
           }}
         >
-          Copy File Name
+          Use Default Art
         </ContextMenuItem>
-        <ContextMenuSeparator />
-        {row.local ? (
-          <ContextMenuItem
-            icon={Gamepad2}
-            onClick={() => {
-              contextMenu.close();
-              unmarkLocalTool(row.toolKey);
-              addToast({
-                tone: "info",
-                title: `${row.name} is back in Discovered`,
-                detail:
-                  row.shareStatus === "pending"
-                    ? "Your shared suggestion is withdrawn. Add it as a game there, or ignore it."
-                    : "Add it as a game there, or ignore it.",
-              });
-            }}
-          >
-            Not Software
-          </ContextMenuItem>
-        ) : null}
-        <ContextMenuItem icon={EyeOff} onClick={() => void ignore()}>
-          Ignore This App
+      ) : null}
+      <ContextMenuItem
+        icon={Copy}
+        onClick={() => {
+          contextMenu.close();
+          void navigator.clipboard.writeText(row.exeNames.join(", "));
+        }}
+      >
+        Copy File Name
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      {row.local ? (
+        <ContextMenuItem
+          icon={Gamepad2}
+          onClick={() => {
+            contextMenu.close();
+            unmarkLocalTool(row.toolKey);
+            addToast({
+              tone: "info",
+              title: `${row.name} is back in Discovered`,
+              detail:
+                row.shareStatus === "pending"
+                  ? "Your shared suggestion is withdrawn. Add it as a game there, or ignore it."
+                  : "Add it as a game there, or ignore it.",
+            });
+          }}
+        >
+          Not Software
         </ContextMenuItem>
-      </ContextMenu>
-    </div>
+      ) : null}
+      <ContextMenuItem icon={EyeOff} onClick={() => void ignore()}>
+        Ignore This App
+      </ContextMenuItem>
+    </ContextMenu>
   );
 }
 
