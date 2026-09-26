@@ -151,7 +151,7 @@ function DetectionPractice({ stepId }: { stepId: string }) {
             }
             onMarkSoftware={() =>
               setResult(
-                "Sample marked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
+                "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
               )
             }
             onSkip={() =>

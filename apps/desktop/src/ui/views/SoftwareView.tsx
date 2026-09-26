@@ -145,7 +145,8 @@ export function SoftwareView() {
       {rows.length === 0 ? (
         <Panel className="px-5 py-10 text-center text-sm text-text-muted">
           No software yet. Discord, Spotify and launchers show up here once they
-          run. Mark other apps in Discovered with “It's software”.
+          run. Other apps can be tracked from Discovered with “Track as
+          software”.
         </Panel>
       ) : (
         <Panel className="divide-y divide-border">

@@ -5,7 +5,7 @@ import { markExecutableAsSoftware } from "../tracker";
 import { ArtPickerDialog } from "./ArtPickerDialog";
 import { Button, Input, Modal, Switch } from "./primitives";
 
-/* "It's software" from Discovered: the app leaves Discovered at once and gets
+/* "Track as software" from Discovered: the app leaves Discovered at once and gets
    its own counter on the Software page. Shared, the community learns it too,
    reviewed per executable like a game. */
 
@@ -26,6 +26,7 @@ export function SoftwareDialog({
 }) {
   const addToast = useAppStore((state) => state.addToast);
   const trackTools = useAppStore((state) => state.settings.trackTools === true);
+  const setTrackTools = useAppStore((state) => state.setTrackTools);
   const [name, setName] = useState(() => defaultSoftwareName(exeName));
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [share, setShare] = useState(!isOffline);
@@ -37,14 +38,14 @@ export function SoftwareDialog({
     if (!trimmed || saving) return;
     setSaving(true);
     try {
+      // Choosing to track this app is the opt-in; the setting follows it.
+      if (!trackTools) setTrackTools(true);
       const outcome = await markExecutableAsSoftware(exeName, {
         name: trimmed,
         coverUrl: coverUrl ?? undefined,
         share: share && !isOffline,
       });
-      const where = trackTools
-        ? "It counts on the Software page now."
-        : "Turn on Track software in Settings to count its time.";
+      const where = "It counts on the Software page now.";
       if (outcome.kind === "failed") {
         addToast({
           tone: "error",
@@ -54,7 +55,7 @@ export function SoftwareDialog({
       } else {
         addToast({
           tone: "success",
-          title: `${trimmed} is software now`,
+          title: `Tracking ${trimmed} as software`,
           detail:
             outcome.kind === "submitted"
               ? `Shared for review. ${where}`
@@ -84,7 +85,7 @@ export function SoftwareDialog({
         labelId="software-dialog-title"
         icon={AppWindow}
         eyebrow={exeName}
-        title="It's software"
+        title="Track as software"
         subtitle="Counted on the Software page, never as a game."
         onClose={onClose}
         bodyClassName="grid gap-4"
@@ -172,8 +173,8 @@ export function SoftwareDialog({
           </label>
           {trackTools ? null : (
             <p className="rounded-md border border-border bg-bg/50 px-3 py-2 text-xs text-text-muted">
-              Software tracking is off. The app still leaves Discovered; turn on
-              Track software in Settings to count its time.
+              Saving turns on Track software in Settings. Other software is then
+              counted too.
             </p>
           )}
         </form>

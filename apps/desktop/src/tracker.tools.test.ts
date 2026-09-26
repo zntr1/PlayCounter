@@ -250,7 +250,7 @@ describe("tools from the match API", () => {
   );
 });
 
-describe("It's software", () => {
+describe("Track as software", () => {
   it("makes a Discovered exe a local tool and carries its Discovered time", async () => {
     useAppStore.getState().setExeCacheEntry({
       exeName: "Voicemeeter.exe",

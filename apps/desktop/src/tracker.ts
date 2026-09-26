@@ -4475,7 +4475,7 @@ export type MarkAsSoftwareOutcome =
   | { kind: "failed"; error: string };
 
 /**
- * "It's software" in Discovered: the exe becomes a local tool at once and
+ * "Track as software" in Discovered: the exe becomes a local tool at once and
  * leaves Discovered. Shared, it is filed as a tool suggestion and reviewed per
  * executable like a game. Rejected, it stays a local tool.
  */
@@ -4572,7 +4572,7 @@ export function setLocalToolCover(toolKey: string, coverUrl: string) {
   persist();
 }
 
-/** Undoes "It's software" for a tool marked on this PC: its executables go
+/** Undoes "Track as software" for a tool marked on this PC: its executables go
  *  back to Discovered, and a suggestion still in review is withdrawn. Counted
  *  hours stay stored in case it is marked again. */
 export function unmarkLocalTool(toolKey: string) {

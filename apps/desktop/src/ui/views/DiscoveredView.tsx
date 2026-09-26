@@ -1303,7 +1303,7 @@ export function TriageWizardCard({
           </form>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Button
             data-tour="discovered-add-share"
             variant="primary"
@@ -1330,16 +1330,6 @@ export function TriageWizardCard({
             Add as Custom
           </Button>
           <Button
-            variant="secondary"
-            icon={AppWindow}
-            disabled={isPending || isRetrying || isCustomGameEntryOpen}
-            title="Discord, Spotify, a launcher: counted apart from your games"
-            onClick={onMarkSoftware}
-            className="h-12 w-full text-sm"
-          >
-            It's Software
-          </Button>
-          <Button
             data-tour="discovered-ignore"
             variant="secondary"
             icon={EyeOff}
@@ -1349,13 +1339,30 @@ export function TriageWizardCard({
           >
             Ignore
           </Button>
+        </div>
+        {/* Offered, not pushed: most apps that are not games should simply be
+            ignored. Only apps worth tracking become software. */}
+        <div className="mt-4 flex flex-col items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center justify-center gap-x-1.5 text-text-muted">
+            <span>Not a game, but you want its time?</span>
+            <button
+              type="button"
+              disabled={isPending || isRetrying || isCustomGameEntryOpen}
+              title="Discord, Spotify, a launcher: counted on the Software page, never as a game"
+              onClick={onMarkSoftware}
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <AppWindow size={14} />
+              Track as software
+            </button>
+          </div>
           <Button
             data-tour="discovered-skip"
             variant="ghost"
             icon={SkipForward}
             disabled={isPending || isRetrying || isCustomGameEntryOpen}
             onClick={onSkip}
-            className="h-12 w-full text-sm hover:bg-surface-hover"
+            className="text-sm hover:bg-surface-hover"
           >
             Skip for now
           </Button>
@@ -1548,7 +1555,7 @@ function DiscoveredExecutableRow({
                 />
                 <IconButton
                   icon={AppWindow}
-                  title="It's software (Discord, Spotify, a launcher)"
+                  title="Track as software (Discord, Spotify, a launcher)"
                   disabled={isPending || isRetrying}
                   onClick={onMarkSoftware}
                 />
