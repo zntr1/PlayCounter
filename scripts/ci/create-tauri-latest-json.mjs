@@ -1,5 +1,6 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
+import { verifyUpdaterSignature } from "./updater-signature.mjs";
 
 const bundleRootsArg =
   process.argv[2] ?? "apps/desktop/src-tauri/target/release/bundle";
@@ -14,17 +15,24 @@ const latestPath = resolve(
   process.argv[4] ?? join(bundleRoots[0], "latest.json"),
 );
 
-const tauriConfig = JSON.parse(
-  await readFile("apps/desktop/src-tauri/tauri.conf.json", "utf8"),
+const tauriConfigPath = resolve(
+  process.cwd(),
+  process.env.PLAYCOUNTER_TAURI_CONFIG ??
+    "apps/desktop/src-tauri/tauri.conf.json",
 );
+const tauriConfig = JSON.parse(await readFile(tauriConfigPath, "utf8"));
 const version = tauriConfig.version;
+const updaterPubkey = tauriConfig.plugins?.updater?.pubkey;
 const releaseNotesPath = resolve(
   process.cwd(),
   process.env.PLAYCOUNTER_RELEASE_NOTES ?? "apps/desktop/src/releaseNotes.json",
 );
 
 if (!version || typeof version !== "string") {
-  throw new Error("Missing version in apps/desktop/src-tauri/tauri.conf.json");
+  throw new Error(`Missing version in ${tauriConfigPath}`);
+}
+if (!updaterPubkey || typeof updaterPubkey !== "string") {
+  throw new Error(`Missing updater pubkey in ${tauriConfigPath}`);
 }
 
 const files = (await Promise.all(bundleRoots.map(listFiles))).flat();
@@ -134,6 +142,11 @@ async function addUpdaterPlatform(platforms, platform, artifact) {
   const signature = (await readFile(signaturePath, "utf8")).trim();
   if (!signature) {
     throw new Error(`Empty updater signature: ${signaturePath}`);
+  }
+  try {
+    verifyUpdaterSignature(await readFile(artifact), signature, updaterPubkey);
+  } catch (error) {
+    throw new Error(`${basename(artifact)}: ${error.message}`);
   }
 
   const artifactName = releaseArtifactName(artifact);

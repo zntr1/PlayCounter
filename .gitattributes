@@ -16,3 +16,6 @@
 *.css text eol=lf
 *.html text eol=lf
 *.md text eol=lf
+
+# Signed test fixtures must keep their exact bytes.
+scripts/ci/fixtures/updater/* binary
