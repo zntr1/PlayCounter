@@ -196,7 +196,7 @@ function ImportPractice() {
   return (
     <div data-tour="demo-import" className="grid gap-4">
       <div data-tour="demo-import-providers" className="flex flex-wrap gap-2">
-        {(["steam", "xbox", "battlenet"] as const).map((id) => (
+        {(["steam", "xbox", "battlenet", "epic"] as const).map((id) => (
           <Pill
             key={id}
             selected={provider === id}
@@ -209,7 +209,9 @@ function ImportPractice() {
               ? "Battle.net"
               : id === "xbox"
                 ? "Xbox"
-                : "Steam"}
+                : id === "epic"
+                  ? "Epic Games"
+                  : "Steam"}
           </Pill>
         ))}
       </div>
@@ -255,7 +257,7 @@ function ImportPractice() {
             }
             onConfirm={async (game) =>
               setResult(
-                `Sample imported: ${game.name} (${executable}). ${provider === "battlenet" ? "Battle.net does not supply past playtime here." : "Imported launcher time is a total, not a list of PlayCounter sessions."} Future tracked sessions build your History.`,
+                `Sample imported: ${game.name} (${executable}). ${provider === "battlenet" ? "Battle.net does not supply past playtime here." : provider === "epic" ? "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions." : "Imported launcher time is a total, not a list of PlayCounter sessions."} Future tracked sessions build your History.`,
               )
             }
           />

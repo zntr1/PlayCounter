@@ -1,4 +1,4 @@
-import { FolderPlus, RotateCcw, Trash2 } from "lucide-react";
+import { FolderPlus, Info, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { chooseWatchFolder, scanWatchFolders } from "../library/watchFolders";
 import {
@@ -32,7 +32,10 @@ export function WatchFoldersSettings() {
   }
 
   return (
-    <div className="grid gap-3 border-t border-border pt-4">
+    <div
+      data-tour="settings-watch-folders"
+      className="grid gap-3 border-t border-border pt-4"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-text">Watched folders</div>
@@ -41,18 +44,31 @@ export function WatchFoldersSettings() {
             PlayCounter recognizes show up in My Games, ready to play; the rest
             wait in Discovered. To recognize them, PlayCounter sends the names
             of the game files it finds to its game database.
-            {remembersPaths ? null : " Needs Remember launch paths."}
           </div>
         </div>
         <Button
+          data-tour="settings-watch-folders-add"
           variant="secondary"
           icon={FolderPlus}
           disabled={!remembersPaths}
+          aria-describedby={
+            remembersPaths ? undefined : "watch-folders-needs-paths"
+          }
           onClick={() => void addFolder()}
         >
           Add folder
         </Button>
       </div>
+      {remembersPaths ? null : (
+        <p
+          id="watch-folders-needs-paths"
+          className="flex items-start gap-2 text-xs leading-5 text-warning"
+        >
+          <Info size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+          Add folder needs Remember launch paths, because PlayCounter saves
+          where each game's file is. Turn it on under Game launching above.
+        </p>
+      )}
       {record.folders.map((folder) => (
         <div
           key={folder}
@@ -72,7 +88,10 @@ export function WatchFoldersSettings() {
         </div>
       ))}
       {record.dismissed.length > 0 ? (
-        <div className="grid gap-2">
+        <div
+          data-tour="settings-watch-folders-dismissed"
+          className="grid gap-2"
+        >
           <div className="text-xs font-medium text-text-muted">
             Dismissed game folders
           </div>
