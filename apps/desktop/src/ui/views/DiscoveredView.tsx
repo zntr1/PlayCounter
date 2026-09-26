@@ -69,6 +69,7 @@ import {
 } from "../primitives";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import {
+  isSearchableGameQuery,
   type CommunityMetadataSearchOptions,
   type CommunityMetadataSort,
 } from "../../communityMetadataSearch";
@@ -1963,7 +1964,7 @@ export function CommunitySuggestionForm({
                   if (event.key === "Enter") {
                     event.preventDefault();
                     if (
-                      search.trim().length >= 2 &&
+                      isSearchableGameQuery(search) &&
                       releaseYearValid &&
                       !isOffline
                     )
@@ -1973,7 +1974,7 @@ export function CommunitySuggestionForm({
                 disabled={isOffline}
                 maxLength={120}
                 data-autofocus
-                placeholder="Search by the exact game title..."
+                placeholder="Search by game title or IGDB ID..."
                 className="h-10 w-full pl-10 text-base"
               />
             </div>
@@ -1984,7 +1985,7 @@ export function CommunitySuggestionForm({
               disabled={
                 busy ||
                 isOffline ||
-                search.trim().length < 2 ||
+                !isSearchableGameQuery(search) ||
                 !releaseYearValid
               }
               title={
@@ -2015,7 +2016,7 @@ export function CommunitySuggestionForm({
                   if (event.key !== "Enter") return;
                   event.preventDefault();
                   if (
-                    search.trim().length >= 2 &&
+                    isSearchableGameQuery(search) &&
                     releaseYearValid &&
                     !isOffline
                   )

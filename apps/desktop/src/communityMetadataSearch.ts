@@ -10,6 +10,12 @@ export type CommunityMetadataSearchOptions = {
   sort: CommunityMetadataSort;
 };
 
+/** Titles need two characters; digits alone are an IGDB ID, so "7" counts. */
+export function isSearchableGameQuery(query: string) {
+  const value = query.trim();
+  return value.length >= 2 || /^\d+$/.test(value);
+}
+
 export function communityMetadataSearchUrl(
   apiEndpoint: string,
   query: string,

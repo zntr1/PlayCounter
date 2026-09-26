@@ -419,7 +419,7 @@ it("populates Battle.net review suggestions on the initial scan using a clean ti
   expect(select?.selectedOptions[0].textContent).toContain(candidate.name);
   expect(
     container.querySelector<HTMLInputElement>(
-      'input[placeholder="Search for the game by name"]',
+      'input[placeholder="Search by game title or IGDB ID"]',
     )?.value,
   ).toBe(candidate.name);
   expect(container.textContent).toContain("Confirm which game this is");
@@ -442,7 +442,7 @@ it("keeps Battle.net manual review available when the initial suggestion search 
   expect(container.textContent).toContain("No safe suggestion found");
   expect(
     container.querySelector<HTMLInputElement>(
-      'input[placeholder="Search for the game by name"]',
+      'input[placeholder="Search by game title or IGDB ID"]',
     )?.value,
   ).toBe("Warcraft III");
 });

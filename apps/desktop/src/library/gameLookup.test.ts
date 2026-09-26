@@ -23,6 +23,18 @@ it.each([
   },
 );
 
+it("searches a single-digit IGDB ID", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ games: [] })));
+  vi.stubGlobal("fetch", fetchMock);
+  await searchLibraryGames("https://search.example", "7", {
+    mainGamesAndRemastersOnly: false,
+  });
+  const url = new URL(String(fetchMock.mock.calls[0][0]));
+  expect(url.searchParams.get("query")).toBe("7");
+});
+
 it("does not request an empty search after removing trademark symbols", async () => {
   const fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);

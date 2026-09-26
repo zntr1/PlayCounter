@@ -7,6 +7,7 @@ import type {
 } from "@playcounter/shared";
 import {
   communityMetadataSearchUrl,
+  isSearchableGameQuery,
   mergeCommunityMetadataCandidates,
   type CommunityMetadataSearchOptions,
 } from "../communityMetadataSearch";
@@ -118,7 +119,11 @@ export function useCommunityGameCorrection({
     options: CommunityMetadataSearchOptions,
   ) {
     const query = search.trim();
-    if (query.length < 2 || isOffline || request.current?.kind === "submit")
+    if (
+      !isSearchableGameQuery(query) ||
+      isOffline ||
+      request.current?.kind === "submit"
+    )
       return;
 
     cancelRequest();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   communityMetadataSearchUrl,
+  isSearchableGameQuery,
   mergeCommunityMetadataCandidates,
 } from "./communityMetadataSearch";
 
@@ -40,5 +41,19 @@ describe("community metadata pagination", () => {
       { igdbId: 1, name: "First updated", coverUrl: "cover" },
       { igdbId: 2, name: "Second", coverUrl: "" },
     ]);
+  });
+});
+
+describe("searchable game queries", () => {
+  it.each([
+    ["7", true],
+    [" 7 ", true],
+    ["1942", true],
+    ["Ys", true],
+    ["a", false],
+    ["", false],
+    ["   ", false],
+  ])("%j searchable: %s", (query, searchable) => {
+    expect(isSearchableGameQuery(query)).toBe(searchable);
   });
 });

@@ -171,7 +171,7 @@ export function EmulatorGamePicker({
               value={query}
               disabled={isOffline || busy}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Search ${platformLabel} games`}
+              placeholder={`Search ${platformLabel} games by title or IGDB ID`}
               className="w-full px-9"
             />
             {query && !isOffline && !busy ? (

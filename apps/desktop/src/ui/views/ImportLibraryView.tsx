@@ -40,6 +40,7 @@ import type {
   ScannedLibraryGame,
 } from "../../library/types";
 import { libraryEntryKey } from "../../library/types";
+import { isSearchableGameQuery } from "../../communityMetadataSearch";
 import { useAppStore, type GameMetadata } from "../../store";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { STORAGE_KEY } from "../../persistence";
@@ -1726,7 +1727,7 @@ export function LibraryMatchControls({
   }, [apiEndpoint, provider, searchGames, searchWhenVisible, title]);
 
   async function runSearch() {
-    if (query.trim().length < 2) return;
+    if (!isSearchableGameQuery(query)) return;
     visibleSearchDone.current = true;
     searchController.current?.abort();
     const controller = new AbortController();
@@ -1811,7 +1812,7 @@ export function LibraryMatchControls({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search for the game by name"
+          placeholder="Search by game title or IGDB ID"
           className="min-w-0 flex-1"
         />
         <Button
@@ -1819,7 +1820,7 @@ export function LibraryMatchControls({
           variant="secondary"
           icon={Search}
           loading={searching}
-          disabled={query.trim().length < 2}
+          disabled={!isSearchableGameQuery(query)}
         >
           {practice ? "Search samples" : "Search IGDB"}
         </Button>

@@ -4,6 +4,7 @@ import type {
   LibraryReverseResolveRequest,
   LibraryReverseResolveResponse,
 } from "@playcounter/shared";
+import { isSearchableGameQuery } from "../communityMetadataSearch";
 import { responseError } from "../rateLimitedFetch";
 import type { GameMetadata } from "../store";
 import { requestLibraryJson, type RateLimitWaitListener } from "./request";
@@ -23,7 +24,7 @@ export async function searchLibraryGames(
 ): Promise<GameMetadata[]> {
   const { signal, mainGamesAndRemastersOnly } = options;
   const query = librarySearchQuery(rawQuery);
-  if (query.length < 2) return [];
+  if (!isSearchableGameQuery(query)) return [];
   const endpoint = apiEndpoint.replace(/\/+$/, "");
   const response = await requestLibraryJson<unknown>(
     `${endpoint}/api/games/search?query=${encodeURIComponent(query)}&mainGamesAndRemastersOnly=${mainGamesAndRemastersOnly}`,
