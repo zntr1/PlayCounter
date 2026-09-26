@@ -280,6 +280,9 @@ export function WelcomePrompt() {
   const [ready, setReady] = useState(false);
   const progress = useAppStore((state) => state.tourProgress);
   const [enableLauncher, setEnableLauncher] = useState(true);
+  const trackTools = useAppStore((state) => state.settings.trackTools === true);
+  const [enableSoftware, setEnableSoftware] = useState(trackTools);
+  const setTrackTools = useAppStore((state) => state.setTrackTools);
   const markSeen = useAppStore((state) => state.markTourWelcomeSeen);
   const startTour = useAppStore((state) => state.startTour);
   const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
@@ -292,7 +295,10 @@ export function WelcomePrompt() {
   const visible = ready && shouldShowWelcome(progress);
 
   useEffect(() => {
-    if (visible) setEnableLauncher(true);
+    if (!visible) return;
+    setEnableLauncher(true);
+    // Software stays opt-in: the switch starts where the setting is.
+    setEnableSoftware(useAppStore.getState().settings.trackTools === true);
   }, [visible]);
 
   if (!visible) return null;
@@ -301,6 +307,7 @@ export function WelcomePrompt() {
     if (launcherAvailable) {
       setLauncherSetting("gameLaunchingEnabled", enableLauncher);
     }
+    setTrackTools(enableSoftware);
     markSeen();
   };
   return createPortal(
@@ -331,13 +338,13 @@ export function WelcomePrompt() {
                 Built by one developer.
               </span>{" "}
               PlayCounter is new, so expect a few rough edges. Spot one? Use{" "}
-              <span className="font-medium text-text">Help & Feedback</span> or join our Discord. I
-              read every message and reply.
+              <span className="font-medium text-text">Help & Feedback</span> or
+              join our Discord. I read every message and reply.
             </p>
           </div>
         </div>
-        {launcherAvailable ? (
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-6 py-4">
+          {launcherAvailable ? (
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
               <Switch
                 checked={enableLauncher}
@@ -355,8 +362,26 @@ export function WelcomePrompt() {
                 </span>
               </span>
             </label>
-          </div>
-        ) : null}
+          ) : null}
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg p-4 transition hover:border-accent/40">
+            <Switch
+              checked={enableSoftware}
+              onChange={(event) => setEnableSoftware(event.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              <span className="block font-semibold text-text">
+                Track software
+              </span>
+              <span className="mt-1 block text-sm leading-5 text-text-muted">
+                Also count how long apps like Discord, Spotify and launchers
+                run, on their own Software page. They never show up in Now
+                Playing or your game stats. You can change this anytime in
+                Settings.
+              </span>
+            </span>
+          </label>
+        </div>
         <div className="shrink-0 px-6 pb-6 pt-2">
           <div className="grid gap-1">
             <Button

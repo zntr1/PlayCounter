@@ -84,7 +84,8 @@ export function formatDuration(seconds: number, showDays = false) {
    Dense grids show marks and explain them on hover. The list view has the room
    to spell the same vocabulary out in words. */
 
-export type BadgeVariant = "label" | "mark";
+/** "text": a quiet label for dense lists, no pill. */
+export type BadgeVariant = "label" | "mark" | "text";
 export type SourceApproval = "pending" | "approved";
 
 const LABEL_SHELL =
@@ -207,6 +208,19 @@ export function SourceBadge({
   const pip = approval ? approvalMeta[approval] : null;
   const PipIcon = pip?.icon;
   const tip = sourceTip(source, approval, emulator);
+
+  if (variant === "text") {
+    return (
+      <span
+        data-tour={dataTour}
+        title={tip}
+        className="inline-flex items-center gap-1 text-xs text-text-faint"
+      >
+        <Icon size={12} strokeWidth={2.25} aria-hidden="true" />
+        {meta.label}
+      </span>
+    );
+  }
 
   if (variant === "mark") {
     return (

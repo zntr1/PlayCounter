@@ -75,12 +75,21 @@ export function createTransferData(
   for (const key of NOTIFICATION_STATE_KEYS) delete data[key];
 
   if (Array.isArray(data.exeCache)) {
-    data.exeCache = data.exeCache.filter(
-      (value) =>
-        !value ||
-        typeof value !== "object" ||
-        (value as { state?: unknown }).state !== "blacklisted",
-    );
+    data.exeCache = data.exeCache
+      .filter(
+        (value) =>
+          !value ||
+          typeof value !== "object" ||
+          (value as { state?: unknown }).state !== "blacklisted",
+      )
+      // Paths belong to this PC, like launch targets.
+      .map((value) => {
+        if (!value || typeof value !== "object" || !("exePath" in value)) {
+          return value;
+        }
+        const { exePath: _exePath, ...rest } = value as Record<string, unknown>;
+        return rest;
+      });
   }
 
   return data;

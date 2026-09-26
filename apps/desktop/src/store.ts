@@ -81,6 +81,7 @@ import {
 } from "./ui/myGamesPresentation";
 import { DEFAULT_LIBRARY_STAT_CARD_IDS } from "./ui/myGamesStats";
 import type { MyGamesSortKey } from "./ui/myGamesSort";
+import type { ToolUsage } from "./toolUsage";
 import {
   archivePlaythroughSeconds,
   readJournal,
@@ -149,7 +150,10 @@ export type GameMetadata = {
 
 export type ExeCacheEntry = {
   exeName: string;
-  state: "matched" | "unmatched" | "blacklisted";
+  /** "tool": software such as Discord or a launcher. Never "matched", so no
+   *  game code path (sessions, library, history) sees it; its time goes to
+   *  the Software page (toolUsage). Game fields name the tool. */
+  state: "matched" | "unmatched" | "blacklisted" | "tool";
   gameId?: number;
   igdbId?: number;
   gameName?: string;
@@ -181,6 +185,9 @@ export type ExeCacheEntry = {
   // added on the fly when read or credited). Cleared on hydrate so time spent
   // while the app was closed is never credited.
   runningSince?: string;
+  /** Last seen path of an unmatched executable, so Discovered can show its
+   *  folder, icon and product name after it stops. Stays on this PC. */
+  exePath?: string;
 };
 
 export type LaunchTargetOwner = {
@@ -443,6 +450,8 @@ export type AppState = {
   playtimeAdjustments: Record<string, number>;
   /** Banner art picked by hand, keyed by customHeroArtKey. */
   customHeroArt: Record<string, string>;
+  /** Software time per executable; see toolUsage.ts. */
+  toolUsage: ToolUsage;
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
   tourProgress: TourProgress;
@@ -574,6 +583,8 @@ export type AppState = {
   setSidebarSourcesCollapsed: (collapsed: boolean) => void;
   setMyGamesStatCards: (ids: LibraryStatCardId[]) => void;
   setAutoShareIgnoredProcesses: (enabled: boolean) => void;
+  setTrackTools: (enabled: boolean) => void;
+  setSoftwareLayout: (layout: "grid" | "list") => void;
   setAutoAddInstalledGames: (enabled: boolean) => void;
   setShowInstallInSteam: (enabled: boolean) => void;
   setEmulatorSetting: (
@@ -644,6 +655,7 @@ const defaultSettings: Settings = {
   sidebarCollapsed: false,
   sidebarSourcesCollapsed: false,
   autoShareIgnoredProcesses: false,
+  trackTools: false,
   pollingIntervalSeconds: 5,
   unmatchedRetryDays: 30,
   apiEndpoint: DEFAULT_API_ENDPOINT,
@@ -814,6 +826,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   archivedGameSeconds: {},
   playtimeAdjustments: {},
   customHeroArt: {},
+  toolUsage: {},
   collapsedSections: [],
   autoDetectedGameKeys: [],
   tourProgress: defaultTourProgress(),
@@ -1748,6 +1761,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAutoShareIgnoredProcesses: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, autoShareIgnoredProcesses: enabled },
+    }));
+    persistSoon();
+  },
+  setTrackTools: (enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, trackTools: enabled },
+    }));
+    persistSoon();
+  },
+  setSoftwareLayout: (layout) => {
+    set((state) => ({
+      settings: { ...state.settings, softwareLayout: layout },
     }));
     persistSoon();
   },

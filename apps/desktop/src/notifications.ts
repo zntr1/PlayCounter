@@ -238,7 +238,9 @@ export function contributionNotification(
         title: `${contribution.gameName} suggestion not approved`,
         body: contribution.reviewNote
           ? `Suggested file: ${contribution.value}\n\nFeedback: ${contribution.reviewNote}`
-          : `${contribution.value} wasn't accepted for this game.\n\nIf you think it's still right, or you picked the wrong game, you can suggest it again.`,
+          : contribution.gameKind === "tool"
+            ? `${contribution.value} wasn't accepted as software. PlayCounter still treats it as software on this PC.`
+            : `${contribution.value} wasn't accepted for this game.\n\nIf you think it's still right, or you picked the wrong game, you can suggest it again.`,
         coverUrl: contribution.coverUrl,
         createdAt: contribution.reviewedAt ?? now,
       };

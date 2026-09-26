@@ -145,7 +145,7 @@ const session = object(
 const exeEntry = object(
   {
     exeName: nonempty,
-    state: oneOf("matched", "unmatched", "blacklisted"),
+    state: oneOf("matched", "unmatched", "blacklisted", "tool"),
     lastCheckedAt: date,
   },
   {
@@ -156,6 +156,7 @@ const exeEntry = object(
     communityUpgradeGame: game,
     dismissedCommunityUpgradeGameId: positiveId,
     dismissedCommunityUpgradeSource: source,
+    exePath: string,
     shareState: oneOf("unshared", "failed"),
     libraryProvider: provider,
     libraryExternalId: nonempty,
@@ -333,6 +334,8 @@ const settings = object({}, {
     ),
   ),
   autoShareIgnoredProcesses: boolean,
+  trackTools: boolean,
+  softwareLayout: oneOf("grid", "list"),
   pollingIntervalSeconds: nonnegative,
   unmatchedRetryDays: nonnegative,
   apiEndpoint: nonempty,
@@ -481,6 +484,12 @@ const validateBackupShape: Validator = object(
     archivedGameSeconds: dictionary(nonnegative),
     playtimeAdjustments: dictionary(number),
     customHeroArt: dictionary(string),
+    toolUsage: dictionary(
+      object(
+        { days: dictionary(nonnegative) },
+        { exePath: string, carriedSeconds: nonnegative, artUrl: string },
+      ),
+    ),
     collapsedSections: array(string),
     autoDetectedGameKeys: array(nonempty),
     tours: object({

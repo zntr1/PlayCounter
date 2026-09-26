@@ -1,7 +1,9 @@
 import clsx from "clsx";
 import {
+  AppWindow,
   Check,
   CheckCircle,
+  ChevronRight,
   EyeOff,
   Gamepad2,
   RotateCcw,
@@ -40,13 +42,18 @@ import {
   type DiscoveryStatus,
 } from "../../discoveredReview";
 import { ExeIcon } from "../ExeIcon";
+import {
+  exeProductName,
+  exePublisher,
+  peekExeDetails,
+  useExeDetails,
+} from "../exeDetails";
+import { describeExeFolder } from "../../exeFolder";
+import { SoftwareDialog } from "../SoftwareDialog";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import { Panel, SourceBadge } from "../components";
 import {
-  findReviewExecutables,
-  filterRunningExecutables,
   paginateExecutables,
-  shouldShowRunningUserProcessesOnly,
   sortIgnoredExecutables,
   sortReviewExecutables,
   type IgnoredProcessSort,
@@ -258,6 +265,7 @@ export function DiscoveredView() {
   const [pendingExe, setPendingExe] = useState<string | null>(null);
   const [customGameExe, setCustomGameExe] = useState<string | null>(null);
   const [customGameName, setCustomGameName] = useState("");
+  const [softwareTarget, setSoftwareTarget] = useState<string | null>(null);
   const [suggestionTarget, setSuggestionTarget] = useState<{
     key: string;
     exeName: string;
@@ -266,7 +274,6 @@ export function DiscoveredView() {
   const [ignoredSort, setIgnoredSort] =
     useState<IgnoredProcessSort>("lastAdded");
   const [ignoredPage, setIgnoredPage] = useState(1);
-  const [runningOnly, setRunningOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [retryingExe, setRetryingExe] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -293,7 +300,6 @@ export function DiscoveredView() {
       setIgnoredSort("lastAdded");
       setIgnoredPage(1);
       setSearch("");
-      setRunningOnly(false);
       setActiveReviewKey(null);
     }
 
@@ -356,9 +362,9 @@ export function DiscoveredView() {
     }
   }
 
-  function startCustomGameEntry(exeName: string) {
+  function startCustomGameEntry(exeName: string, suggestedName = "") {
     setCustomGameExe(exeName.toLowerCase());
-    setCustomGameName("");
+    setCustomGameName(suggestedName);
   }
 
   function saveCustomGame(exeName: string) {
@@ -522,7 +528,7 @@ export function DiscoveredView() {
         return [
           {
             exeName,
-            exePath: folderFinds[key]?.exePath ?? null,
+            exePath: folderFinds[key]?.exePath ?? entry?.exePath ?? null,
             foundIn: folderFinds[key]?.folderPath,
             key,
             isRunning: false,
@@ -579,16 +585,13 @@ export function DiscoveredView() {
         : "";
     return (
       executable.exeName.toLowerCase().includes(needle) ||
-      matchedName.toLowerCase().includes(needle)
+      matchedName.toLowerCase().includes(needle) ||
+      (executable.exePath?.toLowerCase().includes(needle) ?? false)
     );
   };
   const searchable = availableExecutables.filter(matchesSearch);
-  const matchingExecutables = filterRunningExecutables(
-    searchable.filter((executable) =>
-      activeFilter.statuses.includes(executable.status),
-    ),
-    filter,
-    runningOnly,
+  const matchingExecutables = searchable.filter((executable) =>
+    activeFilter.statuses.includes(executable.status),
   );
   const filteredExecutablesBase =
     filter === "ignored"
@@ -608,18 +611,55 @@ export function DiscoveredView() {
           ),
         ]
       : filteredExecutablesBase;
-  const runningCount = searchable.filter(
-    (executable) => executable.isRunning && executable.status === "userIgnored",
-  ).length;
+  // Ignored splits into the apps you ignored and the ones PlayCounter ignores
+  // on its own. Only yours can be restored, so only they are paged.
+  const userIgnoredExecutables = filteredExecutables.filter(
+    (executable) => executable.status === "userIgnored",
+  );
+  const builtInIgnoredExecutables = filteredExecutables.filter(
+    (executable) => executable.status === "ignored",
+  );
   const ignoredPagination = paginateExecutables(
-    filteredExecutables,
+    userIgnoredExecutables,
     ignoredPage,
     IGNORED_PAGE_SIZE,
   );
-  const displayedExecutables =
-    filter === "ignored" ? ignoredPagination.items : filteredExecutables;
 
-  const isWizardMode = filter === "review" && !search;
+  function renderExecutableRow(executable: DiscoveredExecutable) {
+    return (
+      <DiscoveredExecutableRow
+        key={executable.key}
+        executable={executable}
+        customGameName={customGameName}
+        groupTone={statusToTone[executable.status]}
+        hideStatusLabel={filter === "tracked" || filter === "ignored"}
+        isCustomGameEntryOpen={customGameExe === executable.key}
+        isPending={pendingExe === executable.key}
+        isRetrying={retryingExe === executable.key}
+        onCancelCustomGame={() => {
+          setCustomGameExe(null);
+          setCustomGameName("");
+        }}
+        onCustomGameNameChange={setCustomGameName}
+        onIgnore={() => void ignoreExecutable(executable.exeName)}
+        isOffline={isOffline}
+        onRecheck={() => {
+          if (isOffline) return;
+          setRetryingExe(executable.key);
+          void recheckExecutable(executable.exeName);
+        }}
+        onSaveCustomGame={() => saveCustomGame(executable.exeName)}
+        onStartCustomGame={() => startCustomGameEntry(executable.exeName)}
+        onSuggest={() => startCommunitySuggestion(executable.exeName)}
+        onMarkSoftware={() => setSoftwareTarget(executable.exeName)}
+        onUnignore={() => void updateUserIgnored(executable.exeName, false)}
+        allowTrackingChanges={filter !== "tracked"}
+        unmatchedRetryDays={unmatchedRetryDays}
+      />
+    );
+  }
+
+  const isWizardMode = filter === "review";
   let activeReviewItem = null;
   let wizardCurrentIndex = 0;
 
@@ -659,62 +699,16 @@ export function DiscoveredView() {
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4">
       <HeartOverlay />
-      <Panel className="overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-4 py-3">
-          <div>
-            <h2 className="font-semibold text-text">Discovered apps</h2>
-            <p className="text-sm text-text-muted">
-              {lastProcessScanAt
-                ? `Last scan ${new Date(lastProcessScanAt).toLocaleTimeString()}`
-                : "No scan yet"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search
-                size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
-              />
-              <Input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setIgnoredPage(1);
-                }}
-                placeholder="Search apps..."
-                className="w-56 pl-9"
-              />
-            </div>
-            <Button
-              icon={RotateCcw}
-              loading={scanning}
-              onClick={async () => {
-                setScanning(true);
-                try {
-                  await scanProcessesNow();
-                } finally {
-                  setScanning(false);
-                }
-              }}
-            >
-              {scanning ? "Scanning…" : "Scan"}
-            </Button>
-          </div>
-        </div>
-
+      <div className="flex flex-wrap items-center gap-2">
         <div
           data-tour="discovered-filters"
-          className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3"
+          className="flex flex-wrap items-center gap-2"
         >
           {discoveryFilters.map((entry) => {
-            const count = filterRunningExecutables(
-              searchable.filter((executable) =>
-                entry.statuses.includes(executable.status),
-              ),
-              entry.id,
-              runningOnly,
+            const count = searchable.filter((executable) =>
+              entry.statuses.includes(executable.status),
             ).length;
             const active = filter === entry.id;
             const needsAttention = entry.id === "review" && count > 0;
@@ -753,209 +747,243 @@ export function DiscoveredView() {
               </button>
             );
           })}
-          {shouldShowRunningUserProcessesOnly(filter) ? (
-            <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-sm text-text-muted">
-              <Switch
-                checked={runningOnly}
-                onChange={(event) => {
-                  setRunningOnly(event.target.checked);
-                  setIgnoredPage(1);
-                }}
-              />
-              Running user processes only ({runningCount})
-            </label>
-          ) : null}
-          {filter === "ignored" ? (
-            <Select
-              aria-label="Sort ignored apps"
-              value={ignoredSort}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden text-xs text-text-faint md:inline">
+            {lastProcessScanAt
+              ? `Last scan ${new Date(lastProcessScanAt).toLocaleTimeString()}`
+              : "No scan yet"}
+          </span>
+          <div className="relative">
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
+            />
+            <Input
+              value={search}
               onChange={(event) => {
-                setIgnoredSort(event.target.value as IgnoredProcessSort);
+                setSearch(event.target.value);
                 setIgnoredPage(1);
               }}
-              className="h-9 rounded-lg !py-0 text-[13px]"
-            >
-              <option value="lastAdded">Sort: Last ignored</option>
-              <option value="az">Sort: A–Z</option>
-              <option value="za">Sort: Z–A</option>
-              <option value="userFirst">Sort: User first</option>
-              <option value="systemFirst">Sort: System first</option>
-            </Select>
-          ) : null}
-        </div>
-
-        {isOffline ? (
-          <div className="border-b border-border bg-surface px-4 py-2 text-sm text-text-muted">
-            Community features are paused while offline. Local tracking,
-            scanning, and triage still work.
+              placeholder="Search apps..."
+              className="w-56 pl-9"
+            />
           </div>
-        ) : null}
+          <Button
+            icon={RotateCcw}
+            loading={scanning}
+            onClick={async () => {
+              setScanning(true);
+              try {
+                await scanProcessesNow();
+              } finally {
+                setScanning(false);
+              }
+            }}
+          >
+            {scanning ? "Scanning…" : "Scan"}
+          </Button>
+        </div>
+      </div>
 
-        <div className="grid gap-2 bg-bg p-3">
-          {isWizardMode ? (
-            activeReviewItem ? (
-              <div className="py-6 px-4 sm:px-10 flex justify-center">
-                <div className="w-full max-w-2xl">
-                  <TriageWizardCard
-                    executable={activeReviewItem}
-                    reviewOptions={filteredExecutables}
-                    queueLength={filteredExecutables.length}
-                    currentIndex={wizardCurrentIndex + 1}
-                    customGameName={customGameName}
-                    isCustomGameEntryOpen={
-                      customGameExe === activeReviewItem.key
-                    }
-                    isPending={pendingExe === activeReviewItem.key}
-                    isRetrying={retryingExe === activeReviewItem.key}
-                    onCancelCustomGame={() => {
-                      setCustomGameExe(null);
-                      setCustomGameName("");
-                    }}
-                    onCustomGameNameChange={setCustomGameName}
-                    onIgnore={async () => {
-                      if (activeReviewItem.isTutorial) {
-                        showTutorialProcessNotice();
-                        return;
-                      }
-                      const nextKey = nextReviewKeyAfter(activeReviewItem.key);
-                      const ignored = await ignoreExecutable(
-                        activeReviewItem.exeName,
-                      );
-                      if (ignored) setActiveReviewKey(nextKey);
-                    }}
-                    isOffline={isOffline}
-                    onRecheck={() => {
-                      if (activeReviewItem.isTutorial) {
-                        showTutorialProcessNotice();
-                        return;
-                      }
-                      if (isOffline) return;
-                      setRetryingExe(activeReviewItem.key);
-                      void recheckExecutable(activeReviewItem.exeName);
-                    }}
-                    onSaveCustomGame={() => {
-                      if (activeReviewItem.isTutorial) {
-                        showTutorialProcessNotice();
-                        return;
-                      }
-                      saveCustomGame(activeReviewItem.exeName);
-                    }}
-                    onStartCustomGame={() => {
-                      if (activeReviewItem.isTutorial) {
-                        showTutorialProcessNotice();
-                        return;
-                      }
-                      startCustomGameEntry(activeReviewItem.exeName);
-                    }}
-                    onSuggest={() => {
-                      if (activeReviewItem.isTutorial) {
-                        showTutorialProcessNotice();
-                        return;
-                      }
-                      startCommunitySuggestion(activeReviewItem.exeName);
-                    }}
-                    onSkip={handleSkip}
-                    onSelectReview={(key) => setActiveReviewKey(key)}
-                  />
-                </div>
+      {isOffline ? (
+        <div className="text-sm text-text-muted">
+          Community features are paused while offline. Local tracking, scanning,
+          and triage still work.
+        </div>
+      ) : null}
+
+      {isWizardMode ? (
+        activeReviewItem ? (
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)]">
+            <ReviewQueue
+              items={filteredExecutables}
+              activeKey={activeReviewItem.key}
+              onSelect={setActiveReviewKey}
+            />
+            <TriageWizardCard
+              key={activeReviewItem.key}
+              executable={activeReviewItem}
+              customGameName={customGameName}
+              isCustomGameEntryOpen={customGameExe === activeReviewItem.key}
+              isPending={pendingExe === activeReviewItem.key}
+              isRetrying={retryingExe === activeReviewItem.key}
+              onCancelCustomGame={() => {
+                setCustomGameExe(null);
+                setCustomGameName("");
+              }}
+              onCustomGameNameChange={setCustomGameName}
+              onIgnore={async () => {
+                if (activeReviewItem.isTutorial) {
+                  showTutorialProcessNotice();
+                  return;
+                }
+                const nextKey = nextReviewKeyAfter(activeReviewItem.key);
+                const ignored = await ignoreExecutable(
+                  activeReviewItem.exeName,
+                );
+                if (ignored) setActiveReviewKey(nextKey);
+              }}
+              isOffline={isOffline}
+              onRecheck={() => {
+                if (activeReviewItem.isTutorial) {
+                  showTutorialProcessNotice();
+                  return;
+                }
+                if (isOffline) return;
+                setRetryingExe(activeReviewItem.key);
+                void recheckExecutable(activeReviewItem.exeName);
+              }}
+              onSaveCustomGame={() => {
+                if (activeReviewItem.isTutorial) {
+                  showTutorialProcessNotice();
+                  return;
+                }
+                saveCustomGame(activeReviewItem.exeName);
+              }}
+              onStartCustomGame={() => {
+                if (activeReviewItem.isTutorial) {
+                  showTutorialProcessNotice();
+                  return;
+                }
+                startCustomGameEntry(
+                  activeReviewItem.exeName,
+                  exeProductName(
+                    peekExeDetails(activeReviewItem.exePath),
+                    activeReviewItem.exeName,
+                  ) ?? "",
+                );
+              }}
+              onSuggest={() => {
+                if (activeReviewItem.isTutorial) {
+                  showTutorialProcessNotice();
+                  return;
+                }
+                startCommunitySuggestion(activeReviewItem.exeName);
+              }}
+              onMarkSoftware={() => {
+                if (activeReviewItem.isTutorial) {
+                  showTutorialProcessNotice();
+                  return;
+                }
+                setSoftwareTarget(activeReviewItem.exeName);
+              }}
+              onSkip={handleSkip}
+            />
+          </div>
+        ) : search.trim() ? (
+          <div className="rounded-md border border-dashed border-border bg-surface px-4 py-10 text-center text-sm text-text-muted">
+            No app in the queue matches “{search.trim()}”.
+          </div>
+        ) : (
+          <div
+            data-tour="discovered-wizard"
+            className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface px-4 py-16 text-center"
+          >
+            <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-success/10 text-success">
+              <CheckCircle size={32} />
+            </div>
+            <h3 className="mb-1 text-lg font-semibold text-text">
+              You're all caught up.
+            </h3>
+            <p className="text-sm text-text-muted">
+              Nothing new to review right now.
+            </p>
+          </div>
+        )
+      ) : filteredExecutables.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border bg-surface px-4 py-10 text-center text-sm text-text-muted">
+          No apps match your filters.
+        </div>
+      ) : filter === "ignored" ? (
+        <div className="grid gap-5">
+          <section className="grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
+                Ignored by you · {userIgnoredExecutables.length}
+              </h3>
+              <Select
+                aria-label="Sort ignored apps"
+                value={ignoredSort}
+                onChange={(event) => {
+                  setIgnoredSort(event.target.value as IgnoredProcessSort);
+                  setIgnoredPage(1);
+                }}
+                className="h-9 rounded-lg !py-0 text-[13px]"
+              >
+                <option value="lastAdded">Sort: Last ignored</option>
+                <option value="az">Sort: A–Z</option>
+                <option value="za">Sort: Z–A</option>
+              </Select>
+            </div>
+            {userIgnoredExecutables.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border bg-surface px-4 py-6 text-center text-sm text-text-muted">
+                Apps you ignore show up here. Restore one to have it checked
+                again.
               </div>
             ) : (
-              <div
-                data-tour="discovered-wizard"
-                className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface px-4 py-16 text-center"
-              >
-                <div className="mb-4 grid h-16 w-16 place-items-center rounded-full bg-success/10 text-success">
-                  <CheckCircle size={32} />
-                </div>
-                <h3 className="mb-1 text-lg font-semibold text-text">
-                  You're all caught up.
-                </h3>
-                <p className="text-sm text-text-muted">
-                  Nothing new to review right now.
-                </p>
-              </div>
-            )
-          ) : filteredExecutables.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border bg-surface px-4 py-10 text-center text-sm text-text-muted">
-              No apps match your filters.
-            </div>
-          ) : (
-            <>
-              {displayedExecutables.map((executable) => (
-                <Fragment key={executable.key}>
-                  <DiscoveredExecutableRow
-                    executable={executable}
-                    customGameName={customGameName}
-                    groupTone={statusToTone[executable.status]}
-                    hideStatusLabel={
-                      filter === "tracked" || filter === "ignored"
-                    }
-                    isCustomGameEntryOpen={customGameExe === executable.key}
-                    isPending={pendingExe === executable.key}
-                    isRetrying={retryingExe === executable.key}
-                    onCancelCustomGame={() => {
-                      setCustomGameExe(null);
-                      setCustomGameName("");
-                    }}
-                    onCustomGameNameChange={setCustomGameName}
-                    onIgnore={() => void ignoreExecutable(executable.exeName)}
-                    isOffline={isOffline}
-                    onRecheck={() => {
-                      if (isOffline) return;
-                      setRetryingExe(executable.key);
-                      void recheckExecutable(executable.exeName);
-                    }}
-                    onSaveCustomGame={() => saveCustomGame(executable.exeName)}
-                    onStartCustomGame={() =>
-                      startCustomGameEntry(executable.exeName)
-                    }
-                    onSuggest={() =>
-                      startCommunitySuggestion(executable.exeName)
-                    }
-                    onUnignore={() =>
-                      void updateUserIgnored(executable.exeName, false)
-                    }
-                    allowTrackingChanges={filter !== "tracked"}
-                    unmatchedRetryDays={unmatchedRetryDays}
-                  />
-                </Fragment>
-              ))}
-              {filter === "ignored" && ignoredPagination.pageCount > 1 ? (
-                <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-border px-1 pt-3 text-sm text-text-muted">
+              ignoredPagination.items.map(renderExecutableRow)
+            )}
+            {ignoredPagination.pageCount > 1 ? (
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-border px-1 pt-3 text-sm text-text-muted">
+                <span>
+                  Showing {ignoredPagination.start}–{ignoredPagination.end} of{" "}
+                  {ignoredPagination.total}
+                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={ignoredPagination.page === 1}
+                    onClick={() => setIgnoredPage(ignoredPagination.page - 1)}
+                    className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
                   <span>
-                    Showing {ignoredPagination.start}–{ignoredPagination.end} of{" "}
-                    {ignoredPagination.total}
+                    Page {ignoredPagination.page} of{" "}
+                    {ignoredPagination.pageCount}
                   </span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      disabled={ignoredPagination.page === 1}
-                      onClick={() => setIgnoredPage(ignoredPagination.page - 1)}
-                      className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Previous
-                    </button>
-                    <span>
-                      Page {ignoredPagination.page} of{" "}
-                      {ignoredPagination.pageCount}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={
-                        ignoredPagination.page === ignoredPagination.pageCount
-                      }
-                      onClick={() => setIgnoredPage(ignoredPagination.page + 1)}
-                      className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    disabled={
+                      ignoredPagination.page === ignoredPagination.pageCount
+                    }
+                    onClick={() => setIgnoredPage(ignoredPagination.page + 1)}
+                    className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
                 </div>
-              ) : null}
-            </>
-          )}
+              </div>
+            ) : null}
+          </section>
+          {builtInIgnoredExecutables.length > 0 ? (
+            <BuiltInIgnoredSection
+              items={builtInIgnoredExecutables}
+              forceOpen={Boolean(needle)}
+            />
+          ) : null}
         </div>
-      </Panel>
+      ) : (
+        <div className="grid gap-2">
+          {filteredExecutables.map(renderExecutableRow)}
+        </div>
+      )}
+      {softwareTarget ? (
+        <SoftwareDialog
+          exeName={softwareTarget}
+          suggestedName={exeProductName(
+            peekExeDetails(
+              availableExecutables.find(
+                (executable) => executable.key === softwareTarget.toLowerCase(),
+              )?.exePath,
+            ),
+            softwareTarget,
+          )}
+          isOffline={isOffline}
+          onClose={() => setSoftwareTarget(null)}
+        />
+      ) : null}
       {suggestionTarget ? (
         <CommunitySuggestionForm
           key={suggestionTarget.key}
@@ -1018,9 +1046,6 @@ function notifyIgnoredProcessSuggestionOutcome(
 
 export function TriageWizardCard({
   executable,
-  reviewOptions,
-  queueLength,
-  currentIndex,
   customGameName,
   isCustomGameEntryOpen,
   isOffline,
@@ -1029,17 +1054,13 @@ export function TriageWizardCard({
   onCancelCustomGame,
   onCustomGameNameChange,
   onIgnore,
-  onRecheck,
+  onMarkSoftware,
   onSaveCustomGame,
   onStartCustomGame,
   onSuggest,
   onSkip,
-  onSelectReview,
 }: {
   executable: DiscoveredExecutable;
-  reviewOptions: DiscoveredExecutable[];
-  queueLength: number;
-  currentIndex: number;
   customGameName: string;
   isCustomGameEntryOpen: boolean;
   isOffline: boolean;
@@ -1048,210 +1069,90 @@ export function TriageWizardCard({
   onCancelCustomGame: () => void;
   onCustomGameNameChange: (value: string) => void;
   onIgnore: () => void;
-  onRecheck: () => void;
+  onRecheck?: () => void;
   onSaveCustomGame: () => void;
   onStartCustomGame: () => void;
   onSuggest: () => void;
+  onMarkSoftware: () => void;
   onSkip: () => void;
-  onSelectReview: (key: string) => void;
 }) {
-  const [reviewSearch, setReviewSearch] = useState("");
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
-  const reviewSuggestions = useMemo(
-    () => findReviewExecutables(reviewOptions, reviewSearch),
-    [reviewOptions, reviewSearch],
-  );
-
-  function selectReview(executable: DiscoveredExecutable) {
-    onSelectReview(executable.key);
-    setReviewSearch("");
-    setActiveSuggestionIndex(0);
-  }
-
+  const details = useExeDetails(executable.exePath);
+  const productName = exeProductName(details, executable.exeName);
+  const publisher = exePublisher(details);
+  const trackedSeconds = trackedSecondsFor(executable.cacheEntry);
   return (
     <div
       data-tour="discovered-wizard"
       className="animate-fade-in overflow-hidden rounded-xl border border-border bg-surface shadow-md"
     >
-      <div className="border-b border-border bg-surface-hover/30 px-6 py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent-ink">
-              {currentIndex}
-            </span>
-            <span className="text-sm font-medium text-text-muted">
-              of {queueLength} remaining
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-3">
-          <div className="relative">
-            <Search
-              size={15}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
-            />
-            <Input
-              value={reviewSearch}
-              onChange={(event) => {
-                setReviewSearch(event.target.value);
-                setActiveSuggestionIndex(0);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowDown" && reviewSuggestions.length > 0) {
-                  event.preventDefault();
-                  setActiveSuggestionIndex((index) =>
-                    Math.min(index + 1, reviewSuggestions.length - 1),
-                  );
-                } else if (
-                  event.key === "ArrowUp" &&
-                  reviewSuggestions.length > 0
-                ) {
-                  event.preventDefault();
-                  setActiveSuggestionIndex((index) => Math.max(index - 1, 0));
-                } else if (
-                  event.key === "Enter" &&
-                  reviewSuggestions[activeSuggestionIndex]
-                ) {
-                  event.preventDefault();
-                  selectReview(reviewSuggestions[activeSuggestionIndex]);
-                } else if (event.key === "Escape") {
-                  setReviewSearch("");
-                  setActiveSuggestionIndex(0);
-                }
-              }}
-              placeholder="Search this queue..."
-              aria-label="Search the review queue"
-              aria-expanded={reviewSuggestions.length > 0}
-              aria-controls="review-process-suggestions"
-              aria-autocomplete="list"
-              role="combobox"
-              className="w-full bg-surface pl-9"
-            />
-          </div>
-
-          {reviewSuggestions.length > 0 ? (
-            <div
-              id="review-process-suggestions"
-              role="listbox"
-              className="mt-2 max-h-64 overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-md"
-            >
-              {reviewSuggestions.map((suggestion, index) => {
-                const trackedSeconds = trackedSecondsFor(suggestion.cacheEntry);
-                return (
-                  <button
-                    key={suggestion.key}
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeSuggestionIndex}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectReview(suggestion)}
-                    className={clsx(
-                      "flex w-full min-w-0 items-center gap-3 rounded px-3 py-2 text-left transition",
-                      index === activeSuggestionIndex
-                        ? "bg-accent/10"
-                        : "hover:bg-surface-hover",
-                    )}
-                  >
-                    <ExeIcon
-                      exePath={suggestion.exePath}
-                      className="h-5 w-5 shrink-0 rounded-sm"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-text">
-                        {suggestion.exeName}
-                      </span>
-                      {suggestion.exePath ? (
-                        <span
-                          className="block truncate text-xs text-text-faint"
-                          title={suggestion.exePath}
-                        >
-                          {suggestion.exePath}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="shrink-0 text-right text-xs text-text-muted">
-                      <span className="block">
-                        {suggestion.isRunning ? "Running" : "Not running"}
-                      </span>
-                      {trackedSeconds >= 60 ? (
-                        <span className="block text-text-faint">
-                          {formatTrackedTime(trackedSeconds)} tracked
-                        </span>
-                      ) : null}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : reviewSearch.trim() ? (
-            <div className="mt-2 rounded-md border border-dashed border-border bg-surface px-3 py-3 text-center text-sm text-text-muted">
-              No process matches “{reviewSearch.trim()}”.
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="p-6 sm:p-8">
-        <div className="mb-8 flex min-w-0 flex-col items-center gap-2 text-center">
-          <div className="mb-2 grid h-16 w-16 place-items-center rounded-2xl bg-surface-hover text-text-faint">
+      <div className="p-6 sm:p-7">
+        <div className="flex min-w-0 items-start gap-4">
+          <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-border/60 bg-surface-hover">
             <ExeIcon
               exePath={executable.exePath}
-              className="h-8 w-8"
-              fallback={<Gamepad2 size={32} />}
+              className="h-9 w-9"
+              fallback={<AppWindow size={28} className="text-text-faint" />}
             />
           </div>
-          <div className="flex h-10 w-full max-w-full items-center justify-center">
+          <div className="min-w-0 flex-1">
             <h3
-              className="max-w-full truncate text-2xl font-bold text-text sm:text-3xl"
-              title={executable.exeName}
+              className="truncate text-2xl font-bold text-text"
+              title={productName ?? executable.exeName}
             >
-              {executable.exeName}
+              {productName ?? executable.exeName}
             </h3>
-          </div>
-          {executable.isTutorial ? (
-            <span className="rounded-full border border-accent/30 bg-accent-tint px-2.5 py-1 text-xs font-semibold text-accent-ink">
-              Tutorial sample · not saved
-            </span>
-          ) : null}
-          <div className="flex items-center justify-center gap-2 text-sm text-text-muted">
-            <span
-              className={clsx(
-                "h-2.5 w-2.5 rounded-full",
-                executable.isRunning
-                  ? "bg-success shadow-[0_0_8px_rgba(var(--color-success),0.5)]"
-                  : "bg-danger",
-              )}
-            />
-            {executable.isRunning ? "Running right now" : "Not running"}
-          </div>
-          {executable.foundIn ? (
-            <div
-              className="max-w-full truncate text-xs text-text-faint"
-              title={executable.foundIn}
-            >
-              Found in {executable.foundIn}
-            </div>
-          ) : null}
-          {trackedSecondsFor(executable.cacheEntry) >= 60 ? (
-            <div className="mt-1 text-xs text-text-faint">
-              Tracked so far:{" "}
-              <span className="font-medium text-text-muted">
-                {formatTrackedTime(trackedSecondsFor(executable.cacheEntry))}
+            {productName || publisher ? (
+              <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-text-muted">
+                {productName ? (
+                  <span className="font-mono text-[13px] text-text">
+                    {executable.exeName}
+                  </span>
+                ) : null}
+                {publisher ? (
+                  <span className="truncate">{publisher}</span>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-muted">
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className={clsx(
+                    "h-2 w-2 rounded-full",
+                    executable.isRunning
+                      ? "bg-success shadow-[0_0_8px_rgb(var(--color-success)/0.6)]"
+                      : "bg-text-faint/50",
+                  )}
+                />
+                {executable.isRunning ? "Running now" : "Not running"}
               </span>
+              {trackedSeconds >= 60 ? (
+                <span>{formatTrackedTime(trackedSeconds)} tracked so far</span>
+              ) : null}
+              {isRetrying ? (
+                <span className="animate-pulse font-medium text-accent-ink">
+                  Checking database…
+                </span>
+              ) : null}
             </div>
-          ) : null}
-          {isRetrying && (
-            <span className="mt-2 animate-pulse text-sm font-medium text-accent-ink">
-              Checking database...
-            </span>
-          )}
+            {executable.isTutorial ? (
+              <span className="mt-2 inline-flex rounded-full border border-accent/30 bg-accent-tint px-2.5 py-1 text-xs font-semibold text-accent-ink">
+                Tutorial sample · not saved
+              </span>
+            ) : null}
+          </div>
         </div>
+
+        <ExeFolderEvidence
+          exePath={executable.exePath}
+          foundIn={executable.foundIn}
+        />
+
+        <div className="my-6 h-px bg-border/60" />
 
         {isCustomGameEntryOpen ? (
           <form
             data-tour="discovered-custom-entry"
-            className="mb-8 flex items-center gap-2 rounded-md border border-border bg-surface-hover p-3"
+            className="mb-6 flex items-center gap-2 rounded-md border border-border bg-surface-hover p-3"
             onSubmit={(event) => {
               event.preventDefault();
               onSaveCustomGame();
@@ -1283,7 +1184,7 @@ export function TriageWizardCard({
           </form>
         ) : null}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Button
             data-tour="discovered-add-share"
             variant="primary"
@@ -1319,19 +1220,294 @@ export function TriageWizardCard({
           >
             Ignore
           </Button>
+        </div>
+        {/* Offered, not pushed: most apps that are not games should simply be
+            ignored. Only apps worth tracking become software. */}
+        <div className="mt-4 flex flex-col items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center justify-center gap-x-1.5 text-text-muted">
+            <span>Not a game, but you want its time?</span>
+            <button
+              type="button"
+              disabled={isPending || isRetrying || isCustomGameEntryOpen}
+              title="Discord, Spotify, a launcher: counted on the Software page, never as a game"
+              onClick={onMarkSoftware}
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <AppWindow size={14} />
+              Track as software
+            </button>
+          </div>
           <Button
             data-tour="discovered-skip"
             variant="ghost"
             icon={SkipForward}
             disabled={isPending || isRetrying || isCustomGameEntryOpen}
             onClick={onSkip}
-            className="h-12 w-full text-sm hover:bg-surface-hover"
+            className="text-sm hover:bg-surface-hover"
           >
             Skip for now
           </Button>
         </div>
       </div>
     </div>
+  );
+}
+
+/* Apps PlayCounter ignores on its own: system apps, helpers, background
+   services. There is nothing to decide about them, so they stay folded away
+   unless a search points into them. */
+function BuiltInIgnoredSection({
+  items,
+  forceOpen,
+}: {
+  items: DiscoveredExecutable[];
+  forceOpen: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const expanded = open || forceOpen;
+  const preview =
+    items
+      .slice(0, 3)
+      .map((item) => item.exeName)
+      .join(", ") + (items.length > 3 ? " …" : "");
+  return (
+    <section className="grid gap-2">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setOpen(!open)}
+        className="flex min-w-0 items-center gap-2 rounded-md py-1 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <ChevronRight
+          size={14}
+          aria-hidden="true"
+          className={clsx(
+            "shrink-0 text-text-faint transition-transform",
+            expanded && "rotate-90",
+          )}
+        />
+        <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
+          Ignored by PlayCounter · {items.length}
+        </span>
+        {expanded ? null : (
+          <span className="min-w-0 truncate text-xs text-text-faint">
+            {preview}
+          </span>
+        )}
+      </button>
+      {expanded ? (
+        <Panel className="divide-y divide-border/60 overflow-hidden">
+          <p className="px-4 py-2.5 text-xs text-text-faint">
+            System apps, helpers and background services on PlayCounter's
+            built-in list. They are never treated as games.
+          </p>
+          {items.map((item) => (
+            <div
+              key={item.key}
+              className="flex min-w-0 items-center gap-3 px-4 py-2 text-sm"
+            >
+              <ExeIcon
+                exePath={item.exePath}
+                className="h-4 w-4 shrink-0 opacity-70"
+                fallback={
+                  <AppWindow size={14} className="shrink-0 text-text-faint" />
+                }
+              />
+              <span
+                className="min-w-0 flex-1 truncate text-text-muted"
+                title={item.exePath ?? item.exeName}
+              >
+                {item.exeName}
+              </span>
+              {item.isRunning ? (
+                <span className="shrink-0 text-xs text-text-faint">
+                  Running
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </Panel>
+      ) : null}
+    </section>
+  );
+}
+
+/* The folder is the best evidence of what an app is. It is shown as a trail,
+   and the part that gives a game away is marked. */
+function ExeFolderEvidence({
+  exePath,
+  foundIn,
+}: {
+  exePath: string | null | undefined;
+  foundIn?: string;
+}) {
+  if (!exePath) {
+    return (
+      <p className="mt-5 text-sm text-text-faint">
+        PlayCounter learns the folder the next time this app runs.
+      </p>
+    );
+  }
+  const folder = describeExeFolder(exePath);
+  // A watched folder was set up for games, so it outweighs the folder name.
+  const hint = foundIn
+    ? "it's in a folder you watch"
+    : folder.gameLocation
+      ? `it's in ${folder.gameLocation}`
+      : null;
+  return (
+    <div className="mt-5 rounded-xl border border-border/70 bg-bg/40 px-4 py-3">
+      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
+        Folder
+      </div>
+      <div
+        className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 font-mono text-[13px] text-text-muted"
+        title={exePath}
+      >
+        {folder.segments.map((segment, index) => (
+          <Fragment key={index}>
+            {index > 0 ? (
+              <ChevronRight
+                size={12}
+                aria-hidden="true"
+                className="shrink-0 text-text-faint/70"
+              />
+            ) : null}
+            <span
+              className={clsx(
+                "break-all",
+                segment.marker && "text-accent-ink",
+                segment.gameFolder && "font-semibold text-text",
+              )}
+            >
+              {segment.text}
+            </span>
+          </Fragment>
+        ))}
+      </div>
+      {foundIn ? (
+        <div
+          className="mt-1.5 truncate text-xs text-text-faint"
+          title={foundIn}
+        >
+          Found in {foundIn}
+        </div>
+      ) : null}
+      {hint ? (
+        <div className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink">
+          <Gamepad2 size={14} aria-hidden="true" />
+          Probably a game: {hint}.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* Everything left to review, so the queue is visible and any app is one click
+   away. Running apps come first, as in the sort. */
+function ReviewQueue({
+  items,
+  activeKey,
+  onSelect,
+}: {
+  items: DiscoveredExecutable[];
+  activeKey: string;
+  onSelect: (key: string) => void;
+}) {
+  const groups = [
+    {
+      id: "running",
+      label: "Running now",
+      items: items.filter((item) => item.isRunning),
+    },
+    {
+      id: "earlier",
+      label: "Seen earlier",
+      items: items.filter((item) => !item.isRunning),
+    },
+  ].filter((group) => group.items.length > 0);
+  return (
+    <Panel className="overflow-hidden">
+      <div
+        role="listbox"
+        aria-label="Apps to review"
+        className="max-h-[calc(100vh-15rem)] overflow-y-auto p-2"
+      >
+        {groups.map((group) => (
+          <div key={group.id} role="group" aria-label={group.label}>
+            <div className="flex items-center justify-between px-3 pb-1.5 pt-2.5 text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
+              <span>{group.label}</span>
+              <span className="font-mono tracking-normal">
+                {group.items.length}
+              </span>
+            </div>
+            <div className="grid gap-0.5 pb-1">
+              {group.items.map((item) => (
+                <ReviewQueueRow
+                  key={item.key}
+                  executable={item}
+                  active={item.key === activeKey}
+                  onSelect={() => onSelect(item.key)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function ReviewQueueRow({
+  executable,
+  active,
+  onSelect,
+}: {
+  executable: DiscoveredExecutable;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const productName = exeProductName(
+    useExeDetails(executable.exePath),
+    executable.exeName,
+  );
+  const folderName = executable.exePath
+    ? describeExeFolder(executable.exePath).segments.at(-1)?.text
+    : undefined;
+  const trackedSeconds = trackedSecondsFor(executable.cacheEntry);
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={active}
+      onClick={onSelect}
+      className={clsx(
+        // Same active look as the sidebar, so "selected" reads the same.
+        "relative flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+        active ? "sidebar-button-active" : "hover:bg-surface-hover",
+      )}
+    >
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-hover">
+        <ExeIcon
+          exePath={executable.exePath}
+          className="h-5 w-5"
+          fallback={<AppWindow size={15} className="text-text-faint" />}
+        />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-text">
+          {executable.exeName}
+        </span>
+        <span className="block truncate text-xs text-text-faint">
+          {productName ?? folderName ?? "No details yet"}
+        </span>
+      </span>
+      {trackedSeconds >= 60 ? (
+        <span className="shrink-0 font-mono text-xs text-text-muted">
+          {formatTrackedTime(trackedSeconds)}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -1347,6 +1523,7 @@ function DiscoveredExecutableRow({
   onCancelCustomGame,
   onCustomGameNameChange,
   onIgnore,
+  onMarkSoftware,
   onRecheck,
   onSaveCustomGame,
   onStartCustomGame,
@@ -1370,6 +1547,7 @@ function DiscoveredExecutableRow({
   onSaveCustomGame: () => void;
   onStartCustomGame: () => void;
   onSuggest: () => void;
+  onMarkSoftware: () => void;
   onUnignore: () => void;
   allowTrackingChanges: boolean;
   unmatchedRetryDays: number;
@@ -1380,6 +1558,18 @@ function DiscoveredExecutableRow({
       : null;
   const isReview = groupTone === "review";
   const isSystemIgnored = groupTone === "systemIgnored";
+  // What an app you ignored was, so the list still means something later.
+  const ignoredExePath =
+    executable.status === "userIgnored" ? executable.exePath : null;
+  const ignoredProductName = exeProductName(
+    useExeDetails(ignoredExePath),
+    executable.exeName,
+  );
+  const ignoredDetails = ignoredExePath
+    ? [ignoredProductName, ignoredExePath.replace(/[\\/][^\\/]*$/, "")]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
   const retryAt = unmatchedRetryAt(executable.cacheEntry, unmatchedRetryDays);
   const contextMenu = useContextMenu();
   const addToast = useAppStore((state) => state.addToast);
@@ -1419,7 +1609,7 @@ function DiscoveredExecutableRow({
                 title={executable.isRunning ? "Running" : "Not running"}
                 className={clsx(
                   "h-2 w-2 shrink-0 rounded-full",
-                  executable.isRunning ? "bg-success" : "bg-danger",
+                  executable.isRunning ? "bg-success" : "bg-text-faint/50",
                 )}
                 aria-label={executable.isRunning ? "Running" : "Not running"}
               />
@@ -1429,13 +1619,13 @@ function DiscoveredExecutableRow({
               className="h-4 w-4 shrink-0 rounded-sm"
             />
             <h4
-              title={executable.exeName}
+              title={matchedName ?? executable.exeName}
               className={clsx(
                 "min-w-0 max-w-full flex-1 truncate font-medium",
                 isSystemIgnored ? "text-text-faint" : "text-text",
               )}
             >
-              {executable.exeName}
+              {matchedName ?? executable.exeName}
             </h4>
             {hideStatusLabel ? null : (
               <span
@@ -1451,8 +1641,16 @@ function DiscoveredExecutableRow({
             )}
           </div>
           {matchedName ? (
-            <div className="mt-1 truncate text-sm font-medium text-text-muted">
-              {matchedName}
+            <div className="mt-0.5 truncate font-mono text-xs text-text-faint">
+              {executable.exeName}
+            </div>
+          ) : null}
+          {ignoredDetails ? (
+            <div
+              className="mt-0.5 truncate text-xs text-text-faint"
+              title={executable.exePath ?? undefined}
+            >
+              {ignoredDetails}
             </div>
           ) : null}
           {executable.foundIn ? (
@@ -1475,7 +1673,7 @@ function DiscoveredExecutableRow({
 
         <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
           {executable.cacheEntry?.state === "matched" ? (
-            <SourceBadge source={executable.cacheEntry.source} />
+            <SourceBadge source={executable.cacheEntry.source} variant="text" />
           ) : null}
           {executable.status === "ignored" ? (
             <span className="px-2 text-xs font-medium text-text-faint">
@@ -1513,6 +1711,12 @@ function DiscoveredExecutableRow({
                   title="Add as custom game (do not share)"
                   disabled={isPending || isRetrying}
                   onClick={onStartCustomGame}
+                />
+                <IconButton
+                  icon={AppWindow}
+                  title="Track as software (Discord, Spotify, a launcher)"
+                  disabled={isPending || isRetrying}
+                  onClick={onMarkSoftware}
                 />
                 <IconButton
                   icon={RotateCcw}

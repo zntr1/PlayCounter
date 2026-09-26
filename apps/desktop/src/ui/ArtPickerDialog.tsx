@@ -27,10 +27,14 @@ export function ArtPickerDialog({
   game,
   initialTab = "banner",
   onClose,
+  onPickCover,
 }: {
   game: ArtPickerGame;
   initialTab?: Tab;
   onClose: () => void;
+  /** Covers only; the picked URL goes to the caller instead of a game. Used
+   *  for software, whose art is shared as a SteamGridDB URL. */
+  onPickCover?: (url: string) => void;
 }) {
   const addToast = useAppStore((state) => state.addToast);
   const setCustomHeroArt = useAppStore((state) => state.setCustomHeroArt);
@@ -45,7 +49,7 @@ export function ArtPickerDialog({
     heroes: ArtAsset[];
   } | null>(null);
   const [loadingAssets, setLoadingAssets] = useState(false);
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<Tab>(onPickCover ? "cover" : initialTab);
   const [applying, setApplying] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const searchRun = useRef(0);
@@ -98,6 +102,11 @@ export function ArtPickerDialog({
 
   async function apply(asset: ArtAsset) {
     if (applying !== null) return;
+    if (onPickCover) {
+      onPickCover(asset.url);
+      onClose();
+      return;
+    }
     setApplying(asset.id);
     setError(null);
     try {
@@ -125,6 +134,7 @@ export function ArtPickerDialog({
     }
   }
 
+  const tabs = onPickCover ? [] : (["banner", "cover"] as const);
   const list = tab === "banner" ? assets?.heroes : assets?.covers;
   const coverLocked = tab === "cover" && !game.canEditCover;
 
@@ -236,7 +246,7 @@ export function ArtPickerDialog({
 
         <div className="min-w-0">
           <div className="mb-2 flex items-center gap-1">
-            {(["banner", "cover"] as const).map((option) => (
+            {tabs.map((option) => (
               <button
                 key={option}
                 type="button"

@@ -24,6 +24,7 @@ import type {
   KnownEmulator,
 } from "./emulators/types";
 import { defaultTourProgress, type TourProgress } from "./ui/tour/tourState";
+import type { ToolUsage } from "./toolUsage";
 
 export const STORAGE_KEY = "playcounter:v1";
 export const MAX_STORED_NOTIFICATIONS = 100;
@@ -67,6 +68,7 @@ type PersistableAppState = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
+  toolUsage?: ToolUsage;
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
   tourProgress?: TourProgress;
@@ -115,6 +117,7 @@ export type PersistedPayload = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
+  toolUsage?: ToolUsage;
   collapsedSections?: string[];
   autoDetectedGameKeys?: string[];
   tours?: TourProgress;
@@ -218,6 +221,10 @@ function buildPersistedPayload(
     customHeroArt:
       state.customHeroArt && Object.keys(state.customHeroArt).length > 0
         ? state.customHeroArt
+        : undefined,
+    toolUsage:
+      state.toolUsage && Object.keys(state.toolUsage).length > 0
+        ? state.toolUsage
         : undefined,
     collapsedSections: state.collapsedSections,
     autoDetectedGameKeys: [...new Set(state.autoDetectedGameKeys)],
