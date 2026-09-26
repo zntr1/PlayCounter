@@ -584,6 +584,8 @@ export interface Settings {
   libraryShowStatusBadges?: boolean;
   /** Show the note shortcut on game covers. Absent = enabled. */
   libraryShowNoteBadges?: boolean;
+  /** Warn on covers of games with no known .exe yet. Absent = enabled. */
+  libraryShowTrackingWarnings?: boolean;
   /** Request IGDB cover art one size up. Absent = off, the smaller default. */
   libraryHighResCovers?: boolean;
   /** My Games summary cards. Absent = the default set. Empty = all off. */

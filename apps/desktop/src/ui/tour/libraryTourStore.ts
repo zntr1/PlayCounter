@@ -57,6 +57,7 @@ export function createLibraryTourStore(
       libraryShowMatchBadges: true,
       libraryShowStatusBadges: true,
       libraryShowNoteBadges: true,
+      libraryShowTrackingWarnings: true,
     },
     notice: null,
     addToast: (toast) => set({ notice: { ...toast, id: -1 } }),
