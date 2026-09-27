@@ -1,13 +1,12 @@
 import { FolderPlus, Info, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { chooseWatchFolder, scanWatchFolders } from "../library/watchFolders";
+import { chooseWatchFolder } from "../library/watchFolders";
 import {
   readWatchFolders,
   removeWatchFolder,
-  restoreDismissedFolder,
 } from "../library/watchFolderState";
 import { useAppStore } from "../store";
-import { setUserIgnoredProcess } from "../tracker";
+import { restoreDismissedWatchFolder } from "../tracker";
 import { Button } from "./primitives";
 
 /** Folders PlayCounter watches for games that no launcher knows about. */
@@ -110,12 +109,11 @@ export function WatchFoldersSettings() {
                 variant="ghost"
                 icon={RotateCcw}
                 aria-label={`Restore ${path}`}
-                onClick={() => {
-                  setRecord(restoreDismissedFolder(path));
-                  void setUserIgnoredProcess(exeName, false).finally(
-                    () => void scanWatchFolders("folder restored"),
-                  );
-                }}
+                onClick={() =>
+                  void restoreDismissedWatchFolder(path, exeName).finally(() =>
+                    setRecord(readWatchFolders()),
+                  )
+                }
               >
                 Restore
               </Button>

@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { isGenericExeName } from "../library/exeCandidates";
 import { GameCover } from "./GameCover";
 import { Button, Modal } from "./primitives";
 
@@ -39,6 +40,20 @@ const confirmCopy: Record<
   },
 };
 
+// Game.exe and co.: only this folder is ignored, and nothing is ever reported.
+function genericFolderCopy(exeName: string) {
+  return {
+    title: "Ignore this folder's file on this PC?",
+    points: [
+      `PlayCounter stops tracking ${exeName} in this game's folder.`,
+      `Other games with their own ${exeName} stay tracked.`,
+      "Nothing is reported.",
+      "You can restore it anytime in Discovered.",
+    ],
+    action: "Ignore this folder",
+  };
+}
+
 export function ReportWrongMatchDialog({
   exeName,
   gameName,
@@ -62,7 +77,11 @@ export function ReportWrongMatchDialog({
   const [confirming, setConfirming] = useState<Choice | null>(null);
   const [lastChoice, setLastChoice] = useState<Choice | null>(null);
   const label = exeName || "this app";
-  const copy = confirming ? confirmCopy[confirming] : null;
+  const copy = !confirming
+    ? null
+    : isGenericExeName(exeName)
+      ? genericFolderCopy(exeName)
+      : confirmCopy[confirming];
 
   function back() {
     setLastChoice(confirming);

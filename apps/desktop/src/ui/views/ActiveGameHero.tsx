@@ -12,6 +12,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useGameDetails } from "../../gameDetails";
 import { emulatorSessionProvenance } from "../../emulators/provenance";
 import { gameSecondsKeys } from "../../gameSeconds";
+import { isGenericExeName } from "../../library/exeCandidates";
 import { GameCover } from "../GameCover";
 import {
   adjustmentSecondsFor,
@@ -163,9 +164,13 @@ export function ActiveGameHero({
     providerFloorSeconds,
   );
   const lifetimeSessionCount = priorSessions.length + 1;
+  // A Game.exe game named or picked on this PC is custom, but its folder can
+  // still hold the wrong game, or no game at all.
   const canReport =
     Boolean(onReport) &&
-    (session.source === "igdb" || session.source === "community");
+    (session.source === "igdb" ||
+      session.source === "community" ||
+      (!session.emulator && isGenericExeName(session.exeName)));
   // Decoration from IGDB, fetched once per game and shown only when it lands.
   // Loading, offline and "no entry" all leave the line empty on purpose.
   const details = useGameDetails(session.igdbId);

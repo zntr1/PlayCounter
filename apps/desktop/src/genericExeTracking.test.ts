@@ -18,17 +18,25 @@ import {
   applyKnownGameMatch,
   correctRunningGenericExe,
   dismissAmbiguousMatch,
+  doNotTrackGame,
   findGameMatches,
   hydrate,
   ignoreDiscoveredProcess,
   ignoreTrackedProcessLocally,
   reportNegativeMatch,
+  restoreDismissedWatchFolder,
   restoreIgnoredExeFolder,
   runningExePath,
   scanProcessesNow,
   selectAmbiguousCustomGame,
   selectAmbiguousMatch,
+  setUserIgnoredProcess,
+  untrackGame,
 } from "./tracker";
+import {
+  readWatchFolders,
+  writeWatchFolders,
+} from "./library/watchFolderState";
 import { STORAGE_KEY } from "./persistence";
 
 /* Game.exe is linked per folder ─────────────────────────────────────────────
@@ -66,6 +74,21 @@ function activeGameNames() {
     .getState()
     .activeSessions.map((session) => session.gameName);
 }
+
+/** The two kinds of games a Game.exe folder gets: named, or picked from the
+ *  database (a custom game carrying an IGDB id). */
+const linkedGames: Array<[string, (name: string, exePath: string) => void]> = [
+  ["named", (name, exePath) => addCustomGame("Game.exe", name, exePath)],
+  [
+    "database pick",
+    (name, exePath) =>
+      addDatabaseGameLocally("Game.exe", exePath, {
+        igdbId: name.length,
+        name,
+        coverUrl: "cover",
+      }),
+  ],
+];
 
 /** A running Game.exe waiting in the picker. */
 function ambiguous(exePath: string, candidates: Game[] = []) {
@@ -509,6 +532,136 @@ describe("ignoring one folder's Game.exe", () => {
 
     expect(ignoredFolders()).toEqual([OTHER_FOLDER]);
   });
+
+  it.each(linkedGames)(
+    'ignores only that game\'s folders on "Ignore game" (%s)',
+    async (_label, add) => {
+      add("Tupac", TUPAC);
+      add("Tupac", MOVED);
+      add("Solitaire", SOLITAIRE);
+      const tupac = linkFor(TUPAC)!;
+
+      await doNotTrackGame(tupac.gameId, tupac.source, ["Game.exe"], false, [
+        { gameId: tupac.gameId, source: tupac.source },
+      ]);
+
+      expect(ignoredFolders()).toEqual([
+        String.raw`D:\Games\Tupac`,
+        String.raw`E:\Tupac`,
+      ]);
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "set_user_ignored_process",
+        expect.anything(),
+      );
+      running = [process(SOLITAIRE, 16)];
+      await scanProcessesNow();
+      expect(activeGameNames()).toEqual(["Solitaire"]);
+    },
+  );
+});
+
+describe("restoring an ignored file of a watched folder", () => {
+  const TUPAC_FOLDER = String.raw`D:\Games\Tupac`;
+  const SOLITAIRE_FOLDER = String.raw`D:\Games\Solitaire`;
+  const TOOL_FOLDER = String.raw`D:\Games\Tool`;
+
+  function dismiss(...items: Array<[string, string]>) {
+    writeWatchFolders({
+      folders: [],
+      seen: {},
+      pending: {},
+      dismissed: items.map(([folderPath, exeName]) => ({
+        folderPath,
+        exeName,
+      })),
+    });
+  }
+
+  function dismissedFolders() {
+    return readWatchFolders().dismissed.map((item) => item.folderPath);
+  }
+
+  function ignoredFolders() {
+    return [...useAppStore.getState().ignoredExeFolders.values()].map(
+      (entry) => entry.pathPrefix,
+    );
+  }
+
+  beforeEach(() => {
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "set_user_ignored_process"
+        ? { processes: [], userFilePath: null, userProcesses: [] }
+        : undefined,
+    );
+  });
+
+  it("offers the folder again after Restore in Discovered, and only that one", async () => {
+    await ignoreDiscoveredProcess("Game.exe", TUPAC);
+    await ignoreDiscoveredProcess("Game.exe", SOLITAIRE);
+    dismiss([TUPAC_FOLDER, "Game.exe"], [SOLITAIRE_FOLDER, "Game.exe"]);
+    const [tupacKey] = useAppStore.getState().ignoredExeFolders.keys();
+
+    restoreIgnoredExeFolder(tupacKey);
+
+    expect(dismissedFolders()).toEqual([SOLITAIRE_FOLDER]);
+  });
+
+  it("stops ignoring the folder after Restore in Settings", async () => {
+    await ignoreDiscoveredProcess("Game.exe", TUPAC);
+    await ignoreDiscoveredProcess("Game.exe", SOLITAIRE);
+    dismiss([TUPAC_FOLDER, "Game.exe"], [SOLITAIRE_FOLDER, "Game.exe"]);
+
+    await restoreDismissedWatchFolder(TUPAC_FOLDER, "Game.exe");
+
+    expect(dismissedFolders()).toEqual([SOLITAIRE_FOLDER]);
+    expect(ignoredFolders()).toEqual([SOLITAIRE_FOLDER]);
+  });
+
+  it("offers a unique name's folders again when the name is restored", async () => {
+    useAppStore.setState({ userIgnoredProcesses: new Set(["tool.exe"]) });
+    dismiss([TOOL_FOLDER, "tool.exe"], [TUPAC_FOLDER, "Game.exe"]);
+
+    await setUserIgnoredProcess("Tool.exe", false);
+
+    expect(dismissedFolders()).toEqual([TUPAC_FOLDER]);
+  });
+
+  it("clears the in-app block on Restore in Settings", async () => {
+    await ignoreDiscoveredProcess(
+      "Tool.exe",
+      String.raw`D:\Games\Tool\Tool.exe`,
+    );
+    dismiss([TOOL_FOLDER, "tool.exe"]);
+
+    await restoreDismissedWatchFolder(TOOL_FOLDER, "tool.exe");
+
+    expect(useAppStore.getState().blacklist.has("tool.exe")).toBe(false);
+    expect(dismissedFolders()).toEqual([]);
+  });
+});
+
+describe("removing a Game.exe game", () => {
+  it.each(linkedGames)(
+    "asks again for its folder (%s)",
+    async (_label, add) => {
+      add("Tupac", TUPAC);
+      add("Solitaire", SOLITAIRE);
+      const tupac = linkFor(TUPAC)!;
+
+      untrackGame(tupac.gameId, tupac.source, false, [
+        { gameId: tupac.gameId, source: tupac.source },
+      ]);
+      expect(linkFor(TUPAC)).toBeUndefined();
+
+      running = [process(TUPAC, 17)];
+      await scanProcessesNow();
+      expect(activeGameNames()).toEqual([]);
+      expect(useAppStore.getState().ambiguousMatches[0]).toMatchObject({
+        exePath: TUPAC,
+        candidates: [expect.objectContaining({ name: "Solitaire" })],
+      });
+    },
+  );
 });
 
 describe("a game named again after a restore", () => {

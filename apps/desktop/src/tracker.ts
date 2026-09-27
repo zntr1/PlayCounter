@@ -212,6 +212,11 @@ import {
   scanWatchFoldersThrottled,
   startWatchFolderLinks,
 } from "./library/watchFolders";
+import {
+  isInsideFolder,
+  readWatchFolders,
+  restoreDismissedFolder,
+} from "./library/watchFolderState";
 import { providerFloors } from "./library/playtimeFloor";
 import { normalizePlayCounterLibraryEntry } from "./library/playcounterLibrary";
 import {
@@ -1412,6 +1417,7 @@ export async function setUserIgnoredProcess(exeName: string, ignored: boolean) {
   logRuntime(
     `user ignored process ${ignored ? "added" : "removed"} ${exeName}`,
   );
+  if (!ignored) restoreDismissedWatchFolders(exeName);
   void requestProcessScan("after ignored process update");
 }
 
@@ -1453,6 +1459,15 @@ export async function doNotTrackGame(
   ];
 
   for (const exeName of matchingExeNames) {
+    // Game.exe: only this game's folders are ignored, never the name.
+    const folderFiles = [...state.scopedExeLinks.values()]
+      .filter(
+        (link) =>
+          link.exeName.toLowerCase() === exeName.toLowerCase() &&
+          matchesGameAlias(link, aliases),
+      )
+      .map((link) => link.exePath ?? `${link.pathPrefix}\\${link.exeName}`);
+    if (ignoreExeFoldersLocally(exeName, folderFiles)) continue;
     await setUserIgnoredProcess(exeName, true);
   }
   untrackGameInternal(gameId, source, removeHistory, aliases, "ignore");
@@ -5613,9 +5628,62 @@ function ignoreExeFoldersLocally(
 
 /** Undoes ignoring one folder's Game.exe. */
 export function restoreIgnoredExeFolder(key: string) {
+  const entry = useAppStore.getState().ignoredExeFolders.get(key);
   useAppStore.getState().removeIgnoredExeFolder(key);
   persist();
+  if (entry) restoreDismissedWatchFolders(entry.exeName, entry.pathPrefix);
   void requestProcessScan("after ignored folder restored");
+}
+
+/**
+ * Restore in Settings → Watch folders: the folder's file is tracked again,
+ * whether its name or, for Game.exe, only this folder was ignored.
+ */
+export async function restoreDismissedWatchFolder(
+  folderPath: string,
+  exeName: string,
+) {
+  restoreDismissedFolder(folderPath);
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  for (const [folderKey, entry] of state.ignoredExeFolders) {
+    if (
+      entry.exeName.toLowerCase() === key &&
+      isInsideFolder(entry.pathPrefix, folderPath)
+    ) {
+      state.removeIgnoredExeFolder(folderKey);
+    }
+  }
+  if (state.blacklist.has(key)) state.toggleBlacklist(exeName, false);
+  persist();
+  try {
+    await setUserIgnoredProcess(exeName, false);
+  } finally {
+    void scanWatchFolders("folder restored");
+  }
+}
+
+/**
+ * A watched game folder dismissed by ignoring its file comes back once that
+ * file is no longer ignored there. `exeFolder` limits it to the game folder
+ * holding that folder's Game.exe.
+ */
+function restoreDismissedWatchFolders(exeName: string, exeFolder?: string) {
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  if (state.userIgnoredProcesses.has(key)) return;
+  const restored = readWatchFolders().dismissed.filter(
+    (item) =>
+      item.exeName.toLowerCase() === key &&
+      (!exeFolder || isInsideFolder(exeFolder, item.folderPath)) &&
+      ![...state.ignoredExeFolders.values()].some(
+        (ignored) =>
+          ignored.exeName.toLowerCase() === key &&
+          isInsideFolder(ignored.pathPrefix, item.folderPath),
+      ),
+  );
+  for (const item of restored) restoreDismissedFolder(item.folderPath);
+  if (restored.length > 0) void scanWatchFolders("ignored file restored");
 }
 
 export async function ignoreDiscoveredProcess(
@@ -7128,6 +7196,11 @@ function untrackGameInternal(
   const state = useAppStore.getState();
   const identity = personalGameIdentity(state);
   const removedGameKeys = new Set(aliases.map(identity));
+  // A folder link can carry the IGDB id of a database pick (Game.exe) that
+  // nothing else knows, so the alias alone resolves to another key.
+  for (const link of state.scopedExeLinks.values()) {
+    if (matchesGameAlias(link, aliases)) removedGameKeys.add(identity(link));
+  }
   useAppStore.setState({
     playcounterLibrary: new Map(
       [...state.playcounterLibrary].filter(

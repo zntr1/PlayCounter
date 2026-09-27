@@ -86,6 +86,25 @@ it.each([
   },
 );
 
+it.each(["isn't a game at all", "not playing this right now"])(
+  "promises only a folder ignore for Game.exe: %s",
+  async (choice) => {
+    await act(() =>
+      root.render(
+        createElement(ReportWrongMatchDialog, {
+          exeName: "Game.exe",
+          gameName: "Dead Plate",
+          ...handlers,
+        }),
+      ),
+    );
+    await click(choice);
+    expect(document.body.textContent).toContain("Nothing is reported.");
+    expect(document.body.textContent).not.toContain("community review");
+    expect(button("Ignore this folder")).toBeDefined();
+  },
+);
+
 it("reports nothing when the user is only unsure", async () => {
   await render(true);
   await click("not playing this right now");
