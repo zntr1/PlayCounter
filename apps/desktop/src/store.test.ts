@@ -8,6 +8,8 @@ import {
   findPendingCommunitySuggestionEntry,
   resolvedCanonicalGameKey,
   useAppStore,
+  withAddedAt,
+  type ExeCacheEntry,
 } from "./store";
 import { MAX_STORED_SESSIONS } from "./sessionPersistence";
 import { manualLaunchTargetKey } from "./gameLaunch";
@@ -1061,5 +1063,60 @@ describe("canonical game identity", () => {
         resolveIgdbId,
       ),
     ).toBe("community:31");
+  });
+});
+
+describe("exe added date", () => {
+  const matched = (overrides: Partial<ExeCacheEntry> = {}): ExeCacheEntry => ({
+    exeName: "Hades.exe",
+    state: "matched",
+    gameId: 7,
+    gameName: "Hades",
+    source: "igdb",
+    lastCheckedAt: "2026-09-27T12:00:00.000Z",
+    ...overrides,
+  });
+
+  it("dates an exe when it first becomes a game", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-27T12:00:00.000Z"));
+    try {
+      expect(withAddedAt(matched(), undefined).addedAt).toBe(
+        "2026-09-27T12:00:00.000Z",
+      );
+      expect(
+        withAddedAt(matched(), {
+          exeName: "Hades.exe",
+          state: "unmatched",
+          lastCheckedAt: "2026-09-01T12:00:00.000Z",
+        }).addedAt,
+      ).toBe("2026-09-27T12:00:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the first date, or none, when a match is rewritten", () => {
+    const first = "2026-09-01T12:00:00.000Z";
+    expect(
+      withAddedAt(matched({ gameId: 8 }), matched({ addedAt: first })).addedAt,
+    ).toBe(first);
+    expect(withAddedAt(matched(), matched()).addedAt).toBeUndefined();
+  });
+
+  it("never dates software, Discovered or ignored entries", () => {
+    for (const state of ["tool", "unmatched", "blacklisted"] as const) {
+      expect(
+        withAddedAt(matched({ state }), undefined).addedAt,
+      ).toBeUndefined();
+    }
+  });
+
+  it("stamps through setExeCacheEntry", () => {
+    useAppStore.setState({ exeCache: new Map() });
+    useAppStore.getState().setExeCacheEntry(matched());
+    expect(
+      useAppStore.getState().exeCache.get("hades.exe")?.addedAt,
+    ).toBeDefined();
   });
 });

@@ -163,6 +163,7 @@ const exeEntry = object(
     libraryExternalId: nonempty,
     trackedSeconds: nonnegative,
     runningSince: date,
+    addedAt: date,
   },
 );
 const libraryImport = object(
@@ -303,7 +304,7 @@ const settings = object({}, {
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),
-  librarySortKey: oneOf("recent", "playtime", "name", "sessions"),
+  librarySortKey: oneOf("recent", "added", "playtime", "name", "sessions"),
   libraryShowBadges: boolean,
   libraryShowOriginBadges: boolean,
   libraryShowMatchBadges: boolean,
