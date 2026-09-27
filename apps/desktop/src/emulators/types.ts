@@ -1,6 +1,7 @@
 import type {
   EmulatorContentKind,
   ContributionStatus,
+  EmulatorId,
   EmulatorSignalTrust,
   Game,
   GameSource,
@@ -56,8 +57,14 @@ export type EmulatorReadContext = {
 };
 
 export interface EmulatorAdapter {
-  id: string;
+  id: EmulatorId;
   label: string;
+  /** Guest systems, e.g. "GameCube / Wii". */
+  platformLabel: string;
+  /** Emulator page subtitle. */
+  subtitle: string;
+  /** Host executables, lowercase. Mirrors EMULATOR_HOSTS in Rust. */
+  exeNames: readonly string[];
   read(
     signals: RawEmulatorSignals,
     context: EmulatorReadContext,

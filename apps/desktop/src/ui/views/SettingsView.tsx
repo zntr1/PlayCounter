@@ -26,7 +26,7 @@ import {
   setEmulatorIgnored,
 } from "../../tracker";
 import { emulatorAssetUrls } from "../../emulators/assets";
-import { adapterFor } from "../../emulators/registry";
+import { adapterFor, emulatorLabelList } from "../../emulators/registry";
 import { exportLocalData, importLocalData } from "../../backup";
 import { useAppStore, useIsOffline } from "../../store";
 import {
@@ -886,7 +886,7 @@ export function SettingsView() {
 
       <SettingsPanel
         dataTour="settings-emulators"
-        description="Detect the game running inside DOSBox, Dolphin, or PCSX2."
+        description={`Detect the game running inside ${emulatorLabelList("or")}.`}
         title="Emulators"
       >
         <SettingsRow

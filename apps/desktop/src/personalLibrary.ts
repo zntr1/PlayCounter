@@ -1,5 +1,9 @@
 import type { GameIdentityRef } from "./store";
-import type { LibraryFeaturedGame, Session } from "@playcounter/shared";
+import type {
+  EmulatorId,
+  LibraryFeaturedGame,
+  Session,
+} from "@playcounter/shared";
 
 export const NOTE_LIMIT = 4000;
 export const NAME_LIMIT = 80;
@@ -39,7 +43,7 @@ export type LibraryFilters = {
   /** Launchable (Play can start it). Keeps its old saved name for shelves and backups. */
   installed?: boolean;
   played?: "played" | "unplayed";
-  emulator?: "dosbox" | "dolphin" | "pcsx2";
+  emulator?: EmulatorId;
   lastPlayedDays?: number;
 };
 export type PersonalShelf = {

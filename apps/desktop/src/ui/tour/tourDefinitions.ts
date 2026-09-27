@@ -1,5 +1,6 @@
 import type { ViewId } from "../../store";
 import { TOUR_DEMO_GAME } from "./tourDemoGame";
+import { emulatorLabelList } from "../../emulators/registry";
 
 export type TourAdvance =
   | { type: "anchor-present"; selector: string }
@@ -1343,7 +1344,7 @@ export const TOURS: TourDefinition[] = [
         scrollIntoView: true,
         allow: [a("settings-emulators")],
         title: "Emulator games",
-        body: "Detect emulator games finds the game running inside DOSBox, Dolphin, or PCSX2, so it gets its own cover and playtime instead of counting as the emulator. Look up recognized content sends only the recognized file name or disc ID to find the game.\n\nThe Track emulator games guide shows this in action.",
+        body: `Detect emulator games finds the game running inside ${emulatorLabelList("or")}, so it gets its own cover and playtime instead of counting as the emulator. Look up recognized content sends only the recognized file name or disc ID to find the game.\n\nThe Track emulator games guide shows this in action.`,
       },
       {
         id: "sharing",
@@ -1509,7 +1510,7 @@ export const TOURS: TourDefinition[] = [
         id: "intro",
         view: "settings",
         title: "Games inside emulators",
-        body: "PlayCounter can recognize games inside Dolphin, DOSBox, and PCSX2. This guide uses a sample Dolphin setup. You can confirm and change its match; nothing is saved or shared.",
+        body: `PlayCounter can recognize games inside ${emulatorLabelList("and")}. This guide uses a sample Dolphin setup. You can confirm and change its match; nothing is saved or shared.`,
       },
       {
         id: "settings",

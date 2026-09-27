@@ -18,7 +18,9 @@ use std::{
 #[cfg(windows)]
 use std::process::{Command, Stdio};
 
-use crate::process::emulator::{DOLPHIN_CONTENT_EXTENSIONS, PCSX2_CONTENT_EXTENSIONS};
+use crate::process::emulator::{
+    DOLPHIN_CONTENT_EXTENSIONS, MGBA_CONTENT_EXTENSIONS, PCSX2_CONTENT_EXTENSIONS,
+};
 const DOSBOX_EXTENSIONS: &[&str] = &["conf", "exe", "com", "bat"];
 
 struct EmulatorLaunchAdapter {
@@ -92,6 +94,27 @@ fn is_dosbox_idle(process: &ProcessSnapshot) -> bool {
         .unwrap_or(false)
 }
 
+/// "mGBA - <version>" is mGBA's title without a game. An instance started with a
+/// ROM may only have its dynamic title turned off, so it is never closed.
+fn is_mgba_idle(process: &ProcessSnapshot) -> bool {
+    let started_with_rom = process.command_line.as_ref().is_some_and(|args| {
+        args.iter().any(|arg| {
+            let lower = file_name(arg).to_ascii_lowercase();
+            MGBA_CONTENT_EXTENSIONS
+                .iter()
+                .any(|extension| lower.ends_with(&format!(".{extension}")))
+        })
+    });
+    let Some(title) = process.window_title.as_deref().map(str::trim) else {
+        return false;
+    };
+    let version = match title.get(..7) {
+        Some(prefix) if prefix.eq_ignore_ascii_case("mgba - ") => &title[7..],
+        _ => return false,
+    };
+    !started_with_rom && !version.is_empty() && !version.contains(char::is_whitespace)
+}
+
 static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
     EmulatorLaunchAdapter {
         id: "dosbox",
@@ -116,6 +139,14 @@ static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
         // A generic PCSX2 window may coexist with a separate game window.
         // Do not close a running instance based on its title alone.
         is_idle: |_| false,
+    },
+    EmulatorLaunchAdapter {
+        id: "mgba",
+        label: "mGBA",
+        extensions: MGBA_CONTENT_EXTENSIONS,
+        // mGBA [options] [game]: one positional ROM path.
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        is_idle: is_mgba_idle,
     },
 ];
 
@@ -627,6 +658,48 @@ mod tests {
             (adapter.arguments)(path),
             vec![path.as_os_str().to_os_string()]
         );
+    }
+
+    #[test]
+    fn builds_mgba_launch_and_closes_only_an_idle_instance() {
+        let adapter = launch_adapter_for("mgba").unwrap();
+        for extension in ["gba", "GB", "gbc", "sgb", "zip", "7z"] {
+            assert!(has_supported_extension(
+                adapter,
+                &format!(r"D:\ROMs\Game.{extension}")
+            ));
+        }
+        assert!(!has_supported_extension(adapter, r"D:\ROMs\Game.sav"));
+        let path = Path::new(r"D:\ROMs\Pokemon FireRed.gba");
+        assert_eq!(
+            (adapter.arguments)(path),
+            vec![path.as_os_str().to_os_string()]
+        );
+
+        let idle = ProcessSnapshot {
+            exe_name: "mGBA.exe".to_string(),
+            exe_path: None,
+            pid: 1,
+            started_at_unix: 1,
+            emulator_id: Some("mgba"),
+            command_line: Some(Vec::new()),
+            working_directory: None,
+            window_title: Some("mGBA - 0.10.5".to_string()),
+            open_files: None,
+        };
+        assert!(is_mgba_idle(&idle));
+        assert!(!is_mgba_idle(&ProcessSnapshot {
+            window_title: Some("mGBA - POKEMON FIRE (59.7 fps) - 0.10.5".to_string()),
+            ..idle.clone()
+        }));
+        assert!(!is_mgba_idle(&ProcessSnapshot {
+            command_line: Some(vec![r"D:\ROMs\Pokemon FireRed.gba".to_string()]),
+            ..idle.clone()
+        }));
+        assert!(!is_mgba_idle(&ProcessSnapshot {
+            window_title: Some("mGBA".to_string()),
+            ..idle
+        }));
     }
 
     #[cfg(windows)]

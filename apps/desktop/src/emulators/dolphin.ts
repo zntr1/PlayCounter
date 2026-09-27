@@ -228,6 +228,9 @@ function finalizeSignal(
 export const dolphinAdapter: EmulatorAdapter = {
   id: "dolphin",
   label: "Dolphin",
+  platformLabel: "GameCube / Wii",
+  subtitle: "GameCube and Wii games, mappings, and emulator playtime",
+  exeNames: ["dolphin.exe"],
   launch: {
     targetKinds: ["file"],
     fileExtensions: [

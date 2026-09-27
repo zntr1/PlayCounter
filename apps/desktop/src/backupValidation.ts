@@ -1,4 +1,5 @@
 import type { Settings } from "@playcounter/shared";
+import { EMULATOR_IDS } from "./emulators/registry";
 import { isInterfaceScale } from "./interfaceScale";
 import { isFeedbackReplyId } from "./notifications";
 import { isLibraryGridColumns } from "./ui/myGamesPresentation";
@@ -435,7 +436,7 @@ const validateBackupShape: Validator = object(
               favorite: boolean,
               installed: boolean,
               played: oneOf("played", "unplayed"),
-              emulator: oneOf("dosbox", "dolphin", "pcsx2"),
+              emulator: oneOf(...EMULATOR_IDS),
               lastPlayedDays: positiveId,
             },
           ),

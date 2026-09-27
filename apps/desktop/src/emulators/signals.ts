@@ -13,6 +13,8 @@ export const GENERIC_IDENTITY_DENYLIST = new Set([
   "dolphin-emu",
   "pcsx2",
   "pcsx2-qt",
+  "mgba",
+  "mgba-sdl",
   "bios",
   "ps2 bios",
   "boot",
@@ -98,7 +100,7 @@ export function normalizeToken(raw: string, kind?: EmulatorContentKind) {
     return null;
   }
   const base = token.replace(
-    /\.(?:exe|com|bat|conf|elf|dol|gcm|iso|tgc|wbfs|ciso|gcz|wad|dff|wia|rvz|json|bin|img|mdf|chd|cso|zso|(?:iso\.)?gz)$/i,
+    /\.(?:exe|com|bat|conf|elf|dol|gcm|iso|tgc|wbfs|ciso|gcz|wad|dff|wia|rvz|json|bin|img|mdf|chd|cso|zso|(?:iso\.)?gz|gba|gbc|gb|sgb|zip|7z)$/i,
     "",
   );
   const denylist =
