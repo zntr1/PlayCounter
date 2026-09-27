@@ -15,14 +15,19 @@ const KNOWN_CONTROLLER_RETRY_MS: u64 = 100;
 const NEW_CONTROLLER_PROBE_MS: u64 = 2_000;
 const STICK_DEAD_ZONE: i16 = 16_000;
 const SCROLL_DEAD_ZONE: i16 = 12_000;
-const BUTTON_DPAD_UP: u16 = 0x0001;
-const BUTTON_DPAD_DOWN: u16 = 0x0002;
-const BUTTON_DPAD_LEFT: u16 = 0x0004;
-const BUTTON_DPAD_RIGHT: u16 = 0x0008;
-const BUTTON_VIEW: u16 = 0x0020;
-const BUTTON_RIGHT_SHOULDER: u16 = 0x0200;
-const BUTTON_A: u16 = 0x1000;
-const BUTTON_B: u16 = 0x2000;
+// Pads that fire within this window of the pad in use are ignored. DS4Windows
+// or DSX without HidHide show one PlayStation pad twice (itself and a virtual
+// Xbox pad), and both copies would otherwise move the selection.
+const INPUT_OWNER_QUIET_MS: u64 = 500;
+// XInput button bits. PlayStation pads are translated into the same layout.
+pub(crate) const BUTTON_DPAD_UP: u16 = 0x0001;
+pub(crate) const BUTTON_DPAD_DOWN: u16 = 0x0002;
+pub(crate) const BUTTON_DPAD_LEFT: u16 = 0x0004;
+pub(crate) const BUTTON_DPAD_RIGHT: u16 = 0x0008;
+pub(crate) const BUTTON_VIEW: u16 = 0x0020;
+pub(crate) const BUTTON_RIGHT_SHOULDER: u16 = 0x0200;
+pub(crate) const BUTTON_A: u16 = 0x1000;
+pub(crate) const BUTTON_B: u16 = 0x2000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,11 +44,43 @@ pub enum ControllerAction {
     Back,
 }
 
+// Which button art the UI shows. A PlayStation pad that reaches us through
+// XInput (Steam, DS4Windows, DSX) is indistinguishable from an Xbox pad.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ControllerKind {
+    Xbox,
+    Ps5,
+    Ps4,
+}
+
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ControllerEvent {
     action: ControllerAction,
     at: u64,
+    kind: ControllerKind,
+}
+
+// The pad that fired last owns input until it has been quiet for
+// INPUT_OWNER_QUIET_MS. Sources are XInput slots 0-3 and HID pads from 4 up.
+#[derive(Debug, Default)]
+struct InputOwner {
+    source: Option<usize>,
+    last_action_at: u64,
+}
+
+impl InputOwner {
+    fn accepts(&mut self, source: usize, now_ms: u64) -> bool {
+        let owned_by_other = self.source.is_some_and(|owner| owner != source)
+            && now_ms.saturating_sub(self.last_action_at) < INPUT_OWNER_QUIET_MS;
+        if owned_by_other {
+            return false;
+        }
+        self.source = Some(source);
+        self.last_action_at = now_ms;
+        true
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -212,10 +249,12 @@ async fn watch_controllers(
     let mut machines = std::array::from_fn::<_, 4, _>(|_| ControllerMachine::default());
     let mut next_probe_at = [0_u64; 4];
     let mut seen_connected = [false; 4];
+    let mut playstation_pads = super::playstation_pad::PlaystationPads::new(4);
+    let mut owner = InputOwner::default();
     let mut focus_grace_until = 0_u64;
     while current_generation.load(Ordering::SeqCst) == generation {
         let now_ms = started.elapsed().as_millis() as u64;
-        let mut selected_actions = Vec::new();
+        let mut selected: Option<(ControllerKind, Vec<ControllerAction>)> = None;
         for slot in 0..4 {
             if now_ms < next_probe_at[slot] {
                 continue;
@@ -240,16 +279,22 @@ async fn watch_controllers(
                 state.Gamepad.sThumbRY,
                 now_ms,
             );
-            if selected_actions.is_empty() && !actions.is_empty() {
-                selected_actions = actions;
+            if selected.is_none() && !actions.is_empty() && owner.accepts(slot, now_ms) {
+                selected = Some((ControllerKind::Xbox, actions));
             }
         }
+        for (source, kind, actions) in playstation_pads.poll(now_ms) {
+            if selected.is_none() && owner.accepts(source, now_ms) {
+                selected = Some((kind, actions));
+            }
+        }
+        let (kind, selected_actions) = selected.unwrap_or((ControllerKind::Xbox, Vec::new()));
         for action in selected_actions {
             if action == ControllerAction::Reveal {
                 focus_grace_until = now_ms + REVEAL_FOCUS_GRACE_MS;
             }
             let allow_focus_grace = now_ms <= focus_grace_until;
-            emit_action(&app, action, now_ms, allow_focus_grace);
+            emit_action(&app, action, kind, now_ms, allow_focus_grace);
             if action != ControllerAction::Reveal && allow_focus_grace {
                 focus_grace_until = 0;
             }
@@ -266,7 +311,13 @@ async fn watch_controllers(
 ) {
 }
 
-fn emit_action(app: &tauri::AppHandle, action: ControllerAction, at: u64, allow_focus_grace: bool) {
+fn emit_action(
+    app: &tauri::AppHandle,
+    action: ControllerAction,
+    kind: ControllerKind,
+    at: u64,
+    allow_focus_grace: bool,
+) {
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
@@ -289,7 +340,11 @@ fn emit_action(app: &tauri::AppHandle, action: ControllerAction, at: u64, allow_
             let _ = window.set_focus();
         }
     }
-    let _ = app.emit_to("main", "controller-input", ControllerEvent { action, at });
+    let _ = app.emit_to(
+        "main",
+        "controller-input",
+        ControllerEvent { action, at, kind },
+    );
 }
 
 #[cfg(test)]
@@ -399,6 +454,18 @@ mod tests {
             machine.update(0, (0, 0), 20_000, 48),
             vec![ControllerAction::ScrollUp]
         );
+    }
+
+    #[test]
+    fn the_pad_in_use_keeps_input_until_it_is_quiet() {
+        let mut owner = InputOwner::default();
+        assert!(owner.accepts(4, 0));
+        // The virtual Xbox copy of the same pad fires a moment later.
+        assert!(!owner.accepts(0, 8));
+        assert!(owner.accepts(4, 120));
+        assert!(!owner.accepts(0, 619));
+        assert!(owner.accepts(0, 620));
+        assert!(!owner.accepts(4, 700));
     }
 
     #[test]

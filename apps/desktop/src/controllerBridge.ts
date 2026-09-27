@@ -9,8 +9,13 @@ import {
   type ControllerAction,
   type ControllerItemRect,
 } from "./controllerInput";
+import { setControllerKind, type ControllerKind } from "./controllerKind";
 
-type ControllerEvent = { action: ControllerAction; at: number };
+type ControllerEvent = {
+  action: ControllerAction;
+  at: number;
+  kind?: ControllerKind;
+};
 
 export const CONTROLLER_MODE_EVENT = "playcounter:controller-mode";
 export const CONTROLLER_LIBRARY_VIEW_EVENT =
@@ -340,6 +345,7 @@ function handleControllerEvent(
 ) {
   if (bridge !== state || state.disposed || !state.armed || !shouldWatch(state))
     return;
+  setControllerKind(event.kind ?? "xbox");
   emitControllerMode(true);
   if (useAppStore.getState().activeTour) return;
   if (event.action === "scrollUp" || event.action === "scrollDown") {

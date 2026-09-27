@@ -78,7 +78,12 @@ import {
   DEFAULT_MENU_SCALE,
   normalizeInterfaceScale,
 } from "../interfaceScale";
-import { XboxButtonGlyph, type XboxControl } from "./XboxButtonGlyph";
+import {
+  ControllerButtonGlyph,
+  controllerButtonName,
+  type ControllerControl,
+} from "./ControllerButtonGlyph";
+import { useControllerKind } from "../controllerKind";
 import { Button, IconButton } from "./primitives";
 import { useNeedsReviewCount } from "./views/DiscoveredView";
 import { DevToolsView } from "./views/DevToolsView";
@@ -1225,7 +1230,7 @@ export function App() {
               aria-hidden="true"
               className="controller-scroll-focus-indicator pointer-events-none absolute right-5 top-5 z-40 flex items-center gap-2 rounded-full border border-accent/60 bg-bg/95 px-3 py-2 text-xs font-semibold text-accent-ink shadow-raised backdrop-blur"
             >
-              <XboxButtonGlyph button="RIGHT_STICK" size="small" />
+              <ControllerButtonGlyph button="RIGHT_STICK" size="small" />
               <span>Scrolling this view</span>
             </div>
           ) : null}
@@ -1348,6 +1353,7 @@ function ViewHeading({
 }
 
 function ControllerModeFooter() {
+  const kind = useControllerKind();
   return (
     <div
       aria-label="Controller mode controls"
@@ -1367,11 +1373,11 @@ function ControllerModeFooter() {
         <ControllerHint button="VIEW" label="Card size" />
         <div
           className="flex min-w-0 items-center gap-1.5"
-          aria-label="Hold View plus right bumper for two seconds to bring PlayCounter forward"
+          aria-label={`Hold ${controllerButtonName(kind, "VIEW")} plus ${controllerButtonName(kind, "RB")} for two seconds to bring PlayCounter forward`}
         >
-          <XboxButtonGlyph button="VIEW" />
+          <ControllerButtonGlyph button="VIEW" />
           <span className="text-text-faint">+</span>
-          <XboxButtonGlyph button="RB" />
+          <ControllerButtonGlyph button="RB" />
           <span className="truncate text-text-faint">
             Hold 2 sec · Bring PlayCounter forward
           </span>
@@ -1381,28 +1387,20 @@ function ControllerModeFooter() {
   );
 }
 
-const controllerNames: Record<XboxControl, string> = {
-  A: "A",
-  B: "B",
-  DPAD: "D-pad",
-  RIGHT_STICK: "Right stick",
-  VIEW: "View",
-  RB: "Right bumper",
-};
-
 function ControllerHint({
   button,
   label,
 }: {
-  button: XboxControl;
+  button: ControllerControl;
   label: string;
 }) {
+  const kind = useControllerKind();
   return (
     <span
       className="flex items-center gap-2"
-      aria-label={`${controllerNames[button]}: ${label}`}
+      aria-label={`${controllerButtonName(kind, button)}: ${label}`}
     >
-      <XboxButtonGlyph button={button} />
+      <ControllerButtonGlyph button={button} />
       <span>{label}</span>
     </span>
   );
