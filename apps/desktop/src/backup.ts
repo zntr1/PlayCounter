@@ -45,6 +45,7 @@ const DEVICE_LOCAL_KEYS = [
   "emulatorLaunchCandidates",
   "libraryInstalls",
   "scopedExeLinks",
+  "ignoredExeFolders",
 ];
 const NOTIFICATION_STATE_KEYS = [
   "notifications",

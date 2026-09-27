@@ -17,6 +17,14 @@ export type MatchedExeLike = {
   source?: GameSource;
 };
 
+/** A folder link that knows its file (a generic exe such as Game.exe). */
+export type FolderLinkLike = {
+  exeName: string;
+  exePath?: string;
+  gameId: number;
+  source: GameSource;
+};
+
 export type LaunchErrorKind =
   | "invalidPath"
   | "notAFile"
@@ -130,13 +138,27 @@ function sameOwner(left: LaunchOwner, right: LaunchOwner) {
   return left.gameId === right.gameId && left.source === right.source;
 }
 
+function samePath(left: string, right: string) {
+  return left.toLowerCase() === right.toLowerCase();
+}
+
 export function launchTargetsForGame(params: {
   exeNames: readonly string[];
   aliases: readonly LaunchOwner[];
   launchTargets: ReadonlyMap<string, LaunchTargetLike>;
   exeCache: ReadonlyMap<string, MatchedExeLike>;
+  scopedExeLinks?: ReadonlyMap<string, FolderLinkLike>;
 }) {
   const result: LaunchTargetLike[] = [];
+  // Each Game.exe game starts its own folder's file; the name's launch path
+  // is only the copy that ran last.
+  for (const link of params.scopedExeLinks?.values() ?? []) {
+    if (!link.exePath || !isWindowsExecutablePath(link.exePath)) continue;
+    const owner = { gameId: link.gameId, source: link.source };
+    if (!params.aliases.some((alias) => sameOwner(alias, owner))) continue;
+    if (result.some((target) => samePath(target.path, link.exePath!))) continue;
+    result.push({ exeName: link.exeName, path: link.exePath, owner });
+  }
   const seen = new Set<string>();
   for (const exeName of params.exeNames) {
     const key = exeName.toLowerCase();
@@ -152,6 +174,7 @@ export function launchTargetsForGame(params: {
     }
     const owner = resolveLaunchOwner(key, target, params.exeCache);
     if (!params.aliases.some((alias) => sameOwner(alias, owner))) continue;
+    if (result.some((known) => samePath(known.path, target.path))) continue;
     result.push(target);
   }
   return result;

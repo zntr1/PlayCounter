@@ -1,7 +1,7 @@
 import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import type { ExeCacheEntry, GameMetadata } from "../store";
 import { normalizeWindowsDir } from "./scopedLinks";
-import { manualExecutableNeedsScope } from "./exeCandidates";
+import { isGenericExeName, manualExecutableNeedsScope } from "./exeCandidates";
 import { customLocalGameId, scopedLocalGameId } from "./localGameIds";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
 import type {
@@ -78,7 +78,22 @@ export function buildLibraryImportCommit(input: {
     const name = executable.name;
     linked.add(name);
     linkedExeSources.add(executable.identifierSource);
-    if (
+    if (isGenericExeName(name)) {
+      // Game.exe names no game on its own: only this install's copy counts.
+      if (installPath) {
+        scopedLinks.push(
+          toScopedLink(
+            name,
+            installPath,
+            scanned.externalId,
+            provider,
+            game,
+            executable.identifierSource,
+            now,
+          ),
+        );
+      }
+    } else if (
       provider !== "battlenet" &&
       executable.verified &&
       (!executable.ambiguous || provider === "steam")

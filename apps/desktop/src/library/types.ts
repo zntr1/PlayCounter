@@ -53,9 +53,13 @@ export type ScopedExeLink = {
   source: GameSource;
   /** Provenance of the executable mapping, separate from game identity. */
   identifierSource?: GameSource;
-  igdbId: number;
+  /** Absent for a game named on this PC (a generic exe's custom game). */
+  igdbId?: number;
   gameName: string;
   coverUrl: string;
+  /** The file this link was made from, when its folder is the link's folder:
+   *  Play starts it. Launcher links point at the install root instead. */
+  exePath?: string;
   /** Absent after moving to PlayCounter; the folder restriction still applies. */
   provider?: LibraryProviderId;
   externalId?: string;
@@ -66,6 +70,14 @@ export type ScopedExeLink = {
   communitySuggestionStatus?: ContributionStatus;
   communitySuggestionNote?: string;
   shareState?: "unshared" | "failed";
+};
+
+/** One folder's copy of a generic exe (Game.exe) ignored on this PC. Other
+ *  folders with the same file name are still tracked. */
+export type IgnoredExeFolder = {
+  exeName: string;
+  pathPrefix: string;
+  ignoredAt: string;
 };
 
 export type ProviderStatus = {

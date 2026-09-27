@@ -5,6 +5,7 @@ import type { EmulatorMapping } from "./emulators/types";
 import {
   findManualLaunchTarget,
   launchTargetsForGame,
+  type FolderLinkLike,
   type LaunchOwner,
   type LaunchTargetLike,
   type MatchedExeLike,
@@ -30,6 +31,7 @@ export type LaunchSources = {
   launchTargets: ReadonlyMap<string, LaunchTargetLike>;
   manualLaunchTargets: ReadonlyMap<string, LaunchTargetLike>;
   exeCache: ReadonlyMap<string, MatchedExeLike>;
+  scopedExeLinks: ReadonlyMap<string, FolderLinkLike>;
   emulatorMappings: ReadonlyMap<string, EmulatorMapping>;
   emulatorAutoLaunchTargets: ReadonlyMap<string, EmulatorLaunchTarget>;
   emulatorManualLaunchTargets: ReadonlyMap<string, EmulatorLaunchTarget>;
@@ -58,6 +60,7 @@ export function isLaunchable(game: LaunchableGame, sources: LaunchSources) {
       aliases: game.aliases,
       launchTargets: sources.launchTargets,
       exeCache: sources.exeCache,
+      scopedExeLinks: sources.scopedExeLinks,
     }).length > 0
   )
     return true;

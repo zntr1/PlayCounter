@@ -3044,7 +3044,7 @@ describe("negative match reports", () => {
     id: 10,
     gameId: 42,
     gameName: "Wrong game",
-    exeName: "Game.exe",
+    exeName: "WrongGame.exe",
     coverUrl: "cover",
     source: "igdb" as const,
     startedAt: "2026-08-09T10:00:00.000Z",
@@ -3054,7 +3054,7 @@ describe("negative match reports", () => {
     id: 11,
     gameId: 42,
     gameName: "Wrong game",
-    exeName: "Game.exe",
+    exeName: "WrongGame.exe",
     coverUrl: "cover",
     source: "igdb",
     startedAt: "2026-08-08T10:00:00.000Z",
@@ -3067,8 +3067,9 @@ describe("negative match reports", () => {
       installUuid,
       exeCache: new Map([
         [
-          "game.exe",
+          "wronggame.exe",
           entry({
+            exeName: "WrongGame.exe",
             gameId: 42,
             gameName: "Wrong game",
             source: "igdb",
@@ -3090,19 +3091,19 @@ describe("negative match reports", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const outcome = await reportNegativeMatch("Game.exe");
+    const outcome = await reportNegativeMatch("WrongGame.exe");
 
     expect(outcome).toEqual({
       localBlockApplied: true,
       ignoreFileUpdated: true,
       report: "recorded",
     });
-    expect(useAppStore.getState().blacklist.has("game.exe")).toBe(true);
-    expect(useAppStore.getState().exeCache.has("game.exe")).toBe(false);
+    expect(useAppStore.getState().blacklist.has("wronggame.exe")).toBe(true);
+    expect(useAppStore.getState().exeCache.has("wronggame.exe")).toBe(false);
     expect(useAppStore.getState().activeSessions).toEqual([]);
     expect(useAppStore.getState().recentSessions).toEqual([historySession]);
     expect(invokeMock).toHaveBeenCalledWith("set_user_ignored_process", {
-      exeName: "Game.exe",
+      exeName: "WrongGame.exe",
       ignored: true,
     });
     const reportRequest = fetchMock.mock.calls.find(([url]) =>
@@ -3110,7 +3111,7 @@ describe("negative match reports", () => {
     );
     expect(reportRequest).toBeDefined();
     expect(JSON.parse(String(reportRequest?.[1]?.body))).toEqual({
-      exeName: "Game.exe",
+      exeName: "WrongGame.exe",
       reason: "not_a_game",
       installUuid,
       gameId: 42,
@@ -3125,7 +3126,7 @@ describe("negative match reports", () => {
         throw new Error("file locked");
       }
       if (command === "scan_processes") {
-        return [{ exeName: "Game.exe", exePath: null }];
+        return [{ exeName: "WrongGame.exe", exePath: null }];
       }
       return undefined;
     });
@@ -3145,7 +3146,7 @@ describe("negative match reports", () => {
         json: async () => ({
           matches: [
             {
-              key: "game.exe",
+              key: "wronggame.exe",
               game: {
                 id: 42,
                 name: "Wrong game",
@@ -3159,7 +3160,7 @@ describe("negative match reports", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const outcome = await reportNegativeMatch("Game.exe");
+    const outcome = await reportNegativeMatch("WrongGame.exe");
     await vi.waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith("scan_processes"),
     );
@@ -3169,8 +3170,8 @@ describe("negative match reports", () => {
       ignoreFileUpdated: false,
       report: "recorded",
     });
-    expect(useAppStore.getState().blacklist.has("game.exe")).toBe(true);
-    expect(useAppStore.getState().exeCache.has("game.exe")).toBe(false);
+    expect(useAppStore.getState().blacklist.has("wronggame.exe")).toBe(true);
+    expect(useAppStore.getState().exeCache.has("wronggame.exe")).toBe(false);
     expect(useAppStore.getState().activeSessions).toEqual([]);
     expect(
       fetchMock.mock.calls.filter(([url]) =>

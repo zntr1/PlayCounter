@@ -33,6 +33,13 @@ const GENERIC_BASENAMES = new Set([
   "config",
   "settings",
   "sh",
+  // Engine runtimes shipped unchanged with every game: RPG Maker 2000/2003
+  // (RPG_RT.exe), unrenamed NW.js builds, EasyRPG Player and Pixel Game
+  // Maker MV (Player.exe), unfused LÖVE games.
+  "rpgrt",
+  "nw",
+  "player",
+  "love",
 ]);
 
 export function importExeCandidates(
@@ -103,9 +110,15 @@ function isInstallerOrCrashExecutable(fileName: string) {
 }
 
 export function manualExecutableNeedsScope(executable: ScannedExecutable) {
-  const basename = executable.fileName
+  return isGenericExeName(executable.fileName) || executable.depth > 3;
+}
+
+/** A file name many games ship (Game.exe): it names no game on its own, so a
+ *  link for it is kept to the folder it runs from. */
+export function isGenericExeName(exeName: string) {
+  const basename = exeName
     .replace(/\.exe$/i, "")
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
-  return GENERIC_BASENAMES.has(basename) || executable.depth > 3;
+  return GENERIC_BASENAMES.has(basename);
 }

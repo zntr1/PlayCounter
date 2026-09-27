@@ -19,6 +19,7 @@ const OBJECT_LISTS = [
   "playcounterLibrary",
   "libraryInstalls",
   "scopedExeLinks",
+  "ignoredExeFolders",
   "sessions",
   "activeSessions",
   "ambiguousMatches",
@@ -57,6 +58,7 @@ const REQUIRED_STRINGS: Record<string, string[]> = {
   sessions: ["exeName", "startedAt"],
   activeSessions: ["exeName", "startedAt"],
   ambiguousMatches: ["exeName"],
+  ignoredExeFolders: ["exeName", "pathPrefix", "ignoredAt"],
   emulatorMappings: ["contentKey", "emulatorId"],
   knownEmulators: ["emulatorId"],
 };

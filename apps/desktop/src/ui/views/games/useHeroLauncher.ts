@@ -55,6 +55,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     (state) => state.emulatorManualLaunchTargets,
   );
   const exeCache = useAppStore((state) => state.exeCache);
+  const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
   const launcherEnabled = useAppStore(
     (state) => state.settings.gameLaunchingEnabled === true,
   );
@@ -83,6 +84,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       aliases: game.aliases,
       launchTargets,
       exeCache,
+      scopedExeLinks,
     });
     if (!manualTarget) return auto;
     const manualKey = manualTarget.exeName.toLowerCase();
@@ -90,7 +92,14 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       manualTarget,
       ...auto.filter((target) => target.exeName.toLowerCase() !== manualKey),
     ];
-  }, [exeCache, game.aliases, game.exeNames, launchTargets, manualTarget]);
+  }, [
+    exeCache,
+    game.aliases,
+    game.exeNames,
+    launchTargets,
+    manualTarget,
+    scopedExeLinks,
+  ]);
   const primaryLaunchTarget = ownedLaunchTargets[0];
   const steamImportEntry = game.libraryImports.find(
     (entry) => entry.provider === "steam",
@@ -125,6 +134,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
       launchTargets,
       manualLaunchTargets,
       exeCache,
+      scopedExeLinks,
       emulatorMappings,
       emulatorAutoLaunchTargets,
       emulatorManualLaunchTargets,

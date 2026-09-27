@@ -67,6 +67,7 @@ import {
   acceptCommunityUpgrade,
   addManualSession,
   applyGameMatch,
+  applyDatabaseGameToFolderLinks,
   applyLocalLinkGameMatch,
   applyKnownGameMatch,
   cancelCommunitySuggestion,
@@ -126,6 +127,8 @@ import {
   providerFloorsForProvider,
 } from "../../library/playtimeFloor";
 import { commitLibraryImports } from "../../library/commit";
+import { notifyFolderIgnored } from "./folderIgnoredToast";
+import { isGenericExeName } from "../../library/exeCandidates";
 import { MoveToPlayCounterDialog } from "./games/MoveToPlayCounterDialog";
 import { LibraryMatchOffer } from "../LibraryMatchOffer";
 import {
@@ -1519,6 +1522,7 @@ export function MyGamesView({
         launchTargets,
         manualLaunchTargets,
         exeCache,
+        scopedExeLinks,
         emulatorMappings,
         emulatorAutoLaunchTargets,
         emulatorManualLaunchTargets,
@@ -2997,8 +3001,9 @@ export function GameLibraryCard({
         aliases: game.aliases,
         launchTargets,
         exeCache,
+        scopedExeLinks,
       }),
-    [exeCache, game.aliases, game.exeNames, launchTargets],
+    [exeCache, game.aliases, game.exeNames, launchTargets, scopedExeLinks],
   );
   const ownedLaunchTargets = useMemo(() => {
     if (!manualTarget) return autoLaunchTargets;
@@ -3085,6 +3090,7 @@ export function GameLibraryCard({
     launchTargets,
     manualLaunchTargets,
     exeCache,
+    scopedExeLinks,
     emulatorMappings,
     emulatorAutoLaunchTargets,
     emulatorManualLaunchTargets,
@@ -3163,8 +3169,9 @@ export function GameLibraryCard({
         game.exeNames,
         exeCache,
         scopedExeLinks,
+        game.aliases,
       ),
-    [exeCache, game.exeNames, scopedExeLinks],
+    [exeCache, game.aliases, game.exeNames, scopedExeLinks],
   );
   const canSuggestToCommunity = canSuggestCustomGameToCommunity({
     source: primaryLocalLink?.source ?? primaryExeEntry?.source ?? game.source,
@@ -3329,7 +3336,22 @@ export function GameLibraryCard({
     if (!exeName) return;
     setReportOpen(false);
     setShowMatchCheck(false);
-    const outcome = await reportNegativeMatch(exeName);
+    // Game.exe is ignored in this game's folders only.
+    const folderFiles = [...scopedExeLinks.values()]
+      .filter(
+        (link) =>
+          link.exeName.toLowerCase() === exeName.toLowerCase() &&
+          game.aliases.some(
+            (alias) =>
+              alias.gameId === link.gameId && alias.source === link.source,
+          ),
+      )
+      .map((link) => link.exePath ?? `${link.pathPrefix}\\${link.exeName}`);
+    const outcome = await reportNegativeMatch(exeName, folderFiles);
+    if (outcome.folder) {
+      notifyFolderIgnored(exeName, outcome.folder, addToast);
+      return;
+    }
     if (!outcome.localBlockApplied) {
       addToast({
         tone: "error",
@@ -3424,6 +3446,43 @@ export function GameLibraryCard({
   function closeShare() {
     setShareOpen(false);
     correction.reset();
+  }
+
+  // Game.exe names no game for anyone else: its database search stays on
+  // this PC and moves only this game's folders.
+  const localSearchOnly = isGenericExeName(primaryExeName ?? "");
+
+  function openSearch() {
+    if (!localSearchOnly) {
+      void handleShareAction();
+      return;
+    }
+    correction.setSearch(game.name);
+    setShareOpen(true);
+  }
+
+  function applySearchedGameLocally() {
+    const selection = correction.selection;
+    if (!selection?.coverUrl || !primaryExeName) return;
+    const applied = applyDatabaseGameToFolderLinks(
+      primaryExeName,
+      game.aliases,
+      { ...selection, coverUrl: selection.coverUrl },
+    );
+    closeShare();
+    addToast(
+      applied
+        ? {
+            tone: "success",
+            title: "Match applied",
+            detail: `${game.name} is now tracked as ${applied.name} on this PC.`,
+          }
+        : {
+            tone: "info",
+            title: "Nothing to change",
+            detail: `${primaryExeName} is not linked to a folder for ${game.name} yet. Start the game once, then pick the right one.`,
+          },
+    );
   }
 
   async function handleShareAction() {
@@ -5310,10 +5369,10 @@ export function GameLibraryCard({
               onApply={handleApplyMatch}
               onReportNotAGame={() => void handleNegativeReport()}
               onSearchCommunity={
-                canSuggestToCommunity
+                canSuggestToCommunity || localSearchOnly
                   ? () => {
                       setShowMatchCheck(false);
-                      void handleShareAction();
+                      openSearch();
                     }
                   : undefined
               }
@@ -5330,6 +5389,7 @@ export function GameLibraryCard({
             onDifferentGame={() => {
               setReportOpen(false);
               if (demo) setDemoAction("matching");
+              else if (localSearchOnly) openSearch();
               else setShareOpen(true);
             }}
             onNotAGame={() => {
@@ -5369,7 +5429,12 @@ export function GameLibraryCard({
             onSearch={correction.searchFirstPage}
             onSearchChange={correction.setSearch}
             onSearchOptionsChange={correction.resetResults}
-            onSubmit={() => void correction.submit()}
+            localOnly={localSearchOnly}
+            onSubmit={() =>
+              localSearchOnly
+                ? applySearchedGameLocally()
+                : void correction.submit()
+            }
           />
         ) : null}
         {showConvert ? (
@@ -5751,10 +5816,10 @@ export function GameLibraryCard({
             onApply={handleApplyMatch}
             onReportNotAGame={() => void handleNegativeReport()}
             onSearchCommunity={
-              canSuggestToCommunity
+              canSuggestToCommunity || localSearchOnly
                 ? () => {
                     setShowMatchCheck(false);
-                    void handleShareAction();
+                    openSearch();
                   }
                 : undefined
             }
@@ -5771,6 +5836,7 @@ export function GameLibraryCard({
           onDifferentGame={() => {
             setReportOpen(false);
             if (demo) setDemoAction("matching");
+            else if (localSearchOnly) openSearch();
             else setShareOpen(true);
           }}
           onNotAGame={() => {
@@ -5810,7 +5876,12 @@ export function GameLibraryCard({
           onSearch={correction.searchFirstPage}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          onSubmit={() => void correction.submit()}
+          localOnly={localSearchOnly}
+          onSubmit={() =>
+            localSearchOnly
+              ? applySearchedGameLocally()
+              : void correction.submit()
+          }
         />
       ) : null}
       {showConvert ? (
@@ -6529,6 +6600,7 @@ function MatchCheckDialog({
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<Game[]>([]);
+  const [hiddenCount, setHiddenCount] = useState(0);
   const [selection, setSelection] = useState<Game | null>(null);
   const [pendingCommunityGameIds, setPendingCommunityGameIds] = useState<
     ReadonlySet<number>
@@ -6552,12 +6624,14 @@ function MatchCheckDialog({
       try {
         const {
           games,
+          hiddenCount: hidden,
           pendingCommunityGameIds: pendingIds,
           flaggedIdentifier: flag,
         } = await findGameMatches(exeName);
         if (cancelled) return;
         const pendingIdSet = new Set(pendingIds ?? []);
         setCandidates(sortMatchCandidates(games));
+        setHiddenCount(hidden ?? 0);
         setPendingCommunityGameIds(pendingIdSet);
         setFlaggedIdentifier(flag);
         // A single combined IGDB/community result is preselected so applying
@@ -6578,6 +6652,26 @@ function MatchCheckDialog({
 
   const footer = (
     <div className="grid gap-3">
+      {/* In the footer: with 30 matches the end of the list is far away. */}
+      {state === "done" && hiddenCount > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-text-muted">
+          <span>
+            Showing the first {candidates.length} of{" "}
+            {(candidates.length + hiddenCount).toLocaleString()} games that use
+            this file name.
+          </span>
+          {onSearchCommunity && !isOffline ? (
+            <button
+              type="button"
+              onClick={onSearchCommunity}
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            >
+              <Search size={14} />
+              Search for yours
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {selection ? (
         <p className="text-xs text-text-muted">
           <strong className="text-text">{selection.name}</strong> will be used

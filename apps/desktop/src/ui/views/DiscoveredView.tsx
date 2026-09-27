@@ -19,11 +19,13 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   addCustomGame,
+  addDatabaseGameLocally,
   addSharedCustomGame,
   applyKnownGameMatch,
   ignoreDiscoveredProcess,
   markCommunitySuggestionRejected,
   recheckExecutable,
+  restoreIgnoredExeFolder,
   scanProcessesNow,
   setUserIgnoredProcess,
   type IgnoredProcessSuggestionOutcome,
@@ -84,6 +86,12 @@ import {
   pendingFolderFind,
   readWatchFolders,
 } from "../../library/watchFolderState";
+import { isGenericExeName } from "../../library/exeCandidates";
+import { isSortedGenericCopy } from "../../library/genericExeLinks";
+import { notifyFolderIgnored } from "./folderIgnoredToast";
+
+const GENERIC_SEARCH_TITLE =
+  "Find the game in the database. Many games ship a file with this name, so it is linked to this folder and not shared.";
 
 // Single floating heart shown briefly after a successful "Add & Share".
 // Lives outside the heavy view so firing it never re-renders the list.
@@ -129,6 +137,8 @@ type DiscoveredExecutable = ProcessSnapshot & {
   isTutorial?: boolean;
   /** The game folder a watched folder turned up this file in. */
   foundIn?: string;
+  /** One folder's Game.exe ignored on this PC; Restore lifts only that. */
+  ignoredFolderKey?: string;
 };
 
 export const TOUR_DISCOVERED_EXECUTABLE: DiscoveredExecutable = {
@@ -270,6 +280,9 @@ export function DiscoveredView() {
   const [suggestionTarget, setSuggestionTarget] = useState<{
     key: string;
     exeName: string;
+    exePath: string | null;
+    /** Game.exe and co.: the pick stays on this PC, nothing is shared. */
+    localOnly: boolean;
   } | null>(null);
   const [filter, setFilter] = useState<FilterId>("review");
   const [ignoredSort, setIgnoredSort] =
@@ -291,6 +304,8 @@ export function DiscoveredView() {
   );
   const blacklist = useAppStore((state) => state.blacklist);
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
+  const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
+  const ignoredExeFolders = useAppStore((state) => state.ignoredExeFolders);
   const toggleBlacklist = useAppStore((state) => state.toggleBlacklist);
   const lastProcessScanAt = useAppStore((state) => state.lastProcessScanAt);
   const addToast = useAppStore((state) => state.addToast);
@@ -322,6 +337,16 @@ export function DiscoveredView() {
     return () => clearTimeout(timer);
   }, [exeCache, retryingExe]);
 
+  function restoreFolder(executable: DiscoveredExecutable) {
+    if (!executable.ignoredFolderKey) return;
+    restoreIgnoredExeFolder(executable.ignoredFolderKey);
+    addToast({
+      tone: "success",
+      title: `${executable.exeName} restored`,
+      detail: `${executable.exeName} in ${executable.foundIn} can be matched again on the next scan.`,
+    });
+  }
+
   async function updateUserIgnored(exeName: string, ignored: boolean) {
     const key = exeName.toLowerCase();
     setPendingExe(key);
@@ -352,7 +377,10 @@ export function DiscoveredView() {
     if (pendingExe) return false;
     setPendingExe(exeName.toLowerCase());
     try {
-      const outcome = await ignoreDiscoveredProcess(exeName);
+      const outcome = await ignoreDiscoveredProcess(
+        exeName,
+        exePathFor(exeName),
+      );
       notifyIgnoredProcessSuggestionOutcome(exeName, outcome, addToast);
       if (outcome.suggestion.kind === "suggested") {
         showHeart();
@@ -368,10 +396,19 @@ export function DiscoveredView() {
     setCustomGameName(suggestedName);
   }
 
+  // The row's file: a generic name (Game.exe) is linked to its folder.
+  function exePathFor(exeName: string) {
+    const key = exeName.toLowerCase();
+    return (
+      allExecutables.find((executable) => executable.key === key)?.exePath ??
+      null
+    );
+  }
+
   function saveCustomGame(exeName: string) {
     const name = customGameName.trim();
     if (!name) return;
-    addCustomGame(exeName, name);
+    addCustomGame(exeName, name, exePathFor(exeName));
     setCustomGameExe(null);
     setCustomGameName("");
     addToast({
@@ -383,11 +420,13 @@ export function DiscoveredView() {
 
   const correction = useCommunityGameCorrection({
     exeName: suggestionTarget?.exeName ?? "",
-    resultInstruction: "Pick the exact game to unlock sharing.",
+    resultInstruction: suggestionTarget?.localOnly
+      ? "Pick the game in this folder."
+      : "Pick the exact game to unlock sharing.",
     onKnownGame: (game) => {
       if (!suggestionTarget) return;
-      const { exeName } = suggestionTarget;
-      applyKnownGameMatch(exeName, game);
+      const { exeName, exePath } = suggestionTarget;
+      applyKnownGameMatch(exeName, game, exePath);
       closeCommunitySuggestion();
       addToast({
         tone: "success",
@@ -446,10 +485,38 @@ export function DiscoveredView() {
       return;
     }
     correction.reset();
-    // A file found in a watched folder is best searched by its folder name.
-    const folderFind = pendingFolderFind(exeName);
-    if (folderFind) correction.setSearch(folderFind.folderName);
-    setSuggestionTarget({ key: exeName.toLowerCase(), exeName });
+    const exePath = exePathFor(exeName);
+    const localOnly = isGenericExeName(exeName);
+    // A file found in a watched folder is best searched by its folder name;
+    // so is Game.exe, whose own name says nothing.
+    const folderName =
+      pendingFolderFind(exeName)?.folderName ??
+      (localOnly && exePath
+        ? exePath.split(/[\\/]/).filter(Boolean).at(-2)
+        : undefined);
+    if (folderName) correction.setSearch(folderName);
+    setSuggestionTarget({
+      key: exeName.toLowerCase(),
+      exeName,
+      exePath,
+      localOnly,
+    });
+  }
+
+  function addSearchedGameLocally() {
+    const selection = correction.selection;
+    if (!suggestionTarget || !selection?.coverUrl) return;
+    const { exeName, exePath } = suggestionTarget;
+    const game = addDatabaseGameLocally(exeName, exePath, {
+      ...selection,
+      coverUrl: selection.coverUrl,
+    });
+    closeCommunitySuggestion();
+    addToast({
+      tone: "success",
+      title: "Added to My Games",
+      detail: `${game.name} is tracked from this folder. ${exeName} is not shared: many games use that name.`,
+    });
   }
 
   function closeCommunitySuggestion() {
@@ -465,10 +532,16 @@ export function DiscoveredView() {
     );
     // Review actions apply to an executable name. Keep one row per name here;
     // the tracker retains every process instance for path-scoped matching.
+    // A Game.exe tracked through its folder link, or from an ignored folder,
+    // is not the unknown Game.exe waiting here, and must not lend it its path.
     const nativeProcesses = [
       ...new Map(
         processes
-          .filter((process) => !process.emulatorId)
+          .filter(
+            (process) =>
+              !process.emulatorId &&
+              !isSortedGenericCopy(process, scopedExeLinks, ignoredExeFolders),
+          )
           .map((process) => [process.exeName.toLowerCase(), process]),
       ).values(),
     ];
@@ -539,6 +612,18 @@ export function DiscoveredView() {
         ];
       },
     );
+    for (const [key, folder] of ignoredExeFolders) {
+      saved.push({
+        exeName: folder.exeName,
+        exePath: `${folder.pathPrefix}\\${folder.exeName}`,
+        foundIn: folder.pathPrefix,
+        key: `folder:${key}`,
+        isRunning: false,
+        cacheEntry: null,
+        status: "userIgnored",
+        ignoredFolderKey: key,
+      });
+    }
 
     return [
       {
@@ -559,8 +644,10 @@ export function DiscoveredView() {
     ambiguousMatches,
     blacklist,
     exeCache,
+    ignoredExeFolders,
     ignoredProcesses,
     processes,
+    scopedExeLinks,
     userIgnoredProcesses,
   ]);
 
@@ -653,7 +740,11 @@ export function DiscoveredView() {
         onStartCustomGame={() => startCustomGameEntry(executable.exeName)}
         onSuggest={() => startCommunitySuggestion(executable.exeName)}
         onMarkSoftware={() => setSoftwareTarget(executable.exeName)}
-        onUnignore={() => void updateUserIgnored(executable.exeName, false)}
+        onUnignore={() =>
+          executable.ignoredFolderKey
+            ? restoreFolder(executable)
+            : void updateUserIgnored(executable.exeName, false)
+        }
         allowTrackingChanges={filter !== "tracked"}
         unmatchedRetryDays={unmatchedRetryDays}
       />
@@ -1002,7 +1093,12 @@ export function DiscoveredView() {
           onSearch={correction.searchFirstPage}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          onSubmit={() => void correction.submit()}
+          localOnly={suggestionTarget.localOnly}
+          onSubmit={() =>
+            suggestionTarget.localOnly
+              ? addSearchedGameLocally()
+              : void correction.submit()
+          }
         />
       ) : null}
     </div>
@@ -1014,6 +1110,10 @@ function notifyIgnoredProcessSuggestionOutcome(
   outcome: IgnoredProcessSuggestionOutcome,
   addToast: (toast: Omit<Toast, "id">) => void,
 ) {
+  if (outcome.folder) {
+    notifyFolderIgnored(exeName, outcome.folder, addToast);
+    return;
+  }
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
@@ -1189,17 +1289,23 @@ export function TriageWizardCard({
           <Button
             data-tour="discovered-add-share"
             variant="primary"
-            icon={Send}
+            icon={isGenericExeName(executable.exeName) ? Search : Send}
             disabled={
               isOffline || isPending || isRetrying || isCustomGameEntryOpen
             }
             title={
-              isOffline ? "Community sharing unavailable offline" : undefined
+              isOffline
+                ? "Database search unavailable offline"
+                : isGenericExeName(executable.exeName)
+                  ? GENERIC_SEARCH_TITLE
+                  : undefined
             }
             onClick={onSuggest}
             className="h-12 w-full text-sm font-semibold shadow-sm"
           >
-            Add & Share
+            {isGenericExeName(executable.exeName)
+              ? "Search & Add"
+              : "Add & Share"}
           </Button>
           <Button
             data-tour="discovered-add-custom"
@@ -1225,19 +1331,23 @@ export function TriageWizardCard({
         {/* Offered, not pushed: most apps that are not games should simply be
             ignored. Only apps worth tracking become software. */}
         <div className="mt-4 flex flex-col items-center gap-2 text-sm">
-          <div className="flex flex-wrap items-center justify-center gap-x-1.5 text-text-muted">
-            <span>Not a game, but you want its time?</span>
-            <button
-              type="button"
-              disabled={isPending || isRetrying || isCustomGameEntryOpen}
-              title="Discord, Spotify, a launcher: counted on the Software page, never as a game"
-              onClick={onMarkSoftware}
-              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <AppWindow size={14} />
-              Track as software
-            </button>
-          </div>
+          {/* Software is counted per file name; Game.exe would turn every
+              RPG Maker game into software. */}
+          {isGenericExeName(executable.exeName) ? null : (
+            <div className="flex flex-wrap items-center justify-center gap-x-1.5 text-text-muted">
+              <span>Not a game, but you want its time?</span>
+              <button
+                type="button"
+                disabled={isPending || isRetrying || isCustomGameEntryOpen}
+                title="Discord, Spotify, a launcher: counted on the Software page, never as a game"
+                onClick={onMarkSoftware}
+                className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <AppWindow size={14} />
+                Track as software
+              </button>
+            </div>
+          )}
           <Button
             data-tour="discovered-skip"
             variant="ghost"
@@ -1694,17 +1804,21 @@ function DiscoveredExecutableRow({
             <>
               <Button
                 variant="primary"
-                icon={Send}
+                icon={isGenericExeName(executable.exeName) ? Search : Send}
                 disabled={isOffline || isPending || isRetrying}
                 title={
                   isOffline
-                    ? "Community sharing requires a connection"
-                    : undefined
+                    ? "Database search requires a connection"
+                    : isGenericExeName(executable.exeName)
+                      ? GENERIC_SEARCH_TITLE
+                      : undefined
                 }
                 onClick={onSuggest}
                 className="py-1.5 text-xs font-semibold"
               >
-                Add & Share
+                {isGenericExeName(executable.exeName)
+                  ? "Search & Add"
+                  : "Add & Share"}
               </Button>
               <div className="ml-1 flex items-center gap-1 border-l border-border pl-2">
                 <IconButton
@@ -1713,12 +1827,14 @@ function DiscoveredExecutableRow({
                   disabled={isPending || isRetrying}
                   onClick={onStartCustomGame}
                 />
-                <IconButton
-                  icon={AppWindow}
-                  title="Track as software (Discord, Spotify, a launcher)"
-                  disabled={isPending || isRetrying}
-                  onClick={onMarkSoftware}
-                />
+                {isGenericExeName(executable.exeName) ? null : (
+                  <IconButton
+                    icon={AppWindow}
+                    title="Track as software (Discord, Spotify, a launcher)"
+                    disabled={isPending || isRetrying}
+                    onClick={onMarkSoftware}
+                  />
+                )}
                 <IconButton
                   icon={RotateCcw}
                   title={
@@ -1846,6 +1962,7 @@ export function CommunitySuggestionForm({
   state,
   title = "Suggest community game",
   practice = false,
+  localOnly = false,
   onApplyCandidate,
   onCancel,
   onLoadMore,
@@ -1864,6 +1981,8 @@ export function CommunitySuggestionForm({
   state: "idle" | "loading" | "loading-more" | "saving" | "saved" | "error";
   title?: string;
   practice?: boolean;
+  /** Generic exe names: the pick is added on this PC and never shared. */
+  localOnly?: boolean;
   onApplyCandidate: (candidate: CommunityMetadataCandidate) => void;
   onCancel: () => void;
   onLoadMore?: (options: CommunityMetadataSearchOptions) => void;
@@ -1915,14 +2034,16 @@ export function CommunitySuggestionForm({
           type="submit"
           form="community-suggestion-form"
           variant="primary"
-          icon={Send}
+          icon={localOnly ? Check : Send}
           disabled={!canSubmit}
         >
           {state === "saving"
             ? "Adding…"
             : practice
               ? "Confirm sample match"
-              : "Add and share"}
+              : localOnly
+                ? "Add"
+                : "Add and share"}
         </Button>
       </div>
     </div>
@@ -1934,8 +2055,14 @@ export function CommunitySuggestionForm({
       backdropDataTour={practice ? "demo-library-modal" : undefined}
       size="wide"
       labelId="community-suggestion-dialog-title"
-      eyebrow={practice ? "Practice · nothing is submitted" : "Community"}
-      title={title}
+      eyebrow={
+        practice
+          ? "Practice · nothing is submitted"
+          : localOnly
+            ? "This PC only"
+            : "Community"
+      }
+      title={localOnly ? "Find the game" : title}
       subtitle={`Link the correct game to ${exeName}`}
       icon={Send}
       onClose={onCancel}

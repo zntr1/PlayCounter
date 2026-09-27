@@ -13,7 +13,9 @@ import {
 } from "../../store";
 import {
   applyKnownGameMatch,
+  correctRunningGenericExe,
   ignoreTrackedProcessLocally,
+  runningExePath,
   markCommunitySuggestionRejected,
   reportNegativeMatch,
   suggestTrackedGameToCommunity,
@@ -31,6 +33,7 @@ import {
   notifyNegativeReportOutcome,
 } from "./nowPlaying/AmbiguousMatchCard";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
+import { isGenericExeName } from "../../library/exeCandidates";
 import {
   providerFloorRecord,
   providerFloors as collectProviderFloors,
@@ -72,9 +75,8 @@ export function NowPlayingView() {
     new Date(Date.now() - 137_000).toISOString(),
   );
   const [reportTarget, setReportTarget] = useState<ActiveSession | null>(null);
-  const [correctionExeName, setCorrectionExeName] = useState<string | null>(
-    null,
-  );
+  const [correctionTarget, setCorrectionTarget] =
+    useState<ActiveSession | null>(null);
   const activeTourStep = activeTour
     ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
     : undefined;
@@ -135,13 +137,18 @@ export function NowPlayingView() {
 
   async function handleNegativeReport(session: ActiveSession) {
     setReportTarget(null);
-    const outcome = await reportNegativeMatch(session.exeName);
+    const outcome = await reportNegativeMatch(session.exeName, [
+      runningExePath(session),
+    ]);
     notifyNegativeReportOutcome(session.exeName, outcome, addToast);
   }
 
   async function handleNotPlaying(session: ActiveSession) {
     setReportTarget(null);
-    const outcome = await ignoreTrackedProcessLocally(session.exeName);
+    const outcome = await ignoreTrackedProcessLocally(
+      session.exeName,
+      runningExePath(session),
+    );
     notifyDismissOutcome(session.exeName, outcome, addToast);
   }
 
@@ -237,6 +244,7 @@ export function NowPlayingView() {
                     exeName={match.exeName}
                     exePath={match.exePath}
                     candidates={match.candidates}
+                    hiddenCandidateCount={match.hiddenCandidateCount}
                     elapsedSeconds={elapsedSeconds}
                     ended={Boolean(match.endedAt)}
                     flagReason={match.flagReason}
@@ -254,17 +262,17 @@ export function NowPlayingView() {
           coverUrl={reportTarget.coverUrl}
           onCancel={() => setReportTarget(null)}
           onDifferentGame={() => {
-            setCorrectionExeName(reportTarget.exeName);
+            setCorrectionTarget(reportTarget);
             setReportTarget(null);
           }}
           onNotAGame={() => void handleNegativeReport(reportTarget)}
           onNotPlaying={() => void handleNotPlaying(reportTarget)}
         />
       ) : null}
-      {correctionExeName ? (
+      {correctionTarget ? (
         <TrackedGameCorrectionDialog
-          exeName={correctionExeName}
-          onClose={() => setCorrectionExeName(null)}
+          session={correctionTarget}
+          onClose={() => setCorrectionTarget(null)}
         />
       ) : null}
     </>
@@ -274,15 +282,19 @@ export function NowPlayingView() {
 // "Wrong game?" on a tracked session: pick the right one from the database
 // and apply it to the executable.
 function TrackedGameCorrectionDialog({
-  exeName,
+  session,
   onClose,
 }: {
-  exeName: string;
+  session: ActiveSession;
   onClose: () => void;
 }) {
+  const { exeName } = session;
   const addToast = useAppStore((state) => state.addToast);
+  // Game.exe and co.: only the folder it runs from changes game, on this PC.
+  const localOnly = isGenericExeName(exeName);
   const correction = useCommunityGameCorrection({
     exeName,
+    resultInstruction: localOnly ? "Pick the game in this folder." : undefined,
     onKnownGame: (game) => {
       applyKnownGameMatch(exeName, game);
       onClose();
@@ -327,6 +339,29 @@ function TrackedGameCorrectionDialog({
     },
   });
 
+  function correctLocally() {
+    const selection = correction.selection;
+    if (!selection?.coverUrl) return;
+    const game = correctRunningGenericExe(session, {
+      ...selection,
+      coverUrl: selection.coverUrl,
+    });
+    onClose();
+    addToast(
+      game
+        ? {
+            tone: "success",
+            title: "Correct match applied",
+            detail: `${exeName} in this folder is now tracked as ${game.name}.`,
+          }
+        : {
+            tone: "info",
+            title: `${exeName} is not running`,
+            detail: "Start the game again, then correct it while it runs.",
+          },
+    );
+  }
+
   return (
     <CommunitySuggestionForm
       candidates={correction.candidates}
@@ -338,13 +373,14 @@ function TrackedGameCorrectionDialog({
       state={correction.state}
       title="Choose the correct game"
       isOffline={correction.isOffline}
+      localOnly={localOnly}
       onApplyCandidate={correction.applyCandidate}
       onCancel={onClose}
       onLoadMore={(options) => void correction.loadMore(options)}
       onSearch={(options) => void correction.searchFirstPage(options)}
       onSearchChange={correction.setSearch}
       onSearchOptionsChange={correction.resetResults}
-      onSubmit={() => void correction.submit()}
+      onSubmit={() => (localOnly ? correctLocally() : void correction.submit())}
     />
   );
 }

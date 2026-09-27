@@ -49,6 +49,7 @@ type PersistableAppState = {
   playcounterLibrary?: ReadonlyMap<string, unknown>;
   libraryInstalls?: ReadonlyMap<string, unknown>;
   scopedExeLinks?: ReadonlyMap<string, unknown>;
+  ignoredExeFolders?: ReadonlyMap<string, unknown>;
   recentSessions: Session[];
   activeSessions: unknown[];
   ambiguousMatches: unknown[];
@@ -97,6 +98,7 @@ export type PersistedPayload = {
   playcounterLibrary?: unknown[];
   libraryInstalls?: unknown[];
   scopedExeLinks?: unknown[];
+  ignoredExeFolders?: unknown[];
   sessions: Session[];
   activeSessions: unknown[];
   ambiguousMatches: unknown[];
@@ -181,6 +183,7 @@ function buildPersistedPayload(
     playcounterLibrary: [...(state.playcounterLibrary?.values() ?? [])],
     libraryInstalls: [...(state.libraryInstalls?.values() ?? [])],
     scopedExeLinks: [...(state.scopedExeLinks?.values() ?? [])],
+    ignoredExeFolders: [...(state.ignoredExeFolders?.values() ?? [])],
     sessions,
     activeSessions: state.activeSessions,
     ambiguousMatches: state.ambiguousMatches,

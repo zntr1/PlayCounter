@@ -11,6 +11,7 @@ function sources(overrides: Partial<LaunchSources> = {}): LaunchSources {
     launchTargets: new Map(),
     manualLaunchTargets: new Map(),
     exeCache: new Map(),
+    scopedExeLinks: new Map(),
     emulatorMappings: new Map(),
     emulatorAutoLaunchTargets: new Map(),
     emulatorManualLaunchTargets: new Map(),

@@ -16,11 +16,14 @@ export function ambiguousMatchCopy({
   candidateCount,
   candidateName,
   flagReason,
+  genericName = false,
 }: {
   candidateCount: number;
   /** Name of the only candidate, when there is exactly one. */
   candidateName?: string;
   flagReason?: IdentifierFlagReason;
+  /** A file name many games ship (Game.exe): asked once per folder. */
+  genericName?: boolean;
 }): AmbiguousMatchCopy {
   if (flagReason === "not_a_game") {
     const suffix =
@@ -33,6 +36,17 @@ export function ambiguousMatchCopy({
       eyebrow: "Reported as not a game",
       headline: "Is {exe} a game?",
       description: `Other players reported this file as not a game, so PlayCounter no longer matches it on its own.${suffix}`,
+    };
+  }
+
+  if (genericName) {
+    return {
+      eyebrow: "New game folder",
+      headline: "Which game is {exe}?",
+      description:
+        candidateCount > 0
+          ? "Many games ship a file with this name, so PlayCounter asks once for each folder. Pick the game in this folder, or add it under its name."
+          : "Many games ship a file with this name, so PlayCounter asks once for each folder. Add the game in this folder under its name.",
     };
   }
 

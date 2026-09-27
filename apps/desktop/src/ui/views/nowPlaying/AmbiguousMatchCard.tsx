@@ -14,6 +14,7 @@ import { useState, type ReactNode } from "react";
 import { useAppStore, type Toast } from "../../../store";
 import {
   dismissAmbiguousMatch,
+  localDatabaseGame,
   markCommunitySuggestionRejected,
   reportNegativeMatch,
   selectAmbiguousCommunitySuggestion,
@@ -30,6 +31,8 @@ import { formatClock } from "../ActiveGameHero";
 import { sortMatchCandidates } from "../matchCheckModel";
 import { ambiguousMatchCopy, formatAgo } from "./ambiguousMatchCopy";
 import { useCommunityGameCorrection } from "../../useCommunityGameCorrection";
+import { isGenericExeName } from "../../../library/exeCandidates";
+import { notifyFolderIgnored } from "../folderIgnoredToast";
 
 /* One executable PlayCounter would not match on its own ─────────────────────
    Header asks the question, body offers the database's candidates as cover
@@ -40,6 +43,7 @@ export function AmbiguousMatchCard({
   exeName,
   exePath,
   candidates,
+  hiddenCandidateCount = 0,
   elapsedSeconds,
   ended,
   flagReason,
@@ -47,6 +51,8 @@ export function AmbiguousMatchCard({
   exeName: string;
   exePath: string | null;
   candidates: Game[];
+  /** Database games past the first ones shown; the user searches for them. */
+  hiddenCandidateCount?: number;
   elapsedSeconds: number;
   ended: boolean;
   flagReason?: IdentifierFlagReason;
@@ -108,16 +114,44 @@ export function AmbiguousMatchCard({
   const reportedNotAGame = flagReason === "not_a_game";
   const showCandidates =
     candidates.length > 0 && (!reportedNotAGame || candidatesExpanded);
+  // Game.exe and co.: linked to this folder, never shared.
+  const genericName = isGenericExeName(exeName);
+  const folder =
+    genericName && exePath ? exePath.replace(/[\\/][^\\/]*$/, "") : null;
   const copy = ambiguousMatchCopy({
-    candidateCount: candidates.length,
+    candidateCount: candidates.length + hiddenCandidateCount,
     candidateName: candidates[0]?.name,
     flagReason,
+    genericName,
   });
   const HeaderIcon = reportedNotAGame ? AlertTriangle : CircleHelp;
 
   function closeSuggestion() {
     setSuggestionOpen(false);
     correction.reset();
+  }
+
+  function openSearch() {
+    // Game.exe says nothing; its folder is the best search term.
+    const folderName = folder?.split(/[\\/]/).filter(Boolean).at(-1);
+    if (folderName) correction.setSearch(folderName);
+    setSuggestionOpen(true);
+  }
+
+  function addSearchedGameLocally() {
+    const selection = correction.selection;
+    if (!selection?.coverUrl) return;
+    const game = localDatabaseGame(exeName, exePath, {
+      ...selection,
+      coverUrl: selection.coverUrl,
+    });
+    selectAmbiguousMatch(exeName, game);
+    closeSuggestion();
+    addToast({
+      tone: "success",
+      title: "Match selected",
+      detail: `${exeName} in this folder will be tracked as ${game.name}.`,
+    });
   }
 
   function submitCustomGame() {
@@ -132,7 +166,7 @@ export function AmbiguousMatchCard({
   }
 
   async function handleNegativeReport() {
-    const outcome = await reportNegativeMatch(exeName);
+    const outcome = await reportNegativeMatch(exeName, [exePath]);
     notifyNegativeReportOutcome(exeName, outcome, addToast);
   }
 
@@ -164,6 +198,14 @@ export function AmbiguousMatchCard({
             >
               {exeName}
             </span>
+            {folder ? (
+              <span
+                title={folder}
+                className="min-w-0 max-w-full truncate font-mono text-[11px] text-text-faint"
+              >
+                {folder}
+              </span>
+            ) : null}
             {ended ? (
               <span
                 title="This time is not saved yet. Choosing a game assigns it."
@@ -196,10 +238,32 @@ export function AmbiguousMatchCard({
 
       {showCandidates ? (
         <div className="px-5 pb-5">
-          <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-faint">
-            {candidates.length === 1
-              ? "Did you launch this game?"
-              : "Did you launch one of these?"}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <div className="text-xs font-semibold uppercase tracking-wider text-text-faint">
+              {candidates.length === 1
+                ? "Did you launch this game?"
+                : "Did you launch one of these?"}
+            </div>
+            {/* Above the tiles: with 30 of them the card's buttons are far
+                below. */}
+            {hiddenCandidateCount > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
+                <span>
+                  First {candidates.length} of{" "}
+                  {(candidates.length + hiddenCandidateCount).toLocaleString()}
+                </span>
+                {!isOffline ? (
+                  <button
+                    type="button"
+                    onClick={openSearch}
+                    className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  >
+                    <Search size={14} />
+                    Search for yours
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(132px,1fr))] gap-3">
             {orderedCandidates.map((game) => (
@@ -255,8 +319,12 @@ export function AmbiguousMatchCard({
             <Button
               variant="secondary"
               icon={Search}
-              title="Search the database and send the match in for review."
-              onClick={() => setSuggestionOpen(true)}
+              title={
+                genericName
+                  ? "Search the database. The pick stays on this PC."
+                  : "Search the database and send the match in for review."
+              }
+              onClick={openSearch}
             >
               Search database
             </Button>
@@ -306,7 +374,10 @@ export function AmbiguousMatchCard({
           onSearch={(options) => void correction.searchFirstPage(options)}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          onSubmit={() => void correction.submit()}
+          localOnly={genericName}
+          onSubmit={() =>
+            genericName ? addSearchedGameLocally() : void correction.submit()
+          }
         />
       ) : null}
     </Panel>
@@ -396,6 +467,10 @@ export function notifyNegativeReportOutcome(
   outcome: NegativeReportOutcome,
   addToast: (toast: Omit<Toast, "id">) => void,
 ) {
+  if (outcome.folder) {
+    notifyFolderIgnored(exeName, outcome.folder, addToast);
+    return;
+  }
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
@@ -436,6 +511,10 @@ export function notifyDismissOutcome(
   outcome: LocalProcessIgnoreOutcome,
   addToast: (toast: Omit<Toast, "id">) => void,
 ) {
+  if (outcome.folder) {
+    notifyFolderIgnored(exeName, outcome.folder, addToast);
+    return;
+  }
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",

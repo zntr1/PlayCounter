@@ -183,7 +183,19 @@ import {
 } from "./emulators/share";
 import { toPublicSnapshots } from "./emulators/publicProjection";
 import { customLocalGameId } from "./library/localGameIds";
+import { isGenericExeName } from "./library/exeCandidates";
+import {
+  gamesLinkedToExe,
+  genericExeFolder,
+  genericFolderLink,
+  isInFolder,
+  isInIgnoredFolder,
+  localCustomGameId,
+  mayBeInLinkFolder,
+  moveGenericNameLinksToFolders,
+} from "./library/genericExeLinks";
 import type {
+  IgnoredExeFolder,
   LibraryImportEntry,
   LibraryInstallEntry,
   PlayCounterLibraryEntry,
@@ -233,6 +245,9 @@ const SESSION_CHECKPOINT_INTERVAL_MS = 60_000;
 // Minimum accumulated discovered runtime before it is credited to a game on
 // take-over. Avoids polluting history with a few seconds of background noise.
 const MIN_BACKFILL_SECONDS = 60;
+// The database lists up to 10,000 games for a name like Game.exe. Only the
+// first ones are shown (and saved); past them the user searches.
+const MAX_MATCH_CANDIDATES = 30;
 const BACKEND_HEALTH_INTERVAL_MS = 60_000;
 const BACKEND_HEALTH_TIMEOUT_MS = 2_500;
 const API_REQUEST_TIMEOUT_MS = 8_000;
@@ -260,6 +275,7 @@ type PersistedState = {
   playcounterLibrary?: PlayCounterLibraryEntry[];
   libraryInstalls?: LibraryInstallEntry[];
   scopedExeLinks?: ScopedExeLink[];
+  ignoredExeFolders?: unknown[];
   ambiguousMatches?: AmbiguousProcessMatch[];
   emulatorMappings?: EmulatorMapping[];
   emulatorObservations?: EmulatorObservation[];
@@ -304,6 +320,8 @@ export type GameAliasRef = {
 
 export type GameMatchLookup = {
   games: Game[];
+  /** Matches left out after the first MAX_MATCH_CANDIDATES. */
+  hiddenCount?: number;
   pendingCommunityGameIds?: number[];
   flaggedIdentifier?: { reason: IdentifierFlagReason };
 };
@@ -312,11 +330,14 @@ export type NegativeReportOutcome = {
   localBlockApplied: boolean;
   ignoreFileUpdated: boolean;
   report: IdentifierReportResponse["status"] | "failed" | "skipped";
+  /** Set when only this folder's copy of a generic exe (Game.exe) was
+   *  ignored; nothing is reported for such a name. */
+  folder?: string;
 };
 
 export type LocalProcessIgnoreOutcome = Pick<
   NegativeReportOutcome,
-  "localBlockApplied" | "ignoreFileUpdated"
+  "localBlockApplied" | "ignoreFileUpdated" | "folder"
 >;
 
 export type IgnoredProcessSuggestionResult =
@@ -668,6 +689,8 @@ export function backfillLibraryExecutableCache(
           ? "custom"
           : entry.source;
     for (const exeName of entry.linkedExeNames) {
+      // A generic name (Game.exe) is only ever linked to its folder.
+      if (isGenericExeName(exeName)) continue;
       const key = exeName.toLowerCase();
       const existing = exeCache.get(key);
       if (existing?.state === "blacklisted") continue;
@@ -977,7 +1000,12 @@ export function hydrate() {
       (entry.provider === undefined
         ? entry.externalId !== undefined
         : !validLibraryExternalId(entry.provider, entry.externalId)) ||
-      !positiveInteger(entry.igdbId) ||
+      // Launcher links always carry an IGDB id; a generic exe's link to a
+      // game named on this PC (or a community game without one) has none.
+      ((entry.provider !== undefined || entry.igdbId !== undefined) &&
+        !positiveInteger(entry.igdbId)) ||
+      (entry.exePath !== undefined &&
+        !isWindowsExecutablePath(entry.exePath)) ||
       typeof entry.gameId !== "number" ||
       !Number.isFinite(entry.gameId) ||
       !entry.exeName ||
@@ -1014,6 +1042,25 @@ export function hydrate() {
     persistedScopedExeLink,
     (entry) => scopedExeLinkKey(entry.exeName, entry.pathPrefix)!,
   );
+  const ignoredExeFolders = hydrateMap(
+    persisted.ignoredExeFolders,
+    (value: unknown): IgnoredExeFolder | null => {
+      if (!value || typeof value !== "object") return null;
+      const entry = value as Partial<IgnoredExeFolder>;
+      return typeof entry.exeName === "string" &&
+        isGenericExeName(entry.exeName) &&
+        typeof entry.pathPrefix === "string" &&
+        normalizeWindowsDir(entry.pathPrefix) &&
+        typeof entry.ignoredAt === "string"
+        ? {
+            exeName: entry.exeName,
+            pathPrefix: entry.pathPrefix,
+            ignoredAt: entry.ignoredAt,
+          }
+        : null;
+    },
+    (entry) => scopedExeLinkKey(entry.exeName, entry.pathPrefix)!,
+  );
   if (
     reconcileLibraryImportIdentifierSources(
       libraryImports,
@@ -1027,6 +1074,12 @@ export function hydrate() {
     exeCacheMap,
     libraryImports.values(),
     scopedExeLinks.values(),
+  );
+  // Saves from before folder links hold Game.exe as a name link.
+  const movedGenericNameLinks = moveGenericNameLinksToFolders(
+    exeCacheMap,
+    scopedExeLinks,
+    launchTargets,
   );
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
@@ -1182,13 +1235,27 @@ export function hydrate() {
     playcounterLibrary,
     libraryInstalls,
     scopedExeLinks,
+    ignoredExeFolders,
     recentSessions: hydratedSessions,
     gameJournals: persisted.gameJournals ?? {},
     personalShelves: persisted.personalShelves ?? [],
     archivedPlaythroughSeconds: hydratedArchive.archivedPlaythroughSeconds,
     journalTarget: null,
     activeSessions: normalizePersistedActiveSessions(persisted),
-    ambiguousMatches: persisted.ambiguousMatches ?? [],
+    // Pickers saved before the cap held every database candidate.
+    ambiguousMatches: (persisted.ambiguousMatches ?? []).map((match) =>
+      Array.isArray(match.candidates) &&
+      match.candidates.length > MAX_MATCH_CANDIDATES
+        ? {
+            ...match,
+            ...firstCandidates(match.candidates),
+            hiddenCandidateCount:
+              (match.hiddenCandidateCount ?? 0) +
+              match.candidates.length -
+              MAX_MATCH_CANDIDATES,
+          }
+        : match,
+    ),
     emulatorMappings,
     knownEmulators,
     emulatorObservations: (persisted.emulatorObservations ?? []).map(
@@ -1250,7 +1317,8 @@ export function hydrate() {
   if (
     shouldPersistAchievementMigration ||
     shouldPersistLaunchPathOptOut ||
-    backfilledLibraryExecutableCache
+    backfilledLibraryExecutableCache ||
+    movedGenericNameLinks
   ) {
     persist();
   }
@@ -1989,12 +2057,12 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   useAppStore.getState().setProcesses(toPublicSnapshots(normalized));
 
   const state = useAppStore.getState();
-  const ignored = normalProcesses.filter((process) =>
-    isIgnoredProcess(process.exeName, state),
-  );
-  const candidates = normalProcesses.filter(
-    (process) => !isIgnoredProcess(process.exeName, state),
-  );
+  // Ignoring one folder's Game.exe leaves every other Game.exe tracked.
+  const ignoredHere = (process: ProcessSnapshot) =>
+    isIgnoredProcess(process.exeName, state) ||
+    isInIgnoredFolder(process, state.ignoredExeFolders);
+  const ignored = normalProcesses.filter(ignoredHere);
+  const candidates = normalProcesses.filter((process) => !ignoredHere(process));
   logRuntime(
     `scan handling total=${processes.length}, unique=${normalized.length}, ignored=${ignored.length}, candidates=${candidates.length}`,
   );
@@ -2038,8 +2106,14 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     }
   }
   const nextKeys = new Set(matchesByGame.keys());
+  // A Game.exe matched through its folder link is not the unknown Game.exe
+  // that Discovered or the picker waits for; its time must not count there.
+  const matchedProcesses = new Set(matches.map((match) => match.process));
+  const unmatchedCandidates = candidates.filter(
+    (process) => !matchedProcesses.has(process),
+  );
   const runningProcessKeys = new Set(
-    candidates.map((process) => process.exeName.toLowerCase()),
+    unmatchedCandidates.map((process) => process.exeName.toLowerCase()),
   );
 
   for (const current of currentSessions) {
@@ -2118,7 +2192,10 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   accumulateUnmatchedRuntime(
     runningProcessKeys,
     new Map(
-      candidates.map((process) => [processCacheKey(process), process.exePath]),
+      unmatchedCandidates.map((process) => [
+        processCacheKey(process),
+        process.exePath,
+      ]),
     ),
   );
   creditRunningTools(candidates);
@@ -2850,7 +2927,12 @@ async function resolveProcesses(
       cacheSkippedCount += 1;
       continue;
     }
-    if (cached.state === "query") {
+    if (
+      cached.state === "query" ||
+      // Discovered already waits for another folder's copy of this generic
+      // name; this copy still gets asked when the name has games here.
+      (cached.state === "skipped" && asksForLinkedGames(process))
+    ) {
       queryProcesses.push(process);
     } else {
       cacheSkippedCount += 1;
@@ -2858,7 +2940,20 @@ async function resolveProcesses(
   }
 
   for (const key of scopedResolvedKeys) {
-    if (!unscopedSeenKeys.has(key)) state.removeAmbiguousMatch(key);
+    if (unscopedSeenKeys.has(key)) continue;
+    const ambiguous = ambiguousByKey.get(key);
+    // A picker for another folder of a generic name still waits for its answer.
+    if (
+      ambiguous?.exePath &&
+      isGenericExeName(ambiguous.exeName) &&
+      !resolveScopedLink(
+        { exeName: ambiguous.exeName, exePath: ambiguous.exePath },
+        state.scopedExeLinks,
+      )
+    ) {
+      continue;
+    }
+    state.removeAmbiguousMatch(key);
   }
 
   if (communityCheckProcesses.length > 0) {
@@ -2946,6 +3041,25 @@ async function resolveProcesses(
       keepOrReclassifyTool(process.exeName, result.game);
       continue;
     }
+    // A generic name in a new folder, with games already linked to it on
+    // this PC: ask which one it is (or a new one) instead of guessing.
+    if (asksForLinkedGames(process)) {
+      const current = useAppStore.getState();
+      const candidates = new Map<string, Game>();
+      for (const game of [
+        ...gamesLinkedToExe(
+          process.exeName,
+          current.exeCache,
+          current.scopedExeLinks,
+        ),
+        ...(result.ambiguousGames ?? (result.game ? [result.game] : [])),
+      ]) {
+        const id = `${game.source}:${game.id}`;
+        if (!candidates.has(id)) candidates.set(id, game);
+      }
+      cacheAmbiguousMatch(process, [...candidates.values()]);
+      continue;
+    }
     if (result.ambiguousGames?.length) {
       cacheAmbiguousMatch(
         process,
@@ -2956,7 +3070,7 @@ async function resolveProcesses(
     }
     const game = result.game;
     if (game) {
-      cacheMatchResult(process.exeName, game);
+      linkExecutableGame(process, game);
       matches.push({ process, game });
       continue;
     }
@@ -3619,13 +3733,17 @@ export function applyLocalLinkGameMatch(
 // Applies a database game directly to an exe - used when a community
 // suggestion turned out to be an already-known IGDB match. Handles both
 // unmatched exes (Discovered) and already matched ones (library).
-export function applyKnownGameMatch(exeName: string, game: Game) {
+export function applyKnownGameMatch(
+  exeName: string,
+  game: Game,
+  exePath?: string | null,
+) {
   const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
   if (existing?.state === "matched") {
     applyGameMatch(exeName, game);
     return;
   }
-  cacheMatchResult(exeName, game);
+  linkExecutableGame({ exeName, exePath }, game);
   persist();
   void requestProcessScan("after known game match applied");
 }
@@ -3658,7 +3776,7 @@ export async function lookupFolderExecutables(
 
 /** A confident find: the game joins the library and Play gets its file. */
 export function adoptFolderGame(exeName: string, exePath: string, game: Game) {
-  cacheMatchResult(exeName, game);
+  linkExecutableGame({ exeName, exePath }, game);
   const state = useAppStore.getState();
   if (!state.launchTargets.has(exeName.toLowerCase())) {
     state.setLaunchTarget({
@@ -3747,8 +3865,12 @@ export async function findGameMatches(
     ),
   ];
 
+  const games = [...gamesByIdentity.values()];
   return {
-    games: [...gamesByIdentity.values()],
+    games: games.slice(0, MAX_MATCH_CANDIDATES),
+    ...(games.length > MAX_MATCH_CANDIDATES
+      ? { hiddenCount: games.length - MAX_MATCH_CANDIDATES }
+      : {}),
     ...(pendingCommunityGameIds.length > 0 ? { pendingCommunityGameIds } : {}),
     flaggedIdentifier: result.flaggedIdentifier,
   };
@@ -4320,6 +4442,29 @@ function cachePendingCommunityMatch(exeName: string, game: Game) {
   logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
 }
 
+/** A copy of a generic exe outside every folder link, while that name already
+ *  has games here: the picker asks which one it is. */
+function asksForLinkedGames(process: ProcessSnapshot) {
+  if (!genericExeFolder(process)) return false;
+  const state = useAppStore.getState();
+  const cached = state.exeCache.get(processCacheKey(process));
+  if (cached?.state === "tool" || cached?.state === "blacklisted") return false;
+  return (
+    gamesLinkedToExe(process.exeName, state.exeCache, state.scopedExeLinks)
+      .length > 0
+  );
+}
+
+/** The first candidates a picker shows and saves; the rest are only counted. */
+function firstCandidates(candidates: readonly Game[]) {
+  return candidates.length > MAX_MATCH_CANDIDATES
+    ? {
+        candidates: candidates.slice(0, MAX_MATCH_CANDIDATES),
+        hiddenCandidateCount: candidates.length - MAX_MATCH_CANDIDATES,
+      }
+    : { candidates: [...candidates], hiddenCandidateCount: undefined };
+}
+
 function cacheAmbiguousMatch(
   process: ProcessSnapshot,
   candidates: Game[],
@@ -4332,7 +4477,7 @@ function cacheAmbiguousMatch(
   state.setAmbiguousMatch({
     exeName: process.exeName,
     exePath: process.exePath,
-    candidates,
+    ...firstCandidates(candidates),
     detectedAt: existing?.detectedAt ?? new Date().toISOString(),
     endedAt: undefined,
     lastCheckedAt: new Date().toISOString(),
@@ -4861,6 +5006,272 @@ function cacheMatchResult(exeName: string, game: Game | null) {
   });
 }
 
+/**
+ * Links a game to an executable. A generic name (Game.exe) is linked to the
+ * folder it runs from and leaves every other folder alone; any other name is
+ * linked by name.
+ */
+function linkExecutableGame(
+  file: { exeName: string; exePath?: string | null },
+  game: Game,
+) {
+  const link = genericFolderLink(file, game, new Date().toISOString());
+  if (!link) {
+    cacheMatchResult(file.exeName, game);
+    return;
+  }
+  const state = useAppStore.getState();
+  const key = file.exeName.toLowerCase();
+  // Discovered's entry for this name waited for this folder: its time goes to
+  // the game. An entry from another folder keeps waiting.
+  const discovered = state.exeCache.get(key);
+  if (
+    discovered?.state === "unmatched" &&
+    mayBeInLinkFolder(discovered.exePath, link)
+  ) {
+    backfillTrackedRuntime(file.exeName, game);
+    state.removeExeCacheEntry(file.exeName);
+  }
+  const ambiguous = state.ambiguousMatches.find(
+    (match) => match.exeName.toLowerCase() === key,
+  );
+  if (ambiguous && mayBeInLinkFolder(ambiguous.exePath, link)) {
+    state.removeAmbiguousMatch(file.exeName);
+  }
+  state.setScopedExeLink(link);
+  state.addApiRequestLogEntry({
+    endpoint: state.settings.apiEndpoint,
+    exeName: file.exeName,
+    status: "matched",
+    detail: `${game.name} (folder ${link.pathPrefix})`,
+  });
+  logRuntime(
+    `match linked ${file.exeName} in ${link.pathPrefix} -> ${game.name}`,
+  );
+}
+
+/**
+ * A database game picked for a generic exe (Game.exe). It stays on this PC:
+ * the file name tells nobody else which game it is. A game already linked to
+ * another copy of the name keeps its id, so its hours stay together.
+ */
+export function localDatabaseGame(
+  exeName: string,
+  exePath: string | null | undefined,
+  selection: { igdbId: number; name: string; coverUrl: string },
+): Game {
+  const state = useAppStore.getState();
+  const linked = gamesLinkedToExe(
+    exeName,
+    state.exeCache,
+    state.scopedExeLinks,
+  ).find((game) => game.igdbId === selection.igdbId);
+  return (
+    linked ?? {
+      id: localCustomGameId({ exeName, exePath }, customGameId(exeName)),
+      igdbId: selection.igdbId,
+      name: selection.name,
+      coverUrl: selection.coverUrl,
+      source: "custom",
+    }
+  );
+}
+
+/**
+ * "Wrong game?" on a running Game.exe. Only the folder it runs from changes
+ * game, on this PC; the name and every other folder keep theirs. Sessions
+ * store no folder, so earlier hours stay where they are; the running session
+ * moves to the picked game. Null when no copy of the exe is running.
+ */
+export function correctRunningGenericExe(
+  session: Pick<ActiveSession, "id" | "exeName" | "gameId" | "source">,
+  selection: { igdbId: number; name: string; coverUrl: string },
+): Game | null {
+  const running = runningGenericCopy(session);
+  if (!running) return null;
+  const game = localDatabaseGame(session.exeName, running.exePath, selection);
+  // A launcher's install-folder link stays; the file's own folder is the
+  // closer match and wins.
+  linkExecutableGame(running, game);
+  useAppStore.setState((latest) => ({
+    activeSessions: latest.activeSessions.map((active) =>
+      active.id === session.id
+        ? {
+            ...active,
+            gameId: game.id,
+            igdbId: game.igdbId,
+            gameName: game.name,
+            coverUrl: game.coverUrl,
+            source: game.source,
+            communitySuggestionId: undefined,
+            communitySuggestionVerified: undefined,
+            communitySuggestionStatus: undefined,
+            communitySuggestionNote: undefined,
+          }
+        : active,
+    ),
+  }));
+  logRuntime(`running ${session.exeName} corrected -> ${game.name}`);
+  persist();
+  void requestProcessScan("after running generic exe corrected");
+  return game;
+}
+
+/** The running copy of a session's generic exe: the one whose folder link
+ *  names the session's game, else any running copy. */
+function runningGenericCopy(
+  session: Pick<ActiveSession, "exeName" | "gameId">,
+): ProcessSnapshot | undefined {
+  const state = useAppStore.getState();
+  const key = session.exeName.toLowerCase();
+  const copies = state.processes.filter(
+    (process) =>
+      process.exeName.toLowerCase() === key && genericExeFolder(process),
+  );
+  return (
+    copies.find(
+      (process) =>
+        resolveScopedLink(process, state.scopedExeLinks)?.gameId ===
+        session.gameId,
+    ) ?? copies[0]
+  );
+}
+
+/** Where a running session's Game.exe runs from, so "Not playing" and "Not a
+ *  game" ignore that folder only. Null for a unique name. */
+export function runningExePath(
+  session: Pick<ActiveSession, "exeName" | "gameId">,
+) {
+  return runningGenericCopy(session)?.exePath ?? null;
+}
+
+/**
+ * "Different game" or a database search in My Games for a Game.exe game.
+ * Every folder link of this game moves to the picked database game, with its
+ * sessions and saved hours, on this PC only; other games on the same file
+ * name are untouched. Null when the game has no folder link for the exe.
+ */
+export function applyDatabaseGameToFolderLinks(
+  exeName: string,
+  owners: readonly { gameId: number; source: GameSource | null }[],
+  selection: { igdbId: number; name: string; coverUrl: string },
+): Game | null {
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  const owned = [...state.scopedExeLinks].filter(
+    ([, link]) =>
+      link.exeName.toLowerCase() === key &&
+      owners.some(
+        (owner) => owner.gameId === link.gameId && owner.source === link.source,
+      ),
+  );
+  if (owned.length === 0) return null;
+  const game = localDatabaseGame(exeName, owned[0][1].exePath, selection);
+  const source = game.source ?? "custom";
+  const oldGames = new Map(
+    owned.map(([, link]) => [`${link.source}:${link.gameId}`, link]),
+  );
+  const moves = (session: Pick<Session, "exeName" | "gameId" | "source">) =>
+    session.exeName.toLowerCase() === key &&
+    oldGames.has(`${session.source ?? "igdb"}:${session.gameId}`);
+  const moved = <T extends ActiveSession | Session>(session: T): T =>
+    moves(session)
+      ? {
+          ...session,
+          gameId: game.id,
+          igdbId: game.igdbId,
+          gameName: game.name,
+          coverUrl: game.coverUrl,
+          source,
+          communitySuggestionId: undefined,
+          communitySuggestionVerified: undefined,
+          communitySuggestionStatus: undefined,
+          communitySuggestionNote: undefined,
+        }
+      : session;
+  useAppStore.setState((current) => {
+    const scopedExeLinks = new Map(current.scopedExeLinks);
+    for (const [linkKey, link] of owned) {
+      scopedExeLinks.set(linkKey, {
+        ...link,
+        gameId: game.id,
+        igdbId: game.igdbId,
+        gameName: game.name,
+        coverUrl: game.coverUrl,
+        source,
+        identifierSource: undefined,
+        pendingCommunityGame: undefined,
+        communitySuggestionId: undefined,
+        communitySuggestionVerified: undefined,
+        communitySuggestionStatus: undefined,
+        communitySuggestionNote: undefined,
+        shareState: undefined,
+      });
+    }
+    return {
+      scopedExeLinks,
+      activeSessions: current.activeSessions.map(moved),
+      recentSessions: current.recentSessions.map(moved),
+    };
+  });
+  const to = `${source}:${game.id}`;
+  for (const from of oldGames.keys()) {
+    if (from === to) continue;
+    state.rekeyGameSeconds(from, to);
+    state.carryAutoDetectedGameKey(from, to);
+  }
+  logRuntime(`folder links of ${exeName} moved -> ${game.name}`);
+  persist();
+  void requestProcessScan("after database game applied to folder links");
+  return game;
+}
+
+/** Discovered's "Search & Add" for a generic exe. */
+export function addDatabaseGameLocally(
+  exeName: string,
+  exePath: string | null | undefined,
+  selection: { igdbId: number; name: string; coverUrl: string },
+) {
+  const game = localDatabaseGame(exeName, exePath, selection);
+  linkExecutableGame({ exeName, exePath }, game);
+  persist();
+  void requestProcessScan("after database game added locally");
+  return game;
+}
+
+/** A custom game already named `gameName` on another copy of this generic
+ *  exe: a moved or reinstalled game keeps its hours under one id. */
+function sameNamedCustomGame(exeName: string, gameName: string) {
+  const state = useAppStore.getState();
+  const wanted = gameName.trim().toLowerCase();
+  const linked = gamesLinkedToExe(
+    exeName,
+    state.exeCache,
+    state.scopedExeLinks,
+  ).find(
+    (game) => game.source === "custom" && game.name.toLowerCase() === wanted,
+  );
+  if (linked) return linked;
+  // Folder links stay on their PC; after a restore elsewhere the history
+  // still knows the game.
+  const key = exeName.toLowerCase();
+  const played = state.recentSessions.find(
+    (session) =>
+      session.exeName.toLowerCase() === key &&
+      session.source === "custom" &&
+      session.gameName?.trim().toLowerCase() === wanted,
+  );
+  return played
+    ? {
+        id: played.gameId,
+        igdbId: played.igdbId,
+        name: played.gameName ?? gameName,
+        coverUrl: played.coverUrl ?? "",
+        source: "custom" as const,
+      }
+    : undefined;
+}
+
 type StartSessionOptions = {
   startedAt?: string;
   emulator?: EmulatorLaunchContext;
@@ -4957,7 +5368,7 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
   );
   if (!ambiguous) return;
 
-  cacheMatchResult(ambiguous.exeName, game);
+  linkExecutableGame(ambiguous, game);
   if (
     state.settings.rememberLaunchPaths !== false &&
     isWindowsExecutablePath(ambiguous.exePath) &&
@@ -5070,6 +5481,8 @@ async function submitIdentifierReport(
 
 export async function reportNegativeMatch(
   exeName: string,
+  /** Where the reported copies run from; Game.exe is ignored per folder. */
+  exePaths: readonly (string | null | undefined)[] = [],
 ): Promise<NegativeReportOutcome> {
   const key = exeName.toLowerCase();
   const state = useAppStore.getState();
@@ -5083,8 +5496,11 @@ export async function reportNegativeMatch(
       ? { gameId: existing.gameId, gameSource: existingSource }
       : undefined;
 
-  const localOutcome = await ignoreProcessLocally(exeName);
-  const report = await submitIdentifierReport(exeName, gameIdentity);
+  const localOutcome = await ignoreProcessLocally(exeName, exePaths);
+  // Game.exe names no game for anyone else: it is never reported.
+  const report = isGenericExeName(exeName)
+    ? "skipped"
+    : await submitIdentifierReport(exeName, gameIdentity);
   void requestProcessScan("after negative match report");
   logRuntime(`negative match handled ${exeName}`);
   return { ...localOutcome, report };
@@ -5092,7 +5508,10 @@ export async function reportNegativeMatch(
 
 async function ignoreProcessLocally(
   exeName: string,
+  exePaths: readonly (string | null | undefined)[] = [],
 ): Promise<LocalProcessIgnoreOutcome> {
+  const folderOutcome = ignoreExeFoldersLocally(exeName, exePaths);
+  if (folderOutcome) return folderOutcome;
   const key = exeName.toLowerCase();
   const state = useAppStore.getState();
   // The in-app block is synchronous and is deliberately kept even when the
@@ -5124,14 +5543,94 @@ async function ignoreProcessLocally(
   };
 }
 
+/**
+ * Ignores one folder's copy of a generic exe (Game.exe) on this PC. That
+ * folder's link, running session, picker and Discovered entry go; every other
+ * folder with the same file name keeps being tracked. Null for a unique name,
+ * or when no folder is known (the whole name is ignored then, as before).
+ */
+function ignoreExeFoldersLocally(
+  exeName: string,
+  exePaths: readonly (string | null | undefined)[],
+): LocalProcessIgnoreOutcome | null {
+  const folders = [
+    ...new Set(
+      exePaths.flatMap((exePath) => {
+        const folder = genericExeFolder({ exeName, exePath });
+        return folder ? [folder] : [];
+      }),
+    ),
+  ];
+  if (folders.length === 0) return null;
+  const key = exeName.toLowerCase();
+  const ignoredAt = new Date().toISOString();
+  for (const folder of folders) {
+    const state = useAppStore.getState();
+    state.setIgnoredExeFolder({ exeName, pathPrefix: folder, ignoredAt });
+    for (const [linkKey, link] of state.scopedExeLinks) {
+      if (
+        link.exeName.toLowerCase() !== key ||
+        !isInFolder(link.pathPrefix, folder)
+      ) {
+        continue;
+      }
+      for (const session of state.activeSessions.filter(
+        (active) =>
+          active.exeName.toLowerCase() === key &&
+          active.gameId === link.gameId &&
+          (active.source ?? "igdb") === link.source,
+      )) {
+        removeActiveSession(session);
+      }
+      state.removeScopedExeLink(linkKey);
+    }
+    const discovered = state.exeCache.get(key);
+    if (
+      discovered?.state === "unmatched" &&
+      isInFolder(discovered.exePath, folder)
+    ) {
+      state.removeExeCacheEntry(exeName);
+    }
+    const ambiguous = state.ambiguousMatches.find(
+      (match) => match.exeName.toLowerCase() === key,
+    );
+    if (ambiguous && isInFolder(ambiguous.exePath, folder)) {
+      state.removeAmbiguousMatch(exeName);
+    }
+    const target = state.launchTargets.get(key);
+    if (target && isInFolder(target.path, folder)) {
+      state.removeLaunchTarget(exeName);
+    }
+  }
+  persist();
+  logRuntime(`process ignored in folder ${exeName}: ${folders.join(", ")}`);
+  return {
+    localBlockApplied: true,
+    ignoreFileUpdated: true,
+    folder: folders[0],
+  };
+}
+
+/** Undoes ignoring one folder's Game.exe. */
+export function restoreIgnoredExeFolder(key: string) {
+  useAppStore.getState().removeIgnoredExeFolder(key);
+  persist();
+  void requestProcessScan("after ignored folder restored");
+}
+
 export async function ignoreDiscoveredProcess(
   exeName: string,
+  exePath?: string | null,
 ): Promise<IgnoredProcessSuggestionOutcome> {
-  if (useAppStore.getState().settings.autoShareIgnoredProcesses) {
+  if (
+    useAppStore.getState().settings.autoShareIgnoredProcesses &&
+    // Game.exe names no app for anyone else: it is never suggested.
+    !isGenericExeName(exeName)
+  ) {
     return suggestIgnoredProcess(exeName);
   }
 
-  const local = await ignoreProcessLocally(exeName);
+  const local = await ignoreProcessLocally(exeName, [exePath]);
   void requestProcessScan("after process ignored");
   logRuntime(`process ignored locally ${exeName}`);
   return { ...local, suggestion: { kind: "disabled" } };
@@ -5231,7 +5730,12 @@ async function submitIgnoredProcessReport(
 }
 
 export async function dismissAmbiguousMatch(exeName: string) {
-  const outcome = await ignoreProcessLocally(exeName);
+  const ambiguous = useAppStore
+    .getState()
+    .ambiguousMatches.find(
+      (match) => match.exeName.toLowerCase() === exeName.toLowerCase(),
+    );
+  const outcome = await ignoreProcessLocally(exeName, [ambiguous?.exePath]);
   void requestProcessScan("after ambiguous match dismissed");
   logRuntime(`ambiguous match dismissed and ignored locally ${exeName}`);
   return outcome;
@@ -5239,8 +5743,11 @@ export async function dismissAmbiguousMatch(exeName: string) {
 
 // "I'm not playing this right now" on a tracked session: the user is unsure
 // what the file is, so it is only ignored here and never reported.
-export async function ignoreTrackedProcessLocally(exeName: string) {
-  const outcome = await ignoreProcessLocally(exeName);
+export async function ignoreTrackedProcessLocally(
+  exeName: string,
+  exePath?: string | null,
+) {
+  const outcome = await ignoreProcessLocally(exeName, [exePath]);
   void requestProcessScan("after tracked process ignored");
   logRuntime(`tracked process ignored locally ${exeName}`);
   return outcome;
@@ -5996,10 +6503,31 @@ export async function recheckExecutable(exeName: string) {
   void requestProcessScan(`after executable recheck ${exeName}`);
 }
 
-export function addCustomGame(exeName: string, gameName: string) {
+export function addCustomGame(
+  exeName: string,
+  gameName: string,
+  exePath?: string | null,
+) {
   const state = useAppStore.getState();
   const normalizedGameName = gameName.trim();
   if (!normalizedGameName) return;
+
+  const file = { exeName, exePath };
+  if (genericExeFolder(file)) {
+    linkExecutableGame(
+      file,
+      sameNamedCustomGame(exeName, normalizedGameName) ?? {
+        id: localCustomGameId(file, customGameId(exeName)),
+        name: normalizedGameName,
+        coverUrl: "",
+        source: "custom",
+      },
+    );
+    logRuntime(`custom game added ${exeName} -> ${normalizedGameName}`);
+    persist();
+    void requestProcessScan("after custom game add");
+    return;
+  }
 
   backfillTrackedRuntime(exeName, {
     id: customGameId(exeName),
@@ -6451,12 +6979,22 @@ export async function submitLocalLinkToCommunity(
 export function selectAmbiguousCustomGame(exeName: string, gameName: string) {
   const normalizedGameName = gameName.trim();
   if (!normalizedGameName) return;
-  selectAmbiguousMatch(exeName, {
-    id: customGameId(exeName),
-    name: normalizedGameName,
-    coverUrl: "",
-    source: "custom",
-  });
+  const ambiguous = useAppStore
+    .getState()
+    .ambiguousMatches.find(
+      (match) => match.exeName.toLowerCase() === exeName.toLowerCase(),
+    );
+  const file = { exeName, exePath: ambiguous?.exePath };
+  selectAmbiguousMatch(
+    exeName,
+    (genericExeFolder(file) &&
+      sameNamedCustomGame(exeName, normalizedGameName)) || {
+      id: localCustomGameId(file, customGameId(exeName)),
+      name: normalizedGameName,
+      coverUrl: "",
+      source: "custom",
+    },
+  );
 }
 
 export function selectAmbiguousCommunitySuggestion(

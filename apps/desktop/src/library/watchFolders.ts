@@ -8,7 +8,9 @@ import {
   lookupFolderExecutables,
   noteFolderExecutable,
 } from "../tracker";
-import { importExeCandidates } from "./exeCandidates";
+import { importExeCandidates, isGenericExeName } from "./exeCandidates";
+import { gamesLinkedToExe, isInIgnoredFolder } from "./genericExeLinks";
+import { resolveScopedLink } from "./scopedLinks";
 import type { ScannedExecutable } from "./types";
 import {
   addWatchFolder,
@@ -31,12 +33,34 @@ type Candidate = { exeName: string; exePath: string };
  * there lost its launch path (deleted and reinstalled, or renamed by an
  * update). Empty folders and finds still waiting in Discovered do not.
  */
-function needsLook(entry: SeenFolder | undefined, record: WatchFolderRecord) {
+function needsLook(
+  entry: SeenFolder | undefined,
+  record: WatchFolderRecord,
+  folderPath: string,
+) {
   if (!entry) return true;
   if (entry.kind === "empty") return false;
   const key = entry.exeName.toLowerCase();
-  if (useAppStore.getState().launchTargets.has(key)) return false;
+  // Game.exe's launch file lives on its folder link; a name's launch path
+  // belongs to whichever copy ran last.
+  if (isGenericExeName(entry.exeName)) {
+    if (hasFolderLink(entry.exeName, folderPath)) return false;
+  } else if (useAppStore.getState().launchTargets.has(key)) {
+    return false;
+  }
+  // A folder whose file waits behind another folder's copy of the same name
+  // gets its turn once that one is sorted.
   return entry.kind === "game" || !record.pending[key];
+}
+
+/** Whether a generic exe inside this game folder is linked to a game. */
+function hasFolderLink(exeName: string, folderPath: string) {
+  const key = exeName.toLowerCase();
+  return [...useAppStore.getState().scopedExeLinks.values()].some(
+    (link) =>
+      link.exeName.toLowerCase() === key &&
+      isInsideFolder(link.pathPrefix, folderPath),
+  );
 }
 
 /**
@@ -142,7 +166,7 @@ async function runScan(reason: string): Promise<number> {
         !launcherInstalls.some(
           (install) => install === key || install.startsWith(`${key}\\`),
         ) &&
-        needsLook(current.seen[key], current)
+        needsLook(current.seen[key], current, folder.path)
       );
     })
     .slice(0, MAX_FOLDERS_PER_RUN);
@@ -169,7 +193,15 @@ async function runScan(reason: string): Promise<number> {
       .map((executable) => ({
         exeName: executable.fileName,
         exePath: `${folder.path}\\${executable.relativePath.replaceAll("/", "\\")}`,
-      }));
+      }))
+      // A Game.exe whose folder was ignored on this PC is not offered again.
+      .filter(
+        (candidate) =>
+          !isInIgnoredFolder(
+            candidate,
+            useAppStore.getState().ignoredExeFolders,
+          ),
+      );
     if (candidates.length > 0) candidatesByFolder.set(folder, candidates);
     // A walk cut short gets another chance; an empty folder does not.
     else if (!scan.capped) seen[folder.path.toLowerCase()] = { kind: "empty" };
@@ -183,7 +215,20 @@ async function runScan(reason: string): Promise<number> {
   for (const [folder, candidates] of candidatesByFolder) {
     const folderKey = folder.path.toLowerCase();
     const confident = confidentFind(candidates, results);
-    if (confident) {
+    // Game.exe in a new folder while the name already has games here: the
+    // user says which one in Discovered; the database does not decide.
+    const state = useAppStore.getState();
+    if (
+      confident &&
+      !(
+        isGenericExeName(confident.exeName) &&
+        gamesLinkedToExe(
+          confident.exeName,
+          state.exeCache,
+          state.scopedExeLinks,
+        ).length > 0
+      )
+    ) {
       adoptFolderGame(confident.exeName, confident.exePath, confident.game);
       seen[folderKey] = { kind: "game", exeName: confident.exeName };
       added += 1;
@@ -191,18 +236,25 @@ async function runScan(reason: string): Promise<number> {
     }
     const top = candidates[0];
     const key = top.exeName.toLowerCase();
-    const known = useAppStore.getState().exeCache.get(key);
-    // The file already names a game: only its launch file was missing.
-    if (known?.state === "matched" && known.gameId !== undefined) {
-      if (!useAppStore.getState().launchTargets.has(key)) {
-        useAppStore.getState().setLaunchTarget({
-          exeName: top.exeName,
-          path: top.exePath,
-          owner: { gameId: known.gameId, source: known.source ?? null },
-        });
+    if (isGenericExeName(top.exeName)) {
+      if (resolveScopedLink(top, useAppStore.getState().scopedExeLinks)) {
+        seen[folderKey] = { kind: "game", exeName: top.exeName };
+        continue;
       }
-      seen[folderKey] = { kind: "game", exeName: top.exeName };
-      continue;
+    } else {
+      const known = useAppStore.getState().exeCache.get(key);
+      // The file already names a game: only its launch file was missing.
+      if (known?.state === "matched" && known.gameId !== undefined) {
+        if (!useAppStore.getState().launchTargets.has(key)) {
+          useAppStore.getState().setLaunchTarget({
+            exeName: top.exeName,
+            path: top.exePath,
+            owner: { gameId: known.gameId, source: known.source ?? null },
+          });
+        }
+        seen[folderKey] = { kind: "game", exeName: top.exeName };
+        continue;
+      }
     }
     seen[folderKey] = { kind: "discovered", exeName: top.exeName };
     // Another folder already waits in Discovered with this file.
@@ -275,6 +327,8 @@ export function startWatchFolderLinks() {
   return useAppStore.subscribe((state, previous) => {
     if (
       state.exeCache === previous.exeCache &&
+      state.scopedExeLinks === previous.scopedExeLinks &&
+      state.ignoredExeFolders === previous.ignoredExeFolders &&
       state.userIgnoredProcesses === previous.userIgnoredProcesses
     ) {
       return;
@@ -285,7 +339,18 @@ export function startWatchFolderLinks() {
     const dismissed: DismissedFolder[] = [];
     for (const [key, find] of Object.entries(record.pending)) {
       const entry = state.exeCache.get(key);
-      if (entry?.state === "matched" && entry.gameId !== undefined) {
+      const folderLink = resolveScopedLink(
+        { exeName: entry?.exeName ?? key, exePath: find.exePath },
+        state.scopedExeLinks,
+      );
+      if (folderLink && isGenericExeName(folderLink.exeName)) {
+        // Play starts the file from the folder link itself.
+        matched[find.folderPath.toLowerCase()] = {
+          kind: "game",
+          exeName: folderLink.exeName,
+        };
+        resolved.push(key);
+      } else if (entry?.state === "matched" && entry.gameId !== undefined) {
         if (!state.launchTargets.has(key)) {
           state.setLaunchTarget({
             exeName: entry.exeName,
@@ -299,8 +364,17 @@ export function startWatchFolderLinks() {
         };
         resolved.push(key);
       } else if (
-        state.userIgnoredProcesses.has(key) &&
-        !previous.userIgnoredProcesses.has(key)
+        (state.userIgnoredProcesses.has(key) &&
+          !previous.userIgnoredProcesses.has(key)) ||
+        // Only this folder's Game.exe was ignored.
+        (isInIgnoredFolder(
+          { exeName: entry?.exeName ?? key, exePath: find.exePath },
+          state.ignoredExeFolders,
+        ) &&
+          !isInIgnoredFolder(
+            { exeName: entry?.exeName ?? key, exePath: find.exePath },
+            previous.ignoredExeFolders,
+          ))
       ) {
         dismissed.push({
           folderPath: find.folderPath,

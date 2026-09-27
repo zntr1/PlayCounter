@@ -275,13 +275,23 @@ export function GameDetailsDialog({
     game.totalSeconds > 0 ||
     game.libraryImports.some(({ entry }) => entry.providerSeconds === null);
 
+  // Only this game's folders: two games can both run a Game.exe.
   const scopedByExe = useMemo(() => {
-    const byExe = new Map<string, ScopedExeLink>();
+    const byExe = new Map<string, ScopedExeLink[]>();
     for (const link of scopedExeLinks.values()) {
-      byExe.set(link.exeName.toLowerCase(), link);
+      if (
+        !game.aliases.some(
+          (alias) =>
+            alias.gameId === link.gameId && alias.source === link.source,
+        )
+      ) {
+        continue;
+      }
+      const key = link.exeName.toLowerCase();
+      byExe.set(key, [...(byExe.get(key) ?? []), link]);
     }
     return byExe;
-  }, [scopedExeLinks]);
+  }, [game.aliases, scopedExeLinks]);
 
   const importedProviders = libraryProviders(game.libraryImports);
   const duration = (seconds: number) =>
@@ -721,7 +731,7 @@ export function GameDetailsDialog({
               They do not confirm that it is currently installed.
             </p>
             {game.exeNames.map((exeName) => {
-              const scoped = scopedByExe.get(exeName.toLowerCase());
+              const scoped = scopedByExe.get(exeName.toLowerCase()) ?? [];
               const target = launcher.launchTargets.find(
                 (entry) =>
                   entry.exeName.toLowerCase() === exeName.toLowerCase(),
@@ -746,14 +756,19 @@ export function GameDetailsDialog({
                       {exeName}
                     </span>
                     <span className="ml-auto shrink-0 text-[11px] uppercase tracking-wider text-text-faint">
-                      {scoped ? "Matches in folder" : "Matches by name"}
+                      {scoped.length > 0
+                        ? "Matches in folder"
+                        : "Matches by name"}
                     </span>
                   </div>
-                  {scoped ? (
-                    <div className="mt-1.5 break-all text-xs text-text-faint">
-                      Tracking folder: {scoped.pathPrefix}
+                  {scoped.map((link) => (
+                    <div
+                      key={link.pathPrefix}
+                      className="mt-1.5 break-all text-xs text-text-faint"
+                    >
+                      Tracking folder: {link.pathPrefix}
                     </div>
-                  ) : null}
+                  ))}
                   {target ? (
                     <div className="mt-1.5 flex items-center gap-2">
                       <span className="min-w-0 flex-1 break-all text-xs text-text-muted">

@@ -57,11 +57,13 @@ import { stepView } from "./ui/tour/tourNavigation";
 import type {
   LibraryImportEntry,
   LibraryInstallEntry,
+  IgnoredExeFolder,
   PlayCounterLibraryEntry,
   ScopedExeLink,
 } from "./library/types";
 import { libraryEntryKey } from "./library/types";
 import { scopedExeLinkKey } from "./library/scopedLinks";
+import { isGenericExeName } from "./library/exeCandidates";
 import type { LocalLinkRef } from "./localLinks";
 import {
   defaultTourProgress,
@@ -132,6 +134,9 @@ export type AmbiguousProcessMatch = {
   exeName: string;
   exePath: string | null;
   candidates: Game[];
+  /** Database games left out after the first ones (Game.exe has thousands);
+   *  the user searches for those. */
+  hiddenCandidateCount?: number;
   detectedAt: string;
   endedAt?: string;
   // When the candidates were last fetched; gates re-querying the match API.
@@ -222,6 +227,8 @@ export function canSuggestCustomGameToCommunity(value: {
   return (
     value.source === "custom" &&
     Boolean(value.exeName) &&
+    // Game.exe names no game for anyone else: it is never shared.
+    !isGenericExeName(value.exeName!) &&
     (value.communitySuggestionId === undefined ||
       value.communitySuggestionStatus === "rejected")
   );
@@ -258,6 +265,8 @@ export function findPendingCommunitySuggestionEntry(
   exeNames: readonly string[],
   exeCache: ReadonlyMap<string, ExeCacheEntry>,
   scopedExeLinks: ReadonlyMap<string, ScopedExeLink> = new Map(),
+  /** The game's ids: another game's folder link can share the exe name. */
+  owners?: readonly { gameId: number; source: GameSource | null }[],
 ): PendingCommunitySuggestionTarget | null {
   if (exeNames.length === 0) return null;
   const wanted = new Set(exeNames.map((exeName) => exeName.toLowerCase()));
@@ -284,6 +293,11 @@ export function findPendingCommunitySuggestionEntry(
   for (const [key, entry] of scopedExeLinks) {
     if (
       wanted.has(entry.exeName.toLowerCase()) &&
+      (!owners ||
+        owners.some(
+          (owner) =>
+            owner.gameId === entry.gameId && owner.source === entry.source,
+        )) &&
       canCancelCommunitySuggestion({
         source: entry.source,
         exeName: entry.exeName,
@@ -423,6 +437,7 @@ export type AppState = {
   playcounterLibrary: Map<string, PlayCounterLibraryEntry>;
   libraryInstalls: Map<string, LibraryInstallEntry>;
   scopedExeLinks: Map<string, ScopedExeLink>;
+  ignoredExeFolders: Map<string, IgnoredExeFolder>;
   launchTargets: Map<string, LaunchTarget>;
   manualLaunchTargets: Map<string, LaunchTarget>;
   emulatorAutoBinaries: Map<string, EmulatorBinaryEntry>;
@@ -516,6 +531,8 @@ export type AppState = {
   ) => void;
   setScopedExeLink: (entry: ScopedExeLink) => void;
   removeScopedExeLink: (key: string) => void;
+  setIgnoredExeFolder: (entry: IgnoredExeFolder) => void;
+  removeIgnoredExeFolder: (key: string) => void;
   clearLibraryData: () => void;
   setLaunchTarget: (target: LaunchTarget) => void;
   removeLaunchTarget: (exeName: string) => void;
@@ -802,6 +819,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   playcounterLibrary: new Map(),
   libraryInstalls: new Map(),
   scopedExeLinks: new Map(),
+  ignoredExeFolders: new Map(),
   launchTargets: new Map(),
   manualLaunchTargets: new Map(),
   emulatorAutoBinaries: new Map(),
@@ -1190,6 +1208,24 @@ export const useAppStore = create<AppState>((set, get) => ({
       const scopedExeLinks = new Map(state.scopedExeLinks);
       scopedExeLinks.set(key, entry);
       return { scopedExeLinks };
+    });
+    persistSoon();
+  },
+  setIgnoredExeFolder: (entry) => {
+    const key = scopedExeLinkKey(entry.exeName, entry.pathPrefix);
+    if (!key) return;
+    set((state) => {
+      const ignoredExeFolders = new Map(state.ignoredExeFolders);
+      ignoredExeFolders.set(key, entry);
+      return { ignoredExeFolders };
+    });
+    persistSoon();
+  },
+  removeIgnoredExeFolder: (key) => {
+    set((state) => {
+      const ignoredExeFolders = new Map(state.ignoredExeFolders);
+      ignoredExeFolders.delete(key);
+      return { ignoredExeFolders };
     });
     persistSoon();
   },
