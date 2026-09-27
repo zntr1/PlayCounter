@@ -14,7 +14,7 @@ export type ExeDetails = {
 const pending = new Map<string, Promise<ExeDetails | null>>();
 const resolved = new Map<string, ExeDetails | null>();
 
-function loadExeDetails(exePath: string) {
+export function loadExeDetails(exePath: string) {
   const key = exePath.toLowerCase();
   let request = pending.get(key);
   if (!request) {

@@ -267,8 +267,13 @@ describe("process lookup batching", () => {
 
       await scanProcessesNow();
 
-      expect(requests).toHaveLength(4);
-      expect(requests[3].map(({ key }) => key)).toEqual(
+      // Matched games are also re-checked now and then for having become
+      // software; only the retried batch matters here.
+      const retried = requests
+        .slice(3)
+        .filter((items) => items.some(({ key }) => key === "batchgame200"));
+      expect(retried).toHaveLength(1);
+      expect(retried[0].map(({ key }) => key)).toEqual(
         processes.slice(200, 400).map(({ exeName }) => exeName.toLowerCase()),
       );
       expect(useAppStore.getState().exeCache.size).toBe(405);

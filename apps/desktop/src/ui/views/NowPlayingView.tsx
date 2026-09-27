@@ -8,6 +8,7 @@ import {
   customHeroArtKey,
   resolvedCanonicalGameKey,
   useAppStore,
+  useIsOffline,
   type ActiveSession,
   type ExeCacheEntry,
 } from "../../store";
@@ -23,6 +24,8 @@ import {
 import { Panel } from "../components";
 import { Button } from "../primitives";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
+import { SoftwareDialog } from "../SoftwareDialog";
+import { exeProductName, peekExeDetails } from "../exeDetails";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { findTour } from "../tour/tourDefinitions";
 import { CommunitySuggestionForm } from "./DiscoveredView";
@@ -77,6 +80,10 @@ export function NowPlayingView() {
   const [reportTarget, setReportTarget] = useState<ActiveSession | null>(null);
   const [correctionTarget, setCorrectionTarget] =
     useState<ActiveSession | null>(null);
+  const [softwareTarget, setSoftwareTarget] = useState<ActiveSession | null>(
+    null,
+  );
+  const isOffline = useIsOffline();
   const activeTourStep = activeTour
     ? findTour(activeTour.tourId)?.steps[activeTour.stepIndex]
     : undefined;
@@ -267,6 +274,30 @@ export function NowPlayingView() {
           }}
           onNotAGame={() => void handleNegativeReport(reportTarget)}
           onNotPlaying={() => void handleNotPlaying(reportTarget)}
+          onSoftware={() => {
+            setSoftwareTarget(reportTarget);
+            setReportTarget(null);
+          }}
+        />
+      ) : null}
+      {softwareTarget ? (
+        <SoftwareDialog
+          exeName={softwareTarget.exeName}
+          suggestedName={exeProductName(
+            peekExeDetails(
+              useAppStore
+                .getState()
+                .processes.find(
+                  (process) =>
+                    process.exeName.toLowerCase() ===
+                    softwareTarget.exeName.toLowerCase(),
+                )?.exePath,
+            ),
+            softwareTarget.exeName,
+          )}
+          tracked={{ gameName: softwareTarget.gameName }}
+          isOffline={isOffline}
+          onClose={() => setSoftwareTarget(null)}
         />
       ) : null}
       {correctionTarget ? (

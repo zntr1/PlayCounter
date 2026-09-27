@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   ArrowLeft,
   Ban,
   ChevronRight,
@@ -62,6 +63,7 @@ export function ReportWrongMatchDialog({
   onDifferentGame,
   onNotAGame,
   onNotPlaying,
+  onSoftware,
   demo = false,
 }: {
   exeName: string;
@@ -72,6 +74,8 @@ export function ReportWrongMatchDialog({
   onNotAGame: () => void;
   /** Only offered while the file is running, e.g. in Now Playing. */
   onNotPlaying?: () => void;
+  /** "It's software": counted on the Software page, time included. */
+  onSoftware?: () => void;
   demo?: boolean;
 }) {
   const [confirming, setConfirming] = useState<Choice | null>(null);
@@ -153,6 +157,16 @@ export function ReportWrongMatchDialog({
               description="Pick the right game for this file."
               onClick={onDifferentGame}
             />
+            {/* Software is counted per file name; Game.exe would turn every
+                game in its folders into software. */}
+            {onSoftware && !isGenericExeName(exeName) ? (
+              <ChoiceCard
+                icon={AppWindow}
+                title="It's software"
+                description="An app like VS Code. Its time moves to the Software page."
+                onClick={onSoftware}
+              />
+            ) : null}
             <ChoiceCard
               icon={Ban}
               title="It isn't a game at all"

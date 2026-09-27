@@ -256,6 +256,10 @@ export interface MatchProcessesResponse {
     // entries for one exe deliberately end up in the picker, so a merged game
     // often appears only as a candidate.
     communityGameAliases?: CommunityGameAlias[];
+    // Only next to a tool match, for clients with `supportsTools`: games on
+    // the same executable (Code.exe is VS Code and the game Code:29). The
+    // client decides which one is running.
+    collidingGames?: Game[];
   }>;
 }
 

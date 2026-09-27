@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addToolIntervals,
   carryDiscoveredSeconds,
   creditToolUsage,
   describeToolUsage,
@@ -214,5 +215,36 @@ describe("tool usage details", () => {
       averagePerDaySeconds: 0,
       longestDay: null,
     });
+  });
+});
+
+describe("time moved from a game", () => {
+  it("keeps the total, splits at local midnight and adds to earlier days", () => {
+    const usage = addToolIntervals(
+      { "code.exe": { exePath: "C:\Code.exe", days: { "2026-09-20": 60 } } },
+      "code.exe",
+      [
+        { fromMs: at(20, 23), toMs: at(21, 1) },
+        { fromMs: at(22, 10), toMs: at(22, 10, 30) },
+      ],
+    );
+    expect(usage["code.exe"]).toEqual({
+      exePath: "C:\Code.exe",
+      days: {
+        "2026-09-20": 60 + 3600,
+        "2026-09-21": 3600,
+        "2026-09-22": 1800,
+      },
+    });
+  });
+
+  it("returns the same object when there is nothing to move", () => {
+    const usage = {};
+    expect(
+      addToolIntervals(usage, "code.exe", [
+        { fromMs: at(20, 10), toMs: at(20, 10) },
+      ]),
+    ).toBe(usage);
+    expect(addToolIntervals(usage, "code.exe", [])).toBe(usage);
   });
 });

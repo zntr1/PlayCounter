@@ -17,6 +17,7 @@ export function ambiguousMatchCopy({
   candidateName,
   flagReason,
   genericName = false,
+  softwareName,
 }: {
   candidateCount: number;
   /** Name of the only candidate, when there is exactly one. */
@@ -24,7 +25,17 @@ export function ambiguousMatchCopy({
   flagReason?: IdentifierFlagReason;
   /** A file name many games ship (Game.exe): asked once per folder. */
   genericName?: boolean;
+  /** Known software on the same file name; candidateCount counts games. */
+  softwareName?: string;
 }): AmbiguousMatchCopy {
+  if (softwareName) {
+    return {
+      eyebrow: "Software or game?",
+      headline: "What is {exe}?",
+      description: `${softwareName} uses this file name, and so ${candidateCount === 1 ? "does a game" : `do ${candidateCount} games`}. The file doesn't say which one this is. Pick what you started.`,
+    };
+  }
+
   if (flagReason === "not_a_game") {
     const suffix =
       candidateCount === 1 && candidateName

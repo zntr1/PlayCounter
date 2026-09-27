@@ -58,3 +58,20 @@ describe("formatAgo", () => {
     expect(formatAgo(2 * 3600 + 5 * 60)).toBe("2h 5m ago");
   });
 });
+
+describe("ambiguousMatchCopy with software on the same file", () => {
+  it.each([
+    [1, "does a game"],
+    [3, "do 3 games"],
+  ])("names the software and counts %i game(s)", (candidateCount, phrase) => {
+    const copy = ambiguousMatchCopy({
+      candidateCount,
+      softwareName: "Visual Studio Code",
+    });
+    expect(copy.headline).toBe("What is {exe}?");
+    expect(copy.description).toContain(
+      "Visual Studio Code uses this file name",
+    );
+    expect(copy.description).toContain(phrase);
+  });
+});

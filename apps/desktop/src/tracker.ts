@@ -124,6 +124,7 @@ import {
   sanitizeGameSecondsRecord,
 } from "./gameSeconds";
 import {
+  addToolIntervals,
   carryDiscoveredSeconds,
   creditToolUsage,
   sanitizeToolUsage,
@@ -153,6 +154,8 @@ import { normalizeAccentColor } from "./theme";
 import { resolveMyGamesPresentationSettings } from "./ui/myGamesPresentation";
 import { TOURS } from "./ui/tour/tourDefinitions";
 import { normalizeTourProgress } from "./ui/tour/tourState";
+import { loadExeDetails } from "./ui/exeDetails";
+import { decideCollision } from "./softwareCollision";
 import {
   armDesktopOverlays,
   disposeDesktopOverlays,
@@ -2191,6 +2194,13 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   for (const [key, group] of matchesByGame) {
     if (!activeKeys.has(key)) {
       const match = group.primary;
+      // The re-check may have made the exe software while this scan ran.
+      if (
+        useAppStore.getState().exeCache.get(match.process.exeName.toLowerCase())
+          ?.state === "tool"
+      ) {
+        continue;
+      }
       startSession(match.process, match.game, {
         startedAt: match.startedAt,
         emulator: match.emulator,
@@ -2897,11 +2907,14 @@ async function resolveProcesses(
     // Custom games are checked for a database match; community games are
     // checked because their id can change on the server when two entries for
     // one game are merged, and a matched entry is otherwise cached forever.
+    // IGDB games are only checked for having become software, which is rare:
+    // once per app start is enough.
+    const checkedAt = communityUpgradeCheckedAt.get(processCacheKey(process));
     if (
       existing?.state === "matched" &&
-      (existing.source === "custom" || existing.source === "community") &&
-      now - (communityUpgradeCheckedAt.get(processCacheKey(process)) ?? 0) >=
-        PENDING_COMMUNITY_RETRY_MS
+      (existing.source === "custom" || existing.source === "community"
+        ? now - (checkedAt ?? 0) >= PENDING_COMMUNITY_RETRY_MS
+        : checkedAt === undefined)
     ) {
       communityCheckProcesses.push(process);
     }
@@ -3046,7 +3059,16 @@ async function resolveProcesses(
     // Failed batches stay uncached so a later scan can retry them.
     if (!result) continue;
     if (result.game?.kind === "tool") {
-      cacheToolResult(process.exeName, result.game);
+      if (result.collidingGames?.length) {
+        const match = await resolveCollision(
+          process,
+          result.game,
+          result.collidingGames,
+        );
+        if (match) matches.push(match);
+      } else {
+        cacheToolResult(process.exeName, result.game);
+      }
       continue;
     }
     const cachedEntry = useAppStore
@@ -3113,6 +3135,9 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
   for (const process of processes) {
     communityUpgradeCheckedAt.set(processCacheKey(process), now);
   }
+  const exePaths = new Map(
+    processes.map((process) => [processCacheKey(process), process.exePath]),
+  );
   for (const batch of processLookupBatches(processes)) {
     try {
       const response = await requestJsonResponse<MatchProcessesResponse>(
@@ -3130,7 +3155,22 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
       for (const result of body.matches) {
         const aliases = result.communityGameAliases;
         if (result.game?.kind === "tool") {
-          applyToolReclassification(result.key, result.game);
+          await applyToolReclassification(
+            result.key,
+            result.game,
+            result.collidingGames,
+            exePaths.get(result.key.toLowerCase()) ?? null,
+          );
+          continue;
+        }
+        // IGDB matches are only re-checked for becoming software.
+        const checked = useAppStore
+          .getState()
+          .exeCache.get(result.key.toLowerCase());
+        if (
+          checked?.state === "matched" &&
+          (checked.source ?? "igdb") === "igdb"
+        ) {
           continue;
         }
         // The surviving game can be the match or one of the picker candidates -
@@ -4644,16 +4684,126 @@ function keepOrReclassifyTool(exeName: string, game: Game | null) {
   });
 }
 
-// An admin moved a community game to the tools. Its running session ends with
-// the next scan, because the exe no longer matches a game. Sessions already
-// recorded stay in the game history. The user's own custom games are left
-// alone.
-function applyToolReclassification(exeName: string, tool: Game) {
-  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
-  if (existing?.state !== "matched" || existing.source !== "community") return;
-  logRuntime(`community game became a tool ${exeName} -> ${tool.name}`);
+// A matched game's exe is software on the server now. With no game left on the
+// exe (an admin moved the community game to the tools) it switches. When a
+// game still shares the exe, only a file that names the software switches it;
+// anything else stays a game, without a question, since the person has been
+// tracking it as one. A switch takes the time counted as a game along. The
+// user's own custom games are left alone.
+async function applyToolReclassification(
+  exeName: string,
+  tool: Game,
+  collidingGames: Game[] | undefined,
+  exePath: string | null,
+) {
+  const isSwitchable = () => {
+    const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+    return existing?.state === "matched" && existing.source !== "custom";
+  };
+  if (!isSwitchable()) return;
+  if (collidingGames?.length) {
+    const decision = await checkCollision(exePath, tool, collidingGames);
+    if (decision.kind !== "tool" || !isSwitchable()) return;
+  }
+  logRuntime(`game became software ${exeName} -> ${tool.name}`);
+  moveGameTimeToSoftware(exeName);
   cacheToolResult(exeName, tool);
   persist();
+}
+
+async function checkCollision(
+  exePath: string | null,
+  tool: Game,
+  games: readonly Game[],
+) {
+  const details = exePath ? await loadExeDetails(exePath) : null;
+  return decideCollision(details, tool, games);
+}
+
+// Software and games on one exe (Code.exe is VS Code and the game Code:29).
+// An exe already kept as software stays software. Otherwise the file decides,
+// and when it can't, the picker asks; it offers the software only with Track
+// software on.
+async function resolveCollision(
+  process: ProcessSnapshot,
+  tool: Game,
+  games: Game[],
+): Promise<ProcessMatch | null> {
+  const existing = useAppStore
+    .getState()
+    .exeCache.get(processCacheKey(process));
+  if (existing?.state === "tool") {
+    cacheToolResult(process.exeName, tool);
+    return null;
+  }
+  const decision = await checkCollision(process.exePath, tool, games);
+  logRuntime(
+    `match collision ${process.exeName}: ${tool.name} or ${games.map((game) => game.name).join(", ")} -> ${decision.kind}`,
+  );
+  if (decision.kind === "tool") {
+    cacheToolResult(process.exeName, tool);
+    return null;
+  }
+  if (decision.kind === "game") {
+    linkExecutableGame(process, decision.game);
+    return { process, game: decision.game };
+  }
+  const trackTools = useAppStore.getState().settings.trackTools === true;
+  // The software goes first so the candidate cap never drops it.
+  cacheAmbiguousMatch(process, trackTools ? [tool, ...games] : games);
+  return null;
+}
+
+// Time counted as a game for this exe moves to the software counter: every
+// history session and the running one, split at local midnight. Sessions of
+// the game's other exes stay. The running session is counted up to the last
+// software tick, which the next scan continues from. The exe's learned launch
+// path no longer starts the game.
+function moveGameTimeToSoftware(exeName: string) {
+  const key = exeName.toLowerCase();
+  const state = useAppStore.getState();
+  const isThisExe = (session: { exeName: string }) =>
+    session.exeName.toLowerCase() === key;
+  const intervals: Array<{ fromMs: number; toMs: number }> = [];
+  for (const session of state.recentSessions.filter(isThisExe)) {
+    const fromMs = Date.parse(session.startedAt);
+    const seconds =
+      session.durationSeconds ??
+      (session.endedAt ? (Date.parse(session.endedAt) - fromMs) / 1000 : 0);
+    intervals.push({ fromMs, toMs: fromMs + seconds * 1000 });
+  }
+  const until = lastToolTickAt ?? Date.now();
+  for (const session of state.activeSessions.filter(isThisExe)) {
+    intervals.push({ fromMs: Date.parse(session.startedAt), toMs: until });
+    removeActiveSession(session);
+  }
+  useAppStore.setState((current) => ({
+    recentSessions: current.recentSessions.filter(
+      (session) => !isThisExe(session),
+    ),
+    toolUsage: addToolIntervals(current.toolUsage, key, intervals),
+  }));
+  state.removeLaunchTarget(exeName);
+  logRuntime(
+    `game time moved to software ${exeName} sessions=${intervals.length}`,
+  );
+  evaluateAndStoreMilestones();
+}
+
+// The picker's time, from detection until it closed or the last software
+// tick, goes to the software counter.
+function creditAmbiguousTimeToSoftware(ambiguous: AmbiguousProcessMatch) {
+  const fromMs = Date.parse(ambiguous.detectedAt);
+  const toMs = ambiguous.endedAt
+    ? Date.parse(ambiguous.endedAt)
+    : (lastToolTickAt ?? Date.now());
+  useAppStore.setState((current) => ({
+    toolUsage: addToolIntervals(
+      current.toolUsage,
+      ambiguous.exeName.toLowerCase(),
+      [{ fromMs, toMs }],
+    ),
+  }));
 }
 
 export type MarkAsSoftwareOutcome =
@@ -4739,6 +4889,45 @@ export async function markExecutableAsSoftware(
   }
 }
 
+/**
+ * "It's software" on a tracked game or a picker: the running session ends, the
+ * time counted as a game with this exe moves to the software counter, and the
+ * exe becomes software like "Track as software" in Discovered. A game
+ * suggestion still in review is withdrawn. No "not a game" report: the game
+ * can be right, the exe name is only shared with an app.
+ */
+export async function markTrackedExecutableAsSoftware(
+  exeName: string,
+  input: { name: string; coverUrl?: string; share: boolean },
+): Promise<MarkAsSoftwareOutcome> {
+  if (!input.name.trim()) throw new Error("A name is required.");
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  const existing = state.exeCache.get(key);
+  if (
+    existing?.state === "matched" &&
+    existing.communitySuggestionStatus === "pending" &&
+    existing.communitySuggestionId !== undefined
+  ) {
+    void withdrawSuggestion(existing.exeName, existing.communitySuggestionId);
+  }
+  const ambiguous = state.ambiguousMatches.find(
+    (match) => match.exeName.toLowerCase() === key,
+  );
+  if (ambiguous) creditAmbiguousTimeToSoftware(ambiguous);
+  moveGameTimeToSoftware(exeName);
+  // Not a Discovered entry: nothing to carry, and a custom game must not keep
+  // winning over the new tool.
+  if (existing?.state === "matched") {
+    state.setExeCacheEntry({
+      exeName: existing.exeName,
+      state: "unmatched",
+      lastCheckedAt: new Date().toISOString(),
+    });
+  }
+  return markExecutableAsSoftware(exeName, input);
+}
+
 /** Art picked on this PC for a tool, or null to go back to the shared art
  *  or the app's icon. Kept per executable, like the hours. */
 export function setToolArt(exeNames: readonly string[], artUrl: string | null) {
@@ -4781,15 +4970,16 @@ export function unmarkLocalTool(toolKey: string) {
       entry.communitySuggestionStatus === "pending" &&
       entry.communitySuggestionId !== undefined
     ) {
-      void withdrawToolSuggestion(entry.exeName, entry.communitySuggestionId);
+      void withdrawSuggestion(entry.exeName, entry.communitySuggestionId);
     }
   }
 }
 
-// "Not Software" takes the user's claim back. The server removes this
-// install's submission, and the pending identifier too when nobody else sent
-// it. Best effort: offline, the suggestion simply stays in review.
-async function withdrawToolSuggestion(exeName: string, gameId: number) {
+// "Not Software" and "It's software" take the user's claim back. The server
+// removes this install's submission, and the pending identifier too when
+// nobody else sent it. Best effort: offline, the suggestion simply stays in
+// review.
+async function withdrawSuggestion(exeName: string, gameId: number) {
   const state = useAppStore.getState();
   if (!state.installUuid || isOfflineStatus(state.backendHealth.status)) {
     return;
@@ -4810,12 +5000,10 @@ async function withdrawToolSuggestion(exeName: string, gameId: number) {
       });
     if (!response.ok) throw responseError(response);
     logRuntime(
-      `software suggestion withdrawn ${exeName} -> ${gameId} status=${response.data.status}`,
+      `suggestion withdrawn ${exeName} -> ${gameId} status=${response.data.status}`,
     );
   } catch (error) {
-    logRuntime(
-      `software suggestion withdraw failed ${exeName}: ${formatError(error)}`,
-    );
+    logRuntime(`suggestion withdraw failed ${exeName}: ${formatError(error)}`);
   }
 }
 
@@ -5382,6 +5570,17 @@ export function selectAmbiguousMatch(exeName: string, game: Game) {
     (match) => match.exeName.toLowerCase() === exeName.toLowerCase(),
   );
   if (!ambiguous) return;
+
+  // The software the server knows for this exe: no sharing needed.
+  if (game.kind === "tool") {
+    creditAmbiguousTimeToSoftware(ambiguous);
+    cacheToolResult(ambiguous.exeName, game);
+    logRuntime(
+      `ambiguous match selected ${ambiguous.exeName} -> software ${game.name}`,
+    );
+    persist();
+    return;
+  }
 
   linkExecutableGame(ambiguous, game);
   if (

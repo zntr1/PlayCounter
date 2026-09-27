@@ -1,13 +1,17 @@
 import { AppWindow, Image as ImageIcon, X } from "lucide-react";
 import { useState } from "react";
 import { useAppStore } from "../store";
-import { markExecutableAsSoftware } from "../tracker";
+import {
+  markExecutableAsSoftware,
+  markTrackedExecutableAsSoftware,
+} from "../tracker";
 import { ArtPickerDialog } from "./ArtPickerDialog";
 import { Button, Input, Modal, Switch } from "./primitives";
 
 /* "Track as software" from Discovered: the app leaves Discovered at once and gets
    its own counter on the Software page. Shared, the community learns it too,
-   reviewed per executable like a game. */
+   reviewed per executable like a game. "It's software" on a tracked game or a
+   picker uses the same dialog and also moves the time counted so far. */
 
 function defaultSoftwareName(exeName: string) {
   return exeName.replace(/\.exe$/i, "");
@@ -16,6 +20,7 @@ function defaultSoftwareName(exeName: string) {
 export function SoftwareDialog({
   exeName,
   suggestedName,
+  tracked,
   isOffline,
   onClose,
   onSaved,
@@ -23,6 +28,9 @@ export function SoftwareDialog({
   exeName: string;
   /** The product name from the exe, when known. */
   suggestedName?: string | null;
+  /** Set when the exe was tracked as a game or waits in a picker: its time
+   *  moves to the Software page. */
+  tracked?: { gameName?: string };
   isOffline: boolean;
   onClose: () => void;
   onSaved?: () => void;
@@ -45,7 +53,10 @@ export function SoftwareDialog({
     try {
       // Choosing to track this app is the opt-in; the setting follows it.
       if (!trackTools) setTrackTools(true);
-      const outcome = await markExecutableAsSoftware(exeName, {
+      const mark = tracked
+        ? markTrackedExecutableAsSoftware
+        : markExecutableAsSoftware;
+      const outcome = await mark(exeName, {
         name: trimmed,
         coverUrl: coverUrl ?? undefined,
         share: share && !isOffline,
@@ -176,6 +187,13 @@ export function SoftwareDialog({
               onChange={(event) => setShare(event.target.checked)}
             />
           </label>
+          {tracked ? (
+            <p className="rounded-md border border-border bg-bg/50 px-3 py-2 text-xs text-text-muted">
+              {tracked.gameName
+                ? `The time tracked as ${tracked.gameName} with ${exeName} moves to the Software page.`
+                : "The time since it was detected moves to the Software page."}
+            </p>
+          ) : null}
           {trackTools ? null : (
             <p className="rounded-md border border-border bg-bg/50 px-3 py-2 text-xs text-text-muted">
               Saving turns on Track software in Settings. Other software is then

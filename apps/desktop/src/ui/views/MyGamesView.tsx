@@ -181,6 +181,8 @@ import {
   sortMatchCandidates,
 } from "./matchCheckModel";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
+import { SoftwareDialog } from "../SoftwareDialog";
+import { exeProductName, peekExeDetails } from "../exeDetails";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
 import { GameCover } from "../GameCover";
 import { GameJournalBadges, GameJournalMenu } from "../GameJournalActions";
@@ -2847,6 +2849,7 @@ export function GameLibraryCard({
   const [showDetails, setShowDetails] = useState(false);
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [softwareOpen, setSoftwareOpen] = useState(false);
   const [cancelSuggestionTarget, setCancelSuggestionTarget] =
     useState<PendingCommunitySuggestionTarget | null>(null);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
@@ -5402,6 +5405,30 @@ export function GameLibraryCard({
                 );
               } else void handleNegativeReport();
             }}
+            onSoftware={
+              demo
+                ? undefined
+                : () => {
+                    setReportOpen(false);
+                    setSoftwareOpen(true);
+                  }
+            }
+          />
+        ) : null}
+        {softwareOpen && game.exeNames[0] ? (
+          <SoftwareDialog
+            exeName={game.exeNames[0]}
+            suggestedName={exeProductName(
+              peekExeDetails(
+                useAppStore
+                  .getState()
+                  .launchTargets.get(game.exeNames[0].toLowerCase())?.path,
+              ),
+              game.exeNames[0],
+            )}
+            tracked={{ gameName: game.name }}
+            isOffline={isOffline}
+            onClose={() => setSoftwareOpen(false)}
           />
         ) : null}
         {cancelSuggestionTarget ? (
@@ -5849,6 +5876,30 @@ export function GameLibraryCard({
               );
             } else void handleNegativeReport();
           }}
+          onSoftware={
+            demo
+              ? undefined
+              : () => {
+                  setReportOpen(false);
+                  setSoftwareOpen(true);
+                }
+          }
+        />
+      ) : null}
+      {softwareOpen && game.exeNames[0] ? (
+        <SoftwareDialog
+          exeName={game.exeNames[0]}
+          suggestedName={exeProductName(
+            peekExeDetails(
+              useAppStore
+                .getState()
+                .launchTargets.get(game.exeNames[0].toLowerCase())?.path,
+            ),
+            game.exeNames[0],
+          )}
+          tracked={{ gameName: game.name }}
+          isOffline={isOffline}
+          onClose={() => setSoftwareOpen(false)}
         />
       ) : null}
       {cancelSuggestionTarget ? (

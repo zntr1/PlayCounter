@@ -1,6 +1,7 @@
 import type { Game, IdentifierFlagReason } from "@playcounter/shared";
 import {
   AlertTriangle,
+  AppWindow,
   Ban,
   ChevronDown,
   ChevronUp,
@@ -33,6 +34,8 @@ import { ambiguousMatchCopy, formatAgo } from "./ambiguousMatchCopy";
 import { useCommunityGameCorrection } from "../../useCommunityGameCorrection";
 import { isGenericExeName } from "../../../library/exeCandidates";
 import { notifyFolderIgnored } from "../folderIgnoredToast";
+import { SoftwareDialog } from "../../SoftwareDialog";
+import { exeProductName, useExeDetails } from "../../exeDetails";
 
 /* One executable PlayCounter would not match on its own ─────────────────────
    Header asks the question, body offers the database's candidates as cover
@@ -58,6 +61,9 @@ export function AmbiguousMatchCard({
   flagReason?: IdentifierFlagReason;
 }) {
   const addToast = useAppStore((state) => state.addToast);
+  const trackTools = useAppStore((state) => state.settings.trackTools === true);
+  const [softwareOpen, setSoftwareOpen] = useState(false);
+  const exeDetails = useExeDetails(softwareOpen ? exePath : null);
   const [suggestionOpen, setSuggestionOpen] = useState(false);
   const [customEntryOpen, setCustomEntryOpen] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -108,21 +114,31 @@ export function AmbiguousMatchCard({
     },
   });
   const isOffline = correction.isOffline;
-  const orderedCandidates = sortMatchCandidates(candidates);
+  // Known software on this file name leads; with Track software off, only
+  // the games are offered.
+  const software = trackTools
+    ? candidates.find((candidate) => candidate.kind === "tool")
+    : undefined;
+  const games = candidates.filter((candidate) => candidate.kind !== "tool");
+  const orderedCandidates = [
+    ...(software ? [software] : []),
+    ...sortMatchCandidates(games),
+  ];
   // The community verified this executable name as non-game software, so the
   // card leads with "not a game" and keeps the database matches folded away.
   const reportedNotAGame = flagReason === "not_a_game";
   const showCandidates =
-    candidates.length > 0 && (!reportedNotAGame || candidatesExpanded);
+    orderedCandidates.length > 0 && (!reportedNotAGame || candidatesExpanded);
   // Game.exe and co.: linked to this folder, never shared.
   const genericName = isGenericExeName(exeName);
   const folder =
     genericName && exePath ? exePath.replace(/[\\/][^\\/]*$/, "") : null;
   const copy = ambiguousMatchCopy({
-    candidateCount: candidates.length + hiddenCandidateCount,
-    candidateName: candidates[0]?.name,
+    candidateCount: games.length + hiddenCandidateCount,
+    candidateName: games[0]?.name,
     flagReason,
     genericName,
+    softwareName: software?.name,
   });
   const HeaderIcon = reportedNotAGame ? AlertTriangle : CircleHelp;
 
@@ -220,7 +236,7 @@ export function AmbiguousMatchCard({
             )}
           </div>
         </div>
-        {reportedNotAGame && candidates.length > 0 ? (
+        {reportedNotAGame && orderedCandidates.length > 0 ? (
           <Button
             variant="ghost"
             icon={candidatesExpanded ? ChevronUp : ChevronDown}
@@ -229,9 +245,9 @@ export function AmbiguousMatchCard({
           >
             {candidatesExpanded
               ? "Hide possible matches"
-              : candidates.length === 1
+              : orderedCandidates.length === 1
                 ? "Show 1 possible match"
-                : `Show ${candidates.length} possible matches`}
+                : `Show ${orderedCandidates.length} possible matches`}
           </Button>
         ) : null}
       </div>
@@ -240,7 +256,7 @@ export function AmbiguousMatchCard({
         <div className="px-5 pb-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <div className="text-xs font-semibold uppercase tracking-wider text-text-faint">
-              {candidates.length === 1
+              {orderedCandidates.length === 1
                 ? "Did you launch this game?"
                 : "Did you launch one of these?"}
             </div>
@@ -249,8 +265,8 @@ export function AmbiguousMatchCard({
             {hiddenCandidateCount > 0 ? (
               <div className="flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
                 <span>
-                  First {candidates.length} of{" "}
-                  {(candidates.length + hiddenCandidateCount).toLocaleString()}
+                  First {games.length} of{" "}
+                  {(games.length + hiddenCandidateCount).toLocaleString()}
                 </span>
                 {!isOffline ? (
                   <button
@@ -339,6 +355,18 @@ export function AmbiguousMatchCard({
               Custom name
             </Button>
           ) : null}
+          {/* Software is counted per file name: never for Game.exe & co.
+              Known software already has its own tile above. */}
+          {!genericName && !software ? (
+            <Button
+              variant="secondary"
+              icon={AppWindow}
+              title={`Count ${exeName} on the Software page, with the time since it was detected.`}
+              onClick={() => setSoftwareOpen(true)}
+            >
+              It&apos;s software
+            </Button>
+          ) : null}
           <Button
             variant={reportedNotAGame ? "primary" : "secondary"}
             icon={Ban}
@@ -358,6 +386,15 @@ export function AmbiguousMatchCard({
         </div>
       </div>
 
+      {softwareOpen ? (
+        <SoftwareDialog
+          exeName={exeName}
+          suggestedName={exeProductName(exeDetails, exeName)}
+          tracked={{}}
+          isOffline={isOffline}
+          onClose={() => setSoftwareOpen(false)}
+        />
+      ) : null}
       {suggestionOpen ? (
         <CommunitySuggestionForm
           candidates={correction.candidates}
@@ -414,20 +451,39 @@ export function CandidateTile({
   onSelect?: (game: Game) => void;
 }) {
   const addToast = useAppStore((state) => state.addToast);
+  const isSoftware = game.kind === "tool";
 
   return (
     <button
       type="button"
-      aria-label={`Track ${exeName} as ${game.name}`}
-      title={ended ? `Save this time as ${game.name}` : `Track as ${game.name}`}
+      aria-label={
+        isSoftware
+          ? `Track ${exeName} as the software ${game.name}`
+          : `Track ${exeName} as ${game.name}`
+      }
+      title={
+        isSoftware
+          ? `Count on the Software page as ${game.name}`
+          : ended
+            ? `Save this time as ${game.name}`
+            : `Track as ${game.name}`
+      }
       onClick={() => {
         if (onSelect) return onSelect(game);
         selectAmbiguousMatch(exeName, game);
-        addToast({
-          tone: "success",
-          title: "Match selected",
-          detail: `${exeName} will be tracked as ${game.name}.`,
-        });
+        addToast(
+          isSoftware
+            ? {
+                tone: "success",
+                title: `Tracking ${game.name} as software`,
+                detail: "It counts on the Software page now.",
+              }
+            : {
+                tone: "success",
+                title: "Match selected",
+                detail: `${exeName} will be tracked as ${game.name}.`,
+              },
+        );
       }}
       className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-surface text-left transition hover:-translate-y-0.5 hover:border-accent hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
     >
@@ -440,11 +496,21 @@ export function CandidateTile({
           />
         ) : (
           <div className="grid h-full place-items-center text-text-faint">
-            <Gamepad2 size={28} className="opacity-50" />
+            {isSoftware ? (
+              <AppWindow size={28} className="opacity-50" />
+            ) : (
+              <Gamepad2 size={28} className="opacity-50" />
+            )}
           </div>
         )}
         <div className="absolute left-2 top-2">
-          <SourceBadge source={game.source} variant="mark" />
+          {isSoftware ? (
+            <span className="rounded-md border border-border bg-surface/90 px-1.5 py-0.5 text-[11px] font-semibold text-text-muted">
+              Software
+            </span>
+          ) : (
+            <SourceBadge source={game.source} variant="mark" />
+          )}
         </div>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">

@@ -112,6 +112,25 @@ export function creditToolUsage(
   return next;
 }
 
+/** Adds finished stretches of time to one executable, split at local
+ *  midnight: time counted as a game that turned out to be this software. */
+export function addToolIntervals(
+  usage: ToolUsage,
+  exeKey: string,
+  intervals: ReadonlyArray<{ fromMs: number; toMs: number }>,
+): ToolUsage {
+  let record: ToolUsageRecord | undefined;
+  for (const { fromMs, toMs } of intervals) {
+    if (!(toMs > fromMs)) continue;
+    const current = usage[exeKey] ?? { days: {} };
+    record ??= { ...current, days: { ...current.days } };
+    for (const { day, seconds } of splitByLocalDay(fromMs, toMs)) {
+      record.days[day] = (record.days[day] ?? 0) + seconds;
+    }
+  }
+  return record ? { ...usage, [exeKey]: record } : usage;
+}
+
 /** Adds Discovered time to the total of an executable that became a tool. */
 export function carryDiscoveredSeconds(
   usage: ToolUsage,
