@@ -270,7 +270,7 @@ it("drops the ring when focus moves away or the mouse is pressed", () => {
   expect(next.hasAttribute("data-controller-selected")).toBe(false);
 });
 
-it("keeps the arrow keys off the controls above the cards", () => {
+it("keeps the arrow keys and the controller off the controls above the cards", () => {
   showLibrary();
   press("ArrowRight");
   const card = document.querySelector<HTMLElement>("#card-a")!;
@@ -283,13 +283,128 @@ it("keeps the arrow keys off the controls above the cards", () => {
   expect(press("Enter").defaultPrevented).toBe(false);
   expect(document.activeElement).toBe(select);
 
-  // The controller still climbs from the top row into those controls.
+  // The controller stays on the cards too.
   useAppStore.setState((state) => ({
     settings: { ...state.settings, controllerNavigationEnabled: true },
   }));
   card.focus();
   input("up");
-  expect(document.activeElement).toBe(select);
+  expect(document.activeElement).toBe(card);
+  input("right");
+  input("left");
+  expect(document.activeElement?.id).toBe("card-a");
+});
+
+it("keeps the controller on the sidebar when A opens a view without cards, and Right enters it to scroll", () => {
+  const nowNav = document.querySelector<HTMLElement>("#nav-now")!;
+  nowNav.addEventListener("click", () => {
+    useAppStore.getState().setActiveView("now");
+    nowNav.setAttribute("data-controller-active-view", "true");
+    content.innerHTML =
+      '<button id="now-action" data-controller-item="library-option">Stop tracking</button>';
+    content.setAttribute("aria-busy", "false");
+  });
+  useAppStore.getState().setActiveView("games");
+  nowNav.focus();
+
+  input("confirm");
+  frame();
+  expect(useAppStore.getState().activeView).toBe("now");
+  expect(document.activeElement).toBe(nowNav);
+  expect(nowNav.getAttribute("data-controller-selected")).toBe("true");
+
+  // Right enters the view itself, so the right stick scrolls it.
+  const scrollBy = vi.fn();
+  content.scrollBy = scrollBy;
+  input("right");
+  expect(document.activeElement).toBe(content);
+  expect(
+    document.querySelector('[data-controller-selected="true"]'),
+  ).toBeNull();
+  input("scrollDown");
+  expect(scrollBy).toHaveBeenCalledWith({ top: 34, behavior: "auto" });
+
+  input("left");
+  expect(document.activeElement).toBe(nowNav);
+});
+
+it.each(["controller", "keyboard"])(
+  "walks from My Games into its source tabs and opens one with the %s",
+  (mode) => {
+    const launches = showLibrary();
+    const aside = document.querySelector("aside")!;
+    aside.insertAdjacentHTML(
+      "beforeend",
+      `<div role="tablist">
+        <button id="tab-all" data-controller-item="library-tab" aria-selected="true">All</button>
+        <button id="tab-steam" data-controller-item="library-tab">Steam</button>
+      </div>`,
+    );
+    const sidebar = ["#nav-now", "#nav-games", "#tab-all", "#tab-steam"].map(
+      (id) => document.querySelector<HTMLElement>(id)!,
+    );
+    sidebar.forEach((item, index) => {
+      item.scrollIntoView = vi.fn();
+      item.getBoundingClientRect = () =>
+        ({ top: index * 50, left: 0, width: 160, height: 40 }) as DOMRect;
+    });
+    const [, gamesNav, allTab, steamTab] = sidebar;
+    const steamOpened = vi.fn();
+    steamTab.addEventListener("click", steamOpened);
+    const move = (action: "up" | "down" | "confirm") => {
+      if (mode === "controller") input(action);
+      else
+        press({ up: "ArrowUp", down: "ArrowDown", confirm: "Enter" }[action]);
+    };
+    if (mode === "controller")
+      useAppStore.setState((state) => ({
+        settings: { ...state.settings, controllerNavigationEnabled: true },
+      }));
+
+    gamesNav.focus();
+    move("down");
+    expect(document.activeElement).toBe(allTab);
+    expect(allTab.getAttribute("data-controller-selected")).toBe("true");
+    move("down");
+    expect(document.activeElement).toBe(steamTab);
+    move("up");
+    move("up");
+    expect(document.activeElement).toBe(gamesNav);
+
+    move("down");
+    move("down");
+    move("confirm");
+    frame();
+    expect(steamOpened).toHaveBeenCalledTimes(1);
+    expect(launches.a).not.toHaveBeenCalled();
+    expect(document.activeElement?.id).toBe("card-a");
+  },
+);
+
+it("reaches every control inside an open dialog", () => {
+  showLibrary();
+  useAppStore.setState((state) => ({
+    settings: { ...state.settings, controllerNavigationEnabled: true },
+  }));
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `<div role="dialog" aria-modal="true">
+      <button id="dialog-cancel" data-controller-item="library-option">Cancel</button>
+      <button id="dialog-ok" data-controller-item="library-option">OK</button>
+    </div>`,
+  );
+  const ok = document.querySelector<HTMLElement>("#dialog-ok")!;
+  ok.scrollIntoView = vi.fn();
+  const clicked = vi.fn();
+  ok.addEventListener("click", clicked);
+  document.querySelector<HTMLElement>("#dialog-cancel")!.scrollIntoView =
+    vi.fn();
+  document.querySelector<HTMLElement>("#dialog-cancel")!.focus();
+
+  input("right");
+  expect(document.activeElement).toBe(ok);
+  input("confirm");
+  expect(clicked).toHaveBeenCalledTimes(1);
 });
 
 it("lets go of the selected card and its ring on Escape", () => {

@@ -4,7 +4,6 @@ import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
 import {
   isLeftmostVisualItem,
-  isTopmostVisualItem,
   nextControllerIndex,
   type ControllerAction,
   type ControllerItemRect,
@@ -99,15 +98,22 @@ function track(
   });
 }
 
-// The keyboard walks only the cards and the sidebar. The controls above the
-// cards keep their own keyboard behavior.
-const KEYBOARD_ROLES = new Set(["game-card", "navigation"]);
+// The keyboard and the controller walk only the cards and the sidebar: its
+// views and the library's source tabs under My Games. The controls above the
+// cards keep their own keyboard behavior. Inside a dialog every item is
+// reachable, since that is the only way to answer it.
+const SIDEBAR_ROLES = new Set(["navigation", "library-tab"]);
+const NAVIGABLE_ROLES = new Set(["game-card", ...SIDEBAR_ROLES]);
 
-function isKeyboardItem(item: Element) {
-  return KEYBOARD_ROLES.has(item.getAttribute("data-controller-item") ?? "");
+function isSidebarItem(item: Element) {
+  return SIDEBAR_ROLES.has(item.getAttribute("data-controller-item") ?? "");
 }
 
-function controllerItems(keyboard = false) {
+function isNavigableItem(item: Element) {
+  return NAVIGABLE_ROLES.has(item.getAttribute("data-controller-item") ?? "");
+}
+
+function controllerItems() {
   if (typeof document === "undefined") return [];
   const dialogs = [
     ...document.querySelectorAll<HTMLElement>(
@@ -120,7 +126,7 @@ function controllerItems(keyboard = false) {
     (item, index, items) => {
       if (items.indexOf(item) !== index || item.offsetParent === null)
         return false;
-      if (keyboard && !isKeyboardItem(item)) return false;
+      if (root === document && !isNavigableItem(item)) return false;
       if (
         item.hasAttribute("disabled") ||
         item.getAttribute("aria-disabled") === "true" ||
@@ -228,7 +234,7 @@ function focusViewContentWhenReady(
       focusViewContentWhenReady(keyboard, view);
       return;
     }
-    const contentItems = controllerItems(keyboard).filter((item) =>
+    const contentItems = controllerItems().filter((item) =>
       content.contains(item),
     );
     const preferred = preferredControllerItem(contentItems);
@@ -236,6 +242,9 @@ function focusViewContentWhenReady(
       focusItem(preferred);
       return;
     }
+    // With nothing to select, the controller stays where it is. The keyboard
+    // moves into the view so the arrow keys scroll it.
+    if (!keyboard) return;
     clearControllerSelection();
     content.focus({ preventScroll: true });
   });
@@ -278,9 +287,17 @@ function moveWithinItems(
 function activateItem(item: HTMLElement | undefined, keyboard: boolean) {
   if (!item) return;
   const role = item.getAttribute("data-controller-item");
-  if (role === "navigation" || role === "view-link") {
+  if (isSidebarItem(item) || role === "view-link") {
     item.click();
-    focusViewContentWhenReady(keyboard);
+    // The controller stays on the sidebar, except in My Games (and its source
+    // tabs) where the cards are what it moves through.
+    if (
+      keyboard ||
+      role === "view-link" ||
+      useAppStore.getState().activeView === "games"
+    ) {
+      focusViewContentWhenReady(keyboard);
+    }
     return;
   }
   const launchControl = item.matches("[data-controller-launch]")
@@ -389,7 +406,7 @@ function handleControllerEvent(
 }
 
 function navigateItems(action: ControllerAction, keyboard = false) {
-  const items = controllerItems(keyboard);
+  const items = controllerItems();
   if (items.length === 0) return;
   const contentRoot = document.querySelector<HTMLElement>(
     '[data-controller-content="true"]',
@@ -420,23 +437,23 @@ function navigateItems(action: ControllerAction, keyboard = false) {
       return;
     }
     const selected = items[current];
-    const navigationItems = items.filter(
-      (item) => item.getAttribute("data-controller-item") === "navigation",
-    );
+    const sidebarItems = items.filter(isSidebarItem);
     const contentItems = contentRoot
       ? items.filter((item) => contentRoot.contains(item))
       : [];
 
-    if (navigationItems.includes(selected)) {
+    if (sidebarItems.includes(selected)) {
       if (action === "right") {
         const preferred = preferredControllerItem(contentItems);
+        // Without cards, Right enters the view itself so the right stick (or
+        // the arrow keys) scroll it instead of the sidebar.
         if (preferred) focusItem(preferred);
         else if (contentRoot) {
           clearControllerSelection();
           contentRoot.focus({ preventScroll: true });
         }
       } else if (action === "up" || action === "down") {
-        moveWithinItems(navigationItems, selected, action);
+        moveWithinItems(sidebarItems, selected, action);
       }
       return;
     }
@@ -453,22 +470,6 @@ function navigateItems(action: ControllerAction, keyboard = false) {
         if (action === "left" && isLeftmostVisualItem(cardRects, cardIndex)) {
           focusActiveNavigationItem();
           return;
-        }
-        if (action === "up" && isTopmostVisualItem(cardRects, cardIndex)) {
-          const controlsAbove = contentItems.filter(
-            (item) =>
-              !gameCards.includes(item) &&
-              item.getBoundingClientRect().top <
-                selected.getBoundingClientRect().top,
-          );
-          const preferredControl =
-            controlsAbove.find(
-              (item) => item.getAttribute("aria-selected") === "true",
-            ) ?? controlsAbove.at(-1);
-          if (preferredControl) {
-            focusItem(preferredControl);
-            return;
-          }
         }
         moveWithinItems(gameCards, selected, action);
         return;
@@ -531,7 +532,7 @@ function handleKeyboardNavigation(
   const focused = document.activeElement;
   if (focused instanceof HTMLElement && focused.matches(TEXT_ENTRY)) return;
   const content = document.querySelector('[data-controller-content="true"]');
-  const onItem = focused instanceof HTMLElement && isKeyboardItem(focused);
+  const onItem = focused instanceof HTMLElement && isNavigableItem(focused);
   // Escape lets go of the selected card or sidebar item and its ring. It is
   // not prevented, so other Escape handlers still see it.
   if (action === "back") {
@@ -547,7 +548,7 @@ function handleKeyboardNavigation(
     const toSidebar = action === "left" && focused === content;
     const toCards =
       store.activeView === "games" &&
-      controllerItems(true).some(
+      controllerItems().some(
         (item) => item.getAttribute("data-controller-item") === "game-card",
       );
     if (!toSidebar && !toCards) return;
