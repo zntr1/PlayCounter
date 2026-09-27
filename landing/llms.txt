@@ -8,7 +8,7 @@
 - Imports: Steam (local account files, with playtime), Xbox (optional Microsoft sign-in; playtime availability varies by game), Epic Games (optional Epic sign-in with the playtime Epic recorded, or installed games without sign-in and without playtime) and Battle.net (optional: installed games or account sign-in, game list only, no historical playtime; Battle.net games are tracked without it).
 - Imported and adjusted totals do not recreate sessions. For a matched game, the displayed total is the higher of the PlayCounter total (tracked sessions plus any manual adjustment) and the sum of the imported launcher totals, counting each launcher once.
 - Earlier hours from launchers without a playtime import can be set with Adjust total playtime; a single missed session can be logged with its date.
-- Dedicated per-game emulator detection: DOSBox, Dolphin and PCSX2. Recognition depends on exposed game identifiers, files or titles.
+- Dedicated per-game emulator detection: DOSBox, Dolphin, PCSX2 and mGBA. Recognition depends on exposed game identifiers, files or titles.
 - Recorded sessions and history stay on the PC. Matching, metadata, updates and pseudonymous installation presence use online services; optional imports have additional data flows.
 
 ## Official pages

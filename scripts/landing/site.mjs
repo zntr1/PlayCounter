@@ -269,6 +269,14 @@ export const site = {
       detail:
         "Track individual PS2 games from the disc image PCSX2 has open or the file it was started with.",
     },
+    {
+      id: "mgba",
+      name: "mGBA",
+      logo: "/brands/mgba.png",
+      systems: "Game Boy, Color & Advance",
+      detail:
+        "Track individual Game Boy and GBA games by the game name mGBA shows in its window title.",
+    },
   ],
 };
 
@@ -298,7 +306,7 @@ export const faq = [
   ],
   [
     "Which emulators are supported?",
-    'Dedicated per-game detection supports DOSBox, Dolphin and PCSX2. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
+    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2 and mGBA. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
   ],
   [
     "What stays on my PC, and what goes online?",

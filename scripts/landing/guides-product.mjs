@@ -236,25 +236,25 @@ export const productGuides = [
     category: "Using PlayCounter",
     title: "Track emulator game playtime with PlayCounter",
     description:
-      "Track individual DOSBox, Dolphin and PCSX2 games on Windows. See supported emulators, setup steps and how to review uncertain game matches.",
+      "Track individual DOSBox, Dolphin, PCSX2 and mGBA games on Windows. See supported emulators, setup steps and how to review uncertain game matches.",
     answer:
-      "PlayCounter has dedicated per-game detection for DOSBox, Dolphin and PCSX2 on Windows. When the emulator exposes recognizable game information, PlayCounter records the game itself with its own cover, total and sessions.",
+      "PlayCounter has dedicated per-game detection for DOSBox, Dolphin, PCSX2 and mGBA on Windows. When the emulator exposes recognizable game information, PlayCounter records the game itself with its own cover, total and sessions.",
     thumb: "dosbox",
     sections: [
       {
         id: "supported",
         title: "Supported emulators",
-        html: '<div class="table-wrap"><table><thead><tr><th>Emulator</th><th>Games</th><th>Detection</th></tr></thead><tbody><tr><td>DOSBox</td><td>DOS</td><td>Supported DOSBox variants, including DOSBox-X and DOSBox Staging; game information comes from the running emulator.</td></tr><tr><td>Dolphin</td><td>GameCube and Wii</td><td>Game identifiers or recognizable window titles exposed by Dolphin.</td></tr><tr><td>PCSX2</td><td>PlayStation 2</td><td>The disc image PCSX2 has open or was started with, including the game serial in its file name.</td></tr></tbody></table></div><p>This is the current dedicated per-game support list. Other emulator processes can be assigned a local entry, but that alone does not identify each game inside them.</p>',
+        html: '<div class="table-wrap"><table><thead><tr><th>Emulator</th><th>Games</th><th>Detection</th></tr></thead><tbody><tr><td>DOSBox</td><td>DOS</td><td>Supported DOSBox variants, including DOSBox-X and DOSBox Staging; game information comes from the running emulator.</td></tr><tr><td>Dolphin</td><td>GameCube and Wii</td><td>Game identifiers or recognizable window titles exposed by Dolphin.</td></tr><tr><td>PCSX2</td><td>PlayStation 2</td><td>The disc image PCSX2 has open or was started with, including the game serial in its file name.</td></tr><tr><td>mGBA</td><td>Game Boy, Game Boy Color and Game Boy Advance</td><td>The game name mGBA shows in its window title. Keep mGBA’s <strong>Dynamically update window title</strong> setting on, as it is by default.</td></tr></tbody></table></div><p>This is the current dedicated per-game support list. Other emulator processes can be assigned a local entry, but that alone does not identify each game inside them.</p>',
       },
       {
         id: "setup",
         title: "Start tracking an emulated game",
-        html: "<ol><li>Open PlayCounter and keep emulator detection enabled in <strong>Settings</strong>.</li><li>Launch a game in DOSBox, Dolphin or PCSX2 normally.</li><li>Check the emulator’s page, which appears in the PlayCounter sidebar under <strong>Tools</strong>. Recognized content is matched to its game; review any choice the app asks you to confirm.</li><li>Play and close the game as usual. Its recorded time is available in your library and history.</li></ol><p>For DOS games bundled with their own DOSBox copy, launch the game through its normal shortcut. The emulator does not need to have been installed separately.</p>",
+        html: "<ol><li>Open PlayCounter and keep emulator detection enabled in <strong>Settings</strong>.</li><li>Launch a game in DOSBox, Dolphin, PCSX2 or mGBA normally.</li><li>Check the emulator’s page, which appears in the PlayCounter sidebar under <strong>Tools</strong>. Recognized content is matched to its game; review any choice the app asks you to confirm.</li><li>Play and close the game as usual. Its recorded time is available in your library and history.</li></ol><p>For DOS games bundled with their own DOSBox copy, launch the game through its normal shortcut. The emulator does not need to have been installed separately.</p>",
       },
       {
         id: "matches",
         title: "Review uncertain matches",
-        html: "<p>Detection depends on what the emulator exposes. An empty window title, generic executable or missing game identifier may require a local choice. Use the detected content on the emulator’s page to pick the correct game instead of assigning every game to the emulator executable.</p><p>DOSBox, Dolphin and PCSX2 support does not imply support for every emulator or every game configuration. Check <strong>Now Playing</strong> on your first session to confirm the title being recorded.</p>",
+        html: "<p>Detection depends on what the emulator exposes. An empty window title, generic executable or missing game identifier may require a local choice. Use the detected content on the emulator’s page to pick the correct game instead of assigning every game to the emulator executable.</p><p>DOSBox, Dolphin, PCSX2 and mGBA support does not imply support for every emulator or every game configuration. Check <strong>Now Playing</strong> on your first session to confirm the title being recorded.</p>",
         screenshot: "dosbox",
       },
       {
@@ -290,7 +290,7 @@ export const productGuides = [
       {
         id: "matching",
         title: "From a running process to a game",
-        html: "<p>On Windows, normal game matching uses the executable filename, such as <code>Hades2.exe</code>. PlayCounter uses cached matches and online lookups to find the game name and artwork. It does not upload the full Windows executable path for that lookup.</p><p>Recognition covers games launched through stores, launchers and direct shortcuts. Dedicated DOSBox, Dolphin and PCSX2 adapters also look for the game running inside the emulator.</p>",
+        html: "<p>On Windows, normal game matching uses the executable filename, such as <code>Hades2.exe</code>. PlayCounter uses cached matches and online lookups to find the game name and artwork. It does not upload the full Windows executable path for that lookup.</p><p>Recognition covers games launched through stores, launchers and direct shortcuts. Dedicated DOSBox, Dolphin, PCSX2 and mGBA adapters also look for the game running inside the emulator.</p>",
       },
       {
         id: "review",
@@ -317,7 +317,7 @@ export const productGuides = [
     category: "Using PlayCounter",
     title: "Which games does PlayCounter support?",
     description:
-      "Understand PlayCounter game detection across Windows launchers, Steam, Xbox, Epic and Battle.net imports, DOSBox, Dolphin and PCSX2, and local matches for unknown games.",
+      "Understand PlayCounter game detection across Windows launchers, Steam, Xbox, Epic and Battle.net imports, DOSBox, Dolphin, PCSX2 and mGBA, and local matches for unknown games.",
     answer:
       "PlayCounter detects games from their running processes on Windows. There is no required launcher: recognized games from Steam, Epic, Xbox, GOG, EA, Ubisoft, Battle.net and standalone installations can all appear in one library.",
     sections: [
@@ -333,8 +333,8 @@ export const productGuides = [
       },
       {
         id: "emulators",
-        title: "Emulated games: DOSBox, Dolphin and PCSX2",
-        html: '<p>DOSBox, Dolphin and PCSX2 have dedicated adapters for identifying the game inside the emulator. A recognizable identifier, file or title is needed, and some matches require your review. <a href="/playtime-tracker-for-emulators/">See the emulator guide</a>.</p>',
+        title: "Emulated games: DOSBox, Dolphin, PCSX2 and mGBA",
+        html: '<p>DOSBox, Dolphin, PCSX2 and mGBA have dedicated adapters for identifying the game inside the emulator. A recognizable identifier, file or title is needed, and some matches require your review. <a href="/playtime-tracker-for-emulators/">See the emulator guide</a>.</p>',
       },
       {
         id: "guides",
