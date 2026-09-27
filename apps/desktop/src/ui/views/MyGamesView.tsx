@@ -4790,7 +4790,7 @@ export function GameLibraryCard({
               "demo.action-completed",
               clearHistory
                 ? "Sample removed together with its history, notes, playthroughs, and shelf membership."
-                : "Sample removed. Its history is kept; notes, playthroughs, and shelf membership are removed.",
+                : "Sample removed. Its history, notes, playthroughs, and shelf membership are kept.",
             );
           }}
         />
@@ -6033,11 +6033,7 @@ function StopTrackingDialog({
           <Button variant="secondary" onClick={() => onConfirm(false)}>
             Ignore game
           </Button>
-          <Button
-            variant="danger"
-            onClick={() => onConfirm(true)}
-            disabled={game.sessionCount === 0}
-          >
+          <Button variant="danger" onClick={() => onConfirm(true)}>
             Ignore + clear history
           </Button>
           <Button variant="ghost" onClick={onCancel} data-autofocus>
@@ -6109,8 +6105,9 @@ function RemoveGameDialog({
         if you want it gone for good.
       </p>
       <p className="mt-2 text-sm leading-6 text-text-muted">
-        This also deletes the game's notes and playthroughs and takes it off
-        your shelves.
+        Your history, notes, playthroughs and shelves are kept and come back
+        if the game is detected again. Use Remove + clear history to delete
+        them.
       </p>
     </Modal>
   );
