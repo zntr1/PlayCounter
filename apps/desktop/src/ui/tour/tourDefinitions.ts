@@ -1106,7 +1106,7 @@ export const TOURS: TourDefinition[] = [
           a("demo-action-result"),
         ],
         title: "Remove is not the same as ignore",
-        body: "Remove from Library takes the game out of My Games and asks whether to keep its sessions. Notes, playthroughs, and shelf membership are removed even when you keep sessions. The game can return the next time you play it.\n\nIgnore Game does the same, and blocks the file on top - so PlayCounter never picks it up again. Try both on the sample; nothing is removed or blocked for real.",
+        body: "Remove from Library takes the game out of My Games and asks whether to keep its sessions. If you keep them, notes, playthroughs, and shelf membership stay too. The game can return the next time you play it.\n\nIgnore Game does the same, and blocks the file on top - so PlayCounter never picks it up again. Try both on the sample; nothing is removed or blocked for real.",
       },
     ],
   },
