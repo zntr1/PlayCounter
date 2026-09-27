@@ -39,7 +39,7 @@ before the deployment action runs.
   disclosures aligned with the desktop and backend; copy edits are not a legal
   clearance. The September update adds Steam and emulator disclosures; the 1.2.0
   update adds the Battle.net import, PCSX2 and the self-hosted heading font;
-  the next one adds the Epic Games import.
+  the next one adds the Epic Games import and mGBA.
 
 `site.reviewed` is the explicit date of the full September 2026 content review;
 it is not the build date. Do not bump it on every build or ordinary release.
