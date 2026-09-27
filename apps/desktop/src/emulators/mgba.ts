@@ -128,6 +128,15 @@ function signal(
   };
 }
 
+/**
+ * Without the extension, so a No-Intro-named file has the same identity as
+ * mGBA's database title for it.
+ */
+function fileIdentity(fileName: string) {
+  const value = normalizeToken(fileName, "rom")?.replace(CONTENT_EXTENSION, "");
+  return value && value.length >= 2 ? value : null;
+}
+
 function identifyFile(
   path: string,
   context: EmulatorReadContext,
@@ -135,7 +144,7 @@ function identifyFile(
 ) {
   const fileName = basename(path);
   if (!CONTENT_EXTENSION.test(fileName)) return null;
-  const value = normalizeToken(fileName, "rom");
+  const value = fileIdentity(fileName);
   return value
     ? signal(
         value,
@@ -174,8 +183,7 @@ export const mgbaAdapter: EmulatorAdapter = {
       if (!CONTENT_EXTENSION.test(basename(target.filePath))) {
         return { valid: false, reason: "unsupported-content-file" };
       }
-      return normalizeToken(basename(target.filePath), "rom") ===
-        mapping.contentValue ||
+      return fileIdentity(basename(target.filePath)) === mapping.contentValue ||
         namesAgree(mapping.contentValue, target.filePath)
         ? { valid: true, association: "proven" }
         : { valid: true, association: "requires_confirmation" };
@@ -188,6 +196,13 @@ export const mgbaAdapter: EmulatorAdapter = {
     if (title && "idle" in title) return { state: "idle" };
     const fromTitle = title ? identifyTitle(title.game, context) : null;
     if (fromTitle) return { state: "content", content: fromTitle };
+    if (signals.exeName.toLowerCase() !== "mgba-sdl.exe") {
+      // Qt: only the title is current. Until the window has one (right after
+      // start-up) the start-up file would add a second identity for the ROM.
+      return title
+        ? { state: "unidentified", reason: "title-not-parsable" }
+        : { state: "idle" };
+    }
     // SDL frontend: the start-up file is the only signal.
     const discovery = discoverMgbaLaunchTarget(signals);
     const content =

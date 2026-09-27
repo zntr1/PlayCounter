@@ -8,11 +8,15 @@ const FIRERED = String.raw`D:\ROMs\Pokemon FireRed.gba`;
 const DB_TITLE =
   "mGBA - Pokemon - FireRed Version (USA, Europe) (59.7275 fps) - 0.10.5";
 
-function read(windowTitle: string | null, args: string[] = []) {
+function read(
+  windowTitle: string | null,
+  args: string[] = [],
+  exeName = "mGBA.exe",
+) {
   return mgbaAdapter.read(
     {
       emulatorId: "mgba",
-      exeName: "mGBA.exe",
+      exeName,
       pid: 1,
       startedAtUnix: 1,
       args,
@@ -89,23 +93,32 @@ describe("mGBA adapter", () => {
     );
   });
 
-  it("gives a file-name title the same identity as the file", () => {
-    const fromTitle = read("mGBA - Pokemon FireRed.gba (60 fps) - 0.10.5");
-    const fromArgs = read("mGBA", [FIRERED]);
-    expect(fromTitle.state === "content" && fromTitle.content.value).toBe(
-      "pokemon firered.gba",
-    );
-    expect(fromArgs.state === "content" && fromArgs.content.value).toBe(
-      "pokemon firered.gba",
+  it("gives the database title, a file-name title and the file one identity", () => {
+    const noIntro = String.raw`D:\ROMs\Pokemon - FireRed Version (USA, Europe).gba`;
+    const values = [
+      read(DB_TITLE),
+      read(
+        "mGBA - Pokemon - FireRed Version (USA, Europe).gba (60 fps) - 0.10.5",
+      ),
+      read("mGBA", [noIntro], "mgba-sdl.exe"),
+    ].map((reading) => reading.state === "content" && reading.content.value);
+    expect(values).toEqual(
+      Array(3).fill("pokemon - firered version (usa, europe)"),
     );
   });
 
+  it("waits for the Qt title instead of using the start-up file", () => {
+    // "Start game" scans before mGBA's window has its title.
+    expect(read(null, [FIRERED])).toEqual({ state: "idle" });
+    expect(read("mGBA", [FIRERED])).toEqual({ state: "idle" });
+  });
+
   it("uses the start-up file when the title has no game (SDL)", () => {
-    expect(read("mGBA", ["-s", "2", FIRERED])).toEqual({
+    expect(read("mGBA", ["-s", "2", FIRERED], "mgba-sdl.exe")).toEqual({
       state: "content",
       content: {
         kind: "rom",
-        value: "pokemon firered.gba",
+        value: "pokemon firered",
         display: "Pokemon FireRed.gba",
         trust: "recognized",
         shareable: true,
@@ -121,17 +134,18 @@ describe("mGBA adapter", () => {
   });
 
   it("keeps private and generic names out of shared identities", () => {
-    const reading = read(null, [String.raw`D:\philip\philip firered.gba`]);
-    expect(reading.state === "content" && reading.content.shareable).toBe(
-      false,
-    );
-    const tagged = read(null, [String.raw`D:\ROMs\[Hack] FireRed.gba`]);
-    expect(tagged.state === "content" && tagged.content.shareable).toBe(false);
+    const shareable = (title: string) => {
+      const reading = read(title);
+      return reading.state === "content" ? reading.content.shareable : null;
+    };
+    expect(shareable("mGBA - philip firered.gba - 0.10.5")).toBe(false);
+    expect(shareable("mGBA - [Hack] FireRed.gba - 0.10.5")).toBe(false);
+    expect(shareable("mGBA - Pokemon FireRed.gba - 0.10.5")).toBe(true);
     expect(read("mGBA - GAME - 0.10.5")).toEqual({
       state: "unidentified",
       reason: "title-not-parsable",
     });
-    expect(read(null, [String.raw`D:\ROMs\game.gba`])).toEqual({
+    expect(read(null, [String.raw`D:\ROMs\game.gba`], "mgba-sdl.exe")).toEqual({
       state: "unidentified",
       reason: "no-signal",
     });
@@ -171,7 +185,7 @@ describe("mGBA launch target", () => {
   it("proves matching files and asks about the rest", () => {
     const validate = mgbaAdapter.launch!.validateTargetForMapping;
     const file = { kind: "file" as const, filePath: FIRERED };
-    expect(validate(mapping("pokemon firered.gba"), file)).toEqual({
+    expect(validate(mapping("pokemon firered"), file)).toEqual({
       valid: true,
       association: "proven",
     });
