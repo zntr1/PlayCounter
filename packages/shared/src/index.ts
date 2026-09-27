@@ -566,12 +566,13 @@ export interface LibraryFeaturedGame {
   igdbId?: number;
 }
 
+/** Every supported emulator. The desktop registry must define each one. */
+export type EmulatorId = "dosbox" | "dolphin" | "pcsx2" | "mgba";
+
 export type DesktopViewId =
   | "now"
   | "emulating"
-  | "dosbox"
-  | "dolphin"
-  | "pcsx2"
+  | EmulatorId
   | "games"
   | "import"
   | "discovered"

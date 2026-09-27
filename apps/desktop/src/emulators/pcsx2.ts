@@ -228,6 +228,9 @@ function identifyFile(
 export const pcsx2Adapter: EmulatorAdapter = {
   id: "pcsx2",
   label: "PCSX2",
+  platformLabel: "PlayStation 2",
+  subtitle: "PlayStation 2 games, mappings, and emulator playtime",
+  exeNames: PCSX2_EXE_NAMES,
   launch: {
     targetKinds: ["file"],
     fileExtensions: [

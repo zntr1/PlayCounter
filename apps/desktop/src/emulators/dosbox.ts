@@ -284,6 +284,17 @@ function finalizeSignal(
 export const dosboxAdapter: EmulatorAdapter = {
   id: "dosbox",
   label: "DOSBox",
+  platformLabel: "DOS",
+  subtitle: "DOS games, mappings, and emulator playtime",
+  exeNames: [
+    "dosbox.exe",
+    "dosbox.com",
+    "dosbox74.exe",
+    "dosbox-x.exe",
+    "dosbox_x.exe",
+    "dosbox-staging.exe",
+    "dosbox-staging-x64.exe",
+  ],
   launch: {
     targetKinds: ["file"],
     fileExtensions: ["conf", "exe", "com", "bat"],

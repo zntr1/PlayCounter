@@ -10,7 +10,8 @@ import {
   searchEmulatorGames,
 } from "../../tracker";
 import { MyGamesView } from "./MyGamesView";
-import { DolphinView, DosboxView, Pcsx2View } from "./EmulatorsView";
+import { EmulatorView } from "./EmulatorsView";
+import { EMULATORS } from "../../emulators/registry";
 import { ActiveGameHero } from "./ActiveGameHero";
 import { HistorySessionRow } from "./history/HistorySessionRow";
 import { EmulatorLinkedGameDialog } from "./emulators/EmulatorLinkedGameDialog";
@@ -23,11 +24,7 @@ vi.mock("../../gameDetails", () => ({
 
 const NAME = "Need for Speed: Underground 2";
 const NOW = "2026-09-16T09:00:00Z";
-const emulators = [
-  { id: "pcsx2", label: "PCSX2", View: Pcsx2View },
-  { id: "dolphin", label: "Dolphin", View: DolphinView },
-  { id: "dosbox", label: "DOSBox", View: DosboxView },
-];
+const emulators = EMULATORS.map(({ id, label }) => ({ id, label }));
 let root: Root;
 let container: HTMLDivElement;
 
@@ -199,7 +196,7 @@ it.each(emulators)(
   "shows Community in the $label linked-game page and change dialog",
   async (emulator) => {
     const { mapping } = savedGame(emulator);
-    await render(<emulator.View />);
+    await render(<EmulatorView emulatorId={emulator.id} />);
     expectCommunity();
     await render(
       <EmulatorLinkedGameDialog mapping={mapping} onClose={() => {}} />,
@@ -330,7 +327,7 @@ it("does not claim IGDB or Community provenance after the old session's mapping 
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
   expect(sourceBadges()).toEqual([]);
   expect(container.textContent).toContain(NAME);
-  expect(container.textContent).toContain("PCSX2");
+  expect(container.textContent).toContain(emulators[0].label);
 });
 
 it("keeps a pending emulator link pending when another route has an older approval", async () => {

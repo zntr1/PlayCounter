@@ -4,6 +4,7 @@ import type {
   EmulatorDetectionSource,
   EmulatorMappingShare,
 } from "../../../emulators/types";
+import { adapterFor } from "../../../emulators/registry";
 
 export function emulatorDetectionSourceLabel(source?: EmulatorDetectionSource) {
   if (source === "window_title") return "window title";
@@ -13,10 +14,7 @@ export function emulatorDetectionSourceLabel(source?: EmulatorDetectionSource) {
 }
 
 export function guestPlatformLabel(emulatorId: string) {
-  if (emulatorId === "dolphin") return "GameCube / Wii";
-  if (emulatorId === "dosbox") return "DOS";
-  if (emulatorId === "pcsx2") return "PlayStation 2";
-  return "emulator";
+  return adapterFor(emulatorId)?.platformLabel ?? "emulator";
 }
 
 export type EmulatorPickerPhase = "resolving" | "candidates" | "search";

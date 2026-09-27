@@ -3,6 +3,7 @@ import {
   useLibraryPractice,
 } from "./PersonalLibraryContext";
 import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
+import { EMULATORS } from "../emulators/registry";
 import {
   FolderHeart,
   Pencil,
@@ -544,13 +545,7 @@ export function LibraryOrganizationToolbar({
             >
               Any
             </Pill>
-            {(
-              [
-                ["dosbox", "DOSBox"],
-                ["dolphin", "Dolphin"],
-                ["pcsx2", "PCSX2"],
-              ] as const
-            ).map(([value, label]) => (
+            {EMULATORS.map(({ id: value, label }) => (
               <Pill
                 key={value}
                 selected={filters.emulator === value}

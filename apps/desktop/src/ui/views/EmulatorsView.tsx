@@ -1,5 +1,6 @@
 import { EyeOff, Gamepad2, RotateCcw, Unlink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { EmulatorId } from "@playcounter/shared";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
 import { emitTourEvent } from "../tour/TourUI";
 import {
@@ -34,40 +35,8 @@ import {
 } from "./emulators/LinkedGameCard";
 
 type EmulatorViewProps = {
-  emulatorId: string;
-  label: string;
-  fallbackHostName: string;
+  emulatorId: EmulatorId;
 };
-
-export function DosboxView() {
-  return (
-    <EmulatorView
-      emulatorId="dosbox"
-      label="DOSBox"
-      fallbackHostName="DOSBox"
-    />
-  );
-}
-
-export function DolphinView() {
-  return (
-    <EmulatorView
-      emulatorId="dolphin"
-      label="Dolphin"
-      fallbackHostName="dolphin.exe"
-    />
-  );
-}
-
-export function Pcsx2View() {
-  return (
-    <EmulatorView
-      emulatorId="pcsx2"
-      label="PCSX2"
-      fallbackHostName="pcsx2-qt.exe"
-    />
-  );
-}
 
 type GameStats = LinkedGameStats & {
   lastPlayedMs: number;
@@ -89,11 +58,8 @@ function gameStatKey(source: string | null | undefined, gameId: number) {
   return `${source ?? "custom"}:${gameId}`;
 }
 
-function EmulatorView({
-  emulatorId,
-  label,
-  fallbackHostName,
-}: EmulatorViewProps) {
+export function EmulatorView({ emulatorId }: EmulatorViewProps) {
+  const { label, exeNames } = adapterFor(emulatorId);
   const allMappings = useAppStore((state) => state.emulatorMappings);
   const mappings = useMemo(
     () =>
@@ -310,7 +276,7 @@ function EmulatorView({
             ? [TOUR_DEMO_EMULATOR.hostExeName]
             : known?.hostExeNames.length
               ? known.hostExeNames
-              : [fallbackHostName]
+              : [exeNames[0]]
         }
         playtimeSeconds={displayedPlaytimeSeconds}
         sessionCount={displayedSessionCount}

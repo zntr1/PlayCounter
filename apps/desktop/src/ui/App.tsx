@@ -1,4 +1,4 @@
-import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
+import { LIBRARY_PROVIDER_LABELS, type EmulatorId } from "@playcounter/shared";
 import { LibraryTourPractice } from "./tour/LibraryTourPractice";
 import { TourPracticeSurface } from "./tour/TourPracticeSurface";
 import { findTour } from "./tour/tourDefinitions";
@@ -54,6 +54,7 @@ import {
   deactivateControllerMode,
 } from "../controllerBridge";
 import { emulatorAssetUrls } from "../emulators/assets";
+import { EMULATORS, EMULATOR_IDS, isEmulatorId } from "../emulators/registry";
 import { BackToTopButton } from "./BackToTopButton";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { RequestWarning } from "./RequestWarning";
@@ -86,12 +87,15 @@ import { AchievementsView } from "./views/AchievementsView";
 import { MyGamesView } from "./views/MyGamesView";
 import { NowPlayingView } from "./views/NowPlayingView";
 import { NowEmulatingView } from "./views/NowEmulatingView";
-import { DolphinView, DosboxView, Pcsx2View } from "./views/EmulatorsView";
+import { EmulatorView } from "./views/EmulatorsView";
 import { DiscoveredView } from "./views/DiscoveredView";
 import { SettingsView } from "./views/SettingsView";
 import { SoftwareView } from "./views/SoftwareView";
 import { HelpButton, TourOverlay, WelcomePrompt } from "./tour/TourUI";
-import { emulatorTourDemoActive } from "./tour/tourDemoGame";
+import {
+  emulatorTourDemoActive,
+  TOUR_DEMO_EMULATOR,
+} from "./tour/tourDemoGame";
 import { shouldShowWelcome } from "./tour/tourState";
 import {
   BUILD_STAGE,
@@ -195,16 +199,31 @@ function backToMyGames() {
   setActiveView("games");
 }
 
-const views: Record<
-  ViewId,
-  {
-    label: string;
-    subtitle: string;
-    icon: typeof Play;
-    imageSrc?: string;
-    component: ReactNode;
-  }
-> = {
+type ViewMeta = {
+  label: string;
+  subtitle: string;
+  icon: typeof Play;
+  imageSrc?: string;
+  component: ReactNode;
+};
+
+function emulatorViews() {
+  return Object.fromEntries(
+    EMULATORS.map((adapter) => [
+      adapter.id,
+      {
+        label: adapter.label,
+        subtitle: adapter.subtitle,
+        icon: Cpu,
+        imageSrc: emulatorAssetUrls[adapter.id],
+        // Keyed so switching emulator pages starts from fresh page state.
+        component: <EmulatorView key={adapter.id} emulatorId={adapter.id} />,
+      },
+    ]),
+  ) as Record<EmulatorId, ViewMeta>;
+}
+
+const views: Record<ViewId, ViewMeta> = {
   now: {
     label: "Now Playing",
     subtitle: "What you're playing right now",
@@ -217,27 +236,7 @@ const views: Record<
     icon: Play,
     component: <NowEmulatingView />,
   },
-  dosbox: {
-    label: "DOSBox",
-    subtitle: "DOS games, mappings, and emulator playtime",
-    icon: Cpu,
-    imageSrc: emulatorAssetUrls.dosbox,
-    component: <DosboxView />,
-  },
-  dolphin: {
-    label: "Dolphin",
-    subtitle: "GameCube and Wii games, mappings, and emulator playtime",
-    icon: Cpu,
-    imageSrc: emulatorAssetUrls.dolphin,
-    component: <DolphinView />,
-  },
-  pcsx2: {
-    label: "PCSX2",
-    subtitle: "PlayStation 2 games, mappings, and emulator playtime",
-    icon: Cpu,
-    imageSrc: emulatorAssetUrls.pcsx2,
-    component: <Pcsx2View />,
-  },
+  ...emulatorViews(),
   software: {
     label: "Software",
     subtitle: "Apps like Discord and launchers, kept apart from your games",
@@ -324,7 +323,7 @@ const sidebarSections: Array<{
   {
     id: "emulators",
     label: "Tools",
-    items: ["emulating", "dosbox", "dolphin", "pcsx2", "software"],
+    items: ["emulating", ...EMULATOR_IDS, "software"],
   },
   { id: "system", label: "System", items: ["discovered", "settings", "dev"] },
 ];
@@ -489,8 +488,10 @@ export function App() {
         mapping.emulatorId === emulatorId && mapping.needsConfirmation,
     ).length;
   const emulatorTourDemo = emulatorTourDemoActive(activeTourId);
-  const sidebarEmulatorBadge = (item: "dosbox" | "dolphin" | "pcsx2") =>
-    emulatorTourDemo && item === "dolphin" ? 1 : emulatorReviewCount(item);
+  const sidebarEmulatorBadge = (item: EmulatorId) =>
+    emulatorTourDemo && item === TOUR_DEMO_EMULATOR.emulatorId
+      ? 1
+      : emulatorReviewCount(item);
   const sidebarCollapsed = useAppStore(
     (state) => state.settings.sidebarCollapsed === true,
   );
@@ -833,16 +834,10 @@ export function App() {
                   emulatorTourDemo ||
                   emulatorIsRunning ||
                   activeView === "emulating") &&
-                (item !== "dosbox" ||
-                  (knownEmulators.has("dosbox") &&
-                    !ignoredEmulatorSet.has("dosbox"))) &&
-                (item !== "dolphin" ||
-                  emulatorTourDemo ||
-                  (knownEmulators.has("dolphin") &&
-                    !ignoredEmulatorSet.has("dolphin"))) &&
-                (item !== "pcsx2" ||
-                  (knownEmulators.has("pcsx2") &&
-                    !ignoredEmulatorSet.has("pcsx2"))),
+                (!isEmulatorId(item) ||
+                  (emulatorTourDemo &&
+                    item === TOUR_DEMO_EMULATOR.emulatorId) ||
+                  (knownEmulators.has(item) && !ignoredEmulatorSet.has(item))),
             );
             if (items.length === 0) return null;
 
@@ -901,9 +896,7 @@ export function App() {
                           badge={
                             item === "discovered"
                               ? needsReviewCount
-                              : item === "dosbox" ||
-                                  item === "dolphin" ||
-                                  item === "pcsx2"
+                              : isEmulatorId(item)
                                 ? sidebarEmulatorBadge(item)
                                 : undefined
                           }

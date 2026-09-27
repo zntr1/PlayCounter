@@ -5,6 +5,7 @@ import type {
   EmulatorContribution,
   FeedbackReply,
 } from "@playcounter/shared";
+import { isEmulatorId } from "./emulators/registry";
 import { contentKey } from "./emulators/signals";
 import type { EmulatorMapping } from "./emulators/types";
 import type { ViewId } from "./store";
@@ -262,15 +263,12 @@ export function emulatorContributionNotification(
 ): AppNotification | null {
   if (contribution.status === "pending") return null;
   const key = emulatorContributionKey(contribution);
-  const action =
-    contribution.emulatorId === "dosbox" ||
-    contribution.emulatorId === "dolphin" ||
-    contribution.emulatorId === "pcsx2"
-      ? {
-          view: contribution.emulatorId as ViewId,
-          label: `Open ${emulatorLabel}`,
-        }
-      : undefined;
+  const action = isEmulatorId(contribution.emulatorId)
+    ? {
+        view: contribution.emulatorId satisfies ViewId,
+        label: `Open ${emulatorLabel}`,
+      }
+    : undefined;
   return contribution.status === "verified"
     ? {
         id: `suggestion-verified:${key}`,

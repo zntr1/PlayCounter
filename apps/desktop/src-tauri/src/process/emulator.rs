@@ -5,6 +5,7 @@ pub const DOLPHIN_CONTENT_EXTENSIONS: &[&str] = &[
 ];
 pub const PCSX2_CONTENT_EXTENSIONS: &[&str] =
     &["iso", "bin", "img", "mdf", "chd", "cso", "zso", "gz", "elf"];
+pub const MGBA_CONTENT_EXTENSIONS: &[&str] = &["gba", "gb", "gbc", "sgb", "zip", "7z"];
 
 pub struct EmulatorHost {
     pub id: &'static str,
@@ -48,6 +49,15 @@ pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
         needs_command_line: true,
         needs_window_title: true,
         content_extensions: PCSX2_CONTENT_EXTENSIONS,
+    },
+    EmulatorHost {
+        id: "mgba",
+        exe_names: &["mgba.exe", "mgba-sdl.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // mGBA preloads ROMs into memory and closes the file by default, so
+        // open handles are not a signal. The window title is.
+        content_extensions: &[],
     },
 ];
 
@@ -384,6 +394,12 @@ mod tests {
             "pcsx2-qt-helper.exe",
             "pcsx2-gsrunner.exe",
         ] {
+            assert!(host_for(name).is_none());
+        }
+        for name in ["mGBA.exe", "MGBA-SDL.EXE"] {
+            assert_eq!(host_for(name).map(|host| host.id), Some("mgba"));
+        }
+        for name in ["mgba-updater.exe", "notmgba.exe", "mgba-qt.exe"] {
             assert!(host_for(name).is_none());
         }
     }

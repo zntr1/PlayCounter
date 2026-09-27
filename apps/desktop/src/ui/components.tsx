@@ -19,6 +19,7 @@ import type {
 import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import { emulatorAssetUrls } from "../emulators/assets";
+import { adapterFor } from "../emulators/registry";
 
 export function Panel({
   children,
@@ -348,12 +349,6 @@ const providerMeta: Record<
   },
 };
 
-const emulatorLabels: Record<string, string> = {
-  dosbox: "DOSBox",
-  dolphin: "Dolphin",
-  pcsx2: "PCSX2",
-};
-
 const UNKNOWN_DURATION_TIP =
   "Historical playtime is unavailable from this source.";
 
@@ -374,7 +369,7 @@ function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
   return {
     key: `emulator:${emulatorId}`,
     emulatorId,
-    label: label ?? emulatorLabels[emulatorId] ?? emulatorId,
+    label: label ?? adapterFor(emulatorId)?.label ?? emulatorId,
     tip: "Played through this emulator.",
     tone: "text-accent-ink",
     // The emulator logos carry their own colour and shape (DOSBox is an opaque
