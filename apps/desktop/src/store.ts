@@ -181,6 +181,9 @@ export type ExeCacheEntry = {
   // Entries persisted before this field existed were always community.
   dismissedCommunityUpgradeSource?: GameSource;
   lastCheckedAt: string;
+  /** When this exe first became a matched game, for "Recently added". A
+   *  rematch keeps it; entries matched before it existed have none. */
+  addedAt?: string;
   // Runtime accumulated while this exe is discovered but not yet matched to a
   // game. Folded forward on every scan and credited to the game when the exe is
   // taken over. Deleted when the exe is ignored.
@@ -253,6 +256,19 @@ export function canCancelCommunitySuggestion(value: {
     value.communitySuggestionStatus ??
     (value.communitySuggestionVerified ? "verified" : "pending");
   return status === "pending";
+}
+
+/** Dates an exe the moment it becomes a matched game. A rewrite of a match
+ *  (rematch, upgrade) keeps the first date, or keeps it undated. */
+export function withAddedAt(
+  entry: ExeCacheEntry,
+  previous: ExeCacheEntry | undefined,
+): ExeCacheEntry {
+  if (entry.state !== "matched" || entry.addedAt) return entry;
+  if (previous?.state === "matched") {
+    return previous.addedAt ? { ...entry, addedAt: previous.addedAt } : entry;
+  }
+  return { ...entry, addedAt: new Date().toISOString() };
 }
 
 export type PendingCommunitySuggestionTarget = {
@@ -1114,7 +1130,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setExeCacheEntry: (entry) =>
     set((state) => {
       const exeCache = new Map(state.exeCache);
-      exeCache.set(entry.exeName.toLowerCase(), entry);
+      const key = entry.exeName.toLowerCase();
+      exeCache.set(key, withAddedAt(entry, state.exeCache.get(key)));
       if (entry.state !== "matched") return { exeCache };
       let libraryImports = state.libraryImports;
       for (const [key, imported] of state.libraryImports) {

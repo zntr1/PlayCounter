@@ -46,6 +46,7 @@ export function isMyGamesCardSize(value: unknown): value is MyGamesCardSize {
 export function isMyGamesSortKey(value: unknown): value is MyGamesSortKey {
   return (
     value === "recent" ||
+    value === "added" ||
     value === "playtime" ||
     value === "name" ||
     value === "sessions"

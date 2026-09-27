@@ -231,6 +231,8 @@ import { StatsPractice } from "../tour/TourStatsPractice";
 import {
   LAST_PLAYED_PROMOTION_DELAY_MS,
   compareMyGames,
+  earliestAddedAt,
+  isNewGame,
   mergeLastPlayedEvidence,
   shouldPromoteActiveGame,
   type MyGamesSortKey,
@@ -297,6 +299,7 @@ type ViewMode = MyGamesCardSize;
 
 const sortOptions: Array<{ key: SortKey; label: string }> = [
   { key: "recent", label: "Last played" },
+  { key: "added", label: "Recently added" },
   { key: "playtime", label: "Most played" },
   { key: "name", label: "Name" },
   { key: "sessions", label: "Sessions" },
@@ -334,6 +337,7 @@ export type GameSummary = {
   lastPlayedAt: string;
   hasLastPlayedEvidence?: boolean;
   activeStartedAt?: string;
+  addedAt?: string;
   exeNames: string[];
   emulatorLabels: string[];
   emulatorIds: string[];
@@ -954,6 +958,7 @@ export function MyGamesView({
           communitySuggestionNote: link.communitySuggestionNote,
           shareState: link.shareState,
           lastCheckedAt: link.setAt,
+          addedAt: link.setAt,
         })),
       ].filter((entry) => !isIgnored(entry.exeName)),
       resolveIgdbId,
@@ -1011,6 +1016,7 @@ export function MyGamesView({
     };
 
     const mergeEntry = (summary: GameSummary, entry: ExeCacheEntry) => {
+      summary.addedAt = earliestAddedAt(summary.addedAt, entry.addedAt);
       if (entry.gameId !== undefined) {
         if (
           entry.identifierSource !== undefined &&
@@ -1150,6 +1156,7 @@ export function MyGamesView({
         );
       }
       for (const entry of gameEntries) mergeEntry(existing, entry);
+      existing.addedAt = earliestAddedAt(existing.addedAt, session.startedAt);
       existing.sessionSeconds += session.durationSeconds ?? 0;
       existing.sessionCount += 1;
       existing.historyGameKey = summaryKey;
@@ -1282,6 +1289,10 @@ export function MyGamesView({
       for (const entry of gameEntries) {
         mergeEntry(existing, entry);
       }
+      existing.addedAt = earliestAddedAt(
+        existing.addedAt,
+        activeSession.startedAt,
+      );
       existing.sessionSeconds += activeSeconds;
       if (promoteForRecentSort) {
         existing.lastPlayedAt = activeSession.checkpointedAt;
@@ -1362,6 +1373,7 @@ export function MyGamesView({
         summaries.set(summaryKey, summary);
       }
       addAlias(summary, entry.gameId, entry.source, null);
+      summary.addedAt = earliestAddedAt(summary.addedAt, entry.addedAt);
       for (const alias of entry.aliases ?? []) {
         addAlias(summary, alias.gameId, alias.source, null);
       }
@@ -1391,6 +1403,7 @@ export function MyGamesView({
         });
         summaries.set(summaryKey, summary);
       }
+      summary.addedAt = earliestAddedAt(summary.addedAt, entry.importedAt);
       if (entry.providerLastPlayedAt) {
         summary.lastPlayedAt = mergeLastPlayedEvidence(
           summary.lastPlayedAt,
@@ -1473,6 +1486,7 @@ export function MyGamesView({
         summaries.set(summaryKey, summary);
       }
       addAlias(summary, mapping.gameId, source, null);
+      summary.addedAt = earliestAddedAt(summary.addedAt, mapping.decidedAt);
       mergeEmulatorProvenance(summary, emulatorMappingProvenance(mapping));
       if (!summary.emulatorContentKeys.includes(mapping.contentKey)) {
         summary.emulatorContentKeys.push(mapping.contentKey);
@@ -3191,6 +3205,7 @@ export function GameLibraryCard({
   // Shown in place of the title while hovering the card with Shift held.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
+  const isNew = isNewGame(game, Date.now());
   const localDisplayedSeconds = Math.max(
     0,
     game.recordedSeconds + game.adjustmentSeconds,
@@ -5140,6 +5155,7 @@ export function GameLibraryCard({
                 game.name
               )}
             </h2>
+            {isNew ? <NewGameBadge /> : null}
           </div>
           <div
             data-tour={demo ? "demo-playtime-result" : undefined}
@@ -5594,6 +5610,7 @@ export function GameLibraryCard({
                 game.name
               )}
             </h2>
+            {isNew ? <NewGameBadge /> : null}
             {matchVisible ? (
               <GameMatchBadges
                 variant="label"
@@ -5966,6 +5983,17 @@ export function GameLibraryCard({
 }
 
 const MemoizedGameLibraryCard = memo(GameLibraryCard);
+
+function NewGameBadge() {
+  return (
+    <span
+      title="Added in the last 7 days, not played yet"
+      className="shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-ink"
+    >
+      New
+    </span>
+  );
+}
 
 function GameMetric({ label, value }: { label: string; value: string }) {
   return (

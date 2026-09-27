@@ -1,6 +1,12 @@
-export type MyGamesSortKey = "recent" | "playtime" | "name" | "sessions";
+export type MyGamesSortKey =
+  | "recent"
+  | "added"
+  | "playtime"
+  | "name"
+  | "sessions";
 
 export const LAST_PLAYED_PROMOTION_DELAY_MS = 30_000;
+export const NEW_GAME_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type MyGamesSortValue = {
   gameId: number;
@@ -11,10 +17,50 @@ export type MyGamesSortValue = {
   lastPlayedAt: string;
   hasLastPlayedEvidence?: boolean;
   activeStartedAt?: string;
+  /** When the game joined the library. Absent for games added before the
+   *  date was kept and never played since. */
+  addedAt?: string;
 };
 
 function newestFirst(left: string, right: string) {
   return Date.parse(right) - Date.parse(left);
+}
+
+function addedTime(game: Pick<MyGamesSortValue, "addedAt">) {
+  const timestamp = Date.parse(game.addedAt ?? "");
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+/** The earliest valid date: a game joined when its first route in appeared. */
+export function earliestAddedAt(
+  current: string | undefined,
+  candidate: string | undefined,
+) {
+  const candidateTime = Date.parse(candidate ?? "");
+  if (!Number.isFinite(candidateTime)) return current;
+  const currentTime = Date.parse(current ?? "");
+  return Number.isFinite(currentTime) && currentTime <= candidateTime
+    ? current
+    : candidate;
+}
+
+/** Added in the last week and not played yet, here or in its launcher. */
+export function isNewGame(
+  game: Pick<
+    MyGamesSortValue,
+    "addedAt" | "sessionCount" | "hasLastPlayedEvidence" | "activeStartedAt"
+  >,
+  nowMs: number,
+) {
+  if (
+    game.sessionCount > 0 ||
+    game.hasLastPlayedEvidence ||
+    game.activeStartedAt !== undefined
+  ) {
+    return false;
+  }
+  const addedMs = addedTime(game);
+  return addedMs > 0 && nowMs - addedMs < NEW_GAME_WINDOW_MS;
 }
 
 function lastPlayedTime(game: MyGamesSortValue) {
@@ -71,6 +117,9 @@ export function compareMyGames(
       break;
     case "sessions":
       order = right.sessionCount - left.sessionCount;
+      break;
+    case "added":
+      order = addedTime(right) - addedTime(left);
       break;
     case "recent":
     default: {
