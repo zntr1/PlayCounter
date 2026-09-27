@@ -243,6 +243,8 @@ import {
 } from "../libraryGameKind";
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 import { LaunchKeyHint } from "./games/LaunchKeyHint";
+import { controllerButtonName } from "../ControllerButtonGlyph";
+import { useControllerKind } from "../../controllerKind";
 import {
   findManualLaunchTarget,
   launchErrorDetail,
@@ -2793,6 +2795,7 @@ export function GameLibraryCard({
     [demo, demoTotal, demoIdentity, originalGame],
   );
   const libraryPractice = useLibraryPractice();
+  const controllerKind = useControllerKind();
   // The tour walks through both halves, so its demo card always shows them.
   const originVisible = (demo && !libraryPractice) || showOrigin;
   const matchVisible = (demo && !libraryPractice) || showMatch;
@@ -4904,7 +4907,7 @@ export function GameLibraryCard({
           controllerNavigable
             ? launching
               ? `${game.name}, starting`
-              : `${game.name}, ${hasPrimaryLaunchTarget ? "press A, Space or Enter to play" : "no launch file saved"}`
+              : `${game.name}, ${hasPrimaryLaunchTarget ? `press ${controllerButtonName(controllerKind, "A")}, Space or Enter to play` : "no launch file saved"}`
             : undefined
         }
         className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -5530,7 +5533,7 @@ export function GameLibraryCard({
         controllerNavigable
           ? launching
             ? `${game.name}, starting`
-            : `${game.name}, ${hasPrimaryLaunchTarget ? "press A, Space or Enter to play" : "no launch file saved"}`
+            : `${game.name}, ${hasPrimaryLaunchTarget ? `press ${controllerButtonName(controllerKind, "A")}, Space or Enter to play` : "no launch file saved"}`
           : undefined
       }
       className="game-library-card group relative isolate rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:border-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"

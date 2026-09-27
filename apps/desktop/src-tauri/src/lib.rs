@@ -25,6 +25,7 @@ mod ignored_processes;
 mod launch;
 mod library;
 mod notification_overlay;
+mod playstation_pad;
 mod process;
 mod reset;
 mod session;

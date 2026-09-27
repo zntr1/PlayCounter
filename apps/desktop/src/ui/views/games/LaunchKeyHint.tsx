@@ -1,4 +1,4 @@
-import { XboxButtonGlyph } from "../../XboxButtonGlyph";
+import { ControllerButtonGlyph } from "../../ControllerButtonGlyph";
 
 // Shown on the selected card's play button in place of the play icon. The
 // styles pick the A glyph while a controller drives the app and the Enter key
@@ -7,7 +7,7 @@ export function LaunchKeyHint({ compact = false }: { compact?: boolean }) {
   return (
     <>
       <span className="launch-key-hint launch-key-hint--controller">
-        <XboxButtonGlyph button="A" size="small" />
+        <ControllerButtonGlyph button="A" size="small" />
       </span>
       <kbd
         aria-hidden="true"

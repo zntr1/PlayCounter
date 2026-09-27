@@ -6,6 +6,7 @@ import {
   disposeControllerBridge,
   initializeControllerBridge,
 } from "./controllerBridge";
+import { getControllerKind, setControllerKind } from "./controllerKind";
 import { useAppStore } from "./store";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -107,5 +108,30 @@ describe("controller bridge", () => {
     expect(controllerModes.at(-1)).toBe(false);
     expect(unlisten).toHaveBeenCalledTimes(1);
     expect(invokeMock).toHaveBeenCalledWith("controller_watch_stop");
+  });
+
+  it("remembers which kind of pad sent the last input", async () => {
+    setControllerKind("xbox");
+    useAppStore.setState((state) => ({
+      settings: {
+        ...state.settings,
+        gameLaunchingEnabled: true,
+        controllerNavigationEnabled: true,
+      },
+    }));
+    initializeControllerBridge();
+    armControllerBridge();
+    await flush();
+
+    controllerHandler?.({
+      payload: { action: "scrollDown", at: 1, kind: "ps5" },
+    });
+    expect(getControllerKind()).toBe("ps5");
+    controllerHandler?.({
+      payload: { action: "scrollDown", at: 2, kind: "ps4" },
+    });
+    expect(getControllerKind()).toBe("ps4");
+    controllerHandler?.({ payload: { action: "scrollDown", at: 3 } });
+    expect(getControllerKind()).toBe("xbox");
   });
 });
