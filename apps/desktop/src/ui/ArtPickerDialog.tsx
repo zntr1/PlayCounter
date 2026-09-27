@@ -28,6 +28,7 @@ export function ArtPickerDialog({
   initialTab = "banner",
   onClose,
   onPickCover,
+  forSharing = false,
 }: {
   game: ArtPickerGame;
   initialTab?: Tab;
@@ -35,7 +36,12 @@ export function ArtPickerDialog({
   /** Covers only; the picked URL goes to the caller instead of a game. Used
    *  for software, whose art is shared as a SteamGridDB URL. */
   onPickCover?: (url: string) => void;
+  /** The pick may be shared with the community, so 18+ art stays out. */
+  forSharing?: boolean;
 }) {
+  const adult = useAppStore(
+    (state) => state.settings.showAdultArt === true && !forSharing,
+  );
   const addToast = useAppStore((state) => state.addToast);
   const setCustomHeroArt = useAppStore((state) => state.setCustomHeroArt);
   const heroKey = customHeroArtKey(game);
@@ -85,7 +91,7 @@ export function ArtPickerDialog({
     let cancelled = false;
     setLoadingAssets(true);
     setError(null);
-    artForGame(selectedGame.id)
+    artForGame(selectedGame.id, { adult })
       .then((next) => {
         if (!cancelled) setAssets(next);
       })
@@ -98,7 +104,7 @@ export function ArtPickerDialog({
     return () => {
       cancelled = true;
     };
-  }, [selectedGame]);
+  }, [adult, selectedGame]);
 
   async function apply(asset: ArtAsset) {
     if (applying !== null) return;

@@ -115,6 +115,7 @@ export function SettingsView() {
   const setShowInstallInSteam = useAppStore(
     (state) => state.setShowInstallInSteam,
   );
+  const setShowAdultArt = useAppStore((state) => state.setShowAdultArt);
   const setAutoAddInstalledGames = useAppStore(
     (state) => state.setAutoAddInstalledGames,
   );
@@ -518,6 +519,16 @@ export function SettingsView() {
               </option>
             ))}
           </Select>
+        </SettingsRow>
+        <SettingsRow
+          description="Include SteamGridDB artwork marked 18+ when you pick covers and banners. Art you share with the community always stays safe for work."
+          title="Show 18+ art"
+        >
+          <Switch
+            aria-label="Show 18+ art"
+            checked={settings.showAdultArt === true}
+            onChange={(event) => setShowAdultArt(event.target.checked)}
+          />
         </SettingsRow>
       </SettingsPanel>
 

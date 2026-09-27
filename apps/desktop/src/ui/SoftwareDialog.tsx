@@ -194,6 +194,7 @@ export function SoftwareDialog({
           }}
           onClose={() => setPicking(false)}
           onPickCover={setCoverUrl}
+          forSharing
         />
       ) : null}
     </>

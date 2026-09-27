@@ -363,6 +363,7 @@ const settings = object({}, {
   controllerNavigationEnabled: boolean,
   autoAddInstalledGames: boolean,
   showInstallInSteam: boolean,
+  showAdultArt: boolean,
 } satisfies Record<keyof Settings, Validator>);
 
 /** Validate only transfer data, after machine-local/transient fields are removed.

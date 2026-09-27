@@ -587,6 +587,7 @@ export type AppState = {
   setSoftwareLayout: (layout: "grid" | "list") => void;
   setAutoAddInstalledGames: (enabled: boolean) => void;
   setShowInstallInSteam: (enabled: boolean) => void;
+  setShowAdultArt: (enabled: boolean) => void;
   setEmulatorSetting: (
     key: "emulatorDetection" | "emulatorContentLookup",
     enabled: boolean,
@@ -683,6 +684,7 @@ const defaultSettings: Settings = {
   controllerNavigationEnabled: false,
   autoAddInstalledGames: true,
   showInstallInSteam: false,
+  showAdultArt: false,
 };
 
 let nextRuntimeLogId = 0;
@@ -1785,6 +1787,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowInstallInSteam: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, showInstallInSteam: enabled },
+    }));
+    persistSoon();
+  },
+  setShowAdultArt: (enabled) => {
+    set((state) => ({
+      settings: { ...state.settings, showAdultArt: enabled },
     }));
     persistSoon();
   },

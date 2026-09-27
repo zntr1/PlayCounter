@@ -668,4 +668,7 @@ export interface Settings {
   /** Offer Steam's installer for imported Steam games that are not installed.
    * Absent = disabled. */
   showInstallInSteam?: boolean;
+  /** Include SteamGridDB art marked 18+ in the art picker. Never for art that
+   * is shared with the community. Absent = disabled. */
+  showAdultArt?: boolean;
 }

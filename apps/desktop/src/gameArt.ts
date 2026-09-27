@@ -24,11 +24,14 @@ export async function searchArt(query: string): Promise<ArtSearchGame[]> {
   return body.games ?? [];
 }
 
+/** `adult` adds art marked 18+; older servers ignore it and stay safe. */
 export async function artForGame(
   steamGridDbGameId: number,
+  options: { adult?: boolean } = {},
 ): Promise<ArtAssetsResponse> {
+  const query = options.adult ? "?adult=true" : "";
   const body = await requestJson<ArtAssetsResponse>(
-    `${endpoint()}/api/art/game/${steamGridDbGameId}`,
+    `${endpoint()}/api/art/game/${steamGridDbGameId}${query}`,
     { rateLimitScope: "endpoint" },
   );
   return { covers: body.covers ?? [], heroes: body.heroes ?? [] };
