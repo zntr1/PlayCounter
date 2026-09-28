@@ -46,6 +46,7 @@ import {
   Pin,
   PinOff,
   Play,
+  Plus,
   RotateCcw,
   Search,
   Send,
@@ -91,6 +92,7 @@ import {
   scanProcessesNow,
   chooseLaunchTarget,
   chooseEmulatorLaunchFile,
+  linkServerKnownFiles,
   setGamePlaytime,
   setCustomGameCover,
   suggestTrackedGameToCommunity,
@@ -130,6 +132,7 @@ import { commitLibraryImports } from "../../library/commit";
 import { notifyFolderIgnored } from "./folderIgnoredToast";
 import { isGenericExeName } from "../../library/exeCandidates";
 import { MoveToPlayCounterDialog } from "./games/MoveToPlayCounterDialog";
+import { AddGameDialog } from "../AddGameDialog";
 import { LibraryMatchOffer } from "../LibraryMatchOffer";
 import {
   dismissLibraryMatchOffer,
@@ -642,6 +645,8 @@ export function MyGamesView({
     games: GameSummary[];
     skippedCount: number;
   } | null>(null);
+  const [addingGame, setAddingGame] = useState(false);
+  const isOffline = useIsOffline();
   const query = useAppStore((state) => state.libraryQuery);
   const setQuery = useAppStore((state) => state.setLibraryQuery);
   const selectShelf = useCallback((id: string) => {
@@ -2053,6 +2058,21 @@ export function MyGamesView({
                         {activeImportableProviderConfig.importCtaLabel}
                       </Button>
                     ) : null}
+                    <Button
+                      variant="secondary"
+                      icon={Plus}
+                      data-controller-item="view-link"
+                      disabled={tourDemo.active || isOffline}
+                      title={
+                        isOffline
+                          ? "Needs a connection"
+                          : "Add a game by name, with or without its .exe"
+                      }
+                      onClick={() => setAddingGame(true)}
+                      className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
+                    >
+                      Add game
+                    </Button>
                   </div>
                 }
                 selectionAction={
@@ -2507,6 +2527,12 @@ export function MyGamesView({
           </div>
         </>
       )}
+      {addingGame ? (
+        <AddGameDialog
+          libraryIgdbIds={new Set(games.flatMap((game) => game.igdbId ?? []))}
+          onClose={() => setAddingGame(false)}
+        />
+      ) : null}
       {pendingBulkMove ? (
         <MoveToPlayCounterDialog
           games={pendingBulkMove.games}
@@ -3344,6 +3370,7 @@ export function GameLibraryCard({
         applyKnownGameMatch(exeName, match);
       }
     }
+    void linkServerKnownFiles(match);
     addToast({
       tone: "success",
       title: "Match applied",
@@ -3490,6 +3517,7 @@ export function GameLibraryCard({
       game.aliases,
       { ...selection, coverUrl: selection.coverUrl },
     );
+    if (applied) void linkServerKnownFiles(applied);
     closeShare();
     addToast(
       applied

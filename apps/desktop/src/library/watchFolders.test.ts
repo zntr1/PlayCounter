@@ -30,6 +30,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 vi.mock("../platform", () => ({ currentPlatform: () => "windows" }));
 vi.mock("../tracker", () => ({
   adoptFolderGame: vi.fn(),
+  linkServerKnownFiles: vi.fn(),
   lookupFolderExecutables: vi.fn(),
   noteFolderExecutable: vi.fn(),
 }));

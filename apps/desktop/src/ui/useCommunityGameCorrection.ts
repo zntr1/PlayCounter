@@ -13,6 +13,7 @@ import {
 } from "../communityMetadataSearch";
 import { requestJson } from "../requestJson";
 import { useAppStore, useIsOffline } from "../store";
+import { linkServerKnownFiles } from "../tracker";
 
 /* Searching the database and sending a correction ────────────────────────────
    Discovery, library sharing and the ambiguity picker run the same flow: search
@@ -223,15 +224,19 @@ export function useCommunityGameCorrection({
       if (result.igdbGame) {
         setState("saved");
         onKnownGame(result.igdbGame);
+        // The game's other files join the corrected one, as for a launcher
+        // import; the same after a suggestion below.
+        void linkServerKnownFiles(result.igdbGame);
         return;
       }
       if (result.id === undefined) throw new Error("Unexpected response");
       setState("saved");
       if (result.rejected) {
         onRejected(result.id, result.reviewNote, { selection: chosen });
-        return;
+      } else {
+        onSuggested(result.id, result.verified ?? false, { selection: chosen });
       }
-      onSuggested(result.id, result.verified ?? false, { selection: chosen });
+      void linkServerKnownFiles({ igdbId: chosen.igdbId });
     } catch (error) {
       if (request.current?.controller !== controller) return;
       setState("error");

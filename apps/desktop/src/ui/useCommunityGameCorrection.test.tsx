@@ -4,9 +4,11 @@ import { createRoot, type Root } from "react-dom/client";
 import type { CommunityMetadataCandidate } from "@playcounter/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requestJson } from "../requestJson";
+import { linkServerKnownFiles } from "../tracker";
 import { useCommunityGameCorrection } from "./useCommunityGameCorrection";
 
 vi.mock("../requestJson", () => ({ requestJson: vi.fn() }));
+vi.mock("../tracker", () => ({ linkServerKnownFiles: vi.fn() }));
 vi.mock("../store", () => ({
   useAppStore: (select: (state: unknown) => unknown) =>
     select({
@@ -50,6 +52,7 @@ async function render(next: Partial<Props> = {}) {
 beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   requestMock.mockReset();
+  vi.mocked(linkServerKnownFiles).mockReset();
   props = {
     exeName: "Game.exe",
     onKnownGame: vi.fn(),
@@ -198,6 +201,12 @@ describe("community correction flow", () => {
         await submission;
       });
       expect(props[callback]).toHaveBeenCalledOnce();
+      // Whatever the answer, the game's other known files join the link.
+      expect(linkServerKnownFiles).toHaveBeenCalledExactlyOnceWith(
+        callback === "onKnownGame"
+          ? response.igdbGame
+          : { igdbId: candidate.igdbId },
+      );
       for (const other of [
         "onKnownGame",
         "onRejected",

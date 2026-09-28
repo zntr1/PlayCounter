@@ -16,6 +16,7 @@ import {
   applyKnownGameMatch,
   correctRunningGenericExe,
   ignoreTrackedProcessLocally,
+  linkServerKnownFiles,
   runningExePath,
   markCommunitySuggestionRejected,
   reportNegativeMatch,
@@ -377,6 +378,7 @@ function TrackedGameCorrectionDialog({
       ...selection,
       coverUrl: selection.coverUrl,
     });
+    if (game) void linkServerKnownFiles(game);
     onClose();
     addToast(
       game

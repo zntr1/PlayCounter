@@ -15,6 +15,7 @@ import { useState, type ReactNode } from "react";
 import { useAppStore, type Toast } from "../../../store";
 import {
   dismissAmbiguousMatch,
+  linkServerKnownFiles,
   localDatabaseGame,
   markCommunitySuggestionRejected,
   reportNegativeMatch,
@@ -162,6 +163,7 @@ export function AmbiguousMatchCard({
       coverUrl: selection.coverUrl,
     });
     selectAmbiguousMatch(exeName, game);
+    void linkServerKnownFiles(game);
     closeSuggestion();
     addToast({
       tone: "success",
@@ -471,6 +473,7 @@ export function CandidateTile({
       onClick={() => {
         if (onSelect) return onSelect(game);
         selectAmbiguousMatch(exeName, game);
+        void linkServerKnownFiles(game);
         addToast(
           isSoftware
             ? {
