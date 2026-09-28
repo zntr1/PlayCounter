@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.3.1",
+    "headline": "PlayCounter and its uninstaller now carry a valid digital signature.",
+    "highlights": [
+      "The PlayCounter app is now correctly signed, so Windows and virus scanners can check that it is genuine.",
+      "The uninstaller is signed too.",
+      "Nothing else changed: same features as 1.3.0."
+    ]
+  },
+  {
     "version": "1.3.0",
     "headline": "Add any game yourself, track your apps as software, PlayStation controllers and mGBA.",
     "highlights": [
