@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useAppStore } from "../store";
+import { canSuggestCustomGameToCommunity, useAppStore } from "../store";
 import { AddGameDialog } from "./AddGameDialog";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -223,12 +223,19 @@ it("asks when the server knows the file as another game, and keeps the pick", as
   await click("Keep Hades on this PC only");
 
   const state = useAppStore.getState();
-  // Nobody knows Hades.exe as Hades: the card says Custom, not IGDB.
-  expect(state.exeCache.get("hades.exe")).toMatchObject({
+  const entry = state.exeCache.get("hades.exe");
+  // Nobody knows Hades.exe as Hades: a Custom game, not IGDB, that the card
+  // can still suggest to the community, and never offers Hades II again.
+  expect(entry).toMatchObject({
     state: "matched",
-    gameId: 1,
+    igdbId: 100,
+    source: "custom",
     identifierSource: "custom",
+    shareState: "unshared",
+    dismissedCommunityUpgradeGameId: 2,
+    dismissedCommunityUpgradeSource: "igdb",
   });
+  expect(canSuggestCustomGameToCommunity(entry!)).toBe(true);
   expect(state.launchTargets.get("hades.exe")?.path).toBe(HADES_EXE);
   expect(suggestionRequests()).toEqual([]);
   expect(onClose).toHaveBeenCalledTimes(1);
@@ -249,6 +256,7 @@ it("shares the user's pick when the server knows the file as another game", asyn
     source: "custom",
     igdbId: 100,
     communitySuggestionId: 55,
+    dismissedCommunityUpgradeGameId: 2,
   });
   expect(onClose).toHaveBeenCalledTimes(1);
 });
@@ -266,7 +274,7 @@ it("links the server's game with its own source when the user takes it", async (
   expect(entry?.identifierSource).toBeUndefined();
 });
 
-it("marks a Game.exe the server does not list for the game as Custom", async () => {
+it("makes a Game.exe the server does not list for the game a Custom game", async () => {
   serve("unknown");
   await render();
   await search("Hades");
@@ -276,8 +284,8 @@ it("marks a Game.exe the server does not list for the game as Custom", async () 
   expect([...useAppStore.getState().scopedExeLinks.values()]).toEqual([
     expect.objectContaining({
       exeName: "Game.exe",
-      gameId: 1,
-      identifierSource: "custom",
+      igdbId: 100,
+      source: "custom",
     }),
   ]);
 });
@@ -330,10 +338,14 @@ it("adds an unknown file on this PC only without sending it", async () => {
   await click("Add game");
   await click("Add on this PC only");
 
-  expect(useAppStore.getState().exeCache.get("hades.exe")).toMatchObject({
-    gameId: 1,
-    identifierSource: "custom",
+  const entry = useAppStore.getState().exeCache.get("hades.exe");
+  expect(entry).toMatchObject({
+    igdbId: 100,
+    source: "custom",
+    shareState: "unshared",
   });
+  // The card offers "Suggest to Community" for it later.
+  expect(canSuggestCustomGameToCommunity(entry!)).toBe(true);
   expect(suggestionRequests()).toEqual([]);
   expect(onClose).toHaveBeenCalledTimes(1);
 });
@@ -353,4 +365,48 @@ it("keeps the game's known files next to a picked file", async () => {
     gameId: 1,
     identifierSource: "community",
   });
+});
+
+async function renderSetLaunchFile() {
+  await act(() =>
+    root.render(
+      createElement(AddGameDialog, {
+        forGame: { ...HADES, source: "igdb" },
+        onClose,
+      }),
+    ),
+  );
+}
+
+it("sets the launch file of a library game with the same file check", async () => {
+  serve("unknown");
+  await renderSetLaunchFile();
+  expect(document.querySelector('input[aria-label="Game title"]')).toBeNull();
+  expect(button("Set launch file")?.disabled).toBe(true);
+  await pickFile(HADES_EXE);
+  await click("Set launch file");
+  await click("Add on this PC only");
+
+  const state = useAppStore.getState();
+  expect(state.exeCache.get("hades.exe")).toMatchObject({
+    igdbId: 100,
+    source: "custom",
+  });
+  expect(state.launchTargets.get("hades.exe")?.path).toBe(HADES_EXE);
+  expect(state.toasts.at(-1)?.title).toBe("Launch file set for Hades");
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+it("links a launch file the server knows for the library game directly", async () => {
+  serve(HADES);
+  await renderSetLaunchFile();
+  await pickFile(HADES_EXE);
+  await click("Set launch file");
+
+  expect(useAppStore.getState().exeCache.get("hades.exe")).toMatchObject({
+    gameId: 1,
+    source: "igdb",
+  });
+  expect(suggestionRequests()).toEqual([]);
+  expect(onClose).toHaveBeenCalledTimes(1);
 });

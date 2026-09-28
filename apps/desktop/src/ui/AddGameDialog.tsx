@@ -1,7 +1,14 @@
 import type { Game } from "@playcounter/shared";
 import { open } from "@tauri-apps/plugin-dialog";
 import clsx from "clsx";
-import { ArrowLeft, FileCode2, Plus, Search, X } from "lucide-react";
+import {
+  ArrowLeft,
+  FileCode2,
+  FolderSearch,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { isSearchableGameQuery } from "../communityMetadataSearch";
 import { searchLibraryGames } from "../library/gameLookup";
@@ -20,7 +27,9 @@ import { Button, Input, Modal } from "./primitives";
    Search a game by name, optionally pick its .exe so Play works right away.
    A file the server knows as another game asks first; an unknown file is
    shared for review like a launcher import, or kept on this PC. The files the
-   server knows for the game join the picked one (docs/manual-add-plan.md). */
+   server knows for the game join the picked one (docs/manual-add-plan.md).
+   "Set launch file" on a card without a known .exe runs the same file check
+   for that card's game, without the search. */
 
 type Step =
   | { kind: "pick" }
@@ -29,10 +38,14 @@ type Step =
 
 export function AddGameDialog({
   libraryIgdbIds,
+  forGame,
   onClose,
 }: {
   /** Games already in My Games, so adding one again without a file is refused. */
-  libraryIgdbIds: ReadonlySet<number>;
+  libraryIgdbIds?: ReadonlySet<number>;
+  /** A game in My Games without a known .exe ("Set launch file"): no search,
+   *  and a file is required. */
+  forGame?: GameMetadata;
   onClose: () => void;
 }) {
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
@@ -41,7 +54,9 @@ export function AddGameDialog({
   const [results, setResults] = useState<GameMetadata[]>([]);
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState("");
-  const [selected, setSelected] = useState<GameMetadata | null>(null);
+  const [selected, setSelected] = useState<GameMetadata | null>(
+    forGame ?? null,
+  );
   const [filePath, setFilePath] = useState<string | null>(null);
   const [fileError, setFileError] = useState("");
   const [step, setStep] = useState<Step>({ kind: "pick" });
@@ -51,7 +66,9 @@ export function AddGameDialog({
   useEffect(() => () => searchController.current?.abort(), []);
 
   const alreadyInLibrary =
-    selected?.igdbId !== undefined && libraryIgdbIds.has(selected.igdbId);
+    !forGame &&
+    selected?.igdbId !== undefined &&
+    Boolean(libraryIgdbIds?.has(selected.igdbId));
 
   async function runSearch() {
     if (!isSearchableGameQuery(query)) return;
@@ -104,7 +121,10 @@ export function AddGameDialog({
   function finish(name: string, file?: GameFile) {
     addToast({
       tone: "success",
-      title: `${name} added`,
+      title:
+        forGame?.name === name
+          ? `Launch file set for ${name}`
+          : `${name} added`,
       detail: file
         ? `Play starts ${file.exeName}.`
         : "It's in My Games now. Log past playtime from its card.",
@@ -153,7 +173,7 @@ export function AddGameDialog({
         case "link":
           // No server entry for this game: the pick is the user's own.
           if (check.game) linkGameFileByHand(check.file, check.game, "link");
-          else linkGameFileByHand(check.file, selected, "own");
+          else linkGameFileByHand(check.file, selected, "custom");
           await done(selected, check.file);
           return;
         case "other":
@@ -170,23 +190,29 @@ export function AddGameDialog({
     }
   }
 
-  /** "Use Payload", or the user's own pick kept on this PC: nothing is sent. */
-  async function linkTo(file: GameFile, game: Game, how: "link" | "own") {
+  /** "Use Payload", or the user's own pick kept on this PC: nothing is sent.
+   *  A Custom game can still be shared later from its card. */
+  async function linkTo(
+    file: GameFile,
+    game: Game,
+    how: "link" | "custom",
+    declined?: Game,
+  ) {
     if (busy) return;
     setBusy(true);
     try {
-      linkGameFileByHand(file, game, how);
+      linkGameFileByHand(file, game, how, declined);
       await done(game, file);
     } finally {
       setBusy(false);
     }
   }
 
-  async function share(file: GameFile) {
+  async function share(file: GameFile, declined?: Game) {
     if (!selected || busy) return;
     setBusy(true);
     try {
-      const outcome = await addAndShareGameFile(file, selected);
+      const outcome = await addAndShareGameFile(file, selected, declined);
       await linkServerKnownFiles(selected);
       if (outcome?.kind === "submitted") {
         addToast({
@@ -216,6 +242,58 @@ export function AddGameDialog({
     }
   }
 
+  const filePart = (
+    <div className="grid gap-2 rounded-lg border border-border bg-bg/50 p-3">
+      <p className="text-xs font-semibold text-text">
+        {forGame ? "Game file" : "Game file (optional)"}
+      </p>
+      {filePath ? (
+        <div className="flex items-center gap-2">
+          <FileCode2 size={16} className="shrink-0 text-text-muted" />
+          <span
+            className="min-w-0 flex-1 truncate text-xs text-text"
+            title={filePath}
+          >
+            {filePath}
+          </span>
+          <Button
+            variant="ghost"
+            icon={X}
+            aria-label="Remove game file"
+            onClick={() => {
+              setFilePath(null);
+              setFileError("");
+            }}
+            className="h-7 px-2 text-xs"
+          >
+            Remove
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            icon={FileCode2}
+            onClick={() => void pickFile()}
+            className="h-8 text-xs"
+          >
+            Pick game file…
+          </Button>
+          {forGame ? null : (
+            <span className="text-xs text-text-muted">
+              Without a file, the game is matched the first time you run it.
+            </span>
+          )}
+        </div>
+      )}
+      {fileError ? (
+        <p className="text-xs text-danger" role="alert">
+          {fileError}
+        </p>
+      ) : null}
+    </div>
+  );
+
   const footer =
     step.kind === "other" ? (
       <div className="flex justify-end">
@@ -241,7 +319,7 @@ export function AddGameDialog({
         <Button
           variant="secondary"
           disabled={busy}
-          onClick={() => selected && void linkTo(step.file, selected, "own")}
+          onClick={() => selected && void linkTo(step.file, selected, "custom")}
         >
           Add on this PC only
         </Button>
@@ -261,12 +339,14 @@ export function AddGameDialog({
         </Button>
         <Button
           variant="primary"
-          icon={Plus}
+          icon={forGame ? FolderSearch : Plus}
           loading={busy}
-          disabled={!selected || (alreadyInLibrary && !filePath)}
+          disabled={
+            !selected || (forGame || alreadyInLibrary ? !filePath : false)
+          }
           onClick={() => void add()}
         >
-          Add game
+          {forGame ? "Set launch file" : "Add game"}
         </Button>
       </div>
     );
@@ -276,9 +356,13 @@ export function AddGameDialog({
       size="lg"
       labelId="add-game-dialog-title"
       eyebrow="My Games"
-      title="Add game"
-      subtitle="Search the game. Add its .exe so Play works right away."
-      icon={Plus}
+      title={forGame ? "Set launch file" : "Add game"}
+      subtitle={
+        forGame
+          ? `Pick the .exe that starts ${forGame.name}. PlayCounter tracks it too.`
+          : "Search the game. Add its .exe so Play works right away."
+      }
+      icon={forGame ? FolderSearch : Plus}
       onClose={onClose}
       footer={footer}
     >
@@ -291,11 +375,14 @@ export function AddGameDialog({
             . Which game is it?
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <GameChoice game={selected} note="Your search">
+            <GameChoice
+              game={selected}
+              note={forGame ? "Your game" : "Your search"}
+            >
               <Button
                 variant="primary"
                 disabled={busy}
-                onClick={() => void share(step.file)}
+                onClick={() => void share(step.file, step.game)}
                 className="w-full"
               >
                 Keep {selected.name} and share
@@ -303,7 +390,9 @@ export function AddGameDialog({
               <Button
                 variant="ghost"
                 disabled={busy}
-                onClick={() => void linkTo(step.file, selected, "own")}
+                onClick={() =>
+                  void linkTo(step.file, selected, "custom", step.game)
+                }
                 className="w-full"
               >
                 Keep {selected.name} on this PC only
@@ -335,10 +424,15 @@ export function AddGameDialog({
           PlayCounter does not know{" "}
           <span className="font-semibold text-text">{step.file.exeName}</span>{" "}
           yet. Add and share sends it to community review together with{" "}
-          <span className="font-semibold text-text">{selected?.name}</span>,
-          like in a launcher import. Only the file name and the game are sent,
-          without your name. On this PC only sends nothing.
+          <span className="font-semibold text-text">{selected?.name}</span>.
+          Only the file name and the game name are sent. On this PC only sends
+          nothing.
         </p>
+      ) : forGame ? (
+        <div className="grid gap-4">
+          <GameChoice game={forGame} note="No .exe known yet" />
+          {filePart}
+        </div>
       ) : (
         <div className="grid gap-4">
           <form
@@ -407,7 +501,7 @@ export function AddGameDialog({
                       {game.releaseYear ? `${game.releaseYear} · ` : ""}IGDB{" "}
                       {game.igdbId}
                       {game.igdbId !== undefined &&
-                      libraryIgdbIds.has(game.igdbId)
+                      libraryIgdbIds?.has(game.igdbId)
                         ? " · In your library"
                         : ""}
                     </span>
@@ -423,53 +517,7 @@ export function AddGameDialog({
             </p>
           ) : null}
 
-          <div className="grid gap-2 rounded-lg border border-border bg-bg/50 p-3">
-            <p className="text-xs font-semibold text-text">
-              Game file (optional)
-            </p>
-            {filePath ? (
-              <div className="flex items-center gap-2">
-                <FileCode2 size={16} className="shrink-0 text-text-muted" />
-                <span
-                  className="min-w-0 flex-1 truncate text-xs text-text"
-                  title={filePath}
-                >
-                  {filePath}
-                </span>
-                <Button
-                  variant="ghost"
-                  icon={X}
-                  aria-label="Remove game file"
-                  onClick={() => {
-                    setFilePath(null);
-                    setFileError("");
-                  }}
-                  className="h-7 px-2 text-xs"
-                >
-                  Remove
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="secondary"
-                  icon={FileCode2}
-                  onClick={() => void pickFile()}
-                  className="h-8 text-xs"
-                >
-                  Pick game file…
-                </Button>
-                <span className="text-xs text-text-muted">
-                  Without a file, the game is matched the first time you run it.
-                </span>
-              </div>
-            )}
-            {fileError ? (
-              <p className="text-xs text-danger" role="alert">
-                {fileError}
-              </p>
-            ) : null}
-          </div>
+          {filePart}
 
           {alreadyInLibrary && !filePath ? (
             <p className="text-xs text-text-muted">
@@ -491,7 +539,7 @@ function GameChoice({
 }: {
   game: Pick<Game, "name" | "coverUrl" | "releaseYear">;
   note: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <div className="grid content-start gap-3 rounded-lg border border-border bg-surface p-3">
@@ -515,7 +563,7 @@ function GameChoice({
           </span>
         </span>
       </div>
-      <div className="grid gap-1.5">{children}</div>
+      {children ? <div className="grid gap-1.5">{children}</div> : null}
     </div>
   );
 }

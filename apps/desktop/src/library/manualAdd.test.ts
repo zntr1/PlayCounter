@@ -5,9 +5,15 @@ import type {
   MatchProcessesResponse,
 } from "@playcounter/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore, type GameMetadata } from "../store";
 import {
+  canSuggestCustomGameToCommunity,
+  useAppStore,
+  type GameMetadata,
+} from "../store";
+import {
+  changeCustomGameLocally,
   linkGameFileByHand,
+  removeOwnGameFile,
   linkServerKnownFiles,
   untrackGame,
 } from "../tracker";
@@ -207,7 +213,7 @@ describe("linking the server's known files", () => {
     linkGameFileByHand(
       { exeName: "Game.exe", exePath: "D:\\Games\\Hades\\Game.exe" },
       HADES,
-      "own",
+      "custom",
     );
     known = [exe("Hades.exe", { provenance: "igdb" })];
     await linkServerKnownFiles({ id: -5, igdbId: 100, source: "custom" });
@@ -500,24 +506,27 @@ describe("linking a picked file", () => {
     });
   });
 
-  it("marks the user's own pick as Custom, by name or by folder", () => {
-    linkGameFileByHand(HADES_FILE, HADES, "own");
+  it("makes the user's own pick a Custom game, by name or by folder", () => {
+    linkGameFileByHand(HADES_FILE, HADES, "custom");
     linkGameFileByHand(
       { exeName: "Game.exe", exePath: "D:\\Games\\Hades\\Game.exe" },
       HADES,
-      "own",
+      "custom",
     );
     const state = useAppStore.getState();
+    // Never the IGDB game with a Custom label: every "is this the user's own
+    // link?" check asks for a Custom game.
     expect(state.exeCache.get("hades.exe")).toMatchObject({
-      gameId: 1,
-      source: "igdb",
-      identifierSource: "custom",
+      igdbId: 100,
+      source: "custom",
+      shareState: "unshared",
     });
     expect([...state.scopedExeLinks.values()]).toEqual([
       expect.objectContaining({
         exeName: "Game.exe",
-        gameId: 1,
-        identifierSource: "custom",
+        pathPrefix: "D:\\Games\\Hades",
+        igdbId: 100,
+        source: "custom",
       }),
     ]);
   });
@@ -615,5 +624,156 @@ describe("adding and sharing an unknown file", () => {
       shareState: "failed",
     });
     expect(useAppStore.getState().launchTargets.has("hades.exe")).toBe(true);
+  });
+});
+
+describe("changing the game of the user's own file", () => {
+  const CELESTE_PICK = {
+    igdbId: 300,
+    name: "Celeste",
+    coverUrl: "celeste.jpg",
+  };
+
+  it("relinks it on this PC with its sessions, keeping its id and Play", () => {
+    linkGameFileByHand(HADES_FILE, HADES, "custom");
+    const before = useAppStore.getState().exeCache.get("hades.exe")!;
+    useAppStore.setState({
+      recentSessions: [
+        {
+          id: 1,
+          gameId: before.gameId!,
+          igdbId: 100,
+          gameName: "Hades",
+          coverUrl: "hades.jpg",
+          source: "custom",
+          exeName: "Hades.exe",
+          startedAt: NOW,
+          endedAt: NOW,
+          durationSeconds: 600,
+        },
+      ],
+    });
+    fetchMock.mockClear();
+
+    expect(changeCustomGameLocally("Hades.exe", CELESTE_PICK)).toMatchObject({
+      id: before.gameId,
+      igdbId: 300,
+      source: "custom",
+    });
+    const state = useAppStore.getState();
+    expect(state.exeCache.get("hades.exe")).toMatchObject({
+      gameId: before.gameId,
+      igdbId: 300,
+      gameName: "Celeste",
+      source: "custom",
+      shareState: "unshared",
+    });
+    expect(state.recentSessions[0]).toMatchObject({
+      gameId: before.gameId,
+      igdbId: 300,
+      gameName: "Celeste",
+    });
+    expect(state.launchTargets.get("hades.exe")?.owner).toEqual({
+      gameId: before.gameId,
+      source: "custom",
+    });
+    // Nothing is sent.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("drops an earlier review answer, so the new pair can be suggested", () => {
+    linkGameFileByHand(HADES_FILE, HADES, "custom");
+    const entry = useAppStore.getState().exeCache.get("hades.exe")!;
+    useAppStore.getState().setExeCacheEntry({
+      ...entry,
+      communitySuggestionId: 7,
+      communitySuggestionStatus: "rejected",
+      communitySuggestionNote: "Wrong game",
+    });
+    changeCustomGameLocally("Hades.exe", CELESTE_PICK);
+
+    const changed = useAppStore.getState().exeCache.get("hades.exe")!;
+    expect(changed.communitySuggestionId).toBeUndefined();
+    expect(changed.communitySuggestionNote).toBeUndefined();
+    expect(canSuggestCustomGameToCommunity(changed)).toBe(true);
+  });
+
+  it("changes nothing for a file the database matched", () => {
+    useAppStore.getState().setExeCacheEntry(matched("Hades.exe", HADES));
+    expect(changeCustomGameLocally("Hades.exe", CELESTE_PICK)).toBeNull();
+    expect(useAppStore.getState().exeCache.get("hades.exe")).toMatchObject({
+      gameId: 1,
+      igdbId: 100,
+      source: "igdb",
+    });
+  });
+});
+
+describe("removing the user's own file from a game", () => {
+  const OWN_REF = { kind: "exe" as const, key: "hades.exe" };
+
+  it("stops counting it for the game, and Play forgets it", () => {
+    linkGameFileByHand(HADES_FILE, HADES, "custom");
+    expect(useAppStore.getState().launchTargets.has("hades.exe")).toBe(true);
+
+    expect(removeOwnGameFile(OWN_REF)).toBe(true);
+    const state = useAppStore.getState();
+    expect(state.exeCache.has("hades.exe")).toBe(false);
+    expect(state.launchTargets.has("hades.exe")).toBe(false);
+  });
+
+  it("removes one folder of a Game.exe and leaves the others", () => {
+    const here = { exeName: "Game.exe", exePath: "D:\\Games\\Hades\\Game.exe" };
+    const there = {
+      exeName: "Game.exe",
+      exePath: "D:\\Games\\Celeste\\Game.exe",
+    };
+    linkGameFileByHand(here, HADES, "custom");
+    linkGameFileByHand(there, CELESTE, "custom");
+    const key = scopedExeLinkKey("Game.exe", "D:\\Games\\Hades")!;
+
+    expect(removeOwnGameFile({ kind: "scoped", key })).toBe(true);
+    expect(
+      [...useAppStore.getState().scopedExeLinks.values()].map(
+        (link) => link.pathPrefix,
+      ),
+    ).toEqual(["D:\\Games\\Celeste"]);
+  });
+
+  it("never removes a file the database matched", () => {
+    useAppStore.getState().setExeCacheEntry(matched("Hades.exe", HADES));
+    expect(removeOwnGameFile(OWN_REF)).toBe(false);
+    expect(useAppStore.getState().exeCache.has("hades.exe")).toBe(true);
+  });
+
+  it("waits while a suggestion for it is under review, or while it runs", () => {
+    linkGameFileByHand(HADES_FILE, HADES, "custom");
+    const entry = useAppStore.getState().exeCache.get("hades.exe")!;
+    useAppStore.getState().setExeCacheEntry({
+      ...entry,
+      communitySuggestionId: 7,
+      communitySuggestionStatus: "pending",
+    });
+    expect(removeOwnGameFile(OWN_REF)).toBe(false);
+
+    useAppStore.getState().setExeCacheEntry(entry);
+    useAppStore.setState({
+      activeSessions: [
+        {
+          id: 1,
+          gameId: entry.gameId!,
+          igdbId: 100,
+          gameName: "Hades",
+          coverUrl: "hades.jpg",
+          source: "custom",
+          exeName: "Hades.exe",
+          startedAt: NOW,
+          endedAt: null,
+          durationSeconds: null,
+        } as never,
+      ],
+    });
+    expect(removeOwnGameFile(OWN_REF)).toBe(false);
+    expect(useAppStore.getState().exeCache.has("hades.exe")).toBe(true);
   });
 });
