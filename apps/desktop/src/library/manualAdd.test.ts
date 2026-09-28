@@ -230,6 +230,27 @@ describe("linking the server's known files", () => {
     expect(useAppStore.getState().exeCache.has("hades.exe")).toBe(false);
   });
 
+  it("moves the time of a known file waiting in Discovered to the game", async () => {
+    addGameWithoutFile(HADES);
+    useAppStore.getState().setExeCacheEntry({
+      exeName: "Hades.exe",
+      state: "unmatched",
+      trackedSeconds: 1200,
+      lastCheckedAt: NOW,
+    });
+    known = [exe("Hades.exe")];
+    await linkServerKnownFiles(HADES);
+
+    const state = useAppStore.getState();
+    expect(state.exeCache.get("hades.exe")).toMatchObject({
+      state: "matched",
+      gameId: 1,
+    });
+    expect(state.recentSessions).toEqual([
+      expect.objectContaining({ gameId: 1, durationSeconds: 1200 }),
+    ]);
+  });
+
   it("changes nothing when the lookup fails", async () => {
     addGameWithoutFile(HADES);
     known = [exe("Hades.exe")];

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "../store";
 import {
   adoptFolderGame,
+  linkServerKnownFiles,
   lookupFolderExecutables,
   noteFolderExecutable,
 } from "../tracker";
@@ -128,6 +129,8 @@ describe("scanning watched folders", () => {
       "D:\\Games\\Celeste\\Celeste.exe",
       game(1, "Celeste"),
     );
+    // The game's other known files join the found one.
+    expect(linkServerKnownFiles).toHaveBeenCalledWith(game(1, "Celeste"));
     expect(noteFolderExecutable).not.toHaveBeenCalled();
     expect(readWatchFolders().seen).toEqual({
       "d:\\games\\celeste": { kind: "game", exeName: "Celeste.exe" },
