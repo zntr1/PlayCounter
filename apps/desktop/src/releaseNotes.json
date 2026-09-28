@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.3.0",
+    "headline": "Add any game yourself, track your apps as software, PlayStation controllers and mGBA.",
+    "highlights": [
+      "Add game: add any game yourself in My Games, by title or IGDB ID, with or without its .exe.",
+      "Your custom games: 'Change Game' fixes a wrong link, 'Suggest to Community' shares in one click, and the Files tab shows who matched each .exe.",
+      "Software tracking: Discord, Spotify, launchers and more on their own Software page, with stats per app. Turn it on in Settings → Discovery.",
+      "PlayStation controllers: DualSense and DualShock 4, with PlayStation button hints.",
+      "mGBA: Game Boy, Game Boy Color and Game Boy Advance games.",
+      "RPG Maker and other Game.exe games: one card per game folder.",
+      "Discovered: clearer review with product name, publisher, folder and a 'Probably a game' hint.",
+      "My Games: 'Recently added' sort, 'New' badge, better Launchable filters, IGDB ID search and an optional 18+ art setting.",
+      "About 40% less memory in the tray.",
+      "Fixes: unreadable saved data is never saved over, a broken page no longer blanks the window, and fixes for the tray banner, sorting and dialogs."
+    ]
+  },
+  {
     "version": "1.2.2",
     "releasedAt": "2026-09-26",
     "headline": "Epic Games import, a library that keeps up with your launchers, and watched folders for games from anywhere.",
