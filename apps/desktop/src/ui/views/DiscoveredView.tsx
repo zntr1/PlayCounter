@@ -23,6 +23,7 @@ import {
   addSharedCustomGame,
   applyKnownGameMatch,
   ignoreDiscoveredProcess,
+  linkServerKnownFiles,
   markCommunitySuggestionRejected,
   recheckExecutable,
   restoreIgnoredExeFolder,
@@ -511,6 +512,7 @@ export function DiscoveredView() {
       ...selection,
       coverUrl: selection.coverUrl,
     });
+    void linkServerKnownFiles(game);
     closeCommunitySuggestion();
     addToast({
       tone: "success",

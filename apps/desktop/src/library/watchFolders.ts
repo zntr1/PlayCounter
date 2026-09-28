@@ -5,6 +5,7 @@ import { currentPlatform } from "../platform";
 import { useAppStore } from "../store";
 import {
   adoptFolderGame,
+  linkServerKnownFiles,
   lookupFolderExecutables,
   noteFolderExecutable,
 } from "../tracker";
@@ -230,6 +231,7 @@ async function runScan(reason: string): Promise<number> {
       )
     ) {
       adoptFolderGame(confident.exeName, confident.exePath, confident.game);
+      void linkServerKnownFiles(confident.game);
       seen[folderKey] = { kind: "game", exeName: confident.exeName };
       added += 1;
       continue;

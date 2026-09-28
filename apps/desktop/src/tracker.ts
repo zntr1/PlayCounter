@@ -188,6 +188,11 @@ import { toPublicSnapshots } from "./emulators/publicProjection";
 import { customLocalGameId } from "./library/localGameIds";
 import { isGenericExeName } from "./library/exeCandidates";
 import {
+  reverseResolveLibraryGame,
+  searchLibraryGames,
+} from "./library/gameLookup";
+import { knownGameFiles } from "./library/knownGameFiles";
+import {
   gamesLinkedToExe,
   genericExeFolder,
   genericFolderLink,
@@ -3803,9 +3808,11 @@ export function applyKnownGameMatch(
   void requestProcessScan("after known game match applied");
 }
 
-/** Matches executables found in a watched folder like running processes. */
+/** Matches executables found in a watched folder like running processes.
+ *  `supportsTools` also returns software (Steam.exe, VS Code) as tools. */
 export async function lookupFolderExecutables(
   executables: readonly { exeName: string; exePath: string }[],
+  options: { supportsTools?: boolean } = {},
 ) {
   const state = useAppStore.getState();
   const results = new Map<string, MatchProcessesResponse["matches"][number]>();
@@ -3818,7 +3825,11 @@ export async function lookupFolderExecutables(
         method: "POST",
         headers: { "content-type": "application/json" },
         timeoutMs: API_REQUEST_TIMEOUT_MS,
-        body: JSON.stringify({ processes: batch }),
+        body: JSON.stringify(
+          options.supportsTools
+            ? { processes: batch, supportsTools: true }
+            : { processes: batch },
+        ),
       },
     );
     if (!response.ok) throw responseError(response);
@@ -3842,6 +3853,147 @@ export function adoptFolderGame(exeName: string, exePath: string, game: Game) {
   }
   persist();
   logRuntime(`watched folder game added ${exeName} -> ${game.name}`);
+}
+
+/**
+ * "Add game" with a file the user picked for the game they searched.
+ * "link" links the file to `game`, the server's game for it, "own" links it
+ * as the user's own pick that no database backs (the card says Custom),
+ * "play" only saves the file for Play (it already counts for `game`),
+ * "share" gives an unknown file a local game like the launcher import does,
+ * so `submitLocalLinkToCommunity` can send it next.
+ * Play gets the picked file and replaces an older one: the user chose it.
+ */
+export function linkGameFileByHand(
+  file: { exeName: string; exePath: string },
+  game: Game,
+  how: "link" | "own" | "play" | "share",
+): LocalLinkRef | null {
+  const key = file.exeName.toLowerCase();
+  let owner = game;
+  let ref: LocalLinkRef | null = null;
+  if (how === "share" && !genericExeFolder(file)) {
+    owner = {
+      id: customGameId(file.exeName),
+      igdbId: game.igdbId,
+      name: game.name,
+      coverUrl: game.coverUrl,
+      source: "custom",
+    };
+    const state = useAppStore.getState();
+    state.removeAmbiguousMatch(file.exeName);
+    if (state.exeCache.get(key)?.state === "unmatched") {
+      backfillTrackedRuntime(file.exeName, owner);
+    }
+    state.setExeCacheEntry({
+      exeName: file.exeName,
+      state: "matched",
+      gameId: owner.id,
+      igdbId: owner.igdbId,
+      gameName: owner.name,
+      coverUrl: owner.coverUrl,
+      source: "custom",
+      identifierSource: "custom",
+      lastCheckedAt: new Date().toISOString(),
+      shareState: "unshared",
+    });
+    ref = { kind: "exe", key };
+  } else if (how !== "play") {
+    linkExecutableGame(file, game, how === "own" ? "custom" : undefined);
+  }
+  // Game.exe & co. start from their folder link; a name target would be
+  // shared by every folder with the same file name.
+  if (!genericExeFolder(file)) {
+    useAppStore.getState().setLaunchTarget({
+      exeName: file.exeName,
+      path: file.exePath,
+      owner: { gameId: owner.id, source: owner.source ?? null },
+    });
+  }
+  persist();
+  logRuntime(
+    `game file added by hand ${file.exeName} -> ${game.name} (${how})`,
+  );
+  void requestProcessScan("after game file added by hand");
+  return ref;
+}
+
+/** "Add game" without a file: the server's files for `game` count for it
+ *  here, as after a launcher import. The badge shows who knows each file,
+ *  not where the game's metadata comes from. A file that already counts for
+ *  a game, or is software or ignored, stays as it is. The caller persists. */
+export function linkKnownGameFiles(
+  files: readonly { exeName: string; identifierSource: GameSource }[],
+  game: Game,
+) {
+  const state = useAppStore.getState();
+  for (const { exeName, identifierSource } of files) {
+    const existing = state.exeCache.get(exeName.toLowerCase());
+    if (existing && existing.state !== "unmatched") continue;
+    cacheMatchResult(exeName, game, identifierSource);
+  }
+}
+
+/**
+ * After the user links a file to a database game: the server's other files
+ * for that game count for it too, as after a launcher import, so its card
+ * lists them all. `game` is the server's game when the caller has it; a game
+ * named on this PC (Game.exe, a suggestion) is found by its IGDB id.
+ * Best effort: a failed lookup changes nothing, and the files still count
+ * when they run.
+ */
+export async function linkServerKnownFiles(game: {
+  id?: number;
+  igdbId?: number;
+  source?: GameSource | null;
+}) {
+  const igdbId = game.igdbId;
+  if (!igdbId) return;
+  const endpoint = useAppStore.getState().settings.apiEndpoint;
+  try {
+    const serverId =
+      game.id !== undefined &&
+      (game.source === "igdb" || game.source === "community")
+        ? game.id
+        : (
+            await searchLibraryGames(endpoint, String(igdbId), {
+              mainGamesAndRemastersOnly: false,
+            })
+          ).find((found) => found.igdbId === igdbId)?.id;
+    if (serverId === undefined) return;
+    const result = await reverseResolveLibraryGame(endpoint, serverId);
+    const files = knownGameFiles(result.executables);
+    // A game removed while the lookup ran does not get its files back.
+    if (
+      files.length === 0 ||
+      result.game.igdbId !== igdbId ||
+      !hasLibraryGame(igdbId)
+    ) {
+      return;
+    }
+    linkKnownGameFiles(files, result.game);
+    persist();
+    logRuntime(
+      `known files linked ${files.map((file) => file.exeName).join(", ")} -> ${result.game.name}`,
+    );
+  } catch (error) {
+    verboseRuntime(
+      `known files lookup failed for igdb ${igdbId}: ${formatError(error)}`,
+    );
+  }
+}
+
+function hasLibraryGame(igdbId: number) {
+  const state = useAppStore.getState();
+  return (
+    [...state.exeCache.values()].some(
+      (entry) => entry.state === "matched" && entry.igdbId === igdbId,
+    ) ||
+    [...state.scopedExeLinks.values()].some((link) => link.igdbId === igdbId) ||
+    [...state.playcounterLibrary.values()].some(
+      (entry) => entry.igdbId === igdbId,
+    )
+  );
 }
 
 /** An unclear find waits in Discovered like an unknown running game. */
@@ -5153,7 +5305,11 @@ function backfillTrackedRuntime(exeName: string, game: Game) {
   );
 }
 
-function cacheMatchResult(exeName: string, game: Game | null) {
+function cacheMatchResult(
+  exeName: string,
+  game: Game | null,
+  identifierSource?: GameSource,
+) {
   const state = useAppStore.getState();
   const checkedAt = new Date().toISOString();
   const existing = state.exeCache.get(exeName.toLowerCase());
@@ -5205,6 +5361,7 @@ function cacheMatchResult(exeName: string, game: Game | null) {
     gameName: game.name,
     coverUrl: game.coverUrl,
     source: game.source,
+    ...(identifierSource ? { identifierSource } : {}),
     lastCheckedAt: checkedAt,
   });
 }
@@ -5217,12 +5374,16 @@ function cacheMatchResult(exeName: string, game: Game | null) {
 function linkExecutableGame(
   file: { exeName: string; exePath?: string | null },
   game: Game,
+  identifierSource?: GameSource,
 ) {
-  const link = genericFolderLink(file, game, new Date().toISOString());
-  if (!link) {
-    cacheMatchResult(file.exeName, game);
+  const folderLink = genericFolderLink(file, game, new Date().toISOString());
+  if (!folderLink) {
+    cacheMatchResult(file.exeName, game, identifierSource);
     return;
   }
+  const link = identifierSource
+    ? { ...folderLink, identifierSource }
+    : folderLink;
   const state = useAppStore.getState();
   const key = file.exeName.toLowerCase();
   // Discovered's entry for this name waited for this folder: its time goes to
