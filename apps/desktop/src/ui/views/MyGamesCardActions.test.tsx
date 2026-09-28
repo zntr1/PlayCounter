@@ -6,7 +6,12 @@ import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { addGameWithoutFile } from "../../library/manualAdd";
 import { useAppStore } from "../../store";
-import { removeOwnGameFile, submitLocalLinkToCommunity } from "../../tracker";
+import {
+  changeCustomGameLocally,
+  findGameMatches,
+  removeOwnGameFile,
+  submitLocalLinkToCommunity,
+} from "../../tracker";
 import { LibraryTestShell } from "./libraryTestShell";
 
 vi.mock("../../tracker");
@@ -20,6 +25,8 @@ let root: Root;
 let container: HTMLDivElement;
 
 beforeEach(() => {
+  // The tracker is mocked: each test starts with a clean call history.
+  vi.clearAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
   useAppStore.setState(useAppStore.getInitialState(), true);
@@ -390,4 +397,105 @@ it("badges a card by who matched each file, the database's and the user's own", 
   expect(legend).toContain("How this file was matched");
   expect(legend).toContain("IGDB");
   expect(legend).toContain("Custom");
+});
+
+it("badges an IGDB game's file that only the community knows as Community", async () => {
+  // The first bug of Add game: THAW.exe is known to the community only.
+  useAppStore.getState().setExeCacheEntry({
+    ...DATABASE_FILE,
+    identifierSource: "community",
+  });
+  await act(() => root.render(<LibraryTestShell />));
+
+  const legend = card().querySelector('[role="tooltip"]')!.textContent ?? "";
+  expect(legend).toContain("Community");
+  expect(legend).not.toContain("IGDB has this file name on record");
+});
+
+it("searches again for a Custom game the community turned down", async () => {
+  useAppStore.getState().setExeCacheEntry({
+    ...OWN_FILE,
+    communitySuggestionId: 9,
+    communitySuggestionStatus: "rejected",
+    communitySuggestionNote: "Wrong game",
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await suggestFromCard(DRAGON_AGE.name);
+
+  expect(menuText()).toContain("Suggest community game");
+  expect(menuText()).not.toContain("Suggest to community?");
+  expect(submitLocalLinkToCommunity).not.toHaveBeenCalled();
+});
+
+it("changes the game of the user's own file to the picked result, sending nothing", async () => {
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL) =>
+    Response.json({
+      candidates: [
+        { igdbId: 300, name: "Dragon Age: Origins", coverUrl: "origins.jpg" },
+      ],
+      hasMore: false,
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  vi.mocked(changeCustomGameLocally).mockReturnValue({
+    id: OWN_FILE.gameId,
+    igdbId: 300,
+    name: "Dragon Age: Origins",
+    coverUrl: "origins.jpg",
+    source: "custom",
+  });
+  useAppStore.getState().setExeCacheEntry(OWN_FILE);
+  await act(() => root.render(<LibraryTestShell />));
+  await openMatchingMenu();
+  await act(async () =>
+    [...document.querySelectorAll("button")]
+      .find((button) => button.textContent?.trim() === "Change Game…")!
+      .click(),
+  );
+  await act(async () => dialogButton("Search")!.click());
+  const result = [...document.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("Dragon Age: Origins"),
+  );
+  expect(result, "missing search result").toBeDefined();
+  await act(async () => result!.click());
+  await act(async () =>
+    document
+      .getElementById("community-suggestion-form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+  );
+
+  expect(changeCustomGameLocally).toHaveBeenCalledWith(
+    { kind: "exe", key: "dragonageinquisition.exe" },
+    expect.objectContaining({ igdbId: 300, name: "Dragon Age: Origins" }),
+  );
+  expect(useAppStore.getState().toasts.at(-1)?.title).toBe("Game changed");
+  expect(
+    fetchMock.mock.calls.some(([url]) =>
+      String(url).includes("/api/community/suggestions"),
+    ),
+  ).toBe(false);
+  expect(submitLocalLinkToCommunity).not.toHaveBeenCalled();
+});
+
+it("opens the search from Check for Matches without sending anything", async () => {
+  vi.mocked(findGameMatches).mockResolvedValue({ games: [] });
+  // Before, "Search the database" sent a not yet shared file right away.
+  useAppStore.getState().setExeCacheEntry({
+    ...OWN_FILE,
+    shareState: "unshared",
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await act(async () =>
+    card()
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
+      )!
+      .click(),
+  );
+  const searchDatabase = dialogButton("Search the database");
+  expect(searchDatabase, "missing Search the database").toBeDefined();
+  await act(async () => searchDatabase!.click());
+
+  expect(menuText()).toContain("Suggest community game");
+  expect(submitLocalLinkToCommunity).not.toHaveBeenCalled();
 });
