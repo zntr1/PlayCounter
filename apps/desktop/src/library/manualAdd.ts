@@ -142,9 +142,14 @@ export async function checkGameFile(
   return { kind: "share", file };
 }
 
-/** An unknown file: linked here first, then sent for review like a launcher
- *  import. A failed send keeps the link. */
-export async function addAndShareGameFile(file: GameFile, game: Game) {
-  const ref = linkGameFileByHand(file, game, "share");
+/** The user's file as a Custom game, linked here first, then sent for
+ *  review like a launcher import. A failed send keeps the link. `declined`
+ *  is the server's other game for the file, which the user turned down. */
+export async function addAndShareGameFile(
+  file: GameFile,
+  game: Game,
+  declined?: Game,
+) {
+  const ref = linkGameFileByHand(file, game, "custom", declined);
   return ref ? submitLocalLinkToCommunity(ref) : null;
 }

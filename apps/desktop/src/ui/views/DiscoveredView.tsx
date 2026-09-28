@@ -1965,6 +1965,7 @@ export function CommunitySuggestionForm({
   title = "Suggest community game",
   practice = false,
   localOnly = false,
+  localAction,
   onApplyCandidate,
   onCancel,
   onLoadMore,
@@ -1985,6 +1986,8 @@ export function CommunitySuggestionForm({
   practice?: boolean;
   /** Generic exe names: the pick is added on this PC and never shared. */
   localOnly?: boolean;
+  /** Title and button of a local search, e.g. "Change game". */
+  localAction?: string;
   onApplyCandidate: (candidate: CommunityMetadataCandidate) => void;
   onCancel: () => void;
   onLoadMore?: (options: CommunityMetadataSearchOptions) => void;
@@ -2044,7 +2047,7 @@ export function CommunitySuggestionForm({
             : practice
               ? "Confirm sample match"
               : localOnly
-                ? "Add"
+                ? (localAction ?? "Add")
                 : "Add and share"}
         </Button>
       </div>
@@ -2064,7 +2067,7 @@ export function CommunitySuggestionForm({
             ? "This PC only"
             : "Community"
       }
-      title={localOnly ? "Find the game" : title}
+      title={localOnly ? (localAction ?? "Find the game") : title}
       subtitle={`Link the correct game to ${exeName}`}
       icon={Send}
       onClose={onCancel}

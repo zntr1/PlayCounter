@@ -46,6 +46,7 @@ import {
   DEFAULT_API_ENDPOINT,
   canonicalGameKey,
   canCancelCommunitySuggestion,
+  fileMatchSource,
   autoDetectionKeys,
   createGameIdentityResolver,
   gameMetadataConflictsWithRef,
@@ -767,7 +768,7 @@ function reconcileLibraryImportIdentifierSources(
           cached.libraryExternalId === imported.externalId) ||
           (cached.source === "community" && cached.igdbId === imported.igdbId))
       ) {
-        currentSources.push(cached.identifierSource ?? cached.source);
+        currentSources.push(fileMatchSource(cached) ?? cached.source);
       }
       for (const scoped of scopedExeLinks.values()) {
         if (
@@ -775,7 +776,7 @@ function reconcileLibraryImportIdentifierSources(
           scoped.provider === imported.provider &&
           scoped.externalId === imported.externalId
         ) {
-          currentSources.push(scoped.identifierSource ?? scoped.source);
+          currentSources.push(fileMatchSource(scoped) ?? scoped.source);
         }
       }
       if (currentSources.length === 0) unresolvedCustom = true;
@@ -3790,6 +3791,58 @@ export function applyLocalLinkGameMatch(
   persist();
 }
 
+/**
+ * "Change Game" on a Custom game: its file now counts for another database
+ * game, on this PC only. The link keeps its id, so Play and the saved hours
+ * stay with the file, and its sessions follow the new game. Nothing is sent;
+ * an earlier review answer was about the old game, so the card can suggest
+ * the new pair. Null when the file has no Custom link.
+ */
+export function changeCustomGameLocally(
+  target: string | LocalLinkRef,
+  selection: { igdbId: number; name: string; coverUrl: string },
+): Game | null {
+  const ref = localLinkRef(target);
+  const state = useAppStore.getState();
+  const existing = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
+  if (existing?.source !== "custom") return null;
+  const game: Game = {
+    id: existing.gameId,
+    igdbId: selection.igdbId,
+    name: selection.name,
+    coverUrl: selection.coverUrl,
+    source: "custom",
+  };
+  const moved = <T extends ActiveSession | Session>(session: T): T =>
+    sessionMatchesLocalLink(session, existing)
+      ? {
+          ...session,
+          igdbId: game.igdbId,
+          gameName: game.name,
+          coverUrl: game.coverUrl,
+        }
+      : session;
+  useAppStore.setState((current) => ({
+    ...writeLocalLink(current, ref, {
+      igdbId: game.igdbId,
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+      pendingCommunityGame: undefined,
+      communitySuggestionId: undefined,
+      communitySuggestionVerified: undefined,
+      communitySuggestionStatus: undefined,
+      communitySuggestionNote: undefined,
+      shareState: "unshared",
+    }),
+    activeSessions: current.activeSessions.map(moved),
+    recentSessions: current.recentSessions.map(moved),
+  }));
+  persist();
+  logRuntime(`custom game changed ${existing.exeName} -> ${game.name}`);
+  void requestProcessScan("after custom game changed");
+  return game;
+}
+
 // Applies a database game directly to an exe - used when a community
 // suggestion turned out to be an already-known IGDB match. Handles both
 // unmatched exes (Discovered) and already matched ones (library).
@@ -3857,22 +3910,36 @@ export function adoptFolderGame(exeName: string, exePath: string, game: Game) {
 
 /**
  * "Add game" with a file the user picked for the game they searched.
- * "link" links the file to `game`, the server's game for it, "own" links it
- * as the user's own pick that no database backs (the card says Custom),
- * "play" only saves the file for Play (it already counts for `game`),
- * "share" gives an unknown file a local game like the launcher import does,
- * so `submitLocalLinkToCommunity` can send it next.
+ * "link" links the file to `game`, the server's game for it, "play" only
+ * saves the file for Play (it already counts for `game`), "custom" is the
+ * user's own pick that no database backs: the file gets a Custom game named
+ * after `game`, as in Discovered. A Game.exe gets one for its folder only; any
+ * other file can be sent by `submitLocalLinkToCommunity` now, or later by the
+ * card's "Suggest to Community". `declined` is the server's other game for
+ * the file, which the user turned down: the card never offers it again.
  * Play gets the picked file and replaces an older one: the user chose it.
  */
 export function linkGameFileByHand(
   file: { exeName: string; exePath: string },
   game: Game,
-  how: "link" | "own" | "play" | "share",
+  how: "link" | "play" | "custom",
+  declined?: Game,
 ): LocalLinkRef | null {
   const key = file.exeName.toLowerCase();
   let owner = game;
   let ref: LocalLinkRef | null = null;
-  if (how === "share" && !genericExeFolder(file)) {
+  if (how === "custom" && genericExeFolder(file)) {
+    if (game.igdbId !== undefined) {
+      linkExecutableGame(
+        file,
+        localDatabaseGame(file.exeName, file.exePath, {
+          igdbId: game.igdbId,
+          name: game.name,
+          coverUrl: game.coverUrl,
+        }),
+      );
+    }
+  } else if (how === "custom") {
     owner = {
       id: customGameId(file.exeName),
       igdbId: game.igdbId,
@@ -3896,10 +3963,16 @@ export function linkGameFileByHand(
       identifierSource: "custom",
       lastCheckedAt: new Date().toISOString(),
       shareState: "unshared",
+      ...(declined
+        ? {
+            dismissedCommunityUpgradeGameId: declined.id,
+            dismissedCommunityUpgradeSource: declined.source,
+          }
+        : {}),
     });
     ref = { kind: "exe", key };
-  } else if (how !== "play") {
-    linkExecutableGame(file, game, how === "own" ? "custom" : undefined);
+  } else if (how === "link") {
+    linkExecutableGame(file, game);
   }
   // Game.exe & co. start from their folder link; a name target would be
   // shared by every folder with the same file name.
@@ -5374,16 +5447,12 @@ function cacheMatchResult(
 function linkExecutableGame(
   file: { exeName: string; exePath?: string | null },
   game: Game,
-  identifierSource?: GameSource,
 ) {
-  const folderLink = genericFolderLink(file, game, new Date().toISOString());
-  if (!folderLink) {
-    cacheMatchResult(file.exeName, game, identifierSource);
+  const link = genericFolderLink(file, game, new Date().toISOString());
+  if (!link) {
+    cacheMatchResult(file.exeName, game);
     return;
   }
-  const link = identifierSource
-    ? { ...folderLink, identifierSource }
-    : folderLink;
   const state = useAppStore.getState();
   const key = file.exeName.toLowerCase();
   // Discovered's entry for this name waited for this folder: its time goes to
@@ -7008,8 +7077,20 @@ export function addSharedCustomGame(
     coverUrl,
     source: "custom",
   };
+  // A database game the user turned down for this file stays turned down.
+  const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
+  const declined =
+    existing?.dismissedCommunityUpgradeGameId !== undefined
+      ? {
+          dismissedCommunityUpgradeGameId:
+            existing.dismissedCommunityUpgradeGameId,
+          dismissedCommunityUpgradeSource:
+            existing.dismissedCommunityUpgradeSource,
+        }
+      : {};
   backfillTrackedRuntime(exeName, game);
   useAppStore.getState().setExeCacheEntry({
+    ...declined,
     exeName,
     state: "matched",
     gameId: game.id,
@@ -7470,6 +7551,47 @@ export function clearCustomGameCover(gameId: number) {
   updateCustomGameCover(gameId, "");
   logRuntime(`custom game cover cleared gameId=${gameId}`);
   persist();
+}
+
+/**
+ * "Remove" on the user's own file in a game's Files tab: the file no longer
+ * counts for the game on this PC, and Play forgets it. Hours recorded with it
+ * stay with the game, since its sessions carry the game's IGDB id. If it runs
+ * again it waits in Discovered. Not while a suggestion for it waits for
+ * review (cancel that first), and not while it runs: its session would be
+ * lost. False when nothing was removed.
+ */
+export function removeOwnGameFile(ref: LocalLinkRef) {
+  const state = useAppStore.getState();
+  const link = findLocalLink(ref, state.exeCache, state.scopedExeLinks);
+  if (
+    link?.source !== "custom" ||
+    canCancelCommunitySuggestion(link) ||
+    state.activeSessions.some((session) =>
+      sessionMatchesLocalLink(session, link),
+    )
+  ) {
+    return false;
+  }
+  const key = link.exeName.toLowerCase();
+  const ownedHere = (target: LaunchTarget) =>
+    target.exeName.toLowerCase() === key &&
+    target.owner.gameId === link.gameId &&
+    target.owner.source === "custom";
+  if (ref.kind === "exe") {
+    state.removeExeCacheEntry(link.exeName);
+    const target = state.launchTargets.get(key);
+    if (target && ownedHere(target)) state.removeLaunchTarget(link.exeName);
+  } else {
+    state.removeScopedExeLink(ref.key);
+  }
+  for (const target of state.manualLaunchTargets.values()) {
+    if (ownedHere(target)) state.removeManualLaunchTarget(target.owner);
+  }
+  persist();
+  logRuntime(`own game file removed ${link.exeName}`);
+  void requestProcessScan("after own game file removed");
+  return true;
 }
 
 export function untrackCustomGame(exeName: string) {

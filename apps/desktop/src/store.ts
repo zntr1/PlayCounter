@@ -221,6 +221,19 @@ export function canSwitchApprovedSuggestionToCommunity(value: {
   );
 }
 
+/**
+ * Who matched a file to its game: IGDB, the community, or the user himself
+ * ("custom"). Not where the game's name and cover come from (`source`): the
+ * file of an IGDB game can be known to the community only, and the card's
+ * badge, Report and Convert all ask about the file.
+ */
+export function fileMatchSource(link: {
+  source?: GameSource | null;
+  identifierSource?: GameSource | null;
+}): GameSource | undefined {
+  return link.identifierSource ?? link.source ?? undefined;
+}
+
 export function canSuggestCustomGameToCommunity(value: {
   source?: GameSource | null;
   exeName?: string | null;
@@ -1150,7 +1163,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (libraryImports === state.libraryImports) {
           libraryImports = new Map(state.libraryImports);
         }
-        const identifierSource = entry.identifierSource ?? entry.source;
+        const identifierSource = fileMatchSource(entry);
         libraryImports.set(key, {
           ...imported,
           linkedExeNames: [...imported.linkedExeNames, entry.exeName],

@@ -1,4 +1,4 @@
-import type { LibraryProviderId } from "@playcounter/shared";
+import type { GameSource, LibraryProviderId } from "@playcounter/shared";
 import {
   BarChart3,
   Building2,
@@ -12,6 +12,7 @@ import {
   Loader2,
   MoveRight,
   Play,
+  Trash2,
   Users,
   UserRound,
   WifiOff,
@@ -22,8 +23,18 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
+import { scopedExeLinkKey } from "../../../library/scopedLinks";
 import type { ScopedExeLink } from "../../../library/types";
-import { customHeroArtKey, gameMetadataKey, useAppStore } from "../../../store";
+import type { LocalLinkRef } from "../../../localLinks";
+import {
+  canCancelCommunitySuggestion,
+  customHeroArtKey,
+  fileMatchSource,
+  gameMetadataKey,
+  useAppStore,
+  type ExeCacheEntry,
+} from "../../../store";
+import { removeOwnGameFile } from "../../../tracker";
 import { artSrcSet } from "../../artSrcSet";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
@@ -33,6 +44,7 @@ import {
   formatDuration,
   GameProvenanceBadges,
   ProviderBadge,
+  SourceBadge,
   communitySuggestionApproval,
 } from "../../components";
 import {
@@ -207,9 +219,14 @@ export function GameDetailsDialog({
   );
   const realSessions = useAppStore((state) => state.recentSessions);
   const realScopedExeLinks = useAppStore((state) => state.scopedExeLinks);
+  const realExeCache = useAppStore((state) => state.exeCache);
   const sessions = useMemo(
     () => (demo ? tourSessionsForGame(game) : realSessions),
     [demo, game, realSessions],
+  );
+  const exeCache = useMemo(
+    () => (demo ? new Map<string, ExeCacheEntry>() : realExeCache),
+    [demo, realExeCache],
   );
   const scopedExeLinks = useMemo(
     () => (demo ? new Map<string, ScopedExeLink>() : realScopedExeLinks),
@@ -292,6 +309,32 @@ export function GameDetailsDialog({
     }
     return byExe;
   }, [game.aliases, scopedExeLinks]);
+
+  // This game's name link for a file, if it has one.
+  const ownsLink = (link: { gameId?: number; source?: GameSource | null }) =>
+    game.aliases.some(
+      (alias) =>
+        alias.gameId === link.gameId && alias.source === (link.source ?? null),
+    );
+
+  // "Remove" on the user's own file: it stops counting for this game here.
+  // A file the database matched would only come back the next time it runs.
+  function removeFile(ref: LocalLinkRef, exeName: string) {
+    const removed = removeOwnGameFile(ref);
+    addToast(
+      removed
+        ? {
+            tone: "success",
+            title: `${exeName} removed`,
+            detail: `It no longer counts for ${game.name} on this PC. If it runs again, it shows up in Discovered.`,
+          }
+        : {
+            tone: "info",
+            title: `${exeName} not removed`,
+            detail: "Close the game or cancel its community suggestion first.",
+          },
+    );
+  }
 
   const importedProviders = libraryProviders(game.libraryImports);
   const duration = (seconds: number) =>
@@ -736,6 +779,37 @@ export function GameDetailsDialog({
                 (entry) =>
                   entry.exeName.toLowerCase() === exeName.toLowerCase(),
               );
+              const cached = exeCache.get(exeName.toLowerCase());
+              const nameLink =
+                cached?.state === "matched" && ownsLink(cached)
+                  ? cached
+                  : undefined;
+              // Who matched the file: IGDB, the community, or the user.
+              const fileSource = fileMatchSource(nameLink ?? scoped[0] ?? {});
+              // Only the user's own file can be removed, and not while a
+              // suggestion for it waits for review.
+              const removable = (
+                link: Parameters<typeof canCancelCommunitySuggestion>[0],
+              ) =>
+                !demo &&
+                link.source === "custom" &&
+                !canCancelCommunitySuggestion(link);
+              const removeButton = (ref: LocalLinkRef) => (
+                <Button
+                  variant="ghost"
+                  icon={Trash2}
+                  disabled={launcher.hasActiveSession}
+                  title={
+                    launcher.hasActiveSession
+                      ? "Close the game first"
+                      : `Stop counting ${exeName} for ${game.name}`
+                  }
+                  onClick={() => removeFile(ref, exeName)}
+                  className="shrink-0 px-2 py-1 text-xs"
+                >
+                  Remove
+                </Button>
+              );
               return (
                 <div
                   key={exeName}
@@ -755,20 +829,37 @@ export function GameDetailsDialog({
                     <span className="min-w-0 truncate font-mono text-sm text-text">
                       {exeName}
                     </span>
-                    <span className="ml-auto shrink-0 text-[11px] uppercase tracking-wider text-text-faint">
-                      {scoped.length > 0
-                        ? "Matches in folder"
-                        : "Matches by name"}
+                    <span className="ml-auto flex shrink-0 items-center gap-3">
+                      <SourceBadge source={fileSource} variant="text" />
+                      <span className="text-[11px] uppercase tracking-wider text-text-faint">
+                        {scoped.length > 0
+                          ? "Matches in folder"
+                          : "Matches by name"}
+                      </span>
+                      {nameLink && removable(nameLink)
+                        ? removeButton({
+                            kind: "exe",
+                            key: exeName.toLowerCase(),
+                          })
+                        : null}
                     </span>
                   </div>
-                  {scoped.map((link) => (
-                    <div
-                      key={link.pathPrefix}
-                      className="mt-1.5 break-all text-xs text-text-faint"
-                    >
-                      Tracking folder: {link.pathPrefix}
-                    </div>
-                  ))}
+                  {scoped.map((link) => {
+                    const key = scopedExeLinkKey(link.exeName, link.pathPrefix);
+                    return (
+                      <div
+                        key={link.pathPrefix}
+                        className="mt-1.5 flex items-center gap-2"
+                      >
+                        <span className="min-w-0 flex-1 break-all text-xs text-text-faint">
+                          Tracking folder: {link.pathPrefix}
+                        </span>
+                        {key && removable(link)
+                          ? removeButton({ kind: "scoped", key })
+                          : null}
+                      </div>
+                    );
+                  })}
                   {target ? (
                     <div className="mt-1.5 flex items-center gap-2">
                       <span className="min-w-0 flex-1 break-all text-xs text-text-muted">

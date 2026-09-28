@@ -43,6 +43,7 @@ import {
   Loader2,
   MoveRight,
   Pencil,
+  Replace,
   Pin,
   PinOff,
   Play,
@@ -72,6 +73,7 @@ import {
   applyLocalLinkGameMatch,
   applyKnownGameMatch,
   cancelCommunitySuggestion,
+  changeCustomGameLocally,
   clearCustomGameCover,
   convertLocalSuggestionToCommunity,
   dismissCommunityUpgrade,
@@ -103,6 +105,7 @@ import {
 } from "../../tracker";
 import {
   canSuggestCustomGameToCommunity,
+  fileMatchSource,
   canSwitchApprovedSuggestionToCommunity,
   createGameIdentityResolver,
   findPendingCommunitySuggestionEntry,
@@ -112,6 +115,7 @@ import {
   useIsOffline,
   type ActiveSession,
   type ExeCacheEntry,
+  type GameMetadata,
   type PendingCommunitySuggestionTarget,
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
@@ -133,6 +137,7 @@ import { notifyFolderIgnored } from "./folderIgnoredToast";
 import { isGenericExeName } from "../../library/exeCandidates";
 import { MoveToPlayCounterDialog } from "./games/MoveToPlayCounterDialog";
 import { AddGameDialog } from "../AddGameDialog";
+import { SuggestToCommunityDialog } from "../SuggestToCommunityDialog";
 import { LibraryMatchOffer } from "../LibraryMatchOffer";
 import {
   dismissLibraryMatchOffer,
@@ -494,6 +499,10 @@ function matchedEntriesByGame(
 
 function fallbackGameName(exeName: string) {
   return exeName.replace(/\.exe$/i, "");
+}
+
+function isDatabaseSource(source: GameSource | null | undefined) {
+  return source === "igdb" || source === "community";
 }
 
 function sourceRank(source: GameSource | null | undefined) {
@@ -1025,14 +1034,19 @@ export function MyGamesView({
     const mergeEntry = (summary: GameSummary, entry: ExeCacheEntry) => {
       summary.addedAt = earliestAddedAt(summary.addedAt, entry.addedAt);
       if (entry.gameId !== undefined) {
-        if (
-          entry.identifierSource !== undefined &&
-          !summary.hasExplicitIdentifierSource
-        ) {
+        // A card with files is badged by who matched each file, never by the
+        // metadata source its sessions would lend it. A file matched while
+        // running has no identifierSource: its source is who matched it.
+        if (!summary.hasExplicitIdentifierSource) {
           summary.sources = [];
           summary.hasExplicitIdentifierSource = true;
         }
-        addAlias(summary, entry.gameId, entry.source, entry.identifierSource);
+        addAlias(
+          summary,
+          entry.gameId,
+          entry.source,
+          fileMatchSource(entry) ?? null,
+        );
       }
       summary.igdbId ??= entry.igdbId;
       if (!summary.exeNames.includes(entry.exeName)) {
@@ -2888,6 +2902,8 @@ export function GameLibraryCard({
   );
   const [showAdjustPlaytime, setShowAdjustPlaytime] = useState(false);
   const [showMatchCheck, setShowMatchCheck] = useState(false);
+  const [settingLaunchFile, setSettingLaunchFile] = useState(false);
+  const [confirmShareOpen, setConfirmShareOpen] = useState(false);
   const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
   const [showDetails, setShowDetails] = useState(false);
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
@@ -2899,6 +2915,9 @@ export function GameLibraryCard({
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
   const isOffline = useIsOffline();
   const [shareOpen, setShareOpen] = useState(false);
+  // The database search either shares the file or, for "Change Game", only
+  // relinks it on this PC.
+  const [searchMode, setSearchMode] = useState<"share" | "change">("share");
   const [showConvert, setShowConvert] = useState(false);
   const [convertName, setConvertName] = useState("");
   const [showRename, setShowRename] = useState(false);
@@ -3161,6 +3180,28 @@ export function GameLibraryCard({
       canLaunchExecutables &&
       (canConfigureLaunch || gameEmulatorMappings.length > 0));
   const showLaunchNote = !showLaunchFooter && !demo && canLaunchExecutables;
+  // No known .exe: an Xbox game opens in Xbox; any other database game gets
+  // its .exe picked here and checked like in Add game.
+  const showOpenInXbox = showLaunchNote && xboxActions.showOpenInLauncher;
+  const launchFileGame: GameMetadata | null =
+    game.igdbId !== undefined && game.source !== "custom"
+      ? {
+          id: game.gameId,
+          igdbId: game.igdbId,
+          name: game.name,
+          coverUrl: game.coverUrl,
+          source: game.source ?? "igdb",
+        }
+      : null;
+  const showPickLaunchFile =
+    showLaunchNote && !showOpenInXbox && launchFileGame !== null;
+  const launchFileDialog =
+    settingLaunchFile && launchFileGame ? (
+      <AddGameDialog
+        forGame={launchFileGame}
+        onClose={() => setSettingLaunchFile(false)}
+      />
+    ) : null;
   const basePlayState = playButtonState(
     game.name,
     launching,
@@ -3194,6 +3235,42 @@ export function GameLibraryCard({
   const primaryExeEntry = primaryExeName
     ? exeCache.get(primaryExeName.toLowerCase())
     : undefined;
+  // Report and Convert act on the card's first .exe, so they need the
+  // database to have matched it. A file the user linked himself has no match
+  // to report or convert, even on a card that also holds the database game.
+  const primaryFolderLink = primaryExeName
+    ? [...scopedExeLinks.values()].find(
+        (link) =>
+          link.exeName.toLowerCase() === primaryExeName.toLowerCase() &&
+          game.aliases.some(
+            (alias) =>
+              alias.gameId === link.gameId && alias.source === link.source,
+          ),
+      )
+    : undefined;
+  const primaryExeIsDatabaseMatch =
+    primaryExeEntry?.state === "matched" &&
+    isDatabaseSource(fileMatchSource(primaryExeEntry));
+  const canReportMatch = demo
+    ? isDatabaseSource(game.source)
+    : primaryExeIsDatabaseMatch ||
+      (primaryFolderLink !== undefined &&
+        isDatabaseSource(fileMatchSource(primaryFolderLink)));
+  // The game the card's first file counts for. A card can hold the database
+  // game and the user's own Custom file at once; questions about the file
+  // are answered by this, not by the card's first source.
+  const primaryFileGame =
+    primaryExeEntry?.state === "matched" && primaryExeEntry.gameId !== undefined
+      ? {
+          gameId: primaryExeEntry.gameId,
+          source: primaryExeEntry.source ?? null,
+        }
+      : primaryFolderLink
+        ? { gameId: primaryFolderLink.gameId, source: primaryFolderLink.source }
+        : { gameId: game.gameId, source: game.source };
+  const canConvertToCustom = demo
+    ? isDatabaseSource(game.source)
+    : primaryExeIsDatabaseMatch;
   const primaryLocalLink = useMemo(
     () =>
       localLinks.find(
@@ -3231,6 +3308,11 @@ export function GameLibraryCard({
       primaryExeEntry?.communitySuggestionStatus ??
       game.communitySuggestionStatus,
   });
+
+  // The user's own file can get another game here, as long as no suggestion
+  // for it waits for review (cancel that first).
+  const canChangeGame =
+    !demo && primaryLocalLink !== undefined && !pendingCommunitySuggestion;
   // Shown in place of the title while hovering the card with Shift held.
   const exeLabel =
     game.exeNames.filter(Boolean).join(", ") || game.emulatorLabels.join(", ");
@@ -3306,8 +3388,8 @@ export function GameLibraryCard({
       game.exeNames[0] &&
       (pendingCommunitySuggestion ||
         canSuggestToCommunity ||
-        game.source === "igdb" ||
-        game.source === "community"),
+        canReportMatch ||
+        canChangeGame),
     );
 
   const demoNotice = () =>
@@ -3493,7 +3575,32 @@ export function GameLibraryCard({
 
   function closeShare() {
     setShareOpen(false);
+    setSearchMode("share");
     correction.reset();
+  }
+
+  function openChangeGame() {
+    contextMenu.close();
+    setSearchMode("change");
+    correction.setSearch(game.name);
+    setShareOpen(true);
+  }
+
+  function changeGameNow() {
+    const selection = correction.selection;
+    if (!selection?.coverUrl || !primaryLocalLink) return;
+    const changed = changeCustomGameLocally(primaryLocalLink.ref, {
+      ...selection,
+      coverUrl: selection.coverUrl,
+    });
+    closeShare();
+    if (!changed) return;
+    void linkServerKnownFiles(changed);
+    addToast({
+      tone: "success",
+      title: "Game changed",
+      detail: `${primaryLocalLink.exeName} now counts for ${changed.name} on this PC. Nothing was sent.`,
+    });
   }
 
   // Game.exe names no game for anyone else: its database search stays on
@@ -3502,7 +3609,7 @@ export function GameLibraryCard({
 
   function openSearch() {
     if (!localSearchOnly) {
-      void handleShareAction();
+      setShareOpen(true);
       return;
     }
     correction.setSearch(game.name);
@@ -3534,15 +3641,25 @@ export function GameLibraryCard({
     );
   }
 
-  async function handleShareAction() {
-    if (
-      !primaryLocalLink ||
-      (primaryLocalLink.shareState !== "failed" &&
-        primaryLocalLink.shareState !== "unshared")
-    ) {
-      setShareOpen(true);
-      return;
-    }
+  // A Custom game that already names its game is sent as it is, after one
+  // confirmation. The search is only for one without a database game, or one
+  // the community turned down before.
+  const canShareDirectly =
+    primaryLocalLink !== undefined &&
+    primaryLocalLink.communitySuggestionId === undefined &&
+    Boolean(primaryLocalLink.gameName) &&
+    (primaryLocalLink.igdbId !== undefined ||
+      primaryLocalLink.shareState === "unshared" ||
+      primaryLocalLink.shareState === "failed");
+
+  function handleShareAction() {
+    if (canShareDirectly) setConfirmShareOpen(true);
+    else setShareOpen(true);
+  }
+
+  async function shareLinkNow() {
+    setConfirmShareOpen(false);
+    if (!primaryLocalLink) return;
     const outcome = await submitLocalLinkToCommunity(primaryLocalLink.ref);
     if (outcome.kind === "failed") {
       addToast({
@@ -4440,6 +4557,17 @@ export function GameLibraryCard({
                 Set or change launch file…
               </ContextMenuItem>
             ) : null}
+            {showPickLaunchFile ? (
+              <ContextMenuItem
+                icon={FolderSearch}
+                onClick={() => {
+                  contextMenu.close();
+                  setSettingLaunchFile(true);
+                }}
+              >
+                Set launch file…
+              </ContextMenuItem>
+            ) : null}
             {!demo && canConfigureLaunch ? (
               <>
                 {ownedLaunchTargets.length > 0
@@ -4668,6 +4796,11 @@ export function GameLibraryCard({
                 Check for Matches
               </ContextMenuItem>
             ) : null}
+            {canChangeGame ? (
+              <ContextMenuItem icon={Replace} onClick={openChangeGame}>
+                Change Game…
+              </ContextMenuItem>
+            ) : null}
             {game.source && game.exeNames[0] ? (
               <>
                 {pendingCommunitySuggestion ? (
@@ -4696,7 +4829,7 @@ export function GameLibraryCard({
                     Suggest to Community
                   </ContextMenuItem>
                 ) : null}
-                {game.source === "igdb" || game.source === "community" ? (
+                {canReportMatch ? (
                   <>
                     <ContextMenuItem
                       dataTour={demo ? "demo-menu-report-match" : undefined}
@@ -4708,17 +4841,19 @@ export function GameLibraryCard({
                     >
                       Report Wrong Match
                     </ContextMenuItem>
-                    <ContextMenuItem
-                      dataTour={demo ? "demo-menu-convert-custom" : undefined}
-                      icon={Gamepad2}
-                      onClick={() => {
-                        contextMenu.close();
-                        setConvertName(game.name);
-                        setShowConvert(true);
-                      }}
-                    >
-                      Convert to Custom Game
-                    </ContextMenuItem>
+                    {canConvertToCustom ? (
+                      <ContextMenuItem
+                        dataTour={demo ? "demo-menu-convert-custom" : undefined}
+                        icon={Gamepad2}
+                        onClick={() => {
+                          contextMenu.close();
+                          setConvertName(game.name);
+                          setShowConvert(true);
+                        }}
+                      >
+                        Convert to Custom Game
+                      </ContextMenuItem>
+                    ) : null}
                   </>
                 ) : null}
               </>
@@ -5076,8 +5211,7 @@ export function GameLibraryCard({
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
                 />
               ) : null}
-              {(game.source === "igdb" || game.source === "community") &&
-              game.exeNames[0] ? (
+              {canReportMatch ? (
                 <IconButton
                   icon={Flag}
                   aria-label={`Report wrong match for ${game.name}`}
@@ -5363,6 +5497,36 @@ export function GameLibraryCard({
               </>
             )}
           </button>
+        ) : showOpenInXbox || showPickLaunchFile ? (
+          <button
+            type="button"
+            title={
+              showOpenInXbox
+                ? `Open ${game.name} in the Xbox app`
+                : `Pick the .exe that starts ${game.name}`
+            }
+            onClick={() =>
+              showOpenInXbox
+                ? void handleOpenXboxApp()
+                : setSettingLaunchFile(true)
+            }
+            className={clsx(
+              "flex shrink-0 items-center justify-center gap-2 border-t border-border font-semibold text-text-faint transition hover:bg-surface-hover hover:text-text-muted",
+              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+            )}
+          >
+            {showOpenInXbox ? (
+              <>
+                <ExternalLink size={isLarge ? 16 : 14} />
+                Open in Xbox
+              </>
+            ) : (
+              <>
+                <FolderSearch size={isLarge ? 16 : 14} />
+                Set launch file
+              </>
+            )}
+          </button>
         ) : showLaunchNote ? (
           <div
             title="PlayCounter can't launch this game directly"
@@ -5377,6 +5541,7 @@ export function GameLibraryCard({
         ) : null}
         {renderContextMenu()}
         {renderDetailsDialog()}
+        {launchFileDialog}
         {renderDemoAction()}
         {showAddPlaytime ? (
           <AddPlaytimeDialog
@@ -5415,6 +5580,7 @@ export function GameLibraryCard({
           ) : (
             <MatchCheckDialog
               game={game}
+              current={primaryFileGame}
               onCancel={() => setShowMatchCheck(false)}
               onApply={handleApplyMatch}
               onReportNotAGame={() => void handleNegativeReport()}
@@ -5487,6 +5653,15 @@ export function GameLibraryCard({
             onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
           />
         ) : null}
+        {confirmShareOpen && primaryLocalLink ? (
+          <SuggestToCommunityDialog
+            gameName={primaryLocalLink.gameName ?? game.name}
+            exeName={primaryLocalLink.exeName}
+            isOffline={isOffline}
+            onCancel={() => setConfirmShareOpen(false)}
+            onConfirm={() => void shareLinkNow()}
+          />
+        ) : null}
         {shareOpen ? (
           <CommunitySuggestionForm
             candidates={correction.candidates}
@@ -5503,11 +5678,14 @@ export function GameLibraryCard({
             onSearch={correction.searchFirstPage}
             onSearchChange={correction.setSearch}
             onSearchOptionsChange={correction.resetResults}
-            localOnly={localSearchOnly}
+            localOnly={localSearchOnly || searchMode === "change"}
+            localAction={searchMode === "change" ? "Change game" : undefined}
             onSubmit={() =>
               localSearchOnly
                 ? applySearchedGameLocally()
-                : void correction.submit()
+                : searchMode === "change"
+                  ? changeGameNow()
+                  : void correction.submit()
             }
           />
         ) : null}
@@ -5849,6 +6027,7 @@ export function GameLibraryCard({
       />
       {renderContextMenu()}
       {renderDetailsDialog()}
+      {launchFileDialog}
       {renderDemoAction()}
       {showAddPlaytime ? (
         <AddPlaytimeDialog
@@ -5887,6 +6066,7 @@ export function GameLibraryCard({
         ) : (
           <MatchCheckDialog
             game={game}
+            current={primaryFileGame}
             onCancel={() => setShowMatchCheck(false)}
             onApply={handleApplyMatch}
             onReportNotAGame={() => void handleNegativeReport()}
@@ -5959,6 +6139,15 @@ export function GameLibraryCard({
           onConfirm={() => handleCancelSuggestion(cancelSuggestionTarget)}
         />
       ) : null}
+      {confirmShareOpen && primaryLocalLink ? (
+        <SuggestToCommunityDialog
+          gameName={primaryLocalLink.gameName ?? game.name}
+          exeName={primaryLocalLink.exeName}
+          isOffline={isOffline}
+          onCancel={() => setConfirmShareOpen(false)}
+          onConfirm={() => void shareLinkNow()}
+        />
+      ) : null}
       {shareOpen ? (
         <CommunitySuggestionForm
           candidates={correction.candidates}
@@ -5975,11 +6164,14 @@ export function GameLibraryCard({
           onSearch={correction.searchFirstPage}
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
-          localOnly={localSearchOnly}
+          localOnly={localSearchOnly || searchMode === "change"}
+          localAction={searchMode === "change" ? "Change game" : undefined}
           onSubmit={() =>
             localSearchOnly
               ? applySearchedGameLocally()
-              : void correction.submit()
+              : searchMode === "change"
+                ? changeGameNow()
+                : void correction.submit()
           }
         />
       ) : null}
@@ -6690,12 +6882,15 @@ function LibraryImportMatchCheckDialog({
 
 function MatchCheckDialog({
   game,
+  current,
   onCancel,
   onApply,
   onReportNotAGame,
   onSearchCommunity,
 }: {
   game: GameSummary;
+  /** The game the first file counts for now. */
+  current: { gameId: number; source: GameSource | null };
   onCancel: () => void;
   onApply: (match: Game, pendingCommunity: boolean) => void;
   onReportNotAGame: () => void;
@@ -6720,7 +6915,7 @@ function MatchCheckDialog({
   const isPendingCommunityMatch = (match: Game) =>
     match.source === "community" && pendingCommunityGameIds.has(match.id);
   const isCurrentMatch = (match: Game) =>
-    isSameGame(match, { id: game.gameId, source: game.source });
+    isSameGame(match, { id: current.gameId, source: current.source });
 
   useEffect(() => {
     if (isOffline) return;
@@ -6787,7 +6982,9 @@ function MatchCheckDialog({
       ) : null}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="ghost" onClick={onCancel}>
-          {game.source === "custom" ? "Keep custom game" : "Keep current match"}
+          {current.source === "custom"
+            ? "Keep custom game"
+            : "Keep current match"}
         </Button>
         <Button
           variant="primary"
@@ -6902,7 +7099,7 @@ function MatchCheckDialog({
             <div className="font-medium text-text">
               No database match for {exeName}.
             </div>
-            {game.source === "custom" ? (
+            {current.source === "custom" ? (
               <div className="mt-1">{game.name} stays a custom game.</div>
             ) : null}
             <div className="mt-4 flex flex-wrap justify-center gap-2">
