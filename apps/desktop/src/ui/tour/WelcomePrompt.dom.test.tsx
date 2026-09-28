@@ -53,21 +53,21 @@ function button(name: string) {
   )!;
 }
 
-it("offers software tracking, off by default, and saves the choice", async () => {
+it("offers software tracking, on by default, and saves turning it off", async () => {
   await openWelcome();
   const toggle = softwareSwitch();
   expect(toggle).toBeTruthy();
-  expect(toggle!.checked).toBe(false);
+  expect(toggle!.checked).toBe(true);
 
   await act(async () => toggle!.click());
   await act(async () => button("Maybe later").click());
 
-  expect(useAppStore.getState().settings.trackTools).toBe(true);
+  expect(useAppStore.getState().settings.trackTools).toBe(false);
 });
 
-it("leaves software tracking off when the switch is not touched", async () => {
+it("turns software tracking on when the switch is not touched", async () => {
   await openWelcome();
   await act(async () => button("Maybe later").click());
 
-  expect(useAppStore.getState().settings.trackTools).toBe(false);
+  expect(useAppStore.getState().settings.trackTools).toBe(true);
 });

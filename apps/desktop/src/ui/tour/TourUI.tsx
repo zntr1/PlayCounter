@@ -280,8 +280,7 @@ export function WelcomePrompt() {
   const [ready, setReady] = useState(false);
   const progress = useAppStore((state) => state.tourProgress);
   const [enableLauncher, setEnableLauncher] = useState(true);
-  const trackTools = useAppStore((state) => state.settings.trackTools === true);
-  const [enableSoftware, setEnableSoftware] = useState(trackTools);
+  const [enableSoftware, setEnableSoftware] = useState(true);
   const setTrackTools = useAppStore((state) => state.setTrackTools);
   const markSeen = useAppStore((state) => state.markTourWelcomeSeen);
   const startTour = useAppStore((state) => state.startTour);
@@ -297,8 +296,8 @@ export function WelcomePrompt() {
   useEffect(() => {
     if (!visible) return;
     setEnableLauncher(true);
-    // Software stays opt-in: the switch starts where the setting is.
-    setEnableSoftware(useAppStore.getState().settings.trackTools === true);
+    // Both switches start on; the choice is saved when the welcome closes.
+    setEnableSoftware(true);
   }, [visible]);
 
   if (!visible) return null;
