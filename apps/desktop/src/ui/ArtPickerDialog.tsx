@@ -194,7 +194,7 @@ export function ArtPickerDialog({
                   onClose();
                 }}
               >
-                Use automatic banner
+                Restore Banner
               </Button>
             ) : null}
             {tab === "cover" && currentCover ? (
@@ -214,7 +214,7 @@ export function ArtPickerDialog({
                   onClose();
                 }}
               >
-                Use automatic cover
+                Restore Cover
               </Button>
             ) : null}
             <Button variant="secondary" onClick={onClose}>
