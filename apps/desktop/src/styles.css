@@ -982,54 +982,6 @@ select {
     );
 }
 
-.history-toolbar {
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.history-toolbar::before,
-.history-toolbar::after {
-  position: absolute;
-  pointer-events: none;
-  content: "";
-  opacity: 0;
-  transition: opacity 180ms ease;
-}
-
-.history-toolbar::before {
-  top: 100%;
-  right: 0;
-  left: 0;
-  height: 16px;
-  background: linear-gradient(to bottom, rgb(0 0 0 / 0.3), transparent);
-}
-
-.history-toolbar::after {
-  right: 18px;
-  bottom: -1px;
-  left: 18px;
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgb(var(--color-accent) / 0.65),
-    transparent
-  );
-}
-
-.history-toolbar-elevated {
-  border-color: rgb(var(--color-accent) / 0.28);
-  box-shadow:
-    0 16px 28px -16px rgb(0 0 0 / 0.9),
-    0 4px 10px -6px rgb(0 0 0 / 0.65);
-}
-
-.history-toolbar-elevated::before,
-.history-toolbar-elevated::after {
-  opacity: 1;
-}
-
 @keyframes chart-bar-grow {
   from {
     transform: scaleY(0);

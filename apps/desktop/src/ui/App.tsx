@@ -1236,7 +1236,7 @@ export function App() {
           ) : null}
           {/* Scroll Fade Overlay */}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-bg to-transparent" />
-          {activeView === "games" ? (
+          {activeView === "games" || activeView === "history" ? (
             <BackToTopButton containerRef={contentRef} />
           ) : null}
         </div>

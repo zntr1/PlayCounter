@@ -110,16 +110,73 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
     ).values(),
   ].reduce((total, day) => total + day.seconds, 0);
 
-  const games = new Map<
+  const { games, canonicalByAlias } = gameLifetimeTotals(input);
+
+  const visibleGames = new Map<
     string,
-    {
-      recordedSeconds: number;
-      adjustmentSeconds: number;
-      providerFloorSeconds: number;
-      name: string;
-      coverUrl: string;
-    }
+    { hours: number; name: string; coverUrl: string }
   >();
+  const adjustmentDeltaSeconds = [...games.entries()].reduce(
+    (sum, [key, game]) => {
+      const totalSeconds = Math.max(
+        0,
+        game.recordedSeconds + game.adjustmentSeconds,
+        game.providerFloorSeconds,
+      );
+      visibleGames.set(key, {
+        hours: totalSeconds / 3600,
+        name: game.name || "A game",
+        coverUrl: game.coverUrl,
+      });
+      return sum + totalSeconds - game.recordedSeconds;
+    },
+    0,
+  );
+
+  return {
+    totalHours:
+      Math.max(
+        0,
+        input.archivedSeconds + retainedSeconds + adjustmentDeltaSeconds,
+      ) / 3600,
+    monthKey,
+    monthHours: monthSeconds / 3600,
+    streakDays: summaryStats(input.sessions, now.getTime()).currentStreakDays,
+    verifiedCount: Math.max(0, input.verifiedContributions),
+    verifiedEmulatorCount: Math.max(
+      0,
+      input.verifiedEmulatorContributions ?? 0,
+    ),
+    games: visibleGames,
+    canonicalByAlias,
+  };
+}
+
+export type GameLifetimeTotal = {
+  recordedSeconds: number;
+  adjustmentSeconds: number;
+  providerFloorSeconds: number;
+  /** Empty when only archived time or an edit knows the game. */
+  name: string;
+  coverUrl: string;
+};
+
+/**
+ * Every game's lifetime parts, keyed like its sessions: recorded time
+ * (sessions + archive), manual edits and launcher totals. The total is
+ * effectiveTotalSeconds() of these, the same number My Games shows.
+ */
+export function gameLifetimeTotals(
+  input: Pick<
+    MilestoneInput,
+    | "sessions"
+    | "archivedGameSeconds"
+    | "playtimeAdjustments"
+    | "providerFloors"
+    | "resolveIgdbId"
+  >,
+) {
+  const games = new Map<string, GameLifetimeTotal>();
   const canonicalByAlias = new Map<string, string>();
   const rememberAlias = (canonicalKey: string, alias: string) => {
     canonicalByAlias.set(canonicalKey, canonicalKey);
@@ -173,44 +230,7 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
     rememberAlias(floor.canonicalKey, floor.canonicalKey);
   }
 
-  const visibleGames = new Map<
-    string,
-    { hours: number; name: string; coverUrl: string }
-  >();
-  const adjustmentDeltaSeconds = [...games.entries()].reduce(
-    (sum, [key, game]) => {
-      const totalSeconds = Math.max(
-        0,
-        game.recordedSeconds + game.adjustmentSeconds,
-        game.providerFloorSeconds,
-      );
-      visibleGames.set(key, {
-        hours: totalSeconds / 3600,
-        name: game.name,
-        coverUrl: game.coverUrl,
-      });
-      return sum + totalSeconds - game.recordedSeconds;
-    },
-    0,
-  );
-
-  return {
-    totalHours:
-      Math.max(
-        0,
-        input.archivedSeconds + retainedSeconds + adjustmentDeltaSeconds,
-      ) / 3600,
-    monthKey,
-    monthHours: monthSeconds / 3600,
-    streakDays: summaryStats(input.sessions, now.getTime()).currentStreakDays,
-    verifiedCount: Math.max(0, input.verifiedContributions),
-    verifiedEmulatorCount: Math.max(
-      0,
-      input.verifiedEmulatorContributions ?? 0,
-    ),
-    games: visibleGames,
-    canonicalByAlias,
-  };
+  return { games, canonicalByAlias };
 }
 
 export function evaluateMilestones(
@@ -393,12 +413,12 @@ export function migrateAwardedMilestones(input: {
   return [...migrated.values()];
 }
 
-function emptyGame() {
+function emptyGame(): GameLifetimeTotal {
   return {
     recordedSeconds: 0,
     adjustmentSeconds: 0,
     providerFloorSeconds: 0,
-    name: "A game",
+    name: "",
     coverUrl: "",
   };
 }

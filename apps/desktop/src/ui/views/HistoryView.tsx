@@ -23,9 +23,12 @@ import {
   getSessionGameKey,
   groupSessionsByDay,
   sessionMarkers,
+  withLifetimeTotals,
   type HistoryFilter,
   type HistoryHighlight,
 } from "../../historyStats";
+import { providerFloorKey, providerFloors } from "../../library/playtimeFloor";
+import { gameLifetimeTotals } from "../../milestones";
 import {
   createGameIdentityResolver,
   gameMetadataKey,
@@ -34,6 +37,7 @@ import {
 import { hydrateGameMetadata, removeHistorySession } from "../../tracker";
 import { TopGamesBars } from "../charts/TopGamesBars";
 import { formatDuration } from "../components";
+import { hasOpenContextMenu } from "../ContextMenu";
 import { Button, Modal, Select } from "../primitives";
 import { findTour } from "../tour/tourDefinitions";
 import {
@@ -124,6 +128,15 @@ export function HistoryView() {
   const hydratedGameMetadata = usePersonalLibraryState(
     (state) => state.gameMetadata,
   );
+  const libraryImports = usePersonalLibraryState(
+    (state) => state.libraryImports,
+  );
+  const archivedGameSeconds = usePersonalLibraryState(
+    (state) => state.archivedGameSeconds,
+  );
+  const playtimeAdjustments = usePersonalLibraryState(
+    (state) => state.playtimeAdjustments,
+  );
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
@@ -141,16 +154,22 @@ export function HistoryView() {
   const [detailedChart, setDetailedChart] = useState(false);
   const [visibleCount, setVisibleCount] = useState(25);
   const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
-  const viewRef = useRef<HTMLDivElement>(null);
   const timelineBodyRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
   const [insightsReady, setInsightsReady] = useState(() =>
     hasCachedHistoryInsights(sessions, nowMs),
   );
   const deferredQuery = useDeferredValue(query);
+  // Same identity rules as My Games, so launcher totals land on the same
+  // game as its sessions.
   const resolveIgdbId = useMemo(
-    () => createGameIdentityResolver(hydratedGameMetadata, exeCache),
-    [exeCache, hydratedGameMetadata],
+    () =>
+      createGameIdentityResolver(
+        hydratedGameMetadata,
+        exeCache,
+        libraryImports,
+      ),
+    [exeCache, hydratedGameMetadata, libraryImports],
   );
 
   useEffect(() => {
@@ -174,23 +193,6 @@ export function HistoryView() {
   useEffect(() => {
     if (selectedGameKey) setTab("sessions");
   }, [selectedGameKey]);
-
-  useEffect(() => {
-    const scroller = viewRef.current?.parentElement;
-    const toolbar = viewRef.current?.querySelector(".history-toolbar");
-    if (!scroller || !toolbar) return;
-    const updateElevation = () =>
-      toolbar.classList.toggle(
-        "history-toolbar-elevated",
-        scroller.scrollTop > 8,
-      );
-    updateElevation();
-    scroller.addEventListener("scroll", updateElevation, { passive: true });
-    return () => {
-      scroller.removeEventListener("scroll", updateElevation);
-      toolbar.classList.remove("history-toolbar-elevated");
-    };
-  }, []);
 
   useEffect(() => {
     const refs = new Map<
@@ -309,6 +311,100 @@ export function HistoryView() {
     () => sessionMarkers(sessions, resolveIgdbId),
     [resolveIgdbId, sessions],
   );
+
+  const lifetime = useMemo(
+    () =>
+      filter === "all"
+        ? gameLifetimeTotals({
+            sessions,
+            archivedGameSeconds,
+            playtimeAdjustments,
+            providerFloors: providerFloors(libraryImports.values()),
+            resolveIgdbId,
+          })
+        : null,
+    [
+      archivedGameSeconds,
+      filter,
+      libraryImports,
+      playtimeAdjustments,
+      resolveIgdbId,
+      sessions,
+    ],
+  );
+  // Name, cover and last played for games no session describes.
+  const describeLifetimeGame = useMemo(() => {
+    const imported = new Map<
+      string,
+      { name: string; coverUrl: string; lastPlayedMs: number }
+    >();
+    for (const entry of libraryImports.values()) {
+      const key = providerFloorKey(entry);
+      const current = imported.get(key);
+      const playedMs = entry.providerLastPlayedAt
+        ? Date.parse(entry.providerLastPlayedAt)
+        : 0;
+      imported.set(key, {
+        name: current?.name || entry.name,
+        coverUrl: current?.coverUrl || entry.coverUrl,
+        lastPlayedMs: Math.max(
+          current?.lastPlayedMs ?? 0,
+          Number.isFinite(playedMs) ? playedMs : 0,
+        ),
+      });
+    }
+    const aliasesByKey = new Map<string, string[]>();
+    for (const [alias, key] of lifetime?.canonicalByAlias ?? []) {
+      aliasesByKey.set(key, [...(aliasesByKey.get(key) ?? []), alias]);
+    }
+    return (key: string) => {
+      const aliases = [
+        key.startsWith("igdb#") ? `igdb:${key.slice(5)}` : key,
+        ...(aliasesByKey.get(key) ?? []),
+      ];
+      const metadata = aliases
+        .map((alias) => gameMetadata.get(alias))
+        .find(Boolean);
+      const fromImport = imported.get(key);
+      return {
+        name: fromImport?.name || metadata?.gameName || "Unknown game",
+        coverUrl: fromImport?.coverUrl || metadata?.coverUrl || "",
+        lastPlayedMs: fromImport?.lastPlayedMs ?? 0,
+      };
+    };
+  }, [gameMetadata, libraryImports, lifetime]);
+  const leaderboardGames = useMemo(() => {
+    if (!lifetime) return analytics.games;
+    // analytics.games already honours the game and search filters; games
+    // without sessions have to pass the same filters to join.
+    const needle = deferredQuery.trim().toLowerCase();
+    const matchedKeys = needle
+      ? new Set(
+          gameFilteredSessions.map((session) =>
+            getSessionGameKey(session, resolveIgdbId),
+          ),
+        )
+      : null;
+    const totals = new Map(
+      [...lifetime.games].filter(([key, total]) => {
+        if (selectedGameKey) return key === selectedGameKey;
+        if (!matchedKeys || matchedKeys.has(key)) return true;
+        if (gamesByKey.has(key)) return false;
+        const name = total.name || describeLifetimeGame(key).name;
+        return name.toLowerCase().includes(needle);
+      }),
+    );
+    return withLifetimeTotals(analytics.games, totals, describeLifetimeGame);
+  }, [
+    analytics.games,
+    deferredQuery,
+    describeLifetimeGame,
+    gameFilteredSessions,
+    gamesByKey,
+    lifetime,
+    resolveIgdbId,
+    selectedGameKey,
+  ]);
   const { selectedRange } = analytics;
   const timelineSessions = useMemo(() => {
     if (!selectedRange) return gameFilteredSessions;
@@ -391,6 +487,25 @@ export function HistoryView() {
     setQuery("");
     setSelectedGameKey(null);
   }, [setQuery, setSelectedGameKey]);
+  // Escape drops the game filter, unless something else owns the key: a
+  // dialog, a menu or the tour card. The search field clears its own text
+  // first and marks the event handled.
+  const hasGameFilter = Boolean(selectedGameKey || query);
+  useEffect(() => {
+    if (!hasGameFilter) return;
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (hasOpenContextMenu()) return;
+      const dialogOpen = [
+        ...document.querySelectorAll<HTMLElement>('[role="dialog"]'),
+      ].some((dialog) => dialog.getClientRects().length > 0);
+      if (dialogOpen) return;
+      event.preventDefault();
+      clearGameFilter();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [clearGameFilter, hasGameFilter]);
   const selectGame = useCallback(
     (key: string) => {
       setSelectedGameKey(key);
@@ -522,7 +637,7 @@ export function HistoryView() {
     setTab(next.id);
     document.getElementById(`history-tab-${next.id}`)?.focus();
   };
-  const gamesInRange = analytics.games.filter((game) => game.key).length;
+  const gamesInRange = leaderboardGames.filter((game) => game.key).length;
   const tabCounts: Record<HistoryTab, number | null> = {
     sessions: timelineSessions.length,
     insights: null,
@@ -530,7 +645,7 @@ export function HistoryView() {
   };
 
   return (
-    <div ref={viewRef} className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <HistoryHero
         filter={filter}
         onFilterChange={setFilter}
@@ -546,7 +661,7 @@ export function HistoryView() {
 
       <div
         data-tour="history-toolbar"
-        className="history-toolbar sticky top-0 z-30 -mx-1 flex min-w-0 flex-wrap items-end justify-between gap-3 rounded-b-lg border-b border-border bg-bg px-1"
+        className="-mx-1 flex min-w-0 flex-wrap items-end justify-between gap-3 border-b border-border px-1"
       >
         <div
           role="tablist"
@@ -764,7 +879,7 @@ export function HistoryView() {
             </div>
           ) : (
             <TopGamesBars
-              games={analytics.games}
+              games={leaderboardGames}
               showDurationDays={showDurationDays}
               nowMs={nowMs}
               onSelectGame={selectGame}
@@ -788,7 +903,7 @@ export function HistoryView() {
 }
 
 /* One day of the journal: the date column on the left, its sessions on the
-   right. The column sticks under the tab bar while the day scrolls by. */
+   right. The column sticks to the top while the day scrolls by. */
 function DayGroup({
   dayMs,
   nowMs,
@@ -816,7 +931,7 @@ function DayGroup({
         : day.toLocaleDateString([], { weekday: "long" });
   return (
     <div className="grid gap-2 py-1.5 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-4">
-      <div className="flex items-baseline gap-2 sm:sticky sm:top-14 sm:block sm:self-start sm:pl-1 sm:pt-2.5">
+      <div className="flex items-baseline gap-2 sm:sticky sm:top-4 sm:block sm:self-start sm:pl-1 sm:pt-2.5">
         <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-faint">
           {weekday}
         </div>

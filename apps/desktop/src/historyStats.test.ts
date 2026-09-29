@@ -15,7 +15,9 @@ import {
   summaryStats,
   topGames,
   weekdayHourMatrix,
+  withLifetimeTotals,
 } from "./historyStats";
+import { gameLifetimeTotals } from "./milestones";
 import { heatmapColor, heatmapColors } from "./ui/charts/chartUtils";
 
 beforeAll(() => {
@@ -420,5 +422,90 @@ describe("current month range", () => {
     expect(chart.full).toHaveLength(22);
     expect(chart.compact).toHaveLength(5);
     expect(chart.full[1].seconds).toBe(3600);
+  });
+});
+
+describe("all time leaderboard", () => {
+  it("ranks lifetime totals and adds games that have no sessions", () => {
+    const sessions = [
+      session("2026-08-07T20:00:00+02:00", 20 * 3600, {
+        id: 1,
+        gameId: 100,
+        igdbId: 100,
+        source: "igdb",
+        gameName: "Elden Ring",
+      }),
+      session("2026-08-06T20:00:00+02:00", 10 * 3600, {
+        id: 2,
+        gameId: 7,
+        gameName: "Erased",
+      }),
+    ];
+    const resolveGame = (entry: Session) => ({
+      name: entry.gameName!,
+      coverUrl: entry.coverUrl!,
+    });
+    const played = topGames(sessions, resolveGame, Number.POSITIVE_INFINITY);
+    const { games: totals } = gameLifetimeTotals({
+      sessions,
+      archivedGameSeconds: { "community:9": 5 * 3600 },
+      playtimeAdjustments: { "custom:7": -10 * 3600 },
+      providerFloors: [
+        {
+          canonicalKey: "igdb#100",
+          seconds: 300 * 3600,
+          name: "Elden Ring",
+          coverUrl: "",
+        },
+        {
+          canonicalKey: "igdb#200",
+          seconds: 500 * 3600,
+          name: "Dota 2",
+          coverUrl: "dota.jpg",
+        },
+      ],
+    });
+    const describe = (key: string) => ({
+      name: key === "community:9" ? "Archived Game" : "Unknown game",
+      coverUrl: "",
+      lastPlayedMs: key === "igdb#200" ? 1_700_000_000_000 : 0,
+    });
+
+    const games = withLifetimeTotals(played, totals, describe);
+
+    // Launcher time beats the 20h of sessions, like My Games; an edit that
+    // takes a game to zero drops it.
+    expect(
+      games.map(({ key, name, seconds, sessionCount, lastPlayedMs }) => ({
+        key,
+        name,
+        hours: seconds / 3600,
+        sessionCount,
+        lastPlayedMs,
+      })),
+    ).toEqual([
+      {
+        key: "igdb#200",
+        name: "Dota 2",
+        hours: 500,
+        sessionCount: 0,
+        lastPlayedMs: 1_700_000_000_000,
+      },
+      {
+        key: "igdb#100",
+        name: "Elden Ring",
+        hours: 300,
+        sessionCount: 1,
+        lastPlayedMs: Date.parse("2026-08-07T20:00:00+02:00"),
+      },
+      {
+        key: "community:9",
+        name: "Archived Game",
+        hours: 5,
+        sessionCount: 0,
+        lastPlayedMs: 0,
+      },
+    ]);
+    expect(games.reduce((sum, game) => sum + game.share, 0)).toBeCloseTo(1);
   });
 });
