@@ -826,6 +826,22 @@ export function SettingsView() {
               }
             />
           </SettingsRow>
+          <SettingsRow
+            description="Once a game you started from PlayCounter is running, PlayCounter moves to the tray to save resources. Needs direct game launching turned on."
+            title="Hide to tray when a game starts"
+          >
+            <Switch
+              aria-label="Hide to tray when a game starts"
+              checked={settings.hideToTrayOnGameStart !== false}
+              disabled={settings.gameLaunchingEnabled !== true}
+              onChange={(event) =>
+                setLauncherSetting(
+                  "hideToTrayOnGameStart",
+                  event.target.checked,
+                )
+              }
+            />
+          </SettingsRow>
 
           <SettingsRow
             dataTour="settings-install-in-steam"

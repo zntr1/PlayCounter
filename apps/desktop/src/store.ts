@@ -656,7 +656,8 @@ export type AppState = {
     key:
       | "rememberLaunchPaths"
       | "gameLaunchingEnabled"
-      | "controllerNavigationEnabled",
+      | "controllerNavigationEnabled"
+      | "hideToTrayOnGameStart",
     enabled: boolean,
   ) => void;
   recordAutomaticDetection: (keys: string[]) => boolean;
@@ -735,6 +736,7 @@ const defaultSettings: Settings = {
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
+  hideToTrayOnGameStart: true,
   autoAddInstalledGames: true,
   showInstallInSteam: false,
   showAdultArt: false,

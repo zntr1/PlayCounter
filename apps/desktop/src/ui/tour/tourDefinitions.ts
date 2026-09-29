@@ -1332,7 +1332,7 @@ export const TOURS: TourDefinition[] = [
         scrollIntoView: true,
         allow: [a("settings-launcher")],
         title: "Game launching",
-        body: "Remember launch paths lets PlayCounter keep the location of the games it recognizes on this PC. With it on, Launch games directly adds Play buttons to My Games, and Controller navigation lets you move through PlayCounter with a gamepad. Show Install in Steam puts an install button on imported Steam games that are no longer installed.\n\nSaved paths stay on this PC and are left out of backups.",
+        body: "Remember launch paths lets PlayCounter keep the location of the games it recognizes on this PC. With it on, Launch games directly adds Play buttons to My Games, Hide to tray when a game starts tucks PlayCounter away once a game you started is running, and Controller navigation lets you move through PlayCounter with a gamepad. Show Install in Steam puts an install button on imported Steam games that are no longer installed.\n\nSaved paths stay on this PC and are left out of backups.",
       },
       {
         id: "emulators",

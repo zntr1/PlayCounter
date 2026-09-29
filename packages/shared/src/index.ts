@@ -671,6 +671,9 @@ export interface Settings {
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
+  /** Hide the main window to the tray once a game started from PlayCounter
+   * is running. Absent = enabled. */
+  hideToTrayOnGameStart?: boolean;
   /** Add newly installed Steam and Battle.net games after the first import
    * from that launcher. Absent = enabled. */
   autoAddInstalledGames?: boolean;

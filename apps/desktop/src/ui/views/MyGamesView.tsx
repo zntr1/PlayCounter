@@ -151,6 +151,7 @@ import {
   type LibraryImportMatchCheck,
 } from "../../library/recheck";
 import { forgetUninstalledLibraryInstalls } from "../../library/installRecheck";
+import { hideToTrayWhenGameStarts } from "../../hideToTrayOnLaunch";
 import {
   libraryLaunchErrorMessage,
   shouldForgetLibraryInstallOnLaunchError,
@@ -3993,6 +3994,7 @@ export function GameLibraryCard({
         return;
       }
       keepLaunchFeedback = true;
+      hideToTrayWhenGameStarts(game.aliases);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4050,6 +4052,7 @@ export function GameLibraryCard({
         return;
       }
       keepLaunchFeedback = true;
+      hideToTrayWhenGameStarts(game.aliases);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4097,6 +4100,7 @@ export function GameLibraryCard({
       );
       await provider.launch(entry.externalId);
       keepLaunchFeedback = true;
+      hideToTrayWhenGameStarts(game.aliases);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );

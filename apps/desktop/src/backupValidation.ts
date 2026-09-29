@@ -365,6 +365,7 @@ const settings = object({}, {
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,
+  hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
   showInstallInSteam: boolean,
   showAdultArt: boolean,
