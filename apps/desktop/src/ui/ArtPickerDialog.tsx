@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { Check, Image as ImageIcon, Loader2, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { artForGame, downloadArtImage, searchArt } from "../gameArt";
+import { pickedCover, pickedCoverKey } from "../pickedCovers";
 import { RATE_LIMIT_MESSAGE, RateLimitError } from "../rateLimitedFetch";
 import { customHeroArtKey, useAppStore } from "../store";
 import { setCustomGameCover } from "../tracker";
@@ -10,14 +11,16 @@ import { Button, Input, Modal } from "./primitives";
 
 /* Pick a cover or a banner from SteamGridDB. Search runs against the API,
    which holds the key; results show as thumbnails, one click applies.
-   Covers are only for games PlayCounter owns (custom games and tools), since
-   IGDB games carry IGDB's cover; banners can be chosen for any game. */
+   A custom game's picked cover becomes its own cover file. Any other game
+   keeps its IGDB or community cover and shows the pick on this PC only,
+   the way banners work; see pickedCovers.ts. */
 
 type ArtPickerGame = {
   gameId: number;
   source: "igdb" | "community" | "custom" | null;
+  igdbId?: number;
   name: string;
-  /** True when the game is a custom entry whose cover the user may replace. */
+  /** True when the game is a custom entry whose own cover the pick replaces. */
   canEditCover: boolean;
 };
 
@@ -46,6 +49,16 @@ export function ArtPickerDialog({
   const setCustomHeroArt = useAppStore((state) => state.setCustomHeroArt);
   const heroKey = customHeroArtKey(game);
   const currentHero = useAppStore((state) => state.customHeroArt[heroKey]);
+  const coverRef = {
+    gameId: game.gameId,
+    source: game.source,
+    igdbId: game.igdbId,
+    gameName: game.name,
+  };
+  const setCustomCoverArt = useAppStore((state) => state.setCustomCoverArt);
+  const currentCover = useAppStore((state) =>
+    game.canEditCover ? undefined : pickedCover(state, coverRef),
+  );
   const [query, setQuery] = useState(game.name);
   const [results, setResults] = useState<ArtSearchGame[]>([]);
   const [searching, setSearching] = useState(false);
@@ -124,8 +137,15 @@ export function ArtPickerDialog({
           detail: `${game.name} now uses the picked banner.`,
         });
       } else {
-        const blob = await downloadArtImage(asset.url);
-        await setCustomGameCover(game.gameId, blob);
+        if (game.canEditCover) {
+          const blob = await downloadArtImage(asset.url);
+          await setCustomGameCover(game.gameId, blob);
+        } else {
+          setCustomCoverArt(
+            pickedCoverKey(useAppStore.getState(), coverRef),
+            asset.url,
+          );
+        }
         addToast({
           tone: "success",
           title: "Cover set",
@@ -142,7 +162,7 @@ export function ArtPickerDialog({
 
   const tabs = onPickCover ? [] : (["banner", "cover"] as const);
   const list = tab === "banner" ? assets?.heroes : assets?.covers;
-  const coverLocked = tab === "cover" && !game.canEditCover;
+  const current = tab === "banner" ? currentHero : currentCover;
 
   return (
     <Modal
@@ -175,6 +195,26 @@ export function ArtPickerDialog({
                 }}
               >
                 Use automatic banner
+              </Button>
+            ) : null}
+            {tab === "cover" && currentCover ? (
+              <Button
+                variant="ghost"
+                icon={X}
+                onClick={() => {
+                  setCustomCoverArt(
+                    pickedCoverKey(useAppStore.getState(), coverRef),
+                    null,
+                  );
+                  addToast({
+                    tone: "info",
+                    title: "Cover reset",
+                    detail: `${game.name} is back to its automatic cover.`,
+                  });
+                  onClose();
+                }}
+              >
+                Use automatic cover
               </Button>
             ) : null}
             <Button variant="secondary" onClick={onClose}>
@@ -273,18 +313,7 @@ export function ArtPickerDialog({
               {list ? `${list.length} available` : ""}
             </span>
           </div>
-          {coverLocked ? (
-            <div className="rounded-lg border border-border bg-bg/50 px-4 py-3 text-sm text-text-muted">
-              This game's cover comes from IGDB and cannot be replaced. Covers
-              can be chosen for custom games and tools.
-            </div>
-          ) : null}
-          <div
-            className={clsx(
-              "max-h-[360px] overflow-y-auto rounded-lg border border-border p-2",
-              coverLocked && "pointer-events-none opacity-40",
-            )}
-          >
+          <div className="max-h-[360px] overflow-y-auto rounded-lg border border-border p-2">
             {loadingAssets ? (
               <div className="flex items-center justify-center gap-2 py-10 text-sm text-text-muted">
                 <Loader2 size={16} className="animate-spin" />
@@ -306,7 +335,7 @@ export function ArtPickerDialog({
                 )}
               >
                 {list.map((asset) => {
-                  const active = tab === "banner" && currentHero === asset.url;
+                  const active = current === asset.url;
                   return (
                     <button
                       key={asset.id}

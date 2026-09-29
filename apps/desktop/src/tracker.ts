@@ -7,6 +7,7 @@ import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
 } from "./automaticBackups";
+import { pickedCover } from "./pickedCovers";
 import type {
   CommunityGameAlias,
   CommunityGameSuggestionPayload,
@@ -311,6 +312,7 @@ type PersistedState = {
   archivedGameSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
   customHeroArt?: unknown;
+  customCoverArt?: unknown;
   toolUsage?: unknown;
   collapsedSections?: unknown;
   tours?: unknown;
@@ -1311,6 +1313,7 @@ export function hydrate() {
       { signed: true },
     ),
     customHeroArt: sanitizeCustomHeroArt(persisted.customHeroArt),
+    customCoverArt: sanitizeCustomCoverArt(persisted.customCoverArt),
     toolUsage: sanitizeToolUsage(persisted.toolUsage),
     collapsedSections: normalizeCollapsedSections(persisted.collapsedSections),
     autoDetectedGameKeys,
@@ -5785,7 +5788,7 @@ function startSession(
       type: "session-started",
       ...sessionJournalContext(session),
       gameName: game.name,
-      coverUrl: game.coverUrl,
+      coverUrl: pickedCover(state, session) ?? game.coverUrl,
       firstAutoDetection,
       targetPids:
         options.targetPids ??
@@ -6305,7 +6308,8 @@ async function endSession(
       sessionId: session.id,
       ...sessionJournalContext(session),
       gameName: session.gameName,
-      coverUrl: session.coverUrl,
+      coverUrl:
+        pickedCover(useAppStore.getState(), session) ?? session.coverUrl,
       durationSeconds,
       totalSeconds: currentGameTotalSeconds(session),
       milestoneTitle: top?.title,
@@ -8149,6 +8153,7 @@ export function clearLocalLibrary() {
     journalTarget: null,
     playtimeAdjustments: {},
     customHeroArt: {},
+    customCoverArt: {},
     toolUsage: {},
     autoDetectedGameKeys: [],
     libraryImports: new Map(),
@@ -8751,6 +8756,22 @@ function sanitizeCustomHeroArt(value: unknown): Record<string, string> {
       typeof url === "string" &&
       /^https:\/\//.test(url) &&
       /^[a-z]+:-?\d+$/.test(key)
+    ) {
+      result[key] = url;
+    }
+  }
+  return result;
+}
+
+/** Same rules, for keys in the personal identity form (igdb#… or source:id). */
+function sanitizeCustomCoverArt(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  const result: Record<string, string> = {};
+  for (const [key, url] of Object.entries(value as Record<string, unknown>)) {
+    if (
+      typeof url === "string" &&
+      /^https:\/\//.test(url) &&
+      /^(igdb#\d+|[a-z]+:-?\d+)$/.test(key)
     ) {
       result[key] = url;
     }

@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { Gamepad2, Play, Radio } from "lucide-react";
 import { useGameDetails } from "../../../gameDetails";
 import { emulatorAssetUrls } from "../../../emulators/assets";
+import { useCoverLookup } from "../../../pickedCovers";
 import { customHeroArtKey, useAppStore } from "../../../store";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
@@ -43,7 +44,7 @@ export function EmulatorHero({
   runningCount,
   lastPlayedMs,
   showDurationDays,
-  topGames,
+  topGames: rankedGames,
   start,
 }: {
   emulatorId: string;
@@ -59,6 +60,11 @@ export function EmulatorHero({
   topGames: EmulatorTopGame[];
   start: EmulatorStartControl;
 }) {
+  const coverFor = useCoverLookup();
+  const topGames = rankedGames.map((game) => ({
+    ...game,
+    coverUrl: coverFor({ ...game, gameName: game.name }, game.coverUrl),
+  }));
   const lead = topGames[0] ?? null;
   const details = useGameDetails(lead?.igdbId);
   const pickedArt = useAppStore((state) =>
@@ -70,7 +76,7 @@ export function EmulatorHero({
   );
   // Without wide art the portrait cover stands in, blurred into a colour
   // wash, never stretched as a photo.
-  const artwork = wideArt ?? lead?.coverUrl ?? null;
+  const artwork = wideArt ?? (lead?.coverUrl || null);
   const coverOnly = !wideArt && artwork !== null;
   const logo = emulatorAssetUrls[emulatorId];
   const hasSessions = sessionCount > 0;

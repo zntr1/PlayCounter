@@ -16,6 +16,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { getSessionGameKey, type SessionMarker } from "../../../historyStats";
 import { emulatorSessionProvenance } from "../../../emulators/provenance";
+import { usePickedCovers } from "../../../pickedCovers";
 import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
 import {
@@ -128,8 +129,10 @@ export const HistorySessionRow = memo(function HistorySessionRow({
     session.gameName ??
     metadata?.gameName ??
     session.exeName.replace(/\.exe$/i, "");
-  const coverUrl = session.coverUrl ?? metadata?.coverUrl;
+  const pickedCovers = usePickedCovers();
   const gameKey = getSessionGameKey(session, resolveIgdbId);
+  const coverUrl =
+    pickedCovers[gameKey] ?? session.coverUrl ?? metadata?.coverUrl;
   const isActiveGameFilter = selectedGameKey === gameKey;
   const seconds = session.durationSeconds ?? 0;
   const barWidth = `${Math.max(1.5, Math.min(100, (seconds / Math.max(1, maxSeconds, seconds)) * 100))}%`;

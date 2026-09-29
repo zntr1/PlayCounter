@@ -3,6 +3,7 @@ import { Gamepad2, Repeat2 } from "lucide-react";
 import { useState } from "react";
 import type { EmulatorMapping } from "../../../emulators/types";
 import { emulatorMappingProvenance } from "../../../emulators/provenance";
+import { mappingGameRef, useCoverUrl } from "../../../pickedCovers";
 import { useAppStore } from "../../../store";
 import { addCustomEmulatorGame, selectEmulatorGame } from "../../../tracker";
 import { SourceBadge } from "../../components";
@@ -31,6 +32,7 @@ export function EmulatorLinkedGameDialog({
   const labelId = `change-emulator-game-${mapping.contentKey.replace(/[^a-z0-9]/gi, "-")}`;
   const platformLabel = guestPlatformLabel(mapping.emulatorId);
   const provenance = emulatorMappingProvenance(mapping);
+  const coverUrl = useCoverUrl(mappingGameRef(mapping), mapping.coverUrl);
 
   async function apply(game: Game) {
     if (busy) return;
@@ -96,9 +98,9 @@ export function EmulatorLinkedGameDialog({
       }
     >
       <div className="mb-6 flex items-center gap-3 rounded-xl border border-border bg-bg/60 p-3">
-        {mapping.coverUrl ? (
+        {coverUrl ? (
           <img
-            src={mapping.coverUrl}
+            src={coverUrl}
             alt=""
             className="h-16 w-12 shrink-0 rounded-md object-cover"
           />

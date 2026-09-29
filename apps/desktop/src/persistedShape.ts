@@ -48,6 +48,7 @@ const OBJECTS = [
   "contributionCounts",
   "emulatorContributionCounts",
   "customHeroArt",
+  "customCoverArt",
   "tours",
   "activeSession",
 ];

@@ -1,6 +1,7 @@
 import type { Session } from "@playcounter/shared";
 import clsx from "clsx";
 import { memo, useMemo } from "react";
+import { usePickedCovers } from "../../../pickedCovers";
 import type { GameIdentityResolver } from "../../../store";
 import {
   bucketSessions,
@@ -193,8 +194,9 @@ export const HistoryInsights = memo(function HistoryInsights({
   }, [resolveGame, resolveIgdbId, sessions]);
   const resolveGameName = (key: string | null) =>
     key ? (gamesByKey.get(key)?.name ?? null) : null;
+  const pickedCovers = usePickedCovers();
   const resolveGameCover = (key: string | null) =>
-    key ? (gamesByKey.get(key)?.coverUrl ?? null) : null;
+    key ? (pickedCovers[key] ?? gamesByKey.get(key)?.coverUrl ?? null) : null;
   const canDetail = chart.full.length !== chart.compact.length;
   const detailed = canDetail && detailedChart;
   const buckets = detailed ? chart.full : chart.compact;

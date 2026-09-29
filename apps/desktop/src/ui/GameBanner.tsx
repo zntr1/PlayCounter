@@ -18,6 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { artSrcSet } from "./artSrcSet";
 import { useGameDetails } from "../gameDetails";
+import { useCoverUrl } from "../pickedCovers";
 import { customHeroArtKey, useAppStore } from "../store";
 import { GameCover } from "./GameCover";
 import {
@@ -104,6 +105,7 @@ export function GameBanner({
     (state) => state.customHeroArt[customHeroArtKey(game)],
   );
   const artwork = heroArtwork(pickedArt, ready);
+  const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
   const facts = ready
     ? [
         ready.releaseYear?.toString() ??
@@ -112,7 +114,7 @@ export function GameBanner({
       ].filter((part): part is string => Boolean(part))
     : [];
   // One image continues through the title bar, card, and surrounding backdrop.
-  const backdropArt = artwork ?? (game.coverUrl || null);
+  const backdropArt = artwork ?? (coverUrl || null);
   useEffect(() => {
     onArtworkChange(backdropArt);
     return () => onArtworkChange(null);
@@ -160,9 +162,9 @@ export function GameBanner({
             }}
             className="library-banner-art library-hero-art absolute object-cover object-[72%_0%]"
           />
-        ) : game.coverUrl ? (
+        ) : coverUrl ? (
           <GameCover
-            src={game.coverUrl}
+            src={coverUrl}
             alt=""
             loading="eager"
             style={{
@@ -182,7 +184,7 @@ export function GameBanner({
           compact ? "px-6 py-5" : "px-9 py-8",
           !compact &&
             !artwork &&
-            game.coverUrl &&
+            coverUrl &&
             "sm:grid-cols-[minmax(0,1fr)_170px]",
         )}
       >
@@ -304,10 +306,10 @@ export function GameBanner({
             />
           </div>
         </div>
-        {!compact && !artwork && game.coverUrl ? (
+        {!compact && !artwork && coverUrl ? (
           <div className="hidden items-center justify-end sm:flex">
             <GameCover
-              src={game.coverUrl}
+              src={coverUrl}
               alt=""
               highRes
               loading="eager"

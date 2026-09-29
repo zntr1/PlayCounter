@@ -1,5 +1,6 @@
 import { Crown, Timer } from "lucide-react";
 import type { TopGame } from "../../historyStats";
+import { usePickedCovers } from "../../pickedCovers";
 import { formatDuration } from "../components";
 import { GameCover as LibraryCover } from "../GameCover";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
@@ -53,7 +54,7 @@ function formatLastPlayed(lastPlayedMs: number, nowMs: number) {
 }
 
 export function TopGamesBars({
-  games,
+  games: rankedGames,
   showDurationDays,
   nowMs,
   onSelectGame,
@@ -64,6 +65,12 @@ export function TopGamesBars({
   onSelectGame: (key: string, name: string) => void;
 }) {
   const tooltip = useChartTooltip();
+  const pickedCovers = usePickedCovers();
+  const games = rankedGames.map((game) =>
+    game.key && pickedCovers[game.key]
+      ? { ...game, coverUrl: pickedCovers[game.key] }
+      : game,
+  );
   const maxSeconds = Math.max(1, ...games.map((game) => game.seconds));
   const podiumGames = games
     .slice(0, 3)

@@ -23,6 +23,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
+import { useCoverUrl } from "../../../pickedCovers";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
 import type { ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
@@ -239,6 +240,7 @@ export function GameDetailsDialog({
   const pickedArt = useAppStore(
     (state) => state.customHeroArt[customHeroArtKey(game)],
   );
+  const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
   const details = useGameDetails(demo ? undefined : game.igdbId);
   // Release year already known from matching, so the title line is never empty
   // while the details request is in flight.
@@ -439,9 +441,9 @@ export function GameDetailsDialog({
             decoding="async"
             className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
           />
-        ) : game.coverUrl ? (
+        ) : coverUrl ? (
           <GameCover
-            src={game.coverUrl}
+            src={coverUrl}
             alt=""
             loading="eager"
             className="hero-backdrop absolute inset-0 h-full w-full scale-125 object-cover blur-3xl saturate-150"
@@ -460,10 +462,10 @@ export function GameDetailsDialog({
 
       <div className="game-details-heading relative grid gap-5 px-5 pt-5 sm:grid-cols-[150px_minmax(0,1fr)] sm:px-6 sm:pt-6">
         <div className="hidden sm:block">
-          {game.coverUrl ? (
+          {coverUrl ? (
             // Always the larger art here: one image, opened deliberately.
             <GameCover
-              src={game.coverUrl}
+              src={coverUrl}
               highRes
               alt=""
               className="aspect-[3/4] w-full rounded-lg object-cover shadow-card-hover ring-1 ring-white/10"

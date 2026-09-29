@@ -12,6 +12,7 @@ import {
   type OverlayEvent,
   type TrackerOverlayEvent,
 } from "./desktopOverlays";
+import { pickedCover } from "./pickedCovers";
 import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
 
@@ -46,7 +47,8 @@ export function showCurrentSessionOverlay() {
     {
       type: "current-session",
       gameName: session?.gameName,
-      coverUrl: session?.coverUrl,
+      coverUrl:
+        pickedCover(useAppStore.getState(), session) ?? session?.coverUrl,
       durationSeconds: Number.isFinite(startedAt)
         ? Math.max(0, Math.floor((context.nowMs - startedAt) / 1000))
         : 0,
@@ -405,7 +407,7 @@ export function previewDesktopOverlay(
   const event = previewEvent(
     kind,
     sample?.gameName ?? "Sample Game",
-    sample?.coverUrl,
+    pickedCover(store, sample) ?? sample?.coverUrl,
   );
   const message = buildOverlayMessage(kind, event, renderContext());
   // Previews deliberately skip the queue. Its gating exists to protect real

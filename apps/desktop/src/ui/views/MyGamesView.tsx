@@ -15,6 +15,7 @@ import {
 import { GameBanner } from "../GameBanner";
 import { useLibraryLaunchLock } from "../libraryLaunchLock";
 import { ArtPickerDialog } from "../ArtPickerDialog";
+import { useCoverUrl } from "../../pickedCovers";
 import { matchesFeaturedGame, pickFeaturedGame } from "./games/featuredGame";
 import clsx from "clsx";
 import {
@@ -3231,6 +3232,10 @@ export function GameLibraryCard({
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && !selectionMode && canLaunchExecutables;
   const canEditCover = game.source === "custom";
+  const shownCover = useCoverUrl(
+    { ...game, gameName: game.name },
+    game.coverUrl,
+  );
   const primaryExeName = game.exeNames[0];
   const primaryExeEntry = primaryExeName
     ? exeCache.get(primaryExeName.toLowerCase())
@@ -4331,6 +4336,7 @@ export function GameLibraryCard({
         game={{
           gameId: game.gameId,
           source: game.source,
+          igdbId: game.igdbId,
           name: game.name,
           canEditCover,
         }}
@@ -4764,16 +4770,28 @@ export function GameLibraryCard({
               ) : null}
             </ContextMenuSubmenu>
           ) : (
-            <ContextMenuItem
-              icon={ImagePlus}
-              onClick={() => {
-                contextMenu.close();
-                setArtPickerTab("banner");
-                setShowArtPicker(true);
-              }}
-            >
-              Choose banner…
-            </ContextMenuItem>
+            <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
+              <ContextMenuItem
+                icon={ImagePlus}
+                onClick={() => {
+                  contextMenu.close();
+                  setArtPickerTab("banner");
+                  setShowArtPicker(true);
+                }}
+              >
+                Choose banner…
+              </ContextMenuItem>
+              <ContextMenuItem
+                icon={ImagePlus}
+                onClick={() => {
+                  contextMenu.close();
+                  setArtPickerTab("cover");
+                  setShowArtPicker(true);
+                }}
+              >
+                Choose cover…
+              </ContextMenuItem>
+            </ContextMenuSubmenu>
           )
         ) : null}
         {showMatchingActions ? (
@@ -5100,9 +5118,9 @@ export function GameLibraryCard({
           {!demo || libraryPractice ? (
             <GameJournalBadges game={{ ...game, gameName: game.name }} />
           ) : null}
-          {game.coverUrl ? (
+          {shownCover ? (
             <GameCover
-              src={game.coverUrl}
+              src={shownCover}
               alt=""
               draggable={false}
               className="game-card-cover-image absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -5600,7 +5618,7 @@ export function GameLibraryCard({
             demo={demo}
             exeName={game.exeNames[0] ?? ""}
             gameName={game.name}
-            coverUrl={game.coverUrl}
+            coverUrl={shownCover}
             onCancel={() => setReportOpen(false)}
             onDifferentGame={() => {
               setReportOpen(false);
@@ -5770,9 +5788,9 @@ export function GameLibraryCard({
               compact
             />
           ) : null}
-          {game.coverUrl ? (
+          {shownCover ? (
             <GameCover
-              src={game.coverUrl}
+              src={shownCover}
               alt=""
               draggable={false}
               className="aspect-[3/4] w-full rounded-lg object-cover"
@@ -6086,7 +6104,7 @@ export function GameLibraryCard({
           demo={demo}
           exeName={game.exeNames[0] ?? ""}
           gameName={game.name}
-          coverUrl={game.coverUrl}
+          coverUrl={shownCover}
           onCancel={() => setReportOpen(false)}
           onDifferentGame={() => {
             setReportOpen(false);

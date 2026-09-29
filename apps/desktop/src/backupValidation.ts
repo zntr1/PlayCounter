@@ -489,6 +489,7 @@ const validateBackupShape: Validator = object(
     archivedGameSeconds: dictionary(nonnegative),
     playtimeAdjustments: dictionary(number),
     customHeroArt: dictionary(string),
+    customCoverArt: dictionary(string),
     toolUsage: dictionary(
       object(
         { days: dictionary(nonnegative) },

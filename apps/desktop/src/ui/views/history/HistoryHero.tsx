@@ -8,6 +8,7 @@ import type {
   HistoryHighlight,
   SummaryStats,
 } from "../../../historyStats";
+import { usePickedCovers } from "../../../pickedCovers";
 import { customHeroArtKey, useAppStore } from "../../../store";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
@@ -326,12 +327,13 @@ function HighlightCard({
   onClick: () => void;
 }) {
   const copy = highlightCopy(highlight, showDurationDays);
+  const pickedCovers = usePickedCovers();
   const coverUrl =
     highlight.kind === "busiestDay"
       ? resolveGameCover(highlight.topGameKey)
       : highlight.kind === "bestStreak"
         ? null
-        : highlight.coverUrl;
+        : (pickedCovers[highlight.gameKey] ?? highlight.coverUrl);
 
   return (
     <button

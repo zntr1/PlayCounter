@@ -2,6 +2,7 @@ import { AlertTriangle, ListChecks } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import { useGameDetails } from "../../gameDetails";
+import { useCoverUrl } from "../../pickedCovers";
 import { useLibrarySources } from "../librarySources";
 import {
   createGameIdentityResolver,
@@ -129,9 +130,11 @@ export function NowPlayingView() {
       ? state.customHeroArt[customHeroArtKey(leadSession)]
       : undefined,
   );
+  const leadCover = useCoverUrl(leadSession, leadSession?.coverUrl);
+  const reportCover = useCoverUrl(reportTarget, reportTarget?.coverUrl);
   const nowArt = showTourSession
     ? TOUR_DEMO_GAME.bannerUrl
-    : (pickedArt ?? leadArt ?? leadSession?.coverUrl ?? null);
+    : (pickedArt ?? leadArt ?? (leadCover || null));
   useEffect(() => {
     useLibrarySources.setState({ nowArt });
     return () => useLibrarySources.setState({ nowArt: null });
@@ -267,7 +270,7 @@ export function NowPlayingView() {
         <ReportWrongMatchDialog
           exeName={reportTarget.exeName}
           gameName={reportTarget.gameName}
-          coverUrl={reportTarget.coverUrl}
+          coverUrl={reportCover}
           onCancel={() => setReportTarget(null)}
           onDifferentGame={() => {
             setCorrectionTarget(reportTarget);

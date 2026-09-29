@@ -29,6 +29,7 @@ import {
 } from "../../historyStats";
 import { providerFloorKey, providerFloors } from "../../library/playtimeFloor";
 import { gameLifetimeTotals } from "../../milestones";
+import { useCoverUrl, usePickedCovers } from "../../pickedCovers";
 import {
   createGameIdentityResolver,
   gameMetadataKey,
@@ -275,10 +276,11 @@ export function HistoryView() {
     }
     return games;
   }, [resolveGame, resolveIgdbId, sessions]);
+  const pickedCovers = usePickedCovers();
   const resolveGameCover = useCallback(
     (key: string | null) =>
-      key ? (gamesByKey.get(key)?.coverUrl ?? null) : null,
-    [gamesByKey],
+      key ? (pickedCovers[key] ?? gamesByKey.get(key)?.coverUrl ?? null) : null,
+    [gamesByKey, pickedCovers],
   );
 
   const gameFilteredSessions = useMemo(() => {
@@ -479,9 +481,9 @@ export function HistoryView() {
       gameId: session.gameId,
       source: session.source,
       igdbId,
-      coverUrl: mostPlayed.coverUrl,
+      coverUrl: pickedCovers[mostPlayed.gameKey] ?? mostPlayed.coverUrl,
     };
-  }, [analytics.highlights, gameFilteredSessions, resolveIgdbId]);
+  }, [analytics.highlights, gameFilteredSessions, pickedCovers, resolveIgdbId]);
 
   const clearGameFilter = useCallback(() => {
     setQuery("");
@@ -971,6 +973,7 @@ function DeleteSessionDialog({
   onConfirm: () => void;
 }) {
   const practice = useLibraryPractice();
+  const shownCover = useCoverUrl(session, coverUrl);
   return (
     <Modal
       dataTour={practice ? "demo-history-delete" : undefined}
@@ -1004,9 +1007,9 @@ function DeleteSessionDialog({
         cannot be undone.
       </p>
       <div className="mt-4 flex items-stretch gap-4 rounded-lg border border-border bg-surface-hover p-4">
-        {coverUrl ? (
+        {shownCover ? (
           <GameCover
-            src={coverUrl}
+            src={shownCover}
             alt={`${gameName} cover`}
             className="h-[88px] w-16 shrink-0 rounded-md object-cover shadow-sm"
           />

@@ -69,6 +69,7 @@ type PersistableAppState = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
+  customCoverArt?: Record<string, string>;
   toolUsage?: ToolUsage;
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
@@ -119,6 +120,7 @@ export type PersistedPayload = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
+  customCoverArt?: Record<string, string>;
   toolUsage?: ToolUsage;
   collapsedSections?: string[];
   autoDetectedGameKeys?: string[];
@@ -224,6 +226,10 @@ function buildPersistedPayload(
     customHeroArt:
       state.customHeroArt && Object.keys(state.customHeroArt).length > 0
         ? state.customHeroArt
+        : undefined,
+    customCoverArt:
+      state.customCoverArt && Object.keys(state.customCoverArt).length > 0
+        ? state.customCoverArt
         : undefined,
     toolUsage:
       state.toolUsage && Object.keys(state.toolUsage).length > 0

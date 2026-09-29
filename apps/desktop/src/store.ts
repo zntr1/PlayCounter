@@ -495,6 +495,8 @@ export type AppState = {
   playtimeAdjustments: Record<string, number>;
   /** Banner art picked by hand, keyed by customHeroArtKey. */
   customHeroArt: Record<string, string>;
+  /** Cover art picked by hand; see pickedCovers.ts. */
+  customCoverArt: Record<string, string>;
   /** Software time per executable; see toolUsage.ts. */
   toolUsage: ToolUsage;
   collapsedSections: string[];
@@ -527,6 +529,7 @@ export type AppState = {
   setLibraryQuery: (query: string) => void;
   searchWholeLibrary: () => void;
   setCustomHeroArt: (key: string, url: string | null) => void;
+  setCustomCoverArt: (key: string, url: string | null) => void;
   setHistoryGameKey: (key: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
   setActiveSessions: (sessions: ActiveSession[]) => void;
@@ -879,6 +882,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   archivedGameSeconds: {},
   playtimeAdjustments: {},
   customHeroArt: {},
+  customCoverArt: {},
   toolUsage: {},
   collapsedSections: [],
   autoDetectedGameKeys: [],
@@ -1003,6 +1007,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (url) customHeroArt[key] = url;
       else delete customHeroArt[key];
       return { customHeroArt };
+    });
+    persistSoon();
+  },
+  setCustomCoverArt: (key, url) => {
+    set((state) => {
+      const customCoverArt = { ...state.customCoverArt };
+      if (url) customCoverArt[key] = url;
+      else delete customCoverArt[key];
+      return { customCoverArt };
     });
     persistSoon();
   },
