@@ -111,6 +111,7 @@ export function SettingsView() {
   const installUuid = useAppStore((state) => state.installUuid);
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
+  const setStartView = useAppStore((state) => state.setStartView);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
   const setShowInstallInSteam = useAppStore(
     (state) => state.setShowInstallInSteam,
@@ -433,6 +434,21 @@ export function SettingsView() {
             checked={settings.showDurationDays}
             onChange={(event) => setShowDurationDays(event.target.checked)}
           />
+        </SettingsRow>
+        <SettingsRow
+          description="The page PlayCounter shows when it opens."
+          title="Start page"
+        >
+          <Select
+            aria-label="Start page"
+            value={settings.startView === "games" ? "games" : "now"}
+            onChange={(event) =>
+              setStartView(event.target.value === "games" ? "games" : "now")
+            }
+          >
+            <option value="now">Now Playing</option>
+            <option value="games">My Games</option>
+          </Select>
         </SettingsRow>
       </SettingsPanel>
 

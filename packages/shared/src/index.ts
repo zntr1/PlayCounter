@@ -587,6 +587,8 @@ export interface Settings {
   showWindowHotkey?: string | null;
   currentSessionHotkey?: string | null;
   launchOnStartup: boolean;
+  /** Page shown when PlayCounter opens. Absent = Now Playing. */
+  startView?: "now" | "games";
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
   libraryCardSize?: "grid" | "large" | "list";

@@ -608,6 +608,7 @@ export type AppState = {
   toggleSectionCollapsed: (sectionId: string) => void;
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
+  setStartView: (view: "now" | "games") => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesGridColumns: (columns: number) => void;
@@ -681,6 +682,7 @@ export const BUILD_STAGE: Stage =
 
 const defaultSettings: Settings = {
   launchOnStartup: true,
+  startView: "now",
   showDurationDays: false,
   libraryCardSize: "grid",
   libraryGridColumns: null,
@@ -1686,6 +1688,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLaunchOnStartup: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, launchOnStartup: enabled },
+    }));
+    persistSoon();
+  },
+  setStartView: (startView) => {
+    set((state) => ({
+      settings: { ...state.settings, startView },
     }));
     persistSoon();
   },

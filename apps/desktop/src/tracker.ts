@@ -1234,6 +1234,7 @@ export function hydrate() {
     installPresenceMarker: null,
     contributionOwnerUuid: persisted.contributionOwnerUuid ?? null,
     settings,
+    activeView: settings.startView === "games" ? "games" : "now",
     // Open running windows were removed while constructing exeCacheMap above;
     // runtime while the app was closed must never be credited.
     exeCache: exeCacheMap,
