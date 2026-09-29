@@ -560,6 +560,23 @@ export function SettingsView() {
             disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
+        {currentPlatform() !== "macos" ? (
+          <SettingsRow
+            title="Show clock in session popup"
+            description="Add the time of day to the current session popup, handy in fullscreen games."
+          >
+            <Switch
+              aria-label="Show clock in session popup"
+              checked={settings.overlayShowClock === true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayShowClock",
+                  event.target.checked,
+                )
+              }
+            />
+          </SettingsRow>
+        ) : null}
       </SettingsPanel>
 
       {currentPlatform() !== "macos" ? (

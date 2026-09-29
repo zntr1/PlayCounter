@@ -36,6 +36,8 @@ pub struct OverlayPayload {
     cover_url: Option<String>,
     action: Option<String>,
     action_label: Option<String>,
+    #[serde(default)]
+    show_clock: bool,
     theme: String,
     accent_color: Option<String>,
     reduced_motion: bool,
@@ -698,6 +700,7 @@ mod tests {
             cover_url: None,
             action: action.map(str::to_string),
             action_label: Some("Open".to_string()),
+            show_clock: false,
             theme: "dark".to_string(),
             accent_color: None,
             reduced_motion: false,

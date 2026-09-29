@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import type { DesktopOverlayMessage } from "../desktopOverlayProtocol";
 import { applyTheme } from "../theme";
 
@@ -116,6 +116,7 @@ export function DesktopNotificationOverlay({
               <strong>{message.metric}</strong>
             </div>
           ) : null}
+          {message.showClock ? <OverlayClock /> : null}
           {message.action && message.actionLabel ? (
             <button
               type="button"
@@ -133,7 +134,7 @@ export function DesktopNotificationOverlay({
             <span className="desktop-overlay-live">
               <i /> LIVE
             </span>
-          ) : (
+          ) : message.showClock ? null : (
             <span className="desktop-overlay-mark" aria-hidden="true">
               P
             </span>
@@ -142,4 +143,22 @@ export function DesktopNotificationOverlay({
       </article>
     </div>
   );
+}
+
+function formatClock(date: Date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function OverlayClock() {
+  const [time, setTime] = useState(() => formatClock(new Date()));
+
+  useEffect(() => {
+    const handle = window.setInterval(
+      () => setTime(formatClock(new Date())),
+      1_000,
+    );
+    return () => window.clearInterval(handle);
+  }, []);
+
+  return <time className="desktop-overlay-clock">{time}</time>;
 }

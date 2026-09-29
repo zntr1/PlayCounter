@@ -52,6 +52,7 @@ export function showCurrentSessionOverlay() {
         : 0,
       sessionIndex: index + 1,
       sessionCount: sessions.length,
+      showClock: useAppStore.getState().settings.overlayShowClock === true,
     },
     context,
   );
@@ -351,6 +352,7 @@ function previewEvent(
       gameName,
       coverUrl,
       durationSeconds: 4_200,
+      showClock: useAppStore.getState().settings.overlayShowClock === true,
     };
   }
   if (kind === "discovery") {

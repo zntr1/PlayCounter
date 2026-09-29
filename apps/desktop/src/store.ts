@@ -391,7 +391,8 @@ export type DesktopOverlaySettingKey =
   | "overlaySessionSummaries"
   | "overlayMilestones"
   | "overlayActionRequired"
-  | "overlayDiscoveries";
+  | "overlayDiscoveries"
+  | "overlayShowClock";
 
 export type ActiveTour = {
   tourId: string;
@@ -725,6 +726,7 @@ const defaultSettings: Settings = {
   overlayMilestones: true,
   overlayActionRequired: true,
   overlayDiscoveries: false,
+  overlayShowClock: false,
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,

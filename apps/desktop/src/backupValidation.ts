@@ -360,6 +360,7 @@ const settings = object({}, {
   overlayMilestones: boolean,
   overlayActionRequired: boolean,
   overlayDiscoveries: boolean,
+  overlayShowClock: boolean,
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,

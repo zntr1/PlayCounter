@@ -664,6 +664,8 @@ export interface Settings {
   overlayMilestones?: boolean;
   overlayActionRequired?: boolean;
   overlayDiscoveries?: boolean;
+  /** Show the time of day on the current-session hotkey popup. Absent = off. */
+  overlayShowClock?: boolean;
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
