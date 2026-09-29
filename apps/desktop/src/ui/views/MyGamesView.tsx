@@ -15,7 +15,7 @@ import {
 import { GameBanner } from "../GameBanner";
 import { useLibraryLaunchLock } from "../libraryLaunchLock";
 import { ArtPickerDialog } from "../ArtPickerDialog";
-import { useCoverUrl } from "../../pickedCovers";
+import { pickedCover, pickedCoverKey, useCoverUrl } from "../../pickedCovers";
 import { matchesFeaturedGame, pickFeaturedGame } from "./games/featuredGame";
 import clsx from "clsx";
 import {
@@ -98,6 +98,7 @@ import {
   linkServerKnownFiles,
   setGamePlaytime,
   setCustomGameCover,
+  setPickedCoverFile,
   suggestTrackedGameToCommunity,
   submitLocalLinkToCommunity,
   untrackGame,
@@ -3236,6 +3237,10 @@ export function GameLibraryCard({
     { ...game, gameName: game.name },
     game.coverUrl,
   );
+  const coverPicked = useAppStore(
+    (state) =>
+      pickedCover(state, { ...game, gameName: game.name }) !== undefined,
+  );
   const primaryExeName = game.exeNames[0];
   const primaryExeEntry = primaryExeName
     ? exeCache.get(primaryExeName.toLowerCase())
@@ -3828,11 +3833,21 @@ export function GameLibraryCard({
   };
 
   async function saveCover(file: File | Blob | null) {
-    if (!file || !canEditCover || coverBusy) return;
+    if (!file || coverBusy) return;
 
     setCoverBusy(true);
     try {
-      await setCustomGameCover(game.gameId, file);
+      if (canEditCover) {
+        await setCustomGameCover(game.gameId, file);
+      } else {
+        await setPickedCoverFile(
+          pickedCoverKey(useAppStore.getState(), {
+            ...game,
+            gameName: game.name,
+          }),
+          file,
+        );
+      }
       addToast({
         tone: "success",
         title: "Cover updated",
@@ -3882,6 +3897,22 @@ export function GameLibraryCard({
         detail: formatError(error),
       });
     }
+  }
+
+  function handleResetPickedCover() {
+    useAppStore.getState().setCustomCoverArt(
+      pickedCoverKey(useAppStore.getState(), {
+        ...game,
+        gameName: game.name,
+      }),
+      null,
+    );
+    addToast({
+      tone: "info",
+      title: "Cover reset",
+      detail: `${game.name} is back to its automatic cover.`,
+    });
+    contextMenu.close();
   }
 
   function handleClearCover() {
@@ -4721,78 +4752,60 @@ export function GameLibraryCard({
           </ContextMenuItem>
         </ContextMenuSubmenu>
         {!demo ? (
-          canEditCover ? (
-            <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
+          <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
+            <ContextMenuItem
+              icon={ImagePlus}
+              onClick={() => {
+                contextMenu.close();
+                setArtPickerTab("banner");
+                setShowArtPicker(true);
+              }}
+            >
+              Choose banner…
+            </ContextMenuItem>
+            <ContextMenuItem
+              icon={ImagePlus}
+              onClick={() => {
+                contextMenu.close();
+                setArtPickerTab("cover");
+                setShowArtPicker(true);
+              }}
+            >
+              Choose cover…
+            </ContextMenuItem>
+            <ContextMenuItem
+              icon={ImagePlus}
+              onClick={() => {
+                contextMenu.close();
+                coverInputRef.current?.click();
+              }}
+            >
+              Upload cover
+            </ContextMenuItem>
+            <ContextMenuItem
+              dataTour={demo ? "demo-menu-paste-cover" : undefined}
+              icon={Clipboard}
+              onClick={() => void handlePasteCover()}
+            >
+              Paste Cover
+            </ContextMenuItem>
+            {canEditCover && game.coverUrl ? (
               <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  setArtPickerTab("banner");
-                  setShowArtPicker(true);
-                }}
+                dataTour={demo ? "demo-menu-delete-cover" : undefined}
+                icon={Trash2}
+                onClick={handleClearCover}
               >
-                Choose banner…
+                Delete Cover
               </ContextMenuItem>
+            ) : !canEditCover && coverPicked ? (
               <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  setArtPickerTab("cover");
-                  setShowArtPicker(true);
-                }}
+                icon={RotateCcw}
+                onClick={handleResetPickedCover}
               >
-                Choose cover…
+                Restore Cover
               </ContextMenuItem>
-              <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  coverInputRef.current?.click();
-                }}
-              >
-                Upload cover
-              </ContextMenuItem>
-              <ContextMenuItem
-                dataTour={demo ? "demo-menu-paste-cover" : undefined}
-                icon={Clipboard}
-                onClick={() => void handlePasteCover()}
-              >
-                Paste Cover
-              </ContextMenuItem>
-              {game.coverUrl ? (
-                <ContextMenuItem
-                  dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                  icon={Trash2}
-                  onClick={handleClearCover}
-                >
-                  Delete Cover
-                </ContextMenuItem>
-              ) : null}
-            </ContextMenuSubmenu>
-          ) : (
-            <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
-              <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  setArtPickerTab("banner");
-                  setShowArtPicker(true);
-                }}
-              >
-                Choose banner…
-              </ContextMenuItem>
-              <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  setArtPickerTab("cover");
-                  setShowArtPicker(true);
-                }}
-              >
-                Choose cover…
-              </ContextMenuItem>
-            </ContextMenuSubmenu>
-          )
+            ) : null}
+          </ContextMenuSubmenu>
         ) : null}
         {showMatchingActions ? (
           <ContextMenuSubmenu
@@ -5298,7 +5311,7 @@ export function GameLibraryCard({
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
-          disabled={!canEditCover || coverBusy}
+          disabled={coverBusy}
           onChange={(event) => {
             void saveCover(event.currentTarget.files?.[0] ?? null);
           }}
@@ -6038,7 +6051,7 @@ export function GameLibraryCard({
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="hidden"
-        disabled={!canEditCover || coverBusy}
+        disabled={coverBusy}
         onChange={(event) => {
           void saveCover(event.currentTarget.files?.[0] ?? null);
         }}

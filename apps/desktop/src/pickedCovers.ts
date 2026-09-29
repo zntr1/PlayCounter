@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
+import { create } from "zustand";
 import type { EmulatorMapping } from "./emulators/types";
 import {
   personalGameIdentity,
@@ -49,6 +50,32 @@ export function pickedCoverKey(state: CoverState, game: GameIdentityRef) {
   return sharedIdentity(state)(game);
 }
 
+/* Covers that failed to load in this run: an uploaded file missing after a
+   backup was restored on another PC, a deleted file, or art taken down
+   upstream. They are skipped, so a game falls back to its own cover and then
+   to none. Never saved, and forgotten when the network comes back, so a cover
+   that failed while offline is tried again. */
+const useUnavailableCovers = create<{ urls: ReadonlySet<string> }>(() => ({
+  urls: new Set(),
+}));
+
+globalThis.addEventListener?.("online", () =>
+  useUnavailableCovers.setState({ urls: new Set() }),
+);
+
+export function markCoverUnavailable(url: string) {
+  const { urls } = useUnavailableCovers.getState();
+  if (!url || urls.has(url)) return;
+  useUnavailableCovers.setState({ urls: new Set(urls).add(url) });
+}
+
+function usable(
+  url: string | null | undefined,
+  unavailable: ReadonlySet<string>,
+) {
+  return url && !unavailable.has(url) ? url : undefined;
+}
+
 function hasPicks(picks: Record<string, string>) {
   for (const _ in picks) return true;
   return false;
@@ -61,7 +88,10 @@ export function pickedCover(
 ): string | undefined {
   // Most libraries have no picks; they skip the identity work entirely.
   if (!game || !hasPicks(state.customCoverArt)) return undefined;
-  return state.customCoverArt[pickedCoverKey(state, game)];
+  return usable(
+    state.customCoverArt[pickedCoverKey(state, game)],
+    useUnavailableCovers.getState().urls,
+  );
 }
 
 /** An emulator mapping names its game only once it is decided. */
@@ -83,8 +113,9 @@ export function useCoverUrl(
   game: GameIdentityRef | null | undefined,
   coverUrl: string | null | undefined,
 ): string {
+  const unavailable = useUnavailableCovers((state) => state.urls);
   const picked = useAppStore((state) => pickedCover(state, game));
-  return picked ?? coverUrl ?? "";
+  return picked ?? usable(coverUrl, unavailable) ?? "";
 }
 
 /** useCoverUrl for lists: one subscription, then a lookup per game. */
@@ -93,19 +124,30 @@ export function useCoverLookup() {
   const gameMetadata = useAppStore((state) => state.gameMetadata);
   const exeCache = useAppStore((state) => state.exeCache);
   const libraryImports = useAppStore((state) => state.libraryImports);
+  const unavailable = useUnavailableCovers((state) => state.urls);
   return useCallback(
     (game: GameIdentityRef | null, coverUrl: string | null | undefined) =>
       pickedCover(
         { customCoverArt, gameMetadata, exeCache, libraryImports },
         game,
       ) ??
-      coverUrl ??
+      usable(coverUrl, unavailable) ??
       "",
-    [customCoverArt, exeCache, gameMetadata, libraryImports],
+    [customCoverArt, exeCache, gameMetadata, libraryImports, unavailable],
   );
 }
 
 /** For callers that already hold the identity key (History, Achievements). */
 export function usePickedCovers() {
-  return useAppStore((state) => state.customCoverArt);
+  const picks = useAppStore((state) => state.customCoverArt);
+  const unavailable = useUnavailableCovers((state) => state.urls);
+  return useMemo(
+    () =>
+      unavailable.size === 0
+        ? picks
+        : Object.fromEntries(
+            Object.entries(picks).filter(([, url]) => !unavailable.has(url)),
+          ),
+    [picks, unavailable],
+  );
 }

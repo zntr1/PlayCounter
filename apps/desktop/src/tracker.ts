@@ -7531,25 +7531,41 @@ export function selectAmbiguousCommunitySuggestion(
   selectAmbiguousMatch(exeName, game);
 }
 
-export async function setCustomGameCover(gameId: number, file: File | Blob) {
+async function saveCoverFile(
+  command: "save_custom_cover" | "save_picked_cover",
+  args: Record<string, unknown>,
+  file: File | Blob,
+) {
   const extension = coverExtension(file);
   if (!extension) {
     throw new Error("Cover image must be a PNG, JPG, or WebP file.");
   }
 
   const bytes = [...new Uint8Array(await file.arrayBuffer())];
-  const coverPath = await invoke<string>("save_custom_cover", {
-    gameId,
+  const coverPath = await invoke<string>(command, {
+    ...args,
     extension,
     bytes,
   });
   // The file keeps its name, so the URL would not change on a second pick
   // and the webview would keep showing the cached first image. A version
   // query makes every new cover a new URL; the asset protocol ignores it.
-  const coverUrl = `${convertFileSrc(coverPath)}?v=${Date.now()}`;
+  return `${convertFileSrc(coverPath)}?v=${Date.now()}`;
+}
+
+export async function setCustomGameCover(gameId: number, file: File | Blob) {
+  const coverUrl = await saveCoverFile("save_custom_cover", { gameId }, file);
   updateCustomGameCover(gameId, coverUrl);
   logRuntime(`custom game cover updated gameId=${gameId}`);
   persist();
+}
+
+/** An uploaded cover for an IGDB or community game: stored like a
+ *  SteamGridDB pick, so the game's own coverUrl is never rewritten. */
+export async function setPickedCoverFile(key: string, file: File | Blob) {
+  const coverUrl = await saveCoverFile("save_picked_cover", { key }, file);
+  useAppStore.getState().setCustomCoverArt(key, coverUrl);
+  logRuntime(`picked cover uploaded key=${key}`);
 }
 
 export function clearCustomGameCover(gameId: number) {
@@ -8770,7 +8786,11 @@ function sanitizeCustomCoverArt(value: unknown): Record<string, string> {
   for (const [key, url] of Object.entries(value as Record<string, unknown>)) {
     if (
       typeof url === "string" &&
-      /^https:\/\//.test(url) &&
+      // SteamGridDB picks, or uploaded files served by the asset protocol
+      // (http://asset.localhost on Windows, asset://localhost elsewhere).
+      /^(https:\/\/|http:\/\/asset\.localhost\/|asset:\/\/localhost\/)/.test(
+        url,
+      ) &&
       /^(igdb#\d+|[a-z]+:-?\d+)$/.test(key)
     ) {
       result[key] = url;

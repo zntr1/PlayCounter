@@ -1,5 +1,6 @@
 import { useEffect, useState, type ImgHTMLAttributes } from "react";
 import { upgradeCoverUrl } from "../coverArt";
+import { markCoverUnavailable } from "../pickedCovers";
 import { useAppStore } from "../store";
 
 /* A cover <img> that honours the "sharper covers" setting.
@@ -46,6 +47,8 @@ export function GameCover({
           setFallback(true);
           return;
         }
+        // Every view resolving this game's cover skips it from now on.
+        markCoverUnavailable(src);
         rest.onError?.(event);
       }}
     />
