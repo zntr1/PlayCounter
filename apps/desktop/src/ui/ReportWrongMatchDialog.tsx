@@ -14,6 +14,12 @@ import { isGenericExeName } from "../library/exeCandidates";
 import { useIsOffline } from "../store";
 import { GameCover } from "./GameCover";
 import { Button, Modal } from "./primitives";
+import { GameFileList } from "./views/games/GameFileList";
+import {
+  canReportFile,
+  fileRunStatus,
+  type GameFile,
+} from "./views/games/gameFiles";
 
 type Choice = "not-a-game" | "not-playing" | "app";
 
@@ -76,6 +82,8 @@ export function ReportWrongMatchDialog({
   exeName,
   gameName,
   coverUrl,
+  files,
+  onPickFile,
   onCancel,
   onDifferentGame,
   onNotAGame,
@@ -84,32 +92,53 @@ export function ReportWrongMatchDialog({
   onIgnoreApp,
   demo = false,
 }: {
+  /** The file to report. Empty: the user picks one of `files` first. */
   exeName: string;
   gameName: string;
   coverUrl?: string;
+  /** The card's database files and how they ran here. With two or more that
+   *  can be reported, the user says which one is wrong. */
+  files?: readonly GameFile[];
+  /** The user picked a file from `files`; the caller passes it back as
+   *  `exeName`. */
+  onPickFile?: (exeName: string) => void;
   onCancel: () => void;
-  onDifferentGame: () => void;
-  onNotAGame: () => void;
+  /** Every choice names the one file it is about. */
+  onDifferentGame: (exeName: string) => void;
+  onNotAGame: (exeName: string) => void;
   /** Only offered while the file is running, e.g. in Now Playing. */
-  onNotPlaying?: () => void;
+  onNotPlaying?: (exeName: string) => void;
   /** "It's an app, count its time": counted on the Software page, time
    *  included. */
-  onSoftware?: () => void;
+  onSoftware?: (exeName: string) => void;
   /** "It's an app, ignore it": software, ignored on this PC. */
-  onIgnoreApp?: () => void;
+  onIgnoreApp?: (exeName: string) => void;
   demo?: boolean;
 }) {
+  const reportable = files?.filter(canReportFile) ?? [];
+  const canPickOther = reportable.length > 1 && onPickFile !== undefined;
+  const [picking, setPicking] = useState(() => !exeName && canPickOther);
   const [confirming, setConfirming] = useState<Choice | null>(null);
   const [lastChoice, setLastChoice] = useState<Choice | null>(null);
   const isOffline = useIsOffline();
-  const label = exeName || "this app";
-  const copy = !confirming
-    ? null
-    : isGenericExeName(exeName)
-      ? genericFolderCopy(exeName)
+  const exeFacts = files?.find((item) => item.exeName === exeName);
+  const label = exeFacts
+    ? `${exeName} · ${fileRunStatus(exeFacts)}`
+    : exeName || "this app";
+  const copy =
+    picking || !confirming
+      ? null
+      : isGenericExeName(exeName)
+        ? genericFolderCopy(exeName)
+        : confirming === "app"
+          ? ignoreAppCopy(isOffline)
+          : confirmCopy[confirming];
+  const confirmAction =
+    confirming === "not-a-game"
+      ? onNotAGame
       : confirming === "app"
-        ? ignoreAppCopy(isOffline)
-        : confirmCopy[confirming];
+        ? onIgnoreApp
+        : onNotPlaying;
 
   function back() {
     setLastChoice(confirming);
@@ -124,7 +153,7 @@ export function ReportWrongMatchDialog({
       labelId="wrong-match-dialog-title"
       eyebrow="Report wrong match"
       title={gameName || "Wrong match"}
-      subtitle={label}
+      subtitle={picking ? undefined : label}
       icon={Flag}
       media={
         coverUrl ? (
@@ -142,17 +171,18 @@ export function ReportWrongMatchDialog({
             <Button variant="ghost" icon={ArrowLeft} onClick={back} autoFocus>
               Back
             </Button>
-            <Button
-              variant="primary"
-              onClick={
-                confirming === "not-a-game"
-                  ? onNotAGame
-                  : confirming === "app"
-                    ? onIgnoreApp
-                    : onNotPlaying
-              }
-            >
+            <Button variant="primary" onClick={() => confirmAction?.(exeName)}>
               {copy.action}
+            </Button>
+          </div>
+        ) : !picking && canPickOther ? (
+          <div className="flex justify-start">
+            <Button
+              variant="ghost"
+              icon={ArrowLeft}
+              onClick={() => setPicking(true)}
+            >
+              Other file
             </Button>
           </div>
         ) : undefined
@@ -163,7 +193,24 @@ export function ReportWrongMatchDialog({
           Practice only · no report will be submitted.
         </p>
       ) : null}
-      {copy ? (
+      {picking && files ? (
+        <div>
+          <h3 className="text-sm font-semibold text-text">
+            Which file is wrong?
+          </h3>
+          <div className="mt-3">
+            <GameFileList
+              files={files}
+              canPick={canReportFile}
+              onPick={(picked) => {
+                onPickFile?.(picked);
+                setLastChoice(null);
+                setPicking(false);
+              }}
+            />
+          </div>
+        </div>
+      ) : copy ? (
         <div>
           <h3 className="text-sm font-semibold text-text">{copy.title}</h3>
           <ul className="mt-3 grid gap-2 text-sm leading-6 text-text-muted">
@@ -185,7 +232,7 @@ export function ReportWrongMatchDialog({
               icon={ArrowLeftRight}
               title="It's a different game"
               description="Pick the right game for this file."
-              onClick={onDifferentGame}
+              onClick={() => onDifferentGame(exeName)}
             />
             {/* Software is counted per file name; Game.exe would turn every
                 game in its folders into software. */}
@@ -194,7 +241,7 @@ export function ReportWrongMatchDialog({
                 icon={AppWindow}
                 title="It's an app, count its time"
                 description="Discord, VS Code, a launcher. Its time moves to the Software page."
-                onClick={onSoftware}
+                onClick={() => onSoftware(exeName)}
               />
             ) : null}
             {onIgnoreApp && !isGenericExeName(exeName) ? (

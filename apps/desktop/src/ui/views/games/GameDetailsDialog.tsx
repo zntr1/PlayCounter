@@ -6,6 +6,7 @@ import {
   Clock3,
   Download,
   ExternalLink,
+  Flag,
   FolderOpen,
   Gamepad2,
   Info,
@@ -54,6 +55,7 @@ import {
 } from "../../providerLibrary";
 import { summarizeGameSessions } from "../../gameDetailsStats";
 import { useHeroLauncher } from "./useHeroLauncher";
+import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
@@ -202,6 +204,7 @@ export function GameDetailsDialog({
   onClose,
   onMoveToPlayCounter,
   onDemoHistory,
+  onReportFile,
 }: {
   game: GameSummary;
   /** Own lock key, distinct from the opener's, so closing the dialog never
@@ -213,6 +216,8 @@ export function GameDetailsDialog({
   onClose: () => void;
   onMoveToPlayCounter?: () => void;
   onDemoHistory?: () => void;
+  /** "Report" on one file: the report picker opens for that file. */
+  onReportFile?: (exeName: string) => void;
 }) {
   const demo = game.kind === "tour-demo";
   const showDurationDays = useAppStore(
@@ -232,6 +237,12 @@ export function GameDetailsDialog({
   const scopedExeLinks = useMemo(
     () => (demo ? new Map<string, ScopedExeLink>() : realScopedExeLinks),
     [demo, realScopedExeLinks],
+  );
+  const launchTargets = useAppStore((state) => state.launchTargets);
+  // How each file ran here, so the user sees which one is really theirs.
+  const gameFiles = useMemo(
+    () => listGameFiles(game, exeCache, scopedExeLinks, launchTargets),
+    [game, exeCache, scopedExeLinks, launchTargets],
   );
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
@@ -782,6 +793,7 @@ export function GameDetailsDialog({
                   entry.exeName.toLowerCase() === exeName.toLowerCase(),
               );
               const cached = exeCache.get(exeName.toLowerCase());
+              const facts = gameFiles.find((file) => file.exeName === exeName);
               const nameLink =
                 cached?.state === "matched" && ownsLink(cached)
                   ? cached
@@ -844,8 +856,24 @@ export function GameDetailsDialog({
                             key: exeName.toLowerCase(),
                           })
                         : null}
+                      {onReportFile && facts && canReportFile(facts) ? (
+                        <Button
+                          variant="ghost"
+                          icon={Flag}
+                          title={`Report ${exeName} as a wrong match for ${game.name}`}
+                          onClick={() => onReportFile(exeName)}
+                          className="shrink-0 px-2 py-1 text-xs"
+                        >
+                          Report
+                        </Button>
+                      ) : null}
                     </span>
                   </div>
+                  {facts && !demo ? (
+                    <div className="mt-1 text-xs text-text-muted">
+                      {fileRunStatus(facts)}
+                    </div>
+                  ) : null}
                   {scoped.map((link) => {
                     const key = scopedExeLinkKey(link.exeName, link.pathPrefix);
                     return (
