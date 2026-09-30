@@ -499,6 +499,17 @@ const validateBackupShape: Validator = object(
     ),
     collapsedSections: array(string),
     autoDetectedGameKeys: array(nonempty),
+    rejectedGameFiles: array(
+      object(
+        {
+          exeName: nonempty,
+          gameId: integer,
+          source: oneOf("igdb", "community"),
+          rejectedAt: date,
+        },
+        { igdbId: positiveId },
+      ),
+    ),
     tours: object({
       version: integer,
       welcomeVersion: integer,

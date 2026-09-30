@@ -65,6 +65,7 @@ import { libraryEntryKey } from "./library/types";
 import { scopedExeLinkKey } from "./library/scopedLinks";
 import { isGenericExeName } from "./library/exeCandidates";
 import type { LocalLinkRef } from "./localLinks";
+import type { RejectedGameFile } from "./rejectedGameFiles";
 import {
   defaultTourProgress,
   markTourCompleted,
@@ -468,6 +469,8 @@ export type AppState = {
   libraryInstalls: Map<string, LibraryInstallEntry>;
   scopedExeLinks: Map<string, ScopedExeLink>;
   ignoredExeFolders: Map<string, IgnoredExeFolder>;
+  /** Files the user said don't belong to a game; see rejectedGameFiles.ts. */
+  rejectedGameFiles: RejectedGameFile[];
   launchTargets: Map<string, LaunchTarget>;
   manualLaunchTargets: Map<string, LaunchTarget>;
   emulatorAutoBinaries: Map<string, EmulatorBinaryEntry>;
@@ -858,6 +861,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   libraryInstalls: new Map(),
   scopedExeLinks: new Map(),
   ignoredExeFolders: new Map(),
+  rejectedGameFiles: [],
   launchTargets: new Map(),
   manualLaunchTargets: new Map(),
   emulatorAutoBinaries: new Map(),

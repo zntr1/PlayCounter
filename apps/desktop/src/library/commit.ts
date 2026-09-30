@@ -14,6 +14,10 @@ import { evaluateMilestones } from "../milestones";
 import { providerFloors } from "./playtimeFloor";
 import { splitStoredSessions } from "../sessionPersistence";
 import type { Session } from "@playcounter/shared";
+import {
+  isRejectedGameFile,
+  type RejectedGameFile,
+} from "../rejectedGameFiles";
 
 export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   const state = useAppStore.getState();
@@ -26,7 +30,8 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   const backfilledExecutables = new Set<string>();
   const now = new Date();
 
-  for (const commit of commits) {
+  for (const original of commits) {
+    const commit = withoutRejectedFiles(original, state.rejectedGameFiles);
     const key = libraryEntryKey(commit.entry.provider, commit.entry.externalId);
     const previous = libraryImports.get(key);
     libraryImports.set(key, {
@@ -257,4 +262,31 @@ function uniqueExeNames(names: readonly string[]) {
     if (!unique.has(key)) unique.set(key, name);
   }
   return [...unique.values()];
+}
+
+// A file the user said doesn't belong to this game stays off it, whatever the
+// launcher or the server's known files say (see rejectedGameFiles.ts).
+function withoutRejectedFiles(
+  commit: LibraryImportCommit,
+  rejected: readonly RejectedGameFile[],
+): LibraryImportCommit {
+  if (rejected.length === 0) return commit;
+  const game = {
+    gameId: commit.entry.gameId,
+    source: commit.entry.source,
+    igdbId: commit.entry.igdbId,
+  };
+  const keep = (exeName: string) =>
+    !isRejectedGameFile(rejected, exeName, game);
+  return {
+    ...commit,
+    entry: {
+      ...commit.entry,
+      linkedExeNames: commit.entry.linkedExeNames.filter(keep),
+    },
+    exeCacheEntries: commit.exeCacheEntries.filter((entry) =>
+      keep(entry.exeName),
+    ),
+    scopedLinks: commit.scopedLinks.filter((link) => keep(link.exeName)),
+  };
 }

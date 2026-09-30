@@ -242,6 +242,11 @@ import {
   type LocalLink,
   type LocalLinkRef,
 } from "./localLinks";
+import {
+  isRejectedGameFile,
+  sanitizeRejectedGameFiles,
+  withoutRejectedGameFile,
+} from "./rejectedGameFiles";
 import type {
   EmulatorContentObservation,
   EmulatorContentSignal,
@@ -291,6 +296,7 @@ type PersistedState = {
   libraryInstalls?: LibraryInstallEntry[];
   scopedExeLinks?: ScopedExeLink[];
   ignoredExeFolders?: unknown[];
+  rejectedGameFiles?: unknown[];
   ambiguousMatches?: AmbiguousProcessMatch[];
   emulatorMappings?: EmulatorMapping[];
   emulatorObservations?: EmulatorObservation[];
@@ -1253,6 +1259,7 @@ export function hydrate() {
     libraryInstalls,
     scopedExeLinks,
     ignoredExeFolders,
+    rejectedGameFiles: sanitizeRejectedGameFiles(persisted.rejectedGameFiles),
     recentSessions: hydratedSessions,
     gameJournals: persisted.gameJournals ?? {},
     personalShelves: persisted.personalShelves ?? [],
@@ -3065,9 +3072,10 @@ async function resolveProcesses(
   }
 
   for (const process of queryProcesses) {
-    const result = resultsByExe.get(processCacheKey(process));
+    const found = resultsByExe.get(processCacheKey(process));
     // Failed batches stay uncached so a later scan can retry them.
-    if (!result) continue;
+    if (!found) continue;
+    const result = withoutRejectedGames(found, process.exeName);
     if (result.game?.kind === "tool") {
       if (result.collidingGames?.length) {
         const match = await resolveCollision(
@@ -3162,7 +3170,8 @@ async function checkCommunityUpgrades(processes: ProcessSnapshot[]) {
       if (!response.ok) throw responseError(response);
 
       const body = response.data;
-      for (const result of body.matches) {
+      for (const found of body.matches) {
+        const result = withoutRejectedGames(found, found.key);
         const aliases = result.communityGameAliases;
         if (result.game?.kind === "tool") {
           await applyToolReclassification(
@@ -3855,6 +3864,7 @@ export function applyKnownGameMatch(
   game: Game,
   exePath?: string | null,
 ) {
+  clearRejectedGameFile(exeName, game);
   const existing = useAppStore.getState().exeCache.get(exeName.toLowerCase());
   if (existing?.state === "matched") {
     applyGameMatch(exeName, game);
@@ -3891,7 +3901,10 @@ export async function lookupFolderExecutables(
     );
     if (!response.ok) throw responseError(response);
     for (const result of response.data.matches) {
-      results.set(result.key.toLowerCase(), result);
+      results.set(
+        result.key.toLowerCase(),
+        withoutRejectedGames(result, result.key),
+      );
     }
   }
   return results;
@@ -3929,6 +3942,7 @@ export function linkGameFileByHand(
   how: "link" | "play" | "custom",
   declined?: Game,
 ): LocalLinkRef | null {
+  clearRejectedGameFile(file.exeName, game);
   const key = file.exeName.toLowerCase();
   let owner = game;
   let ref: LocalLinkRef | null = null;
@@ -4007,6 +4021,7 @@ export function linkKnownGameFiles(
   for (const { exeName, identifierSource } of files) {
     const existing = state.exeCache.get(exeName.toLowerCase());
     if (existing && existing.state !== "unmatched") continue;
+    if (isRejectedGameFile(state.rejectedGameFiles, exeName, game)) continue;
     cacheMatchResult(exeName, game, identifierSource);
   }
 }
@@ -5397,6 +5412,161 @@ function backfillTrackedRuntime(exeName: string, game: Game) {
   );
 }
 
+// A game the user said a file doesn't belong to never comes back for that
+// file from the server: not as its match, not in a picker, not as a pending
+// or colliding game. One game left of a picker is the match, as the server
+// does it, unless the file is flagged (then it stays a picker).
+function withoutRejectedGames(
+  result: MatchProcessesResponse["matches"][number],
+  exeName: string,
+): MatchProcessesResponse["matches"][number] {
+  const rejected = useAppStore.getState().rejectedGameFiles;
+  if (rejected.length === 0) return result;
+  const keep = (game: Game) =>
+    game.kind === "tool" || !isRejectedGameFile(rejected, exeName, game);
+  const ambiguousGames = result.ambiguousGames?.filter(keep);
+  const single =
+    ambiguousGames?.length === 1 && !result.flaggedIdentifier
+      ? ambiguousGames[0]
+      : undefined;
+  return {
+    ...result,
+    game: single ?? (result.game && keep(result.game) ? result.game : null),
+    ambiguousGames:
+      single || !ambiguousGames?.length ? undefined : ambiguousGames,
+    pendingCommunityGame:
+      result.pendingCommunityGame && keep(result.pendingCommunityGame)
+        ? result.pendingCommunityGame
+        : undefined,
+    pendingCommunityGames: result.pendingCommunityGames?.filter(keep),
+    collidingGames: result.collidingGames?.filter(keep),
+  };
+}
+
+// The user linked the file to the game again: an earlier "It doesn't belong"
+// no longer holds. The caller persists.
+function clearRejectedGameFile(exeName: string, game: Game) {
+  const { rejectedGameFiles } = useAppStore.getState();
+  if (!isRejectedGameFile(rejectedGameFiles, exeName, game)) return;
+  useAppStore.setState({
+    rejectedGameFiles: withoutRejectedGameFile(
+      rejectedGameFiles,
+      exeName,
+      game,
+    ),
+  });
+  logRuntime(`rejected file linked again ${exeName} -> ${game.name}`);
+}
+
+export type FileNotOfGameOutcome = {
+  /** Game.exe and co.: only this game's folders lost the file. */
+  folder?: boolean;
+  report: NegativeReportOutcome["report"];
+};
+
+/**
+ * "It doesn't belong to <game>" in the report picker. The file stops counting
+ * for that game on this PC and stays off it (rejectedGameFiles), whatever the
+ * server, a launcher import or a recheck says; linking it to the game again
+ * undoes that. Review hears "this file isn't this game's" (wrong_game). Time
+ * already counted stays in History. If the file runs, it shows up in
+ * Discovered. Game.exe and co. only leave this game's folders and are never
+ * reported.
+ */
+export async function rejectFileForGame(
+  exeName: string,
+  game: {
+    gameId: number;
+    source: GameSource | null;
+    igdbId?: number;
+    aliases: readonly GameAliasRef[];
+  },
+): Promise<FileNotOfGameOutcome> {
+  const state = useAppStore.getState();
+  const key = exeName.toLowerCase();
+  const ownsLink = (link: { gameId?: number; source?: GameSource | null }) =>
+    [{ gameId: game.gameId, source: game.source }, ...game.aliases].some(
+      (alias) =>
+        alias.gameId === link.gameId && alias.source === (link.source ?? null),
+    );
+
+  for (const [linkKey, link] of state.scopedExeLinks) {
+    if (link.exeName.toLowerCase() === key && ownsLink(link)) {
+      state.removeScopedExeLink(linkKey);
+    }
+  }
+  if (isGenericExeName(exeName)) {
+    persist();
+    void requestProcessScan("after file removed from game");
+    logRuntime(`generic file removed from its game's folders ${exeName}`);
+    return { folder: true, report: "skipped" };
+  }
+
+  const gameSource =
+    game.source === "igdb" || game.source === "community"
+      ? game.source
+      : undefined;
+  if (gameSource) {
+    useAppStore.setState((current) => ({
+      rejectedGameFiles: [
+        ...withoutRejectedGameFile(current.rejectedGameFiles, exeName, game),
+        {
+          exeName: key,
+          gameId: game.gameId,
+          source: gameSource,
+          ...(game.igdbId ? { igdbId: game.igdbId } : {}),
+          rejectedAt: new Date().toISOString(),
+        },
+      ],
+    }));
+  }
+  const entry = state.exeCache.get(key);
+  if (entry?.state === "matched" && ownsLink(entry)) {
+    state.removeExeCacheEntry(exeName);
+  }
+  const launchTarget = state.launchTargets.get(key);
+  if (launchTarget && ownsLink(launchTarget.owner)) {
+    state.removeLaunchTarget(exeName);
+  }
+  useAppStore.setState((current) => {
+    let libraryImports = current.libraryImports;
+    for (const [importKey, imported] of current.libraryImports) {
+      const sameGame =
+        ownsLink(imported) ||
+        (game.igdbId !== undefined && imported.igdbId === game.igdbId);
+      if (
+        !sameGame ||
+        !imported.linkedExeNames.some((name) => name.toLowerCase() === key)
+      ) {
+        continue;
+      }
+      if (libraryImports === current.libraryImports) {
+        libraryImports = new Map(current.libraryImports);
+      }
+      libraryImports.set(importKey, {
+        ...imported,
+        linkedExeNames: imported.linkedExeNames.filter(
+          (name) => name.toLowerCase() !== key,
+        ),
+      });
+    }
+    return { libraryImports };
+  });
+  persist();
+  void requestProcessScan("after file removed from game");
+  logRuntime(`file removed from game ${exeName} -> ${game.gameId}`);
+
+  const report =
+    gameSource && !isOfflineStatus(state.backendHealth.status)
+      ? await submitIdentifierReport(
+          exeName,
+          { gameId: game.gameId, gameSource },
+          "wrong_game",
+        )
+      : "skipped";
+  return { report };
+}
+
 function cacheMatchResult(
   exeName: string,
   game: Game | null,
@@ -5685,6 +5855,7 @@ export function addDatabaseGameLocally(
   selection: { igdbId: number; name: string; coverUrl: string },
 ) {
   const game = localDatabaseGame(exeName, exePath, selection);
+  clearRejectedGameFile(exeName, game);
   linkExecutableGame({ exeName, exePath }, game);
   persist();
   void requestProcessScan("after database game added locally");
@@ -5814,6 +5985,7 @@ function startSession(
 }
 
 export function selectAmbiguousMatch(exeName: string, game: Game) {
+  clearRejectedGameFile(exeName, game);
   const state = useAppStore.getState();
   const ambiguous = state.ambiguousMatches.find(
     (match) => match.exeName.toLowerCase() === exeName.toLowerCase(),
@@ -5896,6 +6068,7 @@ function addCompletedAmbiguousSession(
 async function submitIdentifierReport(
   exeName: string,
   gameIdentity?: Pick<IdentifierReportPayload, "gameId" | "gameSource">,
+  reason: IdentifierReportPayload["reason"] = "not_a_game",
 ): Promise<NegativeReportOutcome["report"]> {
   const state = useAppStore.getState();
   if (!state.installUuid) return "skipped";
@@ -5904,7 +6077,7 @@ async function submitIdentifierReport(
   try {
     const payload: IdentifierReportPayload = {
       exeName,
-      reason: "not_a_game",
+      reason,
       installUuid: state.installUuid,
       ...gameIdentity,
     };

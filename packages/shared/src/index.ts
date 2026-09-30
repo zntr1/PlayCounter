@@ -319,7 +319,9 @@ export interface CommunitySuggestionCancelResponse {
   status: CommunitySuggestionCancelStatus;
 }
 
-export type IdentifierReportReason = "not_a_game";
+// not_a_game: the file is no game at all. wrong_game: the file isn't this
+// game's file (it may still be another game's); it always names the game.
+export type IdentifierReportReason = "not_a_game" | "wrong_game";
 
 export interface IdentifierReportPayload {
   exeName: string;

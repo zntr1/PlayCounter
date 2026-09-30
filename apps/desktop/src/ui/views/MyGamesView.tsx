@@ -104,6 +104,7 @@ import {
   untrackGame,
   verifyLaunchTargetsThrottled,
   type GameAliasRef,
+  rejectFileForGame,
 } from "../../tracker";
 import {
   canSuggestCustomGameToCommunity,
@@ -193,8 +194,10 @@ import {
 } from "./matchCheckModel";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
+import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
+import { isRejectedGameFile } from "../../rejectedGameFiles";
 import { PickGameFileDialog } from "./games/GameFileList";
 import {
   canCheckFile,
@@ -720,6 +723,7 @@ export function MyGamesView({
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
+  const rejectedGameFiles = useAppStore((state) => state.rejectedGameFiles);
   const libraryImports = useAppStore((state) => state.libraryImports);
   const playcounterLibrary = useAppStore((state) => state.playcounterLibrary);
   const libraryInstalls = useAppStore((state) => state.libraryInstalls);
@@ -977,6 +981,18 @@ export function MyGamesView({
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
     const isIgnored = (exeName: string) =>
       matchesProcessPatternSet(exeName, ignoredExeNames);
+    // "It doesn't belong to <game>": its sessions stay in History, but the file
+    // is no longer listed as the game's.
+    const isRejectedFor = (summary: GameSummary, exeName: string) =>
+      rejectedGameFiles.length > 0 &&
+      [
+        {
+          gameId: summary.gameId,
+          source: summary.source,
+          igdbId: summary.igdbId,
+        },
+        ...summary.aliases,
+      ].some((game) => isRejectedGameFile(rejectedGameFiles, exeName, game));
     const metadata = matchedEntriesByGame(
       [
         ...exeCache.values(),
@@ -1564,6 +1580,11 @@ export function MyGamesView({
 
     const consumedKeys = new Set<string>();
     for (const summary of summaries.values()) {
+      if (rejectedGameFiles.length > 0) {
+        summary.exeNames = summary.exeNames.filter(
+          (exeName) => !isRejectedFor(summary, exeName),
+        );
+      }
       // Native/imported evidence can coexist with an emulator route for the
       // same game. Keep both; never add IGDB merely for the metadata namespace.
       const emulatorSources = summary.emulatorSources ?? [];
@@ -1627,6 +1648,7 @@ export function MyGamesView({
     playtimeAdjustments,
     providerFloorSeconds,
     recentSortNow,
+    rejectedGameFiles,
     resolveIgdbId,
     scopedExeLinks,
     sessions,
@@ -3635,6 +3657,19 @@ export function GameLibraryCard({
           ? `${exeName} is no longer tracked here. Your earlier report was already reviewed.`
           : `${exeName} is no longer tracked here. Your report is queued for review.`,
     });
+  }
+
+  // "It doesn't belong to <game>": the picked file (matchFile) leaves this game.
+  async function handleNotThisGame(exeName: string) {
+    setReportOpen(false);
+    if (!exeName) return;
+    const outcome = await rejectFileForGame(exeName, {
+      gameId: flowFileGame.gameId,
+      source: flowFileGame.source,
+      igdbId: flowExeEntry?.igdbId ?? flowFolderLink?.igdbId ?? game.igdbId,
+      aliases: game.aliases,
+    });
+    notifyFileRemovedFromGame(exeName, game.name, outcome, addToast);
   }
 
   function handleIgnoreApp(exeName: string) {
@@ -5795,6 +5830,9 @@ export function GameLibraryCard({
                   }
             }
             onIgnoreApp={demo ? undefined : handleIgnoreApp}
+            onNotThisGame={
+              demo ? undefined : (exeName) => void handleNotThisGame(exeName)
+            }
           />
         ) : null}
         {softwareOpen && flowExeName ? (
@@ -6299,6 +6337,9 @@ export function GameLibraryCard({
                 }
           }
           onIgnoreApp={demo ? undefined : handleIgnoreApp}
+          onNotThisGame={
+            demo ? undefined : (exeName) => void handleNotThisGame(exeName)
+          }
         />
       ) : null}
       {softwareOpen && flowExeName ? (

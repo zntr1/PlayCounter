@@ -22,11 +22,13 @@ import {
   markCommunitySuggestionRejected,
   reportNegativeMatch,
   suggestTrackedGameToCommunity,
+  rejectFileForGame,
 } from "../../tracker";
 import { Panel } from "../components";
 import { Button } from "../primitives";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
+import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { findTour } from "../tour/tourDefinitions";
@@ -154,6 +156,23 @@ export function NowPlayingView() {
     notifyNegativeReportOutcome(session.exeName, outcome, addToast);
   }
 
+  // "It doesn't belong to <game>": the running file leaves this game.
+  async function handleNotThisGame(session: ActiveSession) {
+    setReportTarget(null);
+    const outcome = await rejectFileForGame(session.exeName, {
+      gameId: session.gameId,
+      source: session.source ?? null,
+      igdbId: session.igdbId,
+      aliases: [{ gameId: session.gameId, source: session.source ?? null }],
+    });
+    notifyFileRemovedFromGame(
+      session.exeName,
+      session.gameName,
+      outcome,
+      addToast,
+    );
+  }
+
   async function handleNotPlaying(session: ActiveSession) {
     setReportTarget(null);
     const outcome = await ignoreTrackedProcessLocally(
@@ -278,6 +297,7 @@ export function NowPlayingView() {
           }}
           onNotAGame={() => void handleNegativeReport(reportTarget)}
           onNotPlaying={() => void handleNotPlaying(reportTarget)}
+          onNotThisGame={() => void handleNotThisGame(reportTarget)}
           onSoftware={() => {
             setSoftwareTarget(reportTarget);
             setReportTarget(null);

@@ -7,6 +7,7 @@ import {
   EyeOff,
   Flag,
   ArrowLeftRight,
+  Unlink,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -21,12 +22,12 @@ import {
   type GameFile,
 } from "./views/games/gameFiles";
 
-type Choice = "not-a-game" | "not-playing" | "app";
+type Choice = "not-a-game" | "not-playing" | "app" | "not-this-game";
 
 // What each ignoring choice does, shown before it runs. Both are undone
 // from Discovered, where ignored files can be restored.
 const confirmCopy: Record<
-  Exclude<Choice, "app">,
+  Exclude<Choice, "app" | "not-this-game">,
   { title: string; points: string[]; action: string }
 > = {
   "not-a-game": {
@@ -64,6 +65,29 @@ function ignoreAppCopy(isOffline: boolean) {
   };
 }
 
+// "It doesn't belong to <game>": the file leaves this game only. Game.exe and
+// co. only leave this game's folders and are never reported.
+function notThisGameCopy(
+  gameName: string,
+  exeName: string,
+  isOffline: boolean,
+) {
+  const generic = isGenericExeName(exeName);
+  return {
+    title: `Remove this file from ${gameName}?`,
+    points: [
+      generic
+        ? `PlayCounter stops counting ${exeName} in this game's folder for ${gameName}.`
+        : `PlayCounter stops counting it for ${gameName} on this PC.`,
+      generic || isOffline
+        ? "Nothing is reported."
+        : `It's reported to community review: this file isn't ${gameName}'s.`,
+      `If it runs, it shows up in Discovered. Linking it to ${gameName} yourself undoes this.`,
+    ],
+    action: "Remove from game",
+  };
+}
+
 // Game.exe and co.: only this folder is ignored, and nothing is ever reported.
 function genericFolderCopy(exeName: string) {
   return {
@@ -90,6 +114,7 @@ export function ReportWrongMatchDialog({
   onNotPlaying,
   onSoftware,
   onIgnoreApp,
+  onNotThisGame,
   demo = false,
 }: {
   /** The file to report. Empty: the user picks one of `files` first. */
@@ -113,6 +138,8 @@ export function ReportWrongMatchDialog({
   onSoftware?: (exeName: string) => void;
   /** "It's an app, ignore it": software, ignored on this PC. */
   onIgnoreApp?: (exeName: string) => void;
+  /** "It doesn't belong to <game>": the file leaves this game, reported. */
+  onNotThisGame?: (exeName: string) => void;
   demo?: boolean;
 }) {
   const reportable = files?.filter(canReportFile) ?? [];
@@ -125,20 +152,25 @@ export function ReportWrongMatchDialog({
   const label = exeFacts
     ? `${exeName} · ${fileRunStatus(exeFacts)}`
     : exeName || "this app";
+  const game = gameName || "this game";
   const copy =
     picking || !confirming
       ? null
-      : isGenericExeName(exeName)
-        ? genericFolderCopy(exeName)
-        : confirming === "app"
-          ? ignoreAppCopy(isOffline)
-          : confirmCopy[confirming];
+      : confirming === "not-this-game"
+        ? notThisGameCopy(game, exeName, isOffline)
+        : isGenericExeName(exeName)
+          ? genericFolderCopy(exeName)
+          : confirming === "app"
+            ? ignoreAppCopy(isOffline)
+            : confirmCopy[confirming];
   const confirmAction =
     confirming === "not-a-game"
       ? onNotAGame
       : confirming === "app"
         ? onIgnoreApp
-        : onNotPlaying;
+        : confirming === "not-this-game"
+          ? onNotThisGame
+          : onNotPlaying;
 
   function back() {
     setLastChoice(confirming);
@@ -224,8 +256,10 @@ export function ReportWrongMatchDialog({
         </div>
       ) : (
         <div>
+          {/* Two directions: the file is fine and the game is wrong, or the
+              game is fine and the file is not one of its game files. */}
           <h3 className="text-sm font-semibold text-text">
-            What&apos;s wrong with this match?
+            {game} is the wrong match for {exeName || "this file"}
           </h3>
           <div className="mt-3 grid gap-2">
             <ChoiceCard
@@ -253,14 +287,30 @@ export function ReportWrongMatchDialog({
                 onClick={() => setConfirming("app")}
               />
             ) : null}
+          </div>
+          <h3 className="mt-5 text-sm font-semibold text-text">
+            {exeName || "This file"} isn&apos;t {game}&apos;s game file
+          </h3>
+          <div className="mt-3 grid gap-2">
+            {onNotThisGame ? (
+              <ChoiceCard
+                icon={Unlink}
+                title={`It doesn't belong to ${game}`}
+                description="Not one of its files. Removed from this game and reported."
+                autoFocus={lastChoice === "not-this-game"}
+                onClick={() => setConfirming("not-this-game")}
+              />
+            ) : null}
             <ChoiceCard
               icon={Ban}
-              title="It's part of a game, not the game"
+              title="It's part of the game, not the game"
               description="A crash reporter, anti-cheat, installer or updater. Ignored and reported."
               autoFocus={lastChoice === "not-a-game"}
               onClick={() => setConfirming("not-a-game")}
             />
-            {onNotPlaying ? (
+          </div>
+          {onNotPlaying ? (
+            <div className="mt-5 grid gap-2">
               <ChoiceCard
                 icon={CircleHelp}
                 title="Not sure, just ignore it"
@@ -268,8 +318,8 @@ export function ReportWrongMatchDialog({
                 autoFocus={lastChoice === "not-playing"}
                 onClick={() => setConfirming("not-playing")}
               />
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
       )}
     </Modal>

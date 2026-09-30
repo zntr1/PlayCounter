@@ -10,6 +10,7 @@ import type { Session } from "@playcounter/shared";
 import {
   changeCustomGameLocally,
   findGameMatches,
+  rejectFileForGame,
   removeOwnGameFile,
   reportNegativeMatch,
   submitLocalLinkToCommunity,
@@ -596,7 +597,7 @@ it("asks which file is wrong and reports only that file", async () => {
   );
   expect(fileChoice(NEVER_RAN_FILE.exeName)?.disabled).toBe(false);
   await act(async () => fileChoice(NEVER_RAN_FILE.exeName)!.click());
-  await clickButtonWith("part of a game");
+  await clickButtonWith("part of the game");
   await act(async () => dialogButton("Ignore and report")!.click());
 
   expect(reportNegativeMatch).toHaveBeenCalledOnce();
@@ -771,4 +772,52 @@ it("lists cs2.exe once, however the import, the server and the session spell it"
   expect(rows).toHaveLength(1);
   // The name the file ran as.
   expect(rows[0].textContent).toBe("cs2.exe");
+});
+
+it("takes the picked file off the game from the report picker", async () => {
+  vi.mocked(rejectFileForGame).mockResolvedValue({ report: "recorded" });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.getState().setExeCacheEntry(NEVER_RAN_FILE);
+  await act(() => root.render(<LibraryTestShell />));
+  await reportFromCard();
+  await act(async () => fileChoice(NEVER_RAN_FILE.exeName)!.click());
+
+  expect(menuText()).toContain(
+    `${NEVER_RAN_FILE.exeName} isn't ${DRAGON_AGE.name}'s game file`,
+  );
+  await clickButtonWith(`doesn't belong to ${DRAGON_AGE.name}`);
+  await act(async () => dialogButton("Remove from game")!.click());
+
+  expect(rejectFileForGame).toHaveBeenCalledOnce();
+  expect(rejectFileForGame).toHaveBeenCalledWith(
+    NEVER_RAN_FILE.exeName,
+    expect.objectContaining({ gameId: 1, source: "igdb", igdbId: 100 }),
+  );
+  expect(useAppStore.getState().toasts.at(-1)?.title).toBe(
+    `${NEVER_RAN_FILE.exeName} removed from ${DRAGON_AGE.name}`,
+  );
+});
+
+it("no longer lists a file taken off the game; its sessions stay", async () => {
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.setState({
+    recentSessions: [ranAs(1, "SupportTool.exe")],
+    rejectedGameFiles: [
+      {
+        exeName: "supporttool.exe",
+        gameId: 1,
+        source: "igdb",
+        igdbId: 100,
+        rejectedAt: DATE,
+      },
+    ],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  expect(card().textContent).toContain("1 session");
+  await openFilesTab(DRAGON_AGE.name);
+
+  const rows = [...document.querySelectorAll("span.font-mono")].filter((span) =>
+    span.closest(".rounded-lg"),
+  );
+  expect(rows.map((span) => span.textContent)).toEqual([DATABASE_FILE.exeName]);
 });

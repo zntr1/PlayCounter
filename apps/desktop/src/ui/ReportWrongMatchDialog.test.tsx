@@ -13,6 +13,7 @@ const handlers = {
   onNotPlaying: vi.fn(),
   onSoftware: vi.fn(),
   onIgnoreApp: vi.fn(),
+  onNotThisGame: vi.fn(),
 };
 
 beforeEach(() => {
@@ -68,9 +69,10 @@ it("picks a different game in one click", async () => {
 });
 
 it.each([
-  ["part of a game, not the game", "Ignore and report", "onNotAGame"],
+  ["part of the game, not the game", "Ignore and report", "onNotAGame"],
   ["Not sure, just ignore it", "Ignore on this PC", "onNotPlaying"],
   ["an app, ignore it", "Ignore app", "onIgnoreApp"],
+  ["doesn't belong to Elden Ring", "Remove from game", "onNotThisGame"],
 ] as const)(
   "asks before ignoring: %s",
   async (choice, confirmLabel, handler) => {
@@ -80,6 +82,7 @@ it.each([
     expect(handlers.onNotAGame).not.toHaveBeenCalled();
     expect(handlers.onNotPlaying).not.toHaveBeenCalled();
     expect(handlers.onIgnoreApp).not.toHaveBeenCalled();
+    expect(handlers.onNotThisGame).not.toHaveBeenCalled();
 
     await click("Back");
     expect(button(choice)).toBeDefined();
@@ -87,10 +90,27 @@ it.each([
     await click(choice);
     await click(confirmLabel);
     expect(handlers[handler]).toHaveBeenCalledOnce();
+    expect(handlers[handler]).toHaveBeenCalledWith("eldenring.exe");
   },
 );
 
-it.each(["part of a game, not the game", "Not sure, just ignore it"])(
+it("shows both directions: the wrong game, and the wrong file", async () => {
+  await render(true);
+  const text = document.body.textContent ?? "";
+  expect(text).toContain("Elden Ring is the wrong match for eldenring.exe");
+  expect(text).toContain("eldenring.exe isn't Elden Ring's game file");
+});
+
+it("removes the file from the game and reports it, saying so first", async () => {
+  await render(true);
+  await click("doesn't belong to Elden Ring");
+  const text = document.body.textContent ?? "";
+  expect(text).toContain("Remove this file from Elden Ring?");
+  expect(text).toContain("this file isn't Elden Ring's");
+  expect(text).toContain("shows up in Discovered");
+});
+
+it.each(["part of the game, not the game", "Not sure, just ignore it"])(
   "promises only a folder ignore for Game.exe: %s",
   async (choice) => {
     await act(() =>
@@ -108,6 +128,22 @@ it.each(["part of a game, not the game", "Not sure, just ignore it"])(
     expect(button("Ignore this folder")).toBeDefined();
   },
 );
+
+it("removes Game.exe only from this game's folder, reporting nothing", async () => {
+  await act(() =>
+    root.render(
+      createElement(ReportWrongMatchDialog, {
+        exeName: "Game.exe",
+        gameName: "Dead Plate",
+        ...handlers,
+      }),
+    ),
+  );
+  await click("doesn't belong to Dead Plate");
+  expect(document.body.textContent).toContain("in this game's folder");
+  expect(document.body.textContent).toContain("Nothing is reported.");
+  expect(document.body.textContent).not.toContain("community review");
+});
 
 it("reports nothing when the user is only unsure", async () => {
   await render(true);
