@@ -707,3 +707,68 @@ it("asks which file to check and checks only that file", async () => {
   expect(findGameMatches).toHaveBeenCalledWith(DATABASE_FILE.exeName);
   expect(findGameMatches).not.toHaveBeenCalledWith(OWN_FILE.exeName);
 });
+
+it("lists cs2.exe once, however the import, the server and the session spell it", async () => {
+  const CS2 = {
+    id: 5,
+    igdbId: 500,
+    name: "Counter-Strike 2",
+    coverUrl: "",
+    source: "igdb" as const,
+  };
+  const importCs2 = (spelling: string) =>
+    commitLibraryImports([
+      buildLibraryImportCommit({
+        provider: "steam",
+        now: DATE,
+        scanned: {
+          externalId: "730",
+          playtimeSeconds: 3600,
+          lastPlayedUnix: Date.parse(DATE) / 1000,
+          installed: true,
+          executables: [],
+        },
+        resolved: {
+          key: "steam:730",
+          status: "resolved",
+          game: CS2,
+          executables: [
+            {
+              platform: "windows",
+              kind: "exe",
+              value: spelling,
+              provenance: "igdb",
+              verified: true,
+            },
+          ],
+        },
+      })!,
+    ]);
+  importCs2("CS2.exe");
+  importCs2("cs2.exe");
+  const imported = [...useAppStore.getState().libraryImports.values()].find(
+    (entry) => entry.externalId === "730",
+  );
+  expect(imported?.linkedExeNames).toEqual(["CS2.exe"]);
+
+  useAppStore.setState({
+    recentSessions: [
+      ranAs(1, "cs2.exe", {
+        gameId: CS2.id,
+        igdbId: CS2.igdbId,
+        gameName: CS2.name,
+      }),
+    ],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await openFilesTab(CS2.name);
+
+  const rows = [...document.querySelectorAll("span.font-mono")].filter(
+    (span) =>
+      span.textContent?.toLowerCase() === "cs2.exe" &&
+      span.closest(".rounded-lg"),
+  );
+  expect(rows).toHaveLength(1);
+  // The name the file ran as.
+  expect(rows[0].textContent).toBe("cs2.exe");
+});

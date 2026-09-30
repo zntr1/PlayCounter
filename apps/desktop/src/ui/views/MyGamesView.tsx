@@ -519,6 +519,14 @@ function isDatabaseSource(source: GameSource | null | undefined) {
   return source === "igdb" || source === "community";
 }
 
+// Windows file names ignore case: cs2.exe and CS2.exe are one file, listed
+// once. The spelling seen first stays; sessions come first, so it is the name
+// the file ran as.
+function hasExeName(exeNames: readonly string[], exeName: string) {
+  const key = exeName.toLowerCase();
+  return exeNames.some((name) => name.toLowerCase() === key);
+}
+
 function sourceRank(source: GameSource | null | undefined) {
   return source === "igdb" ? 0 : source === "community" ? 1 : 2;
 }
@@ -1063,7 +1071,7 @@ export function MyGamesView({
         );
       }
       summary.igdbId ??= entry.igdbId;
-      if (!summary.exeNames.includes(entry.exeName)) {
+      if (!hasExeName(summary.exeNames, entry.exeName)) {
         if (entry.source === summary.source)
           summary.exeNames.unshift(entry.exeName);
         else summary.exeNames.push(entry.exeName);
@@ -1234,7 +1242,7 @@ export function MyGamesView({
         existing.lastPlayedAt = endedOrStartedAt;
       }
       summariesWithPlayEvidence.add(summaryKey);
-      if (!existing.exeNames.includes(session.exeName)) {
+      if (!hasExeName(existing.exeNames, session.exeName)) {
         existing.exeNames.push(session.exeName);
       }
       if (session.emulator) {
@@ -1367,7 +1375,7 @@ export function MyGamesView({
       if (canSwitchApprovedSuggestionToCommunity(activeSession)) {
         existing.communitySuggestionExeName ??= activeSession.exeName;
       }
-      if (!existing.exeNames.includes(activeSession.exeName)) {
+      if (!hasExeName(existing.exeNames, activeSession.exeName)) {
         existing.exeNames.push(activeSession.exeName);
       }
       if (activeSession.emulator) {
@@ -1483,7 +1491,9 @@ export function MyGamesView({
       summary.name ||= entry.name;
       summary.coverUrl ||= entry.coverUrl;
       for (const exeName of entry.linkedExeNames) {
-        if (!summary.exeNames.includes(exeName)) summary.exeNames.push(exeName);
+        if (!hasExeName(summary.exeNames, exeName)) {
+          summary.exeNames.push(exeName);
+        }
       }
       if (
         !summary.libraryImports.some(

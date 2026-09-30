@@ -45,12 +45,10 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
         previous?.providerHasPlayedEvidence === true
           ? true
           : commit.entry.providerHasPlayedEvidence,
-      linkedExeNames: [
-        ...new Set([
-          ...(previous?.linkedExeNames ?? []),
-          ...commit.entry.linkedExeNames,
-        ]),
-      ],
+      linkedExeNames: uniqueExeNames([
+        ...(previous?.linkedExeNames ?? []),
+        ...commit.entry.linkedExeNames,
+      ]),
       linkedExeSources: [
         ...new Set([
           ...(previous?.linkedExeSources ?? []),
@@ -248,4 +246,15 @@ function addBackfillSession(
     endedAt: now.toISOString(),
     durationSeconds,
   });
+}
+
+// cs2.exe and CS2.exe are one file: a re-import in the server's spelling must
+// not list it twice. The spelling already stored stays.
+function uniqueExeNames(names: readonly string[]) {
+  const unique = new Map<string, string>();
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (!unique.has(key)) unique.set(key, name);
+  }
+  return [...unique.values()];
 }
