@@ -3678,7 +3678,14 @@ export function applyGameMatch(exeName: string, game: Game) {
   const key = exeName.toLowerCase();
   const existing = state.exeCache.get(key);
   if (existing?.state !== "matched") return;
-  const igdbId = game.igdbId ?? existing.igdbId;
+  // Another database game never inherits the file's old IGDB id: a community
+  // game without one would pose as that IGDB game (details, art, merging).
+  // A custom game keeps it, as Convert to custom game does.
+  const otherDatabaseGame =
+    game.source !== "custom" &&
+    (existing.source !== game.source || existing.gameId !== game.id);
+  const igdbId =
+    game.igdbId ?? (otherDatabaseGame ? undefined : existing.igdbId);
   if (
     existing.source === game.source &&
     existing.gameId === game.id &&

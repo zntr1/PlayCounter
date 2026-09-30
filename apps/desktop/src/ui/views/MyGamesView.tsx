@@ -7183,7 +7183,7 @@ function MatchCheckDialog({
         // A single combined IGDB/community result is preselected so applying
         // is one click - unless it is what the exe already uses. An ambiguous
         // set requires an explicit pick.
-        setSelection(initialMatchSelection(games, game));
+        setSelection(initialMatchSelection(games, current));
         setState("done");
       } catch (err) {
         if (cancelled) return;
@@ -7194,7 +7194,7 @@ function MatchCheckDialog({
     return () => {
       cancelled = true;
     };
-  }, [attempt, exeName, game.gameId, game.source, isOffline]);
+  }, [attempt, exeName, current.gameId, current.source, isOffline]);
 
   const footer = (
     <div className="grid gap-3">

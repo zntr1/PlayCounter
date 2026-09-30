@@ -8,6 +8,7 @@ import { addGameWithoutFile } from "../../library/manualAdd";
 import { useAppStore } from "../../store";
 import type { Session } from "@playcounter/shared";
 import {
+  applyKnownGameMatch,
   changeCustomGameLocally,
   findGameMatches,
   rejectFileForGame,
@@ -841,4 +842,39 @@ it("opens Report wrong match for the checked file from Check for matches", async
     `${DRAGON_AGE.name} is the wrong match for ${DATABASE_FILE.exeName}`,
   );
   expect(reportNegativeMatch).not.toHaveBeenCalled();
+});
+
+it("accepts a database match for the user's own file, not the card's IGDB file", async () => {
+  // The Custom file a cancelled suggestion left on the IGDB game's card.
+  vi.mocked(findGameMatches).mockResolvedValue({
+    games: [
+      {
+        id: DRAGON_AGE.id,
+        igdbId: DRAGON_AGE.igdbId,
+        name: DRAGON_AGE.name,
+        coverUrl: "",
+        source: "igdb",
+      },
+    ],
+  });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.getState().setExeCacheEntry(OWN_FILE);
+  await act(() => root.render(<LibraryTestShell />));
+  await act(async () =>
+    card()
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
+      )!
+      .click(),
+  );
+  await act(async () => fileChoice(OWN_FILE.exeName)!.click());
+  expect(findGameMatches).toHaveBeenCalledWith(OWN_FILE.exeName);
+
+  await act(async () => dialogButton("Use this match")!.click());
+
+  expect(applyKnownGameMatch).toHaveBeenCalledOnce();
+  expect(applyKnownGameMatch).toHaveBeenCalledWith(
+    OWN_FILE.exeName,
+    expect.objectContaining({ source: "igdb", id: DRAGON_AGE.id }),
+  );
 });
