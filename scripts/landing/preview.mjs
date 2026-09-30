@@ -21,6 +21,8 @@ const mime = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".woff2": "font/woff2",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
 };
 const port = Number(process.env.PLAYCOUNTER_LANDING_PORT ?? 4180);
 createServer((request, response) => {
@@ -95,9 +97,30 @@ createServer((request, response) => {
     send(404, readFileSync(errorFile), { "Content-Type": mime[".html"] });
     return;
   }
-  send(200, readFileSync(file), {
+  const type = {
     "Content-Type": mime[extname(file)] ?? "application/octet-stream",
-  });
+    "Accept-Ranges": "bytes",
+  };
+  // Byte ranges, so video seeking behaves like on the static host.
+  const range = /^bytes=(\d*)-(\d*)$/.exec(request.headers.range ?? "");
+  if (range) {
+    const size = statSync(file).size;
+    const start = range[1]
+      ? Number(range[1])
+      : Math.max(0, size - Number(range[2]));
+    const end =
+      range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    if (start >= size || start > end) {
+      send(416, "", { "Content-Range": `bytes */${size}` });
+      return;
+    }
+    send(206, readFileSync(file).subarray(start, end + 1), {
+      ...type,
+      "Content-Range": `bytes ${start}-${end}/${size}`,
+    });
+    return;
+  }
+  send(200, readFileSync(file), type);
 }).listen(port, "127.0.0.1", () =>
   console.log(`Landing preview: http://127.0.0.1:${port}`),
 );

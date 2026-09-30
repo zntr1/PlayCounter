@@ -17,10 +17,29 @@ export const site = {
   discord: "https://discord.gg/t2nG3jaEEY",
   description:
     "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox and Epic hours and your Battle.net games.",
-  milestone: "Around 200 users since our launch in June.",
-  // The milestone is the owner's approximate cumulative user estimate, September 2026.
+  milestone: "+500 installations in the last 30 days.",
+  // The milestone is the owner's install count for the last 30 days, September 2026.
   // It is not the presence endpoint's online installation count or a download count.
   steamStatus: "Coming soon to Steam",
+  // Hero video, made in code (source: E:\repos\repos\PlayCounter-trailer, not
+  // in this repo). The silent loop previews the app; the trailer plays with
+  // sound on request. Rename the files (-v2) when replacing them: /videos/ is
+  // cached for a year. uploadDate is the day the video first went live.
+  trailer: {
+    name: "PlayCounter trailer",
+    description:
+      "53 seconds of PlayCounter: start a game the way you always do, PlayCounter tracks it, and every session lands in your library, history and achievements.",
+    duration: "PT53S",
+    label: "0:53",
+    uploadDate: "2026-09-30",
+    width: 1920,
+    height: 1080,
+    webm: "/videos/playcounter-trailer-v1.webm",
+    mp4: "/videos/playcounter-trailer-v1.mp4",
+    loopWebm: "/videos/playcounter-loop-v1.webm",
+    loopMp4: "/videos/playcounter-loop-v1.mp4",
+    poster: "/videos/playcounter-loop-v1-poster.webp",
+  },
   // App views and guide steps, captured from the 1.2.0 UI with an example
   // library. "window" images are full app windows with a 1000px variant;
   // "crop" images are 2x captures and width/height are their display size.

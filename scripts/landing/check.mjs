@@ -132,6 +132,27 @@ for (const path of expectedHtml) {
       `Missing image dimensions: ${path}`,
     );
   }
+  // Videos: the poster, every source and the preview loop site.js swaps in.
+  for (const tag of [
+    ...tags(html, "video"),
+    ...tags(html, "source"),
+    ...tags(html, "div").filter((div) => div.includes("data-preview-")),
+  ]) {
+    for (const name of [
+      "src",
+      "poster",
+      "data-preview-webm",
+      "data-preview-mp4",
+    ]) {
+      const value = attribute(tag, name);
+      if (!value) continue;
+      assert(
+        value.startsWith("/videos/") &&
+          existsSync(resolve(directory, `.${value}`)),
+        `Missing video file ${value} in ${path}`,
+      );
+    }
+  }
   for (const tag of [
     ...tags(html, "a"),
     ...tags(html, "link"),
