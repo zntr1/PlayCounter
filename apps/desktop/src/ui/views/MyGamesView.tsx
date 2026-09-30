@@ -25,6 +25,7 @@ import {
   Clipboard,
   Check,
   CheckSquare,
+  ChevronsUp,
   Clock3,
   ClockPlus,
   Download,
@@ -142,6 +143,8 @@ import { MoveToPlayCounterDialog } from "./games/MoveToPlayCounterDialog";
 import { AddGameDialog } from "../AddGameDialog";
 import { SuggestToCommunityDialog } from "../SuggestToCommunityDialog";
 import { LibraryMatchOffer } from "../LibraryMatchOffer";
+import { LevelUpAllDialog } from "../LevelUpAllDialog";
+import { collectLevelUpOffers } from "../levelUpOffers";
 import {
   dismissLibraryMatchOffer,
   useLibraryMatchOffers,
@@ -680,6 +683,7 @@ export function MyGamesView({
     skippedCount: number;
   } | null>(null);
   const [addingGame, setAddingGame] = useState(false);
+  const [levelingUp, setLevelingUp] = useState(false);
   const isOffline = useIsOffline();
   const query = useAppStore((state) => state.libraryQuery);
   const setQuery = useAppStore((state) => state.setLibraryQuery);
@@ -1730,6 +1734,12 @@ export function MyGamesView({
     recentSortNow,
     allShelfCounts,
   ]);
+  const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
+  // Every Level up and Match found in the library, whatever tab is open.
+  const levelUpOffers = useMemo(
+    () => collectLevelUpOffers(games, exeCache, libraryMatchOffers),
+    [games, exeCache, libraryMatchOffers],
+  );
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return needle
@@ -2133,6 +2143,18 @@ export function MyGamesView({
                         className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
                       >
                         {activeImportableProviderConfig.importCtaLabel}
+                      </Button>
+                    ) : null}
+                    {levelUpOffers.length > 0 && !tourDemo.active ? (
+                      <Button
+                        variant="secondary"
+                        icon={ChevronsUp}
+                        data-controller-item="view-link"
+                        title="Switch every game with an approved suggestion or a found match"
+                        onClick={() => setLevelingUp(true)}
+                        className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
+                      >
+                        Level up all ({levelUpOffers.length})
                       </Button>
                     ) : null}
                     <Button
@@ -2608,6 +2630,31 @@ export function MyGamesView({
         <AddGameDialog
           libraryIgdbIds={new Set(games.flatMap((game) => game.igdbId ?? []))}
           onClose={() => setAddingGame(false)}
+        />
+      ) : null}
+      {levelingUp ? (
+        <LevelUpAllDialog
+          offers={levelUpOffers}
+          onCancel={() => setLevelingUp(false)}
+          onDone={({ applied, missed }) => {
+            setLevelingUp(false);
+            if (applied > 0) {
+              addToast({
+                tone: "success",
+                title:
+                  applied === 1
+                    ? "1 game leveled up"
+                    : `${applied} games leveled up`,
+              });
+            }
+            if (missed.length > 0) {
+              addToast({
+                tone: "info",
+                title: "No match right now",
+                detail: `${missed.join(", ")} kept their current state. Check again later.`,
+              });
+            }
+          }}
         />
       ) : null}
       {pendingBulkMove ? (
@@ -6570,9 +6617,8 @@ function RemoveGameDialog({
         if you want it gone for good.
       </p>
       <p className="mt-2 text-sm leading-6 text-text-muted">
-        Your history, notes, playthroughs and shelves are kept and come back
-        if the game is detected again. Use Remove + clear history to delete
-        them.
+        Your history, notes, playthroughs and shelves are kept and come back if
+        the game is detected again. Use Remove + clear history to delete them.
       </p>
     </Modal>
   );
