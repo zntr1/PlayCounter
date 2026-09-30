@@ -1403,6 +1403,66 @@ it("keeps Escape scoped to the visible library and lets dialogs handle it first"
   expect(selectionCheckboxes()).toHaveLength(0);
 });
 
+it("clears the search with Escape from anywhere once nothing else owns the key", async () => {
+  await act(() => root.render(<LibraryTestShell />));
+  const query = () => useAppStore.getState().libraryQuery;
+  const escape = (target: EventTarget = document.body) =>
+    act(() =>
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+  await inputSearch("Steam");
+
+  // Selection mode takes the first Escape.
+  await enterSelection();
+  await escape();
+  expect(selectionCheckboxes()).toHaveLength(0);
+  expect(query()).toBe("Steam");
+
+  for (const role of ["dialog", "menu"]) {
+    const overlay = document.createElement("div");
+    overlay.setAttribute("role", role);
+    document.body.append(overlay);
+    try {
+      await escape();
+      expect(query()).toBe("Steam");
+    } finally {
+      overlay.remove();
+    }
+  }
+
+  const field = document.createElement("input");
+  document.body.append(field);
+  try {
+    await escape(field);
+    expect(query()).toBe("Steam");
+  } finally {
+    field.remove();
+  }
+
+  await openFilters();
+  await escape();
+  expect(query()).toBe("Steam");
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>('[aria-controls="library-filters"]')!
+      .click(),
+  );
+
+  await act(() => useAppStore.getState().setActiveView("now"));
+  await escape();
+  expect(query()).toBe("Steam");
+  await act(() => useAppStore.getState().setActiveView("games"));
+
+  await escape();
+  expect(query()).toBe("");
+});
+
 async function openFilters() {
   const toggle = container.querySelector<HTMLButtonElement>(
     '[aria-controls="library-filters"]',

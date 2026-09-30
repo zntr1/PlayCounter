@@ -232,6 +232,7 @@ import {
   type StartLibraryGameDrag,
 } from "../libraryGameDrag";
 import { LibraryGameDropHint } from "../LibraryGameDropHint";
+import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 import {
   DEFAULT_PLAYTHROUGH_NAME,
   matchesLibraryFilters,
@@ -1884,6 +1885,13 @@ export function MyGamesView({
     displayedGames,
     `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}\u0000${editShelfFilters}`,
     !tourDemo.active,
+  );
+  // Selection mode and the filter panel take Escape before the search does.
+  const libraryVisible = useAppStore((state) => state.activeView === "games");
+  const clearQuery = useCallback(() => setQuery(""), [setQuery]);
+  useEscapeClearsSearch(
+    Boolean(query) && libraryVisible && !bulkSelection.active && !filtersOpen,
+    clearQuery,
   );
   const libraryDrag = useLibraryGameDrag(
     bulkSelection.selectedGames,
