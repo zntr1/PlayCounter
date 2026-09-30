@@ -1,4 +1,6 @@
 import type { Session } from "@playcounter/shared";
+import type { GameLifetimeTotal } from "./milestones";
+import { effectiveTotalSeconds } from "./playtimeAdjustments";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 
 export type HistoryFilter = "all" | "today" | "week" | "month" | "currentMonth";
@@ -512,6 +514,58 @@ export function topGames(
     });
   }
   return result;
+}
+
+/**
+ * The "All time" leaderboard ranks lifetime totals, the number My Games shows,
+ * so launcher time, archived time and manual edits count too. Games without a
+ * single session join with a session count of 0.
+ */
+export function withLifetimeTotals(
+  games: TopGame[],
+  totals: ReadonlyMap<string, GameLifetimeTotal>,
+  describe: (key: string) => {
+    name: string;
+    coverUrl: string;
+    lastPlayedMs: number;
+  },
+): TopGame[] {
+  const ranked = new Map<string, Omit<TopGame, "share">>();
+  for (const game of games) if (game.key) ranked.set(game.key, game);
+  for (const [key, total] of totals) {
+    const seconds = effectiveTotalSeconds(
+      total.recordedSeconds,
+      total.adjustmentSeconds,
+      total.providerFloorSeconds,
+    );
+    const played = ranked.get(key);
+    if (played) {
+      ranked.set(key, { ...played, seconds });
+      continue;
+    }
+    if (seconds <= 0) continue;
+    const fallback = describe(key);
+    ranked.set(key, {
+      key,
+      name: total.name || fallback.name,
+      coverUrl: total.coverUrl || fallback.coverUrl,
+      seconds,
+      sessionCount: 0,
+      lastPlayedMs: fallback.lastPlayedMs,
+    });
+  }
+
+  const sorted = [...ranked.values()]
+    .filter((game) => game.seconds > 0)
+    .sort(
+      (left, right) =>
+        right.seconds - left.seconds || left.name.localeCompare(right.name),
+    );
+  const total = sorted.reduce((sum, game) => sum + game.seconds, 0);
+  return sorted.map((game) => ({
+    ...game,
+    share: total > 0 ? game.seconds / total : 0,
+  }));
 }
 
 function dateKeyToLocalMs(key: string) {

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { milestoneMetrics } from "../../milestones";
+import { usePickedCovers } from "../../pickedCovers";
 import {
   createGameIdentityResolver,
   resolvedCanonicalGameKey,
@@ -30,6 +31,7 @@ import {
   monthLabel,
   recentUnlocks,
   summarizeAchievements,
+  type AchievementCatalog,
   type AchievementCatalogItem,
   type AchievementGroupId,
 } from "./achievements/achievementCatalog";
@@ -51,6 +53,26 @@ const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
 };
 
 const MILESTONE_GROUPS = GROUP_META.filter((group) => group.id !== "game");
+
+/** Game ladders are scoped by the game's identity key, so a picked cover
+ *  replaces the one the award was saved with. */
+function withPickedCovers(
+  catalog: AchievementCatalog,
+  pickedCovers: Record<string, string>,
+): AchievementCatalog {
+  const items = catalog.get("game");
+  if (!items) return catalog;
+  const next = new Map(catalog);
+  next.set(
+    "game",
+    items.map((item) =>
+      pickedCovers[item.scope]
+        ? { ...item, coverUrl: pickedCovers[item.scope] }
+        : item,
+    ),
+  );
+  return next;
+}
 
 export function AchievementsView() {
   const [tab, setTab] = useState<Tab>("milestones");
@@ -114,9 +136,14 @@ export function AchievementsView() {
     }
     return labels;
   }, [gameMetadata, resolveIgdbId]);
+  const pickedCovers = usePickedCovers();
   const catalog = useMemo(
-    () => buildAchievementCatalog(awardedMilestones, metrics, gameLabels),
-    [awardedMilestones, gameLabels, metrics],
+    () =>
+      withPickedCovers(
+        buildAchievementCatalog(awardedMilestones, metrics, gameLabels),
+        pickedCovers,
+      ),
+    [awardedMilestones, gameLabels, metrics, pickedCovers],
   );
   const summary = useMemo(
     () => summarizeAchievements(catalog, metrics.monthKey),

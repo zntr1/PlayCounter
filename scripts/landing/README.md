@@ -61,6 +61,14 @@ for a year. Game art comes from the existing landing covers and Steam's public
 store CDN; the launcher and emulator marks come from the repository's `assets/`.
 The older `*-v1-1-16` files stay because the repository README still uses them.
 
+The homepage hero is a video frame (`site.trailer` in `site.mjs`, files in
+`landing/videos/`): `site.js` plays a silent preview loop while it is on screen
+and the 53-second trailer with sound on request; without JavaScript it is a
+plain trailer player, and reduced motion or data saver keeps the poster. The
+videos are rendered from a separate project (`PlayCounter-trailer`, not in
+this repository). `/videos/` is cached for a year, so replacements need new
+file names (`-v2`).
+
 Retired URLs are recorded in `site.mjs`. The generic Windows page merges into
 the homepage; the old gaming-habits page points to the actual totals section.
 Comparison, self-ranking and Steam Replay pages have no equivalent replacement

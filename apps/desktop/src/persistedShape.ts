@@ -20,6 +20,7 @@ const OBJECT_LISTS = [
   "libraryInstalls",
   "scopedExeLinks",
   "ignoredExeFolders",
+  "rejectedGameFiles",
   "sessions",
   "activeSessions",
   "ambiguousMatches",
@@ -48,6 +49,7 @@ const OBJECTS = [
   "contributionCounts",
   "emulatorContributionCounts",
   "customHeroArt",
+  "customCoverArt",
   "tours",
   "activeSession",
 ];
@@ -59,6 +61,7 @@ const REQUIRED_STRINGS: Record<string, string[]> = {
   activeSessions: ["exeName", "startedAt"],
   ambiguousMatches: ["exeName"],
   ignoredExeFolders: ["exeName", "pathPrefix", "ignoredAt"],
+  rejectedGameFiles: ["exeName", "source", "rejectedAt"],
   emulatorMappings: ["contentKey", "emulatorId"],
   knownEmulators: ["emulatorId"],
 };

@@ -319,7 +319,9 @@ export interface CommunitySuggestionCancelResponse {
   status: CommunitySuggestionCancelStatus;
 }
 
-export type IdentifierReportReason = "not_a_game";
+// not_a_game: the file is no game at all. wrong_game: the file isn't this
+// game's file (it may still be another game's); it always names the game.
+export type IdentifierReportReason = "not_a_game" | "wrong_game";
 
 export interface IdentifierReportPayload {
   exeName: string;
@@ -587,6 +589,8 @@ export interface Settings {
   showWindowHotkey?: string | null;
   currentSessionHotkey?: string | null;
   launchOnStartup: boolean;
+  /** Page shown when PlayCounter opens. Absent = Now Playing. */
+  startView?: "now" | "games";
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
   libraryCardSize?: "grid" | "large" | "list";
@@ -664,9 +668,14 @@ export interface Settings {
   overlayMilestones?: boolean;
   overlayActionRequired?: boolean;
   overlayDiscoveries?: boolean;
+  /** Show the time of day on the current-session hotkey popup. Absent = off. */
+  overlayShowClock?: boolean;
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;
+  /** Hide the main window to the tray once a game started from PlayCounter
+   * is running. Absent = enabled. */
+  hideToTrayOnGameStart?: boolean;
   /** Add newly installed Steam and Battle.net games after the first import
    * from that launcher. Absent = enabled. */
   autoAddInstalledGames?: boolean;

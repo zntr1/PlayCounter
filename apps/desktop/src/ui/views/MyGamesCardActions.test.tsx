@@ -6,11 +6,16 @@ import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { addGameWithoutFile } from "../../library/manualAdd";
 import { useAppStore } from "../../store";
+import type { Session } from "@playcounter/shared";
 import {
+  applyKnownGameMatch,
   changeCustomGameLocally,
   findGameMatches,
+  rejectFileForGame,
   removeOwnGameFile,
+  reportNegativeMatch,
   submitLocalLinkToCommunity,
+  suggestTrackedGameToCommunity,
 } from "../../tracker";
 import { LibraryTestShell } from "./libraryTestShell";
 
@@ -178,6 +183,23 @@ it("offers no Report or Convert for the user's own .exe on a card with the datab
   expect(menuText()).not.toContain("Convert to Custom Game");
 });
 
+/** A real session of `exeName` as Dragon Age: proof it ran on this PC. */
+function ranAs(id: number, exeName: string, extra: Partial<Session> = {}) {
+  return {
+    id,
+    gameId: 1,
+    igdbId: 100,
+    gameName: DRAGON_AGE.name,
+    coverUrl: "",
+    source: "igdb" as const,
+    exeName,
+    startedAt: DATE,
+    endedAt: DATE,
+    durationSeconds: 600,
+    ...extra,
+  };
+}
+
 it("offers Report and Convert for an .exe the database matched", async () => {
   useAppStore.getState().setExeCacheEntry({
     exeName: "DragonAgeInquisition.exe",
@@ -323,9 +345,10 @@ async function openFilesTab(name: string) {
   await act(async () => files!.click());
 }
 
+// The Files tab row, not a session line that names the same file.
 function fileRow(exeName: string) {
   const name = [...document.querySelectorAll("span.font-mono")].find(
-    (span) => span.textContent === exeName,
+    (span) => span.textContent === exeName && span.closest(".rounded-lg"),
   );
   expect(name, `missing ${exeName}`).toBeDefined();
   return name!.closest(".rounded-lg")!;
@@ -498,4 +521,360 @@ it("opens the search from Check for Matches without sending anything", async () 
 
   expect(menuText()).toContain("Suggest community game");
   expect(submitLocalLinkToCommunity).not.toHaveBeenCalled();
+});
+
+/** Another Dragon Age file the server knows, never started on this PC. */
+const NEVER_RAN_FILE = { ...DATABASE_FILE, exeName: "DAOrigin.exe" };
+
+function reportFromCard() {
+  const report = card().querySelector<HTMLButtonElement>(
+    `[aria-label="Report wrong match for ${DRAGON_AGE.name}"]`,
+  );
+  expect(report, "missing Report wrong match").not.toBeNull();
+  return act(async () => report!.click());
+}
+
+function fileChoice(exeName: string) {
+  return [...document.querySelectorAll("button")].find(
+    (button) => button.querySelector("span.font-mono")?.textContent === exeName,
+  );
+}
+
+function clickButtonWith(text: string) {
+  const button = [...document.querySelectorAll("button")].find((item) =>
+    item.textContent?.includes(text),
+  );
+  expect(button, `missing ${text}`).toBeDefined();
+  return act(async () => button!.click());
+}
+
+it("offers Report and Check for an imported file that never ran here", async () => {
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  // A manual session only borrows the file name: it does not count as a run.
+  useAppStore.setState({
+    recentSessions: [ranAs(1, DATABASE_FILE.exeName, { origin: "manual" })],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+
+  expect(
+    card().querySelector(
+      `[aria-label="Report wrong match for ${DRAGON_AGE.name}"]`,
+    ),
+  ).not.toBeNull();
+  expect(
+    card().querySelector(`[aria-label="Check matches for ${DRAGON_AGE.name}"]`),
+  ).not.toBeNull();
+  await openFilesTab(DRAGON_AGE.name);
+  expect(fileRow(DATABASE_FILE.exeName).textContent).toContain(
+    "Never ran on this PC",
+  );
+});
+
+it("asks which file is wrong and reports only that file", async () => {
+  vi.mocked(reportNegativeMatch).mockResolvedValue({
+    localBlockApplied: true,
+    ignoreFileUpdated: true,
+    report: "recorded",
+  });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore
+    .getState()
+    .setExeCacheEntry({ ...DATABASE_FILE, exeName: "DAInquisition.exe" });
+  useAppStore.getState().setExeCacheEntry(NEVER_RAN_FILE);
+  useAppStore.setState({
+    recentSessions: [
+      ranAs(1, DATABASE_FILE.exeName),
+      ranAs(2, "DAInquisition.exe"),
+    ],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await reportFromCard();
+
+  expect(menuText()).toContain("Which file is wrong?");
+  expect(fileChoice("DAInquisition.exe")?.textContent).toContain("Last ran");
+  // An imported file can be matched wrong too: shown, and it can be picked.
+  expect(fileChoice(NEVER_RAN_FILE.exeName)?.textContent).toContain(
+    "Never ran on this PC",
+  );
+  expect(fileChoice(NEVER_RAN_FILE.exeName)?.disabled).toBe(false);
+  await act(async () => fileChoice(NEVER_RAN_FILE.exeName)!.click());
+  await clickButtonWith("part of the game");
+  await act(async () => dialogButton("Ignore and report")!.click());
+
+  expect(reportNegativeMatch).toHaveBeenCalledOnce();
+  expect(reportNegativeMatch).toHaveBeenCalledWith(NEVER_RAN_FILE.exeName, []);
+});
+
+it("shows how each file ran in Details and reports the file picked there", async () => {
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.getState().setExeCacheEntry(NEVER_RAN_FILE);
+  useAppStore.getState().setExeCacheEntry(OWN_FILE);
+  useAppStore.setState({
+    recentSessions: [
+      ranAs(1, DATABASE_FILE.exeName),
+      ranAs(2, OWN_FILE.exeName, { gameId: OWN_FILE.gameId, source: "custom" }),
+    ],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await openFilesTab(DRAGON_AGE.name);
+
+  const databaseRow = fileRow(DATABASE_FILE.exeName);
+  const neverRanRow = fileRow(NEVER_RAN_FILE.exeName);
+  const ownRow = fileRow(OWN_FILE.exeName);
+  expect(databaseRow.textContent).toContain("Last ran");
+  expect(neverRanRow.textContent).toContain("Never ran on this PC");
+  expect(rowButton(neverRanRow, "Report")).toBeDefined();
+  // The user's own file is changed or removed, not reported.
+  expect(rowButton(ownRow, "Report")).toBeUndefined();
+
+  await act(async () => rowButton(databaseRow, "Report")!.click());
+  expect(menuText()).not.toContain("Which file is wrong?");
+  expect(menuText()).toContain(`${DATABASE_FILE.exeName} · Last ran`);
+  expect(menuText()).toContain("It's a different game");
+});
+
+it("sends a different game for the reported file, not the user's own file on the card", async () => {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+    String(input).includes("/api/community/suggestions")
+      ? Response.json({ id: 5, verified: false })
+      : Response.json({
+          candidates: [
+            { igdbId: 300, name: "Dragon Age: Origins", coverUrl: "o.jpg" },
+          ],
+          hasMore: false,
+        }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.getState().setExeCacheEntry(OWN_FILE);
+  useAppStore.setState({ recentSessions: [ranAs(1, DATABASE_FILE.exeName)] });
+  await act(() => root.render(<LibraryTestShell />));
+  await reportFromCard();
+  await clickButtonWith("a different game");
+  const input = document.querySelector<HTMLInputElement>(
+    'input[placeholder="Search by game title or IGDB ID..."]',
+  )!;
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!.call(input, "Dragon Age");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await act(async () => dialogButton("Search")!.click());
+  await clickButtonWith("Dragon Age: Origins");
+  await act(async () =>
+    document
+      .getElementById("community-suggestion-form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })),
+  );
+
+  const post = fetchMock.mock.calls.find(([url]) =>
+    String(url).includes("/api/community/suggestions"),
+  ) as unknown as [string, RequestInit] | undefined;
+  expect(post, "missing suggestion request").toBeDefined();
+  expect(JSON.parse(String(post![1].body)).exeName).toBe(DATABASE_FILE.exeName);
+  // This PC records the suggestion on the same file, not on OWN_FILE.
+  expect(suggestTrackedGameToCommunity).toHaveBeenCalledWith(
+    DATABASE_FILE.exeName,
+    "Dragon Age: Origins",
+    "o.jpg",
+    5,
+    false,
+    300,
+  );
+});
+
+it("asks which file to check and checks only that file", async () => {
+  vi.mocked(findGameMatches).mockResolvedValue({ games: [] });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.getState().setExeCacheEntry(OWN_FILE);
+  useAppStore.getState().setExeCacheEntry(NEVER_RAN_FILE);
+  useAppStore.setState({ recentSessions: [ranAs(1, DATABASE_FILE.exeName)] });
+  await act(() => root.render(<LibraryTestShell />));
+  await act(async () =>
+    card()
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
+      )!
+      .click(),
+  );
+
+  expect(menuText()).toContain("Which file?");
+  expect(fileChoice(NEVER_RAN_FILE.exeName)?.disabled).toBe(false);
+  expect(fileChoice(OWN_FILE.exeName)?.disabled).toBe(false);
+  expect(findGameMatches).not.toHaveBeenCalled();
+  await act(async () => fileChoice(DATABASE_FILE.exeName)!.click());
+
+  expect(findGameMatches).toHaveBeenCalledWith(DATABASE_FILE.exeName);
+  expect(findGameMatches).not.toHaveBeenCalledWith(OWN_FILE.exeName);
+});
+
+it("lists cs2.exe once, however the import, the server and the session spell it", async () => {
+  const CS2 = {
+    id: 5,
+    igdbId: 500,
+    name: "Counter-Strike 2",
+    coverUrl: "",
+    source: "igdb" as const,
+  };
+  const importCs2 = (spelling: string) =>
+    commitLibraryImports([
+      buildLibraryImportCommit({
+        provider: "steam",
+        now: DATE,
+        scanned: {
+          externalId: "730",
+          playtimeSeconds: 3600,
+          lastPlayedUnix: Date.parse(DATE) / 1000,
+          installed: true,
+          executables: [],
+        },
+        resolved: {
+          key: "steam:730",
+          status: "resolved",
+          game: CS2,
+          executables: [
+            {
+              platform: "windows",
+              kind: "exe",
+              value: spelling,
+              provenance: "igdb",
+              verified: true,
+            },
+          ],
+        },
+      })!,
+    ]);
+  importCs2("CS2.exe");
+  importCs2("cs2.exe");
+  const imported = [...useAppStore.getState().libraryImports.values()].find(
+    (entry) => entry.externalId === "730",
+  );
+  expect(imported?.linkedExeNames).toEqual(["CS2.exe"]);
+
+  useAppStore.setState({
+    recentSessions: [
+      ranAs(1, "cs2.exe", {
+        gameId: CS2.id,
+        igdbId: CS2.igdbId,
+        gameName: CS2.name,
+      }),
+    ],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  await openFilesTab(CS2.name);
+
+  const rows = [...document.querySelectorAll("span.font-mono")].filter(
+    (span) =>
+      span.textContent?.toLowerCase() === "cs2.exe" &&
+      span.closest(".rounded-lg"),
+  );
+  expect(rows).toHaveLength(1);
+  // The name the file ran as.
+  expect(rows[0].textContent).toBe("cs2.exe");
+});
+
+it("takes the picked file off the game from the report picker", async () => {
+  vi.mocked(rejectFileForGame).mockResolvedValue({ report: "recorded" });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.getState().setExeCacheEntry(NEVER_RAN_FILE);
+  await act(() => root.render(<LibraryTestShell />));
+  await reportFromCard();
+  await act(async () => fileChoice(NEVER_RAN_FILE.exeName)!.click());
+
+  expect(menuText()).toContain(
+    `${NEVER_RAN_FILE.exeName} isn't ${DRAGON_AGE.name}'s game file`,
+  );
+  await clickButtonWith(`doesn't belong to ${DRAGON_AGE.name}`);
+  await act(async () => dialogButton("Remove from game")!.click());
+
+  expect(rejectFileForGame).toHaveBeenCalledOnce();
+  expect(rejectFileForGame).toHaveBeenCalledWith(
+    NEVER_RAN_FILE.exeName,
+    expect.objectContaining({ gameId: 1, source: "igdb", igdbId: 100 }),
+  );
+  expect(useAppStore.getState().toasts.at(-1)?.title).toBe(
+    `${NEVER_RAN_FILE.exeName} removed from ${DRAGON_AGE.name}`,
+  );
+});
+
+it("no longer lists a file taken off the game; its sessions stay", async () => {
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.setState({
+    recentSessions: [ranAs(1, "SupportTool.exe")],
+    rejectedGameFiles: [
+      {
+        exeName: "supporttool.exe",
+        gameId: 1,
+        source: "igdb",
+        igdbId: 100,
+        rejectedAt: DATE,
+      },
+    ],
+  });
+  await act(() => root.render(<LibraryTestShell />));
+  expect(card().textContent).toContain("1 session");
+  await openFilesTab(DRAGON_AGE.name);
+
+  const rows = [...document.querySelectorAll("span.font-mono")].filter((span) =>
+    span.closest(".rounded-lg"),
+  );
+  expect(rows.map((span) => span.textContent)).toEqual([DATABASE_FILE.exeName]);
+});
+
+it("opens Report wrong match for the checked file from Check for matches", async () => {
+  vi.mocked(findGameMatches).mockResolvedValue({ games: [] });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  await act(() => root.render(<LibraryTestShell />));
+  await act(async () =>
+    card()
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
+      )!
+      .click(),
+  );
+  expect(menuText()).not.toContain("This is not a game");
+
+  await clickButtonWith("Report wrong match…");
+
+  expect(menuText()).toContain(
+    `${DRAGON_AGE.name} is the wrong match for ${DATABASE_FILE.exeName}`,
+  );
+  expect(reportNegativeMatch).not.toHaveBeenCalled();
+});
+
+it("accepts a database match for the user's own file, not the card's IGDB file", async () => {
+  // The Custom file a cancelled suggestion left on the IGDB game's card.
+  vi.mocked(findGameMatches).mockResolvedValue({
+    games: [
+      {
+        id: DRAGON_AGE.id,
+        igdbId: DRAGON_AGE.igdbId,
+        name: DRAGON_AGE.name,
+        coverUrl: "",
+        source: "igdb",
+      },
+    ],
+  });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  useAppStore.getState().setExeCacheEntry(OWN_FILE);
+  await act(() => root.render(<LibraryTestShell />));
+  await act(async () =>
+    card()
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
+      )!
+      .click(),
+  );
+  await act(async () => fileChoice(OWN_FILE.exeName)!.click());
+  expect(findGameMatches).toHaveBeenCalledWith(OWN_FILE.exeName);
+
+  await act(async () => dialogButton("Use this match")!.click());
+
+  expect(applyKnownGameMatch).toHaveBeenCalledOnce();
+  expect(applyKnownGameMatch).toHaveBeenCalledWith(
+    OWN_FILE.exeName,
+    expect.objectContaining({ source: "igdb", id: DRAGON_AGE.id }),
+  );
 });

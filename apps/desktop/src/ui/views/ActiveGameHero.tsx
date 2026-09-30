@@ -14,6 +14,7 @@ import { emulatorSessionProvenance } from "../../emulators/provenance";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { isGenericExeName } from "../../library/exeCandidates";
 import { GameCover } from "../GameCover";
+import { usePickedCovers } from "../../pickedCovers";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
@@ -76,6 +77,7 @@ export function ActiveGameHero({
   tourAnchor,
 }: ActiveGameHeroProps) {
   const journal = useGameJournal(session);
+  const pickedCovers = usePickedCovers();
   const provenance = useAppStore(
     useShallow((state) =>
       emulatorSessionProvenance(
@@ -95,6 +97,7 @@ export function ActiveGameHero({
   );
   const activeNote = journalNote(journal, session.playthroughId ?? null);
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
+  const coverUrl = pickedCovers[sessionKey] ?? session.coverUrl;
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
   );
@@ -200,9 +203,9 @@ export function ActiveGameHero({
       data-tour={tourAnchor}
     >
       <div className="relative grid gap-8 p-7 sm:grid-cols-[250px_minmax(0,1fr)]">
-        {session.coverUrl ? (
+        {coverUrl ? (
           <GameCover
-            src={session.coverUrl}
+            src={coverUrl}
             alt=""
             loading="eager"
             highRes

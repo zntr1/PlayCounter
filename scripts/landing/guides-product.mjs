@@ -249,7 +249,7 @@ export const productGuides = [
       {
         id: "setup",
         title: "Start tracking an emulated game",
-        html: "<ol><li>Open PlayCounter and keep emulator detection enabled in <strong>Settings</strong>.</li><li>Launch a game in DOSBox, Dolphin, PCSX2 or mGBA normally.</li><li>Check the emulator’s page, which appears in the PlayCounter sidebar under <strong>Tools</strong>. Recognized content is matched to its game; review any choice the app asks you to confirm.</li><li>Play and close the game as usual. Its recorded time is available in your library and history.</li></ol><p>For DOS games bundled with their own DOSBox copy, launch the game through its normal shortcut. The emulator does not need to have been installed separately.</p>",
+        html: "<ol><li>Open PlayCounter and keep emulator detection enabled in <strong>Settings</strong>.</li><li>Launch a game in DOSBox, Dolphin, PCSX2 or mGBA normally.</li><li>Check the emulator’s page, which appears in the PlayCounter sidebar under <strong>Library</strong>. Recognized content is matched to its game; review any choice the app asks you to confirm.</li><li>Play and close the game as usual. Its recorded time is available in your library and history.</li></ol><p>For DOS games bundled with their own DOSBox copy, launch the game through its normal shortcut. The emulator does not need to have been installed separately.</p>",
       },
       {
         id: "matches",

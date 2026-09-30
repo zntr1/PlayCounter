@@ -1,13 +1,17 @@
 import { Search, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
+import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 
 /* One search field for the whole window, sitting in the title bar. On My
    Games it filters the library directly, within whatever shelf and source are
    open. On My History it filters the session journal by game or file name.
    Anywhere else, typing jumps to My Games on Enter with the text already
    applied and the library widened to every game, since a search started from
-   another view has no shelf in mind. Ctrl+F focuses it from any view. */
+   another view has no shelf in mind. Ctrl+F focuses it from any view except
+   Discovered, whose own search field takes Ctrl+F there. Escape clears it
+   from anywhere; My Games, My History and Discovered do that themselves,
+   since their own panels and fields take Escape first. */
 
 export const LIBRARY_SEARCH_PLACEHOLDER = "Search games...";
 export const HISTORY_SEARCH_PLACEHOLDER = "Search history...";
@@ -17,6 +21,7 @@ export function GlobalSearch() {
   const activeView = useAppStore((state) => state.activeView);
   const onLibrary = activeView === "games";
   const onHistory = activeView === "history";
+  const pageOwnsCtrlF = activeView === "discovered";
   const query = useAppStore((state) =>
     onHistory ? state.historyQuery : state.libraryQuery,
   );
@@ -25,6 +30,9 @@ export function GlobalSearch() {
   const setQuery = onHistory ? setHistoryQuery : setLibraryQuery;
   const setActiveView = useAppStore((state) => state.setActiveView);
   const searchWholeLibrary = useAppStore((state) => state.searchWholeLibrary);
+  const pageOwnsEscape = onLibrary || onHistory || pageOwnsCtrlF;
+  const clearQuery = useCallback(() => setQuery(""), [setQuery]);
+  useEscapeClearsSearch(Boolean(query) && !pageOwnsEscape, clearQuery);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -32,7 +40,8 @@ export function GlobalSearch() {
         !(event.ctrlKey || event.metaKey) ||
         event.altKey ||
         event.shiftKey ||
-        event.key.toLowerCase() !== "f"
+        event.key.toLowerCase() !== "f" ||
+        useAppStore.getState().activeView === "discovered"
       ) {
         return;
       }
@@ -93,12 +102,14 @@ export function GlobalSearch() {
           <X size={15} />
         </button>
       ) : null}
-      <kbd
-        aria-hidden="true"
-        className="pointer-events-none absolute right-3 z-10 hidden select-none items-center gap-0.5 rounded-md border border-border/70 bg-surface px-2 py-1 font-sans text-[11px] font-semibold tracking-wide text-text-faint sm:flex"
-      >
-        Ctrl F
-      </kbd>
+      {pageOwnsCtrlF ? null : (
+        <kbd
+          aria-hidden="true"
+          className="pointer-events-none absolute right-3 z-10 hidden select-none items-center gap-0.5 rounded-md border border-border/70 bg-surface px-2 py-1 font-sans text-[11px] font-semibold tracking-wide text-text-faint sm:flex"
+        >
+          Ctrl F
+        </kbd>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { Crown, Timer } from "lucide-react";
 import type { TopGame } from "../../historyStats";
+import { usePickedCovers } from "../../pickedCovers";
 import { formatDuration } from "../components";
 import { GameCover as LibraryCover } from "../GameCover";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
@@ -53,7 +54,7 @@ function formatLastPlayed(lastPlayedMs: number, nowMs: number) {
 }
 
 export function TopGamesBars({
-  games,
+  games: rankedGames,
   showDurationDays,
   nowMs,
   onSelectGame,
@@ -64,6 +65,12 @@ export function TopGamesBars({
   onSelectGame: (key: string, name: string) => void;
 }) {
   const tooltip = useChartTooltip();
+  const pickedCovers = usePickedCovers();
+  const games = rankedGames.map((game) =>
+    game.key && pickedCovers[game.key]
+      ? { ...game, coverUrl: pickedCovers[game.key] }
+      : game,
+  );
   const maxSeconds = Math.max(1, ...games.map((game) => game.seconds));
   const podiumGames = games
     .slice(0, 3)
@@ -221,9 +228,14 @@ function PodiumGame({
             </span>
           </span>
           <span className="mt-1.5 text-[11px] text-text-muted">
-            {game.sessionCount}{" "}
-            {game.sessionCount === 1 ? "session" : "sessions"}
-            {lastPlayed ? ` · ${lastPlayed}` : ""}
+            {[
+              game.sessionCount > 0
+                ? `${game.sessionCount} ${game.sessionCount === 1 ? "session" : "sessions"}`
+                : "",
+              lastPlayed,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         </span>
       </button>
@@ -284,17 +296,23 @@ function ListGame({
           </span>
         </span>
       </span>
-      <span className="relative hidden text-right sm:block">
-        <span className="block font-mono text-[13px] font-semibold tabular-nums text-text">
-          {game.sessionCount}{" "}
-          <span className="font-sans text-[11px] font-medium text-text-muted">
-            {game.sessionCount === 1 ? "session" : "sessions"}
+      {game.sessionCount > 0 ? (
+        <span className="relative hidden text-right sm:block">
+          <span className="block font-mono text-[13px] font-semibold tabular-nums text-text">
+            {game.sessionCount}{" "}
+            <span className="font-sans text-[11px] font-medium text-text-muted">
+              {game.sessionCount === 1 ? "session" : "sessions"}
+            </span>
+          </span>
+          <span className="block text-[11px] text-text-faint">
+            avg {formatDuration(average, showDurationDays)}
           </span>
         </span>
-        <span className="block text-[11px] text-text-faint">
-          avg {formatDuration(average, showDurationDays)}
+      ) : (
+        <span className="relative hidden text-right font-mono text-[13px] text-text-faint sm:block">
+          —
         </span>
-      </span>
+      )}
       <span className="relative hidden items-center justify-end gap-2 text-right text-xs text-text-muted sm:flex">
         {lastPlayed}
         {lastPlayed ? (

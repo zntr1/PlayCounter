@@ -1,5 +1,24 @@
 [
   {
+    "version": "1.3.2",
+    "headline": "Pick a cover for any game, level up all your games at once, and clearer ways to report a wrong match.",
+    "highlights": [
+      "Feature: Covers for any game! 'Choose cover…' picks one from SteamGridDB, or use 'Upload cover' and 'Paste Cover'. 'Restore Cover' brings back the original. A cover that can't load falls back to the game's original cover.",
+      "Feature: Hide to tray when a game starts: after you press Play in PlayCounter, it moves to the tray once the game runs. On by default in Settings → Game launching.",
+      "Feature: Start page: open on Now Playing or My Games (Settings → General).",
+      "Feature: Optional clock in the current session popup, handy in fullscreen games (Settings → Keyboard shortcuts).",
+      "Improvement: One button in My Games lists every game that can be improved: suggestions the community approved, matches found for your own games, and launcher games PlayCounter can now track. Untick what looks wrong and apply the rest.",
+      "Improvement: My History: a Back to top button, and the All time games list now matches your My Games totals, launcher playtime included.",
+      "Improvement: Escape clears the search or the My History filter from any page. On Discovered, Ctrl+F jumps to its own search.",
+      "Reporting: 'Report wrong match' asks what the file really is: a different game, an app to track, an app to ignore, part of the game, or not sure.",
+      "Reporting: 'It doesn't belong to <game>' takes one file off a game on your PC and reports it. Its sessions stay in My History.",
+      "Reporting: Games with several .exes ask 'Which file?', so reports, match checks and 'Convert to custom game' act on the right one. Details → Files has a Report button for every file.",
+      "Reporting: an unknown program gets one 'Not a game…' button with the same choices.",
+      "Design: Sidebar: emulators moved to Library, Software to Discover.",
+      "Fixes: a game's .exe no longer shows twice when only upper and lower case differ (cs2.exe and CS2.exe), picking a different game for a file no longer keeps the old game's details and art, and reports on games with two files now go to the right file."
+    ]
+  },
+  {
     "version": "1.3.1",
     "headline": "PlayCounter and its uninstaller now carry a valid digital signature.",
     "highlights": [

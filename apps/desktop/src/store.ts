@@ -65,6 +65,7 @@ import { libraryEntryKey } from "./library/types";
 import { scopedExeLinkKey } from "./library/scopedLinks";
 import { isGenericExeName } from "./library/exeCandidates";
 import type { LocalLinkRef } from "./localLinks";
+import type { RejectedGameFile } from "./rejectedGameFiles";
 import {
   defaultTourProgress,
   markTourCompleted,
@@ -391,7 +392,8 @@ export type DesktopOverlaySettingKey =
   | "overlaySessionSummaries"
   | "overlayMilestones"
   | "overlayActionRequired"
-  | "overlayDiscoveries";
+  | "overlayDiscoveries"
+  | "overlayShowClock";
 
 export type ActiveTour = {
   tourId: string;
@@ -467,6 +469,8 @@ export type AppState = {
   libraryInstalls: Map<string, LibraryInstallEntry>;
   scopedExeLinks: Map<string, ScopedExeLink>;
   ignoredExeFolders: Map<string, IgnoredExeFolder>;
+  /** Files the user said don't belong to a game; see rejectedGameFiles.ts. */
+  rejectedGameFiles: RejectedGameFile[];
   launchTargets: Map<string, LaunchTarget>;
   manualLaunchTargets: Map<string, LaunchTarget>;
   emulatorAutoBinaries: Map<string, EmulatorBinaryEntry>;
@@ -494,6 +498,8 @@ export type AppState = {
   playtimeAdjustments: Record<string, number>;
   /** Banner art picked by hand, keyed by customHeroArtKey. */
   customHeroArt: Record<string, string>;
+  /** Cover art picked by hand; see pickedCovers.ts. */
+  customCoverArt: Record<string, string>;
   /** Software time per executable; see toolUsage.ts. */
   toolUsage: ToolUsage;
   collapsedSections: string[];
@@ -526,6 +532,7 @@ export type AppState = {
   setLibraryQuery: (query: string) => void;
   searchWholeLibrary: () => void;
   setCustomHeroArt: (key: string, url: string | null) => void;
+  setCustomCoverArt: (key: string, url: string | null) => void;
   setHistoryGameKey: (key: string | null) => void;
   adoptInstallIdentity: (installUuid: string) => void;
   setActiveSessions: (sessions: ActiveSession[]) => void;
@@ -607,6 +614,7 @@ export type AppState = {
   toggleSectionCollapsed: (sectionId: string) => void;
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
+  setStartView: (view: "now" | "games") => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesGridColumns: (columns: number) => void;
@@ -651,7 +659,8 @@ export type AppState = {
     key:
       | "rememberLaunchPaths"
       | "gameLaunchingEnabled"
-      | "controllerNavigationEnabled",
+      | "controllerNavigationEnabled"
+      | "hideToTrayOnGameStart",
     enabled: boolean,
   ) => void;
   recordAutomaticDetection: (keys: string[]) => boolean;
@@ -680,6 +689,7 @@ export const BUILD_STAGE: Stage =
 
 const defaultSettings: Settings = {
   launchOnStartup: true,
+  startView: "now",
   showDurationDays: false,
   libraryCardSize: "grid",
   libraryGridColumns: null,
@@ -725,9 +735,11 @@ const defaultSettings: Settings = {
   overlayMilestones: true,
   overlayActionRequired: true,
   overlayDiscoveries: false,
+  overlayShowClock: false,
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
+  hideToTrayOnGameStart: true,
   autoAddInstalledGames: true,
   showInstallInSteam: false,
   showAdultArt: false,
@@ -849,6 +861,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   libraryInstalls: new Map(),
   scopedExeLinks: new Map(),
   ignoredExeFolders: new Map(),
+  rejectedGameFiles: [],
   launchTargets: new Map(),
   manualLaunchTargets: new Map(),
   emulatorAutoBinaries: new Map(),
@@ -875,6 +888,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   archivedGameSeconds: {},
   playtimeAdjustments: {},
   customHeroArt: {},
+  customCoverArt: {},
   toolUsage: {},
   collapsedSections: [],
   autoDetectedGameKeys: [],
@@ -999,6 +1013,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (url) customHeroArt[key] = url;
       else delete customHeroArt[key];
       return { customHeroArt };
+    });
+    persistSoon();
+  },
+  setCustomCoverArt: (key, url) => {
+    set((state) => {
+      const customCoverArt = { ...state.customCoverArt };
+      if (url) customCoverArt[key] = url;
+      else delete customCoverArt[key];
+      return { customCoverArt };
     });
     persistSoon();
   },
@@ -1684,6 +1707,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLaunchOnStartup: (enabled) => {
     set((state) => ({
       settings: { ...state.settings, launchOnStartup: enabled },
+    }));
+    persistSoon();
+  },
+  setStartView: (startView) => {
+    set((state) => ({
+      settings: { ...state.settings, startView },
     }));
     persistSoon();
   },

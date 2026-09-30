@@ -15,6 +15,7 @@ import {
 import { GameBanner } from "../GameBanner";
 import { useLibraryLaunchLock } from "../libraryLaunchLock";
 import { ArtPickerDialog } from "../ArtPickerDialog";
+import { pickedCover, pickedCoverKey, useCoverUrl } from "../../pickedCovers";
 import { matchesFeaturedGame, pickFeaturedGame } from "./games/featuredGame";
 import clsx from "clsx";
 import {
@@ -24,6 +25,7 @@ import {
   Clipboard,
   Check,
   CheckSquare,
+  ChevronsUp,
   Clock3,
   ClockPlus,
   Download,
@@ -97,11 +99,13 @@ import {
   linkServerKnownFiles,
   setGamePlaytime,
   setCustomGameCover,
+  setPickedCoverFile,
   suggestTrackedGameToCommunity,
   submitLocalLinkToCommunity,
   untrackGame,
   verifyLaunchTargetsThrottled,
   type GameAliasRef,
+  rejectFileForGame,
 } from "../../tracker";
 import {
   canSuggestCustomGameToCommunity,
@@ -139,6 +143,8 @@ import { MoveToPlayCounterDialog } from "./games/MoveToPlayCounterDialog";
 import { AddGameDialog } from "../AddGameDialog";
 import { SuggestToCommunityDialog } from "../SuggestToCommunityDialog";
 import { LibraryMatchOffer } from "../LibraryMatchOffer";
+import { LevelUpAllDialog } from "../LevelUpAllDialog";
+import { collectLevelUpOffers } from "../levelUpOffers";
 import {
   dismissLibraryMatchOffer,
   useLibraryMatchOffers,
@@ -149,6 +155,7 @@ import {
   type LibraryImportMatchCheck,
 } from "../../library/recheck";
 import { forgetUninstalledLibraryInstalls } from "../../library/installRecheck";
+import { hideToTrayWhenGameStarts } from "../../hideToTrayOnLaunch";
 import {
   libraryLaunchErrorMessage,
   shouldForgetLibraryInstallOnLaunchError,
@@ -189,9 +196,18 @@ import {
   sortMatchCandidates,
 } from "./matchCheckModel";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
-import { SoftwareDialog } from "../SoftwareDialog";
+import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
+import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
+import { isRejectedGameFile } from "../../rejectedGameFiles";
+import { PickGameFileDialog } from "./games/GameFileList";
+import {
+  canCheckFile,
+  canConvertFile,
+  canReportFile,
+  listGameFiles,
+} from "./games/gameFiles";
 import { GameCover } from "../GameCover";
 import { GameJournalBadges, GameJournalMenu } from "../GameJournalActions";
 import {
@@ -216,6 +232,7 @@ import {
   type StartLibraryGameDrag,
 } from "../libraryGameDrag";
 import { LibraryGameDropHint } from "../LibraryGameDropHint";
+import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 import {
   DEFAULT_PLAYTHROUGH_NAME,
   matchesLibraryFilters,
@@ -349,6 +366,10 @@ export type GameSummary = {
   activeStartedAt?: string;
   addedAt?: string;
   exeNames: string[];
+  /** Per file (lowercase): its last real run as this game on this PC. */
+  exeLastRanAt?: Record<string, string>;
+  /** Files (lowercase) running as this game right now. */
+  exeRunningNow?: string[];
   emulatorLabels: string[];
   emulatorIds: string[];
   emulatorContentKeys: string[];
@@ -505,6 +526,14 @@ function isDatabaseSource(source: GameSource | null | undefined) {
   return source === "igdb" || source === "community";
 }
 
+// Windows file names ignore case: cs2.exe and CS2.exe are one file, listed
+// once. The spelling seen first stays; sessions come first, so it is the name
+// the file ran as.
+function hasExeName(exeNames: readonly string[], exeName: string) {
+  const key = exeName.toLowerCase();
+  return exeNames.some((name) => name.toLowerCase() === key);
+}
+
 function sourceRank(source: GameSource | null | undefined) {
   return source === "igdb" ? 0 : source === "community" ? 1 : 2;
 }
@@ -655,6 +684,7 @@ export function MyGamesView({
     skippedCount: number;
   } | null>(null);
   const [addingGame, setAddingGame] = useState(false);
+  const [levelingUp, setLevelingUp] = useState(false);
   const isOffline = useIsOffline();
   const query = useAppStore((state) => state.libraryQuery);
   const setQuery = useAppStore((state) => state.setLibraryQuery);
@@ -698,6 +728,7 @@ export function MyGamesView({
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const scopedExeLinks = useAppStore((state) => state.scopedExeLinks);
+  const rejectedGameFiles = useAppStore((state) => state.rejectedGameFiles);
   const libraryImports = useAppStore((state) => state.libraryImports);
   const playcounterLibrary = useAppStore((state) => state.playcounterLibrary);
   const libraryInstalls = useAppStore((state) => state.libraryInstalls);
@@ -955,6 +986,18 @@ export function MyGamesView({
     const ignoredExeNames = new Set([...userIgnoredProcesses, ...blacklist]);
     const isIgnored = (exeName: string) =>
       matchesProcessPatternSet(exeName, ignoredExeNames);
+    // "It doesn't belong to <game>": its sessions stay in History, but the file
+    // is no longer listed as the game's.
+    const isRejectedFor = (summary: GameSummary, exeName: string) =>
+      rejectedGameFiles.length > 0 &&
+      [
+        {
+          gameId: summary.gameId,
+          source: summary.source,
+          igdbId: summary.igdbId,
+        },
+        ...summary.aliases,
+      ].some((game) => isRejectedGameFile(rejectedGameFiles, exeName, game));
     const metadata = matchedEntriesByGame(
       [
         ...exeCache.values(),
@@ -1049,7 +1092,7 @@ export function MyGamesView({
         );
       }
       summary.igdbId ??= entry.igdbId;
-      if (!summary.exeNames.includes(entry.exeName)) {
+      if (!hasExeName(summary.exeNames, entry.exeName)) {
         if (entry.source === summary.source)
           summary.exeNames.unshift(entry.exeName);
         else summary.exeNames.push(entry.exeName);
@@ -1180,6 +1223,19 @@ export function MyGamesView({
       existing.addedAt = earliestAddedAt(existing.addedAt, session.startedAt);
       existing.sessionSeconds += session.durationSeconds ?? 0;
       existing.sessionCount += 1;
+      // Proof a file ran here. A manual session only borrows a file name, and
+      // an emulator session names the emulator, not a file of this game.
+      if (session.origin !== "manual" && !session.emulator) {
+        const exeKey = session.exeName.toLowerCase();
+        existing.exeLastRanAt ??= {};
+        const previous = existing.exeLastRanAt[exeKey];
+        if (
+          previous === undefined ||
+          Date.parse(endedOrStartedAt) > Date.parse(previous)
+        ) {
+          existing.exeLastRanAt[exeKey] = endedOrStartedAt;
+        }
+      }
       existing.historyGameKey = summaryKey;
       existing.communitySuggestionId ??=
         session.communitySuggestionId ?? gameMeta?.communitySuggestionId;
@@ -1207,7 +1263,7 @@ export function MyGamesView({
         existing.lastPlayedAt = endedOrStartedAt;
       }
       summariesWithPlayEvidence.add(summaryKey);
-      if (!existing.exeNames.includes(session.exeName)) {
+      if (!hasExeName(existing.exeNames, session.exeName)) {
         existing.exeNames.push(session.exeName);
       }
       if (session.emulator) {
@@ -1315,6 +1371,10 @@ export function MyGamesView({
         activeSession.startedAt,
       );
       existing.sessionSeconds += activeSeconds;
+      if (!activeSession.emulator) {
+        existing.exeRunningNow ??= [];
+        existing.exeRunningNow.push(activeSession.exeName.toLowerCase());
+      }
       if (promoteForRecentSort) {
         existing.lastPlayedAt = activeSession.checkpointedAt;
         summariesWithPlayEvidence.add(summaryKey);
@@ -1336,7 +1396,7 @@ export function MyGamesView({
       if (canSwitchApprovedSuggestionToCommunity(activeSession)) {
         existing.communitySuggestionExeName ??= activeSession.exeName;
       }
-      if (!existing.exeNames.includes(activeSession.exeName)) {
+      if (!hasExeName(existing.exeNames, activeSession.exeName)) {
         existing.exeNames.push(activeSession.exeName);
       }
       if (activeSession.emulator) {
@@ -1452,7 +1512,9 @@ export function MyGamesView({
       summary.name ||= entry.name;
       summary.coverUrl ||= entry.coverUrl;
       for (const exeName of entry.linkedExeNames) {
-        if (!summary.exeNames.includes(exeName)) summary.exeNames.push(exeName);
+        if (!hasExeName(summary.exeNames, exeName)) {
+          summary.exeNames.push(exeName);
+        }
       }
       if (
         !summary.libraryImports.some(
@@ -1523,6 +1585,11 @@ export function MyGamesView({
 
     const consumedKeys = new Set<string>();
     for (const summary of summaries.values()) {
+      if (rejectedGameFiles.length > 0) {
+        summary.exeNames = summary.exeNames.filter(
+          (exeName) => !isRejectedFor(summary, exeName),
+        );
+      }
       // Native/imported evidence can coexist with an emulator route for the
       // same game. Keep both; never add IGDB merely for the metadata namespace.
       const emulatorSources = summary.emulatorSources ?? [];
@@ -1586,6 +1653,7 @@ export function MyGamesView({
     playtimeAdjustments,
     providerFloorSeconds,
     recentSortNow,
+    rejectedGameFiles,
     resolveIgdbId,
     scopedExeLinks,
     sessions,
@@ -1667,6 +1735,12 @@ export function MyGamesView({
     recentSortNow,
     allShelfCounts,
   ]);
+  const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
+  // Every Level up and Match found in the library, whatever tab is open.
+  const levelUpOffers = useMemo(
+    () => collectLevelUpOffers(games, exeCache, libraryMatchOffers),
+    [games, exeCache, libraryMatchOffers],
+  );
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return needle
@@ -1811,6 +1885,13 @@ export function MyGamesView({
     displayedGames,
     `${activeLibraryTab}\u0000${query}\u0000${shelfSelection}\u0000${JSON.stringify(libraryFilters)}\u0000${editShelfFilters}`,
     !tourDemo.active,
+  );
+  // Selection mode and the filter panel take Escape before the search does.
+  const libraryVisible = useAppStore((state) => state.activeView === "games");
+  const clearQuery = useCallback(() => setQuery(""), [setQuery]);
+  useEscapeClearsSearch(
+    Boolean(query) && libraryVisible && !bulkSelection.active && !filtersOpen,
+    clearQuery,
   );
   const libraryDrag = useLibraryGameDrag(
     bulkSelection.selectedGames,
@@ -2070,6 +2151,18 @@ export function MyGamesView({
                         className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
                       >
                         {activeImportableProviderConfig.importCtaLabel}
+                      </Button>
+                    ) : null}
+                    {levelUpOffers.length > 0 && !tourDemo.active ? (
+                      <Button
+                        variant="secondary"
+                        icon={ChevronsUp}
+                        data-controller-item="view-link"
+                        title="Switch every game with an approved suggestion or a found match"
+                        onClick={() => setLevelingUp(true)}
+                        className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
+                      >
+                        Level up all ({levelUpOffers.length})
                       </Button>
                     ) : null}
                     <Button
@@ -2547,6 +2640,31 @@ export function MyGamesView({
           onClose={() => setAddingGame(false)}
         />
       ) : null}
+      {levelingUp ? (
+        <LevelUpAllDialog
+          offers={levelUpOffers}
+          onCancel={() => setLevelingUp(false)}
+          onDone={({ applied, missed }) => {
+            setLevelingUp(false);
+            if (applied > 0) {
+              addToast({
+                tone: "success",
+                title:
+                  applied === 1
+                    ? "1 game leveled up"
+                    : `${applied} games leveled up`,
+              });
+            }
+            if (missed.length > 0) {
+              addToast({
+                tone: "info",
+                title: "No match right now",
+                detail: `${missed.join(", ")} kept their current state. Check again later.`,
+              });
+            }
+          }}
+        />
+      ) : null}
       {pendingBulkMove ? (
         <MoveToPlayCounterDialog
           games={pendingBulkMove.games}
@@ -2908,6 +3026,9 @@ export function GameLibraryCard({
   const [showDetails, setShowDetails] = useState(false);
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  // The one file Report, Convert or Check match is about (see flowExeName).
+  const [matchFile, setMatchFile] = useState<string | null>(null);
+  const [filePick, setFilePick] = useState<"check" | "convert" | null>(null);
   const [softwareOpen, setSoftwareOpen] = useState(false);
   const [cancelSuggestionTarget, setCancelSuggestionTarget] =
     useState<PendingCommunitySuggestionTarget | null>(null);
@@ -3231,46 +3352,38 @@ export function GameLibraryCard({
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && !selectionMode && canLaunchExecutables;
   const canEditCover = game.source === "custom";
+  const shownCover = useCoverUrl(
+    { ...game, gameName: game.name },
+    game.coverUrl,
+  );
+  const coverPicked = useAppStore(
+    (state) =>
+      pickedCover(state, { ...game, gameName: game.name }) !== undefined,
+  );
   const primaryExeName = game.exeNames[0];
   const primaryExeEntry = primaryExeName
     ? exeCache.get(primaryExeName.toLowerCase())
     : undefined;
-  // Report and Convert act on the card's first .exe, so they need the
-  // database to have matched it. A file the user linked himself has no match
-  // to report or convert, even on a card that also holds the database game.
-  const primaryFolderLink = primaryExeName
-    ? [...scopedExeLinks.values()].find(
-        (link) =>
-          link.exeName.toLowerCase() === primaryExeName.toLowerCase() &&
-          game.aliases.some(
-            (alias) =>
-              alias.gameId === link.gameId && alias.source === link.source,
-          ),
-      )
-    : undefined;
-  const primaryExeIsDatabaseMatch =
-    primaryExeEntry?.state === "matched" &&
-    isDatabaseSource(fileMatchSource(primaryExeEntry));
+  // Every file of the card, with who matched it and how it ran here. Report,
+  // Convert and Check match act on the one file the user picks, never on the
+  // first file for being first: the server must learn which file is wrong.
+  // The user's own files are changed or removed, not reported.
+  const gameFiles = useMemo(
+    () => listGameFiles(game, exeCache, scopedExeLinks, launchTargets),
+    [game, exeCache, scopedExeLinks, launchTargets],
+  );
+  const databaseFiles = gameFiles.filter((file) =>
+    isDatabaseSource(file.source),
+  );
+  const reportableFiles = gameFiles.filter(canReportFile);
+  const convertibleFiles = gameFiles.filter(canConvertFile);
+  const checkableFiles = gameFiles.filter(canCheckFile);
   const canReportMatch = demo
     ? isDatabaseSource(game.source)
-    : primaryExeIsDatabaseMatch ||
-      (primaryFolderLink !== undefined &&
-        isDatabaseSource(fileMatchSource(primaryFolderLink)));
-  // The game the card's first file counts for. A card can hold the database
-  // game and the user's own Custom file at once; questions about the file
-  // are answered by this, not by the card's first source.
-  const primaryFileGame =
-    primaryExeEntry?.state === "matched" && primaryExeEntry.gameId !== undefined
-      ? {
-          gameId: primaryExeEntry.gameId,
-          source: primaryExeEntry.source ?? null,
-        }
-      : primaryFolderLink
-        ? { gameId: primaryFolderLink.gameId, source: primaryFolderLink.source }
-        : { gameId: game.gameId, source: game.source };
+    : reportableFiles.length > 0;
   const canConvertToCustom = demo
     ? isDatabaseSource(game.source)
-    : primaryExeIsDatabaseMatch;
+    : convertibleFiles.length > 0;
   const primaryLocalLink = useMemo(
     () =>
       localLinks.find(
@@ -3285,7 +3398,36 @@ export function GameLibraryCard({
       ),
     [game.aliases, game.exeNames, localLinks],
   );
-  const shareTarget = primaryLocalLink?.ref ?? primaryExeName;
+  // The file the open flow is about: the picked one for Report, Convert and
+  // Check match; the user's own file for Suggest and Change game. The server
+  // request and the change on this PC both go to this file.
+  const flowExeName = matchFile ?? primaryLocalLink?.exeName ?? primaryExeName;
+  const flowKey = flowExeName?.toLowerCase();
+  const ownsLink = (link: { gameId: number; source: GameSource | null }) =>
+    game.aliases.some(
+      (alias) => alias.gameId === link.gameId && alias.source === link.source,
+    );
+  const flowLocalLink = matchFile
+    ? localLinks.find(
+        (link) => link.exeName.toLowerCase() === flowKey && ownsLink(link),
+      )
+    : primaryLocalLink;
+  const flowExeEntry = flowKey ? exeCache.get(flowKey) : undefined;
+  const flowFolderLink = flowKey
+    ? [...scopedExeLinks.values()].find(
+        (link) => link.exeName.toLowerCase() === flowKey && ownsLink(link),
+      )
+    : undefined;
+  // The game that file counts for. A card can hold the database game and the
+  // user's own Custom file at once; questions about a file are answered by
+  // this, not by the card's first source.
+  const flowFileGame =
+    flowExeEntry?.state === "matched" && flowExeEntry.gameId !== undefined
+      ? { gameId: flowExeEntry.gameId, source: flowExeEntry.source ?? null }
+      : flowFolderLink
+        ? { gameId: flowFolderLink.gameId, source: flowFolderLink.source }
+        : { gameId: game.gameId, source: game.source };
+  const shareTarget = flowLocalLink?.ref ?? flowExeName;
   const pendingCommunitySuggestion = useMemo(
     () =>
       findPendingCommunitySuggestionEntry(
@@ -3298,7 +3440,7 @@ export function GameLibraryCard({
   );
   const canSuggestToCommunity = canSuggestCustomGameToCommunity({
     source: primaryLocalLink?.source ?? primaryExeEntry?.source ?? game.source,
-    exeName: primaryExeName,
+    exeName: primaryLocalLink?.exeName ?? primaryExeName,
     communitySuggestionId:
       primaryLocalLink?.communitySuggestionId ??
       primaryExeEntry?.communitySuggestionId ??
@@ -3361,7 +3503,7 @@ export function GameLibraryCard({
     />
   ) : null;
   const canCheckMatches = Boolean(
-    (game.source && game.exeNames[0]) ||
+    (game.source && (demo ? game.exeNames[0] : checkableFiles.length > 0)) ||
     (trackingUnavailable && matchCheckImportEntry),
   );
   const trackingWarningVisible =
@@ -3411,8 +3553,64 @@ export function GameLibraryCard({
     setShowRename(false);
   }
 
+  // Report, Convert and Check match: the file comes first. With one file that
+  // fits there is nothing to ask.
+  function openReport(exeName?: string) {
+    setMatchFile(
+      exeName ??
+        (reportableFiles.length === 1 ? reportableFiles[0].exeName : null),
+    );
+    setReportOpen(true);
+  }
+
+  function openMatchCheck() {
+    if (!(trackingUnavailable && matchCheckImportEntry)) {
+      if (checkableFiles.length > 1) {
+        setFilePick("check");
+        return;
+      }
+      setMatchFile(checkableFiles[0]?.exeName ?? null);
+    }
+    setShowMatchCheck(true);
+  }
+
+  function openConvert() {
+    if (convertibleFiles.length > 1) {
+      setFilePick("convert");
+      return;
+    }
+    setMatchFile(convertibleFiles[0]?.exeName ?? null);
+    setConvertName(game.name);
+    setShowConvert(true);
+  }
+
+  function pickFile(exeName: string) {
+    const purpose = filePick;
+    setFilePick(null);
+    setMatchFile(exeName);
+    if (purpose === "convert") {
+      setConvertName(game.name);
+      setShowConvert(true);
+    } else {
+      setShowMatchCheck(true);
+    }
+  }
+
+  const filePickList =
+    filePick === "convert"
+      ? {
+          action: "Convert to custom game",
+          files: convertibleFiles,
+          canPick: canConvertFile,
+        }
+      : {
+          action: "Check for matches",
+          files: checkableFiles,
+          canPick: canCheckFile,
+        };
+
   function submitConvertToCustom() {
-    const exeName = game.exeNames[0];
+    const exeName = flowExeName;
     const name = convertName.trim();
     if (!exeName || !name) return;
     if (demo) {
@@ -3434,7 +3632,7 @@ export function GameLibraryCard({
   }
 
   const handleApplyMatch = (match: Game, pendingCommunity: boolean) => {
-    const exeName = game.exeNames[0];
+    const exeName = flowExeName;
     if (!exeName) return;
     if (pendingCommunity && match.source === "community") {
       suggestTrackedGameToCommunity(
@@ -3446,8 +3644,8 @@ export function GameLibraryCard({
         match.igdbId,
       );
     } else {
-      if (primaryLocalLink?.ref.kind === "scoped") {
-        applyLocalLinkGameMatch(primaryLocalLink.ref, match);
+      if (flowLocalLink?.ref.kind === "scoped") {
+        applyLocalLinkGameMatch(flowLocalLink.ref, match);
       } else {
         applyKnownGameMatch(exeName, match);
       }
@@ -3461,8 +3659,7 @@ export function GameLibraryCard({
     setShowMatchCheck(false);
   };
 
-  async function handleNegativeReport() {
-    const exeName = game.exeNames[0];
+  async function handleNegativeReport(exeName: string) {
     if (!exeName) return;
     setReportOpen(false);
     setShowMatchCheck(false);
@@ -3517,8 +3714,32 @@ export function GameLibraryCard({
     });
   }
 
+  // "It doesn't belong to <game>": the picked file (matchFile) leaves this game.
+  async function handleNotThisGame(exeName: string) {
+    setReportOpen(false);
+    if (!exeName) return;
+    const outcome = await rejectFileForGame(exeName, {
+      gameId: flowFileGame.gameId,
+      source: flowFileGame.source,
+      igdbId: flowExeEntry?.igdbId ?? flowFolderLink?.igdbId ?? game.igdbId,
+      aliases: game.aliases,
+    });
+    notifyFileRemovedFromGame(exeName, game.name, outcome, addToast);
+  }
+
+  function handleIgnoreApp(exeName: string) {
+    setReportOpen(false);
+    if (!exeName) return;
+    void ignoreAppAsSoftware(
+      exeName,
+      useAppStore.getState().launchTargets.get(exeName.toLowerCase())?.path,
+      !isOffline,
+      addToast,
+    );
+  }
+
   const correction = useCommunityGameCorrection({
-    exeName: primaryExeName ?? "",
+    exeName: flowExeName ?? "",
     targetKey:
       typeof shareTarget === "string"
         ? shareTarget
@@ -3533,7 +3754,7 @@ export function GameLibraryCard({
       addToast({
         tone: "success",
         title: "Already in IGDB",
-        detail: `${matchedGame.name} is a known IGDB match for ${primaryExeName} and was applied directly.`,
+        detail: `${matchedGame.name} is a known IGDB match for ${flowExeName} and was applied directly.`,
       });
     },
     onRejected: (id, reviewNote, { selection }) => {
@@ -3568,7 +3789,7 @@ export function GameLibraryCard({
       addToast({
         tone: "success",
         title: "Suggested to community",
-        detail: `Your community suggestion was submitted for ${primaryExeName}.`,
+        detail: `Your community suggestion was submitted for ${flowExeName}.`,
       });
     },
   });
@@ -3581,6 +3802,7 @@ export function GameLibraryCard({
 
   function openChangeGame() {
     contextMenu.close();
+    setMatchFile(null);
     setSearchMode("change");
     correction.setSearch(game.name);
     setShareOpen(true);
@@ -3605,7 +3827,7 @@ export function GameLibraryCard({
 
   // Game.exe names no game for anyone else: its database search stays on
   // this PC and moves only this game's folders.
-  const localSearchOnly = isGenericExeName(primaryExeName ?? "");
+  const localSearchOnly = isGenericExeName(flowExeName ?? "");
 
   function openSearch() {
     if (!localSearchOnly) {
@@ -3618,12 +3840,11 @@ export function GameLibraryCard({
 
   function applySearchedGameLocally() {
     const selection = correction.selection;
-    if (!selection?.coverUrl || !primaryExeName) return;
-    const applied = applyDatabaseGameToFolderLinks(
-      primaryExeName,
-      game.aliases,
-      { ...selection, coverUrl: selection.coverUrl },
-    );
+    if (!selection?.coverUrl || !flowExeName) return;
+    const applied = applyDatabaseGameToFolderLinks(flowExeName, game.aliases, {
+      ...selection,
+      coverUrl: selection.coverUrl,
+    });
     if (applied) void linkServerKnownFiles(applied);
     closeShare();
     addToast(
@@ -3636,7 +3857,7 @@ export function GameLibraryCard({
         : {
             tone: "info",
             title: "Nothing to change",
-            detail: `${primaryExeName} is not linked to a folder for ${game.name} yet. Start the game once, then pick the right one.`,
+            detail: `${flowExeName} is not linked to a folder for ${game.name} yet. Start the game once, then pick the right one.`,
           },
     );
   }
@@ -3653,6 +3874,7 @@ export function GameLibraryCard({
       primaryLocalLink.shareState === "failed");
 
   function handleShareAction() {
+    setMatchFile(null);
     if (canShareDirectly) setConfirmShareOpen(true);
     else setShareOpen(true);
   }
@@ -3823,11 +4045,21 @@ export function GameLibraryCard({
   };
 
   async function saveCover(file: File | Blob | null) {
-    if (!file || !canEditCover || coverBusy) return;
+    if (!file || coverBusy) return;
 
     setCoverBusy(true);
     try {
-      await setCustomGameCover(game.gameId, file);
+      if (canEditCover) {
+        await setCustomGameCover(game.gameId, file);
+      } else {
+        await setPickedCoverFile(
+          pickedCoverKey(useAppStore.getState(), {
+            ...game,
+            gameName: game.name,
+          }),
+          file,
+        );
+      }
       addToast({
         tone: "success",
         title: "Cover updated",
@@ -3877,6 +4109,22 @@ export function GameLibraryCard({
         detail: formatError(error),
       });
     }
+  }
+
+  function handleResetPickedCover() {
+    useAppStore.getState().setCustomCoverArt(
+      pickedCoverKey(useAppStore.getState(), {
+        ...game,
+        gameName: game.name,
+      }),
+      null,
+    );
+    addToast({
+      tone: "info",
+      title: "Cover reset",
+      detail: `${game.name} is back to its automatic cover.`,
+    });
+    contextMenu.close();
   }
 
   function handleClearCover() {
@@ -3957,6 +4205,7 @@ export function GameLibraryCard({
         return;
       }
       keepLaunchFeedback = true;
+      hideToTrayWhenGameStarts(game.aliases);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4014,6 +4263,7 @@ export function GameLibraryCard({
         return;
       }
       keepLaunchFeedback = true;
+      hideToTrayWhenGameStarts(game.aliases);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4061,6 +4311,7 @@ export function GameLibraryCard({
       );
       await provider.launch(entry.externalId);
       keepLaunchFeedback = true;
+      hideToTrayWhenGameStarts(game.aliases);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );
@@ -4331,6 +4582,7 @@ export function GameLibraryCard({
         game={{
           gameId: game.gameId,
           source: game.source,
+          igdbId: game.igdbId,
           name: game.name,
           canEditCover,
         }}
@@ -4358,6 +4610,14 @@ export function GameLibraryCard({
           !demo && game.libraryImports.length > 0
             ? requestMoveToPlayCounter
             : undefined
+        }
+        onReportFile={
+          demo
+            ? undefined
+            : (exeName) => {
+                setShowDetails(false);
+                openReport(exeName);
+              }
         }
       />
     ) : null;
@@ -4715,55 +4975,7 @@ export function GameLibraryCard({
           </ContextMenuItem>
         </ContextMenuSubmenu>
         {!demo ? (
-          canEditCover ? (
-            <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
-              <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  setArtPickerTab("banner");
-                  setShowArtPicker(true);
-                }}
-              >
-                Choose banner…
-              </ContextMenuItem>
-              <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  setArtPickerTab("cover");
-                  setShowArtPicker(true);
-                }}
-              >
-                Choose cover…
-              </ContextMenuItem>
-              <ContextMenuItem
-                icon={ImagePlus}
-                onClick={() => {
-                  contextMenu.close();
-                  coverInputRef.current?.click();
-                }}
-              >
-                Upload cover
-              </ContextMenuItem>
-              <ContextMenuItem
-                dataTour={demo ? "demo-menu-paste-cover" : undefined}
-                icon={Clipboard}
-                onClick={() => void handlePasteCover()}
-              >
-                Paste Cover
-              </ContextMenuItem>
-              {game.coverUrl ? (
-                <ContextMenuItem
-                  dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                  icon={Trash2}
-                  onClick={handleClearCover}
-                >
-                  Delete Cover
-                </ContextMenuItem>
-              ) : null}
-            </ContextMenuSubmenu>
-          ) : (
+          <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
             <ContextMenuItem
               icon={ImagePlus}
               onClick={() => {
@@ -4774,7 +4986,49 @@ export function GameLibraryCard({
             >
               Choose banner…
             </ContextMenuItem>
-          )
+            <ContextMenuItem
+              icon={ImagePlus}
+              onClick={() => {
+                contextMenu.close();
+                setArtPickerTab("cover");
+                setShowArtPicker(true);
+              }}
+            >
+              Choose cover…
+            </ContextMenuItem>
+            <ContextMenuItem
+              icon={ImagePlus}
+              onClick={() => {
+                contextMenu.close();
+                coverInputRef.current?.click();
+              }}
+            >
+              Upload cover
+            </ContextMenuItem>
+            <ContextMenuItem
+              dataTour={demo ? "demo-menu-paste-cover" : undefined}
+              icon={Clipboard}
+              onClick={() => void handlePasteCover()}
+            >
+              Paste Cover
+            </ContextMenuItem>
+            {canEditCover && game.coverUrl ? (
+              <ContextMenuItem
+                dataTour={demo ? "demo-menu-delete-cover" : undefined}
+                icon={Trash2}
+                onClick={handleClearCover}
+              >
+                Delete Cover
+              </ContextMenuItem>
+            ) : !canEditCover && coverPicked ? (
+              <ContextMenuItem
+                icon={RotateCcw}
+                onClick={handleResetPickedCover}
+              >
+                Restore Cover
+              </ContextMenuItem>
+            ) : null}
+          </ContextMenuSubmenu>
         ) : null}
         {showMatchingActions ? (
           <ContextMenuSubmenu
@@ -4790,7 +5044,7 @@ export function GameLibraryCard({
                 onClick={() => {
                   contextMenu.close();
                   if (demo) setDemoAction("matching");
-                  else setShowMatchCheck(true);
+                  else openMatchCheck();
                 }}
               >
                 Check for Matches
@@ -4836,7 +5090,7 @@ export function GameLibraryCard({
                       icon={Flag}
                       onClick={() => {
                         contextMenu.close();
-                        setReportOpen(true);
+                        openReport();
                       }}
                     >
                       Report Wrong Match
@@ -4847,8 +5101,7 @@ export function GameLibraryCard({
                         icon={Gamepad2}
                         onClick={() => {
                           contextMenu.close();
-                          setConvertName(game.name);
-                          setShowConvert(true);
+                          openConvert();
                         }}
                       >
                         Convert to Custom Game
@@ -5100,9 +5353,9 @@ export function GameLibraryCard({
           {!demo || libraryPractice ? (
             <GameJournalBadges game={{ ...game, gameName: game.name }} />
           ) : null}
-          {game.coverUrl ? (
+          {shownCover ? (
             <GameCover
-              src={game.coverUrl}
+              src={shownCover}
               alt=""
               draggable={false}
               className="game-card-cover-image absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -5188,7 +5441,7 @@ export function GameLibraryCard({
                   icon={Search}
                   aria-label={`Check matches for ${game.name}`}
                   title="Check for matches"
-                  onClick={() => setShowMatchCheck(true)}
+                  onClick={openMatchCheck}
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
                 />
               ) : null}
@@ -5216,7 +5469,7 @@ export function GameLibraryCard({
                   icon={Flag}
                   aria-label={`Report wrong match for ${game.name}`}
                   title="Report wrong match"
-                  onClick={() => setReportOpen(true)}
+                  onClick={() => openReport()}
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
                 />
               ) : null}
@@ -5280,7 +5533,7 @@ export function GameLibraryCard({
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
-          disabled={!canEditCover || coverBusy}
+          disabled={coverBusy}
           onChange={(event) => {
             void saveCover(event.currentTarget.files?.[0] ?? null);
           }}
@@ -5580,10 +5833,14 @@ export function GameLibraryCard({
           ) : (
             <MatchCheckDialog
               game={game}
-              current={primaryFileGame}
+              exeName={flowExeName ?? ""}
+              current={flowFileGame}
               onCancel={() => setShowMatchCheck(false)}
               onApply={handleApplyMatch}
-              onReportNotAGame={() => void handleNegativeReport()}
+              onReport={() => {
+                setShowMatchCheck(false);
+                openReport(flowExeName);
+              }}
               onSearchCommunity={
                 canSuggestToCommunity || localSearchOnly
                   ? () => {
@@ -5598,9 +5855,11 @@ export function GameLibraryCard({
         {reportOpen ? (
           <ReportWrongMatchDialog
             demo={demo}
-            exeName={game.exeNames[0] ?? ""}
+            exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
             gameName={game.name}
-            coverUrl={game.coverUrl}
+            coverUrl={shownCover}
+            files={demo ? undefined : databaseFiles}
+            onPickFile={setMatchFile}
             onCancel={() => setReportOpen(false)}
             onDifferentGame={() => {
               setReportOpen(false);
@@ -5608,7 +5867,7 @@ export function GameLibraryCard({
               else if (localSearchOnly) openSearch();
               else setShareOpen(true);
             }}
-            onNotAGame={() => {
+            onNotAGame={(exeName) => {
               if (demo) {
                 setReportOpen(false);
                 setDemoRemoved(true);
@@ -5616,7 +5875,7 @@ export function GameLibraryCard({
                   "demo.action-completed",
                   "Sample ignored. No anonymous report was sent.",
                 );
-              } else void handleNegativeReport();
+              } else void handleNegativeReport(exeName);
             }}
             onSoftware={
               demo
@@ -5626,18 +5885,22 @@ export function GameLibraryCard({
                     setSoftwareOpen(true);
                   }
             }
+            onIgnoreApp={demo ? undefined : handleIgnoreApp}
+            onNotThisGame={
+              demo ? undefined : (exeName) => void handleNotThisGame(exeName)
+            }
           />
         ) : null}
-        {softwareOpen && game.exeNames[0] ? (
+        {softwareOpen && flowExeName ? (
           <SoftwareDialog
-            exeName={game.exeNames[0]}
+            exeName={flowExeName}
             suggestedName={exeProductName(
               peekExeDetails(
                 useAppStore
                   .getState()
-                  .launchTargets.get(game.exeNames[0].toLowerCase())?.path,
+                  .launchTargets.get(flowExeName.toLowerCase())?.path,
               ),
-              game.exeNames[0],
+              flowExeName,
             )}
             tracked={{ gameName: game.name }}
             isOffline={isOffline}
@@ -5665,7 +5928,7 @@ export function GameLibraryCard({
         {shareOpen ? (
           <CommunitySuggestionForm
             candidates={correction.candidates}
-            exeName={primaryExeName ?? ""}
+            exeName={flowExeName ?? ""}
             hasMore={correction.hasMore}
             message={correction.message}
             search={correction.search}
@@ -5689,11 +5952,23 @@ export function GameLibraryCard({
             }
           />
         ) : null}
+        {filePick ? (
+          <PickGameFileDialog
+            action={filePickList.action}
+            gameName={game.name}
+            files={filePickList.files}
+            canPick={filePickList.canPick}
+            onPick={pickFile}
+            onCancel={() => setFilePick(null)}
+          />
+        ) : null}
         {showConvert ? (
           <GameNameDialog
             demo={demo}
             title="Convert to a custom game"
-            subtitle={game.name}
+            subtitle={
+              demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
+            }
             description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
             confirmLabel="Convert to custom"
             name={convertName}
@@ -5770,9 +6045,9 @@ export function GameLibraryCard({
               compact
             />
           ) : null}
-          {game.coverUrl ? (
+          {shownCover ? (
             <GameCover
-              src={game.coverUrl}
+              src={shownCover}
               alt=""
               draggable={false}
               className="aspect-[3/4] w-full rounded-lg object-cover"
@@ -6020,7 +6295,7 @@ export function GameLibraryCard({
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="hidden"
-        disabled={!canEditCover || coverBusy}
+        disabled={coverBusy}
         onChange={(event) => {
           void saveCover(event.currentTarget.files?.[0] ?? null);
         }}
@@ -6066,10 +6341,14 @@ export function GameLibraryCard({
         ) : (
           <MatchCheckDialog
             game={game}
-            current={primaryFileGame}
+            exeName={flowExeName ?? ""}
+            current={flowFileGame}
             onCancel={() => setShowMatchCheck(false)}
             onApply={handleApplyMatch}
-            onReportNotAGame={() => void handleNegativeReport()}
+            onReport={() => {
+              setShowMatchCheck(false);
+              openReport(flowExeName);
+            }}
             onSearchCommunity={
               canSuggestToCommunity || localSearchOnly
                 ? () => {
@@ -6084,9 +6363,11 @@ export function GameLibraryCard({
       {reportOpen ? (
         <ReportWrongMatchDialog
           demo={demo}
-          exeName={game.exeNames[0] ?? ""}
+          exeName={demo ? (game.exeNames[0] ?? "") : (matchFile ?? "")}
           gameName={game.name}
-          coverUrl={game.coverUrl}
+          coverUrl={shownCover}
+          files={demo ? undefined : databaseFiles}
+          onPickFile={setMatchFile}
           onCancel={() => setReportOpen(false)}
           onDifferentGame={() => {
             setReportOpen(false);
@@ -6094,7 +6375,7 @@ export function GameLibraryCard({
             else if (localSearchOnly) openSearch();
             else setShareOpen(true);
           }}
-          onNotAGame={() => {
+          onNotAGame={(exeName) => {
             if (demo) {
               setReportOpen(false);
               setDemoRemoved(true);
@@ -6102,7 +6383,7 @@ export function GameLibraryCard({
                 "demo.action-completed",
                 "Sample ignored. No anonymous report was sent.",
               );
-            } else void handleNegativeReport();
+            } else void handleNegativeReport(exeName);
           }}
           onSoftware={
             demo
@@ -6112,18 +6393,22 @@ export function GameLibraryCard({
                   setSoftwareOpen(true);
                 }
           }
+          onIgnoreApp={demo ? undefined : handleIgnoreApp}
+          onNotThisGame={
+            demo ? undefined : (exeName) => void handleNotThisGame(exeName)
+          }
         />
       ) : null}
-      {softwareOpen && game.exeNames[0] ? (
+      {softwareOpen && flowExeName ? (
         <SoftwareDialog
-          exeName={game.exeNames[0]}
+          exeName={flowExeName}
           suggestedName={exeProductName(
             peekExeDetails(
               useAppStore
                 .getState()
-                .launchTargets.get(game.exeNames[0].toLowerCase())?.path,
+                .launchTargets.get(flowExeName.toLowerCase())?.path,
             ),
-            game.exeNames[0],
+            flowExeName,
           )}
           tracked={{ gameName: game.name }}
           isOffline={isOffline}
@@ -6151,7 +6436,7 @@ export function GameLibraryCard({
       {shareOpen ? (
         <CommunitySuggestionForm
           candidates={correction.candidates}
-          exeName={primaryExeName ?? ""}
+          exeName={flowExeName ?? ""}
           hasMore={correction.hasMore}
           message={correction.message}
           search={correction.search}
@@ -6175,11 +6460,23 @@ export function GameLibraryCard({
           }
         />
       ) : null}
+      {filePick ? (
+        <PickGameFileDialog
+          action={filePickList.action}
+          gameName={game.name}
+          files={filePickList.files}
+          canPick={filePickList.canPick}
+          onPick={pickFile}
+          onCancel={() => setFilePick(null)}
+        />
+      ) : null}
       {showConvert ? (
         <GameNameDialog
           demo={demo}
           title="Convert to a custom game"
-          subtitle={game.name}
+          subtitle={
+            demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
+          }
           description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
           confirmLabel="Convert to custom"
           name={convertName}
@@ -6328,9 +6625,8 @@ function RemoveGameDialog({
         if you want it gone for good.
       </p>
       <p className="mt-2 text-sm leading-6 text-text-muted">
-        Your history, notes, playthroughs and shelves are kept and come back
-        if the game is detected again. Use Remove + clear history to delete
-        them.
+        Your history, notes, playthroughs and shelves are kept and come back if
+        the game is detected again. Use Remove + clear history to delete them.
       </p>
     </Modal>
   );
@@ -6882,22 +7178,25 @@ function LibraryImportMatchCheckDialog({
 
 function MatchCheckDialog({
   game,
+  exeName,
   current,
   onCancel,
   onApply,
-  onReportNotAGame,
+  onReport,
   onSearchCommunity,
 }: {
   game: GameSummary;
-  /** The game the first file counts for now. */
+  /** The file being checked, picked by the user when the card has more. */
+  exeName: string;
+  /** The game that file counts for now. */
   current: { gameId: number; source: GameSource | null };
   onCancel: () => void;
   onApply: (match: Game, pendingCommunity: boolean) => void;
-  onReportNotAGame: () => void;
+  /** "Report wrong match…": the full report picker for this file. */
+  onReport: () => void;
   onSearchCommunity?: () => void;
 }) {
   const isOffline = useIsOffline();
-  const exeName = game.exeNames[0] ?? "";
   const [state, setState] = useState<"loading" | "error" | "done">("loading");
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
@@ -6910,7 +7209,6 @@ function MatchCheckDialog({
   const [flaggedIdentifier, setFlaggedIdentifier] = useState<{
     reason: IdentifierFlagReason;
   }>();
-  const [confirmNotAGame, setConfirmNotAGame] = useState(false);
 
   const isPendingCommunityMatch = (match: Game) =>
     match.source === "community" && pendingCommunityGameIds.has(match.id);
@@ -6939,7 +7237,7 @@ function MatchCheckDialog({
         // A single combined IGDB/community result is preselected so applying
         // is one click - unless it is what the exe already uses. An ambiguous
         // set requires an explicit pick.
-        setSelection(initialMatchSelection(games, game));
+        setSelection(initialMatchSelection(games, current));
         setState("done");
       } catch (err) {
         if (cancelled) return;
@@ -6950,7 +7248,7 @@ function MatchCheckDialog({
     return () => {
       cancelled = true;
     };
-  }, [attempt, exeName, game.gameId, game.source, isOffline]);
+  }, [attempt, exeName, current.gameId, current.source, isOffline]);
 
   const footer = (
     <div className="grid gap-3">
@@ -6999,29 +7297,10 @@ function MatchCheckDialog({
         </Button>
       </div>
       <div className="border-t border-border pt-3">
-        {confirmNotAGame ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-sm text-danger">
-              Report and stop tracking {exeName}?
-            </span>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setConfirmNotAGame(false)}>
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={onReportNotAGame}>
-                Report
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <Button
-            variant="ghost"
-            className="text-danger"
-            onClick={() => setConfirmNotAGame(true)}
-          >
-            This is not a game
-          </Button>
-        )}
+        {/* None of these: the same choices as Report wrong match. */}
+        <Button variant="ghost" icon={Flag} onClick={onReport}>
+          Report wrong match…
+        </Button>
       </div>
     </div>
   );

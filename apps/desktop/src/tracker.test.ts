@@ -4958,3 +4958,19 @@ describe("Discovered app paths", () => {
     );
   });
 });
+
+describe("start page", () => {
+  it.each([
+    ["games", "games"],
+    ["now", "now"],
+    [undefined, "now"],
+    ["junk", "now"],
+  ])("opens %s as %s", (startView, expected) => {
+    useAppStore.setState({ activeView: "settings" });
+    vi.mocked(localStorage.getItem).mockReturnValue(
+      JSON.stringify({ settings: { startView } }),
+    );
+    hydrate();
+    expect(useAppStore.getState().activeView).toBe(expected);
+  });
+});

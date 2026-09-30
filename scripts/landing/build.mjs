@@ -48,6 +48,15 @@ const steamSoon = `<p class="steam-soon"><img src="/brands/steam.svg" width="18"
 // #pc-amber-mark plays one cycle and holds, no fragment loops.
 const animatedMark = (fragment = "", size = 56, cls = "") =>
   `<img class="${`animated-mark ${cls}`.trim()}" src="/brands/playcounter-loader.svg${fragment}" width="${size}" height="${Math.round(size * 0.8)}" alt="" />`;
+const playIcon =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M7 4.6v14.8a1 1 0 0 0 1.52.85l12.1-7.4a1 1 0 0 0 0-1.7L8.52 3.75A1 1 0 0 0 7 4.6z"/></svg>';
+// Hero video. Without JavaScript it is a plain trailer player (nothing loads
+// before play). site.js turns it into a silent preview loop with a button
+// that plays the trailer with sound in the same frame.
+function trailerPlayer(overlay) {
+  const t = site.trailer;
+  return `<div class="app-frame trailer-frame" id="trailer" data-trailer data-preview-webm="${t.loopWebm}" data-preview-mp4="${t.loopMp4}"><video controls preload="none" playsinline poster="${t.poster}" width="${t.width}" height="${t.height}" aria-label="${esc(t.name)}"><source src="${t.webm}" type="video/webm" /><source src="${t.mp4}" type="video/mp4" /></video><button class="trailer-play" type="button" data-trailer-play hidden><span class="trailer-play-icon">${playIcon}</span><span data-trailer-label>Watch the trailer</span><span class="trailer-duration">${t.label}</span></button>${overlay}</div>`;
+}
 
 // Lucide outlines for the app's own view names (ISC license).
 const icons = {
@@ -139,6 +148,7 @@ function shell({
   graph = [],
   lang = "en",
   noindex = false,
+  head = "",
 }) {
   const social = site.screenshots.social;
   const website = {
@@ -174,7 +184,7 @@ ${noindex ? "" : `<link rel="canonical" href="${url(path)}" />`}
 <link rel="icon" type="image/svg+xml" href="/brands/playcounter-mark-small.svg" />
 <link rel="apple-touch-icon" href="/icon.png" />
 <link rel="preload" href="${displayFont}" as="font" type="font/woff2" crossorigin />
-<link rel="stylesheet" href="/styles.css?v=${assetVersion("styles.css")}" />
+${head}<link rel="stylesheet" href="/styles.css?v=${assetVersion("styles.css")}" />
 <script src="/site.js?v=${assetVersion("site.js")}" defer></script>
 <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
 <meta property="og:title" content="${esc(title)}" />
@@ -344,7 +354,7 @@ function home() {
     "check-playtime-xbox-game-pass",
   ];
   const body = `<main id="main">
-<section class="hero"><div class="hero-atmosphere" aria-hidden="true">${dial}</div><div class="wrap hero-copy"><p class="eyebrow">Free playtime tracker for Windows</p><h1>Every session <span>counts.</span></h1><p class="hero-lede">PlayCounter records how long you play, automatically. Start your games from Steam, Battle.net, Epic, a disc or an emulator: they all land in one library with one clear total each.</p><div class="hero-actions">${download()}<a class="button secondary" href="#features">See the app <span aria-hidden="true">↓</span></a></div><p class="download-meta">Free · No PlayCounter account · Windows</p>${steamSoon}</div><div class="wrap hero-shot"><div class="app-frame">${screenshot("library", { eager: true, caption: false })}<div class="session-chip" data-session-chip hidden aria-hidden="true">${animatedMark("", 52)}<span class="session-chip-body"><span class="session-chip-kicker">Current session</span><span class="session-chip-title">playcounter.app</span></span><span class="session-chip-time"><span>Session time</span><strong data-session-time>0:00</strong></span></div></div><p class="hero-caption">PlayCounter ${site.version} · Example data · <span class="milestone"><span aria-hidden="true" class="status-dot"></span>${site.milestone}</span></p>${sessionMarks}</div></section>
+<section class="hero"><div class="hero-atmosphere" aria-hidden="true">${dial}</div><div class="wrap hero-copy"><p class="eyebrow">Free playtime tracker for Windows</p><h1>Every session <span>counts.</span></h1><p class="hero-lede">PlayCounter records how long you play, automatically. Start your games from Steam, Battle.net, Epic, a disc or an emulator: they all land in one library with one clear total each.</p><div class="hero-actions">${download()}<a class="button secondary trailer-link" href="#trailer">${playIcon}Watch the trailer</a></div><p class="download-meta">Free · No PlayCounter account · Windows</p>${steamSoon}</div><div class="wrap hero-shot">${trailerPlayer(`<div class="session-chip" data-session-chip hidden aria-hidden="true">${animatedMark("", 52)}<span class="session-chip-body"><span class="session-chip-kicker">Current session</span><span class="session-chip-title">playcounter.app</span></span><span class="session-chip-time"><span>Session time</span><strong data-session-time>0:00</strong></span></div>`)}<p class="hero-caption">PlayCounter ${site.version} · Example data · <span class="milestone"><span aria-hidden="true" class="status-dot"></span>${site.milestone}</span></p>${sessionMarks}</div></section>
 <section class="sources wrap" aria-labelledby="sources-title"><h2 id="sources-title" class="sources-title">Wherever your games come from</h2><ul class="source-list">${sources.map((source) => `<li>${source}</li>`).join("")}</ul><p class="sources-note">No importer or special launch setup needed for tracking. <a href="/supported-games/">Which games are recognized?</a></p><div class="popular"><h2 class="sources-title" id="popular-title">Popular games with hidden playtime</h2><p class="popular-note">These games don’t show one clear total. PlayCounter tracks them on your PC, and each guide shows where the game keeps its own numbers.</p><ul class="game-tiles" aria-labelledby="popular-title">${popularGames.map(([name, icon, hook, href]) => `<li><a href="${href}"><span class="game-icon">${gameGlyph(icon)}</span><span class="game-name">${esc(name)}</span><span class="game-hook">${esc(hook)}</span></a></li>`).join("")}</ul></div></section>
 <section id="features" class="section"><div class="wrap section-heading"><p class="eyebrow">Inside the app</p><h2>Launch. Play. It’s recorded.</h2><p>A live timer while you play. A library, a history and milestones to come back to.</p></div><div class="wrap tour">${tour.map((item, index) => `<article class="tour-row${index % 2 ? " is-flipped" : ""}"><div class="tour-copy"><p class="view-label">${icon(item.icon)}${item.view}</p><h3>${item.title}</h3><p>${item.text}</p></div>${screenshot(item.shot, { sizes: "(min-width: 1260px) 760px, (min-width: 900px) 62vw, calc(100vw - 32px)" })}</article>`).join("")}</div><p class="wrap section-note">Your recorded sessions, notes and history stay on your PC. Game matching and a few other features use online services. <a href="/datenschutz#en">What the app sends online</a>.</p></section>
 <section id="imports" class="section section-tint"><div class="wrap"><div class="section-heading"><p class="eyebrow">Imports</p><h2>Bring your earlier hours along.</h2><p>Tracking works without any import. Steam, Xbox and Epic imports are worth it: they bring in the hours those launchers recorded, so your totals start with your real playtime. Battle.net shares no playtime, so its import is optional.</p></div><div class="support-grid">${importerCards}</div><div class="import-explainer"><div><h3>Every other launcher works too</h3><p>Battle.net, GOG, EA, Ubisoft, Riot, itch.io and standalone games are tracked as you play, no import needed. To include hours from before, set the game’s total yourself. <a href="/adjust-total-playtime/">How to adjust a total</a>.</p></div><div><h3>How totals add up</h3><p>Each launcher counts once. PlayCounter adds up the imported launcher totals, compares that with the time it tracked itself and shows the higher number. <a href="/total-playtime-across-all-launchers/#totals">See an example</a>.</p></div></div></div></section>
@@ -392,12 +402,27 @@ function home() {
       "Achievements, shelves, statuses and light and dark themes",
     ],
   };
+  const trailer = {
+    "@type": "VideoObject",
+    "@id": url("/#trailer"),
+    name: site.trailer.name,
+    description: site.trailer.description,
+    thumbnailUrl: [url(site.trailer.poster)],
+    uploadDate: site.trailer.uploadDate,
+    duration: site.trailer.duration,
+    contentUrl: url(site.trailer.mp4),
+    width: site.trailer.width,
+    height: site.trailer.height,
+    publisher: { "@id": url("/#organization") },
+  };
   return shell({
     title: "Free Automatic Game Playtime Tracker for Windows | PlayCounter",
     description: site.description,
     path: "/",
     body,
-    graph: [software],
+    graph: [software, trailer],
+    head: `<link rel="preload" href="${site.trailer.poster}" as="image" type="image/webp" fetchpriority="high" />
+`,
   });
 }
 
@@ -583,6 +608,10 @@ export function buildOutputs() {
         headers: { "Cache-Control": "public, max-age=31536000, immutable" },
       },
       {
+        route: "/videos/*",
+        headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+      },
+      {
         route: "/brands/*",
         headers: { "Cache-Control": "public, max-age=604800" },
       },
@@ -596,6 +625,7 @@ export function buildOutputs() {
       },
     ],
     responseOverrides: { 404: { rewrite: "/404.html", statusCode: 404 } },
+    mimeTypes: { ".mp4": "video/mp4", ".webm": "video/webm" },
     globalHeaders: {
       "Cache-Control": "public, max-age=0, must-revalidate",
       "X-Content-Type-Options": "nosniff",

@@ -14,6 +14,7 @@ import type {
   EmulatorMappingShare,
 } from "../../../emulators/types";
 import { emulatorMappingProvenance } from "../../../emulators/provenance";
+import { mappingGameRef, useCoverUrl } from "../../../pickedCovers";
 import {
   emulatorShareControl,
   isShareableEmulatorMapping,
@@ -60,6 +61,7 @@ export function LinkedGameCard({
 }) {
   const detectionSource = emulatorDetectionSourceLabel(mapping.detectionSource);
   const provenance = emulatorMappingProvenance(mapping);
+  const coverUrl = useCoverUrl(mappingGameRef(mapping), mapping.coverUrl);
   const addToast = useAppStore((state) => state.addToast);
   const installUuid = useAppStore((state) => state.installUuid);
   const offline = useIsOffline();
@@ -131,9 +133,9 @@ export function LinkedGameCard({
           sits beside the cover frame, not inside it. */}
       <div className="relative">
         <div className="aspect-[3/4] overflow-hidden rounded-t-xl bg-surface-hover">
-          {mapping.coverUrl ? (
+          {coverUrl ? (
             <GameCover
-              src={mapping.coverUrl}
+              src={coverUrl}
               alt=""
               className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
             />

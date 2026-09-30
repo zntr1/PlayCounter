@@ -10,6 +10,7 @@ import {
   launchErrorMessage,
   launchTargetsForGame,
 } from "../../../gameLaunch";
+import { hideToTrayWhenGameStarts } from "../../../hideToTrayOnLaunch";
 import { isLaunchable, launchableEmulatorMappings } from "../../../launchable";
 import { forgetUninstalledLibraryInstalls } from "../../../library/installRecheck";
 import {
@@ -273,6 +274,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
         return;
       }
       keepLaunchFeedback = true;
+      hideToTrayWhenGameStarts(game.aliases);
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
       );

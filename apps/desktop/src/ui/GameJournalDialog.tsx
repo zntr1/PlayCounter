@@ -52,6 +52,7 @@ import { useGameJournal } from "./useGameJournal";
 import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
 import { getSessionGameKey } from "../historyStats";
+import { usePickedCovers } from "../pickedCovers";
 
 /* The game journal ───────────────────────────────────────────────────────────
    One game, one page. The header carries the game: cover, totals, and the
@@ -208,6 +209,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const showDays = usePersonalLibraryState((s) => s.settings.showDurationDays);
   const identity = personalGameIdentity(libraryApi.getState());
   const gameKey = identity(target.game);
+  const coverUrl = usePickedCovers()[gameKey] ?? target.game.coverUrl;
   const gameSessions = sessions.filter((s) => identity(s) === gameKey);
   const selectedSessions = gameSessions.filter(
     (s) => (s.playthroughId ?? null) === selected,
@@ -333,9 +335,9 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
       header={
         <div className="journal-header relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
           <div className="journal-header-main flex items-start gap-5">
-            {target.game.coverUrl ? (
+            {coverUrl ? (
               <GameCover
-                src={target.game.coverUrl}
+                src={coverUrl}
                 alt=""
                 className="journal-header-cover h-[118px] w-[88px] shrink-0 rounded-xl object-cover shadow-raised ring-1 ring-white/10"
               />

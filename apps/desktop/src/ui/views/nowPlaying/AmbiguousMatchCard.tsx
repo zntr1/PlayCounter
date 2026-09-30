@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronUp,
   CircleHelp,
-  EyeOff,
   Gamepad2,
   PenLine,
   Search,
@@ -35,7 +34,8 @@ import { ambiguousMatchCopy, formatAgo } from "./ambiguousMatchCopy";
 import { useCommunityGameCorrection } from "../../useCommunityGameCorrection";
 import { isGenericExeName } from "../../../library/exeCandidates";
 import { notifyFolderIgnored } from "../folderIgnoredToast";
-import { SoftwareDialog } from "../../SoftwareDialog";
+import { ignoreAppAsSoftware, SoftwareDialog } from "../../SoftwareDialog";
+import { ReportWrongMatchDialog } from "../../ReportWrongMatchDialog";
 import { exeProductName, useExeDetails } from "../../exeDetails";
 
 /* One executable PlayCounter would not match on its own ─────────────────────
@@ -64,6 +64,7 @@ export function AmbiguousMatchCard({
   const addToast = useAppStore((state) => state.addToast);
   const trackTools = useAppStore((state) => state.settings.trackTools === true);
   const [softwareOpen, setSoftwareOpen] = useState(false);
+  const [notAGameOpen, setNotAGameOpen] = useState(false);
   const exeDetails = useExeDetails(softwareOpen ? exePath : null);
   const [suggestionOpen, setSuggestionOpen] = useState(false);
   const [customEntryOpen, setCustomEntryOpen] = useState(false);
@@ -357,37 +358,48 @@ export function AmbiguousMatchCard({
               Custom name
             </Button>
           ) : null}
-          {/* Software is counted per file name: never for Game.exe & co.
-              Known software already has its own tile above. */}
-          {!genericName && !software ? (
-            <Button
-              variant="secondary"
-              icon={AppWindow}
-              title={`Count ${exeName} on the Software page, with the time since it was detected.`}
-              onClick={() => setSoftwareOpen(true)}
-            >
-              It&apos;s software
-            </Button>
-          ) : null}
+          {/* The same choices as Report wrong match: an app (counted or
+              ignored), part of a game, or not sure. */}
           <Button
             variant={reportedNotAGame ? "primary" : "secondary"}
             icon={Ban}
-            title={`Stop tracking ${exeName} and report it as a launcher, tool, or other app that is not a game.`}
-            onClick={() => void handleNegativeReport()}
+            title={`${exeName} is an app, part of a game, or you're not sure: choose what it is.`}
+            onClick={() => setNotAGameOpen(true)}
           >
-            Not a game
-          </Button>
-          <Button
-            variant="ghost"
-            icon={EyeOff}
-            title="Hide it on this PC without sending a report. You can restore it under Discovered."
-            onClick={() => void handleDismiss()}
-          >
-            Ignore on this PC
+            Not a game…
           </Button>
         </div>
       </div>
 
+      {notAGameOpen ? (
+        <ReportWrongMatchDialog
+          unidentified
+          exeName={exeName}
+          gameName=""
+          onCancel={() => setNotAGameOpen(false)}
+          // Known software already has its own tile above.
+          onSoftware={
+            software
+              ? undefined
+              : () => {
+                  setNotAGameOpen(false);
+                  setSoftwareOpen(true);
+                }
+          }
+          onIgnoreApp={() => {
+            setNotAGameOpen(false);
+            void ignoreAppAsSoftware(exeName, exePath, !isOffline, addToast);
+          }}
+          onNotAGame={() => {
+            setNotAGameOpen(false);
+            void handleNegativeReport();
+          }}
+          onNotPlaying={() => {
+            setNotAGameOpen(false);
+            void handleDismiss();
+          }}
+        />
+      ) : null}
       {softwareOpen ? (
         <SoftwareDialog
           exeName={exeName}

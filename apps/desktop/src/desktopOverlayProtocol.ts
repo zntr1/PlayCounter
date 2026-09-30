@@ -28,6 +28,8 @@ export type DesktopOverlayMessage = {
   coverUrl?: string;
   action?: DesktopOverlayAction;
   actionLabel?: string;
+  /** The card ticks the time of day itself, so it stays current while visible. */
+  showClock?: boolean;
   theme: "dark" | "light";
   accentColor: string | null;
   reducedMotion: boolean;

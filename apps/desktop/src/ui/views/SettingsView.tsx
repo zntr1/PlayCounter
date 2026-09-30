@@ -111,6 +111,7 @@ export function SettingsView() {
   const installUuid = useAppStore((state) => state.installUuid);
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
+  const setStartView = useAppStore((state) => state.setStartView);
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
   const setShowInstallInSteam = useAppStore(
     (state) => state.setShowInstallInSteam,
@@ -434,6 +435,21 @@ export function SettingsView() {
             onChange={(event) => setShowDurationDays(event.target.checked)}
           />
         </SettingsRow>
+        <SettingsRow
+          description="The page PlayCounter shows when it opens."
+          title="Start page"
+        >
+          <Select
+            aria-label="Start page"
+            value={settings.startView === "games" ? "games" : "now"}
+            onChange={(event) =>
+              setStartView(event.target.value === "games" ? "games" : "now")
+            }
+          >
+            <option value="now">Now Playing</option>
+            <option value="games">My Games</option>
+          </Select>
+        </SettingsRow>
       </SettingsPanel>
 
       <SettingsPanel
@@ -560,6 +576,23 @@ export function SettingsView() {
             disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
+        {currentPlatform() !== "macos" ? (
+          <SettingsRow
+            title="Show clock in session popup"
+            description="Add the time of day to the current session popup, handy in fullscreen games."
+          >
+            <Switch
+              aria-label="Show clock in session popup"
+              checked={settings.overlayShowClock === true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "overlayShowClock",
+                  event.target.checked,
+                )
+              }
+            />
+          </SettingsRow>
+        ) : null}
       </SettingsPanel>
 
       {currentPlatform() !== "macos" ? (
@@ -790,6 +823,22 @@ export function SettingsView() {
               disabled={settings.rememberLaunchPaths === false}
               onChange={(event) =>
                 setLauncherSetting("gameLaunchingEnabled", event.target.checked)
+              }
+            />
+          </SettingsRow>
+          <SettingsRow
+            description="Once a game you started from PlayCounter is running, PlayCounter moves to the tray to save resources. Needs direct game launching turned on."
+            title="Hide to tray when a game starts"
+          >
+            <Switch
+              aria-label="Hide to tray when a game starts"
+              checked={settings.hideToTrayOnGameStart !== false}
+              disabled={settings.gameLaunchingEnabled !== true}
+              onChange={(event) =>
+                setLauncherSetting(
+                  "hideToTrayOnGameStart",
+                  event.target.checked,
+                )
               }
             />
           </SettingsRow>

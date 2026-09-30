@@ -301,6 +301,7 @@ const settings = object({}, {
   showWindowHotkey: nullable(string),
   currentSessionHotkey: nullable(string),
   launchOnStartup: boolean,
+  startView: oneOf("now", "games"),
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),
@@ -360,9 +361,11 @@ const settings = object({}, {
   overlayMilestones: boolean,
   overlayActionRequired: boolean,
   overlayDiscoveries: boolean,
+  overlayShowClock: boolean,
   rememberLaunchPaths: boolean,
   gameLaunchingEnabled: boolean,
   controllerNavigationEnabled: boolean,
+  hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
   showInstallInSteam: boolean,
   showAdultArt: boolean,
@@ -487,6 +490,7 @@ const validateBackupShape: Validator = object(
     archivedGameSeconds: dictionary(nonnegative),
     playtimeAdjustments: dictionary(number),
     customHeroArt: dictionary(string),
+    customCoverArt: dictionary(string),
     toolUsage: dictionary(
       object(
         { days: dictionary(nonnegative) },
@@ -495,6 +499,17 @@ const validateBackupShape: Validator = object(
     ),
     collapsedSections: array(string),
     autoDetectedGameKeys: array(nonempty),
+    rejectedGameFiles: array(
+      object(
+        {
+          exeName: nonempty,
+          gameId: integer,
+          source: oneOf("igdb", "community"),
+          rejectedAt: date,
+        },
+        { igdbId: positiveId },
+      ),
+    ),
     tours: object({
       version: integer,
       welcomeVersion: integer,

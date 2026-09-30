@@ -71,6 +71,7 @@ export type OverlayEvent =
       durationSeconds: number;
       sessionIndex?: number;
       sessionCount?: number;
+      showClock?: boolean;
     }
   | {
       type: "choice-required";
@@ -178,6 +179,7 @@ function overlayCopy(
   | "coverUrl"
   | "action"
   | "actionLabel"
+  | "showClock"
 > {
   if (event.type === "current-session") {
     return {
@@ -192,6 +194,7 @@ function overlayCopy(
         : (event.sessionCount ?? 0) > 1
           ? `${event.sessionIndex} of ${event.sessionCount} active games · Press again for next`
           : undefined,
+      showClock: event.showClock,
     };
   }
   if (kind === "action-required" && event.type === "choice-required") {

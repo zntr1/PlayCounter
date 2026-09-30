@@ -6,6 +6,7 @@ import {
   Clock3,
   Download,
   ExternalLink,
+  Flag,
   FolderOpen,
   Gamepad2,
   Info,
@@ -23,6 +24,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { invoke } from "@tauri-apps/api/core";
 import { useGameDetails } from "../../../gameDetails";
+import { useCoverUrl } from "../../../pickedCovers";
 import { scopedExeLinkKey } from "../../../library/scopedLinks";
 import type { ScopedExeLink } from "../../../library/types";
 import type { LocalLinkRef } from "../../../localLinks";
@@ -53,6 +55,7 @@ import {
 } from "../../providerLibrary";
 import { summarizeGameSessions } from "../../gameDetailsStats";
 import { useHeroLauncher } from "./useHeroLauncher";
+import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
@@ -201,6 +204,7 @@ export function GameDetailsDialog({
   onClose,
   onMoveToPlayCounter,
   onDemoHistory,
+  onReportFile,
 }: {
   game: GameSummary;
   /** Own lock key, distinct from the opener's, so closing the dialog never
@@ -212,6 +216,8 @@ export function GameDetailsDialog({
   onClose: () => void;
   onMoveToPlayCounter?: () => void;
   onDemoHistory?: () => void;
+  /** "Report" on one file: the report picker opens for that file. */
+  onReportFile?: (exeName: string) => void;
 }) {
   const demo = game.kind === "tour-demo";
   const showDurationDays = useAppStore(
@@ -232,6 +238,12 @@ export function GameDetailsDialog({
     () => (demo ? new Map<string, ScopedExeLink>() : realScopedExeLinks),
     [demo, realScopedExeLinks],
   );
+  const launchTargets = useAppStore((state) => state.launchTargets);
+  // How each file ran here, so the user sees which one is really theirs.
+  const gameFiles = useMemo(
+    () => listGameFiles(game, exeCache, scopedExeLinks, launchTargets),
+    [game, exeCache, scopedExeLinks, launchTargets],
+  );
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
@@ -239,6 +251,7 @@ export function GameDetailsDialog({
   const pickedArt = useAppStore(
     (state) => state.customHeroArt[customHeroArtKey(game)],
   );
+  const coverUrl = useCoverUrl({ ...game, gameName: game.name }, game.coverUrl);
   const details = useGameDetails(demo ? undefined : game.igdbId);
   // Release year already known from matching, so the title line is never empty
   // while the details request is in flight.
@@ -439,9 +452,9 @@ export function GameDetailsDialog({
             decoding="async"
             className="library-hero-art absolute inset-0 h-full w-full object-cover object-[72%_0%]"
           />
-        ) : game.coverUrl ? (
+        ) : coverUrl ? (
           <GameCover
-            src={game.coverUrl}
+            src={coverUrl}
             alt=""
             loading="eager"
             className="hero-backdrop absolute inset-0 h-full w-full scale-125 object-cover blur-3xl saturate-150"
@@ -460,10 +473,10 @@ export function GameDetailsDialog({
 
       <div className="game-details-heading relative grid gap-5 px-5 pt-5 sm:grid-cols-[150px_minmax(0,1fr)] sm:px-6 sm:pt-6">
         <div className="hidden sm:block">
-          {game.coverUrl ? (
+          {coverUrl ? (
             // Always the larger art here: one image, opened deliberately.
             <GameCover
-              src={game.coverUrl}
+              src={coverUrl}
               highRes
               alt=""
               className="aspect-[3/4] w-full rounded-lg object-cover shadow-card-hover ring-1 ring-white/10"
@@ -780,6 +793,7 @@ export function GameDetailsDialog({
                   entry.exeName.toLowerCase() === exeName.toLowerCase(),
               );
               const cached = exeCache.get(exeName.toLowerCase());
+              const facts = gameFiles.find((file) => file.exeName === exeName);
               const nameLink =
                 cached?.state === "matched" && ownsLink(cached)
                   ? cached
@@ -842,8 +856,24 @@ export function GameDetailsDialog({
                             key: exeName.toLowerCase(),
                           })
                         : null}
+                      {onReportFile && facts && canReportFile(facts) ? (
+                        <Button
+                          variant="ghost"
+                          icon={Flag}
+                          title={`Report ${exeName} as a wrong match for ${game.name}`}
+                          onClick={() => onReportFile(exeName)}
+                          className="shrink-0 px-2 py-1 text-xs"
+                        >
+                          Report
+                        </Button>
+                      ) : null}
                     </span>
                   </div>
+                  {facts && !demo ? (
+                    <div className="mt-1 text-xs text-text-muted">
+                      {fileRunStatus(facts)}
+                    </div>
+                  ) : null}
                   {scoped.map((link) => {
                     const key = scopedExeLinkKey(link.exeName, link.pathPrefix);
                     return (

@@ -50,6 +50,7 @@ type PersistableAppState = {
   libraryInstalls?: ReadonlyMap<string, unknown>;
   scopedExeLinks?: ReadonlyMap<string, unknown>;
   ignoredExeFolders?: ReadonlyMap<string, unknown>;
+  rejectedGameFiles?: readonly unknown[];
   recentSessions: Session[];
   activeSessions: unknown[];
   ambiguousMatches: unknown[];
@@ -69,6 +70,7 @@ type PersistableAppState = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
+  customCoverArt?: Record<string, string>;
   toolUsage?: ToolUsage;
   collapsedSections: string[];
   autoDetectedGameKeys: string[];
@@ -99,6 +101,7 @@ export type PersistedPayload = {
   libraryInstalls?: unknown[];
   scopedExeLinks?: unknown[];
   ignoredExeFolders?: unknown[];
+  rejectedGameFiles?: unknown[];
   sessions: Session[];
   activeSessions: unknown[];
   ambiguousMatches: unknown[];
@@ -119,6 +122,7 @@ export type PersistedPayload = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
+  customCoverArt?: Record<string, string>;
   toolUsage?: ToolUsage;
   collapsedSections?: string[];
   autoDetectedGameKeys?: string[];
@@ -184,6 +188,7 @@ function buildPersistedPayload(
     libraryInstalls: [...(state.libraryInstalls?.values() ?? [])],
     scopedExeLinks: [...(state.scopedExeLinks?.values() ?? [])],
     ignoredExeFolders: [...(state.ignoredExeFolders?.values() ?? [])],
+    rejectedGameFiles: [...(state.rejectedGameFiles ?? [])],
     sessions,
     activeSessions: state.activeSessions,
     ambiguousMatches: state.ambiguousMatches,
@@ -224,6 +229,10 @@ function buildPersistedPayload(
     customHeroArt:
       state.customHeroArt && Object.keys(state.customHeroArt).length > 0
         ? state.customHeroArt
+        : undefined,
+    customCoverArt:
+      state.customCoverArt && Object.keys(state.customCoverArt).length > 0
+        ? state.customCoverArt
         : undefined,
     toolUsage:
       state.toolUsage && Object.keys(state.toolUsage).length > 0

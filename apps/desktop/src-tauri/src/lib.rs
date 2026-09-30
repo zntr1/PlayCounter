@@ -171,6 +171,42 @@ fn save_custom_cover(
     extension: String,
     bytes: Vec<u8>,
 ) -> Result<String, String> {
+    write_cover(&app, &game_id.to_string(), &extension, bytes)
+}
+
+/// An uploaded cover for a game whose own cover comes from IGDB or the
+/// community. The file is named after the game's identity key (`igdb#123`,
+/// `community:45`) under its own prefix, so it never overwrites a custom
+/// game's `{game_id}` cover.
+#[tauri::command]
+fn save_picked_cover(
+    app: tauri::AppHandle,
+    key: String,
+    extension: String,
+    bytes: Vec<u8>,
+) -> Result<String, String> {
+    if key.is_empty() || key.len() > 64 {
+        return Err("Invalid cover key.".to_string());
+    }
+    let stem: String = key
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    write_cover(&app, &format!("picked-{stem}"), &extension, bytes)
+}
+
+fn write_cover(
+    app: &tauri::AppHandle,
+    stem: &str,
+    extension: &str,
+    bytes: Vec<u8>,
+) -> Result<String, String> {
     const MAX_COVER_BYTES: usize = 8 * 1024 * 1024;
 
     if bytes.is_empty() {
@@ -180,7 +216,7 @@ fn save_custom_cover(
         return Err("Cover image must be 8 MB or smaller.".to_string());
     }
 
-    let extension = normalize_cover_extension(&extension, &bytes)?;
+    let extension = normalize_cover_extension(extension, &bytes)?;
     let cover_dir = app
         .path()
         .app_data_dir()
@@ -188,7 +224,7 @@ fn save_custom_cover(
         .join("covers");
     fs::create_dir_all(&cover_dir).map_err(|error| error.to_string())?;
 
-    let path = cover_dir.join(format!("{game_id}.{extension}"));
+    let path = cover_dir.join(format!("{stem}.{extension}"));
     fs::write(&path, bytes).map_err(|error| error.to_string())?;
     path_to_string(path)
 }
@@ -474,6 +510,7 @@ pub fn run() {
             ignored_processes,
             set_user_ignored_process,
             save_custom_cover,
+            save_picked_cover,
             read_text_file,
             write_text_file,
             backup_local_data,

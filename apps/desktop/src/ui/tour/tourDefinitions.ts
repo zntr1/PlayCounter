@@ -1332,7 +1332,7 @@ export const TOURS: TourDefinition[] = [
         scrollIntoView: true,
         allow: [a("settings-launcher")],
         title: "Game launching",
-        body: "Remember launch paths lets PlayCounter keep the location of the games it recognizes on this PC. With it on, Launch games directly adds Play buttons to My Games, and Controller navigation lets you move through PlayCounter with a gamepad. Show Install in Steam puts an install button on imported Steam games that are no longer installed.\n\nSaved paths stay on this PC and are left out of backups.",
+        body: "Remember launch paths lets PlayCounter keep the location of the games it recognizes on this PC. With it on, Launch games directly adds Play buttons to My Games, Hide to tray when a game starts tucks PlayCounter away once a game you started is running, and Controller navigation lets you move through PlayCounter with a gamepad. Show Install in Steam puts an install button on imported Steam games that are no longer installed.\n\nSaved paths stay on this PC and are left out of backups.",
       },
       {
         id: "emulators",
@@ -1525,7 +1525,7 @@ export const TOURS: TourDefinition[] = [
         view: "keep",
         anchor: a("nav-emulators"),
         title: "Live view and saved emulator pages",
-        body: "An emulator page is added the first time PlayCounter sees that emulator running, and stays afterward. Now Emulating works differently: it appears while an emulator is running. The section is hidden if detection is off or all known emulators are ignored. This guide supplies Dolphin as an example.",
+        body: "An emulator page is added the first time PlayCounter sees that emulator running, and stays afterward. Now Emulating works differently: it appears while an emulator is running. Both sit under Library and are hidden if detection is off or all known emulators are ignored. This guide supplies Dolphin as an example.",
       },
       {
         id: "now-emulating",

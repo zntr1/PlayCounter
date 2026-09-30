@@ -15,7 +15,14 @@ import {
   X,
 } from "lucide-react";
 import type { CommunityMetadataCandidate } from "@playcounter/shared";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   addCustomGame,
@@ -54,6 +61,7 @@ import {
 import { describeExeFolder } from "../../exeFolder";
 import { SoftwareDialog } from "../SoftwareDialog";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
+import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 import { Panel, SourceBadge } from "../components";
 import {
   paginateExecutables,
@@ -324,6 +332,38 @@ export function DiscoveredView() {
     return () =>
       window.removeEventListener("playcounter:discovered-reset", handleReset);
   }, []);
+
+  // Ctrl+F finds this page's own search field, not the title bar's.
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLowerCase() !== "f"
+      )
+        return;
+      const input = searchBoxRef.current?.querySelector("input");
+      if (!input) return;
+      event.preventDefault();
+      input.focus();
+      input.select();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+  const clearSearch = useCallback(() => {
+    setSearch("");
+    setIgnoredPage(1);
+  }, []);
+  // Escape clears this page's search first, then the title bar's.
+  const titleBarHasQuery = useAppStore((state) => state.libraryQuery !== "");
+  const clearNextSearch = useCallback(() => {
+    if (search) clearSearch();
+    else useAppStore.getState().setLibraryQuery("");
+  }, [clearSearch, search]);
+  useEscapeClearsSearch(Boolean(search) || titleBarHasQuery, clearNextSearch);
 
   // Clear the retry spinner once the recheck has resolved (a real cache entry
   // reappears for that exe) or after a safety timeout if it never resolves.
@@ -848,7 +888,7 @@ export function DiscoveredView() {
               ? `Last scan ${new Date(lastProcessScanAt).toLocaleTimeString()}`
               : "No scan yet"}
           </span>
-          <div className="relative">
+          <div ref={searchBoxRef} className="relative">
             <Search
               size={15}
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-faint"
@@ -858,6 +898,12 @@ export function DiscoveredView() {
               onChange={(event) => {
                 setSearch(event.target.value);
                 setIgnoredPage(1);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && search) {
+                  event.preventDefault();
+                  clearSearch();
+                }
               }}
               placeholder="Search apps..."
               className="w-56 pl-9"
