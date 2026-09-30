@@ -102,3 +102,22 @@ it("takes Ctrl+F for its own search field and clears it with Escape", async () =
   await press("f", document.body, true);
   expect(document.activeElement).toBe(titleSearch);
 });
+
+it("clears its own search first, then the title bar's", async () => {
+  useAppStore.setState({ libraryQuery: "zelda" });
+  await act(() => root.render(<Shell />));
+  const pageSearch = container.querySelector<HTMLInputElement>(
+    '[placeholder="Search apps..."]',
+  )!;
+  const titleSearch = container.querySelector<HTMLInputElement>(
+    '[role="search"] input',
+  )!;
+
+  await typeInto(pageSearch, "steam");
+  await press("Escape", document.body);
+  expect(pageSearch.value).toBe("");
+  expect(titleSearch.value).toBe("zelda");
+
+  await press("Escape", document.body);
+  expect(titleSearch.value).toBe("");
+});

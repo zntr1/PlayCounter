@@ -357,7 +357,13 @@ export function DiscoveredView() {
     setSearch("");
     setIgnoredPage(1);
   }, []);
-  useEscapeClearsSearch(Boolean(search), clearSearch);
+  // Escape clears this page's search first, then the title bar's.
+  const titleBarHasQuery = useAppStore((state) => state.libraryQuery !== "");
+  const clearNextSearch = useCallback(() => {
+    if (search) clearSearch();
+    else useAppStore.getState().setLibraryQuery("");
+  }, [clearSearch, search]);
+  useEscapeClearsSearch(Boolean(search) || titleBarHasQuery, clearNextSearch);
 
   // Clear the retry spinner once the recheck has resolved (a real cache entry
   // reappears for that exe) or after a safety timeout if it never resolves.

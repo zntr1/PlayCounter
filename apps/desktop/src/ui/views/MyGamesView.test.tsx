@@ -1454,11 +1454,12 @@ it("clears the search with Escape from anywhere once nothing else owns the key",
       .click(),
   );
 
-  await act(() => useAppStore.getState().setActiveView("now"));
   await escape();
-  expect(query()).toBe("Steam");
-  await act(() => useAppStore.getState().setActiveView("games"));
+  expect(query()).toBe("");
 
+  // On another view the title bar clears it instead.
+  await inputSearch("Steam");
+  await act(() => useAppStore.getState().setActiveView("now"));
   await escape();
   expect(query()).toBe("");
 });

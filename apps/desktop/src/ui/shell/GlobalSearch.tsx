@@ -1,6 +1,7 @@
 import { Search, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
+import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 
 /* One search field for the whole window, sitting in the title bar. On My
    Games it filters the library directly, within whatever shelf and source are
@@ -8,7 +9,9 @@ import { useAppStore } from "../../store";
    Anywhere else, typing jumps to My Games on Enter with the text already
    applied and the library widened to every game, since a search started from
    another view has no shelf in mind. Ctrl+F focuses it from any view except
-   Discovered, whose own search field takes Ctrl+F there. */
+   Discovered, whose own search field takes Ctrl+F there. Escape clears it
+   from anywhere; My Games, My History and Discovered do that themselves,
+   since their own panels and fields take Escape first. */
 
 export const LIBRARY_SEARCH_PLACEHOLDER = "Search games...";
 export const HISTORY_SEARCH_PLACEHOLDER = "Search history...";
@@ -27,6 +30,9 @@ export function GlobalSearch() {
   const setQuery = onHistory ? setHistoryQuery : setLibraryQuery;
   const setActiveView = useAppStore((state) => state.setActiveView);
   const searchWholeLibrary = useAppStore((state) => state.searchWholeLibrary);
+  const pageOwnsEscape = onLibrary || onHistory || pageOwnsCtrlF;
+  const clearQuery = useCallback(() => setQuery(""), [setQuery]);
+  useEscapeClearsSearch(Boolean(query) && !pageOwnsEscape, clearQuery);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
