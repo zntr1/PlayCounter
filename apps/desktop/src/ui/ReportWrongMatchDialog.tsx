@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Ban,
   ChevronRight,
+  CircleHelp,
   EyeOff,
   Flag,
   ArrowLeftRight,
@@ -10,15 +11,16 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { isGenericExeName } from "../library/exeCandidates";
+import { useIsOffline } from "../store";
 import { GameCover } from "./GameCover";
 import { Button, Modal } from "./primitives";
 
-type Choice = "not-a-game" | "not-playing";
+type Choice = "not-a-game" | "not-playing" | "app";
 
 // What each ignoring choice does, shown before it runs. Both are undone
 // from Discovered, where ignored files can be restored.
 const confirmCopy: Record<
-  Choice,
+  Exclude<Choice, "app">,
   { title: string; points: string[]; action: string }
 > = {
   "not-a-game": {
@@ -40,6 +42,21 @@ const confirmCopy: Record<
     action: "Ignore on this PC",
   },
 };
+
+// "It's an app, ignore it": reported as software, not as "not a game".
+function ignoreAppCopy(isOffline: boolean) {
+  return {
+    title: "Ignore this app?",
+    points: [
+      "PlayCounter stops tracking it on this PC.",
+      isOffline
+        ? "Nothing is reported."
+        : "It's reported to community review as software, not as a game. The name is taken from the file.",
+      "You can restore it anytime in Discovered.",
+    ],
+    action: "Ignore app",
+  };
+}
 
 // Game.exe and co.: only this folder is ignored, and nothing is ever reported.
 function genericFolderCopy(exeName: string) {
@@ -64,6 +81,7 @@ export function ReportWrongMatchDialog({
   onNotAGame,
   onNotPlaying,
   onSoftware,
+  onIgnoreApp,
   demo = false,
 }: {
   exeName: string;
@@ -74,18 +92,24 @@ export function ReportWrongMatchDialog({
   onNotAGame: () => void;
   /** Only offered while the file is running, e.g. in Now Playing. */
   onNotPlaying?: () => void;
-  /** "It's software": counted on the Software page, time included. */
+  /** "It's an app, count its time": counted on the Software page, time
+   *  included. */
   onSoftware?: () => void;
+  /** "It's an app, ignore it": software, ignored on this PC. */
+  onIgnoreApp?: () => void;
   demo?: boolean;
 }) {
   const [confirming, setConfirming] = useState<Choice | null>(null);
   const [lastChoice, setLastChoice] = useState<Choice | null>(null);
+  const isOffline = useIsOffline();
   const label = exeName || "this app";
   const copy = !confirming
     ? null
     : isGenericExeName(exeName)
       ? genericFolderCopy(exeName)
-      : confirmCopy[confirming];
+      : confirming === "app"
+        ? ignoreAppCopy(isOffline)
+        : confirmCopy[confirming];
 
   function back() {
     setLastChoice(confirming);
@@ -120,7 +144,13 @@ export function ReportWrongMatchDialog({
             </Button>
             <Button
               variant="primary"
-              onClick={confirming === "not-a-game" ? onNotAGame : onNotPlaying}
+              onClick={
+                confirming === "not-a-game"
+                  ? onNotAGame
+                  : confirming === "app"
+                    ? onIgnoreApp
+                    : onNotPlaying
+              }
             >
               {copy.action}
             </Button>
@@ -153,7 +183,7 @@ export function ReportWrongMatchDialog({
           <div className="mt-3 grid gap-2">
             <ChoiceCard
               icon={ArrowLeftRight}
-              title="It belongs to a different game"
+              title="It's a different game"
               description="Pick the right game for this file."
               onClick={onDifferentGame}
             />
@@ -162,23 +192,32 @@ export function ReportWrongMatchDialog({
             {onSoftware && !isGenericExeName(exeName) ? (
               <ChoiceCard
                 icon={AppWindow}
-                title="It's software"
-                description="An app like VS Code. Its time moves to the Software page."
+                title="It's an app, count its time"
+                description="Discord, VS Code, a launcher. Its time moves to the Software page."
                 onClick={onSoftware}
+              />
+            ) : null}
+            {onIgnoreApp && !isGenericExeName(exeName) ? (
+              <ChoiceCard
+                icon={EyeOff}
+                title="It's an app, ignore it"
+                description="An app you don't want counted. Ignored on this PC."
+                autoFocus={lastChoice === "app"}
+                onClick={() => setConfirming("app")}
               />
             ) : null}
             <ChoiceCard
               icon={Ban}
-              title="It isn't a game at all"
-              description="A tool, launcher, or background app."
+              title="It's part of a game, not the game"
+              description="A crash reporter, anti-cheat, installer or updater. Ignored and reported."
               autoFocus={lastChoice === "not-a-game"}
               onClick={() => setConfirming("not-a-game")}
             />
             {onNotPlaying ? (
               <ChoiceCard
-                icon={EyeOff}
-                title="I'm not playing this right now"
-                description="Not sure what it is? Ignore it on this PC only."
+                icon={CircleHelp}
+                title="Not sure, just ignore it"
+                description="Ignored on this PC. Nothing is reported."
                 autoFocus={lastChoice === "not-playing"}
                 onClick={() => setConfirming("not-playing")}
               />

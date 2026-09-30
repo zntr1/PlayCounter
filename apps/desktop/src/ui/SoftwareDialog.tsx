@@ -1,11 +1,13 @@
 import { AppWindow, Image as ImageIcon, X } from "lucide-react";
 import { useState } from "react";
-import { useAppStore } from "../store";
+import { useAppStore, type Toast } from "../store";
 import {
+  ignoreTrackedExecutableAsSoftware,
   markExecutableAsSoftware,
   markTrackedExecutableAsSoftware,
 } from "../tracker";
 import { ArtPickerDialog } from "./ArtPickerDialog";
+import { exeProductName, peekExeDetails } from "./exeDetails";
 import { Button, Input, Modal, Switch } from "./primitives";
 
 /* "Track as software" from Discovered: the app leaves Discovered at once and gets
@@ -15,6 +17,45 @@ import { Button, Input, Modal, Switch } from "./primitives";
 
 function defaultSoftwareName(exeName: string) {
   return exeName.replace(/\.exe$/i, "");
+}
+
+/** "It's an app, ignore it" in the report picker: no dialog, the name comes
+ *  from the file and it is shared when online. */
+export async function ignoreAppAsSoftware(
+  exeName: string,
+  exePath: string | null | undefined,
+  share: boolean,
+  addToast: (toast: Omit<Toast, "id">) => void,
+) {
+  const name =
+    exeProductName(peekExeDetails(exePath), exeName) ??
+    defaultSoftwareName(exeName);
+  try {
+    const outcome = await ignoreTrackedExecutableAsSoftware(exeName, {
+      name,
+      share,
+    });
+    addToast({
+      tone: outcome.kind === "failed" ? "info" : "success",
+      title: `${name} ignored`,
+      detail:
+        outcome.kind === "failed"
+          ? "Only on this PC. The report could not be sent."
+          : outcome.kind === "local"
+            ? "Only on this PC. Nothing was reported."
+            : outcome.kind === "already-known"
+              ? "The community already knows it as software."
+              : outcome.kind === "rejected"
+                ? "It was reported as software before and not accepted."
+                : "Reported as software. Your report is queued for review.",
+    });
+  } catch (error) {
+    addToast({
+      tone: "error",
+      title: `Could not ignore ${name}`,
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export function SoftwareDialog({

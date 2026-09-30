@@ -5157,6 +5157,21 @@ export async function markTrackedExecutableAsSoftware(
   return markExecutableAsSoftware(exeName, input);
 }
 
+/**
+ * "It's an app, ignore it" on a tracked game or a picker: the exe becomes
+ * software like "It's software", then is ignored on this PC like "Ignore This
+ * App" on the Software page. Shared, the community learns it as software, not
+ * as a "not a game" report.
+ */
+export async function ignoreTrackedExecutableAsSoftware(
+  exeName: string,
+  input: { name: string; share: boolean },
+): Promise<MarkAsSoftwareOutcome> {
+  const outcome = await markTrackedExecutableAsSoftware(exeName, input);
+  await setUserIgnoredProcess(exeName, true);
+  return outcome;
+}
+
 /** Art picked on this PC for a tool, or null to go back to the shared art
  *  or the app's icon. Kept per executable, like the hours. */
 export function setToolArt(exeNames: readonly string[], artUrl: string | null) {
@@ -6242,7 +6257,7 @@ export async function dismissAmbiguousMatch(exeName: string) {
   return outcome;
 }
 
-// "I'm not playing this right now" on a tracked session: the user is unsure
+// "Not sure, just ignore it" on a tracked session: the user is unsure
 // what the file is, so it is only ignored here and never reported.
 export async function ignoreTrackedProcessLocally(
   exeName: string,

@@ -26,7 +26,7 @@ import {
 import { Panel } from "../components";
 import { Button } from "../primitives";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
-import { SoftwareDialog } from "../SoftwareDialog";
+import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { TOUR_DEMO_GAME } from "../tour/tourDemoGame";
 import { findTour } from "../tour/tourDefinitions";
@@ -281,6 +281,21 @@ export function NowPlayingView() {
           onSoftware={() => {
             setSoftwareTarget(reportTarget);
             setReportTarget(null);
+          }}
+          onIgnoreApp={() => {
+            setReportTarget(null);
+            void ignoreAppAsSoftware(
+              reportTarget.exeName,
+              useAppStore
+                .getState()
+                .processes.find(
+                  (process) =>
+                    process.exeName.toLowerCase() ===
+                    reportTarget.exeName.toLowerCase(),
+                )?.exePath,
+              !isOffline,
+              addToast,
+            );
           }}
         />
       ) : null}

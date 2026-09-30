@@ -192,7 +192,7 @@ import {
   sortMatchCandidates,
 } from "./matchCheckModel";
 import { ReportWrongMatchDialog } from "../ReportWrongMatchDialog";
-import { SoftwareDialog } from "../SoftwareDialog";
+import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
 import { GameCover } from "../GameCover";
@@ -3528,6 +3528,18 @@ export function GameLibraryCard({
     });
   }
 
+  function handleIgnoreApp() {
+    const exeName = game.exeNames[0];
+    setReportOpen(false);
+    if (!exeName) return;
+    void ignoreAppAsSoftware(
+      exeName,
+      useAppStore.getState().launchTargets.get(exeName.toLowerCase())?.path,
+      !isOffline,
+      addToast,
+    );
+  }
+
   const correction = useCommunityGameCorrection({
     exeName: primaryExeName ?? "",
     targetKey:
@@ -5661,6 +5673,7 @@ export function GameLibraryCard({
                     setSoftwareOpen(true);
                   }
             }
+            onIgnoreApp={demo ? undefined : handleIgnoreApp}
           />
         ) : null}
         {softwareOpen && game.exeNames[0] ? (
@@ -6147,6 +6160,7 @@ export function GameLibraryCard({
                   setSoftwareOpen(true);
                 }
           }
+          onIgnoreApp={demo ? undefined : handleIgnoreApp}
         />
       ) : null}
       {softwareOpen && game.exeNames[0] ? (

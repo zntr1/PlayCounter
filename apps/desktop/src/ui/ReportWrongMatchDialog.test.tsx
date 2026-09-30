@@ -11,6 +11,8 @@ const handlers = {
   onDifferentGame: vi.fn(),
   onNotAGame: vi.fn(),
   onNotPlaying: vi.fn(),
+  onSoftware: vi.fn(),
+  onIgnoreApp: vi.fn(),
 };
 
 beforeEach(() => {
@@ -52,11 +54,11 @@ async function click(text: string) {
   await act(() => found!.click());
 }
 
-it("offers 'not playing right now' only when the caller handles it", async () => {
+it("offers 'not sure' only when the caller handles it", async () => {
   await render(false);
-  expect(button("not playing this right now")).toBeUndefined();
+  expect(button("Not sure, just ignore it")).toBeUndefined();
   await render(true);
-  expect(button("not playing this right now")).toBeDefined();
+  expect(button("Not sure, just ignore it")).toBeDefined();
 });
 
 it("picks a different game in one click", async () => {
@@ -66,8 +68,9 @@ it("picks a different game in one click", async () => {
 });
 
 it.each([
-  ["isn't a game at all", "Ignore and report", "onNotAGame"],
-  ["not playing this right now", "Ignore on this PC", "onNotPlaying"],
+  ["part of a game, not the game", "Ignore and report", "onNotAGame"],
+  ["Not sure, just ignore it", "Ignore on this PC", "onNotPlaying"],
+  ["an app, ignore it", "Ignore app", "onIgnoreApp"],
 ] as const)(
   "asks before ignoring: %s",
   async (choice, confirmLabel, handler) => {
@@ -76,6 +79,7 @@ it.each([
     // Choosing only opens the confirm step; nothing runs yet.
     expect(handlers.onNotAGame).not.toHaveBeenCalled();
     expect(handlers.onNotPlaying).not.toHaveBeenCalled();
+    expect(handlers.onIgnoreApp).not.toHaveBeenCalled();
 
     await click("Back");
     expect(button(choice)).toBeDefined();
@@ -86,7 +90,7 @@ it.each([
   },
 );
 
-it.each(["isn't a game at all", "not playing this right now"])(
+it.each(["part of a game, not the game", "Not sure, just ignore it"])(
   "promises only a folder ignore for Game.exe: %s",
   async (choice) => {
     await act(() =>
@@ -107,7 +111,7 @@ it.each(["isn't a game at all", "not playing this right now"])(
 
 it("reports nothing when the user is only unsure", async () => {
   await render(true);
-  await click("not playing this right now");
+  await click("Not sure, just ignore it");
   expect(document.body.textContent).toContain("Nothing is reported.");
   await click("Ignore on this PC");
   expect(handlers.onNotAGame).not.toHaveBeenCalled();
