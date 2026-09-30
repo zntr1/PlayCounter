@@ -5782,9 +5782,10 @@ export function GameLibraryCard({
               current={flowFileGame}
               onCancel={() => setShowMatchCheck(false)}
               onApply={handleApplyMatch}
-              onReportNotAGame={() =>
-                void handleNegativeReport(flowExeName ?? "")
-              }
+              onReport={() => {
+                setShowMatchCheck(false);
+                openReport(flowExeName);
+              }}
               onSearchCommunity={
                 canSuggestToCommunity || localSearchOnly
                   ? () => {
@@ -6289,9 +6290,10 @@ export function GameLibraryCard({
             current={flowFileGame}
             onCancel={() => setShowMatchCheck(false)}
             onApply={handleApplyMatch}
-            onReportNotAGame={() =>
-              void handleNegativeReport(flowExeName ?? "")
-            }
+            onReport={() => {
+              setShowMatchCheck(false);
+              openReport(flowExeName);
+            }}
             onSearchCommunity={
               canSuggestToCommunity || localSearchOnly
                 ? () => {
@@ -7126,7 +7128,7 @@ function MatchCheckDialog({
   current,
   onCancel,
   onApply,
-  onReportNotAGame,
+  onReport,
   onSearchCommunity,
 }: {
   game: GameSummary;
@@ -7136,7 +7138,8 @@ function MatchCheckDialog({
   current: { gameId: number; source: GameSource | null };
   onCancel: () => void;
   onApply: (match: Game, pendingCommunity: boolean) => void;
-  onReportNotAGame: () => void;
+  /** "Report wrong match…": the full report picker for this file. */
+  onReport: () => void;
   onSearchCommunity?: () => void;
 }) {
   const isOffline = useIsOffline();
@@ -7152,7 +7155,6 @@ function MatchCheckDialog({
   const [flaggedIdentifier, setFlaggedIdentifier] = useState<{
     reason: IdentifierFlagReason;
   }>();
-  const [confirmNotAGame, setConfirmNotAGame] = useState(false);
 
   const isPendingCommunityMatch = (match: Game) =>
     match.source === "community" && pendingCommunityGameIds.has(match.id);
@@ -7241,29 +7243,10 @@ function MatchCheckDialog({
         </Button>
       </div>
       <div className="border-t border-border pt-3">
-        {confirmNotAGame ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-sm text-danger">
-              Report and stop tracking {exeName}?
-            </span>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setConfirmNotAGame(false)}>
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={onReportNotAGame}>
-                Report
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <Button
-            variant="ghost"
-            className="text-danger"
-            onClick={() => setConfirmNotAGame(true)}
-          >
-            This is not a game
-          </Button>
-        )}
+        {/* None of these: the same choices as Report wrong match. */}
+        <Button variant="ghost" icon={Flag} onClick={onReport}>
+          Report wrong match…
+        </Button>
       </div>
     </div>
   );

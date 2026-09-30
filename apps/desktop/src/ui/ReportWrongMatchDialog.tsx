@@ -66,12 +66,9 @@ function ignoreAppCopy(isOffline: boolean) {
 }
 
 // "It doesn't belong to <game>": the file leaves this game only. Game.exe and
-// co. only leave this game's folders and are never reported.
-function notThisGameCopy(
-  gameName: string,
-  exeName: string,
-  isOffline: boolean,
-) {
+// co. only leave this game's folders; they, and the user's own files, are
+// never reported.
+function notThisGameCopy(gameName: string, exeName: string, reported: boolean) {
   const generic = isGenericExeName(exeName);
   return {
     title: `Remove this file from ${gameName}?`,
@@ -79,9 +76,9 @@ function notThisGameCopy(
       generic
         ? `PlayCounter stops counting ${exeName} in this game's folder for ${gameName}.`
         : `PlayCounter stops counting it for ${gameName} on this PC.`,
-      generic || isOffline
-        ? "Nothing is reported."
-        : `It's reported to community review: this file isn't ${gameName}'s.`,
+      reported
+        ? `It's reported to community review: this file isn't ${gameName}'s.`
+        : "Nothing is reported.",
       `If it runs, it shows up in Discovered. Linking it to ${gameName} yourself undoes this.`,
     ],
     action: "Remove from game",
@@ -115,6 +112,7 @@ export function ReportWrongMatchDialog({
   onSoftware,
   onIgnoreApp,
   onNotThisGame,
+  unidentified = false,
   demo = false,
 }: {
   /** The file to report. Empty: the user picks one of `files` first. */
@@ -129,7 +127,7 @@ export function ReportWrongMatchDialog({
   onPickFile?: (exeName: string) => void;
   onCancel: () => void;
   /** Every choice names the one file it is about. */
-  onDifferentGame: (exeName: string) => void;
+  onDifferentGame?: (exeName: string) => void;
   onNotAGame: (exeName: string) => void;
   /** Only offered while the file is running, e.g. in Now Playing. */
   onNotPlaying?: (exeName: string) => void;
@@ -140,6 +138,9 @@ export function ReportWrongMatchDialog({
   onIgnoreApp?: (exeName: string) => void;
   /** "It doesn't belong to <game>": the file leaves this game, reported. */
   onNotThisGame?: (exeName: string) => void;
+  /** A file with no game yet (Now Playing's unidentified card): only what
+   *  the file is, with the same choices and confirm steps. */
+  unidentified?: boolean;
   demo?: boolean;
 }) {
   const reportable = files?.filter(canReportFile) ?? [];
@@ -153,11 +154,17 @@ export function ReportWrongMatchDialog({
     ? `${exeName} · ${fileRunStatus(exeFacts)}`
     : exeName || "this app";
   const game = gameName || "this game";
+  // Only a file IGDB or the community matched is reported. Without `files`
+  // (Now Playing) the caller only offers database games.
+  const reportsNotThisGame =
+    !isOffline &&
+    !isGenericExeName(exeName) &&
+    (files ? exeFacts !== undefined && canReportFile(exeFacts) : true);
   const copy =
     picking || !confirming
       ? null
       : confirming === "not-this-game"
-        ? notThisGameCopy(game, exeName, isOffline)
+        ? notThisGameCopy(game, exeName, reportsNotThisGame)
         : isGenericExeName(exeName)
           ? genericFolderCopy(exeName)
           : confirming === "app"
@@ -177,15 +184,62 @@ export function ReportWrongMatchDialog({
     setConfirming(null);
   }
 
+  // Software is counted per file name; Game.exe would turn every game in its
+  // folders into software.
+  const generic = isGenericExeName(exeName);
+  const appCards = (
+    <>
+      {onSoftware && !generic ? (
+        <ChoiceCard
+          icon={AppWindow}
+          title="It's an app, count its time"
+          description="Discord, VS Code, a launcher. Its time moves to the Software page."
+          onClick={() => onSoftware(exeName)}
+        />
+      ) : null}
+      {onIgnoreApp && !generic ? (
+        <ChoiceCard
+          icon={EyeOff}
+          title="It's an app, ignore it"
+          description="An app you don't want counted. Ignored on this PC."
+          autoFocus={lastChoice === "app"}
+          onClick={() => setConfirming("app")}
+        />
+      ) : null}
+    </>
+  );
+  const partOfGameCard = (
+    <ChoiceCard
+      icon={Ban}
+      title={
+        unidentified
+          ? "It's part of a game, not the game"
+          : "It's part of the game, not the game"
+      }
+      description="A crash reporter, anti-cheat, installer or updater. Ignored and reported."
+      autoFocus={lastChoice === "not-a-game"}
+      onClick={() => setConfirming("not-a-game")}
+    />
+  );
+  const notSureCard = onNotPlaying ? (
+    <ChoiceCard
+      icon={CircleHelp}
+      title="Not sure, just ignore it"
+      description="Ignored on this PC. Nothing is reported."
+      autoFocus={lastChoice === "not-playing"}
+      onClick={() => setConfirming("not-playing")}
+    />
+  ) : null;
+
   return (
     <Modal
       dataTour={demo ? "demo-report-dialog" : undefined}
       backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="md"
       labelId="wrong-match-dialog-title"
-      eyebrow="Report wrong match"
-      title={gameName || "Wrong match"}
-      subtitle={picking ? undefined : label}
+      eyebrow={unidentified ? "Not a game" : "Report wrong match"}
+      title={unidentified ? exeName : gameName || "Wrong match"}
+      subtitle={picking || unidentified ? undefined : label}
       icon={Flag}
       media={
         coverUrl ? (
@@ -254,6 +308,15 @@ export function ReportWrongMatchDialog({
             ))}
           </ul>
         </div>
+      ) : unidentified ? (
+        <div>
+          <h3 className="text-sm font-semibold text-text">What is it?</h3>
+          <div className="mt-3 grid gap-2">
+            {appCards}
+            {partOfGameCard}
+            {notSureCard}
+          </div>
+        </div>
       ) : (
         <div>
           {/* Two directions: the file is fine and the game is wrong, or the
@@ -262,31 +325,15 @@ export function ReportWrongMatchDialog({
             {game} is the wrong match for {exeName || "this file"}
           </h3>
           <div className="mt-3 grid gap-2">
-            <ChoiceCard
-              icon={ArrowLeftRight}
-              title="It's a different game"
-              description="Pick the right game for this file."
-              onClick={() => onDifferentGame(exeName)}
-            />
-            {/* Software is counted per file name; Game.exe would turn every
-                game in its folders into software. */}
-            {onSoftware && !isGenericExeName(exeName) ? (
+            {onDifferentGame ? (
               <ChoiceCard
-                icon={AppWindow}
-                title="It's an app, count its time"
-                description="Discord, VS Code, a launcher. Its time moves to the Software page."
-                onClick={() => onSoftware(exeName)}
+                icon={ArrowLeftRight}
+                title="It's a different game"
+                description="Pick the right game for this file."
+                onClick={() => onDifferentGame(exeName)}
               />
             ) : null}
-            {onIgnoreApp && !isGenericExeName(exeName) ? (
-              <ChoiceCard
-                icon={EyeOff}
-                title="It's an app, ignore it"
-                description="An app you don't want counted. Ignored on this PC."
-                autoFocus={lastChoice === "app"}
-                onClick={() => setConfirming("app")}
-              />
-            ) : null}
+            {appCards}
           </div>
           <h3 className="mt-5 text-sm font-semibold text-text">
             {exeName || "This file"} isn&apos;t {game}&apos;s game file
@@ -296,29 +343,19 @@ export function ReportWrongMatchDialog({
               <ChoiceCard
                 icon={Unlink}
                 title={`It doesn't belong to ${game}`}
-                description="Not one of its files. Removed from this game and reported."
+                description={
+                  reportsNotThisGame
+                    ? "Not one of its files. Removed from this game and reported."
+                    : "Not one of its files. Removed from this game on this PC."
+                }
                 autoFocus={lastChoice === "not-this-game"}
                 onClick={() => setConfirming("not-this-game")}
               />
             ) : null}
-            <ChoiceCard
-              icon={Ban}
-              title="It's part of the game, not the game"
-              description="A crash reporter, anti-cheat, installer or updater. Ignored and reported."
-              autoFocus={lastChoice === "not-a-game"}
-              onClick={() => setConfirming("not-a-game")}
-            />
+            {partOfGameCard}
           </div>
-          {onNotPlaying ? (
-            <div className="mt-5 grid gap-2">
-              <ChoiceCard
-                icon={CircleHelp}
-                title="Not sure, just ignore it"
-                description="Ignored on this PC. Nothing is reported."
-                autoFocus={lastChoice === "not-playing"}
-                onClick={() => setConfirming("not-playing")}
-              />
-            </div>
+          {notSureCard ? (
+            <div className="mt-5 grid gap-2">{notSureCard}</div>
           ) : null}
         </div>
       )}

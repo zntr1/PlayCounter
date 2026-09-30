@@ -152,3 +152,23 @@ it("reports nothing when the user is only unsure", async () => {
   await click("Ignore on this PC");
   expect(handlers.onNotAGame).not.toHaveBeenCalled();
 });
+
+it("promises no report when taking the user's own file off the game", async () => {
+  await act(() =>
+    root.render(
+      createElement(ReportWrongMatchDialog, {
+        exeName: "MyMod.exe",
+        gameName: "Elden Ring",
+        // The card's database files: the user's own file is not among them.
+        files: [],
+        ...handlers,
+      }),
+    ),
+  );
+  expect(document.body.textContent).toContain(
+    "Removed from this game on this PC.",
+  );
+  await click("doesn't belong to Elden Ring");
+  expect(document.body.textContent).toContain("Nothing is reported.");
+  expect(document.body.textContent).not.toContain("community review");
+});

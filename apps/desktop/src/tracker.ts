@@ -3763,6 +3763,13 @@ export function applyLocalLinkGameMatch(
   game: Game,
 ) {
   const ref = localLinkRef(target);
+  // The user picked this game for the file: an earlier "It doesn't belong"
+  // for the pair no longer holds.
+  const exeName =
+    ref.kind === "exe"
+      ? ref.key
+      : useAppStore.getState().scopedExeLinks.get(ref.key)?.exeName;
+  if (exeName) clearRejectedGameFile(exeName, game);
   if (ref.kind === "exe") {
     applyGameMatch(ref.key, game);
     return;

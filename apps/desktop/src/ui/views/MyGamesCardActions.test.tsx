@@ -821,3 +821,24 @@ it("no longer lists a file taken off the game; its sessions stay", async () => {
   );
   expect(rows.map((span) => span.textContent)).toEqual([DATABASE_FILE.exeName]);
 });
+
+it("opens Report wrong match for the checked file from Check for matches", async () => {
+  vi.mocked(findGameMatches).mockResolvedValue({ games: [] });
+  useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
+  await act(() => root.render(<LibraryTestShell />));
+  await act(async () =>
+    card()
+      .querySelector<HTMLButtonElement>(
+        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
+      )!
+      .click(),
+  );
+  expect(menuText()).not.toContain("This is not a game");
+
+  await clickButtonWith("Report wrong match…");
+
+  expect(menuText()).toContain(
+    `${DRAGON_AGE.name} is the wrong match for ${DATABASE_FILE.exeName}`,
+  );
+  expect(reportNegativeMatch).not.toHaveBeenCalled();
+});

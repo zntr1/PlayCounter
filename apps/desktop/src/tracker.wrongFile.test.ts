@@ -10,6 +10,7 @@ import { buildLibraryImportCommit } from "./library/importPlan";
 import { useAppStore, type ExeCacheEntry } from "./store";
 import {
   applyKnownGameMatch,
+  applyLocalLinkGameMatch,
   linkKnownGameFiles,
   rejectFileForGame,
   resetToolTickForTests,
@@ -341,5 +342,15 @@ describe("It doesn't belong to the game", () => {
       state: "matched",
       gameId: divinity.id,
     });
+  });
+
+  it("picking the game again in a search undoes it too", () => {
+    const { exeName, key } = nextExe();
+    useAppStore.getState().setExeCacheEntry(matchedEntry(exeName, other));
+    reject(exeName);
+
+    applyLocalLinkGameMatch(key, divinity);
+
+    expect(useAppStore.getState().rejectedGameFiles).toEqual([]);
   });
 });
