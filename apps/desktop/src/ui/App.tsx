@@ -323,15 +323,21 @@ const sidebarSections: Array<{
   label: string;
   items: ViewId[];
 }> = [
-  { id: "library", label: "Library", items: ["now", "games"] },
-  { id: "discover", label: "Discover", items: ["achievements", "history"] },
   {
-    id: "emulators",
-    label: "Tools",
-    items: ["emulating", ...EMULATOR_IDS, "software"],
+    id: "library",
+    label: "Library",
+    items: ["now", "games", "emulating", ...EMULATOR_IDS],
+  },
+  {
+    id: "discover",
+    label: "Discover",
+    items: ["achievements", "history", "software"],
   },
   { id: "system", label: "System", items: ["discovered", "settings", "dev"] },
 ];
+
+const isEmulatorNavItem = (item: ViewId) =>
+  item === "emulating" || isEmulatorId(item);
 
 const STORAGE_KEY = "playcounter:v1";
 
@@ -493,6 +499,12 @@ export function App() {
         mapping.emulatorId === emulatorId && mapping.needsConfirmation,
     ).length;
   const emulatorTourDemo = emulatorTourDemoActive(activeTourId);
+  const emulatorsHidden =
+    !emulatorTourDemo &&
+    (!emulatorDetectionEnabled ||
+      [...knownEmulators.keys()].every((id) =>
+        ignoredEmulatorSet.has(id.toLowerCase()),
+      ));
   const sidebarEmulatorBadge = (item: EmulatorId) =>
     emulatorTourDemo && item === TOUR_DEMO_EMULATOR.emulatorId
       ? 1
@@ -820,20 +832,12 @@ export function App() {
         >
           <div className="mx-3 mb-4 h-px bg-border/60" aria-hidden="true" />
           {sidebarSections.map((section, sectionIndex) => {
-            // The Tools section holds the emulators and Software; each part
-            // hides on its own.
-            const emulatorsHidden =
-              section.id === "emulators" &&
-              !emulatorTourDemo &&
-              (!emulatorDetectionEnabled ||
-                [...knownEmulators.keys()].every((id) =>
-                  ignoredEmulatorSet.has(id.toLowerCase()),
-                ));
             const items = section.items.filter(
               (item) =>
-                (item === "software"
-                  ? trackTools || activeView === "software"
-                  : !emulatorsHidden) &&
+                (item !== "software" ||
+                  trackTools ||
+                  activeView === "software") &&
+                (!isEmulatorNavItem(item) || !emulatorsHidden) &&
                 (item !== "dev" || devToolsEnabled) &&
                 (item !== "emulating" ||
                   emulatorTourDemo ||
@@ -846,13 +850,109 @@ export function App() {
             );
             if (items.length === 0) return null;
 
+            const renderNavItem = (item: ViewId) => {
+              const view = views[item];
+              const canExpandSources =
+                item === "games" && hasLibrarySources && !sidebarCollapsed;
+              // Keep available source groups accessible across views.
+              const showSources = canExpandSources && !sourcesCollapsed;
+              return (
+                <div key={item} className="relative flex flex-col gap-0.5">
+                  <SidebarButton
+                    icon={view.icon}
+                    imageSrc={view.imageSrc}
+                    label={view.label}
+                    count={item === "games" ? libraryCount : undefined}
+                    trailingSpace={canExpandSources}
+                    collapsed={sidebarCollapsed}
+                    active={
+                      activeView === item ||
+                      (item === "games" && activeView === "import")
+                    }
+                    controllerEnabled={item !== "discovered" && item !== "dev"}
+                    dataTour={`nav-${item}`}
+                    onContextMenu={
+                      item === "games"
+                        ? importMenu.props.onContextMenu
+                        : undefined
+                    }
+                    badge={
+                      item === "discovered"
+                        ? needsReviewCount
+                        : isEmulatorId(item)
+                          ? sidebarEmulatorBadge(item)
+                          : undefined
+                    }
+                    warn={item === "now" ? hasAmbiguousMatch : undefined}
+                    isPlaying={
+                      item === "now" && !hasAmbiguousMatch
+                        ? activeSessionsCount > 0
+                        : item === "emulating"
+                          ? emulatorTourDemo || emulatorIsRunning
+                          : undefined
+                    }
+                    onClick={() => {
+                      if (item === "discovered" && activeView === item) {
+                        window.dispatchEvent(
+                          new CustomEvent("playcounter:discovered-reset"),
+                        );
+                      }
+                      if (item === "history") {
+                        setHistoryQuery("");
+                        setHistoryGameKey(null);
+                      }
+                      // Second click on My Games: back to the whole
+                      // library instead of staying on a source.
+                      if (
+                        item === "games" &&
+                        activeView === "games" &&
+                        libraryTab !== "all"
+                      ) {
+                        setLibraryTab("all");
+                      }
+                      setActiveView(item);
+                    }}
+                  />
+                  {canExpandSources ? (
+                    <button
+                      type="button"
+                      aria-label={
+                        sourcesCollapsed ? "Show sources" : "Hide sources"
+                      }
+                      title={sourcesCollapsed ? "Show sources" : "Hide sources"}
+                      aria-expanded={!sourcesCollapsed}
+                      onClick={() =>
+                        setSidebarSourcesCollapsed(!sourcesCollapsed)
+                      }
+                      className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-lg text-text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={clsx(
+                          "transition-transform duration-200",
+                          sourcesCollapsed && "-rotate-90",
+                        )}
+                      />
+                    </button>
+                  ) : null}
+                  {showSources ? <SidebarSources /> : null}
+                  {item === "games" ? (
+                    <MyGamesImportMenu
+                      open={importMenu.open}
+                      position={importMenu.position}
+                      onClose={importMenu.close}
+                      anchorRef={importMenu.anchorRef}
+                    />
+                  ) : null}
+                </div>
+              );
+            };
+            // Emulator entries close the Library section. They share one
+            // wrapper so the emulator guide can ring them together.
+            const emulatorItems = items.filter(isEmulatorNavItem);
+
             return (
-              <div
-                key={section.id}
-                data-tour={
-                  section.id === "emulators" ? "nav-emulators" : undefined
-                }
-              >
+              <div key={section.id}>
                 {sectionIndex > 0 ? (
                   <div
                     className="mx-3 my-4 h-px bg-border/60"
@@ -865,112 +965,24 @@ export function App() {
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  {items.map((item) => {
-                    const view = views[item];
-                    const canExpandSources =
-                      item === "games" &&
-                      hasLibrarySources &&
-                      !sidebarCollapsed;
-                    // Keep available source groups accessible across views.
-                    const showSources = canExpandSources && !sourcesCollapsed;
-                    return (
-                      <div
-                        key={item}
-                        className="relative flex flex-col gap-0.5"
-                      >
-                        <SidebarButton
-                          icon={view.icon}
-                          imageSrc={view.imageSrc}
-                          label={view.label}
-                          count={item === "games" ? libraryCount : undefined}
-                          trailingSpace={canExpandSources}
-                          collapsed={sidebarCollapsed}
-                          active={
-                            activeView === item ||
-                            (item === "games" && activeView === "import")
-                          }
-                          controllerEnabled={
-                            item !== "discovered" && item !== "dev"
-                          }
-                          dataTour={`nav-${item}`}
-                          onContextMenu={
-                            item === "games"
-                              ? importMenu.props.onContextMenu
-                              : undefined
-                          }
-                          badge={
-                            item === "discovered"
-                              ? needsReviewCount
-                              : isEmulatorId(item)
-                                ? sidebarEmulatorBadge(item)
-                                : undefined
-                          }
-                          warn={item === "now" ? hasAmbiguousMatch : undefined}
-                          isPlaying={
-                            item === "now" && !hasAmbiguousMatch
-                              ? activeSessionsCount > 0
-                              : item === "emulating"
-                                ? emulatorTourDemo || emulatorIsRunning
-                                : undefined
-                          }
-                          onClick={() => {
-                            if (item === "discovered" && activeView === item) {
-                              window.dispatchEvent(
-                                new CustomEvent("playcounter:discovered-reset"),
-                              );
-                            }
-                            if (item === "history") {
-                              setHistoryQuery("");
-                              setHistoryGameKey(null);
-                            }
-                            // Second click on My Games: back to the whole
-                            // library instead of staying on a source.
-                            if (
-                              item === "games" &&
-                              activeView === "games" &&
-                              libraryTab !== "all"
-                            ) {
-                              setLibraryTab("all");
-                            }
-                            setActiveView(item);
-                          }}
-                        />
-                        {canExpandSources ? (
-                          <button
-                            type="button"
-                            aria-label={
-                              sourcesCollapsed ? "Show sources" : "Hide sources"
-                            }
-                            title={
-                              sourcesCollapsed ? "Show sources" : "Hide sources"
-                            }
-                            aria-expanded={!sourcesCollapsed}
-                            onClick={() =>
-                              setSidebarSourcesCollapsed(!sourcesCollapsed)
-                            }
-                            className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-lg text-text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-                          >
-                            <ChevronDown
-                              size={16}
-                              className={clsx(
-                                "transition-transform duration-200",
-                                sourcesCollapsed && "-rotate-90",
-                              )}
-                            />
-                          </button>
-                        ) : null}
-                        {showSources ? <SidebarSources /> : null}
-                        {item === "games" ? (
-                          <MyGamesImportMenu
-                            open={importMenu.open}
-                            position={importMenu.position}
-                            onClose={importMenu.close}
-                            anchorRef={importMenu.anchorRef}
-                          />
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                  {items
+                    .filter((item) => !isEmulatorNavItem(item))
+                    .map(renderNavItem)}
+                  {/* Sets the live emulator view apart from Now Playing. */}
+                  {emulatorItems.includes("emulating") ? (
+                    <div
+                      className="mx-4 my-1 h-px bg-border/40"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  {emulatorItems.length > 0 ? (
+                    <div
+                      data-tour="nav-emulators"
+                      className="flex flex-col gap-1"
+                    >
+                      {emulatorItems.map(renderNavItem)}
+                    </div>
+                  ) : null}
                   {section.id === "system" ? (
                     <SidebarButton
                       icon={MessageSquarePlus}

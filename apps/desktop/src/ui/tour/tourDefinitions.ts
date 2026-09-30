@@ -1525,7 +1525,7 @@ export const TOURS: TourDefinition[] = [
         view: "keep",
         anchor: a("nav-emulators"),
         title: "Live view and saved emulator pages",
-        body: "An emulator page is added the first time PlayCounter sees that emulator running, and stays afterward. Now Emulating works differently: it appears while an emulator is running. The section is hidden if detection is off or all known emulators are ignored. This guide supplies Dolphin as an example.",
+        body: "An emulator page is added the first time PlayCounter sees that emulator running, and stays afterward. Now Emulating works differently: it appears while an emulator is running. Both sit under Library and are hidden if detection is off or all known emulators are ignored. This guide supplies Dolphin as an example.",
       },
       {
         id: "now-emulating",
