@@ -5,6 +5,8 @@ import type {
   MatchProcessesResponse,
 } from "@playcounter/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// Known files are platform files: these tests cover Windows on any host.
+vi.mock("../platform", () => ({ currentPlatform: () => "windows" }));
 import {
   canSuggestCustomGameToCommunity,
   useAppStore,

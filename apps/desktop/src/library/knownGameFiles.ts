@@ -1,5 +1,6 @@
 import type { GameSource, LibraryKnownExecutable } from "@playcounter/shared";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
+import { currentPlatform } from "../platform";
 import { useAppStore } from "../store";
 import { isGenericExeName } from "./exeCandidates";
 
@@ -15,14 +16,20 @@ export function knownGameFiles(
 ): KnownGameFile[] {
   const state = useAppStore.getState();
   const files = new Map<string, KnownGameFile>();
+  const mac = currentPlatform() === "macos";
   for (const executable of executables) {
     const name = executable.value.trim();
+    // Only files this computer runs natively. A Mac runs a .exe only through
+    // Wine, and the server is asked about it live when it does.
+    const runsHere = mac
+      ? executable.platform === "macos" && executable.kind === "process_name"
+      : executable.platform === "windows" &&
+        executable.kind === "exe" &&
+        name.toLowerCase().endsWith(".exe");
     if (
-      executable.platform !== "windows" ||
-      executable.kind !== "exe" ||
+      !runsHere ||
       !executable.verified ||
       executable.ambiguous ||
-      !name.toLowerCase().endsWith(".exe") ||
       isGenericExeName(name) ||
       matchesProcessPatternSet(name, state.blacklist) ||
       matchesProcessPatternSet(name, state.ignoredProcesses)

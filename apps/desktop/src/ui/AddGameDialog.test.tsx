@@ -4,6 +4,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+// Known files are platform files: these tests cover Windows on any host.
+vi.mock("../platform", () => ({ currentPlatform: () => "windows" }));
 import { canSuggestCustomGameToCommunity, useAppStore } from "../store";
 import { AddGameDialog } from "./AddGameDialog";
 
