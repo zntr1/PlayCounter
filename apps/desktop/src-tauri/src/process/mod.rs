@@ -31,7 +31,13 @@ pub use windows::create_scanner;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
-pub use macos::create_scanner;
+pub use macos::{create_scanner, never_a_game};
+
+/// Only the macOS scanner skips processes that can never be games.
+#[cfg(not(target_os = "macos"))]
+pub fn never_a_game(_exe_path: Option<&str>) -> bool {
+    false
+}
 
 #[cfg(target_os = "linux")]
 mod linux;

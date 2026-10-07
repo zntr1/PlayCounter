@@ -57,16 +57,33 @@ impl ProcessScanner for MacOsScanner {
     }
 }
 
+/// Whether a discovery cached by an older scan belongs to a process this
+/// scanner now skips. Every process of the user has a readable path, so a
+/// cached entry without one came from another user's process.
+pub fn never_a_game(exe_path: Option<&str>) -> bool {
+    exe_path.is_none_or(|path| !may_be_game(true, Some(path)))
+}
+
 /// Hundreds of processes on a Mac can never be a game, and listing them would
 /// bury the few that might be. Games run as the signed-in user, never from
 /// the read-only system volume (SIP: /System, /usr, /bin, /sbin, /Library/Apple;
-/// /usr/local is the user's), and an app's main program lives in its own
+/// /usr/local is the user's) or the folders macOS installs privileged helpers
+/// and system extensions into, and an app's main program lives in its own
 /// Contents/MacOS, not among the helpers, extensions and services an app
 /// bundle carries elsewhere in Contents or inside a framework.
 fn may_be_game(owned_by_user: bool, exe_path: Option<&str>) -> bool {
-    const SYSTEM_DIRS: [&str; 5] = ["/System/", "/usr/", "/bin/", "/sbin/", "/Library/Apple/"];
-    const BUNDLE_HELPER_DIRS: [&str; 6] = [
+    const SYSTEM_DIRS: [&str; 7] = [
+        "/System/",
+        "/usr/",
+        "/bin/",
+        "/sbin/",
+        "/Library/Apple/",
+        "/Library/PrivilegedHelperTools/",
+        "/Library/SystemExtensions/",
+    ];
+    const BUNDLE_HELPER_DIRS: [&str; 7] = [
         ".app/Contents/Frameworks/",
+        ".app/Contents/Helpers/",
         ".app/Contents/XPCServices/",
         ".app/Contents/PlugIns/",
         ".app/Contents/Extensions/",
@@ -87,7 +104,16 @@ fn may_be_game(owned_by_user: bool, exe_path: Option<&str>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::may_be_game;
+    use super::{may_be_game, never_a_game};
+
+    #[test]
+    fn forgets_cached_discoveries_the_scanner_now_skips() {
+        assert!(never_a_game(None));
+        assert!(never_a_game(Some("/usr/libexec/trustd")));
+        assert!(!never_a_game(Some(
+            "/Applications/Stardew Valley.app/Contents/MacOS/Stardew Valley"
+        )));
+    }
 
     #[test]
     fn keeps_games_and_apps() {
@@ -120,6 +146,8 @@ mod tests {
             "/bin/zsh",
             "/sbin/launchd",
             "/Library/Apple/System/Library/CoreServices/XProtect.app/Contents/MacOS/XProtect",
+            "/Library/PrivilegedHelperTools/com.docker.vmnetd",
+            "/Library/SystemExtensions/0000/org.example.driver.dext/org.example.driver",
         ] {
             assert!(!may_be_game(true, Some(path)), "{path}");
         }
@@ -134,6 +162,7 @@ mod tests {
             "/Applications/OneDrive.app/Contents/PlugIns/OneDrive File Provider.appex/Contents/MacOS/OneDrive File Provider",
             "/Applications/Raycast.app/Contents/Extensions/RaycastAppIntents.appex/Contents/MacOS/RaycastAppIntents",
             "/Applications/FortiTray.app/Contents/Library/LaunchServices/com.fortinet.helper",
+            "/Applications/Microsoft Teams.app/Contents/Helpers/Microsoft Teams ModuleHost.app/Contents/MacOS/Microsoft Teams ModuleHost",
         ] {
             assert!(!may_be_game(true, Some(path)), "{path}");
         }

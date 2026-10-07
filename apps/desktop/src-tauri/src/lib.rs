@@ -126,6 +126,16 @@ fn adopt_install_uuid(app: tauri::AppHandle, value: String) -> Result<String, St
     session::adopt_install_uuid(app, value)
 }
 
+/// Which cached discoveries belong to processes the scanner now skips, so
+/// entries an older scan stored for them can be dropped.
+#[tauri::command]
+fn non_game_process_paths(paths: Vec<Option<String>>) -> Vec<bool> {
+    paths
+        .iter()
+        .map(|path| process::never_a_game(path.as_deref()))
+        .collect()
+}
+
 #[tauri::command]
 async fn scan_processes() -> Result<Vec<ProcessSnapshot>, String> {
     create_scanner()
@@ -542,6 +552,7 @@ pub fn run() {
             set_tray_update,
             show_main_window_for_update,
             scan_processes,
+            non_game_process_paths,
             privacy_context,
             get_exe_icon,
             get_exe_details,

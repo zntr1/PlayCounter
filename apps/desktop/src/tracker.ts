@@ -518,6 +518,7 @@ async function finishTrackerStartup() {
   logRuntime("tracker deferred startup started");
   await loadEmulatorPrivacyContext();
   await loadIgnoredProcesses();
+  await forgetNonGameDiscoveries();
   scheduleProcessPolling(
     useAppStore.getState().settings.pollingIntervalSeconds,
   );
@@ -1391,6 +1392,43 @@ export async function reloadIgnoredProcesses() {
   logRuntime("ignored processes reload requested");
   await loadIgnoredProcesses();
   void requestProcessScan("after ignore reload");
+}
+
+/** The macOS scanner skips processes that can never be games (system
+ *  programs, other users' processes, helpers inside app bundles). Drop the
+ *  unmatched entries older scans cached for them, which would otherwise stay
+ *  up for review in Discovered. Entries with a community suggestion stay. */
+export async function forgetNonGameDiscoveries() {
+  if (currentPlatform() !== "macos") return;
+  const candidates = [...useAppStore.getState().exeCache.values()].filter(
+    (entry) =>
+      entry.state === "unmatched" &&
+      !entry.pendingCommunityGame &&
+      entry.communitySuggestionId === undefined,
+  );
+  if (candidates.length === 0) return;
+  try {
+    const forget = await invoke<boolean[]>("non_game_process_paths", {
+      paths: candidates.map((entry) => entry.exePath ?? null),
+    });
+    const keys = new Set(
+      candidates
+        .filter((_, index) => forget[index] === true)
+        .map((entry) => entry.exeName.toLowerCase()),
+    );
+    if (keys.size === 0) return;
+    useAppStore.setState((state) => {
+      const exeCache = new Map(state.exeCache);
+      for (const key of keys) {
+        if (exeCache.get(key)?.state === "unmatched") exeCache.delete(key);
+      }
+      return { exeCache };
+    });
+    persist();
+    logRuntime(`forgot ${keys.size} cached non-game processes`);
+  } catch (error) {
+    logRuntime(`forgetting non-game processes failed: ${formatError(error)}`);
+  }
 }
 
 async function loadIgnoredProcesses() {
