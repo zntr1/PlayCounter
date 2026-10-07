@@ -37,3 +37,41 @@ systemuiserver
 trustd
 ubisoftconnect
 windowserver
+
+# Programs from the system volume, other users' processes and helpers inside
+# app bundles never reach this list: the macOS scanner skips them
+# (src/process/macos.rs). Names below are macOS executable names, matching
+# the kinds of tools the Windows list ignores.
+
+# Developer tools and terminals
+cargo
+claude
+codex
+esbuild
+git
+iterm2
+itermserver-*
+node
+rust-analyzer
+rustc
+
+# Browsers, passwords and sync
+*.com.1password.browser-helper
+1password
+google chrome
+microsoft edge
+onedrive
+onedrive sync service
+raycast
+
+# Device, security and update agents
+fctmiscagent
+forticlientagent
+fortitray
+intunemdmagent
+intunemdmdaemon
+karabiner-*
+logioptionsplus_*
+logirightsight
+microsoft autoupdate
+microsoft update assistant
