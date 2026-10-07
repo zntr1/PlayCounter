@@ -11,6 +11,7 @@ import {
   mergeCommunityMetadataCandidates,
   type CommunityMetadataSearchOptions,
 } from "../communityMetadataSearch";
+import { communityPlatformField } from "../communityPlatform";
 import { requestJson } from "../requestJson";
 import { useAppStore, useIsOffline } from "../store";
 import { linkServerKnownFiles } from "../tracker";
@@ -213,6 +214,7 @@ export function useCommunityGameCorrection({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             exeName,
+            ...communityPlatformField(exeName),
             name: chosen.name,
             coverUrl: chosen.coverUrl,
             igdbId: chosen.igdbId,

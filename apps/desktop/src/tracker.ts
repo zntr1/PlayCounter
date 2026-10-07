@@ -104,6 +104,10 @@ import { reportInstallPresence } from "./installPresence";
 import { startFeedbackReplies } from "./feedbackReplies";
 import { currentPlatform } from "./platform";
 import {
+  communityPlatformField,
+  executablePlatform,
+} from "./communityPlatform";
+import {
   evaluateMilestones,
   milestoneMetrics,
   migrateAwardedMilestones,
@@ -5134,6 +5138,7 @@ export async function markExecutableAsSoftware(
   try {
     const payload: CommunityGameSuggestionPayload = {
       exeName,
+      ...communityPlatformField(exeName),
       name,
       ...(coverUrl ? { coverUrl } : {}),
       installUuid: state.installUuid ?? undefined,
@@ -5298,6 +5303,7 @@ async function withdrawSuggestion(exeName: string, gameId: number) {
   const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions/cancel`;
   const payload: CommunitySuggestionCancelPayload = {
     exeName,
+    ...communityPlatformField(exeName),
     gameId,
     installUuid: state.installUuid,
   };
@@ -6129,6 +6135,7 @@ async function submitIdentifierReport(
   try {
     const payload: IdentifierReportPayload = {
       exeName,
+      ...communityPlatformField(exeName),
       reason,
       installUuid: state.installUuid,
       ...gameIdentity,
@@ -6430,7 +6437,7 @@ async function submitIgnoredProcessReport(
   try {
     const payload: IgnoredProcessReportPayload = {
       exeName,
-      platform: currentPlatform(),
+      platform: executablePlatform(exeName),
       installUuid,
     };
     const response = await requestJsonResponse<IgnoredProcessReportResponse>(
@@ -7498,6 +7505,7 @@ export async function cancelCommunitySuggestion(
   const endpoint = `${state.settings.apiEndpoint.replace(/\/+$/, "")}/api/community/suggestions/cancel`;
   const payload: CommunitySuggestionCancelPayload = {
     exeName: existing.exeName,
+    ...communityPlatformField(existing.exeName),
     gameId: expectedGameId,
     installUuid: state.installUuid,
   };
@@ -7673,6 +7681,7 @@ export async function submitLocalLinkToCommunity(
         timeoutMs: API_REQUEST_TIMEOUT_MS,
         body: JSON.stringify({
           exeName: link.exeName,
+          ...communityPlatformField(link.exeName),
           name: link.gameName,
           coverUrl: link.coverUrl,
           igdbId: link.igdbId,

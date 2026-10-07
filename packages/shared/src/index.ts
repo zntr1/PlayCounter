@@ -289,6 +289,10 @@ export interface CommunityGameSuggestionPayload {
   // before this field existed still only send the name.
   igdbId?: number;
   installUuid?: string;
+  /** The host the executable runs on, which sets the identifier kind
+   *  (windows: exe, macos: process_name, linux: executable_name). Absent =
+   *  "windows": clients released before this field only send Windows files. */
+  platform?: Platform;
   /** Absent = "game". A tool has no igdbId and may carry a SteamGridDB cover. */
   kind?: GameKind;
 }
@@ -305,6 +309,10 @@ export interface CommunityGameSuggestionResponse {
 
 export interface CommunitySuggestionCancelPayload {
   exeName: string;
+  /** The host the executable runs on, which sets the identifier kind
+   *  (windows: exe, macos: process_name, linux: executable_name). Absent =
+   *  "windows": clients released before this field only send Windows files. */
+  platform?: Platform;
   gameId: number;
   installUuid: string;
 }
@@ -325,6 +333,10 @@ export type IdentifierReportReason = "not_a_game" | "wrong_game";
 
 export interface IdentifierReportPayload {
   exeName: string;
+  /** The host the executable runs on, which sets the identifier kind
+   *  (windows: exe, macos: process_name, linux: executable_name). Absent =
+   *  "windows": clients released before this field only send Windows files. */
+  platform?: Platform;
   reason: IdentifierReportReason;
   // Omitted when the report comes from an ambiguity picker where no game has
   // been selected yet.
