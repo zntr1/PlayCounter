@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { Clipboard, ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { shortcutLabel } from "../shortcuts";
 
 type CustomCoverInputProps = {
   coverUrl: string;
@@ -69,7 +70,7 @@ export function CustomCoverInput({
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-label={`Set cover for ${gameName}`}
-        title="Click to choose a file, drag an image here, or press Ctrl+V while hovering"
+        title={`Click to choose a file, drag an image here, or press ${shortcutLabel("V")} while hovering`}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {

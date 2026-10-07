@@ -28,6 +28,7 @@
     "landing:preview": "node scripts/landing/preview.mjs",
     "desktop:version": "node scripts/ci/sync-desktop-version.mjs",
     "desktop:dev": "scripts\\dev-desktop.cmd",
+    "desktop:dev:mac": "pnpm --filter @playcounter/desktop tauri dev",
     "desktop:build": "scripts\\build-desktop.cmd",
     "build": "turbo build",
     "typecheck": "turbo typecheck",

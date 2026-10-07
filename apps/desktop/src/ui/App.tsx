@@ -68,6 +68,7 @@ import { HeaderLinks } from "./shell/HeaderLinks";
 import { MyGamesImportMenu } from "./shell/MyGamesImportMenu";
 import { SidebarSources } from "./shell/SidebarSources";
 import { WindowControls } from "./shell/WindowControls";
+import { hasShortcutModifier, isMacOS, shortcutLabel } from "../shortcuts";
 import { useLibrarySources } from "./librarySources";
 import { ViewBanner } from "./ViewBanner";
 import { artSrcSet } from "./artSrcSet";
@@ -677,7 +678,7 @@ export function App() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (!event.ctrlKey || event.altKey || event.metaKey) return;
+      if (!hasShortcutModifier(event) || event.altKey) return;
       const key = event.key.toLowerCase();
       if (event.shiftKey && key === "d") {
         event.preventDefault();
@@ -769,6 +770,10 @@ export function App() {
           sidebarCollapsed ? "w-[68px]" : "w-[248px]",
         )}
       >
+        {/* macOS draws its traffic lights in this strip (lib.rs). */}
+        {isMacOS() ? (
+          <div data-tauri-drag-region className="h-7 shrink-0" />
+        ) : null}
         <div
           data-tauri-drag-region
           className={clsx(
@@ -783,7 +788,7 @@ export function App() {
               type="button"
               aria-label="Expand sidebar"
               aria-expanded={false}
-              title="Expand sidebar (Ctrl+B)"
+              title={`Expand sidebar (${shortcutLabel("B")})`}
               onClick={() => setSidebarCollapsed(false)}
               className="group grid h-11 w-11 place-items-center rounded-xl transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
@@ -1330,7 +1335,7 @@ function SidebarToggle({
     <button
       type="button"
       aria-label={label}
-      title={`${label} (Ctrl+B)`}
+      title={`${label} (${shortcutLabel("B")})`}
       aria-expanded={!collapsed}
       onClick={onClick}
       className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-text-faint transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"

@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
+import { isMacOS } from "./shortcuts";
 import { useAppStore } from "./store";
 
 export type HotkeySetting = "showWindowHotkey" | "currentSessionHotkey";
@@ -148,11 +149,13 @@ export function shortcutFromKey(
 }
 
 export function formatHotkey(shortcut: string | null | undefined) {
+  const mac = isMacOS();
   return (
     shortcut
       ?.replace(/Control/g, "Ctrl")
+      .replace(/Alt/g, mac ? "Option" : "Alt")
       .replace(/Key([A-Z])/g, "$1")
       .replace(/Digit([0-9])/g, "$1")
-      .replace(/Super/g, "Win / Cmd") ?? "Not set"
+      .replace(/Super/g, mac ? "Cmd" : "Win / Cmd") ?? "Not set"
   );
 }

@@ -1,11 +1,13 @@
 import { Copy, Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { isMacOS } from "../../shortcuts";
 
 /* The window has no native frame (tauri.conf.json: decorations false), so
    these three buttons stand in for it. They only exist inside Tauri: in the
    browser dev server and in tests there is no window to control, and the row
    renders nothing rather than three dead buttons. Close goes through the
-   normal close request, which the Rust side turns into hide-to-tray. */
+   normal close request, which the Rust side turns into hide-to-tray.
+   macOS keeps its native traffic lights instead (lib.rs). */
 
 type TauriWindow = {
   minimize(): Promise<void>;
@@ -16,7 +18,11 @@ type TauriWindow = {
 };
 
 function insideTauri() {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+  return (
+    typeof window !== "undefined" &&
+    "__TAURI_INTERNALS__" in window &&
+    !isMacOS()
+  );
 }
 
 async function currentWindow(): Promise<TauriWindow> {

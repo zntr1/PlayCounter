@@ -424,10 +424,25 @@ fn configure_macos_test_storage(config: &mut tauri::Config) {
     }
 }
 
+/// Windows draws its own minimize, maximize and close buttons in the
+/// frameless window. macOS keeps the native frame instead: the page fills it
+/// under a transparent title bar and the system traffic lights sit in the
+/// sidebar's top-left corner, so fullscreen and window tiling keep working.
+fn configure_macos_window_chrome(config: &mut tauri::Config) {
+    for window in &mut config.app.windows {
+        window.decorations = true;
+        window.title_bar_style = tauri::TitleBarStyle::Overlay;
+        window.hidden_title = true;
+        window.traffic_light_position =
+            Some(tauri::utils::config::LogicalPosition { x: 16.0, y: 18.0 });
+    }
+}
+
 pub fn run() {
     let mut context = tauri::generate_context!();
     if cfg!(target_os = "macos") {
         configure_macos_test_storage(context.config_mut());
+        configure_macos_window_chrome(context.config_mut());
     }
 
     tauri::Builder::default()

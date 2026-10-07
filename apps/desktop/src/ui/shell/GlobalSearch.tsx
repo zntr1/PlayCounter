@@ -1,5 +1,6 @@
 import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
+import { isMacOS } from "../../shortcuts";
 import { useAppStore } from "../../store";
 import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 
@@ -107,7 +108,7 @@ export function GlobalSearch() {
           aria-hidden="true"
           className="pointer-events-none absolute right-3 z-10 hidden select-none items-center gap-0.5 rounded-md border border-border/70 bg-surface px-2 py-1 font-sans text-[11px] font-semibold tracking-wide text-text-faint sm:flex"
         >
-          Ctrl F
+          {isMacOS() ? "⌘ F" : "Ctrl F"}
         </kbd>
       )}
     </div>

@@ -1,3 +1,4 @@
+import { currentPlatform } from "../platform";
 import { afterPaint } from "./afterPaint";
 
 // Wire the splash controls independently of React, including failed startups.
@@ -23,7 +24,13 @@ void import("../main").catch((error: unknown) => {
 
 async function setupBootWindowControls() {
   const controls = document.getElementById("pc-boot-window-controls");
-  if (!controls || !("__TAURI_INTERNALS__" in window)) return;
+  // macOS shows its native traffic lights instead (lib.rs).
+  if (
+    !controls ||
+    !("__TAURI_INTERNALS__" in window) ||
+    currentPlatform() === "macos"
+  )
+    return;
 
   try {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");

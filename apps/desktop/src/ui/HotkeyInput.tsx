@@ -6,6 +6,7 @@ import {
   useHotkeyStatus,
   type HotkeySetting,
 } from "../hotkeys";
+import { isMacOS } from "../shortcuts";
 import { useAppStore } from "../store";
 import { Button } from "./primitives";
 
@@ -80,7 +81,9 @@ export function HotkeyInput({
             event.currentTarget.blur();
           } else if (!event.repeat) {
             setHint(
-              "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.",
+              isMacOS()
+                ? "Use Cmd, Ctrl or Option with a letter, number or navigation key, or use F1–F24."
+                : "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.",
             );
           }
         }}
