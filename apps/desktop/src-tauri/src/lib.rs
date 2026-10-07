@@ -31,6 +31,7 @@ mod reset;
 mod session;
 mod shell_open;
 mod webview_args;
+mod window_placement;
 
 const TRAY_STATUS_IDLE: &str = "No game active";
 const TRAY_STATUS_PREFIX: &str = "Playing ";
@@ -646,11 +647,51 @@ fn show_main_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if !startup.display_state_restored.swap(true, Ordering::SeqCst) {
             let _ = window.restore_state(StateFlags::MAXIMIZED | StateFlags::FULLSCREEN);
+            keep_main_window_reachable(&window);
         }
         set_main_window_in_tray(&window, false);
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+    }
+}
+
+/// Moves the restored window back onto a monitor when the saved geometry put
+/// it mostly off-screen. Maximized and fullscreen windows place themselves.
+fn keep_main_window_reachable(window: &tauri::WebviewWindow) {
+    use notification_overlay::PhysRect;
+
+    if window.is_maximized().unwrap_or(false) || window.is_fullscreen().unwrap_or(false) {
+        return;
+    }
+    let (Ok(position), Ok(size), Ok(monitors)) = (
+        window.outer_position(),
+        window.outer_size(),
+        window.available_monitors(),
+    ) else {
+        return;
+    };
+    let work_areas: Vec<_> = monitors
+        .iter()
+        .map(|monitor| {
+            let area = monitor.work_area();
+            PhysRect {
+                x: area.position.x,
+                y: area.position.y,
+                width: area.size.width,
+                height: area.size.height,
+            }
+        })
+        .collect();
+    let current = PhysRect {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+    };
+    if let Some(rect) = window_placement::reachable_rect(current, &work_areas) {
+        let _ = window.set_size(tauri::PhysicalSize::new(rect.width, rect.height));
+        let _ = window.set_position(tauri::PhysicalPosition::new(rect.x, rect.y));
     }
 }
 

@@ -1,3 +1,5 @@
+import { afterPaint } from "./afterPaint";
+
 // Wire the splash controls independently of React, including failed startups.
 const windowControlsReady = setupBootWindowControls();
 
@@ -49,8 +51,7 @@ async function revealPaintedLoader() {
   const logo = document.querySelector<HTMLImageElement>("#initial-loader img");
   // A failed image must never prevent the native window from opening.
   if (logo) await logo.decode().catch(() => {});
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await afterPaint();
   try {
     const { invoke, isTauri } = await import("@tauri-apps/api/core");
     if (isTauri()) await invoke("main_window_ready");

@@ -245,12 +245,12 @@ pub(super) async fn clear_private_data(window: &WebviewWindow) -> Result<(), Str
 }
 
 #[cfg(not(windows))]
-async fn secure_window(_: &WebviewWindow) -> Result<(), String> {
+pub(super) async fn secure_window(_: &WebviewWindow) -> Result<(), String> {
     Err(PRIVATE_SESSION_ERROR.into())
 }
 
 #[cfg(not(windows))]
-async fn clear_private_data(_: &WebviewWindow) -> Result<(), String> {
+pub(super) async fn clear_private_data(_: &WebviewWindow) -> Result<(), String> {
     Err(CLEANUP_ERROR.into())
 }
 

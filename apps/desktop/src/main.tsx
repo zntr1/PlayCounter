@@ -3,6 +3,7 @@ import "./pauseIdleAnimations";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./ui/App";
+import { afterPaint } from "./brand/afterPaint";
 import { applyTheme, normalizeAccentColor } from "./theme";
 import "./styles.css";
 
@@ -37,10 +38,7 @@ createRoot(document.getElementById("root")!).render(
 // Keep a fallback reveal after React paints. The small brand bootstrap normally
 // reveals the window earlier, once the startup artwork has painted; the native
 // command is idempotent and keeps autostart launches in the tray.
-requestAnimationFrame(() => {
-  requestAnimationFrame(() => {
-    void import("@tauri-apps/api/core")
-      .then(({ invoke }) => invoke("main_window_ready"))
-      .catch(() => {});
-  });
-});
+void afterPaint()
+  .then(() => import("@tauri-apps/api/core"))
+  .then(({ invoke }) => invoke("main_window_ready"))
+  .catch(() => {});
