@@ -145,40 +145,56 @@ the complete translations still need native-speaker review.
   localized units (12小时 3分钟). Dates and numbers are formatted by Intl.
 - Portuguese and Spanish have `one`, `many`, and `other` plural forms;
   `many` uses the same wording as `other`. Chinese has only `other`.
+- Button and setting names inside instructions are quoted exactly as the
+  control shows them: “…”, with ‘…’ for a name inside a quoted name.
+  Spanish and Portuguese leave page names unquoted; Chinese quotes them too.
+- Spanish says **el PC** (este PC, otro PC) and **añadir**, not agregar.
+- Portuguese says **app** (not aplicativo) and **o Steam** (no Steam, do Steam).
+- Sample game names in guides stay in English (World of Warcraft, Zelda),
+  because the sample cards and the sample search use the English names.
 
-| English             | Português (Brasil)       | Español                | 中文（简体）     |
-| ------------------- | ------------------------ | ---------------------- | ---------------- |
-| Now Playing         | Jogando agora            | Jugando ahora          | 正在游玩         |
-| Now Emulating       | Emulando agora           | Emulando ahora         | 正在模拟         |
-| My Games            | Meus jogos               | Mis juegos             | 我的游戏         |
-| My History          | Meu histórico            | Mi historial           | 我的历史         |
-| Library             | Biblioteca               | Biblioteca             | 游戏库           |
-| Discover            | Descobrir                | Descubrir              | 发现             |
-| Discovered          | Descobertos              | Descubiertos           | 已发现           |
-| Achievements        | Conquistas               | Logros                 | 成就             |
-| Settings            | Configurações            | Configuración          | 设置             |
-| Help & Feedback     | Ajuda e feedback         | Ayuda y comentarios    | 帮助与反馈       |
-| Import library      | Importar biblioteca      | Importar biblioteca    | 导入游戏库       |
-| game                | jogo                     | juego                  | 游戏             |
-| playtime            | tempo de jogo            | tiempo de juego        | 游戏时长         |
-| session             | sessão                   | sesión                 | 游玩记录         |
-| playthrough         | campanha                 | partida                | 游玩周目         |
-| Default playthrough | Campanha padrão          | Partida predeterminada | 默认周目         |
-| journal             | diário                   | diario                 | 日志             |
-| note                | nota                     | nota                   | 笔记             |
-| track               | registrar                | registrar              | 记录             |
-| detect              | detectar                 | detectar               | 检测             |
-| Play                | Jogar                    | Jugar                  | 开始游戏         |
-| shelf               | prateleira               | estante                | 分类架           |
-| favorite            | favorito                 | favorito               | 收藏             |
-| match               | associação               | asociación             | 匹配             |
-| ignore              | ignorar                  | ignorar                | 忽略             |
-| community           | comunidade               | comunidad              | 社区             |
-| review              | análise                  | revisión               | 审核             |
-| trophy              | troféu                   | trofeo                 | 奖杯             |
-| milestone           | marco                    | hito                   | 里程碑           |
-| Game ladders        | Níveis por jogo          | Niveles por juego      | 游戏等级         |
-| tray                | bandeja                  | bandeja                | 系统托盘         |
-| Close to tray       | Minimizar para a bandeja | Minimizar a la bandeja | 最小化到系统托盘 |
-| backup              | backup                   | copia de seguridad     | 备份             |
-| What's new          | Novidades                | Novedades              | 更新内容         |
+| English             | Português (Brasil)            | Español                        | 中文（简体）     |
+| ------------------- | ----------------------------- | ------------------------------ | ---------------- |
+| Now Playing         | Jogando agora                 | Jugando ahora                  | 正在游玩         |
+| Now Emulating       | Emulando agora                | Emulando ahora                 | 正在模拟         |
+| My Games            | Meus jogos                    | Mis juegos                     | 我的游戏         |
+| My History          | Meu histórico                 | Mi historial                   | 我的历史         |
+| Library             | Biblioteca                    | Biblioteca                     | 游戏库           |
+| Discover            | Descobrir                     | Descubrir                      | 发现             |
+| Discovered          | Descobertos                   | Descubiertos                   | 已发现           |
+| Achievements        | Conquistas                    | Logros                         | 成就             |
+| Settings            | Configurações                 | Configuración                  | 设置             |
+| Help & Feedback     | Ajuda e feedback              | Ayuda y comentarios            | 帮助与反馈       |
+| Import library      | Importar biblioteca           | Importar biblioteca            | 导入游戏库       |
+| game                | jogo                          | juego                          | 游戏             |
+| playtime            | tempo de jogo                 | tiempo de juego                | 游戏时长         |
+| session             | sessão                        | sesión                         | 游玩记录         |
+| playthrough         | campanha                      | partida                        | 游玩周目         |
+| Default playthrough | Campanha padrão               | Partida predeterminada         | 默认周目         |
+| journal             | diário                        | diario                         | 日志             |
+| note                | nota                          | nota                           | 笔记             |
+| track               | registrar                     | registrar                      | 记录             |
+| detect              | detectar                      | detectar                       | 检测             |
+| Play                | Jogar                         | Jugar                          | 开始游戏         |
+| shelf               | prateleira                    | estante                        | 分类架           |
+| favorite            | favorito                      | favorito                       | 收藏             |
+| match               | associação                    | asociación                     | 匹配             |
+| ignore              | ignorar                       | ignorar                        | 忽略             |
+| community           | comunidade                    | comunidad                      | 社区             |
+| review              | análise                       | revisión                       | 审核             |
+| trophy              | troféu                        | trofeo                         | 奖杯             |
+| milestone           | marco                         | hito                           | 里程碑           |
+| Game ladders        | Níveis por jogo               | Niveles por juego              | 游戏等级         |
+| tray                | bandeja                       | bandeja                        | 系统托盘         |
+| Close to tray       | Minimizar para a bandeja      | Minimizar a la bandeja         | 最小化到系统托盘 |
+| backup              | backup                        | copia de seguridad             | 备份             |
+| What's new          | Novidades                     | Novedades                      | 更新内容         |
+| Insights            | Estatísticas                  | Estadísticas                   | 统计             |
+| sample              | exemplo                       | ejemplo                        | 示例             |
+| badge               | selo                          | insignia                       | 徽章             |
+| cover               | capa                          | portada                        | 封面             |
+| banner              | banner                        | banner                         | 横幅             |
+| launch path         | caminho de inicialização      | ruta de inicio                 | 启动路径         |
+| controller          | controle                      | mando                          | 手柄             |
+| launcher            | launcher                      | lanzador                       | 启动器           |
+| Report wrong match  | Informar associação incorreta | Informar asociación incorrecta | 报告错误匹配     |

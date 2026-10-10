@@ -82,7 +82,7 @@ describe("registered translations", () => {
     applyLanguage("zh-CN");
     const t = getT("common");
     for (const count of [0, 1, 2, 1_000_000]) {
-      expect(t("{{count}} sessions", { count })).toBe(`${count} 次游玩记录`);
+      expect(t("{{count}} sessions", { count })).toBe(`${count} 次游玩`);
     }
     expect(
       getT("native")("Could not open Epic Games: {{error}}", {

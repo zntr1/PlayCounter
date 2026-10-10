@@ -39,14 +39,14 @@
       "es": {
         "headline": "Elige una portada para cualquier juego, sube de nivel todos tus juegos a la vez e informa de asociaciones incorrectas con más claridad.",
         "highlights": [
-          "Novedad: ¡Portadas para cualquier juego! “Elige portada…” toma una de SteamGridDB, o usa “Cargar portada” y “Pegar portada”. “Restaurar portada” recupera la original. Si una portada no carga, se vuelve a mostrar la portada original del juego.",
+          "Novedad: ¡Portadas para cualquier juego! “Elegir portada…” toma una de SteamGridDB, o usa “Cargar portada” y “Pegar portada”. “Restaurar portada” recupera la original. Si una portada no carga, se vuelve a mostrar la portada original del juego.",
           "Novedad: “Minimizar a la bandeja al iniciar un juego”: después de hacer clic en “Jugar” en PlayCounter, la app pasa a la bandeja en cuanto el juego se ejecuta. Activado de forma predeterminada en Configuración → Inicio de juegos.",
           "Novedad: Página inicial: abre PlayCounter en “Jugando ahora” o en “Mis juegos” (Configuración → General).",
           "Novedad: Reloj opcional en la ventana emergente de la sesión actual, práctico en juegos a pantalla completa (Configuración → Atajos de teclado).",
           "Mejora: Un botón en “Mis juegos” muestra todos los juegos que se pueden mejorar: sugerencias que la comunidad aprobó, asociaciones encontradas para tus propios juegos y juegos de lanzadores que PlayCounter ahora puede registrar. Desmarca lo que parezca incorrecto y aplica el resto.",
           "Mejora: “Mi historial”: un botón “Volver al principio”, y la lista de juegos de “Todo el tiempo” ahora coincide con los totales de “Mis juegos”, incluido el tiempo de juego de los lanzadores.",
           "Mejora: Esc borra la búsqueda o el filtro de “Mi historial” desde cualquier página. En “Descubiertos”, Ctrl+F salta a su propia búsqueda.",
-          "Informes: “Informar de una asociación incorrecta” pregunta qué es realmente el archivo: otro juego, una aplicación para registrar, una aplicación para ignorar, parte del juego o no estás seguro.",
+          "Informes: “Informar asociación incorrecta” pregunta qué es realmente el archivo: otro juego, una aplicación para registrar, una aplicación para ignorar, parte del juego o no estás seguro.",
           "Informes: “No pertenece a <juego>” quita un archivo de un juego en tu PC e informa de ello. Sus sesiones se quedan en “Mi historial”.",
           "Informes: Los juegos con varios .exe preguntan “¿Qué archivo?”, para que los informes, las comprobaciones de asociaciones y “Convertir a juego personalizado” actúen sobre el correcto. Detalles → Archivos tiene un botón “Informar” para cada archivo.",
           "Informes: Un programa desconocido tiene un único botón “No es un juego…” con las mismas opciones.",
@@ -57,7 +57,7 @@
       "pt-BR": {
         "headline": "Escolha uma capa para qualquer jogo, suba o nível de todos os seus jogos de uma vez e informe associações incorretas com mais clareza.",
         "highlights": [
-          "Novidade: capas para qualquer jogo! “Escolha a capa…” pega uma do SteamGridDB, ou use “Carregar capa” e “Colar capa”. “Restaurar capa” traz de volta a original. Se uma capa não carregar, volta a aparecer a capa original do jogo.",
+          "Novidade: capas para qualquer jogo! “Escolher capa…” pega uma do SteamGridDB, ou use “Carregar capa” e “Colar capa”. “Restaurar capa” traz de volta a original. Se uma capa não carregar, volta a aparecer a capa original do jogo.",
           "Novidade: “Minimizar para a bandeja ao iniciar um jogo”: depois que você clica em “Jogar” no PlayCounter, ele vai para a bandeja assim que o jogo estiver rodando. Ativado por padrão em Configurações → Inicialização de jogos.",
           "Novidade: página inicial: abra o PlayCounter em “Jogando agora” ou em “Meus jogos” (Configurações → Geral).",
           "Novidade: relógio opcional no pop-up da sessão atual, útil em jogos em tela cheia (Configurações → Atalhos de teclado).",
@@ -82,8 +82,8 @@
           "改进：“我的游戏”中有一个按钮，会列出所有可以升级的游戏：社区已批准的建议、为你自己的游戏找到的匹配，以及 PlayCounter 现在可以记录的启动器游戏。取消勾选看起来不对的项目，然后应用其余的。",
           "改进：“我的历史”：新增“返回顶部”按钮，“全部时间”的游戏列表现在与“我的游戏”中的总时长一致，包括启动器的游戏时长。",
           "改进：在任意页面按 Esc 都能清除搜索或“我的历史”的筛选。在“已发现”中，Ctrl+F 会跳到该页面自己的搜索框。",
-          "报告：“报告匹配错误”会询问这个文件到底是什么：另一个游戏、要记录的应用、要忽略的应用、游戏的一部分，还是不确定。",
-          "报告：“不属于<游戏>”会把一个文件从你电脑上的某个游戏中移除并报告。它的游玩记录仍保留在“我的历史”中。",
+          "报告：“报告错误匹配”会询问这个文件到底是什么：另一个游戏、要记录的应用、要忽略的应用、游戏的一部分，还是不确定。",
+          "报告：“不属于 <游戏>”会把一个文件从你电脑上的某个游戏中移除并报告。它的游玩记录仍保留在“我的历史”中。",
           "报告：有多个 .exe 的游戏会询问“哪个文件？”，让报告、匹配检查和“转换为自定义游戏”作用于正确的文件。“详情 → 文件”中每个文件都有“报告”按钮。",
           "报告：未知程序只有一个“不是游戏…”按钮，选项相同。",
           "设计：侧边栏：模拟器移到了“游戏库”，“软件”移到了“发现”。",
@@ -176,7 +176,7 @@
           "mGBA: juegos de Game Boy, Game Boy Color y Game Boy Advance.",
           "RPG Maker y otros juegos con Game.exe: una tarjeta por carpeta de juego.",
           "“Descubiertos”: revisión más clara con nombre del producto, editor, carpeta y la pista “Probablemente un juego”.",
-          "“Mis juegos”: orden “Agregado recientemente”, insignia “Nuevo”, mejores filtros “Se puede iniciar”, búsqueda por ID de IGDB y una opción para imágenes +18.",
+          "“Mis juegos”: orden “Añadido recientemente”, insignia “Nuevo”, mejores filtros “Se puede iniciar”, búsqueda por ID de IGDB y una opción para imágenes +18.",
           "Alrededor de un 40 % menos de memoria en la bandeja.",
           "Correcciones: los datos guardados que no se pueden leer nunca se sobrescriben, una página con errores ya no deja la ventana en blanco, y correcciones en el banner de la bandeja, el orden y los diálogos."
         ]
@@ -251,13 +251,13 @@
         "headline": "Importación de Epic Games, una biblioteca al día con tus lanzadores y carpetas supervisadas para juegos de cualquier origen.",
         "highlights": [
           "Para jugadores de Epic Games: importa tu biblioteca de Epic desde “Mis juegos”. Inicia sesión para traer tus juegos con el tiempo de juego que registró Epic, o encuentra los juegos instalados sin iniciar sesión. El inicio de sesión se hace directamente con Epic en una ventana privada que se borra después. PlayCounter nunca ve tu contraseña y tu tiempo de juego de Epic se queda en tu PC. Los juegos que nunca jugaste empiezan sin marcar, para que los juegos de regalo no inunden tu biblioteca.",
-          "Tu biblioteca ahora se mantiene al día con tus lanzadores. Después de tu primera importación desde Steam, Battle.net o Epic Games, los juegos que instales allí aparecen solos en “Mis juegos”, incluso antes de jugarlos. Los juegos que quitaste nunca se vuelven a añadir. Desactívalo con “Agregar nuevos juegos automáticamente” en Configuración → Importación de biblioteca. Los juegos de Xbox siguen necesitando una importación de Xbox.",
+          "Tu biblioteca ahora se mantiene al día con tus lanzadores. Después de tu primera importación desde Steam, Battle.net o Epic Games, los juegos que instales allí aparecen solos en “Mis juegos”, incluso antes de jugarlos. Los juegos que quitaste nunca se vuelven a añadir. Desactívalo con “Añadir juegos nuevos automáticamente” en Configuración → Importación de biblioteca. Los juegos de Xbox siguen necesitando una importación de Xbox.",
           "Los botones “Jugar” siempre son correctos. Cuando desinstalas un juego en Steam, Xbox o Battle.net, su botón “Jugar” desaparece solo, y Steam ya no abre un diálogo de reinstalación al presionar “Jugar”. Reinstala el juego y “Jugar” vuelve sin importar de nuevo. Una unidad USB o una carpeta de red que no está conectada ya no borra tus rutas de inicio guardadas.",
-          "Carpetas supervisadas para juegos fuera de cualquier lanzador: añade una carpeta como C:\\Games en Configuración → Importación de biblioteca. Cada carpeta que contiene cuenta como un juego. Cuando PlayCounter está seguro de qué juego es, el juego se añade y “Jugar” funciona de inmediato, incluso antes de tu primera sesión. Lo que no está claro espera en “Descubiertos” y muestra la carpeta donde se encontró. Las carpetas supervisadas necesitan “Recordar rutas de inicio” y se quedan en esta PC.",
+          "Carpetas supervisadas para juegos fuera de cualquier lanzador: añade una carpeta como C:\\Games en Configuración → Importación de biblioteca. Cada carpeta que contiene cuenta como un juego. Cuando PlayCounter está seguro de qué juego es, el juego se añade y “Jugar” funciona de inmediato, incluso antes de tu primera sesión. Lo que no está claro espera en “Descubiertos” y muestra la carpeta donde se encontró. Las carpetas supervisadas necesitan “Recordar rutas de inicio” y se quedan en este PC.",
           "Juega con el teclado: las flechas te mueven por “Mis juegos” entre tarjetas y hacia la barra lateral, y Enter o la barra espaciadora inicia el juego seleccionado. Funciona siempre que el inicio de juegos esté activado, sin necesidad de mando. Esc suelta la selección.",
           "Nueva guía en ? Ayuda: “Supervisar carpetas para encontrar juegos nuevos”. Las guías de importación e inicio ahora también cubren Epic Games, instalaciones nuevas y juegos desinstalados. Inícialas directamente desde estas novedades.",
           "Las importaciones de Steam ahora también incluyen juegos instalados que aún no has jugado. Si quieres, activa “Mostrar Instalar en Steam” en Configuración para tener un botón Instalar en los juegos de Steam importados que ya no están instalados.",
-          "Haz clic derecho en “Mis juegos” en la barra lateral para ir directo a la importación de Steam, Xbox, Battle.net o Epic Games. ¿No necesitas la señal de advertencia en juegos sin un .exe conocido? Desactiva “Advertencias de seguimiento” en Personalizar → Detalles de la tarjeta, en “Mis juegos”.",
+          "Haz clic derecho en “Mis juegos” en la barra lateral para ir directo a la importación de Steam, Xbox, Battle.net o Epic Games. ¿No necesitas la señal de advertencia en juegos sin un .exe conocido? Desactiva “Advertencias de registro” en Personalizar → Detalles de la tarjeta, en “Mis juegos”.",
           "Más ligero para tus juegos: PlayCounter pausa sus animaciones mientras está en segundo plano, así que ya no te cuesta FPS en juegos que comparten la GPU. También usa menos memoria mientras espera en la bandeja.",
           "Menos programas que no son juegos en “Descubiertos”: muchas más aplicaciones cotidianas, como 7-Zip, herramientas de Adobe, AnyDesk y Audacity, ahora se ignoran automáticamente. Gracias a todos los que comparten las aplicaciones que ignoran.",
           "Correcciones: los diálogos abiertos durante una guía vuelven a responder a los clics, una guía ya no inicia la grabación de atajos al llegar a “Atajos de teclado”, y los juegos de Battle.net ya no cuentan como instalados cuando una desinstalación dejó su carpeta."
@@ -267,13 +267,13 @@
         "headline": "Importação da Epic Games, uma biblioteca que acompanha seus launchers e pastas monitoradas para jogos de qualquer lugar.",
         "highlights": [
           "Para quem joga na Epic Games: importe sua biblioteca da Epic em “Meus jogos”. Entre na sua conta para trazer seus jogos com o tempo de jogo que a Epic registrou, ou encontre os jogos instalados sem entrar. O login acontece direto com a Epic, em uma janela privada que é apagada depois. O PlayCounter nunca vê sua senha, e o seu tempo de jogo da Epic fica no seu PC. Jogos que você nunca jogou começam desmarcados, para que os jogos grátis não lotem sua biblioteca.",
-          "Sua biblioteca agora acompanha seus launchers. Depois da sua primeira importação da Steam, do Battle.net ou da Epic Games, os jogos que você instalar lá aparecem sozinhos em “Meus jogos”, antes mesmo de você jogá-los. Jogos que você removeu nunca são adicionados de novo. Desative isso em “Adicionar novos jogos automaticamente”, em Configurações → Importação de biblioteca. Jogos do Xbox ainda precisam de uma importação do Xbox.",
-          "Os botões “Jogar” continuam corretos. Quando você desinstala um jogo na Steam, no Xbox ou no Battle.net, o botão “Jogar” dele some sozinho, e a Steam não abre mais uma janela de reinstalação quando você clica em “Jogar”. Reinstale o jogo e o “Jogar” volta sem precisar importar de novo. Um pendrive ou uma pasta de rede desconectados não apagam mais os seus caminhos de inicialização salvos.",
+          "Sua biblioteca agora acompanha seus launchers. Depois da sua primeira importação do Steam, do Battle.net ou da Epic Games, os jogos que você instalar lá aparecem sozinhos em “Meus jogos”, antes mesmo de você jogá-los. Jogos que você removeu nunca são adicionados de novo. Desative isso em “Adicionar novos jogos automaticamente”, em Configurações → Importação de biblioteca. Jogos do Xbox ainda precisam de uma importação do Xbox.",
+          "Os botões “Jogar” continuam corretos. Quando você desinstala um jogo no Steam, no Xbox ou no Battle.net, o botão “Jogar” dele some sozinho, e o Steam não abre mais uma janela de reinstalação quando você clica em “Jogar”. Reinstale o jogo e o “Jogar” volta sem precisar importar de novo. Um pendrive ou uma pasta de rede desconectados não apagam mais os seus caminhos de inicialização salvos.",
           "Pastas monitoradas para jogos fora de qualquer launcher: adicione uma pasta como C:\\Games em Configurações → Importação de biblioteca. Cada pasta dentro dela conta como um jogo. Quando o PlayCounter tem certeza de qual jogo é, o jogo é adicionado e o “Jogar” funciona na hora, antes mesmo da sua primeira sessão. O que não estiver claro espera em “Descobertos” e mostra a pasta onde foi encontrado. Pastas monitoradas precisam de “Lembrar caminhos de inicialização” e ficam neste PC.",
           "Jogue pelo teclado: as setas percorrem “Meus jogos” entre os cartões e até a barra lateral, e Enter ou Espaço inicia o jogo selecionado. Funciona sempre que a inicialização de jogos estiver ativada, sem precisar de controle. Esc desfaz a seleção.",
           "Novo guia em ? Ajuda: “Monitorar pastas para encontrar novos jogos”. Os guias de importação e inicialização agora também cobrem a Epic Games, novas instalações e jogos desinstalados. Abra-os direto destas novidades.",
-          "As importações da Steam agora também incluem jogos instalados que você ainda não jogou. Se quiser, ative “Mostrar Instalar no Steam” em Configurações para ter um botão Instalar nos jogos da Steam importados que não estão mais instalados.",
-          "Clique com o botão direito em “Meus jogos” na barra lateral para ir direto à importação da Steam, do Xbox, do Battle.net ou da Epic Games. Não precisa do sinal de alerta nos jogos sem um .exe conhecido? Desative “Alertas de rastreamento” em Personalizar → Detalhes do cartão, em “Meus jogos”.",
+          "As importações do Steam agora também incluem jogos instalados que você ainda não jogou. Se quiser, ative “Mostrar Instalar no Steam” em Configurações para ter um botão Instalar nos jogos do Steam importados que não estão mais instalados.",
+          "Clique com o botão direito em “Meus jogos” na barra lateral para ir direto à importação do Steam, do Xbox, do Battle.net ou da Epic Games. Não precisa do sinal de alerta nos jogos sem um .exe conhecido? Desative “Alertas de registro” em Personalizar → Detalhes do cartão, em “Meus jogos”.",
           "Mais leve para os seus jogos: o PlayCounter pausa as animações quando está em segundo plano, então não custa mais FPS em jogos que dividem a GPU. Ele também usa menos memória enquanto espera na bandeja.",
           "Menos coisas que não são jogos em “Descobertos”: muitos outros apps do dia a dia, como 7-Zip, ferramentas da Adobe, AnyDesk e Audacity, agora são ignorados automaticamente. Obrigado a todos que compartilham os apps que ignoram.",
           "Correções: caixas de diálogo abertas durante um guia voltam a aceitar cliques, um guia não inicia mais a gravação de atalhos ao chegar em “Atalhos de teclado”, e jogos do Battle.net não contam mais como instalados quando uma desinstalação deixou a pasta para trás."
@@ -289,7 +289,7 @@
           "用键盘游玩：在“我的游戏”中用方向键在卡片之间移动，也可以移到侧边栏，按 Enter 或空格键启动选中的游戏。只要开启了启动游戏就能用，不需要手柄。按 Esc 取消选择。",
           "“? 帮助”中的新指南：“监控文件夹以发现新游戏”。导入和启动的指南现在也涵盖 Epic Games、新安装的游戏和已卸载的游戏。可以直接从这些更新内容中开始。",
           "Steam 导入现在也包括你已安装但还没玩过的游戏。如果需要，可以在设置中开启“显示‘在 Steam 中安装’”，为已不再安装的导入 Steam 游戏显示安装按钮。",
-          "在侧边栏中右键点击“我的游戏”，即可直接跳到 Steam、Xbox、Battle.net 或 Epic Games 导入。不需要在没有已知 .exe 的游戏上显示警告标志？在“我的游戏”的“自定义 → 卡详细信息”中关闭“记录警告”。",
+          "在侧边栏中右键点击“我的游戏”，即可直接跳到 Steam、Xbox、Battle.net 或 Epic Games 导入。不需要在没有已知 .exe 的游戏上显示警告标志？在“我的游戏”的“自定义 → 卡片详情”中关闭“记录警告”。",
           "更不影响游戏：PlayCounter 在后台时会暂停动画，因此在共用 GPU 的游戏中不再占用帧数。在系统托盘中等待时，它占用的内存也更少。",
           "“已发现”中的非游戏更少了：7-Zip、Adobe 工具、AnyDesk、Audacity 等更多日常应用现在会被自动忽略。感谢所有分享自己忽略的应用的人。",
           "修复：指南进行中打开的对话框又可以点击了；指南走到“键盘快捷键”时不再启动快捷键录制；卸载后残留文件夹的 Battle.net 游戏不再被视为已安装。"
@@ -337,15 +337,15 @@
         "headline": "Un aspecto totalmente nuevo, importación de Battle.net y un “Mi historial” que cuenta la historia de tu tiempo de juego.",
         "highlights": [
           "Para todos: PlayCounter tiene un aspecto nuevo. Un tema oscuro grafito con detalles en ámbar, un tema claro cálido, su propia barra de título con búsqueda y una barra lateral que puedes contraer. Las imágenes de los juegos ahora llenan el banner de arriba en “Mis juegos” y el fondo de “Jugando ahora”.",
-          "Para jugadores de Battle.net: importa tus juegos de Battle.net desde “Mis juegos”. Busca los juegos instalados en esta PC o inicia sesión para encontrar los juegos de tu cuenta. El inicio de sesión se hace en una ventana privada y PlayCounter solo lee tu lista de juegos. Battle.net no comparte el tiempo de juego anterior, así que añádelo tú con “Ajustar tiempo de juego total” (en World of Warcraft, /played lo muestra).",
-          "Para los fans de las estadísticas: “Mi historial” se rehízo. Empieza con un gran número para el periodo que elijas y datos destacados como tu sesión más larga, tu mejor racha y tu juego más jugado. Debajo hay tres pestañas: un diario de sesiones día a día, “Perspectivas” con gráficos, calendario y hábitos de juego, y “Juegos” con tus juegos principales.",
+          "Para jugadores de Battle.net: importa tus juegos de Battle.net desde “Mis juegos”. Busca los juegos instalados en este PC o inicia sesión para encontrar los juegos de tu cuenta. El inicio de sesión se hace en una ventana privada y PlayCounter solo lee tu lista de juegos. Battle.net no comparte el tiempo de juego anterior, así que añádelo tú con “Ajustar tiempo de juego total” (en World of Warcraft, /played lo muestra).",
+          "Para los fans de las estadísticas: “Mi historial” se rehízo. Empieza con un gran número para el periodo que elijas y datos destacados como tu sesión más larga, tu mejor racha y tu juego más jugado. Debajo hay tres pestañas: un diario de sesiones día a día, “Estadísticas” con gráficos, calendario y hábitos de juego, y “Juegos” con tus juegos principales.",
           "Para los cazadores de logros: “Logros” ahora muestra arriba tu progreso general, lo que viene después y tu último desbloqueo. Los hitos y los niveles por juego se muestran en filas. Pasa el cursor sobre un paso para ver cuándo lo desbloqueaste o cuánto falta.",
-          "Para coleccionistas: elige tus propias imágenes de SteamGridDB. Elige un banner para cualquier juego y una portada para tus propias entradas y herramientas. Haz clic derecho en un juego y elige “Portada y pancarta”, o usa el botón de imagen de su tarjeta.",
+          "Para coleccionistas: elige tus propias imágenes de SteamGridDB. Elige un banner para cualquier juego y una portada para tus propias entradas y herramientas. Haz clic derecho en un juego y elige “Portada y banner”, o usa el botón de imagen de su tarjeta.",
           "Los detalles del juego y el diario del juego tienen un diseño nuevo. Los detalles empiezan con una gran imagen de cabecera, una pestaña “General” con descripción, tiempo de juego y acciones rápidas, y una pestaña “Archivos” con los archivos del juego registrados. En el diario, las partidas son tarjetas; haz doble clic en una para activarla.",
           "Adáptalo a tu pantalla: ajusta “Tamaño del contenido” y “Tamaño de los menús” por separado en Configuración → Apariencia. El banner puede cambiar entre detalles compactos y completos, “Personalizar” en “Mis juegos” está ordenado en secciones claras y los grupos de lanzadores de la barra lateral se pueden desactivar.",
           "Presiona Ctrl+F desde cualquier vista para buscar en toda tu biblioteca. En “Mi historial”, la misma búsqueda filtra tus sesiones.",
           "Para jugadores de emuladores: la vista “Emuladores” tiene una cabecera nueva con tu tiempo de juego y tarjetas para los juegos vinculados.",
-          "¿Se detectó el juego equivocado? El diálogo “Informar de una asociación incorrecta” es más claro, y “Jugando ahora” tiene la nueva opción “No estoy jugando a esto ahora”. Ignora el archivo solo en esta PC y nunca informa de él.",
+          "¿Se detectó el juego equivocado? El diálogo “Informar asociación incorrecta” es más claro, y “Jugando ahora” tiene la nueva opción “No estoy jugando a esto ahora”. Ignora el archivo solo en este PC y nunca informa de él.",
           "Más control: Configuración → Restablecer puede restaurar la configuración predeterminada o empezar de nuevo por completo. Tus copias de seguridad siempre se conservan. Si PlayCounter está en la bandeja, su menú ahora muestra cuándo hay una actualización lista. El botón “Actualizar nota” de las ventanas emergentes de sesión guardada ahora es opcional; activa “Actualizar nota en ventanas emergentes” en Configuración.",
           "Para nuevos jugadores: una ventana de inicio más grande, una bienvenida más sencilla, y las importaciones de Steam, Xbox y Battle.net son fáciles de encontrar en cuanto se registra tu primer juego. Las guías de ? Ayuda están ordenadas por categorías. “Compartir aplicaciones que ignoras” ahora queda desactivado a menos que lo actives en Configuración."
         ]
@@ -355,16 +355,16 @@
         "highlights": [
           "Para todo mundo: o PlayCounter tem um visual novo. Um tema escuro grafite com detalhes em âmbar, um tema claro e acolhedor, uma barra de título própria com busca e uma barra lateral que você pode recolher. As artes dos jogos agora preenchem o banner no topo de “Meus jogos” e o fundo de “Jogando agora”.",
           "Para quem joga no Battle.net: importe seus jogos do Battle.net em “Meus jogos”. Procure os jogos instalados neste PC ou entre na sua conta para encontrar os jogos dela. O login acontece em uma janela privada, e o PlayCounter só lê a sua lista de jogos. O Battle.net não compartilha o tempo de jogo anterior, então adicione você mesmo com “Ajustar tempo de jogo total” (no World of Warcraft, o /played mostra esse tempo).",
-          "Para quem ama estatísticas: “Meu histórico” foi refeito. Ele abre com um número grande para o período que você escolher e destaques como sua sessão mais longa, sua melhor sequência e o jogo mais jogado. Abaixo há três abas: um diário de sessões dia a dia, “Informações” com gráficos, calendário e hábitos de jogo, e “Jogos” com os seus jogos mais jogados.",
+          "Para quem ama estatísticas: “Meu histórico” foi refeito. Ele abre com um número grande para o período que você escolher e destaques como sua sessão mais longa, sua melhor sequência e o jogo mais jogado. Abaixo há três abas: um diário de sessões dia a dia, “Estatísticas” com gráficos, calendário e hábitos de jogo, e “Jogos” com os seus jogos mais jogados.",
           "Para caçadores de conquistas: “Conquistas” agora mostra no topo seu progresso geral, o que vem a seguir e o seu último desbloqueio. Marcos e níveis por jogo aparecem em linhas. Passe o mouse sobre uma etapa para ver quando você a desbloqueou ou quanto falta.",
-          "Para colecionadores: escolha suas próprias artes no SteamGridDB. Escolha um banner para qualquer jogo e uma capa para suas próprias entradas e ferramentas. Clique com o botão direito em um jogo e escolha “Capa e Banner”, ou use o botão de imagem no cartão dele.",
+          "Para colecionadores: escolha suas próprias artes no SteamGridDB. Escolha um banner para qualquer jogo e uma capa para suas próprias entradas e ferramentas. Clique com o botão direito em um jogo e escolha “Capa e banner”, ou use o botão de imagem no cartão dele.",
           "Os detalhes do jogo e o diário do jogo têm um layout novo. Os detalhes abrem com uma arte grande no topo, uma aba “Geral” com descrição, tempo de jogo e ações rápidas, e uma aba “Arquivos” com os arquivos do jogo registrados. No diário, as campanhas são cartões; clique duas vezes em uma para torná-la ativa.",
           "Ajuste à sua tela: defina “Tamanho do conteúdo” e “Tamanho dos menus” separadamente em Configurações → Aparência. O banner pode alternar entre detalhes compactos e completos, “Personalizar” em “Meus jogos” está organizado em seções claras, e os grupos de launchers na barra lateral podem ser desativados.",
           "Pressione Ctrl+F em qualquer tela para buscar em toda a sua biblioteca. Em “Meu histórico”, a mesma busca filtra suas sessões.",
           "Para quem joga em emuladores: a tela “Emuladores” tem um cabeçalho novo com seu tempo de jogo e cartões para os jogos vinculados.",
           "Jogo errado detectado? A janela “Informar associação incorreta” está mais clara, e “Jogando agora” tem a nova opção “Não estou jogando isso agora”. Ela ignora o arquivo só neste PC e nunca o informa.",
           "Mais controle: Configurações → Redefinir pode restaurar as configurações padrão ou recomeçar do zero. Seus arquivos de backup são sempre mantidos. Se o PlayCounter estiver na bandeja, o menu da bandeja agora mostra quando uma atualização está pronta. O botão “Atualizar nota” nos pop-ups de sessão salva agora é opcional; ative “Atualizar nota nos pop-ups” em Configurações.",
-          "Para novos jogadores: uma janela inicial maior, boas-vindas mais simples, e as importações da Steam, do Xbox e do Battle.net ficam fáceis de achar assim que o seu primeiro jogo é registrado. Os guias em ? Ajuda estão organizados em categorias. “Compartilhar apps ignorados” agora fica desativado, a menos que você o ative em Configurações."
+          "Para novos jogadores: uma janela inicial maior, boas-vindas mais simples, e as importações do Steam, do Xbox e do Battle.net ficam fáceis de achar assim que o seu primeiro jogo é registrado. Os guias em ? Ajuda estão organizados em categorias. “Compartilhar apps ignorados” agora fica desativado, a menos que você o ative em Configurações."
         ]
       },
       "zh-CN": {
@@ -372,14 +372,14 @@
         "highlights": [
           "面向所有人：PlayCounter 换上了新外观。石墨色深色主题配琥珀色点缀，温暖的浅色主题，自带搜索的标题栏，以及可以折叠的侧边栏。游戏图片现在会铺满“我的游戏”顶部的横幅和“正在游玩”的背景。",
           "Battle.net 玩家：从“我的游戏”导入你的 Battle.net 游戏。扫描这台电脑上已安装的游戏，或登录以找到你账号中的游戏。登录在私密窗口中进行，PlayCounter 只读取你的游戏列表。Battle.net 不提供过去的游戏时长，所以请用“调整累计游戏时长”自己添加（在《魔兽世界》中，可以用 /played 查看）。",
-          "面向数据爱好者：“我的历史”全面重做。开头是你所选时间范围的一个大数字，以及最长游玩、最长连续游玩天数和玩得最多的游戏等亮点。下面有三个标签页：按天记录的游玩日志、包含图表、日历和游戏习惯的“见解”，以及列出你最常玩游戏的“游戏”。",
+          "面向数据爱好者：“我的历史”全面重做。开头是你所选时间范围的一个大数字，以及最长游玩、最长连续游玩天数和玩得最多的游戏等亮点。下面有三个标签页：按天记录的游玩日志、包含图表、日历和游戏习惯的“统计”，以及列出你最常玩游戏的“游戏”。",
           "面向成就猎人：“成就”现在会在顶部显示你的总体进度、下一个目标和最近解锁的成就。里程碑和游戏等级以行的形式显示。将鼠标悬停在某一级上，可以查看解锁时间或还差多少。",
           "面向收藏爱好者：从 SteamGridDB 挑选你自己的图片。可以为任意游戏选择横幅，为你自己的条目和工具选择封面。右键点击游戏并选择“封面和横幅”，或使用卡片上的图片按钮。",
           "游戏详情和游戏日志采用了新布局。详情顶部是一张大图，“常规”标签页包含简介、游戏时长和快捷操作，“文件”标签页列出记录的游戏文件。在日志中，周目以卡片显示；双击一个即可将其设为当前周目。",
           "适配你的屏幕：在“设置 → 外观”中分别设置“内容大小”和“菜单大小”。横幅可以在紧凑和完整信息之间切换，“我的游戏”中的“自定义”分成了清晰的几个部分，侧边栏中的启动器分组也可以关闭。",
           "在任意视图中按 Ctrl+F 即可搜索整个游戏库。在“我的历史”中，同一个搜索会筛选你的游玩记录。",
           "模拟器玩家：“模拟器”视图有了新的页头，显示你的游戏时长和已关联游戏的卡片。",
-          "检测到错误的游戏？“报告匹配错误”对话框更清楚了，“正在游玩”还新增了“我现在没在玩这个”选项。它只会在这台电脑上忽略该文件，绝不会报告它。",
+          "检测到错误的游戏？“报告错误匹配”对话框更清楚了，“正在游玩”还新增了“我现在没在玩这个”选项。它只会在这台电脑上忽略该文件，绝不会报告它。",
           "更多控制：“设置 → 重置”可以恢复默认设置，或完全重新开始。你的备份文件始终会保留。PlayCounter 在系统托盘中运行时，托盘菜单现在会显示更新已就绪。已保存游玩记录弹窗中的“更新笔记”按钮现在是可选的；在设置中开启“在弹窗中更新笔记”即可。",
           "面向新玩家：更大的启动窗口、更简单的欢迎页，记录到第一个游戏后就能轻松找到 Steam、Xbox 和 Battle.net 导入。“? 帮助”中的指南已按类别整理。“分享你忽略的应用”现在默认关闭，除非你在设置中开启。"
         ]
@@ -428,12 +428,12 @@
         "headline": "Algumas correções, algumas melhorias! :)",
         "highlights": [
           "Selecione vários jogos em “Meus jogos” e arraste-os juntos para “Favoritos” ou para uma prateleira. A prévia ao arrastar mostra quantos são, e jogos que já estão na prateleira são ignorados.",
-          "As importações da Steam e do Xbox agora pré-selecionam o arquivo do jogo quando há só uma opção adequada. Confira e confirme para adicionar o jogo.",
+          "As importações do Steam e do Xbox agora pré-selecionam o arquivo do jogo quando há só uma opção adequada. Confira e confirme para adicionar o jogo.",
           "As confirmações de importação agora avisam quando uma associação de arquivo de jogo existente foi vinculada, quando um arquivo foi enviado para análise da comunidade e quando a verificação precisa de outra tentativa.",
           "Os nomes das campanhas nos pop-ups de início de jogo e de sessão salva agora vêm desativados por padrão. Ative “Nomes das campanhas nos pop-ups” em Configurações para mostrá-los. O texto da nota tem uma configuração própria.",
           "Se o servidor estiver ocupado no momento, o PlayCounter mostra uma contagem regressiva e tenta de novo as buscas de jogos em segundo plano. As importações podem pausar e continuar automaticamente, e você ainda pode cancelar enquanto espera.",
           "Os selos de associação de emuladores agora mostram corretamente as associações da comunidade, as suas próprias escolhas e as análises pendentes em “Meus jogos”, nas sessões ativas, no histórico e nos detalhes do jogo.",
-          "A tela vazia de “Meus jogos” agora explica a detecção automática de jogos e oferece as importações da Steam e do Xbox como formas opcionais de trazer jogos e tempo de jogo anterior."
+          "A tela vazia de “Meus jogos” agora explica a detecção automática de jogos e oferece as importações do Steam e do Xbox como formas opcionais de trazer jogos e tempo de jogo anterior."
         ]
       },
       "zh-CN": {
@@ -516,14 +516,14 @@
           "“Jogando agora” mostra a nota da campanha ativa do jogo. Se quiser, inclua a nota nos pop-ups de início de jogo e atualize-a direto pelo pop-up de sessão salva.",
           "“Meus jogos” abre e troca de tela mais rápido em bibliotecas grandes, mantém sua busca e a prateleira selecionada quando você volta, e tem um arrastar mais suave e menus de clique direito mais consistentes.",
           "Correções: datas de última vez jogado em jogos com histórico importado, status de sugestão errados e notificações de aprovação repetidas depois de mesclar jogos da comunidade, importações de backup que rejeitavam sessões válidas de emulador ou manuais, e o indicador de carregamento na inicialização para jogos com nomes longos.",
-          "O site foi atualizado com novas capturas de tela e guias mais claros sobre detecção de jogos, importações da Steam e do Xbox, registro de emuladores e totais de tempo de jogo.",
+          "O site foi atualizado com novas capturas de tela e guias mais claros sobre detecção de jogos, importações do Steam e do Xbox, registro de emuladores e totais de tempo de jogo.",
           "Aprenda os novos recursos com guias curtos em ? Ajuda ou comece um direto destas novidades. Eles usam jogos de exemplo, então nada do que você testar muda a sua biblioteca."
         ]
       },
       "zh-CN": {
         "headline": "为你的游戏库带来笔记、周目和分类架 + 支持 PCSX2 模拟器",
         "highlights": [
-          "为每个游戏写一条私人笔记，记住你玩到了哪里。开始带名称的周目，例如“Speedrun”或“New Game+”，每个周目都有自己的笔记、游戏时长和游玩记录列表。可以在日志或“我的历史”中把游玩记录移到其他周目，也可以将周目标记为已完成。",
+          "为每个游戏写一条私人笔记，记住你玩到了哪里。开始带名称的周目，例如“速通”或“New Game+”，每个周目都有自己的笔记、游戏时长和游玩记录列表。可以在日志或“我的历史”中把游玩记录移到其他周目，也可以将周目标记为已完成。",
           "用“收藏”和你自己的分类架整理“我的游戏”。把游戏拖到分类架上，或保存筛选条件，让分类架自动填充。拖动时，如果某个分类架无法放入该游戏，它会告诉你原因。",
           "为游戏设置进度状态，例如“进行中”“已暂停”或“已完成”。使用“选择”可以一次更改多个游戏、一个范围或当前视图中所有游戏的状态。",
           "自动备份默认开启：每周备份一次，保留最近五份。在设置中可以改为每天备份、更改文件夹和保留的备份数量，或立即备份。错过的备份会在你下次打开 PlayCounter 时补上。",
@@ -573,7 +573,7 @@
         "highlights": [
           "Novos atalhos de teclado em Configurações: um traz o PlayCounter para a frente a partir de qualquer app, e outro mostra rapidamente um pop-up “Sessão atual” com seu tempo de jogo sem sair do jogo. Pressione de novo para passar pelos jogos em execução.",
           "Os pop-ups da área de trabalho agora podem aparecer no monitor que você escolher e também ser exibidos enquanto a janela do PlayCounter está aberta.",
-          "Na inicialização, o PlayCounter procura arquivos de jogo de importações da Steam e do Xbox que ainda não são registrados e os marca com “Associação encontrada” se agora houver um nome de arquivo correspondente no banco de dados da comunidade.",
+          "Na inicialização, o PlayCounter procura arquivos de jogo de importações do Steam e do Xbox que ainda não são registrados e os marca com “Associação encontrada” se agora houver um nome de arquivo correspondente no banco de dados da comunidade.",
           "Telas “Meus jogos” e “Jogando agora” mais rápidas, menos gravações em disco, e o seu ID de instalação agora aparece no fim de Configurações."
         ]
       },
@@ -730,7 +730,7 @@
       "es": {
         "headline": "Trae tu biblioteca y tu tiempo de juego de Xbox a PlayCounter.",
         "highlights": [
-          "Importa tu historial de juego de Xbox iniciando sesión con Microsoft en tu navegador y luego asócialo con los juegos instalados mediante la app Xbox en esta PC.",
+          "Importa tu historial de juego de Xbox iniciando sesión con Microsoft en tu navegador y luego asócialo con los juegos instalados mediante la app Xbox en este PC.",
           "Revisa las asociaciones de Xbox dudosas antes de importar y elige el archivo de juego correcto cuando PlayCounter necesite ayuda para saber qué registrar.",
           "“Mis juegos” ahora tiene vistas propias para Steam y Xbox, estados más claros para los juegos importados y un botón “Volver al principio” para bibliotecas grandes.",
           "Personaliza las tarjetas de resumen de “Mis juegos” y elige qué marcas de origen y de asociación aparecen en las tarjetas de juego. Tus elecciones de vista se recuerdan.",
@@ -746,7 +746,7 @@
           "“Meus jogos” agora tem telas próprias para Steam e Xbox, estados mais claros para jogos importados e um botão “Voltar ao topo” para bibliotecas grandes.",
           "Personalize os cartões de resumo de “Meus jogos” e escolha quais marcas de origem e de associação aparecem nos cartões dos jogos. Suas escolhas de exibição são lembradas.",
           "Abra jogos que podem ser iniciados no Explorador de Arquivos pelo menu de contexto, e controle se o PlayCounter lembra caminhos de inicialização locais, independentemente do botão “Jogar”.",
-          "Os jogos da Steam podem ser importados de novo para atualizar o tempo de jogo, e melhorias na associação de arquivos de jogo, na filtragem de processos do sistema e nos ícones de provedores e emuladores deixam sua biblioteca mais precisa."
+          "Os jogos do Steam podem ser importados de novo para atualizar o tempo de jogo, e melhorias na associação de arquivos de jogo, na filtragem de processos do sistema e nos ícones de provedores e emuladores deixam sua biblioteca mais precisa."
         ]
       },
       "zh-CN": {
@@ -807,17 +807,17 @@
         ]
       },
       "pt-BR": {
-        "headline": "Traga sua biblioteca da Steam para o PlayCounter.",
+        "headline": "Traga sua biblioteca do Steam para o PlayCounter.",
         "highlights": [
           "Pequeno hotfix para a 1.1.10.",
-          "Corrigido um bug em jogos importados da Steam que foram sugeridos ao banco de dados da comunidade e aceitos, nos quais a opção de subir de nível não funcionava direito.",
+          "Corrigido um bug em jogos importados do Steam que foram sugeridos ao banco de dados da comunidade e aceitos, nos quais a opção de subir de nível não funcionava direito.",
           "A seguir, de novo, as mudanças da 1.1.10:",
-          "Importe sua biblioteca local da Steam e seu tempo de jogo histórico direto da aba Steam em “Meus jogos”.",
-          "O importador guia você na escolha de uma conta da Steam e na seleção dos jogos que quer adicionar.",
+          "Importe sua biblioteca local do Steam e seu tempo de jogo histórico direto da aba Steam em “Meus jogos”.",
+          "O importador guia você na escolha de uma conta do Steam e na seleção dos jogos que quer adicionar.",
           "Clique em qualquer lugar da linha de um jogo para selecioná-lo, deixando importações grandes muito mais rápidas.",
-          "As verificações da Steam agora mostram claramente que estão carregando enquanto jogos e associações de executáveis são descobertos.",
-          "Verifique associações de executáveis em jogos importados da Steam que ainda não têm um executável conhecido.",
-          "Melhorias na detecção de caminhos da biblioteca da Steam, na exibição de jogos importados e na abertura de jogos não instalados na Steam."
+          "As verificações do Steam agora mostram claramente que estão carregando enquanto jogos e associações de executáveis são descobertos.",
+          "Verifique associações de executáveis em jogos importados do Steam que ainda não têm um executável conhecido.",
+          "Melhorias na detecção de caminhos da biblioteca do Steam, na exibição de jogos importados e na abertura de jogos não instalados no Steam."
         ]
       },
       "zh-CN": {
@@ -872,14 +872,14 @@
         ]
       },
       "pt-BR": {
-        "headline": "Traga sua biblioteca da Steam para o PlayCounter.",
+        "headline": "Traga sua biblioteca do Steam para o PlayCounter.",
         "highlights": [
-          "Importe sua biblioteca local da Steam e seu tempo de jogo histórico direto da aba Steam em “Meus jogos”.",
-          "O importador guia você na escolha de uma conta da Steam e na seleção dos jogos que quer adicionar.",
+          "Importe sua biblioteca local do Steam e seu tempo de jogo histórico direto da aba Steam em “Meus jogos”.",
+          "O importador guia você na escolha de uma conta do Steam e na seleção dos jogos que quer adicionar.",
           "Clique em qualquer lugar da linha de um jogo para selecioná-lo, deixando importações grandes muito mais rápidas.",
-          "As verificações da Steam agora mostram claramente que estão carregando enquanto jogos e associações de executáveis são descobertos.",
-          "Verifique associações de executáveis em jogos importados da Steam que ainda não têm um executável conhecido.",
-          "Melhorias na detecção de caminhos da biblioteca da Steam, na exibição de jogos importados e na abertura de jogos não instalados na Steam."
+          "As verificações do Steam agora mostram claramente que estão carregando enquanto jogos e associações de executáveis são descobertos.",
+          "Verifique associações de executáveis em jogos importados do Steam que ainda não têm um executável conhecido.",
+          "Melhorias na detecção de caminhos da biblioteca do Steam, na exibição de jogos importados e na abertura de jogos não instalados no Steam."
         ]
       },
       "zh-CN": {
@@ -1083,7 +1083,7 @@
           "Los nuevos recorridos guiados te muestran las pantallas principales y las tareas habituales. Avanza por ellos con las flechas del teclado.",
           "El selector de juegos de emulador ahora se queda abierto hasta que termines de elegir.",
           "Las tarjetas de “Jugando ahora” ya no cambian de orden de golpe cuando un juego empieza o termina.",
-          "Restaurar una copia de seguridad es más discreto y fiable cuando mueves tus datos a otra PC."
+          "Restaurar una copia de seguridad es más discreto y fiable cuando mueves tus datos a otro PC."
         ]
       },
       "pt-BR": {
