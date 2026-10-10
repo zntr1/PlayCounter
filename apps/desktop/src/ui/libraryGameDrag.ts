@@ -525,10 +525,7 @@ export function useLibraryGameDrag(
           );
           if (cover && previewCover) {
             // Settle the frozen hover zoom before handing back to the real card.
-            previewCover.style.transition = t(
-              "transform {{RETURN_DURATION}}ms ease-out",
-              { RETURN_DURATION },
-            );
+            previewCover.style.transition = `transform ${RETURN_DURATION}ms ease-out`;
             previewCover.style.transform = getComputedStyle(cover).transform;
           }
           animation = preview!.animate(
