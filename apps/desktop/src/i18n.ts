@@ -17,16 +17,25 @@ import enShell from "./locales/en/shell.json";
 import enSoftware from "./locales/en/software.json";
 import enTour from "./locales/en/tour.json";
 import enTracker from "./locales/en/tracker.json";
+import {
+  resolveLanguage,
+  systemLocales,
+  type AppLanguage,
+} from "./appLanguages";
+
+export {
+  APP_LANGUAGES,
+  isAppLanguage,
+  resolveLanguage,
+  type AppLanguage,
+} from "./appLanguages";
 
 /* PlayCounter's language. Texts live in src/locales/<language>/<area>.json,
    one file per area. The key is the English text itself, so code reads
    t("Ignore this app?"). English is the source: every language has the same
    keys, and a key a language lacks shows in English. Changing an English
-   text changes its key, so every translation of it has to be redone. */
-
-/** Languages PlayCounter has texts for. */
-export const APP_LANGUAGES = ["en"] as const;
-export type AppLanguage = (typeof APP_LANGUAGES)[number];
+   text changes its key, so every translation of it has to be redone.
+   boot.json is the exception: the startup screen reads it directly. */
 
 /** The Settings value: "system" follows the computer's language. */
 export type LanguageSetting = "system" | AppLanguage;
@@ -103,30 +112,6 @@ export function appLocale() {
   return currentLocale;
 }
 
-export function isAppLanguage(value: unknown): value is AppLanguage {
-  return APP_LANGUAGES.some((language) => language === value);
-}
-
-/** "system", or a language PlayCounter doesn't have, becomes the first of the
- *  computer's languages PlayCounter has, else English. */
-export function resolveLanguage(
-  setting: string | undefined,
-  systemLocales: readonly string[],
-): AppLanguage {
-  if (isAppLanguage(setting)) return setting;
-  for (const locale of systemLocales) {
-    const match =
-      APP_LANGUAGES.find(
-        (language) => language.toLowerCase() === locale.toLowerCase(),
-      ) ??
-      APP_LANGUAGES.find(
-        (language) => baseLanguage(language) === baseLanguage(locale),
-      );
-    if (match) return match;
-  }
-  return "en";
-}
-
 /** The language "system" stands for on this computer. */
 export function systemLanguage() {
   return resolveLanguage("system", systemLocales());
@@ -172,14 +157,4 @@ export function applyLanguage(setting: string | undefined) {
     document.documentElement.lang = language;
   }
   if (i18next.language !== language) void i18next.changeLanguage(language);
-}
-
-function systemLocales(): readonly string[] {
-  if (typeof navigator === "undefined") return [];
-  if (navigator.languages?.length) return navigator.languages;
-  return navigator.language ? [navigator.language] : [];
-}
-
-function baseLanguage(locale: string) {
-  return locale.split("-")[0].toLowerCase();
 }
