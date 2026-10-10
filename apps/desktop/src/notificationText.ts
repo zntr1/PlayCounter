@@ -8,6 +8,9 @@ import {
   suggestionText,
   type AppNotification,
 } from "./notifications";
+import { getT } from "./i18n";
+
+const t = getT("shell");
 
 export type NotificationText = {
   title: string;
@@ -35,7 +38,7 @@ export function notificationText(
 
   switch (notification.kind) {
     case "feedback-reply":
-      return { ...saved, title: "Reply from PlayCounter" };
+      return { ...saved, title: t("Reply from PlayCounter") };
     case "suggestion-verified":
     case "suggestion-rejected": {
       const game = text("game");

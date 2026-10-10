@@ -1,4 +1,7 @@
 import { notificationEmoji, type AppNotification } from "./notifications";
+import { getT } from "./i18n";
+
+const t = getT("shell");
 
 export const DISCOVERED_REVIEW_REMINDER_THRESHOLD = 10;
 export const DISCOVERED_REVIEW_REMINDER_REARM_AT = 5;
@@ -14,8 +17,10 @@ export type DiscoveredReviewCardState = "absent" | "unread" | "read";
 
 export function discoveredReviewReminderText(count: number) {
   return {
-    title: `${count} apps are waiting for review`,
-    body: "Match them to games or ignore them so PlayCounter tracks the right playtime.",
+    title: t("{{count}} apps are waiting for review", { count }),
+    body: t(
+      "Match them to games or ignore them so PlayCounter tracks the right playtime.",
+    ),
   };
 }
 
@@ -34,7 +39,7 @@ export function discoveredReviewNotification(
 }
 
 export function openDiscoveredLabel() {
-  return "Open Discovered";
+  return t("Open Discovered");
 }
 
 /** The reminder's text as the notification list shows it. */

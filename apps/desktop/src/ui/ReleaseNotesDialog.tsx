@@ -3,6 +3,9 @@ import type { ReactNode } from "react";
 import type { DisplayNotes } from "../releaseNotes";
 import { Modal } from "./primitives";
 import { TOURS } from "./tour/tourDefinitions";
+import { getT } from "../i18n";
+
+const t = getT("shell");
 
 export function ReleaseNotesDialog({
   version,
@@ -26,8 +29,8 @@ export function ReleaseNotesDialog({
       eyebrow={eyebrow}
       title={
         sections.length > 1
-          ? "What's new since your last update"
-          : `What's new in ${version}`
+          ? t("What's new since your last update")
+          : t("What's new in {{version}}", { version })
       }
       icon={Sparkles}
       onClose={onClose}
@@ -39,10 +42,13 @@ export function ReleaseNotesDialog({
           TOURS.some((tour) => tour.release === section.version),
         ) ? (
           <section className="rounded-xl border border-accent/30 bg-accent-tint p-3">
-            <h3 className="font-semibold text-text">Try the new features</h3>
+            <h3 className="font-semibold text-text">
+              {t("Try the new features")}
+            </h3>
             <p className="mb-2 mt-1 text-xs text-text-muted">
-              Short guides with sample games to practice on. Nothing you do in
-              them changes your library. You can also start them from ? Help.
+              {t(
+                "Short guides with sample games to practice on. Nothing you do in them changes your library. You can also start them from ? Help.",
+              )}
             </p>
             <div className="grid gap-1">
               {TOURS.filter((tour) =>
@@ -73,7 +79,7 @@ export function ReleaseNotesDialog({
           >
             {sections.length > 1 ? (
               <h3 className="mb-3 text-sm font-semibold text-accent-ink">
-                Version {section.version}
+                {t("Version {{version}}", { version: section.version })}
               </h3>
             ) : null}
             <ReleaseNotesContent notes={section.notes} />

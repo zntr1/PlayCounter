@@ -9,6 +9,9 @@ import { isEmulatorId } from "./emulators/registry";
 import { contentKey } from "./emulators/signals";
 import type { EmulatorMapping } from "./emulators/types";
 import type { ViewId } from "./store";
+import { getT } from "./i18n";
+
+const t = getT("shell");
 
 export type NotificationKind =
   | "feedback-reply"
@@ -139,7 +142,7 @@ export function feedbackReplyNotification(
   return {
     id: `feedback-reply:${reply.id}`,
     kind: "feedback-reply",
-    title: "Reply from PlayCounter",
+    title: t("Reply from PlayCounter"),
     feedbackMessage: reply.feedbackMessage,
     body: reply.message,
     createdAt: reply.createdAt,
@@ -149,7 +152,8 @@ export function feedbackReplyNotification(
 export function displayNotificationTitle(
   notification: Pick<AppNotification, "id" | "kind" | "title">,
 ) {
-  if (notification.kind === "feedback-reply") return "Reply from PlayCounter";
+  if (notification.kind === "feedback-reply")
+    return t("Reply from PlayCounter");
   if (notification.kind === "suggestion-verified") {
     const title = notification.title.replace(
       / was verified$/i,
@@ -247,29 +251,51 @@ export function suggestionText(
   const file = params.file ?? "";
   const title =
     kind === "suggestion-verified"
-      ? `${game} suggestion approved`
-      : `${game} suggestion not approved`;
+      ? t("{{game}} suggestion approved", { game })
+      : t("{{game}} suggestion not approved", { game });
   if (params.emulator !== undefined) {
     return {
       title,
       body:
         kind === "suggestion-verified"
-          ? `Detected in ${params.emulator}: ${file}\n\nEveryone's PlayCounter recognizes it now.`
+          ? t(
+              "Detected in {{emulator}}: {{file}}\n\nEveryone's PlayCounter recognizes it now.",
+              { emulator: params.emulator, file },
+            )
           : params.note
-            ? `Detected in ${params.emulator}: ${file}\n\nFeedback: ${params.note}`
-            : `${file} wasn't accepted as ${game}.\n\nYour own link still works. If it is the wrong game, pick the right one and share it again.`,
+            ? t("Detected in {{emulator}}: {{file}}\n\nFeedback: {{note}}", {
+                emulator: params.emulator,
+                file,
+                note: params.note,
+              })
+            : t(
+                "{{file}} wasn't accepted as {{game}}.\n\nYour own link still works. If it is the wrong game, pick the right one and share it again.",
+                { file, game },
+              ),
     };
   }
   return {
     title,
     body:
       kind === "suggestion-verified"
-        ? `Suggested file: ${file}\n\nThanks for helping PlayCounter recognize it.`
+        ? t(
+            "Suggested file: {{file}}\n\nThanks for helping PlayCounter recognize it.",
+            { file },
+          )
         : params.note
-          ? `Suggested file: ${file}\n\nFeedback: ${params.note}`
+          ? t("Suggested file: {{file}}\n\nFeedback: {{note}}", {
+              file,
+              note: params.note,
+            })
           : params.software
-            ? `${file} wasn't accepted as software. PlayCounter still treats it as software on this PC.`
-            : `${file} wasn't accepted for this game.\n\nIf you think it's still right, or you picked the wrong game, you can suggest it again.`,
+            ? t(
+                "{{file}} wasn't accepted as software. PlayCounter still treats it as software on this PC.",
+                { file },
+              )
+            : t(
+                "{{file}} wasn't accepted for this game.\n\nIf you think it's still right, or you picked the wrong game, you can suggest it again.",
+                { file },
+              ),
   };
 }
 

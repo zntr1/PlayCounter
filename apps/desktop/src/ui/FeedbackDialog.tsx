@@ -17,32 +17,37 @@ import type {
 } from "@playcounter/shared";
 import { useAppStore, useIsOffline } from "../store";
 import { Button, Modal } from "./primitives";
+import { getT } from "../i18n";
 
-const feedbackTypes: Array<{
+const t = getT("shell");
+
+function feedbackTypes(): Array<{
   id: FeedbackType;
   label: string;
   icon: typeof Bug;
   placeholder: string;
-}> = [
-  {
-    id: "bug",
-    label: "Bug",
-    icon: Bug,
-    placeholder: "What went wrong? Steps to reproduce help a lot.",
-  },
-  {
-    id: "feature",
-    label: "Feature",
-    icon: Lightbulb,
-    placeholder: "What would you like PlayCounter to do?",
-  },
-  {
-    id: "other",
-    label: "Other",
-    icon: MessageSquare,
-    placeholder: "Anything else you want to share.",
-  },
-];
+}> {
+  return [
+    {
+      id: "bug",
+      label: t("Bug"),
+      icon: Bug,
+      placeholder: t("What went wrong? Steps to reproduce help a lot."),
+    },
+    {
+      id: "feature",
+      label: t("Feature"),
+      icon: Lightbulb,
+      placeholder: t("What would you like PlayCounter to do?"),
+    },
+    {
+      id: "other",
+      label: t("Other"),
+      icon: MessageSquare,
+      placeholder: t("Anything else you want to share."),
+    },
+  ];
+}
 
 function detectPlatform() {
   const value = `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
@@ -63,14 +68,14 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const activeType = feedbackTypes.find((entry) => entry.id === type)!;
+  const activeType = feedbackTypes().find((entry) => entry.id === type)!;
 
   async function handleSubmit() {
     const trimmed = message.trim();
     if (!trimmed || submitting || isOffline) return;
     if (!installUuid) {
       setError(
-        "Feedback is still getting ready. Please try again in a moment.",
+        t("Feedback is still getting ready. Please try again in a moment."),
       );
       return;
     }
@@ -105,15 +110,19 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
 
       addToast({
         tone: "success",
-        title: "Thanks for the feedback",
-        detail: "Your message was sent. Replies will appear in Notifications.",
+        title: t("Thanks for the feedback"),
+        detail: t(
+          "Your message was sent. Replies will appear in Notifications.",
+        ),
       });
       onClose();
     } catch (caught) {
       setError(
         caught instanceof Error
-          ? `Could not send feedback: ${caught.message}`
-          : "Could not send feedback.",
+          ? t("Could not send feedback: {{message}}", {
+              message: caught.message,
+            })
+          : t("Could not send feedback."),
       );
     } finally {
       setSubmitting(false);
@@ -124,19 +133,21 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
     <Modal
       size="lg"
       labelId="feedback-dialog-title"
-      eyebrow="Support"
-      title="Send feedback"
-      subtitle="Report a bug, ask a question, suggest a feature or give feedback :)"
+      eyebrow={t("Support")}
+      title={t("Send feedback")}
+      subtitle={t(
+        "Report a bug, ask a question, suggest a feature or give feedback :)",
+      )}
       icon={MessageSquarePlus}
       onClose={onClose}
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-xs text-text-faint">
-            App version and platform are attached automatically.
+            {t("App version and platform are attached automatically.")}
           </span>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" icon={X} onClick={onClose}>
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               type="submit"
@@ -145,9 +156,9 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
               icon={Send}
               loading={submitting}
               disabled={!message.trim() || isOffline}
-              title={isOffline ? "Feedback unavailable offline" : undefined}
+              title={isOffline ? t("Feedback unavailable offline") : undefined}
             >
-              {submitting ? "Sending…" : "Send"}
+              {submitting ? t("Sending…") : t("Send")}
             </Button>
           </div>
         </div>
@@ -162,7 +173,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
         }}
       >
         <div className="grid grid-cols-3 gap-2">
-          {feedbackTypes.map((entry) => {
+          {feedbackTypes().map((entry) => {
             const Icon = entry.icon;
             const active = type === entry.id;
             return (
@@ -197,7 +208,7 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
         {error ? <div className="text-sm text-danger">{error}</div> : null}
         {isOffline ? (
           <div className="rounded-xl border border-border bg-bg px-3 py-2 text-sm text-text-muted">
-            Feedback is unavailable while offline.
+            {t("Feedback is unavailable while offline.")}
           </div>
         ) : null}
       </form>

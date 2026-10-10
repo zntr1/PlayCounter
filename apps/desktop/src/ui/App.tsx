@@ -128,7 +128,9 @@ import {
   parseManifestNotes,
   toDisplayNotes,
 } from "../releaseNotes";
-import { appLocale } from "../i18n";
+import { appLocale, getT } from "../i18n";
+
+const t = getT("shell");
 
 const ImportLibraryView = lazy(() => import("./views/ImportLibraryView"));
 
@@ -150,7 +152,9 @@ class ImporterErrorBoundary extends Component<
     if (this.state.error) {
       return (
         <div className="rounded-lg border border-danger-border bg-danger-tint px-4 py-3 text-sm text-danger">
-          The library importer could not be opened: {this.state.error.message}
+          {t("The library importer could not be opened: {{message}}", {
+            message: this.state.error.message,
+          })}
         </div>
       );
     }
@@ -188,9 +192,10 @@ class PageErrorBoundary extends Component<
           role="alert"
           className="mt-5 rounded-lg border border-danger-border bg-danger-tint px-4 py-3 text-sm text-danger"
         >
-          This page couldn't be shown: {this.state.error.message}. Tracking
-          keeps running. Open another page, or send feedback if this keeps
-          happening.
+          {t(
+            "This page couldn't be shown: {{message}}. Tracking keeps running. Open another page, or send feedback if this keeps happening.",
+            { message: this.state.error.message },
+          )}
         </div>
       );
     }
@@ -229,113 +234,124 @@ function emulatorViews() {
   ) as Record<EmulatorId, ViewMeta>;
 }
 
-const views: Record<ViewId, ViewMeta> = {
-  now: {
-    label: "Now Playing",
-    subtitle: "What you're playing right now",
-    icon: Play,
-    component: <NowPlayingView />,
-  },
-  emulating: {
-    label: "Now Emulating",
-    subtitle: "Games currently running inside emulators",
-    icon: Play,
-    component: <NowEmulatingView />,
-  },
-  ...emulatorViews(),
-  software: {
-    label: "Software",
-    subtitle: "Apps like Discord and launchers, kept apart from your games",
-    icon: AppWindow,
-    component: <SoftwareView />,
-  },
-  games: {
-    label: "My Games",
-    subtitle: "Every game PlayCounter has tracked for you",
-    icon: Gamepad2,
-    // Mounted separately so its shared data can load before the cards.
-    component: null,
-  },
-  import: {
-    label: "Import library",
-    subtitle: "Bring an existing game library into PlayCounter",
-    icon: Download,
-    component: (
-      <div className="grid gap-4">
-        <div>
-          <Button
-            variant="secondary"
-            icon={ArrowLeft}
-            data-controller-item="view-link"
-            onClick={backToMyGames}
-          >
-            Back to My Games
-          </Button>
+// A function, so labels and subtitles follow the current language.
+function views(): Record<ViewId, ViewMeta> {
+  return {
+    now: {
+      label: t("Now Playing"),
+      subtitle: t("What you're playing right now"),
+      icon: Play,
+      component: <NowPlayingView />,
+    },
+    emulating: {
+      label: t("Now Emulating"),
+      subtitle: t("Games currently running inside emulators"),
+      icon: Play,
+      component: <NowEmulatingView />,
+    },
+    ...emulatorViews(),
+    software: {
+      label: t("Software"),
+      subtitle: t(
+        "Apps like Discord and launchers, kept apart from your games",
+      ),
+      icon: AppWindow,
+      component: <SoftwareView />,
+    },
+    games: {
+      label: t("My Games"),
+      subtitle: t("Every game PlayCounter has tracked for you"),
+      icon: Gamepad2,
+      // Mounted separately so its shared data can load before the cards.
+      component: null,
+    },
+    import: {
+      label: t("Import library"),
+      subtitle: t("Bring an existing game library into PlayCounter"),
+      icon: Download,
+      component: (
+        <div className="grid gap-4">
+          <div>
+            <Button
+              variant="secondary"
+              icon={ArrowLeft}
+              data-controller-item="view-link"
+              onClick={backToMyGames}
+            >
+              {t("Back to My Games")}
+            </Button>
+          </div>
+          <ImporterErrorBoundary>
+            <Suspense
+              fallback={
+                <PlayCounterLoader
+                  label={t("Loading importer…")}
+                  className="min-h-[320px] text-text-muted"
+                />
+              }
+            >
+              <ImportLibraryView />
+            </Suspense>
+          </ImporterErrorBoundary>
         </div>
-        <ImporterErrorBoundary>
-          <Suspense
-            fallback={
-              <PlayCounterLoader
-                label="Loading importer…"
-                className="min-h-[320px] text-text-muted"
-              />
-            }
-          >
-            <ImportLibraryView />
-          </Suspense>
-        </ImporterErrorBoundary>
-      </div>
-    ),
-  },
-  discovered: {
-    label: "Discovered",
-    subtitle: "Apps found on your system, ready to match",
-    icon: ListChecks,
-    component: <DiscoveredView />,
-  },
-  history: {
-    label: "My History",
-    subtitle: "Your past play sessions",
-    icon: BarChart3,
-    component: <HistoryView />,
-  },
-  achievements: {
-    label: "Achievements",
-    subtitle: "Unlocked achievements and progress toward what comes next",
-    icon: Trophy,
-    component: <AchievementsView />,
-  },
-  settings: {
-    label: "Settings",
-    subtitle: "Configure how PlayCounter runs",
-    icon: Settings,
-    component: <SettingsView />,
-  },
-  dev: {
-    label: "Dev Tools",
-    subtitle: "Diagnostics and developer tools",
-    icon: Bug,
-    component: <DevToolsView />,
-  },
-};
+      ),
+    },
+    discovered: {
+      label: t("Discovered"),
+      subtitle: t("Apps found on your system, ready to match"),
+      icon: ListChecks,
+      component: <DiscoveredView />,
+    },
+    history: {
+      label: t("My History"),
+      subtitle: t("Your past play sessions"),
+      icon: BarChart3,
+      component: <HistoryView />,
+    },
+    achievements: {
+      label: t("Achievements"),
+      subtitle: t("Unlocked achievements and progress toward what comes next"),
+      icon: Trophy,
+      component: <AchievementsView />,
+    },
+    settings: {
+      label: t("Settings"),
+      subtitle: t("Configure how PlayCounter runs"),
+      icon: Settings,
+      component: <SettingsView />,
+    },
+    dev: {
+      label: t("Dev Tools"),
+      subtitle: t("Diagnostics and developer tools"),
+      icon: Bug,
+      component: <DevToolsView />,
+    },
+  };
+}
 
-const sidebarSections: Array<{
+function sidebarSections(): Array<{
   id: string;
   label: string;
   items: ViewId[];
-}> = [
-  {
-    id: "library",
-    label: "Library",
-    items: ["now", "games", "emulating", ...EMULATOR_IDS],
-  },
-  {
-    id: "discover",
-    label: "Discover",
-    items: ["achievements", "history", "software"],
-  },
-  { id: "system", label: "System", items: ["discovered", "settings", "dev"] },
-];
+}> {
+  return [
+    {
+      id: "library",
+      label: t("Library"),
+      items: ["now", "games", "emulating", ...EMULATOR_IDS],
+    },
+    {
+      id: "discover",
+      label: t("Discover"),
+      items: ["achievements", "history", "software"],
+    },
+    {
+      id: "system",
+      label: t("System"),
+      items: ["discovered", "settings", "dev"],
+    },
+  ];
+}
 
 const isEmulatorNavItem = (item: ViewId) =>
   item === "emulating" || isEmulatorId(item);
@@ -406,18 +422,21 @@ export function App() {
   );
   const activeViewLabel =
     activeView === "import"
-      ? `Import from ${LIBRARY_PROVIDER_LABELS[libraryImportProvider]}`
-      : views[activeView].label;
+      ? t("Import from {{LIBRARY_PROVIDER_LABELS}}", {
+          LIBRARY_PROVIDER_LABELS:
+            LIBRARY_PROVIDER_LABELS[libraryImportProvider],
+        })
+      : views()[activeView].label;
   const activeViewSubtitle =
     activeView === "import"
       ? libraryImportProvider === "xbox"
-        ? "Bring your Xbox games and playtime into PlayCounter"
+        ? t("Bring your Xbox games and playtime into PlayCounter")
         : libraryImportProvider === "battlenet"
-          ? "Add your Battle.net games to PlayCounter"
+          ? t("Add your Battle.net games to PlayCounter")
           : libraryImportProvider === "epic"
-            ? "Bring your Epic Games library and playtime into PlayCounter"
-            : "Bring your Steam library and playtime into PlayCounter"
-      : views[activeView].subtitle;
+            ? t("Bring your Epic Games library and playtime into PlayCounter")
+            : t("Bring your Steam library and playtime into PlayCounter")
+      : views()[activeView].subtitle;
   const activeTour = useAppStore((state) => state.activeTour);
   const activeTourId = activeTour?.tourId ?? null;
   const tour = activeTourId ? findTour(activeTourId) : undefined;
@@ -782,9 +801,9 @@ export function App() {
           {sidebarCollapsed ? (
             <button
               type="button"
-              aria-label="Expand sidebar"
+              aria-label={t("Expand sidebar")}
               aria-expanded={false}
-              title="Expand sidebar (Ctrl+B)"
+              title={t("Expand sidebar (Ctrl+B)")}
               onClick={() => setSidebarCollapsed(false)}
               className="group grid h-11 w-11 place-items-center rounded-xl transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
@@ -832,7 +851,7 @@ export function App() {
           )}
         >
           <div className="mx-3 mb-4 h-px bg-border/60" aria-hidden="true" />
-          {sidebarSections.map((section, sectionIndex) => {
+          {sidebarSections().map((section, sectionIndex) => {
             const items = section.items.filter(
               (item) =>
                 (item !== "software" ||
@@ -852,7 +871,7 @@ export function App() {
             if (items.length === 0) return null;
 
             const renderNavItem = (item: ViewId) => {
-              const view = views[item];
+              const view = views()[item];
               const canExpandSources =
                 item === "games" && hasLibrarySources && !sidebarCollapsed;
               // Keep available source groups accessible across views.
@@ -918,9 +937,11 @@ export function App() {
                     <button
                       type="button"
                       aria-label={
-                        sourcesCollapsed ? "Show sources" : "Hide sources"
+                        sourcesCollapsed ? t("Show sources") : t("Hide sources")
                       }
-                      title={sourcesCollapsed ? "Show sources" : "Hide sources"}
+                      title={
+                        sourcesCollapsed ? t("Show sources") : t("Hide sources")
+                      }
                       aria-expanded={!sourcesCollapsed}
                       onClick={() =>
                         setSidebarSourcesCollapsed(!sourcesCollapsed)
@@ -987,12 +1008,14 @@ export function App() {
                   {section.id === "system" ? (
                     <SidebarButton
                       icon={MessageSquarePlus}
-                      label="Help & Feedback"
+                      label={t("Help & Feedback")}
                       collapsed={sidebarCollapsed}
                       active={feedbackOpen}
                       disabled={isOffline}
                       title={
-                        isOffline ? "Feedback unavailable offline" : undefined
+                        isOffline
+                          ? t("Feedback unavailable offline")
+                          : undefined
                       }
                       dataTour="send-feedback"
                       onClick={() => setFeedbackOpen(true)}
@@ -1094,10 +1117,14 @@ export function App() {
             >
               {installingUpdate ? <PlayCounterAnimatedIcon size={40} /> : null}
               <span className="min-w-0">
-                Version {startupUpdate.version} is available
                 {installingUpdate
-                  ? ` - ${formatInstallProgress(installProgress)}`
-                  : ""}
+                  ? t("Version {{version}} is available - {{progress}}", {
+                      version: startupUpdate.version,
+                      progress: formatInstallProgress(installProgress),
+                    })
+                  : t("Version {{version}} is available", {
+                      version: startupUpdate.version,
+                    })}
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -1108,7 +1135,7 @@ export function App() {
                   disabled={installingUpdate}
                   className="px-3 py-1.5"
                 >
-                  What's new
+                  {t("What's new")}
                 </Button>
               ) : null}
               <Button
@@ -1119,7 +1146,7 @@ export function App() {
                 onClick={() => void handleInstallStartupUpdate()}
                 className="px-3 py-1.5"
               >
-                {installingUpdate ? "Installing…" : "Install"}
+                {installingUpdate ? t("Installing…") : t("Install")}
               </Button>
             </div>
           </div>
@@ -1182,13 +1209,23 @@ export function App() {
                         variant="ghost"
                         icon={viewBannerEnabled ? EyeOff : ImageIcon}
                         aria-pressed={viewBannerEnabled}
-                        title={`${viewBannerEnabled ? "Hide" : "Show"} banner in ${activeViewLabel}`}
+                        title={
+                          viewBannerEnabled
+                            ? t("Hide banner in {{view}}", {
+                                view: activeViewLabel,
+                              })
+                            : t("Show banner in {{view}}", {
+                                view: activeViewLabel,
+                              })
+                        }
                         onClick={() =>
                           setViewShowHero(activeView, !viewBannerEnabled)
                         }
                         className="shrink-0 text-xs"
                       >
-                        {viewBannerEnabled ? "Hide banner" : "Show banner"}
+                        {viewBannerEnabled
+                          ? t("Hide banner")
+                          : t("Show banner")}
                       </Button>
                     ) : undefined
                   }
@@ -1198,11 +1235,11 @@ export function App() {
               !parkedInTray &&
               activeView !== "import" &&
               activeView !== "games"
-                ? views[activeView].component
+                ? views()[activeView].component
                 : null}
               {activeView === "games" && !renderGames && !practiceStep ? (
                 <PlayCounterLoader
-                  label="Loading your games…"
+                  label={t("Loading your games…")}
                   className="min-h-[320px] text-text-muted"
                 />
               ) : null}
@@ -1234,7 +1271,7 @@ export function App() {
               <div
                 hidden={activeView !== "import" || Boolean(tour?.simulation)}
               >
-                {views.import.component}
+                {views().import.component}
               </div>
             ) : null}
           </div>
@@ -1244,7 +1281,7 @@ export function App() {
               className="controller-scroll-focus-indicator pointer-events-none absolute right-5 top-5 z-40 flex items-center gap-2 rounded-full border border-accent/60 bg-bg/95 px-3 py-2 text-xs font-semibold text-accent-ink shadow-raised backdrop-blur"
             >
               <ControllerButtonGlyph button="RIGHT_STICK" size="small" />
-              <span>Scrolling this view</span>
+              <span>{t("Scrolling this view")}</span>
             </div>
           ) : null}
           {/* Scroll Fade Overlay */}
@@ -1261,7 +1298,7 @@ export function App() {
       {currentNotesOpen && appVersion && installedReleaseNotes.length > 0 ? (
         <ReleaseNotesDialog
           version={appVersion}
-          eyebrow="New update"
+          eyebrow={t("New update")}
           sections={installedReleaseNotes.map((note) => ({
             version: note.version,
             notes: toDisplayNotes(note),
@@ -1278,7 +1315,7 @@ export function App() {
                 data-autofocus
                 onClick={() => closeCurrentReleaseNotes(appVersion)}
               >
-                Got it
+                {t("Got it")}
               </Button>
             </div>
           }
@@ -1287,7 +1324,7 @@ export function App() {
       {startupNotesOpen && startupUpdate?.status === "available" ? (
         <ReleaseNotesDialog
           version={startupUpdate.version}
-          eyebrow="Update available"
+          eyebrow={t("Update available")}
           sections={[
             {
               version: startupUpdate.version,
@@ -1304,7 +1341,7 @@ export function App() {
                 data-autofocus
                 onClick={() => void handleInstallStartupUpdate()}
               >
-                {installingUpdate ? "Installing…" : "Install update"}
+                {installingUpdate ? t("Installing…") : t("Install update")}
               </Button>
             </div>
           }
@@ -1326,12 +1363,12 @@ function SidebarToggle({
   collapsed: boolean;
   onClick: () => void;
 }) {
-  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+  const label = collapsed ? t("Expand sidebar") : t("Collapse sidebar");
   return (
     <button
       type="button"
       aria-label={label}
-      title={`${label} (Ctrl+B)`}
+      title={t("{{label}} (Ctrl+B)", { label })}
       aria-expanded={!collapsed}
       onClick={onClick}
       className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-text-faint transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
@@ -1369,30 +1406,36 @@ function ControllerModeFooter() {
   const kind = useControllerKind();
   return (
     <div
-      aria-label="Controller mode controls"
+      aria-label={t("Controller mode controls")}
       className="flex h-[49px] shrink-0 items-center justify-between gap-6 overflow-hidden border-t border-border/50 bg-surface/30 px-7 text-xs font-medium text-text-muted backdrop-blur-xl"
     >
       <div className="flex shrink-0 items-center gap-2 font-semibold text-accent-ink">
         <span className="grid h-7 w-7 place-items-center rounded-full border border-accent/40 bg-accent/10 shadow-[0_0_12px_rgb(var(--color-accent)/0.22)]">
           <Gamepad2 size={15} strokeWidth={2.4} />
         </span>
-        <span>Controller mode</span>
+        <span>{t("Controller mode")}</span>
       </div>
       <div className="flex min-w-0 items-center justify-end gap-5 whitespace-nowrap">
-        <ControllerHint button="DPAD" label="Navigate" />
-        <ControllerHint button="A" label="Select" />
-        <ControllerHint button="B" label="Back" />
-        <ControllerHint button="RIGHT_STICK" label="Scroll" />
-        <ControllerHint button="VIEW" label="Card size" />
+        <ControllerHint button="DPAD" label={t("Navigate")} />
+        <ControllerHint button="A" label={t("Select")} />
+        <ControllerHint button="B" label={t("Back")} />
+        <ControllerHint button="RIGHT_STICK" label={t("Scroll")} />
+        <ControllerHint button="VIEW" label={t("Card size")} />
         <div
           className="flex min-w-0 items-center gap-1.5"
-          aria-label={`Hold ${controllerButtonName(kind, "VIEW")} plus ${controllerButtonName(kind, "RB")} for two seconds to bring PlayCounter forward`}
+          aria-label={t(
+            "Hold {{viewButton}} plus {{bumper}} for two seconds to bring PlayCounter forward",
+            {
+              viewButton: controllerButtonName(kind, "VIEW"),
+              bumper: controllerButtonName(kind, "RB"),
+            },
+          )}
         >
           <ControllerButtonGlyph button="VIEW" />
           <span className="text-text-faint">+</span>
           <ControllerButtonGlyph button="RB" />
           <span className="truncate text-text-faint">
-            Hold 2 sec · Bring PlayCounter forward
+            {t("Hold 2 sec · Bring PlayCounter forward")}
           </span>
         </div>
       </div>
@@ -1439,7 +1482,7 @@ async function syncLaunchOnStartupPreference() {
     addRuntimeLogEntry(`launch on startup sync failed: ${detail}`);
     addToast({
       tone: "error",
-      title: "Startup setting failed",
+      title: t("Startup setting failed"),
       detail,
     });
   }
@@ -1464,7 +1507,7 @@ function ToastViewport() {
 
   return (
     <div
-      aria-label="Notifications"
+      aria-label={t("Notifications")}
       className="pointer-events-none fixed bottom-5 right-5 z-50 grid w-[min(22rem,calc(100vw-2.5rem))] gap-3"
     >
       {toasts.map((toast) => (
@@ -1540,7 +1583,7 @@ function ToastCard({
         </div>
         <button
           type="button"
-          aria-label="Dismiss notification"
+          aria-label={t("Dismiss notification")}
           onClick={() => setLeaving(true)}
           className="app-toast-dismiss -mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
@@ -1570,7 +1613,7 @@ function AppStatusIndicator({
   const environment = stageBadge(BUILD_STAGE);
   const title = health.checkedAt
     ? `${health.detail ?? health.status} - ${new Date(health.checkedAt).toLocaleTimeString(appLocale())} - ${apiEndpoint}`
-    : `Checking backend health - ${apiEndpoint}`;
+    : t("Checking backend health - {{apiEndpoint}}", { apiEndpoint });
 
   if (compact) {
     return (
@@ -1625,7 +1668,7 @@ function BackendStatusIndicator({
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 text-success drop-shadow-[0_0_6px_rgb(var(--color-success)/0.4)] transition-all">
         <Wifi size={13} strokeWidth={2.5} />
-        {label("Online")}
+        {label(t("Online"))}
       </span>
     );
   }
@@ -1634,7 +1677,7 @@ function BackendStatusIndicator({
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 text-warning drop-shadow-[0_0_6px_rgb(var(--color-warning)/0.4)] transition-all">
         <WifiOff size={13} strokeWidth={2.5} />
-        {label("Offline")}
+        {label(t("Offline"))}
       </span>
     );
   }
@@ -1643,7 +1686,7 @@ function BackendStatusIndicator({
     return (
       <span className="inline-flex shrink-0 items-center gap-1.5 text-info transition-all">
         <LoaderCircle size={13} strokeWidth={2.5} className="animate-spin" />
-        {label("Reconnecting")}
+        {label(t("Reconnecting"))}
       </span>
     );
   }
@@ -1651,7 +1694,7 @@ function BackendStatusIndicator({
   return (
     <span className="inline-flex shrink-0 items-center gap-1.5 text-text-muted transition-all">
       <LoaderCircle size={13} strokeWidth={2.5} className="animate-spin" />
-      {label("Checking")}
+      {label(t("Checking"))}
     </span>
   );
 }
@@ -1659,21 +1702,24 @@ function BackendStatusIndicator({
 function stageBadge(stage: Stage) {
   switch (stage) {
     case "local":
-      return { label: "Local", className: "font-medium text-text-muted" };
+      return { label: t("Local"), className: "font-medium text-text-muted" };
     case "test":
-      return { label: "Test", className: "font-medium text-info" };
+      return { label: t("Test"), className: "font-medium text-info" };
     case "prod":
-      return { label: "Prod", className: "font-medium text-danger" };
+      return { label: t("Prod"), className: "font-medium text-danger" };
   }
 }
 
 function formatInstallProgress(progress: InstallProgress | null) {
-  if (!progress) return "preparing update";
+  if (!progress) return t("preparing update");
 
   const downloaded = formatBytes(progress.downloadedBytes);
   if (!progress.totalBytes) return `downloading ${downloaded}`;
 
-  return `downloading ${downloaded} of ${formatBytes(progress.totalBytes)}`;
+  return t("downloading {{downloaded}} of {{bytes}}", {
+    downloaded,
+    bytes: formatBytes(progress.totalBytes),
+  });
 }
 
 function formatBytes(bytes: number) {

@@ -7,6 +7,9 @@ import {
   ContextMenuItem,
 } from "../ContextMenu";
 import { importableProviderTabs } from "../libraryProviderTabs";
+import { getT } from "../../i18n";
+
+const t = getT("shell");
 
 /* Right-click on "My Games" in the sidebar: a shortcut to every importer
    this platform supports, the same list the empty library offers. */
@@ -36,10 +39,10 @@ export function MyGamesImportMenu({
       position={position}
       onClose={onClose}
       anchorRef={anchorRef}
-      ariaLabel="Import games"
+      ariaLabel={t("Import games")}
       focusFirstItem
     >
-      <ContextMenuHeading>Import games</ContextMenuHeading>
+      <ContextMenuHeading>{t("Import games")}</ContextMenuHeading>
       {providers.map((config) => (
         <ContextMenuItem
           key={config.id}

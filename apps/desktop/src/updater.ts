@@ -1,5 +1,8 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent } from "@tauri-apps/plugin-updater";
+import { getT } from "./i18n";
+
+const t = getT("shell");
 
 export type UpdateCheckResult =
   | { status: "current" }
@@ -16,7 +19,7 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
   const update = await withTimeout(
     check(),
     UPDATE_CHECK_TIMEOUT_MS,
-    "Update check timed out.",
+    t("Update check timed out."),
   );
 
   if (!update) return { status: "current" };

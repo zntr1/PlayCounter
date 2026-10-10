@@ -2,6 +2,7 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import enCommon from "./locales/en/common.json";
 import enSettings from "./locales/en/settings.json";
+import enShell from "./locales/en/shell.json";
 
 /* PlayCounter's language. Texts live in src/locales/<language>/<area>.json,
    one file per area. The key is the English text itself, so code reads
@@ -23,7 +24,7 @@ export const LANGUAGE_NAMES: Record<AppLanguage, string> = {
 };
 
 const resources = {
-  en: { common: enCommon, settings: enSettings },
+  en: { common: enCommon, settings: enSettings, shell: enShell },
 };
 
 type Namespace = keyof (typeof resources)["en"];

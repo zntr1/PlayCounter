@@ -3,6 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { forwardRef } from "react";
 import { useAppStore, useIsOffline } from "../../store";
 import { IconButton } from "../primitives";
+import { getT } from "../../i18n";
+
+const t = getT("shell");
 
 const WEBSITE_URL = "https://playcounter.app/";
 const DISCORD_URL = "https://discord.gg/t2nG3jaEEY";
@@ -16,8 +19,8 @@ export function HeaderLinks() {
       if (isOffline) {
         addToast({
           tone: "info",
-          title: "Offline",
-          detail: `${label} unavailable offline.`,
+          title: t("Offline"),
+          detail: t("{{label}} unavailable offline.", { label }),
         });
         return;
       }
@@ -25,7 +28,7 @@ export function HeaderLinks() {
     } catch (error) {
       addToast({
         tone: "error",
-        title: `Could not open ${label}`,
+        title: t("Could not open {{label}}", { label }),
         detail: error instanceof Error ? error.message : String(error),
       });
     }
@@ -34,9 +37,11 @@ export function HeaderLinks() {
   return (
     <>
       <IconButton
-        aria-label="PlayCounter website"
+        aria-label={t("PlayCounter website")}
         title={
-          isOffline ? "Website unavailable offline" : "PlayCounter website"
+          isOffline
+            ? t("Website unavailable offline")
+            : t("PlayCounter website")
         }
         icon={Globe}
         disabled={isOffline}
@@ -44,8 +49,10 @@ export function HeaderLinks() {
         className="header-icon-button"
       />
       <IconButton
-        aria-label="Discord community"
-        title={isOffline ? "Discord unavailable offline" : "Discord community"}
+        aria-label={t("Discord community")}
+        title={
+          isOffline ? t("Discord unavailable offline") : t("Discord community")
+        }
         icon={DiscordIcon}
         disabled={isOffline}
         onClick={() => void openExternalUrl(DISCORD_URL, "Discord")}

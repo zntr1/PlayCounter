@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { IconButton } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("shell");
 
 export function NotificationBell() {
   const feedbackStep = useAppStore((s) =>
@@ -42,8 +45,8 @@ export function NotificationBell() {
   return (
     <div data-tour="notifications-bell" ref={containerRef} className="relative">
       <IconButton
-        aria-label="Open notifications"
-        title="Notifications"
+        aria-label={t("Open notifications")}
+        title={t("Notifications")}
         icon={Bell}
         onClick={toggle}
       />

@@ -2,6 +2,9 @@ import { Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { useAppStore } from "../../store";
 import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
+import { getT } from "../../i18n";
+
+const t = getT("shell");
 
 /* One search field for the whole window, sitting in the title bar. On My
    Games it filters the library directly, within whatever shelf and source are
@@ -13,8 +16,13 @@ import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
    from anywhere; My Games, My History and Discovered do that themselves,
    since their own panels and fields take Escape first. */
 
-export const LIBRARY_SEARCH_PLACEHOLDER = "Search games...";
-export const HISTORY_SEARCH_PLACEHOLDER = "Search history...";
+function librarySearchPlaceholder() {
+  return t("Search games...");
+}
+
+function historySearchPlaceholder() {
+  return t("Search history...");
+}
 
 export function GlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -78,21 +86,21 @@ export function GlobalSearch() {
           }
         }}
         placeholder={
-          onHistory ? HISTORY_SEARCH_PLACEHOLDER : LIBRARY_SEARCH_PLACEHOLDER
+          onHistory ? historySearchPlaceholder() : librarySearchPlaceholder()
         }
         aria-label={
           onHistory
-            ? "Search your history"
+            ? t("Search your history")
             : onLibrary
-              ? "Search your games"
-              : "Search your games (opens My Games)"
+              ? t("Search your games")
+              : t("Search your games (opens My Games)")
         }
         className="global-search-input h-full w-full rounded-xl border border-border/70 bg-bg/60 pl-11 pr-[5rem] text-[15px] text-text outline-none transition placeholder:text-text-faint focus:border-accent/70 focus:bg-bg focus:ring-2 focus:ring-accent/25"
       />
       {query ? (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={t("Clear search")}
           onClick={() => {
             setQuery("");
             inputRef.current?.focus();
@@ -107,7 +115,7 @@ export function GlobalSearch() {
           aria-hidden="true"
           className="pointer-events-none absolute right-3 z-10 hidden select-none items-center gap-0.5 rounded-md border border-border/70 bg-surface px-2 py-1 font-sans text-[11px] font-semibold tracking-wide text-text-faint sm:flex"
         >
-          Ctrl F
+          {t("Ctrl F")}
         </kbd>
       )}
     </div>
