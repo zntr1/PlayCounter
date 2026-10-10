@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  DEFAULT_PLAYTHROUGH_NAME,
-  GAME_STATUSES,
+  defaultPlaythroughName,
+  gameStatusLabel,
   NAME_LIMIT,
   NOTE_LIMIT,
   defaultPlaythroughTime,
@@ -89,7 +89,7 @@ export function SessionPlaythroughPicker({
     if (!showDefault) return null;
     return compact ? (
       <span className="text-xs text-text-muted">
-        {DEFAULT_PLAYTHROUGH_NAME}
+        {defaultPlaythroughName()}
       </span>
     ) : (
       <Button
@@ -100,7 +100,7 @@ export function SessionPlaythroughPicker({
           open({ game: session, tab: "playthroughs", playthroughId: null });
         }}
       >
-        {DEFAULT_PLAYTHROUGH_NAME}
+        {defaultPlaythroughName()}
       </Button>
     );
   }
@@ -143,7 +143,7 @@ export function SessionPlaythroughPicker({
             menu.close();
           }}
         >
-          {DEFAULT_PLAYTHROUGH_NAME}
+          {defaultPlaythroughName()}
         </ContextMenuItem>
         {journal.playthroughs.map((p) => (
           <ContextMenuItem
@@ -247,7 +247,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const ledger = [
     {
       id: null as string | null,
-      name: DEFAULT_PLAYTHROUGH_NAME,
+      name: defaultPlaythroughName(),
       completedAt: null as string | null,
       seconds: defaultTime.seconds + runningSecondsFor(null),
       sessions: sessionCountFor(null),
@@ -536,7 +536,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 />
               ) : (
                 <h3 className="py-1 text-lg font-bold leading-7 text-text">
-                  {DEFAULT_PLAYTHROUGH_NAME}
+                  {defaultPlaythroughName()}
                 </h3>
               )}
               <p className="mt-1 text-xs text-text-muted">
@@ -995,7 +995,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         <span
           className={`h-2 w-2 rounded-full ${status ? STATUS_TONES[status].dot : "bg-text-faint"}`}
         />
-        {status ? GAME_STATUSES[status] : "Set progress"}
+        {status ? gameStatusLabel(status) : "Set progress"}
         <ChevronDown size={12} className="opacity-70" />
       </Pill>
       <ContextMenu
@@ -1017,7 +1017,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
               statusMenu.close();
             }}
           >
-            {GAME_STATUSES[value]}
+            {gameStatusLabel(value)}
           </ContextMenuItem>
         ))}
       </ContextMenu>

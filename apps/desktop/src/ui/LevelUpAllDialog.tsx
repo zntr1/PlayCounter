@@ -11,6 +11,9 @@ import {
 import type { LevelUpOffer } from "./levelUpOffers";
 import { providerTabConfig } from "./libraryProviderTabs";
 import { Button, Modal } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 export type LevelUpResult = { applied: number; missed: string[] };
 
@@ -106,9 +109,9 @@ export function LevelUpAllDialog({
     <Modal
       size="md"
       labelId="level-up-all-dialog-title"
-      eyebrow="My Games"
-      title="Level up games"
-      subtitle={`${offers.length} ${offers.length === 1 ? "game" : "games"} can level up`}
+      eyebrow={t("My Games")}
+      title={t("Level up games")}
+      subtitle={t("{{count}} games can level up", { count: offers.length })}
       icon={ChevronsUp}
       onClose={onCancel}
       footer={
@@ -121,18 +124,19 @@ export function LevelUpAllDialog({
             onClick={() => void apply()}
           >
             {picked.length === 1
-              ? "Level up 1 game"
-              : `Level up ${picked.length} games`}
+              ? t("Level up 1 game")
+              : t("Level up {{count}} games", { count: picked.length })}
           </Button>
           <Button variant="ghost" onClick={onCancel} disabled={applying}>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        Untick anything that looks wrong. Playtime you already tracked comes
-        along.
+        {t(
+          "Untick anything that looks wrong. Playtime you already tracked comes along.",
+        )}
       </p>
       <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
         {offers.map((offer) => (
@@ -144,7 +148,9 @@ export function LevelUpAllDialog({
                 checked={available(offer) && !skipped.has(offer.key)}
                 disabled={applying || !available(offer)}
                 onChange={(event) => toggle(offer.key, event.target.checked)}
-                aria-label={`Level up ${offer.gameName}`}
+                aria-label={t("Level up {{gameName}}", {
+                  gameName: offer.gameName,
+                })}
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-text">
@@ -167,14 +173,22 @@ export function LevelUpAllDialog({
 
 function offerDetail(offer: LevelUpOffer, isOffline: boolean) {
   if (offer.kind === "approved") {
-    return `Your suggestion was approved · ${offer.exeName} → community`;
+    return t("Your suggestion was approved · {{exeName}} → community", {
+      exeName: offer.exeName,
+    });
   }
   if (offer.kind === "match") {
-    const source = offer.matchSource === "igdb" ? "IGDB" : "the community";
-    return `Custom → found in ${source} · ${offer.exeName}`;
+    const source = offer.matchSource === "igdb" ? "IGDB" : t("the community");
+    return t("Custom → found in {{source}} · {{exeName}}", {
+      source,
+      exeName: offer.exeName,
+    });
   }
   const provider =
     providerTabConfig(offer.entry.provider)?.label ?? offer.entry.provider;
   if (isOffline) return `${provider} · needs a connection`;
-  return `${provider} · start tracking ${offer.exeNames.join(", ")}`;
+  return t("{{provider}} · start tracking {{join}}", {
+    provider,
+    join: offer.exeNames.join(", "),
+  });
 }

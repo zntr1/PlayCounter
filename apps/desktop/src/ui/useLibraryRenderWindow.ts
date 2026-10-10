@@ -4,6 +4,9 @@ import {
   INITIAL_LIBRARY_RENDER_COUNT,
   nextLibraryRenderLimit,
 } from "./libraryRenderWindow";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 /** Mount more cards only as the user approaches them, including on revisits. */
 export function useLibraryRenderWindow(key: string, total: number) {
@@ -58,7 +61,7 @@ export function useLibraryRenderWindow(key: string, total: number) {
       },
       {
         root: sentinel.closest("[data-controller-content]"),
-        rootMargin: "600px 0px",
+        rootMargin: t("600px 0px"),
       },
     );
     observer.observe(sentinel);

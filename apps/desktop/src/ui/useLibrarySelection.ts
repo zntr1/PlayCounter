@@ -8,8 +8,11 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { GAME_STATUSES, type GameStatus } from "../personalLibrary";
+import { gameStatusLabel, type GameStatus } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 type SelectableGame = GameIdentityRef & { name: string };
 
@@ -186,11 +189,13 @@ export function useLibrarySelection(
       tone: count ? "success" : "info",
       title: count
         ? status
-          ? `${label} marked ${GAME_STATUSES[status]}`
-          : `Status cleared for ${label}`
+          ? `${label} marked ${gameStatusLabel(status)}`
+          : t("Status cleared for {{label}}", { label })
         : status
-          ? `Selected games are already marked ${GAME_STATUSES[status]}`
-          : "Selected games already have no status",
+          ? t("Selected games are already marked {{gameStatus}}", {
+              gameStatus: gameStatusLabel(status),
+            })
+          : t("Selected games already have no status"),
     });
     finish();
   }

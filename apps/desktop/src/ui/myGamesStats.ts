@@ -7,6 +7,9 @@ import type {
 import { providerFloorKey } from "../library/playtimeFloor";
 import type { LibraryTabKind } from "./libraryTabs";
 import { hasUnknownProviderPlaytime } from "./providerLibrary";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 /* My Games summary ───────────────────────────────────────────────────────────
    Every tab used to hard-code its own four cards, which is how the Steam tab
@@ -81,105 +84,118 @@ const RECENT_PLAY_WINDOW_MS = RECENT_PLAY_WINDOW_DAYS * 86_400_000;
 
 const ALL_KINDS = ["all", "provider", "unimported"] as const;
 
-export const LIBRARY_STAT_DEFINITIONS: readonly LibraryStatDefinition[] = [
-  {
-    id: "games",
-    kinds: ALL_KINDS,
-    metric: "games",
-    format: "count",
-    label: ({ providerLabel }) =>
-      providerLabel ? `${providerLabel} games` : "Games",
-    short: "games",
-    help: "How many games this tab holds.",
-  },
-  {
-    id: "playtime",
-    kinds: ALL_KINDS,
-    metric: "playtimeSeconds",
-    format: "duration",
-    label: ({ kind, providerLabel }) =>
-      providerLabel === "Battle.net"
-        ? "Tracked playtime"
-        : providerLabel
-          ? `${providerLabel} lifetime playtime`
-          : kind === "unimported"
-            ? "Tracked playtime"
-            : "Total playtime",
-    short: "played",
-    help: "All playtime this tab adds up to.",
-  },
-  {
-    id: "tracked",
-    kinds: ["provider"],
-    metric: "trackedSeconds",
-    format: "duration",
-    label: () => "Watched by PlayCounter",
-    short: "watched",
-    help: "How much of that playtime PlayCounter recorded itself.",
-  },
-  {
-    id: "recent",
-    kinds: ALL_KINDS,
-    metric: "recent",
-    format: "count",
-    label: () => `Played in ${RECENT_PLAY_WINDOW_DAYS} days`,
-    short: `in ${RECENT_PLAY_WINDOW_DAYS} days`,
-    help: `Games you played in the last ${RECENT_PLAY_WINDOW_DAYS} days.`,
-  },
-  {
-    id: "sessions",
-    kinds: ALL_KINDS,
-    metric: "sessions",
-    format: "count",
-    label: () => "Sessions tracked",
-    short: "sessions",
-    help: "Play sessions PlayCounter recorded for these games.",
-  },
-  {
-    id: "played",
-    kinds: ALL_KINDS,
-    metric: "played",
-    format: "count",
-    label: ({ providerLabel }) =>
-      providerLabel === "Battle.net"
-        ? "With play activity"
-        : providerLabel
-          ? `Played on ${providerLabel}`
-          : "With play activity",
-    short: "with activity",
-    help: "Games with playtime or activity reported by their source.",
-  },
-  {
-    id: "unplayed",
-    kinds: ALL_KINDS,
-    metric: "unplayed",
-    format: "count",
-    label: ({ providerLabel }) =>
-      !providerLabel || providerLabel === "Battle.net"
-        ? "No play activity found"
-        : "Never played",
-    short: "never played",
-    help: "Games without playtime or activity reported by their source. Missing Battle.net history does not prove a game was never played.",
-  },
-  {
-    id: "installed",
-    kinds: ["provider"],
-    metric: "installed",
-    format: "count",
-    label: () => "Installed on this PC",
-    short: "installed",
-    help: "Games this launcher currently has installed here.",
-  },
-  {
-    id: "emulator",
-    kinds: ["all", "unimported"],
-    metric: "emulator",
-    format: "count",
-    label: () => "Through an emulator",
-    short: "emulated",
-    help: "Games PlayCounter saw running inside an emulator.",
-  },
-];
+export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
+  return [
+    {
+      id: "games",
+      kinds: ALL_KINDS,
+      metric: "games",
+      format: "count",
+      label: ({ providerLabel }) =>
+        providerLabel
+          ? t("{{provider}} games", { provider: providerLabel })
+          : t("Games"),
+      short: t("games"),
+      help: t("How many games this tab holds."),
+    },
+    {
+      id: "playtime",
+      kinds: ALL_KINDS,
+      metric: "playtimeSeconds",
+      format: "duration",
+      label: ({ kind, providerLabel }) =>
+        providerLabel === "Battle.net"
+          ? t("Tracked playtime")
+          : providerLabel
+            ? t("{{provider}} lifetime playtime", { provider: providerLabel })
+            : kind === "unimported"
+              ? t("Tracked playtime")
+              : t("Total playtime"),
+      short: t("played"),
+      help: t("All playtime this tab adds up to."),
+    },
+    {
+      id: "tracked",
+      kinds: ["provider"],
+      metric: "trackedSeconds",
+      format: "duration",
+      label: () => t("Watched by PlayCounter"),
+      short: t("watched"),
+      help: t("How much of that playtime PlayCounter recorded itself."),
+    },
+    {
+      id: "recent",
+      kinds: ALL_KINDS,
+      metric: "recent",
+      format: "count",
+      label: () =>
+        t("Played in {{days}} days", {
+          days: RECENT_PLAY_WINDOW_DAYS,
+        }),
+      short: t("in {{days}} days", {
+        days: RECENT_PLAY_WINDOW_DAYS,
+      }),
+      help: t("Games you played in the last {{days}} days.", {
+        days: RECENT_PLAY_WINDOW_DAYS,
+      }),
+    },
+    {
+      id: "sessions",
+      kinds: ALL_KINDS,
+      metric: "sessions",
+      format: "count",
+      label: () => t("Sessions tracked"),
+      short: t("sessions"),
+      help: t("Play sessions PlayCounter recorded for these games."),
+    },
+    {
+      id: "played",
+      kinds: ALL_KINDS,
+      metric: "played",
+      format: "count",
+      label: ({ providerLabel }) =>
+        providerLabel === "Battle.net"
+          ? t("With play activity")
+          : providerLabel
+            ? t("Played on {{provider}}", { provider: providerLabel })
+            : t("With play activity"),
+      short: t("with activity"),
+      help: t("Games with playtime or activity reported by their source."),
+    },
+    {
+      id: "unplayed",
+      kinds: ALL_KINDS,
+      metric: "unplayed",
+      format: "count",
+      label: ({ providerLabel }) =>
+        !providerLabel || providerLabel === "Battle.net"
+          ? t("No play activity found")
+          : t("Never played"),
+      short: t("never played"),
+      help: t(
+        "Games without playtime or activity reported by their source. Missing Battle.net history does not prove a game was never played.",
+      ),
+    },
+    {
+      id: "installed",
+      kinds: ["provider"],
+      metric: "installed",
+      format: "count",
+      label: () => t("Installed on this PC"),
+      short: t("installed"),
+      help: t("Games this launcher currently has installed here."),
+    },
+    {
+      id: "emulator",
+      kinds: ["all", "unimported"],
+      metric: "emulator",
+      format: "count",
+      label: () => t("Through an emulator"),
+      short: t("emulated"),
+      help: t("Games PlayCounter saw running inside an emulator."),
+    },
+  ];
+}
 
 export const DEFAULT_LIBRARY_STAT_CARD_IDS: readonly LibraryStatCardId[] = [
   "games",
@@ -189,7 +205,7 @@ export const DEFAULT_LIBRARY_STAT_CARD_IDS: readonly LibraryStatCardId[] = [
 ];
 
 export function libraryStatDefinitionsForKind(kind: LibraryTabKind) {
-  return LIBRARY_STAT_DEFINITIONS.filter((definition) =>
+  return libraryStatDefinitions().filter((definition) =>
     definition.kinds.includes(kind),
   );
 }
@@ -200,9 +216,9 @@ export function resolveLibraryStatCardIds(
   const requested = settings?.libraryStatCards;
   if (!Array.isArray(requested)) return [...DEFAULT_LIBRARY_STAT_CARD_IDS];
   // An empty list is a real choice: the user turned every card off.
-  return LIBRARY_STAT_DEFINITIONS.filter((definition) =>
-    requested.includes(definition.id),
-  ).map((definition) => definition.id);
+  return libraryStatDefinitions()
+    .filter((definition) => requested.includes(definition.id))
+    .map((definition) => definition.id);
 }
 
 export function toggleLibraryStatCardIds(
@@ -210,9 +226,11 @@ export function toggleLibraryStatCardIds(
   id: LibraryStatCardId,
   enabled: boolean,
 ): LibraryStatCardId[] {
-  return LIBRARY_STAT_DEFINITIONS.filter((definition) =>
-    definition.id === id ? enabled : current.includes(definition.id),
-  ).map((definition) => definition.id);
+  return libraryStatDefinitions()
+    .filter((definition) =>
+      definition.id === id ? enabled : current.includes(definition.id),
+    )
+    .map((definition) => definition.id);
 }
 
 function normalizedSeconds(value: number) {

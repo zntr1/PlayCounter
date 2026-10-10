@@ -1,6 +1,9 @@
 import clsx from "clsx";
 import { ArrowUpRight, ScanSearch, X } from "lucide-react";
 import type { LibraryExecutableMatch } from "../library/recheck";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 export function LibraryMatchOffer({
   gameName,
@@ -18,7 +21,7 @@ export function LibraryMatchOffer({
   const sources = new Set(executableMatches.flatMap((match) => match.sources));
   const sourceLabel = [
     sources.has("igdb") ? "IGDB" : null,
-    sources.has("community") ? "Community" : null,
+    sources.has("community") ? t("Community") : null,
   ]
     .filter(Boolean)
     .join(" + ");
@@ -33,9 +36,11 @@ export function LibraryMatchOffer({
       <button
         type="button"
         onClick={onReview}
-        aria-label={`Review tracking match for ${gameName}`}
+        aria-label={t("Review tracking match for {{gameName}}", { gameName })}
         aria-description={
-          sourceLabel ? `Executable match from ${sourceLabel}` : undefined
+          sourceLabel
+            ? t("Executable match from {{sourceLabel}}", { sourceLabel })
+            : undefined
         }
         className="group/match flex min-w-0 flex-1 items-center gap-2 py-2 pl-2.5 pr-1.5 text-left transition-colors hover:bg-success-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-success"
       >
@@ -43,7 +48,7 @@ export function LibraryMatchOffer({
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-1.5 leading-4">
             <span className="whitespace-nowrap text-xs font-semibold text-text">
-              Match found
+              {t("Match found")}
             </span>
             {sourceLabel ? (
               <span className="text-[10px] font-medium text-success">
@@ -52,7 +57,7 @@ export function LibraryMatchOffer({
             ) : null}
           </span>
           <span className="block text-[10px] leading-4 text-text-muted">
-            Review to start tracking
+            {t("Review to start tracking")}
           </span>
         </span>
         <ArrowUpRight
@@ -63,8 +68,11 @@ export function LibraryMatchOffer({
       <button
         type="button"
         onClick={onDismiss}
-        aria-label={`Dismiss tracking match for ${gameName} until next startup`}
-        title="Not now — remind me next startup"
+        aria-label={t(
+          "Dismiss tracking match for {{gameName}} until next startup",
+          { gameName },
+        )}
+        title={t("Not now — remind me next startup")}
         className="mr-1 grid h-8 w-8 shrink-0 place-items-center rounded-md text-text-faint transition-colors hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-success"
       >
         <X size={14} />

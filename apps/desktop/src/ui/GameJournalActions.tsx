@@ -9,7 +9,7 @@ import {
   Star,
   StickyNote,
 } from "lucide-react";
-import { GAME_STATUSES, journalNote } from "../personalLibrary";
+import { gameStatusLabel, journalNote } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
 import { ContextMenuHeading, ContextMenuItem } from "./primitives";
 import { STATUS_TONES } from "./journalStyles";
@@ -101,7 +101,7 @@ export function GameJournalBadges({
     (s) => s.settings.libraryShowNoteBadges !== false,
   );
   const status = showStatus ? journal.status : null;
-  const statusLabel = status ? `Status: ${GAME_STATUSES[status]}` : undefined;
+  const statusLabel = status ? `Status: ${gameStatusLabel(status)}` : undefined;
   const other = journal.playthroughs.find((p) => p.note);
   const hasNote = showNotes && Boolean(journal.note || other);
   const notePlaythroughId =
@@ -156,7 +156,7 @@ export function GameJournalBadges({
             <span
               className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[status].dot}`}
             />
-            {GAME_STATUSES[status]}
+            {gameStatusLabel(status)}
           </span>
         )
       ) : null}

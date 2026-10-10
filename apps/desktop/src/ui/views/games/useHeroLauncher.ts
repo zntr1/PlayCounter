@@ -148,12 +148,21 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     !canLaunch &&
     Boolean(steamImportEntry) &&
     !steamLaunchEntry;
-  const launchLabel =
+  // Which way Play goes. The banner reads it, never the label.
+  const launchVia: "xbox" | "steam" | "epic" | "direct" =
     xboxLaunchEntry && !manualTarget
-      ? "Play on Xbox"
+      ? "xbox"
       : steamLaunchEntry && !primaryLaunchTarget && !emulatorTarget
-        ? "Play in Steam"
+        ? "steam"
         : epicLaunchEntry && !primaryLaunchTarget && !emulatorTarget
+          ? "epic"
+          : "direct";
+  const launchLabel =
+    launchVia === "xbox"
+      ? "Play on Xbox"
+      : launchVia === "steam"
+        ? "Play in Steam"
+        : launchVia === "epic"
           ? "Play in Epic Games"
           : "Play";
 
@@ -310,6 +319,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     canLaunch,
     canInstall,
     install,
+    launchVia,
     launchLabel,
     launchTargets: ownedLaunchTargets,
     launch,

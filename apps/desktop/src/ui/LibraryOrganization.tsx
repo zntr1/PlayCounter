@@ -24,7 +24,7 @@ import {
   useState,
 } from "react";
 import {
-  GAME_STATUSES,
+  gameStatusLabel,
   NAME_LIMIT,
   matchesLibraryFilters,
   normalizeLibraryFilters,
@@ -50,6 +50,9 @@ import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import type { LibraryTabId } from "./libraryTabs";
 import { LibraryGameHoverHint } from "./LibraryGameDropHint";
 import { emitTourEvent } from "./tour/TourUI";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 export type OrganizedGame = FilterableLibraryGame & GameIdentityRef;
 
@@ -281,7 +284,7 @@ export function LibraryOrganizationToolbar({
         {showShelves ? (
           <div
             role="tablist"
-            aria-label="Library shelf"
+            aria-label={t("Library shelf")}
             data-library-shelf-rail=""
             className="library-toolbar-shelves flex min-w-0 flex-wrap items-center gap-1.5"
           >
@@ -293,7 +296,7 @@ export function LibraryOrganizationToolbar({
               count={counts.all}
               onClick={() => onSelect("all")}
             >
-              All games
+              {t("All games")}
               <LibraryGameHoverHint />
             </Pill>
             <Pill
@@ -306,7 +309,7 @@ export function LibraryOrganizationToolbar({
               count={counts.favorites}
               onClick={() => onSelect("favorites")}
             >
-              Favorites
+              {t("Favorites")}
               <LibraryGameHoverHint />
             </Pill>
             {shelves.map((shelf) => (
@@ -361,7 +364,7 @@ export function LibraryOrganizationToolbar({
               icon={Plus}
               onClick={() => edit("new")}
             >
-              New shelf
+              {t("New shelf")}
             </Pill>
           </div>
         ) : null}
@@ -377,7 +380,8 @@ export function LibraryOrganizationToolbar({
               className="h-9 shrink-0"
               onClick={() => onExpandedChange(!expanded)}
             >
-              Filters{activeCount ? ` · ${activeCount}` : ""}
+              {t("Filters")}
+              {activeCount ? ` · ${activeCount}` : ""}
             </Button>
           </div>
           {trailing ? (
@@ -401,21 +405,23 @@ export function LibraryOrganizationToolbar({
           {selected ? (
             <div className="border-b border-border pb-3">
               <h3 className="text-sm font-semibold text-text">
-                Filters for {selected.name}
+                {t("Filters for {{name}}", { name: selected.name })}
               </h3>
               <p className="mt-1 text-xs text-text-muted">
-                The cards below preview every game in your library that matches
-                these filters. Click Save filters to make this shelf fill itself
-                from them.
+                {t(
+                  "The cards below preview every game in your library that matches these filters. Click Save filters to make this shelf fill itself from them.",
+                )}
               </p>
             </div>
           ) : null}
           {sourceLabel ? (
-            <FilterGroup label="Library">
+            <FilterGroup label={t("Library")}>
               <Pill
                 selected
-                aria-label={`Clear ${sourceLabel} library filter`}
-                title="Show games from all libraries"
+                aria-label={t("Clear {{sourceLabel}} library filter", {
+                  sourceLabel,
+                })}
+                title={t("Show games from all libraries")}
                 onClick={() => setFilter("source", "all")}
               >
                 {sourceLabel}
@@ -424,12 +430,16 @@ export function LibraryOrganizationToolbar({
             </FilterGroup>
           ) : null}
           {draftFilters.search ? (
-            <FilterGroup label="Search">
+            <FilterGroup label={t("Search")}>
               <Pill
                 selected
                 className="min-w-0 max-w-full"
-                aria-label={`Clear search filter: ${draftFilters.search}`}
-                title={`Clear search filter: ${draftFilters.search}`}
+                aria-label={t("Clear search filter: {{search}}", {
+                  search: draftFilters.search,
+                })}
+                title={t("Clear search filter: {{search}}", {
+                  search: draftFilters.search,
+                })}
                 onClick={() => setFilter("search", "")}
               >
                 <span className="min-w-0 truncate">{draftFilters.search}</span>
@@ -437,12 +447,12 @@ export function LibraryOrganizationToolbar({
               </Pill>
             </FilterGroup>
           ) : null}
-          <FilterGroup label="Progress">
+          <FilterGroup label={t("Progress")}>
             <Pill
               selected={!filters.status}
               onClick={() => setFilter("status", undefined)}
             >
-              Any
+              {t("Any")}
             </Pill>
             <Pill
               data-tour={practice ? "demo-filter-status-none" : undefined}
@@ -454,7 +464,7 @@ export function LibraryOrganizationToolbar({
                 )
               }
             >
-              No status
+              {t("No status")}
             </Pill>
             {GAME_STATUS_LIST.map((value) => (
               <Pill
@@ -473,16 +483,16 @@ export function LibraryOrganizationToolbar({
                 <span
                   className={`h-2 w-2 rounded-full ${STATUS_TONES[value].dot}`}
                 />
-                {GAME_STATUSES[value]}
+                {gameStatusLabel(value)}
               </Pill>
             ))}
           </FilterGroup>
-          <FilterGroup label="Playtime">
+          <FilterGroup label={t("Playtime")}>
             <Pill
               selected={!filters.played}
               onClick={() => setFilter("played", undefined)}
             >
-              Any
+              {t("Any")}
             </Pill>
             <Pill
               selected={filters.played === "played"}
@@ -493,7 +503,7 @@ export function LibraryOrganizationToolbar({
                 )
               }
             >
-              Played
+              {t("Played")}
             </Pill>
             <Pill
               selected={filters.played === "unplayed"}
@@ -504,7 +514,7 @@ export function LibraryOrganizationToolbar({
                 )
               }
             >
-              Never played
+              {t("Never played")}
             </Pill>
             <span aria-hidden className="mx-1 h-6 w-px bg-border" />
             <Pill
@@ -514,20 +524,24 @@ export function LibraryOrganizationToolbar({
                 setFilter("favorite", filters.favorite ? undefined : true)
               }
             >
-              Favorites only
+              {t("Favorites only")}
             </Pill>
             <Pill
               selected={filters.installed === true}
-              title="Games PlayCounter can start: an installed Steam, Xbox or Epic copy, or a known .exe or ROM on this PC"
+              title={t(
+                "Games PlayCounter can start: an installed Steam, Xbox or Epic copy, or a known .exe or ROM on this PC",
+              )}
               onClick={() =>
                 setFilter("installed", filters.installed ? undefined : true)
               }
             >
-              Launchable
+              {t("Launchable")}
             </Pill>
             <Pill
               selected={filters.installed === false}
-              title="Games PlayCounter can't start yet. Play one once or set its .exe to make it launchable."
+              title={t(
+                "Games PlayCounter can't start yet. Play one once or set its .exe to make it launchable.",
+              )}
               onClick={() =>
                 setFilter(
                   "installed",
@@ -535,15 +549,15 @@ export function LibraryOrganizationToolbar({
                 )
               }
             >
-              Not launchable
+              {t("Not launchable")}
             </Pill>
           </FilterGroup>
-          <FilterGroup label="Emulator">
+          <FilterGroup label={t("Emulator")}>
             <Pill
               selected={!filters.emulator}
               onClick={() => setFilter("emulator", undefined)}
             >
-              Any
+              {t("Any")}
             </Pill>
             {EMULATORS.map(({ id: value, label }) => (
               <Pill
@@ -560,19 +574,19 @@ export function LibraryOrganizationToolbar({
               </Pill>
             ))}
           </FilterGroup>
-          <FilterGroup label="Not played for">
+          <FilterGroup label={t("Not played for")}>
             <Pill
               selected={!filters.lastPlayedDays}
               onClick={() => setFilter("lastPlayedDays", undefined)}
             >
-              Any
+              {t("Any")}
             </Pill>
             {(
               [
-                [30, "30 days"],
-                [90, "90 days"],
-                [180, "6 months"],
-                [365, "A year"],
+                [30, t("30 days")],
+                [90, t("90 days")],
+                [180, t("6 months")],
+                [365, t("A year")],
               ] as const
             ).map(([days, label]) => (
               <Pill
@@ -595,25 +609,27 @@ export function LibraryOrganizationToolbar({
                 data-tour={practice ? "demo-save-filters" : undefined}
                 variant="primary"
                 icon={Save}
-                aria-label={`Save filters to ${selected.name}`}
+                aria-label={t("Save filters to {{name}}", {
+                  name: selected.name,
+                })}
                 disabled={!activeCount || !filtersChanged}
                 onClick={() => {
                   save({ ...selected, filters: draftFilters });
                   closeFilters(true);
                   addToast({
                     tone: "success",
-                    title: "Filters saved",
+                    title: t("Filters saved"),
                     detail: selected.name,
                   });
                 }}
               >
-                Save filters
+                {t("Save filters")}
               </Button>
             ) : null}
             {/* On a shelf this throws the draft away; with no shelf to revert
                 to there is nothing to discard, so it only shuts the drawer. */}
             <Button variant="ghost" onClick={() => closeFilters()}>
-              {selected ? "Cancel" : "Close"}
+              {selected ? t("Cancel") : t("Close")}
             </Button>
             {selected?.filters ? (
               <Button
@@ -623,12 +639,12 @@ export function LibraryOrganizationToolbar({
                   closeFilters();
                   addToast({
                     tone: "success",
-                    title: "Saved filters removed",
+                    title: t("Saved filters removed"),
                     detail: selected.name,
                   });
                 }}
               >
-                Remove saved filters
+                {t("Remove saved filters")}
               </Button>
             ) : null}
             <Button
@@ -636,7 +652,7 @@ export function LibraryOrganizationToolbar({
               onClick={onClearFilters}
               disabled={!activeCount}
             >
-              Clear filters
+              {t("Clear filters")}
             </Button>
             {showShelves ? (
               <p className="ml-auto text-xs text-text-faint">
@@ -666,7 +682,7 @@ export function LibraryOrganizationToolbar({
                 save({ ...menuShelf, featuredGame: null });
               }}
             >
-              Use library banner
+              {t("Use library banner")}
             </ContextMenuItem>
           ) : null}
           <ContextMenuItem
@@ -678,7 +694,7 @@ export function LibraryOrganizationToolbar({
               focusFiltersButton();
             }}
           >
-            Edit filters
+            {t("Edit filters")}
           </ContextMenuItem>
           <ContextMenuItem
             icon={Pencil}
@@ -687,7 +703,7 @@ export function LibraryOrganizationToolbar({
               edit(menuShelf);
             }}
           >
-            Edit
+            {t("Edit")}
           </ContextMenuItem>
           <ContextMenuItem
             icon={Trash2}
@@ -697,7 +713,7 @@ export function LibraryOrganizationToolbar({
               setDeleting(menuShelf);
             }}
           >
-            Delete
+            {t("Delete")}
           </ContextMenuItem>
         </ContextMenu>
       ) : null}
@@ -707,7 +723,7 @@ export function LibraryOrganizationToolbar({
           dataTour={practice ? "demo-shelf-editor" : undefined}
           backdropDataTour={practice ? "demo-library-modal" : undefined}
           labelId="shelf-editor-title"
-          title={typeof editor === "object" ? "Edit shelf" : "New shelf"}
+          title={typeof editor === "object" ? t("Edit shelf") : t("New shelf")}
           icon={FolderHeart}
           onClose={() => setEditor(null)}
           footer={
@@ -718,7 +734,7 @@ export function LibraryOrganizationToolbar({
               variant="primary"
               disabled={!name.trim()}
             >
-              Save shelf
+              {t("Save shelf")}
             </Button>
           }
         >
@@ -748,20 +764,22 @@ export function LibraryOrganizationToolbar({
             <Input
               data-tour={practice ? "demo-shelf-name" : undefined}
               data-autofocus
-              aria-label="Shelf name"
+              aria-label={t("Shelf name")}
               maxLength={NAME_LIMIT}
               value={name}
-              placeholder="Online Games"
+              placeholder={t("Online Games")}
               onChange={(e) => setName(e.target.value)}
             />
             <p className="text-xs text-text-muted">
-              Drag games onto the shelf, or select the shelf, open Filters, and
-              save them so the shelf fills itself.
+              {t(
+                "Drag games onto the shelf, or select the shelf, open Filters, and save them so the shelf fills itself.",
+              )}
             </p>
             {!practice && typeof editor === "object" ? (
               <p className="text-xs text-text-muted">
-                Right-click a game on this shelf and choose Pin to shelf banner
-                to give this shelf its own featured game.
+                {t(
+                  "Right-click a game on this shelf and choose Pin to shelf banner to give this shelf its own featured game.",
+                )}
               </p>
             ) : null}
           </form>
@@ -772,7 +790,7 @@ export function LibraryOrganizationToolbar({
           dataTour={practice ? "demo-shelf-editor" : undefined}
           backdropDataTour={practice ? "demo-library-modal" : undefined}
           labelId="delete-shelf-title"
-          title={`Delete “${deleting.name}”?`}
+          title={t("Delete “{{name}}”?", { name: deleting.name })}
           icon={Trash2}
           size="sm"
           onClose={() => setDeleting(null)}
@@ -783,7 +801,7 @@ export function LibraryOrganizationToolbar({
                 data-autofocus
                 onClick={() => setDeleting(null)}
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 variant="danger"
@@ -793,13 +811,13 @@ export function LibraryOrganizationToolbar({
                   setDeleting(null);
                 }}
               >
-                Delete shelf
+                {t("Delete shelf")}
               </Button>
             </>
           }
         >
           <p className="text-sm text-text-muted">
-            The games and their notes stay in your library.
+            {t("The games and their notes stay in your library.")}
           </p>
         </Modal>
       ) : null}

@@ -33,6 +33,9 @@ import { useGameJournal } from "./useGameJournal";
 import { GameDetailsDialog } from "./views/games/GameDetailsDialog";
 import { useHeroLauncher } from "./views/games/useHeroLauncher";
 import type { GameSummary } from "./views/MyGamesView";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 /* One banner for the library, shelves, and other views. The compact variant
    keeps the same artwork, actions, and fallback behavior in less space. */
@@ -121,15 +124,15 @@ export function GameBanner({
   }, [onArtworkChange, backdropArt]);
   const played = game.hasLastPlayedEvidence || game.sessionCount > 0;
   const eyebrow = shelfName
-    ? `${shelfName} · ${pinned ? "Shelf banner" : "Library banner"}`
+    ? `${shelfName} · ${pinned ? t("Shelf banner") : t("Library banner")}`
     : pinned
-      ? "Featured"
+      ? t("Featured")
       : played
-        ? "Last played"
-        : "Newest";
+        ? t("Last played")
+        : t("Newest");
   const playLabel =
-    launcher.launchLabel === "Play" && played
-      ? "Continue Playing"
+    launcher.launchVia === "direct" && played
+      ? t("Continue Playing")
       : launcher.launchLabel;
 
   function showHistory() {
@@ -202,12 +205,12 @@ export function GameBanner({
           >
             {pinned ? <Pin size={13} /> : <Sparkles size={13} />}
             <span className="min-w-0 truncate">
-              {!shelfName && pinned ? "Pinned game" : eyebrow}
+              {!shelfName && pinned ? t("Pinned game") : eyebrow}
             </span>
             {!compact && journal.favorite ? (
               <span className="inline-flex items-center gap-1 text-amber-300">
                 <Star size={11} fill="currentColor" />
-                Favorite
+                {t("Favorite")}
               </span>
             ) : null}
           </div>
@@ -248,9 +251,9 @@ export function GameBanner({
                 disabled={launcher.launching || launcher.hasActiveSession}
                 title={
                   launcher.hasActiveSession
-                    ? "Already running"
+                    ? t("Already running")
                     : launcher.launching
-                      ? "Starting…"
+                      ? t("Starting…")
                       : playLabel
                 }
                 aria-label={`${playLabel}: ${game.name}`}
@@ -261,23 +264,23 @@ export function GameBanner({
                 )}
               >
                 {launcher.hasActiveSession
-                  ? "Running"
+                  ? t("Running")
                   : launcher.launching
-                    ? "Starting…"
+                    ? t("Starting…")
                     : playLabel}
               </Button>
             ) : launcher.canInstall ? (
               <Button
                 variant="primary"
                 icon={Download}
-                aria-label={`Install ${game.name} in Steam`}
+                aria-label={t("Install {{name}} in Steam", { name: game.name })}
                 onClick={() => void launcher.install()}
                 className={clsx(
                   "library-hero-play rounded-lg font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]",
                   compact ? "h-9 px-4 text-sm" : "h-12 px-6 text-[15px]",
                 )}
               >
-                Install in Steam
+                {t("Install in Steam")}
               </Button>
             ) : null}
             <Button
@@ -289,14 +292,14 @@ export function GameBanner({
                 compact ? "h-9 px-4 text-sm" : "h-12 px-5 text-[15px]",
               )}
             >
-              More Info
+              {t("More Info")}
             </Button>
             <IconButton
               ref={menu.anchorRef}
-              aria-label="More banner options"
+              aria-label={t("More banner options")}
               aria-haspopup="menu"
               aria-expanded={menu.open}
-              title="More"
+              title={t("More")}
               icon={MoreHorizontal}
               onClick={menu.toggle}
               className={clsx(
@@ -333,7 +336,9 @@ export function GameBanner({
               onUnpin();
             }}
           >
-            {shelfName ? "Use library banner" : "Show last played game instead"}
+            {shelfName
+              ? t("Use library banner")
+              : t("Show last played game instead")}
           </ContextMenuItem>
         ) : (
           <ContextMenuItem
@@ -344,8 +349,8 @@ export function GameBanner({
             }}
           >
             {shelfName
-              ? "Keep this game for this shelf"
-              : "Keep this game in the banner"}
+              ? t("Keep this game for this shelf")
+              : t("Keep this game in the banner")}
           </ContextMenuItem>
         )}
         <ContextMenuItem
@@ -353,7 +358,7 @@ export function GameBanner({
           disabled={game.sessionCount === 0}
           onClick={showHistory}
         >
-          Show history
+          {t("Show history")}
         </ContextMenuItem>
         {onToggleDetails ? (
           <ContextMenuItem
@@ -363,7 +368,7 @@ export function GameBanner({
               onToggleDetails();
             }}
           >
-            {compact ? "Show more banner details" : "Hide banner details"}
+            {compact ? t("Show more banner details") : t("Hide banner details")}
           </ContextMenuItem>
         ) : null}
         <ContextMenuSeparator />
@@ -374,7 +379,7 @@ export function GameBanner({
             onHide();
           }}
         >
-          Hide banner
+          {t("Hide banner")}
         </ContextMenuItem>
       </ContextMenu>
 

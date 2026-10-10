@@ -1,5 +1,8 @@
 import clsx from "clsx";
 import { ChevronsUp, Sparkles } from "lucide-react";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 export function CommunityLevelUpButton({
   gameName,
@@ -19,8 +22,10 @@ export function CommunityLevelUpButton({
           ? "rounded-xl px-3 py-2.5"
           : "rounded-md px-1.5 py-1",
       )}
-      title="Your suggestion was approved! Switch to the community version"
-      aria-label={`Level up ${gameName} to the approved community version`}
+      title={t("Your suggestion was approved! Switch to the community version")}
+      aria-label={t("Level up {{gameName}} to the approved community version", {
+        gameName,
+      })}
       onClick={onLevelUp}
     >
       {variant === "cover-card" ? (
@@ -34,10 +39,10 @@ export function CommunityLevelUpButton({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[10px] font-bold uppercase tracking-[0.16em] opacity-75">
-              Suggestion approved
+              {t("Suggestion approved")}
             </span>
             <span className="mt-0.5 block truncate text-xs font-bold">
-              Level up
+              {t("Level up")}
             </span>
           </span>
           <Sparkles
@@ -48,7 +53,7 @@ export function CommunityLevelUpButton({
       ) : (
         <span className="relative z-10 flex items-center justify-center gap-1 text-[9px] font-extrabold uppercase tracking-[0.1em]">
           <ChevronsUp className="level-up-arrow" size={13} strokeWidth={2.8} />
-          Level up
+          {t("Level up")}
           <Sparkles size={11} />
         </span>
       )}
