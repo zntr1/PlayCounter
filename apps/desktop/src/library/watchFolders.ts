@@ -133,7 +133,7 @@ export async function chooseWatchFolder() {
   const selected = await open({ directory: true, multiple: false });
   if (typeof selected !== "string") return null;
   const record = addWatchFolder(selected);
-  void scanWatchFolders(t("folder added"));
+  void scanWatchFolders("folder added");
   return record;
 }
 
