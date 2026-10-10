@@ -14,7 +14,9 @@ import {
   type MilestoneMetrics,
   type MilestoneNotificationKind,
 } from "../../../milestones";
-import { appLocale } from "../../../i18n";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("achievements");
 
 export type AchievementGroupId = MilestoneCategory;
 export type AchievementUnit = "hours" | "days" | "contributions";
@@ -44,53 +46,57 @@ export type AchievementCatalog = Map<
 
 export type GameLabel = { name: string; coverUrl: string };
 
-const ALL_GROUP_META: Array<{
+function allGroupMeta(): Array<{
   id: AchievementGroupId;
   label: string;
   shortLabel: string;
   caption: string;
-}> = [
-  {
-    id: "verified",
-    label: "Community contributions",
-    shortLabel: "Contributions",
-    caption: "Help PlayCounter recognize more games for everyone.",
-  },
-  {
-    id: "emulator",
-    label: "Emulator contributions",
-    shortLabel: "Emulators",
-    caption: "Help PlayCounter recognize the games you play in emulators.",
-  },
-  {
-    id: "total",
-    label: "Lifetime playtime",
-    shortLabel: "Playtime",
-    caption: "Build a legacy across every game you play.",
-  },
-  {
-    id: "month",
-    label: "Monthly quests",
-    shortLabel: "Monthly",
-    caption: "A fresh set of goals every calendar month.",
-  },
-  {
-    id: "game",
-    label: "Game mastery",
-    shortLabel: "Games",
-    caption: "Climb a separate trophy ladder for every game.",
-  },
-  {
-    id: "streak",
-    label: "Play streaks",
-    shortLabel: "Streaks",
-    caption: "Keep returning and make play a ritual.",
-  },
-];
+}> {
+  return [
+    {
+      id: "verified",
+      label: t("Community contributions"),
+      shortLabel: t("Contributions"),
+      caption: t("Help PlayCounter recognize more games for everyone."),
+    },
+    {
+      id: "emulator",
+      label: t("Emulator contributions"),
+      shortLabel: t("Emulators"),
+      caption: t("Help PlayCounter recognize the games you play in emulators."),
+    },
+    {
+      id: "total",
+      label: t("Lifetime playtime"),
+      shortLabel: t("Playtime"),
+      caption: t("Build a legacy across every game you play."),
+    },
+    {
+      id: "month",
+      label: t("Monthly quests"),
+      shortLabel: t("Monthly"),
+      caption: t("A fresh set of goals every calendar month."),
+    },
+    {
+      id: "game",
+      label: t("Game mastery"),
+      shortLabel: t("Games"),
+      caption: t("Climb a separate trophy ladder for every game."),
+    },
+    {
+      id: "streak",
+      label: t("Play streaks"),
+      shortLabel: t("Streaks"),
+      caption: t("Keep returning and make play a ritual."),
+    },
+  ];
+}
 
-export const GROUP_META = ALL_GROUP_META.filter(
-  (group) => PLAY_STREAK_ACHIEVEMENTS_ENABLED || group.id !== "streak",
-);
+export function groupMeta() {
+  return allGroupMeta().filter(
+    (group) => PLAY_STREAK_ACHIEVEMENTS_ENABLED || group.id !== "streak",
+  );
+}
 
 type LadderGame = {
   key: string;
@@ -287,7 +293,7 @@ export function buildAchievementCatalog(
   });
 
   const result: AchievementCatalog = new Map();
-  for (const group of GROUP_META) {
+  for (const group of groupMeta()) {
     const items = [...catalog.values()]
       .filter((item) => item.category === group.id)
       .sort(compareCatalogItems);
@@ -335,7 +341,7 @@ export function selectLadderGames(
           ? metricName
           : undefined) ||
         awardName ||
-        "Unknown game";
+        t("Unknown game");
       const coverUrl =
         metadata?.coverUrl ||
         metricGame?.coverUrl ||
@@ -488,21 +494,18 @@ export function gameNameFromMilestoneTitle(
   return name;
 }
 
+/** What is left to reach the rung, rounded up: hours, days or contributions. */
+export function remainingAmount(item: AchievementCatalogItem) {
+  return Math.max(0, Math.ceil(remainder(item)));
+}
+
 export function remainderLabel(item: AchievementCatalogItem) {
-  const amount = Math.max(0, Math.ceil(remainder(item)));
-  const unit =
-    item.unit === "days"
-      ? amount === 1
-        ? "day"
-        : "days"
-      : item.unit === "hours"
-        ? amount === 1
-          ? "hour"
-          : "hours"
-        : amount === 1
-          ? "contribution"
-          : "contributions";
-  return `${amount.toLocaleString(appLocale())} more ${unit}`;
+  const count = remainingAmount(item);
+  return item.unit === "days"
+    ? t("{{count, number}} more days", { count })
+    : item.unit === "hours"
+      ? t("{{count, number}} more hours", { count })
+      : t("{{count, number}} more contributions", { count });
 }
 
 export function progressLabel(
@@ -513,7 +516,12 @@ export function progressLabel(
   const current = Math.max(0, currentValue).toLocaleString(appLocale(), {
     maximumFractionDigits: 1,
   });
-  return `${current} / ${threshold.toLocaleString(appLocale())} ${unit}`;
+  const values = { current, threshold: threshold.toLocaleString(appLocale()) };
+  return unit === "hours"
+    ? t("{{current}} / {{threshold}} hours", values)
+    : unit === "days"
+      ? t("{{current}} / {{threshold}} days", values)
+      : t("{{current}} / {{threshold}} contributions", values);
 }
 
 export function monthLabel(scope: string) {
@@ -629,7 +637,7 @@ function compareCatalogItems(
 }
 
 function groupRank(category: MilestoneCategory) {
-  return GROUP_META.findIndex((group) => group.id === category);
+  return groupMeta().findIndex((group) => group.id === category);
 }
 
 function unitFor(category: MilestoneCategory): AchievementUnit {

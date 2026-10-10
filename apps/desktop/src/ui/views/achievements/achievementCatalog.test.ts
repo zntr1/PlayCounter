@@ -10,7 +10,7 @@ import {
   type MilestoneNotificationKind,
 } from "../../../milestones";
 import {
-  GROUP_META,
+  groupMeta,
   buildAchievementCatalog,
   buildGameLadders,
   buildMonthHistory,
@@ -68,7 +68,7 @@ describe("award texts", () => {
 
 describe("achievement catalog", () => {
   it("places community contributions first", () => {
-    expect(GROUP_META[0].id).toBe("verified");
+    expect(groupMeta()[0].id).toBe("verified");
   });
 
   it("includes the fixed catalog with progress and an earned item", () => {

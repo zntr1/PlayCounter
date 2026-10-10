@@ -14,6 +14,9 @@ import {
 import { useState } from "react";
 import { achievementArt, type AchievementIconName } from "../achievementArt";
 import type { AppNotification } from "../notifications";
+import { getT } from "../i18n";
+
+const t = getT("achievements");
 
 type AchievementDisplay = Pick<
   AppNotification,
@@ -72,7 +75,9 @@ export function AchievementMedal({
   return (
     <div
       role="img"
-      aria-label={`${art.label}${locked ? " (locked)" : ""}`}
+      aria-label={
+        locked ? t("{{label}} (locked)", { label: art.label }) : art.label
+      }
       className={`grid shrink-0 place-items-center rounded-full ${dimensions.frame} ${art.frameClassName} ${locked ? "achievement-badge-locked" : ""}`}
     >
       <Icon aria-hidden="true" size={dimensions.icon} strokeWidth={2.25} />

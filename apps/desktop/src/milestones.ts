@@ -4,7 +4,9 @@ import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
 import type { AppNotification, NotificationKind } from "./notifications";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 import type { ProviderFloor } from "./library/playtimeFloor";
-import { appLocale } from "./i18n";
+import { appLocale, getT } from "./i18n";
+
+const t = getT("achievements");
 
 export const TOTAL_HOURS = [10, 50, 100, 250, 500, 1_000, 2_500, 5_000];
 export const MONTH_HOURS = [10, 25, 50, 100, 200];
@@ -581,26 +583,36 @@ function kindForCategory(
  *  Elden Ring". Every milestone sentence comes from here. */
 export function milestoneTitle(
   milestone: { category: MilestoneCategory; scope: string; threshold: number },
-  gameName = "a game",
+  gameName?: string,
 ) {
-  const threshold = milestone.threshold.toLocaleString(appLocale());
+  const count = milestone.threshold;
   switch (milestone.category) {
     case "total":
-      return `You've played ${threshold} hours in total`;
+      return t("You've played {{count, number}} hours in total", { count });
     case "month":
-      return `${threshold} hours played in ${monthLabel(milestone.scope)}`;
+      return t("{{count, number}} hours played in {{month}}", {
+        count,
+        month: monthLabel(milestone.scope),
+      });
     case "game":
-      return `${threshold} hours played in ${gameName}`;
+      return t("{{count, number}} hours played in {{game}}", {
+        count,
+        // "A game" is the data stand-in for a game nobody named.
+        game:
+          gameName && gameName.toLowerCase() !== "a game"
+            ? gameName
+            : t("a game"),
+      });
     case "streak":
-      return `${threshold}-day play streak`;
+      return t("{{count, number}}-day play streak", { count });
     case "verified":
-      return milestone.threshold === 1
-        ? "Your first contribution was approved"
-        : `${threshold} contributions approved`;
+      return count === 1
+        ? t("Your first contribution was approved")
+        : t("{{count, number}} contributions approved", { count });
     case "emulator":
-      return milestone.threshold === 1
-        ? "Your first emulator match was approved"
-        : `${threshold} emulator matches approved`;
+      return count === 1
+        ? t("Your first emulator match was approved")
+        : t("{{count, number}} emulator matches approved", { count });
   }
 }
 

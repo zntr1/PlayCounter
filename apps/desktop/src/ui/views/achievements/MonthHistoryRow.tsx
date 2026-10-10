@@ -1,9 +1,14 @@
 import { AchievementMedal } from "../../AchievementBadge";
 import type { MonthHistory } from "./achievementCatalog";
-import { appLocale } from "../../../i18n";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("achievements");
 
 export function MonthHistoryRow({ month }: { month: MonthHistory }) {
-  const accessibleLabel = `Highest monthly milestone reached in ${month.label}. Exact totals for past months are not stored.`;
+  const accessibleLabel = t(
+    "Highest monthly milestone reached in {{label}}. Exact totals for past months are not stored.",
+    { label: month.label },
+  );
   return (
     <article
       aria-label={accessibleLabel}
@@ -13,8 +18,9 @@ export function MonthHistoryRow({ month }: { month: MonthHistory }) {
       <div className="min-w-0">
         <h3 className="font-semibold text-text">{month.label}</h3>
         <p className="mt-0.5 text-xs text-text-muted">
-          {month.highestThreshold.toLocaleString(appLocale())}h milestone
-          reached
+          {t("{{hours}}h milestone reached", {
+            hours: month.highestThreshold.toLocaleString(appLocale()),
+          })}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">

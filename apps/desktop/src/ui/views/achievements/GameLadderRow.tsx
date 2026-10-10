@@ -2,7 +2,9 @@ import { Gamepad2 } from "lucide-react";
 import { useState } from "react";
 import { LadderRow } from "./LadderRow";
 import type { GameLadder } from "./achievementCatalog";
-import { appLocale } from "../../../i18n";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("achievements");
 
 export function GameLadderRow({ ladder }: { ladder: GameLadder }) {
   const [failedCover, setFailedCover] = useState(false);
@@ -13,8 +15,12 @@ export function GameLadderRow({ ladder }: { ladder: GameLadder }) {
       title={ladder.name}
       subtitle={
         ladder.hours === undefined
-          ? `${earned} ${earned === 1 ? "trophy" : "trophies"}`
-          : `${ladder.hours.toLocaleString(appLocale(), { maximumFractionDigits: 1 })}h played`
+          ? t("{{count}} trophies", { count: earned })
+          : t("{{hours}}h played", {
+              hours: ladder.hours.toLocaleString(appLocale(), {
+                maximumFractionDigits: 1,
+              }),
+            })
       }
       rungs={ladder.rungs}
       leading={

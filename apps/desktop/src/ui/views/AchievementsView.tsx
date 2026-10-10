@@ -24,7 +24,7 @@ import { GameLadderRow } from "./achievements/GameLadderRow";
 import { LadderRow } from "./achievements/LadderRow";
 import { MonthHistoryRow } from "./achievements/MonthHistoryRow";
 import {
-  GROUP_META,
+  groupMeta,
   buildAchievementCatalog,
   buildGameLadders,
   buildMonthHistory,
@@ -35,14 +35,22 @@ import {
   type AchievementCatalogItem,
   type AchievementGroupId,
 } from "./achievements/achievementCatalog";
-import { appLocale } from "../../i18n";
+import { appLocale, getT } from "../../i18n";
+
+const t = getT("achievements");
 
 type Tab = "milestones" | "games";
 
-const TABS: Array<{ id: Tab; label: string; icon: LucideIcon }> = [
-  { id: "milestones", label: "Milestones", icon: Medal },
-  { id: "games", label: "Game ladders", icon: Gamepad2 },
-];
+function achievementTabs(): Array<{
+  id: Tab;
+  label: string;
+  icon: LucideIcon;
+}> {
+  return [
+    { id: "milestones", label: t("Milestones"), icon: Medal },
+    { id: "games", label: t("Game ladders"), icon: Gamepad2 },
+  ];
+}
 
 const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
   total: Trophy,
@@ -53,7 +61,9 @@ const GROUP_ICONS: Record<AchievementGroupId, LucideIcon> = {
   emulator: Joystick,
 };
 
-const MILESTONE_GROUPS = GROUP_META.filter((group) => group.id !== "game");
+function milestoneGroups() {
+  return groupMeta().filter((group) => group.id !== "game");
+}
 
 /** Game ladders are scoped by the game's identity key, so a picked cover
  *  replaces the one the award was saved with. */
@@ -169,7 +179,7 @@ export function AchievementsView() {
     ).length;
   }, [catalog, metrics.games]);
   const gameItems = catalog.get("game") ?? [];
-  const milestoneLadders = MILESTONE_GROUPS.map((group) => ({
+  const milestoneLadders = milestoneGroups().map((group) => ({
     category: group.id,
     rungs: (catalog.get(group.id) ?? []).filter(
       (item) => group.id !== "month" || item.scope === metrics.monthKey,
@@ -186,9 +196,12 @@ export function AchievementsView() {
   const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const index = TABS.findIndex((entry) => entry.id === tab);
+    const index = achievementTabs().findIndex((entry) => entry.id === tab);
     const step = event.key === "ArrowRight" ? 1 : -1;
-    const next = TABS[(index + step + TABS.length) % TABS.length]!;
+    const next =
+      achievementTabs()[
+        (index + step + achievementTabs().length) % achievementTabs().length
+      ]!;
     setTab(next.id);
     document.getElementById(`achievements-tab-${next.id}`)?.focus();
   };
@@ -200,11 +213,11 @@ export function AchievementsView() {
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-3 border-b border-border">
         <div
           role="tablist"
-          aria-label="Achievement sections"
+          aria-label={t("Achievement sections")}
           onKeyDown={handleTabKeyDown}
           className="flex gap-1"
         >
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {achievementTabs().map(({ id, label, icon: Icon }) => {
             const selected = tab === id;
             const counts = tabCounts[id];
             return (
@@ -285,7 +298,7 @@ function MilestoneLadder({
   currentMonthKey: string;
   monthHistory: ReturnType<typeof buildMonthHistory>;
 }) {
-  const meta = GROUP_META.find((group) => group.id === category)!;
+  const meta = groupMeta().find((group) => group.id === category)!;
   const Icon = GROUP_ICONS[category];
   const history = category === "month" ? monthHistory : [];
 
@@ -331,7 +344,7 @@ function EarlierMonths({
             !open && "-rotate-90",
           )}
         />
-        Earlier months
+        {t("Earlier months")}
         <span className="font-mono normal-case tracking-normal text-text-faint">
           {history.length}
         </span>
@@ -344,7 +357,7 @@ function EarlierMonths({
             ))}
           </div>
           <p className="mt-2 text-xs text-text-faint">
-            Milestones shown; exact past totals are not stored
+            {t("Milestones shown; exact past totals are not stored")}
           </p>
         </div>
       ) : null}
@@ -364,10 +377,10 @@ function ladderSubtitle(
   const unit = rungs[0]?.unit ?? "hours";
   const progress =
     unit === "hours"
-      ? `${value}h played`
+      ? t("{{value}}h played", { value })
       : unit === "days"
-        ? `${value}-day streak`
-        : `${value} approved`;
+        ? t("{{value}}-day streak", { value })
+        : t("{{value}} approved", { value });
   return category === "month"
     ? `${monthLabel(currentMonthKey)} · ${progress}`
     : progress;
@@ -386,9 +399,11 @@ function GameSection({
         <div className="mb-3 grid h-14 w-14 place-items-center rounded-full bg-surface-hover text-text-faint">
           <Gamepad2 aria-hidden="true" size={27} />
         </div>
-        <h3 className="text-base font-bold text-text">No game trophies yet</h3>
+        <h3 className="text-base font-bold text-text">
+          {t("No game trophies yet")}
+        </h3>
         <p className="mt-1 max-w-sm text-sm text-text-muted">
-          Play any tracked game for 10 hours to unlock its first trophy.
+          {t("Play any tracked game for 10 hours to unlock its first trophy.")}
         </p>
       </div>
     );
@@ -401,9 +416,10 @@ function GameSection({
       ))}
       {hiddenGameCount > 0 ? (
         <p className="pt-1 text-center text-xs text-text-faint">
-          +{hiddenGameCount} more tracked{" "}
-          {hiddenGameCount === 1 ? "game" : "games"} will appear as they
-          approach a trophy
+          {t(
+            "+{{count}} more tracked games will appear as they approach a trophy",
+            { count: hiddenGameCount },
+          )}
         </p>
       ) : null}
     </div>
