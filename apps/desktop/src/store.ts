@@ -1718,9 +1718,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     // A settings reset must never trim history to make room. Save the current
     // durable data with only its settings replaced, or report the write failure.
     writePersistedRecord(createPersistedPayload({ ...get(), settings }));
+    applyLanguage(settings.language);
     set({ settings });
     applyTheme(settings.theme, settings.accentColor);
-    applyLanguage(settings.language);
   },
   setLaunchOnStartup: (enabled) => {
     set((state) => ({
@@ -1735,10 +1735,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     persistSoon();
   },
   setLanguage: (language) => {
+    // Switch first, so whatever re-renders on the change reads the new language.
+    applyLanguage(language);
     set((state) => ({
       settings: { ...state.settings, language },
     }));
-    applyLanguage(language);
     persistSoon();
   },
   setShowDurationDays: (enabled) => {

@@ -34,6 +34,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import {
   Component,
+  Fragment,
   useDeferredValue,
   useEffect,
   useLayoutEffect,
@@ -385,6 +386,7 @@ export function App() {
   const [devToolsEnabled, setDevToolsEnabled] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const activeView = useAppStore((state) => state.activeView);
+  const language = useAppStore((state) => state.settings.language);
   const parkedInTray = useParkedInTray();
   // My Games and Now Playing carry their own hero; My History too, built
   // from the play history itself, so the pinned-game banner stays off there.
@@ -660,11 +662,6 @@ export function App() {
         outcome = result.status;
         if (!cancelled && result.status === "available") {
           setStartupUpdate(result);
-          void invoke("set_tray_update", {
-            label: t("Update available ({{version}})", {
-              version: result.version,
-            }),
-          }).catch(() => undefined);
         }
       } catch {
         outcome = "failed";
@@ -696,6 +693,16 @@ export function App() {
       window.clearTimeout(updateCheckTimer);
     };
   }, []);
+
+  // The tray entry for a pending update, in the current language.
+  useEffect(() => {
+    if (startupUpdate?.status !== "available") return;
+    void invoke("set_tray_update", {
+      label: t("Update available ({{version}})", {
+        version: startupUpdate.version,
+      }),
+    }).catch(() => undefined);
+  }, [language, startupUpdate]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1192,90 +1199,93 @@ export function App() {
                 <div className="view-backdrop-shade absolute inset-0" />
               </div>
             ) : null}
-            <PageErrorBoundary view={activeView}>
-              {activeView !== "games" && showViewBanner && !parkedInTray ? (
-                <ViewBanner
-                  view={activeView}
-                  onArtworkChange={setViewBannerArt}
-                />
-              ) : null}
-              {activeView !== "games" ? (
-                <ViewHeading
-                  label={activeViewLabel}
-                  subtitle={activeViewSubtitle}
-                  action={
-                    !activeTour &&
-                    activeView !== "now" &&
-                    activeView !== "history" ? (
-                      <Button
-                        variant="ghost"
-                        icon={viewBannerEnabled ? EyeOff : ImageIcon}
-                        aria-pressed={viewBannerEnabled}
-                        title={
-                          viewBannerEnabled
-                            ? t("Hide banner in {{view}}", {
-                                view: activeViewLabel,
-                              })
-                            : t("Show banner in {{view}}", {
-                                view: activeViewLabel,
-                              })
-                        }
-                        onClick={() =>
-                          setViewShowHero(activeView, !viewBannerEnabled)
-                        }
-                        className="shrink-0 text-xs"
-                      >
-                        {viewBannerEnabled
-                          ? t("Hide banner")
-                          : t("Show banner")}
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              ) : null}
-              {!tour?.simulation &&
-              !parkedInTray &&
-              activeView !== "import" &&
-              activeView !== "games"
-                ? views()[activeView].component
-                : null}
-              {activeView === "games" && !renderGames && !practiceStep ? (
-                <PlayCounterLoader
-                  label={t("Loading your games…")}
-                  className="min-h-[320px] text-text-muted"
-                />
-              ) : null}
-            </PageErrorBoundary>
-            {renderGames ? (
-              <div hidden={activeView !== "games" || Boolean(practiceStep)}>
-                <PageErrorBoundary view={activeView}>
-                  <MyGamesView
-                    renderContent={gamesOpened || activeView === "games"}
-                    parked={parkedInTray}
+            {/* Pages remount in a new language: their texts are read while rendering. */}
+            <Fragment key={language ?? "system"}>
+              <PageErrorBoundary view={activeView}>
+                {activeView !== "games" && showViewBanner && !parkedInTray ? (
+                  <ViewBanner
+                    view={activeView}
+                    onArtworkChange={setViewBannerArt}
                   />
-                </PageErrorBoundary>
-              </div>
-            ) : null}
-            {practiceStep && tour?.simulation ? (
-              <TourPracticeSurface
-                key={tour.id}
-                tour={tour}
-                stepId={practiceStep.id}
-              />
-            ) : practiceStep && activeTourId ? (
-              <LibraryTourPractice
-                key={activeTourId}
-                tourId={activeTourId}
-                stepId={practiceStep.id}
-              />
-            ) : null}
-            {renderImporter ? (
-              <div
-                hidden={activeView !== "import" || Boolean(tour?.simulation)}
-              >
-                {views().import.component}
-              </div>
-            ) : null}
+                ) : null}
+                {activeView !== "games" ? (
+                  <ViewHeading
+                    label={activeViewLabel}
+                    subtitle={activeViewSubtitle}
+                    action={
+                      !activeTour &&
+                      activeView !== "now" &&
+                      activeView !== "history" ? (
+                        <Button
+                          variant="ghost"
+                          icon={viewBannerEnabled ? EyeOff : ImageIcon}
+                          aria-pressed={viewBannerEnabled}
+                          title={
+                            viewBannerEnabled
+                              ? t("Hide banner in {{view}}", {
+                                  view: activeViewLabel,
+                                })
+                              : t("Show banner in {{view}}", {
+                                  view: activeViewLabel,
+                                })
+                          }
+                          onClick={() =>
+                            setViewShowHero(activeView, !viewBannerEnabled)
+                          }
+                          className="shrink-0 text-xs"
+                        >
+                          {viewBannerEnabled
+                            ? t("Hide banner")
+                            : t("Show banner")}
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                ) : null}
+                {!tour?.simulation &&
+                !parkedInTray &&
+                activeView !== "import" &&
+                activeView !== "games"
+                  ? views()[activeView].component
+                  : null}
+                {activeView === "games" && !renderGames && !practiceStep ? (
+                  <PlayCounterLoader
+                    label={t("Loading your games…")}
+                    className="min-h-[320px] text-text-muted"
+                  />
+                ) : null}
+              </PageErrorBoundary>
+              {renderGames ? (
+                <div hidden={activeView !== "games" || Boolean(practiceStep)}>
+                  <PageErrorBoundary view={activeView}>
+                    <MyGamesView
+                      renderContent={gamesOpened || activeView === "games"}
+                      parked={parkedInTray}
+                    />
+                  </PageErrorBoundary>
+                </div>
+              ) : null}
+              {practiceStep && tour?.simulation ? (
+                <TourPracticeSurface
+                  key={tour.id}
+                  tour={tour}
+                  stepId={practiceStep.id}
+                />
+              ) : practiceStep && activeTourId ? (
+                <LibraryTourPractice
+                  key={activeTourId}
+                  tourId={activeTourId}
+                  stepId={practiceStep.id}
+                />
+              ) : null}
+              {renderImporter ? (
+                <div
+                  hidden={activeView !== "import" || Boolean(tour?.simulation)}
+                >
+                  {views().import.component}
+                </div>
+              ) : null}
+            </Fragment>
           </div>
           {controllerModeActive ? (
             <div

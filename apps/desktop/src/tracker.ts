@@ -491,6 +491,10 @@ export async function initializeTracker() {
       syncTrayNowPlaying();
       scheduleTraySync();
     }
+    // The tray texts are worded here, so a new language needs them again.
+    if (state.settings.language !== previousState.settings.language) {
+      syncTrayNowPlaying();
+    }
     if (
       state.backendHealth.status === "online" &&
       previousState.backendHealth.status !== "online" &&
