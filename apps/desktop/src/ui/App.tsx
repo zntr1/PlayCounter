@@ -660,9 +660,11 @@ export function App() {
         outcome = result.status;
         if (!cancelled && result.status === "available") {
           setStartupUpdate(result);
-          void invoke("set_tray_update", { version: result.version }).catch(
-            () => undefined,
-          );
+          void invoke("set_tray_update", {
+            label: t("Update available ({{version}})", {
+              version: result.version,
+            }),
+          }).catch(() => undefined);
         }
       } catch {
         outcome = "failed";

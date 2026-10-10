@@ -38,5 +38,13 @@
   "Manual sessions require a valid date and time": "Manual sessions require a valid date and time",
   "Playtime must be a finite number": "Playtime must be a finite number",
   "Playtime must be zero or at least one minute": "Playtime must be zero or at least one minute",
-  "Stop the active session before adjusting playtime": "Stop the active session before adjusting playtime"
+  "Stop the active session before adjusting playtime": "Stop the active session before adjusting playtime",
+  "Open PlayCounter": "Open PlayCounter",
+  "Quit PlayCounter": "Quit PlayCounter",
+  "No game active": "No game active",
+  "Playing {{game}} - {{duration}}": "Playing {{game}} - {{duration}}",
+  "{{status}} (+{{count}} more)": "{{status}} (+{{count}} more)",
+  "{{hours}}h {{minutes}}m": "{{hours}}h {{minutes}}m",
+  "{{minutes}}m": "{{minutes}}m",
+  "<1m": "<1m"
 }

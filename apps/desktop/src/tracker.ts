@@ -8926,17 +8926,53 @@ function removeActiveSession(session: ActiveSession) {
   }));
 }
 
+let trayLabelsLocale: string | null = null;
+
 function syncTrayNowPlaying() {
-  const sessions = useAppStore.getState().activeSessions.map((session) => ({
-    gameName: session.gameName,
-    elapsedSeconds: Math.max(
-      0,
-      Math.floor((Date.now() - Date.parse(session.startedAt)) / 1000),
-    ),
-  }));
-  void invoke("update_tray_now_playing", { sessions }).catch((error) => {
-    logRuntime(`tray update failed: ${formatError(error)}`);
+  // The tray's own entries follow the language: send them again when it changes.
+  if (trayLabelsLocale !== appLocale()) {
+    trayLabelsLocale = appLocale();
+    void invoke("set_tray_labels", {
+      open: t("Open PlayCounter"),
+      quit: t("Quit PlayCounter"),
+    }).catch((error) => {
+      logRuntime(`tray labels failed: ${formatError(error)}`);
+    });
+  }
+  void invoke("update_tray_now_playing", { status: trayStatus() }).catch(
+    (error) => {
+      logRuntime(`tray update failed: ${formatError(error)}`);
+    },
+  );
+}
+
+/** "Playing Elden Ring - 1h 2m (+1 more)" in the app's language. */
+function trayStatus() {
+  const named = useAppStore
+    .getState()
+    .activeSessions.filter((session) => session.gameName.trim());
+  const first = named[0];
+  if (!first) return t("No game active");
+  const elapsed = Math.max(
+    0,
+    Math.floor((Date.now() - Date.parse(first.startedAt)) / 1000),
+  );
+  const status = t("Playing {{game}} - {{duration}}", {
+    game: first.gameName.trim(),
+    duration: trayDuration(elapsed),
   });
+  return named.length > 1
+    ? t("{{status}} (+{{count}} more)", { status, count: named.length - 1 })
+    : status;
+}
+
+function trayDuration(seconds: number) {
+  const totalMinutes = Math.floor(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return t("{{hours}}h {{minutes}}m", { hours, minutes });
+  if (minutes > 0) return t("{{minutes}}m", { minutes });
+  return t("<1m");
 }
 
 function scheduleTraySync() {
