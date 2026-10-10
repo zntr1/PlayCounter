@@ -5189,16 +5189,15 @@ export async function markTrackedExecutableAsSoftware(
 /**
  * "It's an app, ignore it" on a tracked game or a picker: the exe becomes
  * software like "It's software", then is ignored on this PC like "Ignore This
- * App" on the Software page. Shared, the community learns it as software, not
- * as a "not a game" report.
+ * App" on the Software page. Never shared: ignoring is not asking for the app
+ * to be tracked, so no tool suggestion is filed.
  */
 export async function ignoreTrackedExecutableAsSoftware(
   exeName: string,
-  input: { name: string; share: boolean },
-): Promise<MarkAsSoftwareOutcome> {
-  const outcome = await markTrackedExecutableAsSoftware(exeName, input);
+  input: { name: string },
+): Promise<void> {
+  await markTrackedExecutableAsSoftware(exeName, { ...input, share: false });
   await setUserIgnoredProcess(exeName, true);
-  return outcome;
 }
 
 /** Art picked on this PC for a tool, or null to go back to the shared art

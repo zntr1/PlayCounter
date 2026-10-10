@@ -388,7 +388,7 @@ export function AmbiguousMatchCard({
           }
           onIgnoreApp={() => {
             setNotAGameOpen(false);
-            void ignoreAppAsSoftware(exeName, exePath, !isOffline, addToast);
+            void ignoreAppAsSoftware(exeName, exePath, addToast);
           }}
           onNotAGame={() => {
             setNotAGameOpen(false);

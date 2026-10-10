@@ -50,15 +50,13 @@ const confirmCopy: Record<
   },
 };
 
-// "It's an app, ignore it": reported as software, not as "not a game".
-function ignoreAppCopy(isOffline: boolean) {
+// "It's an app, ignore it": ignored on this PC, never reported.
+function ignoreAppCopy() {
   return {
     title: "Ignore this app?",
     points: [
       "PlayCounter stops tracking it on this PC.",
-      isOffline
-        ? "Nothing is reported."
-        : "It's reported to community review as software, not as a game. The name is taken from the file.",
+      "Nothing is reported.",
       "You can restore it anytime in Discovered.",
     ],
     action: "Ignore app",
@@ -168,7 +166,7 @@ export function ReportWrongMatchDialog({
         : isGenericExeName(exeName)
           ? genericFolderCopy(exeName)
           : confirming === "app"
-            ? ignoreAppCopy(isOffline)
+            ? ignoreAppCopy()
             : confirmCopy[confirming];
   const confirmAction =
     confirming === "not-a-game"

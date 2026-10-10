@@ -313,7 +313,6 @@ export function NowPlayingView() {
                     process.exeName.toLowerCase() ===
                     reportTarget.exeName.toLowerCase(),
                 )?.exePath,
-              !isOffline,
               addToast,
             );
           }}

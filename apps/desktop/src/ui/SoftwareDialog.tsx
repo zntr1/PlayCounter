@@ -20,34 +20,21 @@ function defaultSoftwareName(exeName: string) {
 }
 
 /** "It's an app, ignore it" in the report picker: no dialog, the name comes
- *  from the file and it is shared when online. */
+ *  from the file, and nothing is shared. */
 export async function ignoreAppAsSoftware(
   exeName: string,
   exePath: string | null | undefined,
-  share: boolean,
   addToast: (toast: Omit<Toast, "id">) => void,
 ) {
   const name =
     exeProductName(peekExeDetails(exePath), exeName) ??
     defaultSoftwareName(exeName);
   try {
-    const outcome = await ignoreTrackedExecutableAsSoftware(exeName, {
-      name,
-      share,
-    });
+    await ignoreTrackedExecutableAsSoftware(exeName, { name });
     addToast({
-      tone: outcome.kind === "failed" ? "info" : "success",
+      tone: "success",
       title: `${name} ignored`,
-      detail:
-        outcome.kind === "failed"
-          ? "Only on this PC. The report could not be sent."
-          : outcome.kind === "local"
-            ? "Only on this PC. Nothing was reported."
-            : outcome.kind === "already-known"
-              ? "The community already knows it as software."
-              : outcome.kind === "rejected"
-                ? "It was reported as software before and not accepted."
-                : "Reported as software. Your report is queued for review.",
+      detail: "Only on this PC. Nothing was reported.",
     });
   } catch (error) {
     addToast({

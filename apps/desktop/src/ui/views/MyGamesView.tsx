@@ -3733,7 +3733,6 @@ export function GameLibraryCard({
     void ignoreAppAsSoftware(
       exeName,
       useAppStore.getState().launchTargets.get(exeName.toLowerCase())?.path,
-      !isOffline,
       addToast,
     );
   }
