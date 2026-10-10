@@ -8,6 +8,7 @@ import {
   Play,
   StickyNote,
 } from "lucide-react";
+import { Trans } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useGameDetails } from "../../gameDetails";
 import { emulatorSessionProvenance } from "../../emulators/provenance";
@@ -40,6 +41,9 @@ import {
   journalNote,
   playthroughSeconds,
 } from "../../personalLibrary";
+import { getT } from "../../i18n";
+
+const t = getT("nowPlaying");
 
 type ActiveGameHeroProps = {
   session: ActiveSession;
@@ -51,7 +55,8 @@ type ActiveGameHeroProps = {
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   providerFloorSeconds?: number;
-  statusLabel: "Now playing" | "Now emulating";
+  /** "Now playing" or "Now emulating", already translated. */
+  statusLabel: string;
   onReport?: () => void;
   tourAnchor?: string;
 };
@@ -227,12 +232,14 @@ export function ActiveGameHero({
               <Button
                 variant="ghost"
                 icon={Flag}
-                aria-label={`Report wrong match for ${session.gameName}`}
-                title="Report wrong match"
+                aria-label={t("Report wrong match for {{gameName}}", {
+                  gameName: session.gameName,
+                })}
+                title={t("Report wrong match")}
                 onClick={onReport}
                 className="rounded-lg border border-border/60 bg-bg/40 text-text-muted backdrop-blur hover:border-warning-border hover:bg-warning-tint hover:text-warning"
               >
-                Something wrong?
+                {t("Something wrong?")}
               </Button>
             ) : null}
           </div>
@@ -263,10 +270,16 @@ export function ActiveGameHero({
             <SessionPlaythroughPicker session={session} />
             <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-border/70 bg-bg/40 px-3 text-sm text-text-muted backdrop-blur">
               <Clock3 size={15} className="text-text-faint" />
-              <span className="font-mono font-semibold tabular-nums text-text">
-                {playthroughTime}
-              </span>
-              this playthrough
+              <Trans
+                t={t}
+                i18nKey="<time>{{time}}</time> this playthrough"
+                values={{ time: playthroughTime }}
+                components={{
+                  time: (
+                    <span className="font-mono font-semibold tabular-nums text-text" />
+                  ),
+                }}
+              />
             </span>
             <Button
               variant="secondary"
@@ -280,7 +293,7 @@ export function ActiveGameHero({
               }
               className="h-9 rounded-lg border-border/70 bg-bg/40 backdrop-blur"
             >
-              Journal
+              {t("Journal")}
             </Button>
           </div>
 
@@ -325,7 +338,7 @@ export function ActiveGameHero({
           {activeNote ? (
             <button
               type="button"
-              title="Open this note"
+              title={t("Open this note")}
               onClick={() =>
                 openJournal({
                   game: session,
@@ -335,7 +348,10 @@ export function ActiveGameHero({
               }
               className="mt-4 inline-flex max-w-xl items-start gap-2 self-start rounded-lg border border-border/70 bg-bg/40 px-3 py-2 text-left text-sm text-text-muted backdrop-blur transition hover:border-accent/50 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
-              <StickyNote size={14} className="mt-0.5 shrink-0 text-accent-ink" />
+              <StickyNote
+                size={14}
+                className="mt-0.5 shrink-0 text-accent-ink"
+              />
               <span className="truncate">{notePreview(activeNote)}</span>
             </button>
           ) : summary ? (
@@ -348,19 +364,19 @@ export function ActiveGameHero({
 
       <div className="active-hero-figures relative mx-7 mb-7 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] divide-x divide-border/60 rounded-xl border border-border/60">
         <div className="px-6 py-4">
-          <FigureLabel icon={Play}>This session</FigureLabel>
+          <FigureLabel icon={Play}>{t("This session")}</FigureLabel>
           <div className="mt-1.5 font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-accent-ink drop-shadow-[0_0_18px_rgb(var(--color-accent)/0.35)]">
             {formatClock(elapsedSeconds)}
           </div>
         </div>
         <div className="px-6 py-4">
-          <FigureLabel icon={Clock3}>Total playtime</FigureLabel>
+          <FigureLabel icon={Clock3}>{t("Total playtime")}</FigureLabel>
           <div className="mt-2.5 font-mono text-[34px] font-bold leading-none tabular-nums text-text">
             {formatDuration(lifetimeSeconds, showDurationDays)}
           </div>
         </div>
         <div className="px-6 py-4">
-          <FigureLabel icon={BarChart3}>Sessions</FigureLabel>
+          <FigureLabel icon={BarChart3}>{t("Sessions")}</FigureLabel>
           <div className="mt-2.5 font-mono text-[34px] font-bold leading-none tabular-nums text-text">
             {lifetimeSessionCount}
           </div>

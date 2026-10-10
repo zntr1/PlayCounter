@@ -17,6 +17,9 @@ import {
   providerFloors as collectProviderFloors,
 } from "../../library/playtimeFloor";
 import { resolvedCanonicalGameKey } from "../../store";
+import { getT } from "../../i18n";
+
+const t = getT("nowPlaying");
 
 const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
 const EMPTY_SECONDS: Record<string, number> = {};
@@ -105,7 +108,7 @@ export function NowEmulatingView() {
         archivedGameSeconds={EMPTY_SECONDS}
         playtimeAdjustments={EMPTY_SECONDS}
         providerFloorSeconds={0}
-        statusLabel="Now emulating"
+        statusLabel={t("Now emulating")}
         tourAnchor="demo-emulator-now"
       />
     );
@@ -123,10 +126,12 @@ export function NowEmulatingView() {
             <Cpu size={28} />
           </div>
           <h2 className="text-2xl font-semibold text-text">
-            No emulator is running
+            {t("No emulator is running")}
           </h2>
           <p className="mt-2 text-text-muted">
-            When you start a game in a supported emulator, it shows up here.
+            {t(
+              "When you start a game in a supported emulator, it shows up here.",
+            )}
           </p>
         </div>
       </Panel>
@@ -157,15 +162,17 @@ export function NowEmulatingView() {
               resolvedCanonicalGameKey(session, resolveIgdbId)
             ] ?? 0
           }
-          statusLabel="Now emulating"
+          statusLabel={t("Now emulating")}
         />
       ))}
       {sessions.length === 0 && observations.length === 0 ? (
         <Panel className="p-5">
-          <h2 className="font-semibold text-text">Emulator running</h2>
+          <h2 className="font-semibold text-text">{t("Emulator running")}</h2>
           <p className="mt-1 text-sm text-text-muted">
-            {runningHosts[0]?.exeName} is running. PlayCounter is watching for a
-            game to load.
+            {t(
+              "{{exeName}} is running. PlayCounter is watching for a game to load.",
+              { exeName: runningHosts[0]?.exeName },
+            )}
           </p>
         </Panel>
       ) : null}
