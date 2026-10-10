@@ -8,7 +8,7 @@ import { LibraryTourPractice } from "./LibraryTourPractice";
 import { HelpButton, TourOverlay } from "./TourUI";
 import { TourPracticeSurface } from "./TourPracticeSurface";
 import { removeHistorySession, selectAmbiguousMatch } from "../../tracker";
-import { TOURS, findTour } from "./tourDefinitions";
+import { tours, findTour } from "./tourDefinitions";
 import { findTourElement, findTourTarget } from "./tourTargetRect";
 import { readFileSync } from "node:fs";
 
@@ -56,7 +56,7 @@ function Harness({ overlay = false }: { overlay?: boolean }) {
   );
 }
 
-it.each(TOURS.filter((tour) => tour.practice))(
+it.each(tours().filter((tour) => tour.practice))(
   "prepares every target in $id when exercises are skipped",
   async (tour) => {
     await act(() => {
@@ -391,7 +391,7 @@ it("previews the learner's note and opens its private journal from Update note",
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
-it.each(TOURS.filter((tour) => tour.simulation))(
+it.each(tours().filter((tour) => tour.simulation))(
   "prepares every isolated simulation target in $id",
   async (tour) => {
     await act(() => {

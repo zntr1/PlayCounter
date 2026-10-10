@@ -13,6 +13,7 @@ import enNowPlaying from "./locales/en/nowPlaying.json";
 import enSettings from "./locales/en/settings.json";
 import enShell from "./locales/en/shell.json";
 import enSoftware from "./locales/en/software.json";
+import enTour from "./locales/en/tour.json";
 
 /* PlayCounter's language. Texts live in src/locales/<language>/<area>.json,
    one file per area. The key is the English text itself, so code reads
@@ -48,6 +49,7 @@ const resources = {
     settings: enSettings,
     shell: enShell,
     software: enSoftware,
+    tour: enTour,
   },
 };
 

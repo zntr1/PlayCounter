@@ -154,7 +154,7 @@ import {
 } from "./personalLibrary";
 import { normalizeAccentColor } from "./theme";
 import { resolveMyGamesPresentationSettings } from "./ui/myGamesPresentation";
-import { TOURS } from "./ui/tour/tourDefinitions";
+import { tours } from "./ui/tour/tourDefinitions";
 import { normalizeTourProgress } from "./ui/tour/tourState";
 import { loadExeDetails } from "./ui/exeDetails";
 import { decideCollision } from "./softwareCollision";
@@ -1327,7 +1327,7 @@ export function hydrate() {
     autoDetectedGameKeys,
     tourProgress: normalizeTourProgress(
       persisted.tours,
-      TOURS.map((tour) => tour.id),
+      tours().map((tour) => tour.id),
     ),
     lastSeenReleaseNotesVersion:
       typeof persisted.lastSeenReleaseNotesVersion === "string" &&

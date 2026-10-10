@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { TOURS, type TourStep } from "./tourDefinitions";
+import { tours, type TourStep } from "./tourDefinitions";
 import { backStepIndex, nextStepIndex, stepView } from "./tourNavigation";
 
 describe("tour definitions", () => {
   it("use unique ids and safe demo-only selectors for interactive steps", () => {
-    expect(new Set(TOURS.map((tour) => tour.id)).size).toBe(TOURS.length);
-    for (const tour of TOURS) {
+    expect(new Set(tours().map((tour) => tour.id)).size).toBe(tours().length);
+    for (const tour of tours()) {
       expect(new Set(tour.steps.map((step) => step.id)).size).toBe(
         tour.steps.length,
       );
@@ -55,14 +55,16 @@ describe("tour definitions", () => {
 
   it("does not make demo-backed steps optional", () => {
     expect(
-      TOURS.flatMap((tour) => tour.steps).filter(
-        (step) => step.optional && step.anchor?.includes('data-tour="demo-'),
-      ),
+      tours()
+        .flatMap((tour) => tour.steps)
+        .filter(
+          (step) => step.optional && step.anchor?.includes('data-tour="demo-'),
+        ),
     ).toEqual([]);
   });
 
   it("documents the emulator live view and management page", () => {
-    const guide = TOURS.find((tour) => tour.id === "emulators")!;
+    const guide = tours().find((tour) => tour.id === "emulators")!;
     expect(guide.version).toBe(4);
     expect(guide.steps.map((step) => step.id)).toEqual([
       "intro",
@@ -99,19 +101,19 @@ describe("tour definitions", () => {
   });
 
   it("honours backTo and deterministic view directives", () => {
-    const guide = TOURS.find((tour) => tour.id === "log-playtime")!;
+    const guide = tours().find((tour) => tour.id === "log-playtime")!;
     const fill = guide.steps.findIndex((step) => step.id === "fill-dialog");
     expect(guide.steps[backStepIndex(guide.steps, fill, () => true)].id).toBe(
       "open-menu",
     );
     expect(stepView(guide.steps[0], "now", "history")).toBe("games");
-    expect(stepView(TOURS[0].steps.at(-1)!, "settings", "history")).toBe(
+    expect(stepView(tours()[0].steps.at(-1)!, "settings", "history")).toBe(
       "history",
     );
   });
 
   it("walks through the Playtime submenu before choosing a session action", () => {
-    const guide = TOURS.find((tour) => tour.id === "log-playtime")!;
+    const guide = tours().find((tour) => tour.id === "log-playtime")!;
     const opening = guide.steps.find((step) => step.id === "open-playtime")!;
     const action = guide.steps.find((step) => step.id === "pick-item")!;
     expect(opening.anchor).toBe('[data-tour="demo-menu-playtime"]');
@@ -127,7 +129,7 @@ describe("tour definitions", () => {
   });
 
   it("documents the My Games context-menu action groups", () => {
-    const guide = TOURS.find((tour) => tour.id === "game-actions")!;
+    const guide = tours().find((tour) => tour.id === "game-actions")!;
     expect(guide.demoGame).toBe(true);
     expect(guide.steps.map((step) => step.id)).toEqual([
       "intro",
@@ -169,7 +171,7 @@ describe("tour definitions", () => {
         "demo-menu-report-match",
       ],
     };
-    for (const tour of TOURS) {
+    for (const tour of tours()) {
       for (const step of tour.steps) {
         const targets = step.anchorTargets ?? [];
         for (const [trigger, items] of Object.entries(flyouts)) {
@@ -193,9 +195,9 @@ describe("tour definitions", () => {
       }
     }
     const step = (tourId: string, id: string) =>
-      TOURS.find((tour) => tour.id === tourId)!.steps.find(
-        (entry) => entry.id === id,
-      )!;
+      tours()
+        .find((tour) => tour.id === tourId)!
+        .steps.find((entry) => entry.id === id)!;
     expect(step("log-playtime", "alternative").anchorTargets).toContain(
       '[data-tour="demo-menu-adjust-playtime"]',
     );
@@ -220,7 +222,7 @@ describe("tour definitions", () => {
   });
 
   it("explains the opt-in launcher and its controller flow", () => {
-    const guide = TOURS.find((tour) => tour.id === "launch-games")!;
+    const guide = tours().find((tour) => tour.id === "launch-games")!;
     expect(guide.demoGame).toBe(true);
     expect(guide.steps.map((step) => step.id)).toEqual([
       "intro",
@@ -238,9 +240,9 @@ describe("tour definitions", () => {
   });
 
   it("keeps skip, back, and follow-up destinations reachable", () => {
-    for (const tour of TOURS) {
+    for (const tour of tours()) {
       if (tour.nextTourId)
-        expect(TOURS.some((next) => next.id === tour.nextTourId)).toBe(true);
+        expect(tours().some((next) => next.id === tour.nextTourId)).toBe(true);
       for (const step of tour.steps) {
         for (const destination of [step.skipTo, step.backTo].filter(Boolean)) {
           expect(
@@ -252,7 +254,7 @@ describe("tour definitions", () => {
   });
 
   it("walks through every preference section in Personalize PlayCounter", () => {
-    const guide = TOURS.find((tour) => tour.id === "settings")!;
+    const guide = tours().find((tour) => tour.id === "settings")!;
     expect(guide.steps.map((step) => step.id)).toEqual([
       "intro",
       "general",
@@ -277,7 +279,7 @@ describe("tour definitions", () => {
   });
 
   it("offers read-only backup and feedback guides alongside the practice tours", () => {
-    const release = TOURS.filter((tour) => tour.release === "1.1.17");
+    const release = tours().filter((tour) => tour.release === "1.1.17");
     expect(
       release.filter((tour) => tour.practice).map((tour) => tour.id),
     ).toEqual(["notes-playthroughs", "organize-library", "library-progress"]);

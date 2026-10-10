@@ -2,6 +2,9 @@ import type { CommunityMetadataCandidate } from "@playcounter/shared";
 import { useState } from "react";
 import { CommunitySuggestionForm } from "../views/DiscoveredView";
 import { TOUR_DEMO_GAME, TOUR_DEMO_EMULATOR } from "./tourDemoGame";
+import { getT } from "../../i18n";
+
+const t = getT("tour");
 
 export const TOUR_SAMPLE_CHOICES: CommunityMetadataCandidate[] = [
   {
@@ -36,7 +39,7 @@ export function TourSampleSearch({
   return (
     <CommunitySuggestionForm
       practice
-      title="Choose the sample game"
+      title={t("Choose the sample game")}
       exeName={exeName}
       candidates={choices}
       selection={selection}
@@ -44,8 +47,10 @@ export function TourSampleSearch({
       state="idle"
       message={
         choices.length
-          ? "Review the title and cover, then confirm. Practice only; nothing is shared."
-          : "No sample result. Try World of Warcraft or Zelda."
+          ? t(
+              "Review the title and cover, then confirm. Practice only; nothing is shared.",
+            )
+          : t("No sample result. Try World of Warcraft or Zelda.")
       }
       onSearchChange={setQuery}
       onApplyCandidate={setSelection}
