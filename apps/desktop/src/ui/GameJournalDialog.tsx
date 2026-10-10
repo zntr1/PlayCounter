@@ -53,7 +53,10 @@ import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
 import { getSessionGameKey } from "../historyStats";
 import { usePickedCovers } from "../pickedCovers";
-import { appLocale } from "../i18n";
+import { appLocale, getT } from "../i18n";
+import { Trans } from "react-i18next";
+
+const t = getT("dialogs");
 
 /* The game journal ───────────────────────────────────────────────────────────
    One game, one page. The header carries the game: cover, totals, and the
@@ -113,7 +116,7 @@ export function SessionPlaythroughPicker({
         icon={BookOpen}
         aria-haspopup="menu"
         aria-expanded={menu.open}
-        aria-label={`Playthrough for session ${session.id}`}
+        aria-label={t("Playthrough for session {{id}}", { id: session.id })}
         className={
           compact
             ? "max-w-[220px] border-transparent bg-surface-hover !px-2 !py-0.5 !text-[12px]"
@@ -135,7 +138,9 @@ export function SessionPlaythroughPicker({
         anchorRef={menu.anchorRef}
         onClose={menu.close}
       >
-        <ContextMenuHeading>Count this session towards</ContextMenuHeading>
+        <ContextMenuHeading>
+          {t("Count this session towards")}
+        </ContextMenuHeading>
         <ContextMenuItem
           selected={current === null}
           onClick={() => {
@@ -156,7 +161,7 @@ export function SessionPlaythroughPicker({
             }}
           >
             {p.name}
-            {p.completedAt ? " · Finished" : ""}
+            {p.completedAt ? ` · ${t("Finished")}` : ""}
           </ContextMenuItem>
         ))}
       </ContextMenu>
@@ -320,8 +325,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     `${formatDuration(trackedSeconds, showDays)} tracked`,
     `${gameSessions.length} ${gameSessions.length === 1 ? "session" : "sessions"}`,
     lastPlayedAt
-      ? `last played ${new Date(lastPlayedAt).toLocaleDateString(appLocale())}`
-      : "no sessions yet",
+      ? t("last played {{date}}", {
+          date: new Date(lastPlayedAt).toLocaleDateString(appLocale()),
+        })
+      : t("no sessions yet"),
   ];
 
   return (
@@ -332,7 +339,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
       size="xl"
       className="game-journal h-[88vh] max-h-[960px] !max-w-7xl"
       bodyClassName="flex flex-col !overflow-hidden !p-0"
-      title={target.game.gameName ?? "Game journal"}
+      title={target.game.gameName ?? t("Game journal")}
       header={
         <div className="journal-header relative shrink-0 border-b border-border bg-gradient-to-br from-accent/10 via-surface to-surface px-5 py-5 before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-accent/80 before:to-transparent sm:px-6 sm:before:inset-x-6">
           <div className="journal-header-main flex items-start gap-5">
@@ -350,14 +357,14 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             <div className="min-w-0 flex-1 self-center">
               <div className="min-w-0">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent-ink">
-                  Journal
+                  {t("Journal")}
                 </div>
                 <h2
                   id="game-journal-title"
                   className="journal-header-title mt-0.5 truncate text-2xl font-bold leading-tight text-text sm:text-3xl"
                   title={target.game.gameName ?? undefined}
                 >
-                  {target.game.gameName ?? "Game journal"}
+                  {target.game.gameName ?? t("Game journal")}
                 </h2>
                 <p className="mt-1.5 text-sm text-text-muted">
                   {stats.join(" · ")}
@@ -365,7 +372,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               </div>
             </div>
             <div className="journal-header-actions flex shrink-0 flex-col items-end gap-3">
-              <IconButton icon={X} aria-label="Close" onClick={close} />
+              <IconButton icon={X} aria-label={t("Close")} onClick={close} />
               <GameShelfStrip target={target} />
             </div>
           </div>
@@ -377,11 +384,11 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
           <span className="inline-flex items-center gap-2 text-xs text-text-faint">
             <Info size={14} className="shrink-0" />
             {practice
-              ? "Practice only · changes disappear when you leave the guide."
-              : "Notes and playthroughs are stored on this PC only."}
+              ? t("Practice only · changes disappear when you leave the guide.")
+              : t("Notes and playthroughs are stored on this PC only.")}
           </span>
           <Button variant="primary" icon={Check} onClick={close}>
-            {draft !== storedNote ? "Save and close" : "Done"}
+            {draft !== storedNote ? t("Save and close") : t("Done")}
           </Button>
         </div>
       }
@@ -392,7 +399,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
       >
         <div className="flex min-h-0 flex-col border-border md:border-r">
           <div className="px-5 pb-2 pt-4">
-            <h3 className={eyebrowClass}>Playthroughs</h3>
+            <h3 className={eyebrowClass}>{t("Playthroughs")}</h3>
           </div>
           <div
             data-controller-scroll
@@ -401,7 +408,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             <div
               data-tour={practice ? "demo-playthrough-list" : undefined}
               role="listbox"
-              aria-label="Playthroughs"
+              aria-label={t("Playthroughs")}
               className="space-y-2"
             >
               {ledger.map((entry) => (
@@ -445,10 +452,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   <Input
                     data-tour={practice ? "demo-playthrough-name" : undefined}
                     autoFocus
-                    aria-label="New playthrough name"
+                    aria-label={t("New playthrough name")}
                     maxLength={NAME_LIMIT}
                     value={name}
-                    placeholder="Speedrun, New Game+, Hardcore…"
+                    placeholder={t("Speedrun, New Game+, Hardcore…")}
                     className="w-full !py-1.5 text-[13px]"
                     onChange={(event) => setName(event.target.value)}
                     onKeyDown={(event) => {
@@ -468,7 +475,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                         setName("");
                       }}
                     >
-                      Cancel
+                      {t("Cancel")}
                     </Button>
                     <Button
                       data-tour={
@@ -477,11 +484,11 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                       type="submit"
                       variant="primary"
                       icon={Plus}
-                      aria-label="Create playthrough"
+                      aria-label={t("Create playthrough")}
                       className="!px-2.5 !py-1.5 text-[13px]"
                       disabled={!name.trim()}
                     >
-                      Create
+                      {t("Create")}
                     </Button>
                   </div>
                 </form>
@@ -493,7 +500,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 text-sm font-medium text-text transition hover:border-accent/50 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                 >
                   <Plus size={16} />
-                  Add playthrough
+                  {t("Add playthrough")}
                 </button>
               )}
             </div>
@@ -501,11 +508,14 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
             <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-border bg-bg px-3.5 py-3 text-[13px] leading-5 text-text-muted">
               <Info size={16} className="mt-0.5 shrink-0 text-text-faint" />
               <p>
-                Your next session will be assigned to{" "}
-                <span className="font-medium text-text">
-                  {playthroughName(journal)}
-                </span>
-                .
+                <Trans
+                  t={t}
+                  i18nKey="Your next session will be assigned to <name>{{name}}</name>."
+                  values={{ name: playthroughName(journal) }}
+                  components={{
+                    name: <span className="font-medium text-text" />,
+                  }}
+                />
               </p>
             </div>
           </div>
@@ -520,7 +530,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               {playthrough ? (
                 <Input
                   key={`${playthrough.id}:${playthrough.name}`}
-                  aria-label="Playthrough name"
+                  aria-label={t("Playthrough name")}
                   maxLength={NAME_LIMIT}
                   defaultValue={playthrough.name}
                   className="-mx-2 w-full border-transparent bg-transparent !px-2 !py-1 !text-lg font-bold leading-7 !text-text hover:border-border"
@@ -542,14 +552,21 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               <p className="mt-1 text-xs text-text-muted">
                 {playthrough
                   ? `Started ${new Date(playthrough.createdAt).toLocaleDateString(appLocale())}`
-                  : "All sessions that are not assigned to a named playthrough."}
+                  : t(
+                      "All sessions that are not assigned to a named playthrough.",
+                    )}
                 {selectedArchivedSeconds > 0
-                  ? ` · includes ${formatDuration(selectedArchivedSeconds, showDays)} from archived sessions`
+                  ? ` · ${t("includes {{duration}} from archived sessions", {
+                      duration: formatDuration(
+                        selectedArchivedSeconds,
+                        showDays,
+                      ),
+                    })}`
                   : ""}
               </p>
             </div>
             <div className="text-right">
-              <div className={eyebrowClass}>Playtime</div>
+              <div className={eyebrowClass}>{t("Playtime")}</div>
               <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-accent-ink">
                 {formatDuration(selectedSeconds, showDays)}
               </div>
@@ -570,7 +587,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               }
               title={
                 playthrough?.completedAt
-                  ? "Reopen this playthrough to make it active"
+                  ? t("Reopen this playthrough to make it active")
                   : undefined
               }
               onClick={() =>
@@ -580,8 +597,8 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               }
             >
               {journal.activePlaythroughId === selected
-                ? "Active"
-                : "Make active"}
+                ? t("Active")
+                : t("Make active")}
             </Pill>
             {playthrough ? (
               <Pill
@@ -598,15 +615,15 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                     })
                 }
               >
-                {playthrough.completedAt ? "Finished" : "Mark finished"}
+                {playthrough.completedAt ? t("Finished") : t("Mark finished")}
               </Pill>
             ) : null}
             {playthrough?.completedAt ? (
               <label className="flex items-center gap-2 text-xs text-text-muted">
-                on
+                {t("on")}
                 <Input
                   type="date"
-                  aria-label="Playthrough completion date"
+                  aria-label={t("Playthrough completion date")}
                   className="!py-1 text-xs"
                   value={playthrough.completedAt.slice(0, 10)}
                   onChange={(event) => {
@@ -624,8 +641,8 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               <IconButton
                 icon={Trash2}
                 intent="danger"
-                aria-label="Delete playthrough"
-                title="Delete playthrough"
+                aria-label={t("Delete playthrough")}
+                title={t("Delete playthrough")}
                 className="ml-auto"
                 onClick={() => setDeleting(true)}
               />
@@ -634,8 +651,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
 
           {deleting && playthrough ? (
             <div className="rounded-lg border border-warning-border bg-warning-tint p-3 text-sm text-text">
-              Delete “{playthrough.name}” and its note? Its sessions move back
-              to Default playthrough. No playtime is lost.
+              {t(
+                "Delete “{{name}}” and its note? Its sessions move back to Default playthrough. No playtime is lost.",
+                { name: playthrough.name },
+              )}
               <div className="mt-3 flex gap-2">
                 <Button
                   variant="danger"
@@ -647,10 +666,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                     setDeleting(false);
                   }}
                 >
-                  Delete playthrough
+                  {t("Delete playthrough")}
                 </Button>
                 <Button variant="secondary" onClick={() => setDeleting(false)}>
-                  Cancel
+                  {t("Cancel")}
                 </Button>
               </div>
             </div>
@@ -665,23 +684,26 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               id="journal-note-heading"
               className="text-base font-bold text-text"
             >
-              Game notes
+              {t("Game notes")}
             </h4>
             <p className="mt-0.5 text-[13px] text-text-muted">
-              Keep track of where you are, your goals, and anything else about
-              your journey.
+              {t(
+                "Keep track of where you are, your goals, and anything else about your journey.",
+              )}
             </p>
             <textarea
               data-tour={practice ? "demo-note-input" : undefined}
               id="journal-note"
-              aria-label="Note"
+              aria-label={t("Note")}
               data-autofocus={target.tab === "note" ? "" : undefined}
               rows={5}
               maxLength={Math.max(NOTE_LIMIT, storedNote.length)}
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onBlur={saveNote}
-              placeholder="Where did you stop? What do you want to do next?"
+              placeholder={t(
+                "Where did you stop? What do you want to do next?",
+              )}
               className="mt-3 w-full resize-y rounded-xl border border-border bg-bg p-4 text-sm leading-relaxed text-text outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30"
             />
             <div className="mt-2 flex items-center gap-3">
@@ -692,7 +714,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 {draft === storedNote ? (
                   <Check size={14} className="text-success" />
                 ) : null}
-                {draft === storedNote ? "Saved" : "Unsaved changes"}
+                {draft === storedNote ? t("Saved") : t("Unsaved changes")}
               </span>
               <span className="ml-auto font-mono text-[11px] tabular-nums text-text-faint">
                 {draft.length.toLocaleString(appLocale())} /{" "}
@@ -707,7 +729,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 onClick={saveNote}
                 disabled={draft === storedNote}
               >
-                Save note
+                {t("Save note")}
               </Button>
             </div>
           </section>
@@ -718,7 +740,9 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
           >
             <div className="flex items-center justify-between gap-3">
               <h4 className={eyebrowClass}>
-                Recorded sessions · {selectedSessions.length}
+                {t("Recorded sessions · {{count}}", {
+                  count: selectedSessions.length,
+                })}
               </h4>
               {!practice && gameSessions.length ? (
                 <ShowHistoryLink
@@ -734,13 +758,13 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                   <thead>
                     <tr className="border-b border-border bg-bg text-left">
                       <th className={`px-3 py-2 font-semibold ${eyebrowClass}`}>
-                        Date
+                        {t("Date")}
                       </th>
                       <th className={`px-3 py-2 font-semibold ${eyebrowClass}`}>
-                        Duration
+                        {t("Duration")}
                       </th>
                       <th className={`px-3 py-2 font-semibold ${eyebrowClass}`}>
-                        Playthrough
+                        {t("Playthrough")}
                       </th>
                     </tr>
                   </thead>
@@ -750,7 +774,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                         <td className="whitespace-nowrap px-3 py-2">
                           <span className="inline-flex items-center gap-2 text-success">
                             <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                            Playing now
+                            {t("Playing now")}
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-text">
@@ -796,8 +820,9 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 </table>
               ) : (
                 <p className="px-3 py-4 text-sm text-text-faint">
-                  No sessions yet. New sessions are added here while this
-                  playthrough is active.
+                  {t(
+                    "No sessions yet. New sessions are added here while this playthrough is active.",
+                  )}
                 </p>
               )}
             </div>
@@ -839,7 +864,7 @@ function ShowHistoryLink({
         setActiveView("history");
       }}
     >
-      Show full history
+      {t("Show full history")}
       <ArrowRight size={14} />
     </Button>
   );
@@ -879,7 +904,9 @@ function LedgerRow({
       data-autofocus={autoFocus ? "" : undefined}
       onClick={onSelect}
       onDoubleClick={onActivate}
-      title={onActivate && !active ? "Double-click to make active" : undefined}
+      title={
+        onActivate && !active ? t("Double-click to make active") : undefined
+      }
       className={`grid w-full gap-2 rounded-xl border px-3.5 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
         selected
           ? "border-accent/60 bg-accent-tint"
@@ -904,17 +931,17 @@ function LedgerRow({
         </span>
         {active ? (
           <span
-            title="New sessions count towards this playthrough"
+            title={t("New sessions count towards this playthrough")}
             className="ml-auto shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-ink"
           >
-            Active
+            {t("Active")}
           </span>
         ) : null}
         {entry.completedAt ? (
           <Flag
             size={12}
             className={`shrink-0 text-success ${active ? "" : "ml-auto"}`}
-            aria-label="Finished"
+            aria-label={t("Finished")}
           />
         ) : null}
       </div>
@@ -977,7 +1004,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         aria-pressed={journal.favorite}
         onClick={() => update(target.game, { favorite: !journal.favorite })}
       >
-        {journal.favorite ? "Favorite" : "Add to Favorites"}
+        {journal.favorite ? t("Favorite") : t("Add to Favorites")}
       </Pill>
 
       <Pill
@@ -985,7 +1012,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         ref={statusMenu.anchorRef}
         aria-haspopup="menu"
         aria-expanded={statusMenu.open}
-        aria-label="Progress status"
+        aria-label={t("Progress status")}
         data-autofocus={
           target.tab === "organize" && !showShelves ? "" : undefined
         }
@@ -995,7 +1022,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         <span
           className={`h-2 w-2 rounded-full ${status ? STATUS_TONES[status].dot : "bg-text-faint"}`}
         />
-        {status ? gameStatusLabel(status) : "Set progress"}
+        {status ? gameStatusLabel(status) : t("Set progress")}
         <ChevronDown size={12} className="opacity-70" />
       </Pill>
       <ContextMenu
@@ -1005,7 +1032,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
         anchorRef={statusMenu.anchorRef}
         onClose={statusMenu.close}
       >
-        <ContextMenuHeading>Progress</ContextMenuHeading>
+        <ContextMenuHeading>{t("Progress")}</ContextMenuHeading>
         {GAME_STATUS_LIST.map((value) => (
           <ContextMenuItem
             key={value}
@@ -1029,8 +1056,11 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
               className={headerButton}
               key={shelf.id}
               selected
-              aria-label={`Remove ${target.game.gameName ?? "game"} from ${shelf.name}`}
-              title="Remove from this shelf"
+              aria-label={t("Remove {{game}} from {{shelf}}", {
+                game: target.game.gameName ?? t("game"),
+                shelf: shelf.name,
+              })}
+              title={t("Remove from this shelf")}
               onClick={() => toggleShelf(shelf.id, true)}
             >
               {shelf.name}
@@ -1047,7 +1077,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             data-autofocus={target.tab === "organize" ? "" : undefined}
             onClick={shelfMenu.toggle}
           >
-            Add to shelf
+            {t("Add to shelf")}
           </Pill>
           <ContextMenu
             dataTour={practice ? "demo-library-menu" : undefined}
@@ -1056,7 +1086,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             anchorRef={shelfMenu.anchorRef}
             onClose={shelfMenu.close}
           >
-            <ContextMenuHeading>Shelves</ContextMenuHeading>
+            <ContextMenuHeading>{t("Shelves")}</ContextMenuHeading>
             {manualShelves.map((shelf) => (
               <ContextMenuItem
                 key={shelf.id}
@@ -1071,8 +1101,9 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
             ))}
             {!manualShelves.length ? (
               <p className="max-w-56 px-3 py-2 text-xs leading-5 text-text-muted">
-                Shelves group your games any way you like. A game can sit on
-                several shelves.
+                {t(
+                  "Shelves group your games any way you like. A game can sit on several shelves.",
+                )}
               </p>
             ) : null}
             <form
@@ -1088,10 +1119,10 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
               }}
             >
               <Input
-                aria-label="New shelf name"
+                aria-label={t("New shelf name")}
                 maxLength={NAME_LIMIT}
                 value={shelfName}
-                placeholder="Online Games"
+                placeholder={t("Online Games")}
                 className="w-40 !py-1 text-[13px]"
                 onChange={(event) => setShelfName(event.target.value)}
               />
@@ -1099,7 +1130,7 @@ function GameShelfStrip({ target }: { target: JournalTarget }) {
                 type="submit"
                 variant="secondary"
                 icon={Plus}
-                aria-label="Create shelf and add this game"
+                aria-label={t("Create shelf and add this game")}
                 className="!px-2"
                 disabled={!shelfName.trim()}
               />

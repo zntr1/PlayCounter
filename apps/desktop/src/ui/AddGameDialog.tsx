@@ -22,6 +22,10 @@ import { useAppStore, type GameMetadata } from "../store";
 import { linkGameFileByHand, linkServerKnownFiles } from "../tracker";
 import { GameCover } from "./GameCover";
 import { Button, Input, Modal } from "./primitives";
+import { Trans } from "react-i18next";
+import { getT } from "../i18n";
+
+const t = getT("dialogs");
 
 /* "Add game" in My Games ─────────────────────────────────────────────────────
    Search a game by name, optionally pick its .exe so Play works right away.
@@ -88,7 +92,9 @@ export function AddGameDialog({
       setMessage(
         games.length > 0
           ? ""
-          : "No matching games found. Try the English title or another spelling.",
+          : t(
+              "No matching games found. Try the English title or another spelling.",
+            ),
       );
     } catch (cause) {
       if (controller.signal.aborted) return;
@@ -123,11 +129,11 @@ export function AddGameDialog({
       tone: "success",
       title:
         forGame?.name === name
-          ? `Launch file set for ${name}`
+          ? t("Launch file set for {{name}}", { name })
           : `${name} added`,
       detail: file
-        ? `Play starts ${file.exeName}.`
-        : "It's in My Games now. Log past playtime from its card.",
+        ? t("Play starts {{exeName}}.", { exeName: file.exeName })
+        : t("It's in My Games now. Log past playtime from its card."),
     });
     onClose();
   }
@@ -139,7 +145,10 @@ export function AddGameDialog({
     if (!filePath) {
       try {
         if (addGameWithoutFile(selected)) await done(selected);
-        else setMessage(`${selected.name} is already in your library.`);
+        else
+          setMessage(
+            t("{{name}} is already in your library.", { name: selected.name }),
+          );
       } finally {
         setBusy(false);
       }
@@ -149,21 +158,30 @@ export function AddGameDialog({
       const check = await checkGameFile(filePath, selected);
       switch (check.kind) {
         case "invalid":
-          setFileError("Pick an .exe file.");
+          setFileError(t("Pick an .exe file."));
           return;
         case "ignored":
           setFileError(
-            `${check.file.exeName} is on PlayCounter's ignore list, so it cannot be the game file.`,
+            t(
+              "{{exeName}} is on PlayCounter's ignore list, so it cannot be the game file.",
+              { exeName: check.file.exeName },
+            ),
           );
           return;
         case "software":
           setFileError(
-            `${check.file.exeName} is ${check.name}. PlayCounter counts it as software, not as a game.`,
+            t(
+              "{{exeName}} is {{name}}. PlayCounter counts it as software, not as a game.",
+              { exeName: check.file.exeName, name: check.name },
+            ),
           );
           return;
         case "taken":
           setFileError(
-            `${check.file.exeName} already counts for ${check.game.name}.`,
+            t("{{exeName}} already counts for {{name}}.", {
+              exeName: check.file.exeName,
+              name: check.game.name,
+            }),
           );
           return;
         case "same":
@@ -217,20 +235,29 @@ export function AddGameDialog({
       if (outcome?.kind === "submitted") {
         addToast({
           tone: "success",
-          title: `${selected.name} added and shared`,
-          detail: `${file.exeName} is waiting for community review. Play starts it.`,
+          title: t("{{name}} added and shared", { name: selected.name }),
+          detail: t(
+            "{{exeName}} is waiting for community review. Play starts it.",
+            { exeName: file.exeName },
+          ),
         });
       } else if (outcome?.kind === "rejected") {
         addToast({
           tone: "info",
-          title: `${selected.name} added`,
-          detail: `${file.exeName} was reviewed before and not accepted. It is tracked on this PC.`,
+          title: t("{{name}} added", { name: selected.name }),
+          detail: t(
+            "{{exeName}} was reviewed before and not accepted. It is tracked on this PC.",
+            { exeName: file.exeName },
+          ),
         });
       } else if (outcome?.kind === "failed") {
         addToast({
           tone: "info",
-          title: `${selected.name} added`,
-          detail: `Sharing ${file.exeName} failed: ${outcome.error}`,
+          title: t("{{name}} added", { name: selected.name }),
+          detail: t("Sharing {{exeName}} failed: {{error}}", {
+            exeName: file.exeName,
+            error: outcome.error,
+          }),
         });
       } else {
         finish(selected.name, file);
@@ -245,7 +272,7 @@ export function AddGameDialog({
   const filePart = (
     <div className="grid gap-2 rounded-lg border border-border bg-bg/50 p-3">
       <p className="text-xs font-semibold text-text">
-        {forGame ? "Game file" : "Game file (optional)"}
+        {forGame ? t("Game file") : t("Game file (optional)")}
       </p>
       {filePath ? (
         <div className="flex items-center gap-2">
@@ -259,14 +286,14 @@ export function AddGameDialog({
           <Button
             variant="ghost"
             icon={X}
-            aria-label="Remove game file"
+            aria-label={t("Remove game file")}
             onClick={() => {
               setFilePath(null);
               setFileError("");
             }}
             className="h-7 px-2 text-xs"
           >
-            Remove
+            {t("Remove")}
           </Button>
         </div>
       ) : (
@@ -277,11 +304,13 @@ export function AddGameDialog({
             onClick={() => void pickFile()}
             className="h-8 text-xs"
           >
-            Pick game file…
+            {t("Pick game file…")}
           </Button>
           {forGame ? null : (
             <span className="text-xs text-text-muted">
-              Without a file, the game is matched the first time you run it.
+              {t(
+                "Without a file, the game is matched the first time you run it.",
+              )}
             </span>
           )}
         </div>
@@ -303,7 +332,7 @@ export function AddGameDialog({
           disabled={busy}
           onClick={() => setStep({ kind: "pick" })}
         >
-          Back
+          {t("Back")}
         </Button>
       </div>
     ) : step.kind === "share" ? (
@@ -314,14 +343,14 @@ export function AddGameDialog({
           disabled={busy}
           onClick={() => setStep({ kind: "pick" })}
         >
-          Back
+          {t("Back")}
         </Button>
         <Button
           variant="secondary"
           disabled={busy}
           onClick={() => selected && void linkTo(step.file, selected, "custom")}
         >
-          Add on this PC only
+          {t("Add on this PC only")}
         </Button>
         <Button
           variant="primary"
@@ -329,13 +358,13 @@ export function AddGameDialog({
           loading={busy}
           onClick={() => void share(step.file)}
         >
-          Add and share
+          {t("Add and share")}
         </Button>
       </div>
     ) : (
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button
           variant="primary"
@@ -346,7 +375,7 @@ export function AddGameDialog({
           }
           onClick={() => void add()}
         >
-          {forGame ? "Set launch file" : "Add game"}
+          {forGame ? t("Set launch file") : t("Add game")}
         </Button>
       </div>
     );
@@ -355,12 +384,15 @@ export function AddGameDialog({
     <Modal
       size="lg"
       labelId="add-game-dialog-title"
-      eyebrow="My Games"
-      title={forGame ? "Set launch file" : "Add game"}
+      eyebrow={t("My Games")}
+      title={forGame ? t("Set launch file") : t("Add game")}
       subtitle={
         forGame
-          ? `Pick the .exe that starts ${forGame.name}. PlayCounter tracks it too.`
-          : "Search the game. Add its .exe so Play works right away."
+          ? t(
+              "Pick the .exe that starts {{name}}. PlayCounter tracks it too.",
+              { name: forGame.name },
+            )
+          : t("Search the game. Add its .exe so Play works right away.")
       }
       icon={forGame ? FolderSearch : Plus}
       onClose={onClose}
@@ -369,15 +401,24 @@ export function AddGameDialog({
       {step.kind === "other" && selected ? (
         <div className="grid gap-4">
           <p className="text-sm leading-6 text-text-muted">
-            {step.game.source === "community" ? "The community" : "IGDB"} knows{" "}
-            <span className="font-semibold text-text">{step.file.exeName}</span>{" "}
-            as <span className="font-semibold text-text">{step.game.name}</span>
-            . Which game is it?
+            <Trans
+              t={t}
+              i18nKey={
+                step.game.source === "community"
+                  ? "The community knows <file>{{file}}</file> as <game>{{game}}</game>. Which game is it?"
+                  : "IGDB knows <file>{{file}}</file> as <game>{{game}}</game>. Which game is it?"
+              }
+              values={{ file: step.file.exeName, game: step.game.name }}
+              components={{
+                file: <span className="font-semibold text-text" />,
+                game: <span className="font-semibold text-text" />,
+              }}
+            />
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <GameChoice
               game={selected}
-              note={forGame ? "Your game" : "Your search"}
+              note={forGame ? t("Your game") : t("Your search")}
             >
               <Button
                 variant="primary"
@@ -385,7 +426,7 @@ export function AddGameDialog({
                 onClick={() => void share(step.file, step.game)}
                 className="w-full"
               >
-                Keep {selected.name} and share
+                {t("Keep {{name}} and share", { name: selected.name })}
               </Button>
               <Button
                 variant="ghost"
@@ -395,12 +436,18 @@ export function AddGameDialog({
                 }
                 className="w-full"
               >
-                Keep {selected.name} on this PC only
+                {t("Keep {{name}} on this PC only", { name: selected.name })}
               </Button>
             </GameChoice>
             <GameChoice
               game={step.game}
-              note={`${step.game.source === "community" ? "Community" : "IGDB"} match for ${step.file.exeName}`}
+              note={
+                step.game.source === "community"
+                  ? t("Community match for {{file}}", {
+                      file: step.file.exeName,
+                    })
+                  : t("IGDB match for {{file}}", { file: step.file.exeName })
+              }
             >
               <Button
                 variant="primary"
@@ -409,28 +456,32 @@ export function AddGameDialog({
                 onClick={() => void linkTo(step.file, step.game, "link")}
                 className="w-full"
               >
-                Use {step.game.name}
+                {t("Use {{name}}", { name: step.game.name })}
               </Button>
             </GameChoice>
           </div>
           <p className="text-xs leading-5 text-text-muted">
-            Sharing sends {step.file.exeName} and {selected.name} to community
-            review, without your name. Once approved, anyone who runs{" "}
-            {step.file.exeName} is asked which of the two games it is.
+            {t(
+              "Sharing sends {{exeName}} and {{name}} to community review, without your name. Once approved, anyone who runs {{exeName}} is asked which of the two games it is.",
+              { exeName: step.file.exeName, name: selected.name },
+            )}
           </p>
         </div>
       ) : step.kind === "share" ? (
         <p className="text-sm leading-6 text-text-muted">
-          PlayCounter does not know{" "}
-          <span className="font-semibold text-text">{step.file.exeName}</span>{" "}
-          yet. Add and share sends it to community review together with{" "}
-          <span className="font-semibold text-text">{selected?.name}</span>.
-          Only the file name and the game name are sent. On this PC only sends
-          nothing.
+          <Trans
+            t={t}
+            i18nKey="PlayCounter does not know <file>{{file}}</file> yet. Add and share sends it to community review together with <game>{{game}}</game>. Only the file name and the game name are sent. On this PC only sends nothing."
+            values={{ file: step.file.exeName, game: selected?.name ?? "" }}
+            components={{
+              file: <span className="font-semibold text-text" />,
+              game: <span className="font-semibold text-text" />,
+            }}
+          />
         </p>
       ) : forGame ? (
         <div className="grid gap-4">
-          <GameChoice game={forGame} note="No .exe known yet" />
+          <GameChoice game={forGame} note={t("No .exe known yet")} />
           {filePart}
         </div>
       ) : (
@@ -446,8 +497,8 @@ export function AddGameDialog({
               autoFocus
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by game title or IGDB ID"
-              aria-label="Game title"
+              placeholder={t("Search by game title or IGDB ID")}
+              aria-label={t("Game title")}
               className="min-w-0 flex-1"
             />
             <Button
@@ -457,14 +508,14 @@ export function AddGameDialog({
               loading={searching}
               disabled={!isSearchableGameQuery(query)}
             >
-              Search
+              {t("Search")}
             </Button>
           </form>
 
           {results.length > 0 ? (
             <div
               role="listbox"
-              aria-label="Search results"
+              aria-label={t("Search results")}
               className="grid max-h-64 gap-1.5 overflow-y-auto pr-1"
             >
               {results.map((game) => (
@@ -502,7 +553,7 @@ export function AddGameDialog({
                       {game.igdbId}
                       {game.igdbId !== undefined &&
                       libraryIgdbIds?.has(game.igdbId)
-                        ? " · In your library"
+                        ? ` · ${t("In your library")}`
                         : ""}
                     </span>
                   </span>
@@ -521,8 +572,10 @@ export function AddGameDialog({
 
           {alreadyInLibrary && !filePath ? (
             <p className="text-xs text-text-muted">
-              {selected?.name} is already in your library. Pick its game file to
-              make Play start it.
+              {t(
+                "{{name}} is already in your library. Pick its game file to make Play start it.",
+                { name: selected?.name },
+              )}
             </p>
           ) : null}
         </div>

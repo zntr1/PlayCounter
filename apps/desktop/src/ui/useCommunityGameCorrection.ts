@@ -14,6 +14,9 @@ import {
 import { requestJson } from "../requestJson";
 import { useAppStore, useIsOffline } from "../store";
 import { linkServerKnownFiles } from "../tracker";
+import { getT } from "../i18n";
+
+const t = getT("dialogs");
 
 /* Searching the database and sending a correction ────────────────────────────
    Discovery, library sharing and the ambiguity picker run the same flow: search
@@ -36,7 +39,7 @@ export type CommunityCorrectionOutcome = {
 export function useCommunityGameCorrection({
   exeName,
   targetKey = exeName,
-  resultInstruction = "Pick the game you started.",
+  resultInstruction = t("Pick the game you started."),
   onKnownGame,
   onRejected,
   onSuggested,
@@ -154,9 +157,14 @@ export function useCommunityGameCorrection({
       setMessage(
         results.length > 0
           ? body.hasMore
-            ? `${results.length} matches shown. Load more to keep looking.`
-            : `All ${results.length} matches shown. ${resultInstruction}`
-          : "No matching games found.",
+            ? t("{{count}} matches shown. Load more to keep looking.", {
+                count: results.length,
+              })
+            : t("All {{count}} matches shown. {{resultInstruction}}", {
+                count: results.length,
+                resultInstruction,
+              })
+          : t("No matching games found."),
       );
       setState("idle");
     } catch (error) {
@@ -181,12 +189,16 @@ export function useCommunityGameCorrection({
     if (!candidate.coverUrl) {
       setSelection(null);
       setMessage(
-        `${candidate.name} has no cover art. Pick a result with cover art.`,
+        t("{{name}} has no cover art. Pick a result with cover art.", {
+          name: candidate.name,
+        }),
       );
       return;
     }
     setSelection(candidate);
-    setMessage(`Selected ${candidate.name} from the database.`);
+    setMessage(
+      t("Selected {{name}} from the database.", { name: candidate.name }),
+    );
   }
 
   async function submit() {

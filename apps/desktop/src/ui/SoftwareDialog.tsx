@@ -9,6 +9,9 @@ import {
 import { ArtPickerDialog } from "./ArtPickerDialog";
 import { exeProductName, peekExeDetails } from "./exeDetails";
 import { Button, Input, Modal, Switch } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("dialogs");
 
 /* "Track as software" from Discovered: the app leaves Discovered at once and gets
    its own counter on the Software page. Shared, the community learns it too,
@@ -33,13 +36,13 @@ export async function ignoreAppAsSoftware(
     await ignoreTrackedExecutableAsSoftware(exeName, { name });
     addToast({
       tone: "success",
-      title: `${name} ignored`,
-      detail: "Only on this PC. Nothing was reported.",
+      title: t("{{name}} ignored", { name }),
+      detail: t("Only on this PC. Nothing was reported."),
     });
   } catch (error) {
     addToast({
       tone: "error",
-      title: `Could not ignore ${name}`,
+      title: t("Could not ignore {{name}}", { name }),
       detail: error instanceof Error ? error.message : String(error),
     });
   }
@@ -89,24 +92,27 @@ export function SoftwareDialog({
         coverUrl: coverUrl ?? undefined,
         share: share && !isOffline,
       });
-      const where = "It counts on the Software page now.";
+      const where = t("It counts on the Software page now.");
       if (outcome.kind === "failed") {
         addToast({
           tone: "error",
-          title: `${trimmed} saved on this PC only`,
-          detail: `Sharing failed: ${outcome.error}`,
+          title: t("{{trimmed}} saved on this PC only", { trimmed }),
+          detail: t("Sharing failed: {{error}}", { error: outcome.error }),
         });
       } else {
         addToast({
           tone: "success",
-          title: `Tracking ${trimmed} as software`,
+          title: t("Tracking {{trimmed}} as software", { trimmed }),
           detail:
             outcome.kind === "submitted"
-              ? `Shared for review. ${where}`
+              ? t("Shared for review. {{where}}", { where })
               : outcome.kind === "already-known"
-                ? `The community already knows it. ${where}`
+                ? t("The community already knows it. {{where}}", { where })
                 : outcome.kind === "rejected"
-                  ? `It was shared before and not accepted, so it stays on this PC. ${where}`
+                  ? t(
+                      "It was shared before and not accepted, so it stays on this PC. {{where}}",
+                      { where },
+                    )
                   : where,
         });
       }
@@ -115,7 +121,7 @@ export function SoftwareDialog({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not save",
+        title: t("Could not save"),
         detail: error instanceof Error ? error.message : String(error),
       });
     } finally {
@@ -129,14 +135,14 @@ export function SoftwareDialog({
         labelId="software-dialog-title"
         icon={AppWindow}
         eyebrow={exeName}
-        title="Track as software"
-        subtitle="Counted on the Software page, never as a game."
+        title={t("Track as software")}
+        subtitle={t("Counted on the Software page, never as a game.")}
         onClose={onClose}
         bodyClassName="grid gap-4"
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               variant="primary"
@@ -144,7 +150,7 @@ export function SoftwareDialog({
               disabled={!name.trim()}
               onClick={() => void save()}
             >
-              Save
+              {t("Save")}
             </Button>
           </div>
         }
@@ -157,7 +163,7 @@ export function SoftwareDialog({
           }}
         >
           <label className="grid gap-1.5 text-sm">
-            <span className="font-medium text-text">Name</span>
+            <span className="font-medium text-text">{t("Name")}</span>
             <Input
               value={name}
               maxLength={200}
@@ -166,7 +172,7 @@ export function SoftwareDialog({
             />
           </label>
           <div className="grid gap-1.5 text-sm">
-            <span className="font-medium text-text">Art (optional)</span>
+            <span className="font-medium text-text">{t("Art (optional)")}</span>
             <div className="flex items-center gap-3">
               {coverUrl ? (
                 <img
@@ -180,7 +186,7 @@ export function SoftwareDialog({
                 icon={ImageIcon}
                 onClick={() => setPicking(true)}
               >
-                {coverUrl ? "Change art" : "Pick art"}
+                {coverUrl ? t("Change art") : t("Pick art")}
               </Button>
               {coverUrl ? (
                 <Button
@@ -188,11 +194,11 @@ export function SoftwareDialog({
                   icon={X}
                   onClick={() => setCoverUrl(null)}
                 >
-                  Remove
+                  {t("Remove")}
                 </Button>
               ) : (
                 <span className="text-xs text-text-faint">
-                  Without art, the app's own icon is used.
+                  {t("Without art, the app's own icon is used.")}
                 </span>
               )}
             </div>
@@ -200,16 +206,18 @@ export function SoftwareDialog({
           <label className="flex items-start justify-between gap-4 text-sm">
             <span>
               <span className="block font-medium text-text">
-                Share with the community
+                {t("Share with the community")}
               </span>
               <span className="block text-xs text-text-muted">
                 {isOffline
-                  ? "Sharing needs a connection. It stays on this PC."
-                  : "Sends the file name, the name and the art. After review, PlayCounter recognizes it for everyone."}
+                  ? t("Sharing needs a connection. It stays on this PC.")
+                  : t(
+                      "Sends the file name, the name and the art. After review, PlayCounter recognizes it for everyone.",
+                    )}
               </span>
             </span>
             <Switch
-              aria-label="Share with the community"
+              aria-label={t("Share with the community")}
               checked={share && !isOffline}
               disabled={isOffline}
               onChange={(event) => setShare(event.target.checked)}
@@ -218,14 +226,20 @@ export function SoftwareDialog({
           {tracked ? (
             <p className="rounded-md border border-border bg-bg/50 px-3 py-2 text-xs text-text-muted">
               {tracked.gameName
-                ? `The time tracked as ${tracked.gameName} with ${exeName} moves to the Software page.`
-                : "The time since it was detected moves to the Software page."}
+                ? t(
+                    "The time tracked as {{gameName}} with {{exeName}} moves to the Software page.",
+                    { gameName: tracked.gameName, exeName },
+                  )
+                : t(
+                    "The time since it was detected moves to the Software page.",
+                  )}
             </p>
           ) : null}
           {trackTools ? null : (
             <p className="rounded-md border border-border bg-bg/50 px-3 py-2 text-xs text-text-muted">
-              Saving turns on Track software in Settings. Other software is then
-              counted too.
+              {t(
+                "Saving turns on Track software in Settings. Other software is then counted too.",
+              )}
             </p>
           )}
         </form>

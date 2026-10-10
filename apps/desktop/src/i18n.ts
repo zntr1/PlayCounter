@@ -2,6 +2,7 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import enAchievements from "./locales/en/achievements.json";
 import enCommon from "./locales/en/common.json";
+import enDialogs from "./locales/en/dialogs.json";
 import enDiscovered from "./locales/en/discovered.json";
 import enGames from "./locales/en/games.json";
 import enHistory from "./locales/en/history.json";
@@ -34,6 +35,7 @@ const resources = {
   en: {
     achievements: enAchievements,
     common: enCommon,
+    dialogs: enDialogs,
     discovered: enDiscovered,
     games: enGames,
     history: enHistory,
