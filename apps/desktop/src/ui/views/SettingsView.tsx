@@ -31,7 +31,7 @@ import { adapterFor, emulatorLabelList } from "../../emulators/registry";
 import { exportLocalData, importLocalData } from "../../backup";
 import { useAppStore, useIsOffline } from "../../store";
 import {
-  availableLanguages,
+  APP_LANGUAGES,
   LANGUAGE_NAMES,
   appLocale,
   isAppLanguage,
@@ -484,44 +484,37 @@ export function SettingsView() {
             <option value="games">{t("My Games")}</option>
           </Select>
         </SettingsRow>
-        {/* Shown once this build has more languages than English. */}
-        {availableLanguages().length > 1 ? (
-          <SettingsRow
-            description={t(
-              "System uses your computer's language when PlayCounter has it, otherwise English.",
-            )}
-            title={t("Language")}
+        <SettingsRow
+          description={t(
+            "System uses your computer's language when PlayCounter has it, otherwise English.",
+          )}
+          title={t("Language")}
+        >
+          <Select
+            aria-label={t("Language")}
+            value={
+              isAppLanguage(settings.language) ? settings.language : "system"
+            }
+            onChange={(event) =>
+              setLanguage(
+                isAppLanguage(event.target.value)
+                  ? event.target.value
+                  : "system",
+              )
+            }
           >
-            <Select
-              aria-label={t("Language")}
-              value={
-                availableLanguages().some(
-                  (language) => language === settings.language,
-                )
-                  ? settings.language
-                  : "system"
-              }
-              onChange={(event) =>
-                setLanguage(
-                  isAppLanguage(event.target.value)
-                    ? event.target.value
-                    : "system",
-                )
-              }
-            >
-              <option value="system">
-                {t("System ({{language}})", {
-                  language: LANGUAGE_NAMES[systemLanguage()],
-                })}
+            <option value="system">
+              {t("System ({{language}})", {
+                language: LANGUAGE_NAMES[systemLanguage()],
+              })}
+            </option>
+            {APP_LANGUAGES.map((language) => (
+              <option key={language} value={language}>
+                {LANGUAGE_NAMES[language]}
               </option>
-              {availableLanguages().map((language) => (
-                <option key={language} value={language}>
-                  {LANGUAGE_NAMES[language]}
-                </option>
-              ))}
-            </Select>
-          </SettingsRow>
-        ) : null}
+            ))}
+          </Select>
+        </SettingsRow>
       </SettingsPanel>
 
       <SettingsPanel
