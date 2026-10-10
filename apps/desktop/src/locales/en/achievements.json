@@ -97,5 +97,6 @@
   "Grandmaster": "Grandmaster",
   "Legendary": "Legendary",
   "{{title}} · Unlocked {{date}}": "{{title}} · Unlocked {{date}}",
-  "{{title}} · Locked": "{{title}} · Locked"
+  "{{title}} · Locked": "{{title}} · Locked",
+  "{{count}} {{tier}}": "{{count}} {{tier}}"
 }

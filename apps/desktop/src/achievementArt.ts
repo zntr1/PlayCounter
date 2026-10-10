@@ -174,7 +174,7 @@ function frameClassName(tier: AchievementTier) {
   }
 }
 
-function tierLabel(tier: AchievementTier) {
+export function tierLabel(tier: AchievementTier) {
   switch (tier) {
     case "bronze":
       return t("Bronze");

@@ -45,12 +45,15 @@ const APP_MODAL = "[data-modal-backdrop]:not([data-tour])";
 const insideAppModal = (target: EventTarget | null) =>
   target instanceof Element && Boolean(target.closest(APP_MODAL));
 
-const HELP_TOUR_GROUPS = tourCategories()
-  .map((category) => ({
-    ...category,
-    tours: tours().filter((tour) => tour.category === category.id),
-  }))
-  .filter((group) => group.tours.length > 0);
+// Built on each render, so the menu follows the current language.
+function helpTourGroups() {
+  return tourCategories()
+    .map((category) => ({
+      ...category,
+      tours: tours().filter((tour) => tour.category === category.id),
+    }))
+    .filter((group) => group.tours.length > 0);
+}
 
 export function emitTourEvent(name: TourEventName, message?: string) {
   window.dispatchEvent(
@@ -81,7 +84,8 @@ export function HelpButton() {
   const menuScale = useAppStore((state) =>
     normalizeInterfaceScale(state.settings.menuScale, DEFAULT_MENU_SCALE),
   );
-  const [categoryId, setCategoryId] = useState(HELP_TOUR_GROUPS[0].id);
+  const helpGroups = helpTourGroups();
+  const [categoryId, setCategoryId] = useState(helpGroups[0].id);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -176,7 +180,7 @@ export function HelpButton() {
               aria-orientation="vertical"
               className="flex w-[188px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface-hover/30 p-2"
             >
-              {HELP_TOUR_GROUPS.map((group, index) => {
+              {helpGroups.map((group, index) => {
                 const selected = group.id === categoryId;
                 return (
                   <button
@@ -199,13 +203,12 @@ export function HelpButton() {
                       else if (event.key === "ArrowUp") next -= 1;
                       else if (event.key === "Home") next = 0;
                       else if (event.key === "End")
-                        next = HELP_TOUR_GROUPS.length - 1;
+                        next = helpGroups.length - 1;
                       else return;
                       event.preventDefault();
                       const target =
-                        HELP_TOUR_GROUPS[
-                          (next + HELP_TOUR_GROUPS.length) %
-                            HELP_TOUR_GROUPS.length
+                        helpGroups[
+                          (next + helpGroups.length) % helpGroups.length
                         ];
                       setCategoryId(target.id);
                       document
@@ -229,7 +232,7 @@ export function HelpButton() {
             {/* Every list shares one grid cell so switching topics never
                 resizes the panel; hidden lists only keep their height. */}
             <div className="grid min-w-0 flex-1 grid-rows-[minmax(0,1fr)]">
-              {HELP_TOUR_GROUPS.map((group) => (
+              {helpGroups.map((group) => (
                 <div
                   key={group.id}
                   id={`help-guides-${group.id}`}

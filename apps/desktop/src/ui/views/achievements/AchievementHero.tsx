@@ -1,7 +1,7 @@
 import { Check, Lock } from "lucide-react";
 import { Panel } from "../../components";
 import { AchievementMedal } from "../../AchievementBadge";
-import { ACHIEVEMENT_TIERS } from "../../../achievementArt";
+import { ACHIEVEMENT_TIERS, tierLabel } from "../../../achievementArt";
 import { TOTAL_HOURS } from "../../../milestones";
 import { displayNotificationTitle } from "../../../notifications";
 import { AchievementProgressBar } from "./AchievementCard";
@@ -133,7 +133,10 @@ function ProgressRing({ summary }: { summary: AchievementSummaryData }) {
               <li
                 key={sample.tier}
                 className="flex items-center gap-1.5"
-                title={`${summary.byTier[sample.tier!]} ${sample.tier!.charAt(0).toUpperCase()}${sample.tier!.slice(1)}`}
+                title={t("{{count}} {{tier}}", {
+                  count: summary.byTier[sample.tier!],
+                  tier: tierLabel(sample.tier!),
+                })}
               >
                 <AchievementMedal
                   notification={{
