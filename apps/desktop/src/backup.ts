@@ -56,6 +56,7 @@ const NOTIFICATION_STATE_KEYS = [
   "suppressStartupNotificationsOnce",
   "suppressContributionNotificationsOnce",
   "lastSeenReleaseNotesVersion",
+  "languageNoticeSeen",
 ];
 
 const JSON_FILTER = [{ name: "PlayCounter backup", extensions: ["json"] }];

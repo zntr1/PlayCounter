@@ -81,6 +81,7 @@ type PersistableAppState = {
   lastSeenReleaseNotesVersion: string | null;
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
+  languageNoticeSeen?: boolean;
 };
 
 export type PersistedPayload = {
@@ -133,6 +134,7 @@ export type PersistedPayload = {
   lastSeenReleaseNotesVersion?: string;
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
+  languageNoticeSeen?: boolean;
 };
 
 export type PersistedProjection = Pick<
@@ -249,6 +251,7 @@ function buildPersistedPayload(
       state.suppressStartupNotificationsOnce || undefined,
     suppressContributionNotificationsOnce:
       state.suppressContributionNotificationsOnce || undefined,
+    languageNoticeSeen: state.languageNoticeSeen || undefined,
   };
   if (state.recentSessions.length > MAX_STORED_SESSIONS) {
     const kept = new Set(sessions);

@@ -329,6 +329,7 @@ type PersistedState = {
   autoDetectedGameKeys?: string[];
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
+  languageNoticeSeen?: boolean;
 };
 
 type ProcessMatch = {
@@ -1351,6 +1352,9 @@ export function hydrate() {
       persisted.suppressStartupNotificationsOnce === true,
     suppressContributionNotificationsOnce:
       persisted.suppressContributionNotificationsOnce === true,
+    // Only people who used PlayCounter before get told it changed language.
+    languageNoticeSeen:
+      persisted.languageNoticeSeen === true || !hadPersistedStateOnStartup,
   });
   if (
     shouldPersistAchievementMigration ||

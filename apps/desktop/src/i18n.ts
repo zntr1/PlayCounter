@@ -45,6 +45,7 @@ import {
 
 export {
   APP_LANGUAGES,
+  availableLanguages,
   isAppLanguage,
   resolveLanguage,
   type AppLanguage,

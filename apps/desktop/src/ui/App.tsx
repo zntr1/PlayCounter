@@ -63,6 +63,7 @@ import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
+import { LanguageNotice } from "./LanguageNotice";
 import { GlobalSearch } from "./shell/GlobalSearch";
 import { GlobalTooltip } from "./shell/GlobalTooltip";
 import { HeaderLinks } from "./shell/HeaderLinks";
@@ -1160,6 +1161,7 @@ export function App() {
             </div>
           </div>
         ) : null}
+        <LanguageNotice />
         <div data-tour-viewport className="relative min-h-0 flex-1">
           <div
             ref={contentRef}

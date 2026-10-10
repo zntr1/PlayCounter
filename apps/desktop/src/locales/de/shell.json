@@ -160,5 +160,8 @@
   "{{view}} content": "Inhalt: {{view}}",
   "Update available ({{version}})": "Update verfügbar ({{version}})",
   "Open {{emulator}}": "{{emulator}} öffnen",
-  "downloading {{downloaded}}": "lädt {{downloaded}} herunter"
+  "downloading {{downloaded}}": "lädt {{downloaded}} herunter",
+  "PlayCounter is now in {{language}}. You can change the language anytime in Settings.": "PlayCounter ist jetzt auf {{language}}. Du kannst die Sprache jederzeit in den Einstellungen ändern.",
+  "Switch to English": "Switch to English",
+  "Keep": "Behalten"
 }

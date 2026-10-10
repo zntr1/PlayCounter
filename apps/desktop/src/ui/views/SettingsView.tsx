@@ -29,9 +29,9 @@ import {
 import { emulatorAssetUrls } from "../../emulators/assets";
 import { adapterFor, emulatorLabelList } from "../../emulators/registry";
 import { exportLocalData, importLocalData } from "../../backup";
-import { BUILD_STAGE, useAppStore, useIsOffline } from "../../store";
+import { useAppStore, useIsOffline } from "../../store";
 import {
-  APP_LANGUAGES,
+  availableLanguages,
   LANGUAGE_NAMES,
   appLocale,
   isAppLanguage,
@@ -484,8 +484,8 @@ export function SettingsView() {
             <option value="games">{t("My Games")}</option>
           </Select>
         </SettingsRow>
-        {/* Dev and test builds only until the first translation ships. */}
-        {BUILD_STAGE !== "prod" ? (
+        {/* Shown once this build has more languages than English. */}
+        {availableLanguages().length > 1 ? (
           <SettingsRow
             description={t(
               "System uses your computer's language when PlayCounter has it, otherwise English.",
@@ -495,7 +495,11 @@ export function SettingsView() {
             <Select
               aria-label={t("Language")}
               value={
-                isAppLanguage(settings.language) ? settings.language : "system"
+                availableLanguages().some(
+                  (language) => language === settings.language,
+                )
+                  ? settings.language
+                  : "system"
               }
               onChange={(event) =>
                 setLanguage(
@@ -510,7 +514,7 @@ export function SettingsView() {
                   language: LANGUAGE_NAMES[systemLanguage()],
                 })}
               </option>
-              {APP_LANGUAGES.map((language) => (
+              {availableLanguages().map((language) => (
                 <option key={language} value={language}>
                   {LANGUAGE_NAMES[language]}
                 </option>

@@ -513,6 +513,8 @@ export type AppState = {
   currentNotesOpen: boolean;
   suppressStartupNotificationsOnce: boolean;
   suppressContributionNotificationsOnce: boolean;
+  /** The one-time "PlayCounter is now in German" notice was answered. */
+  languageNoticeSeen: boolean;
   activeTour: ActiveTour | null;
   demoResetToken: number;
   helpMenuOpen: boolean;
@@ -529,6 +531,7 @@ export type AppState = {
   markTourWelcomeSeen: () => void;
   resetTourProgress: () => void;
   markReleaseNotesSeen: (version: string) => void;
+  dismissLanguageNotice: () => void;
   openCurrentReleaseNotes: () => void;
   closeCurrentReleaseNotes: (version: string) => void;
   setHistoryQuery: (query: string) => void;
@@ -915,6 +918,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentNotesOpen: false,
   suppressStartupNotificationsOnce: false,
   suppressContributionNotificationsOnce: false,
+  languageNoticeSeen: false,
   activeTour: null,
   demoResetToken: 0,
   helpMenuOpen: false,
@@ -1010,6 +1014,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   markReleaseNotesSeen: (version) => {
     if (get().lastSeenReleaseNotesVersion === version) return;
     set({ lastSeenReleaseNotesVersion: version });
+    persistSoon();
+  },
+  dismissLanguageNotice: () => {
+    set({ languageNoticeSeen: true });
     persistSoon();
   },
   openCurrentReleaseNotes: () => set({ currentNotesOpen: true }),
