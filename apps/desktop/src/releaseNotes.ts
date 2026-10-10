@@ -1,3 +1,5 @@
+import { isAppLanguage, type AppLanguage } from "./appLanguages";
+import { appLanguage } from "./i18n";
 import rawReleaseNotes from "./releaseNotes.json";
 
 export const MAX_RELEASE_NOTE_HEADLINE_LENGTH = 240;
@@ -5,12 +7,20 @@ export const MAX_RELEASE_NOTE_LINE_LENGTH = 600;
 export const MAX_RELEASE_NOTE_HIGHLIGHTS = 12;
 export const MAX_RELEASE_NOTE_PARAGRAPHS = 8;
 
-export type ReleaseNote = {
-  version: string;
-  releasedAt?: string;
+export type ReleaseNoteText = {
   headline: string;
   highlights: string[];
 };
+
+export type ReleaseNote = ReleaseNoteText & {
+  version: string;
+  releasedAt?: string;
+  /** The headline and highlights in the other app languages. */
+  translations?: Partial<Record<AppLanguage, ReleaseNoteText>>;
+};
+
+/** Update manifest notes in the other app languages. */
+export type TranslatedNotes = Partial<Record<AppLanguage, string>>;
 
 export type DisplayNotes = {
   headline: string | null;
@@ -58,6 +68,32 @@ function compareReleaseVersions(left: string, right: string): number | null {
   return 0;
 }
 
+function sanitizeNoteText(value: unknown): ReleaseNoteText | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const headline = cleanText(raw.headline, MAX_RELEASE_NOTE_HEADLINE_LENGTH);
+  if (!headline) return null;
+
+  const highlights = Array.isArray(raw.highlights)
+    ? raw.highlights
+        .map((item) => cleanText(item, MAX_RELEASE_NOTE_LINE_LENGTH))
+        .filter((item): item is string => item !== null)
+        .slice(0, MAX_RELEASE_NOTE_HIGHLIGHTS)
+    : [];
+  return { headline, highlights };
+}
+
+function sanitizeTranslations(value: unknown): ReleaseNote["translations"] {
+  if (!value || typeof value !== "object") return undefined;
+  const translations: ReleaseNote["translations"] = {};
+  for (const [language, raw] of Object.entries(value)) {
+    if (!isAppLanguage(language) || language === "en") continue;
+    const text = sanitizeNoteText(raw);
+    if (text) translations[language] = text;
+  }
+  return Object.keys(translations).length > 0 ? translations : undefined;
+}
+
 export function sanitizeReleaseNotes(value: unknown): ReleaseNote[] {
   if (!Array.isArray(value)) return [];
 
@@ -65,23 +101,18 @@ export function sanitizeReleaseNotes(value: unknown): ReleaseNote[] {
     if (!candidate || typeof candidate !== "object") return [];
     const raw = candidate as Record<string, unknown>;
     const version = cleanText(raw.version, 32);
-    const headline = cleanText(raw.headline, MAX_RELEASE_NOTE_HEADLINE_LENGTH);
-    if (!version || !headline) return [];
+    const text = sanitizeNoteText(raw);
+    if (!version || !text) return [];
 
-    const highlights = Array.isArray(raw.highlights)
-      ? raw.highlights
-          .map((item) => cleanText(item, MAX_RELEASE_NOTE_LINE_LENGTH))
-          .filter((item): item is string => item !== null)
-          .slice(0, MAX_RELEASE_NOTE_HIGHLIGHTS)
-      : [];
     const releasedAt = cleanText(raw.releasedAt, 32);
+    const translations = sanitizeTranslations(raw.translations);
 
     return [
       {
         version: normalizeVersion(version),
-        headline,
-        highlights,
+        ...text,
         ...(releasedAt ? { releasedAt } : {}),
+        ...(translations ? { translations } : {}),
       },
     ];
   });
@@ -138,12 +169,38 @@ export function findUnseenReleaseNotes(
   );
 }
 
-export function toDisplayNotes(note: ReleaseNote): DisplayNotes {
+/** The note in the app's language, or in English when it has no translation. */
+export function toDisplayNotes(
+  note: ReleaseNote,
+  language: AppLanguage = appLanguage(),
+): DisplayNotes {
+  const text = note.translations?.[language] ?? note;
   return {
-    headline: note.headline,
-    highlights: note.highlights,
+    headline: text.headline,
+    highlights: text.highlights,
     paragraphs: [],
   };
+}
+
+/** The update manifest's notes_translations, for the languages the app has. */
+export function sanitizeTranslatedNotes(
+  value: unknown,
+): TranslatedNotes | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const notes: TranslatedNotes = {};
+  for (const [language, text] of Object.entries(value)) {
+    if (!isAppLanguage(language) || language === "en") continue;
+    if (typeof text === "string" && text.trim()) notes[language] = text;
+  }
+  return Object.keys(notes).length > 0 ? notes : undefined;
+}
+
+/** An available update's notes in the app's language, else in English. */
+export function updateDisplayNotes(
+  update: { notes?: string; translatedNotes?: TranslatedNotes },
+  language: AppLanguage = appLanguage(),
+): DisplayNotes {
+  return parseManifestNotes(update.translatedNotes?.[language] ?? update.notes);
 }
 
 export function parseManifestNotes(

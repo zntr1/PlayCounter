@@ -119,12 +119,36 @@ describe("latest.json", () => {
     const manifest = JSON.parse(await readFile(manifestPath(), "utf8"));
     assert.equal(manifest.version, "9.9.9");
     assert.equal(manifest.notes, "Headline\n• One");
+    assert.equal(manifest.notes_translations, undefined);
     assert.ok(!Number.isNaN(Date.parse(manifest.pub_date)));
     assert.deepEqual(manifest.platforms, {
       "windows-x86_64": {
         signature,
         url: "https://example.test/releases/PlayCounter_9.9.9_x64-setup.exe",
       },
+    });
+  });
+
+  it("adds the release notes in every language they are written in", async () => {
+    await writeFile(
+      join(root, "releaseNotes.json"),
+      JSON.stringify([
+        {
+          version: "9.9.9",
+          headline: "Headline",
+          highlights: ["One"],
+          translations: {
+            de: { headline: "Überschrift", highlights: ["Eins"] },
+            es: { headline: "Titular", highlights: [] },
+          },
+        },
+      ]),
+    );
+    await createManifest();
+    const manifest = JSON.parse(await readFile(manifestPath(), "utf8"));
+    assert.equal(manifest.notes, "Headline\n• One");
+    assert.deepEqual(manifest.notes_translations, {
+      de: "Überschrift\n• Eins",
     });
   });
 

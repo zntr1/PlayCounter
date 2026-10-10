@@ -71,6 +71,7 @@ import {
   findReleaseNote,
   isEmptyDisplayNotes,
   parseManifestNotes,
+  updateDisplayNotes,
 } from "../../releaseNotes";
 
 const t = getT("settings");
@@ -401,7 +402,7 @@ export function SettingsView() {
   const installedReleaseNote = findReleaseNote(appVersion);
   const availableDisplayNotes =
     updateResult?.status === "available"
-      ? parseManifestNotes(updateResult.notes)
+      ? updateDisplayNotes(updateResult)
       : parseManifestNotes(null);
   const displayedEmulators = new Map(knownEmulators);
   for (const rawEmulatorId of settings.ignoredEmulatorIds ?? []) {

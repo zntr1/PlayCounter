@@ -129,6 +129,7 @@ import {
   isEmptyDisplayNotes,
   parseManifestNotes,
   toDisplayNotes,
+  updateDisplayNotes,
 } from "../releaseNotes";
 import { appLocale, getT } from "../i18n";
 
@@ -766,7 +767,7 @@ export function App() {
 
   const startupDisplayNotes =
     startupUpdate?.status === "available"
-      ? parseManifestNotes(startupUpdate.notes)
+      ? updateDisplayNotes(startupUpdate)
       : parseManifestNotes(null);
   const installedReleaseNotes = findUnseenReleaseNotes(
     appVersion,

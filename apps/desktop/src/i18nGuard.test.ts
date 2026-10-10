@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
    Every text a user can see lives in src/locales, in every language. These
    tests fail when:
    - a language misses a text, a plural form or a {{placeholder}};
+   - a release note (src/releaseNotes.json) misses a language;
    - a language file keeps a text the code no longer uses;
    - UI code shows raw English instead of t("…") (brand names excepted);
    - a toLocale…() call or an Intl formatter ignores the app's language;
@@ -149,6 +150,44 @@ describe("language files", () => {
       }
       for (const key of Object.keys(texts("en", file))) {
         if (!used.has(baseKey(key))) problems.push(`en/${file}: "${key}"`);
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+});
+
+/* Release notes ─────────────────────────────────────────────────────────── */
+
+type NoteText = { headline?: unknown; highlights?: unknown };
+
+describe("release notes", () => {
+  it("has every release in every language, point for point", () => {
+    const notes = JSON.parse(
+      readFileSync(join(src, "releaseNotes.json"), "utf8"),
+    ) as Array<NoteText & { version: string; translations?: unknown }>;
+    const problems: string[] = [];
+    for (const note of notes) {
+      const english = Array.isArray(note.highlights) ? note.highlights : [];
+      const translations = (note.translations ?? {}) as Record<
+        string,
+        NoteText | undefined
+      >;
+      for (const language of otherLanguages) {
+        const text = translations[language];
+        const highlights = Array.isArray(text?.highlights)
+          ? text.highlights
+          : [];
+        if (typeof text?.headline !== "string" || !text.headline.trim()) {
+          problems.push(`${note.version}: no ${language} headline`);
+        }
+        if (
+          highlights.length !== english.length ||
+          highlights.some((line) => typeof line !== "string" || !line.trim())
+        ) {
+          problems.push(
+            `${note.version}: ${highlights.length} ${language} highlights, English has ${english.length}`,
+          );
+        }
       }
     }
     expect(problems).toEqual([]);

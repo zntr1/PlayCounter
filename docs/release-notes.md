@@ -11,11 +11,40 @@ Write for people who use PlayCounter, not for the people who build it:
 - Say what changed for the user. Skip commit messages, internal names, and
   implementation details.
 - Keep the newest version at the top, and never rewrite notes for a release that
-  is already published.
+  is already published (adding a missing translation is fine).
 
 The desktop app bundles this catalog and shows the notes once after an update.
 The release scripts also copy the current entry into Tauri's `latest.json`, so an
 older installed app can show what is coming before you install it.
+
+## Every language
+
+Each entry carries the same notes in every app language under `translations`,
+keyed like the folders in `apps/desktop/src/locales`:
+
+```json
+{
+  "version": "1.4.0",
+  "headline": "…",
+  "highlights": ["…", "…"],
+  "translations": {
+    "de": { "headline": "…", "highlights": ["…", "…"] },
+    "es": { "headline": "…", "highlights": ["…", "…"] }
+  }
+}
+```
+
+- Translate in the same change as the English entry, point for point: the same
+  number of highlights in the same order.
+- Use the page and button names the app shows in that language, and the words in
+  `apps/desktop/src/locales/GLOSSARY.md`.
+- The translation guard (`pnpm --filter @playcounter/desktop test`) fails when an
+  entry misses a language or a highlight.
+
+The app shows the notes in its current language and falls back to English when
+an entry has no translation for it. `latest.json` keeps the English text in
+`notes`, which every installed version reads, and adds the other languages in
+`notes_translations`.
 
 If someone skips releases, the post-update dialog lists every authored version
 newer than the last one they saw, newest first: updating from 1.1.4 straight to
