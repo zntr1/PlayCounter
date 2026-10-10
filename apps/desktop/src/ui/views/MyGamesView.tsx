@@ -5808,32 +5808,38 @@ export function GameLibraryCard({
           </div>
           <div
             data-tour={demo ? "demo-playtime-result" : undefined}
-            className="mt-1 flex min-w-0 items-baseline gap-1.5"
+            className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5"
           >
             <span
               title={playtimeTitle}
               className={clsx(
-                "font-mono font-bold tracking-tight text-text",
+                "whitespace-nowrap font-mono font-bold tracking-tight text-text",
                 isLarge ? "text-xl" : "text-lg",
               )}
             >
               {formatDuration(game.totalSeconds, showDurationDays)}
             </span>
-            <span className="text-[11px] font-medium text-text-muted">
-              {t("in")}
+            {/* "in 35 sessions" moves to its own line rather than being cut. */}
+            <span className="flex min-w-0 items-baseline gap-1.5">
+              <span className="text-[11px] font-medium text-text-muted">
+                {t("in")}
+              </span>
+              <button
+                type="button"
+                disabled={game.sessionCount === 0}
+                onClick={handleShowHistory}
+                className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
+                aria-label={t(
+                  "Show {{count}} sessions for {{game}} in history",
+                  {
+                    count: game.sessionCount,
+                    game: game.name,
+                  },
+                )}
+              >
+                {t("{{count}} sessions", { count: game.sessionCount })}
+              </button>
             </span>
-            <button
-              type="button"
-              disabled={game.sessionCount === 0}
-              onClick={handleShowHistory}
-              className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
-              aria-label={t("Show {{count}} sessions for {{game}} in history", {
-                count: game.sessionCount,
-                game: game.name,
-              })}
-            >
-              {t("{{count}} sessions", { count: game.sessionCount })}
-            </button>
           </div>
 
           {/* Persistent Community Prompts */}
