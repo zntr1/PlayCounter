@@ -2,26 +2,39 @@
    imports: the startup screen needs it before the app has loaded. */
 
 /** Languages PlayCounter has texts for. */
-export const APP_LANGUAGES = ["en"] as const;
+export const APP_LANGUAGES = ["en", "de"] as const;
 export type AppLanguage = (typeof APP_LANGUAGES)[number];
+
+// Production builds only use languages that are released; dev and test builds
+// use every language, so translations can be tried before they ship.
+const RELEASED_LANGUAGES: readonly AppLanguage[] = ["en"];
+
+/** The languages this build uses. */
+export function availableLanguages(): readonly AppLanguage[] {
+  return import.meta.env.VITE_PLAYCOUNTER_STAGE === "prod"
+    ? RELEASED_LANGUAGES
+    : APP_LANGUAGES;
+}
 
 export function isAppLanguage(value: unknown): value is AppLanguage {
   return APP_LANGUAGES.some((language) => language === value);
 }
 
-/** "system", or a language PlayCounter doesn't have, becomes the first of the
- *  computer's languages PlayCounter has, else English. */
+/** "system", or a language this build doesn't use, becomes the first of the
+ *  computer's languages it uses, else English. */
 export function resolveLanguage(
   setting: string | undefined,
   systemLocales: readonly string[],
 ): AppLanguage {
-  if (isAppLanguage(setting)) return setting;
+  const languages = availableLanguages();
+  const chosen = languages.find((language) => language === setting);
+  if (chosen) return chosen;
   for (const locale of systemLocales) {
     const match =
-      APP_LANGUAGES.find(
+      languages.find(
         (language) => language.toLowerCase() === locale.toLowerCase(),
       ) ??
-      APP_LANGUAGES.find(
+      languages.find(
         (language) => baseLanguage(language) === baseLanguage(locale),
       );
     if (match) return match;

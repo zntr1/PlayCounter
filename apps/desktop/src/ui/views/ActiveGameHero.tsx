@@ -42,6 +42,7 @@ import {
   playthroughSeconds,
 } from "../../personalLibrary";
 import { getT } from "../../i18n";
+import { igdbTerm } from "../../igdbTerms";
 
 const t = getT("nowPlaying");
 
@@ -406,7 +407,7 @@ function igdbFacts(details: GameDetails) {
   return [
     details.releaseYear?.toString() ??
       (details.releaseDate ? details.releaseDate.slice(0, 4) : null),
-    ...details.genres.slice(0, 2),
+    ...details.genres.slice(0, 2).map(igdbTerm),
   ].filter((part): part is string => Boolean(part));
 }
 

@@ -7,6 +7,7 @@ import enDiscovered from "./locales/en/discovered.json";
 import enEmulators from "./locales/en/emulators.json";
 import enGames from "./locales/en/games.json";
 import enHistory from "./locales/en/history.json";
+import enIgdb from "./locales/en/igdb.json";
 import enImport from "./locales/en/import.json";
 import enMyGames from "./locales/en/myGames.json";
 import enNative from "./locales/en/native.json";
@@ -17,6 +18,24 @@ import enShell from "./locales/en/shell.json";
 import enSoftware from "./locales/en/software.json";
 import enTour from "./locales/en/tour.json";
 import enTracker from "./locales/en/tracker.json";
+import deAchievements from "./locales/de/achievements.json";
+import deCommon from "./locales/de/common.json";
+import deDialogs from "./locales/de/dialogs.json";
+import deDiscovered from "./locales/de/discovered.json";
+import deEmulators from "./locales/de/emulators.json";
+import deGames from "./locales/de/games.json";
+import deHistory from "./locales/de/history.json";
+import deIgdb from "./locales/de/igdb.json";
+import deImport from "./locales/de/import.json";
+import deMyGames from "./locales/de/myGames.json";
+import deNative from "./locales/de/native.json";
+import deNowPlaying from "./locales/de/nowPlaying.json";
+import deOverlays from "./locales/de/overlays.json";
+import deSettings from "./locales/de/settings.json";
+import deShell from "./locales/de/shell.json";
+import deSoftware from "./locales/de/software.json";
+import deTour from "./locales/de/tour.json";
+import deTracker from "./locales/de/tracker.json";
 import {
   resolveLanguage,
   systemLocales,
@@ -44,6 +63,7 @@ export type LanguageSetting = "system" | AppLanguage;
  *  they can't read. */
 export const LANGUAGE_NAMES: Record<AppLanguage, string> = {
   en: "English",
+  de: "Deutsch",
 };
 
 const resources = {
@@ -55,6 +75,7 @@ const resources = {
     emulators: enEmulators,
     games: enGames,
     history: enHistory,
+    igdb: enIgdb,
     import: enImport,
     myGames: enMyGames,
     native: enNative,
@@ -65,6 +86,26 @@ const resources = {
     software: enSoftware,
     tour: enTour,
     tracker: enTracker,
+  },
+  de: {
+    achievements: deAchievements,
+    common: deCommon,
+    dialogs: deDialogs,
+    discovered: deDiscovered,
+    emulators: deEmulators,
+    games: deGames,
+    history: deHistory,
+    igdb: deIgdb,
+    import: deImport,
+    myGames: deMyGames,
+    native: deNative,
+    nowPlaying: deNowPlaying,
+    overlays: deOverlays,
+    settings: deSettings,
+    shell: deShell,
+    software: deSoftware,
+    tour: deTour,
+    tracker: deTracker,
   },
 };
 

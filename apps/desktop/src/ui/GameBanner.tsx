@@ -34,6 +34,7 @@ import { GameDetailsDialog } from "./views/games/GameDetailsDialog";
 import { useHeroLauncher } from "./views/games/useHeroLauncher";
 import type { GameSummary } from "./views/MyGamesView";
 import { getT } from "../i18n";
+import { igdbTerm } from "../igdbTerms";
 
 const t = getT("myGames");
 
@@ -113,7 +114,9 @@ export function GameBanner({
     ? [
         ready.releaseYear?.toString() ??
           (ready.releaseDate ? ready.releaseDate.slice(0, 4) : null),
-        ready.genres.length > 0 ? ready.genres.slice(0, 3).join(" · ") : null,
+        ready.genres.length > 0
+          ? ready.genres.slice(0, 3).map(igdbTerm).join(" · ")
+          : null,
       ].filter((part): part is string => Boolean(part))
     : [];
   // One image continues through the title bar, card, and surrounding backdrop.

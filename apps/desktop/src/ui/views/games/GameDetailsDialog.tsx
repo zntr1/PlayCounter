@@ -60,6 +60,7 @@ import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
 import { appLocale, getT } from "../../../i18n";
+import { igdbTerm } from "../../../igdbTerms";
 
 const t = getT("games");
 
@@ -645,8 +646,8 @@ export function GameDetailsDialog({
       )}
       {(
         [
-          [t("Genres"), resolved.genres],
-          [t("Modes"), resolved.gameModes],
+          [t("Genres"), resolved.genres.map(igdbTerm)],
+          [t("Modes"), resolved.gameModes.map(igdbTerm)],
           [t("Platforms"), resolved.platforms],
         ] as const
       )
