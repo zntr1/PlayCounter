@@ -72,5 +72,7 @@
   "{{hours}}h {{minutes}}m": "{{hours}}h {{minutes}}m",
   "{{minutes}}m": "{{minutes}}m",
   "{{seconds}}s": "{{seconds}}s",
-  "{{minutes}}m {{seconds}}s": "{{minutes}}m {{seconds}}s"
+  "{{minutes}}m {{seconds}}s": "{{minutes}}m {{seconds}}s",
+  "Starting PlayCounter…": "Starting PlayCounter…",
+  "Other": "Other"
 }

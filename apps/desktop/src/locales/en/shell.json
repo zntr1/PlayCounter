@@ -156,5 +156,6 @@
   "Version {{version}} is available": "Version {{version}} is available",
   "Hide banner in {{view}}": "Hide banner in {{view}}",
   "Show banner in {{view}}": "Show banner in {{view}}",
-  "Hold {{viewButton}} plus {{bumper}} for two seconds to bring PlayCounter forward": "Hold {{viewButton}} plus {{bumper}} for two seconds to bring PlayCounter forward"
+  "Hold {{viewButton}} plus {{bumper}} for two seconds to bring PlayCounter forward": "Hold {{viewButton}} plus {{bumper}} for two seconds to bring PlayCounter forward",
+  "{{view}} content": "{{view}} content"
 }

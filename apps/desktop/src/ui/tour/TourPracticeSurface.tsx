@@ -122,7 +122,10 @@ function DetectionPractice({ stepId }: { stepId: string }) {
                 }}
                 onSelect={(game) =>
                   setResult(
-                    `Sample selected: ${game.name}. This exercise does not create a shared executable match.`,
+                    t(
+                      "Sample selected: {{name}}. This exercise does not create a shared executable match.",
+                      { name: game.name },
+                    ),
                   )
                 }
               />
@@ -155,22 +158,28 @@ function DetectionPractice({ stepId }: { stepId: string }) {
             onSuggest={() => setSearch(true)}
             onIgnore={() =>
               setResult(
-                "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.",
+                t(
+                  "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.",
+                ),
               )
             }
             onMarkSoftware={() =>
               setResult(
-                "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
+                t(
+                  "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
+                ),
               )
             }
             onSkip={() =>
               setResult(
-                "Skipped for now. In Discovered, this app stays in Needs review.",
+                t(
+                  "Skipped for now. In Discovered, this app stays in Needs review.",
+                ),
               )
             }
             onRecheck={() =>
               setResult(
-                "Sample check complete. Use Add & Share to review a match.",
+                t("Sample check complete. Use Add & Share to review a match."),
               )
             }
           />
@@ -277,7 +286,22 @@ function ImportPractice() {
             }
             onConfirm={async (game) =>
               setResult(
-                `Sample imported: ${game.name} (${executable}). ${provider === "battlenet" ? "Battle.net does not supply past playtime here." : provider === "epic" ? "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions." : "Imported launcher time is a total, not a list of PlayCounter sessions."} Future tracked sessions build your History.`,
+                [
+                  t("Sample imported: {{game}} ({{file}}).", {
+                    game: game.name,
+                    file: executable,
+                  }),
+                  provider === "battlenet"
+                    ? t("Battle.net does not supply past playtime here.")
+                    : provider === "epic"
+                      ? t(
+                          "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.",
+                        )
+                      : t(
+                          "Imported launcher time is a total, not a list of PlayCounter sessions.",
+                        ),
+                  t("Future tracked sessions build your History."),
+                ].join(" "),
               )
             }
           />

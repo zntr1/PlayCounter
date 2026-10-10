@@ -383,7 +383,7 @@ export function HistoryView() {
         .find(Boolean);
       const fromImport = imported.get(key);
       return {
-        name: fromImport?.name || metadata?.gameName || "Unknown game",
+        name: fromImport?.name || metadata?.gameName || t("Unknown game"),
         coverUrl: fromImport?.coverUrl || metadata?.coverUrl || "",
         lastPlayedMs: fromImport?.lastPlayedMs ?? 0,
       };

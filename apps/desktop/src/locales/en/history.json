@@ -97,5 +97,6 @@
   "{{count}} games_one": "{{count}} game",
   "{{count}} games_other": "{{count}} games",
   "Since your first session · {{count}} weeks_one": "Since your first session · {{count}} week",
-  "Since your first session · {{count}} weeks_other": "Since your first session · {{count}} weeks"
+  "Since your first session · {{count}} weeks_other": "Since your first session · {{count}} weeks",
+  "Unknown game": "Unknown game"
 }

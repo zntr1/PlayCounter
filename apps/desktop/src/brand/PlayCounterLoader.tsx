@@ -1,6 +1,9 @@
 import "./loader.css";
 import { PlayCounterAnimatedIcon } from "./PlayCounterAnimatedIcon";
 import { PlayCounterWordmark, type BrandSurface } from "./PlayCounterWordmark";
+import { getT } from "../i18n";
+
+const t = getT("common");
 
 export type PlayCounterLoaderProps = {
   label?: string;
@@ -11,7 +14,7 @@ export type PlayCounterLoaderProps = {
 
 /** Mount only while real work is pending. Unmount as soon as the app is ready. */
 export function PlayCounterLoader({
-  label = "Starting PlayCounter…",
+  label = t("Starting PlayCounter…"),
   surface = "auto",
   assetBase = "/brand",
   className = "",

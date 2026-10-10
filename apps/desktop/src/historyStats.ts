@@ -511,7 +511,7 @@ export function topGames(
     const seconds = hidden.reduce((sum, game) => sum + game.seconds, 0);
     result.push({
       key: null,
-      name: "Other",
+      name: t("Other"),
       coverUrl: "",
       seconds,
       sessionCount: hidden.reduce((sum, game) => sum + game.sessionCount, 0),

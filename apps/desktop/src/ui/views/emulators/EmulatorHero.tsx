@@ -171,7 +171,7 @@ export function EmulatorHero({
                   />
                 ) : null}
                 {ignoredCount > 0 ? (
-                  <Fact label="ignored" value={String(ignoredCount)} />
+                  <Fact label={t("ignored")} value={String(ignoredCount)} />
                 ) : null}
               </p>
             </>

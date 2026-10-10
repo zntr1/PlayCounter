@@ -336,5 +336,16 @@
   "{{file}} · eligible game file": "{{file}} · eligible game file",
   "<strong>Built by one developer.</strong> PlayCounter is new, so expect a few rough edges. Spot one? Use <strong>Help & Feedback</strong> or join our Discord. I read every message and reply.": "<strong>Built by one developer.</strong> PlayCounter is new, so expect a few rough edges. Spot one? Use <strong>Help & Feedback</strong> or join our Discord. I read every message and reply.",
   "This control is not available right now. You can still continue.": "This control is not available right now. You can still continue.",
-  "Personalize PlayCounter ({{duration}})": "Personalize PlayCounter ({{duration}})"
+  "Personalize PlayCounter ({{duration}})": "Personalize PlayCounter ({{duration}})",
+  "Sample selected: {{name}}. This exercise does not create a shared executable match.": "Sample selected: {{name}}. This exercise does not create a shared executable match.",
+  "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.": "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.",
+  "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.": "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
+  "Skipped for now. In Discovered, this app stays in Needs review.": "Skipped for now. In Discovered, this app stays in Needs review.",
+  "Sample check complete. Use Add & Share to review a match.": "Sample check complete. Use Add & Share to review a match.",
+  "Online Games": "Online Games",
+  "Sample imported: {{game}} ({{file}}).": "Sample imported: {{game}} ({{file}}).",
+  "Battle.net does not supply past playtime here.": "Battle.net does not supply past playtime here.",
+  "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.": "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.",
+  "Imported launcher time is a total, not a list of PlayCounter sessions.": "Imported launcher time is a total, not a list of PlayCounter sessions.",
+  "Future tracked sessions build your History.": "Future tracked sessions build your History."
 }

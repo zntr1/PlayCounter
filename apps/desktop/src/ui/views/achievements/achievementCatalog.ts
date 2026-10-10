@@ -368,7 +368,7 @@ export function buildGameLadders(catalog: AchievementCatalog): GameLadder[] {
   for (const item of catalog.get("game") ?? []) {
     const ladder = ladders.get(item.scope) ?? {
       key: item.scope,
-      name: item.gameName ?? "Unknown game",
+      name: item.gameName ?? t("Unknown game"),
       coverUrl: item.coverUrl,
       hours: item.currentValue,
       rungs: [],

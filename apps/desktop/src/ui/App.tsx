@@ -1159,7 +1159,7 @@ export function App() {
             data-controller-content="true"
             tabIndex={-1}
             aria-busy={activeView === "games" && !renderGames}
-            aria-label={`${activeViewLabel} content`}
+            aria-label={t("{{view}} content", { view: activeViewLabel })}
             style={{ zoom: contentScale }}
             onScroll={(event) => syncTitleBarFade(event.currentTarget)}
             className={clsx(

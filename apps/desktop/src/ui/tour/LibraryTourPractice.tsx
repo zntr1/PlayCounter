@@ -243,7 +243,7 @@ function PracticeLibrary({
       if (["fill-shelf", "filters", "save-filters"].includes(stepId)) {
         let shelf = store.getState().personalShelves[0];
         if (!shelf) {
-          store.getState().savePersonalShelf({ name: "Online Games" });
+          store.getState().savePersonalShelf({ name: t("Online Games") });
           shelf = store.getState().personalShelves[0];
         }
         if (stepId !== "fill-shelf") {
