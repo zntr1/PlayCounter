@@ -41,7 +41,7 @@ import {
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
-import { appLocale, applyLanguage, type LanguageSetting } from "./i18n";
+import { appLocale, applyLanguage, type LanguageSetting, getT } from "./i18n";
 import type {
   EmulatorMapping,
   EmulatorObservation,
@@ -97,6 +97,8 @@ import {
   type PersonalShelf,
   type Playthrough,
 } from "./personalLibrary";
+
+const t = getT("tracker");
 
 export type ViewId = DesktopViewId;
 
@@ -814,17 +816,29 @@ function persistSoon() {
         );
         state.addToast({
           tone: "error",
-          title: "History storage was full",
-          detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString(appLocale())}` : ""}, were archived so new data could be saved.`,
+          title: t("History storage was full"),
+          detail: oldest
+            ? t(
+                "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
+                {
+                  count: result.removed.length,
+                  date: new Date(oldest).toLocaleDateString(appLocale()),
+                },
+              )
+            : t(
+                "{{count}} oldest sessions were archived so new data could be saved.",
+                { count: result.removed.length },
+              ),
         });
       }
     } else if (result.status === "failed") {
       state.addRuntimeLogEntry("local persistence failed after retry");
       state.addToast({
         tone: "error",
-        title: "Changes could not be saved",
-        detail:
+        title: t("Changes could not be saved"),
+        detail: t(
           "Local storage is unavailable or full. Your in-memory history was kept.",
+        ),
       });
     }
   });
@@ -1559,9 +1573,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         tone: "info",
         title:
           received === 1
-            ? "Reply from PlayCounter"
-            : "New replies from PlayCounter",
-        detail: "Open Notifications to read the reply to your feedback.",
+            ? t("Reply from PlayCounter")
+            : t("New replies from PlayCounter"),
+        detail: t("Open Notifications to read the reply to your feedback."),
       });
   },
   setDiscoveredReviewReminder: (discoveredReviewReminder) => {

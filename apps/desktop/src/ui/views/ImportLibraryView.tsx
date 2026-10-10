@@ -30,7 +30,7 @@ import {
   searchLibraryGames,
 } from "../../library/gameLookup";
 import { resolveLibraryGames } from "../../library/resolve";
-import { RATE_LIMIT_MESSAGE } from "../../rateLimitedFetch";
+import { rateLimitMessage } from "../../rateLimitedFetch";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import type {
   LibraryScanResult,
@@ -2147,7 +2147,7 @@ function LoadingPanel({
 }
 
 function ErrorNotice({ message }: { message: string }) {
-  const throttled = message === RATE_LIMIT_MESSAGE;
+  const throttled = message === rateLimitMessage();
   return (
     <div
       role={throttled ? "status" : "alert"}

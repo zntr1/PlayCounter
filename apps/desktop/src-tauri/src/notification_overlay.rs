@@ -41,6 +41,11 @@ pub struct OverlayPayload {
     /// The main window's locale, for the clock. Older callers omit it.
     #[serde(default)]
     locale: Option<String>,
+    /// Labels the overlay shows itself, in the main window language.
+    #[serde(default)]
+    session_time_label: Option<String>,
+    #[serde(default)]
+    live_label: Option<String>,
     theme: String,
     accent_color: Option<String>,
     reduced_motion: bool,
@@ -161,6 +166,8 @@ fn sanitize(mut payload: OverlayPayload) -> OverlayPayload {
         None
     };
     payload.locale = truncate_optional(payload.locale, 35);
+    payload.session_time_label = truncate_optional(payload.session_time_label, 64);
+    payload.live_label = truncate_optional(payload.live_label, 32);
     payload.theme = truncate(payload.theme, 16);
     payload.accent_color = truncate_optional(payload.accent_color, 16);
     payload.duration_ms = payload.duration_ms.clamp(500, 15_000);
@@ -706,6 +713,8 @@ mod tests {
             action_label: Some("Open".to_string()),
             show_clock: false,
             locale: None,
+            session_time_label: None,
+            live_label: None,
             theme: "dark".to_string(),
             accent_color: None,
             reduced_motion: false,

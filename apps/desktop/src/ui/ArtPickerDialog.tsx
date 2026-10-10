@@ -4,7 +4,7 @@ import { Check, Image as ImageIcon, Loader2, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { artForGame, downloadArtImage, searchArt } from "../gameArt";
 import { pickedCover, pickedCoverKey } from "../pickedCovers";
-import { RATE_LIMIT_MESSAGE, RateLimitError } from "../rateLimitedFetch";
+import { rateLimitMessage, RateLimitError } from "../rateLimitedFetch";
 import { customHeroArtKey, useAppStore } from "../store";
 import { setCustomGameCover } from "../tracker";
 import { Button, Input, Modal } from "./primitives";
@@ -405,6 +405,6 @@ export function ArtPickerDialog({
 }
 
 function describe(error: unknown) {
-  if (error instanceof RateLimitError) return RATE_LIMIT_MESSAGE;
+  if (error instanceof RateLimitError) return rateLimitMessage();
   return error instanceof Error ? error.message : String(error);
 }

@@ -33,6 +33,10 @@ export type DesktopOverlayMessage = {
   /** The main window's locale, for the clock. Absent (null from Rust) = the
    *  computer's. */
   locale?: string | null;
+  /** Labels the overlay shows itself, in the main window's language.
+   *  Absent (null from Rust) = English. */
+  sessionTimeLabel?: string | null;
+  liveLabel?: string | null;
   theme: "dark" | "light";
   accentColor: string | null;
   reducedMotion: boolean;

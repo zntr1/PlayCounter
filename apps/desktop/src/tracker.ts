@@ -257,7 +257,9 @@ import type {
   KnownEmulator,
   RawEmulatorSignals,
 } from "./emulators/types";
-import { appLocale } from "./i18n";
+import { appLocale, getT } from "./i18n";
+
+const t = getT("tracker");
 
 const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
 const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
@@ -462,8 +464,12 @@ export async function initializeTracker() {
       .getState()
       .setRuntimeError(
         savedDataUnreadable
-          ? "PlayCounter can't read its saved data. To protect it, tracking and saving are paused. Restore a backup with Import data in Settings, or reset PlayCounter to start over."
-          : "PlayCounter couldn't load your saved data. To protect it, tracking and saving are paused. Your data is still there and an update can fix this. Please send feedback.",
+          ? t(
+              "PlayCounter can't read its saved data. To protect it, tracking and saving are paused. Restore a backup with Import data in Settings, or reset PlayCounter to start over.",
+            )
+          : t(
+              "PlayCounter couldn't load your saved data. To protect it, tracking and saving are paused. Your data is still there and an update can fix this. Please send feedback.",
+            ),
       );
     return;
   }
@@ -535,7 +541,9 @@ async function finishTrackerStartup() {
     logRuntime(`install UUID failed: ${formatError(error)}`);
     useAppStore
       .getState()
-      .setRuntimeError(`Tauri command failed: ${formatError(error)}`);
+      .setRuntimeError(
+        t("Tauri command failed: {{error}}", { error: formatError(error) }),
+      );
   }
 
   await backfillCanonicalGameIds();
@@ -1413,7 +1421,11 @@ async function loadIgnoredProcesses() {
     logRuntime(`ignored process list failed: ${formatError(error)}`);
     useAppStore
       .getState()
-      .setRuntimeError(`Ignored process list failed: ${formatError(error)}`);
+      .setRuntimeError(
+        t("Ignored process list failed: {{error}}", {
+          error: formatError(error),
+        }),
+      );
   }
 }
 
@@ -1816,9 +1828,10 @@ export async function chooseLaunchTarget(
   if (isVolatileLaunchPath(selected)) {
     useAppStore.getState().addToast({
       tone: "info",
-      title: "Temporary launch file",
-      detail:
+      title: t("Temporary launch file"),
+      detail: t(
         "This file is in a temporary folder and may disappear. Choose an installed copy if one is available.",
+      ),
     });
   }
   return target;
@@ -3067,7 +3080,9 @@ async function resolveProcesses(
           "match API unavailable; leaving uncached executables pending",
         );
       } else {
-        state.setRuntimeError(`Match API failed: ${formatError(error)}`);
+        state.setRuntimeError(
+          t("Match API failed: {{error}}", { error: formatError(error) }),
+        );
       }
     }
   }
@@ -6586,7 +6601,7 @@ export async function checkBackendHealth() {
     const detail =
       error instanceof DOMException &&
       (error.name === "AbortError" || error.name === "TimeoutError")
-        ? "Health check timed out"
+        ? t("Health check timed out")
         : formatError(error);
     setBackendHealth("offline", detail);
   }
@@ -6725,17 +6740,29 @@ export function persist() {
       );
       state.addToast({
         tone: "error",
-        title: "History storage was full",
-        detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString(appLocale())}` : ""}, were archived so new data could be saved.`,
+        title: t("History storage was full"),
+        detail: oldest
+          ? t(
+              "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
+              {
+                count: result.removed.length,
+                date: new Date(oldest).toLocaleDateString(appLocale()),
+              },
+            )
+          : t(
+              "{{count}} oldest sessions were archived so new data could be saved.",
+              { count: result.removed.length },
+            ),
       });
     }
   } else if (result.status === "failed") {
     logRuntime("local persistence failed after retry");
     state.addToast({
       tone: "error",
-      title: "Changes could not be saved",
-      detail:
+      title: t("Changes could not be saved"),
+      detail: t(
         "Local storage is unavailable or full. Your in-memory history was kept.",
+      ),
     });
   }
   verboseRuntime(
@@ -7451,7 +7478,7 @@ export async function cancelCommunitySuggestion(
     return { kind: "offline" };
   }
   if (!state.installUuid) {
-    return { kind: "failed", error: "No install identity available." };
+    return { kind: "failed", error: t("No install identity available.") };
   }
   if (Date.now() < communityCancelUnavailableUntil) {
     return { kind: "unavailable" };
@@ -8695,7 +8722,9 @@ async function runQueuedProcessScans(initialReason: string) {
     useAppStore.getState().setProcessScanError(formatError(error));
     useAppStore
       .getState()
-      .setRuntimeError(`Process scan failed: ${formatError(error)}`);
+      .setRuntimeError(
+        t("Process scan failed: {{error}}", { error: formatError(error) }),
+      );
   } finally {
     scanInFlight = undefined;
   }

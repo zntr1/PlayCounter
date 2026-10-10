@@ -1,16 +1,21 @@
-// Cooldowns are session-only and shared across API routes on the same origin.
+import { getT } from "./i18n";
+
+const t = getT("tracker"); // Cooldowns are session-only and shared across API routes on the same origin.
 // Do not replay writes automatically: callers retain control of retries.
 const cooldowns = new Map<string, number>();
 const listeners = new Set<() => void>();
 export type RateLimitScope = "origin" | "endpoint";
 
-export const RATE_LIMIT_MESSAGE =
-  "The server is temporarily busy. Please try this action again after the pause.";
+export function rateLimitMessage() {
+  return t(
+    "The server is temporarily busy. Please try this action again after the pause.",
+  );
+}
 
 export class RateLimitError extends Error {
   readonly status = 429;
   constructor() {
-    super(RATE_LIMIT_MESSAGE);
+    super(rateLimitMessage());
     this.name = "RateLimitError";
   }
 }
