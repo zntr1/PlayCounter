@@ -3,6 +3,9 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { useAppStore } from "./store";
+import { getT } from "./i18n";
+
+const t = getT("settings");
 
 export type HotkeySetting = "showWindowHotkey" | "currentSessionHotkey";
 const actions: Record<HotkeySetting, string> = {
@@ -70,8 +73,11 @@ export function initializeHotkeys() {
         if (saved)
           useAppStore.getState().addToast({
             tone: "error",
-            title: "Hotkey could not be enabled",
-            detail: `${saved}: ${String(error)}. Check Keyboard shortcuts in Settings.`,
+            title: t("Hotkey could not be enabled"),
+            detail: t(
+              "{{saved}}: {{error}}. Check Keyboard shortcuts in Settings.",
+              { saved, error: String(error) },
+            ),
           });
       }
     }
@@ -137,10 +143,10 @@ export function shortcutFromKey(
   )
     return null;
   return [
-    event.ctrlKey && "Control",
-    event.altKey && "Alt",
-    event.shiftKey && "Shift",
-    event.metaKey && "Super",
+    event.ctrlKey && t("Control"),
+    event.altKey && t("Alt"),
+    event.shiftKey && t("Shift"),
+    event.metaKey && t("Super"),
     code,
   ]
     .filter(Boolean)
@@ -153,6 +159,6 @@ export function formatHotkey(shortcut: string | null | undefined) {
       ?.replace(/Control/g, "Ctrl")
       .replace(/Key([A-Z])/g, "$1")
       .replace(/Digit([0-9])/g, "$1")
-      .replace(/Super/g, "Win / Cmd") ?? "Not set"
+      .replace(/Super/g, "Win / Cmd") ?? t("Not set")
   );
 }

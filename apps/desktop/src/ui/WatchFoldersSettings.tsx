@@ -8,6 +8,9 @@ import {
 import { useAppStore } from "../store";
 import { restoreDismissedWatchFolder } from "../tracker";
 import { Button } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("settings");
 
 /** Folders PlayCounter watches for games that no launcher knows about. */
 export function WatchFoldersSettings() {
@@ -24,7 +27,7 @@ export function WatchFoldersSettings() {
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Folder not added",
+        title: t("Folder not added"),
         detail: error instanceof Error ? error.message : String(error),
       });
     }
@@ -37,12 +40,13 @@ export function WatchFoldersSettings() {
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-text">Watched folders</div>
+          <div className="text-sm font-medium text-text">
+            {t("Watched folders")}
+          </div>
           <div className="mt-0.5 text-xs leading-5 text-text-faint">
-            Each folder inside a watched folder counts as one game. Games
-            PlayCounter recognizes show up in My Games, ready to play; the rest
-            wait in Discovered. To recognize them, PlayCounter sends the names
-            of the game files it finds to its game database.
+            {t(
+              "Each folder inside a watched folder counts as one game. Games PlayCounter recognizes show up in My Games, ready to play; the rest wait in Discovered. To recognize them, PlayCounter sends the names of the game files it finds to its game database.",
+            )}
           </div>
         </div>
         <Button
@@ -55,7 +59,7 @@ export function WatchFoldersSettings() {
           }
           onClick={() => void addFolder()}
         >
-          Add folder
+          {t("Add folder")}
         </Button>
       </div>
       {remembersPaths ? null : (
@@ -64,8 +68,9 @@ export function WatchFoldersSettings() {
           className="flex items-start gap-2 text-xs leading-5 text-warning"
         >
           <Info size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
-          Add folder needs Remember launch paths, because PlayCounter saves
-          where each game's file is. Turn it on under Game launching above.
+          {t(
+            "Add folder needs Remember launch paths, because PlayCounter saves where each game's file is. Turn it on under Game launching above.",
+          )}
         </p>
       )}
       {record.folders.map((folder) => (
@@ -79,10 +84,10 @@ export function WatchFoldersSettings() {
           <Button
             variant="ghost"
             icon={Trash2}
-            aria-label={`Stop watching ${folder}`}
+            aria-label={t("Stop watching {{folder}}", { folder })}
             onClick={() => setRecord(removeWatchFolder(folder))}
           >
-            Remove
+            {t("Remove")}
           </Button>
         </div>
       ))}
@@ -92,7 +97,7 @@ export function WatchFoldersSettings() {
           className="grid gap-2"
         >
           <div className="text-xs font-medium text-text-muted">
-            Dismissed game folders
+            {t("Dismissed game folders")}
           </div>
           {record.dismissed.map(({ folderPath: path, exeName }) => (
             <div
@@ -108,14 +113,14 @@ export function WatchFoldersSettings() {
               <Button
                 variant="ghost"
                 icon={RotateCcw}
-                aria-label={`Restore ${path}`}
+                aria-label={t("Restore {{path}}", { path })}
                 onClick={() =>
                   void restoreDismissedWatchFolder(path, exeName).finally(() =>
                     setRecord(readWatchFolders()),
                   )
                 }
               >
-                Restore
+                {t("Restore")}
               </Button>
             </div>
           ))}

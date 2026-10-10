@@ -10,7 +10,9 @@ import {
 } from "../automaticBackups";
 import { useAppStore } from "../store";
 import { Button, Select, Switch } from "./primitives";
-import { appLocale } from "../i18n";
+import { appLocale, getT } from "../i18n";
+
+const t = getT("settings");
 
 export function AutomaticBackupSettings() {
   const {
@@ -36,7 +38,7 @@ export function AutomaticBackupSettings() {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Choose automatic backup folder",
+        title: t("Choose automatic backup folder"),
         ...(directory ? { defaultPath: directory } : {}),
       });
       if (typeof selected === "string") {
@@ -70,19 +72,19 @@ export function AutomaticBackupSettings() {
     >
       <div className="flex items-start justify-between gap-5">
         <div className="min-w-0">
-          <h3 className="font-medium text-text">Automatic backups</h3>
+          <h3 className="font-medium text-text">{t("Automatic backups")}</h3>
           <p
             id="automatic-backups-description"
             className="mt-1 text-sm text-text-muted"
           >
-            Save a backup on a schedule while PlayCounter is running, even when
-            it is only in the tray. A missed backup is saved the next time you
-            open the app.
+            {t(
+              "Save a backup on a schedule while PlayCounter is running, even when it is only in the tray. A missed backup is saved the next time you open the app.",
+            )}
           </p>
         </div>
         <Switch
           data-tour="settings-backup-enabled"
-          aria-label="Automatic backups"
+          aria-label={t("Automatic backups")}
           aria-describedby="automatic-backups-description"
           checked={preferences.enabled}
           disabled={busy}
@@ -97,7 +99,7 @@ export function AutomaticBackupSettings() {
         className="flex flex-wrap items-end gap-3"
       >
         <label className="grid gap-1.5 text-sm text-text-muted">
-          Schedule
+          {t("Schedule")}
           <Select
             data-tour="settings-backup-interval"
             value={preferences.interval}
@@ -108,12 +110,12 @@ export function AutomaticBackupSettings() {
               })
             }
           >
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
+            <option value="daily">{t("Daily")}</option>
+            <option value="weekly">{t("Weekly")}</option>
           </Select>
         </label>
         <label className="grid gap-1.5 text-sm text-text-muted">
-          Keep
+          {t("Keep")}
           <Select
             data-tour="settings-backup-keep"
             value={preferences.keepCount}
@@ -128,7 +130,7 @@ export function AutomaticBackupSettings() {
               .sort((a, b) => a - b)
               .map((count) => (
                 <option key={count} value={count}>
-                  Last {count} backups
+                  {t("Last {{count}} backups", { count })}
                 </option>
               ))}
           </Select>
@@ -143,13 +145,13 @@ export function AutomaticBackupSettings() {
               if (result)
                 addToast({
                   tone: "success",
-                  title: "Backup saved",
+                  title: t("Backup saved"),
                   detail: result.path,
                 });
             })
           }
         >
-          Back up now
+          {t("Back up now")}
         </Button>
       </div>
       <div
@@ -158,11 +160,11 @@ export function AutomaticBackupSettings() {
       >
         <p className="text-sm text-text-muted">
           {preferences.directory
-            ? "Backup folder"
-            : "Backup folder · App data (default)"}
+            ? t("Backup folder")
+            : t("Backup folder · App data (default)")}
         </p>
         <p className="mt-1 select-all break-all text-sm text-text">
-          {directory ?? "App data / backups / automatic"}
+          {directory ?? t("App data / backups / automatic")}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
@@ -170,7 +172,7 @@ export function AutomaticBackupSettings() {
             disabled={busy}
             onClick={() => void chooseFolder()}
           >
-            Choose folder
+            {t("Choose folder")}
           </Button>
           <Button
             data-tour="settings-backup-open-folder"
@@ -178,7 +180,7 @@ export function AutomaticBackupSettings() {
             disabled={busy}
             onClick={() => void openFolder()}
           >
-            Open folder
+            {t("Open folder")}
           </Button>
           {preferences.directory ? (
             <Button
@@ -189,7 +191,7 @@ export function AutomaticBackupSettings() {
                 setAutomaticBackupPreferences({ directory: null });
               }}
             >
-              Use app data
+              {t("Use app data")}
             </Button>
           ) : null}
         </div>
@@ -197,40 +199,50 @@ export function AutomaticBackupSettings() {
       <div role="status" className="grid gap-1 text-xs text-text-muted">
         <p>
           {running
-            ? "Saving backup…"
+            ? t("Saving backup…")
             : preferences.lastBackupAt
-              ? `Last backup: ${new Date(preferences.lastBackupAt).toLocaleString(appLocale())}`
-              : "No automatic backups saved yet."}
+              ? t("Last backup: {{date}}", {
+                  date: new Date(preferences.lastBackupAt).toLocaleString(
+                    appLocale(),
+                  ),
+                })
+              : t("No automatic backups saved yet.")}
         </p>
         {preferences.enabled && !running && !error ? (
           <p>
             {nextAt && nextAt > Date.now()
-              ? `Next backup: ${new Date(nextAt).toLocaleString(appLocale())}`
-              : "Next backup: as soon as PlayCounter is running."}
+              ? t("Next backup: {{date}}", {
+                  date: new Date(nextAt).toLocaleString(appLocale()),
+                })
+              : t("Next backup: as soon as PlayCounter is running.")}
           </p>
         ) : null}
         <p>
-          After a new backup is saved, older automatic backups beyond the Keep
-          limit are deleted from this folder. To restore a backup, use Import
-          data below.
+          {t(
+            "After a new backup is saved, older automatic backups beyond the Keep limit are deleted from this folder. To restore a backup, use Import data below.",
+          )}
         </p>
         {error ? (
           <p className="break-words text-danger">
-            Backup error: {error}
             {preferences.enabled && retryAt
-              ? " PlayCounter tries again in 15 minutes. You can also click Back up now."
-              : ""}
+              ? t(
+                  "Backup error: {{error}} PlayCounter tries again in 15 minutes. You can also click Back up now.",
+                  { error },
+                )
+              : t("Backup error: {{error}}", { error })}
           </p>
         ) : null}
         {folderError ? (
           <p className="break-words text-danger">
-            Folder unavailable: {folderError}
+            {t("Folder unavailable: {{folderError}}", { folderError })}
           </p>
         ) : null}
         {cleanupWarning ? (
           <p className="break-words text-warning">
-            Backup saved, but older backups could not be removed:{" "}
-            {cleanupWarning}
+            {t(
+              "Backup saved, but older backups could not be removed: {{cleanupWarning}}",
+              { cleanupWarning },
+            )}
           </p>
         ) : null}
       </div>

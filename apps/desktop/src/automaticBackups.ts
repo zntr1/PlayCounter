@@ -4,6 +4,9 @@ import { createBackupContents, createTransferData } from "./backup";
 import { validateBackupData } from "./backupValidation";
 import { createPersistedPayload, isPersistenceSuspended } from "./persistence";
 import { useAppStore } from "./store";
+import { getT } from "./i18n";
+
+const t = getT("settings");
 
 // Machine-local preferences live outside the transferable app data. Restoring
 // a backup must never enable a schedule or replace this PC's chosen folder.
@@ -145,7 +148,9 @@ export function setAutomaticBackupPreferences(
     if (stopScheduler) void runAutomaticBackup();
   } catch (error) {
     useAutomaticBackupStore.setState({
-      error: `Could not save backup settings: ${formatError(error)}`,
+      error: t("Could not save backup settings: {{error}}", {
+        error: formatError(error),
+      }),
     });
   }
 }
@@ -247,7 +252,10 @@ export function runAutomaticBackup(
             persistPreferences(updated);
           } catch (error) {
             useAutomaticBackupStore.setState({
-              error: `Backup saved, but its schedule could not be saved: ${formatError(error)}`,
+              error: t(
+                "Backup saved, but its schedule could not be saved: {{error}}",
+                { error: formatError(error) },
+              ),
             });
           }
         }
