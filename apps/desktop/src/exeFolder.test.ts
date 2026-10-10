@@ -14,31 +14,31 @@ describe("exe folder evidence", () => {
   it.each([
     [
       "D:/SteamLibrary/steamapps/common/Hades II/Hades2.exe",
-      "a Steam library",
+      "steam",
       ["steamapps", "common"],
       "Hades II",
     ],
     [
       "C:/Program Files/Epic Games/Fortnite/FortniteGame/Binaries/Win64/Fortnite.exe",
-      "the Epic Games folder",
+      "epic",
       ["Epic Games"],
       "Fortnite",
     ],
     [
       "E:/XboxGames/Starfield/Content/Starfield.exe",
-      "the Xbox games folder",
+      "xbox",
       ["XboxGames"],
       "Starfield",
     ],
     [
       "C:/Program Files (x86)/GOG Galaxy/Games/Witcher 3/bin/witcher3.exe",
-      "a GOG games folder",
+      "gog",
       ["GOG Galaxy", "Games"],
       "Witcher 3",
     ],
     [
       "D:/Games/Stardew Valley/Stardew Valley.exe",
-      "a folder called Games",
+      "games",
       ["Games"],
       "Stardew Valley",
     ],
@@ -50,7 +50,7 @@ describe("exe folder evidence", () => {
     expect(
       marked("D:/Games/SteamLibrary/steamapps/common/Celeste/Celeste.exe")
         .location,
-    ).toBe("a Steam library");
+    ).toBe("steam");
   });
 
   it("finds nothing for ordinary programs, and splits backslash paths", () => {

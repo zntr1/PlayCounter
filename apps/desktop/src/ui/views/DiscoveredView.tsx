@@ -23,6 +23,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Trans } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   addCustomGame,
@@ -58,7 +59,7 @@ import {
   peekExeDetails,
   useExeDetails,
 } from "../exeDetails";
-import { describeExeFolder } from "../../exeFolder";
+import { describeExeFolder, type GameLocation } from "../../exeFolder";
 import { SoftwareDialog } from "../SoftwareDialog";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
@@ -98,10 +99,15 @@ import {
 import { isGenericExeName } from "../../library/exeCandidates";
 import { isSortedGenericCopy } from "../../library/genericExeLinks";
 import { notifyFolderIgnored } from "./folderIgnoredToast";
-import { appLocale } from "../../i18n";
+import { appLocale, getT } from "../../i18n";
 
-const GENERIC_SEARCH_TITLE =
-  "Find the game in the database. Many games ship a file with this name, so it is linked to this folder and not shared.";
+const t = getT("discovered");
+
+function genericSearchTitle() {
+  return t(
+    "Find the game in the database. Many games ship a file with this name, so it is linked to this folder and not shared.",
+  );
+}
 
 // Single floating heart shown briefly after a successful "Add & Share".
 // Lives outside the heavy view so firing it never re-renders the list.
@@ -177,13 +183,15 @@ type DiscoveryGroup = {
   tone: "review" | "local" | "userIgnored" | "systemIgnored";
 };
 
-const statusLabels: Record<DiscoveryStatus, string> = {
-  matched: "Tracked game",
-  custom: "Added manually",
-  unmatched: "Not recognized",
-  ignored: "Ignored by PlayCounter",
-  userIgnored: "Ignored by you",
-};
+function statusLabels(): Record<DiscoveryStatus, string> {
+  return {
+    matched: t("Tracked game"),
+    custom: t("Added manually"),
+    unmatched: t("Not recognized"),
+    ignored: t("Ignored by PlayCounter"),
+    userIgnored: t("Ignored by you"),
+  };
+}
 
 const statusClasses: Record<DiscoveryStatus, string> = {
   matched: "bg-success-tint text-success",
@@ -195,19 +203,25 @@ const statusClasses: Record<DiscoveryStatus, string> = {
 
 type FilterId = "review" | "tracked" | "ignored";
 
-const discoveryFilters: Array<{
+function discoveryFilters(): Array<{
   id: FilterId;
   label: string;
   statuses: DiscoveryStatus[];
-}> = [
-  {
-    id: "review",
-    label: "Needs review",
-    statuses: [...NEEDS_REVIEW_STATUSES],
-  },
-  { id: "tracked", label: "Tracked", statuses: ["matched", "custom"] },
-  { id: "ignored", label: "Ignored", statuses: ["userIgnored", "ignored"] },
-];
+}> {
+  return [
+    {
+      id: "review",
+      label: t("Needs review"),
+      statuses: [...NEEDS_REVIEW_STATUSES],
+    },
+    { id: "tracked", label: t("Tracked"), statuses: ["matched", "custom"] },
+    {
+      id: "ignored",
+      label: t("Ignored"),
+      statuses: ["userIgnored", "ignored"],
+    },
+  ];
+}
 
 const IGNORED_PAGE_SIZE = 50;
 
@@ -384,8 +398,11 @@ export function DiscoveredView() {
     restoreIgnoredExeFolder(executable.ignoredFolderKey);
     addToast({
       tone: "success",
-      title: `${executable.exeName} restored`,
-      detail: `${executable.exeName} in ${executable.foundIn} can be matched again on the next scan.`,
+      title: t("{{exeName}} restored", { exeName: executable.exeName }),
+      detail: t(
+        "{{exeName}} in {{foundIn}} can be matched again on the next scan.",
+        { exeName: executable.exeName, foundIn: executable.foundIn },
+      ),
     });
   }
 
@@ -399,14 +416,16 @@ export function DiscoveredView() {
         tone: "success",
         title: ignored ? `${exeName} ignored` : `${exeName} restored`,
         detail: ignored
-          ? `${exeName} will no longer be matched or tracked.`
-          : `${exeName} can be matched again on the next scan.`,
+          ? t("{{exeName}} will no longer be matched or tracked.", { exeName })
+          : t("{{exeName}} can be matched again on the next scan.", {
+              exeName,
+            }),
       });
       return true;
     } catch (error) {
       addToast({
         tone: "error",
-        title: ignored ? "Ignore failed" : "Restore failed",
+        title: ignored ? t("Ignore failed") : t("Restore failed"),
         detail: formatError(error),
       });
       return false;
@@ -455,16 +474,16 @@ export function DiscoveredView() {
     setCustomGameName("");
     addToast({
       tone: "success",
-      title: "Added to My Games",
-      detail: `${name} is now tracked as a custom game.`,
+      title: t("Added to My Games"),
+      detail: t("{{name}} is now tracked as a custom game.", { name }),
     });
   }
 
   const correction = useCommunityGameCorrection({
     exeName: suggestionTarget?.exeName ?? "",
     resultInstruction: suggestionTarget?.localOnly
-      ? "Pick the game in this folder."
-      : "Pick the exact game to unlock sharing.",
+      ? t("Pick the game in this folder.")
+      : t("Pick the exact game to unlock sharing."),
     onKnownGame: (game) => {
       if (!suggestionTarget) return;
       const { exeName, exePath } = suggestionTarget;
@@ -472,8 +491,11 @@ export function DiscoveredView() {
       closeCommunitySuggestion();
       addToast({
         tone: "success",
-        title: "Already in IGDB",
-        detail: `${game.name} is a known IGDB match for ${exeName} and was applied directly.`,
+        title: t("Already in IGDB"),
+        detail: t(
+          "{{name}} is a known IGDB match for {{exeName}} and was applied directly.",
+          { name: game.name, exeName },
+        ),
       });
       showHeart();
     },
@@ -492,8 +514,8 @@ export function DiscoveredView() {
       closeCommunitySuggestion();
       addToast({
         tone: "info",
-        title: "Suggestion already reviewed",
-        detail: reviewNote ?? "This suggestion was not accepted.",
+        title: t("Suggestion already reviewed"),
+        detail: reviewNote ?? t("This suggestion was not accepted."),
       });
     },
     onSuggested: (id, verified, { selection }) => {
@@ -510,8 +532,10 @@ export function DiscoveredView() {
       closeCommunitySuggestion();
       addToast({
         tone: "success",
-        title: "Game added and shared",
-        detail: `Your community suggestion was submitted for ${exeName}.`,
+        title: t("Game added and shared"),
+        detail: t("Your community suggestion was submitted for {{exeName}}.", {
+          exeName,
+        }),
       });
       showHeart();
     },
@@ -521,8 +545,8 @@ export function DiscoveredView() {
     if (isOffline) {
       addToast({
         tone: "info",
-        title: "Offline",
-        detail: "Community sharing unavailable offline.",
+        title: t("Offline"),
+        detail: t("Community sharing unavailable offline."),
       });
       return;
     }
@@ -557,8 +581,11 @@ export function DiscoveredView() {
     closeCommunitySuggestion();
     addToast({
       tone: "success",
-      title: "Added to My Games",
-      detail: `${game.name} is tracked from this folder. ${exeName} is not shared: many games use that name.`,
+      title: t("Added to My Games"),
+      detail: t(
+        "{{name}} is tracked from this folder. {{exeName}} is not shared: many games use that name.",
+        { name: game.name, exeName },
+      ),
     });
   }
 
@@ -671,15 +698,16 @@ export function DiscoveredView() {
     return [
       {
         id: "running",
-        title: "Running now",
-        description: "Apps from the latest scan.",
+        title: t("Running now"),
+        description: t("Apps from the latest scan."),
         executables: running.sort(sortDiscovered),
       },
       {
         id: "saved",
-        title: "Not running",
-        description:
+        title: t("Not running"),
+        description: t(
           "Apps PlayCounter saw earlier. They stay here until you decide.",
+        ),
         executables: saved.sort(sortDiscovered),
       },
     ];
@@ -705,8 +733,8 @@ export function DiscoveredView() {
     ? [TOUR_DISCOVERED_EXECUTABLE, ...allExecutables]
     : allExecutables;
   const activeFilter =
-    discoveryFilters.find((entry) => entry.id === filter) ??
-    discoveryFilters[0];
+    discoveryFilters().find((entry) => entry.id === filter) ??
+    discoveryFilters()[0];
   const needle = search.trim().toLowerCase();
   const matchesSearch = (executable: DiscoveredExecutable) => {
     if (!needle) return true;
@@ -828,8 +856,11 @@ export function DiscoveredView() {
   function showTutorialProcessNotice() {
     addToast({
       tone: "info",
-      title: "Tutorial app",
-      detail: `${TOUR_DEMO_GAME.exeName} exists only inside this guide. Nothing was changed or saved.`,
+      title: t("Tutorial app"),
+      detail: t(
+        "{{exeName}} exists only inside this guide. Nothing was changed or saved.",
+        { exeName: TOUR_DEMO_GAME.exeName },
+      ),
     });
   }
 
@@ -841,7 +872,7 @@ export function DiscoveredView() {
           data-tour="discovered-filters"
           className="flex flex-wrap items-center gap-2"
         >
-          {discoveryFilters.map((entry) => {
+          {discoveryFilters().map((entry) => {
             const count = searchable.filter((executable) =>
               entry.statuses.includes(executable.status),
             ).length;
@@ -886,8 +917,12 @@ export function DiscoveredView() {
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden text-xs text-text-faint md:inline">
             {lastProcessScanAt
-              ? `Last scan ${new Date(lastProcessScanAt).toLocaleTimeString(appLocale())}`
-              : "No scan yet"}
+              ? t("Last scan {{date}}", {
+                  date: new Date(lastProcessScanAt).toLocaleTimeString(
+                    appLocale(),
+                  ),
+                })
+              : t("No scan yet")}
           </span>
           <div ref={searchBoxRef} className="relative">
             <Search
@@ -906,7 +941,7 @@ export function DiscoveredView() {
                   clearSearch();
                 }
               }}
-              placeholder="Search apps..."
+              placeholder={t("Search apps...")}
               className="w-56 pl-9"
             />
           </div>
@@ -922,15 +957,16 @@ export function DiscoveredView() {
               }
             }}
           >
-            {scanning ? "Scanning…" : "Scan"}
+            {scanning ? t("Scanning…") : t("Scan")}
           </Button>
         </div>
       </div>
 
       {isOffline ? (
         <div className="text-sm text-text-muted">
-          Community features are paused while offline. Local tracking, scanning,
-          and triage still work.
+          {t(
+            "Community features are paused while offline. Local tracking, scanning, and triage still work.",
+          )}
         </div>
       ) : null}
 
@@ -1014,7 +1050,9 @@ export function DiscoveredView() {
           </div>
         ) : search.trim() ? (
           <div className="rounded-md border border-dashed border-border bg-surface px-4 py-10 text-center text-sm text-text-muted">
-            No app in the queue matches “{search.trim()}”.
+            {t("No app in the queue matches “{{search}}”.", {
+              search: search.trim(),
+            })}
           </div>
         ) : (
           <div
@@ -1025,26 +1063,28 @@ export function DiscoveredView() {
               <CheckCircle size={32} />
             </div>
             <h3 className="mb-1 text-lg font-semibold text-text">
-              You're all caught up.
+              {t("You're all caught up.")}
             </h3>
             <p className="text-sm text-text-muted">
-              Nothing new to review right now.
+              {t("Nothing new to review right now.")}
             </p>
           </div>
         )
       ) : filteredExecutables.length === 0 ? (
         <div className="rounded-md border border-dashed border-border bg-surface px-4 py-10 text-center text-sm text-text-muted">
-          No apps match your filters.
+          {t("No apps match your filters.")}
         </div>
       ) : filter === "ignored" ? (
         <div className="grid gap-5">
           <section className="grid gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
-                Ignored by you · {userIgnoredExecutables.length}
+                {t("Ignored by you · {{count}}", {
+                  count: userIgnoredExecutables.length,
+                })}
               </h3>
               <Select
-                aria-label="Sort ignored apps"
+                aria-label={t("Sort ignored apps")}
                 value={ignoredSort}
                 onChange={(event) => {
                   setIgnoredSort(event.target.value as IgnoredProcessSort);
@@ -1052,15 +1092,16 @@ export function DiscoveredView() {
                 }}
                 className="h-9 rounded-lg !py-0 text-[13px]"
               >
-                <option value="lastAdded">Sort: Last ignored</option>
-                <option value="az">Sort: A–Z</option>
-                <option value="za">Sort: Z–A</option>
+                <option value="lastAdded">{t("Sort: Last ignored")}</option>
+                <option value="az">{t("Sort: A–Z")}</option>
+                <option value="za">{t("Sort: Z–A")}</option>
               </Select>
             </div>
             {userIgnoredExecutables.length === 0 ? (
               <div className="rounded-md border border-dashed border-border bg-surface px-4 py-6 text-center text-sm text-text-muted">
-                Apps you ignore show up here. Restore one to have it checked
-                again.
+                {t(
+                  "Apps you ignore show up here. Restore one to have it checked again.",
+                )}
               </div>
             ) : (
               ignoredPagination.items.map(renderExecutableRow)
@@ -1068,8 +1109,11 @@ export function DiscoveredView() {
             {ignoredPagination.pageCount > 1 ? (
               <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-t border-border px-1 pt-3 text-sm text-text-muted">
                 <span>
-                  Showing {ignoredPagination.start}–{ignoredPagination.end} of{" "}
-                  {ignoredPagination.total}
+                  {t("Showing {{start}}–{{end}} of {{total}}", {
+                    start: ignoredPagination.start,
+                    end: ignoredPagination.end,
+                    total: ignoredPagination.total,
+                  })}
                 </span>
                 <div className="flex items-center gap-3">
                   <button
@@ -1078,11 +1122,13 @@ export function DiscoveredView() {
                     onClick={() => setIgnoredPage(ignoredPagination.page - 1)}
                     className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Previous
+                    {t("Previous")}
                   </button>
                   <span>
-                    Page {ignoredPagination.page} of{" "}
-                    {ignoredPagination.pageCount}
+                    {t("Page {{page}} of {{pageCount}}", {
+                      page: ignoredPagination.page,
+                      pageCount: ignoredPagination.pageCount,
+                    })}
                   </span>
                   <button
                     type="button"
@@ -1092,7 +1138,7 @@ export function DiscoveredView() {
                     onClick={() => setIgnoredPage(ignoredPagination.page + 1)}
                     className="rounded-md border border-border px-3 py-1.5 text-text transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Next
+                    {t("Next")}
                   </button>
                 </div>
               </div>
@@ -1166,31 +1212,32 @@ function notifyIgnoredProcessSuggestionOutcome(
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
-      title: `Could not ignore ${exeName}`,
-      detail: "PlayCounter could not ignore it on this PC. Try again.",
+      title: t("Could not ignore {{exeName}}", { exeName }),
+      detail: t("PlayCounter could not ignore it on this PC. Try again."),
     });
     return;
   }
   if (!outcome.ignoreFileUpdated) {
     addToast({
       tone: "error",
-      title: `${exeName} ignored`,
-      detail:
+      title: t("{{exeName}} ignored", { exeName }),
+      detail: t(
         "It comes back when you restart PlayCounter - the ignore file could not be saved.",
+      ),
     });
     return;
   }
   if (outcome.suggestion.kind !== "suggested") {
-    addToast({ tone: "success", title: `${exeName} ignored` });
+    addToast({ tone: "success", title: t("{{exeName}} ignored", { exeName }) });
     return;
   }
   addToast({
     tone: "success",
-    title: `${exeName} ignored`,
+    title: t("{{exeName}} ignored", { exeName }),
     detail:
       outcome.suggestion.status === "already_reviewed"
-        ? "Someone already suggested this one for review."
-        : "Also sent for review, so other players do not see it either.",
+        ? t("Someone already suggested this one for review.")
+        : t("Also sent for review, so other players do not see it either."),
   });
 }
 
@@ -1273,20 +1320,24 @@ export function TriageWizardCard({
                       : "bg-text-faint/50",
                   )}
                 />
-                {executable.isRunning ? "Running now" : "Not running"}
+                {executable.isRunning ? t("Running now") : t("Not running")}
               </span>
               {trackedSeconds >= 60 ? (
-                <span>{formatTrackedTime(trackedSeconds)} tracked so far</span>
+                <span>
+                  {t("{{time}} tracked so far", {
+                    time: formatTrackedTime(trackedSeconds),
+                  })}
+                </span>
               ) : null}
               {isRetrying ? (
                 <span className="animate-pulse font-medium text-accent-ink">
-                  Checking database…
+                  {t("Checking database…")}
                 </span>
               ) : null}
             </div>
             {executable.isTutorial ? (
               <span className="mt-2 inline-flex rounded-full border border-accent/30 bg-accent-tint px-2.5 py-1 text-xs font-semibold text-accent-ink">
-                Tutorial sample · not saved
+                {t("Tutorial sample · not saved")}
               </span>
             ) : null}
           </div>
@@ -1313,7 +1364,7 @@ export function TriageWizardCard({
               onChange={(event) => onCustomGameNameChange(event.target.value)}
               maxLength={120}
               autoFocus
-              placeholder="e.g. Stardew Valley (modded)"
+              placeholder={t("e.g. Stardew Valley (modded)")}
               className="h-10 flex-1 text-base"
             />
             <Button
@@ -1323,7 +1374,7 @@ export function TriageWizardCard({
               disabled={!customGameName.trim()}
               className="h-10 px-6"
             >
-              Save
+              {t("Save")}
             </Button>
             <Button
               variant="ghost"
@@ -1344,17 +1395,17 @@ export function TriageWizardCard({
             }
             title={
               isOffline
-                ? "Database search unavailable offline"
+                ? t("Database search unavailable offline")
                 : isGenericExeName(executable.exeName)
-                  ? GENERIC_SEARCH_TITLE
+                  ? genericSearchTitle()
                   : undefined
             }
             onClick={onSuggest}
             className="h-12 w-full text-sm font-semibold shadow-sm"
           >
             {isGenericExeName(executable.exeName)
-              ? "Search & Add"
-              : "Add & Share"}
+              ? t("Search & Add")
+              : t("Add & Share")}
           </Button>
           <Button
             data-tour="discovered-add-custom"
@@ -1364,7 +1415,7 @@ export function TriageWizardCard({
             onClick={onStartCustomGame}
             className="h-12 w-full text-sm"
           >
-            Add as Custom
+            {t("Add as Custom")}
           </Button>
           <Button
             data-tour="discovered-ignore"
@@ -1374,7 +1425,7 @@ export function TriageWizardCard({
             onClick={onIgnore}
             className="h-12 w-full text-sm"
           >
-            Ignore
+            {t("Ignore")}
           </Button>
         </div>
         {/* Offered, not pushed: most apps that are not games should simply be
@@ -1384,16 +1435,18 @@ export function TriageWizardCard({
               RPG Maker game into software. */}
           {isGenericExeName(executable.exeName) ? null : (
             <div className="flex flex-wrap items-center justify-center gap-x-1.5 text-text-muted">
-              <span>Not a game, but you want its time?</span>
+              <span>{t("Not a game, but you want its time?")}</span>
               <button
                 type="button"
                 disabled={isPending || isRetrying || isCustomGameEntryOpen}
-                title="Discord, Spotify, a launcher: counted on the Software page, never as a game"
+                title={t(
+                  "Discord, Spotify, a launcher: counted on the Software page, never as a game",
+                )}
                 onClick={onMarkSoftware}
                 className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <AppWindow size={14} />
-                Track as software
+                {t("Track as software")}
               </button>
             </div>
           )}
@@ -1405,7 +1458,7 @@ export function TriageWizardCard({
             onClick={onSkip}
             className="text-sm hover:bg-surface-hover"
           >
-            Skip for now
+            {t("Skip for now")}
           </Button>
         </div>
       </div>
@@ -1447,7 +1500,7 @@ function BuiltInIgnoredSection({
           )}
         />
         <span className="shrink-0 text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
-          Ignored by PlayCounter · {items.length}
+          {t("Ignored by PlayCounter · {{count}}", { count: items.length })}
         </span>
         {expanded ? null : (
           <span className="min-w-0 truncate text-xs text-text-faint">
@@ -1458,8 +1511,9 @@ function BuiltInIgnoredSection({
       {expanded ? (
         <Panel className="divide-y divide-border/60 overflow-hidden">
           <p className="px-4 py-2.5 text-xs text-text-faint">
-            System apps, helpers and background services on PlayCounter's
-            built-in list. They are never treated as games.
+            {t(
+              "System apps, helpers and background services on PlayCounter's built-in list. They are never treated as games.",
+            )}
           </p>
           {items.map((item) => (
             <div
@@ -1481,7 +1535,7 @@ function BuiltInIgnoredSection({
               </span>
               {item.isRunning ? (
                 <span className="shrink-0 text-xs text-text-faint">
-                  Running
+                  {t("Running")}
                 </span>
               ) : null}
             </div>
@@ -1504,21 +1558,21 @@ function ExeFolderEvidence({
   if (!exePath) {
     return (
       <p className="mt-5 text-sm text-text-faint">
-        PlayCounter learns the folder the next time this app runs.
+        {t("PlayCounter learns the folder the next time this app runs.")}
       </p>
     );
   }
   const folder = describeExeFolder(exePath);
   // A watched folder was set up for games, so it outweighs the folder name.
   const hint = foundIn
-    ? "it's in a folder you watch"
+    ? t("Probably a game: it's in a folder you watch.")
     : folder.gameLocation
-      ? `it's in ${folder.gameLocation}`
+      ? gameLocationHint(folder.gameLocation)
       : null;
   return (
     <div className="mt-5 rounded-xl border border-border/70 bg-bg/40 px-4 py-3">
       <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-faint">
-        Folder
+        {t("Folder")}
       </div>
       <div
         className="mt-1.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 font-mono text-[13px] text-text-muted"
@@ -1550,13 +1604,13 @@ function ExeFolderEvidence({
           className="mt-1.5 truncate text-xs text-text-faint"
           title={foundIn}
         >
-          Found in {foundIn}
+          {t("Found in {{foundIn}}", { foundIn })}
         </div>
       ) : null}
       {hint ? (
         <div className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink">
           <Gamepad2 size={14} aria-hidden="true" />
-          Probably a game: {hint}.
+          {hint}
         </div>
       ) : null}
     </div>
@@ -1577,12 +1631,12 @@ function ReviewQueue({
   const groups = [
     {
       id: "running",
-      label: "Running now",
+      label: t("Running now"),
       items: items.filter((item) => item.isRunning),
     },
     {
       id: "earlier",
-      label: "Seen earlier",
+      label: t("Seen earlier"),
       items: items.filter((item) => !item.isRunning),
     },
   ].filter((group) => group.items.length > 0);
@@ -1590,7 +1644,7 @@ function ReviewQueue({
     <Panel className="overflow-hidden">
       <div
         role="listbox"
-        aria-label="Apps to review"
+        aria-label={t("Apps to review")}
         className="max-h-[calc(100vh-15rem)] overflow-y-auto p-2"
       >
         {groups.map((group) => (
@@ -1659,7 +1713,7 @@ function ReviewQueueRow({
           {executable.exeName}
         </span>
         <span className="block truncate text-xs text-text-faint">
-          {productName ?? folderName ?? "No details yet"}
+          {productName ?? folderName ?? t("No details yet")}
         </span>
       </span>
       {trackedSeconds >= 60 ? (
@@ -1738,8 +1792,8 @@ function DiscoveredExecutableRow({
     navigator.clipboard.writeText(executable.exeName);
     addToast({
       tone: "success",
-      title: "Copied",
-      detail: "File name copied to clipboard.",
+      title: t("Copied"),
+      detail: t("File name copied to clipboard."),
     });
     contextMenu.close();
   };
@@ -1749,8 +1803,8 @@ function DiscoveredExecutableRow({
       navigator.clipboard.writeText(matchedName);
       addToast({
         tone: "success",
-        title: "Copied",
-        detail: "Game name copied to clipboard.",
+        title: t("Copied"),
+        detail: t("Game name copied to clipboard."),
       });
       contextMenu.close();
     }
@@ -1766,12 +1820,14 @@ function DiscoveredExecutableRow({
           <div className="flex flex-wrap items-center gap-2">
             {isSystemIgnored ? null : (
               <span
-                title={executable.isRunning ? "Running" : "Not running"}
+                title={executable.isRunning ? t("Running") : t("Not running")}
                 className={clsx(
                   "h-2 w-2 shrink-0 rounded-full",
                   executable.isRunning ? "bg-success" : "bg-text-faint/50",
                 )}
-                aria-label={executable.isRunning ? "Running" : "Not running"}
+                aria-label={
+                  executable.isRunning ? t("Running") : t("Not running")
+                }
               />
             )}
             <ExeIcon
@@ -1795,7 +1851,7 @@ function DiscoveredExecutableRow({
                 )}
               >
                 <span className="truncate">
-                  {statusLabels[executable.status]}
+                  {statusLabels()[executable.status]}
                 </span>
               </span>
             )}
@@ -1818,15 +1874,23 @@ function DiscoveredExecutableRow({
               className="mt-1 truncate text-xs text-text-faint"
               title={executable.foundIn}
             >
-              Found in {executable.foundIn}
+              {t("Found in {{foundIn}}", { foundIn: executable.foundIn })}
             </div>
           ) : null}
           {trackedSecondsFor(executable.cacheEntry) >= 60 ? (
             <div className="mt-1 text-xs text-text-faint">
-              Tracked so far:{" "}
-              <span className="font-medium text-text-muted">
-                {formatTrackedTime(trackedSecondsFor(executable.cacheEntry))}
-              </span>
+              <Trans
+                t={t}
+                i18nKey="Tracked so far: <time>{{time}}</time>"
+                values={{
+                  time: formatTrackedTime(
+                    trackedSecondsFor(executable.cacheEntry),
+                  ),
+                }}
+                components={{
+                  time: <span className="font-medium text-text-muted" />,
+                }}
+              />
             </div>
           ) : null}
         </div>
@@ -1837,7 +1901,7 @@ function DiscoveredExecutableRow({
           ) : null}
           {executable.status === "ignored" ? (
             <span className="px-2 text-xs font-medium text-text-faint">
-              System ignored
+              {t("System ignored")}
             </span>
           ) : executable.status === "userIgnored" ? (
             <Button
@@ -1847,7 +1911,7 @@ function DiscoveredExecutableRow({
               onClick={onUnignore}
               className="py-1.5 text-xs"
             >
-              Restore
+              {t("Restore")}
             </Button>
           ) : executable.status === "unmatched" && !isCustomGameEntryOpen ? (
             <>
@@ -1857,29 +1921,31 @@ function DiscoveredExecutableRow({
                 disabled={isOffline || isPending || isRetrying}
                 title={
                   isOffline
-                    ? "Database search requires a connection"
+                    ? t("Database search requires a connection")
                     : isGenericExeName(executable.exeName)
-                      ? GENERIC_SEARCH_TITLE
+                      ? genericSearchTitle()
                       : undefined
                 }
                 onClick={onSuggest}
                 className="py-1.5 text-xs font-semibold"
               >
                 {isGenericExeName(executable.exeName)
-                  ? "Search & Add"
-                  : "Add & Share"}
+                  ? t("Search & Add")
+                  : t("Add & Share")}
               </Button>
               <div className="ml-1 flex items-center gap-1 border-l border-border pl-2">
                 <IconButton
                   icon={Gamepad2}
-                  title="Add as custom game (do not share)"
+                  title={t("Add as custom game (do not share)")}
                   disabled={isPending || isRetrying}
                   onClick={onStartCustomGame}
                 />
                 {isGenericExeName(executable.exeName) ? null : (
                   <IconButton
                     icon={AppWindow}
-                    title="Track as software (Discord, Spotify, a launcher)"
+                    title={t(
+                      "Track as software (Discord, Spotify, a launcher)",
+                    )}
                     disabled={isPending || isRetrying}
                     onClick={onMarkSoftware}
                   />
@@ -1888,17 +1954,17 @@ function DiscoveredExecutableRow({
                   icon={RotateCcw}
                   title={
                     isOffline
-                      ? "Database matching unavailable offline"
+                      ? t("Database matching unavailable offline")
                       : isRetrying
-                        ? "Retrying..."
-                        : "Retry database match"
+                        ? t("Retrying...")
+                        : t("Retry database match")
                   }
                   disabled={isOffline || isPending || isRetrying}
                   onClick={onRecheck}
                 />
                 <IconButton
                   icon={EyeOff}
-                  title="Ignore this app"
+                  title={t("Ignore this app")}
                   disabled={isRetrying || isPending}
                   onClick={onIgnore}
                 />
@@ -1921,7 +1987,7 @@ function DiscoveredExecutableRow({
             onChange={(event) => onCustomGameNameChange(event.target.value)}
             maxLength={120}
             autoFocus
-            placeholder="e.g. Stardew Valley (modded)"
+            placeholder={t("e.g. Stardew Valley (modded)")}
             className="h-9 flex-1 text-sm"
           />
           <Button
@@ -1931,7 +1997,7 @@ function DiscoveredExecutableRow({
             disabled={!customGameName.trim()}
             className="h-9"
           >
-            Save
+            {t("Save")}
           </Button>
           <Button
             variant="ghost"
@@ -1949,11 +2015,11 @@ function DiscoveredExecutableRow({
       >
         {matchedName && (
           <ContextMenuItem icon={Copy} onClick={handleCopyMatchedName}>
-            Copy Game Name
+            {t("Copy Game Name")}
           </ContextMenuItem>
         )}
         <ContextMenuItem icon={Copy} onClick={handleCopyExe}>
-          Copy File Name
+          {t("Copy File Name")}
         </ContextMenuItem>
         {allowTrackingChanges &&
         (executable.status === "userIgnored" ||
@@ -1968,7 +2034,7 @@ function DiscoveredExecutableRow({
                   contextMenu.close();
                 }}
               >
-                Restore Executable
+                {t("Restore Executable")}
               </ContextMenuItem>
             ) : executable.status === "unmatched" ? (
               <ContextMenuItem
@@ -1978,7 +2044,7 @@ function DiscoveredExecutableRow({
                   contextMenu.close();
                 }}
               >
-                Ignore Executable
+                {t("Ignore Executable")}
               </ContextMenuItem>
             ) : null}
           </>
@@ -1992,7 +2058,7 @@ function DiscoveredExecutableRow({
               contextMenu.close();
             }}
           >
-            Retry Database Match
+            {t("Retry Database Match")}
           </ContextMenuItem>
         ) : null}
       </ContextMenu>
@@ -2009,7 +2075,7 @@ export function CommunitySuggestionForm({
   search,
   selection,
   state,
-  title = "Suggest community game",
+  title = t("Suggest community game"),
   practice = false,
   localOnly = false,
   localAction,
@@ -2075,12 +2141,12 @@ export function CommunitySuggestionForm({
         )}
       >
         {isOffline
-          ? "Database search is unavailable offline."
-          : message || (!selection ? "Select a result to continue." : "")}
+          ? t("Database search is unavailable offline.")
+          : message || (!selection ? t("Select a result to continue.") : "")}
       </div>
       <div className="flex shrink-0 justify-end gap-3">
         <Button variant="ghost" onClick={onCancel}>
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button
           type="submit"
@@ -2090,12 +2156,12 @@ export function CommunitySuggestionForm({
           disabled={!canSubmit}
         >
           {state === "saving"
-            ? "Adding…"
+            ? t("Adding…")
             : practice
-              ? "Confirm sample match"
+              ? t("Confirm sample match")
               : localOnly
-                ? (localAction ?? "Add")
-                : "Add and share"}
+                ? (localAction ?? t("Add"))
+                : t("Add and share")}
         </Button>
       </div>
     </div>
@@ -2109,13 +2175,13 @@ export function CommunitySuggestionForm({
       labelId="community-suggestion-dialog-title"
       eyebrow={
         practice
-          ? "Practice · nothing is submitted"
+          ? t("Practice · nothing is submitted")
           : localOnly
-            ? "This PC only"
-            : "Community"
+            ? t("This PC only")
+            : t("Community")
       }
-      title={localOnly ? (localAction ?? "Find the game") : title}
-      subtitle={`Link the correct game to ${exeName}`}
+      title={localOnly ? (localAction ?? t("Find the game")) : title}
+      subtitle={t("Link the correct game to {{exeName}}", { exeName })}
       icon={Send}
       onClose={onCancel}
       bodyClassName="flex overflow-hidden !p-0"
@@ -2153,7 +2219,7 @@ export function CommunitySuggestionForm({
                 disabled={isOffline}
                 maxLength={120}
                 data-autofocus
-                placeholder="Search by game title or IGDB ID..."
+                placeholder={t("Search by game title or IGDB ID...")}
                 className="h-10 w-full pl-10 text-base"
               />
             </div>
@@ -2168,17 +2234,17 @@ export function CommunitySuggestionForm({
                 !releaseYearValid
               }
               title={
-                isOffline ? "Database search unavailable offline" : undefined
+                isOffline ? t("Database search unavailable offline") : undefined
               }
               onClick={() => onSearch(searchOptions)}
               className="h-10 shrink-0 px-5"
             >
-              Search
+              {t("Search")}
             </Button>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
-              Release year
+              {t("Release year")}
               <Input
                 type="text"
                 inputMode="numeric"
@@ -2202,7 +2268,7 @@ export function CommunitySuggestionForm({
                     onSearch(searchOptions);
                 }}
                 disabled={busy || isOffline}
-                placeholder="Any year"
+                placeholder={t("Any year")}
                 aria-invalid={!releaseYearValid}
                 className={clsx(
                   "h-9 w-28",
@@ -2211,7 +2277,7 @@ export function CommunitySuggestionForm({
               />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
-              Sort by
+              {t("Sort by")}
               <Select
                 value={sort}
                 onChange={(event) => {
@@ -2221,14 +2287,14 @@ export function CommunitySuggestionForm({
                 disabled={busy || isOffline}
                 className="h-9 !py-0"
               >
-                <option value="relevance">IGDB relevance</option>
-                <option value="release-desc">Newest release</option>
-                <option value="release-asc">Oldest release</option>
+                <option value="relevance">{t("IGDB relevance")}</option>
+                <option value="release-desc">{t("Newest release")}</option>
+                <option value="release-asc">{t("Oldest release")}</option>
               </Select>
             </label>
             {!releaseYearValid ? (
               <span className="pb-2 text-xs text-danger">
-                Enter a year from 1950 to 2100.
+                {t("Enter a year from 1950 to 2100.")}
               </span>
             ) : null}
           </div>
@@ -2241,7 +2307,7 @@ export function CommunitySuggestionForm({
                 <span className="animate-spin text-text-faint">
                   <Search size={24} />
                 </span>
-                Searching database...
+                {t("Searching database...")}
               </div>
             </div>
           ) : candidates.length > 0 ? (
@@ -2290,9 +2356,9 @@ export function CommunitySuggestionForm({
                         <div className="mt-auto pt-2 flex items-center justify-between text-xs text-text-faint">
                           <span>
                             {missingCover
-                              ? "No cover available"
+                              ? t("No cover available")
                               : practice
-                                ? "Sample"
+                                ? t("Sample")
                                 : `ID: ${candidate.igdbId}`}
                           </span>
                           {candidate.releaseYear && (
@@ -2321,7 +2387,7 @@ export function CommunitySuggestionForm({
                   onClick={() => onLoadMore(searchOptions)}
                   className="mx-auto min-w-40"
                 >
-                  Load more matches
+                  {t("Load more matches")}
                 </Button>
               ) : null}
             </div>
@@ -2331,10 +2397,13 @@ export function CommunitySuggestionForm({
                 <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-surface-hover">
                   <Search size={20} className="text-text-faint" />
                 </div>
-                <h3 className="mb-2 font-medium text-text">No game selected</h3>
+                <h3 className="mb-2 font-medium text-text">
+                  {t("No game selected")}
+                </h3>
                 <p className="text-sm">
-                  Search the database using the field above to find and select
-                  the correct game metadata for this executable.
+                  {t(
+                    "Search the database using the field above to find and select the correct game metadata for this executable.",
+                  )}
                 </p>
               </div>
             </div>
@@ -2349,9 +2418,33 @@ function formatTrackedTime(seconds: number) {
   const totalMinutes = Math.floor(seconds / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m`;
-  return "<1m";
+  if (hours > 0) return t("{{hours}}h {{minutes}}m", { hours, minutes });
+  if (minutes > 0) return t("{{minutes}}m", { minutes });
+  return t("<1m");
+}
+
+/** "Probably a game" with where the file sits, one whole sentence each. */
+function gameLocationHint(location: GameLocation) {
+  switch (location) {
+    case "steam":
+      return t("Probably a game: it's in a Steam library.");
+    case "epic":
+      return t("Probably a game: it's in the Epic Games folder.");
+    case "xbox":
+      return t("Probably a game: it's in the Xbox games folder.");
+    case "gog":
+      return t("Probably a game: it's in a GOG games folder.");
+    case "ubisoft":
+      return t("Probably a game: it's in the Ubisoft games folder.");
+    case "ea":
+      return t("Probably a game: it's in the EA games folder.");
+    case "amazon":
+      return t("Probably a game: it's in the Amazon Games library.");
+    case "itch":
+      return t("Probably a game: it's in the itch.io library.");
+    case "games":
+      return t("Probably a game: it's in a folder called Games.");
+  }
 }
 
 function trackedSecondsFor(cacheEntry: ExeCacheEntry | null) {
