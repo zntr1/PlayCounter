@@ -322,8 +322,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   }
 
   const stats = [
-    `${formatDuration(trackedSeconds, showDays)} tracked`,
-    `${gameSessions.length} ${gameSessions.length === 1 ? "session" : "sessions"}`,
+    t("{{duration}} tracked", {
+      duration: formatDuration(trackedSeconds, showDays),
+    }),
+    t("{{count}} sessions", { count: gameSessions.length }),
     lastPlayedAt
       ? t("last played {{date}}", {
           date: new Date(lastPlayedAt).toLocaleDateString(appLocale()),
@@ -551,7 +553,11 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               )}
               <p className="mt-1 text-xs text-text-muted">
                 {playthrough
-                  ? `Started ${new Date(playthrough.createdAt).toLocaleDateString(appLocale())}`
+                  ? t("Started {{date}}", {
+                      date: new Date(playthrough.createdAt).toLocaleDateString(
+                        appLocale(),
+                      ),
+                    })
                   : t(
                       "All sessions that are not assigned to a named playthrough.",
                     )}
@@ -950,7 +956,7 @@ function LedgerRow({
           {formatDuration(entry.seconds, showDays)}
         </span>
         {" · "}
-        {entry.sessions} {entry.sessions === 1 ? "session" : "sessions"}
+        {t("{{count}} sessions", { count: entry.sessions })}
       </div>
       <span className="h-1 overflow-hidden rounded-full bg-surface-hover">
         <span

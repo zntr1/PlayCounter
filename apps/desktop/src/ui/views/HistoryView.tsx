@@ -99,7 +99,7 @@ function formatStartTime(startedAt: string) {
 }
 
 function formatSessionCount(count: number) {
-  return `${count} session${count === 1 ? "" : "s"}`;
+  return t("{{count}} sessions", { count });
 }
 
 function useHistoryNow() {

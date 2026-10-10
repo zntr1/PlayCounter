@@ -322,7 +322,7 @@ export function ArtPickerDialog({
               </button>
             ))}
             <span className="ml-auto text-xs text-text-faint">
-              {list ? `${list.length} available` : ""}
+              {list ? t("{{count}} available", { count: list.length }) : ""}
             </span>
           </div>
           <div className="max-h-[360px] overflow-y-auto rounded-lg border border-border p-2">

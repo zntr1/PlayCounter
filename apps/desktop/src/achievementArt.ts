@@ -145,34 +145,54 @@ function art(
     label:
       label ??
       (achievement
-        ? `${capitalize(tier)} achievement: ${subject}`
-        : `${capitalize(tier)} badge: ${subject}`),
+        ? t("{{tier}} achievement: {{subject}}", {
+            tier: tierLabel(tier),
+            subject,
+          })
+        : t("{{tier}} badge: {{subject}}", { tier: tierLabel(tier), subject })),
   };
 }
 
 function frameClassName(tier: AchievementTier) {
   switch (tier) {
     case "bronze":
-      return t("achievement-badge achievement-badge-bronze");
+      return "achievement-badge achievement-badge-bronze";
     case "silver":
-      return t("achievement-badge achievement-badge-silver");
+      return "achievement-badge achievement-badge-silver";
     case "gold":
-      return t("achievement-badge achievement-badge-gold");
+      return "achievement-badge achievement-badge-gold";
     case "platinum":
-      return t("achievement-badge achievement-badge-platinum");
+      return "achievement-badge achievement-badge-platinum";
     case "diamond":
-      return t("achievement-badge achievement-badge-diamond");
+      return "achievement-badge achievement-badge-diamond";
     case "master":
-      return t("achievement-badge achievement-badge-master");
+      return "achievement-badge achievement-badge-master";
     case "grandmaster":
-      return t("achievement-badge achievement-badge-grandmaster");
+      return "achievement-badge achievement-badge-grandmaster";
     case "legendary":
-      return t("achievement-badge achievement-badge-legendary");
+      return "achievement-badge achievement-badge-legendary";
   }
 }
 
-function capitalize(value: string) {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+function tierLabel(tier: AchievementTier) {
+  switch (tier) {
+    case "bronze":
+      return t("Bronze");
+    case "silver":
+      return t("Silver");
+    case "gold":
+      return t("Gold");
+    case "platinum":
+      return t("Platinum");
+    case "diamond":
+      return t("Diamond");
+    case "master":
+      return t("Master");
+    case "grandmaster":
+      return t("Grandmaster");
+    case "legendary":
+      return t("Legendary");
+  }
 }
 
 function assertNever(value: never): never {

@@ -106,7 +106,9 @@ export function GameJournalBadges({
     (s) => s.settings.libraryShowNoteBadges !== false,
   );
   const status = showStatus ? journal.status : null;
-  const statusLabel = status ? `Status: ${gameStatusLabel(status)}` : undefined;
+  const statusLabel = status
+    ? t("Status: {{status}}", { status: gameStatusLabel(status) })
+    : undefined;
   const other = journal.playthroughs.find((p) => p.note);
   const hasNote = showNotes && Boolean(journal.note || other);
   const notePlaythroughId =

@@ -561,7 +561,9 @@ function formatGameActivity(game: GameSummary) {
     ? t("Last played {{lastPlayed}}", {
         lastPlayed: formatLastPlayed(game.lastPlayedAt),
       })
-    : `Added ${formatLastPlayed(game.lastPlayedAt)}`;
+    : t("Added {{lastPlayed}}", {
+        lastPlayed: formatLastPlayed(game.lastPlayedAt),
+      });
 }
 
 /* The summary used to be three big cards between the toolbar and the first
@@ -573,12 +575,15 @@ function formatGameActivity(game: GameSummary) {
    first segment rather than repeating further down the row. */
 function LibrarySummaryChip({
   countLabel,
+  count,
   countTitle,
   showCount,
   cards,
   showDurationDays,
 }: {
   countLabel: string;
+  /** The number "games" agrees with. */
+  count: number;
   countTitle: string;
   showCount: boolean;
   cards: readonly LibraryStatCard[];
@@ -598,7 +603,7 @@ function LibrarySummaryChip({
           <span className="font-mono font-semibold tabular-nums text-text">
             {countLabel}
           </span>
-          {" games"}
+          {t("games", { count })}
         </span>
       ) : null}
       {stats.map((card) => (
@@ -627,7 +632,7 @@ function playButtonState(
 ) {
   if (launching) {
     return {
-      ariaLabel: `Starting ${gameName}`,
+      ariaLabel: t("Starting {{gameName}}", { gameName }),
       title: t("Starting…"),
       disabled: true,
       loading: true,
@@ -653,7 +658,7 @@ function playButtonState(
     };
   }
   return {
-    ariaLabel: `Play ${gameName}`,
+    ariaLabel: t("Play {{gameName}}", { gameName }),
     title: t("Play"),
     disabled: false,
     loading: false,
@@ -2137,6 +2142,7 @@ export function MyGamesView({
                           ? String(visibleGames.length)
                           : `${visibleGames.length} / ${libraryGames.length}`
                       }
+                      count={libraryGames.length}
                       countTitle={
                         activeProviderConfig
                           ? t(
@@ -2206,7 +2212,7 @@ export function MyGamesView({
                       title={
                         isOffline
                           ? t("Needs a connection")
-                          : "Add a game by name, with or without its .exe"
+                          : t("Add a game by name, with or without its .exe")
                       }
                       onClick={() => setAddingGame(true)}
                       className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
@@ -2511,7 +2517,14 @@ export function MyGamesView({
                     )
                   : layout.panel === "unimported-empty"
                     ? t("No games outside your imported libraries yet.")
-                    : `Showing ${visibleGames.length} ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}.`}
+                    : activeProviderConfig
+                      ? t("Showing {{count}} {{provider}} games.", {
+                          count: visibleGames.length,
+                          provider: activeProviderConfig.label,
+                        })
+                      : t("Showing {{count}} games.", {
+                          count: visibleGames.length,
+                        })}
               </p>
 
               <LibraryBulkActions
@@ -4807,7 +4820,7 @@ export function GameLibraryCard({
         position={contextMenu.position}
         onClose={contextMenu.close}
         returnFocusRef={contextMenu.anchorRef}
-        ariaLabel={`${game.name} actions`}
+        ariaLabel={t("{{game}} actions", { game: game.name })}
         className="min-w-56"
         dataTour={demo ? "demo-context-menu" : undefined}
         focusFirstItem
@@ -5012,7 +5025,9 @@ export function GameLibraryCard({
                         onClick={() => void handleLaunch(target)}
                       >
                         {ownedLaunchTargets.length > 1
-                          ? `Play (${target.exeName})`
+                          ? t("Play ({{exeName}})", {
+                              exeName: target.exeName,
+                            })
                           : t("Play")}
                       </ContextMenuItem>
                     ))
@@ -7380,7 +7395,7 @@ function LibraryImportMatchCheckDialog({
         onClick={result?.kind === "found" ? applyMatch : retry}
       >
         {showingMatch
-          ? `Use ${executableMatches.length === 1 ? "match" : "matches"}`
+          ? t("Use matches", { count: executableMatches.length })
           : checking
             ? t("Checking…")
             : t("Check again")}

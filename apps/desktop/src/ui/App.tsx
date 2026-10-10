@@ -1716,7 +1716,8 @@ function formatInstallProgress(progress: InstallProgress | null) {
   if (!progress) return t("preparing update");
 
   const downloaded = formatBytes(progress.downloadedBytes);
-  if (!progress.totalBytes) return `downloading ${downloaded}`;
+  if (!progress.totalBytes)
+    return t("downloading {{downloaded}}", { downloaded });
 
   return t("downloading {{downloaded}} of {{bytes}}", {
     downloaded,

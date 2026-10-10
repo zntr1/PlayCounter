@@ -239,5 +239,11 @@
   "Ignore app": "Ignore app",
   "Remove from game": "Remove from game",
   "Ignore this folder": "Ignore this folder",
-  "Unexpected response": "Unexpected response"
+  "Unexpected response": "Unexpected response",
+  "{{count}} sessions_one": "{{count}} session",
+  "{{count}} sessions_other": "{{count}} sessions",
+  "{{count}} available": "{{count}} available",
+  "Status: {{status}}": "Status: {{status}}",
+  "{{duration}} tracked": "{{duration}} tracked",
+  "Started {{date}}": "Started {{date}}"
 }

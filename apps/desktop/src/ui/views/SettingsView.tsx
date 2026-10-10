@@ -1965,7 +1965,10 @@ function formatBytesProgress(progress: InstallProgress) {
   const downloaded = formatBytes(progress.downloadedBytes);
   if (!progress.totalBytes) return downloaded;
 
-  return `${downloaded} of ${formatBytes(progress.totalBytes)}`;
+  return t("{{downloaded}} of {{total}}", {
+    downloaded,
+    total: formatBytes(progress.totalBytes),
+  });
 }
 
 function formatBytes(bytes: number) {

@@ -158,5 +158,7 @@
   "Show banner in {{view}}": "Show banner in {{view}}",
   "Hold {{viewButton}} plus {{bumper}} for two seconds to bring PlayCounter forward": "Hold {{viewButton}} plus {{bumper}} for two seconds to bring PlayCounter forward",
   "{{view}} content": "{{view}} content",
-  "Update available ({{version}})": "Update available ({{version}})"
+  "Update available ({{version}})": "Update available ({{version}})",
+  "Open {{emulator}}": "Open {{emulator}}",
+  "downloading {{downloaded}}": "downloading {{downloaded}}"
 }

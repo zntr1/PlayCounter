@@ -155,7 +155,7 @@ export function EmulatorHero({
               <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                 <Fact
                   value={String(gameCount)}
-                  unit={gameCount === 1 ? "game" : "games"}
+                  unit={t("games", { count: gameCount })}
                 />
                 {lastPlayedMs !== null ? (
                   <Fact

@@ -236,7 +236,7 @@ function PodiumGame({
           <span className="mt-1.5 text-[11px] text-text-muted">
             {[
               game.sessionCount > 0
-                ? `${game.sessionCount} ${game.sessionCount === 1 ? "session" : "sessions"}`
+                ? t("{{count}} sessions", { count: game.sessionCount })
                 : "",
               lastPlayed,
             ]
@@ -307,7 +307,7 @@ function ListGame({
           <span className="block font-mono text-[13px] font-semibold tabular-nums text-text">
             {game.sessionCount}{" "}
             <span className="font-sans text-[11px] font-medium text-text-muted">
-              {game.sessionCount === 1 ? "session" : "sessions"}
+              {t("sessions", { count: game.sessionCount })}
             </span>
           </span>
           <span className="block text-[11px] text-text-faint">

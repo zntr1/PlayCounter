@@ -51,7 +51,9 @@ export function trackingUnavailableMessage(
   }
   const source =
     providers.length === 1
-      ? `${LIBRARY_PROVIDER_LABELS[providers[0]]} playtime`
+      ? t("{{provider}} playtime", {
+          provider: LIBRARY_PROVIDER_LABELS[providers[0]],
+        })
       : t("Imported playtime");
   return canCheckMatches
     ? t(

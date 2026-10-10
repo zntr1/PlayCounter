@@ -74,5 +74,7 @@
   "{{seconds}}s": "{{seconds}}s",
   "{{minutes}}m {{seconds}}s": "{{minutes}}m {{seconds}}s",
   "Starting PlayCounter…": "Starting PlayCounter…",
-  "Other": "Other"
+  "Other": "Other",
+  "sessions_one": "session",
+  "sessions_other": "sessions"
 }

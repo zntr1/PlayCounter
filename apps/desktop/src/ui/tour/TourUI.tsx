@@ -215,7 +215,9 @@ export function HelpButton() {
                   >
                     <span>{group.title}</span>
                     <span
-                      aria-label={`${group.tours.length} ${group.tours.length === 1 ? "guide" : "guides"}`}
+                      aria-label={t("{{count}} guides", {
+                        count: group.tours.length,
+                      })}
                       className="shrink-0 rounded-md bg-surface px-1.5 py-0.5 text-[10px] tabular-nums"
                     >
                       {group.tours.length}

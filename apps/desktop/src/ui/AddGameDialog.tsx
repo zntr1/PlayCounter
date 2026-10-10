@@ -131,7 +131,7 @@ export function AddGameDialog({
       title:
         forGame?.name === name
           ? t("Launch file set for {{name}}", { name })
-          : `${name} added`,
+          : t("{{name}} added", { name }),
       detail: file
         ? t("Play starts {{exeName}}.", { exeName: file.exeName })
         : t("It's in My Games now. Log past playtime from its card."),

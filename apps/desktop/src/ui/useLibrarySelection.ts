@@ -184,13 +184,15 @@ export function useLibrarySelection(
       .getState()
       .setGameStatuses(selectedGames, status);
     const count = changes.length;
-    const label = `${count} ${count === 1 ? "game" : "games"}`;
     libraryApi.getState().addToast({
       tone: count ? "success" : "info",
       title: count
         ? status
-          ? `${label} marked ${gameStatusLabel(status)}`
-          : t("Status cleared for {{label}}", { label })
+          ? t("{{count}} games marked {{gameStatus}}", {
+              count,
+              gameStatus: gameStatusLabel(status),
+            })
+          : t("Status cleared for {{count}} games", { count })
         : status
           ? t("Selected games are already marked {{gameStatus}}", {
               gameStatus: gameStatusLabel(status),

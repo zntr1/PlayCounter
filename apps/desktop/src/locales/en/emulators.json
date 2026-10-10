@@ -165,5 +165,7 @@
   "<time>{{duration}}</time> in {{count}} sessions_other": "<time>{{duration}}</time> in {{count}} sessions",
   "{{count}} earlier sessions were moved over too._one": "{{count}} earlier session was moved over too.",
   "{{count}} earlier sessions were moved over too._other": "{{count}} earlier sessions were moved over too.",
-  "ignored": "ignored"
+  "ignored": "ignored",
+  "games_one": "game",
+  "games_other": "games"
 }

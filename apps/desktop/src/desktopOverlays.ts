@@ -7,7 +7,7 @@ import type {
   DesktopOverlayMessage,
   OverlayRenderContext,
 } from "./desktopOverlayProtocol";
-import { appLocale, getT } from "./i18n";
+import { getT } from "./i18n";
 
 const t = getT("overlays");
 export {
@@ -243,7 +243,7 @@ function overlayCopy(
   if (event.type === "session-started") {
     const context = [
       event.playthroughName
-        ? `Playthrough: ${event.playthroughName}`
+        ? t("Playthrough: {{name}}", { name: event.playthroughName })
         : undefined,
       event.note,
     ]
@@ -318,13 +318,12 @@ export function pickTopMilestone(
 export function milestoneMetricLabel(id: string) {
   const parsed = parseMilestoneId(id);
   if (!parsed) return undefined;
-  const unit =
-    parsed.category === "verified" || parsed.category === "emulator"
-      ? "APPROVED"
-      : parsed.category === "streak"
-        ? "DAYS"
-        : "HRS";
-  return `${parsed.threshold.toLocaleString(appLocale())} ${unit}`;
+  const count = parsed.threshold;
+  if (parsed.category === "verified" || parsed.category === "emulator")
+    return t("{{count, number}} APPROVED", { count });
+  return parsed.category === "streak"
+    ? t("{{count, number}} DAYS", { count })
+    : t("{{count, number}} HRS", { count });
 }
 
 export function compareOverlayMessages(

@@ -29,5 +29,9 @@
   "50 hours played": "50 hours played",
   "50 HRS": "50 HRS",
   "Sample Game": "Sample Game",
-  "LIVE": "LIVE"
+  "LIVE": "LIVE",
+  "Playthrough: {{name}}": "Playthrough: {{name}}",
+  "{{count, number}} APPROVED": "{{count, number}} APPROVED",
+  "{{count, number}} DAYS": "{{count, number}} DAYS",
+  "{{count, number}} HRS": "{{count, number}} HRS"
 }

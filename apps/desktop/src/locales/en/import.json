@@ -189,5 +189,10 @@
   "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.": "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.",
   "PlayCounter cannot reach the clipboard right now.": "PlayCounter cannot reach the clipboard right now.",
   "Battle.net sign-in": "Battle.net sign-in",
-  "Epic Games sign-in": "Epic Games sign-in"
+  "Epic Games sign-in": "Epic Games sign-in",
+  "{{count}} games_one": "{{count}} game",
+  "{{count}} games_other": "{{count}} games",
+  "{{game}} has no IGDB id.": "{{game}} has no IGDB id.",
+  "Account {{id}}": "Account {{id}}",
+  "{{provider}} game {{id}}": "{{provider}} game {{id}}"
 }

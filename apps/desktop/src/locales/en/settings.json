@@ -314,5 +314,7 @@
   "PlayCounter is being reset.": "PlayCounter is being reset.",
   "This backup contains {{count}} sessions, above this version's safe limit of {{limit}}. No local data was changed.": "This backup contains {{count}} sessions, above this version's safe limit of {{limit}}. No local data was changed.",
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "The session hotkey listener is unavailable. Restart PlayCounter and try again.",
-  "Display {{number}}": "Display {{number}}"
+  "Display {{number}}": "Display {{number}}",
+  "The backup contains invalid data at {{path}}. No local data was changed.": "The backup contains invalid data at {{path}}. No local data was changed.",
+  "{{downloaded}} of {{total}}": "{{downloaded}} of {{total}}"
 }

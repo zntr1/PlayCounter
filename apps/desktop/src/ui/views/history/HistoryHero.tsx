@@ -295,7 +295,7 @@ function highlightCopy(
     case "bestStreak":
       return {
         label: t("Best streak"),
-        value: `${highlight.days} days`,
+        value: t("{{count}} days", { count: highlight.days }),
         detail: (
           <>
             {formatDay(highlight.fromKey)} – {formatDay(highlight.toKey)} ·{" "}
@@ -330,14 +330,14 @@ function highlightCopy(
     case "mostSessions":
       return {
         label: t("On a roll"),
-        value: `${highlight.sessionCount} sessions`,
+        value: t("{{count}} sessions", { count: highlight.sessionCount }),
         detail: <Em>{highlight.name}</Em>,
         title: t("Show sessions of this game"),
       };
     case "comeback":
       return {
         label: t("Came back after"),
-        value: `${highlight.gapDays} days`,
+        value: t("{{count}} days", { count: highlight.gapDays }),
         detail: (
           <>
             <Em>{highlight.name}</Em> ·{" "}

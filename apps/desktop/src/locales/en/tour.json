@@ -347,5 +347,7 @@
   "Battle.net does not supply past playtime here.": "Battle.net does not supply past playtime here.",
   "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.": "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.",
   "Imported launcher time is a total, not a list of PlayCounter sessions.": "Imported launcher time is a total, not a list of PlayCounter sessions.",
-  "Future tracked sessions build your History.": "Future tracked sessions build your History."
+  "Future tracked sessions build your History.": "Future tracked sessions build your History.",
+  "{{count}} guides_one": "{{count}} guide",
+  "{{count}} guides_other": "{{count}} guides"
 }

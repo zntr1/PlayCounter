@@ -366,7 +366,7 @@ export function emulatorContributionNotification(
 }
 
 export function openEmulatorLabel(emulatorLabel: string) {
-  return `Open ${emulatorLabel}`;
+  return t("Open {{emulator}}", { emulator: emulatorLabel });
 }
 
 export function seedEmulatorSeenStatus(

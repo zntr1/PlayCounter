@@ -415,7 +415,9 @@ export function DiscoveredView() {
       if (!ignored && blacklist.has(key)) toggleBlacklist(exeName, false);
       addToast({
         tone: "success",
-        title: ignored ? `${exeName} ignored` : `${exeName} restored`,
+        title: ignored
+          ? t("{{exeName}} ignored", { exeName })
+          : t("{{exeName}} restored", { exeName }),
         detail: ignored
           ? t("{{exeName}} will no longer be matched or tracked.", { exeName })
           : t("{{exeName}} can be matched again on the next scan.", {
@@ -2360,7 +2362,7 @@ export function CommunitySuggestionForm({
                               ? t("No cover available")
                               : practice
                                 ? t("Sample")
-                                : `ID: ${candidate.igdbId}`}
+                                : t("ID: {{id}}", { id: candidate.igdbId })}
                           </span>
                           {candidate.releaseYear && (
                             <span className="shrink-0 rounded-md bg-surface-hover px-1.5 py-0.5">

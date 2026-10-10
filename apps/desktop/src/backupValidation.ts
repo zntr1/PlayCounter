@@ -9,12 +9,18 @@ import {
   type GameJournal,
   type PersonalShelf,
 } from "./personalLibrary";
+import { getT } from "./i18n";
+
+const t = getT("settings");
 
 type Validator = (value: unknown, path: string) => void;
 
 function invalid(path: string): never {
   throw new Error(
-    `The backup contains invalid data at ${path}. No local data was changed.`,
+    t(
+      "The backup contains invalid data at {{path}}. No local data was changed.",
+      { path },
+    ),
   );
 }
 

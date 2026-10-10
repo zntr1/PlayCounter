@@ -1180,8 +1180,11 @@ export function ImportLibraryView() {
               >
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
-                    {account.personaName ?? `Account ${account.accountId}`}
-                    {isXbox ? "" : ` · ${account.gamesWithPlaytime} games`}
+                    {account.personaName ??
+                      t("Account {{id}}", { id: account.accountId })}
+                    {isXbox
+                      ? ""
+                      : ` · ${t("{{count}} games", { count: account.gamesWithPlaytime })}`}
                   </option>
                 ))}
               </Select>
@@ -1539,7 +1542,10 @@ export function ImportRow({
           <h3 className="font-semibold text-text">
             {resolved?.game?.name ??
               game.name ??
-              `${LIBRARY_PROVIDER_LABELS[provider]} game ${game.externalId}`}
+              t("{{provider}} game {{id}}", {
+                provider: LIBRARY_PROVIDER_LABELS[provider],
+                id: game.externalId,
+              })}
           </h3>
           {alreadyImported ? (
             <span className="text-xs font-medium text-success">
@@ -1668,7 +1674,10 @@ export function ImportRow({
             candidates={resolved?.candidates ?? []}
             title={
               game.name ??
-              `${LIBRARY_PROVIDER_LABELS[provider]} game ${game.externalId}`
+              t("{{provider}} game {{id}}", {
+                provider: LIBRARY_PROVIDER_LABELS[provider],
+                id: game.externalId,
+              })
             }
             importing={addingAndSharing}
             onConfirm={onGameMatch}

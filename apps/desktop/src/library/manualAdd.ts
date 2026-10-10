@@ -11,6 +11,7 @@ import {
 } from "../tracker";
 import { isGenericExeName } from "./exeCandidates";
 import { isInIgnoredFolder } from "./genericExeLinks";
+import { getT } from "../i18n";
 
 /* Adding a game by hand ──────────────────────────────────────────────────────
    "Add game" in My Games: a game searched by name, with or without its .exe.
@@ -18,6 +19,8 @@ import { isInIgnoredFolder } from "./genericExeLinks";
    away from its launcher. With a file, checkGameFile runs before anything is
    written. Either way the dialog then links the files the server knows for
    the game (linkServerKnownFiles). See docs/manual-add-plan.md. */
+
+const t = getT("import");
 
 export type GameFile = { exeName: string; exePath: string };
 
@@ -49,7 +52,8 @@ export function sameGame(left: Game, right: Game) {
 
 /** Adds a searched game without a file. False when it is already there. */
 export function addGameWithoutFile(game: GameMetadata) {
-  if (!game.igdbId) throw new Error(`${game.name} has no IGDB id.`);
+  if (!game.igdbId)
+    throw new Error(t("{{game}} has no IGDB id.", { game: game.name }));
   const state = useAppStore.getState();
   const key = personalGameIdentity(state)({
     gameId: game.id,

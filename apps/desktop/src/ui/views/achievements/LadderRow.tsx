@@ -58,10 +58,13 @@ function Rung({ rung }: { rung: AchievementCatalogItem }) {
       })
     : rung.title;
   const tooltip = unlocked
-    ? `${title} · Unlocked ${formatAwardDate(rung.milestone!.awardedAt)}`
+    ? t("{{title}} · Unlocked {{date}}", {
+        title,
+        date: formatAwardDate(rung.milestone!.awardedAt),
+      })
     : isNext
       ? `${title} · ${remainderLabel(rung)}`
-      : `${title} · Locked`;
+      : t("{{title}} · Locked", { title });
 
   return (
     <div

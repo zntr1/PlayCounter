@@ -186,7 +186,7 @@ function offerDetail(offer: LevelUpOffer, isOffline: boolean) {
   }
   const provider =
     providerTabConfig(offer.entry.provider)?.label ?? offer.entry.provider;
-  if (isOffline) return `${provider} · needs a connection`;
+  if (isOffline) return t("{{provider}} · needs a connection", { provider });
   return t("{{provider}} · start tracking {{join}}", {
     provider,
     join: offer.exeNames.join(", "),
