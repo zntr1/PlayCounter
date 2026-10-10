@@ -36,6 +36,60 @@ import deShell from "./locales/de/shell.json";
 import deSoftware from "./locales/de/software.json";
 import deTour from "./locales/de/tour.json";
 import deTracker from "./locales/de/tracker.json";
+import ptBRAchievements from "./locales/pt-BR/achievements.json";
+import ptBRCommon from "./locales/pt-BR/common.json";
+import ptBRDialogs from "./locales/pt-BR/dialogs.json";
+import ptBRDiscovered from "./locales/pt-BR/discovered.json";
+import ptBREmulators from "./locales/pt-BR/emulators.json";
+import ptBRGames from "./locales/pt-BR/games.json";
+import ptBRHistory from "./locales/pt-BR/history.json";
+import ptBRIgdb from "./locales/pt-BR/igdb.json";
+import ptBRImport from "./locales/pt-BR/import.json";
+import ptBRMyGames from "./locales/pt-BR/myGames.json";
+import ptBRNative from "./locales/pt-BR/native.json";
+import ptBRNowPlaying from "./locales/pt-BR/nowPlaying.json";
+import ptBROverlays from "./locales/pt-BR/overlays.json";
+import ptBRSettings from "./locales/pt-BR/settings.json";
+import ptBRShell from "./locales/pt-BR/shell.json";
+import ptBRSoftware from "./locales/pt-BR/software.json";
+import ptBRTour from "./locales/pt-BR/tour.json";
+import ptBRTracker from "./locales/pt-BR/tracker.json";
+import zhCNAchievements from "./locales/zh-CN/achievements.json";
+import zhCNCommon from "./locales/zh-CN/common.json";
+import zhCNDialogs from "./locales/zh-CN/dialogs.json";
+import zhCNDiscovered from "./locales/zh-CN/discovered.json";
+import zhCNEmulators from "./locales/zh-CN/emulators.json";
+import zhCNGames from "./locales/zh-CN/games.json";
+import zhCNHistory from "./locales/zh-CN/history.json";
+import zhCNIgdb from "./locales/zh-CN/igdb.json";
+import zhCNImport from "./locales/zh-CN/import.json";
+import zhCNMyGames from "./locales/zh-CN/myGames.json";
+import zhCNNative from "./locales/zh-CN/native.json";
+import zhCNNowPlaying from "./locales/zh-CN/nowPlaying.json";
+import zhCNOverlays from "./locales/zh-CN/overlays.json";
+import zhCNSettings from "./locales/zh-CN/settings.json";
+import zhCNShell from "./locales/zh-CN/shell.json";
+import zhCNSoftware from "./locales/zh-CN/software.json";
+import zhCNTour from "./locales/zh-CN/tour.json";
+import zhCNTracker from "./locales/zh-CN/tracker.json";
+import esAchievements from "./locales/es/achievements.json";
+import esCommon from "./locales/es/common.json";
+import esDialogs from "./locales/es/dialogs.json";
+import esDiscovered from "./locales/es/discovered.json";
+import esEmulators from "./locales/es/emulators.json";
+import esGames from "./locales/es/games.json";
+import esHistory from "./locales/es/history.json";
+import esIgdb from "./locales/es/igdb.json";
+import esImport from "./locales/es/import.json";
+import esMyGames from "./locales/es/myGames.json";
+import esNative from "./locales/es/native.json";
+import esNowPlaying from "./locales/es/nowPlaying.json";
+import esOverlays from "./locales/es/overlays.json";
+import esSettings from "./locales/es/settings.json";
+import esShell from "./locales/es/shell.json";
+import esSoftware from "./locales/es/software.json";
+import esTour from "./locales/es/tour.json";
+import esTracker from "./locales/es/tracker.json";
 import {
   isAppLanguage,
   resolveLanguage,
@@ -65,6 +119,9 @@ export type LanguageSetting = "system" | AppLanguage;
 export const LANGUAGE_NAMES: Record<AppLanguage, string> = {
   en: "English",
   de: "Deutsch",
+  "pt-BR": "Português (Brasil)",
+  "zh-CN": "中文（简体）",
+  es: "Español",
 };
 
 const resources = {
@@ -107,6 +164,66 @@ const resources = {
     software: deSoftware,
     tour: deTour,
     tracker: deTracker,
+  },
+  "pt-BR": {
+    achievements: ptBRAchievements,
+    common: ptBRCommon,
+    dialogs: ptBRDialogs,
+    discovered: ptBRDiscovered,
+    emulators: ptBREmulators,
+    games: ptBRGames,
+    history: ptBRHistory,
+    igdb: ptBRIgdb,
+    import: ptBRImport,
+    myGames: ptBRMyGames,
+    native: ptBRNative,
+    nowPlaying: ptBRNowPlaying,
+    overlays: ptBROverlays,
+    settings: ptBRSettings,
+    shell: ptBRShell,
+    software: ptBRSoftware,
+    tour: ptBRTour,
+    tracker: ptBRTracker,
+  },
+  "zh-CN": {
+    achievements: zhCNAchievements,
+    common: zhCNCommon,
+    dialogs: zhCNDialogs,
+    discovered: zhCNDiscovered,
+    emulators: zhCNEmulators,
+    games: zhCNGames,
+    history: zhCNHistory,
+    igdb: zhCNIgdb,
+    import: zhCNImport,
+    myGames: zhCNMyGames,
+    native: zhCNNative,
+    nowPlaying: zhCNNowPlaying,
+    overlays: zhCNOverlays,
+    settings: zhCNSettings,
+    shell: zhCNShell,
+    software: zhCNSoftware,
+    tour: zhCNTour,
+    tracker: zhCNTracker,
+  },
+  es: {
+    achievements: esAchievements,
+    common: esCommon,
+    dialogs: esDialogs,
+    discovered: esDiscovered,
+    emulators: esEmulators,
+    games: esGames,
+    history: esHistory,
+    igdb: esIgdb,
+    import: esImport,
+    myGames: esMyGames,
+    native: esNative,
+    nowPlaying: esNowPlaying,
+    overlays: esOverlays,
+    settings: esSettings,
+    shell: esShell,
+    software: esSoftware,
+    tour: esTour,
+    tracker: esTracker,
   },
 };
 
@@ -165,7 +282,8 @@ export function systemLanguage() {
 }
 
 /** The app language with the computer's region: English on a German PC is
- *  en-DE, so English words, but day first, a 24-hour clock and 1.234,5. */
+ *  en-DE, so English words, but day first, a 24-hour clock and 1.234,5.
+ *  Languages with an explicit region keep it, e.g. Brazilian Portuguese. */
 export function formattingLocale(
   language: AppLanguage,
   systemLocale: string | undefined,
@@ -174,8 +292,9 @@ export function formattingLocale(
   try {
     const app = new Intl.Locale(language);
     const system = new Intl.Locale(systemLocale);
+    if (app.region) return language;
     if (system.language === app.language) return system.toString();
-    if (app.region || !system.region) return language;
+    if (!system.region) return language;
     const mixed = `${app.language}-${system.region}`;
     return new Intl.DateTimeFormat(mixed).resolvedOptions().locale === mixed
       ? mixed

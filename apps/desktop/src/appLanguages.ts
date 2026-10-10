@@ -2,7 +2,7 @@
    imports: the startup screen needs it before the app has loaded. */
 
 /** Languages PlayCounter has texts for. */
-export const APP_LANGUAGES = ["en", "de"] as const;
+export const APP_LANGUAGES = ["en", "de", "pt-BR", "zh-CN", "es"] as const;
 export type AppLanguage = (typeof APP_LANGUAGES)[number];
 
 export function isAppLanguage(value: unknown): value is AppLanguage {
@@ -17,6 +17,17 @@ export function resolveLanguage(
 ): AppLanguage {
   if (isAppLanguage(setting)) return setting;
   for (const locale of systemLocales) {
+    // Only Simplified Chinese ships with the app. Traditional Chinese locales
+    // should continue to the next preferred language instead.
+    if (baseLanguage(locale) === "zh") {
+      try {
+        if (new Intl.Locale(locale).maximize().script === "Hans")
+          return "zh-CN";
+      } catch {
+        // Ignore malformed system locales.
+      }
+      continue;
+    }
     const match =
       APP_LANGUAGES.find(
         (language) => language.toLowerCase() === locale.toLowerCase(),
