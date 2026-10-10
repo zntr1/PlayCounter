@@ -1,5 +1,8 @@
 import { isShareableToken } from "./signals";
 import type { EmulatorMapping } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("emulators");
 
 export type EmulatorShareContext = {
   privateTokens: readonly string[];
@@ -47,27 +50,27 @@ export function emulatorShareControl(
   const base = {
     visible: true as const,
     action: "share" as const,
-    label: "Share match",
+    label: t("Share match"),
   };
   if (context.offline) {
     return {
       ...base,
       disabled: true,
-      reason: "Sharing needs an internet connection.",
+      reason: t("Sharing needs an internet connection."),
     };
   }
   if (!context.installUuid) {
     return {
       ...base,
       disabled: true,
-      reason: "PlayCounter is still starting up.",
+      reason: t("PlayCounter is still starting up."),
     };
   }
   if (context.serverUnavailable) {
     return {
       ...base,
       disabled: true,
-      reason: "This server does not accept emulator matches yet.",
+      reason: t("This server does not accept emulator matches yet."),
     };
   }
   return { ...base, disabled: false };

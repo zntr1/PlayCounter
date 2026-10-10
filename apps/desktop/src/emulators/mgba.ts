@@ -12,6 +12,9 @@ import type {
   EmulatorReadContext,
   RawEmulatorSignals,
 } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("emulators");
 
 const CONTENT_EXTENSION = /\.(?:gba|gbc|gb|sgb|zip|7z)$/i;
 // mGBA's getopt options that take a value (src/feature/commandline.c).
@@ -169,8 +172,12 @@ export const mgbaAdapter: EmulatorAdapter = {
   id: "mgba",
   label: "mGBA",
   platformLabel: "Game Boy / GBA",
-  subtitle:
-    "Game Boy and Game Boy Advance games, mappings, and emulator playtime",
+  // A getter, so the text follows the current language.
+  get subtitle() {
+    return t(
+      "Game Boy and Game Boy Advance games, mappings, and emulator playtime",
+    );
+  },
   exeNames: ["mgba.exe", "mgba-sdl.exe"],
   launch: {
     targetKinds: ["file"],

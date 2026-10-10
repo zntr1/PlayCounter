@@ -4,6 +4,7 @@ import enAchievements from "./locales/en/achievements.json";
 import enCommon from "./locales/en/common.json";
 import enDialogs from "./locales/en/dialogs.json";
 import enDiscovered from "./locales/en/discovered.json";
+import enEmulators from "./locales/en/emulators.json";
 import enGames from "./locales/en/games.json";
 import enHistory from "./locales/en/history.json";
 import enImport from "./locales/en/import.json";
@@ -11,6 +12,7 @@ import enMyGames from "./locales/en/myGames.json";
 import enNowPlaying from "./locales/en/nowPlaying.json";
 import enSettings from "./locales/en/settings.json";
 import enShell from "./locales/en/shell.json";
+import enSoftware from "./locales/en/software.json";
 
 /* PlayCounter's language. Texts live in src/locales/<language>/<area>.json,
    one file per area. The key is the English text itself, so code reads
@@ -37,6 +39,7 @@ const resources = {
     common: enCommon,
     dialogs: enDialogs,
     discovered: enDiscovered,
+    emulators: enEmulators,
     games: enGames,
     history: enHistory,
     import: enImport,
@@ -44,6 +47,7 @@ const resources = {
     nowPlaying: enNowPlaying,
     settings: enSettings,
     shell: enShell,
+    software: enSoftware,
   },
 };
 

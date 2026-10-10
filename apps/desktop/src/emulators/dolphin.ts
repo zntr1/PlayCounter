@@ -17,6 +17,9 @@ import type {
   EmulatorReading,
   RawEmulatorSignals,
 } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("emulators");
 
 type ParsedSignal = {
   kind: EmulatorContentKind;
@@ -229,7 +232,10 @@ export const dolphinAdapter: EmulatorAdapter = {
   id: "dolphin",
   label: "Dolphin",
   platformLabel: "GameCube / Wii",
-  subtitle: "GameCube and Wii games, mappings, and emulator playtime",
+  // A getter, so the text follows the current language.
+  get subtitle() {
+    return t("GameCube and Wii games, mappings, and emulator playtime");
+  },
   exeNames: ["dolphin.exe"],
   launch: {
     targetKinds: ["file"],

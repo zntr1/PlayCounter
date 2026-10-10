@@ -10,6 +10,9 @@ import { SourceBadge } from "../../components";
 import { Button, Modal } from "../../primitives";
 import { EmulatorGamePicker } from "./EmulatorGamePicker";
 import { guestPlatformLabel } from "./emulatorPickerModel";
+import { getT } from "../../../i18n";
+
+const t = getT("emulators");
 
 export function EmulatorLinkedGameDialog({
   mapping,
@@ -41,7 +44,7 @@ export function EmulatorLinkedGameDialog({
       await selectEmulatorGame(mapping.contentKey, game);
       addToast({
         tone: "success",
-        title: "Linked game changed",
+        title: t("Linked game changed"),
         detail: replacementDetail(
           mapping.display,
           game.name,
@@ -52,7 +55,7 @@ export function EmulatorLinkedGameDialog({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not change linked game",
+        title: t("Could not change linked game"),
         detail: error instanceof Error ? error.message : String(error),
       });
       setBusy(false);
@@ -66,14 +69,14 @@ export function EmulatorLinkedGameDialog({
       await addCustomEmulatorGame(mapping.contentKey, name);
       addToast({
         tone: "success",
-        title: "Linked game changed",
+        title: t("Linked game changed"),
         detail: replacementDetail(mapping.display, name, linkedSessionCount),
       });
       onClose();
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not change linked game",
+        title: t("Could not change linked game"),
         detail: error instanceof Error ? error.message : String(error),
       });
       setBusy(false);
@@ -84,15 +87,15 @@ export function EmulatorLinkedGameDialog({
     <Modal
       size="wide"
       labelId={labelId}
-      eyebrow={`${mapping.label} library`}
-      title="Change linked game"
+      eyebrow={t("{{label}} library", { label: mapping.label })}
+      title={t("Change linked game")}
       subtitle={mapping.display}
       icon={Repeat2}
       onClose={busy ? () => undefined : onClose}
       footer={
         <div className="flex justify-end">
           <Button variant="ghost" disabled={busy} onClick={onClose}>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       }
@@ -111,7 +114,7 @@ export function EmulatorLinkedGameDialog({
         )}
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-wider text-text-faint">
-            Currently linked
+            {t("Currently linked")}
           </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="truncate font-semibold text-text">
@@ -149,7 +152,12 @@ function replacementDetail(
   gameName: string,
   sessionCount: number,
 ) {
-  const link = `${display} is now tracked as ${gameName}.`;
+  const link = t("{{file}} is now tracked as {{game}}.", {
+    file: display,
+    game: gameName,
+  });
   if (sessionCount === 0) return link;
-  return `${link} ${sessionCount} earlier ${sessionCount === 1 ? "session was" : "sessions were"} moved over too.`;
+  return `${link} ${t("{{count}} earlier sessions were moved over too.", {
+    count: sessionCount,
+  })}`;
 }

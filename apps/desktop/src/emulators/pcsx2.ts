@@ -12,6 +12,9 @@ import type {
   EmulatorReadContext,
   RawEmulatorSignals,
 } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("emulators");
 
 export const PCSX2_EXE_NAMES = [
   "pcsx2-qt.exe",
@@ -229,7 +232,10 @@ export const pcsx2Adapter: EmulatorAdapter = {
   id: "pcsx2",
   label: "PCSX2",
   platformLabel: "PlayStation 2",
-  subtitle: "PlayStation 2 games, mappings, and emulator playtime",
+  // A getter, so the text follows the current language.
+  get subtitle() {
+    return t("PlayStation 2 games, mappings, and emulator playtime");
+  },
   exeNames: PCSX2_EXE_NAMES,
   launch: {
     targetKinds: ["file"],

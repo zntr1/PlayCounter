@@ -5,16 +5,19 @@ import type {
   EmulatorMappingShare,
 } from "../../../emulators/types";
 import { adapterFor } from "../../../emulators/registry";
+import { getT } from "../../../i18n";
+
+const t = getT("emulators");
 
 export function emulatorDetectionSourceLabel(source?: EmulatorDetectionSource) {
-  if (source === "window_title") return "window title";
-  if (source === "launch_arguments") return "start-up options";
-  if (source === "open_file_handle") return "loaded game file";
+  if (source === "window_title") return t("window title");
+  if (source === "launch_arguments") return t("start-up options");
+  if (source === "open_file_handle") return t("loaded game file");
   return null;
 }
 
 export function guestPlatformLabel(emulatorId: string) {
-  return adapterFor(emulatorId)?.platformLabel ?? "emulator";
+  return adapterFor(emulatorId)?.platformLabel ?? t("emulator");
 }
 
 export type EmulatorPickerPhase = "resolving" | "candidates" | "search";
@@ -33,23 +36,28 @@ export function emulatorPickerCopy(
 ) {
   if (observation.endedAt) {
     return {
-      eyebrow: `New game detected in ${observation.label}`,
+      eyebrow: t("New game detected in {{label}}", {
+        label: observation.label,
+      }),
       headline: observation.display,
-      description:
+      description: t(
         "The emulator was closed. Pick the game to keep the tracked playtime.",
+      ),
       tone: "warning" as const,
     };
   }
   const phase = emulatorPickerPhase(observation);
   return {
-    eyebrow: `New game detected in ${observation.label}`,
+    eyebrow: t("New game detected in {{label}}", { label: observation.label }),
     headline: observation.display,
     description:
       phase === "resolving"
-        ? `Looking for a matching ${platformLabel} game…`
+        ? t("Looking for a matching {{platformLabel}} game…", { platformLabel })
         : phase === "candidates"
-          ? "Pick the game that is inside this file."
-          : "PlayCounter does not recognize this one. Search for the game once - your choice is remembered on this PC.",
+          ? t("Pick the game that is inside this file.")
+          : t(
+              "PlayCounter does not recognize this one. Search for the game once - your choice is remembered on this PC.",
+            ),
     tone: "accent" as const,
   };
 }

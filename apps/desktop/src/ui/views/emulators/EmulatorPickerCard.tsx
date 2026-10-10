@@ -20,6 +20,9 @@ import {
   canShareEmulatorObservation,
   guestPlatformLabel,
 } from "./emulatorPickerModel";
+import { getT } from "../../../i18n";
+
+const t = getT("emulators");
 
 export function EmulatorPickerCard({
   observation,
@@ -47,21 +50,22 @@ export function EmulatorPickerCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-xs font-semibold uppercase tracking-wider text-warning">
-              No game detected
+              {t("No game detected")}
             </div>
             <h2 className="mt-1 font-semibold text-text">
-              {observation.label} is running
+              {t("{{label}} is running", { label: observation.label })}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
-              PlayCounter cannot tell which game is loaded. Start a game in the
-              emulator - it shows up here as soon as PlayCounter recognizes it.
+              {t(
+                "PlayCounter cannot tell which game is loaded. Start a game in the emulator - it shows up here as soon as PlayCounter recognizes it.",
+              )}
             </p>
             <Button
               className="mt-3"
               variant="ghost"
               onClick={() => dismissEmulatorHostNotice(observation.key)}
             >
-              Dismiss
+              {t("Dismiss")}
             </Button>
           </div>
         </div>
@@ -85,27 +89,42 @@ export function EmulatorPickerCard({
       const shareDetail =
         shareOutcome?.kind === "shared"
           ? shareOutcome.share.status === "already_curated"
-            ? " Already in the Community database."
+            ? t("Already in the Community database.")
             : shareOutcome.share.status === "rejected"
-              ? " This match was reviewed before. The reason is in Notifications - your own link still works."
-              : " Sent for review. You'll get a notification once it's reviewed."
+              ? t(
+                  "This match was reviewed before. The reason is in Notifications - your own link still works.",
+                )
+              : t(
+                  "Sent for review. You'll get a notification once it's reviewed.",
+                )
           : shareOutcome
-            ? " The link works. You can share it later from the emulator page."
-            : "";
+            ? t(
+                "The link works. You can share it later from the emulator page.",
+              )
+            : null;
       addToast({
         tone: "success",
         title: observation.endedAt
-          ? `${game.name} added to History`
-          : `Now tracking ${game.name}`,
+          ? t("{{name}} added to History", { name: game.name })
+          : t("Now tracking {{name}}", { name: game.name }),
         detail:
           observation.endedAt && pendingSeconds >= 60
-            ? `Saved ${formatDuration(pendingSeconds)} of playtime.`
-            : `${observation.display} is now linked on this PC.${shareDetail}`,
+            ? t("Saved {{duration}} of playtime.", {
+                duration: formatDuration(pendingSeconds),
+              })
+            : [
+                t("{{file}} is now linked on this PC.", {
+                  file: observation.display,
+                }),
+                shareDetail,
+              ]
+                .filter(Boolean)
+                .join(" "),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not link game",
+        title: t("Could not link game"),
         detail: error instanceof Error ? error.message : String(error),
       });
       setBusy(false);
@@ -120,17 +139,19 @@ export function EmulatorPickerCard({
       addToast({
         tone: "success",
         title: observation.endedAt
-          ? `${name} added to History`
-          : `Now tracking ${name}`,
+          ? t("{{name}} added to History", { name })
+          : t("Now tracking {{name}}", { name }),
         detail:
           observation.endedAt && pendingSeconds >= 60
-            ? `Saved ${formatDuration(pendingSeconds)} of playtime.`
-            : "This name stays on this PC.",
+            ? t("Saved {{duration}} of playtime.", {
+                duration: formatDuration(pendingSeconds),
+              })
+            : t("This name stays on this PC."),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not add custom game",
+        title: t("Could not add custom game"),
         detail: error instanceof Error ? error.message : String(error),
       });
       setBusy(false);
@@ -160,19 +181,24 @@ export function EmulatorPickerCard({
             <div className="mt-3 flex flex-wrap gap-2">
               {observation.runningSince ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-tint px-2.5 py-1 text-xs font-medium text-success">
-                  <Radio size={13} /> Tracking now
+                  <Radio size={13} /> {t("Tracking now")}
                 </span>
               ) : null}
               {pendingSeconds >= 60 ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-warning-border bg-warning-tint px-2.5 py-1 text-xs font-medium text-warning">
-                  <Timer size={13} /> {formatDuration(pendingSeconds)} waiting
-                  to be saved
+                  <Timer size={13} />{" "}
+                  {t("{{duration}} waiting to be saved", {
+                    duration: formatDuration(pendingSeconds),
+                  })}
                 </span>
               ) : null}
             </div>
           </div>
           {phase === "resolving" ? (
-            <Loader2 size={20} className="shrink-0 animate-spin text-accent-ink" />
+            <Loader2
+              size={20}
+              className="shrink-0 animate-spin text-accent-ink"
+            />
           ) : null}
         </div>
       </div>
@@ -194,9 +220,9 @@ export function EmulatorPickerCard({
           shareDisabled={offline || !installUuid}
           shareDisabledReason={
             offline
-              ? "Sharing needs an internet connection."
+              ? t("Sharing needs an internet connection.")
               : !installUuid
-                ? "PlayCounter is still starting up."
+                ? t("PlayCounter is still starting up.")
                 : undefined
           }
           onSelectCustom={(name) => void applyCustom(name)}
@@ -204,23 +230,27 @@ export function EmulatorPickerCard({
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-border bg-bg/40 px-5 py-3">
         <p className="text-xs text-text-faint">
-          Your choice is remembered on this PC.
+          {t("Your choice is remembered on this PC.")}
         </p>
         <Button
           variant="ghost"
           disabled={busy}
-          title="PlayCounter stops tracking this game. You can restore it under Ignored games."
+          title={t(
+            "PlayCounter stops tracking this game. You can restore it under Ignored games.",
+          )}
           onClick={() => {
             void ignoreEmulatorContent(observation.key).then(() =>
               addToast({
                 tone: "info",
-                title: `${observation.display} is no longer tracked`,
-                detail: "You can restore it under Ignored games.",
+                title: t("{{display}} is no longer tracked", {
+                  display: observation.display,
+                }),
+                detail: t("You can restore it under Ignored games."),
               }),
             );
           }}
         >
-          Don't track this
+          {t("Don't track this")}
         </Button>
       </div>
     </Panel>

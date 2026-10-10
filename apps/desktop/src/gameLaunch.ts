@@ -1,4 +1,7 @@
 import type { GameSource } from "@playcounter/shared";
+import { getT } from "./i18n";
+
+const t = getT("emulators");
 
 export type LaunchOwner = {
   gameId: number;
@@ -215,7 +218,7 @@ export function launchErrorDetail(error: unknown) {
     const message = error.message;
     if (typeof message === "string" && message.trim()) return message;
   }
-  return "The operating system did not provide more details.";
+  return t("The operating system did not provide more details.");
 }
 
 export function launchErrorMessage(error: unknown, gameName: string) {
@@ -223,35 +226,41 @@ export function launchErrorMessage(error: unknown, gameName: string) {
   switch (launchErrorKind(error)) {
     case "notFound":
       return {
-        title: "Game file not found",
-        detail: `${detail} Start the game once, or set the launch file again.`,
+        title: t("Game file not found"),
+        detail: t(
+          "{{detail}} Start the game once, or set the launch file again.",
+          { detail },
+        ),
       };
     case "notAFile":
       return {
-        title: "That is not a program",
-        detail: `${detail} Set the launch file again.`,
+        title: t("That is not a program"),
+        detail: t("{{detail}} Set the launch file again.", { detail }),
       };
     case "unreadable":
       return {
-        title: "Cannot open the game file",
-        detail: `${detail} Check that the drive is connected.`,
+        title: t("Cannot open the game file"),
+        detail: t("{{detail}} Check that the drive is connected.", { detail }),
       };
     case "invalidPath":
       return {
-        title: "Launch file is not valid",
-        detail: "PlayCounter can only start .exe files with a full path.",
+        title: t("Launch file is not valid"),
+        detail: t("PlayCounter can only start .exe files with a full path."),
       };
     case "unsupported":
       return {
-        title: "Only available on Windows",
-        detail: "Starting games from the library works on Windows.",
+        title: t("Only available on Windows"),
+        detail: t("Starting games from the library works on Windows."),
       };
     case "spawnFailed":
       return {
-        title: `${gameName} could not be started`,
+        title: t("{{gameName}} could not be started", { gameName }),
         detail,
       };
     default:
-      return { title: `${gameName} could not be started`, detail };
+      return {
+        title: t("{{gameName}} could not be started", { gameName }),
+        detail,
+      };
   }
 }

@@ -12,6 +12,10 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useIsOffline } from "../../../store";
 import { searchEmulatorGames } from "../../../tracker";
 import { Button, IconButton, Input } from "../../primitives";
+import { Trans } from "react-i18next";
+import { getT } from "../../../i18n";
+
+const t = getT("emulators");
 
 type SearchState = "idle" | "loading" | "done" | "error";
 
@@ -137,7 +141,7 @@ export function EmulatorGamePicker({
       {suggested?.length ? (
         <section>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-faint">
-            Best guesses from the database
+            {t("Best guesses from the database")}
           </div>
           <GameGrid
             games={suggested}
@@ -171,13 +175,16 @@ export function EmulatorGamePicker({
               value={query}
               disabled={isOffline || busy}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Search ${platformLabel} games by title or IGDB ID`}
+              placeholder={t(
+                "Search {{platformLabel}} games by title or IGDB ID",
+                { platformLabel },
+              )}
               className="w-full px-9"
             />
             {query && !isOffline && !busy ? (
               <IconButton
                 icon={X}
-                aria-label="Clear search"
+                aria-label={t("Clear search")}
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 border-transparent"
                 onClick={() => {
                   setQuery("");
@@ -192,20 +199,23 @@ export function EmulatorGamePicker({
             loading={search.state === "loading"}
             disabled={!query.trim() || isOffline || busy}
           >
-            Search
+            {t("Search")}
           </Button>
         </form>
         <p className="mt-2 text-xs text-text-faint">
-          Searches the IGDB game database for {platformLabel} games. Up to 50
-          results.
+          {t(
+            "Searches the IGDB game database for {{platformLabel}} games. Up to 50 results.",
+            { platformLabel },
+          )}
         </p>
       </section>
 
       <div role="status" aria-live="polite">
         {isOffline ? (
           <StatePanel tone="warning">
-            Search needs an internet connection. You can still add the game by
-            name.
+            {t(
+              "Search needs an internet connection. You can still add the game by name.",
+            )}
           </StatePanel>
         ) : search.state === "loading" ? (
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-busy>
@@ -215,41 +225,53 @@ export function EmulatorGamePicker({
                 className="h-24 animate-pulse rounded-xl border border-border bg-surface-hover"
               />
             ))}
-            <span className="sr-only">Searching…</span>
+            <span className="sr-only">{t("Searching…")}</span>
           </div>
         ) : search.state === "error" ? (
           <StatePanel tone="danger">
-            <div>Game search failed: {search.message}</div>
+            <div>
+              {t("Game search failed: {{message}}", {
+                message: search.message,
+              })}
+            </div>
             <Button
               className="mt-3"
               variant="secondary"
               onClick={() => void search.run(search.lastQuery)}
             >
-              Try again
+              {t("Try again")}
             </Button>
           </StatePanel>
         ) : search.state === "done" && search.results.length === 0 ? (
           <StatePanel>
             <div className="font-medium text-text">
-              No {platformLabel} game found for “{search.lastQuery}”.
+              {t("No {{platformLabel}} game found for “{{lastQuery}}”.", {
+                platformLabel,
+                lastQuery: search.lastQuery,
+              })}
             </div>
             <div className="mt-1">
-              Check the spelling, try the English name, or add it as a custom
-              game.
+              {t(
+                "Check the spelling, try the English name, or add it as a custom game.",
+              )}
             </div>
             <Button
               className="mt-3"
               variant="secondary"
               onClick={() => openCustomWith(search.lastQuery)}
             >
-              Add “{search.lastQuery}” as custom game
+              {t("Add “{{lastQuery}}” as custom game", {
+                lastQuery: search.lastQuery,
+              })}
             </Button>
           </StatePanel>
         ) : search.state === "done" ? (
           <section>
             <div className="mb-2 text-xs text-text-muted">
-              {search.results.length} result
-              {search.results.length === 1 ? "" : "s"} for “{search.lastQuery}”
+              {t("{{count}} results for “{{query}}”", {
+                count: search.results.length,
+                query: search.lastQuery,
+              })}
             </div>
             <GameGrid
               games={search.results}
@@ -265,7 +287,12 @@ export function EmulatorGamePicker({
           </section>
         ) : (
           <StatePanel>
-            Search for the game inside <strong>{contentDisplay}</strong>.
+            <Trans
+              t={t}
+              i18nKey="Search for the game inside <strong>{{content}}</strong>."
+              values={{ content: contentDisplay }}
+              components={{ strong: <strong /> }}
+            />
           </StatePanel>
         )}
       </div>
@@ -279,7 +306,7 @@ export function EmulatorGamePicker({
           onClick={() => setCustomOpen((open) => !open)}
         >
           {customOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          Not in the database? Add it by name
+          {t("Not in the database? Add it by name")}
         </button>
         {customOpen ? (
           <form
@@ -297,7 +324,7 @@ export function EmulatorGamePicker({
                 maxLength={120}
                 disabled={busy}
                 onChange={(event) => setCustomName(event.target.value)}
-                placeholder="e.g. Chrono Trigger (fan translation)"
+                placeholder={t("e.g. Chrono Trigger (fan translation)")}
                 className="min-w-0 flex-1"
               />
               <Button
@@ -305,11 +332,11 @@ export function EmulatorGamePicker({
                 variant="secondary"
                 disabled={!customName.trim() || busy}
               >
-                Add custom game
+                {t("Add custom game")}
               </Button>
             </div>
             <p className="mt-2 text-xs text-text-faint">
-              Stays on this PC only.
+              {t("Stays on this PC only.")}
             </p>
           </form>
         ) : null}
@@ -370,10 +397,10 @@ function GameGrid({
               </span>
               <span className="mt-2 block text-xs font-medium text-accent-ink">
                 {current
-                  ? "Currently linked"
+                  ? t("Currently linked")
                   : onSelectAndShare
-                    ? "From the database"
-                    : "Select this game"}
+                    ? t("From the database")
+                    : t("Select this game")}
               </span>
             </span>
           </div>
@@ -397,11 +424,14 @@ function GameGrid({
                 icon={Send}
                 disabled={busy || shareDisabled}
                 title={shareDisabled ? shareDisabledReason : undefined}
-                aria-label={`Add ${contentDisplay} as ${game.name} and share the match`}
+                aria-label={t(
+                  "Add {{contentDisplay}} as {{name}} and share the match",
+                  { contentDisplay, name: game.name },
+                )}
                 className="w-full min-w-0 px-2 text-xs font-semibold"
                 onClick={() => onSelectAndShare(game)}
               >
-                Add &amp; Share
+                {t("Add & Share")}
               </Button>
             </div>
           </div>
@@ -410,7 +440,10 @@ function GameGrid({
             key={`${game.source}:${game.id}`}
             type="button"
             disabled={busy}
-            aria-label={`Track ${contentDisplay} as ${game.name}`}
+            aria-label={t("Track {{contentDisplay}} as {{name}}", {
+              contentDisplay,
+              name: game.name,
+            })}
             className={clsx(
               className,
               "hover:border-accent/50 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",

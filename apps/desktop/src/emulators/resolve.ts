@@ -8,6 +8,9 @@ import type {
   EmulatorReading,
   EmulatorRuntimeState,
 } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("emulators");
 
 export type EmulatorIntent =
   | { type: "match"; mapping: EmulatorMapping }
@@ -163,7 +166,7 @@ export function reconcileEmulatorReadings(input: {
           startedAtUnix: Number(startedAtText),
           exeName: "",
           label:
-            input.mappings.get(previous.lastContentKey)?.label ?? "Emulator",
+            input.mappings.get(previous.lastContentKey)?.label ?? t("Emulator"),
         },
         previous.lastContentKey,
       );
