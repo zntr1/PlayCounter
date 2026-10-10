@@ -285,6 +285,7 @@ const milestone = object(
   // Legacy backfilled awards receive their date and title during hydration.
   {
     title: string,
+    gameName: string,
     coverUrl: string,
     awardedAt: date,
     backfilled: boolean,

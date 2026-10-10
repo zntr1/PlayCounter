@@ -7,6 +7,7 @@ import {
   STREAK_DAYS,
   TOTAL_HOURS,
   VERIFIED_COUNTS,
+  milestoneTitle,
   parseMilestoneId,
   type AwardedMilestone,
   type MilestoneCategory,
@@ -166,7 +167,7 @@ export function buildAchievementCatalog(
         id,
         category: parsed.category,
         kind: milestone.kind,
-        title: award.title,
+        title: awardTitle(award),
         threshold: parsed.threshold,
         unit: unitFor(parsed.category),
         scope,
@@ -180,7 +181,7 @@ export function buildAchievementCatalog(
   const ensure = (
     input: Omit<
       AchievementCatalogItem,
-      "tier" | "ratio" | "isNext" | "milestone"
+      "tier" | "ratio" | "isNext" | "milestone" | "title"
     >,
     awardOverride?: AwardedMilestone,
   ) => {
@@ -194,7 +195,7 @@ export function buildAchievementCatalog(
       createItem({
         ...existing,
         ...input,
-        title: input.title,
+        title: milestoneTitle(input, input.gameName),
         coverUrl: award?.coverUrl || input.coverUrl,
         milestone: award,
       }),
@@ -206,7 +207,6 @@ export function buildAchievementCatalog(
       id: `milestone:total:${threshold}`,
       category: "total",
       kind: "milestone-total",
-      title: `You've played ${threshold.toLocaleString(appLocale())} hours in total`,
       threshold,
       currentValue: metrics.totalHours,
       unit: "hours",
@@ -214,13 +214,11 @@ export function buildAchievementCatalog(
     });
   }
 
-  const currentMonth = monthLabel(metrics.monthKey);
   for (const threshold of MONTH_HOURS) {
     ensure({
       id: `milestone:month:${metrics.monthKey}:${threshold}`,
       category: "month",
       kind: "milestone-month",
-      title: `${threshold.toLocaleString(appLocale())} hours played in ${currentMonth}`,
       threshold,
       currentValue: metrics.monthHours,
       unit: "hours",
@@ -234,7 +232,6 @@ export function buildAchievementCatalog(
         id: `milestone:streak:${threshold}`,
         category: "streak",
         kind: "milestone-streak",
-        title: `${threshold.toLocaleString(appLocale())}-day play streak`,
         threshold,
         currentValue: metrics.streakDays,
         unit: "days",
@@ -248,10 +245,6 @@ export function buildAchievementCatalog(
       id: `milestone:verified:${threshold}`,
       category: "verified",
       kind: "milestone-verified",
-      title:
-        threshold === 1
-          ? "Your first contribution was approved"
-          : `${threshold.toLocaleString(appLocale())} contributions approved`,
       threshold,
       currentValue: metrics.verifiedCount,
       unit: "contributions",
@@ -264,10 +257,6 @@ export function buildAchievementCatalog(
       id: `milestone:emulator:${threshold}`,
       category: "emulator",
       kind: "milestone-emulator",
-      title:
-        threshold === 1
-          ? "Your first emulator match was approved"
-          : `${threshold.toLocaleString(appLocale())} emulator matches approved`,
       threshold,
       currentValue: metrics.verifiedEmulatorCount,
       unit: "contributions",
@@ -284,7 +273,6 @@ export function buildAchievementCatalog(
           id,
           category: "game",
           kind: "milestone-game",
-          title: `${threshold.toLocaleString(appLocale())} hours played in ${game.name}`,
           threshold,
           currentValue: game.hours,
           unit: "hours",
@@ -334,13 +322,11 @@ export function selectLadderGames(
       const awards = earned.get(key) ?? [];
       const metricGame = metrics.games.get(key);
       const metadata = gameLabels.get(key);
-      const parsedName = [...awards]
+      const awardName = [...awards]
         .sort(
           (left, right) => milestoneThreshold(right) - milestoneThreshold(left),
         )
-        .map((award) =>
-          gameNameFromMilestoneTitle(award.title, milestoneThreshold(award)),
-        )
+        .map((award) => awardGameName(award, milestoneThreshold(award)))
         .find((name): name is string => Boolean(name));
       const metricName = metricGame?.name.trim();
       const name =
@@ -348,7 +334,7 @@ export function selectLadderGames(
         (metricName && metricName.toLowerCase() !== "a game"
           ? metricName
           : undefined) ||
-        parsedName ||
+        awardName ||
         "Unknown game";
       const coverUrl =
         metadata?.coverUrl ||
@@ -463,6 +449,25 @@ export function buildMonthHistory(
       ),
       highestThreshold: Math.max(...earned.map((item) => item.threshold)),
     }));
+}
+
+/** An earned award's text, made again from its id so it follows the app's
+ *  language. An old game award whose name can't be found keeps its title. */
+function awardTitle(award: AwardedMilestone) {
+  const parsed = parseMilestoneId(award.id);
+  if (!parsed) return award.title;
+  if (parsed.category !== "game") return milestoneTitle(parsed);
+  const name = awardGameName(award, parsed.threshold);
+  return name ? milestoneTitle(parsed, name) : award.title;
+}
+
+/** The saved name, else (awards from before it was saved) the name inside
+ *  the English title. */
+function awardGameName(award: AwardedMilestone, threshold: number) {
+  if (award.gameName && award.gameName.toLowerCase() !== "a game") {
+    return award.gameName;
+  }
+  return gameNameFromMilestoneTitle(award.title, threshold);
 }
 
 const GENERATED_GAME_TITLE =

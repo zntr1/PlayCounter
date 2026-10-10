@@ -33,7 +33,13 @@ export type MilestoneNotificationKind = Extract<
 export type AwardedMilestone = {
   id: string;
   kind: MilestoneNotificationKind;
+  /** Text in the language of the moment it was earned. The app shows
+   *  milestoneTitle() instead; this is the fallback for old game awards
+   *  without `gameName`. */
   title: string;
+  /** Game awards: the game's name when it was earned. Absent on older ones,
+   *  whose name is read from the English title. */
+  gameName?: string;
   coverUrl?: string;
   awardedAt: string;
   backfilled?: boolean;
@@ -250,72 +256,55 @@ export function evaluateMilestones(
 
   addThresholds(
     reached,
-    "milestone-month",
-    `milestone:month:${metrics.monthKey}`,
+    "month",
+    metrics.monthKey,
     metrics.monthHours,
     MONTH_HOURS,
-    (hours) =>
-      `${hours} hours played in ${now.toLocaleDateString(appLocale(), {
-        month: "long",
-        year: "numeric",
-      })}`,
     createdAt,
   );
   addThresholds(
     reached,
-    "milestone-emulator",
-    "milestone:emulator",
+    "emulator",
+    "",
     metrics.verifiedEmulatorCount,
     EMULATOR_VERIFIED_COUNTS,
-    (count) =>
-      count === 1
-        ? "Your first emulator match was approved"
-        : `${count} emulator matches approved`,
     createdAt,
   );
   addThresholds(
     reached,
-    "milestone-total",
-    "milestone:total",
+    "total",
+    "",
     metrics.totalHours,
     TOTAL_HOURS,
-    (hours) =>
-      `You've played ${hours.toLocaleString(appLocale())} hours in total`,
     createdAt,
   );
   for (const [key, game] of metrics.games) {
     addThresholds(
       reached,
-      "milestone-game",
-      `milestone:game:${key}`,
+      "game",
+      key,
       game.hours,
       GAME_HOURS,
-      (hours) => `${hours} hours played in ${game.name}`,
       createdAt,
-      game.coverUrl,
+      game,
     );
   }
   if (PLAY_STREAK_ACHIEVEMENTS_ENABLED) {
     addThresholds(
       reached,
-      "milestone-streak",
-      "milestone:streak",
+      "streak",
+      "",
       metrics.streakDays,
       STREAK_DAYS,
-      (days) => `${days}-day play streak`,
       createdAt,
     );
   }
   addThresholds(
     reached,
-    "milestone-verified",
-    "milestone:verified",
+    "verified",
+    "",
     metrics.verifiedCount,
     VERIFIED_COUNTS,
-    (count) =>
-      count === 1
-        ? "Your first contribution was approved"
-        : `${count} contributions approved`,
     createdAt,
   );
 
@@ -370,6 +359,7 @@ export function evaluateMilestones(
       id: notification.id,
       kind: notification.kind as MilestoneNotificationKind,
       title: notification.title,
+      ...reachedGameName(notification),
       coverUrl: notification.coverUrl,
       awardedAt: createdAt,
     };
@@ -408,7 +398,7 @@ export function migrateAwardedMilestones(input: {
     migrated.set(value, {
       id: value,
       kind: kindForCategory(parsed.category),
-      title: genericMilestoneTitle(parsed),
+      title: milestoneTitle(parsed),
       awardedAt,
     });
   }
@@ -446,7 +436,13 @@ function normalizeAwardedMilestones(
     const candidate: AwardedMilestone = {
       ...milestone,
       id: targetId,
-      ...(reached ? { title: reached.title, coverUrl: reached.coverUrl } : {}),
+      ...(reached
+        ? {
+            title: reached.title,
+            ...reachedGameName(reached),
+            coverUrl: reached.coverUrl,
+          }
+        : {}),
       ...(aliasIds.size > 0
         ? { aliasIds: [...aliasIds] }
         : { aliasIds: undefined }),
@@ -462,7 +458,13 @@ function normalizeAwardedMilestones(
         : candidate;
     normalized.set(targetId, {
       ...earlier,
-      ...(reached ? { title: reached.title, coverUrl: reached.coverUrl } : {}),
+      ...(reached
+        ? {
+            title: reached.title,
+            ...reachedGameName(reached),
+            coverUrl: reached.coverUrl,
+          }
+        : {}),
       aliasIds: [
         ...new Set(
           [
@@ -550,9 +552,10 @@ function sanitizeAwardedMilestone(
     id: record.id,
     kind: record.kind as MilestoneNotificationKind,
     title:
-      typeof record.title === "string"
-        ? record.title
-        : genericMilestoneTitle(parsed),
+      typeof record.title === "string" ? record.title : milestoneTitle(parsed),
+    ...(typeof record.gameName === "string" && record.gameName
+      ? { gameName: record.gameName }
+      : {}),
     ...(typeof record.coverUrl === "string" && record.coverUrl
       ? { coverUrl: record.coverUrl }
       : {}),
@@ -574,30 +577,37 @@ function kindForCategory(
   return `milestone-${category}`;
 }
 
-function genericMilestoneTitle(parsed: {
-  category: MilestoneCategory;
-  scope: string;
-  threshold: number;
-}) {
-  const threshold = parsed.threshold.toLocaleString(appLocale());
-  switch (parsed.category) {
+/** A milestone's text, made from the parts of its id: "100 hours played in
+ *  Elden Ring". Every milestone sentence comes from here. */
+export function milestoneTitle(
+  milestone: { category: MilestoneCategory; scope: string; threshold: number },
+  gameName = "a game",
+) {
+  const threshold = milestone.threshold.toLocaleString(appLocale());
+  switch (milestone.category) {
     case "total":
       return `You've played ${threshold} hours in total`;
     case "month":
-      return `${threshold} hours played in ${monthLabel(parsed.scope)}`;
+      return `${threshold} hours played in ${monthLabel(milestone.scope)}`;
     case "game":
-      return `${threshold} hours played in a game`;
+      return `${threshold} hours played in ${gameName}`;
     case "streak":
       return `${threshold}-day play streak`;
     case "verified":
-      return parsed.threshold === 1
+      return milestone.threshold === 1
         ? "Your first contribution was approved"
         : `${threshold} contributions approved`;
     case "emulator":
-      return parsed.threshold === 1
+      return milestone.threshold === 1
         ? "Your first emulator match was approved"
         : `${threshold} emulator matches approved`;
   }
+}
+
+/** The game name a reached game milestone carries over to its award. */
+function reachedGameName(notification: AppNotification) {
+  const gameName = notification.params?.game;
+  return gameName ? { gameName } : {};
 }
 
 function monthLabel(scope: string) {
@@ -614,22 +624,24 @@ function monthLabel(scope: string) {
 
 function addThresholds(
   notifications: AppNotification[],
-  kind: NotificationKind,
-  idPrefix: string,
+  category: MilestoneCategory,
+  scope: string,
   value: number,
   thresholds: number[],
-  title: (threshold: number) => string,
   createdAt: string,
-  coverUrl?: string,
+  game?: { name: string; coverUrl: string },
 ) {
   for (let index = thresholds.length - 1; index >= 0; index -= 1) {
     const threshold = thresholds[index];
     if (value < threshold) continue;
     notifications.push({
-      id: `${idPrefix}:${threshold}`,
-      kind,
-      title: title(threshold),
-      coverUrl,
+      id: scope
+        ? `milestone:${category}:${scope}:${threshold}`
+        : `milestone:${category}:${threshold}`,
+      kind: kindForCategory(category),
+      title: milestoneTitle({ category, scope, threshold }, game?.name),
+      coverUrl: game?.coverUrl,
+      ...(game ? { params: { game: game.name } } : {}),
       createdAt,
     });
   }

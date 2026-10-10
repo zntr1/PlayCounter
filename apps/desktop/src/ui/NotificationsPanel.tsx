@@ -3,6 +3,7 @@ import {
   displayNotificationTitle,
   notificationsForDisplay,
 } from "../notifications";
+import { notificationText } from "../notificationText";
 import { useAppStore } from "../store";
 import { NotificationArt } from "./AchievementBadge";
 import { Panel } from "./components";
@@ -122,75 +123,83 @@ export function NotificationsPanel({
             You’re all caught up.
           </div>
         ) : (
-          displayedNotifications.map((notification) => (
-            <article
-              data-tour={demo ? "demo-feedback-notification" : undefined}
-              key={notification.id}
-              className="flex gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
-            >
-              <NotificationArt notification={notification} />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-text">
-                  {displayNotificationTitle(notification)}
-                </div>
-                {notification.kind === "feedback-reply" &&
-                notification.feedbackMessage ? (
-                  <blockquote
-                    data-tour={demo ? "demo-feedback-original" : undefined}
-                    className="my-2 border-l-2 border-accent/40 pl-3"
-                  >
-                    <div className="mb-1 text-[11px] font-medium text-text-faint">
-                      Your feedback
-                    </div>
-                    <p className="whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">
-                      {notification.feedbackMessage}
+          displayedNotifications.map((notification) => {
+            const text = notificationText(notification);
+            return (
+              <article
+                data-tour={demo ? "demo-feedback-notification" : undefined}
+                key={notification.id}
+                className="flex gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
+              >
+                <NotificationArt notification={notification} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-text">
+                    {displayNotificationTitle({
+                      ...notification,
+                      title: text.title,
+                    })}
+                  </div>
+                  {notification.kind === "feedback-reply" &&
+                  notification.feedbackMessage ? (
+                    <blockquote
+                      data-tour={demo ? "demo-feedback-original" : undefined}
+                      className="my-2 border-l-2 border-accent/40 pl-3"
+                    >
+                      <div className="mb-1 text-[11px] font-medium text-text-faint">
+                        Your feedback
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">
+                        {notification.feedbackMessage}
+                      </p>
+                    </blockquote>
+                  ) : null}
+                  {text.body ? (
+                    <p
+                      data-tour={demo ? "demo-feedback-reply" : undefined}
+                      className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-text-muted"
+                    >
+                      {text.body}
                     </p>
-                  </blockquote>
-                ) : null}
-                {notification.body ? (
-                  <p
-                    data-tour={demo ? "demo-feedback-reply" : undefined}
-                    className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-text-muted"
-                  >
-                    {notification.body}
-                  </p>
-                ) : null}
-                <time className="mt-1 block text-[11px] text-text-faint">
-                  {new Date(notification.createdAt).toLocaleString(appLocale())}
-                </time>
-                {notification.action ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const action = notification.action;
-                      if (!action) return;
-                      if (action.view === "discovered") {
-                        window.dispatchEvent(
-                          new CustomEvent("playcounter:discovered-reset"),
-                        );
-                      }
-                      setActiveView(action.view);
-                      onClose();
-                    }}
-                    className="mt-1 text-xs font-medium text-accent-ink transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-                  >
-                    {notification.action.label}
-                    <span aria-hidden="true"> →</span>
-                  </button>
-                ) : null}
-              </div>
-              <IconButton
-                aria-label="Dismiss notification"
-                title="Dismiss"
-                icon={X}
-                disabled={demo}
-                onClick={() => {
-                  if (!demo) dismiss(notification.id);
-                }}
-                className="border-transparent"
-              />
-            </article>
-          ))
+                  ) : null}
+                  <time className="mt-1 block text-[11px] text-text-faint">
+                    {new Date(notification.createdAt).toLocaleString(
+                      appLocale(),
+                    )}
+                  </time>
+                  {notification.action ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const action = notification.action;
+                        if (!action) return;
+                        if (action.view === "discovered") {
+                          window.dispatchEvent(
+                            new CustomEvent("playcounter:discovered-reset"),
+                          );
+                        }
+                        setActiveView(action.view);
+                        onClose();
+                      }}
+                      className="mt-1 text-xs font-medium text-accent-ink transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                    >
+                      {text.actionLabel}
+                      <span aria-hidden="true"> →</span>
+                    </button>
+                  ) : null}
+                </div>
+                <IconButton
+                  aria-label="Dismiss notification"
+                  title="Dismiss"
+                  icon={X}
+                  disabled={demo}
+                  onClick={() => {
+                    if (!demo) dismiss(notification.id);
+                  }}
+                  className="border-transparent"
+                />
+              </article>
+            );
+          })
         )}
       </div>
 

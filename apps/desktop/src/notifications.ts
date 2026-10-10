@@ -30,6 +30,8 @@ export type NotificationAction = {
 export type AppNotification = {
   id: string;
   kind: NotificationKind;
+  /** Text in the language of the moment it was made. Shown as it is only when
+   *  `params` can't make it again (older notifications). */
   title: string;
   body?: string;
   feedbackMessage?: string;
@@ -37,6 +39,22 @@ export type AppNotification = {
   createdAt: string;
   readAt?: string;
   action?: NotificationAction;
+  params?: NotificationParams;
+};
+
+/** The facts a notification's text is made from, so the text can follow the
+ *  language. Saved data: read with type checks. */
+export type NotificationParams = {
+  game?: string;
+  /** The suggested file, or the content an emulator detected. */
+  file?: string;
+  /** The reviewer's feedback. */
+  note?: string;
+  emulator?: string;
+  /** Suggested as software, not as a game. */
+  software?: boolean;
+  /** Apps waiting for review in Discovered. */
+  count?: number;
 };
 
 export type FeedbackReplyCursor = {
@@ -218,33 +236,66 @@ export function contributionKey(
   return `${contribution.platform}:${contribution.kind}:${contribution.value.toLowerCase()}:${contribution.gameId}`;
 }
 
+type SuggestionKind = "suggestion-verified" | "suggestion-rejected";
+
+/** Title and body of a reviewed suggestion, from its facts. */
+export function suggestionText(
+  kind: SuggestionKind,
+  params: NotificationParams,
+) {
+  const game = params.game ?? "";
+  const file = params.file ?? "";
+  const title =
+    kind === "suggestion-verified"
+      ? `${game} suggestion approved`
+      : `${game} suggestion not approved`;
+  if (params.emulator !== undefined) {
+    return {
+      title,
+      body:
+        kind === "suggestion-verified"
+          ? `Detected in ${params.emulator}: ${file}\n\nEveryone's PlayCounter recognizes it now.`
+          : params.note
+            ? `Detected in ${params.emulator}: ${file}\n\nFeedback: ${params.note}`
+            : `${file} wasn't accepted as ${game}.\n\nYour own link still works. If it is the wrong game, pick the right one and share it again.`,
+    };
+  }
+  return {
+    title,
+    body:
+      kind === "suggestion-verified"
+        ? `Suggested file: ${file}\n\nThanks for helping PlayCounter recognize it.`
+        : params.note
+          ? `Suggested file: ${file}\n\nFeedback: ${params.note}`
+          : params.software
+            ? `${file} wasn't accepted as software. PlayCounter still treats it as software on this PC.`
+            : `${file} wasn't accepted for this game.\n\nIf you think it's still right, or you picked the wrong game, you can suggest it again.`,
+  };
+}
+
 export function contributionNotification(
   contribution: Contribution,
   now = new Date().toISOString(),
 ): AppNotification | null {
   if (contribution.status === "pending") return null;
-  const key = contributionKey(contribution);
-  return contribution.status === "verified"
-    ? {
-        id: `suggestion-verified:${key}`,
-        kind: "suggestion-verified",
-        title: `${contribution.gameName} suggestion approved`,
-        body: `Suggested file: ${contribution.value}\n\nThanks for helping PlayCounter recognize it.`,
-        coverUrl: contribution.coverUrl,
-        createdAt: contribution.reviewedAt ?? now,
-      }
-    : {
-        id: `suggestion-rejected:${key}`,
-        kind: "suggestion-rejected",
-        title: `${contribution.gameName} suggestion not approved`,
-        body: contribution.reviewNote
-          ? `Suggested file: ${contribution.value}\n\nFeedback: ${contribution.reviewNote}`
-          : contribution.gameKind === "tool"
-            ? `${contribution.value} wasn't accepted as software. PlayCounter still treats it as software on this PC.`
-            : `${contribution.value} wasn't accepted for this game.\n\nIf you think it's still right, or you picked the wrong game, you can suggest it again.`,
-        coverUrl: contribution.coverUrl,
-        createdAt: contribution.reviewedAt ?? now,
-      };
+  const kind: SuggestionKind =
+    contribution.status === "verified"
+      ? "suggestion-verified"
+      : "suggestion-rejected";
+  const params: NotificationParams = {
+    game: contribution.gameName,
+    file: contribution.value,
+    ...(contribution.reviewNote ? { note: contribution.reviewNote } : {}),
+    ...(contribution.gameKind === "tool" ? { software: true } : {}),
+  };
+  return {
+    id: `${kind}:${contributionKey(contribution)}`,
+    kind,
+    ...suggestionText(kind, params),
+    params,
+    coverUrl: contribution.coverUrl,
+    createdAt: contribution.reviewedAt ?? now,
+  };
 }
 
 export function emulatorContributionKey(
@@ -262,34 +313,34 @@ export function emulatorContributionNotification(
   now = new Date().toISOString(),
 ): AppNotification | null {
   if (contribution.status === "pending") return null;
-  const key = emulatorContributionKey(contribution);
-  const action = isEmulatorId(contribution.emulatorId)
-    ? {
-        view: contribution.emulatorId satisfies ViewId,
-        label: `Open ${emulatorLabel}`,
-      }
-    : undefined;
-  return contribution.status === "verified"
-    ? {
-        id: `suggestion-verified:${key}`,
-        kind: "suggestion-verified",
-        title: `${contribution.gameName} suggestion approved`,
-        body: `Detected in ${emulatorLabel}: ${contribution.contentValue}\n\nEveryone's PlayCounter recognizes it now.`,
-        coverUrl: contribution.coverUrl,
-        createdAt: contribution.reviewedAt ?? now,
-        action,
-      }
-    : {
-        id: `suggestion-rejected:${key}`,
-        kind: "suggestion-rejected",
-        title: `${contribution.gameName} suggestion not approved`,
-        body: contribution.reviewNote
-          ? `Detected in ${emulatorLabel}: ${contribution.contentValue}\n\nFeedback: ${contribution.reviewNote}`
-          : `${contribution.contentValue} wasn't accepted as ${contribution.gameName}.\n\nYour own link still works. If it is the wrong game, pick the right one and share it again.`,
-        coverUrl: contribution.coverUrl,
-        createdAt: contribution.reviewedAt ?? now,
-        action,
-      };
+  const kind: SuggestionKind =
+    contribution.status === "verified"
+      ? "suggestion-verified"
+      : "suggestion-rejected";
+  const params: NotificationParams = {
+    game: contribution.gameName,
+    file: contribution.contentValue,
+    emulator: emulatorLabel,
+    ...(contribution.reviewNote ? { note: contribution.reviewNote } : {}),
+  };
+  return {
+    id: `${kind}:${emulatorContributionKey(contribution)}`,
+    kind,
+    ...suggestionText(kind, params),
+    params,
+    coverUrl: contribution.coverUrl,
+    createdAt: contribution.reviewedAt ?? now,
+    action: isEmulatorId(contribution.emulatorId)
+      ? {
+          view: contribution.emulatorId satisfies ViewId,
+          label: openEmulatorLabel(emulatorLabel),
+        }
+      : undefined,
+  };
+}
+
+export function openEmulatorLabel(emulatorLabel: string) {
+  return `Open ${emulatorLabel}`;
 }
 
 export function seedEmulatorSeenStatus(
