@@ -2,6 +2,7 @@ import type { GameSource } from "@playcounter/shared";
 import clsx from "clsx";
 import { BarChart3, Flame, Timer } from "lucide-react";
 import type { ReactNode } from "react";
+import { Trans } from "react-i18next";
 import { useGameDetails } from "../../../gameDetails";
 import type {
   HistoryFilter,
@@ -13,19 +14,23 @@ import { customHeroArtKey, useAppStore } from "../../../store";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
-import { appLocale } from "../../../i18n";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("history");
 
 /* The History hero: one headline number for the selected range, the range
    chips that scope the whole page, and the highlights worth noticing. The
    most played game's key art sits behind it, the way the library hero does. */
 
-export const historyFilters: Array<{ id: HistoryFilter; label: string }> = [
-  { id: "all", label: "All time" },
-  { id: "currentMonth", label: "This month" },
-  { id: "month", label: "30 days" },
-  { id: "week", label: "7 days" },
-  { id: "today", label: "Today" },
-];
+export function historyFilters(): Array<{ id: HistoryFilter; label: string }> {
+  return [
+    { id: "all", label: t("All time") },
+    { id: "currentMonth", label: t("This month") },
+    { id: "month", label: t("30 days") },
+    { id: "week", label: t("7 days") },
+    { id: "today", label: t("Today") },
+  ];
+}
 
 export type HeroArtworkGame = {
   gameId: number;
@@ -86,12 +91,14 @@ export function HistoryHero({
   // wash the way the library banner does it, never stretched as a photo.
   const artwork = wideArt ?? artworkGame?.coverUrl ?? null;
   const coverOnly = !wideArt && artwork !== null;
-  const rangeLabel = historyFilters.find((entry) => entry.id === filter)!.label;
+  const rangeLabel = historyFilters().find(
+    (entry) => entry.id === filter,
+  )!.label;
   const hasSessions = rangeStats.sessionCount > 0;
 
   return (
     <section
-      aria-label="History summary"
+      aria-label={t("History summary")}
       data-tour="history-hero"
       className="relative overflow-hidden rounded-2xl border border-border/80 bg-surface shadow-raised"
     >
@@ -122,36 +129,63 @@ export function HistoryHero({
           {hasSessions ? (
             <>
               <h1 className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text drop-shadow-md [text-wrap:balance] sm:text-[42px]">
-                <span className="font-mono font-bold tracking-tighter">
-                  {formatDuration(rangeStats.totalSeconds, showDurationDays)}
-                </span>{" "}
-                played
                 {filter === "today" ? (
-                  " today"
+                  <Trans
+                    t={t}
+                    i18nKey="<time>{{duration}}</time> played today"
+                    values={{
+                      duration: formatDuration(
+                        rangeStats.totalSeconds,
+                        showDurationDays,
+                      ),
+                    }}
+                    components={{
+                      time: (
+                        <span className="font-mono font-bold tracking-tighter" />
+                      ),
+                    }}
+                  />
                 ) : (
-                  <>
-                    <br />
-                    across {rangeStats.activeDays} day
-                    {rangeStats.activeDays === 1 ? "" : "s"}
-                  </>
+                  <Trans
+                    t={t}
+                    i18nKey="<time>{{duration}}</time> played<br/>across {{count}} days"
+                    count={rangeStats.activeDays}
+                    values={{
+                      duration: formatDuration(
+                        rangeStats.totalSeconds,
+                        showDurationDays,
+                      ),
+                    }}
+                    components={{
+                      time: (
+                        <span className="font-mono font-bold tracking-tighter" />
+                      ),
+                      br: <br />,
+                    }}
+                  />
                 )}
               </h1>
               <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
-                <Fact value={String(rangeStats.sessionCount)} unit="sessions" />
                 <Fact
-                  label="average"
+                  value={String(rangeStats.sessionCount)}
+                  unit={t("sessions", { count: rangeStats.sessionCount })}
+                />
+                <Fact
+                  label={t("average")}
                   value={formatDuration(
                     rangeStats.averageSeconds,
                     showDurationDays,
                   )}
                 />
                 <Fact
-                  label="current streak"
-                  value={`${allTimeStats.currentStreakDays} day${allTimeStats.currentStreakDays === 1 ? "" : "s"}`}
+                  label={t("current streak")}
+                  value={t("{{count}} days", {
+                    count: allTimeStats.currentStreakDays,
+                  })}
                 />
                 {firstSessionMs !== null ? (
                   <Fact
-                    label="first session"
+                    label={t("first session")}
                     value={new Date(firstSessionMs).toLocaleDateString(
                       appLocale(),
                       {
@@ -167,21 +201,23 @@ export function HistoryHero({
           ) : (
             <>
               <h1 className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text sm:text-[42px]">
-                Nothing played {filter === "all" ? "yet" : "in this range"}
+                {filter === "all"
+                  ? t("Nothing played yet")
+                  : t("Nothing played in this range")}
               </h1>
               <p className="mt-3 text-sm text-text-muted">
                 {filter === "all"
-                  ? "Start a tracked game and your first session lands here."
-                  : "Pick a wider range to see your sessions."}
+                  ? t("Start a tracked game and your first session lands here.")
+                  : t("Pick a wider range to see your sessions.")}
               </p>
             </>
           )}
           <div
             role="group"
-            aria-label="Range"
+            aria-label={t("Range")}
             className="mt-5 flex flex-wrap gap-1.5"
           >
-            {historyFilters.map((entry) => (
+            {historyFilters().map((entry) => (
               <button
                 key={entry.id}
                 type="button"
@@ -201,7 +237,7 @@ export function HistoryHero({
         </div>
         {highlights.length > 0 ? (
           <ul
-            aria-label="Highlights"
+            aria-label={t("Highlights")}
             className="grid auto-rows-fr content-start gap-2.5 sm:grid-cols-2 xl:grid-cols-3"
           >
             {highlights.map((highlight) => (
@@ -246,7 +282,7 @@ function highlightCopy(
   switch (highlight.kind) {
     case "longestSession":
       return {
-        label: "Longest session",
+        label: t("Longest session"),
         value: formatDuration(highlight.seconds, showDurationDays),
         detail: (
           <>
@@ -254,11 +290,11 @@ function highlightCopy(
             {formatStart(highlight.session.startedAt)}
           </>
         ),
-        title: "Show this session",
+        title: t("Show this session"),
       };
     case "bestStreak":
       return {
-        label: "Best streak",
+        label: t("Best streak"),
         value: `${highlight.days} days`,
         detail: (
           <>
@@ -266,43 +302,41 @@ function highlightCopy(
             <Em>{formatDuration(highlight.seconds, showDurationDays)}</Em>
           </>
         ),
-        title: "Open the activity calendar",
+        title: t("Open the activity calendar"),
       };
     case "mostPlayed":
       return {
-        label: "Most played",
+        label: t("Most played"),
         value: formatDuration(highlight.seconds, showDurationDays),
         detail: (
           <>
             <Em>{highlight.name}</Em> · {Math.round(highlight.share * 100)} %
           </>
         ),
-        title: "Show sessions of this game",
+        title: t("Show sessions of this game"),
       };
     case "busiestDay":
       return {
-        label: "Busiest day",
+        label: t("Busiest day"),
         value: formatDuration(highlight.seconds, showDurationDays),
         detail: (
           <>
             {formatDay(highlight.dateKey, true)} ·{" "}
-            <Em>
-              {highlight.gameCount} game{highlight.gameCount === 1 ? "" : "s"}
-            </Em>
+            <Em>{t("{{count}} games", { count: highlight.gameCount })}</Em>
           </>
         ),
-        title: "Open the activity calendar",
+        title: t("Open the activity calendar"),
       };
     case "mostSessions":
       return {
-        label: "On a roll",
+        label: t("On a roll"),
         value: `${highlight.sessionCount} sessions`,
         detail: <Em>{highlight.name}</Em>,
-        title: "Show sessions of this game",
+        title: t("Show sessions of this game"),
       };
     case "comeback":
       return {
-        label: "Came back after",
+        label: t("Came back after"),
         value: `${highlight.gapDays} days`,
         detail: (
           <>
@@ -310,7 +344,7 @@ function highlightCopy(
             {formatStart(highlight.session.startedAt)}
           </>
         ),
-        title: "Show sessions of this game",
+        title: t("Show sessions of this game"),
       };
   }
 }

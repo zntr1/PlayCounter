@@ -56,22 +56,32 @@ import {
   HistorySessionRow,
   type HistoryRowMetadata,
 } from "./history/HistorySessionRow";
-import { appLocale } from "../../i18n";
+import { appLocale, getT } from "../../i18n";
+
+const t = getT("history");
 
 type HistorySort = "newest" | "oldest" | "duration";
 type HistoryTab = "sessions" | "insights" | "games";
 
-const historySorts: Array<{ id: HistorySort; label: string }> = [
-  { id: "newest", label: "Newest first" },
-  { id: "oldest", label: "Oldest first" },
-  { id: "duration", label: "Longest first" },
-];
+function historySorts(): Array<{ id: HistorySort; label: string }> {
+  return [
+    { id: "newest", label: t("Newest first") },
+    { id: "oldest", label: t("Oldest first") },
+    { id: "duration", label: t("Longest first") },
+  ];
+}
 
-const TABS: Array<{ id: HistoryTab; label: string; icon: LucideIcon }> = [
-  { id: "sessions", label: "Sessions", icon: ListOrdered },
-  { id: "insights", label: "Insights", icon: BarChart3 },
-  { id: "games", label: "Games", icon: Gamepad2 },
-];
+function historyTabs(): Array<{
+  id: HistoryTab;
+  label: string;
+  icon: LucideIcon;
+}> {
+  return [
+    { id: "sessions", label: t("Sessions"), icon: ListOrdered },
+    { id: "insights", label: t("Insights"), icon: BarChart3 },
+    { id: "games", label: t("Games"), icon: Gamepad2 },
+  ];
+}
 
 function fallbackGameName(exeName: string) {
   return exeName.replace(/\.exe$/i, "");
@@ -620,8 +630,10 @@ export function HistoryView() {
     else removeHistorySession(pendingDeletion.id);
     addToast({
       tone: "success",
-      title: "Session removed",
-      detail: `${pendingDeletionGame.name} was removed from history.`,
+      title: t("Session removed"),
+      detail: t("{{name}} was removed from history.", {
+        name: pendingDeletionGame.name,
+      }),
     });
     setPendingDeletion(null);
     focusTimelineSession(nextSessionId);
@@ -637,9 +649,12 @@ export function HistoryView() {
   const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const index = TABS.findIndex((entry) => entry.id === tab);
+    const index = historyTabs().findIndex((entry) => entry.id === tab);
     const step = event.key === "ArrowRight" ? 1 : -1;
-    const next = TABS[(index + step + TABS.length) % TABS.length]!;
+    const next =
+      historyTabs()[
+        (index + step + historyTabs().length) % historyTabs().length
+      ]!;
     setTab(next.id);
     document.getElementById(`history-tab-${next.id}`)?.focus();
   };
@@ -671,11 +686,11 @@ export function HistoryView() {
       >
         <div
           role="tablist"
-          aria-label="History sections"
+          aria-label={t("History sections")}
           onKeyDown={handleTabKeyDown}
           className="flex gap-1"
         >
-          {TABS.map(({ id, label, icon: Icon }) => {
+          {historyTabs().map(({ id, label, icon: Icon }) => {
             const selected = tab === id;
             const count = tabCounts[id];
             return (
@@ -721,7 +736,7 @@ export function HistoryView() {
                 <span className="truncate">{selectedGameName}</span>
                 <button
                   type="button"
-                  aria-label="Clear game filter"
+                  aria-label={t("Clear game filter")}
                   onClick={clearGameFilter}
                   className="grid h-5 w-5 place-items-center rounded-md text-text-muted transition hover:bg-accent/20 hover:text-text"
                 >
@@ -730,7 +745,7 @@ export function HistoryView() {
               </span>
             ) : null}
             <label className="sr-only" htmlFor="history-sort">
-              Sort sessions
+              {t("Sort sessions")}
             </label>
             <Select
               id="history-sort"
@@ -739,7 +754,7 @@ export function HistoryView() {
               containerClassName="shrink-0"
               className="h-9 rounded-lg !py-0 text-[13px]"
             >
-              {historySorts.map((entry) => (
+              {historySorts().map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.label}
                 </option>
@@ -763,15 +778,15 @@ export function HistoryView() {
                   <Timer size={32} />
                 </div>
                 <h3 className="mb-1 text-lg font-bold text-text">
-                  No history yet
+                  {t("No history yet")}
                 </h3>
                 <p className="text-sm text-text-muted">
-                  Start playing a tracked game to build your journal.
+                  {t("Start playing a tracked game to build your journal.")}
                 </p>
               </div>
             ) : sortedSessions.length === 0 ? (
               <div className="py-12 text-center text-sm font-medium text-text-muted">
-                No sessions match your filters.
+                {t("No sessions match your filters.")}
               </div>
             ) : sort === "duration" ? (
               <div className="flex flex-col gap-1.5">
@@ -845,7 +860,7 @@ export function HistoryView() {
             {visibleSessions.length < sortedSessions.length ? (
               <div className="mt-6 flex justify-center">
                 <Button onClick={() => setVisibleCount((count) => count + 25)}>
-                  Show 25 more
+                  {t("Show 25 more")}
                 </Button>
               </div>
             ) : null}
@@ -884,7 +899,7 @@ export function HistoryView() {
         >
           {gamesInRange === 0 ? (
             <div className="py-12 text-center text-sm text-text-muted">
-              No games in this range.
+              {t("No games in this range.")}
             </div>
           ) : (
             <TopGamesBars
@@ -934,9 +949,9 @@ function DayGroup({
   const day = new Date(dayMs);
   const weekday =
     daysAgo === 0
-      ? "Today"
+      ? t("Today")
       : daysAgo === 1
-        ? "Yesterday"
+        ? t("Yesterday")
         : day.toLocaleDateString(appLocale(), { weekday: "long" });
   return (
     <div className="grid gap-2 py-1.5 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-4">
@@ -990,8 +1005,8 @@ function DeleteSessionDialog({
       backdropDataTour={practice ? "demo-library-modal" : undefined}
       size="sm"
       labelId="delete-history-session-title"
-      eyebrow="My History"
-      title="Delete this session?"
+      eyebrow={t("My History")}
+      title={t("Delete this session?")}
       subtitle={gameName}
       icon={Trash2}
       onClose={onCancel}
@@ -1004,23 +1019,24 @@ function DeleteSessionDialog({
           }}
         >
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button type="submit" variant="danger" icon={Trash2} data-autofocus>
-            Delete session
+            {t("Delete session")}
           </Button>
         </form>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        This permanently removes the session from your play history. This action
-        cannot be undone.
+        {t(
+          "This permanently removes the session from your play history. This action cannot be undone.",
+        )}
       </p>
       <div className="mt-4 flex items-stretch gap-4 rounded-lg border border-border bg-surface-hover p-4">
         {shownCover ? (
           <GameCover
             src={shownCover}
-            alt={`${gameName} cover`}
+            alt={t("{{gameName}} cover", { gameName })}
             className="h-[88px] w-16 shrink-0 rounded-md object-cover shadow-sm"
           />
         ) : (
@@ -1032,11 +1048,11 @@ function DeleteSessionDialog({
           </div>
         )}
         <dl className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] content-center gap-x-4 gap-y-3 text-sm">
-          <dt className="text-text-faint">Started</dt>
+          <dt className="text-text-faint">{t("Started")}</dt>
           <dd className="text-right font-medium text-text">
             {formatStartTime(session.startedAt)}
           </dd>
-          <dt className="text-text-faint">Playtime</dt>
+          <dt className="text-text-faint">{t("Playtime")}</dt>
           <dd className="text-right font-mono font-bold text-text">
             {formatDuration(session.durationSeconds ?? 0, showDurationDays)}
           </dd>
@@ -1050,7 +1066,7 @@ function HistoryInsightsPlaceholder() {
   return (
     <div
       className="grid min-w-0 gap-6"
-      aria-label="Loading history insights"
+      aria-label={t("Loading history insights")}
       aria-busy="true"
     >
       <div className="h-[270px] animate-pulse rounded-lg border border-border bg-surface" />
