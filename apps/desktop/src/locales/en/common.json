@@ -67,5 +67,10 @@
   "{{label}}: {{duration}}, {{count}} total sessions_one": "{{label}}: {{duration}}, {{count}} total session",
   "{{label}}: {{duration}}, {{count}} total sessions_other": "{{label}}: {{duration}}, {{count}} total sessions",
   "Expand {{title}}": "Expand {{title}}",
-  "Collapse {{title}}": "Collapse {{title}}"
+  "Collapse {{title}}": "Collapse {{title}}",
+  "{{days}}d {{hours}}h": "{{days}}d {{hours}}h",
+  "{{hours}}h {{minutes}}m": "{{hours}}h {{minutes}}m",
+  "{{minutes}}m": "{{minutes}}m",
+  "{{seconds}}s": "{{seconds}}s",
+  "{{minutes}}m {{seconds}}s": "{{minutes}}m {{seconds}}s"
 }

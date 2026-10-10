@@ -69,8 +69,10 @@ export function formatDuration(seconds: number, showDays = false) {
     ? Math.floor((seconds % 86400) / 3600)
     : Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  if (showDays && days > 0) return `${days}d ${hours}h`;
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  if (showDays && days > 0) return t("{{days}}d {{hours}}h", { days, hours });
+  return hours > 0
+    ? t("{{hours}}h {{minutes}}m", { hours, minutes })
+    : t("{{minutes}}m", { minutes });
 }
 
 /* Badge system ───────────────────────────────────────────────────────────────

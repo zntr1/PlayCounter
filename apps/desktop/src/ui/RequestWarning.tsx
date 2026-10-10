@@ -40,8 +40,11 @@ export function RequestWarning({
   const seconds = useRateLimitSeconds(apiEndpoint);
   const countdown =
     seconds < 60
-      ? `${seconds}s`
-      : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+      ? t("{{seconds}}s", { seconds })
+      : t("{{minutes}}m {{seconds}}s", {
+          minutes: Math.floor(seconds / 60),
+          seconds: seconds % 60,
+        });
   return (
     <>
       {seconds > 0 ? (
