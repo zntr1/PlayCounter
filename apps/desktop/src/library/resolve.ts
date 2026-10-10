@@ -6,6 +6,9 @@ import type {
   LibraryResolveResponse,
 } from "@playcounter/shared";
 import type { ResolvedLibraryGame, ScannedLibraryGame } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 const BATCH_SIZE = 100;
 
@@ -61,7 +64,7 @@ export async function resolveLibraryGames(
     if (!response.ok) {
       throw responseError(
         response,
-        `Library lookup failed (${response.status}).`,
+        t("Library lookup failed ({{status}}).", { status: response.status }),
       );
     }
     const body = response.data;

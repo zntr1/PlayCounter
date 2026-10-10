@@ -1,5 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryScanResult, ScannedLibraryGame } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 /** Deliberately excludes account ids, e-mail addresses and tokens. */
 export type EpicAccountLibrary = {
@@ -49,7 +52,9 @@ export function mergeEpicAccountLibrary(
       ...local.warnings,
       ...(account.incomplete
         ? [
-            "Epic Games returned only part of your library or playtime. Sign in again to retry.",
+            t(
+              "Epic Games returned only part of your library or playtime. Sign in again to retry.",
+            ),
           ]
         : []),
     ],
@@ -65,7 +70,7 @@ export async function readEpicAccountLibrary(signal?: AbortSignal) {
     onAbort = () => {
       void invoke("library_cancel_epic_account", { requestId }).catch(() => {});
       reject(
-        signal?.reason ?? new DOMException("Import cancelled", "AbortError"),
+        signal?.reason ?? new DOMException(t("Import cancelled"), "AbortError"),
       );
     };
     signal?.addEventListener("abort", onAbort, { once: true });

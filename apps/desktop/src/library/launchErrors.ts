@@ -1,4 +1,7 @@
 import { launchErrorDetail, launchErrorKind } from "../gameLaunch";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 /**
  * Launcher installs live outside PlayCounter, so a saved install can disappear
@@ -18,20 +21,28 @@ export function libraryLaunchErrorMessage(
   switch (launchErrorKind(error)) {
     case "notFound":
       return {
-        title: `${gameName} is not installed`,
-        detail: `Windows no longer has this ${providerLabel} game installed. Install it again in ${providerLabel} to start it from PlayCounter.`,
+        title: t("{{gameName}} is not installed", { gameName }),
+        detail: t(
+          "Windows no longer has this {{providerLabel}} game installed. Install it again in {{providerLabel}} to start it from PlayCounter.",
+          { providerLabel },
+        ),
       };
     case "invalidPath":
       return {
-        title: `Could not start ${gameName}`,
-        detail: `PlayCounter could not read this ${providerLabel} entry. Import your ${providerLabel} library again.`,
+        title: t("Could not start {{gameName}}", { gameName }),
+        detail: t(
+          "PlayCounter could not read this {{providerLabel}} entry. Import your {{providerLabel}} library again.",
+          { providerLabel },
+        ),
       };
     case "unsupported":
       return {
-        title: "Only available on Windows",
-        detail: `Starting ${providerLabel} games works on Windows.`,
+        title: t("Only available on Windows"),
+        detail: t("Starting {{providerLabel}} games works on Windows.", {
+          providerLabel,
+        }),
       };
     default:
-      return { title: `Could not start ${gameName}`, detail };
+      return { title: t("Could not start {{gameName}}", { gameName }), detail };
   }
 }

@@ -5,6 +5,7 @@ import enCommon from "./locales/en/common.json";
 import enDiscovered from "./locales/en/discovered.json";
 import enGames from "./locales/en/games.json";
 import enHistory from "./locales/en/history.json";
+import enImport from "./locales/en/import.json";
 import enMyGames from "./locales/en/myGames.json";
 import enNowPlaying from "./locales/en/nowPlaying.json";
 import enSettings from "./locales/en/settings.json";
@@ -36,6 +37,7 @@ const resources = {
     discovered: enDiscovered,
     games: enGames,
     history: enHistory,
+    import: enImport,
     myGames: enMyGames,
     nowPlaying: enNowPlaying,
     settings: enSettings,

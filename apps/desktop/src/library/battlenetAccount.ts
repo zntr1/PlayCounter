@@ -1,5 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryScanResult, ScannedLibraryGame } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 /** Deliberately excludes account names, credentials, subscriptions and CD keys. */
 export type BattleNetAccountLibrary = {
@@ -110,7 +113,9 @@ export function mergeBattleNetAccountLibrary(
       ...local.warnings,
       ...(account.incomplete
         ? [
-            "Battle.net returned only part of your account library. Sign in again to retry the missing games.",
+            t(
+              "Battle.net returned only part of your account library. Sign in again to retry the missing games.",
+            ),
           ]
         : []),
     ],
@@ -141,7 +146,7 @@ export async function readBattleNetAccountLibrary(signal?: AbortSignal) {
         () => {},
       );
       reject(
-        signal?.reason ?? new DOMException("Import cancelled", "AbortError"),
+        signal?.reason ?? new DOMException(t("Import cancelled"), "AbortError"),
       );
     };
     signal?.addEventListener("abort", onAbort, { once: true });

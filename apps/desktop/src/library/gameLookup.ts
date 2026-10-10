@@ -8,6 +8,9 @@ import { isSearchableGameQuery } from "../communityMetadataSearch";
 import { responseError } from "../rateLimitedFetch";
 import type { GameMetadata } from "../store";
 import { requestLibraryJson, type RateLimitWaitListener } from "./request";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 export function librarySearchQuery(title: string): string {
   return title.replace(/[®™℠]/gu, "").replace(/\s+/gu, " ").trim();
@@ -31,7 +34,10 @@ export async function searchLibraryGames(
     { signal, onRateLimitWait: options.onRateLimitWait },
   );
   if (!response.ok) {
-    throw responseError(response, `Game search failed (${response.status}).`);
+    throw responseError(
+      response,
+      t("Game search failed ({{status}}).", { status: response.status }),
+    );
   }
   const value = response.data;
   const record = asRecord(value);
@@ -63,7 +69,9 @@ export async function reverseResolveLibraryGame(
   if (!response.ok) {
     throw responseError(
       response,
-      `The game file lookup failed (${response.status}).`,
+      t("The game file lookup failed ({{status}}).", {
+        status: response.status,
+      }),
     );
   }
   const record = asRecord(response.data);

@@ -16,6 +16,9 @@ import {
   type LocalLibraryAccount,
   type ScannedLibraryGame,
 } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 type InstalledGame = { externalId: string; installPath: string };
 
@@ -100,9 +103,10 @@ async function runSync(reason: string): Promise<number> {
   if (added > 0) {
     useAppStore.getState().addToast({
       tone: "success",
-      title: `${added} ${added === 1 ? "game" : "games"} added`,
-      detail:
+      title: t("{{count}} games added", { count: added }),
+      detail: t(
         "Games you install in Steam, Battle.net or Epic Games now show up in My Games on their own. You can turn this off in Settings under Library import.",
+      ),
     });
   }
   return added;

@@ -23,6 +23,9 @@ import {
   type SeenFolder,
   type WatchFolderRecord,
 } from "./watchFolderState";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 type GameFolder = { watchFolder: string; path: string; name: string };
 type WatchFolderListing = { gameFolders: GameFolder[]; readable: string[] };
@@ -130,7 +133,7 @@ export async function chooseWatchFolder() {
   const selected = await open({ directory: true, multiple: false });
   if (typeof selected !== "string") return null;
   const record = addWatchFolder(selected);
-  void scanWatchFolders("folder added");
+  void scanWatchFolders(t("folder added"));
   return record;
 }
 
@@ -280,8 +283,8 @@ async function runScan(reason: string): Promise<number> {
   if (added > 0) {
     useAppStore.getState().addToast({
       tone: "success",
-      title: `${added} ${added === 1 ? "game" : "games"} found in your folders`,
-      detail: "They are in My Games, ready to play.",
+      title: t("{{count}} games found in your folders", { count: added }),
+      detail: t("They are in My Games, ready to play."),
     });
   }
   return added;

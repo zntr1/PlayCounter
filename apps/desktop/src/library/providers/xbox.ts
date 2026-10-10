@@ -21,6 +21,9 @@ import type {
   ResolvedLibraryGame,
   ScannedExecutable,
 } from "../types";
+import { getT } from "../../i18n";
+
+const t = getT("import");
 
 const XBOX_IMPORT_POLL_INTERVAL_MS = 1_500;
 const XBOX_IMPORT_TIMEOUT_MS = 5 * 60 * 1_000;
@@ -65,7 +68,7 @@ export const xboxProvider: LocalLibraryProvider = {
   listAccounts: async () => [
     {
       accountId: 0,
-      personaName: "Sign in with Microsoft",
+      personaName: t("Sign in with Microsoft"),
       mostRecent: true,
       gamesWithPlaytime: 0,
     },
@@ -138,7 +141,9 @@ export async function scanXboxLibrary(
     if (!startResponse.ok) {
       throw responseError(
         startResponse,
-        `Xbox import could not start (${startResponse.status}).`,
+        t("Xbox import could not start ({{status}}).", {
+          status: startResponse.status,
+        }),
       );
     }
 
@@ -444,42 +449,71 @@ function isoTimestampToUnix(value: string | undefined) {
   return Number.isFinite(timestamp) ? Math.floor(timestamp / 1_000) : undefined;
 }
 
+// Whole sentences, joined with spaces.
 export function xboxImportFailureMessage(context: XboxFailureContext) {
   const account = context.accountLabel
-    ? ` Microsoft account: ${context.accountLabel}.`
-    : "";
-  const recovery =
-    " Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, use Copy sign-in link and open it in a private browser window.";
-
-  switch (context.stage) {
-    case "authorization": {
-      const errorCode = context.errorCode
-        ? ` Microsoft returned ${context.errorCode}.`
-        : "";
-      return `Microsoft sign-in was not completed.${errorCode}${recovery}`;
+    ? t("Microsoft account: {{account}}.", { account: context.accountLabel })
+    : null;
+  const recovery = t(
+    "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, use Copy sign-in link and open it in a private browser window.",
+  );
+  const sentences = ((): Array<string | null> => {
+    switch (context.stage) {
+      case "authorization":
+        return [
+          t("Microsoft sign-in was not completed."),
+          context.errorCode
+            ? t("Microsoft returned {{code}}.", { code: context.errorCode })
+            : null,
+          recovery,
+        ];
+      case "microsoft_token":
+        return [
+          t(
+            "Microsoft answered, but PlayCounter could not finish the sign-in.",
+          ),
+          recovery,
+        ];
+      case "xbox_user_token":
+        return [
+          t("Microsoft sign-in completed."),
+          account,
+          t("Xbox Live did not accept this account."),
+          recovery,
+        ];
+      case "xbox_xsts":
+        return [
+          t("Microsoft sign-in completed."),
+          account,
+          t("Xbox Live could not create a gaming session for this account."),
+          recovery,
+        ];
+      case "title_history":
+        return [
+          t("Xbox sign-in completed."),
+          account,
+          t("Xbox did not send back any game history."),
+          recovery,
+        ];
     }
-    case "microsoft_token":
-      return `Microsoft answered, but PlayCounter could not finish the sign-in.${recovery}`;
-    case "xbox_user_token":
-      return `Microsoft sign-in completed.${account} Xbox Live did not accept this account.${recovery}`;
-    case "xbox_xsts":
-      return `Microsoft sign-in completed.${account} Xbox Live could not create a gaming session for this account.${recovery}`;
-    case "title_history":
-      return `Xbox sign-in completed.${account} Xbox did not send back any game history.${recovery}`;
-  }
-
-  switch (context.reason) {
-    case "cancelled":
-      return "Xbox sign-in was cancelled.";
-    case "timed_out":
-      return `Xbox sign-in timed out.${recovery}`;
-    case "oauth_error":
-      return `Microsoft sign-in failed.${account}${recovery}`;
-    case "xbox_api_error":
-      return `Xbox could not send back your game history.${account}${recovery}`;
-    default:
-      return "The Xbox import failed. Please try again later.";
-  }
+    switch (context.reason) {
+      case "cancelled":
+        return [t("Xbox sign-in was cancelled.")];
+      case "timed_out":
+        return [t("Xbox sign-in timed out."), recovery];
+      case "oauth_error":
+        return [t("Microsoft sign-in failed."), account, recovery];
+      case "xbox_api_error":
+        return [
+          t("Xbox could not send back your game history."),
+          account,
+          recovery,
+        ];
+      default:
+        return [t("The Xbox import failed. Please try again later.")];
+    }
+  })();
+  return sentences.filter(Boolean).join(" ");
 }
 
 function ensureNotAborted(signal: AbortSignal | undefined) {
