@@ -4,7 +4,9 @@ import { usePickedCovers } from "../../pickedCovers";
 import { formatDuration } from "../components";
 import { GameCover as LibraryCover } from "../GameCover";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
-import { appLocale } from "../../i18n";
+import { appLocale, getT } from "../../i18n";
+
+const t = getT("common");
 
 const podiumStyles = [
   {
@@ -45,8 +47,8 @@ function formatLastPlayed(lastPlayedMs: number, nowMs: number) {
   const day = new Date(lastPlayedMs);
   day.setHours(0, 0, 0, 0);
   const daysAgo = Math.round((today.getTime() - day.getTime()) / 86_400_000);
-  if (daysAgo === 0) return "Today";
-  if (daysAgo === 1) return "Yesterday";
+  if (daysAgo === 0) return t("Today");
+  if (daysAgo === 1) return t("Yesterday");
   return day.toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
@@ -88,7 +90,7 @@ export function TopGamesBars({
   return (
     <figure aria-labelledby="top-games-title">
       <figcaption id="top-games-title" className="sr-only">
-        Games ranked by playtime
+        {t("Games ranked by playtime")}
       </figcaption>
 
       {podiumGames.length > 0 ? (
@@ -114,9 +116,9 @@ export function TopGamesBars({
           >
             <span />
             <span />
-            <span>Game</span>
-            <span className="text-right">Sessions</span>
-            <span className="text-right">Last played</span>
+            <span>{t("Game")}</span>
+            <span className="text-right">{t("Sessions")}</span>
+            <span className="text-right">{t("Last played")}</span>
           </div>
           {listGames.map(({ game, rank }) => (
             <ListGame
@@ -135,7 +137,7 @@ export function TopGamesBars({
                 tooltip.show(
                   element,
                   <div>
-                    <div className="mb-1 font-semibold">Other games</div>
+                    <div className="mb-1 font-semibold">{t("Other games")}</div>
                     <div className="text-text-muted">
                       {game.otherGameNames?.join(", ")}
                     </div>
@@ -175,7 +177,10 @@ function PodiumGame({
     >
       <button
         type="button"
-        aria-label={`Rank ${rank + 1}: ${game.name}`}
+        aria-label={t("Rank {{rank}}: {{name}}", {
+          rank: rank + 1,
+          name: game.name,
+        })}
         className={`group relative flex min-w-0 flex-col items-center overflow-hidden rounded-t-xl border px-3 pb-4 pt-3 text-center transition-transform hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${style.card}`}
         onClick={() => onSelectGame(game.key, game.name)}
       >
@@ -306,7 +311,9 @@ function ListGame({
             </span>
           </span>
           <span className="block text-[11px] text-text-faint">
-            avg {formatDuration(average, showDurationDays)}
+            {t("avg {{duration}}", {
+              duration: formatDuration(average, showDurationDays),
+            })}
           </span>
         </span>
       ) : (

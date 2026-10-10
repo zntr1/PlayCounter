@@ -2,6 +2,9 @@ import clsx from "clsx";
 import { ChevronDown } from "lucide-react";
 import { useCallback, type ReactNode } from "react";
 import { useAppStore } from "../store";
+import { getT } from "../i18n";
+
+const t = getT("common");
 
 export function useSectionCollapse(sectionId: string) {
   const collapsed = useAppStore((state) =>
@@ -46,7 +49,11 @@ export function SectionHeading({
         type="button"
         aria-expanded={!collapsed}
         aria-controls={controls}
-        aria-label={`${collapsed ? "Expand" : "Collapse"} ${title}`}
+        aria-label={
+          collapsed
+            ? t("Expand {{title}}", { title })
+            : t("Collapse {{title}}", { title })
+        }
         onClick={onToggle}
         className="absolute -inset-2 rounded-lg transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       />

@@ -22,7 +22,7 @@ import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
 import { addDays } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
-import { appLocale } from "../../../i18n";
+import { appLocale, weekdayNames } from "../../../i18n";
 
 export type ResolvedGame = { name: string; coverUrl: string };
 
@@ -138,16 +138,6 @@ export function hasCachedHistoryInsights(sessions: Session[], nowMs: number) {
   const cached = historyAnalyticsCache.get(sessions);
   return cached?.dayKey === localDayKey(nowMs) && cached.filters.has("all");
 }
-
-const weekdayNames = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
 
 function formatHour(hour: number) {
   return new Date(2000, 0, 1, hour).toLocaleTimeString(appLocale(), {
@@ -383,7 +373,7 @@ function HabitFacts({
   if (habits.favoriteWeekday) {
     facts.push({
       label: "Favourite day",
-      value: weekdayNames[habits.favoriteWeekday.index],
+      value: weekdayNames("long")[habits.favoriteWeekday.index],
       detail: `${formatPercent(habits.favoriteWeekday.share)} of playtime`,
     });
   }

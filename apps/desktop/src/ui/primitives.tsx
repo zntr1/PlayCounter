@@ -14,6 +14,9 @@ import { createPortal } from "react-dom";
 import { ChevronDown, Loader2, X, type LucideIcon } from "lucide-react";
 import { hasOpenContextMenu } from "./ContextMenu";
 import { ModalWindowDragRegion } from "./shell/ModalWindowDragRegion";
+import { getT } from "../i18n";
+
+const t = getT("common");
 
 export {
   ContextMenu,
@@ -450,7 +453,7 @@ export function Modal({
                   </p>
                 ) : null}
               </div>
-              <IconButton icon={X} aria-label="Close" onClick={onClose} />
+              <IconButton icon={X} aria-label={t("Close")} onClick={onClose} />
             </div>
           </div>
         )}

@@ -2,6 +2,9 @@ import { useAppStore, type ViewId } from "../store";
 import { GameBanner } from "./GameBanner";
 import { useLibraryLaunchLock } from "./libraryLaunchLock";
 import { useLibrarySources } from "./librarySources";
+import { getT } from "../i18n";
+
+const t = getT("common");
 
 // App mounts this once for the current view. All views use the library's
 // already-computed global selection, independent of its selected shelf.
@@ -30,8 +33,10 @@ export function ViewBanner({
         className="mb-5 rounded-xl border border-border bg-surface px-5 py-4 text-sm text-text-muted"
       >
         {ready
-          ? "Your banner will appear here once you have games in your library."
-          : "Loading your banner…"}
+          ? t(
+              "Your banner will appear here once you have games in your library.",
+            )
+          : t("Loading your banner…")}
       </p>
     );
   }

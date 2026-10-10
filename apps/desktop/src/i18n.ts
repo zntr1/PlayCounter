@@ -1,10 +1,13 @@
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
+import enCommon from "./locales/en/common.json";
 import enSettings from "./locales/en/settings.json";
 
 /* PlayCounter's language. Texts live in src/locales/<language>/<area>.json,
-   one file per area. English is the source: every language has the same keys,
-   and a key a language lacks shows in English. */
+   one file per area. The key is the English text itself, so code reads
+   t("Ignore this app?"). English is the source: every language has the same
+   keys, and a key a language lacks shows in English. Changing an English
+   text changes its key, so every translation of it has to be redone. */
 
 /** Languages PlayCounter has texts for. */
 export const APP_LANGUAGES = ["en"] as const;
@@ -20,13 +23,16 @@ export const LANGUAGE_NAMES: Record<AppLanguage, string> = {
 };
 
 const resources = {
-  en: { settings: enSettings },
+  en: { common: enCommon, settings: enSettings },
 };
+
+type Namespace = keyof (typeof resources)["en"];
 
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "settings";
     keySeparator: false;
+    nsSeparator: false;
     resources: (typeof resources)["en"];
   }
 }
@@ -36,13 +42,25 @@ void i18next.use(initReactI18next).init({
   lng: "en",
   fallbackLng: "en",
   defaultNS: "settings",
-  // Keys are flat ("language.title"): the dot is part of the key.
+  // Keys are English sentences: dots and colons are part of the key.
   keySeparator: false,
+  nsSeparator: false,
   // React escapes text when it renders it.
   interpolation: { escapeValue: false },
   // Every text ships with the app, so the first render already has them.
   initAsync: false,
 });
+
+// {{count, number}} in a text formats like the rest of the app.
+i18next.services.formatter?.add("number", (value, _language, options) =>
+  Number(value).toLocaleString(appLocale(), options),
+);
+
+/** The text function for one area's file, e.g. `const t = getT("myGames")`
+ *  at the top of a module. It reads the current language on every call. */
+export function getT<N extends Namespace>(namespace: N) {
+  return i18next.getFixedT(null, namespace);
+}
 
 let currentLocale = formattingLocale("en", systemLocales()[0]);
 
@@ -100,6 +118,16 @@ export function formattingLocale(
   } catch {
     return language;
   }
+}
+
+/** Monday to Sunday in the app's language: "Mon" or "Monday". */
+export function weekdayNames(width: "short" | "long") {
+  // 1 January 2024 was a Monday.
+  return Array.from({ length: 7 }, (_, day) =>
+    new Date(2024, 0, 1 + day).toLocaleDateString(appLocale(), {
+      weekday: width,
+    }),
+  );
 }
 
 /** Switches texts, date and number formats and <html lang> to the setting. */

@@ -463,11 +463,13 @@ export function SettingsView() {
         {/* Dev and test builds only until the first translation ships. */}
         {BUILD_STAGE !== "prod" ? (
           <SettingsRow
-            description={t("language.description")}
-            title={t("language.title")}
+            description={t(
+              "System uses your computer's language when PlayCounter has it, otherwise English.",
+            )}
+            title={t("Language")}
           >
             <Select
-              aria-label={t("language.title")}
+              aria-label={t("Language")}
               value={
                 isAppLanguage(settings.language) ? settings.language : "system"
               }
@@ -480,7 +482,7 @@ export function SettingsView() {
               }
             >
               <option value="system">
-                {t("language.system", {
+                {t("System ({{language}})", {
                   language: LANGUAGE_NAMES[systemLanguage()],
                 })}
               </option>

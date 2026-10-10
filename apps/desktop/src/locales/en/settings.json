@@ -1,5 +1,5 @@
 {
-  "language.title": "Language",
-  "language.description": "System uses your computer's language when PlayCounter has it, otherwise English.",
-  "language.system": "System ({{language}})"
+  "Language": "Language",
+  "System uses your computer's language when PlayCounter has it, otherwise English.": "System uses your computer's language when PlayCounter has it, otherwise English.",
+  "System ({{language}})": "System ({{language}})"
 }

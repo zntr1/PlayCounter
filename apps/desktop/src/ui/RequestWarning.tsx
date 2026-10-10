@@ -1,6 +1,9 @@
 import { Clock3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { rateLimitDelay, subscribeRateLimit } from "../rateLimitedFetch";
+import { getT } from "../i18n";
+
+const t = getT("common");
 
 function useRateLimitSeconds(apiEndpoint: string): number {
   const [seconds, setSeconds] = useState(() =>
@@ -45,16 +48,17 @@ export function RequestWarning({
         <div className="flex items-start gap-3 border-b border-warning-border bg-warning-tint px-7 py-3 text-sm text-warning">
           <Clock3 size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div className="min-w-0 flex-1" role="status">
-            <p className="font-medium">Online requests paused</p>
+            <p className="font-medium">{t("Online requests paused")}</p>
             <p className="mt-0.5">
-              The server is temporarily busy. Background lookups will retry
-              automatically. Other actions can be tried again after this pause.
+              {t(
+                "The server is temporarily busy. Background lookups will retry automatically. Other actions can be tried again after this pause.",
+              )}
             </p>
           </div>
           <span
             role="timer"
             aria-live="off"
-            aria-label="Time until requests can resume"
+            aria-label={t("Time until requests can resume")}
             className="shrink-0 rounded-md border border-warning-border px-2 py-0.5 font-medium tabular-nums"
           >
             {countdown}

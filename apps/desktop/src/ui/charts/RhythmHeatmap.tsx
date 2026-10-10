@@ -3,16 +3,10 @@ import { quantileLevel, quantileThresholds } from "../../historyStats";
 import { formatDuration } from "../components";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
 import { heatmapColor, useElementWidth } from "./chartUtils";
+import { weekdayNames, getT } from "../../i18n";
 
-const weekdayLabels = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
+const t = getT("common");
+
 const gap = 3;
 
 function rhythmCellSize(width: number) {
@@ -27,6 +21,7 @@ export function RhythmHeatmap({
   showDurationDays: boolean;
 }) {
   const [figureRef, cellSize] = useElementWidth<HTMLElement>(rhythmCellSize);
+  const weekdayLabels = weekdayNames("long");
 
   return (
     <figure
@@ -35,7 +30,7 @@ export function RhythmHeatmap({
       className="overflow-x-auto pb-1"
     >
       <figcaption id="rhythm-title" className="sr-only">
-        All-time playtime by weekday and hour
+        {t("All-time playtime by weekday and hour")}
       </figcaption>
       <div className="min-w-max">
         <div
@@ -65,7 +60,7 @@ export function RhythmHeatmap({
           </div>
           <div
             role="grid"
-            aria-label="Playtime by weekday and hour"
+            aria-label={t("Playtime by weekday and hour")}
             className="grid"
             style={{
               gridTemplateColumns: `repeat(24, ${cellSize}px)`,
@@ -94,6 +89,7 @@ const RhythmCells = memo(function RhythmCells({
   const [activeIndex, setActiveIndex] = useState(0);
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
   const tooltip = useChartTooltip();
+  const weekdayLabels = weekdayNames("long");
 
   function focusIndex(index: number) {
     const next = Math.max(0, Math.min(values.length - 1, index));
@@ -124,7 +120,11 @@ const RhythmCells = memo(function RhythmCells({
             type="button"
             role="gridcell"
             tabIndex={index === activeIndex ? 0 : -1}
-            aria-label={`${weekdayLabels[day]} at ${hour}:00: ${formatDuration(seconds, showDurationDays)}`}
+            aria-label={t("{{weekday}} at {{hour}}:00: {{duration}}", {
+              weekday: weekdayLabels[day],
+              hour,
+              duration: formatDuration(seconds, showDurationDays),
+            })}
             className="rounded-[2px] border-0 p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-text"
             style={{
               background:
