@@ -305,5 +305,6 @@
   "This removes {{count}} saved emulator program and game paths, including files such as ISO, RVZ, and DOSBox programs. Paths for regular games stay intact._one": "This removes {{count}} saved emulator program and game path, including files such as ISO, RVZ, and DOSBox programs. Paths for regular games stay intact.",
   "This removes {{count}} saved emulator program and game paths, including files such as ISO, RVZ, and DOSBox programs. Paths for regular games stay intact._other": "This removes {{count}} saved emulator program and game paths, including files such as ISO, RVZ, and DOSBox programs. Paths for regular games stay intact.",
   "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact._one": "This removes {{count}} saved path for regular games. Emulator programs and game files stay intact.",
-  "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact._other": "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact."
+  "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact._other": "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact.",
+  "Ignored and hidden": "Ignored and hidden"
 }

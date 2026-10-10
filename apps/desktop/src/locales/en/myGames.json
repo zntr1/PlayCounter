@@ -588,5 +588,17 @@
   "sessions": "sessions",
   "Played on {{provider}}": "Played on {{provider}}",
   "installed": "installed",
-  "emulated": "emulated"
+  "emulated": "emulated",
+  "Turn on launcher groups to choose which sources appear.": "Turn on launcher groups to choose which sources appear.",
+  "No games match this shelf and these filters yet.": "No games match this shelf and these filters yet.",
+  "No games match these filters yet.": "No games match these filters yet.",
+  "Removed from library and history cleared": "Removed from library and history cleared",
+  "Game ignored and history cleared": "Game ignored and history cleared",
+  "Convert to custom game": "Convert to custom game",
+  "Sample ignored and its history cleared. Nothing on this PC was blocked.": "Sample ignored and its history cleared. Nothing on this PC was blocked.",
+  "Sample ignored. Its history is kept, and nothing on this PC was blocked.": "Sample ignored. Its history is kept, and nothing on this PC was blocked.",
+  "Fills itself from saved filters. Right-click to edit filters, rename, or delete.": "Fills itself from saved filters. Right-click to edit filters, rename, or delete.",
+  "Right-click to edit filters, rename, or delete": "Right-click to edit filters, rename, or delete",
+  "Remove saved filters brings back the games you added by hand.": "Remove saved filters brings back the games you added by hand.",
+  "Select a shelf to save these filters to it.": "Select a shelf to save these filters to it."
 }

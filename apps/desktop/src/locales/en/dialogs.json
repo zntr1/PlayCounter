@@ -233,5 +233,10 @@
   "{{game}} is the wrong match for this file": "{{game}} is the wrong match for this file",
   "{{file}} isn't {{game}}'s game file": "{{file}} isn't {{game}}'s game file",
   "This file isn't {{game}}'s game file": "This file isn't {{game}}'s game file",
-  "Send <file>{{file}}</file> as <game>{{game}}</game> for community review. Only the file name and the game name are sent. If the game is wrong, use Change Game first.": "Send <file>{{file}}</file> as <game>{{game}}</game> for community review. Only the file name and the game name are sent. If the game is wrong, use Change Game first."
+  "Send <file>{{file}}</file> as <game>{{game}}</game> for community review. Only the file name and the game name are sent. If the game is wrong, use Change Game first.": "Send <file>{{file}}</file> as <game>{{game}}</game> for community review. Only the file name and the game name are sent. If the game is wrong, use Change Game first.",
+  "Ignore and report": "Ignore and report",
+  "Ignore on this PC": "Ignore on this PC",
+  "Ignore app": "Ignore app",
+  "Remove from game": "Remove from game",
+  "Ignore this folder": "Ignore this folder"
 }

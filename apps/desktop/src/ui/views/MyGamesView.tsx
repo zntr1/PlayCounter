@@ -2415,7 +2415,9 @@ export function MyGamesView({
                         label={t("Hide empty sources")}
                         help={
                           !showProviderTabs
-                            ? "Turn on launcher groups to choose which sources appear."
+                            ? t(
+                                "Turn on launcher groups to choose which sources appear.",
+                              )
                             : !hasImportedGames
                               ? t("Available after you import games.")
                               : canHideEmptyProviderTabs
@@ -2573,9 +2575,9 @@ export function MyGamesView({
                   ) : query ? (
                     <>{t("No games match “{{query}}”.", { query })}</>
                   ) : showShelves ? (
-                    "No games match this shelf and these filters yet."
+                    t("No games match this shelf and these filters yet.")
                   ) : (
-                    "No games match these filters yet."
+                    t("No games match these filters yet.")
                   )}
                 </Panel>
               ) : (
@@ -2739,7 +2741,7 @@ export function MyGamesView({
             addToast({
               tone: "success",
               title: removeHistory
-                ? "Removed from library and history cleared"
+                ? t("Removed from library and history cleared")
                 : t("Removed from library"),
               detail: removeHistory
                 ? t("{{name}} was removed from your library and history.", {
@@ -2772,7 +2774,7 @@ export function MyGamesView({
                 addToast({
                   tone: "success",
                   title: clearHistory
-                    ? "Game ignored and history cleared"
+                    ? t("Game ignored and history cleared")
                     : t("Game ignored"),
                   detail: clearHistory
                     ? t(
@@ -3673,12 +3675,12 @@ export function GameLibraryCard({
   const filePickList =
     filePick === "convert"
       ? {
-          action: "Convert to custom game",
+          action: t("Convert to custom game"),
           files: convertibleFiles,
           canPick: canConvertFile,
         }
       : {
-          action: "Check for matches",
+          action: t("Check for matches"),
           files: checkableFiles,
           canPick: canCheckFile,
         };
@@ -5365,8 +5367,12 @@ export function GameLibraryCard({
             emitTourEvent(
               "demo.action-completed",
               clearHistory
-                ? "Sample ignored and its history cleared. Nothing on this PC was blocked."
-                : "Sample ignored. Its history is kept, and nothing on this PC was blocked.",
+                ? t(
+                    "Sample ignored and its history cleared. Nothing on this PC was blocked.",
+                  )
+                : t(
+                    "Sample ignored. Its history is kept, and nothing on this PC was blocked.",
+                  ),
             );
           }}
         />

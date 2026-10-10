@@ -331,8 +331,10 @@ export function LibraryOrganizationToolbar({
                 count={counts[shelf.id]}
                 title={
                   shelf.filters
-                    ? "Fills itself from saved filters. Right-click to edit filters, rename, or delete."
-                    : "Right-click to edit filters, rename, or delete"
+                    ? t(
+                        "Fills itself from saved filters. Right-click to edit filters, rename, or delete.",
+                      )
+                    : t("Right-click to edit filters, rename, or delete")
                 }
                 onClick={() => onSelect(shelf.id)}
                 onContextMenu={(event) => {
@@ -657,8 +659,10 @@ export function LibraryOrganizationToolbar({
             {showShelves ? (
               <p className="ml-auto text-xs text-text-faint">
                 {selected
-                  ? "Remove saved filters brings back the games you added by hand."
-                  : "Select a shelf to save these filters to it."}
+                  ? t(
+                      "Remove saved filters brings back the games you added by hand.",
+                    )
+                  : t("Select a shelf to save these filters to it.")}
               </p>
             ) : null}
           </div>

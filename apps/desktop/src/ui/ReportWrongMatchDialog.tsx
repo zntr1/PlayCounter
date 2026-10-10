@@ -41,7 +41,7 @@ function confirmCopy(): Record<
         t("An anonymous report goes to community review."),
         t("You can restore it anytime in Discovered."),
       ],
-      action: "Ignore and report",
+      action: t("Ignore and report"),
     },
     "not-playing": {
       title: t("Ignore this file on this PC?"),
@@ -50,7 +50,7 @@ function confirmCopy(): Record<
         t("Nothing is reported."),
         t("You can restore it anytime in Discovered."),
       ],
-      action: "Ignore on this PC",
+      action: t("Ignore on this PC"),
     },
   };
 }
@@ -64,7 +64,7 @@ function ignoreAppCopy() {
       t("Nothing is reported."),
       t("You can restore it anytime in Discovered."),
     ],
-    action: "Ignore app",
+    action: t("Ignore app"),
   };
 }
 
@@ -95,7 +95,7 @@ function notThisGameCopy(gameName: string, exeName: string, reported: boolean) {
         { gameName },
       ),
     ],
-    action: "Remove from game",
+    action: t("Remove from game"),
   };
 }
 
@@ -111,7 +111,7 @@ function genericFolderCopy(exeName: string) {
       t("Nothing is reported."),
       t("You can restore it anytime in Discovered."),
     ],
-    action: "Ignore this folder",
+    action: t("Ignore this folder"),
   };
 }
 

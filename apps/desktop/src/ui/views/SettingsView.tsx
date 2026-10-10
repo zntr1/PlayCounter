@@ -1129,7 +1129,7 @@ export function SettingsView() {
                       </div>
                       <div className="truncate text-xs text-text-faint">
                         {ignored
-                          ? "Ignored and hidden"
+                          ? t("Ignored and hidden")
                           : emulator.hostExeNames.join(", ") || t("Enabled")}
                       </div>
                       {adapter?.launch ? (
