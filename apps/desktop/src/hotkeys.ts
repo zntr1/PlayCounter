@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
+import { nativeText } from "./nativeText";
 
 const t = getT("settings");
 
@@ -29,9 +30,13 @@ function setError(key: HotkeySetting, error?: unknown) {
   useHotkeyStatus.setState((state) => ({
     errors: {
       ...state.errors,
-      [key]: error === undefined ? undefined : String(error),
+      [key]: error === undefined ? undefined : errorText(error),
     },
   }));
+}
+
+function errorText(error: unknown) {
+  return nativeText(error instanceof Error ? error.message : String(error));
 }
 
 function register(key: HotkeySetting, shortcut: string | null) {
@@ -76,7 +81,7 @@ export function initializeHotkeys() {
             title: t("Hotkey could not be enabled"),
             detail: t(
               "{{saved}}: {{error}}. Check Keyboard shortcuts in Settings.",
-              { saved, error: String(error) },
+              { saved, error: errorText(error) },
             ),
           });
       }
@@ -90,7 +95,9 @@ export function saveHotkey(key: HotkeySetting, shortcut: string | null) {
     try {
       if (shortcut && key === "currentSessionHotkey" && !lifecycle?.unlisten) {
         throw new Error(
-          "The session hotkey listener is unavailable. Restart PlayCounter and try again.",
+          t(
+            "The session hotkey listener is unavailable. Restart PlayCounter and try again.",
+          ),
         );
       }
       await register(key, shortcut);

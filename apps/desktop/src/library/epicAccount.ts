@@ -77,7 +77,10 @@ export async function readEpicAccountLibrary(signal?: AbortSignal) {
   });
   try {
     return await Promise.race([
-      invoke<EpicAccountLibrary>("library_epic_account_games", { requestId }),
+      invoke<EpicAccountLibrary>("library_epic_account_games", {
+        requestId,
+        title: t("Epic Games sign-in"),
+      }),
       aborted,
     ]);
   } finally {

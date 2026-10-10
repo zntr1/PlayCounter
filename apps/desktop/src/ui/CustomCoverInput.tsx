@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { Clipboard, ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { getT } from "../i18n";
+import { nativeText } from "../nativeText";
 
 const t = getT("dialogs");
 
@@ -171,5 +172,5 @@ export function CustomCoverInput({
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

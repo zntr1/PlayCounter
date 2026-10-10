@@ -100,6 +100,7 @@ import { isGenericExeName } from "../../library/exeCandidates";
 import { isSortedGenericCopy } from "../../library/genericExeLinks";
 import { notifyFolderIgnored } from "./folderIgnoredToast";
 import { appLocale, getT } from "../../i18n";
+import { nativeText } from "../../nativeText";
 
 const t = getT("discovered");
 
@@ -2459,5 +2460,5 @@ function trackedSecondsFor(cacheEntry: ExeCacheEntry | null) {
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

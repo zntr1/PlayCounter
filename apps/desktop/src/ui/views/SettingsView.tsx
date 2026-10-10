@@ -38,6 +38,7 @@ import {
   systemLanguage,
   getT,
 } from "../../i18n";
+import { nativeText } from "../../nativeText";
 import {
   checkForUpdate,
   installAvailableUpdate,
@@ -1978,5 +1979,5 @@ function formatBytes(bytes: number) {
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

@@ -5,6 +5,7 @@ import { validateBackupData } from "./backupValidation";
 import { createPersistedPayload, isPersistenceSuspended } from "./persistence";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
+import { nativeText } from "./nativeText";
 
 const t = getT("settings");
 
@@ -278,5 +279,5 @@ export function runAutomaticBackup(
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

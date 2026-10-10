@@ -70,7 +70,8 @@ pub struct OverlayState {
 #[derive(Serialize)]
 pub struct OverlayMonitor {
     id: String,
-    name: String,
+    // None: the main window shows "Display 2" in its language.
+    name: Option<String>,
     width: u32,
     height: u32,
     primary: bool,
@@ -596,16 +597,12 @@ pub fn notification_overlay_monitors(
         .available_monitors()
         .map_err(|error| error.to_string())?
         .iter()
-        .enumerate()
-        .map(|(index, monitor)| {
+        .map(|monitor| {
             let id = monitor_id(monitor);
             OverlayMonitor {
                 primary: primary.as_ref() == Some(&id),
                 id,
-                name: monitor
-                    .name()
-                    .cloned()
-                    .unwrap_or_else(|| format!("Display {}", index + 1)),
+                name: monitor.name().cloned(),
                 width: monitor.size().width,
                 height: monitor.size().height,
             }

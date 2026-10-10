@@ -187,13 +187,14 @@ describe("Battle.net provider sign-in lifecycle", () => {
     const rejected = expect(pending).rejects.toMatchObject({
       name: "AbortError",
     });
-    const request = vi.mocked(invoke).mock.calls[0][1];
+    const { requestId } = vi.mocked(invoke).mock.calls[0][1] as {
+      requestId: string;
+    };
     controller.abort();
     await rejected;
-    expect(invoke).toHaveBeenCalledWith(
-      "library_cancel_battlenet_account",
-      request,
-    );
+    expect(invoke).toHaveBeenCalledWith("library_cancel_battlenet_account", {
+      requestId,
+    });
     complete(account);
     await Promise.resolve();
     expect(invoke).not.toHaveBeenCalledWith("library_scan", expect.anything());

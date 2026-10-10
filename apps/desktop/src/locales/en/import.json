@@ -187,5 +187,7 @@
   "The selected {{providerName}} game cannot be imported.": "The selected {{providerName}} game cannot be imported.",
   "Pick the game file to track before importing this game.": "Pick the game file to track before importing this game.",
   "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.": "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.",
-  "PlayCounter cannot reach the clipboard right now.": "PlayCounter cannot reach the clipboard right now."
+  "PlayCounter cannot reach the clipboard right now.": "PlayCounter cannot reach the clipboard right now.",
+  "Battle.net sign-in": "Battle.net sign-in",
+  "Epic Games sign-in": "Epic Games sign-in"
 }

@@ -1,5 +1,6 @@
 import type { GameSource } from "@playcounter/shared";
 import { getT } from "./i18n";
+import { nativeText } from "./nativeText";
 
 const t = getT("emulators");
 
@@ -206,17 +207,18 @@ export function launchErrorKind(error: unknown): LaunchErrorKind | null {
 }
 
 export function launchErrorDetail(error: unknown) {
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) return nativeText(error.message);
   if (typeof error === "string") {
     try {
       return launchErrorDetail(JSON.parse(error));
     } catch {
-      return error;
+      return nativeText(error);
     }
   }
   if (error && typeof error === "object" && "message" in error) {
     const message = error.message;
-    if (typeof message === "string" && message.trim()) return message;
+    if (typeof message === "string" && message.trim())
+      return nativeText(message);
   }
   return t("The operating system did not provide more details.");
 }

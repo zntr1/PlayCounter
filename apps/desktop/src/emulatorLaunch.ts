@@ -8,6 +8,7 @@ import {
   type LaunchPathStatus,
 } from "./gameLaunch";
 import { getT } from "./i18n";
+import { nativeText } from "./nativeText";
 
 const t = getT("emulators");
 
@@ -97,17 +98,18 @@ export function shouldForgetEmulatorOnLaunchError(error: unknown) {
 }
 
 function errorDetail(error: unknown) {
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) return nativeText(error.message);
   if (typeof error === "string") {
     try {
       return errorDetail(JSON.parse(error));
     } catch {
-      return error;
+      return nativeText(error);
     }
   }
   if (error && typeof error === "object") {
     const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
+    if (typeof message === "string" && message.trim())
+      return nativeText(message);
   }
   return t("The operating system did not provide more details.");
 }

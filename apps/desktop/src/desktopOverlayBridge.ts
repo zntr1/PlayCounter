@@ -66,7 +66,7 @@ export function showCurrentSessionOverlay() {
 
 export type DesktopOverlayMonitor = {
   id: string;
-  name: string;
+  name: string | null;
   width: number;
   height: number;
   primary: boolean;

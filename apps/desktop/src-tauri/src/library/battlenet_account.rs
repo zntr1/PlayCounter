@@ -324,6 +324,8 @@ pub async fn library_battlenet_account_games(
     window: WebviewWindow,
     state: State<'_, AccountState>,
     request_id: String,
+    // "Battle.net sign-in" in the main window's language, for the window title.
+    title: String,
 ) -> Result<AccountLibrary, String> {
     if window.label() != "main" || !cfg!(windows) {
         return Err("Battle.net sign-in is available in the Windows desktop app.".into());
@@ -343,7 +345,7 @@ pub async fn library_battlenet_account_games(
         format!("battlenet-sign-in-{id}"),
         WebviewUrl::External("about:blank".parse().unwrap()),
     )
-    .title("Battle.net sign-in — PlayCounter")
+    .title(format!("{title} — PlayCounter"))
     .additional_browser_args(crate::webview_args::WEBVIEW_BROWSER_ARGS)
     .inner_size(1000.0, 760.0)
     .min_inner_size(640.0, 560.0)
@@ -365,9 +367,9 @@ pub async fn library_battlenet_account_games(
         }
         allowed
     })
-    .on_page_load(|window, payload| {
+    .on_page_load(move |window, payload| {
         if let Some(host) = payload.url().host_str() {
-            let _ = window.set_title(&format!("Battle.net sign-in — {host}"));
+            let _ = window.set_title(&format!("{title} — {host}"));
         }
     })
     .on_new_window(|_, _| NewWindowResponse::Deny)

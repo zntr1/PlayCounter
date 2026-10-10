@@ -24,6 +24,7 @@ import { GameCover } from "./GameCover";
 import { Button, Input, Modal } from "./primitives";
 import { Trans } from "react-i18next";
 import { getT } from "../i18n";
+import { nativeText } from "../nativeText";
 
 const t = getT("dialogs");
 
@@ -622,5 +623,5 @@ function GameChoice({
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

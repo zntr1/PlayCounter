@@ -48,6 +48,7 @@ import { STORAGE_KEY } from "../../persistence";
 import { Panel, ProviderBadge, formatDuration } from "../components";
 import { Button, Input, Modal, Select } from "../primitives";
 import { appLocale, getT } from "../../i18n";
+import { nativeText } from "../../nativeText";
 
 const t = getT("import");
 
@@ -1249,7 +1250,7 @@ export function ImportLibraryView() {
       {scan?.warnings.length ? (
         <Panel className="p-4 text-sm text-warning">
           {scan.warnings.map((warning) => (
-            <p key={warning}>{warning}</p>
+            <p key={warning}>{nativeText(warning)}</p>
           ))}
         </Panel>
       ) : null}
@@ -2164,5 +2165,5 @@ function ErrorNotice({ message }: { message: string }) {
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

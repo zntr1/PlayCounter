@@ -9,6 +9,7 @@ import enGames from "./locales/en/games.json";
 import enHistory from "./locales/en/history.json";
 import enImport from "./locales/en/import.json";
 import enMyGames from "./locales/en/myGames.json";
+import enNative from "./locales/en/native.json";
 import enNowPlaying from "./locales/en/nowPlaying.json";
 import enOverlays from "./locales/en/overlays.json";
 import enSettings from "./locales/en/settings.json";
@@ -47,6 +48,7 @@ const resources = {
     history: enHistory,
     import: enImport,
     myGames: enMyGames,
+    native: enNative,
     nowPlaying: enNowPlaying,
     overlays: enOverlays,
     settings: enSettings,

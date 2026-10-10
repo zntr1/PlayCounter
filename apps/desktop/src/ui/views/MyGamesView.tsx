@@ -322,6 +322,7 @@ import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
 import { appLocale, getT } from "../../i18n";
+import { nativeText } from "../../nativeText";
 
 const t = getT("myGames");
 
@@ -7934,5 +7935,5 @@ function GameNameDialog({
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

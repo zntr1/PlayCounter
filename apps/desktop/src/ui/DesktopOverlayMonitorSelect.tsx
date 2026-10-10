@@ -63,10 +63,12 @@ export function DesktopOverlayMonitorSelect() {
           containerClassName="flex-1"
         >
           <option value="primary">{t("Primary monitor (default)")}</option>
-          {monitors.map((monitor) => (
+          {monitors.map((monitor, index) => (
             <option key={monitor.id} value={monitor.id}>
-              {monitor.name.replace(/^\\\\\.\\/, "")} · {monitor.width} ×{" "}
-              {monitor.height}
+              {monitor.name
+                ? monitor.name.replace(/^\\\\\.\\/, "")
+                : t("Display {{number}}", { number: index + 1 })}{" "}
+              · {monitor.width} × {monitor.height}
               {monitor.primary ? ` ${t("(primary)")}` : ""}
             </option>
           ))}

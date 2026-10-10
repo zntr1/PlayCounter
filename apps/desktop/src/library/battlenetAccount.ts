@@ -155,6 +155,7 @@ export async function readBattleNetAccountLibrary(signal?: AbortSignal) {
     return await Promise.race([
       invoke<BattleNetAccountLibrary>("library_battlenet_account_games", {
         requestId,
+        title: t("Battle.net sign-in"),
       }),
       aborted,
     ]);
