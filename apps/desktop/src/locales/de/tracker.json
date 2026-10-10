@@ -44,7 +44,7 @@
   "No game active": "Kein Spiel aktiv",
   "Playing {{game}} - {{duration}}": "{{game}} läuft – {{duration}}",
   "{{status}} (+{{count}} more)": "{{status}} (+{{count}} weitere)",
-  "{{hours}}h {{minutes}}m": "{{hours}} Std. {{minutes}} Min.",
-  "{{minutes}}m": "{{minutes}} Min.",
-  "<1m": "<1 Min."
+  "{{hours}}h {{minutes}}m": "{{hours}}h {{minutes}}m",
+  "{{minutes}}m": "{{minutes}}m",
+  "<1m": "<1m"
 }

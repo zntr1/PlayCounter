@@ -94,6 +94,6 @@
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own. It still matches {{game}}.": "Andere Spieler haben diese Datei als kein Spiel gemeldet, deshalb ordnet PlayCounter sie nicht mehr selbst zu. Sie passt weiter zu {{game}}.",
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own. It still matches {{count}} games.": "Andere Spieler haben diese Datei als kein Spiel gemeldet, deshalb ordnet PlayCounter sie nicht mehr selbst zu. Sie passt weiter zu {{count}} Spielen.",
   "Other players reported this file as not a game, so PlayCounter no longer matches it on its own.": "Andere Spieler haben diese Datei als kein Spiel gemeldet, deshalb ordnet PlayCounter sie nicht mehr selbst zu.",
-  "{{hours}}h {{minutes}}m ago": "vor {{hours}} Std. {{minutes}} Min.",
-  "{{minutes}}m ago": "vor {{minutes}} Min."
+  "{{hours}}h {{minutes}}m ago": "vor {{hours}}h {{minutes}}m",
+  "{{minutes}}m ago": "vor {{minutes}}m"
 }

@@ -5,7 +5,7 @@ area file. English is the source (`src/locales/en`). Brand and product names
 stay as they are: PlayCounter, Steam, Xbox, Battle.net, Epic Games, IGDB,
 Discord, Windows, Dolphin, DOSBox, PCSX2, mGBA.
 
-## Deutsch (de) — translated 2026-10-10, glossary waiting for approval
+## Deutsch (de) — approved 2026-10-10
 
 **Style**
 
@@ -14,8 +14,8 @@ Discord, Windows, Dolphin, DOSBox, PCSX2, mGBA.
 - Page names and button labels inside a sentence in „…“: „Entdeckt“ öffnen,
   klick auf „Filter speichern“.
 - German quotes „…“, ellipsis …, no space before ! or ?.
-- Durations: 12 Std. 3 Min., 3 T. 4 Std. (longer than 12h 3m: the My History
-  highlight cards cut them off; decide before the screenshot pass).
+- Playtime durations stay as in English: 12h 3m, 3d 4h, <1m, vor 5m. Words
+  in sentences are German (ab 10 Minuten, 2 Sek. halten).
 - Dates and numbers come from the app (Intl), never written by hand.
 - A text that gets a name inserted where German needs a case: write the
   stand-in in that case ("this game" = „diesem Spiel“ in „gehört nicht zu
