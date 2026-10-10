@@ -78,7 +78,7 @@ function readPreferences(): AutomaticBackupPreferences {
   if (!raw) return { ...defaultPreferences };
   const value: unknown = JSON.parse(raw);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Saved automatic backup settings could not be read.");
+    throw new Error(t("Saved automatic backup settings could not be read."));
   }
   const saved = value as Record<string, unknown>;
   return {

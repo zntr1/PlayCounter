@@ -241,7 +241,7 @@ export function useCommunityGameCorrection({
         void linkServerKnownFiles(result.igdbGame);
         return;
       }
-      if (result.id === undefined) throw new Error("Unexpected response");
+      if (result.id === undefined) throw new Error(t("Unexpected response"));
       setState("saved");
       if (result.rejected) {
         onRejected(result.id, result.reviewNote, { selection: chosen });

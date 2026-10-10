@@ -18,6 +18,9 @@ import {
   MAX_STORED_SESSIONS,
   normalizeSessions,
 } from "./sessionPersistence";
+import { getT } from "./i18n";
+
+const t = getT("settings");
 
 const BACKUP_FORMAT = "playcounter-backup";
 const BACKUP_VERSION = 2;
@@ -187,7 +190,7 @@ function parseEnvelope(raw: string): BackupEnvelope {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("The selected file is not valid JSON.");
+    throw new Error(t("The selected file is not valid JSON."));
   }
 
   if (
@@ -201,13 +204,16 @@ function parseEnvelope(raw: string): BackupEnvelope {
     (parsed as { data?: unknown }).data === null ||
     Array.isArray((parsed as { data?: unknown }).data)
   ) {
-    throw new Error("This is not a PlayCounter backup file.");
+    throw new Error(t("This is not a PlayCounter backup file."));
   }
 
   const envelope = parsed as BackupEnvelope;
   if (envelope.version > BACKUP_VERSION) {
     throw new Error(
-      `This backup was created by a newer PlayCounter version (backup format ${envelope.version}). Update PlayCounter before importing it.`,
+      t(
+        "This backup was created by a newer PlayCounter version (backup format {{version}}). Update PlayCounter before importing it.",
+        { version: envelope.version },
+      ),
     );
   }
 
@@ -240,7 +246,10 @@ export async function importLocalData(): Promise<ImportResult> {
     ).length;
     if (persistableCount > MAX_STORED_SESSIONS) {
       throw new Error(
-        `This backup contains ${persistableCount} sessions, above this version's safe limit of ${MAX_STORED_SESSIONS}. No local data was changed.`,
+        t(
+          "This backup contains {{count}} sessions, above this version's safe limit of {{limit}}. No local data was changed.",
+          { count: persistableCount, limit: MAX_STORED_SESSIONS },
+        ),
       );
     }
   }

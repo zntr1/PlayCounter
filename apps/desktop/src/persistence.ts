@@ -25,6 +25,9 @@ import type {
 } from "./emulators/types";
 import { defaultTourProgress, type TourProgress } from "./ui/tour/tourState";
 import type { ToolUsage } from "./toolUsage";
+import { getT } from "./i18n";
+
+const t = getT("settings");
 
 export const STORAGE_KEY = "playcounter:v1";
 export const MAX_STORED_NOTIFICATIONS = 100;
@@ -475,7 +478,7 @@ export function readPersistedRecord(
 }
 
 export function writePersistedRecord(data: Record<string, unknown>) {
-  if (persistenceSuspended) throw new Error("PlayCounter is being reset.");
+  if (persistenceSuspended) throw new Error(t("PlayCounter is being reset."));
   persistenceCaches.delete(localStorage);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }

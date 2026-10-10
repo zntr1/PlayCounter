@@ -1419,13 +1419,11 @@ async function loadIgnoredProcesses() {
   } catch (error) {
     useAppStore.getState().setIgnoredProcesses(launcherBlacklist, null);
     logRuntime(`ignored process list failed: ${formatError(error)}`);
-    useAppStore
-      .getState()
-      .setRuntimeError(
-        t("Ignored process list failed: {{error}}", {
-          error: formatError(error),
-        }),
-      );
+    useAppStore.getState().setRuntimeError(
+      t("Ignored process list failed: {{error}}", {
+        error: formatError(error),
+      }),
+    );
   }
 }
 
@@ -1546,7 +1544,7 @@ export async function launchGame(
   target: Pick<LaunchTarget, "exeName" | "path" | "owner">,
 ): Promise<LaunchOutcome> {
   if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
-    throw new Error("Enable 'Launch games directly' in Settings first.");
+    throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
   const key = target.path.toLowerCase();
   const now = Date.now();
@@ -1814,7 +1812,7 @@ export async function chooseLaunchTarget(
   });
   if (typeof selected !== "string") return null;
   if (!isWindowsExecutablePath(selected)) {
-    throw new Error("Pick an .exe file with a full Windows path.");
+    throw new Error(t("Pick an .exe file with a full Windows path."));
   }
   const baseName = launchFileBaseName(selected);
   const exeName =
@@ -1841,7 +1839,8 @@ export async function chooseEmulatorBinary(
   emulatorId: string,
 ): Promise<EmulatorBinaryEntry | null> {
   const adapter = adapterFor(emulatorId);
-  if (!adapter?.launch) throw new Error("This emulator is not launchable yet.");
+  if (!adapter?.launch)
+    throw new Error(t("This emulator is not launchable yet."));
   const selected = await open({
     multiple: false,
     directory: false,
@@ -1850,7 +1849,9 @@ export async function chooseEmulatorBinary(
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorBinaryPath(emulatorId, selected)) {
     throw new Error(
-      `Pick a supported ${adapter.label} program with a full Windows path.`,
+      t("Pick a supported {{label}} program with a full Windows path.", {
+        label: adapter.label,
+      }),
     );
   }
   const entry = {
@@ -1872,7 +1873,8 @@ export async function chooseEmulatorLaunchFile(
   mapping: EmulatorMapping,
 ): Promise<EmulatorLaunchTarget | null> {
   const adapter = adapterFor(mapping.emulatorId);
-  if (!adapter?.launch) throw new Error("This emulator is not launchable yet.");
+  if (!adapter?.launch)
+    throw new Error(t("This emulator is not launchable yet."));
   const selected = await open({
     multiple: false,
     directory: false,
@@ -1886,15 +1888,22 @@ export async function chooseEmulatorLaunchFile(
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorContentPath(mapping.emulatorId, selected)) {
     throw new Error(
-      `Pick a supported ${adapter.label} game file with a full Windows path.`,
+      t("Pick a supported {{label}} game file with a full Windows path.", {
+        label: adapter.label,
+      }),
     );
   }
   const compatibility = emulatorTargetCompatibility(mapping, selected);
   if (!compatibility.valid) {
     throw new Error(
       compatibility.reason === "content-name-mismatch"
-        ? `This file does not match the content PlayCounter recognized as ${mapping.display}.`
-        : `This file is not supported by ${adapter.label}.`,
+        ? t(
+            "This file does not match the content PlayCounter recognized as {{display}}.",
+            { display: mapping.display },
+          )
+        : t("This file is not supported by {{label}}.", {
+            label: adapter.label,
+          }),
     );
   }
   const target = {
@@ -2010,7 +2019,7 @@ export async function launchEmulatorGame(
 ): Promise<EmulatorLaunchOutcome> {
   const state = useAppStore.getState();
   if (state.settings.gameLaunchingEnabled !== true) {
-    throw new Error("Enable 'Launch games directly' in Settings first.");
+    throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
   const binary = resolveEmulatorBinary(
     mapping.emulatorId,
@@ -2023,8 +2032,13 @@ export async function launchEmulatorGame(
     state.emulatorManualLaunchTargets,
   );
   if (!binary)
-    throw new Error(`Set the ${mapping.label} program in Settings first.`);
-  if (!target) throw new Error("Set this emulator game's launch file first.");
+    throw new Error(
+      t("Set the {{label}} program in Settings first.", {
+        label: mapping.label,
+      }),
+    );
+  if (!target)
+    throw new Error(t("Set this emulator game's launch file first."));
 
   return dispatchEmulatorLaunch(
     mapping.emulatorId,
@@ -2042,10 +2056,11 @@ export async function startEmulatorGame(
 ): Promise<EmulatorLaunchOutcome | null> {
   const state = useAppStore.getState();
   if (state.settings.gameLaunchingEnabled !== true) {
-    throw new Error("Enable 'Launch games directly' in Settings first.");
+    throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
   const adapter = adapterFor(emulatorId);
-  if (!adapter?.launch) throw new Error("This emulator is not launchable yet.");
+  if (!adapter?.launch)
+    throw new Error(t("This emulator is not launchable yet."));
   const binary = resolveEmulatorBinary(
     emulatorId,
     state.emulatorAutoBinaries,
@@ -2053,7 +2068,10 @@ export async function startEmulatorGame(
   );
   if (!binary) {
     throw new Error(
-      `Start ${adapter.label} once so PlayCounter can find its program automatically, or set its program in Settings.`,
+      t(
+        "Start {{label}} once so PlayCounter can find its program automatically, or set its program in Settings.",
+        { label: adapter.label },
+      ),
     );
   }
   if (isEmulatorLaunchGuarded(emulatorId)) return { kind: "busy" };
@@ -2071,7 +2089,9 @@ export async function startEmulatorGame(
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorContentPath(emulatorId, selected)) {
     throw new Error(
-      `Pick a supported ${adapter.label} game file with a full Windows path.`,
+      t("Pick a supported {{label}} game file with a full Windows path.", {
+        label: adapter.label,
+      }),
     );
   }
 
@@ -4293,7 +4313,7 @@ export async function shareEmulatorMapping(
       body.status !== "rejected" &&
       body.status !== "already_curated"
     ) {
-      throw new Error("Invalid emulator suggestion response.");
+      throw new Error(t("Invalid emulator suggestion response."));
     }
     const share: EmulatorMappingShare = {
       status: body.status,
@@ -5095,7 +5115,7 @@ export async function markExecutableAsSoftware(
   input: { name: string; coverUrl?: string; share: boolean },
 ): Promise<MarkAsSoftwareOutcome> {
   const name = input.name.trim();
-  if (!name) throw new Error("A name is required.");
+  if (!name) throw new Error(t("A name is required."));
   const coverUrl = input.coverUrl?.trim() ?? "";
   cacheToolResult(exeName, {
     id: customGameId(exeName),
@@ -5128,7 +5148,7 @@ export async function markExecutableAsSoftware(
     );
     if (!response.ok) throw responseError(response);
     const result = response.data;
-    if (result.id === undefined) throw new Error("Unexpected response");
+    if (result.id === undefined) throw new Error(t("Unexpected response"));
     const entry = useAppStore.getState().exeCache.get(exeName.toLowerCase());
     if (entry?.state !== "tool") return { kind: "submitted" };
     if (result.verified) {
@@ -5174,7 +5194,7 @@ export async function markTrackedExecutableAsSoftware(
   exeName: string,
   input: { name: string; coverUrl?: string; share: boolean },
 ): Promise<MarkAsSoftwareOutcome> {
-  if (!input.name.trim()) throw new Error("A name is required.");
+  if (!input.name.trim()) throw new Error(t("A name is required."));
   const state = useAppStore.getState();
   const key = exeName.toLowerCase();
   const existing = state.exeCache.get(key);
@@ -7678,7 +7698,7 @@ export async function submitLocalLinkToCommunity(
       applyLocalLinkGameMatch(ref, result.igdbGame);
       return { kind: "already-known" };
     }
-    if (result.id === undefined) throw new Error("Unexpected response");
+    if (result.id === undefined) throw new Error(t("Unexpected response"));
     if (result.verified) {
       // This match was approved before the import. Apply it as database truth
       // instead of making the imported link look like a freshly approved
@@ -7767,7 +7787,7 @@ async function saveCoverFile(
 ) {
   const extension = coverExtension(file);
   if (!extension) {
-    throw new Error("Cover image must be a PNG, JPG, or WebP file.");
+    throw new Error(t("Cover image must be a PNG, JPG, or WebP file."));
   }
 
   const bytes = [...new Uint8Array(await file.arrayBuffer())];
@@ -8060,7 +8080,7 @@ export function addManualSession(params: {
 
   const endedAtMs = Date.parse(params.endedAt);
   if (!Number.isFinite(endedAtMs)) {
-    throw new Error("Manual sessions require a valid date and time");
+    throw new Error(t("Manual sessions require a valid date and time"));
   }
   const endedAt = new Date(endedAtMs).toISOString();
   const startedAt = new Date(
@@ -8112,11 +8132,11 @@ export function setGamePlaytime(params: {
   aliases?: GameAliasRef[];
 }) {
   if (!Number.isFinite(params.targetSeconds)) {
-    throw new Error("Playtime must be a finite number");
+    throw new Error(t("Playtime must be a finite number"));
   }
   const targetSeconds = Math.max(0, Math.round(params.targetSeconds));
   if (targetSeconds > 0 && targetSeconds < 60) {
-    throw new Error("Playtime must be zero or at least one minute");
+    throw new Error(t("Playtime must be zero or at least one minute"));
   }
 
   const aliases = params.aliases ?? [
@@ -8127,7 +8147,7 @@ export function setGamePlaytime(params: {
   const state = useAppStore.getState();
 
   if (state.activeSessions.some(matchesGame)) {
-    throw new Error("Stop the active session before adjusting playtime");
+    throw new Error(t("Stop the active session before adjusting playtime"));
   }
 
   const keys = gameSecondsKeys(aliases);

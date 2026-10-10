@@ -563,7 +563,7 @@ export function ImportLibraryView() {
         return commit ? [commit] : [];
       });
       if (commits.length === 0)
-        throw new Error("Pick at least one game to import.");
+        throw new Error(t("Pick at least one game to import."));
       await backupImporterDataOnce(signal);
       if (!isCurrentImport(signal)) return;
       const result = await runLibraryImport(commits, signal);
@@ -690,11 +690,13 @@ export function ImportLibraryView() {
       });
       if (!commit)
         throw new Error(
-          `The selected ${providerName} game cannot be imported.`,
+          t("The selected {{providerName}} game cannot be imported.", {
+            providerName,
+          }),
         );
       if (isBattleNet && scanned.installed && commit.scopedLinks.length === 0)
         throw new Error(
-          "Pick the game file to track before importing this game.",
+          t("Pick the game file to track before importing this game."),
         );
 
       await backupImporterDataOnce(signal);
@@ -776,7 +778,10 @@ export function ImportLibraryView() {
       if (!isCurrentImport(signal)) return;
       if (matchesProcessPatternSet(executable.fileName, ignoredProcesses)) {
         throw new Error(
-          `${executable.fileName} is on PlayCounter's ignore list, so it cannot be used as the game file.`,
+          t(
+            "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.",
+            { fileName: executable.fileName },
+          ),
         );
       }
       setBrowsedExecutables((current) => ({
@@ -820,7 +825,7 @@ export function ImportLibraryView() {
     if (!url) return;
     try {
       if (!navigator.clipboard?.writeText) {
-        throw new Error("PlayCounter cannot reach the clipboard right now.");
+        throw new Error(t("PlayCounter cannot reach the clipboard right now."));
       }
       await navigator.clipboard.writeText(url);
       if (!isCurrentImport(signal)) return;

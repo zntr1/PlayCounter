@@ -15,6 +15,9 @@ import {
 import { libraryEntryKey, type LibraryImportEntry } from "./types";
 import { providerFloors } from "./playtimeFloor";
 import { dismissLauncherGames } from "./libraryAutoAddState";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 type MoveTarget = GameIdentityRef & { aliases?: GameIdentityRef[] };
 type MoveChanges = Pick<
@@ -77,7 +80,7 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
   // Commit the entire selection before publishing any of it to the UI.
   const result = persistAppState({ ...state, ...changes });
   if (result.status === "suspended")
-    throw new Error("PlayCounter is being reset.");
+    throw new Error(t("PlayCounter is being reset."));
   if (result.status === "failed") throw result.error;
   useAppStore.setState({
     ...changes,

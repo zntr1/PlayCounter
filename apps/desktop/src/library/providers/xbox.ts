@@ -106,7 +106,9 @@ export async function scanXboxLibrary(
       ))
   ) {
     throw new Error(
-      "Xbox sign-in requires an HTTPS API connection (or a local development server).",
+      t(
+        "Xbox sign-in requires an HTTPS API connection (or a local development server).",
+      ),
     );
   }
 
@@ -189,7 +191,9 @@ export async function scanXboxLibrary(
       }
       if (!resultResponse.ok) {
         throw new Error(
-          `Xbox import status could not be checked (${resultResponse.status}).`,
+          t("Xbox import status could not be checked ({{status}}).", {
+            status: resultResponse.status,
+          }),
         );
       }
 
@@ -206,7 +210,7 @@ export async function scanXboxLibrary(
         throw new Error(xboxImportFailureMessage(result));
       }
       if (result.status !== "pending") {
-        throw new Error("Xbox import returned an invalid status.");
+        throw new Error(t("Xbox import returned an invalid status."));
       }
       if (result.stage) reportProgress(result.stage);
 
@@ -304,13 +308,13 @@ function parseXboxImportStart(value: unknown): XboxImportStartResponse {
     typeof record.authorizeUrl !== "string" ||
     !record.authorizeUrl
   ) {
-    throw new Error("Xbox import returned an invalid sign-in response.");
+    throw new Error(t("Xbox import returned an invalid sign-in response."));
   }
   let url: URL;
   try {
     url = new URL(record.authorizeUrl);
   } catch {
-    throw new Error("Xbox import returned an invalid sign-in URL.");
+    throw new Error(t("Xbox import returned an invalid sign-in URL."));
   }
   if (
     url.origin !== "https://login.microsoftonline.com" ||
@@ -319,7 +323,7 @@ function parseXboxImportStart(value: unknown): XboxImportStartResponse {
     url.password ||
     url.hash
   ) {
-    throw new Error("Xbox import returned an unsupported sign-in URL.");
+    throw new Error(t("Xbox import returned an unsupported sign-in URL."));
   }
   return {
     attemptId: record.attemptId,
@@ -330,7 +334,7 @@ function parseXboxImportStart(value: unknown): XboxImportStartResponse {
 function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
   const record = asRecord(value);
   if (!record || typeof record.status !== "string") {
-    throw new Error("Xbox import returned an invalid status.");
+    throw new Error(t("Xbox import returned an invalid status."));
   }
   if (record.status === "pending") {
     if (
@@ -338,7 +342,7 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
       record.stage !== "authorization" &&
       record.stage !== "history"
     ) {
-      throw new Error("Xbox import returned an invalid progress stage.");
+      throw new Error(t("Xbox import returned an invalid progress stage."));
     }
     return {
       status: "pending",
@@ -349,25 +353,27 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
   }
   if (record.status === "done") {
     if (!Array.isArray(record.games)) {
-      throw new Error("Xbox import returned an invalid game list.");
+      throw new Error(t("Xbox import returned an invalid game list."));
     }
     return { status: "done", games: record.games.map(parseXboxImportGame) };
   }
   if (record.status === "failed" && isXboxFailureReason(record.reason)) {
     if (record.stage !== undefined && !isXboxFailureStage(record.stage)) {
-      throw new Error("Xbox import returned an invalid failure stage.");
+      throw new Error(t("Xbox import returned an invalid failure stage."));
     }
     if (
       record.accountLabel !== undefined &&
       (typeof record.accountLabel !== "string" || !record.accountLabel.trim())
     ) {
-      throw new Error("Xbox import returned an invalid account label.");
+      throw new Error(t("Xbox import returned an invalid account label."));
     }
     if (
       record.errorCode !== undefined &&
       (typeof record.errorCode !== "string" || !record.errorCode.trim())
     ) {
-      throw new Error("Xbox import returned an invalid Microsoft error code.");
+      throw new Error(
+        t("Xbox import returned an invalid Microsoft error code."),
+      );
     }
     return {
       status: "failed",
@@ -381,7 +387,7 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
         : {}),
     };
   }
-  throw new Error("Xbox import returned an invalid status.");
+  throw new Error(t("Xbox import returned an invalid status."));
 }
 
 function parseXboxImportGame(value: unknown): ParsedXboxImportGame {
@@ -401,7 +407,7 @@ function parseXboxImportGame(value: unknown): ParsedXboxImportGame {
       (typeof record.providerLastPlayedAt !== "string" ||
         !Number.isFinite(Date.parse(record.providerLastPlayedAt))))
   ) {
-    throw new Error("Xbox import returned invalid game data.");
+    throw new Error(t("Xbox import returned invalid game data."));
   }
   return {
     externalId: record.externalId,
@@ -518,7 +524,7 @@ export function xboxImportFailureMessage(context: XboxFailureContext) {
 
 function ensureNotAborted(signal: AbortSignal | undefined) {
   if (!signal?.aborted) return;
-  const error = new Error("Xbox sign-in was cancelled.");
+  const error = new Error(t("Xbox sign-in was cancelled."));
   error.name = "AbortError";
   throw error;
 }
@@ -537,7 +543,7 @@ function abortableDelay(milliseconds: number, signal: AbortSignal | undefined) {
     const onAbort = () => {
       globalThis.clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
-      const error = new Error("Xbox sign-in was cancelled.");
+      const error = new Error(t("Xbox sign-in was cancelled."));
       error.name = "AbortError";
       reject(error);
     };

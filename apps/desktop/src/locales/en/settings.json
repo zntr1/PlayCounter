@@ -306,5 +306,11 @@
   "This removes {{count}} saved emulator program and game paths, including files such as ISO, RVZ, and DOSBox programs. Paths for regular games stay intact._other": "This removes {{count}} saved emulator program and game paths, including files such as ISO, RVZ, and DOSBox programs. Paths for regular games stay intact.",
   "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact._one": "This removes {{count}} saved path for regular games. Emulator programs and game files stay intact.",
   "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact._other": "This removes {{count}} saved paths for regular games. Emulator programs and game files stay intact.",
-  "Ignored and hidden": "Ignored and hidden"
+  "Ignored and hidden": "Ignored and hidden",
+  "Saved automatic backup settings could not be read.": "Saved automatic backup settings could not be read.",
+  "The selected file is not valid JSON.": "The selected file is not valid JSON.",
+  "This is not a PlayCounter backup file.": "This is not a PlayCounter backup file.",
+  "This backup was created by a newer PlayCounter version (backup format {{version}}). Update PlayCounter before importing it.": "This backup was created by a newer PlayCounter version (backup format {{version}}). Update PlayCounter before importing it.",
+  "PlayCounter is being reset.": "PlayCounter is being reset.",
+  "This backup contains {{count}} sessions, above this version's safe limit of {{limit}}. No local data was changed.": "This backup contains {{count}} sessions, above this version's safe limit of {{limit}}. No local data was changed."
 }

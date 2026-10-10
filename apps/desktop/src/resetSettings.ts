@@ -2,10 +2,14 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { saveHotkey } from "./hotkeys";
 import { isPersistenceSuspended } from "./persistence";
 import { createDefaultSettings, useAppStore } from "./store";
+import { getT } from "./i18n";
+
+const t = getT("settings");
 
 /** Restore app preferences without touching library data or backup preferences. */
 export async function resetSettings() {
-  if (isPersistenceSuspended()) throw new Error("PlayCounter is being reset.");
+  if (isPersistenceSuspended())
+    throw new Error(t("PlayCounter is being reset."));
   const defaults = createDefaultSettings();
   const startupEnabled = await isEnabled();
   if (startupEnabled !== defaults.launchOnStartup) {
