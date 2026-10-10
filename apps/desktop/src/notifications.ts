@@ -231,6 +231,7 @@ function notificationThreshold(id: string) {
 }
 
 function assertNever(value: never): never {
+  // i18n-exempt: impossible case, never shown.
   throw new Error(`Unhandled notification kind: ${String(value)}`);
 }
 

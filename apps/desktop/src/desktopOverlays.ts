@@ -298,6 +298,7 @@ function overlayCopy(
       actionLabel: event.sessionId === undefined ? undefined : t("Update note"),
     };
   }
+  // i18n-exempt: impossible case, never shown.
   throw new Error(`Event ${event.type} cannot render ${kind}`);
 }
 

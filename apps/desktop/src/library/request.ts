@@ -1,5 +1,8 @@
 import { requestJsonResponse } from "../requestJson";
 import { rateLimitDelay } from "../rateLimitedFetch";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 export type RateLimitWaitListener = (waiting: boolean) => void;
 
@@ -21,7 +24,9 @@ export async function requestLibraryJson<T>(
         const remaining = waitDeadline - Date.now();
         if (remaining <= 0) {
           throw new Error(
-            "The server is still busy. Please try importing again after the pause.",
+            t(
+              "The server is still busy. Please try importing again after the pause.",
+            ),
           );
         }
         onRateLimitWait?.(true);

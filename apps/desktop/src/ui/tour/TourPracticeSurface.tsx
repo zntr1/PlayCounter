@@ -277,6 +277,7 @@ function ImportPractice() {
             provider={provider}
             apiEndpoint=""
             candidates={candidates}
+            // i18n-exempt: sample game name.
             title="Diablo IV"
             importing={false}
             searchGames={async (query) =>

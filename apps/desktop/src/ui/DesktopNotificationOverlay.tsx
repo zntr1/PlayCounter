@@ -112,6 +112,7 @@ export function DesktopNotificationOverlay({
         <div className="flex shrink-0 flex-col items-end gap-2 self-center pl-2">
           {sessionSummary && message.metric ? (
             <div className="desktop-overlay-session-duration">
+              {/* i18n-exempt: fallback when the main window sends no label. */}
               <span>{message.sessionTimeLabel ?? "SESSION TIME"}</span>
               <strong>{message.metric}</strong>
             </div>
@@ -134,6 +135,7 @@ export function DesktopNotificationOverlay({
             <span className="desktop-overlay-metric">{message.metric}</span>
           ) : message.status === "live" ? (
             <span className="desktop-overlay-live">
+              {/* i18n-exempt: fallback when the main window sends no label. */}
               <i /> {message.liveLabel ?? "LIVE"}
             </span>
           ) : message.showClock ? null : (

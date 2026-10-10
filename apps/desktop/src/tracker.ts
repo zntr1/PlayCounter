@@ -6617,6 +6617,7 @@ export async function checkBackendHealth() {
     }
 
     const body = response.data;
+    // i18n-exempt: diagnostic detail of the backend health check.
     if (body.ok !== true) throw new Error("Health check returned not ok");
 
     setBackendHealth("online", "Backend health check passed");

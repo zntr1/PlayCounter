@@ -196,5 +196,6 @@ export function tierLabel(tier: AchievementTier) {
 }
 
 function assertNever(value: never): never {
+  // i18n-exempt: impossible case, never shown.
   throw new Error(`Unhandled notification kind: ${String(value)}`);
 }

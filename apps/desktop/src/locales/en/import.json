@@ -194,5 +194,6 @@
   "{{count}} games_other": "{{count}} games",
   "{{game}} has no IGDB id.": "{{game}} has no IGDB id.",
   "Account {{id}}": "Account {{id}}",
-  "{{provider}} game {{id}}": "{{provider}} game {{id}}"
+  "{{provider}} game {{id}}": "{{provider}} game {{id}}",
+  "The server is still busy. Please try importing again after the pause.": "The server is still busy. Please try importing again after the pause."
 }

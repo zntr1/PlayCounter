@@ -11,6 +11,7 @@ function parseReplyPage(
   afterId: string,
 ): FeedbackRepliesResponse {
   if (!value || typeof value !== "object")
+    // i18n-exempt: swallowed by the poller, never shown.
     throw new Error("Invalid reply response");
   const page = value as Partial<FeedbackRepliesResponse>;
   if (
@@ -19,6 +20,7 @@ function parseReplyPage(
     typeof page.hasMore !== "boolean" ||
     (page.hasMore && page.items.length === 0)
   ) {
+    // i18n-exempt: swallowed by the poller, never shown.
     throw new Error("Invalid reply page");
   }
   let previousId = BigInt(afterId);
@@ -38,6 +40,7 @@ function parseReplyPage(
       typeof item.createdAt !== "string" ||
       !Number.isFinite(Date.parse(item.createdAt))
     ) {
+      // i18n-exempt: swallowed by the poller, never shown.
       throw new Error("Invalid reply");
     }
     previousId = BigInt(item.id);
