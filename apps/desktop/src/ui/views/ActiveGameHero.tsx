@@ -356,7 +356,10 @@ export function ActiveGameHero({
               <span className="truncate">{notePreview(activeNote)}</span>
             </button>
           ) : summary ? (
-            <p className="mt-4 line-clamp-2 max-w-xl text-[15px] leading-6 text-text/80">
+            <p
+              lang="en"
+              className="mt-4 line-clamp-2 max-w-xl text-[15px] leading-6 text-text/80"
+            >
               {summary}
             </p>
           ) : null}

@@ -102,5 +102,6 @@
   "The game moves out of all launcher tabs into PlayCounter. This only changes your PlayCounter library.": "The game moves out of all launcher tabs into PlayCounter. This only changes your PlayCounter library.",
   "These games move out of all launcher tabs into PlayCounter. This only changes your PlayCounter library.": "These games move out of all launcher tabs into PlayCounter. This only changes your PlayCounter library.",
   "{{count}} selected games are already in PlayCounter and will stay there._one": "{{count}} selected game is already in PlayCounter and will stay there.",
-  "{{count}} selected games are already in PlayCounter and will stay there._other": "{{count}} selected games are already in PlayCounter and will stay there."
+  "{{count}} selected games are already in PlayCounter and will stay there._other": "{{count}} selected games are already in PlayCounter and will stay there.",
+  "Only available in English": "Only available in English"
 }

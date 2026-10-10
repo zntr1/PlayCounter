@@ -59,7 +59,7 @@ import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
-import { appLocale, getT } from "../../../i18n";
+import { appLanguage, appLocale, getT } from "../../../i18n";
 import { igdbTerm } from "../../../igdbTerms";
 
 const t = getT("games");
@@ -636,9 +636,20 @@ export function GameDetailsDialog({
   ) : resolved ? (
     <div className="grid gap-4">
       {resolved.summary ? (
-        <p className="whitespace-pre-line text-sm leading-6 text-text-muted">
-          {resolved.summary}
-        </p>
+        <div>
+          {/* IGDB only has English descriptions. */}
+          <p
+            lang="en"
+            className="whitespace-pre-line text-sm leading-6 text-text-muted"
+          >
+            {resolved.summary}
+          </p>
+          {appLanguage() !== "en" ? (
+            <p className="mt-1 text-xs text-text-faint">
+              {t("Only available in English")}
+            </p>
+          ) : null}
+        </div>
       ) : (
         <p className="text-sm text-text-muted">
           {t("The database has no description for this game yet.")}

@@ -237,7 +237,10 @@ export function GameBanner({
               rather than clip mid-line: it is the only part of the column that
               shrinks, and it scrolls once it runs out of room. */}
           {!compact && ready?.summary ? (
-            <p className="scrollbar-hidden mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-y-auto text-[15px] leading-[1.5] text-text/85">
+            <p
+              lang="en"
+              className="scrollbar-hidden mt-4 max-h-[7.5rem] min-h-0 max-w-[500px] overflow-y-auto text-[15px] leading-[1.5] text-text/85"
+            >
               {ready.summary}
             </p>
           ) : null}

@@ -37,6 +37,7 @@ import deSoftware from "./locales/de/software.json";
 import deTour from "./locales/de/tour.json";
 import deTracker from "./locales/de/tracker.json";
 import {
+  isAppLanguage,
   resolveLanguage,
   systemLocales,
   type AppLanguage,
@@ -151,6 +152,11 @@ let currentLocale = formattingLocale("en", systemLocales()[0]);
  *  they follow PlayCounter's language, not the computer's. */
 export function appLocale() {
   return currentLocale;
+}
+
+/** The language the app's texts are in right now. */
+export function appLanguage(): AppLanguage {
+  return isAppLanguage(i18next.language) ? i18next.language : "en";
 }
 
 /** The language "system" stands for on this computer. */
