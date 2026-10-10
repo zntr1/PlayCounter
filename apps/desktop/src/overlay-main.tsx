@@ -18,7 +18,10 @@ function OverlayRoot() {
     const unlisten: Array<() => void> = [];
     void Promise.all([
       listen<DesktopOverlayMessage>(OVERLAY_SHOW_EVENT, ({ payload }) => {
-        if (!disposed) setMessage(payload);
+        if (disposed) return;
+        // Chinese text only gets Chinese glyph shapes with the right lang.
+        if (payload.locale) document.documentElement.lang = payload.locale;
+        setMessage(payload);
       }),
     ])
       .then((handlers) => {

@@ -45,7 +45,9 @@ export function HeaderLinks() {
         }
         icon={Globe}
         disabled={isOffline}
-        onClick={() => void openExternalUrl(WEBSITE_URL, "website")}
+        onClick={() =>
+          void openExternalUrl(WEBSITE_URL, t("PlayCounter website"))
+        }
         className="header-icon-button"
       />
       <IconButton

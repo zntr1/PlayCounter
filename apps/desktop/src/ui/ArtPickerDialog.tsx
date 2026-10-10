@@ -355,7 +355,11 @@ export function ArtPickerDialog({
                       key={asset.id}
                       type="button"
                       disabled={applying !== null}
-                      aria-label={t("Use this {{tab}}", { tab })}
+                      aria-label={
+                        tab === "banner"
+                          ? t("Use this banner")
+                          : t("Use this cover")
+                      }
                       onClick={() => void apply(asset)}
                       className={clsx(
                         "group relative overflow-hidden rounded-lg border bg-surface-hover transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
