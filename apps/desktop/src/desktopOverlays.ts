@@ -7,6 +7,7 @@ import type {
   DesktopOverlayMessage,
   OverlayRenderContext,
 } from "./desktopOverlayProtocol";
+import { appLocale } from "./i18n";
 export {
   OVERLAY_ACTION_EVENT,
   OVERLAY_FINISHED_EVENT,
@@ -157,6 +158,7 @@ export function buildOverlayMessage(
     targetPids: "targetPids" in event ? event.targetPids : undefined,
     priority: OVERLAY_PRIORITY[kind],
     ...copy,
+    locale: context.locale,
     theme: context.theme,
     accentColor: context.accentColor,
     reducedMotion: context.reducedMotion,
@@ -306,7 +308,7 @@ export function milestoneMetricLabel(id: string) {
       : parsed.category === "streak"
         ? "DAYS"
         : "HRS";
-  return `${parsed.threshold.toLocaleString()} ${unit}`;
+  return `${parsed.threshold.toLocaleString(appLocale())} ${unit}`;
 }
 
 export function compareOverlayMessages(

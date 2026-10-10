@@ -9,6 +9,7 @@ import {
   type AchievementCatalogItem,
   type AchievementSummaryData,
 } from "./achievementCatalog";
+import { appLocale } from "../../../i18n";
 
 /* One row above the tabs: how far along the milestones are, what unlocks
  * next, and what unlocked last. Everything else lives in the tabs below. */
@@ -110,7 +111,7 @@ function ProgressRing({ summary }: { summary: AchievementSummaryData }) {
           </span>
         </p>
         <p className="mt-0.5 text-xs text-text-muted">
-          {summary.gameTrophies.toLocaleString()} game{" "}
+          {summary.gameTrophies.toLocaleString(appLocale())} game{" "}
           {summary.gameTrophies === 1 ? "trophy" : "trophies"} on top
         </p>
         {tiers.length > 0 ? (
@@ -231,7 +232,9 @@ function RecentRow({ item }: { item: AchievementCatalogItem }) {
         </div>
         <time
           dateTime={item.milestone!.awardedAt}
-          title={new Date(item.milestone!.awardedAt).toLocaleString()}
+          title={new Date(item.milestone!.awardedAt).toLocaleString(
+            appLocale(),
+          )}
           className="mt-0.5 block text-[11px] text-text-faint"
         >
           {relativeTime(item.milestone!.awardedAt)}
@@ -243,7 +246,9 @@ function RecentRow({ item }: { item: AchievementCatalogItem }) {
 
 function relativeTime(iso: string) {
   const elapsedSeconds = Math.round((Date.parse(iso) - Date.now()) / 1000);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(appLocale(), {
+    numeric: "auto",
+  });
   if (Math.abs(elapsedSeconds) < 60)
     return formatter.format(elapsedSeconds, "second");
   const minutes = Math.round(elapsedSeconds / 60);

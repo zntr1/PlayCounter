@@ -257,6 +257,7 @@ import type {
   KnownEmulator,
   RawEmulatorSignals,
 } from "./emulators/types";
+import { appLocale } from "./i18n";
 
 const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
 const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
@@ -6725,7 +6726,7 @@ export function persist() {
       state.addToast({
         tone: "error",
         title: "History storage was full",
-        detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were archived so new data could be saved.`,
+        detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString(appLocale())}` : ""}, were archived so new data could be saved.`,
       });
     }
   } else if (result.status === "failed") {

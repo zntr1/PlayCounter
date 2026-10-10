@@ -22,6 +22,7 @@ import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
 import { addDays } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
+import { appLocale } from "../../../i18n";
 
 export type ResolvedGame = { name: string; coverUrl: string };
 
@@ -149,7 +150,9 @@ const weekdayNames = [
 ];
 
 function formatHour(hour: number) {
-  return new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: "numeric" });
+  return new Date(2000, 0, 1, hour).toLocaleTimeString(appLocale(), {
+    hour: "numeric",
+  });
 }
 
 function formatPercent(share: number) {

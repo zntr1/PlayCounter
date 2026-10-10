@@ -6,6 +6,7 @@ import {
   type LaunchTarget,
 } from "../../../store";
 import type { GameAliasRef } from "../../../tracker";
+import { appLocale } from "../../../i18n";
 
 /* The files a game card counts, as this PC knows them. Report, Convert and
    Check match act on the one file the user picks, never on the card's first
@@ -82,7 +83,7 @@ export function canCheckFile(file: GameFile) {
 export function fileRunStatus(file: GameFile) {
   if (file.running) return "Running now";
   if (!file.lastRanAt) return "Never ran on this PC";
-  return `Last ran ${new Date(file.lastRanAt).toLocaleDateString()}`;
+  return `Last ran ${new Date(file.lastRanAt).toLocaleDateString(appLocale())}`;
 }
 
 /** Running first, then the most recent; files that never ran come last. */

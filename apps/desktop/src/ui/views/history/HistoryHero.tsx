@@ -13,6 +13,7 @@ import { customHeroArtKey, useAppStore } from "../../../store";
 import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
+import { appLocale } from "../../../i18n";
 
 /* The History hero: one headline number for the selected range, the range
    chips that scope the whole page, and the highlights worth noticing. The
@@ -34,7 +35,7 @@ export type HeroArtworkGame = {
 };
 
 function formatDay(dateKey: string, withWeekday = false) {
-  return new Date(`${dateKey}T00:00:00`).toLocaleDateString([], {
+  return new Date(`${dateKey}T00:00:00`).toLocaleDateString(appLocale(), {
     ...(withWeekday ? { weekday: "short" } : {}),
     month: "short",
     day: "numeric",
@@ -42,7 +43,7 @@ function formatDay(dateKey: string, withWeekday = false) {
 }
 
 function formatStart(startedAt: string) {
-  return new Date(startedAt).toLocaleDateString([], {
+  return new Date(startedAt).toLocaleDateString(appLocale(), {
     month: "short",
     day: "numeric",
   });
@@ -151,11 +152,14 @@ export function HistoryHero({
                 {firstSessionMs !== null ? (
                   <Fact
                     label="first session"
-                    value={new Date(firstSessionMs).toLocaleDateString([], {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    value={new Date(firstSessionMs).toLocaleDateString(
+                      appLocale(),
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
                   />
                 ) : null}
               </p>

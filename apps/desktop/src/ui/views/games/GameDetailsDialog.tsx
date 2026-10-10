@@ -59,6 +59,7 @@ import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
+import { appLocale } from "../../../i18n";
 
 /* The game details dialog ────────────────────────────────────────────────────
    A hero header (the same artwork the library banner shows) with the cover,
@@ -90,7 +91,7 @@ function formatDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(appLocale());
 }
 
 function Panel({

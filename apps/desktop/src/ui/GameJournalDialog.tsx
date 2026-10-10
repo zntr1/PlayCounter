@@ -53,6 +53,7 @@ import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
 import { getSessionGameKey } from "../historyStats";
 import { usePickedCovers } from "../pickedCovers";
+import { appLocale } from "../i18n";
 
 /* The game journal ───────────────────────────────────────────────────────────
    One game, one page. The header carries the game: cover, totals, and the
@@ -319,7 +320,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     `${formatDuration(trackedSeconds, showDays)} tracked`,
     `${gameSessions.length} ${gameSessions.length === 1 ? "session" : "sessions"}`,
     lastPlayedAt
-      ? `last played ${new Date(lastPlayedAt).toLocaleDateString()}`
+      ? `last played ${new Date(lastPlayedAt).toLocaleDateString(appLocale())}`
       : "no sessions yet",
   ];
 
@@ -540,7 +541,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
               )}
               <p className="mt-1 text-xs text-text-muted">
                 {playthrough
-                  ? `Started ${new Date(playthrough.createdAt).toLocaleDateString()}`
+                  ? `Started ${new Date(playthrough.createdAt).toLocaleDateString(appLocale())}`
                   : "All sessions that are not assigned to a named playthrough."}
                 {selectedArchivedSeconds > 0
                   ? ` · includes ${formatDuration(selectedArchivedSeconds, showDays)} from archived sessions`
@@ -694,8 +695,10 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                 {draft === storedNote ? "Saved" : "Unsaved changes"}
               </span>
               <span className="ml-auto font-mono text-[11px] tabular-nums text-text-faint">
-                {draft.length.toLocaleString()} /{" "}
-                {Math.max(NOTE_LIMIT, storedNote.length).toLocaleString()}
+                {draft.length.toLocaleString(appLocale())} /{" "}
+                {Math.max(NOTE_LIMIT, storedNote.length).toLocaleString(
+                  appLocale(),
+                )}
               </span>
               <Button
                 data-tour={practice ? "demo-note-save" : undefined}
@@ -773,7 +776,9 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                     {selectedSessions.map((s) => (
                       <tr key={s.id} className="text-text-muted">
                         <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                          {new Date(s.startedAt).toLocaleDateString()}
+                          {new Date(s.startedAt).toLocaleDateString(
+                            appLocale(),
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-text">
                           {formatDuration(s.durationSeconds ?? 0, showDays)}

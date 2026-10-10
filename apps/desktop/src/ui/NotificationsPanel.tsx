@@ -7,6 +7,7 @@ import { useAppStore } from "../store";
 import { NotificationArt } from "./AchievementBadge";
 import { Panel } from "./components";
 import { Button, IconButton, useEscapeKey } from "./primitives";
+import { appLocale } from "../i18n";
 
 export function NotificationsPanel({
   onClose,
@@ -155,7 +156,7 @@ export function NotificationsPanel({
                   </p>
                 ) : null}
                 <time className="mt-1 block text-[11px] text-text-faint">
-                  {new Date(notification.createdAt).toLocaleString()}
+                  {new Date(notification.createdAt).toLocaleString(appLocale())}
                 </time>
                 {notification.action ? (
                   <button

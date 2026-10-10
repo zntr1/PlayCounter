@@ -30,6 +30,9 @@ export type DesktopOverlayMessage = {
   actionLabel?: string;
   /** The card ticks the time of day itself, so it stays current while visible. */
   showClock?: boolean;
+  /** The main window's locale, for the clock. Absent (null from Rust) = the
+   *  computer's. */
+  locale?: string | null;
   theme: "dark" | "light";
   accentColor: string | null;
   reducedMotion: boolean;
@@ -40,6 +43,7 @@ export type DesktopOverlayMessage = {
 
 export type OverlayRenderContext = {
   nowMs: number;
+  locale?: string;
   theme: "dark" | "light";
   accentColor: string | null;
   reducedMotion: boolean;

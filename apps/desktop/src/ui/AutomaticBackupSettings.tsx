@@ -10,6 +10,7 @@ import {
 } from "../automaticBackups";
 import { useAppStore } from "../store";
 import { Button, Select, Switch } from "./primitives";
+import { appLocale } from "../i18n";
 
 export function AutomaticBackupSettings() {
   const {
@@ -198,13 +199,13 @@ export function AutomaticBackupSettings() {
           {running
             ? "Saving backup…"
             : preferences.lastBackupAt
-              ? `Last backup: ${new Date(preferences.lastBackupAt).toLocaleString()}`
+              ? `Last backup: ${new Date(preferences.lastBackupAt).toLocaleString(appLocale())}`
               : "No automatic backups saved yet."}
         </p>
         {preferences.enabled && !running && !error ? (
           <p>
             {nextAt && nextAt > Date.now()
-              ? `Next backup: ${new Date(nextAt).toLocaleString()}`
+              ? `Next backup: ${new Date(nextAt).toLocaleString(appLocale())}`
               : "Next backup: as soon as PlayCounter is running."}
           </p>
         ) : null}

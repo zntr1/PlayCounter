@@ -9,6 +9,7 @@ import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
 import { Button } from "../../primitives";
+import { appLocale } from "../../../i18n";
 
 /* The emulator hero: what this emulator is, how much has been played in it,
    and the games that carried that time. The most played game's key art sits
@@ -148,11 +149,14 @@ export function EmulatorHero({
                 {lastPlayedMs !== null ? (
                   <Fact
                     label="last played"
-                    value={new Date(lastPlayedMs).toLocaleDateString([], {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    value={new Date(lastPlayedMs).toLocaleDateString(
+                      appLocale(),
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
                   />
                 ) : null}
                 {ignoredCount > 0 ? (

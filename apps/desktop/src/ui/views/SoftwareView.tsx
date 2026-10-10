@@ -36,6 +36,7 @@ import {
 } from "../ContextMenu";
 import { ExeIcon } from "../ExeIcon";
 import { Button, Modal } from "../primitives";
+import { appLocale } from "../../i18n";
 
 /* Software such as Discord, Spotify and launchers. Kept apart from games on
    purpose: no sessions, no Now Playing, no stats. Just how long each app ran,
@@ -252,7 +253,7 @@ export function SoftwareView() {
 /** "18 Sept", with the year only when it is not this year. */
 function formatDay(day: string) {
   const [year, month, date] = day.split("-").map(Number);
-  return new Date(year, month - 1, date).toLocaleDateString(undefined, {
+  return new Date(year, month - 1, date).toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
     ...(year === new Date().getFullYear() ? {} : { year: "numeric" }),

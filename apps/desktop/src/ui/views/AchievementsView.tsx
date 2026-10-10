@@ -35,6 +35,7 @@ import {
   type AchievementCatalogItem,
   type AchievementGroupId,
 } from "./achievements/achievementCatalog";
+import { appLocale } from "../../i18n";
 
 type Tab = "milestones" | "games";
 
@@ -231,8 +232,8 @@ export function AchievementsView() {
                     selected ? "text-accent-ink/70" : "text-text-faint",
                   )}
                 >
-                  {counts.unlocked.toLocaleString()}/
-                  {counts.total.toLocaleString()}
+                  {counts.unlocked.toLocaleString(appLocale())}/
+                  {counts.total.toLocaleString(appLocale())}
                 </span>
               </button>
             );
@@ -357,7 +358,9 @@ function ladderSubtitle(
   currentMonthKey: string,
 ) {
   const current = Math.max(0, rungs[0]?.currentValue ?? 0);
-  const value = current.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const value = current.toLocaleString(appLocale(), {
+    maximumFractionDigits: 1,
+  });
   const unit = rungs[0]?.unit ?? "hours";
   const progress =
     unit === "hours"

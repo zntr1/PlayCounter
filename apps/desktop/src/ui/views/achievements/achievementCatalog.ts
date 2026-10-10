@@ -13,6 +13,7 @@ import {
   type MilestoneMetrics,
   type MilestoneNotificationKind,
 } from "../../../milestones";
+import { appLocale } from "../../../i18n";
 
 export type AchievementGroupId = MilestoneCategory;
 export type AchievementUnit = "hours" | "days" | "contributions";
@@ -205,7 +206,7 @@ export function buildAchievementCatalog(
       id: `milestone:total:${threshold}`,
       category: "total",
       kind: "milestone-total",
-      title: `You've played ${threshold.toLocaleString()} hours in total`,
+      title: `You've played ${threshold.toLocaleString(appLocale())} hours in total`,
       threshold,
       currentValue: metrics.totalHours,
       unit: "hours",
@@ -219,7 +220,7 @@ export function buildAchievementCatalog(
       id: `milestone:month:${metrics.monthKey}:${threshold}`,
       category: "month",
       kind: "milestone-month",
-      title: `${threshold.toLocaleString()} hours played in ${currentMonth}`,
+      title: `${threshold.toLocaleString(appLocale())} hours played in ${currentMonth}`,
       threshold,
       currentValue: metrics.monthHours,
       unit: "hours",
@@ -233,7 +234,7 @@ export function buildAchievementCatalog(
         id: `milestone:streak:${threshold}`,
         category: "streak",
         kind: "milestone-streak",
-        title: `${threshold.toLocaleString()}-day play streak`,
+        title: `${threshold.toLocaleString(appLocale())}-day play streak`,
         threshold,
         currentValue: metrics.streakDays,
         unit: "days",
@@ -250,7 +251,7 @@ export function buildAchievementCatalog(
       title:
         threshold === 1
           ? "Your first contribution was approved"
-          : `${threshold.toLocaleString()} contributions approved`,
+          : `${threshold.toLocaleString(appLocale())} contributions approved`,
       threshold,
       currentValue: metrics.verifiedCount,
       unit: "contributions",
@@ -266,7 +267,7 @@ export function buildAchievementCatalog(
       title:
         threshold === 1
           ? "Your first emulator match was approved"
-          : `${threshold.toLocaleString()} emulator matches approved`,
+          : `${threshold.toLocaleString(appLocale())} emulator matches approved`,
       threshold,
       currentValue: metrics.verifiedEmulatorCount,
       unit: "contributions",
@@ -283,7 +284,7 @@ export function buildAchievementCatalog(
           id,
           category: "game",
           kind: "milestone-game",
-          title: `${threshold.toLocaleString()} hours played in ${game.name}`,
+          title: `${threshold.toLocaleString(appLocale())} hours played in ${game.name}`,
           threshold,
           currentValue: game.hours,
           unit: "hours",
@@ -496,7 +497,7 @@ export function remainderLabel(item: AchievementCatalogItem) {
         : amount === 1
           ? "contribution"
           : "contributions";
-  return `${amount.toLocaleString()} more ${unit}`;
+  return `${amount.toLocaleString(appLocale())} more ${unit}`;
 }
 
 export function progressLabel(
@@ -504,17 +505,17 @@ export function progressLabel(
   threshold: number,
   unit: AchievementUnit,
 ) {
-  const current = Math.max(0, currentValue).toLocaleString(undefined, {
+  const current = Math.max(0, currentValue).toLocaleString(appLocale(), {
     maximumFractionDigits: 1,
   });
-  return `${current} / ${threshold.toLocaleString()} ${unit}`;
+  return `${current} / ${threshold.toLocaleString(appLocale())} ${unit}`;
 }
 
 export function monthLabel(scope: string) {
   const match = /^(\d{4})-(\d{2})$/.exec(scope);
   if (!match) return scope;
   return new Date(Number(match[1]), Number(match[2]) - 1, 1).toLocaleDateString(
-    [],
+    appLocale(),
     { month: "long", year: "numeric" },
   );
 }

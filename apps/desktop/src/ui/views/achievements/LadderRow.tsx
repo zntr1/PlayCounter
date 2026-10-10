@@ -6,6 +6,7 @@ import {
   remainderLabel,
   type AchievementCatalogItem,
 } from "./achievementCatalog";
+import { appLocale } from "../../../i18n";
 
 /* One achievement ladder: what it is on the left, its rungs on the right.
  * Game ladders lead with a cover, milestone ladders with an icon tile. */
@@ -90,7 +91,7 @@ function Rung({ rung }: { rung: AchievementCatalogItem }) {
 }
 
 export function thresholdLabel(rung: AchievementCatalogItem) {
-  const amount = rung.threshold.toLocaleString();
+  const amount = rung.threshold.toLocaleString(appLocale());
   if (rung.unit === "hours") return `${amount}h`;
   if (rung.unit === "days") return `${amount}d`;
   return amount;
@@ -106,7 +107,7 @@ function remainderShort(rung: AchievementCatalogItem) {
 }
 
 function formatAwardDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], {
+  return new Date(iso).toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
     year: "numeric",

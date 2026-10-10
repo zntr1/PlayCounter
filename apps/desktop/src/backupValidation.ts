@@ -302,6 +302,7 @@ const settings = object({}, {
   currentSessionHotkey: nullable(string),
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
+  language: string,
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),

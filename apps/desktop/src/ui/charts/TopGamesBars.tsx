@@ -4,6 +4,7 @@ import { usePickedCovers } from "../../pickedCovers";
 import { formatDuration } from "../components";
 import { GameCover as LibraryCover } from "../GameCover";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
+import { appLocale } from "../../i18n";
 
 const podiumStyles = [
   {
@@ -46,7 +47,7 @@ function formatLastPlayed(lastPlayedMs: number, nowMs: number) {
   const daysAgo = Math.round((today.getTime() - day.getTime()) / 86_400_000);
   if (daysAgo === 0) return "Today";
   if (daysAgo === 1) return "Yesterday";
-  return day.toLocaleDateString([], {
+  return day.toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
     ...(day.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}),

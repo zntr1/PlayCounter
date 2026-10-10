@@ -7,6 +7,7 @@ import {
   type AchievementCatalogItem,
   type AchievementUnit,
 } from "./achievementCatalog";
+import { appLocale } from "../../../i18n";
 
 const TIER_BORDER: Record<AchievementCatalogItem["tier"], string> = {
   bronze: "border-[#b5713f]/60",
@@ -74,7 +75,7 @@ export function AchievementCard({ item }: { item: AchievementCatalogItem }) {
       {item.milestone ? (
         <time
           dateTime={item.milestone.awardedAt}
-          title={new Date(item.milestone.awardedAt).toLocaleString()}
+          title={new Date(item.milestone.awardedAt).toLocaleString(appLocale())}
           className="mt-3 flex items-center gap-1.5 text-xs font-medium text-text-muted"
         >
           <Check aria-hidden="true" size={13} className="text-success" />
@@ -144,7 +145,7 @@ export function AchievementProgressBar({
 }
 
 function formatAwardDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], {
+  return new Date(iso).toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
     year: "numeric",

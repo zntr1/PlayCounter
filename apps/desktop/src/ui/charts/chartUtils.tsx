@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { appLocale } from "../../i18n";
 
 /* Four steps of the accent so heatmaps sit in the same palette as every
    other chart; alpha keeps the ramp readable in the light theme too. */
@@ -57,7 +58,7 @@ export function addDays(date: Date, days: number) {
 }
 
 export function formatAccessibleDate(date: Date) {
-  return date.toLocaleDateString([], {
+  return date.toLocaleDateString(appLocale(), {
     weekday: "long",
     year: "numeric",
     month: "long",

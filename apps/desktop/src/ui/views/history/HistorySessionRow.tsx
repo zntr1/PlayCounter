@@ -36,6 +36,7 @@ import {
   IconButton,
   useContextMenu,
 } from "../../primitives";
+import { appLocale } from "../../../i18n";
 
 const holdDurationMs = 750;
 const holdRadius = 20;
@@ -49,18 +50,18 @@ export type HistoryRowMetadata = {
 };
 
 function formatSessionDate(startedAt: string) {
-  return new Date(startedAt).toLocaleDateString();
+  return new Date(startedAt).toLocaleDateString(appLocale());
 }
 
 function formatTimeRange(startedAt: string, endedAt: string | null) {
   const start = new Date(startedAt);
-  const startTime = start.toLocaleTimeString([], {
+  const startTime = start.toLocaleTimeString(appLocale(), {
     hour: "2-digit",
     minute: "2-digit",
   });
   if (!endedAt) return startTime;
   const end = new Date(endedAt);
-  const endTime = end.toLocaleTimeString([], {
+  const endTime = end.toLocaleTimeString(appLocale(), {
     hour: "2-digit",
     minute: "2-digit",
   });

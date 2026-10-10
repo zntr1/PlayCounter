@@ -1,5 +1,6 @@
 import { AchievementMedal } from "../../AchievementBadge";
 import type { MonthHistory } from "./achievementCatalog";
+import { appLocale } from "../../../i18n";
 
 export function MonthHistoryRow({ month }: { month: MonthHistory }) {
   const accessibleLabel = `Highest monthly milestone reached in ${month.label}. Exact totals for past months are not stored.`;
@@ -12,7 +13,8 @@ export function MonthHistoryRow({ month }: { month: MonthHistory }) {
       <div className="min-w-0">
         <h3 className="font-semibold text-text">{month.label}</h3>
         <p className="mt-0.5 text-xs text-text-muted">
-          {month.highestThreshold.toLocaleString()}h milestone reached
+          {month.highestThreshold.toLocaleString(appLocale())}h milestone
+          reached
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">

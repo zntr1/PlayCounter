@@ -6,6 +6,7 @@ import { commitLibraryImports } from "../../library/commit";
 import { buildLibraryImportCommit } from "../../library/importPlan";
 import { useAppStore } from "../../store";
 import { LibraryTestShell } from "./libraryTestShell";
+import { appLocale } from "../../i18n";
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -306,7 +307,7 @@ it.each([
       (element) => element.textContent === "Last played",
     );
     expect(lastPlayed?.nextElementSibling?.textContent).toBe(
-      new Date(DATE).toLocaleDateString(),
+      new Date(DATE).toLocaleDateString(appLocale()),
     );
     expect(useAppStore.getState().recentSessions).toEqual([]);
   },

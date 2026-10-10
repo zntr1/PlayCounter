@@ -128,6 +128,7 @@ import {
   parseManifestNotes,
   toDisplayNotes,
 } from "../releaseNotes";
+import { appLocale } from "../i18n";
 
 const ImportLibraryView = lazy(() => import("./views/ImportLibraryView"));
 
@@ -1568,7 +1569,7 @@ function AppStatusIndicator({
 }) {
   const environment = stageBadge(BUILD_STAGE);
   const title = health.checkedAt
-    ? `${health.detail ?? health.status} - ${new Date(health.checkedAt).toLocaleTimeString()} - ${apiEndpoint}`
+    ? `${health.detail ?? health.status} - ${new Date(health.checkedAt).toLocaleTimeString(appLocale())} - ${apiEndpoint}`
     : `Checking backend health - ${apiEndpoint}`;
 
   if (compact) {
@@ -1677,7 +1678,12 @@ function formatInstallProgress(progress: InstallProgress | null) {
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  // Like toFixed(1), but with the language's decimal mark.
+  return `${(bytes / (1024 * 1024)).toLocaleString(appLocale(), {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    useGrouping: false,
+  })} MB`;
 }
 
 function formatError(error: unknown) {

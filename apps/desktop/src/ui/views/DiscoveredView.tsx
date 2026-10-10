@@ -98,6 +98,7 @@ import {
 import { isGenericExeName } from "../../library/exeCandidates";
 import { isSortedGenericCopy } from "../../library/genericExeLinks";
 import { notifyFolderIgnored } from "./folderIgnoredToast";
+import { appLocale } from "../../i18n";
 
 const GENERIC_SEARCH_TITLE =
   "Find the game in the database. Many games ship a file with this name, so it is linked to this folder and not shared.";
@@ -270,7 +271,7 @@ function unmatchedRetryAt(cacheEntry: ExeCacheEntry | null, retryDays: number) {
   const checkedAt = Date.parse(cacheEntry.lastCheckedAt);
   if (!Number.isFinite(checkedAt)) return null;
   return new Date(checkedAt + retryDays * 24 * 60 * 60 * 1000).toLocaleString(
-    [],
+    appLocale(),
     {
       dateStyle: "medium",
       timeStyle: "short",
@@ -885,7 +886,7 @@ export function DiscoveredView() {
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden text-xs text-text-faint md:inline">
             {lastProcessScanAt
-              ? `Last scan ${new Date(lastProcessScanAt).toLocaleTimeString()}`
+              ? `Last scan ${new Date(lastProcessScanAt).toLocaleTimeString(appLocale())}`
               : "No scan yet"}
           </span>
           <div ref={searchBoxRef} className="relative">

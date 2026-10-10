@@ -46,6 +46,7 @@ import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { STORAGE_KEY } from "../../persistence";
 import { Panel, ProviderBadge, formatDuration } from "../components";
 import { Button, Input, Modal, Select } from "../primitives";
+import { appLocale } from "../../i18n";
 
 type Phase = "detecting" | "ready" | "scanning" | "importing" | "done";
 export type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
@@ -1505,7 +1506,9 @@ export function ImportRow({
           {provider === "battlenet" && game.lastPlayedUnix ? (
             <span>
               Last played{" "}
-              {new Date(game.lastPlayedUnix * 1000).toLocaleDateString()}
+              {new Date(game.lastPlayedUnix * 1000).toLocaleDateString(
+                appLocale(),
+              )}
             </span>
           ) : null}
           {provider === "steam" ? (

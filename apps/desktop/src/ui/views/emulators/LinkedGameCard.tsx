@@ -28,6 +28,7 @@ import {
 import { GameProvenanceBadges, formatDuration } from "../../components";
 import { GameCover } from "../../GameCover";
 import { emulatorDetectionSourceLabel } from "./emulatorPickerModel";
+import { appLocale } from "../../../i18n";
 
 export const DEMO_ACTION_REASON =
   "Sample card - actions are switched off during the guide.";
@@ -299,8 +300,8 @@ function DateRow({ label, iso }: { label: string; iso: string }) {
     <div className="flex items-baseline justify-between gap-2">
       <dt className="text-text-faint">{label}</dt>
       <dd className="font-mono tabular-nums text-text-muted">
-        <time dateTime={iso} title={date.toLocaleString()}>
-          {date.toLocaleDateString()}
+        <time dateTime={iso} title={date.toLocaleString(appLocale())}>
+          {date.toLocaleDateString(appLocale())}
         </time>
       </dd>
     </div>
@@ -324,7 +325,7 @@ function communityStatus(
     return {
       label: "Shared · in review",
       tone: "text-community",
-      tip: `Sent ${new Date(share.submittedAt).toLocaleDateString()}. You'll get a notification once it's reviewed.`,
+      tip: `Sent ${new Date(share.submittedAt).toLocaleDateString(appLocale())}. You'll get a notification once it's reviewed.`,
     };
   }
   if (share?.status === "rejected") {

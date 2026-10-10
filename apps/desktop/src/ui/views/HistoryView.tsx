@@ -56,6 +56,7 @@ import {
   HistorySessionRow,
   type HistoryRowMetadata,
 } from "./history/HistorySessionRow";
+import { appLocale } from "../../i18n";
 
 type HistorySort = "newest" | "oldest" | "duration";
 type HistoryTab = "sessions" | "insights" | "games";
@@ -78,10 +79,13 @@ function fallbackGameName(exeName: string) {
 
 function formatStartTime(startedAt: string) {
   const date = new Date(startedAt);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return `${date.toLocaleDateString(appLocale())} ${date.toLocaleTimeString(
+    appLocale(),
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  )}`;
 }
 
 function formatSessionCount(count: number) {
@@ -703,7 +707,7 @@ export function HistoryView() {
                       selected ? "text-accent-ink/70" : "text-text-faint",
                     )}
                   >
-                    {count.toLocaleString()}
+                    {count.toLocaleString(appLocale())}
                   </span>
                 ) : null}
               </button>
@@ -793,10 +797,13 @@ export function HistoryView() {
                   <section key={month.monthKey} data-history-session-group>
                     <div className="flex items-baseline gap-3 px-1 pb-2 pt-4 text-[11px] font-bold uppercase tracking-[0.14em] text-text-faint">
                       <span>
-                        {new Date(month.monthMs).toLocaleDateString([], {
-                          month: "long",
-                          year: "numeric",
-                        })}
+                        {new Date(month.monthMs).toLocaleDateString(
+                          appLocale(),
+                          {
+                            month: "long",
+                            year: "numeric",
+                          },
+                        )}
                       </span>
                       <span className="h-px flex-1 bg-border" />
                       <span className="font-mono text-xs font-semibold normal-case tracking-normal text-text-muted">
@@ -930,7 +937,7 @@ function DayGroup({
       ? "Today"
       : daysAgo === 1
         ? "Yesterday"
-        : day.toLocaleDateString([], { weekday: "long" });
+        : day.toLocaleDateString(appLocale(), { weekday: "long" });
   return (
     <div className="grid gap-2 py-1.5 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-4">
       <div className="flex items-baseline gap-2 sm:sticky sm:top-4 sm:block sm:self-start sm:pl-1 sm:pt-2.5">
@@ -943,7 +950,10 @@ function DayGroup({
             daysAgo === 0 ? "text-accent-ink" : "text-text",
           )}
         >
-          {day.toLocaleDateString([], { day: "numeric", month: "short" })}
+          {day.toLocaleDateString(appLocale(), {
+            day: "numeric",
+            month: "short",
+          })}
         </div>
         <div className="font-mono text-xs text-text-muted sm:mt-1">
           <span className="font-semibold text-text">

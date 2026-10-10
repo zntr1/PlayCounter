@@ -15,6 +15,7 @@ import {
 import { pickedCover } from "./pickedCovers";
 import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
+import { appLocale } from "./i18n";
 
 type BridgeState = {
   generation: number;
@@ -125,6 +126,7 @@ function renderContext() {
   ).matchMedia;
   return {
     nowMs: Date.now(),
+    locale: appLocale(),
     theme: settings.theme,
     accentColor: settings.accentColor,
     reducedMotion:

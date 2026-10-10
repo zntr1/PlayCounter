@@ -11,6 +11,7 @@ import { HistoryView } from "../views/HistoryView";
 import { createLibraryTourStore } from "./libraryTourStore";
 import { tourSessionsForGame } from "./tourDemoGame";
 import type { GameSummary } from "../views/MyGamesView";
+import { appLocale } from "../../i18n";
 
 export function StatsPractice({
   milestones = false,
@@ -80,7 +81,11 @@ export function StatsPractice({
           <LadderRow
             leading={<Trophy className="text-accent-ink" />}
             title="Total playtime · sample milestone"
-            subtitle={`${metrics.totalHours.toFixed(1)} hours in this practice history`}
+            subtitle={`${metrics.totalHours.toLocaleString(appLocale(), {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+              useGrouping: false,
+            })} hours in this practice history`}
             rungs={catalog.get("total") ?? []}
           />
         ) : (

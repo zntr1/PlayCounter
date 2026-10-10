@@ -41,6 +41,7 @@ import {
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
+import { appLocale, applyLanguage, type LanguageSetting } from "./i18n";
 import type {
   EmulatorMapping,
   EmulatorObservation,
@@ -615,6 +616,7 @@ export type AppState = {
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setStartView: (view: "now" | "games") => void;
+  setLanguage: (language: LanguageSetting) => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesGridColumns: (columns: number) => void;
@@ -690,6 +692,7 @@ export const BUILD_STAGE: Stage =
 const defaultSettings: Settings = {
   launchOnStartup: true,
   startView: "now",
+  language: "system",
   showDurationDays: false,
   libraryCardSize: "grid",
   libraryGridColumns: null,
@@ -812,7 +815,7 @@ function persistSoon() {
         state.addToast({
           tone: "error",
           title: "History storage was full",
-          detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were archived so new data could be saved.`,
+          detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString(appLocale())}` : ""}, were archived so new data could be saved.`,
         });
       }
     } else if (result.status === "failed") {
@@ -1703,6 +1706,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     writePersistedRecord(createPersistedPayload({ ...get(), settings }));
     set({ settings });
     applyTheme(settings.theme, settings.accentColor);
+    applyLanguage(settings.language);
   },
   setLaunchOnStartup: (enabled) => {
     set((state) => ({
@@ -1714,6 +1718,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       settings: { ...state.settings, startView },
     }));
+    persistSoon();
+  },
+  setLanguage: (language) => {
+    set((state) => ({
+      settings: { ...state.settings, language },
+    }));
+    applyLanguage(language);
     persistSoon();
   },
   setShowDurationDays: (enabled) => {

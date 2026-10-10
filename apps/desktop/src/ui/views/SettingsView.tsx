@@ -15,6 +15,7 @@ import {
 import { getVersion } from "@tauri-apps/api/app";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
 import type { LibraryProviderId } from "@playcounter/shared";
 import {
@@ -28,7 +29,14 @@ import {
 import { emulatorAssetUrls } from "../../emulators/assets";
 import { adapterFor, emulatorLabelList } from "../../emulators/registry";
 import { exportLocalData, importLocalData } from "../../backup";
-import { useAppStore, useIsOffline } from "../../store";
+import { BUILD_STAGE, useAppStore, useIsOffline } from "../../store";
+import {
+  APP_LANGUAGES,
+  LANGUAGE_NAMES,
+  appLocale,
+  isAppLanguage,
+  systemLanguage,
+} from "../../i18n";
 import {
   checkForUpdate,
   installAvailableUpdate,
@@ -112,6 +120,8 @@ export function SettingsView() {
   const settings = useAppStore((state) => state.settings);
   const setLaunchOnStartup = useAppStore((state) => state.setLaunchOnStartup);
   const setStartView = useAppStore((state) => state.setStartView);
+  const setLanguage = useAppStore((state) => state.setLanguage);
+  const { t } = useTranslation("settings");
   const setShowDurationDays = useAppStore((state) => state.setShowDurationDays);
   const setShowInstallInSteam = useAppStore(
     (state) => state.setShowInstallInSteam,
@@ -450,6 +460,38 @@ export function SettingsView() {
             <option value="games">My Games</option>
           </Select>
         </SettingsRow>
+        {/* Dev and test builds only until the first translation ships. */}
+        {BUILD_STAGE !== "prod" ? (
+          <SettingsRow
+            description={t("language.description")}
+            title={t("language.title")}
+          >
+            <Select
+              aria-label={t("language.title")}
+              value={
+                isAppLanguage(settings.language) ? settings.language : "system"
+              }
+              onChange={(event) =>
+                setLanguage(
+                  isAppLanguage(event.target.value)
+                    ? event.target.value
+                    : "system",
+                )
+              }
+            >
+              <option value="system">
+                {t("language.system", {
+                  language: LANGUAGE_NAMES[systemLanguage()],
+                })}
+              </option>
+              {APP_LANGUAGES.map((language) => (
+                <option key={language} value={language}>
+                  {LANGUAGE_NAMES[language]}
+                </option>
+              ))}
+            </Select>
+          </SettingsRow>
+        ) : null}
       </SettingsPanel>
 
       <SettingsPanel
@@ -1764,7 +1806,12 @@ function formatBytesProgress(progress: InstallProgress) {
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  // Like toFixed(1), but with the language's decimal mark.
+  return `${(bytes / (1024 * 1024)).toLocaleString(appLocale(), {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    useGrouping: false,
+  })} MB`;
 }
 
 function formatError(error: unknown) {

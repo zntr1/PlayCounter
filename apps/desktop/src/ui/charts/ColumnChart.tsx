@@ -4,6 +4,7 @@ import type { HistoryBucket } from "../../historyStats";
 import { formatDuration } from "../components";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
 import { useElementWidth } from "./chartUtils";
+import { appLocale } from "../../i18n";
 
 const defaultChartHeight = 230;
 const margin = { top: 10, right: 12, bottom: 34, left: 58 };
@@ -24,7 +25,10 @@ function axis(seconds: number) {
     maxSeconds: maxValue * divisor,
     ticks: Array.from({ length: 5 }, (_, index) => ({
       seconds: (index * maxValue * divisor) / 4,
-      label: `${Number(((index * maxValue) / 4).toFixed(1))}${suffix}`,
+      label: `${((index * maxValue) / 4).toLocaleString(appLocale(), {
+        maximumFractionDigits: 1,
+        useGrouping: false,
+      })}${suffix}`,
     })),
   };
 }
@@ -203,9 +207,9 @@ export function ColumnChart({
                   Math.min(
                     margin.top + plotHeight - coverHeight,
                     margin.top +
-                    plotHeight -
-                    barHeight -
-                    (roomy ? 12 : coverHeight + 4),
+                      plotHeight -
+                      barHeight -
+                      (roomy ? 12 : coverHeight + 4),
                   ),
                 );
                 return (

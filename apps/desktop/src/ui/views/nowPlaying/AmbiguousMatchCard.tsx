@@ -37,6 +37,7 @@ import { notifyFolderIgnored } from "../folderIgnoredToast";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../../SoftwareDialog";
 import { ReportWrongMatchDialog } from "../../ReportWrongMatchDialog";
 import { exeProductName, useExeDetails } from "../../exeDetails";
+import { appLocale } from "../../../i18n";
 
 /* One executable PlayCounter would not match on its own ─────────────────────
    Header asks the question, body offers the database's candidates as cover
@@ -269,7 +270,9 @@ export function AmbiguousMatchCard({
               <div className="flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
                 <span>
                   First {games.length} of{" "}
-                  {(games.length + hiddenCandidateCount).toLocaleString()}
+                  {(games.length + hiddenCandidateCount).toLocaleString(
+                    appLocale(),
+                  )}
                 </span>
                 {!isOffline ? (
                   <button

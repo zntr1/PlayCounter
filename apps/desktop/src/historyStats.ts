@@ -2,6 +2,7 @@ import type { Session } from "@playcounter/shared";
 import type { GameLifetimeTotal } from "./milestones";
 import { effectiveTotalSeconds } from "./playtimeAdjustments";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
+import { appLocale } from "./i18n";
 
 export type HistoryFilter = "all" | "today" | "week" | "month" | "currentMonth";
 
@@ -187,11 +188,11 @@ export function historyRange(
 }
 
 function formatHour(ms: number) {
-  return new Date(ms).toLocaleTimeString([], { hour: "numeric" });
+  return new Date(ms).toLocaleTimeString(appLocale(), { hour: "numeric" });
 }
 
 function formatDate(ms: number) {
-  return new Date(ms).toLocaleDateString([], {
+  return new Date(ms).toLocaleDateString(appLocale(), {
     month: "short",
     day: "numeric",
   });
@@ -256,15 +257,19 @@ function descriptorsForBoundaries(
     }
     if (mode === "month") {
       return {
-        label: new Date(fromMs).toLocaleDateString([], { month: "long" }),
-        tooltip: new Date(fromMs).toLocaleDateString([], {
+        label: new Date(fromMs).toLocaleDateString(appLocale(), {
+          month: "long",
+        }),
+        tooltip: new Date(fromMs).toLocaleDateString(appLocale(), {
           month: "short",
           year: "numeric",
         }),
       };
     }
     return {
-      label: new Date(fromMs).toLocaleDateString([], { weekday: "short" }),
+      label: new Date(fromMs).toLocaleDateString(appLocale(), {
+        weekday: "short",
+      }),
       tooltip: formatDate(fromMs),
     };
   });

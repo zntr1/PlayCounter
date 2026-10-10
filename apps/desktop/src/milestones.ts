@@ -4,6 +4,7 @@ import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
 import type { AppNotification, NotificationKind } from "./notifications";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 import type { ProviderFloor } from "./library/playtimeFloor";
+import { appLocale } from "./i18n";
 
 export const TOTAL_HOURS = [10, 50, 100, 250, 500, 1_000, 2_500, 5_000];
 export const MONTH_HOURS = [10, 25, 50, 100, 200];
@@ -254,7 +255,7 @@ export function evaluateMilestones(
     metrics.monthHours,
     MONTH_HOURS,
     (hours) =>
-      `${hours} hours played in ${now.toLocaleDateString([], {
+      `${hours} hours played in ${now.toLocaleDateString(appLocale(), {
         month: "long",
         year: "numeric",
       })}`,
@@ -278,7 +279,8 @@ export function evaluateMilestones(
     "milestone:total",
     metrics.totalHours,
     TOTAL_HOURS,
-    (hours) => `You've played ${hours.toLocaleString()} hours in total`,
+    (hours) =>
+      `You've played ${hours.toLocaleString(appLocale())} hours in total`,
     createdAt,
   );
   for (const [key, game] of metrics.games) {
@@ -577,7 +579,7 @@ function genericMilestoneTitle(parsed: {
   scope: string;
   threshold: number;
 }) {
-  const threshold = parsed.threshold.toLocaleString();
+  const threshold = parsed.threshold.toLocaleString(appLocale());
   switch (parsed.category) {
     case "total":
       return `You've played ${threshold} hours in total`;
@@ -604,7 +606,7 @@ function monthLabel(scope: string) {
   const year = Number(match[1]);
   const month = Number(match[2]);
   if (month < 1 || month > 12) return scope;
-  return new Date(year, month - 1, 1).toLocaleDateString([], {
+  return new Date(year, month - 1, 1).toLocaleDateString(appLocale(), {
     month: "long",
     year: "numeric",
   });

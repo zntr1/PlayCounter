@@ -320,6 +320,7 @@ import { type MyGamesCardSize } from "../myGamesPresentation";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
+import { appLocale } from "../../i18n";
 
 type SortKey = MyGamesSortKey;
 type ViewMode = MyGamesCardSize;
@@ -540,10 +541,13 @@ function sourceRank(source: GameSource | null | undefined) {
 
 function formatLastPlayed(value: string) {
   const date = new Date(value);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return `${date.toLocaleDateString(appLocale())} ${date.toLocaleTimeString(
+    appLocale(),
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  )}`;
 }
 
 function formatGameActivity(game: GameSummary) {
@@ -7256,8 +7260,8 @@ function MatchCheckDialog({
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-text-muted">
           <span>
             Showing the first {candidates.length} of{" "}
-            {(candidates.length + hiddenCount).toLocaleString()} games that use
-            this file name.
+            {(candidates.length + hiddenCount).toLocaleString(appLocale())}{" "}
+            games that use this file name.
           </span>
           {onSearchCommunity && !isOffline ? (
             <button

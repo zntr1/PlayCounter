@@ -12,6 +12,7 @@ import {
   localDateKey,
   useElementWidth,
 } from "./chartUtils";
+import { appLocale } from "../../i18n";
 
 const maxWeekCount = 53;
 const cellGap = 3;
@@ -106,7 +107,7 @@ export function CalendarHeatmap({
       const date = addDays(firstDay, column * 7);
       if (date.getMonth() !== previous) {
         result.push({
-          label: date.toLocaleDateString([], { month: "short" }),
+          label: date.toLocaleDateString(appLocale(), { month: "short" }),
           column,
         });
         previous = date.getMonth();
