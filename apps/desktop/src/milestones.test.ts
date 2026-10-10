@@ -552,3 +552,35 @@ describe("milestones", () => {
     expect(previouslyBackfilled.backfilled).toBeUndefined();
   });
 });
+
+describe("game award names", () => {
+  it("saves the game's name with a game award and keeps it", () => {
+    const input = {
+      sessions: [session(30)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-09T12:00:00.000Z"),
+    };
+    const id = "milestone:game:community:42:25";
+    const first = evaluateMilestones({ ...input, awardedMilestones: [] });
+    expect(
+      first.awardedMilestones.find((item) => item.id === id)?.gameName,
+    ).toBe("Test Game");
+    const notification = first.notifications.find((item) => item.id === id);
+    expect(notification?.params).toEqual({ game: "Test Game" });
+    expect(notification?.title).toBe("25 hours played in Test Game");
+
+    // Saved, loaded and evaluated again: the name stays.
+    const loaded = migrateAwardedMilestones({
+      awardedMilestones: JSON.parse(JSON.stringify(first.awardedMilestones)),
+      now: input.now,
+    });
+    const again = evaluateMilestones({ ...input, awardedMilestones: loaded });
+    expect(
+      again.awardedMilestones.find((item) => item.id === id)?.gameName,
+    ).toBe("Test Game");
+  });
+});

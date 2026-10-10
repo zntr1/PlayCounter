@@ -21,6 +21,51 @@ import {
   summarizeAchievements,
 } from "./achievementCatalog";
 
+describe("award texts", () => {
+  it("finds the game of an old award that saved no name", () => {
+    const old: AwardedMilestone = {
+      id: "milestone:game:community:7:100",
+      kind: "milestone-game",
+      title: "100 hours played in Celeste",
+      awardedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const [ladder] = buildGameLadders(
+      buildAchievementCatalog([old], metrics()),
+    );
+    expect(ladder.name).toBe("Celeste");
+    expect(ladder.rungs.find((rung) => rung.threshold === 100)?.title).toBe(
+      "100 hours played in Celeste",
+    );
+  });
+
+  it("prefers the saved name over the title", () => {
+    const award: AwardedMilestone = {
+      id: "milestone:game:community:7:100",
+      kind: "milestone-game",
+      title: "100 Stunden in Celeste gespielt",
+      gameName: "Celeste",
+      awardedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const [ladder] = buildGameLadders(
+      buildAchievementCatalog([award], metrics()),
+    );
+    expect(ladder.name).toBe("Celeste");
+  });
+
+  it("makes a past month's text from its id, with the year", () => {
+    const award: AwardedMilestone = {
+      id: "milestone:month:2026-03:25",
+      kind: "milestone-month",
+      title: "25 hours played in March",
+      awardedAt: "2026-03-20T00:00:00.000Z",
+    };
+    const item = buildAchievementCatalog([award], metrics())
+      .get("month")
+      ?.find((entry) => entry.id === award.id);
+    expect(item?.title).toBe(`25 hours played in ${monthLabel("2026-03")}`);
+  });
+});
+
 describe("achievement catalog", () => {
   it("places community contributions first", () => {
     expect(GROUP_META[0].id).toBe("verified");
