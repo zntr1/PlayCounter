@@ -1,4 +1,7 @@
 import { ControllerButtonGlyph } from "../../ControllerButtonGlyph";
+import { getT } from "../../../i18n";
+
+const t = getT("games");
 
 // Shown on the selected card's play button in place of the play icon. The
 // styles pick the A glyph while a controller drives the app and the Enter key
@@ -13,7 +16,7 @@ export function LaunchKeyHint({ compact = false }: { compact?: boolean }) {
         aria-hidden="true"
         className="launch-key-hint launch-key-hint--keyboard select-none items-center rounded border border-current px-1.5 font-sans text-[11px] font-semibold leading-5"
       >
-        {compact ? "↵" : "Enter"}
+        {compact ? "↵" : t("Enter")}
       </kbd>
     </>
   );

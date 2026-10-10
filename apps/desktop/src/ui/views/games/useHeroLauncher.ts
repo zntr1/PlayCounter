@@ -25,6 +25,9 @@ import {
   scanProcessesNow,
 } from "../../../tracker";
 import type { GameSummary } from "../MyGamesView";
+import { getT } from "../../../i18n";
+
+const t = getT("games");
 
 /* The library banner's Play button. It follows the same priority as a game
    card's Play (manual launch file, Xbox, saved .exe, single emulator mapping,
@@ -159,12 +162,12 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
           : "direct";
   const launchLabel =
     launchVia === "xbox"
-      ? "Play on Xbox"
+      ? t("Play on Xbox")
       : launchVia === "steam"
-        ? "Play in Steam"
+        ? t("Play in Steam")
         : launchVia === "epic"
-          ? "Play in Epic Games"
-          : "Play";
+          ? t("Play in Epic Games")
+          : t("Play");
 
   // Same feedback windows as the card: a launch that never shows up as a
   // session releases the lock after 8s, one that did lets the overlay linger.
@@ -177,8 +180,11 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
         if (!hasActiveSession) {
           addToast({
             tone: "info",
-            title: "Launch request sent",
-            detail: `${game.name} has not appeared in PlayCounter yet. It may still be starting or waiting on its own launcher.`,
+            title: t("Launch request sent"),
+            detail: t(
+              "{{name}} has not appeared in PlayCounter yet. It may still be starting or waiting on its own launcher.",
+              { name: game.name },
+            ),
           });
         }
       },
@@ -202,16 +208,16 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     if (hasActiveSession) {
       addToast({
         tone: "info",
-        title: `${game.name} is already running`,
-        detail: "PlayCounter is already tracking this game.",
+        title: t("{{name}} is already running", { name: game.name }),
+        detail: t("PlayCounter is already tracking this game."),
       });
       return;
     }
     if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
       addToast({
         tone: "info",
-        title: "A game is already starting",
-        detail: "Wait for PlayCounter to finish the current launch first.",
+        title: t("A game is already starting"),
+        detail: t("Wait for PlayCounter to finish the current launch first."),
       });
       return;
     }
@@ -223,8 +229,8 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
         if (outcome === "busy") {
           addToast({
             tone: "info",
-            title: `${game.name} is starting`,
-            detail: "PlayCounter already sent the launch request.",
+            title: t("{{name}} is starting", { name: game.name }),
+            detail: t("PlayCounter already sent the launch request."),
           });
           return;
         }
@@ -259,16 +265,21 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
           if (outcome.kind === "busy") {
             addToast({
               tone: "info",
-              title: `${game.name} is starting`,
-              detail: "PlayCounter already sent the launch request.",
+              title: t("{{name}} is starting", { name: game.name }),
+              detail: t("PlayCounter already sent the launch request."),
             });
             return;
           }
           if (outcome.kind === "hostRunning") {
             addToast({
               tone: "info",
-              title: `${emulatorMapping.label} is still busy`,
-              detail: `Stop the current emulated game first. PlayCounter only replaces ${emulatorMapping.label} automatically when it is safely idle.`,
+              title: t("{{label}} is still busy", {
+                label: emulatorMapping.label,
+              }),
+              detail: t(
+                "Stop the current emulated game first. PlayCounter only replaces {{label}} automatically when it is safely idle.",
+                { label: emulatorMapping.label },
+              ),
             });
             return;
           }
@@ -307,7 +318,7 @@ export function useHeroLauncher(game: GameSummary, lock: LaunchLock) {
     } catch (error) {
       addToast({
         tone: "error",
-        title: `Could not open ${game.name} in Steam`,
+        title: t("Could not open {{name}} in Steam", { name: game.name }),
         detail: launchErrorDetail(error),
       });
     }

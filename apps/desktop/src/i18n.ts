@@ -1,6 +1,7 @@
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import enCommon from "./locales/en/common.json";
+import enGames from "./locales/en/games.json";
 import enMyGames from "./locales/en/myGames.json";
 import enNowPlaying from "./locales/en/nowPlaying.json";
 import enSettings from "./locales/en/settings.json";
@@ -28,6 +29,7 @@ export const LANGUAGE_NAMES: Record<AppLanguage, string> = {
 const resources = {
   en: {
     common: enCommon,
+    games: enGames,
     myGames: enMyGames,
     nowPlaying: enNowPlaying,
     settings: enSettings,
