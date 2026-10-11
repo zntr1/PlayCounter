@@ -6,6 +6,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 vi.mock("../tracker", () => ({
   acceptCommunityUpgrade: vi.fn(),
   convertLocalSuggestionToCommunity: vi.fn(),
+  linkKnownGameFiles: vi.fn(),
+  persist: vi.fn(),
+}));
+vi.mock("../library/knownGameFiles", () => ({
+  checkPlayCounterGameForMatches: vi.fn(),
 }));
 vi.mock("../library/recheck", () => ({
   checkLibraryImportForMatches: vi.fn(),
@@ -13,12 +18,15 @@ vi.mock("../library/recheck", () => ({
 vi.mock("../library/commit", () => ({ commitLibraryImports: vi.fn() }));
 
 import { commitLibraryImports } from "../library/commit";
+import { checkPlayCounterGameForMatches } from "../library/knownGameFiles";
 import { checkLibraryImportForMatches } from "../library/recheck";
 import type { LibraryImportCommit, LibraryImportEntry } from "../library/types";
 import { useAppStore } from "../store";
 import {
   acceptCommunityUpgrade,
   convertLocalSuggestionToCommunity,
+  linkKnownGameFiles,
+  persist,
 } from "../tracker";
 import { LevelUpAllDialog } from "./LevelUpAllDialog";
 import type { LevelUpOffer } from "./levelUpOffers";
@@ -91,11 +99,11 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function render() {
+async function render(offers: LevelUpOffer[] = OFFERS) {
   await act(() =>
     root.render(
       createElement(LevelUpAllDialog, {
-        offers: OFFERS,
+        offers,
         onCancel: vi.fn(),
         onDone,
       }),
@@ -155,4 +163,49 @@ it("leaves launcher games out while offline", async () => {
   expect(acceptCommunityUpgrade).toHaveBeenCalledWith("Other.exe");
   expect(checkLibraryImportForMatches).not.toHaveBeenCalled();
   expect(onDone).toHaveBeenCalledWith({ applied: 2, missed: [] });
+});
+
+it("links the server's files for a PlayCounter game after a fresh lookup", async () => {
+  const game = {
+    id: 7,
+    igdbId: 70,
+    name: "Avalon",
+    coverUrl: "",
+    source: "igdb" as const,
+  };
+  const files = [
+    { exeName: "Fall of Avalon.exe", identifierSource: "community" as const },
+  ];
+  vi.mocked(checkPlayCounterGameForMatches).mockResolvedValue({
+    kind: "found",
+    game,
+    files,
+    executableMatches: [],
+  });
+  await render([
+    {
+      kind: "playcounter",
+      key: "playcounter:70",
+      gameName: "Avalon",
+      entry: {
+        gameId: 7,
+        igdbId: 70,
+        source: "igdb",
+        name: "Avalon",
+        coverUrl: "",
+        addedAt: NOW,
+      },
+      exeNames: ["Fall of Avalon.exe"],
+    },
+  ]);
+  expect(document.body.textContent).toContain(
+    "PlayCounter · start tracking Fall of Avalon.exe",
+  );
+
+  await act(async () => button("Level up 1 game")!.click());
+
+  expect(checkPlayCounterGameForMatches).toHaveBeenCalledTimes(1);
+  expect(linkKnownGameFiles).toHaveBeenCalledWith(files, game);
+  expect(persist).toHaveBeenCalledTimes(1);
+  expect(onDone).toHaveBeenCalledWith({ applied: 1, missed: [] });
 });

@@ -118,6 +118,7 @@
   "Checking IGDB and community databases…": "IGDB- und Community-Datenbank werden geprüft…",
   "Local confirmation required": "Lokale Bestätigung nötig",
   "The database knows {{join}}, but the filename can't be linked globally. Install the game and run a {{providerLabel}} scan so PlayCounter can safely scope it to that folder.": "Die Datenbank kennt {{join}}, aber der Dateiname kann nicht allgemein verknüpft werden. Installiere das Spiel und starte eine {{providerLabel}}-Suche, damit PlayCounter ihn sicher auf diesen Ordner beschränken kann.",
+  "The database knows {{join}}, but that name can't be linked on its own. Use Set launch file to pick the file on this PC.": "Die Datenbank kennt {{join}}, aber dieser Name lässt sich nicht allein verknüpfen. Wähle die Datei auf diesem PC mit „Startdatei festlegen“ aus.",
   "This PlayCounter backend does not support {{providerLabel}} executable checks yet.": "Dieses PlayCounter-Backend unterstützt noch keine Prüfung von {{providerLabel}}-Programmdateien.",
   "No match found yet": "Noch kein Treffer gefunden",
   "There is still no approved executable for this {{providerLabel}} game. You can check again after a Community suggestion has been approved.": "Für dieses {{providerLabel}}-Spiel gibt es noch keine freigegebene Programmdatei. Du kannst erneut prüfen, nachdem ein Community-Vorschlag freigegeben wurde.",

@@ -15,6 +15,7 @@ import {
 import { libraryEntryKey, type LibraryImportEntry } from "./types";
 import { providerFloors } from "./playtimeFloor";
 import { dismissLauncherGames } from "./libraryAutoAddState";
+import { linkServerKnownFiles } from "../tracker";
 import { getT } from "../i18n";
 
 const t = getT("import");
@@ -92,6 +93,15 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
   });
   // A game moved away from its launcher must not come back as a new game.
   dismissLauncherGames(moves.flatMap(([, { imports }]) => imports));
+  // Its files count for it, like a game added by hand. The launcher's offer
+  // to track them left with the launcher entry.
+  for (const [, { imports }] of moves) {
+    void linkServerKnownFiles({
+      id: imports[0].gameId,
+      igdbId: imports[0].igdbId,
+      source: imports[0].source,
+    });
+  }
   return moves.length;
 }
 

@@ -1,9 +1,11 @@
 import type { GameSource } from "@playcounter/shared";
+import type { PlayCounterMatchOffer } from "../library/matchOffers";
 import type { LibraryExecutableMatch } from "../library/recheck";
 import {
   libraryEntryKey,
   type LibraryImportEntry,
   type LibraryInstallEntry,
+  type PlayCounterLibraryEntry,
 } from "../library/types";
 import {
   canSwitchApprovedSuggestionToCommunity,
@@ -12,8 +14,8 @@ import {
 
 /**
  * Every "Level up" the library offers at once: a custom file whose suggestion
- * was approved, a custom file the database now knows, and a launcher game no
- * file tracks yet that has files to track.
+ * was approved, a custom file the database now knows, and a launcher or
+ * PlayCounter game no file tracks yet that has files to track.
  */
 export type LevelUpOffer =
   | { kind: "approved"; key: string; gameName: string; exeName: string }
@@ -32,10 +34,18 @@ export type LevelUpOffer =
       entry: LibraryImportEntry;
       install?: LibraryInstallEntry;
       exeNames: string[];
+    }
+  | {
+      kind: "playcounter";
+      key: string;
+      gameName: string;
+      entry: PlayCounterLibraryEntry;
+      exeNames: string[];
     };
 
 type LevelUpGame = {
   name: string;
+  igdbId?: number;
   exeNames: readonly string[];
   emulatorContentKeys: readonly string[];
   libraryImports: ReadonlyArray<{
@@ -55,6 +65,10 @@ export function collectLevelUpOffers(
   games: readonly LevelUpGame[],
   exeCache: ReadonlyMap<string, ExeCacheEntry>,
   libraryMatchOffers: ReadonlyMap<string, LibraryMatchOffer>,
+  playcounterMatchOffers: ReadonlyMap<
+    number,
+    PlayCounterMatchOffer
+  > = new Map(),
 ): LevelUpOffer[] {
   const offers: LevelUpOffer[] = [];
   const seenFiles = new Set<string>();
@@ -89,6 +103,7 @@ export function collectLevelUpOffers(
     if (game.exeNames.length > 0 || game.emulatorContentKeys.length > 0) {
       continue;
     }
+    let offered = false;
     for (const item of game.libraryImports) {
       const importKey = libraryEntryKey(item.provider, item.externalId);
       const offer = libraryMatchOffers.get(importKey);
@@ -101,7 +116,21 @@ export function collectLevelUpOffers(
         install: item.install,
         exeNames: offer.executableMatches.map((match) => match.name),
       });
+      offered = true;
       break;
+    }
+    const playcounterOffer =
+      !offered && game.igdbId !== undefined
+        ? playcounterMatchOffers.get(game.igdbId)
+        : undefined;
+    if (playcounterOffer) {
+      offers.push({
+        kind: "playcounter",
+        key: `playcounter:${playcounterOffer.entry.igdbId}`,
+        gameName: game.name,
+        entry: playcounterOffer.entry,
+        exeNames: playcounterOffer.executableMatches.map((match) => match.name),
+      });
     }
   }
   return offers;

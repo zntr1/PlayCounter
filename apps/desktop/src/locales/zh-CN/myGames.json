@@ -118,6 +118,7 @@
   "Checking IGDB and community databases…": "正在检查 IGDB 和社区数据库…",
   "Local confirmation required": "需要在本机确认",
   "The database knows {{join}}, but the filename can't be linked globally. Install the game and run a {{providerLabel}} scan so PlayCounter can safely scope it to that folder.": "数据库知道 {{join}}，但这个文件名无法全局关联。请安装游戏并运行 {{providerLabel}} 扫描，让 PlayCounter 能安全地将它限定在该文件夹中。",
+  "The database knows {{join}}, but that name can't be linked on its own. Use Set launch file to pick the file on this PC.": "数据库知道 {{join}}，但这个名称无法单独关联。请使用“设置启动文件”在本机上选择该文件。",
   "This PlayCounter backend does not support {{providerLabel}} executable checks yet.": "此 PlayCounter 服务器尚不支持 {{providerLabel}} 可执行文件检查。",
   "No match found yet": "尚未找到匹配",
   "There is still no approved executable for this {{providerLabel}} game. You can check again after a Community suggestion has been approved.": "这个 {{providerLabel}} 游戏仍然没有已批准的可执行文件。社区建议获批后，你可以再检查一次。",

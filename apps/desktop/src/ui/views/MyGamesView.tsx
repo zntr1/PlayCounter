@@ -97,7 +97,9 @@ import {
   scanProcessesNow,
   chooseLaunchTarget,
   chooseEmulatorLaunchFile,
+  linkKnownGameFiles,
   linkServerKnownFiles,
+  persist,
   setGamePlaytime,
   setCustomGameCover,
   setPickedCoverFile,
@@ -148,12 +150,13 @@ import { LevelUpAllDialog } from "../LevelUpAllDialog";
 import { collectLevelUpOffers } from "../levelUpOffers";
 import {
   dismissLibraryMatchOffer,
+  dismissPlayCounterMatchOffer,
   useLibraryMatchOffers,
 } from "../../library/matchOffers";
+import { checkPlayCounterGameForMatches } from "../../library/knownGameFiles";
 import {
   checkLibraryImportForMatches,
   type LibraryExecutableMatch,
-  type LibraryImportMatchCheck,
 } from "../../library/recheck";
 import { forgetUninstalledLibraryInstalls } from "../../library/installRecheck";
 import { hideToTrayWhenGameStarts } from "../../hideToTrayOnLaunch";
@@ -165,6 +168,7 @@ import {
   libraryEntryKey,
   type LibraryImportEntry,
   type LibraryInstallEntry,
+  type PlayCounterLibraryEntry,
 } from "../../library/types";
 import { listLocalLinks, type LocalLink } from "../../localLinks";
 import {
@@ -1756,10 +1760,19 @@ export function MyGamesView({
     allShelfCounts,
   ]);
   const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
+  const playcounterMatchOffers = useLibraryMatchOffers(
+    (state) => state.playcounterOffers,
+  );
   // Every Level up and Match found in the library, whatever tab is open.
   const levelUpOffers = useMemo(
-    () => collectLevelUpOffers(games, exeCache, libraryMatchOffers),
-    [games, exeCache, libraryMatchOffers],
+    () =>
+      collectLevelUpOffers(
+        games,
+        exeCache,
+        libraryMatchOffers,
+        playcounterMatchOffers,
+      ),
+    [games, exeCache, libraryMatchOffers, playcounterMatchOffers],
   );
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -3100,6 +3113,20 @@ export function GameLibraryCard({
   const [settingLaunchFile, setSettingLaunchFile] = useState(false);
   const [confirmShareOpen, setConfirmShareOpen] = useState(false);
   const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
+  const playcounterMatchOffers = useLibraryMatchOffers(
+    (state) => state.playcounterOffers,
+  );
+  const playcounterLibrary = useAppStore((state) => state.playcounterLibrary);
+  // Added by hand or moved away from its launcher.
+  const playcounterEntry = useMemo(
+    () =>
+      game.igdbId === undefined
+        ? undefined
+        : [...playcounterLibrary.values()].find(
+            (entry) => entry.igdbId === game.igdbId,
+          ),
+    [game.igdbId, playcounterLibrary],
+  );
   const [showDetails, setShowDetails] = useState(false);
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -3576,28 +3603,43 @@ export function GameLibraryCard({
           libraryEntryKey(offeredImport.provider, offeredImport.externalId),
         )
       : undefined;
-  const libraryMatchPrompt = libraryMatchOffer ? (
+  // A PlayCounter game without a file checks like a launcher game.
+  const playcounterMatchEntry =
+    trackingUnavailable && !matchCheckImportEntry
+      ? playcounterEntry
+      : undefined;
+  const playcounterMatchOffer =
+    !demo && playcounterMatchEntry
+      ? playcounterMatchOffers.get(playcounterMatchEntry.igdbId)
+      : undefined;
+  const matchOffer = libraryMatchOffer ?? playcounterMatchOffer;
+  const libraryMatchPrompt = matchOffer ? (
     <LibraryMatchOffer
       gameName={game.name}
-      executableMatches={libraryMatchOffer.executableMatches}
+      executableMatches={matchOffer.executableMatches}
       onCover={!isList}
       onReview={() => setShowMatchCheck(true)}
       onDismiss={() =>
-        dismissLibraryMatchOffer(
-          libraryEntryKey(
-            libraryMatchOffer.entry.provider,
-            libraryMatchOffer.entry.externalId,
-          ),
-        )
+        libraryMatchOffer
+          ? dismissLibraryMatchOffer(
+              libraryEntryKey(
+                libraryMatchOffer.entry.provider,
+                libraryMatchOffer.entry.externalId,
+              ),
+            )
+          : dismissPlayCounterMatchOffer(matchOffer.entry.igdbId)
       }
     />
   ) : null;
+  const checksLibraryGame = Boolean(
+    trackingUnavailable && (matchCheckImportEntry || playcounterMatchEntry),
+  );
   const canCheckMatches = Boolean(
     (game.source && (demo ? game.exeNames[0] : checkableFiles.length > 0)) ||
-    (trackingUnavailable && matchCheckImportEntry),
+    checksLibraryGame,
   );
   const trackingWarningVisible =
-    showTrackingWarning && trackingUnavailable && !libraryMatchOffer;
+    showTrackingWarning && trackingUnavailable && !matchOffer;
   const trackingWarningMessage = trackingUnavailableMessage(
     importedProviders,
     canCheckMatches,
@@ -3654,7 +3696,7 @@ export function GameLibraryCard({
   }
 
   function openMatchCheck() {
-    if (!(trackingUnavailable && matchCheckImportEntry)) {
+    if (!checksLibraryGame) {
       if (checkableFiles.length > 1) {
         setFilePick("check");
         return;
@@ -6094,13 +6136,14 @@ export function GameLibraryCard({
           />
         ) : null}
         {showMatchCheck ? (
-          trackingUnavailable && matchCheckImportEntry ? (
+          checksLibraryGame ? (
             <LibraryImportMatchCheckDialog
               apiEndpoint={apiEndpoint}
-              entry={matchCheckImportEntry.entry}
-              install={matchCheckImportEntry.install}
+              entry={matchCheckImportEntry?.entry}
+              install={matchCheckImportEntry?.install}
+              playcounterGame={playcounterMatchEntry}
               ignoredProcesses={ignoredProcesses}
-              offeredExecutableMatches={libraryMatchOffer?.executableMatches}
+              offeredExecutableMatches={matchOffer?.executableMatches}
               onCancel={() => setShowMatchCheck(false)}
               onApplied={(executableNames) => {
                 setShowMatchCheck(false);
@@ -6643,13 +6686,14 @@ export function GameLibraryCard({
         />
       ) : null}
       {showMatchCheck ? (
-        trackingUnavailable && matchCheckImportEntry ? (
+        checksLibraryGame ? (
           <LibraryImportMatchCheckDialog
             apiEndpoint={apiEndpoint}
-            entry={matchCheckImportEntry.entry}
-            install={matchCheckImportEntry.install}
+            entry={matchCheckImportEntry?.entry}
+            install={matchCheckImportEntry?.install}
+            playcounterGame={playcounterMatchEntry}
             ignoredProcesses={ignoredProcesses}
-            offeredExecutableMatches={libraryMatchOffer?.executableMatches}
+            offeredExecutableMatches={matchOffer?.executableMatches}
             onCancel={() => setShowMatchCheck(false)}
             onApplied={(executableNames) => {
               setShowMatchCheck(false);
@@ -7316,28 +7360,87 @@ function AdjustPlaytimeDialog({
   );
 }
 
+type GameMatchCheck =
+  | {
+      kind: "found";
+      executableNames: string[];
+      executableMatches: LibraryExecutableMatch[];
+      apply: () => void;
+    }
+  | { kind: "needs_install" | "needs_file"; executableNames: string[] }
+  | { kind: "unsupported" | "not_found" };
+
+/** A launcher game's check, or a PlayCounter game's when there is no
+ *  launcher entry. */
+async function checkGameForMatches(input: {
+  apiEndpoint: string;
+  entry?: LibraryImportEntry;
+  install?: LibraryInstallEntry;
+  playcounterGame?: PlayCounterLibraryEntry;
+  ignoredProcesses: ReadonlySet<string>;
+  signal: AbortSignal;
+}): Promise<GameMatchCheck> {
+  if (input.entry) {
+    const result = await checkLibraryImportForMatches({
+      apiEndpoint: input.apiEndpoint,
+      entry: input.entry,
+      install: input.install,
+      ignoredProcesses: input.ignoredProcesses,
+      signal: input.signal,
+    });
+    if (result.kind !== "found") return result;
+    return {
+      kind: "found",
+      executableNames: result.executableNames,
+      executableMatches: result.executableMatches,
+      apply: () => void commitLibraryImports([result.commit]),
+    };
+  }
+  if (!input.playcounterGame) return { kind: "not_found" };
+  const result = await checkPlayCounterGameForMatches({
+    apiEndpoint: input.apiEndpoint,
+    game: input.playcounterGame,
+    signal: input.signal,
+  });
+  if (result.kind !== "found") return result;
+  return {
+    kind: "found",
+    executableNames: result.files.map((file) => file.exeName),
+    executableMatches: result.executableMatches,
+    apply: () => {
+      linkKnownGameFiles(result.files, result.game);
+      persist();
+    },
+  };
+}
+
 function LibraryImportMatchCheckDialog({
   apiEndpoint,
   entry,
   install,
+  playcounterGame,
   ignoredProcesses,
   offeredExecutableMatches,
   onCancel,
   onApplied,
 }: {
   apiEndpoint: string;
-  entry: LibraryImportEntry;
+  entry?: LibraryImportEntry;
   install?: LibraryInstallEntry;
+  /** Checked when there is no launcher `entry`. */
+  playcounterGame?: PlayCounterLibraryEntry;
   ignoredProcesses: ReadonlySet<string>;
   offeredExecutableMatches?: readonly LibraryExecutableMatch[];
   onCancel: () => void;
   onApplied: (executableNames: string[]) => void;
 }) {
-  const providerLabel =
-    providerTabConfig(entry.provider)?.label ?? entry.provider;
+  const providerLabel = entry
+    ? (providerTabConfig(entry.provider)?.label ?? entry.provider)
+    : "PlayCounter";
+  const gameName = entry?.name ?? playcounterGame?.name ?? "";
   const isOffline = useIsOffline();
   const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<LibraryImportMatchCheck | null>(null);
+  const [result, setResult] = useState<GameMatchCheck | null>(null);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
   const checking = !result && !error && !isOffline;
@@ -7356,10 +7459,11 @@ function LibraryImportMatchCheckDialog({
     const controller = new AbortController();
     setResult(null);
     setError("");
-    void checkLibraryImportForMatches({
+    void checkGameForMatches({
       apiEndpoint,
       entry,
       install,
+      playcounterGame,
       ignoredProcesses,
       signal: controller.signal,
     })
@@ -7373,14 +7477,22 @@ function LibraryImportMatchCheckDialog({
       cancelled = true;
       controller.abort();
     };
-  }, [apiEndpoint, attempt, entry, ignoredProcesses, install, isOffline]);
+  }, [
+    apiEndpoint,
+    attempt,
+    entry,
+    ignoredProcesses,
+    install,
+    isOffline,
+    playcounterGame,
+  ]);
 
   function applyMatch() {
     if (isOffline || applying || result?.kind !== "found") return;
     setApplying(true);
     setError("");
     try {
-      commitLibraryImports([result.commit]);
+      result.apply();
       onApplied(result.executableNames);
     } catch (cause) {
       setError(formatError(cause));
@@ -7422,27 +7534,29 @@ function LibraryImportMatchCheckDialog({
       size="md"
       labelId="library-match-check-title"
       eyebrow={t("{{providerLabel}} executable", { providerLabel })}
-      title={t("Check matches for {{name}}", { name: entry.name })}
+      title={t("Check matches for {{name}}", { name: gameName })}
       subtitle={
-        entry.provider === "battlenet"
-          ? t("{{provider}} product {{id}}", {
-              provider: providerLabel,
-              id: entry.externalId,
-            })
-          : entry.provider === "steam"
-            ? t("{{provider}} AppID {{id}}", {
+        !entry
+          ? undefined
+          : entry.provider === "battlenet"
+            ? t("{{provider}} product {{id}}", {
                 provider: providerLabel,
                 id: entry.externalId,
               })
-            : entry.provider === "epic"
-              ? t("{{provider}} app name {{id}}", {
+            : entry.provider === "steam"
+              ? t("{{provider}} AppID {{id}}", {
                   provider: providerLabel,
                   id: entry.externalId,
                 })
-              : t("{{provider}} Title ID {{id}}", {
-                  provider: providerLabel,
-                  id: entry.externalId,
-                })
+              : entry.provider === "epic"
+                ? t("{{provider}} app name {{id}}", {
+                    provider: providerLabel,
+                    id: entry.externalId,
+                  })
+                : t("{{provider}} Title ID {{id}}", {
+                    provider: providerLabel,
+                    id: entry.externalId,
+                  })
       }
       icon={Search}
       onClose={onCancel}
@@ -7465,6 +7579,7 @@ function LibraryImportMatchCheckDialog({
               : showingMatch
                 ? "border-success-border/35 bg-bg/60 text-success"
                 : result?.kind === "needs_install" ||
+                    result?.kind === "needs_file" ||
                     result?.kind === "unsupported"
                   ? "border-warning-border bg-warning-tint text-warning"
                   : "border-border bg-bg/60 text-text-muted",
@@ -7524,6 +7639,18 @@ function LibraryImportMatchCheckDialog({
               {t(
                 "The database knows {{join}}, but the filename can't be linked globally. Install the game and run a {{providerLabel}} scan so PlayCounter can safely scope it to that folder.",
                 { join: result.executableNames.join(", "), providerLabel },
+              )}
+            </p>
+          </>
+        ) : result.kind === "needs_file" ? (
+          <>
+            <div className="font-semibold">
+              {t("Local confirmation required")}
+            </div>
+            <p className="mt-1 leading-5 text-text-muted">
+              {t(
+                "The database knows {{join}}, but that name can't be linked on its own. Use Set launch file to pick the file on this PC.",
+                { join: result.executableNames.join(", ") },
               )}
             </p>
           </>

@@ -64,6 +64,13 @@ function session(seconds: number, overrides: Partial<Session> = {}): Session {
 }
 beforeEach(() => {
   localStorage.clear();
+  // A move looks up the game's known files; the server knows none here.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ error: "Game not found" }, { status: 404 }),
+    ),
+  );
   useAppStore.setState(useAppStore.getInitialState(), true);
   useAppStore.setState({
     libraryImports: new Map([
@@ -72,7 +79,10 @@ beforeEach(() => {
     ]),
   });
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe("moving a selection to PlayCounter", () => {
   it("deduplicates games, skips local games, and saves all selected launcher games once", () => {
