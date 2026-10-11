@@ -5,6 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/zntr1/PlayCounter?label=download&sort=semver)](https://github.com/zntr1/PlayCounter/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/t2nG3jaEEY)
+[![Translation status](https://hosted.weblate.org/widget/playcounter/svg-badge.svg)](https://hosted.weblate.org/projects/playcounter/)
 
 PlayCounter watches what's actually running on your PC and records playtime for
 recognized games, regardless of how they were launched (Steam, Epic, GOG, EA,
@@ -25,13 +26,23 @@ Windows; macOS and Linux are planned.
 
 ## Screenshots
 
-Screenshots show the 1.1.16 interface with example data.
+Screenshots show the 1.2.0 interface with example data.
 
-![PlayCounter recording Cyberpunk 2077](landing/images/playcounter-now-playing-v1-1-16.jpg)
+![PlayCounter Now Playing with a live session timer, total playtime and session count for Cyberpunk 2077](landing/images/playcounter-now-playing-v1-2-0-1000.webp)
 
-|                                          Game library                                           |                                Session history                                 |
-| :---------------------------------------------------------------------------------------------: | :----------------------------------------------------------------------------: |
-| ![PlayCounter library with Steam and Xbox tabs](landing/images/playcounter-library-v1-1-16.jpg) | ![PlayCounter session history](landing/images/playcounter-history-v1-1-16.jpg) |
+|                                                       My Games                                                        |                                                     My History                                                      |
+| :-------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------: |
+| ![PlayCounter My Games grid with shelves, status badges and games from Steam, Xbox and Battle.net](landing/images/playcounter-library-grid-v1-2-0-1000.webp) | ![PlayCounter My History with playtime, streaks and recorded sessions by day](landing/images/playcounter-history-v1-2-0-1000.webp) |
+|                                                   **Achievements**                                                    |                                                     **Journal**                                                     |
+| ![PlayCounter Achievements with milestone progress and lifetime playtime trophies](landing/images/playcounter-achievements-v1-2-0-1000.webp) | ![PlayCounter game journal with playthroughs, a game note and recorded sessions](landing/images/playcounter-journal-v1-2-0-1000.webp) |
+
+## Help translate
+
+PlayCounter is available in English, German, Portuguese (Brazil), Spanish and
+Chinese. Spot a wrong or clumsy translation? Fix it on
+**[Weblate](https://hosted.weblate.org/projects/playcounter/)**: no coding
+needed. Read the short guide on the project page first; it explains the
+glossary and the placeholders like `{{game}}`.
 
 ## Why the desktop client is open source
 
@@ -77,12 +88,18 @@ and retention details.
   setup and no requirement to launch through PlayCounter
 - Add local entries for games or other processes you choose to track
 - Automatic executable-to-game matching against the API
-- Steam and Xbox imports for available previous playtime, with game matching
-  and review before import; overlapping provider totals are not added together
-- Dedicated per-game DOSBox and Dolphin detection, with local review for
-  uncertain matches
-- Searchable game library with provider tabs, grid/list layouts and custom covers
+- Steam, Xbox and Epic imports for available previous playtime, with game
+  matching and review before import; overlapping provider totals are not added
+  together. Battle.net import brings in the game list (Battle.net shares no
+  playtime)
+- Dedicated per-game DOSBox, Dolphin, PCSX2 and mGBA detection, with local
+  review for uncertain matches
+- Searchable game library with provider tabs, grid/list layouts, shelves,
+  statuses and custom covers
 - Session history and statistics, manual entries and playtime adjustments
+- Achievements for lifetime hours, monthly goals and per-game milestones
+- Journal with notes and playthroughs for every game
+- Available in English, German, Portuguese (Brazil), Spanish and Chinese
 - Optional game-launch actions, desktop overlays and configurable shortcuts
 - Local backup export and import, plus daily or weekly automatic snapshots in app data or a chosen folder (while PlayCounter runs, with catch-up on next launch and configurable retention)
 - Current / "now playing" view with a system-tray indicator
