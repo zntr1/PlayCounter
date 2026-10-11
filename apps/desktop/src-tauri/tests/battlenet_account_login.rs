@@ -76,6 +76,7 @@ fn live_login_form_loads_and_cancellation_allows_a_fresh_attempt() {
                             auth_main,
                             auth_app.state::<AccountState>(),
                             auth_id,
+                            "Battle.net sign-in".to_string(),
                         )
                         .await
                     });
