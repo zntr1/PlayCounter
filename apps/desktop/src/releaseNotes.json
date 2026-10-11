@@ -1,5 +1,48 @@
 [
   {
+    "version": "1.4.0",
+    "headline": "PlayCounter now speaks German, Portuguese (Brazil), Spanish and Chinese.",
+    "highlights": [
+      "Feature: PlayCounter starts in your computer's language. Change it any time in Settings → General → Language.",
+      "Feature: The installer, the startup screen and What's new are translated too, and dates and numbers follow your language.",
+      "Fixes: ignoring an app no longer sends it to the community as a suggestion, and more Windows tools and helper programs (like Defrag or the on-screen keyboard) are ignored automatically."
+    ],
+    "translations": {
+      "de": {
+        "headline": "PlayCounter spricht jetzt Deutsch, Portugiesisch (Brasilien), Spanisch und Chinesisch.",
+        "highlights": [
+          "Neu: PlayCounter startet in der Sprache deines Computers. Ändern kannst du sie jederzeit unter Einstellungen → Allgemein → Sprache.",
+          "Neu: Auch das Installationsprogramm, der Startbildschirm und „Neuigkeiten“ sind übersetzt, und Datum und Zahlen folgen deiner Sprache.",
+          "Behoben: Ignorierst du eine App, geht sie nicht mehr als Vorschlag an die Community, und weitere Windows-Tools und Hilfsprogramme (wie Defrag oder die Bildschirmtastatur) werden automatisch ignoriert."
+        ]
+      },
+      "es": {
+        "headline": "PlayCounter ya habla alemán, portugués (Brasil), español y chino.",
+        "highlights": [
+          "Novedad: PlayCounter se abre en el idioma de tu equipo. Cámbialo cuando quieras en Configuración → General → Idioma.",
+          "Novedad: el instalador, la pantalla de inicio y “Novedades” también están traducidos, y las fechas y los números siguen tu idioma.",
+          "Correcciones: ignorar una app ya no la envía a la comunidad como sugerencia, y más herramientas de Windows y programas auxiliares (como Defrag o el teclado en pantalla) se ignoran automáticamente."
+        ]
+      },
+      "pt-BR": {
+        "headline": "O PlayCounter agora fala alemão, português (Brasil), espanhol e chinês.",
+        "highlights": [
+          "Novidade: o PlayCounter abre no idioma do seu computador. Mude quando quiser em Configurações → Geral → Idioma.",
+          "Novidade: o instalador, a tela de inicialização e “Novidades” também estão traduzidos, e datas e números seguem o seu idioma.",
+          "Correções: ignorar um app não o envia mais para a comunidade como sugestão, e mais ferramentas do Windows e programas auxiliares (como o Defrag ou o teclado virtual) são ignorados automaticamente."
+        ]
+      },
+      "zh-CN": {
+        "headline": "PlayCounter 现已支持德语、葡萄牙语（巴西）、西班牙语和中文。",
+        "highlights": [
+          "新功能：PlayCounter 会以你电脑的语言启动。随时可以在 设置 → 常规 → 语言 中更改。",
+          "新功能：安装程序、启动画面和“更新内容”也已翻译，日期和数字会跟随你的语言。",
+          "修复：忽略某个应用后，不再把它作为建议发送给社区；更多 Windows 工具和辅助程序（如 Defrag 或屏幕键盘）会被自动忽略。"
+        ]
+      }
+    }
+  },
+  {
     "version": "1.3.2",
     "headline": "Pick a cover for any game, level up all your games at once, and clearer ways to report a wrong match.",
     "highlights": [
