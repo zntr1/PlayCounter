@@ -5,6 +5,8 @@
     "highlights": [
       "Feature: PlayCounter starts in your computer's language. Change it any time in Settings → General → Language.",
       "Feature: The installer, the startup screen and What's new are translated too, and dates and numbers follow your language.",
+      "Improvement: My History → All time: the total at the top now matches My Games, launcher playtime and your own edits included.",
+      "Improvement: PlayCounter games without a file now get help finding one: Move to PlayCounter keeps the files PlayCounter knows for the game, a file found at startup shows as Match found and in Level up all, and Check for matches works for them too.",
       "Fixes: ignoring an app no longer sends it to the community as a suggestion, and more Windows tools and helper programs (like Defrag or the on-screen keyboard) are ignored automatically."
     ],
     "translations": {
@@ -13,6 +15,8 @@
         "highlights": [
           "Neu: PlayCounter startet in der Sprache deines Computers. Ändern kannst du sie jederzeit unter Einstellungen → Allgemein → Sprache.",
           "Neu: Auch das Installationsprogramm, der Startbildschirm und „Neuigkeiten“ sind übersetzt, und Datum und Zahlen folgen deiner Sprache.",
+          "Verbessert: „Mein Verlauf“ → „Gesamt“: Die Summe oben passt jetzt zu „Meine Spiele“, inklusive Launcher-Spielzeit und deiner eigenen Änderungen.",
+          "Verbessert: PlayCounter-Spiele ohne Datei bekommen jetzt Hilfe, eine zu finden: „Zu PlayCounter verschieben“ behält die Dateien, die PlayCounter für das Spiel kennt, eine beim Start gefundene Datei erscheint als „Treffer gefunden“ und unter „Alle aufwerten“, und „Nach Treffern suchen“ funktioniert auch für sie.",
           "Behoben: Ignorierst du eine App, geht sie nicht mehr als Vorschlag an die Community, und weitere Windows-Tools und Hilfsprogramme (wie Defrag oder die Bildschirmtastatur) werden automatisch ignoriert."
         ]
       },
@@ -21,6 +25,8 @@
         "highlights": [
           "Novedad: PlayCounter se abre en el idioma de tu equipo. Cámbialo cuando quieras en Configuración → General → Idioma.",
           "Novedad: el instalador, la pantalla de inicio y “Novedades” también están traducidos, y las fechas y los números siguen tu idioma.",
+          "Mejora: “Mi historial” → “Todo el tiempo”: el total de arriba ahora coincide con “Mis juegos”, incluido el tiempo de juego de los lanzadores y tus propios cambios.",
+          "Mejora: los juegos de PlayCounter sin archivo ahora reciben ayuda para encontrar uno: “Mover a PlayCounter” conserva los archivos que PlayCounter conoce del juego, un archivo encontrado al iniciar aparece como “Asociación encontrada” y en “Subir de nivel todos”, y “Comprobar asociaciones” también funciona con ellos.",
           "Correcciones: ignorar una app ya no la envía a la comunidad como sugerencia, y más herramientas de Windows y programas auxiliares (como Defrag o el teclado en pantalla) se ignoran automáticamente."
         ]
       },
@@ -29,6 +35,8 @@
         "highlights": [
           "Novidade: o PlayCounter abre no idioma do seu computador. Mude quando quiser em Configurações → Geral → Idioma.",
           "Novidade: o instalador, a tela de inicialização e “Novidades” também estão traduzidos, e datas e números seguem o seu idioma.",
+          "Melhoria: “Meu histórico” → “Todo o período”: o total no topo agora bate com “Meus jogos”, incluindo o tempo de jogo dos launchers e as suas próprias edições.",
+          "Melhoria: jogos do PlayCounter sem arquivo agora recebem ajuda para encontrar um: “Mover para o PlayCounter” mantém os arquivos que o PlayCounter conhece do jogo, um arquivo encontrado na inicialização aparece como “Associação encontrada” e em “Subir de nível todos”, e “Verificar associações” também funciona para eles.",
           "Correções: ignorar um app não o envia mais para a comunidade como sugestão, e mais ferramentas do Windows e programas auxiliares (como o Defrag ou o teclado virtual) são ignorados automaticamente."
         ]
       },
@@ -37,6 +45,8 @@
         "highlights": [
           "新功能：PlayCounter 会以你电脑的语言启动。随时可以在 设置 → 常规 → 语言 中更改。",
           "新功能：安装程序、启动画面和“更新内容”也已翻译，日期和数字会跟随你的语言。",
+          "改进：“我的历史” → “全部时间”：顶部的总时长现在与“我的游戏”一致，包括启动器的游戏时长和你自己的修改。",
+          "改进：没有文件的 PlayCounter 游戏现在也能获得查找文件的帮助：“移到 PlayCounter”会保留 PlayCounter 已知的该游戏文件，启动时找到的文件会显示为“找到匹配”并出现在“全部升级”中，“检查匹配”也适用于这些游戏。",
           "修复：忽略某个应用后，不再把它作为建议发送给社区；更多 Windows 工具和辅助程序（如 Defrag 或屏幕键盘）会被自动忽略。"
         ]
       }
