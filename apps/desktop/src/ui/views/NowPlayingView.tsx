@@ -45,6 +45,9 @@ import {
   providerFloorRecord,
   providerFloors as collectProviderFloors,
 } from "../../library/playtimeFloor";
+import { getT } from "../../i18n";
+
+const t = getT("nowPlaying");
 
 const TOUR_NOW_PLAYING_SESSION_ID = -1;
 const EMPTY_EXE_CACHE: ReadonlyMap<string, ExeCacheEntry> = new Map();
@@ -193,10 +196,10 @@ export function NowPlayingView() {
               className="mx-auto mb-5"
             />
             <h2 className="text-2xl font-semibold text-text">
-              No game detected
+              {t("No game detected")}
             </h2>
             <p className="mt-2 text-text-muted">
-              Start a game and it will appear here automatically.
+              {t("Start a game and it will appear here automatically.")}
             </p>
             <Button
               variant="ghost"
@@ -204,7 +207,7 @@ export function NowPlayingView() {
               onClick={() => setActiveView("discovered")}
               className="mt-5"
             >
-              Game not showing up? Review unmatched processes
+              {t("Game not showing up? Review unmatched processes")}
             </Button>
           </div>
         </Panel>
@@ -242,7 +245,7 @@ export function NowPlayingView() {
                       ] ?? 0)
                 }
                 onReport={() => setReportTarget(activeSession)}
-                statusLabel="Now playing"
+                statusLabel={t("Now playing")}
                 tourAnchor={isTourSession ? "now-playing-demo" : undefined}
               />
             );
@@ -252,7 +255,7 @@ export function NowPlayingView() {
               <div className="flex items-center gap-2 px-1 pt-1">
                 <AlertTriangle size={14} className="shrink-0 text-warning" />
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-text-faint">
-                  Needs your call
+                  {t("Needs your call")}
                 </h3>
                 <span className="rounded-full border border-warning-border bg-warning-tint px-1.5 text-[11px] font-semibold tabular-nums text-warning">
                   {displayedAmbiguousMatches.length}
@@ -313,7 +316,6 @@ export function NowPlayingView() {
                     process.exeName.toLowerCase() ===
                     reportTarget.exeName.toLowerCase(),
                 )?.exePath,
-              !isOffline,
               addToast,
             );
           }}
@@ -364,14 +366,19 @@ function TrackedGameCorrectionDialog({
   const localOnly = isGenericExeName(exeName);
   const correction = useCommunityGameCorrection({
     exeName,
-    resultInstruction: localOnly ? "Pick the game in this folder." : undefined,
+    resultInstruction: localOnly
+      ? t("Pick the game in this folder.")
+      : undefined,
     onKnownGame: (game) => {
       applyKnownGameMatch(exeName, game);
       onClose();
       addToast({
         tone: "success",
-        title: "Correct match applied",
-        detail: `${exeName} is now tracked as ${game.name}.`,
+        title: t("Correct match applied"),
+        detail: t("{{exeName}} is now tracked as {{name}}.", {
+          exeName,
+          name: game.name,
+        }),
       });
     },
     onRejected: (id, reviewNote, { selection }) => {
@@ -387,8 +394,8 @@ function TrackedGameCorrectionDialog({
       onClose();
       addToast({
         tone: "info",
-        title: "Suggestion already reviewed",
-        detail: reviewNote ?? "This suggestion was not accepted.",
+        title: t("Suggestion already reviewed"),
+        detail: reviewNote ?? t("This suggestion was not accepted."),
       });
     },
     onSuggested: (id, verified, { selection }) => {
@@ -403,8 +410,11 @@ function TrackedGameCorrectionDialog({
       onClose();
       addToast({
         tone: "success",
-        title: "Correct game submitted",
-        detail: `${exeName} now uses ${selection.name} while the community match is reviewed.`,
+        title: t("Correct game submitted"),
+        detail: t(
+          "{{exeName}} now uses {{name}} while the community match is reviewed.",
+          { exeName, name: selection.name },
+        ),
       });
     },
   });
@@ -422,13 +432,16 @@ function TrackedGameCorrectionDialog({
       game
         ? {
             tone: "success",
-            title: "Correct match applied",
-            detail: `${exeName} in this folder is now tracked as ${game.name}.`,
+            title: t("Correct match applied"),
+            detail: t(
+              "{{exeName}} in this folder is now tracked as {{name}}.",
+              { exeName, name: game.name },
+            ),
           }
         : {
             tone: "info",
-            title: `${exeName} is not running`,
-            detail: "Start the game again, then correct it while it runs.",
+            title: t("{{exeName}} is not running", { exeName }),
+            detail: t("Start the game again, then correct it while it runs."),
           },
     );
   }
@@ -442,7 +455,7 @@ function TrackedGameCorrectionDialog({
       search={correction.search}
       selection={correction.selection}
       state={correction.state}
-      title="Choose the correct game"
+      title={t("Choose the correct game")}
       isOffline={correction.isOffline}
       localOnly={localOnly}
       onApplyCandidate={correction.applyCandidate}

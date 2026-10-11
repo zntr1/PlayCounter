@@ -3,6 +3,9 @@ import {
   responseError,
   type RateLimitScope,
 } from "./rateLimitedFetch";
+import { getT } from "./i18n";
+
+const t = getT("tracker");
 
 const DEFAULT_TIMEOUT_MS = 8_000;
 
@@ -63,7 +66,7 @@ export async function requestWithTimeout<T>(
   const timeout = globalThis.setTimeout(
     () =>
       controller.abort(
-        new DOMException("Request timed out. Try again.", "TimeoutError"),
+        new DOMException(t("Request timed out. Try again."), "TimeoutError"),
       ),
     timeoutMs,
   );

@@ -1,5 +1,9 @@
 import { Send } from "lucide-react";
 import { Button, Modal } from "./primitives";
+import { Trans } from "react-i18next";
+import { getT } from "../i18n";
+
+const t = getT("dialogs");
 
 /** "Suggest to Community" for a Custom game that already names its database
  *  game: the pair is sent as it is, without a search. */
@@ -20,15 +24,15 @@ export function SuggestToCommunityDialog({
     <Modal
       size="sm"
       labelId="suggest-community-dialog-title"
-      eyebrow="Community"
-      title="Suggest to community?"
+      eyebrow={t("Community")}
+      title={t("Suggest to community?")}
       subtitle={gameName}
       icon={Send}
       onClose={onCancel}
       footer={
         <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button
             variant="primary"
@@ -37,20 +41,25 @@ export function SuggestToCommunityDialog({
             disabled={isOffline}
             data-autofocus
           >
-            Suggest
+            {t("Suggest")}
           </Button>
         </div>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        Send <span className="font-mono text-text">{exeName}</span> as{" "}
-        <span className="font-semibold text-text">{gameName}</span> for
-        community review. Only the file name and the game name are sent. If the
-        game is wrong, use Change Game first.
+        <Trans
+          t={t}
+          i18nKey="Send <file>{{file}}</file> as <game>{{game}}</game> for community review. Only the file name and the game name are sent. If the game is wrong, use Change Game first."
+          values={{ file: exeName, game: gameName }}
+          components={{
+            file: <span className="font-mono text-text" />,
+            game: <span className="font-semibold text-text" />,
+          }}
+        />
       </p>
       {isOffline ? (
         <p className="mt-3 text-xs text-text-faint">
-          You&apos;re offline. Reconnect to suggest it.
+          {t("You're offline. Reconnect to suggest it.")}
         </p>
       ) : null}
     </Modal>

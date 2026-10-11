@@ -8,6 +8,7 @@ import {
 } from "../../tracker";
 import { Panel } from "../components";
 import { Button, Modal, Switch } from "../primitives";
+import { appLocale } from "../../i18n";
 
 export function DevToolsView() {
   const [confirmClearLibrary, setConfirmClearLibrary] = useState(false);
@@ -158,7 +159,7 @@ export function DevToolsView() {
             <div key={entry.id} className="grid gap-1 px-4 py-2 text-sm">
               <span>{entry.message}</span>
               <span className="font-mono text-xs text-text-faint">
-                {new Date(entry.at).toLocaleTimeString()}
+                {new Date(entry.at).toLocaleTimeString(appLocale())}
               </span>
             </div>
           ))}

@@ -29,10 +29,13 @@ import {
   type EmulatorTopGame,
 } from "./emulators/EmulatorHero";
 import {
-  DEMO_ACTION_REASON,
+  demoActionReason,
   LinkedGameCard,
   type LinkedGameStats,
 } from "./emulators/LinkedGameCard";
+import { getT } from "../../i18n";
+
+const t = getT("emulators");
 
 type EmulatorViewProps = {
   emulatorId: EmulatorId;
@@ -213,13 +216,13 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
   const canStartGame = platform === "windows";
   const startDisabledReason =
     platform !== "windows"
-      ? "Direct launching is only available on Windows."
+      ? t("Direct launching is only available on Windows.")
       : undefined;
   const start: EmulatorStartControl = {
     visible: launchable && gameLaunchingEnabled,
     disabled: demo || !canStartGame,
     loading: starting,
-    reason: demo ? DEMO_ACTION_REASON : startDisabledReason,
+    reason: demo ? demoActionReason() : startDisabledReason,
     onClick: demo ? undefined : () => void handleStartGame(),
   };
 
@@ -232,23 +235,26 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
       if (outcome.kind === "busy") {
         addToast({
           tone: "info",
-          title: `${label} is starting`,
-          detail: "PlayCounter already sent the launch request.",
+          title: t("{{label}} is starting", { label }),
+          detail: t("PlayCounter already sent the launch request."),
         });
         return;
       }
       if (outcome.kind === "hostRunning") {
         addToast({
           tone: "info",
-          title: `${label} is still busy`,
-          detail: `Stop the current emulated game first. PlayCounter only replaces ${label} automatically when it is safely idle.`,
+          title: t("{{label}} is still busy", { label }),
+          detail: t(
+            "Stop the current emulated game first. PlayCounter only replaces {{label}} automatically when it is safely idle.",
+            { label },
+          ),
         });
         return;
       }
       addToast({
         tone: "success",
-        title: `${label} is starting`,
-        detail: "PlayCounter will recognize the game once it loads.",
+        title: t("{{label}} is starting", { label }),
+        detail: t("PlayCounter will recognize the game once it loads."),
       });
       void scanProcessesNow().catch((error) =>
         console.warn("post-launch process scan failed", error),
@@ -300,13 +306,16 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
               id={`${emulatorId}-linked-games`}
               className="flex items-center gap-2 text-lg font-bold tracking-tight text-text"
             >
-              Linked games
+              {t("Linked games")}
               <span className="rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-[11px] font-semibold text-text-muted">
                 {displayedGameMappings.length}
               </span>
             </h2>
             <p className="mt-0.5 text-sm text-text-muted">
-              {label} games PlayCounter remembers and recognizes automatically.
+              {t(
+                "{{label}} games PlayCounter remembers and recognizes automatically.",
+                { label },
+              )}
             </p>
           </div>
         </div>
@@ -317,12 +326,17 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
               <Gamepad2 size={20} />
             </div>
             <div className="font-medium text-text">
-              No recognized {label} games yet
+              {t("No recognized {{label}} games yet", { label })}
             </div>
             <div className="max-w-md">
               {gameLaunchingEnabled
-                ? "Use Start game and pick a file once. PlayCounter recognizes it automatically from then on."
-                : `Start a game in ${label} and pick it once. PlayCounter recognizes it automatically from then on.`}
+                ? t(
+                    "Use Start game and pick a file once. PlayCounter recognizes it automatically from then on.",
+                  )
+                : t(
+                    "Start a game in {{label}} and pick it once. PlayCounter recognizes it automatically from then on.",
+                    { label },
+                  )}
             </div>
           </div>
         ) : (
@@ -343,7 +357,9 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                         }));
                         emitTourEvent(
                           "demo.action-completed",
-                          "Sample confirmed. The check badge is gone; its recorded sessions stay intact.",
+                          t(
+                            "Sample confirmed. The check badge is gone; its recorded sessions stay intact.",
+                          ),
                         );
                       }
                     : undefined
@@ -374,7 +390,9 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
           className="rounded-xl border border-border bg-surface p-4"
         >
           <p role="status" className="mb-3 text-sm">
-            Sample match forgotten. The five sample sessions remain in History.
+            {t(
+              "Sample match forgotten. The five sample sessions remain in History.",
+            )}
           </p>
           <Button
             onClick={() => {
@@ -382,7 +400,7 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
               setDemoMapping(tourDemoEmulatorMapping());
             }}
           >
-            Restore sample match
+            {t("Restore sample match")}
           </Button>
         </div>
       ) : null}
@@ -401,7 +419,9 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
             setDemoAction(null);
             emitTourEvent(
               "demo.action-completed",
-              `Sample match changed to ${choice.name}. Nothing was shared.`,
+              t("Sample match changed to {{name}}. Nothing was shared.", {
+                name: choice.name,
+              }),
             );
           }}
         />
@@ -413,13 +433,13 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
           labelId="demo-emulator-action-title"
           title={
             demoAction === "forget"
-              ? "Forget this sample match?"
-              : "Preview sharing a match"
+              ? t("Forget this sample match?")
+              : t("Preview sharing a match")
           }
           onClose={() => setDemoAction(null)}
           footer={
             <div className="flex justify-end gap-2">
-              <Button onClick={() => setDemoAction(null)}>Cancel</Button>
+              <Button onClick={() => setDemoAction(null)}>{t("Cancel")}</Button>
               <Button
                 variant="primary"
                 onClick={() => {
@@ -427,21 +447,27 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                   emitTourEvent(
                     "demo.action-completed",
                     demoAction === "forget"
-                      ? "Sample match forgotten. Recorded history remains."
-                      : "Sharing preview finished. No match was submitted.",
+                      ? t("Sample match forgotten. Recorded history remains.")
+                      : t("Sharing preview finished. No match was submitted."),
                   );
                   setDemoAction(null);
                 }}
               >
-                {demoAction === "forget" ? "Forget sample" : "Finish preview"}
+                {demoAction === "forget"
+                  ? t("Forget sample")
+                  : t("Finish preview")}
               </Button>
             </div>
           }
         >
           <p className="text-sm text-text-muted">
             {demoAction === "forget"
-              ? "This removes the sample file-to-game link. Recorded sessions are kept. In the app, you choose the game again when this content next appears."
-              : "Share match sends a recognized file or disc ID and the chosen game for Community review. Full local paths stay on your PC. This preview sends nothing."}
+              ? t(
+                  "This removes the sample file-to-game link. Recorded sessions are kept. In the app, you choose the game again when this content next appears.",
+                )
+              : t(
+                  "Share match sends a recognized file or disc ID and the chosen game for Community review. Full local paths stay on your PC. This preview sends nothing.",
+                )}
           </p>
         </Modal>
       ) : null}
@@ -460,13 +486,13 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                 id={`${emulatorId}-ignored-games`}
                 className="text-sm font-semibold text-text"
               >
-                Ignored {label} games
+                {t("Ignored {{emulator}} games", { emulator: label })}
                 <span className="ml-2 font-mono text-[11px] font-semibold text-text-faint">
                   {displayedIgnoredMappings.length}
                 </span>
               </h2>
               <p className="mt-0.5 text-xs text-text-muted">
-                Restore a game to let PlayCounter detect it again.
+                {t("Restore a game to let PlayCounter detect it again.")}
               </p>
             </div>
           </div>
@@ -488,7 +514,7 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                   className="px-2 py-1 text-xs"
                   onClick={() => restoreEmulatorContent(mapping.contentKey)}
                 >
-                  Restore
+                  {t("Restore")}
                 </Button>
               </li>
             ))}
@@ -506,8 +532,10 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
         <Modal
           size="sm"
           labelId="detect-emulator-game-again"
-          eyebrow={`${forgetting.label} library`}
-          title={`Forget which game ${forgetting.display} is?`}
+          eyebrow={t("{{label}} library", { label: forgetting.label })}
+          title={t("Forget which game {{display}} is?", {
+            display: forgetting.display,
+          })}
           icon={Unlink}
           onClose={forgettingBusy ? () => undefined : () => setForgetting(null)}
           footer={
@@ -518,7 +546,7 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                 disabled={forgettingBusy}
                 onClick={() => setForgetting(null)}
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 variant="danger"
@@ -531,15 +559,18 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                     .then(() => {
                       addToast({
                         tone: "info",
-                        title: `PlayCounter will ask about ${item.display} again`,
-                        detail: "Recorded playtime stays in History.",
+                        title: t(
+                          "PlayCounter will ask about {{display}} again",
+                          { display: item.display },
+                        ),
+                        detail: t("Recorded playtime stays in History."),
                       });
                       setForgetting(null);
                     })
                     .catch((error) => {
                       addToast({
                         tone: "error",
-                        title: "Could not forget this game",
+                        title: t("Could not forget this game"),
                         detail:
                           error instanceof Error
                             ? error.message
@@ -549,14 +580,15 @@ export function EmulatorView({ emulatorId }: EmulatorViewProps) {
                     });
                 }}
               >
-                Forget game
+                {t("Forget game")}
               </Button>
             </div>
           }
         >
           <p className="text-sm leading-6 text-text-muted">
-            PlayCounter asks you again the next time it shows up - right away if
-            the emulator is running. Recorded playtime stays in History.
+            {t(
+              "PlayCounter asks you again the next time it shows up - right away if the emulator is running. Recorded playtime stays in History.",
+            )}
           </p>
         </Modal>
       ) : null}

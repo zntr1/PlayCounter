@@ -20,6 +20,9 @@ import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import { emulatorAssetUrls } from "../emulators/assets";
 import { adapterFor } from "../emulators/registry";
+import { getT } from "../i18n";
+
+const t = getT("common");
 
 export function Panel({
   children,
@@ -66,8 +69,10 @@ export function formatDuration(seconds: number, showDays = false) {
     ? Math.floor((seconds % 86400) / 3600)
     : Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  if (showDays && days > 0) return `${days}d ${hours}h`;
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  if (showDays && days > 0) return t("{{days}}d {{hours}}h", { days, hours });
+  return hours > 0
+    ? t("{{hours}}h {{minutes}}m", { hours, minutes })
+    : t("{{minutes}}m", { minutes });
 }
 
 /* Badge system ───────────────────────────────────────────────────────────────
@@ -112,49 +117,58 @@ type SourceMeta = {
 };
 
 // Custom stays neutral so amber is reserved for real warnings; IGDB and
-// Community keep the hues the app has always used for them.
-const sourceMeta: Record<GameSource, SourceMeta> = {
-  igdb: {
-    label: "IGDB",
-    icon: Database,
-    tip: "IGDB has this file name on record for the game.",
-    tone: "text-community",
-    labelTone: "border-community-border bg-community-tint text-community",
-    markTone: "border-community-border text-community",
-  },
-  community: {
-    label: "Community",
-    icon: Users,
-    tip: "Another user linked this file name to the game, and it was approved.",
-    tone: "text-success",
-    labelTone: "border-success-border bg-success-tint text-success",
-    markTone: "border-success-border text-success",
-  },
-  custom: {
-    label: "Custom",
-    icon: PenLine,
-    tip: "You linked this file name to the game yourself. It stays on this PC.",
-    tone: "text-text-muted",
-    labelTone: "border-border bg-surface text-text-muted",
-    markTone: "border-border text-text-muted",
-  },
-};
+// Community keep the hues the app has always used for them. A function, so the
+// texts follow the current language.
+function sourceMeta(): Record<GameSource, SourceMeta> {
+  return {
+    igdb: {
+      label: "IGDB",
+      icon: Database,
+      tip: t("IGDB has this file name on record for the game."),
+      tone: "text-community",
+      labelTone: "border-community-border bg-community-tint text-community",
+      markTone: "border-community-border text-community",
+    },
+    community: {
+      label: t("Community"),
+      icon: Users,
+      tip: t(
+        "Another user linked this file name to the game, and it was approved.",
+      ),
+      tone: "text-success",
+      labelTone: "border-success-border bg-success-tint text-success",
+      markTone: "border-success-border text-success",
+    },
+    custom: {
+      label: t("Custom"),
+      icon: PenLine,
+      tip: t(
+        "You linked this file name to the game yourself. It stays on this PC.",
+      ),
+      tone: "text-text-muted",
+      labelTone: "border-border bg-surface text-text-muted",
+      markTone: "border-border text-text-muted",
+    },
+  };
+}
 
-const approvalMeta: Record<
+function approvalMeta(): Record<
   SourceApproval,
   { icon: LucideIcon; tip: string; pipTone: string }
-> = {
-  pending: {
-    icon: Clock3,
-    tip: "Sent to the community and waiting to be reviewed.",
-    pipTone: "bg-warning text-bg",
-  },
-  approved: {
-    icon: Check,
-    tip: "The community approved this match.",
-    pipTone: "bg-success text-bg",
-  },
-};
+> {
+  return {
+    pending: {
+      icon: Clock3,
+      tip: t("Sent to the community and waiting to be reviewed."),
+      pipTone: "bg-warning text-bg",
+    },
+    approved: {
+      icon: Check,
+      tip: t("The community approved this match."),
+      pipTone: "bg-success text-bg",
+    },
+  };
+}
 
 export function communitySuggestionApproval(value: {
   suggestionId?: number;
@@ -168,14 +182,18 @@ export function communitySuggestionApproval(value: {
   return undefined;
 }
 
-const emulatorSourceTips: Record<GameSource, string> = {
-  igdb: "Suggested from an IGDB game-title search. This file match has not been community approved.",
-  community: "This emulator game match was approved by the community.",
-  custom: "This emulator game match is saved on this PC.",
-};
+function emulatorSourceTips(): Record<GameSource, string> {
+  return {
+    igdb: t(
+      "Suggested from an IGDB game-title search. This file match has not been community approved.",
+    ),
+    community: t("This emulator game match was approved by the community."),
+    custom: t("This emulator game match is saved on this PC."),
+  };
+}
 
 function sourceDescription(source: GameSource, emulator: boolean) {
-  return emulator ? emulatorSourceTips[source] : sourceMeta[source].tip;
+  return emulator ? emulatorSourceTips()[source] : sourceMeta()[source].tip;
 }
 
 function sourceTip(
@@ -183,10 +201,10 @@ function sourceTip(
   approval?: SourceApproval,
   emulator = false,
 ) {
-  const meta = sourceMeta[source];
+  const meta = sourceMeta()[source];
   const description = sourceDescription(source, emulator);
   return approval
-    ? `${meta.label}: ${description} ${approvalMeta[approval].tip}`
+    ? `${meta.label}: ${description} ${approvalMeta()[approval].tip}`
     : `${meta.label}: ${description}`;
 }
 
@@ -204,9 +222,9 @@ export function SourceBadge({
   dataTour?: string;
 }) {
   if (!source) return null;
-  const meta = sourceMeta[source];
+  const meta = sourceMeta()[source];
   const Icon = meta.icon;
-  const pip = approval ? approvalMeta[approval] : null;
+  const pip = approval ? approvalMeta()[approval] : null;
   const PipIcon = pip?.icon;
   const tip = sourceTip(source, approval, emulator);
 
@@ -307,50 +325,57 @@ type OriginEntry = {
   coinFill?: boolean;
 };
 
-const providerMeta: Record<
+function providerMeta(): Record<
   LibraryProviderId,
   Omit<OriginEntry, "key" | "unknownDuration">
-> = {
-  battlenet: {
-    label: "Battle.net",
-    tip: "Imported from your Battle.net account or installations on this PC.",
-    iconUrl: battleNetIconUrl,
-    tone: "text-[#00aeef]",
-    coinTone: "shadow-raised",
-    chipTone: "border-[#00aeef]/40 bg-[#061e2b] text-[#00aeef]",
-    coinFill: true,
-  },
-  epic: {
-    label: "Epic Games",
-    tip: "Imported from your Epic Games account or installations on this PC.",
-    iconUrl: epicIconUrl,
-    tone: "text-text",
-    coinTone: "shadow-raised",
-    chipTone: "border-white/25 bg-[#2a2a2a] text-white",
-    coinFill: true,
-  },
-  steam: {
-    label: "Steam",
-    tip: "Imported from your local Steam library.",
-    iconUrl: steamIconUrl,
-    tone: "text-[#66c0f4]",
-    coinTone: "shadow-raised",
-    chipTone: "border-[#66c0f4]/40 bg-[#1b2838] text-[#66c0f4]",
-    coinFill: true,
-  },
-  xbox: {
-    label: "Xbox",
-    tip: "Imported from your Xbox play history.",
-    iconUrl: xboxIconUrl,
-    tone: "text-[#7ee787]",
-    coinTone: "shadow-raised",
-    chipTone: "border-[#107c10]/50 bg-[#0e2f16] text-[#7ee787]",
-    coinFill: true,
-  },
-};
+> {
+  return {
+    battlenet: {
+      label: "Battle.net",
+      tip: t(
+        "Imported from your Battle.net account or installations on this PC.",
+      ),
+      iconUrl: battleNetIconUrl,
+      tone: "text-[#00aeef]",
+      coinTone: "shadow-raised",
+      chipTone: "border-[#00aeef]/40 bg-[#061e2b] text-[#00aeef]",
+      coinFill: true,
+    },
+    epic: {
+      label: "Epic Games",
+      tip: t(
+        "Imported from your Epic Games account or installations on this PC.",
+      ),
+      iconUrl: epicIconUrl,
+      tone: "text-text",
+      coinTone: "shadow-raised",
+      chipTone: "border-white/25 bg-[#2a2a2a] text-white",
+      coinFill: true,
+    },
+    steam: {
+      label: "Steam",
+      tip: t("Imported from your local Steam library."),
+      iconUrl: steamIconUrl,
+      tone: "text-[#66c0f4]",
+      coinTone: "shadow-raised",
+      chipTone: "border-[#66c0f4]/40 bg-[#1b2838] text-[#66c0f4]",
+      coinFill: true,
+    },
+    xbox: {
+      label: "Xbox",
+      tip: t("Imported from your Xbox play history."),
+      iconUrl: xboxIconUrl,
+      tone: "text-[#7ee787]",
+      coinTone: "shadow-raised",
+      chipTone: "border-[#107c10]/50 bg-[#0e2f16] text-[#7ee787]",
+      coinFill: true,
+    },
+  };
+}
 
-const UNKNOWN_DURATION_TIP =
-  "Historical playtime is unavailable from this source.";
+function unknownDurationTip() {
+  return t("Historical playtime is unavailable from this source.");
+}
 
 function providerOrigin(
   provider: LibraryProviderId,
@@ -358,7 +383,7 @@ function providerOrigin(
 ): OriginEntry {
   return {
     key: provider,
-    ...providerMeta[provider],
+    ...providerMeta()[provider],
     // Battle.net explains historical playtime before scanning, instead of
     // marking every imported game with a permanent question mark.
     unknownDuration: provider !== "battlenet" && unknownDuration,
@@ -370,7 +395,7 @@ function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
     key: `emulator:${emulatorId}`,
     emulatorId,
     label: label ?? adapterFor(emulatorId)?.label ?? emulatorId,
-    tip: "Played through this emulator.",
+    tip: t("Played through this emulator."),
     tone: "text-accent-ink",
     // The emulator logos carry their own colour and shape (DOSBox is an opaque
     // square, Dolphin a transparent silhouette), so the mark stays bare: a ring
@@ -385,17 +410,19 @@ function emulatorOrigin(emulatorId: string, label?: string): OriginEntry {
 }
 
 // The app icon is a transparent gamepad, not a disc, so it gets no ring at all.
-const playCounterOrigin: OriginEntry = {
-  key: "playcounter",
-  label: "PlayCounter",
-  tip: "Found by PlayCounter itself, not imported from a launcher.",
-  tone: "text-text-muted",
-  coinTone: "",
-  chipTone: "border-border bg-surface text-text-muted",
-  iconUrl: "/brand/playcounter-mark-small.svg",
-  icon: Gamepad2,
-  coinFill: true,
-};
+function playCounterOrigin(): OriginEntry {
+  return {
+    key: "playcounter",
+    label: "PlayCounter",
+    tip: t("Found by PlayCounter itself, not imported from a launcher."),
+    tone: "text-text-muted",
+    coinTone: "",
+    chipTone: "border-border bg-surface text-text-muted",
+    iconUrl: "/brand/playcounter-mark-small.svg",
+    icon: Gamepad2,
+    coinFill: true,
+  };
+}
 
 export function gameOrigins({
   providers,
@@ -412,7 +439,7 @@ export function gameOrigins({
     ),
     ...emulatorIds.map((emulatorId) => emulatorOrigin(emulatorId)),
   ];
-  return entries.length > 0 ? entries : [playCounterOrigin];
+  return entries.length > 0 ? entries : [playCounterOrigin()];
 }
 
 function OriginGlyph({
@@ -449,7 +476,7 @@ function OriginGlyph({
 }
 
 function originDescription(entry: OriginEntry) {
-  return `${entry.tip}${entry.unknownDuration ? ` ${UNKNOWN_DURATION_TIP}` : ""}`;
+  return `${entry.tip}${entry.unknownDuration ? ` ${unknownDurationTip()}` : ""}`;
 }
 
 function originTip(entry: OriginEntry) {
@@ -636,9 +663,9 @@ export function GameProvenanceBadges({
         >
           {sources.length > 0 ? (
             <>
-              <LegendHeading>How this file was matched</LegendHeading>
+              <LegendHeading>{t("How this file was matched")}</LegendHeading>
               {sources.map((source) => {
-                const meta = sourceMeta[source];
+                const meta = sourceMeta()[source];
                 const description = sourceDescription(
                   source,
                   emulatorSources.includes(source),
@@ -646,7 +673,7 @@ export function GameProvenanceBadges({
                 const Icon = meta.icon;
                 const pip =
                   source === "custom" && approval
-                    ? approvalMeta[approval]
+                    ? approvalMeta()[approval]
                     : null;
                 return (
                   <LegendRow
@@ -664,7 +691,7 @@ export function GameProvenanceBadges({
           ) : null}
           {origins.length > 0 ? (
             <>
-              <LegendHeading>Where this game came from</LegendHeading>
+              <LegendHeading>{t("Where this game came from")}</LegendHeading>
               {origins.map((entry) => (
                 <LegendRow
                   key={entry.key}
@@ -701,8 +728,8 @@ export function CommunityApprovalBadge({
   return (
     <span className="inline-flex shrink-0 rounded border border-community-border bg-community-tint px-1.5 py-0.5 text-[11px] font-medium text-community">
       {approval === "approved"
-        ? "Community approved"
-        : "Awaiting community approval"}
+        ? t("Community approved")
+        : t("Awaiting community approval")}
     </span>
   );
 }

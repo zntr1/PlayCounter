@@ -2,6 +2,9 @@ import clsx from "clsx";
 import { type LucideIcon } from "lucide-react";
 import type { MouseEvent } from "react";
 import { RailTooltip, useRailTooltip } from "./shell/RailTooltip";
+import { getT } from "../i18n";
+
+const t = getT("shell");
 
 type SidebarButtonProps = {
   icon: LucideIcon;
@@ -49,11 +52,11 @@ export function SidebarButton({
      presence dot is. A loose speck in the button's corner reads as a
      rendering glitch rather than as state. */
   const statusTitle = badge
-    ? `${badge} waiting for review`
+    ? t("{{badge}} waiting for review", { badge })
     : warn
-      ? "Needs your attention"
+      ? t("Needs your attention")
       : isPlaying
-        ? "Currently tracking play session"
+        ? t("Currently tracking play session")
         : undefined;
   const dotRing = "ring-2 ring-[rgb(var(--color-bg))]";
 

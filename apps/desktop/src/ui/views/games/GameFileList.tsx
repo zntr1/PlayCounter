@@ -3,6 +3,9 @@ import { ExeIcon } from "../../ExeIcon";
 import { SourceBadge } from "../../components";
 import { Modal } from "../../primitives";
 import { fileRunStatus, sortGameFiles, type GameFile } from "./gameFiles";
+import { getT } from "../../../i18n";
+
+const t = getT("games");
 
 /** "Which file?" rows: the name, who matched it, when it ran here and where it
  *  is, so the user can tell which file is really theirs. */
@@ -89,7 +92,7 @@ export function PickGameFileDialog({
       icon={FileCode2}
       onClose={onCancel}
     >
-      <h3 className="text-sm font-semibold text-text">Which file?</h3>
+      <h3 className="text-sm font-semibold text-text">{t("Which file?")}</h3>
       <div className="mt-3">
         <GameFileList files={files} canPick={canPick} onPick={onPick} />
       </div>

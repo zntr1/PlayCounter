@@ -15,6 +15,10 @@ import {
 import { libraryEntryKey, type LibraryImportEntry } from "./types";
 import { providerFloors } from "./playtimeFloor";
 import { dismissLauncherGames } from "./libraryAutoAddState";
+import { linkServerKnownFiles } from "../tracker";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 type MoveTarget = GameIdentityRef & { aliases?: GameIdentityRef[] };
 type MoveChanges = Pick<
@@ -77,7 +81,7 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
   // Commit the entire selection before publishing any of it to the UI.
   const result = persistAppState({ ...state, ...changes });
   if (result.status === "suspended")
-    throw new Error("PlayCounter is being reset.");
+    throw new Error(t("PlayCounter is being reset."));
   if (result.status === "failed") throw result.error;
   useAppStore.setState({
     ...changes,
@@ -89,6 +93,15 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
   });
   // A game moved away from its launcher must not come back as a new game.
   dismissLauncherGames(moves.flatMap(([, { imports }]) => imports));
+  // Its files count for it, like a game added by hand. The launcher's offer
+  // to track them left with the launcher entry.
+  for (const [, { imports }] of moves) {
+    void linkServerKnownFiles({
+      id: imports[0].gameId,
+      igdbId: imports[0].igdbId,
+      source: imports[0].source,
+    });
+  }
   return moves.length;
 }
 

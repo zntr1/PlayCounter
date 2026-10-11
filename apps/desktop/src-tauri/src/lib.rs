@@ -1,5 +1,5 @@
 use process::{create_scanner, ProcessSnapshot};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -32,8 +32,8 @@ mod session;
 mod shell_open;
 mod webview_args;
 
+// English defaults until the main window sends the texts in its language.
 const TRAY_STATUS_IDLE: &str = "No game active";
-const TRAY_STATUS_PREFIX: &str = "Playing ";
 /// Index of "Open PlayCounter" in the tray menu built by `setup_tray`.
 const TRAY_UPDATE_POSITION: usize = 4;
 const WEBSITE_URL: &str = "https://playcounter.app/";
@@ -44,6 +44,8 @@ struct TrayState {
     menu: Mutex<Option<Menu<Wry>>>,
     status_item: Mutex<Option<MenuItem<Wry>>>,
     update_item: Mutex<Option<MenuItem<Wry>>>,
+    open_item: Mutex<Option<MenuItem<Wry>>>,
+    quit_item: Mutex<Option<MenuItem<Wry>>>,
 }
 
 /// The main window is created hidden so Windows never shows a bare white frame
@@ -64,13 +66,6 @@ struct StartupProgress {
     /// until then, so it opens as soon as the loader is on screen.
     open_requested: bool,
     revealed: bool,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TraySession {
-    game_name: String,
-    elapsed_seconds: u64,
 }
 
 #[derive(Serialize)]
@@ -353,32 +348,45 @@ async fn get_exe_details(exe_path: String) -> Result<exe_details::ExeDetails, St
         .map_err(|error| error.to_string())
 }
 
+/// The tray status line, already worded by the main window in its language.
 #[tauri::command]
-fn update_tray_now_playing(
-    app: tauri::AppHandle,
-    sessions: Vec<TraySession>,
-) -> Result<(), String> {
-    set_tray_status(&app, &format_tray_status(&sessions))
+fn update_tray_now_playing(app: tauri::AppHandle, status: String) -> Result<(), String> {
+    set_tray_status(&app, &truncate_tray_text(&status))
+}
+
+/// The tray entries in the main window's language.
+#[tauri::command]
+fn set_tray_labels(app: tauri::AppHandle, open: String, quit: String) -> Result<(), String> {
+    let tray_state = app.state::<TrayState>();
+    if let Some(item) = tray_state.open_item.lock().unwrap().as_ref() {
+        item.set_text(escape_menu_text(&open))
+            .map_err(|error| error.to_string())?;
+    }
+    if let Some(item) = tray_state.quit_item.lock().unwrap().as_ref() {
+        item.set_text(escape_menu_text(&quit))
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 /// Adds, renames or removes the tray entry that points at a pending update.
 #[tauri::command]
-fn set_tray_update(app: tauri::AppHandle, version: Option<String>) -> Result<(), String> {
+fn set_tray_update(app: tauri::AppHandle, label: Option<String>) -> Result<(), String> {
     let tray_state = app.state::<TrayState>();
     let menu = tray_state.menu.lock().unwrap();
     let Some(menu) = menu.as_ref() else {
         return Ok(());
     };
     let mut update_item = tray_state.update_item.lock().unwrap();
-    match (version, update_item.as_ref()) {
-        (Some(version), Some(item)) => item
-            .set_text(format_tray_update(&version))
+    match (label, update_item.as_ref()) {
+        (Some(label), Some(item)) => item
+            .set_text(escape_menu_text(&label))
             .map_err(|error| error.to_string()),
-        (Some(version), None) => {
+        (Some(label), None) => {
             let item = MenuItem::with_id(
                 &app,
                 "tray_update",
-                format_tray_update(&version),
+                escape_menu_text(&label),
                 true,
                 None::<&str>,
             )
@@ -396,10 +404,6 @@ fn set_tray_update(app: tauri::AppHandle, version: Option<String>) -> Result<(),
         }
         (None, None) => Ok(()),
     }
-}
-
-fn format_tray_update(version: &str) -> String {
-    escape_menu_text(&format!("Update available ({version})"))
 }
 
 /// Autostart keeps the window hidden; a found update brings it forward once.
@@ -435,6 +439,8 @@ pub fn run() {
             menu: Mutex::new(None),
             status_item: Mutex::new(None),
             update_item: Mutex::new(None),
+            open_item: Mutex::new(None),
+            quit_item: Mutex::new(None),
         })
         .manage(controller::ControllerWatcher::default())
         .manage(emulator_launch::EmulatorLaunchGuard::default())
@@ -523,6 +529,7 @@ pub fn run() {
             open_microsoft_signin_url,
             open_xbox_app,
             update_tray_now_playing,
+            set_tray_labels,
             set_tray_update,
             show_main_window_for_update,
             scan_processes,
@@ -628,6 +635,8 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 
     let tray_state = app.state::<TrayState>();
     *tray_state.status_item.lock().unwrap() = Some(status_item);
+    *tray_state.open_item.lock().unwrap() = Some(open_item);
+    *tray_state.quit_item.lock().unwrap() = Some(quit_item);
     *tray_state.menu.lock().unwrap() = Some(menu);
     *tray_state.icon.lock().unwrap() = Some(tray);
     Ok(())
@@ -726,45 +735,6 @@ fn set_tray_status(app: &tauri::AppHandle, status: &str) -> Result<(), String> {
     }
 
     Ok(())
-}
-
-fn format_tray_status(sessions: &[TraySession]) -> String {
-    let sessions = sessions
-        .iter()
-        .filter(|session| !session.game_name.trim().is_empty())
-        .collect::<Vec<_>>();
-
-    match sessions.as_slice() {
-        [] => TRAY_STATUS_IDLE.to_string(),
-        [session] => truncate_tray_text(&format_session_status(session)),
-        [first, ..] => truncate_tray_text(&format!(
-            "{} (+{} more)",
-            format_session_status(first),
-            sessions.len() - 1
-        )),
-    }
-}
-
-fn format_session_status(session: &TraySession) -> String {
-    format!(
-        "{TRAY_STATUS_PREFIX}{} - {}",
-        session.game_name.trim(),
-        format_duration(session.elapsed_seconds)
-    )
-}
-
-fn format_duration(seconds: u64) -> String {
-    let total_minutes = seconds / 60;
-    let hours = total_minutes / 60;
-    let minutes = total_minutes % 60;
-
-    if hours > 0 {
-        format!("{hours}h {minutes}m")
-    } else if minutes > 0 {
-        format!("{minutes}m")
-    } else {
-        "<1m".to_string()
-    }
 }
 
 fn truncate_tray_text(text: &str) -> String {

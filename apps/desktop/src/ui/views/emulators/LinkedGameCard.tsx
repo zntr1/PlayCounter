@@ -28,9 +28,14 @@ import {
 import { GameProvenanceBadges, formatDuration } from "../../components";
 import { GameCover } from "../../GameCover";
 import { emulatorDetectionSourceLabel } from "./emulatorPickerModel";
+import { appLocale, getT } from "../../../i18n";
+import { Trans } from "react-i18next";
 
-export const DEMO_ACTION_REASON =
-  "Sample card - actions are switched off during the guide.";
+const t = getT("emulators");
+
+export function demoActionReason() {
+  return t("Sample card - actions are switched off during the guide.");
+}
 
 export type LinkedGameStats = {
   seconds: number;
@@ -80,17 +85,20 @@ export function LinkedGameCard({
     ? ({
         visible: true,
         action: "share",
-        label: "Share match",
+        label: t("Share match"),
         disabled: !onDemoShare,
         reason: onDemoShare
-          ? "Preview sharing this sample match"
-          : DEMO_ACTION_REASON,
+          ? t("Preview sharing this sample match")
+          : demoActionReason(),
       } as const)
     : emulatorShareControl(mapping, shareContext);
   const community = communityStatus(share, shareable);
   const recognized = detectionSource
-    ? `Recognized by ${detectionSource}: ${mapping.display}`
-    : `Recognized from ${mapping.display}`;
+    ? t("Recognized by {{detectionSource}}: {{display}}", {
+        detectionSource,
+        display: mapping.display,
+      })
+    : t("Recognized from {{display}}", { display: mapping.display });
 
   async function submitShare() {
     if (demo) return onDemoShare?.();
@@ -104,21 +112,21 @@ export function LinkedGameCard({
         tone: "success",
         title:
           outcome.share.status === "already_curated"
-            ? "Already in the Community database"
-            : "Match sent for review",
+            ? t("Already in the Community database")
+            : t("Match sent for review"),
         detail:
           outcome.share.status === "pending"
-            ? "You'll get a notification once it's reviewed."
-            : "Nothing changed on this PC.",
+            ? t("You'll get a notification once it's reviewed.")
+            : t("Nothing changed on this PC."),
       });
     } else {
       addToast({
         tone: "error",
-        title: "Could not share match",
+        title: t("Could not share match"),
         detail:
           outcome.kind === "failed"
             ? outcome.error
-            : "Nothing changed on this PC.",
+            : t("Nothing changed on this PC."),
       });
     }
   }
@@ -161,7 +169,7 @@ export function LinkedGameCard({
             className="absolute right-2 top-2 rounded-full border border-warning-border bg-warning-tint px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning shadow-sm backdrop-blur"
             data-tour={demo ? "demo-emulator-check-badge" : undefined}
           >
-            Check this once
+            {t("Check this once")}
           </span>
         ) : null}
       </div>
@@ -175,13 +183,24 @@ export function LinkedGameCard({
         </h3>
         {stats && stats.sessions > 0 ? (
           <p className="text-xs leading-5 text-text-muted">
-            <span className="font-mono text-sm font-bold text-text">
-              {formatDuration(stats.seconds, showDurationDays)}
-            </span>{" "}
-            in {stats.sessions} session{stats.sessions === 1 ? "" : "s"}
+            <Trans
+              t={t}
+              i18nKey="<time>{{duration}}</time> in {{count}} sessions"
+              count={stats.sessions}
+              values={{
+                duration: formatDuration(stats.seconds, showDurationDays),
+              }}
+              components={{
+                time: (
+                  <span className="font-mono text-sm font-bold text-text" />
+                ),
+              }}
+            />
           </p>
         ) : (
-          <p className="text-xs leading-5 text-text-faint">Not played yet</p>
+          <p className="text-xs leading-5 text-text-faint">
+            {t("Not played yet")}
+          </p>
         )}
         <p
           className="flex min-w-0 items-center gap-1.5 text-[11px] text-text-muted"
@@ -194,7 +213,7 @@ export function LinkedGameCard({
         </p>
         <dl className="mt-1 grid gap-0.5 border-t border-border/70 pt-2 text-[11px]">
           <div className="flex items-baseline justify-between gap-2">
-            <dt className="text-text-faint">Community</dt>
+            <dt className="text-text-faint">{t("Community")}</dt>
             <dd
               className={clsx(
                 "truncate text-right font-medium",
@@ -205,8 +224,8 @@ export function LinkedGameCard({
               {community.label}
             </dd>
           </div>
-          <DateRow label="Linked" iso={mapping.decidedAt} />
-          <DateRow label="Last seen" iso={mapping.lastSeenAt} />
+          <DateRow label={t("Linked")} iso={mapping.decidedAt} />
+          <DateRow label={t("Last seen")} iso={mapping.lastSeenAt} />
         </dl>
       </div>
 
@@ -217,8 +236,10 @@ export function LinkedGameCard({
             disabled={demo && !onDemoConfirm}
             title={
               demo && !onDemoConfirm
-                ? DEMO_ACTION_REASON
-                : "PlayCounter already tracks this game. Confirm to remove the note."
+                ? demoActionReason()
+                : t(
+                    "PlayCounter already tracks this game. Confirm to remove the note.",
+                  )
             }
             data-tour={demo ? "demo-emulator-confirm" : undefined}
             onClick={
@@ -229,7 +250,7 @@ export function LinkedGameCard({
             className="flex w-full items-center justify-center gap-2 border-t border-warning-border bg-warning-tint px-3 py-2 text-xs font-semibold text-warning transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Check size={14} className="shrink-0" />
-            Looks right
+            {t("Looks right")}
           </button>
         ) : null}
 
@@ -240,7 +261,7 @@ export function LinkedGameCard({
           {shareControl.visible ? (
             <FooterAction
               icon={Share2}
-              label={sharing ? "Sharing…" : shareControl.label}
+              label={sharing ? t("Sharing…") : shareControl.label}
               disabled={shareControl.disabled || sharing}
               title={shareControl.reason ?? shareControl.label}
               onClick={() => void submitShare()}
@@ -250,16 +271,16 @@ export function LinkedGameCard({
           <div className="grid grid-cols-2 divide-x divide-border">
             <FooterAction
               icon={Repeat2}
-              label="Change"
+              label={t("Change")}
               disabled={!onChange}
-              title={demo && !onChange ? DEMO_ACTION_REASON : "Change game"}
+              title={demo && !onChange ? demoActionReason() : t("Change game")}
               onClick={onChange}
             />
             <FooterAction
               icon={RotateCcw}
-              label="Forget"
+              label={t("Forget")}
               disabled={!onForget}
-              title={demo && !onForget ? DEMO_ACTION_REASON : "Forget game"}
+              title={demo && !onForget ? demoActionReason() : t("Forget game")}
               onClick={onForget}
             />
           </div>
@@ -299,8 +320,8 @@ function DateRow({ label, iso }: { label: string; iso: string }) {
     <div className="flex items-baseline justify-between gap-2">
       <dt className="text-text-faint">{label}</dt>
       <dd className="font-mono tabular-nums text-text-muted">
-        <time dateTime={iso} title={date.toLocaleString()}>
-          {date.toLocaleDateString()}
+        <time dateTime={iso} title={date.toLocaleString(appLocale())}>
+          {date.toLocaleDateString(appLocale())}
         </time>
       </dd>
     </div>
@@ -315,35 +336,45 @@ function communityStatus(
 ): { label: string; tone: string; tip: string } {
   if (share?.status === "verified" || share?.status === "already_curated") {
     return {
-      label: "Approved",
+      label: t("Approved"),
       tone: "text-success",
-      tip: "This match is in the Community database. Other PlayCounter installs recognize it too.",
+      tip: t(
+        "This match is in the Community database. Other PlayCounter installs recognize it too.",
+      ),
     };
   }
   if (share?.status === "pending") {
     return {
-      label: "Shared · in review",
+      label: t("Shared · in review"),
       tone: "text-community",
-      tip: `Sent ${new Date(share.submittedAt).toLocaleDateString()}. You'll get a notification once it's reviewed.`,
+      tip: t("Sent {{date}}. You'll get a notification once it's reviewed.", {
+        date: new Date(share.submittedAt).toLocaleDateString(appLocale()),
+      }),
     };
   }
   if (share?.status === "rejected") {
     return {
-      label: "Not accepted",
+      label: t("Not accepted"),
       tone: "text-warning",
-      tip: "The review declined this match. The reason is in Notifications - your own link still works.",
+      tip: t(
+        "The review declined this match. The reason is in Notifications - your own link still works.",
+      ),
     };
   }
   if (!shareable) {
     return {
-      label: "Stays on this PC",
+      label: t("Stays on this PC"),
       tone: "text-text-faint",
-      tip: "Custom games and private file names are never sent to the Community database.",
+      tip: t(
+        "Custom games and private file names are never sent to the Community database.",
+      ),
     };
   }
   return {
-    label: "Not shared yet",
+    label: t("Not shared yet"),
     tone: "text-text-faint",
-    tip: "Use Share match to send this file-to-game link to the Community database.",
+    tip: t(
+      "Use Share match to send this file-to-game link to the Community database.",
+    ),
   };
 }

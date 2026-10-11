@@ -9,12 +9,18 @@ import {
   type GameJournal,
   type PersonalShelf,
 } from "./personalLibrary";
+import { getT } from "./i18n";
+
+const t = getT("settings");
 
 type Validator = (value: unknown, path: string) => void;
 
 function invalid(path: string): never {
   throw new Error(
-    `The backup contains invalid data at ${path}. No local data was changed.`,
+    t(
+      "The backup contains invalid data at {{path}}. No local data was changed.",
+      { path },
+    ),
   );
 }
 
@@ -285,6 +291,7 @@ const milestone = object(
   // Legacy backfilled awards receive their date and title during hydration.
   {
     title: string,
+    gameName: string,
     coverUrl: string,
     awardedAt: date,
     backfilled: boolean,
@@ -302,6 +309,7 @@ const settings = object({}, {
   currentSessionHotkey: nullable(string),
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
+  language: string,
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),

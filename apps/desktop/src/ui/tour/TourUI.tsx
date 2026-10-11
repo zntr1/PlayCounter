@@ -24,13 +24,17 @@ import { Button, IconButton, Switch } from "../primitives";
 import type { TourTargetRect } from "./tourCardPosition";
 import {
   CORE_TOUR_ID,
-  TOUR_CATEGORIES,
-  TOURS,
+  tourCategories,
+  tours,
   findTour,
   type TourEventName,
 } from "./tourDefinitions";
 import { backStepIndex, nextStepIndex } from "./tourNavigation";
 import { shouldShowWelcome } from "./tourState";
+import { Trans } from "react-i18next";
+import { getT } from "../../i18n";
+
+const t = getT("tour");
 
 const TOUR_EVENT = "playcounter:tour-event";
 // A real dialog the app opened from a highlighted control, e.g. a confirmation
@@ -41,10 +45,15 @@ const APP_MODAL = "[data-modal-backdrop]:not([data-tour])";
 const insideAppModal = (target: EventTarget | null) =>
   target instanceof Element && Boolean(target.closest(APP_MODAL));
 
-const HELP_TOUR_GROUPS = TOUR_CATEGORIES.map((category) => ({
-  ...category,
-  tours: TOURS.filter((tour) => tour.category === category.id),
-})).filter((group) => group.tours.length > 0);
+// Built on each render, so the menu follows the current language.
+function helpTourGroups() {
+  return tourCategories()
+    .map((category) => ({
+      ...category,
+      tours: tours().filter((tour) => tour.category === category.id),
+    }))
+    .filter((group) => group.tours.length > 0);
+}
 
 export function emitTourEvent(name: TourEventName, message?: string) {
   window.dispatchEvent(
@@ -75,7 +84,8 @@ export function HelpButton() {
   const menuScale = useAppStore((state) =>
     normalizeInterfaceScale(state.settings.menuScale, DEFAULT_MENU_SCALE),
   );
-  const [categoryId, setCategoryId] = useState(HELP_TOUR_GROUPS[0].id);
+  const helpGroups = helpTourGroups();
+  const [categoryId, setCategoryId] = useState(helpGroups[0].id);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -127,8 +137,8 @@ export function HelpButton() {
           guide's highlight ring flatter than the button. */}
       <span data-tour="help" className="inline-flex">
         <IconButton
-          aria-label="Help and tutorials"
-          title="Help and tutorials"
+          aria-label={t("Help and tutorials")}
+          title={t("Help and tutorials")}
           aria-expanded={open}
           aria-controls="help-tutorials"
           icon={CircleHelp}
@@ -143,13 +153,15 @@ export function HelpButton() {
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="font-semibold text-text">Help & tutorials</h2>
+              <h2 className="font-semibold text-text">
+                {t("Help & tutorials")}
+              </h2>
               <div className="mt-0.5 text-xs text-text-muted">
-                Choose a topic, then pick a guide.
+                {t("Choose a topic, then pick a guide.")}
               </div>
             </div>
             <IconButton
-              aria-label="Close help"
+              aria-label={t("Close help")}
               icon={X}
               onClick={() => {
                 setOpen(false);
@@ -164,11 +176,11 @@ export function HelpButton() {
           <div className="flex min-h-0">
             <div
               role="tablist"
-              aria-label="Guide categories"
+              aria-label={t("Guide categories")}
               aria-orientation="vertical"
               className="flex w-[188px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface-hover/30 p-2"
             >
-              {HELP_TOUR_GROUPS.map((group, index) => {
+              {helpGroups.map((group, index) => {
                 const selected = group.id === categoryId;
                 return (
                   <button
@@ -191,13 +203,12 @@ export function HelpButton() {
                       else if (event.key === "ArrowUp") next -= 1;
                       else if (event.key === "Home") next = 0;
                       else if (event.key === "End")
-                        next = HELP_TOUR_GROUPS.length - 1;
+                        next = helpGroups.length - 1;
                       else return;
                       event.preventDefault();
                       const target =
-                        HELP_TOUR_GROUPS[
-                          (next + HELP_TOUR_GROUPS.length) %
-                            HELP_TOUR_GROUPS.length
+                        helpGroups[
+                          (next + helpGroups.length) % helpGroups.length
                         ];
                       setCategoryId(target.id);
                       document
@@ -207,7 +218,9 @@ export function HelpButton() {
                   >
                     <span>{group.title}</span>
                     <span
-                      aria-label={`${group.tours.length} ${group.tours.length === 1 ? "guide" : "guides"}`}
+                      aria-label={t("{{count}} guides", {
+                        count: group.tours.length,
+                      })}
                       className="shrink-0 rounded-md bg-surface px-1.5 py-0.5 text-[10px] tabular-nums"
                     >
                       {group.tours.length}
@@ -219,7 +232,7 @@ export function HelpButton() {
             {/* Every list shares one grid cell so switching topics never
                 resizes the panel; hidden lists only keep their height. */}
             <div className="grid min-w-0 flex-1 grid-rows-[minmax(0,1fr)]">
-              {HELP_TOUR_GROUPS.map((group) => (
+              {helpGroups.map((group) => (
                 <div
                   key={group.id}
                   id={`help-guides-${group.id}`}
@@ -255,7 +268,7 @@ export function HelpButton() {
                             <span className="flex items-baseline justify-between gap-3 text-sm font-medium text-text">
                               <span>{tour.title}</span>
                               <span className="shrink-0 whitespace-nowrap text-[11px] font-normal text-text-muted">
-                                {complete ? "Replay" : tour.duration}
+                                {complete ? t("Replay") : tour.duration}
                               </span>
                             </span>
                             <span className="block text-xs leading-relaxed text-text-muted">
@@ -320,12 +333,12 @@ export function WelcomePrompt() {
               className="mb-4"
             />
             <h2 className="text-xl font-semibold text-text">
-              Welcome to PlayCounter
+              {t("Welcome to PlayCounter")}
             </h2>
             <p className="mt-2 leading-6 text-text-muted">
-              PlayCounter watches for games you launch and tracks how long you
-              play, no matter where they came from. A quick tour shows you
-              around.
+              {t(
+                "PlayCounter watches for games you launch and tracks how long you play, no matter where they came from. A quick tour shows you around.",
+              )}
             </p>
           </div>
           <div className="mt-4 flex items-start gap-3 rounded-xl bg-bg p-3">
@@ -333,12 +346,13 @@ export function WelcomePrompt() {
               <MessageSquareHeart size={16} />
             </span>
             <p className="text-xs leading-5 text-text-muted">
-              <span className="font-medium text-text">
-                Built by one developer.
-              </span>{" "}
-              PlayCounter is new, so expect a few rough edges. Spot one? Use{" "}
-              <span className="font-medium text-text">Help & Feedback</span> or
-              join our Discord. I read every message and reply.
+              <Trans
+                t={t}
+                i18nKey="<strong>Built by one developer.</strong> PlayCounter is new, so expect a few rough edges. Spot one? Use <strong>Help & Feedback</strong> or join our Discord. I read every message and reply."
+                components={{
+                  strong: <span className="font-medium text-text" />,
+                }}
+              />
             </p>
           </div>
         </div>
@@ -352,12 +366,12 @@ export function WelcomePrompt() {
               />
               <span>
                 <span className="block font-semibold text-text">
-                  Use PlayCounter as a launcher
+                  {t("Use PlayCounter as a launcher")}
                 </span>
                 <span className="mt-1 block text-sm leading-5 text-text-muted">
-                  Show Play buttons for games PlayCounter can start directly.
-                  This is optional, and you can turn it off anytime in Settings
-                  if you don't need it or find it annoying.
+                  {t(
+                    "Show Play buttons for games PlayCounter can start directly. This is optional, and you can turn it off anytime in Settings if you don't need it or find it annoying.",
+                  )}
                 </span>
               </span>
             </label>
@@ -370,13 +384,12 @@ export function WelcomePrompt() {
             />
             <span>
               <span className="block font-semibold text-text">
-                Track software
+                {t("Track software")}
               </span>
               <span className="mt-1 block text-sm leading-5 text-text-muted">
-                Also count how long apps like Discord, Spotify and launchers
-                run, on their own Software page. They never show up in Now
-                Playing or your game stats. You can change this anytime in
-                Settings.
+                {t(
+                  "Also count how long apps like Discord, Spotify and launchers run, on their own Software page. They never show up in Now Playing or your game stats. You can change this anytime in Settings.",
+                )}
               </span>
             </span>
           </label>
@@ -391,14 +404,14 @@ export function WelcomePrompt() {
                 startTour(CORE_TOUR_ID);
               }}
             >
-              Take the tour
+              {t("Take the tour")}
             </Button>
             <Button
               variant="ghost"
               className="mx-auto px-2 py-1 text-xs text-text-faint"
               onClick={close}
             >
-              Maybe later
+              {t("Maybe later")}
             </Button>
           </div>
         </div>
@@ -1069,7 +1082,7 @@ function TourRunner() {
             type="button"
             className="rounded p-1 text-text-muted hover:bg-surface-hover hover:text-text"
             onClick={() => endTour("dismissed")}
-            aria-label="Exit tutorial"
+            aria-label={t("Exit tutorial")}
           >
             <X size={16} />
           </button>
@@ -1086,14 +1099,16 @@ function TourRunner() {
           ) : null}
           {missing ? (
             <p className="mt-2 text-xs text-warning">
-              This control is not available right now. You can still continue.
+              {t(
+                "This control is not available right now. You can still continue.",
+              )}
               {tour.practice || tour.demoGame || tour.simulation ? (
                 <button
                   type="button"
                   className="ml-1 underline"
                   onClick={() => goTo(active.stepIndex, true)}
                 >
-                  Show this step
+                  {t("Show this step")}
                 </button>
               ) : null}
             </p>
@@ -1109,8 +1124,9 @@ function TourRunner() {
           ) : null}
           {isLast && skipped.current ? (
             <p className="mt-2 text-xs text-text-muted">
-              You skipped an exercise. Replay this guide from Help to try it
-              later.
+              {t(
+                "You skipped an exercise. Replay this guide from Help to try it later.",
+              )}
             </p>
           ) : null}
         </div>
@@ -1121,14 +1137,16 @@ function TourRunner() {
               className="w-full"
               onClick={continueWithPersonalization}
             >
-              Personalize PlayCounter ({findTour("settings")?.duration})
+              {t("Personalize PlayCounter ({{duration}})", {
+                duration: findTour("settings")?.duration ?? "",
+              })}
             </Button>
             <div className="flex items-center justify-between gap-2">
-              <Button onClick={back}>Back</Button>
+              <Button onClick={back}>{t("Back")}</Button>
               <div className="flex gap-2">
-                <Button onClick={openGuides}>View other guides</Button>
+                <Button onClick={openGuides}>{t("View other guides")}</Button>
                 <Button variant="ghost" onClick={() => endTour("completed")}>
-                  Finish
+                  {t("Finish")}
                 </Button>
               </div>
             </div>
@@ -1136,7 +1154,7 @@ function TourRunner() {
         ) : (
           <div className="flex shrink-0 items-center justify-between gap-2 px-5 py-3">
             <Button disabled={active.stepIndex === 0} onClick={back}>
-              Back
+              {t("Back")}
             </Button>
             <div className="flex flex-wrap justify-end gap-2">
               {isLast && tour.nextTourId ? (
@@ -1150,22 +1168,22 @@ function TourRunner() {
                 </Button>
               ) : null}
               {isLast && !tour.nextTourId ? (
-                <Button onClick={openGuides}>More guides</Button>
+                <Button onClick={openGuides}>{t("More guides")}</Button>
               ) : null}
               {step.interactive && !step.manualAdvance ? (
-                <Button onClick={skipInteractive}>Skip step</Button>
+                <Button onClick={skipInteractive}>{t("Skip step")}</Button>
               ) : null}
               {!step.interactive || step.manualAdvance ? (
                 <Button variant="primary" onClick={advance}>
                   {isLast
                     ? tour.finishView === "games"
-                      ? "Open My Games"
+                      ? t("Open My Games")
                       : tour.finishView === "history"
-                        ? "Open My History"
+                        ? t("Open My History")
                         : tour.finishView === "discovered"
-                          ? "Open Discovered"
-                          : "Finish"
-                    : "Next"}
+                          ? t("Open Discovered")
+                          : t("Finish")
+                    : t("Next")}
                 </Button>
               ) : null}
             </div>
@@ -1260,13 +1278,14 @@ export function TutorialSettingsPanel() {
       <div className="flex min-w-0 items-start gap-3">
         <CircleHelp size={20} className="mt-0.5 shrink-0 text-accent-ink" />
         <p className="text-sm leading-5 text-text-muted">
-          Use the <span className="font-semibold text-text">?</span> button in
-          the top-right corner to start or replay the Quick Tour and every
-          step-by-step guide.
+          {t("Use the")} <span className="font-semibold text-text">?</span>{" "}
+          {t(
+            "button in the top-right corner to start or replay the Quick Tour and every step-by-step guide.",
+          )}
         </p>
       </div>
       <Button icon={CircleHelp} onClick={() => setOpen(true)}>
-        Open Help menu
+        {t("Open Help menu")}
       </Button>
     </div>
   );

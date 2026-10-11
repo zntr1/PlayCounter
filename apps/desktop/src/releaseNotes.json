@@ -1,5 +1,58 @@
 [
   {
+    "version": "1.4.0",
+    "headline": "PlayCounter now speaks German, Portuguese (Brazil), Spanish and Chinese.",
+    "highlights": [
+      "Feature: PlayCounter starts in your computer's language. Change it any time in Settings → General → Language.",
+      "Feature: The installer, the startup screen and What's new are translated too, and dates and numbers follow your language.",
+      "Improvement: My History → All time: the total at the top now matches My Games, launcher playtime and your own edits included.",
+      "Improvement: PlayCounter games without a file now get help finding one: Move to PlayCounter keeps the files PlayCounter knows for the game, a file found at startup shows as Match found and in Level up all, and Check for matches works for them too.",
+      "Fixes: ignoring an app no longer sends it to the community as a suggestion, and more Windows tools and helper programs (like Defrag or the on-screen keyboard) are ignored automatically."
+    ],
+    "translations": {
+      "de": {
+        "headline": "PlayCounter spricht jetzt Deutsch, Portugiesisch (Brasilien), Spanisch und Chinesisch.",
+        "highlights": [
+          "Neu: PlayCounter startet in der Sprache deines Computers. Ändern kannst du sie jederzeit unter Einstellungen → Allgemein → Sprache.",
+          "Neu: Auch das Installationsprogramm, der Startbildschirm und „Neuigkeiten“ sind übersetzt, und Datum und Zahlen folgen deiner Sprache.",
+          "Verbessert: „Mein Verlauf“ → „Gesamt“: Die Summe oben passt jetzt zu „Meine Spiele“, inklusive Launcher-Spielzeit und deiner eigenen Änderungen.",
+          "Verbessert: PlayCounter-Spiele ohne Datei bekommen jetzt Hilfe, eine zu finden: „Zu PlayCounter verschieben“ behält die Dateien, die PlayCounter für das Spiel kennt, eine beim Start gefundene Datei erscheint als „Treffer gefunden“ und unter „Alle aufwerten“, und „Nach Treffern suchen“ funktioniert auch für sie.",
+          "Behoben: Ignorierst du eine App, geht sie nicht mehr als Vorschlag an die Community, und weitere Windows-Tools und Hilfsprogramme (wie Defrag oder die Bildschirmtastatur) werden automatisch ignoriert."
+        ]
+      },
+      "es": {
+        "headline": "PlayCounter ya habla alemán, portugués (Brasil), español y chino.",
+        "highlights": [
+          "Novedad: PlayCounter se abre en el idioma de tu equipo. Cámbialo cuando quieras en Configuración → General → Idioma.",
+          "Novedad: el instalador, la pantalla de inicio y “Novedades” también están traducidos, y las fechas y los números siguen tu idioma.",
+          "Mejora: “Mi historial” → “Todo el tiempo”: el total de arriba ahora coincide con “Mis juegos”, incluido el tiempo de juego de los lanzadores y tus propios cambios.",
+          "Mejora: los juegos de PlayCounter sin archivo ahora reciben ayuda para encontrar uno: “Mover a PlayCounter” conserva los archivos que PlayCounter conoce del juego, un archivo encontrado al iniciar aparece como “Asociación encontrada” y en “Subir de nivel todos”, y “Comprobar asociaciones” también funciona con ellos.",
+          "Correcciones: ignorar una app ya no la envía a la comunidad como sugerencia, y más herramientas de Windows y programas auxiliares (como Defrag o el teclado en pantalla) se ignoran automáticamente."
+        ]
+      },
+      "pt-BR": {
+        "headline": "O PlayCounter agora fala alemão, português (Brasil), espanhol e chinês.",
+        "highlights": [
+          "Novidade: o PlayCounter abre no idioma do seu computador. Mude quando quiser em Configurações → Geral → Idioma.",
+          "Novidade: o instalador, a tela de inicialização e “Novidades” também estão traduzidos, e datas e números seguem o seu idioma.",
+          "Melhoria: “Meu histórico” → “Todo o período”: o total no topo agora bate com “Meus jogos”, incluindo o tempo de jogo dos launchers e as suas próprias edições.",
+          "Melhoria: jogos do PlayCounter sem arquivo agora recebem ajuda para encontrar um: “Mover para o PlayCounter” mantém os arquivos que o PlayCounter conhece do jogo, um arquivo encontrado na inicialização aparece como “Associação encontrada” e em “Subir de nível todos”, e “Verificar associações” também funciona para eles.",
+          "Correções: ignorar um app não o envia mais para a comunidade como sugestão, e mais ferramentas do Windows e programas auxiliares (como o Defrag ou o teclado virtual) são ignorados automaticamente."
+        ]
+      },
+      "zh-CN": {
+        "headline": "PlayCounter 现已支持德语、葡萄牙语（巴西）、西班牙语和中文。",
+        "highlights": [
+          "新功能：PlayCounter 会以你电脑的语言启动。随时可以在 设置 → 常规 → 语言 中更改。",
+          "新功能：安装程序、启动画面和“更新内容”也已翻译，日期和数字会跟随你的语言。",
+          "改进：“我的历史” → “全部时间”：顶部的总时长现在与“我的游戏”一致，包括启动器的游戏时长和你自己的修改。",
+          "改进：没有文件的 PlayCounter 游戏现在也能获得查找文件的帮助：“移到 PlayCounter”会保留 PlayCounter 已知的该游戏文件，启动时找到的文件会显示为“找到匹配”并出现在“全部升级”中，“检查匹配”也适用于这些游戏。",
+          "修复：忽略某个应用后，不再把它作为建议发送给社区；更多 Windows 工具和辅助程序（如 Defrag 或屏幕键盘）会被自动忽略。"
+        ]
+      }
+    }
+  },
+  {
     "version": "1.3.2",
     "headline": "Pick a cover for any game, level up all your games at once, and clearer ways to report a wrong match.",
     "highlights": [
@@ -16,7 +69,81 @@
       "Reporting: an unknown program gets one 'Not a game…' button with the same choices.",
       "Design: Sidebar: emulators moved to Library, Software to Discover.",
       "Fixes: a game's .exe no longer shows twice when only upper and lower case differ (cs2.exe and CS2.exe), picking a different game for a file no longer keeps the old game's details and art, and reports on games with two files now go to the right file."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Wähle ein Cover für jedes Spiel, werte alle deine Spiele auf einmal auf, und falsche Zuordnungen meldest du jetzt einfacher.",
+        "highlights": [
+          "Neu: Cover für jedes Spiel! „Cover wählen…“ holt eins von SteamGridDB, oder nutze „Cover hochladen“ und „Cover einfügen“. „Cover zurücksetzen“ holt das Original zurück. Lädt ein Cover nicht, zeigt PlayCounter wieder das ursprüngliche Cover des Spiels.",
+          "Neu: „Beim Spielstart in den Infobereich minimieren“: Nachdem du in PlayCounter auf „Spielen“ gedrückt hast, wandert PlayCounter in den Infobereich, sobald das Spiel läuft. Standardmäßig an, unter Einstellungen → Spiele starten.",
+          "Neu: Startseite: PlayCounter öffnet mit „Läuft gerade“ oder „Meine Spiele“ (Einstellungen → Allgemein).",
+          "Neu: Auf Wunsch eine Uhr im Pop-up zur aktuellen Sitzung, praktisch in Vollbildspielen (Einstellungen → Tastenkürzel).",
+          "Verbessert: Ein Knopf in „Meine Spiele“ listet jedes Spiel, das sich aufwerten lässt: von der Community freigegebene Vorschläge, gefundene Treffer für deine eigenen Spiele und Launcher-Spiele, die PlayCounter jetzt erfassen kann. Entferne den Haken bei allem, was falsch aussieht, und übernimm den Rest.",
+          "Verbessert: „Mein Verlauf“: ein „Nach oben“-Knopf, und die Spieleliste für „Gesamt“ passt jetzt zu den Summen in „Meine Spiele“, Launcher-Spielzeit eingeschlossen.",
+          "Verbessert: Esc leert die Suche oder den Filter von „Mein Verlauf“ auf jeder Seite. In „Entdeckt“ springt Strg+F in die eigene Suche der Seite.",
+          "Melden: „Falsche Zuordnung melden“ fragt, was die Datei wirklich ist: ein anderes Spiel, eine App zum Erfassen, eine App zum Ignorieren, ein Teil des Spiels, oder du bist dir nicht sicher.",
+          "Melden: „Sie gehört nicht zu <Spiel>“ nimmt eine Datei auf deinem PC von einem Spiel weg und meldet sie. Ihre Sitzungen bleiben in „Mein Verlauf“.",
+          "Melden: Spiele mit mehreren .exe-Dateien fragen „Welche Datei?“, damit Meldungen, die Suche nach Treffern und „In eigenes Spiel umwandeln“ die richtige treffen. Unter Details → Dateien hat jede Datei einen Knopf „Melden“.",
+          "Melden: Ein unbekanntes Programm bekommt einen Knopf „Kein Spiel…“ mit denselben Auswahlmöglichkeiten.",
+          "Design: Seitenleiste: Die Emulatoren sind nach „Bibliothek“ umgezogen, „Software“ nach „Entdecken“.",
+          "Behoben: Die .exe eines Spiels erscheint nicht mehr doppelt, wenn sich nur Groß- und Kleinschreibung unterscheiden (cs2.exe und CS2.exe), wählst du für eine Datei ein anderes Spiel, bleiben Details und Bilder des alten Spiels nicht mehr hängen, und Meldungen zu Spielen mit zwei Dateien landen jetzt bei der richtigen Datei."
+        ]
+      },
+      "es": {
+        "headline": "Elige una portada para cualquier juego, sube de nivel todos tus juegos a la vez e informa de asociaciones incorrectas con más claridad.",
+        "highlights": [
+          "Novedad: ¡Portadas para cualquier juego! “Elegir portada…” toma una de SteamGridDB, o usa “Cargar portada” y “Pegar portada”. “Restaurar portada” recupera la original. Si una portada no carga, se vuelve a mostrar la portada original del juego.",
+          "Novedad: “Minimizar a la bandeja al iniciar un juego”: después de hacer clic en “Jugar” en PlayCounter, la app pasa a la bandeja en cuanto el juego se ejecuta. Activado de forma predeterminada en Configuración → Inicio de juegos.",
+          "Novedad: Página inicial: abre PlayCounter en “Jugando ahora” o en “Mis juegos” (Configuración → General).",
+          "Novedad: Reloj opcional en la ventana emergente de la sesión actual, práctico en juegos a pantalla completa (Configuración → Atajos de teclado).",
+          "Mejora: Un botón en “Mis juegos” muestra todos los juegos que se pueden mejorar: sugerencias que la comunidad aprobó, asociaciones encontradas para tus propios juegos y juegos de lanzadores que PlayCounter ahora puede registrar. Desmarca lo que parezca incorrecto y aplica el resto.",
+          "Mejora: “Mi historial”: un botón “Volver al principio”, y la lista de juegos de “Todo el tiempo” ahora coincide con los totales de “Mis juegos”, incluido el tiempo de juego de los lanzadores.",
+          "Mejora: Esc borra la búsqueda o el filtro de “Mi historial” desde cualquier página. En “Descubiertos”, Ctrl+F salta a su propia búsqueda.",
+          "Informes: “Informar asociación incorrecta” pregunta qué es realmente el archivo: otro juego, una aplicación para registrar, una aplicación para ignorar, parte del juego o no estás seguro.",
+          "Informes: “No pertenece a <juego>” quita un archivo de un juego en tu PC e informa de ello. Sus sesiones se quedan en “Mi historial”.",
+          "Informes: Los juegos con varios .exe preguntan “¿Qué archivo?”, para que los informes, las comprobaciones de asociaciones y “Convertir a juego personalizado” actúen sobre el correcto. Detalles → Archivos tiene un botón “Informar” para cada archivo.",
+          "Informes: Un programa desconocido tiene un único botón “No es un juego…” con las mismas opciones.",
+          "Diseño: Barra lateral: los emuladores pasaron a “Biblioteca” y “Software” a “Descubrir”.",
+          "Correcciones: el .exe de un juego ya no aparece dos veces cuando solo cambian las mayúsculas y minúsculas (cs2.exe y CS2.exe), elegir otro juego para un archivo ya no conserva los detalles ni las imágenes del juego anterior, y los informes sobre juegos con dos archivos ahora van al archivo correcto."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Escolha uma capa para qualquer jogo, suba o nível de todos os seus jogos de uma vez e informe associações incorretas com mais clareza.",
+        "highlights": [
+          "Novidade: capas para qualquer jogo! “Escolher capa…” pega uma do SteamGridDB, ou use “Carregar capa” e “Colar capa”. “Restaurar capa” traz de volta a original. Se uma capa não carregar, volta a aparecer a capa original do jogo.",
+          "Novidade: “Minimizar para a bandeja ao iniciar um jogo”: depois que você clica em “Jogar” no PlayCounter, ele vai para a bandeja assim que o jogo estiver rodando. Ativado por padrão em Configurações → Inicialização de jogos.",
+          "Novidade: página inicial: abra o PlayCounter em “Jogando agora” ou em “Meus jogos” (Configurações → Geral).",
+          "Novidade: relógio opcional no pop-up da sessão atual, útil em jogos em tela cheia (Configurações → Atalhos de teclado).",
+          "Melhoria: um botão em “Meus jogos” lista todos os jogos que podem ser melhorados: sugestões que a comunidade aprovou, associações encontradas para os seus próprios jogos e jogos de launchers que o PlayCounter agora consegue registrar. Desmarque o que parecer errado e aplique o resto.",
+          "Melhoria: “Meu histórico”: um botão “Voltar ao topo”, e a lista de jogos de “Todo o período” agora bate com os totais de “Meus jogos”, incluindo o tempo de jogo dos launchers.",
+          "Melhoria: Esc limpa a busca ou o filtro de “Meu histórico” em qualquer página. Em “Descobertos”, Ctrl+F vai direto para a busca da própria página.",
+          "Informar erros: “Informar associação incorreta” pergunta o que o arquivo realmente é: outro jogo, um app para registrar, um app para ignorar, parte do jogo ou se você não tem certeza.",
+          "Informar erros: “Não pertence a <jogo>” tira um arquivo de um jogo no seu PC e informa o erro. As sessões dele continuam em “Meu histórico”.",
+          "Informar erros: jogos com vários .exe perguntam “Qual arquivo?”, para que os avisos de erro, as verificações de associação e “Converter para jogo personalizado” usem o arquivo certo. Detalhes → Arquivos tem um botão “Informar” para cada arquivo.",
+          "Informar erros: um programa desconhecido ganha um único botão “Não é um jogo…” com as mesmas opções.",
+          "Visual: barra lateral: os emuladores foram para “Biblioteca” e “Software” foi para “Descobrir”.",
+          "Correções: o .exe de um jogo não aparece mais duas vezes quando só muda entre maiúsculas e minúsculas (cs2.exe e CS2.exe), escolher outro jogo para um arquivo não mantém mais os detalhes e as imagens do jogo antigo, e os avisos de erro sobre jogos com dois arquivos agora vão para o arquivo certo."
+        ]
+      },
+      "zh-CN": {
+        "headline": "为任意游戏挑选封面，一次升级所有游戏，报告匹配错误也更清楚了。",
+        "highlights": [
+          "新功能：任意游戏都能换封面！“选择封面…”可以从 SteamGridDB 挑一张，也可以用“上传封面”和“粘贴封面”。“恢复封面”会换回原来的封面。封面加载失败时，会改为显示游戏原来的封面。",
+          "新功能：“启动游戏时最小化到系统托盘”：在 PlayCounter 中点击“开始游戏”后，游戏一运行，PlayCounter 就会缩到系统托盘。默认开启，位于“设置 → 启动游戏”。",
+          "新功能：启动页面：打开时显示“正在游玩”或“我的游戏”（设置 → 常规）。",
+          "新功能：本次游玩弹窗可以显示时钟，玩全屏游戏时很方便（设置 → 键盘快捷键）。",
+          "改进：“我的游戏”中有一个按钮，会列出所有可以升级的游戏：社区已批准的建议、为你自己的游戏找到的匹配，以及 PlayCounter 现在可以记录的启动器游戏。取消勾选看起来不对的项目，然后应用其余的。",
+          "改进：“我的历史”：新增“返回顶部”按钮，“全部时间”的游戏列表现在与“我的游戏”中的总时长一致，包括启动器的游戏时长。",
+          "改进：在任意页面按 Esc 都能清除搜索或“我的历史”的筛选。在“已发现”中，Ctrl+F 会跳到该页面自己的搜索框。",
+          "报告：“报告错误匹配”会询问这个文件到底是什么：另一个游戏、要记录的应用、要忽略的应用、游戏的一部分，还是不确定。",
+          "报告：“不属于 <游戏>”会把一个文件从你电脑上的某个游戏中移除并报告。它的游玩记录仍保留在“我的历史”中。",
+          "报告：有多个 .exe 的游戏会询问“哪个文件？”，让报告、匹配检查和“转换为自定义游戏”作用于正确的文件。“详情 → 文件”中每个文件都有“报告”按钮。",
+          "报告：未知程序只有一个“不是游戏…”按钮，选项相同。",
+          "设计：侧边栏：模拟器移到了“游戏库”，“软件”移到了“发现”。",
+          "修复：只有大小写不同时（cs2.exe 和 CS2.exe），游戏的 .exe 不再显示两次；为文件改选其他游戏后，不再保留旧游戏的详情和图片；有两个文件的游戏，报告现在会发给正确的文件。"
+        ]
+      }
+    }
   },
   {
     "version": "1.3.1",
@@ -25,7 +152,41 @@
       "The PlayCounter app is now correctly signed, so Windows and virus scanners can check that it is genuine.",
       "The uninstaller is signed too.",
       "Nothing else changed: same features as 1.3.0."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "PlayCounter und das Deinstallationsprogramm tragen jetzt eine gültige digitale Signatur.",
+        "highlights": [
+          "Die PlayCounter-App ist jetzt korrekt signiert, damit Windows und Virenscanner prüfen können, dass sie echt ist.",
+          "Auch das Deinstallationsprogramm ist signiert.",
+          "Sonst hat sich nichts geändert: dieselben Funktionen wie in 1.3.0."
+        ]
+      },
+      "es": {
+        "headline": "PlayCounter y su desinstalador ahora tienen una firma digital válida.",
+        "highlights": [
+          "La app PlayCounter ahora está firmada correctamente, para que Windows y los antivirus puedan comprobar que es auténtica.",
+          "El desinstalador también está firmado.",
+          "Nada más cambió: las mismas funciones que en 1.3.0."
+        ]
+      },
+      "pt-BR": {
+        "headline": "O PlayCounter e o desinstalador agora têm uma assinatura digital válida.",
+        "highlights": [
+          "O app PlayCounter agora está assinado corretamente, para que o Windows e os antivírus possam verificar que ele é autêntico.",
+          "O desinstalador também está assinado.",
+          "Nada mais mudou: os mesmos recursos da versão 1.3.0."
+        ]
+      },
+      "zh-CN": {
+        "headline": "PlayCounter 及其卸载程序现在带有有效的数字签名。",
+        "highlights": [
+          "PlayCounter 应用现在已正确签名，Windows 和杀毒软件可以验证它是正版。",
+          "卸载程序也已签名。",
+          "其他没有变化：功能与 1.3.0 相同。"
+        ]
+      }
+    }
   },
   {
     "version": "1.3.0",
@@ -41,7 +202,69 @@
       "My Games: 'Recently added' sort, 'New' badge, better Launchable filters, IGDB ID search and an optional 18+ art setting.",
       "About 40% less memory in the tray.",
       "Fixes: unreadable saved data is never saved over, a broken page no longer blanks the window, and fixes for the tray banner, sorting and dialogs."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Füge jedes Spiel selbst hinzu, erfasse deine Apps als Software, dazu PlayStation-Controller und mGBA.",
+        "highlights": [
+          "„Spiel hinzufügen“: Füge in „Meine Spiele“ jedes Spiel selbst hinzu, per Titel oder IGDB-ID, mit oder ohne seine .exe.",
+          "Deine eigenen Spiele: „Spiel ändern“ korrigiert eine falsche Verknüpfung, „Der Community vorschlagen“ teilt mit einem Klick, und der Tab „Dateien“ zeigt, wer welche .exe zugeordnet hat.",
+          "Software-Erfassung: Discord, Spotify, Launcher und mehr auf einer eigenen Seite „Software“, mit Statistiken pro App. Schalte sie unter Einstellungen → Entdeckung ein.",
+          "PlayStation-Controller: DualSense und DualShock 4, mit PlayStation-Tastenhinweisen.",
+          "mGBA: Spiele für Game Boy, Game Boy Color und Game Boy Advance.",
+          "RPG Maker und andere Game.exe-Spiele: eine Kachel pro Spielordner.",
+          "„Entdeckt“: übersichtlichere Prüfung mit Produktname, Publisher, Ordner und dem Hinweis „Wahrscheinlich ein Spiel“.",
+          "„Meine Spiele“: Sortierung „Kürzlich hinzugefügt“, Abzeichen „Neu“, bessere Filter für „Startbar“, Suche nach IGDB-ID und eine optionale Einstellung für 18+-Bilder.",
+          "Rund 40 % weniger Arbeitsspeicher im Infobereich.",
+          "Behoben: Unlesbare gespeicherte Daten werden nie überschrieben, eine fehlerhafte Seite leert nicht mehr das ganze Fenster, dazu Korrekturen am Infobereich-Banner, an der Sortierung und an Dialogen."
+        ]
+      },
+      "es": {
+        "headline": "Añade cualquier juego tú mismo, registra tus aplicaciones como software, mandos de PlayStation y mGBA.",
+        "highlights": [
+          "“Añadir juego”: añade cualquier juego tú mismo en “Mis juegos”, por título o ID de IGDB, con o sin su .exe.",
+          "Tus juegos personalizados: “Cambiar juego” corrige un vínculo incorrecto, “Sugerir a la comunidad” lo comparte con un clic, y la pestaña “Archivos” muestra quién asoció cada .exe.",
+          "Registro de software: Discord, Spotify, lanzadores y más en su propia página “Software”, con estadísticas por aplicación. Actívalo en Configuración → Descubrimiento.",
+          "Mandos de PlayStation: DualSense y DualShock 4, con indicaciones de botones de PlayStation.",
+          "mGBA: juegos de Game Boy, Game Boy Color y Game Boy Advance.",
+          "RPG Maker y otros juegos con Game.exe: una tarjeta por carpeta de juego.",
+          "“Descubiertos”: revisión más clara con nombre del producto, editor, carpeta y la pista “Probablemente un juego”.",
+          "“Mis juegos”: orden “Añadido recientemente”, insignia “Nuevo”, mejores filtros “Se puede iniciar”, búsqueda por ID de IGDB y una opción para imágenes +18.",
+          "Alrededor de un 40 % menos de memoria en la bandeja.",
+          "Correcciones: los datos guardados que no se pueden leer nunca se sobrescriben, una página con errores ya no deja la ventana en blanco, y correcciones en el banner de la bandeja, el orden y los diálogos."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Adicione qualquer jogo você mesmo, registre seus apps como software, controles de PlayStation e mGBA.",
+        "highlights": [
+          "“Adicionar jogo”: adicione qualquer jogo você mesmo em “Meus jogos”, pelo título ou pelo ID do IGDB, com ou sem o .exe.",
+          "Seus jogos personalizados: “Alterar jogo” corrige um vínculo errado, “Sugerir à comunidade” compartilha com um clique, e a aba “Arquivos” mostra quem associou cada .exe.",
+          "Registro de software: Discord, Spotify, launchers e mais na própria página “Software”, com estatísticas por app. Ative em Configurações → Descoberta.",
+          "Controles de PlayStation: DualSense e DualShock 4, com dicas de botões do PlayStation.",
+          "mGBA: jogos de Game Boy, Game Boy Color e Game Boy Advance.",
+          "RPG Maker e outros jogos com Game.exe: um cartão por pasta de jogo.",
+          "“Descobertos”: análise mais clara com nome do produto, editora, pasta e a dica “Provavelmente um jogo”.",
+          "“Meus jogos”: ordenação “Adicionado recentemente”, selo “Novo”, filtros “Pode ser iniciado” melhores, busca por ID do IGDB e uma opção para imagens 18+.",
+          "Cerca de 40% menos memória na bandeja.",
+          "Correções: dados salvos ilegíveis nunca são sobrescritos, uma página com erro não deixa mais a janela em branco, e correções no banner da bandeja, na ordenação e nas caixas de diálogo."
+        ]
+      },
+      "zh-CN": {
+        "headline": "自己添加任意游戏，把应用作为软件记录，支持 PlayStation 手柄和 mGBA。",
+        "highlights": [
+          "“添加游戏”：在“我的游戏”中自己添加任意游戏，可以按标题或 IGDB ID 添加，有没有 .exe 都可以。",
+          "你的自定义游戏：“更改游戏”可以修正错误的关联，“向社区建议”一键分享，“文件”标签页显示每个 .exe 是谁匹配的。",
+          "软件记录：Discord、Spotify、启动器等都在单独的“软件”页面中，并按应用显示统计。在“设置 → 发现”中开启。",
+          "PlayStation 手柄：支持 DualSense 和 DualShock 4，并显示 PlayStation 按键提示。",
+          "mGBA：支持 Game Boy、Game Boy Color 和 Game Boy Advance 游戏。",
+          "RPG Maker 和其他 Game.exe 游戏：每个游戏文件夹一张卡片。",
+          "“已发现”：审核更清楚，会显示产品名称、发行商、文件夹以及“可能是游戏”提示。",
+          "“我的游戏”：新增“最近添加”排序、“新”徽章、更好的“可启动”筛选、IGDB ID 搜索，以及可选的 18+ 图片设置。",
+          "在系统托盘中运行时，内存占用减少约 40%。",
+          "修复：无法读取的已保存数据绝不会被覆盖；页面出错时不再导致整个窗口空白；还修复了托盘横幅、排序和对话框的问题。"
+        ]
+      }
+    }
   },
   {
     "version": "1.2.2",
@@ -59,7 +282,73 @@
       "Easier on your games: PlayCounter pauses its animations while it is in the background, so it no longer costs FPS in games that share the GPU. It also uses less memory while it waits in the tray.",
       "Fewer non-games in Discovered: many more everyday apps, like 7-Zip, Adobe tools, AnyDesk and Audacity, are now ignored automatically. Thanks to everyone who shares the apps they ignore.",
       "Fixes: dialogs opened during a guide/tour can be clicked again, a guide no longer starts the hotkey recorder when it reaches Keyboard shortcuts, and Battle.net games no longer count as installed when an uninstall left their folder behind."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Epic-Games-Import, eine Bibliothek, die mit deinen Launchern Schritt hält, und überwachte Ordner für Spiele von überall.",
+        "highlights": [
+          "Für Epic-Games-Spieler: Importiere deine Epic-Bibliothek aus „Meine Spiele“. Melde dich an, um deine Spiele mit der von Epic erfassten Spielzeit zu übernehmen, oder finde installierte Spiele ohne Anmeldung. Die Anmeldung läuft direkt bei Epic in einem privaten Fenster, das danach geleert wird. PlayCounter sieht nie dein Passwort, und deine Epic-Spielzeit bleibt auf deinem PC. Spiele, die du nie gespielt hast, sind anfangs nicht angehakt, damit Gratis-Spiele deine Bibliothek nicht überfluten.",
+          "Deine Bibliothek hält jetzt mit deinen Launchern Schritt. Nach deinem ersten Import aus Steam, Battle.net oder Epic Games erscheinen Spiele, die du dort installierst, von selbst in „Meine Spiele“, noch bevor du sie spielst. Spiele, die du entfernt hast, kommen nie zurück. Ausschalten kannst du das mit „Neue Spiele automatisch hinzufügen“ unter Einstellungen → Bibliotheksimport. Xbox-Spiele brauchen weiterhin einen Xbox-Import.",
+          "„Spielen“-Knöpfe bleiben zuverlässig. Deinstallierst du ein Spiel in Steam, Xbox oder Battle.net, verschwindet sein „Spielen“-Knopf von selbst, und Steam öffnet beim Drücken von „Spielen“ keinen Dialog zur Neuinstallation mehr. Installierst du das Spiel wieder, kommt „Spielen“ ohne neuen Import zurück. Ein nicht verbundenes USB-Laufwerk oder eine nicht verbundene Netzwerkfreigabe löscht deine gespeicherten Startpfade nicht mehr.",
+          "Überwachte Ordner für Spiele außerhalb jedes Launchers: Füge einen Ordner wie C:\\Games unter Einstellungen → Bibliotheksimport hinzu. Jeder Ordner darin zählt als ein Spiel. Ist sich PlayCounter sicher, welches Spiel es ist, wird das Spiel hinzugefügt und „Spielen“ funktioniert sofort, schon vor deiner ersten Sitzung. Alles Unklare wartet in „Entdeckt“ und zeigt den Ordner, in dem es gefunden wurde. Überwachte Ordner brauchen „Startpfade merken“ und bleiben auf diesem PC.",
+          "Spielen mit der Tastatur: Mit den Pfeiltasten bewegst du dich in „Meine Spiele“ zwischen den Kacheln und in die Seitenleiste, und Enter oder die Leertaste startet das ausgewählte Spiel. Das funktioniert immer, wenn das Starten von Spielen an ist, ganz ohne Controller. Esc hebt die Auswahl auf.",
+          "Neue Anleitung unter ? Hilfe: „Ordner für neue Spiele überwachen“. Die Anleitungen zum Importieren und Starten decken jetzt auch Epic Games, neue Installationen und deinstallierte Spiele ab. Starte sie direkt aus diesen Neuigkeiten.",
+          "Steam-Importe enthalten jetzt auch installierte Spiele, die du noch nicht gespielt hast. Wenn du magst, schalte „‚In Steam installieren‘ anzeigen“ in den Einstellungen ein, um für importierte Steam-Spiele, die nicht mehr installiert sind, einen Installationsknopf zu bekommen.",
+          "Ein Rechtsklick auf „Meine Spiele“ in der Seitenleiste springt direkt zum Import aus Steam, Xbox, Battle.net oder Epic Games. Brauchst du das Warnzeichen bei Spielen ohne bekannte .exe nicht? Schalte „Erfassungswarnungen“ unter Anpassen → Kacheldetails in „Meine Spiele“ aus.",
+          "Schonender für deine Spiele: PlayCounter pausiert seine Animationen im Hintergrund und kostet so keine FPS mehr in Spielen, die sich die GPU teilen. Außerdem braucht es weniger Arbeitsspeicher, während es im Infobereich wartet.",
+          "Weniger Nicht-Spiele in „Entdeckt“: Viele weitere Alltags-Apps wie 7-Zip, Adobe-Programme, AnyDesk und Audacity werden jetzt automatisch ignoriert. Danke an alle, die ihre ignorierten Apps teilen.",
+          "Behoben: Dialoge, die während einer Anleitung geöffnet werden, lassen sich wieder anklicken, eine Anleitung startet die Tastenkürzel-Aufnahme nicht mehr, wenn sie bei „Tastenkürzel“ ankommt, und Battle.net-Spiele zählen nicht mehr als installiert, wenn eine Deinstallation ihren Ordner zurückgelassen hat."
+        ]
+      },
+      "es": {
+        "headline": "Importación de Epic Games, una biblioteca al día con tus lanzadores y carpetas supervisadas para juegos de cualquier origen.",
+        "highlights": [
+          "Para jugadores de Epic Games: importa tu biblioteca de Epic desde “Mis juegos”. Inicia sesión para traer tus juegos con el tiempo de juego que registró Epic, o encuentra los juegos instalados sin iniciar sesión. El inicio de sesión se hace directamente con Epic en una ventana privada que se borra después. PlayCounter nunca ve tu contraseña y tu tiempo de juego de Epic se queda en tu PC. Los juegos que nunca jugaste empiezan sin marcar, para que los juegos de regalo no inunden tu biblioteca.",
+          "Tu biblioteca ahora se mantiene al día con tus lanzadores. Después de tu primera importación desde Steam, Battle.net o Epic Games, los juegos que instales allí aparecen solos en “Mis juegos”, incluso antes de jugarlos. Los juegos que quitaste nunca se vuelven a añadir. Desactívalo con “Añadir juegos nuevos automáticamente” en Configuración → Importación de biblioteca. Los juegos de Xbox siguen necesitando una importación de Xbox.",
+          "Los botones “Jugar” siempre son correctos. Cuando desinstalas un juego en Steam, Xbox o Battle.net, su botón “Jugar” desaparece solo, y Steam ya no abre un diálogo de reinstalación al presionar “Jugar”. Reinstala el juego y “Jugar” vuelve sin importar de nuevo. Una unidad USB o una carpeta de red que no está conectada ya no borra tus rutas de inicio guardadas.",
+          "Carpetas supervisadas para juegos fuera de cualquier lanzador: añade una carpeta como C:\\Games en Configuración → Importación de biblioteca. Cada carpeta que contiene cuenta como un juego. Cuando PlayCounter está seguro de qué juego es, el juego se añade y “Jugar” funciona de inmediato, incluso antes de tu primera sesión. Lo que no está claro espera en “Descubiertos” y muestra la carpeta donde se encontró. Las carpetas supervisadas necesitan “Recordar rutas de inicio” y se quedan en este PC.",
+          "Juega con el teclado: las flechas te mueven por “Mis juegos” entre tarjetas y hacia la barra lateral, y Enter o la barra espaciadora inicia el juego seleccionado. Funciona siempre que el inicio de juegos esté activado, sin necesidad de mando. Esc suelta la selección.",
+          "Nueva guía en ? Ayuda: “Supervisar carpetas para encontrar juegos nuevos”. Las guías de importación e inicio ahora también cubren Epic Games, instalaciones nuevas y juegos desinstalados. Inícialas directamente desde estas novedades.",
+          "Las importaciones de Steam ahora también incluyen juegos instalados que aún no has jugado. Si quieres, activa “Mostrar Instalar en Steam” en Configuración para tener un botón Instalar en los juegos de Steam importados que ya no están instalados.",
+          "Haz clic derecho en “Mis juegos” en la barra lateral para ir directo a la importación de Steam, Xbox, Battle.net o Epic Games. ¿No necesitas la señal de advertencia en juegos sin un .exe conocido? Desactiva “Advertencias de registro” en Personalizar → Detalles de la tarjeta, en “Mis juegos”.",
+          "Más ligero para tus juegos: PlayCounter pausa sus animaciones mientras está en segundo plano, así que ya no te cuesta FPS en juegos que comparten la GPU. También usa menos memoria mientras espera en la bandeja.",
+          "Menos programas que no son juegos en “Descubiertos”: muchas más aplicaciones cotidianas, como 7-Zip, herramientas de Adobe, AnyDesk y Audacity, ahora se ignoran automáticamente. Gracias a todos los que comparten las aplicaciones que ignoran.",
+          "Correcciones: los diálogos abiertos durante una guía vuelven a responder a los clics, una guía ya no inicia la grabación de atajos al llegar a “Atajos de teclado”, y los juegos de Battle.net ya no cuentan como instalados cuando una desinstalación dejó su carpeta."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Importação da Epic Games, uma biblioteca que acompanha seus launchers e pastas monitoradas para jogos de qualquer lugar.",
+        "highlights": [
+          "Para quem joga na Epic Games: importe sua biblioteca da Epic em “Meus jogos”. Entre na sua conta para trazer seus jogos com o tempo de jogo que a Epic registrou, ou encontre os jogos instalados sem entrar. O login acontece direto com a Epic, em uma janela privada que é apagada depois. O PlayCounter nunca vê sua senha, e o seu tempo de jogo da Epic fica no seu PC. Jogos que você nunca jogou começam desmarcados, para que os jogos grátis não lotem sua biblioteca.",
+          "Sua biblioteca agora acompanha seus launchers. Depois da sua primeira importação do Steam, do Battle.net ou da Epic Games, os jogos que você instalar lá aparecem sozinhos em “Meus jogos”, antes mesmo de você jogá-los. Jogos que você removeu nunca são adicionados de novo. Desative isso em “Adicionar novos jogos automaticamente”, em Configurações → Importação de biblioteca. Jogos do Xbox ainda precisam de uma importação do Xbox.",
+          "Os botões “Jogar” continuam corretos. Quando você desinstala um jogo no Steam, no Xbox ou no Battle.net, o botão “Jogar” dele some sozinho, e o Steam não abre mais uma janela de reinstalação quando você clica em “Jogar”. Reinstale o jogo e o “Jogar” volta sem precisar importar de novo. Um pendrive ou uma pasta de rede desconectados não apagam mais os seus caminhos de inicialização salvos.",
+          "Pastas monitoradas para jogos fora de qualquer launcher: adicione uma pasta como C:\\Games em Configurações → Importação de biblioteca. Cada pasta dentro dela conta como um jogo. Quando o PlayCounter tem certeza de qual jogo é, o jogo é adicionado e o “Jogar” funciona na hora, antes mesmo da sua primeira sessão. O que não estiver claro espera em “Descobertos” e mostra a pasta onde foi encontrado. Pastas monitoradas precisam de “Lembrar caminhos de inicialização” e ficam neste PC.",
+          "Jogue pelo teclado: as setas percorrem “Meus jogos” entre os cartões e até a barra lateral, e Enter ou Espaço inicia o jogo selecionado. Funciona sempre que a inicialização de jogos estiver ativada, sem precisar de controle. Esc desfaz a seleção.",
+          "Novo guia em ? Ajuda: “Monitorar pastas para encontrar novos jogos”. Os guias de importação e inicialização agora também cobrem a Epic Games, novas instalações e jogos desinstalados. Abra-os direto destas novidades.",
+          "As importações do Steam agora também incluem jogos instalados que você ainda não jogou. Se quiser, ative “Mostrar Instalar no Steam” em Configurações para ter um botão Instalar nos jogos do Steam importados que não estão mais instalados.",
+          "Clique com o botão direito em “Meus jogos” na barra lateral para ir direto à importação do Steam, do Xbox, do Battle.net ou da Epic Games. Não precisa do sinal de alerta nos jogos sem um .exe conhecido? Desative “Alertas de registro” em Personalizar → Detalhes do cartão, em “Meus jogos”.",
+          "Mais leve para os seus jogos: o PlayCounter pausa as animações quando está em segundo plano, então não custa mais FPS em jogos que dividem a GPU. Ele também usa menos memória enquanto espera na bandeja.",
+          "Menos coisas que não são jogos em “Descobertos”: muitos outros apps do dia a dia, como 7-Zip, ferramentas da Adobe, AnyDesk e Audacity, agora são ignorados automaticamente. Obrigado a todos que compartilham os apps que ignoram.",
+          "Correções: caixas de diálogo abertas durante um guia voltam a aceitar cliques, um guia não inicia mais a gravação de atalhos ao chegar em “Atalhos de teclado”, e jogos do Battle.net não contam mais como instalados quando uma desinstalação deixou a pasta para trás."
+        ]
+      },
+      "zh-CN": {
+        "headline": "Epic Games 导入、与启动器保持同步的游戏库，以及适用于任何来源游戏的监控文件夹。",
+        "highlights": [
+          "Epic Games 玩家：从“我的游戏”导入你的 Epic 游戏库。登录即可带入游戏以及 Epic 记录的游戏时长，也可以不登录，只查找已安装的游戏。登录直接在 Epic 的私密窗口中进行，之后会清除。PlayCounter 永远看不到你的密码，你的 Epic 游戏时长也只保存在你的电脑上。从未玩过的游戏默认不勾选，免费赠送的游戏就不会塞满你的游戏库。",
+          "你的游戏库现在会与启动器保持同步。首次从 Steam、Battle.net 或 Epic Games 导入后，你在那里安装的游戏会自动出现在“我的游戏”中，即使你还没玩过。你删除过的游戏不会再被加回来。可以在“设置 → 导入游戏库”中关闭“自动添加新游戏”。Xbox 游戏仍需要通过 Xbox 导入。",
+          "“开始游戏”按钮始终准确。在 Steam、Xbox 或 Battle.net 中卸载游戏后，它的“开始游戏”按钮会自动消失，点击“开始游戏”时 Steam 也不会再弹出重新安装对话框。重新安装游戏后，“开始游戏”会自动回来，无需再次导入。未连接的 U 盘或网络共享不会再清除你保存的启动路径。",
+          "监控文件夹，用于不属于任何启动器的游戏：在“设置 → 导入游戏库”中添加一个文件夹，例如 C:\\Games。其中的每个文件夹都算作一个游戏。PlayCounter 确定是哪个游戏时，会直接添加该游戏，“开始游戏”立即可用，甚至在你第一次游玩之前。不确定的会在“已发现”中等待，并显示它所在的文件夹。监控文件夹需要开启“记住启动路径”，并且只保存在这台电脑上。",
+          "用键盘游玩：在“我的游戏”中用方向键在卡片之间移动，也可以移到侧边栏，按 Enter 或空格键启动选中的游戏。只要开启了启动游戏就能用，不需要手柄。按 Esc 取消选择。",
+          "“? 帮助”中的新指南：“监控文件夹以发现新游戏”。导入和启动的指南现在也涵盖 Epic Games、新安装的游戏和已卸载的游戏。可以直接从这些更新内容中开始。",
+          "Steam 导入现在也包括你已安装但还没玩过的游戏。如果需要，可以在设置中开启“显示‘在 Steam 中安装’”，为已不再安装的导入 Steam 游戏显示安装按钮。",
+          "在侧边栏中右键点击“我的游戏”，即可直接跳到 Steam、Xbox、Battle.net 或 Epic Games 导入。不需要在没有已知 .exe 的游戏上显示警告标志？在“我的游戏”的“自定义 → 卡片详情”中关闭“记录警告”。",
+          "更不影响游戏：PlayCounter 在后台时会暂停动画，因此在共用 GPU 的游戏中不再占用帧数。在系统托盘中等待时，它占用的内存也更少。",
+          "“已发现”中的非游戏更少了：7-Zip、Adobe 工具、AnyDesk、Audacity 等更多日常应用现在会被自动忽略。感谢所有分享自己忽略的应用的人。",
+          "修复：指南进行中打开的对话框又可以点击了；指南走到“键盘快捷键”时不再启动快捷键录制；卸载后残留文件夹的 Battle.net 游戏不再被视为已安装。"
+        ]
+      }
+    }
   },
   {
     "version": "1.2.0",
@@ -78,7 +367,77 @@
       "Wrong game detected? The 'Report wrong match' dialog is clearer, and Now Playing has a new 'I'm not playing this right now' option. It ignores the file on this PC only and never reports it.",
       "More control: Settings → Reset can restore default settings or start over completely. Your backup files are always kept. If PlayCounter runs in the tray, the tray menu now shows when an update is ready. The 'Update note' button in saved-session popups is now optional; turn on 'Update note in popups' in Settings.",
       "For new players: a larger start window, a simpler welcome, and Steam, Xbox and Battle.net imports are easy to find as soon as your first game is tracked. Guides under ? Help are sorted into categories. 'Share apps you ignore' now stays off unless you turn it on in Settings."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Ein ganz neuer Look, Battle.net-Import und ein „Mein Verlauf“, der die Geschichte deiner Spielzeit erzählt.",
+        "highlights": [
+          "Für alle: PlayCounter hat einen neuen Look. Ein dunkles Design in Graphit mit Bernstein-Akzenten, ein warmes helles Design, eine eigene Titelleiste mit Suche und eine Seitenleiste, die du einklappen kannst. Spielbilder füllen jetzt das Banner oben in „Meine Spiele“ und den Hintergrund von „Läuft gerade“.",
+          "Für Battle.net-Spieler: Importiere deine Battle.net-Spiele aus „Meine Spiele“. Durchsuche die auf diesem PC installierten Spiele oder melde dich an, um die Spiele deines Kontos zu finden. Die Anmeldung läuft in einem privaten Fenster, und PlayCounter liest nur deine Spieleliste. Battle.net teilt keine bisherige Spielzeit, also trag sie selbst mit „Gesamte Spielzeit anpassen“ ein (in World of Warcraft zeigt /played sie an).",
+          "Für Statistik-Fans: „Mein Verlauf“ ist neu gebaut. Er beginnt mit einer großen Zahl für den gewählten Zeitraum und Highlights wie deiner längsten Sitzung, deiner längsten Serie und deinem meistgespielten Spiel. Darunter gibt es drei Tabs: ein Sitzungstagebuch Tag für Tag, „Statistiken“ mit Diagrammen, Kalender und Spielgewohnheiten, und „Spiele“ mit deinen Top-Spielen.",
+          "Für Erfolgsjäger: „Erfolge“ zeigt jetzt oben deinen Gesamtfortschritt, was als Nächstes kommt, und deine letzte Freischaltung. Meilensteine und Spielstufen erscheinen als Zeilen. Fahre mit der Maus über eine Stufe, um zu sehen, wann du sie freigeschaltet hast oder wie viel noch fehlt.",
+          "Für Sammler: Wähle deine eigenen Bilder von SteamGridDB. Such dir ein Banner für jedes Spiel aus und ein Cover für deine eigenen Einträge und Tools. Klick mit rechts auf ein Spiel und wähle „Cover und Banner“, oder nutze den Bild-Knopf auf seiner Kachel.",
+          "Spieldetails und das Spieltagebuch haben ein neues Layout. Die Details beginnen mit einem großen Bild als Kopfzeile, einem Tab „Allgemein“ mit Beschreibung, Spielzeit und Schnellaktionen, und einem Tab „Dateien“ mit den erfassten Spieldateien. Im Tagebuch sind Durchgänge Kacheln; ein Doppelklick macht einen Durchgang aktiv.",
+          "Passend für deinen Bildschirm: Stelle „Inhaltsgröße“ und „Menügröße“ getrennt unter Einstellungen → Darstellung ein. Das Banner wechselt zwischen kompakten und vollen Details, „Anpassen“ in „Meine Spiele“ ist in klare Bereiche gegliedert, und Launcher-Gruppen in der Seitenleiste lassen sich ausschalten.",
+          "Drück Strg+F in jeder Ansicht, um deine ganze Bibliothek zu durchsuchen. In „Mein Verlauf“ filtert dieselbe Suche deine Sitzungen.",
+          "Für Emulator-Spieler: Die Ansicht „Emulatoren“ hat eine neue Kopfzeile mit deiner Spielzeit und Kacheln für die verknüpften Spiele.",
+          "Falsches Spiel erkannt? Der Dialog „Falsche Zuordnung melden“ ist übersichtlicher, und „Läuft gerade“ hat die neue Option „Ich spiele das gerade nicht“. Sie ignoriert die Datei nur auf diesem PC und meldet sie nie.",
+          "Mehr Kontrolle: Unter Einstellungen → Zurücksetzen kannst du die Standardeinstellungen wiederherstellen oder ganz neu anfangen. Deine Sicherungsdateien bleiben immer erhalten. Läuft PlayCounter im Infobereich, zeigt das Menü dort jetzt, wenn ein Update bereitsteht. Der Knopf „Notiz aktualisieren“ in den Pop-ups zur gespeicherten Sitzung ist jetzt optional; schalte „‚Notiz aktualisieren‘ in Pop-ups“ in den Einstellungen ein.",
+          "Für neue Spieler: ein größeres Startfenster, eine einfachere Begrüßung, und die Importe aus Steam, Xbox und Battle.net sind leicht zu finden, sobald dein erstes Spiel erfasst ist. Die Anleitungen unter ? Hilfe sind nach Kategorien sortiert. „Ignorierte Apps teilen“ bleibt jetzt aus, bis du es in den Einstellungen einschaltest."
+        ]
+      },
+      "es": {
+        "headline": "Un aspecto totalmente nuevo, importación de Battle.net y un “Mi historial” que cuenta la historia de tu tiempo de juego.",
+        "highlights": [
+          "Para todos: PlayCounter tiene un aspecto nuevo. Un tema oscuro grafito con detalles en ámbar, un tema claro cálido, su propia barra de título con búsqueda y una barra lateral que puedes contraer. Las imágenes de los juegos ahora llenan el banner de arriba en “Mis juegos” y el fondo de “Jugando ahora”.",
+          "Para jugadores de Battle.net: importa tus juegos de Battle.net desde “Mis juegos”. Busca los juegos instalados en este PC o inicia sesión para encontrar los juegos de tu cuenta. El inicio de sesión se hace en una ventana privada y PlayCounter solo lee tu lista de juegos. Battle.net no comparte el tiempo de juego anterior, así que añádelo tú con “Ajustar tiempo de juego total” (en World of Warcraft, /played lo muestra).",
+          "Para los fans de las estadísticas: “Mi historial” se rehízo. Empieza con un gran número para el periodo que elijas y datos destacados como tu sesión más larga, tu mejor racha y tu juego más jugado. Debajo hay tres pestañas: un diario de sesiones día a día, “Estadísticas” con gráficos, calendario y hábitos de juego, y “Juegos” con tus juegos principales.",
+          "Para los cazadores de logros: “Logros” ahora muestra arriba tu progreso general, lo que viene después y tu último desbloqueo. Los hitos y los niveles por juego se muestran en filas. Pasa el cursor sobre un paso para ver cuándo lo desbloqueaste o cuánto falta.",
+          "Para coleccionistas: elige tus propias imágenes de SteamGridDB. Elige un banner para cualquier juego y una portada para tus propias entradas y herramientas. Haz clic derecho en un juego y elige “Portada y banner”, o usa el botón de imagen de su tarjeta.",
+          "Los detalles del juego y el diario del juego tienen un diseño nuevo. Los detalles empiezan con una gran imagen de cabecera, una pestaña “General” con descripción, tiempo de juego y acciones rápidas, y una pestaña “Archivos” con los archivos del juego registrados. En el diario, las partidas son tarjetas; haz doble clic en una para activarla.",
+          "Adáptalo a tu pantalla: ajusta “Tamaño del contenido” y “Tamaño de los menús” por separado en Configuración → Apariencia. El banner puede cambiar entre detalles compactos y completos, “Personalizar” en “Mis juegos” está ordenado en secciones claras y los grupos de lanzadores de la barra lateral se pueden desactivar.",
+          "Presiona Ctrl+F desde cualquier vista para buscar en toda tu biblioteca. En “Mi historial”, la misma búsqueda filtra tus sesiones.",
+          "Para jugadores de emuladores: la vista “Emuladores” tiene una cabecera nueva con tu tiempo de juego y tarjetas para los juegos vinculados.",
+          "¿Se detectó el juego equivocado? El diálogo “Informar asociación incorrecta” es más claro, y “Jugando ahora” tiene la nueva opción “No estoy jugando a esto ahora”. Ignora el archivo solo en este PC y nunca informa de él.",
+          "Más control: Configuración → Restablecer puede restaurar la configuración predeterminada o empezar de nuevo por completo. Tus copias de seguridad siempre se conservan. Si PlayCounter está en la bandeja, su menú ahora muestra cuándo hay una actualización lista. El botón “Actualizar nota” de las ventanas emergentes de sesión guardada ahora es opcional; activa “Actualizar nota en ventanas emergentes” en Configuración.",
+          "Para nuevos jugadores: una ventana de inicio más grande, una bienvenida más sencilla, y las importaciones de Steam, Xbox y Battle.net son fáciles de encontrar en cuanto se registra tu primer juego. Las guías de ? Ayuda están ordenadas por categorías. “Compartir aplicaciones que ignoras” ahora queda desactivado a menos que lo actives en Configuración."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Um visual totalmente novo, importação do Battle.net e um “Meu histórico” que conta a história do seu tempo de jogo.",
+        "highlights": [
+          "Para todo mundo: o PlayCounter tem um visual novo. Um tema escuro grafite com detalhes em âmbar, um tema claro e acolhedor, uma barra de título própria com busca e uma barra lateral que você pode recolher. As artes dos jogos agora preenchem o banner no topo de “Meus jogos” e o fundo de “Jogando agora”.",
+          "Para quem joga no Battle.net: importe seus jogos do Battle.net em “Meus jogos”. Procure os jogos instalados neste PC ou entre na sua conta para encontrar os jogos dela. O login acontece em uma janela privada, e o PlayCounter só lê a sua lista de jogos. O Battle.net não compartilha o tempo de jogo anterior, então adicione você mesmo com “Ajustar tempo de jogo total” (no World of Warcraft, o /played mostra esse tempo).",
+          "Para quem ama estatísticas: “Meu histórico” foi refeito. Ele abre com um número grande para o período que você escolher e destaques como sua sessão mais longa, sua melhor sequência e o jogo mais jogado. Abaixo há três abas: um diário de sessões dia a dia, “Estatísticas” com gráficos, calendário e hábitos de jogo, e “Jogos” com os seus jogos mais jogados.",
+          "Para caçadores de conquistas: “Conquistas” agora mostra no topo seu progresso geral, o que vem a seguir e o seu último desbloqueio. Marcos e níveis por jogo aparecem em linhas. Passe o mouse sobre uma etapa para ver quando você a desbloqueou ou quanto falta.",
+          "Para colecionadores: escolha suas próprias artes no SteamGridDB. Escolha um banner para qualquer jogo e uma capa para suas próprias entradas e ferramentas. Clique com o botão direito em um jogo e escolha “Capa e banner”, ou use o botão de imagem no cartão dele.",
+          "Os detalhes do jogo e o diário do jogo têm um layout novo. Os detalhes abrem com uma arte grande no topo, uma aba “Geral” com descrição, tempo de jogo e ações rápidas, e uma aba “Arquivos” com os arquivos do jogo registrados. No diário, as campanhas são cartões; clique duas vezes em uma para torná-la ativa.",
+          "Ajuste à sua tela: defina “Tamanho do conteúdo” e “Tamanho dos menus” separadamente em Configurações → Aparência. O banner pode alternar entre detalhes compactos e completos, “Personalizar” em “Meus jogos” está organizado em seções claras, e os grupos de launchers na barra lateral podem ser desativados.",
+          "Pressione Ctrl+F em qualquer tela para buscar em toda a sua biblioteca. Em “Meu histórico”, a mesma busca filtra suas sessões.",
+          "Para quem joga em emuladores: a tela “Emuladores” tem um cabeçalho novo com seu tempo de jogo e cartões para os jogos vinculados.",
+          "Jogo errado detectado? A janela “Informar associação incorreta” está mais clara, e “Jogando agora” tem a nova opção “Não estou jogando isso agora”. Ela ignora o arquivo só neste PC e nunca o informa.",
+          "Mais controle: Configurações → Redefinir pode restaurar as configurações padrão ou recomeçar do zero. Seus arquivos de backup são sempre mantidos. Se o PlayCounter estiver na bandeja, o menu da bandeja agora mostra quando uma atualização está pronta. O botão “Atualizar nota” nos pop-ups de sessão salva agora é opcional; ative “Atualizar nota nos pop-ups” em Configurações.",
+          "Para novos jogadores: uma janela inicial maior, boas-vindas mais simples, e as importações do Steam, do Xbox e do Battle.net ficam fáceis de achar assim que o seu primeiro jogo é registrado. Os guias em ? Ajuda estão organizados em categorias. “Compartilhar apps ignorados” agora fica desativado, a menos que você o ative em Configurações."
+        ]
+      },
+      "zh-CN": {
+        "headline": "全新外观、Battle.net 导入，以及讲述你游戏时光的“我的历史”。",
+        "highlights": [
+          "面向所有人：PlayCounter 换上了新外观。石墨色深色主题配琥珀色点缀，温暖的浅色主题，自带搜索的标题栏，以及可以折叠的侧边栏。游戏图片现在会铺满“我的游戏”顶部的横幅和“正在游玩”的背景。",
+          "Battle.net 玩家：从“我的游戏”导入你的 Battle.net 游戏。扫描这台电脑上已安装的游戏，或登录以找到你账号中的游戏。登录在私密窗口中进行，PlayCounter 只读取你的游戏列表。Battle.net 不提供过去的游戏时长，所以请用“调整累计游戏时长”自己添加（在《魔兽世界》中，可以用 /played 查看）。",
+          "面向数据爱好者：“我的历史”全面重做。开头是你所选时间范围的一个大数字，以及最长游玩、最长连续游玩天数和玩得最多的游戏等亮点。下面有三个标签页：按天记录的游玩日志、包含图表、日历和游戏习惯的“统计”，以及列出你最常玩游戏的“游戏”。",
+          "面向成就猎人：“成就”现在会在顶部显示你的总体进度、下一个目标和最近解锁的成就。里程碑和游戏等级以行的形式显示。将鼠标悬停在某一级上，可以查看解锁时间或还差多少。",
+          "面向收藏爱好者：从 SteamGridDB 挑选你自己的图片。可以为任意游戏选择横幅，为你自己的条目和工具选择封面。右键点击游戏并选择“封面和横幅”，或使用卡片上的图片按钮。",
+          "游戏详情和游戏日志采用了新布局。详情顶部是一张大图，“常规”标签页包含简介、游戏时长和快捷操作，“文件”标签页列出记录的游戏文件。在日志中，周目以卡片显示；双击一个即可将其设为当前周目。",
+          "适配你的屏幕：在“设置 → 外观”中分别设置“内容大小”和“菜单大小”。横幅可以在紧凑和完整信息之间切换，“我的游戏”中的“自定义”分成了清晰的几个部分，侧边栏中的启动器分组也可以关闭。",
+          "在任意视图中按 Ctrl+F 即可搜索整个游戏库。在“我的历史”中，同一个搜索会筛选你的游玩记录。",
+          "模拟器玩家：“模拟器”视图有了新的页头，显示你的游戏时长和已关联游戏的卡片。",
+          "检测到错误的游戏？“报告错误匹配”对话框更清楚了，“正在游玩”还新增了“我现在没在玩这个”选项。它只会在这台电脑上忽略该文件，绝不会报告它。",
+          "更多控制：“设置 → 重置”可以恢复默认设置，或完全重新开始。你的备份文件始终会保留。PlayCounter 在系统托盘中运行时，托盘菜单现在会显示更新已就绪。已保存游玩记录弹窗中的“更新笔记”按钮现在是可选的；在设置中开启“在弹窗中更新笔记”即可。",
+          "面向新玩家：更大的启动窗口、更简单的欢迎页，记录到第一个游戏后就能轻松找到 Steam、Xbox 和 Battle.net 导入。“? 帮助”中的指南已按类别整理。“分享你忽略的应用”现在默认关闭，除非你在设置中开启。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.18",
@@ -92,7 +451,57 @@
       "If the server is temporarily busy, PlayCounter shows a countdown and retries background game lookups. Imports can pause and resume automatically, and you can still cancel while waiting.",
       "Emulator match badges now correctly reflect community matches, your own choices, and pending reviews across My Games, active sessions, history, and game details.",
       "The empty My Games screen now explains automatic game detection and offers Steam and Xbox imports as optional ways to bring in games and past playtime."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Ein paar Korrekturen, ein paar Verbesserungen! :)",
+        "highlights": [
+          "Wähle in „Meine Spiele“ mehrere Spiele aus und zieh sie gemeinsam auf „Favoriten“ oder ein Regal. Die Vorschau beim Ziehen zeigt, wie viele es sind, und Spiele, die schon im Regal stehen, werden übersprungen.",
+          "Steam- und Xbox-Importe wählen die Spieldatei jetzt vor, wenn es nur eine passende gibt. Prüfe sie und bestätige, um das Spiel hinzuzufügen.",
+          "Import-Bestätigungen sagen dir jetzt, wenn eine vorhandene Zuordnung einer Spieldatei verknüpft wurde, wenn eine Datei zur Prüfung an die Community ging und wenn die Überprüfung einen weiteren Versuch braucht.",
+          "Namen von Durchgängen in den Pop-ups zum Spielstart und zur gespeicherten Sitzung sind jetzt standardmäßig aus. Schalte „Namen von Durchgängen in Pop-ups“ in den Einstellungen ein, um sie anzuzeigen. Für den Notiztext gibt es eine eigene Einstellung.",
+          "Ist der Server vorübergehend ausgelastet, zeigt PlayCounter einen Countdown und versucht die Spielsuche im Hintergrund erneut. Importe können automatisch pausieren und weiterlaufen, und du kannst beim Warten trotzdem abbrechen.",
+          "Die Zuordnungs-Abzeichen bei Emulatoren zeigen jetzt korrekt Community-Zuordnungen, deine eigenen Entscheidungen und ausstehende Prüfungen, in „Meine Spiele“, in laufenden Sitzungen, im Verlauf und in den Spieldetails.",
+          "Das leere „Meine Spiele“ erklärt jetzt die automatische Spielerkennung und bietet Steam- und Xbox-Importe als optionale Wege an, Spiele und bisherige Spielzeit zu übernehmen."
+        ]
+      },
+      "es": {
+        "headline": "¡Algunas correcciones y algunas mejoras! :)",
+        "highlights": [
+          "Selecciona varios juegos en “Mis juegos” y arrástralos juntos a “Favoritos” o a un estante. La vista previa al arrastrar muestra cuántos son, y los juegos que ya están en el estante se omiten.",
+          "Las importaciones de Steam y Xbox ahora preseleccionan el archivo del juego cuando solo hay una opción adecuada. Revísalo y confirma para añadir el juego.",
+          "Las confirmaciones de importación ahora te dicen cuándo se vinculó una asociación existente de un archivo de juego, cuándo se envió un archivo a revisión de la comunidad y cuándo la verificación necesita otro intento.",
+          "Los nombres de partidas en las ventanas emergentes de inicio de juego y de sesión guardada ahora están desactivados de forma predeterminada. Activa “Nombres de partidas en ventanas emergentes” en Configuración para mostrarlos. El texto de la nota tiene su propio ajuste.",
+          "Si el servidor está ocupado temporalmente, PlayCounter muestra una cuenta regresiva y reintenta las búsquedas de juegos en segundo plano. Las importaciones pueden pausarse y reanudarse automáticamente, y aun así puedes cancelar mientras esperas.",
+          "Las insignias de asociación de emuladores ahora reflejan correctamente las asociaciones de la comunidad, tus propias elecciones y las revisiones pendientes en “Mis juegos”, las sesiones activas, el historial y los detalles del juego.",
+          "La pantalla vacía de “Mis juegos” ahora explica la detección automática de juegos y ofrece las importaciones de Steam y Xbox como formas opcionales de traer juegos y tiempo de juego anterior."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Algumas correções, algumas melhorias! :)",
+        "highlights": [
+          "Selecione vários jogos em “Meus jogos” e arraste-os juntos para “Favoritos” ou para uma prateleira. A prévia ao arrastar mostra quantos são, e jogos que já estão na prateleira são ignorados.",
+          "As importações do Steam e do Xbox agora pré-selecionam o arquivo do jogo quando há só uma opção adequada. Confira e confirme para adicionar o jogo.",
+          "As confirmações de importação agora avisam quando uma associação de arquivo de jogo existente foi vinculada, quando um arquivo foi enviado para análise da comunidade e quando a verificação precisa de outra tentativa.",
+          "Os nomes das campanhas nos pop-ups de início de jogo e de sessão salva agora vêm desativados por padrão. Ative “Nomes das campanhas nos pop-ups” em Configurações para mostrá-los. O texto da nota tem uma configuração própria.",
+          "Se o servidor estiver ocupado no momento, o PlayCounter mostra uma contagem regressiva e tenta de novo as buscas de jogos em segundo plano. As importações podem pausar e continuar automaticamente, e você ainda pode cancelar enquanto espera.",
+          "Os selos de associação de emuladores agora mostram corretamente as associações da comunidade, as suas próprias escolhas e as análises pendentes em “Meus jogos”, nas sessões ativas, no histórico e nos detalhes do jogo.",
+          "A tela vazia de “Meus jogos” agora explica a detecção automática de jogos e oferece as importações do Steam e do Xbox como formas opcionais de trazer jogos e tempo de jogo anterior."
+        ]
+      },
+      "zh-CN": {
+        "headline": "一些修复，一些改进！:)",
+        "highlights": [
+          "在“我的游戏”中选择多个游戏，一起拖到“收藏”或某个分类架上。拖动预览会显示数量，已在该分类架上的游戏会被跳过。",
+          "当只有一个合适的选择时，Steam 和 Xbox 导入现在会预先选好游戏文件。检查后确认即可添加游戏。",
+          "导入确认现在会告诉你：何时关联了已有的游戏文件匹配，何时将文件提交给社区审核，以及何时需要重新验证。",
+          "游戏启动弹窗和已保存游玩记录弹窗中的周目名称现在默认关闭。在设置中开启“在弹窗中显示周目名称”即可显示。笔记文本有单独的设置。",
+          "服务器暂时繁忙时，PlayCounter 会显示倒计时，并重试后台的游戏查询。导入可以自动暂停和继续，等待时你仍然可以取消。",
+          "模拟器匹配徽章现在会在“我的游戏”、正在进行的游玩、历史和游戏详情中正确显示社区匹配、你自己的选择和待审核状态。",
+          "空的“我的游戏”页面现在会说明自动游戏检测，并提供 Steam 和 Xbox 导入，作为带入游戏和过往游戏时长的可选方式。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.17",
@@ -111,7 +520,77 @@
       "Fixed last-played dates for games with imported history, wrong suggestion statuses and repeated approval notifications after community game merges, backup imports that rejected valid emulator or manual sessions, and the startup spinner for games with long names.",
       "Updated the website with fresh screenshots and clearer guides for game detection, Steam and Xbox imports, emulator tracking, and playtime totals.",
       "Learn the new features with short guides in ? Help or start one from these release notes. They use sample games, so nothing you try changes your library."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Notizen, Durchgänge und Regale für deine Spielebibliothek + Unterstützung für den Emulator PCSX2",
+        "highlights": [
+          "Schreib zu jedem Spiel eine private Notiz, damit du weißt, wo du aufgehört hast. Starte benannte Durchgänge wie „Speedrun“ oder „New Game+“, jeder mit eigener Notiz, Spielzeit und Sitzungsliste. Verschiebe Sitzungen zwischen Durchgängen im Tagebuch oder in „Mein Verlauf“, und markiere einen Durchgang als abgeschlossen.",
+          "Ordne „Meine Spiele“ mit Favoriten und eigenen Regalen. Zieh Spiele in ein Regal oder speichere Filter, damit sich ein Regal von selbst füllt. Beim Ziehen sagt dir ein Regal, das das Spiel nicht aufnehmen kann, warum.",
+          "Gib Spielen einen Fortschrittsstatus wie „Wird gespielt“, „Pausiert“ oder „Durchgespielt“. Mit „Auswählen“ änderst du den Status mehrerer Spiele, eines Bereichs oder aller Spiele der aktuellen Ansicht auf einmal.",
+          "Automatische Sicherungen sind standardmäßig an: eine Sicherung pro Woche, die letzten fünf bleiben erhalten. In den Einstellungen kannst du auf tägliche Sicherungen umstellen, den Ordner und die Anzahl der Sicherungen ändern oder sofort sichern. Eine verpasste Sicherung wird beim nächsten Öffnen von PlayCounter nachgeholt.",
+          "Unter Windows erkennt PlayCounter jetzt PlayStation-2-Spiele, die in PCSX2 laufen, und kann sie aus „Meine Spiele“ oder von der PCSX2-Seite starten.",
+          "Antworten auf dein Feedback kommen in den Benachrichtigungen an, zusammen mit deiner gesendeten Nachricht als Zitat.",
+          "Unter „Anpassen“ in „Meine Spiele“ wählst du, wie viele Kacheln in eine Reihe passen, und blendest Status-Abzeichen, Notiz-Symbole und die Regalzeile ein oder aus. PlayCounter merkt sich deine Auswahl.",
+          "„Läuft gerade“ zeigt die Notiz des aktiven Durchgangs. Auf Wunsch erscheint sie auch in den Pop-ups zum Spielstart, und du kannst sie direkt im Pop-up zur gespeicherten Sitzung aktualisieren.",
+          "„Meine Spiele“ öffnet und wechselt Ansichten in großen Bibliotheken schneller, behält deine Suche und das gewählte Regal, wenn du zurückkommst, und bietet flüssigeres Ziehen und einheitlichere Rechtsklick-Menüs.",
+          "Behoben: das Datum des letzten Spielens bei Spielen mit importiertem Verlauf, falsche Vorschlagsstatus und wiederholte Freigabe-Benachrichtigungen nach dem Zusammenführen von Community-Spielen, Sicherungsimporte, die gültige Emulator- oder manuelle Sitzungen ablehnten, und die Ladeanzeige beim Start für Spiele mit langen Namen.",
+          "Die Website hat neue Screenshots und klarere Anleitungen zur Spielerkennung, zu Steam- und Xbox-Importen, zur Emulator-Erfassung und zu den Spielzeit-Summen.",
+          "Lerne die neuen Funktionen mit kurzen Anleitungen unter ? Hilfe kennen oder starte eine direkt aus diesen Neuigkeiten. Sie nutzen Beispielspiele, nichts, was du ausprobierst, ändert also deine Bibliothek."
+        ]
+      },
+      "es": {
+        "headline": "Notas, partidas y estantes para tu biblioteca de juegos + compatibilidad con el emulador PCSX2",
+        "highlights": [
+          "Escribe una nota privada para cada juego y recuerda dónde te quedaste. Empieza partidas con nombre como “Speedrun” o “New Game+”, cada una con su propia nota, tiempo de juego y lista de sesiones. Mueve sesiones entre partidas desde el diario o desde “Mi historial”, y marca una partida como terminada.",
+          "Organiza “Mis juegos” con “Favoritos” y tus propios estantes. Arrastra juegos a un estante o guarda filtros para que un estante se llene solo. Mientras arrastras, un estante que no puede aceptar el juego te dice por qué.",
+          "Dale a tus juegos un estado de progreso como “En curso”, “En pausa” o “Terminada”. Usa “Seleccionar” para cambiar el estado de varios juegos, de un rango o de todos los juegos de la vista actual a la vez.",
+          "Las copias de seguridad automáticas están activadas de forma predeterminada: una por semana, y se conservan las cinco últimas. En Configuración puedes cambiar a copias diarias, cambiar la carpeta y cuántas copias conservar, o hacer una copia ahora mismo. Una copia que se haya saltado se guarda la próxima vez que abras PlayCounter.",
+          "En Windows, PlayCounter ahora reconoce los juegos de PlayStation 2 que se ejecutan en PCSX2 y puede iniciarlos desde “Mis juegos” o desde la página de PCSX2.",
+          "Las respuestas a tus comentarios llegan a “Notificaciones”, citadas junto con el mensaje que enviaste.",
+          "En “Personalizar” de “Mis juegos”, elige cuántas tarjetas caben en una fila y muestra u oculta las insignias de estado, los iconos de notas y la fila de estantes. Tus elecciones se recuerdan.",
+          "“Jugando ahora” muestra la nota de la partida activa del juego. Si quieres, inclúyela en las ventanas emergentes de inicio de juego y actualízala directamente desde la ventana emergente de sesión guardada.",
+          "“Mis juegos” abre y cambia de vista más rápido en bibliotecas grandes, conserva tu búsqueda y el estante seleccionado cuando vuelves, y tiene un arrastre más fluido y menús de clic derecho más coherentes.",
+          "Correcciones: la fecha de la última vez que jugaste en juegos con historial importado, los estados de sugerencias incorrectos y las notificaciones de aprobación repetidas tras fusionar juegos de la comunidad, las importaciones de copias de seguridad que rechazaban sesiones válidas de emuladores o manuales, y el indicador de carga al inicio para juegos con nombres largos.",
+          "El sitio web tiene capturas de pantalla nuevas y guías más claras sobre la detección de juegos, las importaciones de Steam y Xbox, el registro de emuladores y los totales de tiempo de juego.",
+          "Aprende las nuevas funciones con guías breves en ? Ayuda o inicia una desde estas novedades. Usan juegos de muestra, así que nada de lo que pruebes cambia tu biblioteca."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Notas, campanhas e prateleiras para a sua biblioteca de jogos + suporte ao emulador PCSX2",
+        "highlights": [
+          "Escreva uma nota privada para cada jogo e lembre onde você parou. Comece campanhas com nome, como “Speedrun” ou “New Game+”, cada uma com sua própria nota, tempo de jogo e lista de sessões. Mova sessões entre campanhas pelo diário ou por “Meu histórico”, e marque uma campanha como concluída.",
+          "Organize “Meus jogos” com “Favoritos” e suas próprias prateleiras. Arraste jogos para uma prateleira ou salve filtros para que uma prateleira se preencha sozinha. Enquanto você arrasta, uma prateleira que não pode receber o jogo explica por quê.",
+          "Dê aos jogos um status de progresso como “Em andamento”, “Em pausa” ou “Concluída”. Use “Selecionar” para mudar o status de vários jogos, de um intervalo ou de todos os jogos da tela atual de uma vez.",
+          "Os backups automáticos vêm ativados por padrão: um backup por semana, e os cinco últimos são mantidos. Em Configurações você pode mudar para backups diários, trocar a pasta e quantos backups manter, ou fazer um backup agora mesmo. Um backup perdido é feito na próxima vez que você abrir o PlayCounter.",
+          "No Windows, o PlayCounter agora reconhece jogos de PlayStation 2 rodando no PCSX2 e pode iniciá-los em “Meus jogos” ou na página do PCSX2.",
+          "As respostas ao seu feedback chegam em “Notificações”, citadas junto com a mensagem que você enviou.",
+          "Em “Personalizar”, em “Meus jogos”, escolha quantos cartões cabem em uma linha e mostre ou oculte selos de status, ícones de nota e a fileira de prateleiras. Suas escolhas são lembradas.",
+          "“Jogando agora” mostra a nota da campanha ativa do jogo. Se quiser, inclua a nota nos pop-ups de início de jogo e atualize-a direto pelo pop-up de sessão salva.",
+          "“Meus jogos” abre e troca de tela mais rápido em bibliotecas grandes, mantém sua busca e a prateleira selecionada quando você volta, e tem um arrastar mais suave e menus de clique direito mais consistentes.",
+          "Correções: datas de última vez jogado em jogos com histórico importado, status de sugestão errados e notificações de aprovação repetidas depois de mesclar jogos da comunidade, importações de backup que rejeitavam sessões válidas de emulador ou manuais, e o indicador de carregamento na inicialização para jogos com nomes longos.",
+          "O site foi atualizado com novas capturas de tela e guias mais claros sobre detecção de jogos, importações do Steam e do Xbox, registro de emuladores e totais de tempo de jogo.",
+          "Aprenda os novos recursos com guias curtos em ? Ajuda ou comece um direto destas novidades. Eles usam jogos de exemplo, então nada do que você testar muda a sua biblioteca."
+        ]
+      },
+      "zh-CN": {
+        "headline": "为你的游戏库带来笔记、周目和分类架 + 支持 PCSX2 模拟器",
+        "highlights": [
+          "为每个游戏写一条私人笔记，记住你玩到了哪里。开始带名称的周目，例如“速通”或“New Game+”，每个周目都有自己的笔记、游戏时长和游玩记录列表。可以在日志或“我的历史”中把游玩记录移到其他周目，也可以将周目标记为已完成。",
+          "用“收藏”和你自己的分类架整理“我的游戏”。把游戏拖到分类架上，或保存筛选条件，让分类架自动填充。拖动时，如果某个分类架无法放入该游戏，它会告诉你原因。",
+          "为游戏设置进度状态，例如“进行中”“已暂停”或“已完成”。使用“选择”可以一次更改多个游戏、一个范围或当前视图中所有游戏的状态。",
+          "自动备份默认开启：每周备份一次，保留最近五份。在设置中可以改为每天备份、更改文件夹和保留的备份数量，或立即备份。错过的备份会在你下次打开 PlayCounter 时补上。",
+          "在 Windows 上，PlayCounter 现在可以识别在 PCSX2 中运行的 PlayStation 2 游戏，并可从“我的游戏”或 PCSX2 页面启动它们。",
+          "对你反馈的回复会出现在“通知”中，并附上你发送的原始消息。",
+          "在“我的游戏”的“自定义”中，可以选择每行显示多少张卡片，以及显示或隐藏状态徽章、笔记图标和分类架行。你的选择会被记住。",
+          "“正在游玩”会显示该游戏当前周目的笔记。还可以选择在游戏启动弹窗中显示笔记，并直接在已保存游玩记录弹窗中更新它。",
+          "在大型游戏库中，“我的游戏”打开和切换视图更快，返回时会保留你的搜索和所选分类架，拖动更流畅，右键菜单也更一致。",
+          "修复：导入历史的游戏的上次游玩日期、社区游戏合并后错误的建议状态和重复的批准通知、拒绝有效模拟器或手动游玩记录的备份导入，以及名称较长的游戏在启动时的加载图标。",
+          "网站已更新，加入了新的截图，以及关于游戏检测、Steam 和 Xbox 导入、模拟器记录和游戏时长统计的更清楚的指南。",
+          "通过“? 帮助”中的简短指南了解新功能，或直接从这些更新内容中开始。指南使用示例游戏，所以你尝试的任何操作都不会改变你的游戏库。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.16",
@@ -122,7 +601,45 @@
       "Desktop popups can now appear on the monitor you choose and also show while the PlayCounter window is open.",
       "At startup PlayCounter looks for game files of Steam and Xbox imports that are not tracked yet and marks them with 'Match found' if there has been found a matching file name in the community database now.",
       "Faster 'My Games' and 'Now Playing' views, fewer disk writes, and your install ID is now visible at the bottom of Settings."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Globale Tastenkürzel, Pop-ups auf deinem zweiten Bildschirm und schlauere Erfassung.",
+        "highlights": [
+          "Neue Tastenkürzel in den Einstellungen: Eins holt PlayCounter aus jeder App nach vorne, ein anderes zeigt kurz ein Pop-up „Aktuelle Sitzung“ mit deiner Spielzeit, ohne dass du dein Spiel verlässt. Drück es noch mal, um durch die laufenden Spiele zu blättern.",
+          "Desktop-Pop-ups können jetzt auf dem Monitor deiner Wahl erscheinen und auch angezeigt werden, während das PlayCounter-Fenster offen ist.",
+          "Beim Start sucht PlayCounter nach Spieldateien von Steam- und Xbox-Importen, die noch nicht erfasst werden, und markiert sie mit „Treffer gefunden“, wenn es inzwischen einen passenden Dateinamen in der Community-Datenbank gibt.",
+          "Schnellere Ansichten „Meine Spiele“ und „Läuft gerade“, weniger Schreibzugriffe auf die Festplatte, und deine Installations-ID steht jetzt unten in den Einstellungen."
+        ]
+      },
+      "es": {
+        "headline": "Atajos globales, ventanas emergentes en tu segunda pantalla y un registro más inteligente.",
+        "highlights": [
+          "Nuevos atajos de teclado en Configuración: uno trae PlayCounter al frente desde cualquier aplicación y otro muestra brevemente una ventana emergente “Sesión actual” con tu tiempo de juego sin salir del juego. Presiónalo de nuevo para pasar por los juegos en ejecución.",
+          "Las ventanas emergentes de escritorio ahora pueden aparecer en el monitor que elijas y también mostrarse mientras la ventana de PlayCounter está abierta.",
+          "Al iniciarse, PlayCounter busca archivos de juego de importaciones de Steam y Xbox que aún no se registran y los marca con “Asociación encontrada” si ahora hay un nombre de archivo coincidente en la base de datos de la comunidad.",
+          "Vistas “Mis juegos” y “Jugando ahora” más rápidas, menos escrituras en disco, y tu ID de instalación ahora se ve al final de Configuración."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Atalhos globais, pop-ups na sua segunda tela e um registro mais inteligente.",
+        "highlights": [
+          "Novos atalhos de teclado em Configurações: um traz o PlayCounter para a frente a partir de qualquer app, e outro mostra rapidamente um pop-up “Sessão atual” com seu tempo de jogo sem sair do jogo. Pressione de novo para passar pelos jogos em execução.",
+          "Os pop-ups da área de trabalho agora podem aparecer no monitor que você escolher e também ser exibidos enquanto a janela do PlayCounter está aberta.",
+          "Na inicialização, o PlayCounter procura arquivos de jogo de importações do Steam e do Xbox que ainda não são registrados e os marca com “Associação encontrada” se agora houver um nome de arquivo correspondente no banco de dados da comunidade.",
+          "Telas “Meus jogos” e “Jogando agora” mais rápidas, menos gravações em disco, e o seu ID de instalação agora aparece no fim de Configurações."
+        ]
+      },
+      "zh-CN": {
+        "headline": "全局快捷键、副屏弹窗，以及更聪明的记录。",
+        "highlights": [
+          "设置中新增键盘快捷键：一个可以从任何应用把 PlayCounter 切到前台，另一个会短暂显示“本次游玩”弹窗，让你不离开游戏就能看到游戏时长。再按一次可在正在运行的游戏之间切换。",
+          "桌面弹窗现在可以显示在你选择的显示器上，并且在 PlayCounter 窗口打开时也会显示。",
+          "启动时，PlayCounter 会查找 Steam 和 Xbox 导入中尚未记录的游戏文件；如果社区数据库中现在有匹配的文件名，就会标记为“找到匹配”。",
+          "“我的游戏”和“正在游玩”视图更快，磁盘写入更少，你的安装 ID 现在显示在设置底部。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.15",
@@ -132,7 +649,41 @@
       "'Open Details' on any game to see when you first and last played it and everything PlayCounter knows about it from IGDB.",
       "'Now Playing' got a fresh look with the cover art as backdrop, and picking the right game when PlayCounter is unsure is now a matter of one click on a cover.",
       "Two new options under Customize in My Games: 'Sharper covers' loads cover art at a higher quality, and 'Hide empty library tabs' removes Steam and Xbox tabs you never imported into."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Jedes Spiel hat jetzt eine Detailansicht.",
+        "highlights": [
+          "Mit „Details öffnen“ siehst du bei jedem Spiel, wann du es zum ersten und zum letzten Mal gespielt hast, und alles, was PlayCounter von IGDB darüber weiß.",
+          "„Läuft gerade“ hat einen frischen Look mit dem Cover als Hintergrund, und wenn PlayCounter unsicher ist, wählst du das richtige Spiel jetzt mit einem Klick auf ein Cover.",
+          "Zwei neue Optionen unter „Anpassen“ in „Meine Spiele“: „Schärfere Cover“ lädt Cover in höherer Qualität, und „Leere Bibliotheks-Tabs ausblenden“ entfernt die Tabs für Steam und Xbox, wenn du dort nie etwas importiert hast."
+        ]
+      },
+      "es": {
+        "headline": "Ahora cada juego tiene una vista de detalles.",
+        "highlights": [
+          "Usa “Abrir detalles” en cualquier juego para ver cuándo lo jugaste por primera y por última vez y todo lo que PlayCounter sabe de él gracias a IGDB.",
+          "“Jugando ahora” tiene un aspecto renovado con la portada como fondo, y elegir el juego correcto cuando PlayCounter no está seguro ahora es cuestión de un clic en una portada.",
+          "Dos opciones nuevas en “Personalizar” de “Mis juegos”: “Portadas más nítidas” carga las portadas con mayor calidad, y “Ocultar pestañas vacías de la biblioteca” quita las pestañas de Steam y Xbox a las que nunca importaste nada."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Agora todo jogo tem uma tela de detalhes.",
+        "highlights": [
+          "Use “Abrir detalhes” em qualquer jogo para ver quando você jogou pela primeira e pela última vez e tudo o que o PlayCounter sabe sobre ele pelo IGDB.",
+          "“Jogando agora” ganhou um visual novo com a capa como fundo, e escolher o jogo certo quando o PlayCounter não tem certeza agora é questão de um clique em uma capa.",
+          "Duas novas opções em “Personalizar”, em “Meus jogos”: “Capas mais nítidas” carrega as capas em qualidade maior, e “Ocultar abas vazias da biblioteca” remove as abas Steam e Xbox para as quais você nunca importou nada."
+        ]
+      },
+      "zh-CN": {
+        "headline": "现在每个游戏都有详情视图。",
+        "highlights": [
+          "在任意游戏上使用“打开详情”，查看你第一次和最后一次玩它的时间，以及 PlayCounter 从 IGDB 获得的所有信息。",
+          "“正在游玩”换上了以封面为背景的新外观；PlayCounter 不确定时，现在只需点击一张封面就能选出正确的游戏。",
+          "“我的游戏”的“自定义”中有两个新选项：“更清晰的封面”以更高画质加载封面，“隐藏空的游戏库标签页”会移除你从未导入过的 Steam 和 Xbox 标签页。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.14",
@@ -141,7 +692,37 @@
     "highlights": [
       "Existing approved game-file matches found during a library import are now applied directly, without showing Level up or repeating approval notifications.",
       "Importing a game no longer counts an already reviewed database match as a new community contribution or achievement."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Noch ein Hotfix für v1.1.12!",
+        "highlights": [
+          "Bereits freigegebene Zuordnungen von Spieldateien, die bei einem Bibliotheksimport gefunden werden, werden jetzt direkt übernommen, ohne „Aufwerten“ anzuzeigen oder Freigabe-Benachrichtigungen zu wiederholen.",
+          "Beim Import eines Spiels zählt eine bereits geprüfte Zuordnung aus der Datenbank nicht mehr als neuer Community-Beitrag oder Erfolg."
+        ]
+      },
+      "es": {
+        "headline": "¡Otro hotfix para v1.1.12!",
+        "highlights": [
+          "Las asociaciones de archivos de juego ya aprobadas que se encuentran durante una importación de biblioteca ahora se aplican directamente, sin mostrar “Subir de nivel” ni repetir notificaciones de aprobación.",
+          "Importar un juego ya no cuenta una asociación de la base de datos ya revisada como una nueva contribución a la comunidad ni como un logro."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Mais um hotfix para a v1.1.12!",
+        "highlights": [
+          "Associações de arquivos de jogo já aprovadas encontradas durante uma importação de biblioteca agora são aplicadas direto, sem mostrar “Subir de nível” nem repetir notificações de aprovação.",
+          "Importar um jogo não conta mais uma associação do banco de dados já analisada como uma nova contribuição para a comunidade nem como conquista."
+        ]
+      },
+      "zh-CN": {
+        "headline": "v1.1.12 的又一个热修复！",
+        "highlights": [
+          "导入游戏库时找到的已批准游戏文件匹配现在会直接应用，不再显示“升级”，也不再重复发送批准通知。",
+          "导入游戏时，已审核过的数据库匹配不再被算作新的社区贡献或成就。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.13",
@@ -149,7 +730,31 @@
     "headline": "Hotfix for v1.1.12.",
     "highlights": [
       "Fixed the Xbox History to use a different tooling to read Xbox Game History to solve a problem regarding false positives."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Hotfix für v1.1.12.",
+        "highlights": [
+          "Der Xbox-Spielverlauf wird jetzt mit einem anderen Werkzeug gelesen, um ein Problem mit Fehltreffern zu beheben."
+        ]
+      },
+      "es": {
+        "headline": "Hotfix para v1.1.12.",
+        "highlights": [
+          "El historial de Xbox ahora se lee con otra herramienta para resolver un problema de falsos positivos."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Hotfix para a v1.1.12.",
+        "highlights": [
+          "O histórico do Xbox agora é lido com outra ferramenta, para resolver um problema de falsos positivos."
+        ]
+      },
+      "zh-CN": {
+        "headline": "v1.1.12 的热修复。",
+        "highlights": ["Xbox 历史现在改用另一种工具读取，以解决误报问题。"]
+      }
+    }
   },
   {
     "version": "1.1.12",
@@ -162,7 +767,53 @@
       "Customize the My Games summary cards and choose which origin and match markers appear on game cards. Your view choices are remembered.",
       "Open launchable games in File Explorer from their context menu, and control whether PlayCounter remembers local launch paths independently of the Play button.",
       "Steam games can be imported again to refresh playtime, while improved game-file matching, system-process filtering, and provider and emulator icons keep your library more accurate."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Hol deine Xbox-Bibliothek und Spielzeit in PlayCounter.",
+        "highlights": [
+          "Importiere deinen Xbox-Spielverlauf mit einer Microsoft-Anmeldung in deinem Browser und ordne ihn dann den Spielen zu, die über die Xbox-App auf diesem PC installiert sind.",
+          "Prüfe unsichere Xbox-Zuordnungen vor dem Import und wähle die richtige Spieldatei, wenn PlayCounter Hilfe braucht, um zu erkennen, was erfasst werden soll.",
+          "„Meine Spiele“ hat jetzt eigene Ansichten für Steam und Xbox, klarere Zustände für importierte Spiele und einen „Nach oben“-Knopf für große Bibliotheken.",
+          "Passe die Übersichtskacheln in „Meine Spiele“ an und wähle, welche Herkunfts- und Zuordnungsmarkierungen auf den Spielkacheln erscheinen. PlayCounter merkt sich deine Ansichtsauswahl.",
+          "Öffne startbare Spiele über ihr Kontextmenü im Datei-Explorer, und lege unabhängig vom „Spielen“-Knopf fest, ob sich PlayCounter lokale Startpfade merkt.",
+          "Steam-Spiele lassen sich erneut importieren, um die Spielzeit zu aktualisieren, und eine bessere Zuordnung von Spieldateien, das Herausfiltern von Systemprozessen sowie Anbieter- und Emulator-Symbole halten deine Bibliothek genauer."
+        ]
+      },
+      "es": {
+        "headline": "Trae tu biblioteca y tu tiempo de juego de Xbox a PlayCounter.",
+        "highlights": [
+          "Importa tu historial de juego de Xbox iniciando sesión con Microsoft en tu navegador y luego asócialo con los juegos instalados mediante la app Xbox en este PC.",
+          "Revisa las asociaciones de Xbox dudosas antes de importar y elige el archivo de juego correcto cuando PlayCounter necesite ayuda para saber qué registrar.",
+          "“Mis juegos” ahora tiene vistas propias para Steam y Xbox, estados más claros para los juegos importados y un botón “Volver al principio” para bibliotecas grandes.",
+          "Personaliza las tarjetas de resumen de “Mis juegos” y elige qué marcas de origen y de asociación aparecen en las tarjetas de juego. Tus elecciones de vista se recuerdan.",
+          "Abre los juegos que se pueden iniciar en el Explorador de archivos desde su menú contextual, y controla si PlayCounter recuerda las rutas de inicio locales independientemente del botón “Jugar”.",
+          "Los juegos de Steam se pueden volver a importar para actualizar el tiempo de juego, y una mejor asociación de archivos de juego, el filtrado de procesos del sistema y los iconos de proveedores y emuladores mantienen tu biblioteca más precisa."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Traga sua biblioteca e seu tempo de jogo do Xbox para o PlayCounter.",
+        "highlights": [
+          "Importe seu histórico de jogo do Xbox entrando com a conta Microsoft no navegador e depois associe-o aos jogos instalados pelo app Xbox neste PC.",
+          "Revise as associações duvidosas do Xbox antes de importar e escolha o arquivo de jogo certo quando o PlayCounter precisar de ajuda para identificar o que registrar.",
+          "“Meus jogos” agora tem telas próprias para Steam e Xbox, estados mais claros para jogos importados e um botão “Voltar ao topo” para bibliotecas grandes.",
+          "Personalize os cartões de resumo de “Meus jogos” e escolha quais marcas de origem e de associação aparecem nos cartões dos jogos. Suas escolhas de exibição são lembradas.",
+          "Abra jogos que podem ser iniciados no Explorador de Arquivos pelo menu de contexto, e controle se o PlayCounter lembra caminhos de inicialização locais, independentemente do botão “Jogar”.",
+          "Os jogos do Steam podem ser importados de novo para atualizar o tempo de jogo, e melhorias na associação de arquivos de jogo, na filtragem de processos do sistema e nos ícones de provedores e emuladores deixam sua biblioteca mais precisa."
+        ]
+      },
+      "zh-CN": {
+        "headline": "把你的 Xbox 游戏库和游戏时长带入 PlayCounter。",
+        "highlights": [
+          "在浏览器中登录 Microsoft 账号导入你的 Xbox 游玩历史，然后将它与这台电脑上通过 Xbox 应用安装的游戏进行匹配。",
+          "导入前检查不确定的 Xbox 匹配；当 PlayCounter 需要帮助判断要记录什么时，选择正确的游戏文件。",
+          "“我的游戏”现在有专门的 Steam 和 Xbox 视图、更清楚的导入游戏状态，以及适合大型游戏库的“返回顶部”按钮。",
+          "自定义“我的游戏”的摘要卡片，并选择在游戏卡片上显示哪些来源和匹配标记。你的视图选择会被记住。",
+          "通过右键菜单在文件资源管理器中打开可启动的游戏，并可独立于“开始游戏”按钮，控制 PlayCounter 是否记住本地启动路径。",
+          "Steam 游戏可以重新导入以刷新游戏时长，同时更好的游戏文件匹配、系统进程过滤以及平台和模拟器图标让你的游戏库更准确。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.11",
@@ -178,7 +829,65 @@
       "Steam scans now show clear loading feedback while games and executable matches are being discovered.",
       "Check for executable matches on Steam-imported games that do not have a known executable yet.",
       "Improved Steam library path detection, imported-game rendering, and support for opening non-installed games in Steam."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Hol deine Steam-Bibliothek in PlayCounter.",
+        "highlights": [
+          "Kleiner Hotfix für 1.1.10.",
+          "Behoben: Bei aus Steam importierten Spielen, die der Community-Datenbank vorgeschlagen und angenommen wurden, funktionierte das Aufwerten nicht richtig.",
+          "Hier noch einmal die Änderungen aus 1.1.10:",
+          "Importiere deine lokale Steam-Bibliothek und deine bisherige Spielzeit direkt aus dem Steam-Tab in „Meine Spiele“.",
+          "Der Import führt dich durch die Wahl eines Steam-Kontos und die Auswahl der Spiele, die du hinzufügen willst.",
+          "Klick irgendwo auf eine Spielzeile, um sie auszuwählen, so gehen große Importe viel schneller.",
+          "Steam-Scans zeigen jetzt deutlich an, dass sie laden, während Spiele und Treffer für Programmdateien gesucht werden.",
+          "Suche nach Treffern für Programmdateien bei aus Steam importierten Spielen, die noch keine bekannte Programmdatei haben.",
+          "Verbessert: die Erkennung der Steam-Bibliothekspfade, die Darstellung importierter Spiele und das Öffnen nicht installierter Spiele in Steam."
+        ]
+      },
+      "es": {
+        "headline": "Trae tu biblioteca de Steam a PlayCounter.",
+        "highlights": [
+          "Pequeño hotfix para 1.1.10.",
+          "Corregido un error en juegos importados de Steam que se sugirieron a la base de datos de la comunidad y fueron aceptados, en los que la opción de subir de nivel no funcionaba bien.",
+          "A continuación encontrarás de nuevo los cambios de 1.1.10:",
+          "Importa tu biblioteca local de Steam y tu tiempo de juego histórico directamente desde la pestaña Steam de “Mis juegos”.",
+          "El importador te guía para elegir una cuenta de Steam y seleccionar los juegos que quieres añadir.",
+          "Haz clic en cualquier parte de la fila de un juego para seleccionarlo, así las importaciones grandes son mucho más rápidas.",
+          "Los escaneos de Steam ahora muestran claramente que están cargando mientras se descubren los juegos y las asociaciones de ejecutables.",
+          "Busca asociaciones de ejecutables en los juegos importados de Steam que aún no tienen un ejecutable conocido.",
+          "Mejoras en la detección de rutas de la biblioteca de Steam, en cómo se muestran los juegos importados y en la apertura de juegos no instalados en Steam."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Traga sua biblioteca do Steam para o PlayCounter.",
+        "highlights": [
+          "Pequeno hotfix para a 1.1.10.",
+          "Corrigido um bug em jogos importados do Steam que foram sugeridos ao banco de dados da comunidade e aceitos, nos quais a opção de subir de nível não funcionava direito.",
+          "A seguir, de novo, as mudanças da 1.1.10:",
+          "Importe sua biblioteca local do Steam e seu tempo de jogo histórico direto da aba Steam em “Meus jogos”.",
+          "O importador guia você na escolha de uma conta do Steam e na seleção dos jogos que quer adicionar.",
+          "Clique em qualquer lugar da linha de um jogo para selecioná-lo, deixando importações grandes muito mais rápidas.",
+          "As verificações do Steam agora mostram claramente que estão carregando enquanto jogos e associações de executáveis são descobertos.",
+          "Verifique associações de executáveis em jogos importados do Steam que ainda não têm um executável conhecido.",
+          "Melhorias na detecção de caminhos da biblioteca do Steam, na exibição de jogos importados e na abertura de jogos não instalados no Steam."
+        ]
+      },
+      "zh-CN": {
+        "headline": "把你的 Steam 游戏库带入 PlayCounter。",
+        "highlights": [
+          "1.1.10 的小型热修复。",
+          "修复了一个问题：从 Steam 导入、已向社区数据库提交建议并被采纳的游戏，升级选项无法正常使用。",
+          "以下是 1.1.10 的更新内容：",
+          "直接从“我的游戏”的 Steam 标签页导入你的本地 Steam 游戏库和历史游戏时长。",
+          "导入器会引导你选择 Steam 账号，并选择要添加的游戏。",
+          "点击游戏行的任意位置即可选中它，大批量导入快得多。",
+          "扫描 Steam 时，查找游戏和可执行文件匹配期间会清楚显示加载状态。",
+          "为还没有已知可执行文件的 Steam 导入游戏检查可执行文件匹配。",
+          "改进了 Steam 游戏库路径检测和导入游戏的显示，并支持在 Steam 中打开未安装的游戏。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.10",
@@ -191,7 +900,53 @@
       "Steam scans now show clear loading feedback while games and executable matches are being discovered.",
       "Check for executable matches on Steam-imported games that do not have a known executable yet.",
       "Improved Steam library path detection, imported-game rendering, and support for opening non-installed games in Steam."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Hol deine Steam-Bibliothek in PlayCounter.",
+        "highlights": [
+          "Importiere deine lokale Steam-Bibliothek und deine bisherige Spielzeit direkt aus dem Steam-Tab in „Meine Spiele“.",
+          "Der Import führt dich durch die Wahl eines Steam-Kontos und die Auswahl der Spiele, die du hinzufügen willst.",
+          "Klick irgendwo auf eine Spielzeile, um sie auszuwählen, so gehen große Importe viel schneller.",
+          "Steam-Scans zeigen jetzt deutlich an, dass sie laden, während Spiele und Treffer für Programmdateien gesucht werden.",
+          "Suche nach Treffern für Programmdateien bei aus Steam importierten Spielen, die noch keine bekannte Programmdatei haben.",
+          "Verbessert: die Erkennung der Steam-Bibliothekspfade, die Darstellung importierter Spiele und das Öffnen nicht installierter Spiele in Steam."
+        ]
+      },
+      "es": {
+        "headline": "Trae tu biblioteca de Steam a PlayCounter.",
+        "highlights": [
+          "Importa tu biblioteca local de Steam y tu tiempo de juego histórico directamente desde la pestaña Steam de “Mis juegos”.",
+          "El importador te guía para elegir una cuenta de Steam y seleccionar los juegos que quieres añadir.",
+          "Haz clic en cualquier parte de la fila de un juego para seleccionarlo, así las importaciones grandes son mucho más rápidas.",
+          "Los escaneos de Steam ahora muestran claramente que están cargando mientras se descubren los juegos y las asociaciones de ejecutables.",
+          "Busca asociaciones de ejecutables en los juegos importados de Steam que aún no tienen un ejecutable conocido.",
+          "Mejoras en la detección de rutas de la biblioteca de Steam, en cómo se muestran los juegos importados y en la apertura de juegos no instalados en Steam."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Traga sua biblioteca do Steam para o PlayCounter.",
+        "highlights": [
+          "Importe sua biblioteca local do Steam e seu tempo de jogo histórico direto da aba Steam em “Meus jogos”.",
+          "O importador guia você na escolha de uma conta do Steam e na seleção dos jogos que quer adicionar.",
+          "Clique em qualquer lugar da linha de um jogo para selecioná-lo, deixando importações grandes muito mais rápidas.",
+          "As verificações do Steam agora mostram claramente que estão carregando enquanto jogos e associações de executáveis são descobertos.",
+          "Verifique associações de executáveis em jogos importados do Steam que ainda não têm um executável conhecido.",
+          "Melhorias na detecção de caminhos da biblioteca do Steam, na exibição de jogos importados e na abertura de jogos não instalados no Steam."
+        ]
+      },
+      "zh-CN": {
+        "headline": "把你的 Steam 游戏库带入 PlayCounter。",
+        "highlights": [
+          "直接从“我的游戏”的 Steam 标签页导入你的本地 Steam 游戏库和历史游戏时长。",
+          "导入器会引导你选择 Steam 账号，并选择要添加的游戏。",
+          "点击游戏行的任意位置即可选中它，大批量导入快得多。",
+          "扫描 Steam 时，查找游戏和可执行文件匹配期间会清楚显示加载状态。",
+          "为还没有已知可执行文件的 Steam 导入游戏检查可执行文件匹配。",
+          "改进了 Steam 游戏库路径检测和导入游戏的显示，并支持在 Steam 中打开未安装的游戏。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.9",
@@ -203,7 +958,49 @@
       "Emulator launch files now have their own controls in Settings, so you can change an emulator program or forget emulator paths without affecting regular game executables.",
       "A manually selected executable can now launch a regular game even when its filename differs from the one PlayCounter originally tracked.",
       "Games sorted by Last Played no longer jump as you click Play, and refreshed session notifications are clearer and remain visible longer."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Starte deine Dolphin- und DOSBox-Spiele direkt aus PlayCounter.",
+        "highlights": [
+          "Unter Windows lassen sich erfasste Dolphin- und DOSBox-Spiele jetzt aus „Meine Spiele“ oder von ihrer Emulator-Seite starten.",
+          "PlayCounter kann Emulator-Programme und Spieldateien beim Spielen lernen, oder du wählst sie selbst, wenn ein Pfad nicht erkannt wird.",
+          "Startdateien von Emulatoren haben jetzt eigene Einstellungen, damit du ein Emulator-Programm ändern oder Emulator-Pfade vergessen kannst, ohne die Programmdateien normaler Spiele zu berühren.",
+          "Eine von Hand gewählte Programmdatei kann ein normales Spiel jetzt auch starten, wenn ihr Dateiname von dem abweicht, den PlayCounter ursprünglich erfasst hat.",
+          "Nach „Zuletzt gespielt“ sortierte Spiele springen nicht mehr, wenn du auf „Spielen“ klickst, und die überarbeiteten Sitzungsbenachrichtigungen sind klarer und bleiben länger sichtbar."
+        ]
+      },
+      "es": {
+        "headline": "Inicia tus juegos de Dolphin y DOSBox directamente desde PlayCounter.",
+        "highlights": [
+          "En Windows, los juegos de Dolphin y DOSBox registrados ahora se pueden iniciar desde “Mis juegos” o desde la página de su emulador.",
+          "PlayCounter puede aprender los programas de emulador y los archivos de juego mientras juegas, o puedes elegirlos tú cuando no se puede detectar una ruta.",
+          "Los archivos de inicio de los emuladores ahora tienen sus propios controles en Configuración, para que puedas cambiar un programa de emulador u olvidar las rutas de emuladores sin afectar a los ejecutables de los juegos normales.",
+          "Un ejecutable elegido manualmente ahora puede iniciar un juego normal aunque su nombre de archivo sea distinto del que PlayCounter registró originalmente.",
+          "Los juegos ordenados por “Última vez jugado” ya no saltan al hacer clic en “Jugar”, y las notificaciones de sesión renovadas son más claras y permanecen visibles más tiempo."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Inicie seus jogos de Dolphin e DOSBox direto do PlayCounter.",
+        "highlights": [
+          "No Windows, os jogos de Dolphin e DOSBox registrados agora podem ser iniciados em “Meus jogos” ou na página do emulador.",
+          "O PlayCounter pode aprender os programas de emulador e os arquivos de jogo enquanto você joga, ou você mesmo pode escolhê-los quando um caminho não puder ser detectado.",
+          "Os arquivos de inicialização dos emuladores agora têm controles próprios em Configurações, para você trocar um programa de emulador ou esquecer caminhos de emuladores sem afetar os executáveis dos jogos normais.",
+          "Um executável escolhido manualmente agora pode iniciar um jogo normal mesmo quando o nome do arquivo é diferente daquele que o PlayCounter registrou originalmente.",
+          "Jogos ordenados por “Última vez jogado” não pulam mais quando você clica em “Jogar”, e as notificações de sessão renovadas estão mais claras e ficam visíveis por mais tempo."
+        ]
+      },
+      "zh-CN": {
+        "headline": "直接从 PlayCounter 启动你的 Dolphin 和 DOSBox 游戏。",
+        "highlights": [
+          "在 Windows 上，已记录的 Dolphin 和 DOSBox 游戏现在可以从“我的游戏”或对应的模拟器页面启动。",
+          "PlayCounter 可以在你游玩时学习模拟器程序和游戏文件；无法检测路径时，你也可以自己选择。",
+          "模拟器启动文件现在在设置中有单独的控制项，你可以更换模拟器程序或忘记模拟器路径，而不影响普通游戏的可执行文件。",
+          "手动选择的可执行文件现在可以启动普通游戏，即使它的文件名与 PlayCounter 最初记录的不同。",
+          "按“上次游玩”排序的游戏在点击“开始游戏”时不再跳动，改进后的游玩记录通知更清楚，显示时间也更长。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.8",
@@ -215,7 +1012,49 @@
       "My Games now includes a larger card layout, clearer Play actions, launch progress feedback, and protection against starting multiple games at once.",
       "Pending community game suggestions can now be cancelled without removing your private game, playtime, or history. Suggestions supported by other players remain in review.",
       "Dialogs, tours, contribution controls, and wording have been refined for a more consistent and natural experience."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Starte deine Spiele aus PlayCounter und steuere alles bequem von der Couch.",
+        "highlights": [
+          "Unter Windows kannst du erfasste Spiele jetzt direkt aus „Meine Spiele“ starten. PlayCounter lernt lokale Programmdateien beim Spielen, oder du wählst selbst eine aus; gespeicherte Pfade verlassen nie deinen PC.",
+          "Mit der optionalen Controller-Steuerung bewegst du dich durch PlayCounter und startest Spiele, mit Tastenhinweisen im Xbox-Stil und einer Tastenkombination, die die App nach vorne holt.",
+          "„Meine Spiele“ bietet jetzt ein größeres Kachel-Layout, klarere „Spielen“-Aktionen, eine Fortschrittsanzeige beim Starten und einen Schutz davor, mehrere Spiele gleichzeitig zu starten.",
+          "Ausstehende Spielvorschläge an die Community lassen sich jetzt zurückziehen, ohne dein privates Spiel, deine Spielzeit oder deinen Verlauf zu entfernen. Vorschläge, die andere Spieler unterstützen, bleiben in der Prüfung.",
+          "Dialoge, Rundgänge, die Steuerung für Beiträge und Formulierungen wurden überarbeitet, damit sich alles einheitlicher und natürlicher anfühlt."
+        ]
+      },
+      "es": {
+        "headline": "Inicia tus juegos desde PlayCounter y navega desde el sofá.",
+        "highlights": [
+          "En Windows, ahora puedes iniciar los juegos registrados directamente desde “Mis juegos”. PlayCounter aprende los archivos de programa locales mientras juegas, o puedes elegir uno tú; las rutas guardadas nunca salen de tu PC.",
+          "La navegación opcional con mando te permite recorrer PlayCounter e iniciar juegos con indicaciones de botones al estilo Xbox, incluido un atajo para traer la app al frente.",
+          "“Mis juegos” ahora incluye un diseño de tarjetas más grande, acciones “Jugar” más claras, indicación del progreso al iniciar y protección contra iniciar varios juegos a la vez.",
+          "Las sugerencias de juegos pendientes para la comunidad ahora se pueden cancelar sin quitar tu juego privado, tu tiempo de juego ni tu historial. Las sugerencias que otros jugadores apoyan siguen en revisión.",
+          "Los diálogos, los recorridos, los controles de contribución y los textos se pulieron para una experiencia más coherente y natural."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Inicie seus jogos pelo PlayCounter e navegue do sofá.",
+        "highlights": [
+          "No Windows, agora você pode iniciar jogos registrados direto de “Meus jogos”. O PlayCounter aprende os arquivos de programa locais enquanto você joga, ou você mesmo pode escolher um; os caminhos salvos nunca saem do seu PC.",
+          "A navegação opcional por controle permite percorrer o PlayCounter e iniciar jogos com dicas de botões no estilo Xbox, incluindo um atalho para trazer o app para a frente.",
+          "“Meus jogos” agora tem um layout de cartões maior, ações “Jogar” mais claras, indicação de progresso ao iniciar e proteção contra iniciar vários jogos ao mesmo tempo.",
+          "Sugestões de jogos pendentes para a comunidade agora podem ser canceladas sem remover seu jogo privado, seu tempo de jogo ou seu histórico. Sugestões apoiadas por outros jogadores continuam em análise.",
+          "Caixas de diálogo, tours, controles de contribuição e textos foram refinados para uma experiência mais consistente e natural."
+        ]
+      },
+      "zh-CN": {
+        "headline": "从 PlayCounter 启动游戏，坐在沙发上也能操作。",
+        "highlights": [
+          "在 Windows 上，你现在可以直接从“我的游戏”启动已记录的游戏。PlayCounter 会在你游玩时学习本地程序文件，你也可以自己选择；保存的路径绝不会离开你的电脑。",
+          "可选的手柄导航让你可以浏览 PlayCounter 并启动游戏，带有 Xbox 风格的按键提示，还有一个把应用切到前台的快捷键。",
+          "“我的游戏”现在有更大的卡片布局、更清楚的“开始游戏”操作、启动进度提示，并能防止同时启动多个游戏。",
+          "待审核的社区游戏建议现在可以撤回，而不会删除你的私人游戏、游戏时长或历史。其他玩家支持的建议仍会继续审核。",
+          "对话框、导览、贡献控制和文字都经过打磨，体验更一致、更自然。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.7",
@@ -227,7 +1066,49 @@
       "A new emulator guide, better game suggestions, and a refreshed Now Emulating screen make emulator tracking easier to set up and use.",
       "History sessions are easier and safer to manage with keyboard navigation and a confirmation step before deletion.",
       "Fixed an issue that prevented playtime from being edited for custom games."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Die Emulator-Zuordnung mit Hilfe der Community wird schlauer.",
+        "highlights": [
+          "Du kannst jetzt Zuordnungen von Emulator-Spielen zur Prüfung teilen und so PlayCounter helfen, dieselben Spiele für alle zu erkennen.",
+          "Verfolge den Status deiner Emulator-Vorschläge über Benachrichtigungen und schalte neue Erfolge für Beiträge frei, wenn sie freigegeben werden.",
+          "Eine neue Emulator-Anleitung, bessere Spielvorschläge und eine überarbeitete Seite „Läuft im Emulator“ machen die Emulator-Erfassung leichter einzurichten und zu nutzen.",
+          "Sitzungen im Verlauf lassen sich mit Tastatursteuerung und einer Rückfrage vor dem Löschen einfacher und sicherer verwalten.",
+          "Behoben: Bei eigenen Spielen ließ sich die Spielzeit nicht bearbeiten."
+        ]
+      },
+      "es": {
+        "headline": "La asociación de emuladores impulsada por la comunidad se vuelve más inteligente.",
+        "highlights": [
+          "Ahora puedes compartir asociaciones de juegos de emulador para su revisión y ayudar a que PlayCounter reconozca los mismos juegos para todos.",
+          "Sigue el estado de tus sugerencias de emulador con notificaciones y desbloquea nuevos logros de contribución cuando se aprueben.",
+          "Una nueva guía de emuladores, mejores sugerencias de juegos y una pantalla “Emulando ahora” renovada hacen que el registro de emuladores sea más fácil de configurar y usar.",
+          "Las sesiones del historial son más fáciles y seguras de gestionar con navegación por teclado y un paso de confirmación antes de borrarlas.",
+          "Corregido un problema que impedía editar el tiempo de juego de los juegos personalizados."
+        ]
+      },
+      "pt-BR": {
+        "headline": "A associação de emuladores com a ajuda da comunidade ficou mais inteligente.",
+        "highlights": [
+          "Agora você pode compartilhar associações de jogos de emulador para análise, ajudando o PlayCounter a reconhecer os mesmos jogos para todo mundo.",
+          "Acompanhe o status das suas sugestões de emulador pelas notificações e desbloqueie novas conquistas de contribuição quando elas forem aprovadas.",
+          "Um novo guia de emuladores, sugestões de jogos melhores e uma tela “Emulando agora” renovada deixam o registro de emuladores mais fácil de configurar e usar.",
+          "As sessões do histórico ficaram mais fáceis e seguras de gerenciar, com navegação pelo teclado e uma confirmação antes de excluir.",
+          "Corrigido um problema que impedia editar o tempo de jogo de jogos personalizados."
+        ]
+      },
+      "zh-CN": {
+        "headline": "社区驱动的模拟器匹配变得更聪明。",
+        "highlights": [
+          "你现在可以分享模拟器游戏匹配供审核，帮助 PlayCounter 为所有人识别相同的游戏。",
+          "通过通知跟踪你的模拟器建议状态，建议获批后还能解锁新的贡献成就。",
+          "新的模拟器指南、更好的游戏建议和焕新的“正在模拟”页面，让模拟器记录更容易设置和使用。",
+          "借助键盘导航和删除前的确认步骤，管理历史中的游玩记录更轻松、更安全。",
+          "修复了无法编辑自定义游戏游戏时长的问题。"
+        ]
+      }
+    }
   },
   {
     "version": "1.1.5",
@@ -238,6 +1119,44 @@
       "The emulator game picker now stays open until you finish choosing.",
       "Now Playing cards no longer jump out of order when a game starts or stops.",
       "Restoring a backup is quieter and more reliable when you move your data to another PC."
-    ]
+    ],
+    "translations": {
+      "de": {
+        "headline": "Geführte Rundgänge machen PlayCounter leichter zu lernen.",
+        "highlights": [
+          "Neue geführte Rundgänge zeigen dir die wichtigsten Seiten und häufige Aufgaben. Mit den Pfeiltasten gehst du sie Schritt für Schritt durch.",
+          "Die Spielauswahl für Emulatoren bleibt jetzt offen, bis du fertig gewählt hast.",
+          "Die Kacheln in „Läuft gerade“ springen nicht mehr durcheinander, wenn ein Spiel startet oder endet.",
+          "Eine Sicherung wiederherzustellen läuft jetzt ruhiger und zuverlässiger, wenn du deine Daten auf einen anderen PC umziehst."
+        ]
+      },
+      "es": {
+        "headline": "Los recorridos guiados hacen que PlayCounter sea más fácil de aprender.",
+        "highlights": [
+          "Los nuevos recorridos guiados te muestran las pantallas principales y las tareas habituales. Avanza por ellos con las flechas del teclado.",
+          "El selector de juegos de emulador ahora se queda abierto hasta que termines de elegir.",
+          "Las tarjetas de “Jugando ahora” ya no cambian de orden de golpe cuando un juego empieza o termina.",
+          "Restaurar una copia de seguridad es más discreto y fiable cuando mueves tus datos a otro PC."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Tours guiados deixam o PlayCounter mais fácil de aprender.",
+        "highlights": [
+          "Novos tours guiados mostram as telas principais e as tarefas mais comuns. Avance por eles com as setas do teclado.",
+          "O seletor de jogos de emulador agora fica aberto até você terminar de escolher.",
+          "Os cartões de “Jogando agora” não mudam mais de ordem do nada quando um jogo começa ou termina.",
+          "Restaurar um backup ficou mais discreto e confiável quando você leva seus dados para outro PC."
+        ]
+      },
+      "zh-CN": {
+        "headline": "引导式导览让 PlayCounter 更容易上手。",
+        "highlights": [
+          "新的引导式导览会带你了解主要页面和常见操作。可用方向键逐步浏览。",
+          "模拟器游戏选择器现在会保持打开，直到你选完为止。",
+          "游戏开始或停止时，“正在游玩”的卡片不再乱跳顺序。",
+          "把数据迁移到另一台电脑时，恢复备份更安静、更可靠。"
+        ]
+      }
+    }
   }
 ]

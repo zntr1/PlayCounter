@@ -8,6 +8,9 @@ import { isSearchableGameQuery } from "../communityMetadataSearch";
 import { responseError } from "../rateLimitedFetch";
 import type { GameMetadata } from "../store";
 import { requestLibraryJson, type RateLimitWaitListener } from "./request";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 export function librarySearchQuery(title: string): string {
   return title.replace(/[®™℠]/gu, "").replace(/\s+/gu, " ").trim();
@@ -31,12 +34,15 @@ export async function searchLibraryGames(
     { signal, onRateLimitWait: options.onRateLimitWait },
   );
   if (!response.ok) {
-    throw responseError(response, `Game search failed (${response.status}).`);
+    throw responseError(
+      response,
+      t("Game search failed ({{status}}).", { status: response.status }),
+    );
   }
   const value = response.data;
   const record = asRecord(value);
   if (!record || !Array.isArray(record.games)) {
-    throw new Error("Game search returned an invalid response.");
+    throw new Error(t("Game search returned an invalid response."));
   }
   return record.games.map(
     parseLibraryGameMetadata,
@@ -63,12 +69,14 @@ export async function reverseResolveLibraryGame(
   if (!response.ok) {
     throw responseError(
       response,
-      `The game file lookup failed (${response.status}).`,
+      t("The game file lookup failed ({{status}}).", {
+        status: response.status,
+      }),
     );
   }
   const record = asRecord(response.data);
   if (!record || !Array.isArray(record.executables)) {
-    throw new Error("The game file lookup sent back an invalid response.");
+    throw new Error(t("The game file lookup sent back an invalid response."));
   }
   return {
     game: parseLibraryGameMetadata(record.game),
@@ -90,7 +98,7 @@ function parseLibraryExecutable(value: unknown): LibraryKnownExecutable {
     typeof record.verified !== "boolean" ||
     (record.ambiguous !== undefined && typeof record.ambiguous !== "boolean")
   ) {
-    throw new Error("The game file lookup sent back invalid file data.");
+    throw new Error(t("The game file lookup sent back invalid file data."));
   }
   return {
     platform,
@@ -145,7 +153,7 @@ export function parseLibraryGameMetadata(value: unknown): GameMetadata {
         record.releaseYear <= 0)) ||
     (record.source !== "igdb" && record.source !== "community")
   ) {
-    throw new Error("Game lookup returned invalid game metadata.");
+    throw new Error(t("Game lookup returned invalid game metadata."));
   }
   return {
     id: record.id,

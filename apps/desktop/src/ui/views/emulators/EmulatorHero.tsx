@@ -9,6 +9,10 @@ import { formatDuration } from "../../components";
 import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
 import { Button } from "../../primitives";
+import { appLocale, getT } from "../../../i18n";
+import { Trans } from "react-i18next";
+
+const t = getT("emulators");
 
 /* The emulator hero: what this emulator is, how much has been played in it,
    and the games that carried that time. The most played game's key art sits
@@ -84,7 +88,7 @@ export function EmulatorHero({
 
   return (
     <section
-      aria-label={`${label} summary`}
+      aria-label={t("{{label}} summary", { label })}
       className="relative overflow-hidden rounded-2xl border border-border/80 bg-surface shadow-raised"
     >
       {artwork ? (
@@ -133,41 +137,54 @@ export function EmulatorHero({
           {hasSessions ? (
             <>
               <h1 className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text drop-shadow-md [text-wrap:balance] sm:text-[42px]">
-                <span className="font-mono font-bold tracking-tighter">
-                  {formatDuration(playtimeSeconds, showDurationDays)}
-                </span>{" "}
-                played
-                <br />
-                in {sessionCount} session{sessionCount === 1 ? "" : "s"}
+                <Trans
+                  t={t}
+                  i18nKey="<time>{{duration}}</time> played<br/>in {{count}} sessions"
+                  count={sessionCount}
+                  values={{
+                    duration: formatDuration(playtimeSeconds, showDurationDays),
+                  }}
+                  components={{
+                    time: (
+                      <span className="font-mono font-bold tracking-tighter" />
+                    ),
+                    br: <br />,
+                  }}
+                />
               </h1>
               <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                 <Fact
                   value={String(gameCount)}
-                  unit={gameCount === 1 ? "game" : "games"}
+                  unit={t("games", { count: gameCount })}
                 />
                 {lastPlayedMs !== null ? (
                   <Fact
-                    label="last played"
-                    value={new Date(lastPlayedMs).toLocaleDateString([], {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    label={t("last played")}
+                    value={new Date(lastPlayedMs).toLocaleDateString(
+                      appLocale(),
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
                   />
                 ) : null}
                 {ignoredCount > 0 ? (
-                  <Fact label="ignored" value={String(ignoredCount)} />
+                  <Fact label={t("ignored")} value={String(ignoredCount)} />
                 ) : null}
               </p>
             </>
           ) : (
             <>
               <h1 className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text sm:text-[42px]">
-                Nothing played yet
+                {t("Nothing played yet")}
               </h1>
               <p className="mt-3 text-sm text-text-muted">
-                Start a game in {label}. PlayCounter recognizes it and the
-                playtime lands here.
+                {t(
+                  "Start a game in {{label}}. PlayCounter recognizes it and the playtime lands here.",
+                  { label },
+                )}
               </p>
             </>
           )}
@@ -183,7 +200,7 @@ export function EmulatorHero({
                 onClick={start.onClick}
                 className="h-10 rounded-lg px-5 font-semibold shadow-sm"
               >
-                Start game
+                {t("Start game")}
               </Button>
             ) : null}
             <span
@@ -196,8 +213,8 @@ export function EmulatorHero({
             >
               <Radio aria-hidden="true" size={12} />
               {running
-                ? `${runningCount} game${runningCount === 1 ? "" : "s"} running`
-                : "Nothing running"}
+                ? t("{{count}} games running", { count: runningCount })
+                : t("Nothing running")}
             </span>
           </div>
         </div>
@@ -205,7 +222,7 @@ export function EmulatorHero({
         {topGames.length > 0 ? (
           <div className="min-w-0 border-t border-border/70 pt-4 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
             <h2 className="text-xs font-bold uppercase tracking-[0.16em] text-text-faint">
-              Most played
+              {t("Most played")}
             </h2>
             <ol className="mt-3 grid gap-2.5">
               {topGames.map((game, index) => (
@@ -229,10 +246,22 @@ export function EmulatorHero({
                       {game.name}
                     </div>
                     <div className="mt-0.5 text-xs text-text-muted">
-                      <span className="font-mono font-semibold text-text">
-                        {formatDuration(game.seconds, showDurationDays)}
-                      </span>{" "}
-                      in {game.sessions} session{game.sessions === 1 ? "" : "s"}
+                      <Trans
+                        t={t}
+                        i18nKey="<time>{{duration}}</time> in {{count}} sessions"
+                        count={game.sessions}
+                        values={{
+                          duration: formatDuration(
+                            game.seconds,
+                            showDurationDays,
+                          ),
+                        }}
+                        components={{
+                          time: (
+                            <span className="font-mono font-semibold text-text" />
+                          ),
+                        }}
+                      />
                     </div>
                   </div>
                 </li>

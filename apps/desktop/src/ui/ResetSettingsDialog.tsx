@@ -2,6 +2,9 @@ import { useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { resetSettings } from "../resetSettings";
 import { Button, Modal } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("settings");
 
 export function ResetSettingsDialog({
   onCancel,
@@ -34,8 +37,8 @@ export function ResetSettingsDialog({
     <Modal
       size="sm"
       labelId="reset-settings-title"
-      eyebrow="Settings"
-      title="Reset settings?"
+      eyebrow={t("Settings")}
+      title={t("Reset settings?")}
       icon={RotateCcw}
       onClose={() => {
         if (!busy.current) onCancel();
@@ -43,26 +46,28 @@ export function ResetSettingsDialog({
       footer={
         <div className="flex flex-wrap justify-end gap-2">
           <Button data-autofocus disabled={resetting} onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button
             variant="primary"
             loading={resetting}
             onClick={() => void confirm()}
           >
-            {resetting ? "Resetting…" : "Restore defaults"}
+            {resetting ? t("Resetting…") : t("Restore defaults")}
           </Button>
         </div>
       }
     >
       <div className="space-y-3 text-sm leading-6 text-text-muted">
         <p>
-          Restore default appearance, library display, detection, popup,
-          keyboard shortcut, and startup settings. Changes apply immediately.
+          {t(
+            "Restore default appearance, library display, detection, popup, keyboard shortcut, and startup settings. Changes apply immediately.",
+          )}
         </p>
         <p>
-          Your games, play history, notes, shelves, and saved game files are
-          kept. Backup files and backup preferences stay as they are.
+          {t(
+            "Your games, play history, notes, shelves, and saved game files are kept. Backup files and backup preferences stay as they are.",
+          )}
         </p>
         {error ? (
           <div
@@ -70,10 +75,12 @@ export function ResetSettingsDialog({
             className="rounded-lg border border-danger-border bg-danger-tint p-3 text-danger"
           >
             <p className="font-medium">
-              Settings could not be fully reset: {error}
+              {t("Settings could not be fully reset: {{error}}", { error })}
             </p>
             <p>
-              Some settings may already have changed. Retry to finish the reset.
+              {t(
+                "Some settings may already have changed. Retry to finish the reset.",
+              )}
             </p>
           </div>
         ) : null}

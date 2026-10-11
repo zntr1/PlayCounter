@@ -7,6 +7,9 @@ import {
   TOTAL_HOURS,
   VERIFIED_COUNTS,
 } from "./milestones";
+import { getT } from "./i18n";
+
+const t = getT("achievements");
 
 export const ACHIEVEMENT_TIERS = [
   "bronze",
@@ -58,57 +61,57 @@ export function achievementArt(input: {
       return art(
         "message-square",
         "bronze",
-        "feedback reply",
+        t("feedback reply"),
         false,
-        "Reply from PlayCounter",
+        t("Reply from PlayCounter"),
       );
     case "milestone-total":
       return art(
         "trophy",
         tierForThreshold(TOTAL_HOURS, threshold),
-        "total playtime",
+        t("total playtime"),
       );
     case "milestone-month":
       return art(
         "calendar",
         tierForThreshold(MONTH_HOURS, threshold),
-        "monthly playtime",
+        t("monthly playtime"),
       );
     case "milestone-game":
       return art(
         "gamepad",
         tierForThreshold(GAME_HOURS, threshold),
-        "game playtime",
+        t("game playtime"),
       );
     case "milestone-streak":
       return art(
         "flame",
         tierForThreshold(STREAK_DAYS, threshold),
-        "play streak",
+        t("play streak"),
       );
     case "milestone-verified":
       return art(
         "badge-check",
         tierForThreshold(VERIFIED_COUNTS, threshold),
-        "approved suggestions",
+        t("approved suggestions"),
       );
     case "milestone-emulator":
       return art(
         "joystick",
         tierForThreshold(EMULATOR_VERIFIED_COUNTS, threshold),
-        "approved emulator matches",
+        t("approved emulator matches"),
       );
     case "suggestion-verified":
-      return art("shield-check", "bronze", "approved suggestion", false);
+      return art("shield-check", "bronze", t("approved suggestion"), false);
     case "suggestion-rejected":
-      return art("circle-slash", "bronze", "reviewed suggestion", false);
+      return art("circle-slash", "bronze", t("reviewed suggestion"), false);
     case "discovered-review":
       return art(
         "list-checks",
         "bronze",
-        "apps waiting for review",
+        t("apps waiting for review"),
         false,
-        "Reminder: apps waiting for review",
+        t("Reminder: apps waiting for review"),
       );
     default:
       return assertNever(input.kind);
@@ -142,8 +145,11 @@ function art(
     label:
       label ??
       (achievement
-        ? `${capitalize(tier)} achievement: ${subject}`
-        : `${capitalize(tier)} badge: ${subject}`),
+        ? t("{{tier}} achievement: {{subject}}", {
+            tier: tierLabel(tier),
+            subject,
+          })
+        : t("{{tier}} badge: {{subject}}", { tier: tierLabel(tier), subject })),
   };
 }
 
@@ -168,10 +174,28 @@ function frameClassName(tier: AchievementTier) {
   }
 }
 
-function capitalize(value: string) {
-  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+export function tierLabel(tier: AchievementTier) {
+  switch (tier) {
+    case "bronze":
+      return t("Bronze");
+    case "silver":
+      return t("Silver");
+    case "gold":
+      return t("Gold");
+    case "platinum":
+      return t("Platinum");
+    case "diamond":
+      return t("Diamond");
+    case "master":
+      return t("Master");
+    case "grandmaster":
+      return t("Grandmaster");
+    case "legendary":
+      return t("Legendary");
+  }
 }
 
 function assertNever(value: never): never {
+  // i18n-exempt: impossible case, never shown.
   throw new Error(`Unhandled notification kind: ${String(value)}`);
 }

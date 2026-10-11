@@ -41,6 +41,7 @@ import {
 import { toggleCollapsedSection } from "./sectionCollapse";
 import { splitStoredSessions } from "./sessionPersistence";
 import { applyTheme, normalizeAccentColor } from "./theme";
+import { appLocale, applyLanguage, type LanguageSetting, getT } from "./i18n";
 import type {
   EmulatorMapping,
   EmulatorObservation,
@@ -96,6 +97,8 @@ import {
   type PersonalShelf,
   type Playthrough,
 } from "./personalLibrary";
+
+const t = getT("tracker");
 
 export type ViewId = DesktopViewId;
 
@@ -510,6 +513,8 @@ export type AppState = {
   currentNotesOpen: boolean;
   suppressStartupNotificationsOnce: boolean;
   suppressContributionNotificationsOnce: boolean;
+  /** The one-time "PlayCounter is now in German" notice was answered. */
+  languageNoticeSeen: boolean;
   activeTour: ActiveTour | null;
   demoResetToken: number;
   helpMenuOpen: boolean;
@@ -526,6 +531,7 @@ export type AppState = {
   markTourWelcomeSeen: () => void;
   resetTourProgress: () => void;
   markReleaseNotesSeen: (version: string) => void;
+  dismissLanguageNotice: () => void;
   openCurrentReleaseNotes: () => void;
   closeCurrentReleaseNotes: (version: string) => void;
   setHistoryQuery: (query: string) => void;
@@ -615,6 +621,7 @@ export type AppState = {
   setCleanup: (cleanup: () => void) => void;
   setLaunchOnStartup: (enabled: boolean) => void;
   setStartView: (view: "now" | "games") => void;
+  setLanguage: (language: LanguageSetting) => void;
   setShowDurationDays: (enabled: boolean) => void;
   setMyGamesCardSize: (size: MyGamesCardSize) => void;
   setMyGamesGridColumns: (columns: number) => void;
@@ -690,6 +697,7 @@ export const BUILD_STAGE: Stage =
 const defaultSettings: Settings = {
   launchOnStartup: true,
   startView: "now",
+  language: "system",
   showDurationDays: false,
   libraryCardSize: "grid",
   libraryGridColumns: null,
@@ -811,17 +819,29 @@ function persistSoon() {
         );
         state.addToast({
           tone: "error",
-          title: "History storage was full",
-          detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were archived so new data could be saved.`,
+          title: t("History storage was full"),
+          detail: oldest
+            ? t(
+                "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
+                {
+                  count: result.removed.length,
+                  date: new Date(oldest).toLocaleDateString(appLocale()),
+                },
+              )
+            : t(
+                "{{count}} oldest sessions were archived so new data could be saved.",
+                { count: result.removed.length },
+              ),
         });
       }
     } else if (result.status === "failed") {
       state.addRuntimeLogEntry("local persistence failed after retry");
       state.addToast({
         tone: "error",
-        title: "Changes could not be saved",
-        detail:
+        title: t("Changes could not be saved"),
+        detail: t(
           "Local storage is unavailable or full. Your in-memory history was kept.",
+        ),
       });
     }
   });
@@ -898,6 +918,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentNotesOpen: false,
   suppressStartupNotificationsOnce: false,
   suppressContributionNotificationsOnce: false,
+  languageNoticeSeen: false,
   activeTour: null,
   demoResetToken: 0,
   helpMenuOpen: false,
@@ -993,6 +1014,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   markReleaseNotesSeen: (version) => {
     if (get().lastSeenReleaseNotesVersion === version) return;
     set({ lastSeenReleaseNotesVersion: version });
+    persistSoon();
+  },
+  dismissLanguageNotice: () => {
+    set({ languageNoticeSeen: true });
     persistSoon();
   },
   openCurrentReleaseNotes: () => set({ currentNotesOpen: true }),
@@ -1556,9 +1581,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         tone: "info",
         title:
           received === 1
-            ? "Reply from PlayCounter"
-            : "New replies from PlayCounter",
-        detail: "Open Notifications to read the reply to your feedback.",
+            ? t("Reply from PlayCounter")
+            : t("New replies from PlayCounter"),
+        detail: t("Open Notifications to read the reply to your feedback."),
       });
   },
   setDiscoveredReviewReminder: (discoveredReviewReminder) => {
@@ -1701,6 +1726,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     // A settings reset must never trim history to make room. Save the current
     // durable data with only its settings replaced, or report the write failure.
     writePersistedRecord(createPersistedPayload({ ...get(), settings }));
+    applyLanguage(settings.language);
     set({ settings });
     applyTheme(settings.theme, settings.accentColor);
   },
@@ -1713,6 +1739,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   setStartView: (startView) => {
     set((state) => ({
       settings: { ...state.settings, startView },
+    }));
+    persistSoon();
+  },
+  setLanguage: (language) => {
+    // Switch first, so whatever re-renders on the change reads the new language.
+    applyLanguage(language);
+    set((state) => ({
+      settings: { ...state.settings, language },
     }));
     persistSoon();
   },

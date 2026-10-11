@@ -18,6 +18,9 @@ import type {
   EmulatorReading,
   RawEmulatorSignals,
 } from "./types";
+import { getT } from "../i18n";
+
+const t = getT("emulators");
 
 type ParsedSignal = {
   kind: EmulatorContentKind;
@@ -285,7 +288,10 @@ export const dosboxAdapter: EmulatorAdapter = {
   id: "dosbox",
   label: "DOSBox",
   platformLabel: "DOS",
-  subtitle: "DOS games, mappings, and emulator playtime",
+  // A getter, so the text follows the current language.
+  get subtitle() {
+    return t("DOS games, mappings, and emulator playtime");
+  },
   exeNames: [
     "dosbox.exe",
     "dosbox.com",

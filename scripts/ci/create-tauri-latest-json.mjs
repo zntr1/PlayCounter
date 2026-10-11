@@ -53,45 +53,73 @@ if (macOsArm64Artifact) {
   await addUpdaterPlatform(platforms, "darwin-aarch64", macOsArm64Artifact);
 }
 
+const releaseNotes = await readReleaseNotes(version);
 const manifest = {
   version,
-  notes: await readReleaseNotes(version),
+  // Every app version reads the English "notes"; versions with languages
+  // also read "notes_translations" (language -> notes in the same format).
+  notes: releaseNotes.notes,
+  ...(releaseNotes.translations
+    ? { notes_translations: releaseNotes.translations }
+    : {}),
   pub_date: new Date().toISOString(),
   platforms,
 };
 
 await mkdir(dirname(latestPath), { recursive: true });
 await writeFile(latestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+const noteLanguages = [
+  "en",
+  ...Object.keys(manifest.notes_translations ?? {}),
+].join(", ");
 process.stdout.write(
-  `Created ${latestPath} for ${Object.keys(platforms).join(", ")} (${manifest.notes ? "release notes attached" : "no release notes"})\n`,
+  `Created ${latestPath} for ${Object.keys(platforms).join(", ")} (${manifest.notes ? `release notes in ${noteLanguages}` : "no release notes"})\n`,
 );
 
 async function readReleaseNotes(releaseVersion) {
   try {
     const catalog = JSON.parse(await readFile(releaseNotesPath, "utf8"));
-    if (!Array.isArray(catalog)) return "";
+    if (!Array.isArray(catalog)) return { notes: "" };
     const entry = catalog.find(
       (candidate) =>
         candidate &&
         typeof candidate === "object" &&
         candidate.version === releaseVersion,
     );
-    if (
-      !entry ||
-      typeof entry.headline !== "string" ||
-      !entry.headline.trim() ||
-      !Array.isArray(entry.highlights)
-    ) {
-      return "";
-    }
-    const highlights = entry.highlights
-      .filter((highlight) => typeof highlight === "string" && highlight.trim())
-      .map((highlight) => `• ${highlight.trim()}`);
-    if (highlights.length === 0) return "";
-    return [entry.headline.trim(), ...highlights].join("\n").slice(0, 4_000);
+    const notes = formatReleaseNotes(entry);
+    if (!notes) return { notes: "" };
+    const rawTranslations =
+      entry.translations && typeof entry.translations === "object"
+        ? entry.translations
+        : {};
+    const translations = Object.fromEntries(
+      Object.entries(rawTranslations)
+        .map(([language, text]) => [language, formatReleaseNotes(text)])
+        .filter(([, text]) => text),
+    );
+    return Object.keys(translations).length > 0
+      ? { notes, translations }
+      : { notes };
   } catch {
+    return { notes: "" };
+  }
+}
+
+function formatReleaseNotes(text) {
+  if (
+    !text ||
+    typeof text !== "object" ||
+    typeof text.headline !== "string" ||
+    !text.headline.trim() ||
+    !Array.isArray(text.highlights)
+  ) {
     return "";
   }
+  const highlights = text.highlights
+    .filter((highlight) => typeof highlight === "string" && highlight.trim())
+    .map((highlight) => `• ${highlight.trim()}`);
+  if (highlights.length === 0) return "";
+  return [text.headline.trim(), ...highlights].join("\n").slice(0, 4_000);
 }
 
 async function listFiles(directory) {

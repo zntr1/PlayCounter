@@ -38,6 +38,14 @@ pub struct OverlayPayload {
     action_label: Option<String>,
     #[serde(default)]
     show_clock: bool,
+    /// The main window's locale, for the clock. Older callers omit it.
+    #[serde(default)]
+    locale: Option<String>,
+    /// Labels the overlay shows itself, in the main window language.
+    #[serde(default)]
+    session_time_label: Option<String>,
+    #[serde(default)]
+    live_label: Option<String>,
     theme: String,
     accent_color: Option<String>,
     reduced_motion: bool,
@@ -62,7 +70,8 @@ pub struct OverlayState {
 #[derive(Serialize)]
 pub struct OverlayMonitor {
     id: String,
-    name: String,
+    // None: the main window shows "Display 2" in its language.
+    name: Option<String>,
     width: u32,
     height: u32,
     primary: bool,
@@ -157,6 +166,9 @@ fn sanitize(mut payload: OverlayPayload) -> OverlayPayload {
     } else {
         None
     };
+    payload.locale = truncate_optional(payload.locale, 35);
+    payload.session_time_label = truncate_optional(payload.session_time_label, 64);
+    payload.live_label = truncate_optional(payload.live_label, 32);
     payload.theme = truncate(payload.theme, 16);
     payload.accent_color = truncate_optional(payload.accent_color, 16);
     payload.duration_ms = payload.duration_ms.clamp(500, 15_000);
@@ -585,16 +597,12 @@ pub fn notification_overlay_monitors(
         .available_monitors()
         .map_err(|error| error.to_string())?
         .iter()
-        .enumerate()
-        .map(|(index, monitor)| {
+        .map(|monitor| {
             let id = monitor_id(monitor);
             OverlayMonitor {
                 primary: primary.as_ref() == Some(&id),
                 id,
-                name: monitor
-                    .name()
-                    .cloned()
-                    .unwrap_or_else(|| format!("Display {}", index + 1)),
+                name: monitor.name().cloned(),
                 width: monitor.size().width,
                 height: monitor.size().height,
             }
@@ -701,6 +709,9 @@ mod tests {
             action: action.map(str::to_string),
             action_label: Some("Open".to_string()),
             show_clock: false,
+            locale: None,
+            session_time_label: None,
+            live_label: None,
             theme: "dark".to_string(),
             accent_color: None,
             reduced_motion: false,

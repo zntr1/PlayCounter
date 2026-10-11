@@ -1,6 +1,10 @@
 import clsx from "clsx";
 import { Clipboard, ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { getT } from "../i18n";
+import { nativeText } from "../nativeText";
+
+const t = getT("dialogs");
 
 type CustomCoverInputProps = {
   coverUrl: string;
@@ -68,8 +72,10 @@ export function CustomCoverInput({
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-label={`Set cover for ${gameName}`}
-        title="Click to choose a file, drag an image here, or press Ctrl+V while hovering"
+        aria-label={t("Set cover for {{gameName}}", { gameName })}
+        title={t(
+          "Click to choose a file, drag an image here, or press Ctrl+V while hovering",
+        )}
         onClick={() => inputRef.current?.click()}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -114,7 +120,7 @@ export function CustomCoverInput({
           />
         ) : (
           <div className="grid h-full w-full place-items-center text-xs text-text-faint">
-            No cover
+            {t("No cover")}
           </div>
         )}
 
@@ -128,8 +134,10 @@ export function CustomCoverInput({
           {coverUrl ? (
             <button
               type="button"
-              aria-label={`Remove custom cover for ${gameName}`}
-              title="Remove cover"
+              aria-label={t("Remove custom cover for {{gameName}}", {
+                gameName,
+              })}
+              title={t("Remove cover")}
               onClick={(event) => {
                 event.stopPropagation();
                 onCoverCleared();
@@ -143,7 +151,7 @@ export function CustomCoverInput({
 
         {busy ? (
           <div className="absolute inset-0 grid place-items-center bg-bg/70 text-xs font-medium text-text">
-            Saving…
+            {t("Saving…")}
           </div>
         ) : null}
 
@@ -164,5 +172,5 @@ export function CustomCoverInput({
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

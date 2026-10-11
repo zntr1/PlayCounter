@@ -1169,3 +1169,15 @@ xtendutilityservice.exe
 xtuservice.exe
 yourphoneappproxy.exe
 yt-dlp.exe
+
+# Curated from tool suggestions sent by "ignore it" (playcounter_prod, 2026-10-10)
+defrag.exe
+eaanticheat.gameservicelauncher.exe
+fortnitebootstrapper.exe
+go.exe
+magicpodsservice.exe
+osk.exe
+pip.exe
+sort.exe
+timeout.exe
+visualcppredis*.exe

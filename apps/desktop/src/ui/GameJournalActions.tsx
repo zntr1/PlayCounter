@@ -9,11 +9,14 @@ import {
   Star,
   StickyNote,
 } from "lucide-react";
-import { GAME_STATUSES, journalNote } from "../personalLibrary";
+import { gameStatusLabel, journalNote } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
 import { ContextMenuHeading, ContextMenuItem } from "./primitives";
 import { STATUS_TONES } from "./journalStyles";
 import { useGameJournal } from "./useGameJournal";
+import { getT } from "../i18n";
+
+const t = getT("dialogs");
 
 export function GameJournalMenu({
   game,
@@ -33,7 +36,9 @@ export function GameJournalMenu({
   );
   return (
     <>
-      {heading ? <ContextMenuHeading>My library</ContextMenuHeading> : null}
+      {heading ? (
+        <ContextMenuHeading>{t("My library")}</ContextMenuHeading>
+      ) : null}
       <ContextMenuItem
         dataTour={practice ? "demo-menu-favorite" : undefined}
         icon={Star}
@@ -42,7 +47,7 @@ export function GameJournalMenu({
           update(game, { favorite: !journal.favorite });
         }}
       >
-        {journal.favorite ? "Remove from Favorites" : "Add to Favorites"}
+        {journal.favorite ? t("Remove from Favorites") : t("Add to Favorites")}
       </ContextMenuItem>
       <ContextMenuItem
         dataTour={practice ? "demo-menu-note" : undefined}
@@ -52,7 +57,7 @@ export function GameJournalMenu({
           open({ game, tab: "note" });
         }}
       >
-        {journalNote(journal) ? "Edit note" : "Add note"}
+        {journalNote(journal) ? t("Edit note") : t("Add note")}
       </ContextMenuItem>
       <ContextMenuItem
         dataTour={practice ? "demo-menu-playthroughs" : undefined}
@@ -62,7 +67,7 @@ export function GameJournalMenu({
           open({ game, tab: "playthroughs" });
         }}
       >
-        Playthroughs
+        {t("Playthroughs")}
         {journal.playthroughs.length ? ` · ${journal.playthroughs.length}` : ""}
       </ContextMenuItem>
       <ContextMenuItem
@@ -73,7 +78,7 @@ export function GameJournalMenu({
           open({ game, tab: "organize" });
         }}
       >
-        {showShelves ? "Shelves & status" : "Progress status"}
+        {showShelves ? t("Shelves & status") : t("Progress status")}
       </ContextMenuItem>
     </>
   );
@@ -101,7 +106,9 @@ export function GameJournalBadges({
     (s) => s.settings.libraryShowNoteBadges !== false,
   );
   const status = showStatus ? journal.status : null;
-  const statusLabel = status ? `Status: ${GAME_STATUSES[status]}` : undefined;
+  const statusLabel = status
+    ? t("Status: {{status}}", { status: gameStatusLabel(status) })
+    : undefined;
   const other = journal.playthroughs.find((p) => p.note);
   const hasNote = showNotes && Boolean(journal.note || other);
   const notePlaythroughId =
@@ -116,8 +123,10 @@ export function GameJournalBadges({
       {hasNote ? (
         <button
           type="button"
-          aria-label={`Read note for ${game.gameName ?? "game"}`}
-          title="Read note"
+          aria-label={t("Read note for {{game}}", {
+            game: game.gameName ?? t("game"),
+          })}
+          title={t("Read note")}
           onClick={(event) => {
             event.stopPropagation();
             open({ game, tab: "note", playthroughId: notePlaythroughId });
@@ -129,8 +138,8 @@ export function GameJournalBadges({
       ) : null}
       {journal.favorite ? (
         <span
-          aria-label="Favorite"
-          title="Favorite"
+          aria-label={t("Favorite")}
+          title={t("Favorite")}
           className={`${badgeShell} text-amber-300 ${compact ? "h-6 w-6" : ""}`}
         >
           <Star size={compact ? 11 : 13} fill="currentColor" />
@@ -156,7 +165,7 @@ export function GameJournalBadges({
             <span
               className={`h-1.5 w-1.5 rounded-full ${STATUS_TONES[status].dot}`}
             />
-            {GAME_STATUSES[status]}
+            {gameStatusLabel(status)}
           </span>
         )
       ) : null}

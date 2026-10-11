@@ -4,6 +4,9 @@ import type { HistoryBucket } from "../../historyStats";
 import { formatDuration } from "../components";
 import { ChartTooltip, useChartTooltip } from "./ChartTooltip";
 import { useElementWidth } from "./chartUtils";
+import { appLocale, getT } from "../../i18n";
+
+const t = getT("common");
 
 const defaultChartHeight = 230;
 const margin = { top: 10, right: 12, bottom: 34, left: 58 };
@@ -24,7 +27,10 @@ function axis(seconds: number) {
     maxSeconds: maxValue * divisor,
     ticks: Array.from({ length: 5 }, (_, index) => ({
       seconds: (index * maxValue * divisor) / 4,
-      label: `${Number(((index * maxValue) / 4).toFixed(1))}${suffix}`,
+      label: `${((index * maxValue) / 4).toLocaleString(appLocale(), {
+        maximumFractionDigits: 1,
+        useGrouping: false,
+      })}${suffix}`,
     })),
   };
 }
@@ -76,12 +82,13 @@ export function ColumnChart({
       <div className="font-semibold">{bucket.tooltip}</div>
       <div>{formatDuration(bucket.seconds, showDurationDays)}</div>
       <div className="text-text-muted">
-        {bucket.sessionCount} total session
-        {bucket.sessionCount === 1 ? "" : "s"}
+        {t("{{count}} total sessions", { count: bucket.sessionCount })}
       </div>
       {bucket.topGameKey ? (
         <div className="text-text-muted">
-          Most played: {resolveGameName(bucket.topGameKey) ?? "Unknown game"}
+          {t("Most played: {{game}}", {
+            game: resolveGameName(bucket.topGameKey) ?? t("Unknown game"),
+          })}
         </div>
       ) : null}
     </div>
@@ -203,9 +210,9 @@ export function ColumnChart({
                   Math.min(
                     margin.top + plotHeight - coverHeight,
                     margin.top +
-                    plotHeight -
-                    barHeight -
-                    (roomy ? 12 : coverHeight + 4),
+                      plotHeight -
+                      barHeight -
+                      (roomy ? 12 : coverHeight + 4),
                   ),
                 );
                 return (
@@ -260,7 +267,31 @@ export function ColumnChart({
                 }}
                 type="button"
                 tabIndex={index === activeIndex ? 0 : -1}
-                aria-label={`${bucket.tooltip}: ${formatDuration(bucket.seconds, showDurationDays)}, ${bucket.sessionCount} total session${bucket.sessionCount === 1 ? "" : "s"}${bucket.topGameKey ? `, most played: ${resolveGameName(bucket.topGameKey) ?? "Unknown game"}` : ""}`}
+                aria-label={
+                  bucket.topGameKey
+                    ? t(
+                        "{{label}}: {{duration}}, {{count}} total sessions, most played: {{game}}",
+                        {
+                          label: bucket.tooltip,
+                          duration: formatDuration(
+                            bucket.seconds,
+                            showDurationDays,
+                          ),
+                          count: bucket.sessionCount,
+                          game:
+                            resolveGameName(bucket.topGameKey) ??
+                            t("Unknown game"),
+                        },
+                      )
+                    : t("{{label}}: {{duration}}, {{count}} total sessions", {
+                        label: bucket.tooltip,
+                        duration: formatDuration(
+                          bucket.seconds,
+                          showDurationDays,
+                        ),
+                        count: bucket.sessionCount,
+                      })
+                }
                 className="absolute inset-y-0 rounded-sm border-0 bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
                 style={{ left: index * bandWidth, width: bandWidth }}
                 onPointerEnter={(event) => {

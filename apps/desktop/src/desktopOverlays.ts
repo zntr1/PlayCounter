@@ -7,6 +7,9 @@ import type {
   DesktopOverlayMessage,
   OverlayRenderContext,
 } from "./desktopOverlayProtocol";
+import { getT } from "./i18n";
+
+const t = getT("overlays");
 export {
   OVERLAY_ACTION_EVENT,
   OVERLAY_FINISHED_EVENT,
@@ -157,6 +160,8 @@ export function buildOverlayMessage(
     targetPids: "targetPids" in event ? event.targetPids : undefined,
     priority: OVERLAY_PRIORITY[kind],
     ...copy,
+    locale: context.locale,
+    ...overlayLabels(),
     theme: context.theme,
     accentColor: context.accentColor,
     reducedMotion: context.reducedMotion,
@@ -183,53 +188,62 @@ function overlayCopy(
 > {
   if (event.type === "current-session") {
     return {
-      kicker: "CURRENT SESSION",
-      title: event.gameName ?? "No game active",
+      kicker: t("CURRENT SESSION"),
+      title: event.gameName ?? t("No game active"),
       metric: event.gameName
         ? formatDuration(event.durationSeconds)
         : undefined,
       coverUrl: event.coverUrl,
       body: !event.gameName
-        ? "Start a game to track your session time."
+        ? t("Start a game to track your session time.")
         : (event.sessionCount ?? 0) > 1
-          ? `${event.sessionIndex} of ${event.sessionCount} active games · Press again for next`
+          ? t(
+              "{{sessionIndex}} of {{sessionCount}} active games · Press again for next",
+              {
+                sessionIndex: event.sessionIndex,
+                sessionCount: event.sessionCount,
+              },
+            )
           : undefined,
       showClock: event.showClock,
     };
   }
   if (kind === "action-required" && event.type === "choice-required") {
     return {
-      kicker: "CHOICE REQUIRED",
-      title: "Which game is this?",
+      kicker: t("CHOICE REQUIRED"),
+      title: t("Which game is this?"),
       body:
         event.candidateCount === 2
-          ? "Two games use this file name. Pick one so tracking can start."
-          : `${event.candidateCount} games use this file name. Pick one so tracking can start.`,
+          ? t("Two games use this file name. Pick one so tracking can start.")
+          : t(
+              "{{candidateCount}} games use this file name. Pick one so tracking can start.",
+              { candidateCount: event.candidateCount },
+            ),
       action: "open-now-playing",
-      actionLabel: "Open Now Playing",
+      actionLabel: t("Open Now Playing"),
     };
   }
   if (kind === "discovery" && event.type === "discovery-burst") {
     return event.exeCount === 1
       ? {
-          kicker: "NEW APP FOUND",
-          title: "PlayCounter doesn't know this one",
-          body: "Open Discovered and tell it what this is.",
+          kicker: t("NEW APP FOUND"),
+          title: t("PlayCounter doesn't know this one"),
+          body: t("Open Discovered and tell it what this is."),
           action: "open-discovered",
-          actionLabel: "Open Discovered",
+          actionLabel: t("Open Discovered"),
         }
       : {
-          kicker: "NEW APPS FOUND",
-          title: `${event.exeCount} new apps found`,
-          body: "Open Discovered and tell it what they are.",
+          kicker: t("NEW APPS FOUND"),
+          title: t("{{exeCount}} new apps found", { exeCount: event.exeCount }),
+          body: t("Open Discovered and tell it what they are."),
           action: "open-discovered",
-          actionLabel: "Open Discovered",
+          actionLabel: t("Open Discovered"),
         };
   }
   if (event.type === "session-started") {
     const context = [
       event.playthroughName
-        ? `Playthrough: ${event.playthroughName}`
+        ? t("Playthrough: {{name}}", { name: event.playthroughName })
         : undefined,
       event.note,
     ]
@@ -237,14 +251,14 @@ function overlayCopy(
       .join(" · ");
     return kind === "first-detection"
       ? {
-          kicker: "NEW GAME DETECTED",
+          kicker: t("NEW GAME DETECTED"),
           title: event.gameName,
-          body: context || "Found automatically. Tracking starts now.",
+          body: context || t("Found automatically. Tracking starts now."),
           status: "live",
           coverUrl: event.coverUrl,
         }
       : {
-          kicker: "TRACKING STARTED",
+          kicker: t("TRACKING STARTED"),
           title: event.gameName,
           body: context || undefined,
           status: "live",
@@ -254,32 +268,37 @@ function overlayCopy(
   if (event.type === "session-ended") {
     if (kind === "milestone") {
       return {
-        kicker: "MILESTONE UNLOCKED",
+        kicker: t("MILESTONE UNLOCKED"),
         title: event.milestoneGameScoped
           ? event.gameName
           : (event.milestoneTitle ?? event.gameName),
         body: event.milestoneGameScoped
-          ? `Session saved · ${formatDuration(event.durationSeconds)}`
-          : `${event.gameName} · Session saved`,
+          ? t("Session saved · {{duration}}", {
+              duration: formatDuration(event.durationSeconds),
+            })
+          : t("{{gameName}} · Session saved", { gameName: event.gameName }),
         metric: event.milestoneMetric,
         coverUrl: event.coverUrl,
       };
     }
     return {
-      kicker: "SESSION SAVED",
+      kicker: t("SESSION SAVED"),
       title: event.gameName,
       body: event.playthroughName
-        ? `Saved to ${event.playthroughName}`
-        : "Added to your playtime.",
+        ? t("Saved to {{playthroughName}}", {
+            playthroughName: event.playthroughName,
+          })
+        : t("Added to your playtime."),
       metric: formatDuration(event.durationSeconds),
       coverUrl: event.coverUrl,
       action:
         event.sessionId === undefined
           ? undefined
           : `open-game-note:${event.sessionId}`,
-      actionLabel: event.sessionId === undefined ? undefined : "Update note",
+      actionLabel: event.sessionId === undefined ? undefined : t("Update note"),
     };
   }
+  // i18n-exempt: impossible case, never shown.
   throw new Error(`Event ${event.type} cannot render ${kind}`);
 }
 
@@ -300,13 +319,12 @@ export function pickTopMilestone(
 export function milestoneMetricLabel(id: string) {
   const parsed = parseMilestoneId(id);
   if (!parsed) return undefined;
-  const unit =
-    parsed.category === "verified" || parsed.category === "emulator"
-      ? "APPROVED"
-      : parsed.category === "streak"
-        ? "DAYS"
-        : "HRS";
-  return `${parsed.threshold.toLocaleString()} ${unit}`;
+  const count = parsed.threshold;
+  if (parsed.category === "verified" || parsed.category === "emulator")
+    return t("{{count, number}} APPROVED", { count });
+  return parsed.category === "streak"
+    ? t("{{count, number}} DAYS", { count })
+    : t("{{count, number}} HRS", { count });
 }
 
 export function compareOverlayMessages(
@@ -609,4 +627,9 @@ export class DiscoveryAggregator {
       },
     );
   }
+}
+
+/** The overlay window has no texts of its own: its labels come with each card. */
+function overlayLabels() {
+  return { sessionTimeLabel: t("SESSION TIME"), liveLabel: t("LIVE") };
 }

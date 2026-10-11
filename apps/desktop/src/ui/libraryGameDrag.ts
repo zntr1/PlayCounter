@@ -18,6 +18,9 @@ import {
   positionLibraryGameHints,
   type ShelfDropHint,
 } from "./LibraryGameDropHint";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 const PREVIEW_WIDTH = 84;
 const PREVIEW_HEIGHT = 114;
@@ -40,25 +43,26 @@ function shelfDropHint(
     reason: "already-added",
     title:
       count > 1
-        ? `All selected games are already in ${name}`
-        : `Already in ${name}`,
+        ? t("All selected games are already in {{name}}", { name })
+        : t("Already in {{name}}", { name }),
   });
-  if (shelfId === "all") return alreadyAdded("All games");
+  if (shelfId === "all") return alreadyAdded(t("All games"));
   if (shelfId !== "favorites" && !shelf)
     return {
       reason: "unavailable",
-      title: "This shelf is no longer available",
+      title: t("This shelf is no longer available"),
     };
   if (shelf?.filters)
     return {
       reason: "saved-filter",
-      title: "This shelf fills itself from filters",
-      detail:
+      title: t("This shelf fills itself from filters"),
+      detail: t(
         "Games are added automatically when they match. Right-click the shelf to edit its filters.",
+      ),
     };
 
   const favorite = shelfId === "favorites";
-  const name = favorite ? "Favorites" : shelf!.name;
+  const name = favorite ? t("Favorites") : shelf!.name;
   if (assignedShelves.has(shelfId)) return alreadyAdded(name);
   return null;
 }
@@ -103,18 +107,21 @@ function assignShelf(
   if (blocked) return blocked;
   const favorite = shelfId === "favorites";
   const added = state.addGamesToShelf(games, shelfId);
-  const name = favorite ? "Favorites" : shelf!.name;
+  const name = favorite ? t("Favorites") : shelf!.name;
   state.addToast({
     tone: "success",
     title:
       games.length > 1
-        ? `Added ${added} ${added === 1 ? "game" : "games"} to ${name}`
-        : `Added to ${name}`,
+        ? t("Added {{count}} games to {{shelf}}", { count: added, shelf: name })
+        : t("Added to {{shelf}}", { shelf: name }),
     detail:
       games.length === 1
         ? games[0].gameName
         : added < games.length
-          ? `${games.length - added} already in ${name}`
+          ? t("{{count}} already in {{name}}", {
+              count: games.length - added,
+              name,
+            })
           : undefined,
   });
   return null;

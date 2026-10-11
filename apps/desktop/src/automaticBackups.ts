@@ -4,6 +4,10 @@ import { createBackupContents, createTransferData } from "./backup";
 import { validateBackupData } from "./backupValidation";
 import { createPersistedPayload, isPersistenceSuspended } from "./persistence";
 import { useAppStore } from "./store";
+import { getT } from "./i18n";
+import { nativeText } from "./nativeText";
+
+const t = getT("settings");
 
 // Machine-local preferences live outside the transferable app data. Restoring
 // a backup must never enable a schedule or replace this PC's chosen folder.
@@ -75,7 +79,7 @@ function readPreferences(): AutomaticBackupPreferences {
   if (!raw) return { ...defaultPreferences };
   const value: unknown = JSON.parse(raw);
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Saved automatic backup settings could not be read.");
+    throw new Error(t("Saved automatic backup settings could not be read."));
   }
   const saved = value as Record<string, unknown>;
   return {
@@ -145,7 +149,9 @@ export function setAutomaticBackupPreferences(
     if (stopScheduler) void runAutomaticBackup();
   } catch (error) {
     useAutomaticBackupStore.setState({
-      error: `Could not save backup settings: ${formatError(error)}`,
+      error: t("Could not save backup settings: {{error}}", {
+        error: formatError(error),
+      }),
     });
   }
 }
@@ -247,7 +253,10 @@ export function runAutomaticBackup(
             persistPreferences(updated);
           } catch (error) {
             useAutomaticBackupStore.setState({
-              error: `Backup saved, but its schedule could not be saved: ${formatError(error)}`,
+              error: t(
+                "Backup saved, but its schedule could not be saved: {{error}}",
+                { error: formatError(error) },
+              ),
             });
           }
         }
@@ -270,5 +279,5 @@ export function runAutomaticBackup(
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

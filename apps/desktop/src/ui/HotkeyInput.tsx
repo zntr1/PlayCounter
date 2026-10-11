@@ -8,6 +8,9 @@ import {
 } from "../hotkeys";
 import { useAppStore } from "../store";
 import { Button } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("settings");
 
 export function HotkeyInput({
   setting,
@@ -45,7 +48,7 @@ export function HotkeyInput({
   return (
     <div className="grid w-full gap-2 sm:w-80">
       <input
-        aria-label={`${label} hotkey`}
+        aria-label={t("{{label}} hotkey", { label })}
         aria-describedby={`${setting}-help`}
         readOnly
         disabled={disabled || saving}
@@ -80,7 +83,9 @@ export function HotkeyInput({
             event.currentTarget.blur();
           } else if (!event.repeat) {
             setHint(
-              "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.",
+              t(
+                "Use Ctrl, Alt or Win / Cmd with a letter, number or navigation key, or use F1–F24.",
+              ),
             );
           }
         }}
@@ -91,18 +96,20 @@ export function HotkeyInput({
           disabled={disabled || saving || !draft || (draft === saved && !error)}
           onClick={() => void apply(draft)}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? t("Saving…") : t("Save")}
         </Button>
         <Button
           disabled={disabled || saving || (!saved && !draft)}
           onClick={() => void apply(null)}
         >
-          Clear
+          {t("Clear")}
         </Button>
       </div>
       <p id={`${setting}-help`} className="text-xs text-text-faint">
         {hint ??
-          "Click the field, press your combination, then Save. Clear disables it."}
+          t(
+            "Click the field, press your combination, then Save. Clear disables it.",
+          )}
       </p>
       {error ? (
         <p role="alert" className="break-words text-xs text-danger">

@@ -8,6 +8,7 @@ import { buildLibraryImportCommit } from "../../library/importPlan";
 import { STORAGE_KEY } from "../../persistence";
 import { useAppStore } from "../../store";
 import { LibraryTestShell } from "./libraryTestShell";
+import { appLocale } from "../../i18n";
 
 vi.mock("../../tracker");
 vi.mock("../../platform", () => ({ currentPlatform: () => "windows" }));
@@ -187,7 +188,9 @@ it.each([
 
     await act(() => root.render(<LibraryTestShell />));
     await openDetails();
-    expect(lastPlayedFigure()).toBe(new Date(daysAgo(2)).toLocaleDateString());
+    expect(lastPlayedFigure()).toBe(
+      new Date(daysAgo(2)).toLocaleDateString(appLocale()),
+    );
 
     await act(() => {
       document
@@ -199,7 +202,7 @@ it.each([
     });
     const card = container.querySelector(".game-library-card")!;
     expect(card.textContent).toContain(
-      `Last played ${new Date(daysAgo(2)).toLocaleDateString()}`,
+      `Last played ${new Date(daysAgo(2)).toLocaleDateString(appLocale())}`,
     );
     expect(card.textContent).not.toContain("Added ");
   },
@@ -231,7 +234,9 @@ it.each([
     importGame({ lastPlayedAt: daysAgo(providerDaysAgo) });
     await act(() => root.render(<LibraryTestShell />));
     await openDetails();
-    expect(lastPlayedFigure()).toBe(new Date(daysAgo(1)).toLocaleDateString());
+    expect(lastPlayedFigure()).toBe(
+      new Date(daysAgo(1)).toLocaleDateString(appLocale()),
+    );
   },
 );
 
@@ -253,10 +258,14 @@ it("refreshes the displayed date on reimport without creating sessions or duplic
   importGame({ lastPlayedAt: daysAgo(20) });
   await act(() => root.render(<LibraryTestShell />));
   await openDetails();
-  expect(lastPlayedFigure()).toBe(new Date(daysAgo(20)).toLocaleDateString());
+  expect(lastPlayedFigure()).toBe(
+    new Date(daysAgo(20)).toLocaleDateString(appLocale()),
+  );
 
   await act(() => importGame({ lastPlayedAt: daysAgo(1) }));
-  expect(lastPlayedFigure()).toBe(new Date(daysAgo(1)).toLocaleDateString());
+  expect(lastPlayedFigure()).toBe(
+    new Date(daysAgo(1)).toLocaleDateString(appLocale()),
+  );
   expect(useAppStore.getState().libraryImports.size).toBe(1);
   expect(useAppStore.getState().recentSessions).toEqual([]);
 });

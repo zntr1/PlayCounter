@@ -7,6 +7,10 @@ import {
   type LaunchErrorKind,
   type LaunchPathStatus,
 } from "./gameLaunch";
+import { getT } from "./i18n";
+import { nativeText } from "./nativeText";
+
+const t = getT("emulators");
 
 export type EmulatorBinaryEntry = {
   emulatorId: string;
@@ -94,19 +98,20 @@ export function shouldForgetEmulatorOnLaunchError(error: unknown) {
 }
 
 function errorDetail(error: unknown) {
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) return nativeText(error.message);
   if (typeof error === "string") {
     try {
       return errorDetail(JSON.parse(error));
     } catch {
-      return error;
+      return nativeText(error);
     }
   }
   if (error && typeof error === "object") {
     const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
+    if (typeof message === "string" && message.trim())
+      return nativeText(message);
   }
-  return "The operating system did not provide more details.";
+  return t("The operating system did not provide more details.");
 }
 
 export function emulatorLaunchErrorMessage(error: unknown, gameName: string) {
@@ -115,22 +120,29 @@ export function emulatorLaunchErrorMessage(error: unknown, gameName: string) {
   switch (kind) {
     case "notFound":
       return {
-        title: "Launch file not found",
-        detail: `${detail} Set it again.`,
+        title: t("Launch file not found"),
+        detail: t("{{detail}} Set it again.", { detail }),
       };
     case "notAFile":
-      return { title: "That is not a file", detail: `${detail} Set it again.` };
+      return {
+        title: t("That is not a file"),
+        detail: t("{{detail}} Set it again.", { detail }),
+      };
     case "unreadable":
-      return { title: "Cannot read the launch file", detail };
+      return { title: t("Cannot read the launch file"), detail };
     case "invalidPath":
       return {
-        title: "Launch file is not valid",
-        detail:
+        title: t("Launch file is not valid"),
+        detail: t(
           "Choose a supported emulator or content file with a full Windows path.",
+        ),
       };
     case "unsupported":
-      return { title: "Emulator launching is unavailable", detail };
+      return { title: t("Emulator launching is unavailable"), detail };
     default:
-      return { title: `${gameName} could not be started`, detail };
+      return {
+        title: t("{{gameName}} could not be started", { gameName }),
+        detail,
+      };
   }
 }

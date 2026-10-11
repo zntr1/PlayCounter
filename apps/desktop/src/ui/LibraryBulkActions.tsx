@@ -8,7 +8,7 @@ import {
   useRef,
   type ComponentProps,
 } from "react";
-import { GAME_STATUSES, type GameStatus } from "../personalLibrary";
+import { gameStatusLabel, type GameStatus } from "../personalLibrary";
 import {
   Button,
   ContextMenu,
@@ -16,6 +16,9 @@ import {
   useAnchoredMenu,
 } from "./primitives";
 import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 export function LibraryBulkActions({
   active,
@@ -65,7 +68,7 @@ export function LibraryBulkActions({
       data-tour={practice ? "demo-bulk-actions" : undefined}
       ref={barRef}
       tabIndex={-1}
-      aria-label="Bulk game actions"
+      aria-label={t("Bulk game actions")}
       className="sticky top-0 z-40 rounded-xl border border-accent/30 bg-surface px-3 py-2 shadow-raised focus:outline-none"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -74,7 +77,7 @@ export function LibraryBulkActions({
           className="min-w-24 px-1 text-sm font-semibold text-text"
           aria-live="polite"
         >
-          {count} selected
+          {t("{{count}} selected", { count })}
         </span>
         <button
           data-tour={practice ? "demo-bulk-set-status" : undefined}
@@ -88,7 +91,7 @@ export function LibraryBulkActions({
           onClick={menu.toggle}
           className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-fg transition hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Set status <ChevronDown size={14} />
+          {t("Set status")} <ChevronDown size={14} />
         </button>
         {onMoveToPlayCounter ? (
           <div className="flex items-center gap-2">
@@ -99,8 +102,8 @@ export function LibraryBulkActions({
               disabled={moveToPlayCounterCount === 0}
               title={
                 count > 0 && moveToPlayCounterCount === 0
-                  ? "Selected games are already in PlayCounter"
-                  : "Move selected launcher games to PlayCounter"
+                  ? t("Selected games are already in PlayCounter")
+                  : t("Move selected launcher games to PlayCounter")
               }
               data-controller-item="library-option"
               onClick={() => {
@@ -108,7 +111,7 @@ export function LibraryBulkActions({
                 onMoveToPlayCounter();
               }}
             >
-              Move to PlayCounter
+              {t("Move to PlayCounter")}
             </Button>
           </div>
         ) : null}
@@ -124,7 +127,7 @@ export function LibraryBulkActions({
               barRef.current?.focus({ preventScroll: true });
             }}
           >
-            Select all {total} {total === 1 ? "result" : "results"}
+            {t("Select all {{count}} results", { count: total })}
           </Button>
           {count ? (
             <Button
@@ -135,7 +138,7 @@ export function LibraryBulkActions({
                 barRef.current?.focus({ preventScroll: true });
               }}
             >
-              Clear selection
+              {t("Clear selection")}
             </Button>
           ) : null}
         </div>
@@ -145,7 +148,7 @@ export function LibraryBulkActions({
           data-controller-item="library-option"
           onClick={onDone}
         >
-          Done
+          {t("Done")}
         </Button>
       </div>
       <ContextMenu
@@ -159,7 +162,7 @@ export function LibraryBulkActions({
           ref={menuRef}
           id="library-bulk-status-menu"
           role="menu"
-          aria-label={`Set status for ${count} selected games`}
+          aria-label={t("Set status for {{count}} selected games", { count })}
           onKeyDown={(event) => {
             const buttons = [
               ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
@@ -205,7 +208,7 @@ export function LibraryBulkActions({
               <span
                 className={`h-2 w-2 rounded-full ${STATUS_TONES[status].dot}`}
               />
-              {GAME_STATUSES[status]}
+              {gameStatusLabel(status)}
             </button>
           ))}
           <ContextMenuSeparator />
@@ -215,7 +218,7 @@ export function LibraryBulkActions({
             className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-text transition-colors hover:bg-surface-hover focus:bg-surface-hover focus:outline-none"
             onClick={() => apply(null)}
           >
-            Clear status
+            {t("Clear status")}
           </button>
         </div>
       </ContextMenu>
@@ -237,7 +240,7 @@ function LibrarySelectionOverlay({
       type="button"
       role="checkbox"
       aria-checked={selected}
-      aria-label={`Select ${name}`}
+      aria-label={t("Select {{name}}", { name })}
       data-library-selection-toggle=""
       data-controller-item="library-option"
       onClick={(event) => {

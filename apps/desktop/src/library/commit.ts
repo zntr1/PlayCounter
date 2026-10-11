@@ -18,6 +18,9 @@ import {
   isRejectedGameFile,
   type RejectedGameFile,
 } from "../rejectedGameFiles";
+import { getT } from "../i18n";
+
+const t = getT("import");
 
 export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   const state = useAppStore.getState();
@@ -175,7 +178,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   };
   const result = persistAppState(candidate);
   if (result.status === "suspended")
-    throw new Error("PlayCounter is being reset.");
+    throw new Error(t("PlayCounter is being reset."));
   if (result.status === "failed") throw result.error;
   useAppStore.setState({
     libraryImports,

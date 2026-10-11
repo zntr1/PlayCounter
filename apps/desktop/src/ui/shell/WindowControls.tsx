@@ -1,5 +1,8 @@
 import { Copy, Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getT } from "../../i18n";
+
+const t = getT("shell");
 
 /* The window has no native frame (tauri.conf.json: decorations false), so
    these three buttons stand in for it. They only exist inside Tauri: in the
@@ -63,8 +66,8 @@ export function WindowControls() {
     <div className="window-controls flex h-full shrink-0 items-stretch">
       <button
         type="button"
-        aria-label="Minimize window"
-        title="Minimize"
+        aria-label={t("Minimize window")}
+        title={t("Minimize")}
         onClick={run((win) => win.minimize())}
         className="window-control"
       >
@@ -72,8 +75,8 @@ export function WindowControls() {
       </button>
       <button
         type="button"
-        aria-label={maximized ? "Restore window" : "Maximize window"}
-        title={maximized ? "Restore" : "Maximize"}
+        aria-label={maximized ? t("Restore window") : t("Maximize window")}
+        title={maximized ? t("Restore") : t("Maximize")}
         onClick={run((win) => win.toggleMaximize())}
         className="window-control"
       >
@@ -85,8 +88,8 @@ export function WindowControls() {
       </button>
       <button
         type="button"
-        aria-label="Close window"
-        title="Close"
+        aria-label={t("Close window")}
+        title={t("Close")}
         onClick={run((win) => win.close())}
         className="window-control window-control-close"
       >

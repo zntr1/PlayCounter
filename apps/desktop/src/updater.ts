@@ -1,9 +1,18 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent } from "@tauri-apps/plugin-updater";
+import { getT } from "./i18n";
+import { sanitizeTranslatedNotes, type TranslatedNotes } from "./releaseNotes";
+
+const t = getT("shell");
 
 export type UpdateCheckResult =
   | { status: "current" }
-  | { status: "available"; version: string; notes?: string };
+  | {
+      status: "available";
+      version: string;
+      notes?: string;
+      translatedNotes?: TranslatedNotes;
+    };
 
 export type InstallProgress = {
   downloadedBytes: number;
@@ -16,7 +25,7 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
   const update = await withTimeout(
     check(),
     UPDATE_CHECK_TIMEOUT_MS,
-    "Update check timed out.",
+    t("Update check timed out."),
   );
 
   if (!update) return { status: "current" };
@@ -25,6 +34,9 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
     status: "available",
     version: update.version,
     notes: update.body,
+    // English stays in "notes", which older versions read; the other
+    // languages ride along in a field the updater itself ignores.
+    translatedNotes: sanitizeTranslatedNotes(update.rawJson.notes_translations),
   };
 }
 

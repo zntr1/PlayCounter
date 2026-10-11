@@ -1,4 +1,7 @@
 import type { Toast } from "../../store";
+import { getT } from "../../i18n";
+
+const t = getT("discovered");
 
 /** Only one folder's Game.exe was ignored; nothing was reported. */
 export function notifyFolderIgnored(
@@ -9,8 +12,9 @@ export function notifyFolderIgnored(
   const folderName = folder.split(/[\\/]/).filter(Boolean).at(-1) ?? folder;
   addToast({
     tone: "success",
-    title: `${exeName} ignored in ${folderName}`,
-    detail:
+    title: t("{{exeName}} ignored in {{folderName}}", { exeName, folderName }),
+    detail: t(
       "Only this folder, only on this PC. Other games with this file name are still tracked. Nothing was reported.",
+    ),
   });
 }

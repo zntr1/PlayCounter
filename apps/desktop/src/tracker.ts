@@ -154,7 +154,7 @@ import {
 } from "./personalLibrary";
 import { normalizeAccentColor } from "./theme";
 import { resolveMyGamesPresentationSettings } from "./ui/myGamesPresentation";
-import { TOURS } from "./ui/tour/tourDefinitions";
+import { tours } from "./ui/tour/tourDefinitions";
 import { normalizeTourProgress } from "./ui/tour/tourState";
 import { loadExeDetails } from "./ui/exeDetails";
 import { decideCollision } from "./softwareCollision";
@@ -257,6 +257,9 @@ import type {
   KnownEmulator,
   RawEmulatorSignals,
 } from "./emulators/types";
+import { appLocale, getT } from "./i18n";
+
+const t = getT("tracker");
 
 const FAKE_HISTORY_GAME_ID_BASE = -900_000_000;
 const FAKE_HISTORY_SESSION_ID_BASE = -900_000_000;
@@ -326,6 +329,7 @@ type PersistedState = {
   autoDetectedGameKeys?: string[];
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
+  languageNoticeSeen?: boolean;
 };
 
 type ProcessMatch = {
@@ -461,8 +465,12 @@ export async function initializeTracker() {
       .getState()
       .setRuntimeError(
         savedDataUnreadable
-          ? "PlayCounter can't read its saved data. To protect it, tracking and saving are paused. Restore a backup with Import data in Settings, or reset PlayCounter to start over."
-          : "PlayCounter couldn't load your saved data. To protect it, tracking and saving are paused. Your data is still there and an update can fix this. Please send feedback.",
+          ? t(
+              "PlayCounter can't read its saved data. To protect it, tracking and saving are paused. Restore a backup with Import data in Settings, or reset PlayCounter to start over.",
+            )
+          : t(
+              "PlayCounter couldn't load your saved data. To protect it, tracking and saving are paused. Your data is still there and an update can fix this. Please send feedback.",
+            ),
       );
     return;
   }
@@ -483,6 +491,10 @@ export async function initializeTracker() {
     if (state.activeSessions !== previousState.activeSessions) {
       syncTrayNowPlaying();
       scheduleTraySync();
+    }
+    // The tray texts are worded here, so a new language needs them again.
+    if (state.settings.language !== previousState.settings.language) {
+      syncTrayNowPlaying();
     }
     if (
       state.backendHealth.status === "online" &&
@@ -534,7 +546,9 @@ async function finishTrackerStartup() {
     logRuntime(`install UUID failed: ${formatError(error)}`);
     useAppStore
       .getState()
-      .setRuntimeError(`Tauri command failed: ${formatError(error)}`);
+      .setRuntimeError(
+        t("Tauri command failed: {{error}}", { error: formatError(error) }),
+      );
   }
 
   await backfillCanonicalGameIds();
@@ -1326,7 +1340,7 @@ export function hydrate() {
     autoDetectedGameKeys,
     tourProgress: normalizeTourProgress(
       persisted.tours,
-      TOURS.map((tour) => tour.id),
+      tours().map((tour) => tour.id),
     ),
     lastSeenReleaseNotesVersion:
       typeof persisted.lastSeenReleaseNotesVersion === "string" &&
@@ -1338,6 +1352,9 @@ export function hydrate() {
       persisted.suppressStartupNotificationsOnce === true,
     suppressContributionNotificationsOnce:
       persisted.suppressContributionNotificationsOnce === true,
+    // Only people who used PlayCounter before get told it changed language.
+    languageNoticeSeen:
+      persisted.languageNoticeSeen === true || !hadPersistedStateOnStartup,
   });
   if (
     shouldPersistAchievementMigration ||
@@ -1410,9 +1427,11 @@ async function loadIgnoredProcesses() {
   } catch (error) {
     useAppStore.getState().setIgnoredProcesses(launcherBlacklist, null);
     logRuntime(`ignored process list failed: ${formatError(error)}`);
-    useAppStore
-      .getState()
-      .setRuntimeError(`Ignored process list failed: ${formatError(error)}`);
+    useAppStore.getState().setRuntimeError(
+      t("Ignored process list failed: {{error}}", {
+        error: formatError(error),
+      }),
+    );
   }
 }
 
@@ -1533,7 +1552,7 @@ export async function launchGame(
   target: Pick<LaunchTarget, "exeName" | "path" | "owner">,
 ): Promise<LaunchOutcome> {
   if (useAppStore.getState().settings.gameLaunchingEnabled !== true) {
-    throw new Error("Enable 'Launch games directly' in Settings first.");
+    throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
   const key = target.path.toLowerCase();
   const now = Date.now();
@@ -1801,7 +1820,7 @@ export async function chooseLaunchTarget(
   });
   if (typeof selected !== "string") return null;
   if (!isWindowsExecutablePath(selected)) {
-    throw new Error("Pick an .exe file with a full Windows path.");
+    throw new Error(t("Pick an .exe file with a full Windows path."));
   }
   const baseName = launchFileBaseName(selected);
   const exeName =
@@ -1815,9 +1834,10 @@ export async function chooseLaunchTarget(
   if (isVolatileLaunchPath(selected)) {
     useAppStore.getState().addToast({
       tone: "info",
-      title: "Temporary launch file",
-      detail:
+      title: t("Temporary launch file"),
+      detail: t(
         "This file is in a temporary folder and may disappear. Choose an installed copy if one is available.",
+      ),
     });
   }
   return target;
@@ -1827,7 +1847,8 @@ export async function chooseEmulatorBinary(
   emulatorId: string,
 ): Promise<EmulatorBinaryEntry | null> {
   const adapter = adapterFor(emulatorId);
-  if (!adapter?.launch) throw new Error("This emulator is not launchable yet.");
+  if (!adapter?.launch)
+    throw new Error(t("This emulator is not launchable yet."));
   const selected = await open({
     multiple: false,
     directory: false,
@@ -1836,7 +1857,9 @@ export async function chooseEmulatorBinary(
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorBinaryPath(emulatorId, selected)) {
     throw new Error(
-      `Pick a supported ${adapter.label} program with a full Windows path.`,
+      t("Pick a supported {{label}} program with a full Windows path.", {
+        label: adapter.label,
+      }),
     );
   }
   const entry = {
@@ -1858,7 +1881,8 @@ export async function chooseEmulatorLaunchFile(
   mapping: EmulatorMapping,
 ): Promise<EmulatorLaunchTarget | null> {
   const adapter = adapterFor(mapping.emulatorId);
-  if (!adapter?.launch) throw new Error("This emulator is not launchable yet.");
+  if (!adapter?.launch)
+    throw new Error(t("This emulator is not launchable yet."));
   const selected = await open({
     multiple: false,
     directory: false,
@@ -1872,15 +1896,22 @@ export async function chooseEmulatorLaunchFile(
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorContentPath(mapping.emulatorId, selected)) {
     throw new Error(
-      `Pick a supported ${adapter.label} game file with a full Windows path.`,
+      t("Pick a supported {{label}} game file with a full Windows path.", {
+        label: adapter.label,
+      }),
     );
   }
   const compatibility = emulatorTargetCompatibility(mapping, selected);
   if (!compatibility.valid) {
     throw new Error(
       compatibility.reason === "content-name-mismatch"
-        ? `This file does not match the content PlayCounter recognized as ${mapping.display}.`
-        : `This file is not supported by ${adapter.label}.`,
+        ? t(
+            "This file does not match the content PlayCounter recognized as {{display}}.",
+            { display: mapping.display },
+          )
+        : t("This file is not supported by {{label}}.", {
+            label: adapter.label,
+          }),
     );
   }
   const target = {
@@ -1996,7 +2027,7 @@ export async function launchEmulatorGame(
 ): Promise<EmulatorLaunchOutcome> {
   const state = useAppStore.getState();
   if (state.settings.gameLaunchingEnabled !== true) {
-    throw new Error("Enable 'Launch games directly' in Settings first.");
+    throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
   const binary = resolveEmulatorBinary(
     mapping.emulatorId,
@@ -2009,8 +2040,13 @@ export async function launchEmulatorGame(
     state.emulatorManualLaunchTargets,
   );
   if (!binary)
-    throw new Error(`Set the ${mapping.label} program in Settings first.`);
-  if (!target) throw new Error("Set this emulator game's launch file first.");
+    throw new Error(
+      t("Set the {{label}} program in Settings first.", {
+        label: mapping.label,
+      }),
+    );
+  if (!target)
+    throw new Error(t("Set this emulator game's launch file first."));
 
   return dispatchEmulatorLaunch(
     mapping.emulatorId,
@@ -2028,10 +2064,11 @@ export async function startEmulatorGame(
 ): Promise<EmulatorLaunchOutcome | null> {
   const state = useAppStore.getState();
   if (state.settings.gameLaunchingEnabled !== true) {
-    throw new Error("Enable 'Launch games directly' in Settings first.");
+    throw new Error(t("Enable 'Launch games directly' in Settings first."));
   }
   const adapter = adapterFor(emulatorId);
-  if (!adapter?.launch) throw new Error("This emulator is not launchable yet.");
+  if (!adapter?.launch)
+    throw new Error(t("This emulator is not launchable yet."));
   const binary = resolveEmulatorBinary(
     emulatorId,
     state.emulatorAutoBinaries,
@@ -2039,7 +2076,10 @@ export async function startEmulatorGame(
   );
   if (!binary) {
     throw new Error(
-      `Start ${adapter.label} once so PlayCounter can find its program automatically, or set its program in Settings.`,
+      t(
+        "Start {{label}} once so PlayCounter can find its program automatically, or set its program in Settings.",
+        { label: adapter.label },
+      ),
     );
   }
   if (isEmulatorLaunchGuarded(emulatorId)) return { kind: "busy" };
@@ -2057,7 +2097,9 @@ export async function startEmulatorGame(
   if (typeof selected !== "string") return null;
   if (!isValidEmulatorContentPath(emulatorId, selected)) {
     throw new Error(
-      `Pick a supported ${adapter.label} game file with a full Windows path.`,
+      t("Pick a supported {{label}} game file with a full Windows path.", {
+        label: adapter.label,
+      }),
     );
   }
 
@@ -3066,7 +3108,9 @@ async function resolveProcesses(
           "match API unavailable; leaving uncached executables pending",
         );
       } else {
-        state.setRuntimeError(`Match API failed: ${formatError(error)}`);
+        state.setRuntimeError(
+          t("Match API failed: {{error}}", { error: formatError(error) }),
+        );
       }
     }
   }
@@ -4277,7 +4321,7 @@ export async function shareEmulatorMapping(
       body.status !== "rejected" &&
       body.status !== "already_curated"
     ) {
-      throw new Error("Invalid emulator suggestion response.");
+      throw new Error(t("Invalid emulator suggestion response."));
     }
     const share: EmulatorMappingShare = {
       status: body.status,
@@ -5079,7 +5123,7 @@ export async function markExecutableAsSoftware(
   input: { name: string; coverUrl?: string; share: boolean },
 ): Promise<MarkAsSoftwareOutcome> {
   const name = input.name.trim();
-  if (!name) throw new Error("A name is required.");
+  if (!name) throw new Error(t("A name is required."));
   const coverUrl = input.coverUrl?.trim() ?? "";
   cacheToolResult(exeName, {
     id: customGameId(exeName),
@@ -5112,7 +5156,7 @@ export async function markExecutableAsSoftware(
     );
     if (!response.ok) throw responseError(response);
     const result = response.data;
-    if (result.id === undefined) throw new Error("Unexpected response");
+    if (result.id === undefined) throw new Error(t("Unexpected response"));
     const entry = useAppStore.getState().exeCache.get(exeName.toLowerCase());
     if (entry?.state !== "tool") return { kind: "submitted" };
     if (result.verified) {
@@ -5158,7 +5202,7 @@ export async function markTrackedExecutableAsSoftware(
   exeName: string,
   input: { name: string; coverUrl?: string; share: boolean },
 ): Promise<MarkAsSoftwareOutcome> {
-  if (!input.name.trim()) throw new Error("A name is required.");
+  if (!input.name.trim()) throw new Error(t("A name is required."));
   const state = useAppStore.getState();
   const key = exeName.toLowerCase();
   const existing = state.exeCache.get(key);
@@ -5189,16 +5233,15 @@ export async function markTrackedExecutableAsSoftware(
 /**
  * "It's an app, ignore it" on a tracked game or a picker: the exe becomes
  * software like "It's software", then is ignored on this PC like "Ignore This
- * App" on the Software page. Shared, the community learns it as software, not
- * as a "not a game" report.
+ * App" on the Software page. Never shared: ignoring is not asking for the app
+ * to be tracked, so no tool suggestion is filed.
  */
 export async function ignoreTrackedExecutableAsSoftware(
   exeName: string,
-  input: { name: string; share: boolean },
-): Promise<MarkAsSoftwareOutcome> {
-  const outcome = await markTrackedExecutableAsSoftware(exeName, input);
+  input: { name: string },
+): Promise<void> {
+  await markTrackedExecutableAsSoftware(exeName, { ...input, share: false });
   await setUserIgnoredProcess(exeName, true);
-  return outcome;
 }
 
 /** Art picked on this PC for a tool, or null to go back to the shared art
@@ -6578,6 +6621,7 @@ export async function checkBackendHealth() {
     }
 
     const body = response.data;
+    // i18n-exempt: diagnostic detail of the backend health check.
     if (body.ok !== true) throw new Error("Health check returned not ok");
 
     setBackendHealth("online", "Backend health check passed");
@@ -6586,7 +6630,7 @@ export async function checkBackendHealth() {
     const detail =
       error instanceof DOMException &&
       (error.name === "AbortError" || error.name === "TimeoutError")
-        ? "Health check timed out"
+        ? t("Health check timed out")
         : formatError(error);
     setBackendHealth("offline", detail);
   }
@@ -6725,17 +6769,29 @@ export function persist() {
       );
       state.addToast({
         tone: "error",
-        title: "History storage was full",
-        detail: `${result.removed.length} oldest sessions${oldest ? `, ending around ${new Date(oldest).toLocaleDateString()}` : ""}, were archived so new data could be saved.`,
+        title: t("History storage was full"),
+        detail: oldest
+          ? t(
+              "{{count}} oldest sessions, ending around {{date}}, were archived so new data could be saved.",
+              {
+                count: result.removed.length,
+                date: new Date(oldest).toLocaleDateString(appLocale()),
+              },
+            )
+          : t(
+              "{{count}} oldest sessions were archived so new data could be saved.",
+              { count: result.removed.length },
+            ),
       });
     }
   } else if (result.status === "failed") {
     logRuntime("local persistence failed after retry");
     state.addToast({
       tone: "error",
-      title: "Changes could not be saved",
-      detail:
+      title: t("Changes could not be saved"),
+      detail: t(
         "Local storage is unavailable or full. Your in-memory history was kept.",
+      ),
     });
   }
   verboseRuntime(
@@ -7451,7 +7507,7 @@ export async function cancelCommunitySuggestion(
     return { kind: "offline" };
   }
   if (!state.installUuid) {
-    return { kind: "failed", error: "No install identity available." };
+    return { kind: "failed", error: t("No install identity available.") };
   }
   if (Date.now() < communityCancelUnavailableUntil) {
     return { kind: "unavailable" };
@@ -7651,7 +7707,7 @@ export async function submitLocalLinkToCommunity(
       applyLocalLinkGameMatch(ref, result.igdbGame);
       return { kind: "already-known" };
     }
-    if (result.id === undefined) throw new Error("Unexpected response");
+    if (result.id === undefined) throw new Error(t("Unexpected response"));
     if (result.verified) {
       // This match was approved before the import. Apply it as database truth
       // instead of making the imported link look like a freshly approved
@@ -7740,7 +7796,7 @@ async function saveCoverFile(
 ) {
   const extension = coverExtension(file);
   if (!extension) {
-    throw new Error("Cover image must be a PNG, JPG, or WebP file.");
+    throw new Error(t("Cover image must be a PNG, JPG, or WebP file."));
   }
 
   const bytes = [...new Uint8Array(await file.arrayBuffer())];
@@ -8033,7 +8089,7 @@ export function addManualSession(params: {
 
   const endedAtMs = Date.parse(params.endedAt);
   if (!Number.isFinite(endedAtMs)) {
-    throw new Error("Manual sessions require a valid date and time");
+    throw new Error(t("Manual sessions require a valid date and time"));
   }
   const endedAt = new Date(endedAtMs).toISOString();
   const startedAt = new Date(
@@ -8085,11 +8141,11 @@ export function setGamePlaytime(params: {
   aliases?: GameAliasRef[];
 }) {
   if (!Number.isFinite(params.targetSeconds)) {
-    throw new Error("Playtime must be a finite number");
+    throw new Error(t("Playtime must be a finite number"));
   }
   const targetSeconds = Math.max(0, Math.round(params.targetSeconds));
   if (targetSeconds > 0 && targetSeconds < 60) {
-    throw new Error("Playtime must be zero or at least one minute");
+    throw new Error(t("Playtime must be zero or at least one minute"));
   }
 
   const aliases = params.aliases ?? [
@@ -8100,7 +8156,7 @@ export function setGamePlaytime(params: {
   const state = useAppStore.getState();
 
   if (state.activeSessions.some(matchesGame)) {
-    throw new Error("Stop the active session before adjusting playtime");
+    throw new Error(t("Stop the active session before adjusting playtime"));
   }
 
   const keys = gameSecondsKeys(aliases);
@@ -8695,7 +8751,9 @@ async function runQueuedProcessScans(initialReason: string) {
     useAppStore.getState().setProcessScanError(formatError(error));
     useAppStore
       .getState()
-      .setRuntimeError(`Process scan failed: ${formatError(error)}`);
+      .setRuntimeError(
+        t("Process scan failed: {{error}}", { error: formatError(error) }),
+      );
   } finally {
     scanInFlight = undefined;
   }
@@ -8877,17 +8935,53 @@ function removeActiveSession(session: ActiveSession) {
   }));
 }
 
+let trayLabelsLocale: string | null = null;
+
 function syncTrayNowPlaying() {
-  const sessions = useAppStore.getState().activeSessions.map((session) => ({
-    gameName: session.gameName,
-    elapsedSeconds: Math.max(
-      0,
-      Math.floor((Date.now() - Date.parse(session.startedAt)) / 1000),
-    ),
-  }));
-  void invoke("update_tray_now_playing", { sessions }).catch((error) => {
-    logRuntime(`tray update failed: ${formatError(error)}`);
+  // The tray's own entries follow the language: send them again when it changes.
+  if (trayLabelsLocale !== appLocale()) {
+    trayLabelsLocale = appLocale();
+    void invoke("set_tray_labels", {
+      open: t("Open PlayCounter"),
+      quit: t("Quit PlayCounter"),
+    }).catch((error) => {
+      logRuntime(`tray labels failed: ${formatError(error)}`);
+    });
+  }
+  void invoke("update_tray_now_playing", { status: trayStatus() }).catch(
+    (error) => {
+      logRuntime(`tray update failed: ${formatError(error)}`);
+    },
+  );
+}
+
+/** "Playing Elden Ring - 1h 2m (+1 more)" in the app's language. */
+function trayStatus() {
+  const named = useAppStore
+    .getState()
+    .activeSessions.filter((session) => session.gameName.trim());
+  const first = named[0];
+  if (!first) return t("No game active");
+  const elapsed = Math.max(
+    0,
+    Math.floor((Date.now() - Date.parse(first.startedAt)) / 1000),
+  );
+  const status = t("Playing {{game}} - {{duration}}", {
+    game: first.gameName.trim(),
+    duration: trayDuration(elapsed),
   });
+  return named.length > 1
+    ? t("{{status}} (+{{count}} more)", { status, count: named.length - 1 })
+    : status;
+}
+
+function trayDuration(seconds: number) {
+  const totalMinutes = Math.floor(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return t("{{hours}}h {{minutes}}m", { hours, minutes });
+  if (minutes > 0) return t("{{minutes}}m", { minutes });
+  return t("<1m");
 }
 
 function scheduleTraySync() {

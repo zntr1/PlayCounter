@@ -15,6 +15,7 @@ import {
   type XboxImportProgressStage,
 } from "@playcounter/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { PlayCounterLoader } from "../../brand/PlayCounterLoader";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -29,7 +30,7 @@ import {
   searchLibraryGames,
 } from "../../library/gameLookup";
 import { resolveLibraryGames } from "../../library/resolve";
-import { RATE_LIMIT_MESSAGE } from "../../rateLimitedFetch";
+import { rateLimitMessage } from "../../rateLimitedFetch";
 import type { BuiltinImportProviderId } from "../../library/importProviders";
 import type {
   LibraryScanResult,
@@ -46,6 +47,10 @@ import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { STORAGE_KEY } from "../../persistence";
 import { Panel, ProviderBadge, formatDuration } from "../components";
 import { Button, Input, Modal, Select } from "../primitives";
+import { appLocale, getT } from "../../i18n";
+import { nativeText } from "../../nativeText";
+
+const t = getT("import");
 
 type Phase = "detecting" | "ready" | "scanning" | "importing" | "done";
 export type ImportGroupKey = "ready" | "attention" | "unavailable" | "imported";
@@ -559,7 +564,7 @@ export function ImportLibraryView() {
         return commit ? [commit] : [];
       });
       if (commits.length === 0)
-        throw new Error("Pick at least one game to import.");
+        throw new Error(t("Pick at least one game to import."));
       await backupImporterDataOnce(signal);
       if (!isCurrentImport(signal)) return;
       const result = await runLibraryImport(commits, signal);
@@ -578,13 +583,19 @@ export function ImportLibraryView() {
       setPhase("done");
       addToast({
         tone: "success",
-        title: `${commits.length} ${providerName} ${commits.length === 1 ? "game" : "games"} imported`,
+        title: t("{{count}} {{provider}} games imported", {
+          count: commits.length,
+          provider: providerName,
+        }),
         detail:
           failedShares > 0
-            ? `Your library is available in My Games. ${failedShares} game ${failedShares === 1 ? "file needs" : "files need"} another try when you are back online.`
+            ? t(
+                "Your library is available in My Games. {{count}} game files need another try when you are back online.",
+                { count: failedShares },
+              )
             : isBattleNet
-              ? "Your games are now in My Games, ready for future tracking."
-              : "Your library and playtime are now available in My Games.",
+              ? t("Your games are now in My Games, ready for future tracking.")
+              : t("Your library and playtime are now available in My Games."),
       });
     } catch (cause) {
       if (!isCurrentImport(signal)) return;
@@ -634,7 +645,9 @@ export function ImportLibraryView() {
       });
       addToast({
         tone: "success",
-        title: `${match.game?.name ?? game.name ?? "Game"} added to My Games`,
+        title: t("{{game}} added to My Games", {
+          game: match.game?.name ?? game.name ?? t("Game"),
+        }),
         detail: importShareDetail(
           result.shareOutcomes.map(({ outcome }) => outcome.kind),
         ),
@@ -678,11 +691,13 @@ export function ImportLibraryView() {
       });
       if (!commit)
         throw new Error(
-          `The selected ${providerName} game cannot be imported.`,
+          t("The selected {{providerName}} game cannot be imported.", {
+            providerName,
+          }),
         );
       if (isBattleNet && scanned.installed && commit.scopedLinks.length === 0)
         throw new Error(
-          "Pick the game file to track before importing this game.",
+          t("Pick the game file to track before importing this game."),
         );
 
       await backupImporterDataOnce(signal);
@@ -701,18 +716,27 @@ export function ImportLibraryView() {
         commit.exeCacheEntries.length + commit.scopedLinks.length;
       addToast({
         tone: "success",
-        title: `${reverseMatch.game.name} imported`,
+        title: t("{{name}} imported", { name: reverseMatch.game.name }),
         detail: isBattleNet
           ? result.shareOutcomes.length > 0
             ? importShareDetail(
                 result.shareOutcomes.map(({ outcome }) => outcome.kind),
               )
             : scanned.installed
-              ? "The game file is linked to this installation for future tracking."
-              : "Added to My Games. After installing it, scan again to link its game file."
+              ? t(
+                  "The game file is linked to this installation for future tracking.",
+                )
+              : t(
+                  "Added to My Games. After installing it, scan again to link its game file.",
+                )
           : linkedCount > 0
-            ? `${linkedCount} known game ${linkedCount === 1 ? "file was" : "files were"} linked, so PlayCounter tracks this game once it is installed.`
-            : "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
+            ? t(
+                "{{count}} known game files were linked, so PlayCounter tracks this game once it is installed.",
+                { count: linkedCount },
+              )
+            : t(
+                "No game file is known for this title yet. PlayCounter picks it up the first time you run the game.",
+              ),
       });
     } catch (cause) {
       if (!isCurrentImport(signal)) return;
@@ -727,7 +751,9 @@ export function ImportLibraryView() {
     if (!isCurrentImport(signal)) return;
     if (!game.installPath) {
       setError(
-        `${providerName} did not report an install folder for this game.`,
+        t("{{providerName}} did not report an install folder for this game.", {
+          providerName,
+        }),
       );
       return;
     }
@@ -753,7 +779,10 @@ export function ImportLibraryView() {
       if (!isCurrentImport(signal)) return;
       if (matchesProcessPatternSet(executable.fileName, ignoredProcesses)) {
         throw new Error(
-          `${executable.fileName} is on PlayCounter's ignore list, so it cannot be used as the game file.`,
+          t(
+            "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.",
+            { fileName: executable.fileName },
+          ),
         );
       }
       setBrowsedExecutables((current) => ({
@@ -797,20 +826,20 @@ export function ImportLibraryView() {
     if (!url) return;
     try {
       if (!navigator.clipboard?.writeText) {
-        throw new Error("PlayCounter cannot reach the clipboard right now.");
+        throw new Error(t("PlayCounter cannot reach the clipboard right now."));
       }
       await navigator.clipboard.writeText(url);
       if (!isCurrentImport(signal)) return;
       addToast({
         tone: "success",
-        title: "Sign-in link copied",
-        detail: "Open it in the browser you want to sign in with.",
+        title: t("Sign-in link copied"),
+        detail: t("Open it in the browser you want to sign in with."),
       });
     } catch (cause) {
       if (!isCurrentImport(signal)) return;
       addToast({
         tone: "error",
-        title: "Could not copy sign-in link",
+        title: t("Could not copy sign-in link"),
         detail: formatError(cause),
       });
     }
@@ -854,42 +883,57 @@ export function ImportLibraryView() {
     }> = [
       {
         key: "ready",
-        label: "Ready to import",
+        label: t("Ready to import"),
         description: isEpic
-          ? "Nothing left to decide. Games you never played on Epic start unchecked; pick the ones you want."
-          : "Nothing left to decide. Pick the games and import them.",
+          ? t(
+              "Nothing left to decide. Games you never played on Epic start unchecked; pick the ones you want.",
+            )
+          : t("Nothing left to decide. Pick the games and import them."),
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "attention",
-        label: "Needs attention",
+        label: t("Needs attention"),
         description: isXbox
-          ? "Confirm which game this is before importing it."
+          ? t("Confirm which game this is before importing it.")
           : scansInstalls
-            ? "Confirm the game and its executable before importing it."
-            : "Pick the game file. Known matches are linked; unknown files can be shared with the community.",
+            ? t("Confirm the game and its executable before importing it.")
+            : t(
+                "Pick the game file. Known matches are linked; unknown files can be shared with the community.",
+              ),
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "unavailable",
-        label: "Unavailable right now",
+        label: t("Unavailable right now"),
         description: isXbox
-          ? "PlayCounter could not match this Xbox title to a game it knows."
+          ? t("PlayCounter could not match this Xbox title to a game it knows.")
           : isBattleNet
-            ? "Game details or installation data are unavailable. Try scanning again."
+            ? t(
+                "Game details or installation data are unavailable. Try scanning again.",
+              )
             : isEpic
-              ? "Game details are unavailable. Try scanning again."
-              : "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
+              ? t("Game details are unavailable. Try scanning again.")
+              : t(
+                  "No game details, or no Steam playtime to import. These are usually demos and apps like Wallpaper Engine or Soundpad.",
+                ),
         games: [] as ScannedLibraryGame[],
       },
       {
         key: "imported",
-        label: "Imported",
+        label: t("Imported"),
         description: isBattleNet
-          ? "Games already in My Games. Import again to refresh installation and last-played data."
+          ? t(
+              "Games already in My Games. Import again to refresh installation and last-played data.",
+            )
           : isEpic
-            ? "Games already in My Games. Sign in and import again to update their Epic playtime and installation."
-            : `Games already in My Games. Import one again to update its ${providerName} playtime.`,
+            ? t(
+                "Games already in My Games. Sign in and import again to update their Epic playtime and installation.",
+              )
+            : t(
+                "Games already in My Games. Import one again to update its {{providerName}} playtime.",
+                { providerName },
+              ),
         games: [] as ScannedLibraryGame[],
       },
     ];
@@ -939,8 +983,8 @@ export function ImportLibraryView() {
       <LoadingPanel
         label={
           isXbox
-            ? "Preparing the Xbox import…"
-            : `Looking for ${providerName} on this PC…`
+            ? t("Preparing the Xbox import…")
+            : t("Looking for {{providerName}} on this PC…", { providerName })
         }
       />
     );
@@ -951,14 +995,20 @@ export function ImportLibraryView() {
         <div className="max-w-lg">
           <LibraryBig size={36} className="mx-auto text-text-faint" />
           <h2 className="mt-4 text-2xl font-semibold text-text">
-            {providerName} was not found
+            {t("{{providerName}} was not found", { providerName })}
           </h2>
           <p className="mt-2 text-text-muted">
             {isXbox
-              ? "The Xbox import is unavailable right now. Check your connection and try again."
+              ? t(
+                  "The Xbox import is unavailable right now. Check your connection and try again.",
+                )
               : scansInstalls
-                ? `${providerName} import is available on Windows.`
-                : "PlayCounter looks for Steam in the Windows registry and in the usual install folders. You never have to sign in to Steam."}
+                ? t("{{providerName}} import is available on Windows.", {
+                    providerName,
+                  })
+                : t(
+                    "PlayCounter looks for Steam in the Windows registry and in the usual install folders. You never have to sign in to Steam.",
+                  )}
           </p>
           {error ? <ErrorNotice message={error} /> : null}
         </div>
@@ -970,16 +1020,20 @@ export function ImportLibraryView() {
       <LoadingPanel
         label={
           waitingForServer
-            ? "The server is busy. Your import will continue automatically…"
+            ? t("The server is busy. Your import will continue automatically…")
             : isXbox
               ? authorizeUrl
                 ? xboxScanLabel(xboxProgress)
-                : "Connecting to Xbox…"
+                : t("Connecting to Xbox…")
               : accountSignInScan && !scan
                 ? isEpic
-                  ? "Complete Epic Games sign-in in the window that opened. Reading your library and playtime…"
-                  : "Complete Battle.net sign-in in the window that opened. Reading your account games…"
-                : `Scanning your ${providerName} library…`
+                  ? t(
+                      "Complete Epic Games sign-in in the window that opened. Reading your library and playtime…",
+                    )
+                  : t(
+                      "Complete Battle.net sign-in in the window that opened. Reading your account games…",
+                    )
+                : t("Scanning your {{providerName}} library…", { providerName })
         }
         onCancel={cancelImport}
         onCopySignInLink={
@@ -996,7 +1050,7 @@ export function ImportLibraryView() {
       {isBattleNet && pendingBattleNetScan !== null ? (
         <Modal
           labelId="battlenet-playtime-title"
-          title="Battle.net playtime"
+          title={t("Battle.net playtime")}
           icon={Clock3}
           onClose={() => setPendingBattleNetScan(null)}
           footer={
@@ -1005,7 +1059,7 @@ export function ImportLibraryView() {
                 variant="ghost"
                 onClick={() => setPendingBattleNetScan(null)}
               >
-                Cancel
+                {t("Cancel")}
               </Button>
               <Button
                 variant="primary"
@@ -1015,32 +1069,37 @@ export function ImportLibraryView() {
                   void scanAccount(includeAccount);
                 }}
               >
-                OK
+                {t("OK")}
               </Button>
             </div>
           }
         >
           <div className="space-y-4 text-sm leading-6 text-text-muted">
             <p>
-              Battle.net does not provide historical playtime. To include your
-              previous hours, you need to set each game&apos;s total yourself.
+              {t(
+                "Battle.net does not provide historical playtime. To include your previous hours, you need to set each game's total yourself.",
+              )}
             </p>
             <p>
-              After importing, right-click a game in{" "}
-              <strong className="text-text">My Games</strong> and choose{" "}
-              <strong className="text-text">Adjust total playtime</strong>.
+              <Trans
+                t={t}
+                i18nKey="After importing, right-click a game in <strong>My Games</strong> and choose <strong>Adjust total playtime</strong>."
+                components={{ strong: <strong className="text-text" /> }}
+              />
             </p>
             <div className="rounded-lg border border-border bg-bg/60 p-3">
               <p className="font-semibold text-text">
-                World of Warcraft example
+                {t("World of Warcraft example")}
               </p>
               <p className="mt-1">
-                Type <code className="text-text">/played</code> on each of your
-                characters and add up their total time for the WoW version
-                you&apos;re importing.
+                <Trans
+                  t={t}
+                  i18nKey="Type <code>/played</code> on each of your characters and add up their total time for the WoW version you're importing."
+                  components={{ code: <code className="text-text" /> }}
+                />
               </p>
             </div>
-            <p>PlayCounter tracks new sessions automatically.</p>
+            <p>{t("PlayCounter tracks new sessions automatically.")}</p>
           </div>
         </Modal>
       ) : null}
@@ -1051,49 +1110,58 @@ export function ImportLibraryView() {
               <ProviderBadge provider={providerId} />
               <span className="text-sm text-text-muted">
                 {isXbox
-                  ? "Playtime from your Xbox account"
+                  ? t("Playtime from your Xbox account")
                   : scansInstalls
-                    ? "Account and installed games"
-                    : "Library from this PC"}
+                    ? t("Account and installed games")
+                    : t("Library from this PC")}
               </span>
             </div>
             <h2 className="mt-2 text-xl font-semibold text-text">
               {isXbox
-                ? "Connect your Xbox account"
+                ? t("Connect your Xbox account")
                 : isBattleNet
-                  ? "Import your Battle.net games"
+                  ? t("Import your Battle.net games")
                   : isEpic
-                    ? "Import your Epic Games library"
-                    : "Pick a Steam account on this PC"}
+                    ? t("Import your Epic Games library")
+                    : t("Pick a Steam account on this PC")}
             </h2>
             <p className="mt-1 text-sm text-text-muted">
               {isXbox
-                ? "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done."
+                ? t(
+                    "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
+                  )
                 : isBattleNet
-                  ? "Sign in to include games from your account, even when they are not installed. You can also scan installed games without signing in."
+                  ? t(
+                      "Sign in to include games from your account, even when they are not installed. You can also scan installed games without signing in.",
+                    )
                   : isEpic
-                    ? "Sign in to bring in your Epic library with the playtime Epic recorded. You can also scan installed games without signing in; their past playtime then stays unknown."
-                    : "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers."}
+                    ? t(
+                        "Sign in to bring in your Epic library with the playtime Epic recorded. You can also scan installed games without signing in; their past playtime then stays unknown.",
+                      )
+                    : t(
+                        "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers.",
+                      )}
             </p>
             {isXbox ? (
               <p className="mt-2 text-sm text-text-faint">
-                Use the Microsoft account that belongs to your Xbox gamertag. If
-                you are not sure, copy the sign-in link and open it in a private
-                browser window.
+                {t(
+                  "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.",
+                )}
               </p>
             ) : null}
             {scansInstalls ? (
               <p className="mt-2 text-sm text-text-faint">
-                Sign-in opens in a temporary {providerName} window and is
-                discarded when the scan finishes. Each sign-in lets you choose
-                an account.
+                {t(
+                  "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.",
+                  { providerName },
+                )}
               </p>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {!scansInstalls ? (
               <Select
-                aria-label={`${providerName} account`}
+                aria-label={t("{{providerName}} account", { providerName })}
                 value={accountId ?? ""}
                 onChange={(event) => {
                   importAbortController.current.abort();
@@ -1112,8 +1180,11 @@ export function ImportLibraryView() {
               >
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
-                    {account.personaName ?? `Account ${account.accountId}`}
-                    {isXbox ? "" : ` · ${account.gamesWithPlaytime} games`}
+                    {account.personaName ??
+                      t("Account {{id}}", { id: account.accountId })}
+                    {isXbox
+                      ? ""
+                      : ` · ${t("{{count}} games", { count: account.gamesWithPlaytime })}`}
                   </option>
                 ))}
               </Select>
@@ -1128,7 +1199,7 @@ export function ImportLibraryView() {
                   void scanAccount();
                 }}
               >
-                Copy sign-in link
+                {t("Copy sign-in link")}
               </Button>
             ) : null}
             {scansInstalls ? (
@@ -1138,7 +1209,7 @@ export function ImportLibraryView() {
                 disabled={accountId === null}
                 onClick={() => requestScan()}
               >
-                Find installed games
+                {t("Find installed games")}
               </Button>
             ) : null}
             <Button
@@ -1148,12 +1219,12 @@ export function ImportLibraryView() {
               onClick={() => requestScan(scansInstalls)}
             >
               {scansInstalls
-                ? "Sign in and find games"
+                ? t("Sign in and find games")
                 : scan
-                  ? "Scan again"
+                  ? t("Scan again")
                   : isXbox
-                    ? "Sign in and find games"
-                    : "Find games"}
+                    ? t("Sign in and find games")
+                    : t("Find games")}
             </Button>
           </div>
         </div>
@@ -1163,21 +1234,26 @@ export function ImportLibraryView() {
       {!scansInstalls && accounts.length === 0 ? (
         <Panel className="p-4 text-sm text-text-muted">
           {isXbox
-            ? "The Xbox import could not be prepared. Please try again later."
-            : "Steam is installed, but PlayCounter could not read any account data. Start Steam, sign in once, then come back here."}
+            ? t(
+                "The Xbox import could not be prepared. Please try again later.",
+              )
+            : t(
+                "Steam is installed, but PlayCounter could not read any account data. Start Steam, sign in once, then come back here.",
+              )}
         </Panel>
       ) : null}
       {capability === "unsupported" ? (
         <Panel className="border-warning-border bg-warning-tint p-4 text-sm text-warning">
-          PlayCounter cannot look up {providerName} games right now. Your
-          library was scanned, but importing is switched off so you do not end
-          up with wrongly named games.
+          {t(
+            "PlayCounter cannot look up {{providerName}} games right now. Your library was scanned, but importing is switched off so you do not end up with wrongly named games.",
+            { providerName },
+          )}
         </Panel>
       ) : null}
       {scan?.warnings.length ? (
         <Panel className="p-4 text-sm text-warning">
           {scan.warnings.map((warning) => (
-            <p key={warning}>{warning}</p>
+            <p key={warning}>{nativeText(warning)}</p>
           ))}
         </Panel>
       ) : null}
@@ -1185,10 +1261,14 @@ export function ImportLibraryView() {
         <Panel className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
-              <h2 className="font-semibold text-text">{providerName} games</h2>
+              <h2 className="font-semibold text-text">
+                {t("{{providerName}} games", { providerName })}
+              </h2>
               <p className="text-sm text-text-muted">
-                {importGroups[0].games.length} of {scan.games.length} games
-                ready to import
+                {t("{{count}} of {{count2}} games ready to import", {
+                  count: importGroups[0].games.length,
+                  count2: scan.games.length,
+                })}
               </p>
             </div>
             {activeSelectableGames.length > 0 ? (
@@ -1203,14 +1283,14 @@ export function ImportLibraryView() {
                     )
                   }
                 >
-                  Select all
+                  {t("Select all")}
                 </Button>
                 <Button
                   variant="secondary"
                   disabled={selectedCount === 0}
                   onClick={() => setSelected(new Set())}
                 >
-                  Select none
+                  {t("Select none")}
                 </Button>
                 <Button
                   variant="primary"
@@ -1219,7 +1299,9 @@ export function ImportLibraryView() {
                   disabled={selectedCount === 0 || capability !== "supported"}
                   onClick={() => void importSelected()}
                 >
-                  Import {selectedCount || "selected"}
+                  {selectedCount
+                    ? t("Import {{count}}", { count: selectedCount })
+                    : t("Import selected")}
                 </Button>
               </div>
             ) : null}
@@ -1227,7 +1309,7 @@ export function ImportLibraryView() {
           <div>
             <div
               role="tablist"
-              aria-label="Import readiness"
+              aria-label={t("Import readiness")}
               className="flex flex-wrap gap-1 border-b border-border bg-surface-hover/40 px-5 pt-3"
             >
               {importGroups.map((group) => {
@@ -1319,7 +1401,7 @@ export function ImportLibraryView() {
                   ))
                 ) : (
                   <p className="px-5 py-8 text-center text-sm text-text-muted">
-                    Nothing here right now.
+                    {t("Nothing here right now.")}
                   </p>
                 )}
               </div>
@@ -1332,7 +1414,7 @@ export function ImportLibraryView() {
         <Panel className="flex items-center justify-between gap-4 border-success-border bg-success-tint p-4">
           <div className="flex items-center gap-3 text-success">
             <CheckCircle2 size={20} />
-            <span className="font-semibold">Import finished.</span>
+            <span className="font-semibold">{t("Import finished.")}</span>
           </div>
           <Button
             variant="primary"
@@ -1341,7 +1423,7 @@ export function ImportLibraryView() {
               setActiveView("games");
             }}
           >
-            Open My Games
+            {t("Open My Games")}
           </Button>
         </Panel>
       ) : null}
@@ -1443,7 +1525,9 @@ export function ImportRow({
           checked={selected}
           disabled={!importable}
           onChange={(event) => onSelected(event.target.checked)}
-          aria-label={`Import ${resolved?.game?.name ?? game.name ?? game.externalId}`}
+          aria-label={t("Import {{name}}", {
+            name: resolved?.game?.name ?? game.name ?? game.externalId,
+          })}
         />
       ) : null}
       {resolved?.game?.coverUrl ? (
@@ -1458,64 +1542,71 @@ export function ImportRow({
           <h3 className="font-semibold text-text">
             {resolved?.game?.name ??
               game.name ??
-              `${LIBRARY_PROVIDER_LABELS[provider]} game ${game.externalId}`}
+              t("{{provider}} game {{id}}", {
+                provider: LIBRARY_PROVIDER_LABELS[provider],
+                id: game.externalId,
+              })}
           </h3>
           {alreadyImported ? (
             <span className="text-xs font-medium text-success">
               {provider === "battlenet"
-                ? "Already in My Games · import again to refresh"
-                : "Already in My Games · import again to update playtime"}
+                ? t("Already in My Games · import again to refresh")
+                : t("Already in My Games · import again to update playtime")}
             </span>
           ) : null}
           {!importable ? (
             <span className="text-xs font-medium text-warning">
               {provider !== "steam" && hasImportableContent(game)
-                ? "Confirm which game this is"
+                ? t("Confirm which game this is")
                 : noImportablePlaytime
-                  ? "No playtime to import"
-                  : "Game details unavailable"}
+                  ? t("No playtime to import")
+                  : t("Game details unavailable")}
             </span>
           ) : null}
         </div>
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
           <span>
             {provider === "battlenet"
-              ? "Product"
+              ? t("Product")
               : provider === "xbox"
-                ? "Xbox title ID"
+                ? t("Xbox title ID")
                 : provider === "epic"
-                  ? "App name"
-                  : "AppID"}{" "}
+                  ? t("App name")
+                  : t("AppID")}{" "}
             {game.externalId}
           </span>
           {provider !== "battlenet" ? (
             <span>
               {game.playtimeSeconds === null
-                ? "Playtime unknown"
+                ? t("Playtime unknown")
                 : formatDuration(game.playtimeSeconds, false)}
             </span>
           ) : null}
           <span>
             {game.installed
-              ? "Installed"
+              ? t("Installed")
               : game.installationStatusUnknown
-                ? "Installation not checked"
-                : "Not installed"}
+                ? t("Installation not checked")
+                : t("Not installed")}
           </span>
           {provider === "battlenet" && game.lastPlayedUnix ? (
             <span>
-              Last played{" "}
-              {new Date(game.lastPlayedUnix * 1000).toLocaleDateString()}
+              {t("Last played {{date}}", {
+                date: new Date(game.lastPlayedUnix * 1000).toLocaleDateString(
+                  appLocale(),
+                ),
+              })}
             </span>
           ) : null}
           {provider === "steam" ? (
             resolved?.executables.length ? (
               <span>
-                {resolved.executables.length} known game file
-                {resolved.executables.length === 1 ? "" : "s"}
+                {t("{{count}} known game files", {
+                  count: resolved.executables.length,
+                })}
               </span>
             ) : (
-              <span>No known game file</span>
+              <span>{t("No known game file")}</span>
             )
           ) : null}
         </div>
@@ -1523,20 +1614,28 @@ export function ImportRow({
           <div className="mt-3 max-w-2xl text-xs text-text-muted">
             <p>
               {needsIdentityConfirmation
-                ? "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below."
+                ? t(
+                    "Pick the game file PlayCounter should watch. Known matches are linked; unknown files go to the community for review with the game you confirm below.",
+                  )
                 : showAddAndShare
-                  ? "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review."
-                  : "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review."}
+                  ? t(
+                      "Pick the game file PlayCounter should watch. Add and Share links known matches automatically. Unknown files are sent to the community for review.",
+                    )
+                  : t(
+                      "Pick the game file PlayCounter should watch, then import this game again to save it. Only unknown files are sent to the community for review.",
+                    )}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Select
-                aria-label={`Game file for ${resolved?.game?.name ?? game.name ?? game.externalId}`}
+                aria-label={t("Game file for {{name}}", {
+                  name: resolved?.game?.name ?? game.name ?? game.externalId,
+                })}
                 value={manualExecutable ?? ""}
                 onChange={(event) => onManualExecutable(event.target.value)}
                 containerClassName="flex-1 basis-64"
                 className="!bg-bg"
               >
-                <option value="">Pick a game file…</option>
+                <option value="">{t("Pick a game file…")}</option>
                 {executableOptions.map((candidate) => (
                   <option
                     key={candidate.relativePath}
@@ -1552,7 +1651,7 @@ export function ImportRow({
                 loading={browsing}
                 onClick={onBrowseExecutable}
               >
-                Browse…
+                {t("Browse…")}
               </Button>
               {showAddAndShare && !needsIdentityConfirmation ? (
                 <Button
@@ -1562,7 +1661,7 @@ export function ImportRow({
                   disabled={!manualExecutable}
                   onClick={onAddAndShare}
                 >
-                  Add and Share
+                  {t("Add and Share")}
                 </Button>
               ) : null}
             </div>
@@ -1575,7 +1674,10 @@ export function ImportRow({
             candidates={resolved?.candidates ?? []}
             title={
               game.name ??
-              `${LIBRARY_PROVIDER_LABELS[provider]} game ${game.externalId}`
+              t("{{provider}} game {{id}}", {
+                provider: LIBRARY_PROVIDER_LABELS[provider],
+                id: game.externalId,
+              })
             }
             importing={addingAndSharing}
             onConfirm={onGameMatch}
@@ -1600,8 +1702,9 @@ function queueVisibleSearch(task: () => Promise<void>) {
   return run;
 }
 
-const NO_SUGGESTION_MESSAGE =
-  "No safe suggestion found. Search for the game by name.";
+function noSuggestionMessage() {
+  return t("No safe suggestion found. Search for the game by name.");
+}
 
 export function LibraryMatchControls({
   apiEndpoint,
@@ -1640,8 +1743,8 @@ export function LibraryMatchControls({
   }, [apiEndpoint, provider]);
   const [message, setMessage] = useState(
     candidates.length > 0
-      ? "Choose the exact game, then confirm the match."
-      : NO_SUGGESTION_MESSAGE,
+      ? t("Choose the exact game, then confirm the match.")
+      : noSuggestionMessage(),
   );
   const selectedGame = choices.find(
     (candidate) => candidate.igdbId === selectedIgdbId,
@@ -1661,8 +1764,10 @@ export function LibraryMatchControls({
     setSelectedIgdbId(games[0]?.igdbId ?? null);
     setMessage(
       games.length > 0
-        ? "Choose the exact game, then confirm the match."
-        : "No matching games found. Try the English title or another spelling.",
+        ? t("Choose the exact game, then confirm the match.")
+        : t(
+            "No matching games found. Try the English title or another spelling.",
+          ),
     );
   }
 
@@ -1714,7 +1819,7 @@ export function LibraryMatchControls({
         pending.abort();
         pending = null;
         setSearching(false);
-        setMessage(NO_SUGGESTION_MESSAGE);
+        setMessage(noSuggestionMessage());
       }
     });
     observer.observe(element);
@@ -1754,21 +1859,24 @@ export function LibraryMatchControls({
       className="mt-3 max-w-2xl rounded-md border border-border bg-bg/50 p-3 text-xs text-text-muted"
     >
       <p>
-        Game names are not always unique. Confirm the right game before
         {provider === "battlenet"
-          ? " adding it to your library."
-          : " its playtime is added to your library."}
+          ? t(
+              "Game names are not always unique. Confirm the right game before adding it to your library.",
+            )
+          : t(
+              "Game names are not always unique. Confirm the right game before its playtime is added to your library.",
+            )}
       </p>
       <div className="mt-3 flex items-start gap-3">
         {selectedGame?.coverUrl ? (
           <img
             src={selectedGame.coverUrl}
-            alt={`${selectedGame.name} cover`}
+            alt={t("{{name}} cover", { name: selectedGame.name })}
             className="h-24 w-16 shrink-0 rounded-md bg-surface-hover object-cover"
           />
         ) : (
           <div
-            aria-label="No cover available"
+            aria-label={t("No cover available")}
             className="grid h-24 w-16 shrink-0 place-items-center rounded-md bg-surface-hover text-text-faint"
           >
             <HardDrive size={20} />
@@ -1776,19 +1884,19 @@ export function LibraryMatchControls({
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
           <Select
-            aria-label={`Game match for ${title}`}
+            aria-label={t("Game match for {{title}}", { title })}
             value={selectedIgdbId ?? ""}
             onChange={(event) => setSelectedIgdbId(Number(event.target.value))}
             containerClassName="flex-1"
           >
             {choices.length === 0 ? (
-              <option value="">No game selected</option>
+              <option value="">{t("No game selected")}</option>
             ) : null}
             {choices.map((candidate) => (
               <option key={candidate.igdbId} value={candidate.igdbId}>
                 {candidate.name}
                 {candidate.releaseYear ? ` · ${candidate.releaseYear}` : ""}
-                {practice ? " · Sample" : ` · IGDB ${candidate.igdbId}`}
+                {practice ? ` · ${t("Sample")}` : ` · IGDB ${candidate.igdbId}`}
               </option>
             ))}
           </Select>
@@ -1798,7 +1906,7 @@ export function LibraryMatchControls({
             disabled={!selectedGame}
             onClick={() => selectedGame && void onConfirm(selectedGame)}
           >
-            Confirm and Import
+            {t("Confirm and Import")}
           </Button>
         </div>
       </div>
@@ -1812,7 +1920,7 @@ export function LibraryMatchControls({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search by game title or IGDB ID"
+          placeholder={t("Search by game title or IGDB ID")}
           className="min-w-0 flex-1"
         />
         <Button
@@ -1822,7 +1930,7 @@ export function LibraryMatchControls({
           loading={searching}
           disabled={!isSearchableGameQuery(query)}
         >
-          {practice ? "Search samples" : "Search IGDB"}
+          {practice ? t("Search samples") : t("Search IGDB")}
         </Button>
       </form>
       {message ? (
@@ -1836,12 +1944,18 @@ export function LibraryMatchControls({
 
 export function importShareDetail(outcomes: readonly string[]) {
   if (outcomes.includes("failed"))
-    return "The game was added on this PC, but its game file could not be verified or shared. Please try again later.";
+    return t(
+      "The game was added on this PC, but its game file could not be verified or shared. Please try again later.",
+    );
   if (outcomes.includes("rejected"))
-    return "The game was added on this PC. This game file suggestion was previously rejected; its review status has been preserved.";
+    return t(
+      "The game was added on this PC. This game file suggestion was previously rejected; its review status has been preserved.",
+    );
   if (outcomes.includes("submitted"))
-    return "The game file was sent to the community for review.";
-  return "An existing game file match was linked. No community review was needed.";
+    return t("The game file was sent to the community for review.");
+  return t(
+    "An existing game file match was linked. No community review was needed.",
+  );
 }
 
 function requiresExecutableChoice(
@@ -2000,8 +2114,8 @@ function initialImportGroup(
 
 export function xboxScanLabel(stage: XboxImportProgressStage) {
   return stage === "history"
-    ? "Reading your Xbox history…"
-    : "Waiting for Microsoft sign-in…";
+    ? t("Reading your Xbox history…")
+    : t("Waiting for Microsoft sign-in…");
 }
 
 function LoadingPanel({
@@ -2019,8 +2133,9 @@ function LoadingPanel({
         <PlayCounterLoader label={label} />
         {onCopySignInLink ? (
           <p className="mt-2 max-w-md text-sm text-text-faint">
-            Browser did not open, or opened the wrong account? Copy the sign-in
-            link and open it yourself.
+            {t(
+              "Browser did not open, or opened the wrong account? Copy the sign-in link and open it yourself.",
+            )}
           </p>
         ) : null}
         {onCancel || onCopySignInLink ? (
@@ -2031,12 +2146,12 @@ function LoadingPanel({
                 icon={Copy}
                 onClick={onCopySignInLink}
               >
-                Copy sign-in link
+                {t("Copy sign-in link")}
               </Button>
             ) : null}
             {onCancel ? (
               <Button variant="secondary" onClick={onCancel}>
-                Cancel import
+                {t("Cancel import")}
               </Button>
             ) : null}
           </div>
@@ -2047,7 +2162,7 @@ function LoadingPanel({
 }
 
 function ErrorNotice({ message }: { message: string }) {
-  const throttled = message === RATE_LIMIT_MESSAGE;
+  const throttled = message === rateLimitMessage();
   return (
     <div
       role={throttled ? "status" : "alert"}
@@ -2059,5 +2174,5 @@ function ErrorNotice({ message }: { message: string }) {
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

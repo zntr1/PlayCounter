@@ -2,6 +2,9 @@ import type { Session } from "@playcounter/shared";
 import type { GameLifetimeTotal } from "./milestones";
 import { effectiveTotalSeconds } from "./playtimeAdjustments";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
+import { appLocale, getT } from "./i18n";
+
+const t = getT("common");
 
 export type HistoryFilter = "all" | "today" | "week" | "month" | "currentMonth";
 
@@ -187,11 +190,11 @@ export function historyRange(
 }
 
 function formatHour(ms: number) {
-  return new Date(ms).toLocaleTimeString([], { hour: "numeric" });
+  return new Date(ms).toLocaleTimeString(appLocale(), { hour: "numeric" });
 }
 
 function formatDate(ms: number) {
-  return new Date(ms).toLocaleDateString([], {
+  return new Date(ms).toLocaleDateString(appLocale(), {
     month: "short",
     day: "numeric",
   });
@@ -256,15 +259,19 @@ function descriptorsForBoundaries(
     }
     if (mode === "month") {
       return {
-        label: new Date(fromMs).toLocaleDateString([], { month: "long" }),
-        tooltip: new Date(fromMs).toLocaleDateString([], {
+        label: new Date(fromMs).toLocaleDateString(appLocale(), {
+          month: "long",
+        }),
+        tooltip: new Date(fromMs).toLocaleDateString(appLocale(), {
           month: "short",
           year: "numeric",
         }),
       };
     }
     return {
-      label: new Date(fromMs).toLocaleDateString([], { weekday: "short" }),
+      label: new Date(fromMs).toLocaleDateString(appLocale(), {
+        weekday: "short",
+      }),
       tooltip: formatDate(fromMs),
     };
   });
@@ -306,7 +313,7 @@ export function bucketSessions(
       resolveIgdbId,
     );
     return {
-      title: "Today",
+      title: t("Today"),
       compact: hourlyBuckets,
       full: hourlyBuckets,
     };
@@ -324,14 +331,14 @@ export function bucketSessions(
     const compactBoundaries =
       days <= 10 ? fullBoundaries : groupedBoundaries(fullBoundaries, 5);
     const fullDescriptors = descriptorsForBoundaries(fullBoundaries, "day");
-    if (fullDescriptors.length > 0) fullDescriptors.at(-1)!.label = "Today";
+    if (fullDescriptors.length > 0) fullDescriptors.at(-1)!.label = t("Today");
     return {
       title:
         filter === "week"
-          ? "Last 7 Days"
+          ? t("Last 7 Days")
           : filter === "month"
-            ? "Last 30 Days"
-            : "This Month",
+            ? t("Last 30 Days")
+            : t("This Month"),
       compact: aggregateBoundaries(
         sessions,
         compactBoundaries,
@@ -351,7 +358,7 @@ export function bucketSessions(
     .map((session) => sessionInterval(session)?.fromMs)
     .filter((value): value is number => value !== undefined);
   if (starts.length === 0) {
-    return { title: "All Time", compact: [], full: [] as HistoryBucket[] };
+    return { title: t("All Time"), compact: [], full: [] as HistoryBucket[] };
   }
 
   const first = new Date(Math.min(...starts));
@@ -387,7 +394,7 @@ export function bucketSessions(
           rangeDescriptors(compactBoundaries),
           resolveIgdbId,
         );
-  return { title: "All Time", compact, full };
+  return { title: t("All Time"), compact, full };
 }
 
 export function dailyTotals(sessions: Session[], fromMs: number, toMs: number) {
@@ -504,7 +511,7 @@ export function topGames(
     const seconds = hidden.reduce((sum, game) => sum + game.seconds, 0);
     result.push({
       key: null,
-      name: "Other",
+      name: t("Other"),
       coverUrl: "",
       seconds,
       sessionCount: hidden.reduce((sum, game) => sum + game.sessionCount, 0),

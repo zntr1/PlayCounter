@@ -36,6 +36,9 @@ import {
 } from "../ContextMenu";
 import { ExeIcon } from "../ExeIcon";
 import { Button, Modal } from "../primitives";
+import { appLocale, getT } from "../../i18n";
+
+const t = getT("software");
 
 /* Software such as Discord, Spotify and launchers. Kept apart from games on
    purpose: no sessions, no Now Playing, no stats. Just how long each app ran,
@@ -146,12 +149,12 @@ export function SoftwareView() {
     return (
       <Panel className="flex flex-col items-start gap-3 px-5 py-5">
         <div className="text-sm text-text-muted">
-          Software tracking is off. Turn it on to count how long apps like
-          Discord, Spotify and launchers run. It never counts toward your game
-          stats.
+          {t(
+            "Software tracking is off. Turn it on to count how long apps like Discord, Spotify and launchers run. It never counts toward your game stats.",
+          )}
         </div>
         <Button variant="primary" onClick={() => setTrackTools(true)}>
-          Track software
+          {t("Track software")}
         </Button>
       </Panel>
     );
@@ -164,21 +167,22 @@ export function SoftwareView() {
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-text-muted">
-          Counted only while an app runs and your PC is awake. Never part of
-          your game stats.
+          {t(
+            "Counted only while an app runs and your PC is awake. Never part of your game stats.",
+          )}
         </p>
         {rows.length > 0 ? (
           <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
             {(
               [
-                ["grid", "Cards", LayoutGrid],
-                ["list", "List", List],
+                ["grid", t("Cards"), LayoutGrid],
+                ["list", t("List"), List],
               ] as const
             ).map(([value, label, Icon]) => (
               <button
                 key={value}
                 type="button"
-                aria-label={`${label} view`}
+                aria-label={t("{{label}} view", { label })}
                 aria-pressed={layout === value}
                 title={label}
                 onClick={() => setSoftwareLayout(value)}
@@ -197,9 +201,9 @@ export function SoftwareView() {
       </div>
       {rows.length === 0 ? (
         <Panel className="px-5 py-10 text-center text-sm text-text-muted">
-          No software yet. Discord, Spotify and launchers show up here once they
-          run. Other apps can be tracked from Discovered with “Track as
-          software”.
+          {t(
+            "No software yet. Discord, Spotify and launchers show up here once they run. Other apps can be tracked from Discovered with “Track as software”.",
+          )}
         </Panel>
       ) : layout === "grid" ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4">
@@ -252,7 +256,7 @@ export function SoftwareView() {
 /** "18 Sept", with the year only when it is not this year. */
 function formatDay(day: string) {
   const [year, month, date] = day.split("-").map(Number);
-  return new Date(year, month - 1, date).toLocaleDateString(undefined, {
+  return new Date(year, month - 1, date).toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
     ...(year === new Date().getFullYear() ? {} : { year: "numeric" }),
@@ -260,17 +264,17 @@ function formatDay(day: string) {
 }
 
 function lastUsedLabel(row: SoftwareRow, now = Date.now()) {
-  if (row.running) return "Running now";
+  if (row.running) return t("Running now");
   const day = row.details.lastDay;
   if (!day) return "–";
   const today = new Date(now);
-  if (day === localDayKey(now)) return "Today";
+  if (day === localDayKey(now)) return t("Today");
   const yesterday = new Date(
     today.getFullYear(),
     today.getMonth(),
     today.getDate() - 1,
   ).getTime();
-  if (day === localDayKey(yesterday)) return "Yesterday";
+  if (day === localDayKey(yesterday)) return t("Yesterday");
   return formatDay(day);
 }
 
@@ -293,22 +297,22 @@ function SoftwareDetailsDialog({
     note?: string;
     mono?: boolean;
   }> = [
-    { label: "Total", value: format(summary.totalSeconds), mono: true },
-    { label: "This week", value: format(summary.weekSeconds), mono: true },
-    { label: "Today", value: format(summary.todaySeconds), mono: true },
-    { label: "Days used", value: String(details.daysUsed), mono: true },
+    { label: t("Total"), value: format(summary.totalSeconds), mono: true },
+    { label: t("This week"), value: format(summary.weekSeconds), mono: true },
+    { label: t("Today"), value: format(summary.todaySeconds), mono: true },
+    { label: t("Days used"), value: String(details.daysUsed), mono: true },
     {
-      label: "First tracked",
+      label: t("First tracked"),
       value: details.firstDay ? formatDay(details.firstDay) : "–",
     },
-    { label: "Last used", value: lastUsedLabel(row) },
+    { label: t("Last used"), value: lastUsedLabel(row) },
     {
-      label: "Average day",
+      label: t("Average day"),
       value: format(details.averagePerDaySeconds),
       mono: true,
     },
     {
-      label: "Longest day",
+      label: t("Longest day"),
       value: details.longestDay ? format(details.longestDay.seconds) : "–",
       mono: true,
       note: details.longestDay ? formatDay(details.longestDay.day) : undefined,
@@ -317,7 +321,7 @@ function SoftwareDetailsDialog({
   return (
     <Modal
       labelId="software-details-title"
-      eyebrow="Software"
+      eyebrow={t("Software")}
       title={row.name}
       subtitle={row.exeNames.join(", ")}
       media={
@@ -340,7 +344,7 @@ function SoftwareDetailsDialog({
       footer={
         <div className="flex justify-end">
           <Button variant="secondary" onClick={onClose}>
-            Close
+            {t("Close")}
           </Button>
         </div>
       }
@@ -372,8 +376,9 @@ function SoftwareDetailsDialog({
         ))}
       </div>
       <p className="text-xs text-text-faint">
-        Counted only while the app runs and your PC is awake. Time from before
-        it was tracked counts toward the total only.
+        {t(
+          "Counted only while the app runs and your PC is awake. Time from before it was tracked counts toward the total only.",
+        )}
       </p>
     </Modal>
   );
@@ -435,10 +440,14 @@ function SoftwareCard({
       {...contextMenu.props}
       role="button"
       tabIndex={0}
-      aria-label={`${row.name}, details`}
+      aria-label={t("{{name}}, details", { name: row.name })}
       onClick={openOnClick(onOpen)}
       onKeyDown={openOnKey(onOpen)}
-      title={`${row.name} · this week ${format(row.summary.weekSeconds)}\n${row.exeNames.join(", ")}`}
+      title={t("{{name}} · this week {{format}}\n{{join}}", {
+        name: row.name,
+        format: format(row.summary.weekSeconds),
+        join: row.exeNames.join(", "),
+      })}
       className="group relative isolate flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
       <div className="relative aspect-[3/4] w-full shrink-0 overflow-hidden bg-surface-hover">
@@ -456,7 +465,7 @@ function SoftwareCard({
         {row.running ? (
           <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-bg/85 px-2 py-0.5 text-[11px] font-semibold text-success backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.7)]" />
-            Running
+            {t("Running")}
           </span>
         ) : null}
       </div>
@@ -469,14 +478,16 @@ function SoftwareCard({
         </div>
         {row.summary.todaySeconds >= 60 ? (
           <div className="truncate text-[11px] text-text-faint">
-            {format(row.summary.todaySeconds)} today
+            {t("{{format}} today", {
+              format: format(row.summary.todaySeconds),
+            })}
           </div>
         ) : null}
         {row.local ? (
           <div className="mt-0.5 truncate text-[11px] text-text-faint">
             {row.shareStatus === "pending"
-              ? "Shared, awaiting review"
-              : "Only on this PC"}
+              ? t("Shared, awaiting review")
+              : t("Only on this PC")}
           </div>
         ) : null}
       </div>
@@ -503,8 +514,8 @@ function SoftwareRowItem({
   const contextMenu = useContextMenu();
   const note = row.local
     ? row.shareStatus === "pending"
-      ? "Shared, awaiting review"
-      : "Only on this PC"
+      ? t("Shared, awaiting review")
+      : t("Only on this PC")
     : null;
 
   return (
@@ -512,7 +523,7 @@ function SoftwareRowItem({
       {...contextMenu.props}
       role="button"
       tabIndex={0}
-      aria-label={`${row.name}, details`}
+      aria-label={t("{{name}}, details", { name: row.name })}
       onClick={openOnClick(onOpen)}
       onKeyDown={openOnKey(onOpen)}
       className="flex cursor-pointer items-center gap-4 px-4 py-3 transition hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60"
@@ -546,15 +557,26 @@ function SoftwareRowItem({
             )}
           />
           <span className="truncate font-medium text-text">{row.name}</span>
-          {row.running ? <span className="sr-only">(running)</span> : null}
+          {row.running ? (
+            <span className="sr-only">{t("(running)")}</span>
+          ) : null}
         </div>
         {note ? (
           <div className="mt-0.5 pl-4 text-xs text-text-faint">{note}</div>
         ) : null}
       </div>
-      <SoftwareStat label="Today" value={format(row.summary.todaySeconds)} />
-      <SoftwareStat label="This week" value={format(row.summary.weekSeconds)} />
-      <SoftwareStat label="Total" value={format(row.summary.totalSeconds)} />
+      <SoftwareStat
+        label={t("Today")}
+        value={format(row.summary.todaySeconds)}
+      />
+      <SoftwareStat
+        label={t("This week")}
+        value={format(row.summary.weekSeconds)}
+      />
+      <SoftwareStat
+        label={t("Total")}
+        value={format(row.summary.totalSeconds)}
+      />
       <SoftwareMenu
         row={row}
         contextMenu={contextMenu}
@@ -583,13 +605,13 @@ function SoftwareMenu({
       }
       addToast({
         tone: "info",
-        title: `${row.name} ignored`,
-        detail: "PlayCounter no longer counts it. Its hours stay stored.",
+        title: t("{{name}} ignored", { name: row.name }),
+        detail: t("PlayCounter no longer counts it. Its hours stay stored."),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not ignore the app",
+        title: t("Could not ignore the app"),
         detail: error instanceof Error ? error.message : String(error),
       });
     }
@@ -608,7 +630,7 @@ function SoftwareMenu({
           onChangeArt();
         }}
       >
-        Change Art
+        {t("Change Art")}
       </ContextMenuItem>
       {row.localArt ? (
         <ContextMenuItem
@@ -618,7 +640,7 @@ function SoftwareMenu({
             setToolArt(row.exeNames, null);
           }}
         >
-          Use Default Art
+          {t("Use Default Art")}
         </ContextMenuItem>
       ) : null}
       <ContextMenuItem
@@ -628,7 +650,7 @@ function SoftwareMenu({
           void navigator.clipboard.writeText(row.exeNames.join(", "));
         }}
       >
-        Copy File Name
+        {t("Copy File Name")}
       </ContextMenuItem>
       <ContextMenuSeparator />
       {row.local ? (
@@ -639,19 +661,21 @@ function SoftwareMenu({
             unmarkLocalTool(row.toolKey);
             addToast({
               tone: "info",
-              title: `${row.name} is back in Discovered`,
+              title: t("{{name}} is back in Discovered", { name: row.name }),
               detail:
                 row.shareStatus === "pending"
-                  ? "Your shared suggestion is withdrawn. Add it as a game there, or ignore it."
-                  : "Add it as a game there, or ignore it.",
+                  ? t(
+                      "Your shared suggestion is withdrawn. Add it as a game there, or ignore it.",
+                    )
+                  : t("Add it as a game there, or ignore it."),
             });
           }}
         >
-          Not Software
+          {t("Not Software")}
         </ContextMenuItem>
       ) : null}
       <ContextMenuItem icon={EyeOff} onClick={() => void ignore()}>
-        Ignore This App
+        {t("Ignore This App")}
       </ContextMenuItem>
     </ContextMenu>
   );

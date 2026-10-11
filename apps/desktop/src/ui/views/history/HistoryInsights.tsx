@@ -22,6 +22,9 @@ import { RhythmHeatmap } from "../../charts/RhythmHeatmap";
 import { addDays } from "../../charts/chartUtils";
 import { Panel, formatDuration } from "../../components";
 import { SectionHeading, useSectionCollapse } from "../../CollapsibleSection";
+import { appLocale, weekdayNames, getT } from "../../../i18n";
+
+const t = getT("history");
 
 export type ResolvedGame = { name: string; coverUrl: string };
 
@@ -138,18 +141,10 @@ export function hasCachedHistoryInsights(sessions: Session[], nowMs: number) {
   return cached?.dayKey === localDayKey(nowMs) && cached.filters.has("all");
 }
 
-const weekdayNames = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
-
 function formatHour(hour: number) {
-  return new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: "numeric" });
+  return new Date(2000, 0, 1, hour).toLocaleTimeString(appLocale(), {
+    hour: "numeric",
+  });
 }
 
 function formatPercent(share: number) {
@@ -209,16 +204,21 @@ export const HistoryInsights = memo(function HistoryInsights({
   }, [calendar, nowMs]);
   const calendarCaption =
     firstSessionMs !== null && calendarWeeks < 52
-      ? `Since your first session · ${calendarWeeks} week${calendarWeeks === 1 ? "" : "s"}`
-      : "Last 52 weeks";
+      ? t("Since your first session · {{count}} weeks", {
+          count: calendarWeeks,
+        })
+      : t("Last 52 weeks");
 
   return (
     <div className="grid min-w-0 gap-6">
       <Panel dataTour="history-playtime-chart" className="min-w-0 p-5">
         <SectionHeading
           id="playtime-chart-heading"
-          title="Playtime over time"
-          caption={`${formatDuration(chartTotal, showDurationDays)} logged · ${chart.title}`}
+          title={t("Playtime over time")}
+          caption={t("{{duration}} logged · {{title}}", {
+            duration: formatDuration(chartTotal, showDurationDays),
+            title: chart.title,
+          })}
           collapsed={playtimeSection.collapsed}
           onToggle={playtimeSection.toggle}
           controls="playtime-chart-body"
@@ -226,12 +226,12 @@ export const HistoryInsights = memo(function HistoryInsights({
             !playtimeSection.collapsed && canDetail ? (
               <div
                 role="group"
-                aria-label="Chart detail"
+                aria-label={t("Chart detail")}
                 className="inline-flex overflow-hidden rounded-lg border border-border"
               >
                 {[
-                  { id: false, label: "Overview" },
-                  { id: true, label: "Detailed" },
+                  { id: false, label: t("Overview") },
+                  { id: true, label: t("Detailed") },
                 ].map((option) => (
                   <button
                     key={String(option.id)}
@@ -256,7 +256,7 @@ export const HistoryInsights = memo(function HistoryInsights({
           <div id="playtime-chart-body">
             {buckets.length === 0 ? (
               <div className="py-16 text-center text-sm text-text-muted">
-                No sessions in this range.
+                {t("No sessions in this range.")}
               </div>
             ) : (
               <figure
@@ -287,7 +287,7 @@ export const HistoryInsights = memo(function HistoryInsights({
         >
           <SectionHeading
             id="activity-heading"
-            title="Activity calendar"
+            title={t("Activity calendar")}
             caption={calendarCaption}
             collapsed={calendarSection.collapsed}
             onToggle={calendarSection.toggle}
@@ -297,7 +297,7 @@ export const HistoryInsights = memo(function HistoryInsights({
             <div id="activity-calendar-body">
               {sessions.length === 0 ? (
                 <div className="py-12 text-center text-sm text-text-muted">
-                  Playtime activity will appear here.
+                  {t("Playtime activity will appear here.")}
                 </div>
               ) : (
                 <CalendarHeatmap
@@ -318,7 +318,7 @@ export const HistoryInsights = memo(function HistoryInsights({
         >
           <SectionHeading
             id="habits-heading"
-            title="Play habits"
+            title={t("Play habits")}
             caption={chart.title}
             collapsed={habitsSection.collapsed}
             onToggle={habitsSection.toggle}
@@ -328,7 +328,7 @@ export const HistoryInsights = memo(function HistoryInsights({
             <div id="habits-body">
               {habits.gamesPlayed === 0 ? (
                 <div className="py-12 text-center text-sm text-text-muted">
-                  Your habits will appear here.
+                  {t("Your habits will appear here.")}
                 </div>
               ) : (
                 <HabitFacts
@@ -344,8 +344,8 @@ export const HistoryInsights = memo(function HistoryInsights({
       <Panel className="min-w-0 p-5">
         <SectionHeading
           id="rhythm-heading"
-          title="When you play"
-          caption={`Weekday × hour · ${chart.title}`}
+          title={t("When you play")}
+          caption={t("Weekday × hour · {{title}}", { title: chart.title })}
           collapsed={rhythmSection.collapsed}
           onToggle={rhythmSection.toggle}
           controls="rhythm-body"
@@ -354,7 +354,7 @@ export const HistoryInsights = memo(function HistoryInsights({
           <div id="rhythm-body">
             {sessions.length === 0 ? (
               <div className="py-12 text-center text-sm text-text-muted">
-                Your play rhythm will appear here.
+                {t("Your play rhythm will appear here.")}
               </div>
             ) : (
               <RhythmHeatmap
@@ -379,37 +379,43 @@ function HabitFacts({
   const facts: Array<{ label: string; value: string; detail: string }> = [];
   if (habits.favoriteWeekday) {
     facts.push({
-      label: "Favourite day",
-      value: weekdayNames[habits.favoriteWeekday.index],
-      detail: `${formatPercent(habits.favoriteWeekday.share)} of playtime`,
+      label: t("Favourite day"),
+      value: weekdayNames("long")[habits.favoriteWeekday.index],
+      detail: t("{{percent}} of playtime", {
+        percent: formatPercent(habits.favoriteWeekday.share),
+      }),
     });
   }
   if (habits.primeHours) {
     facts.push({
-      label: "Prime time",
+      label: t("Prime time"),
       value: `${formatHour(habits.primeHours.from)} – ${formatHour(habits.primeHours.to)}`,
-      detail: "your busiest two hours",
+      detail: t("your busiest two hours"),
     });
   }
   facts.push({
-    label: "Per active day",
+    label: t("Per active day"),
     value: formatDuration(habits.perActiveDaySeconds, showDurationDays),
-    detail: "on days you played",
+    detail: t("on days you played"),
   });
   facts.push({
-    label: "Weekend share",
+    label: t("Weekend share"),
     value: formatPercent(habits.weekendShare),
-    detail: `${formatPercent(1 - habits.weekendShare)} on weekdays`,
+    detail: t("{{percent}} on weekdays", {
+      percent: formatPercent(1 - habits.weekendShare),
+    }),
   });
   facts.push({
-    label: "Night owl",
+    label: t("Night owl"),
     value: formatPercent(habits.lateNightShare),
-    detail: "played between midnight and 5",
+    detail: t("played between midnight and 5"),
   });
   facts.push({
-    label: "Games played",
+    label: t("Games played"),
     value: String(habits.gamesPlayed),
-    detail: `${habits.gamesOverTenHours} with over 10h`,
+    detail: t("{{gamesOverTenHours}} with over 10h", {
+      gamesOverTenHours: habits.gamesOverTenHours,
+    }),
   });
 
   return (

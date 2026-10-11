@@ -8,6 +8,9 @@ import {
   findUnseenReleaseNotes,
   parseManifestNotes,
   sanitizeReleaseNotes,
+  sanitizeTranslatedNotes,
+  toDisplayNotes,
+  updateDisplayNotes,
   type ReleaseNote,
 } from "./releaseNotes";
 
@@ -75,6 +78,32 @@ describe("release note catalog", () => {
       history[1],
     ]);
   });
+
+  it("shows a release in the app's language, else in English", () => {
+    const [note] = sanitizeReleaseNotes([
+      {
+        version: "1.2.0",
+        headline: "English",
+        highlights: ["One"],
+        translations: {
+          de: { headline: "Deutsch\u0007", highlights: ["Eins"] },
+          fr: { headline: "Francais", highlights: ["Un"] },
+          en: { headline: "Not English", highlights: [] },
+        },
+      },
+    ]);
+
+    expect(Object.keys(note.translations ?? {})).toEqual(["de"]);
+    expect(toDisplayNotes(note, "de")).toEqual({
+      headline: "Deutsch",
+      highlights: ["Eins"],
+      paragraphs: [],
+    });
+    expect(toDisplayNotes(note, "en").headline).toBe("English");
+    expect(
+      toDisplayNotes({ ...note, translations: undefined }, "de").headline,
+    ).toBe("English");
+  });
 });
 
 describe("updater manifest notes", () => {
@@ -105,6 +134,24 @@ describe("updater manifest notes", () => {
       highlights: [],
       paragraphs: ["A paragraph"],
     });
+  });
+
+  it("uses the update's notes in the app's language, else English", () => {
+    const translatedNotes = sanitizeTranslatedNotes({
+      de: "Neu\n• Eins",
+      fr: "Nouveau\n• Un",
+      en: "Not English",
+    });
+
+    expect(translatedNotes).toEqual({ de: "Neu\n• Eins" });
+    expect(
+      updateDisplayNotes({ notes: "New\n• One", translatedNotes }, "de"),
+    ).toMatchObject({ headline: "Neu", highlights: ["Eins"] });
+    expect(updateDisplayNotes({ notes: "New\n• One" }, "de").headline).toBe(
+      "New",
+    );
+    expect(sanitizeTranslatedNotes("de")).toBeUndefined();
+    expect(sanitizeTranslatedNotes({ de: 42 })).toBeUndefined();
   });
 });
 

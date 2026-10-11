@@ -1,7 +1,7 @@
 import { Check, Lock } from "lucide-react";
 import { Panel } from "../../components";
 import { AchievementMedal } from "../../AchievementBadge";
-import { ACHIEVEMENT_TIERS } from "../../../achievementArt";
+import { ACHIEVEMENT_TIERS, tierLabel } from "../../../achievementArt";
 import { TOTAL_HOURS } from "../../../milestones";
 import { displayNotificationTitle } from "../../../notifications";
 import { AchievementProgressBar } from "./AchievementCard";
@@ -9,6 +9,9 @@ import {
   type AchievementCatalogItem,
   type AchievementSummaryData,
 } from "./achievementCatalog";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("achievements");
 
 /* One row above the tabs: how far along the milestones are, what unlocks
  * next, and what unlocked last. Everything else lives in the tabs below. */
@@ -29,14 +32,14 @@ export function AchievementHero({
       />
       <div className="relative grid gap-6 p-5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
         <ProgressRing summary={summary} />
-        <HeroColumn title="Next up" empty="Everything is unlocked.">
+        <HeroColumn title={t("Next up")} empty={t("Everything is unlocked.")}>
           {nextUp.map((item) => (
             <NextUpRow key={item.id} item={item} />
           ))}
         </HeroColumn>
         <HeroColumn
-          title="Latest"
-          empty="Play any tracked game to unlock your first trophy."
+          title={t("Latest")}
+          empty={t("Play any tracked game to unlock your first trophy.")}
         >
           {recent.map((item) => (
             <RecentRow key={item.id} item={item} />
@@ -68,7 +71,14 @@ function ProgressRing({ summary }: { summary: AchievementSummaryData }) {
       <div
         className="relative grid shrink-0 place-items-center"
         role="img"
-        aria-label={`${summary.fixedUnlocked} of ${summary.fixedTotal} milestones unlocked, ${summary.completionPct}% complete`}
+        aria-label={t(
+          "{{fixedUnlocked}} of {{fixedTotal}} milestones unlocked, {{completionPct}}% complete",
+          {
+            fixedUnlocked: summary.fixedUnlocked,
+            fixedTotal: summary.fixedTotal,
+            completionPct: summary.completionPct,
+          },
+        )}
       >
         <svg width={size} height={size} className="-rotate-90">
           <circle
@@ -100,7 +110,7 @@ function ProgressRing({ summary }: { summary: AchievementSummaryData }) {
       </div>
       <div className="min-w-0">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent-ink">
-          Milestones
+          {t("Milestones")}
         </p>
         <p className="mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight text-text">
           {summary.fixedUnlocked}
@@ -110,25 +120,29 @@ function ProgressRing({ summary }: { summary: AchievementSummaryData }) {
           </span>
         </p>
         <p className="mt-0.5 text-xs text-text-muted">
-          {summary.gameTrophies.toLocaleString()} game{" "}
-          {summary.gameTrophies === 1 ? "trophy" : "trophies"} on top
+          {t("{{count, number}} game trophies on top", {
+            count: summary.gameTrophies,
+          })}
         </p>
         {tiers.length > 0 ? (
           <ul
             className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5"
-            aria-label="Unlocked trophies by tier"
+            aria-label={t("Unlocked trophies by tier")}
           >
             {tiers.map((sample) => (
               <li
                 key={sample.tier}
                 className="flex items-center gap-1.5"
-                title={`${summary.byTier[sample.tier!]} ${sample.tier!.charAt(0).toUpperCase()}${sample.tier!.slice(1)}`}
+                title={t("{{count}} {{tier}}", {
+                  count: summary.byTier[sample.tier!],
+                  tier: tierLabel(sample.tier!),
+                })}
               >
                 <AchievementMedal
                   notification={{
                     id: sample.id,
                     kind: sample.kind,
-                    title: `${sample.tier} trophy`,
+                    title: t("{{tier}} trophy", { tier: sample.tier }),
                   }}
                   size="sm"
                 />
@@ -231,7 +245,9 @@ function RecentRow({ item }: { item: AchievementCatalogItem }) {
         </div>
         <time
           dateTime={item.milestone!.awardedAt}
-          title={new Date(item.milestone!.awardedAt).toLocaleString()}
+          title={new Date(item.milestone!.awardedAt).toLocaleString(
+            appLocale(),
+          )}
           className="mt-0.5 block text-[11px] text-text-faint"
         >
           {relativeTime(item.milestone!.awardedAt)}
@@ -243,7 +259,9 @@ function RecentRow({ item }: { item: AchievementCatalogItem }) {
 
 function relativeTime(iso: string) {
   const elapsedSeconds = Math.round((Date.parse(iso) - Date.now()) / 1000);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(appLocale(), {
+    numeric: "auto",
+  });
   if (Math.abs(elapsedSeconds) < 60)
     return formatter.format(elapsedSeconds, "second");
   const minutes = Math.round(elapsedSeconds / 60);

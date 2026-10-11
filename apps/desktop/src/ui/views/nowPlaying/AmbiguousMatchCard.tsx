@@ -37,6 +37,9 @@ import { notifyFolderIgnored } from "../folderIgnoredToast";
 import { ignoreAppAsSoftware, SoftwareDialog } from "../../SoftwareDialog";
 import { ReportWrongMatchDialog } from "../../ReportWrongMatchDialog";
 import { exeProductName, useExeDetails } from "../../exeDetails";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("nowPlaying");
 
 /* One executable PlayCounter would not match on its own ─────────────────────
    Header asks the question, body offers the database's candidates as cover
@@ -77,8 +80,11 @@ export function AmbiguousMatchCard({
       closeSuggestion();
       addToast({
         tone: "success",
-        title: "Already in IGDB",
-        detail: `${game.name} is a known IGDB match for ${exeName} and was applied directly.`,
+        title: t("Already in IGDB"),
+        detail: t(
+          "{{name}} is a known IGDB match for {{exeName}} and was applied directly.",
+          { name: game.name, exeName },
+        ),
       });
     },
     onRejected: (id, reviewNote, { selection }) => {
@@ -94,8 +100,8 @@ export function AmbiguousMatchCard({
       closeSuggestion();
       addToast({
         tone: "info",
-        title: "Suggestion already reviewed",
-        detail: reviewNote ?? "This suggestion was not accepted.",
+        title: t("Suggestion already reviewed"),
+        detail: reviewNote ?? t("This suggestion was not accepted."),
       });
     },
     onSuggested: (id, verified, { selection }) => {
@@ -110,8 +116,11 @@ export function AmbiguousMatchCard({
       closeSuggestion();
       addToast({
         tone: "success",
-        title: "Game added and shared",
-        detail: `${exeName} is now tracked as a custom game while approval is pending.`,
+        title: t("Game added and shared"),
+        detail: t(
+          "{{exeName}} is now tracked as a custom game while approval is pending.",
+          { exeName },
+        ),
       });
     },
   });
@@ -168,8 +177,11 @@ export function AmbiguousMatchCard({
     closeSuggestion();
     addToast({
       tone: "success",
-      title: "Match selected",
-      detail: `${exeName} in this folder will be tracked as ${game.name}.`,
+      title: t("Match selected"),
+      detail: t("{{exeName}} in this folder will be tracked as {{name}}.", {
+        exeName,
+        name: game.name,
+      }),
     });
   }
 
@@ -179,8 +191,8 @@ export function AmbiguousMatchCard({
     selectAmbiguousCustomGame(exeName, name);
     addToast({
       tone: "success",
-      title: "Custom game added",
-      detail: `${exeName} will be tracked as ${name}.`,
+      title: t("Custom game added"),
+      detail: t("{{exeName}} will be tracked as {{name}}.", { exeName, name }),
     });
   }
 
@@ -227,14 +239,18 @@ export function AmbiguousMatchCard({
             ) : null}
             {ended ? (
               <span
-                title="This time is not saved yet. Choosing a game assigns it."
+                title={t(
+                  "This time is not saved yet. Choosing a game assigns it.",
+                )}
                 className="rounded-md border border-warning-border bg-warning-tint px-2 py-0.5 font-medium tabular-nums text-warning"
               >
-                Closed · {formatClock(elapsedSeconds)} unsaved
+                {t("Closed · {{clock}} unsaved", {
+                  clock: formatClock(elapsedSeconds),
+                })}
               </span>
             ) : (
               <span className="text-text-faint">
-                Detected {formatAgo(elapsedSeconds)}
+                {t("Detected {{ago}}", { ago: formatAgo(elapsedSeconds) })}
               </span>
             )}
           </div>
@@ -247,10 +263,12 @@ export function AmbiguousMatchCard({
             className="shrink-0"
           >
             {candidatesExpanded
-              ? "Hide possible matches"
+              ? t("Hide possible matches")
               : orderedCandidates.length === 1
-                ? "Show 1 possible match"
-                : `Show ${orderedCandidates.length} possible matches`}
+                ? t("Show 1 possible match")
+                : t("Show {{count}} possible matches", {
+                    count: orderedCandidates.length,
+                  })}
           </Button>
         ) : null}
       </div>
@@ -260,16 +278,20 @@ export function AmbiguousMatchCard({
           <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <div className="text-xs font-semibold uppercase tracking-wider text-text-faint">
               {orderedCandidates.length === 1
-                ? "Did you launch this game?"
-                : "Did you launch one of these?"}
+                ? t("Did you launch this game?")
+                : t("Did you launch one of these?")}
             </div>
             {/* Above the tiles: with 30 of them the card's buttons are far
                 below. */}
             {hiddenCandidateCount > 0 ? (
               <div className="flex flex-wrap items-center gap-x-2 text-sm text-text-muted">
                 <span>
-                  First {games.length} of{" "}
-                  {(games.length + hiddenCandidateCount).toLocaleString()}
+                  {t("First {{count}} of {{count2}}", {
+                    count: games.length,
+                    count2: (
+                      games.length + hiddenCandidateCount
+                    ).toLocaleString(appLocale()),
+                  })}
                 </span>
                 {!isOffline ? (
                   <button
@@ -278,7 +300,7 @@ export function AmbiguousMatchCard({
                     className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                   >
                     <Search size={14} />
-                    Search for yours
+                    {t("Search for yours")}
                   </button>
                 ) : null}
               </div>
@@ -313,8 +335,8 @@ export function AmbiguousMatchCard({
             autoFocus={customEntryOpen}
             placeholder={
               isOffline
-                ? "Offline - track it under a name you type..."
-                : "Track it under a name you type..."
+                ? t("Offline - track it under a name you type...")
+                : t("Track it under a name you type...")
             }
             className="h-9 min-w-0 flex-1"
           />
@@ -324,14 +346,14 @@ export function AmbiguousMatchCard({
             disabled={!customName.trim()}
             className="h-9 shrink-0"
           >
-            Add
+            {t("Add")}
           </Button>
         </form>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-bg/40 px-5 py-3">
         <p className="text-xs text-text-faint">
-          Your choice is remembered on this PC.
+          {t("Your choice is remembered on this PC.")}
         </p>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {!isOffline ? (
@@ -340,22 +362,24 @@ export function AmbiguousMatchCard({
               icon={Search}
               title={
                 genericName
-                  ? "Search the database. The pick stays on this PC."
-                  : "Search the database and send the match in for review."
+                  ? t("Search the database. The pick stays on this PC.")
+                  : t("Search the database and send the match in for review.")
               }
               onClick={openSearch}
             >
-              Search database
+              {t("Search database")}
             </Button>
           ) : null}
           {!isOffline ? (
             <Button
               variant="secondary"
               icon={PenLine}
-              title="Track it under a name you type yourself. Stays on this PC only."
+              title={t(
+                "Track it under a name you type yourself. Stays on this PC only.",
+              )}
               onClick={() => setCustomEntryOpen((open) => !open)}
             >
-              Custom name
+              {t("Custom name")}
             </Button>
           ) : null}
           {/* The same choices as Report wrong match: an app (counted or
@@ -363,10 +387,13 @@ export function AmbiguousMatchCard({
           <Button
             variant={reportedNotAGame ? "primary" : "secondary"}
             icon={Ban}
-            title={`${exeName} is an app, part of a game, or you're not sure: choose what it is.`}
+            title={t(
+              "{{exeName}} is an app, part of a game, or you're not sure: choose what it is.",
+              { exeName },
+            )}
             onClick={() => setNotAGameOpen(true)}
           >
-            Not a game…
+            {t("Not a game…")}
           </Button>
         </div>
       </div>
@@ -388,7 +415,7 @@ export function AmbiguousMatchCard({
           }
           onIgnoreApp={() => {
             setNotAGameOpen(false);
-            void ignoreAppAsSoftware(exeName, exePath, !isOffline, addToast);
+            void ignoreAppAsSoftware(exeName, exePath, addToast);
           }}
           onNotAGame={() => {
             setNotAGameOpen(false);
@@ -472,15 +499,18 @@ export function CandidateTile({
       type="button"
       aria-label={
         isSoftware
-          ? `Track ${exeName} as the software ${game.name}`
-          : `Track ${exeName} as ${game.name}`
+          ? t("Track {{exeName}} as the software {{name}}", {
+              exeName,
+              name: game.name,
+            })
+          : t("Track {{exeName}} as {{name}}", { exeName, name: game.name })
       }
       title={
         isSoftware
-          ? `Count on the Software page as ${game.name}`
+          ? t("Count on the Software page as {{name}}", { name: game.name })
           : ended
-            ? `Save this time as ${game.name}`
-            : `Track as ${game.name}`
+            ? t("Save this time as {{name}}", { name: game.name })
+            : t("Track as {{name}}", { name: game.name })
       }
       onClick={() => {
         if (onSelect) return onSelect(game);
@@ -490,13 +520,16 @@ export function CandidateTile({
           isSoftware
             ? {
                 tone: "success",
-                title: `Tracking ${game.name} as software`,
-                detail: "It counts on the Software page now.",
+                title: t("Tracking {{name}} as software", { name: game.name }),
+                detail: t("It counts on the Software page now."),
               }
             : {
                 tone: "success",
-                title: "Match selected",
-                detail: `${exeName} will be tracked as ${game.name}.`,
+                title: t("Match selected"),
+                detail: t("{{exeName}} will be tracked as {{name}}.", {
+                  exeName,
+                  name: game.name,
+                }),
               },
         );
       }}
@@ -521,7 +554,7 @@ export function CandidateTile({
         <div className="absolute left-2 top-2">
           {isSoftware ? (
             <span className="rounded-md border border-border bg-surface/90 px-1.5 py-0.5 text-[11px] font-semibold text-text-muted">
-              Software
+              {t("Software")}
             </span>
           ) : (
             <SourceBadge source={game.source} variant="mark" />
@@ -555,35 +588,42 @@ export function notifyNegativeReportOutcome(
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
-      title: `Could not ignore ${exeName}`,
-      detail: "PlayCounter could not ignore it on this PC. Try again.",
+      title: t("Could not ignore {{exeName}}", { exeName }),
+      detail: t("PlayCounter could not ignore it on this PC. Try again."),
     });
     return;
   }
   if (!outcome.ignoreFileUpdated) {
     addToast({
       tone: "error",
-      title: `${exeName} ignored`,
-      detail:
+      title: t("{{exeName}} ignored", { exeName }),
+      detail: t(
         "It comes back when you restart PlayCounter - the ignore file could not be saved.",
+      ),
     });
     return;
   }
   if (outcome.report === "failed" || outcome.report === "skipped") {
     addToast({
       tone: "info",
-      title: "Fixed on this PC",
-      detail: "The community report could not be sent.",
+      title: t("Fixed on this PC"),
+      detail: t("The community report could not be sent."),
     });
     return;
   }
   addToast({
     tone: "success",
-    title: "Wrong match reported",
+    title: t("Wrong match reported"),
     detail:
       outcome.report === "already_reviewed"
-        ? `${exeName} is no longer tracked here. Your earlier report was already reviewed.`
-        : `${exeName} is no longer tracked here. Your report is queued for review.`,
+        ? t(
+            "{{exeName}} is no longer tracked here. Your earlier report was already reviewed.",
+            { exeName },
+          )
+        : t(
+            "{{exeName}} is no longer tracked here. Your report is queued for review.",
+            { exeName },
+          ),
   });
 }
 
@@ -599,16 +639,18 @@ export function notifyDismissOutcome(
   if (!outcome.localBlockApplied) {
     addToast({
       tone: "error",
-      title: `Could not ignore ${exeName}`,
-      detail: "PlayCounter could not ignore it on this PC. Try again.",
+      title: t("Could not ignore {{exeName}}", { exeName }),
+      detail: t("PlayCounter could not ignore it on this PC. Try again."),
     });
     return;
   }
   addToast({
     tone: outcome.ignoreFileUpdated ? "success" : "info",
-    title: `${exeName} ignored`,
+    title: t("{{exeName}} ignored", { exeName }),
     detail: outcome.ignoreFileUpdated
-      ? "Only on this PC. Nothing was reported."
-      : "It comes back when you restart PlayCounter - the ignore file could not be saved.",
+      ? t("Only on this PC. Nothing was reported.")
+      : t(
+          "It comes back when you restart PlayCounter - the ignore file could not be saved.",
+        ),
   });
 }

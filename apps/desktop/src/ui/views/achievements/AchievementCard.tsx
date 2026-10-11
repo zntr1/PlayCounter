@@ -7,6 +7,9 @@ import {
   type AchievementCatalogItem,
   type AchievementUnit,
 } from "./achievementCatalog";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("achievements");
 
 const TIER_BORDER: Record<AchievementCatalogItem["tier"], string> = {
   bronze: "border-[#b5713f]/60",
@@ -56,11 +59,11 @@ export function AchievementCard({ item }: { item: AchievementCatalogItem }) {
         <div className="flex min-w-0 flex-col items-end gap-1">
           {isNew ? (
             <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold tracking-wider text-accent-fg">
-              NEW
+              {t("NEW")}
             </span>
           ) : item.isNext && !unlocked ? (
             <span className="rounded-full border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] font-bold tracking-wider text-accent-ink">
-              NEXT
+              {t("NEXT")}
             </span>
           ) : null}
           <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-text-faint">
@@ -74,17 +77,19 @@ export function AchievementCard({ item }: { item: AchievementCatalogItem }) {
       {item.milestone ? (
         <time
           dateTime={item.milestone.awardedAt}
-          title={new Date(item.milestone.awardedAt).toLocaleString()}
+          title={new Date(item.milestone.awardedAt).toLocaleString(appLocale())}
           className="mt-3 flex items-center gap-1.5 text-xs font-medium text-text-muted"
         >
           <Check aria-hidden="true" size={13} className="text-success" />
-          Unlocked · {formatAwardDate(item.milestone.awardedAt)}
+          {t("Unlocked · {{awardDate}}", {
+            awardDate: formatAwardDate(item.milestone.awardedAt),
+          })}
         </time>
       ) : (
         <div className="mt-3">
           <div className="mb-2 flex items-center gap-1.5 text-xs text-text-faint">
             <Lock aria-hidden="true" size={12} />
-            Locked
+            {t("Locked")}
           </div>
           <AchievementProgressBar
             currentValue={item.currentValue}
@@ -118,7 +123,7 @@ export function AchievementProgressBar({
     <div>
       {!compact ? (
         <div className="mb-1.5 flex items-center justify-between gap-3 text-[11px] text-text-muted">
-          <span className="font-medium">Progress</span>
+          <span className="font-medium">{t("Progress")}</span>
           <span className="shrink-0 font-mono tabular-nums">{valueText}</span>
         </div>
       ) : null}
@@ -128,7 +133,7 @@ export function AchievementProgressBar({
           compact ? "h-1.5" : "h-2",
         )}
         role="progressbar"
-        aria-label={`Progress toward ${label}`}
+        aria-label={t("Progress toward {{label}}", { label })}
         aria-valuemin={0}
         aria-valuemax={threshold}
         aria-valuenow={Math.min(current, threshold)}
@@ -144,7 +149,7 @@ export function AchievementProgressBar({
 }
 
 function formatAwardDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], {
+  return new Date(iso).toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
     year: "numeric",

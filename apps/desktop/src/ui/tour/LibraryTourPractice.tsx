@@ -34,6 +34,9 @@ import {
   type LibraryTourState,
 } from "./libraryTourStore";
 import type { StoreApi } from "zustand";
+import { getT } from "../../i18n";
+
+const t = getT("tour");
 
 type ExerciseProgress = {
   favorites: number;
@@ -222,7 +225,7 @@ function PracticeLibrary({
         ["active-run", "move-session", "finish-run"].includes(stepId) &&
         !journal.playthroughs.length
       ) {
-        store.getState().createPlaythrough(LIBRARY_TOUR_GAME, "Speedrun");
+        store.getState().createPlaythrough(LIBRARY_TOUR_GAME, t("Speedrun"));
         journal = getGameJournal(store.getState(), LIBRARY_TOUR_GAME);
       }
       store.getState().openGameJournal({
@@ -240,7 +243,7 @@ function PracticeLibrary({
       if (["fill-shelf", "filters", "save-filters"].includes(stepId)) {
         let shelf = store.getState().personalShelves[0];
         if (!shelf) {
-          store.getState().savePersonalShelf({ name: "Online Games" });
+          store.getState().savePersonalShelf({ name: t("Online Games") });
           shelf = store.getState().personalShelves[0];
         }
         if (stepId !== "fill-shelf") {
@@ -282,7 +285,7 @@ function PracticeLibrary({
           status: journal.status ?? "playing",
           note:
             journal.note ||
-            "Finish the Westfall quests, then head to Stormwind.",
+            t("Finish the Westfall quests, then head to Stormwind."),
         });
       }
     }
@@ -370,10 +373,11 @@ function PracticeLibrary({
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="font-semibold text-text">Practice library</h2>
+            <h2 className="font-semibold text-text">{t("Practice library")}</h2>
             <p className="text-xs text-text-muted">
-              Sample games · everything you change here disappears when the
-              guide ends
+              {t(
+                "Sample games · everything you change here disappears when the guide ends",
+              )}
             </p>
           </div>
           {tourId === "library-progress" ? (
@@ -383,7 +387,7 @@ function PracticeLibrary({
               icon={SlidersHorizontal}
               onClick={() => setCustomize(!customize)}
             >
-              Customize
+              {t("Customize")}
             </Button>
           ) : null}
         </div>
@@ -393,14 +397,15 @@ function PracticeLibrary({
             className="grid gap-4 rounded-lg border border-border p-4"
           >
             <p className="text-sm text-text-muted">
-              Preview the active playthrough's note. These switches only change
-              this sample.
+              {t(
+                "Preview the active playthrough's note. These switches only change this sample.",
+              )}
             </p>
             <div className="flex flex-wrap gap-4 text-sm">
               {[
-                ["Playthrough names in popups", popupNames, setPopupNames],
-                ["Notes in game-start popups", popupNotes, setPopupNotes],
-                ["Update note in popups", popupUpdate, setPopupUpdate],
+                [t("Playthrough names in popups"), popupNames, setPopupNames],
+                [t("Notes in game-start popups"), popupNotes, setPopupNotes],
+                [t("Update note in popups"), popupUpdate, setPopupUpdate],
               ].map(([label, checked, change]) => (
                 <label
                   key={String(label)}
@@ -421,13 +426,13 @@ function PracticeLibrary({
                 aria-pressed={popupKind === "session-start"}
                 onClick={() => setPopupKind("session-start")}
               >
-                Game started
+                {t("Game started")}
               </Button>
               <Button
                 aria-pressed={popupKind === "session-summary"}
                 onClick={() => setPopupKind("session-summary")}
               >
-                Session saved
+                {t("Session saved")}
               </Button>
             </div>
             <DesktopNotificationOverlay
@@ -439,12 +444,12 @@ function PracticeLibrary({
                 priority: 1,
                 kicker:
                   popupKind === "session-start"
-                    ? "Now playing"
-                    : "Session saved",
+                    ? t("Now playing")
+                    : t("Session saved"),
                 title: LIBRARY_TOUR_GAME.name,
                 body: [
                   popupNames
-                    ? (activePlaythrough?.name ?? "Default playthrough")
+                    ? (activePlaythrough?.name ?? t("Default playthrough"))
                     : "",
                   popupNotes && popupKind === "session-start"
                     ? (activePlaythrough?.note ?? sampleJournal.note)
@@ -458,7 +463,7 @@ function PracticeLibrary({
                   popupUpdate && popupKind === "session-summary"
                     ? "open-game-note:-1"
                     : undefined,
-                actionLabel: "Update note",
+                actionLabel: t("Update note"),
                 theme: settings.theme === "light" ? "light" : "dark",
                 accentColor: null,
                 reducedMotion: true,
@@ -535,7 +540,7 @@ function PracticeLibrary({
                 aria-pressed={selection.active}
                 onClick={selection.toggleMode}
               >
-                Select
+                {t("Select")}
               </Button>
             }
           />
@@ -591,9 +596,9 @@ function PracticeLibrary({
         </div>
         {!visible.length ? (
           <div className="py-4 text-center text-sm text-text-muted">
-            <p>No sample games match this view.</p>
+            <p>{t("No sample games match this view.")}</p>
             <Button className="mt-2" onClick={clearFilters}>
-              Show all sample games
+              {t("Show all sample games")}
             </Button>
           </div>
         ) : null}

@@ -3,6 +3,9 @@ import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { useLibraryPractice } from "./PersonalLibraryContext";
 import { Switch } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 /* Building blocks for the Customize popover in My Games, shared with the
    practice library in the tour. Every option stays a real checkbox with a
@@ -138,8 +141,8 @@ export function LibraryLayoutControls({
     <>
       <OptionRow
         id={fieldId("show-shelves")}
-        label="Shelves"
-        help="The All games, Favorites and shelf row above the library."
+        label={t("Shelves")}
+        help={t("The All games, Favorites and shelf row above the library.")}
         checked={showShelves}
         dataTour={practice ? "demo-show-shelves" : undefined}
         onChange={setMyGamesShowShelves}
@@ -152,15 +155,17 @@ export function LibraryLayoutControls({
                 htmlFor={fieldId("grid-columns")}
                 className="text-[13px] font-medium text-text"
               >
-                Cards per row
+                {t("Cards per row")}
               </label>
               <p
                 id={fieldId("grid-columns-help")}
                 className="text-xs leading-4 text-text-faint"
               >
                 {gridLayout.columns < gridLayout.sliderValue
-                  ? `Showing ${gridLayout.columns} per row to fit this window.`
-                  : "Kept until you pick Standard or Large cards again."}
+                  ? t("Showing {{columns}} per row to fit this window.", {
+                      columns: gridLayout.columns,
+                    })
+                  : t("Kept until you pick Standard or Large cards again.")}
               </p>
             </div>
             <output
@@ -179,7 +184,9 @@ export function LibraryLayoutControls({
             step={1}
             value={gridLayout.sliderValue}
             aria-describedby={fieldId("grid-columns-help")}
-            aria-valuetext={`${gridLayout.sliderValue} cards per row`}
+            aria-valuetext={t("{{sliderValue}} cards per row", {
+              sliderValue: gridLayout.sliderValue,
+            })}
             onChange={(event) =>
               setMyGamesGridColumns(event.currentTarget.valueAsNumber)
             }
@@ -214,38 +221,40 @@ export function LibraryCardControls({
     <>
       <OptionRow
         id={fieldId("show-origin")}
-        label="Source badges"
-        help="The Steam, Xbox, emulator or PlayCounter mark beside the name."
+        label={t("Source badges")}
+        help={t(
+          "The Steam, Xbox, emulator or PlayCounter mark beside the name.",
+        )}
         checked={showOrigin}
         onChange={setMyGamesShowOriginBadges}
       />
       <OptionRow
         id={fieldId("show-match")}
-        label="File match info"
-        help="The IGDB, Community or Custom seal in the cover corner."
+        label={t("File match info")}
+        help={t("The IGDB, Community or Custom seal in the cover corner.")}
         checked={showMatch}
         onChange={setMyGamesShowMatchBadges}
       />
       <OptionRow
         id={fieldId("show-status")}
-        label="Status on cards"
-        help="In progress, Finished and other statuses on the cover."
+        label={t("Status on cards")}
+        help={t("In progress, Finished and other statuses on the cover.")}
         checked={showStatus}
         dataTour={practice ? "demo-show-status" : undefined}
         onChange={setMyGamesShowStatusBadges}
       />
       <OptionRow
         id={fieldId("show-notes")}
-        label="Notes on cards"
-        help="A note icon on every game that has a note."
+        label={t("Notes on cards")}
+        help={t("A note icon on every game that has a note.")}
         checked={showNotes}
         dataTour={practice ? "demo-show-notes" : undefined}
         onChange={setMyGamesShowNoteBadges}
       />
       <OptionRow
         id={fieldId("show-tracking-warnings")}
-        label="Tracking warnings"
-        help="The warning sign on games with no known .exe yet."
+        label={t("Tracking warnings")}
+        help={t("The warning sign on games with no known .exe yet.")}
         checked={showTrackingWarnings}
         onChange={setMyGamesShowTrackingWarnings}
       />

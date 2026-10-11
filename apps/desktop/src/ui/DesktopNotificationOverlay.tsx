@@ -112,11 +112,14 @@ export function DesktopNotificationOverlay({
         <div className="flex shrink-0 flex-col items-end gap-2 self-center pl-2">
           {sessionSummary && message.metric ? (
             <div className="desktop-overlay-session-duration">
-              <span>SESSION TIME</span>
+              {/* i18n-exempt: fallback when the main window sends no label. */}
+              <span>{message.sessionTimeLabel ?? "SESSION TIME"}</span>
               <strong>{message.metric}</strong>
             </div>
           ) : null}
-          {message.showClock ? <OverlayClock /> : null}
+          {message.showClock ? (
+            <OverlayClock locale={message.locale ?? undefined} />
+          ) : null}
           {message.action && message.actionLabel ? (
             <button
               type="button"
@@ -132,7 +135,8 @@ export function DesktopNotificationOverlay({
             <span className="desktop-overlay-metric">{message.metric}</span>
           ) : message.status === "live" ? (
             <span className="desktop-overlay-live">
-              <i /> LIVE
+              {/* i18n-exempt: fallback when the main window sends no label. */}
+              <i /> {message.liveLabel ?? "LIVE"}
             </span>
           ) : message.showClock ? null : (
             <span className="desktop-overlay-mark" aria-hidden="true">
@@ -145,20 +149,24 @@ export function DesktopNotificationOverlay({
   );
 }
 
-function formatClock(date: Date) {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function formatClock(date: Date, locale: string | undefined) {
+  return date.toLocaleTimeString(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function OverlayClock() {
-  const [time, setTime] = useState(() => formatClock(new Date()));
+// The overlay window has no i18n of its own: the locale comes with the message.
+function OverlayClock({ locale }: { locale: string | undefined }) {
+  const [time, setTime] = useState(() => formatClock(new Date(), locale));
 
   useEffect(() => {
     const handle = window.setInterval(
-      () => setTime(formatClock(new Date())),
+      () => setTime(formatClock(new Date(), locale)),
       1_000,
     );
     return () => window.clearInterval(handle);
-  }, []);
+  }, [locale]);
 
   return <time className="desktop-overlay-clock">{time}</time>;
 }

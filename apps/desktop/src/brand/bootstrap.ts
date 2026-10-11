@@ -1,3 +1,27 @@
+import {
+  resolveLanguage,
+  systemLocales,
+  type AppLanguage,
+} from "../appLanguages";
+import deBoot from "../locales/de/boot.json";
+import enBoot from "../locales/en/boot.json";
+import ptBRBoot from "../locales/pt-BR/boot.json";
+import zhCNBoot from "../locales/zh-CN/boot.json";
+import esBoot from "../locales/es/boot.json";
+
+// The startup screen shows before the app and its language files load, so it
+// carries its own few texts. Set them before the window is revealed.
+const BOOT_TEXTS: Record<AppLanguage, Record<keyof typeof enBoot, string>> = {
+  en: enBoot,
+  de: deBoot,
+  "pt-BR": ptBRBoot,
+  "zh-CN": zhCNBoot,
+  es: esBoot,
+};
+const bootLanguage = resolveLanguage(savedLanguageSetting(), systemLocales());
+const bootTexts = BOOT_TEXTS[bootLanguage];
+showBootTexts();
+
 // Wire the splash controls independently of React, including failed startups.
 const windowControlsReady = setupBootWindowControls();
 
@@ -9,7 +33,8 @@ void import("../main").catch((error: unknown) => {
   document.documentElement.setAttribute("data-pc-boot-failed", "true");
   const label = document.querySelector<HTMLElement>(".pc-boot-status");
   if (label)
-    label.textContent = "PlayCounter couldn't start. Please try again.";
+    label.textContent =
+      bootTexts["PlayCounter couldn't start. Please try again."];
   const retry = document.querySelector<HTMLButtonElement>("#pc-boot-retry");
   if (retry) {
     retry.hidden = false;
@@ -18,6 +43,36 @@ void import("../main").catch((error: unknown) => {
     });
   }
 });
+
+function savedLanguageSetting() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("playcounter:v1") || "null",
+    ) as { settings?: { language?: unknown } } | null;
+    const language = saved?.settings?.language;
+    return typeof language === "string" ? language : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function showBootTexts() {
+  // Also picks the right font, e.g. for Chinese.
+  document.documentElement.lang = bootLanguage;
+  const status = document.querySelector<HTMLElement>(".pc-boot-status");
+  if (status) status.textContent = bootTexts["Loading your games.."];
+  const retry = document.getElementById("pc-boot-retry");
+  if (retry) retry.textContent = bootTexts["Try again"];
+  document
+    .getElementById("pc-boot-window-controls")
+    ?.setAttribute("aria-label", bootTexts["Window controls"]);
+  const minimize = document.getElementById("pc-boot-minimize");
+  minimize?.setAttribute("aria-label", bootTexts["Minimize window"]);
+  minimize?.setAttribute("title", bootTexts["Minimize"]);
+  const close = document.getElementById("pc-boot-close");
+  close?.setAttribute("aria-label", bootTexts["Close to tray"]);
+  close?.setAttribute("title", bootTexts["Close to tray"]);
+}
 
 async function setupBootWindowControls() {
   const controls = document.getElementById("pc-boot-window-controls");

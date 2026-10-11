@@ -4,10 +4,13 @@ import { Check, Image as ImageIcon, Loader2, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { artForGame, downloadArtImage, searchArt } from "../gameArt";
 import { pickedCover, pickedCoverKey } from "../pickedCovers";
-import { RATE_LIMIT_MESSAGE, RateLimitError } from "../rateLimitedFetch";
+import { rateLimitMessage, RateLimitError } from "../rateLimitedFetch";
 import { customHeroArtKey, useAppStore } from "../store";
 import { setCustomGameCover } from "../tracker";
 import { Button, Input, Modal } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("dialogs");
 
 /* Pick a cover or a banner from SteamGridDB. Search runs against the API,
    which holds the key; results show as thumbnails, one click applies.
@@ -133,8 +136,10 @@ export function ArtPickerDialog({
         setCustomHeroArt(heroKey, asset.url);
         addToast({
           tone: "success",
-          title: "Banner set",
-          detail: `${game.name} now uses the picked banner.`,
+          title: t("Banner set"),
+          detail: t("{{name}} now uses the picked banner.", {
+            name: game.name,
+          }),
         });
       } else {
         if (game.canEditCover) {
@@ -148,8 +153,8 @@ export function ArtPickerDialog({
         }
         addToast({
           tone: "success",
-          title: "Cover set",
-          detail: `${game.name} now uses the picked cover.`,
+          title: t("Cover set"),
+          detail: t("{{name}} now uses the picked cover.", { name: game.name }),
         });
       }
       onClose();
@@ -170,14 +175,17 @@ export function ArtPickerDialog({
       labelId="art-picker-title"
       icon={ImageIcon}
       eyebrow="SteamGridDB"
-      title="Choose artwork"
-      subtitle={`Banner and cover art for ${game.name}. Search any name, including tools like Discord or Spotify.`}
+      title={t("Choose artwork")}
+      subtitle={t(
+        "Banner and cover art for {{name}}. Search any name, including tools like Discord or Spotify.",
+        { name: game.name },
+      )}
       onClose={onClose}
       bodyClassName="grid gap-4"
       footer={
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-text-faint">
-            Art by the SteamGridDB community.
+            {t("Art by the SteamGridDB community.")}
           </span>
           <div className="flex items-center gap-2">
             {tab === "banner" && currentHero ? (
@@ -188,13 +196,15 @@ export function ArtPickerDialog({
                   setCustomHeroArt(heroKey, null);
                   addToast({
                     tone: "info",
-                    title: "Banner reset",
-                    detail: `${game.name} is back to its automatic banner.`,
+                    title: t("Banner reset"),
+                    detail: t("{{name}} is back to its automatic banner.", {
+                      name: game.name,
+                    }),
                   });
                   onClose();
                 }}
               >
-                Restore Banner
+                {t("Restore Banner")}
               </Button>
             ) : null}
             {tab === "cover" && currentCover ? (
@@ -208,17 +218,19 @@ export function ArtPickerDialog({
                   );
                   addToast({
                     tone: "info",
-                    title: "Cover reset",
-                    detail: `${game.name} is back to its automatic cover.`,
+                    title: t("Cover reset"),
+                    detail: t("{{name}} is back to its automatic cover.", {
+                      name: game.name,
+                    }),
                   });
                   onClose();
                 }}
               >
-                Restore Cover
+                {t("Restore Cover")}
               </Button>
             ) : null}
             <Button variant="secondary" onClick={onClose}>
-              Close
+              {t("Close")}
             </Button>
           </div>
         </div>
@@ -239,8 +251,8 @@ export function ArtPickerDialog({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search SteamGridDB…"
-            aria-label="Search SteamGridDB"
+            placeholder={t("Search SteamGridDB…")}
+            aria-label={t("Search SteamGridDB")}
             className="w-full pl-9"
             data-autofocus
           />
@@ -251,19 +263,19 @@ export function ArtPickerDialog({
           loading={searching}
           disabled={query.trim().length < 2}
         >
-          Search
+          {t("Search")}
         </Button>
       </form>
 
       <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
         <div className="min-h-0">
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-faint">
-            Matches
+            {t("Matches")}
           </div>
           <div className="max-h-[360px] overflow-y-auto rounded-lg border border-border">
             {results.length === 0 ? (
               <div className="px-3 py-6 text-center text-sm text-text-muted">
-                {searching ? "Searching…" : "No matches yet."}
+                {searching ? t("Searching…") : t("No matches yet.")}
               </div>
             ) : (
               results.map((result) => (
@@ -306,24 +318,26 @@ export function ArtPickerDialog({
                     : "text-text-muted hover:bg-surface-hover hover:text-text",
                 )}
               >
-                {option === "banner" ? "Banner" : "Cover"}
+                {option === "banner" ? t("Banner") : t("Cover")}
               </button>
             ))}
             <span className="ml-auto text-xs text-text-faint">
-              {list ? `${list.length} available` : ""}
+              {list ? t("{{count}} available", { count: list.length }) : ""}
             </span>
           </div>
           <div className="max-h-[360px] overflow-y-auto rounded-lg border border-border p-2">
             {loadingAssets ? (
               <div className="flex items-center justify-center gap-2 py-10 text-sm text-text-muted">
                 <Loader2 size={16} className="animate-spin" />
-                Loading art…
+                {t("Loading art…")}
               </div>
             ) : !list || list.length === 0 ? (
               <div className="py-10 text-center text-sm text-text-muted">
                 {selectedGame
-                  ? `No ${tab === "banner" ? "banners" : "covers"} for this entry.`
-                  : "Pick a match on the left."}
+                  ? tab === "banner"
+                    ? t("No banners for this entry.")
+                    : t("No covers for this entry.")
+                  : t("Pick a match on the left.")}
               </div>
             ) : (
               <div
@@ -341,7 +355,11 @@ export function ArtPickerDialog({
                       key={asset.id}
                       type="button"
                       disabled={applying !== null}
-                      aria-label={`Use this ${tab}`}
+                      aria-label={
+                        tab === "banner"
+                          ? t("Use this banner")
+                          : t("Use this cover")
+                      }
                       onClick={() => void apply(asset)}
                       className={clsx(
                         "group relative overflow-hidden rounded-lg border bg-surface-hover transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
@@ -391,6 +409,6 @@ export function ArtPickerDialog({
 }
 
 function describe(error: unknown) {
-  if (error instanceof RateLimitError) return RATE_LIMIT_MESSAGE;
+  if (error instanceof RateLimitError) return rateLimitMessage();
   return error instanceof Error ? error.message : String(error);
 }

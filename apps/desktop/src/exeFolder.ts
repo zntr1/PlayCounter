@@ -13,25 +13,36 @@ export type FolderSegment = {
 
 export type ExeFolder = {
   segments: FolderSegment[];
-  /** Where it sits, phrased for "Probably a game: it's in …". */
-  gameLocation: string | null;
+  /** The known game location it sits in; Discovered words it. */
+  gameLocation: GameLocation | null;
 };
 
+export type GameLocation =
+  | "steam"
+  | "epic"
+  | "xbox"
+  | "gog"
+  | "ubisoft"
+  | "ea"
+  | "amazon"
+  | "itch"
+  | "games";
+
 // Most specific first; a plain "Games" folder is the weakest evidence.
-const GAME_LOCATIONS: ReadonlyArray<{ path: string[]; label: string }> = [
-  { path: ["steamapps", "common"], label: "a Steam library" },
-  { path: ["epic games"], label: "the Epic Games folder" },
-  { path: ["xboxgames"], label: "the Xbox games folder" },
-  { path: ["gog galaxy", "games"], label: "a GOG games folder" },
-  { path: ["gog games"], label: "a GOG games folder" },
-  {
-    path: ["ubisoft game launcher", "games"],
-    label: "the Ubisoft games folder",
-  },
-  { path: ["ea games"], label: "the EA games folder" },
-  { path: ["amazon games", "library"], label: "the Amazon Games library" },
-  { path: ["itch", "apps"], label: "the itch.io library" },
-  { path: ["games"], label: "a folder called Games" },
+const GAME_LOCATIONS: ReadonlyArray<{
+  path: string[];
+  location: GameLocation;
+}> = [
+  { path: ["steamapps", "common"], location: "steam" },
+  { path: ["epic games"], location: "epic" },
+  { path: ["xboxgames"], location: "xbox" },
+  { path: ["gog galaxy", "games"], location: "gog" },
+  { path: ["gog games"], location: "gog" },
+  { path: ["ubisoft game launcher", "games"], location: "ubisoft" },
+  { path: ["ea games"], location: "ea" },
+  { path: ["amazon games", "library"], location: "amazon" },
+  { path: ["itch", "apps"], location: "itch" },
+  { path: ["games"], location: "games" },
 ];
 
 export function describeExeFolder(exePath: string): ExeFolder {
@@ -45,7 +56,7 @@ export function describeExeFolder(exePath: string): ExeFolder {
     if (start < 0 || start + location.path.length >= folders.length) continue;
     const end = start + location.path.length;
     return {
-      gameLocation: location.label,
+      gameLocation: location.location,
       segments: folders.map((text, index) => ({
         text,
         marker: index >= start && index < end,

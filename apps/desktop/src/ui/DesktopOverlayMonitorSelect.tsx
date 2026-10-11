@@ -6,6 +6,9 @@ import {
 } from "../desktopOverlayBridge";
 import { useAppStore } from "../store";
 import { Button, Select } from "./primitives";
+import { getT } from "../i18n";
+
+const t = getT("settings");
 
 export function DesktopOverlayMonitorSelect() {
   const selected = useAppStore(
@@ -53,42 +56,47 @@ export function DesktopOverlayMonitorSelect() {
     <div className="grid max-w-[18rem] gap-2">
       <div className="flex items-center gap-2">
         <Select
-          aria-label="Popup monitor"
+          aria-label={t("Popup monitor")}
           value={selected}
           disabled={!enabled}
           onChange={(event) => setMonitor(event.target.value)}
           containerClassName="flex-1"
         >
-          <option value="primary">Primary monitor (default)</option>
-          {monitors.map((monitor) => (
+          <option value="primary">{t("Primary monitor (default)")}</option>
+          {monitors.map((monitor, index) => (
             <option key={monitor.id} value={monitor.id}>
-              {monitor.name.replace(/^\\\\\.\\/, "")} · {monitor.width} ×{" "}
-              {monitor.height}
-              {monitor.primary ? " (primary)" : ""}
+              {monitor.name
+                ? monitor.name.replace(/^\\\\\.\\/, "")
+                : t("Display {{number}}", { number: index + 1 })}{" "}
+              · {monitor.width} × {monitor.height}
+              {monitor.primary ? ` ${t("(primary)")}` : ""}
             </option>
           ))}
           {unavailable ? (
             <option value={selected}>
-              Saved monitor{loading || error ? "" : " (disconnected)"}
+              {loading || error
+                ? t("Saved monitor")
+                : t("Saved monitor (disconnected)")}
             </option>
           ) : null}
         </Select>
         <Button
           icon={RotateCcw}
           loading={loading}
-          aria-label="Refresh monitors"
-          title="Refresh monitors"
+          aria-label={t("Refresh monitors")}
+          title={t("Refresh monitors")}
           onClick={() => setRefresh((value) => value + 1)}
         />
       </div>
       {error ? (
         <p role="status" className="text-xs text-text-muted">
-          Could not load displays. Try refreshing the list.
+          {t("Could not load displays. Try refreshing the list.")}
         </p>
       ) : unavailable && !loading ? (
         <p role="status" className="text-xs text-text-muted">
-          Saved monitor is disconnected. Popups will use the primary monitor
-          until it returns.
+          {t(
+            "Saved monitor is disconnected. Popups will use the primary monitor until it returns.",
+          )}
         </p>
       ) : null}
     </div>

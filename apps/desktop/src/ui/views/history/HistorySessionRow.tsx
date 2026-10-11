@@ -36,6 +36,9 @@ import {
   IconButton,
   useContextMenu,
 } from "../../primitives";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("history");
 
 const holdDurationMs = 750;
 const holdRadius = 20;
@@ -49,24 +52,24 @@ export type HistoryRowMetadata = {
 };
 
 function formatSessionDate(startedAt: string) {
-  return new Date(startedAt).toLocaleDateString();
+  return new Date(startedAt).toLocaleDateString(appLocale());
 }
 
 function formatTimeRange(startedAt: string, endedAt: string | null) {
   const start = new Date(startedAt);
-  const startTime = start.toLocaleTimeString([], {
+  const startTime = start.toLocaleTimeString(appLocale(), {
     hour: "2-digit",
     minute: "2-digit",
   });
   if (!endedAt) return startTime;
   const end = new Date(endedAt);
-  const endTime = end.toLocaleTimeString([], {
+  const endTime = end.toLocaleTimeString(appLocale(), {
     hour: "2-digit",
     minute: "2-digit",
   });
   return start.toDateString() === end.toDateString()
     ? `${startTime} – ${endTime}`
-    : `${startTime} – ${endTime} next day`;
+    : t("{{startTime}} – {{endTime}} next day", { startTime, endTime });
 }
 
 /* One session in the journal. The day column next to it carries the date, so
@@ -249,7 +252,10 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       tabIndex={0}
       data-history-session-row
       data-history-session-id={session.id}
-      aria-label={`${gameName}, session on ${formatSessionDate(session.startedAt)}`}
+      aria-label={t("{{gameName}}, session on {{sessionDate}}", {
+        gameName,
+        sessionDate: formatSessionDate(session.startedAt),
+      })}
       onContextMenu={(event) => {
         cancelFilterHold();
         contextMenu.props.onContextMenu(event);
@@ -353,21 +359,23 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           <SessionPlaythroughPicker session={session} compact />
           {marker?.longest ? (
             <MarkerTag tone="record" icon={Trophy}>
-              Longest session
+              {t("Longest session")}
             </MarkerTag>
           ) : marker?.gameRecord ? (
             <MarkerTag tone="record" icon={Trophy}>
-              Personal best
+              {t("Personal best")}
             </MarkerTag>
           ) : null}
           {marker?.first ? (
             <MarkerTag tone="first" icon={Sparkles}>
-              First session
+              {t("First session")}
             </MarkerTag>
           ) : null}
           {marker?.comebackDays ? (
             <MarkerTag tone="first" icon={RotateCcw}>
-              Back after {marker.comebackDays} days
+              {t("Back after {{comebackDays}} days", {
+                comebackDays: marker.comebackDays,
+              })}
             </MarkerTag>
           ) : null}
         </div>
@@ -391,10 +399,10 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           </span>
           {session.origin === "manual" ? (
             <span
-              title="Entered manually"
+              title={t("Entered manually")}
               className="rounded-full border border-border bg-surface-hover px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-text-muted"
             >
-              Manual
+              {t("Manual")}
             </span>
           ) : null}
         </div>
@@ -416,7 +424,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
       <IconButton
         icon={Trash2}
         intent="danger"
-        aria-label={`Remove history entry for ${gameName}`}
+        aria-label={t("Remove history entry for {{gameName}}", { gameName })}
         onClick={requestDelete}
         className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100 group-focus-within:grid group-focus-within:opacity-100"
       />
@@ -437,7 +445,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             });
           }}
         >
-          Update note
+          {t("Update note")}
         </ContextMenuItem>
         <ContextMenuItem
           icon={BookOpen}
@@ -450,13 +458,13 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             });
           }}
         >
-          Playthroughs
+          {t("Playthroughs")}
         </ContextMenuItem>
         <ContextMenuItem icon={Filter} onClick={handleFilterForGame}>
-          Filter for this game
+          {t("Filter for this game")}
         </ContextMenuItem>
         <ContextMenuItem icon={Trash2} danger onClick={requestDelete}>
-          Delete Session
+          {t("Delete Session")}
         </ContextMenuItem>
       </ContextMenu>
     </article>

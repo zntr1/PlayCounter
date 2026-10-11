@@ -4,10 +4,15 @@ import type {
   LibraryFeaturedGame,
   Session,
 } from "@playcounter/shared";
+import { getT } from "./i18n";
+
+const t = getT("myGames");
 
 export const NOTE_LIMIT = 4000;
 export const NAME_LIMIT = 80;
-export const DEFAULT_PLAYTHROUGH_NAME = "Default playthrough";
+export function defaultPlaythroughName() {
+  return t("Default playthrough");
+}
 export const GAME_STATUSES = {
   playing: "In progress",
   "on-hold": "On hold",
@@ -17,6 +22,12 @@ export const GAME_STATUSES = {
   "not-planned": "Not planned",
 } as const;
 export type GameStatus = keyof typeof GAME_STATUSES;
+
+/** A status's label in the app's language. GAME_STATUSES holds the English,
+ *  which is the key. */
+export function gameStatusLabel(status: GameStatus): string {
+  return t(GAME_STATUSES[status]);
+}
 export type Playthrough = {
   id: string;
   name: string;
@@ -342,7 +353,7 @@ export function playthroughName(
 ) {
   return (
     journal.playthroughs.find((p) => p.id === id)?.name ??
-    DEFAULT_PLAYTHROUGH_NAME
+    defaultPlaythroughName()
   );
 }
 

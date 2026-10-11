@@ -3,10 +3,14 @@ import {
   displayNotificationTitle,
   notificationsForDisplay,
 } from "../notifications";
+import { notificationText } from "../notificationText";
 import { useAppStore } from "../store";
 import { NotificationArt } from "./AchievementBadge";
 import { Panel } from "./components";
 import { Button, IconButton, useEscapeKey } from "./primitives";
+import { appLocale, getT } from "../i18n";
+
+const t = getT("shell");
 
 export function NotificationsPanel({
   onClose,
@@ -31,10 +35,12 @@ export function NotificationsPanel({
         {
           id: "tour-feedback-reply",
           kind: "feedback-reply" as const,
-          title: "Reply to your feedback",
+          title: t("Reply to your feedback"),
           createdAt: new Date().toISOString(),
-          feedbackMessage: "Can I keep a separate note for a speedrun?",
-          body: "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.",
+          feedbackMessage: t("Can I keep a separate note for a speedrun?"),
+          body: t(
+            "Yes. Right-click the game, choose Playthroughs, and create one named Speedrun. Every playthrough has its own note and its own list of sessions.",
+          ),
           readAt: undefined,
           action: undefined,
         },
@@ -49,13 +55,15 @@ export function NotificationsPanel({
     >
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
-          <h2 className="font-semibold text-text">Notifications</h2>
+          <h2 className="font-semibold text-text">{t("Notifications")}</h2>
           <p className="text-xs text-text-muted">
-            {demo ? "Sample reply · practice only" : "Updates from PlayCounter"}
+            {demo
+              ? t("Sample reply · practice only")
+              : t("Updates from PlayCounter")}
           </p>
         </div>
         <IconButton
-          aria-label="Close notifications"
+          aria-label={t("Close notifications")}
           icon={X}
           onClick={onClose}
         />
@@ -63,16 +71,16 @@ export function NotificationsPanel({
 
       <div className="border-b border-border bg-surface-hover/40 px-4 py-3">
         <div className="mb-2 flex items-baseline justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-text-faint">
-          <span>Your contributions</span>
+          <span>{t("Your contributions")}</span>
           <span className="font-mono normal-case text-text-muted">
-            {counts.suggested} sent
+            {t("{{suggested}} sent", { suggested: counts.suggested })}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           {[
-            ["Approved", counts.verified],
-            ["Waiting", counts.pending],
-            ["Not approved", counts.rejected],
+            [t("Approved"), counts.verified],
+            [t("Waiting"), counts.pending],
+            [t("Not approved"), counts.rejected],
           ].map(([label, value]) => (
             <div
               key={label}
@@ -88,16 +96,18 @@ export function NotificationsPanel({
         {!demo && emulatorCounts.suggested > 0 ? (
           <>
             <div className="mb-2 mt-4 flex items-baseline justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-text-faint">
-              <span>Emulator matches</span>
+              <span>{t("Emulator matches")}</span>
               <span className="font-mono normal-case text-text-muted">
-                {emulatorCounts.suggested} sent
+                {t("{{suggested}} sent", {
+                  suggested: emulatorCounts.suggested,
+                })}
               </span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
-                ["Approved", emulatorCounts.verified],
-                ["Waiting", emulatorCounts.pending],
-                ["Not approved", emulatorCounts.rejected],
+                [t("Approved"), emulatorCounts.verified],
+                [t("Waiting"), emulatorCounts.pending],
+                [t("Not approved"), emulatorCounts.rejected],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -118,85 +128,93 @@ export function NotificationsPanel({
         {displayedNotifications.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-text-muted">
             <CheckCheck className="mx-auto mb-3 text-text-faint" size={24} />
-            You’re all caught up.
+            {t("You’re all caught up.")}
           </div>
         ) : (
-          displayedNotifications.map((notification) => (
-            <article
-              data-tour={demo ? "demo-feedback-notification" : undefined}
-              key={notification.id}
-              className="flex gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
-            >
-              <NotificationArt notification={notification} />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-text">
-                  {displayNotificationTitle(notification)}
-                </div>
-                {notification.kind === "feedback-reply" &&
-                notification.feedbackMessage ? (
-                  <blockquote
-                    data-tour={demo ? "demo-feedback-original" : undefined}
-                    className="my-2 border-l-2 border-accent/40 pl-3"
-                  >
-                    <div className="mb-1 text-[11px] font-medium text-text-faint">
-                      Your feedback
-                    </div>
-                    <p className="whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">
-                      {notification.feedbackMessage}
+          displayedNotifications.map((notification) => {
+            const text = notificationText(notification);
+            return (
+              <article
+                data-tour={demo ? "demo-feedback-notification" : undefined}
+                key={notification.id}
+                className="flex gap-3 border-b border-border/70 px-4 py-3 last:border-b-0"
+              >
+                <NotificationArt notification={notification} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-text">
+                    {displayNotificationTitle({
+                      ...notification,
+                      title: text.title,
+                    })}
+                  </div>
+                  {notification.kind === "feedback-reply" &&
+                  notification.feedbackMessage ? (
+                    <blockquote
+                      data-tour={demo ? "demo-feedback-original" : undefined}
+                      className="my-2 border-l-2 border-accent/40 pl-3"
+                    >
+                      <div className="mb-1 text-[11px] font-medium text-text-faint">
+                        {t("Your feedback")}
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-xs leading-5 text-text-muted">
+                        {notification.feedbackMessage}
+                      </p>
+                    </blockquote>
+                  ) : null}
+                  {text.body ? (
+                    <p
+                      data-tour={demo ? "demo-feedback-reply" : undefined}
+                      className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-text-muted"
+                    >
+                      {text.body}
                     </p>
-                  </blockquote>
-                ) : null}
-                {notification.body ? (
-                  <p
-                    data-tour={demo ? "demo-feedback-reply" : undefined}
-                    className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-text-muted"
-                  >
-                    {notification.body}
-                  </p>
-                ) : null}
-                <time className="mt-1 block text-[11px] text-text-faint">
-                  {new Date(notification.createdAt).toLocaleString()}
-                </time>
-                {notification.action ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const action = notification.action;
-                      if (!action) return;
-                      if (action.view === "discovered") {
-                        window.dispatchEvent(
-                          new CustomEvent("playcounter:discovered-reset"),
-                        );
-                      }
-                      setActiveView(action.view);
-                      onClose();
-                    }}
-                    className="mt-1 text-xs font-medium text-accent-ink transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-                  >
-                    {notification.action.label}
-                    <span aria-hidden="true"> →</span>
-                  </button>
-                ) : null}
-              </div>
-              <IconButton
-                aria-label="Dismiss notification"
-                title="Dismiss"
-                icon={X}
-                disabled={demo}
-                onClick={() => {
-                  if (!demo) dismiss(notification.id);
-                }}
-                className="border-transparent"
-              />
-            </article>
-          ))
+                  ) : null}
+                  <time className="mt-1 block text-[11px] text-text-faint">
+                    {new Date(notification.createdAt).toLocaleString(
+                      appLocale(),
+                    )}
+                  </time>
+                  {notification.action ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const action = notification.action;
+                        if (!action) return;
+                        if (action.view === "discovered") {
+                          window.dispatchEvent(
+                            new CustomEvent("playcounter:discovered-reset"),
+                          );
+                        }
+                        setActiveView(action.view);
+                        onClose();
+                      }}
+                      className="mt-1 text-xs font-medium text-accent-ink transition hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                    >
+                      {text.actionLabel}
+                      <span aria-hidden="true"> →</span>
+                    </button>
+                  ) : null}
+                </div>
+                <IconButton
+                  aria-label={t("Dismiss notification")}
+                  title={t("Dismiss")}
+                  icon={X}
+                  disabled={demo}
+                  onClick={() => {
+                    if (!demo) dismiss(notification.id);
+                  }}
+                  className="border-transparent"
+                />
+              </article>
+            );
+          })
         )}
       </div>
 
       {!demo && notifications.length > 0 ? (
         <div className="flex justify-end border-t border-border p-3">
           <Button variant="ghost" icon={Trash2} onClick={clear}>
-            Clear all
+            {t("Clear all")}
           </Button>
         </div>
       ) : null}

@@ -12,10 +12,12 @@ import {
   localDateKey,
   useElementWidth,
 } from "./chartUtils";
+import { appLocale, weekdayNames, getT } from "../../i18n";
+
+const t = getT("common");
 
 const maxWeekCount = 53;
 const cellGap = 3;
-const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 type CalendarCell = {
   key: string;
@@ -106,7 +108,7 @@ export function CalendarHeatmap({
       const date = addDays(firstDay, column * 7);
       if (date.getMonth() !== previous) {
         result.push({
-          label: date.toLocaleDateString([], { month: "short" }),
+          label: date.toLocaleDateString(appLocale(), { month: "short" }),
           column,
         });
         previous = date.getMonth();
@@ -114,18 +116,19 @@ export function CalendarHeatmap({
     }
     return result;
   }, [firstDay, weekCount]);
+  const weekdayLabels = weekdayNames("short");
 
   return (
     <figure aria-labelledby="activity-calendar-title">
       <figcaption className="sr-only" id="activity-calendar-title">
-        Daily playtime by week
+        {t("Daily playtime by week")}
       </figcaption>
       <div ref={scrollRef} className="overflow-x-auto pb-2">
         {cellSize === 0 ? (
           <div
             className="grid min-h-36 place-items-center text-text-faint"
             role="status"
-            aria-label="Loading activity calendar"
+            aria-label={t("Loading activity calendar")}
           >
             <Loader2 aria-hidden="true" size={24} className="animate-spin" />
           </div>
@@ -164,7 +167,7 @@ export function CalendarHeatmap({
               </div>
               <div
                 role="grid"
-                aria-label="Daily playtime calendar"
+                aria-label={t("Daily playtime calendar")}
                 className="grid grid-flow-col"
                 style={{
                   gridTemplateRows: `repeat(7, ${cellSize}px)`,
@@ -186,7 +189,7 @@ export function CalendarHeatmap({
       </div>
       {cellSize > 0 ? (
         <div className="mt-2 flex items-center justify-end gap-1.5 text-[10px] text-text-faint">
-          <span>Less</span>
+          <span>{t("Less")}</span>
           <span className="h-[11px] w-[11px] rounded-[2px] bg-surface-hover" />
           {heatmapColors.map((color) => (
             <span
@@ -195,7 +198,7 @@ export function CalendarHeatmap({
               style={{ background: color }}
             />
           ))}
-          <span>More</span>
+          <span>{t("More")}</span>
         </div>
       ) : null}
     </figure>
@@ -234,10 +237,9 @@ const CalendarCells = memo(function CalendarCells({
         <div className="font-semibold">{cell.dateLabel}</div>
         <div>{formatDuration(total?.seconds ?? 0, showDurationDays)}</div>
         <div className="text-text-muted">
-          {total?.sessionCount ?? 0} session
-          {(total?.sessionCount ?? 0) === 1 ? "" : "s"}
+          {t("{{count}} sessions", { count: total?.sessionCount ?? 0 })}
           {total?.topGameKey
-            ? ` · ${resolveGameName(total.topGameKey) ?? "Unknown game"}`
+            ? ` · ${resolveGameName(total.topGameKey) ?? t("Unknown game")}`
             : ""}
         </div>
       </div>

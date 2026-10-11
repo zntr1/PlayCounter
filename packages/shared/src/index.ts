@@ -591,6 +591,9 @@ export interface Settings {
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";
+  /** "system" (the computer's language) or a language code such as "de".
+   *  Absent = "system". */
+  language?: string;
   showDurationDays: boolean;
   /** My Games card density. Absent on older persisted settings. */
   libraryCardSize?: "grid" | "large" | "list";

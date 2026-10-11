@@ -59,6 +59,10 @@ import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
+import { appLanguage, appLocale, getT } from "../../../i18n";
+import { igdbTerm } from "../../../igdbTerms";
+
+const t = getT("games");
 
 /* The game details dialog ────────────────────────────────────────────────────
    A hero header (the same artwork the library banner shows) with the cover,
@@ -77,12 +81,14 @@ const PROVIDER_LABEL: Record<LibraryProviderId, string> = {
   epic: "Epic Games",
 };
 
-const PROVIDER_ID_LABEL: Record<LibraryProviderId, string> = {
-  steam: "Steam AppID",
-  xbox: "Xbox title ID",
-  battlenet: "Battle.net product",
-  epic: "Epic app name",
-};
+function providerIdLabels(): Record<LibraryProviderId, string> {
+  return {
+    steam: t("Steam AppID"),
+    xbox: t("Xbox title ID"),
+    battlenet: t("Battle.net product"),
+    epic: t("Epic app name"),
+  };
+}
 
 type DetailsTab = "general" | "files";
 
@@ -90,7 +96,7 @@ function formatDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(appLocale());
 }
 
 function Panel({
@@ -338,13 +344,18 @@ export function GameDetailsDialog({
       removed
         ? {
             tone: "success",
-            title: `${exeName} removed`,
-            detail: `It no longer counts for ${game.name} on this PC. If it runs again, it shows up in Discovered.`,
+            title: t("{{exeName}} removed", { exeName }),
+            detail: t(
+              "It no longer counts for {{name}} on this PC. If it runs again, it shows up in Discovered.",
+              { name: game.name },
+            ),
           }
         : {
             tone: "info",
-            title: `${exeName} not removed`,
-            detail: "Close the game or cancel its community suggestion first.",
+            title: t("{{exeName}} not removed", { exeName }),
+            detail: t(
+              "Close the game or cancel its community suggestion first.",
+            ),
           },
     );
   }
@@ -373,7 +384,7 @@ export function GameDetailsDialog({
     if (demo) {
       emitTourEvent(
         "demo.action-completed",
-        "This is a sample. A real game's IGDB link opens its database page.",
+        t("This is a sample. A real game's IGDB link opens its database page."),
       );
       return;
     }
@@ -382,7 +393,7 @@ export function GameDetailsDialog({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not open IGDB",
+        title: t("Could not open IGDB"),
         detail: error instanceof Error ? error.message : String(error),
       });
     }
@@ -395,7 +406,7 @@ export function GameDetailsDialog({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not open the game file",
+        title: t("Could not open the game file"),
         detail: error instanceof Error ? error.message : String(error),
       });
     }
@@ -424,16 +435,16 @@ export function GameDetailsDialog({
   }
 
   const launchTitle = launcher.hasActiveSession
-    ? "Already running"
+    ? t("Already running")
     : launcher.launching
-      ? "Starting…"
+      ? t("Starting…")
       : launchBlocked
-        ? "Another game is starting"
+        ? t("Another game is starting")
         : launcher.launchLabel;
 
   const tabs: Array<{ id: DetailsTab; label: string; icon: LucideIcon }> = [
-    { id: "general", label: "General", icon: Info },
-    { id: "files", label: "Files", icon: FolderOpen },
+    { id: "general", label: t("General"), icon: Info },
+    { id: "files", label: t("Files"), icon: FolderOpen },
   ];
 
   const header = (
@@ -466,7 +477,7 @@ export function GameDetailsDialog({
 
       <IconButton
         icon={X}
-        aria-label="Close"
+        aria-label={t("Close")}
         onClick={onClose}
         className="absolute right-4 top-4 z-10 bg-bg/40 backdrop-blur"
       />
@@ -483,7 +494,7 @@ export function GameDetailsDialog({
             />
           ) : (
             <div className="grid aspect-[3/4] w-full place-items-center rounded-lg border border-border bg-surface/80 text-xs text-text-faint backdrop-blur">
-              No cover
+              {t("No cover")}
             </div>
           )}
         </div>
@@ -491,7 +502,7 @@ export function GameDetailsDialog({
         <div className="flex min-w-0 flex-col">
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-accent-ink">
             <Gamepad2 size={13} />
-            Game details
+            {t("Game details")}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-2 pr-10">
             <h2
@@ -521,14 +532,14 @@ export function GameDetailsDialog({
           {releaseLabel ? (
             <p className="mt-3 flex items-center gap-2 text-sm text-text-muted">
               <CalendarDays size={15} />
-              Released {releaseLabel}
+              {t("Released {{releaseLabel}}", { releaseLabel })}
             </p>
           ) : null}
 
           <div className="mt-auto flex items-end justify-between gap-4 pt-5">
             <div
               role="tablist"
-              aria-label="Game details sections"
+              aria-label={t("Game details sections")}
               onKeyDown={handleTabKeyDown}
               className="flex gap-1"
             >
@@ -574,12 +585,12 @@ export function GameDetailsDialog({
             {resolved?.rating !== undefined ? (
               <div
                 className="mb-2 flex shrink-0 items-center gap-3 rounded-lg border border-border bg-surface/80 px-3 py-2 backdrop-blur"
-                title="IGDB user rating"
+                title={t("IGDB user rating")}
               >
                 <div className="text-[11px] leading-tight text-text-muted">
                   IGDB
                   <br />
-                  Rating
+                  {t("Rating")}
                 </div>
                 <div className="font-mono text-2xl font-bold text-text">
                   {resolved.rating}
@@ -598,12 +609,15 @@ export function GameDetailsDialog({
     // so beats hiding the panel, which just looks like it failed.
     <p className="text-sm text-text-muted">
       {game.source === "custom"
-        ? "This is your own entry, so there is no database record behind it."
-        : "This game is not linked to an IGDB entry yet, so there is nothing to show here."}{" "}
-      Open on IGDB searches by name instead.
+        ? t(
+            "This is your own entry, so there is no database record behind it. Open on IGDB searches by name instead.",
+          )
+        : t(
+            "This game is not linked to an IGDB entry yet, so there is nothing to show here. Open on IGDB searches by name instead.",
+          )}
     </p>
   ) : details.status === "loading" ? (
-    <div className="grid gap-2" role="status" aria-label="Loading details">
+    <div className="grid gap-2" role="status" aria-label={t("Loading details")}>
       <SkeletonBar className="h-3 w-full" />
       <SkeletonBar className="h-3 w-full" />
       <SkeletonBar className="h-3 w-2/3" />
@@ -611,29 +625,41 @@ export function GameDetailsDialog({
   ) : details.status === "offline" ? (
     <p className="flex items-center gap-2 text-sm text-text-muted">
       <WifiOff size={14} />
-      Details need a connection to the PlayCounter database.
+      {t("Details need a connection to the PlayCounter database.")}
     </p>
   ) : details.status === "error" ? (
     <p className="text-sm text-text-muted">
-      Details could not be loaded right now. Your summary below comes from this
-      PC and is unaffected.
+      {t(
+        "Details could not be loaded right now. Your summary below comes from this PC and is unaffected.",
+      )}
     </p>
   ) : resolved ? (
     <div className="grid gap-4">
       {resolved.summary ? (
-        <p className="whitespace-pre-line text-sm leading-6 text-text-muted">
-          {resolved.summary}
-        </p>
+        <div>
+          {/* IGDB only has English descriptions. */}
+          <p
+            lang="en"
+            className="whitespace-pre-line text-sm leading-6 text-text-muted"
+          >
+            {resolved.summary}
+          </p>
+          {appLanguage() !== "en" ? (
+            <p className="mt-1 text-xs text-text-faint">
+              {t("Only available in English")}
+            </p>
+          ) : null}
+        </div>
       ) : (
         <p className="text-sm text-text-muted">
-          The database has no description for this game yet.
+          {t("The database has no description for this game yet.")}
         </p>
       )}
       {(
         [
-          ["Genres", resolved.genres],
-          ["Modes", resolved.gameModes],
-          ["Platforms", resolved.platforms],
+          [t("Genres"), resolved.genres.map(igdbTerm)],
+          [t("Modes"), resolved.gameModes.map(igdbTerm)],
+          [t("Platforms"), resolved.platforms],
         ] as const
       )
         .filter(([, values]) => values.length > 0)
@@ -648,42 +674,45 @@ export function GameDetailsDialog({
     </div>
   ) : (
     <p className="text-sm text-text-muted">
-      The database has no description for this game yet.
+      {t("The database has no description for this game yet.")}
     </p>
   );
 
   const generalTab = (
     <div className="grid gap-4">
       <Panel
-        title="About this game"
+        title={t("About this game")}
         icon={Info}
         action={
-          <SourceTag label="Source: IGDB" onClick={() => void openOnIgdb()} />
+          <SourceTag
+            label={t("Source: IGDB")}
+            onClick={() => void openOnIgdb()}
+          />
         }
       >
         {aboutBody}
       </Panel>
 
-      <Panel title="Your summary" icon={Gamepad2}>
+      <Panel title={t("Your summary")} icon={Gamepad2}>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <Figure
             icon={Clock3}
-            label="Total playtime"
+            label={t("Total playtime")}
             value={duration(game.totalSeconds)}
           />
           <Figure
             icon={Users}
-            label="Sessions"
+            label={t("Sessions")}
             value={String(Math.max(game.sessionCount, stats.sessionCount))}
           />
           <Figure
             icon={CalendarDays}
-            label="First played"
+            label={t("First played")}
             value={formatDate(stats.firstPlayedAt) ?? "-"}
           />
           <Figure
             icon={CalendarDays}
-            label="Last played"
+            label={t("Last played")}
             value={
               formatDate(lastPlayedAt) ?? (hasPlayed ? "Unknown" : "Never")
             }
@@ -704,20 +733,20 @@ export function GameDetailsDialog({
               className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
             >
               {launcher.hasActiveSession
-                ? "Running"
+                ? t("Running")
                 : launcher.launching
-                  ? "Starting…"
+                  ? t("Starting…")
                   : launcher.launchLabel}
             </Button>
           ) : launcher.canInstall ? (
             <Button
               variant="primary"
               icon={Download}
-              aria-label={`Install ${game.name} in Steam`}
+              aria-label={t("Install {{name}} in Steam", { name: game.name })}
               onClick={() => void launcher.install()}
               className="library-hero-play h-12 rounded-lg px-7 text-[15px] font-bold shadow-[0_8px_24px_rgb(var(--color-accent)/0.35)]"
             >
-              Install in Steam
+              {t("Install in Steam")}
             </Button>
           ) : null}
           <Button
@@ -725,7 +754,7 @@ export function GameDetailsDialog({
             onClick={() => void openOnIgdb()}
             className="h-12 rounded-lg px-5 font-semibold"
           >
-            Open on IGDB
+            {t("Open on IGDB")}
           </Button>
           {game.historyGameKey ? (
             <Button
@@ -733,7 +762,7 @@ export function GameDetailsDialog({
               onClick={showHistory}
               className="ml-auto h-12 rounded-lg px-5 font-semibold"
             >
-              Show in History
+              {t("Show in History")}
             </Button>
           ) : null}
         </div>
@@ -746,7 +775,7 @@ export function GameDetailsDialog({
             <div className="flex items-center gap-3">
               <UserRound size={20} className="text-text-faint" />
               <div>
-                <div className="text-xs text-text-faint">Developer</div>
+                <div className="text-xs text-text-faint">{t("Developer")}</div>
                 <div className="text-sm text-text">
                   {resolved.developers.join(", ")}
                 </div>
@@ -760,7 +789,7 @@ export function GameDetailsDialog({
             <div className="flex items-center gap-3">
               <Building2 size={20} className="text-text-faint" />
               <div>
-                <div className="text-xs text-text-faint">Publisher</div>
+                <div className="text-xs text-text-faint">{t("Publisher")}</div>
                 <div className="text-sm text-text">
                   {resolved.publishers.join(", ")}
                 </div>
@@ -774,17 +803,19 @@ export function GameDetailsDialog({
 
   const filesTab = (
     <div className="grid gap-4">
-      <Panel title="Known file matches" icon={FolderOpen}>
+      <Panel title={t("Known file matches")} icon={FolderOpen}>
         {game.exeNames.length === 0 && game.emulatorLabels.length === 0 ? (
           <p className="text-sm text-text-muted">
-            No file names or emulator matches are saved for this game yet.
-            PlayCounter can look for a match when you run the game.
+            {t(
+              "No file names or emulator matches are saved for this game yet. PlayCounter can look for a match when you run the game.",
+            )}
           </p>
         ) : (
           <div className="grid gap-2">
             <p className="text-sm text-text-muted">
-              These matches help PlayCounter recognize the game when it runs.
-              They do not confirm that it is currently installed.
+              {t(
+                "These matches help PlayCounter recognize the game when it runs. They do not confirm that it is currently installed.",
+              )}
             </p>
             {game.exeNames.map((exeName) => {
               const scoped = scopedByExe.get(exeName.toLowerCase()) ?? [];
@@ -815,13 +846,16 @@ export function GameDetailsDialog({
                   disabled={launcher.hasActiveSession}
                   title={
                     launcher.hasActiveSession
-                      ? "Close the game first"
-                      : `Stop counting ${exeName} for ${game.name}`
+                      ? t("Close the game first")
+                      : t("Stop counting {{exeName}} for {{name}}", {
+                          exeName,
+                          name: game.name,
+                        })
                   }
                   onClick={() => removeFile(ref, exeName)}
                   className="shrink-0 px-2 py-1 text-xs"
                 >
-                  Remove
+                  {t("Remove")}
                 </Button>
               );
               return (
@@ -847,8 +881,8 @@ export function GameDetailsDialog({
                       <SourceBadge source={fileSource} variant="text" />
                       <span className="text-[11px] uppercase tracking-wider text-text-faint">
                         {scoped.length > 0
-                          ? "Matches in folder"
-                          : "Matches by name"}
+                          ? t("Matches in folder")
+                          : t("Matches by name")}
                       </span>
                       {nameLink && removable(nameLink)
                         ? removeButton({
@@ -860,11 +894,14 @@ export function GameDetailsDialog({
                         <Button
                           variant="ghost"
                           icon={Flag}
-                          title={`Report ${exeName} as a wrong match for ${game.name}`}
+                          title={t(
+                            "Report {{exeName}} as a wrong match for {{name}}",
+                            { exeName, name: game.name },
+                          )}
                           onClick={() => onReportFile(exeName)}
                           className="shrink-0 px-2 py-1 text-xs"
                         >
-                          Report
+                          {t("Report")}
                         </Button>
                       ) : null}
                     </span>
@@ -882,7 +919,9 @@ export function GameDetailsDialog({
                         className="mt-1.5 flex items-center gap-2"
                       >
                         <span className="min-w-0 flex-1 break-all text-xs text-text-faint">
-                          Tracking folder: {link.pathPrefix}
+                          {t("Tracking folder: {{pathPrefix}}", {
+                            pathPrefix: link.pathPrefix,
+                          })}
                         </span>
                         {key && removable(link)
                           ? removeButton({ kind: "scoped", key })
@@ -893,14 +932,16 @@ export function GameDetailsDialog({
                   {target ? (
                     <div className="mt-1.5 flex items-center gap-2">
                       <span className="min-w-0 flex-1 break-all text-xs text-text-muted">
-                        Saved launch path: {target.path}
+                        {t("Saved launch path: {{path}}", {
+                          path: target.path,
+                        })}
                       </span>
                       <Button
                         icon={FolderOpen}
                         className="shrink-0 px-2 py-1 text-xs"
                         onClick={() => void revealPath(target.path)}
                       >
-                        Show
+                        {t("Show")}
                       </Button>
                     </div>
                   ) : null}
@@ -916,7 +957,7 @@ export function GameDetailsDialog({
                   <Gamepad2 size={15} className="shrink-0 text-text-faint" />
                   <span className="text-sm text-text">{label}</span>
                   <span className="ml-auto text-[11px] uppercase tracking-wider text-text-faint">
-                    Emulator
+                    {t("Emulator")}
                   </span>
                 </div>
                 {game.emulatorContentKeys[index] ? (
@@ -932,12 +973,12 @@ export function GameDetailsDialog({
 
       {game.libraryImports.length > 0 ? (
         <Panel
-          title="Where it came from"
+          title={t("Where it came from")}
           icon={CalendarDays}
           action={
             onMoveToPlayCounter ? (
               <Button icon={MoveRight} onClick={onMoveToPlayCounter}>
-                Move to PlayCounter
+                {t("Move to PlayCounter")}
               </Button>
             ) : undefined
           }
@@ -958,13 +999,15 @@ export function GameDetailsDialog({
                 </div>
                 <div className="divide-y divide-border">
                   <Row
-                    label={PROVIDER_ID_LABEL[entry.provider]}
+                    label={providerIdLabels()[entry.provider]}
                     value={
                       <span className="font-mono">{entry.externalId}</span>
                     }
                   />
                   <Row
-                    label={`${PROVIDER_LABEL[entry.provider]} playtime`}
+                    label={t("{{provider}} playtime", {
+                      provider: PROVIDER_LABEL[entry.provider],
+                    })}
                     value={
                       entry.entry.providerSeconds === null
                         ? entry.provider === "battlenet"
@@ -974,16 +1017,16 @@ export function GameDetailsDialog({
                     }
                   />
                   <Row
-                    label="Imported"
+                    label={t("Imported")}
                     value={formatDate(entry.entry.importedAt) ?? "Unknown"}
                   />
                   <Row
-                    label="Installed here"
+                    label={t("Installed here")}
                     value={entry.installed ? "Yes" : "No"}
                   />
                   {entry.install?.installPath ? (
                     <Row
-                      label="Install folder"
+                      label={t("Install folder")}
                       value={
                         <span className="font-mono text-xs">
                           {entry.install.installPath}

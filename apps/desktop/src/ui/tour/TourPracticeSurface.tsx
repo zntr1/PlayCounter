@@ -12,6 +12,9 @@ import { CandidateTile } from "../views/nowPlaying/AmbiguousMatchCard";
 import { TourSampleSearch, TOUR_SAMPLE_CHOICES } from "./TourSampleSearch";
 import type { TourDefinition } from "./tourDefinitions";
 import { emitTourEvent } from "./TourUI";
+import { getT } from "../../i18n";
+
+const t = getT("tour");
 
 const LibraryMatchControls = lazy(() =>
   import("../views/ImportLibraryView").then((module) => ({
@@ -33,10 +36,13 @@ export function TourPracticeSurface({
         className="grid gap-4 rounded-xl border border-border bg-bg p-4"
       >
         <div>
-          <h2 className="font-semibold text-text">Practice · {tour.title}</h2>
+          <h2 className="font-semibold text-text">
+            {t("Practice · {{title}}", { title: tour.title })}
+          </h2>
           <p className="text-xs text-text-muted">
-            Sample data · changes disappear when you leave · nothing is
-            submitted
+            {t(
+              "Sample data · changes disappear when you leave · nothing is submitted",
+            )}
           </p>
         </div>
         {tour.simulation === "detection" ? (
@@ -86,7 +92,7 @@ function DetectionPractice({ stepId }: { stepId: string }) {
       >
         <Result>{result}</Result>
         <Button className="justify-self-start" onClick={() => setResult("")}>
-          Try sample again
+          {t("Try sample again")}
         </Button>
       </div>
     );
@@ -94,10 +100,13 @@ function DetectionPractice({ stepId }: { stepId: string }) {
     <>
       {stepId === "ambiguous" ? (
         <div data-tour="demo-ambiguous" className="grid gap-3">
-          <h3 className="text-lg font-semibold">Which game is Game.exe?</h3>
+          <h3 className="text-lg font-semibold">
+            {t("Which game is Game.exe?")}
+          </h3>
           <p className="text-sm text-text-muted">
-            These sample games share a filename. Choose the one you started. In
-            the app, this choice is remembered only on this PC.
+            {t(
+              "These sample games share a filename. Choose the one you started. In the app, this choice is remembered only on this PC.",
+            )}
           </p>
           <div className="grid max-w-lg grid-cols-2 gap-3">
             {TOUR_SAMPLE_CHOICES.map((choice) => (
@@ -113,7 +122,10 @@ function DetectionPractice({ stepId }: { stepId: string }) {
                 }}
                 onSelect={(game) =>
                   setResult(
-                    `Sample selected: ${game.name}. This exercise does not create a shared executable match.`,
+                    t(
+                      "Sample selected: {{name}}. This exercise does not create a shared executable match.",
+                      { name: game.name },
+                    ),
                   )
                 }
               />
@@ -135,7 +147,10 @@ function DetectionPractice({ stepId }: { stepId: string }) {
             onSaveCustomGame={() => {
               if (name.trim()) {
                 setResult(
-                  `Sample added as ${name.trim()}. Custom games appear in My Games; no global filename match is created.`,
+                  t(
+                    "Sample added as {{name}}. Custom games appear in My Games; no global filename match is created.",
+                    { name: name.trim() },
+                  ),
                 );
                 setCustom(false);
               }
@@ -143,22 +158,28 @@ function DetectionPractice({ stepId }: { stepId: string }) {
             onSuggest={() => setSearch(true)}
             onIgnore={() =>
               setResult(
-                "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.",
+                t(
+                  "Sample ignored. In your library, this stops tracking that executable until you restore it in Discovered.",
+                ),
               )
             }
             onMarkSoftware={() =>
               setResult(
-                "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
+                t(
+                  "Sample tracked as software. In your library, it leaves Discovered and counts on the Software page, never as a game.",
+                ),
               )
             }
             onSkip={() =>
               setResult(
-                "Skipped for now. In Discovered, this app stays in Needs review.",
+                t(
+                  "Skipped for now. In Discovered, this app stays in Needs review.",
+                ),
               )
             }
             onRecheck={() =>
               setResult(
-                "Sample check complete. Use Add & Share to review a match.",
+                t("Sample check complete. Use Add & Share to review a match."),
               )
             }
           />
@@ -171,7 +192,10 @@ function DetectionPractice({ stepId }: { stepId: string }) {
           onConfirm={(choice) => {
             setSearch(false);
             setResult(
-              `Sample matched to ${choice.name}. In the real flow, Add & Share sends a suggestion for review. Nothing was sent here.`,
+              t(
+                "Sample matched to {{name}}. In the real flow, Add & Share sends a suggestion for review. Nothing was sent here.",
+                { name: choice.name },
+              ),
             );
           }}
         />
@@ -217,30 +241,34 @@ function ImportPractice() {
         ))}
       </div>
       <p className="text-sm text-text-muted">
-        Import is optional. Automatic detection works with games from any
-        launcher. Review the game and its executable before importing.
+        {t(
+          "Import is optional. Automatic detection works with games from any launcher. Review the game and its executable before importing.",
+        )}
       </p>
       <label data-tour="demo-import-executable" className="grid gap-2 text-sm">
-        Game executable
+        {t("Game executable")}
         <Select
-          aria-label="Game executable"
+          aria-label={t("Game executable")}
           value={executable}
           onChange={(event) => setExecutable(event.target.value)}
         >
           <option value="Diablo IV.exe">
-            Diablo IV.exe · eligible game file
+            {t("{{file}} · eligible game file", { file: "Diablo IV.exe" })}
           </option>
-          <option disabled>Uninstall.exe · installer excluded</option>
+          <option disabled>{t("Uninstall.exe · installer excluded")}</option>
         </Select>
       </label>
       <p className="text-xs text-text-muted">
-        One eligible file is selected for you. This selection does not import
-        anything.
+        {t(
+          "One eligible file is selected for you. This selection does not import anything.",
+        )}
       </p>
       <div data-tour="demo-import-match">
         <Suspense
           fallback={
-            <p className="text-sm text-text-muted">Loading sample review…</p>
+            <p className="text-sm text-text-muted">
+              {t("Loading sample review…")}
+            </p>
           }
         >
           <LibraryMatchControls
@@ -249,6 +277,7 @@ function ImportPractice() {
             provider={provider}
             apiEndpoint=""
             candidates={candidates}
+            // i18n-exempt: sample game name.
             title="Diablo IV"
             importing={false}
             searchGames={async (query) =>
@@ -258,7 +287,22 @@ function ImportPractice() {
             }
             onConfirm={async (game) =>
               setResult(
-                `Sample imported: ${game.name} (${executable}). ${provider === "battlenet" ? "Battle.net does not supply past playtime here." : provider === "epic" ? "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions." : "Imported launcher time is a total, not a list of PlayCounter sessions."} Future tracked sessions build your History.`,
+                [
+                  t("Sample imported: {{game}} ({{file}}).", {
+                    game: game.name,
+                    file: executable,
+                  }),
+                  provider === "battlenet"
+                    ? t("Battle.net does not supply past playtime here.")
+                    : provider === "epic"
+                      ? t(
+                          "Epic Games supplies a playtime total when you sign in; it is not a list of PlayCounter sessions.",
+                        )
+                      : t(
+                          "Imported launcher time is a total, not a list of PlayCounter sessions.",
+                        ),
+                  t("Future tracked sessions build your History."),
+                ].join(" "),
               )
             }
           />

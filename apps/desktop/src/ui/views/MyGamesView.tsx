@@ -67,6 +67,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Trans } from "react-i18next";
 import {
   acceptCommunityUpgrade,
   addManualSession,
@@ -96,7 +97,9 @@ import {
   scanProcessesNow,
   chooseLaunchTarget,
   chooseEmulatorLaunchFile,
+  linkKnownGameFiles,
   linkServerKnownFiles,
+  persist,
   setGamePlaytime,
   setCustomGameCover,
   setPickedCoverFile,
@@ -147,12 +150,13 @@ import { LevelUpAllDialog } from "../LevelUpAllDialog";
 import { collectLevelUpOffers } from "../levelUpOffers";
 import {
   dismissLibraryMatchOffer,
+  dismissPlayCounterMatchOffer,
   useLibraryMatchOffers,
 } from "../../library/matchOffers";
+import { checkPlayCounterGameForMatches } from "../../library/knownGameFiles";
 import {
   checkLibraryImportForMatches,
   type LibraryExecutableMatch,
-  type LibraryImportMatchCheck,
 } from "../../library/recheck";
 import { forgetUninstalledLibraryInstalls } from "../../library/installRecheck";
 import { hideToTrayWhenGameStarts } from "../../hideToTrayOnLaunch";
@@ -164,6 +168,7 @@ import {
   libraryEntryKey,
   type LibraryImportEntry,
   type LibraryInstallEntry,
+  type PlayCounterLibraryEntry,
 } from "../../library/types";
 import { listLocalLinks, type LocalLink } from "../../localLinks";
 import {
@@ -234,7 +239,7 @@ import {
 import { LibraryGameDropHint } from "../LibraryGameDropHint";
 import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
 import {
-  DEFAULT_PLAYTHROUGH_NAME,
+  defaultPlaythroughName,
   matchesLibraryFilters,
   normalizeLibraryFilters,
   type LibraryFilters,
@@ -313,24 +318,30 @@ import {
   importableProviderTabs,
   isImportableProviderTabConfig,
   providerTabConfig,
-  PROVIDER_TAB_CONFIGS,
+  providerTabConfigs,
   type ImportableProviderTabConfig,
 } from "../libraryProviderTabs";
 import { type MyGamesCardSize } from "../myGamesPresentation";
 import { useLibraryGridColumns } from "../useLibraryGridColumns";
 import { useLibraryRenderWindow } from "../useLibraryRenderWindow";
 import { libraryContextActions } from "../gameLibraryActions";
+import { appLocale, getT } from "../../i18n";
+import { nativeText } from "../../nativeText";
+
+const t = getT("myGames");
 
 type SortKey = MyGamesSortKey;
 type ViewMode = MyGamesCardSize;
 
-const sortOptions: Array<{ key: SortKey; label: string }> = [
-  { key: "recent", label: "Last played" },
-  { key: "added", label: "Recently added" },
-  { key: "playtime", label: "Most played" },
-  { key: "name", label: "Name" },
-  { key: "sessions", label: "Sessions" },
-];
+function sortOptions(): Array<{ key: SortKey; label: string }> {
+  return [
+    { key: "recent", label: t("Last played") },
+    { key: "added", label: t("Recently added") },
+    { key: "playtime", label: t("Most played") },
+    { key: "name", label: t("Name") },
+    { key: "sessions", label: t("Sessions") },
+  ];
+}
 
 const GTA_V_TOUR_COVER = "/tour/gta-v-cover.webp";
 const DEMO_LAUNCH_MS = 2_500;
@@ -540,16 +551,23 @@ function sourceRank(source: GameSource | null | undefined) {
 
 function formatLastPlayed(value: string) {
   const date = new Date(value);
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
+  return `${date.toLocaleDateString(appLocale())} ${date.toLocaleTimeString(
+    appLocale(),
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  )}`;
 }
 
 function formatGameActivity(game: GameSummary) {
   return game.hasLastPlayedEvidence || game.sessionCount > 0
-    ? `Last played ${formatLastPlayed(game.lastPlayedAt)}`
-    : `Added ${formatLastPlayed(game.lastPlayedAt)}`;
+    ? t("Last played {{lastPlayed}}", {
+        lastPlayed: formatLastPlayed(game.lastPlayedAt),
+      })
+    : t("Added {{lastPlayed}}", {
+        lastPlayed: formatLastPlayed(game.lastPlayedAt),
+      });
 }
 
 /* The summary used to be three big cards between the toolbar and the first
@@ -561,12 +579,15 @@ function formatGameActivity(game: GameSummary) {
    first segment rather than repeating further down the row. */
 function LibrarySummaryChip({
   countLabel,
+  count,
   countTitle,
   showCount,
   cards,
   showDurationDays,
 }: {
   countLabel: string;
+  /** The number "games" agrees with. */
+  count: number;
   countTitle: string;
   showCount: boolean;
   cards: readonly LibraryStatCard[];
@@ -586,7 +607,7 @@ function LibrarySummaryChip({
           <span className="font-mono font-semibold tabular-nums text-text">
             {countLabel}
           </span>
-          {" games"}
+          {t("games", { count })}
         </span>
       ) : null}
       {stats.map((card) => (
@@ -615,31 +636,34 @@ function playButtonState(
 ) {
   if (launching) {
     return {
-      ariaLabel: `Starting ${gameName}`,
-      title: "Starting…",
+      ariaLabel: t("Starting {{gameName}}", { gameName }),
+      title: t("Starting…"),
       disabled: true,
       loading: true,
     };
   }
   if (hasActiveSession) {
     return {
-      ariaLabel: `${gameName} is already running`,
-      title: "Already running",
+      ariaLabel: t("{{gameName}} is already running", { gameName }),
+      title: t("Already running"),
       disabled: true,
       loading: false,
     };
   }
   if (launchBlocked) {
     return {
-      ariaLabel: `Play ${gameName} (unavailable, another game is starting)`,
-      title: "Another game is starting",
+      ariaLabel: t(
+        "Play {{gameName}} (unavailable, another game is starting)",
+        { gameName },
+      ),
+      title: t("Another game is starting"),
       disabled: true,
       loading: false,
     };
   }
   return {
-    ariaLabel: `Play ${gameName}`,
-    title: "Play",
+    ariaLabel: t("Play {{gameName}}", { gameName }),
+    title: t("Play"),
     disabled: false,
     loading: false,
   };
@@ -1736,10 +1760,19 @@ export function MyGamesView({
     allShelfCounts,
   ]);
   const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
+  const playcounterMatchOffers = useLibraryMatchOffers(
+    (state) => state.playcounterOffers,
+  );
   // Every Level up and Match found in the library, whatever tab is open.
   const levelUpOffers = useMemo(
-    () => collectLevelUpOffers(games, exeCache, libraryMatchOffers),
-    [games, exeCache, libraryMatchOffers],
+    () =>
+      collectLevelUpOffers(
+        games,
+        exeCache,
+        libraryMatchOffers,
+        playcounterMatchOffers,
+      ),
+    [games, exeCache, libraryMatchOffers, playcounterMatchOffers],
   );
   const matchingGames = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -1756,7 +1789,7 @@ export function MyGamesView({
   const platform = currentPlatform();
   const providerTabGames = useMemo(
     () =>
-      PROVIDER_TAB_CONFIGS.map((config) => ({
+      providerTabConfigs().map((config) => ({
         config,
         games: filterByLibraryTab(games, config.id),
       })),
@@ -1837,7 +1870,7 @@ export function MyGamesView({
   const activeTabKind = activeTabDescriptor?.kind ?? "all";
   const statTabLabel =
     activeProviderConfig?.label ??
-    (activeTabKind === "unimported" ? "PlayCounter" : "All games");
+    (activeTabKind === "unimported" ? "PlayCounter" : t("All games"));
   const availableStatDefinitions = useMemo(
     () => libraryStatDefinitionsForKind(activeTabKind),
     [activeTabKind],
@@ -1982,8 +2015,8 @@ export function MyGamesView({
     () =>
       addToast({
         tone: "info",
-        title: "Tutorial game",
-        detail: "The sample exists only for this guide - nothing was saved.",
+        title: t("Tutorial game"),
+        detail: t("The sample exists only for this guide - nothing was saved."),
       }),
     [addToast],
   );
@@ -2029,25 +2062,25 @@ export function MyGamesView({
           className="mb-4 grid gap-3 rounded-xl border border-border bg-surface p-4 text-sm"
         >
           <h3 className="font-semibold">
-            Badge examples: origin and recognition
+            {t("Badge examples: origin and recognition")}
           </h3>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-text-muted">Launcher origin</span>
+            <span className="text-text-muted">{t("Launcher origin")}</span>
             <ProviderBadge provider="steam" />
             <ProviderBadge provider="xbox" />
             <ProviderBadge provider="battlenet" />
             <ProviderBadge provider="epic" />
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-text-muted">Emulator</span>
+            <span className="text-text-muted">{t("Emulator")}</span>
             <EmulatorBadge emulatorId="dolphin" label="Dolphin" />
-            <span className="text-text-muted">File match</span>
+            <span className="text-text-muted">{t("File match")}</span>
             <SourceBadge source="community" />
           </div>
           <p className="text-xs text-text-muted">
-            An origin badge describes where a game came from. A file match
-            explains how it was recognized. Neither alone proves a launch file
-            is saved on this PC.
+            {t(
+              "An origin badge describes where a game came from. A file match explains how it was recognized. Neither alone proves a launch file is saved on this PC.",
+            )}
           </p>
         </div>
       ) : null}
@@ -2113,8 +2146,8 @@ export function MyGamesView({
                       {activeProviderConfig
                         ? activeProviderConfig.headline
                         : activeTabKind === "unimported"
-                          ? "PlayCounter games"
-                          : "All games"}
+                          ? t("PlayCounter games")
+                          : t("All games")}
                     </h2>
                     <LibrarySummaryChip
                       countLabel={
@@ -2122,7 +2155,22 @@ export function MyGamesView({
                           ? String(visibleGames.length)
                           : `${visibleGames.length} / ${libraryGames.length}`
                       }
-                      countTitle={`${visibleGames.length} of ${libraryGames.length} tracked ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}`}
+                      count={libraryGames.length}
+                      countTitle={
+                        activeProviderConfig
+                          ? t(
+                              "{{visible}} of {{total}} tracked {{provider}} games",
+                              {
+                                visible: visibleGames.length,
+                                total: libraryGames.length,
+                                provider: activeProviderConfig.label,
+                              },
+                            )
+                          : t("{{visible}} of {{total}} tracked games", {
+                              visible: visibleGames.length,
+                              total: libraryGames.length,
+                            })
+                      }
                       // Turning the whole summary off leaves the plain count:
                       // "Games" is a choice among the numbers, not a way to
                       // lose the count while the rest of the row is hidden.
@@ -2158,11 +2206,15 @@ export function MyGamesView({
                         variant="secondary"
                         icon={ChevronsUp}
                         data-controller-item="view-link"
-                        title="Switch every game with an approved suggestion or a found match"
+                        title={t(
+                          "Switch every game with an approved suggestion or a found match",
+                        )}
                         onClick={() => setLevelingUp(true)}
                         className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
                       >
-                        Level up all ({levelUpOffers.length})
+                        {t("Level up all ({{count}})", {
+                          count: levelUpOffers.length,
+                        })}
                       </Button>
                     ) : null}
                     <Button
@@ -2172,13 +2224,13 @@ export function MyGamesView({
                       disabled={tourDemo.active || isOffline}
                       title={
                         isOffline
-                          ? "Needs a connection"
-                          : "Add a game by name, with or without its .exe"
+                          ? t("Needs a connection")
+                          : t("Add a game by name, with or without its .exe")
                       }
                       onClick={() => setAddingGame(true)}
                       className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
                     >
-                      Add game
+                      {t("Add game")}
                     </Button>
                   </div>
                 }
@@ -2187,12 +2239,12 @@ export function MyGamesView({
                     variant={bulkSelection.active ? "primary" : "secondary"}
                     icon={CheckSquare}
                     data-library-select=""
-                    aria-label="Select games"
+                    aria-label={t("Select games")}
                     aria-pressed={bulkSelection.active}
                     title={
                       bulkSelection.active
-                        ? "Exit selection mode (Esc)"
-                        : "Select games to set their status"
+                        ? t("Exit selection mode (Esc)")
+                        : t("Select games to set their status")
                     }
                     data-controller-item="library-option"
                     disabled={
@@ -2202,31 +2254,31 @@ export function MyGamesView({
                     onClick={bulkSelection.toggleMode}
                     className="h-9 shrink-0"
                   >
-                    {bulkSelection.active ? "Selecting" : "Select"}
+                    {bulkSelection.active ? t("Selecting") : t("Select")}
                   </Button>
                 }
                 trailing={
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Select
-                      aria-label="Sort games"
+                      aria-label={t("Sort games")}
                       value={sortKey}
                       onChange={(event) =>
                         setMyGamesSortKey(event.target.value as MyGamesSortKey)
                       }
                       className="h-9 rounded-lg !py-0 font-medium"
                     >
-                      {sortOptions.map((option) => (
+                      {sortOptions().map((option) => (
                         <option key={option.key} value={option.key}>
-                          Sort: {option.label}
+                          {t("Sort: {{label}}", { label: option.label })}
                         </option>
                       ))}
                     </Select>
                     <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
                       <button
                         type="button"
-                        aria-label="Grid view"
+                        aria-label={t("Grid view")}
                         aria-pressed={view === "grid"}
-                        title="Standard cards"
+                        title={t("Standard cards")}
                         onClick={() => setMyGamesCardSize("grid")}
                         className={clsx(
                           "grid h-full w-8 place-items-center rounded-md transition",
@@ -2239,9 +2291,9 @@ export function MyGamesView({
                       </button>
                       <button
                         type="button"
-                        aria-label="Large card view"
+                        aria-label={t("Large card view")}
                         aria-pressed={view === "large"}
-                        title="Large cards"
+                        title={t("Large cards")}
                         onClick={() => setMyGamesCardSize("large")}
                         className={clsx(
                           "grid h-full w-8 place-items-center rounded-md transition",
@@ -2254,9 +2306,9 @@ export function MyGamesView({
                       </button>
                       <button
                         type="button"
-                        aria-label="List view"
+                        aria-label={t("List view")}
                         aria-pressed={view === "list"}
-                        title="List"
+                        title={t("List")}
                         onClick={() => setMyGamesCardSize("list")}
                         className={clsx(
                           "grid h-full w-8 place-items-center rounded-md transition",
@@ -2271,8 +2323,8 @@ export function MyGamesView({
                     <IconButton
                       ref={customizeMenu.anchorRef}
                       icon={Settings2}
-                      aria-label="Customize library view"
-                      title="Customize"
+                      aria-label={t("Customize library view")}
+                      title={t("Customize")}
                       aria-haspopup="true"
                       aria-expanded={customizeMenu.open}
                       aria-controls="library-customize"
@@ -2296,7 +2348,7 @@ export function MyGamesView({
                 <div
                   id="library-customize"
                   role="group"
-                  aria-label="Customize library view"
+                  aria-label={t("Customize library view")}
                   className="w-[400px] max-w-[calc(100vw-2rem)]"
                 >
                   <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-3.5">
@@ -2305,23 +2357,23 @@ export function MyGamesView({
                     </span>
                     <div className="min-w-0">
                       <h2 className="text-base font-bold text-text">
-                        Customize Library
+                        {t("Customize Library")}
                       </h2>
                       <p className="text-xs text-text-faint">
-                        Adjust how your library looks and behaves.
+                        {t("Adjust how your library looks and behaves.")}
                       </p>
                     </div>
                   </header>
                   <div className="grid gap-3 p-3">
                     <CustomizeSection
                       icon={PanelTop}
-                      title="Layout"
-                      hint="The main structure of your library."
+                      title={t("Layout")}
+                      hint={t("The main structure of your library.")}
                     >
                       <OptionRow
                         id="library-show-hero"
-                        label="Hero banner"
-                        help="The featured game above your library."
+                        label={t("Hero banner")}
+                        help={t("The featured game above your library.")}
                         checked={showHero}
                         onChange={setMyGamesShowHero}
                       />
@@ -2334,8 +2386,10 @@ export function MyGamesView({
                       />
                       <OptionRow
                         id="library-high-res-covers"
-                        label="Sharper covers"
-                        help="Larger cover art. Looks better on big cards, uses more data."
+                        label={t("Sharper covers")}
+                        help={t(
+                          "Larger cover art. Looks better on big cards, uses more data.",
+                        )}
                         checked={highResCovers}
                         onChange={setMyGamesHighResCovers}
                       />
@@ -2343,8 +2397,8 @@ export function MyGamesView({
 
                     <CustomizeSection
                       icon={LayoutGrid}
-                      title="Card details"
-                      hint="What each game card shows."
+                      title={t("Card details")}
+                      hint={t("What each game card shows.")}
                     >
                       <LibraryCardControls
                         showOrigin={showOrigin}
@@ -2364,27 +2418,33 @@ export function MyGamesView({
 
                     <CustomizeSection
                       icon={FolderTree}
-                      title="Library structure"
-                      hint="How your games are grouped."
+                      title={t("Library structure")}
+                      hint={t("How your games are grouped.")}
                     >
                       <OptionRow
                         id="library-show-provider-tabs"
-                        label="Launcher groups"
-                        help="Steam, Xbox, Battle.net and Epic Games as their own entries under My Games."
+                        label={t("Launcher groups")}
+                        help={t(
+                          "Steam, Xbox, Battle.net and Epic Games as their own entries under My Games.",
+                        )}
                         checked={showProviderTabs}
                         onChange={setMyGamesShowProviderTabs}
                       />
                       <OptionRow
                         id="library-hide-empty-tabs"
-                        label="Hide empty sources"
+                        label={t("Hide empty sources")}
                         help={
                           !showProviderTabs
-                            ? "Turn on launcher groups to choose which sources appear."
+                            ? t(
+                                "Turn on launcher groups to choose which sources appear.",
+                              )
                             : !hasImportedGames
-                              ? "Available after you import games."
+                              ? t("Available after you import games.")
                               : canHideEmptyProviderTabs
-                                ? "Hide launchers you have not imported from yet."
-                                : "All sources in the sidebar have games."
+                                ? t(
+                                    "Hide launchers you have not imported from yet.",
+                                  )
+                                : t("All sources in the sidebar have games.")
                         }
                         checked={hideEmptyProviderTabs}
                         disabled={!canHideEmptyProviderTabs}
@@ -2392,18 +2452,22 @@ export function MyGamesView({
                       />
                       <OptionRow
                         id="library-show-stats"
-                        label="Summary numbers"
-                        help="The line of numbers beside the library title."
+                        label={t("Summary numbers")}
+                        help={t(
+                          "The line of numbers beside the library title.",
+                        )}
                         checked={showStatCards}
                         onChange={setMyGamesShowStatCards}
                       />
                       {showStatCards ? (
                         <fieldset className="py-2.5">
                           <legend className="text-[13px] font-medium text-text">
-                            Numbers on the {statTabLabel} tab
+                            {t("Numbers on the {{statTabLabel}} tab", {
+                              statTabLabel,
+                            })}
                           </legend>
                           <p className="text-xs leading-4 text-text-faint">
-                            The game count always keeps the first slot.
+                            {t("The game count always keeps the first slot.")}
                           </p>
                           <div className="mt-2 grid gap-1 sm:grid-cols-2">
                             {availableStatDefinitions.map((definition) => {
@@ -2460,10 +2524,20 @@ export function MyGamesView({
             >
               <p className="sr-only" aria-live="polite">
                 {layout.panel === "provider-empty" && activeProviderConfig
-                  ? `No ${activeProviderConfig.label} games imported yet. Use Import from ${activeProviderConfig.label} to add them.`
+                  ? t(
+                      "No {{label}} games imported yet. Use Import from {{label}} to add them.",
+                      { label: activeProviderConfig.label },
+                    )
                   : layout.panel === "unimported-empty"
-                    ? "No games outside your imported libraries yet."
-                    : `Showing ${visibleGames.length} ${activeProviderConfig ? `${activeProviderConfig.label} games` : "games"}.`}
+                    ? t("No games outside your imported libraries yet.")
+                    : activeProviderConfig
+                      ? t("Showing {{count}} {{provider}} games.", {
+                          count: visibleGames.length,
+                          provider: activeProviderConfig.label,
+                        })
+                      : t("Showing {{count}} games.", {
+                          count: visibleGames.length,
+                        })}
               </p>
 
               <LibraryBulkActions
@@ -2493,12 +2567,12 @@ export function MyGamesView({
               ) : layout.panel === "unimported-empty" ? (
                 <Panel className="px-6 py-12 text-center">
                   <h3 className="text-lg font-semibold text-text">
-                    Everything here came from an import
+                    {t("Everything here came from an import")}
                   </h3>
                   <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-muted">
-                    Games PlayCounter finds on its own show up here: a disc
-                    install, a game file you started yourself, an emulator, or
-                    anything you added by hand.
+                    {t(
+                      "Games PlayCounter finds on its own show up here: a disc install, a game file you started yourself, an emulator, or anything you added by hand.",
+                    )}
                   </p>
                 </Panel>
               ) : layout.panel === "no-search-results" ? (
@@ -2511,25 +2585,26 @@ export function MyGamesView({
                   !Object.keys(libraryFilters).length ? (
                     <div className="mx-auto grid max-w-md justify-items-center gap-3">
                       <h3 className="font-semibold text-text">
-                        This shelf is empty
+                        {t("This shelf is empty")}
                       </h3>
                       <p>
-                        Drag games onto this shelf, or save filters so it fills
-                        itself.
+                        {t(
+                          "Drag games onto this shelf, or save filters so it fills itself.",
+                        )}
                       </p>
                       <Button
                         icon={SlidersHorizontal}
                         onClick={() => changeFiltersOpen(true)}
                       >
-                        Add filters
+                        {t("Add filters")}
                       </Button>
                     </div>
                   ) : query ? (
-                    <>No games match &ldquo;{query}&rdquo;.</>
+                    <>{t("No games match “{{query}}”.", { query })}</>
                   ) : showShelves ? (
-                    "No games match this shelf and these filters yet."
+                    t("No games match this shelf and these filters yet.")
                   ) : (
-                    "No games match these filters yet."
+                    t("No games match these filters yet.")
                   )}
                 </Panel>
               ) : (
@@ -2624,7 +2699,7 @@ export function MyGamesView({
                         loading={renderWindow.pending}
                         onClick={renderWindow.loadMore}
                       >
-                        Show more games
+                        {t("Show more games")}
                       </Button>
                     </div>
                   ) : null}
@@ -2651,15 +2726,18 @@ export function MyGamesView({
                 tone: "success",
                 title:
                   applied === 1
-                    ? "1 game leveled up"
-                    : `${applied} games leveled up`,
+                    ? t("1 game leveled up")
+                    : t("{{applied}} games leveled up", { applied }),
               });
             }
             if (missed.length > 0) {
               addToast({
                 tone: "info",
-                title: "No match right now",
-                detail: `${missed.join(", ")} kept their current state. Check again later.`,
+                title: t("No match right now"),
+                detail: t(
+                  "{{join}} kept their current state. Check again later.",
+                  { join: missed.join(", ") },
+                ),
               });
             }
           }}
@@ -2690,11 +2768,16 @@ export function MyGamesView({
             addToast({
               tone: "success",
               title: removeHistory
-                ? "Removed from library and history cleared"
-                : "Removed from library",
+                ? t("Removed from library and history cleared")
+                : t("Removed from library"),
               detail: removeHistory
-                ? `${pendingRemoval.name} was removed from your library and history.`
-                : `${pendingRemoval.name} was removed from your library. History was kept.`,
+                ? t("{{name}} was removed from your library and history.", {
+                    name: pendingRemoval.name,
+                  })
+                : t(
+                    "{{name}} was removed from your library. History was kept.",
+                    { name: pendingRemoval.name },
+                  ),
             });
             setPendingRemoval(null);
           }}
@@ -2718,17 +2801,23 @@ export function MyGamesView({
                 addToast({
                   tone: "success",
                   title: clearHistory
-                    ? "Game ignored and history cleared"
-                    : "Game ignored",
+                    ? t("Game ignored and history cleared")
+                    : t("Game ignored"),
                   detail: clearHistory
-                    ? `${game.name} will be ignored from now on. Existing history was cleared.`
-                    : `${game.name} will be ignored from now on. History was kept.`,
+                    ? t(
+                        "{{name}} will be ignored from now on. Existing history was cleared.",
+                        { name: game.name },
+                      )
+                    : t(
+                        "{{name}} will be ignored from now on. History was kept.",
+                        { name: game.name },
+                      ),
                 });
               })
               .catch((error) => {
                 addToast({
                   tone: "error",
-                  title: "Could not ignore game",
+                  title: t("Could not ignore game"),
                   detail: formatError(error),
                 });
               });
@@ -2760,19 +2849,20 @@ function EmptyLibraryPanel({
           className="mx-auto h-16 w-16 object-contain"
         />
         <h2 className="mt-5 text-2xl font-semibold tracking-tight text-text sm:text-3xl">
-          No games detected yet
+          {t("No games detected yet")}
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-text-muted sm:text-base sm:leading-7">
-          Start a game from any launcher or a standalone install. Keep
-          PlayCounter running, and it will add recognized games here and track
-          your playtime automatically.
+          {t(
+            "Start a game from any launcher or a standalone install. Keep PlayCounter running, and it will add recognized games here and track your playtime automatically.",
+          )}
         </p>
       </div>
       {importProviders.length > 0 ? (
         <div className="border-t border-border/60 px-6 py-6">
           <p className="text-sm text-text-muted">
-            You can also import games and past playtime. It&apos;s completely
-            optional.
+            {t(
+              "You can also import games and past playtime. It's completely optional.",
+            )}
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-3">
             {importProviders.map((config) => (
@@ -2871,12 +2961,12 @@ function LaunchStartingOverlay({
         <PlayCounterAnimatedIcon size={compact ? 40 : 64} />
         <div className={clsx("min-w-0 max-w-full", compact && "text-left")}>
           <div className="max-w-64 whitespace-normal break-words text-sm font-bold text-text">
-            Starting {gameName}…
+            {t("Starting {{gameName}}…", { gameName })}
           </div>
           <div className="mt-1 text-xs text-text-muted">
             {detected
-              ? "Game detected · finishing startup"
-              : "Waiting for Windows to open the game"}
+              ? t("Game detected · finishing startup")
+              : t("Waiting for Windows to open the game")}
           </div>
         </div>
       </div>
@@ -3023,6 +3113,20 @@ export function GameLibraryCard({
   const [settingLaunchFile, setSettingLaunchFile] = useState(false);
   const [confirmShareOpen, setConfirmShareOpen] = useState(false);
   const libraryMatchOffers = useLibraryMatchOffers((state) => state.offers);
+  const playcounterMatchOffers = useLibraryMatchOffers(
+    (state) => state.playcounterOffers,
+  );
+  const playcounterLibrary = useAppStore((state) => state.playcounterLibrary);
+  // Added by hand or moved away from its launcher.
+  const playcounterEntry = useMemo(
+    () =>
+      game.igdbId === undefined
+        ? undefined
+        : [...playcounterLibrary.values()].find(
+            (entry) => entry.igdbId === game.igdbId,
+          ),
+    [game.igdbId, playcounterLibrary],
+  );
   const [showDetails, setShowDetails] = useState(false);
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -3113,7 +3217,7 @@ export function GameLibraryCard({
       setLaunching(false);
       emitTourEvent(
         "mygames.demo-launch-attempted",
-        "Sample launch complete. No program was started.",
+        t("Sample launch complete. No program was started."),
       );
     }, DEMO_LAUNCH_MS);
     return () => window.clearTimeout(timeout);
@@ -3125,8 +3229,11 @@ export function GameLibraryCard({
       onReleaseLaunch(launchKey);
       addToast({
         tone: "info",
-        title: "Launch request sent",
-        detail: `${game.name} has not appeared in PlayCounter yet. It may still be starting or waiting on its own launcher.`,
+        title: t("Launch request sent"),
+        detail: t(
+          "{{name}} has not appeared in PlayCounter yet. It may still be starting or waiting on its own launcher.",
+          { name: game.name },
+        ),
       });
     }, 8_000);
     return () => window.clearTimeout(timeout);
@@ -3333,20 +3440,20 @@ export function GameLibraryCard({
     xboxLaunchEntry && !manualTarget
       ? {
           ...basePlayState,
-          ariaLabel: `Play ${game.name} on Xbox`,
-          title: "Play on Xbox",
+          ariaLabel: t("Play {{name}} on Xbox", { name: game.name }),
+          title: t("Play on Xbox"),
         }
       : steamLaunchEntry && !primaryLaunchTarget && !primaryEmulatorTarget
         ? {
             ...basePlayState,
-            ariaLabel: `Play ${game.name} in Steam`,
-            title: "Play in Steam",
+            ariaLabel: t("Play {{name}} in Steam", { name: game.name }),
+            title: t("Play in Steam"),
           }
         : epicLaunchEntry && !primaryLaunchTarget && !primaryEmulatorTarget
           ? {
               ...basePlayState,
-              ariaLabel: `Play ${game.name} in Epic Games`,
-              title: "Play in Epic Games",
+              ariaLabel: t("Play {{name}} in Epic Games", { name: game.name }),
+              title: t("Play in Epic Games"),
             }
           : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
@@ -3465,7 +3572,17 @@ export function GameLibraryCard({
   );
   const playtimeTitle =
     game.libraryImports.length > 0
-      ? `Launchers combined: ${formatDuration(game.providerFloorSeconds, showDurationDays)} · PlayCounter: ${formatDuration(localDisplayedSeconds, showDurationDays)} · shown: ${formatDuration(game.totalSeconds, showDurationDays)} (higher total).`
+      ? t(
+          "Launchers combined: {{duration}} · PlayCounter: {{duration2}} · shown: {{duration3}} (higher total).",
+          {
+            duration: formatDuration(
+              game.providerFloorSeconds,
+              showDurationDays,
+            ),
+            duration2: formatDuration(localDisplayedSeconds, showDurationDays),
+            duration3: formatDuration(game.totalSeconds, showDurationDays),
+          },
+        )
       : undefined;
   const trackingUnavailable =
     game.exeNames.length === 0 && game.emulatorContentKeys.length === 0;
@@ -3486,28 +3603,43 @@ export function GameLibraryCard({
           libraryEntryKey(offeredImport.provider, offeredImport.externalId),
         )
       : undefined;
-  const libraryMatchPrompt = libraryMatchOffer ? (
+  // A PlayCounter game without a file checks like a launcher game.
+  const playcounterMatchEntry =
+    trackingUnavailable && !matchCheckImportEntry
+      ? playcounterEntry
+      : undefined;
+  const playcounterMatchOffer =
+    !demo && playcounterMatchEntry
+      ? playcounterMatchOffers.get(playcounterMatchEntry.igdbId)
+      : undefined;
+  const matchOffer = libraryMatchOffer ?? playcounterMatchOffer;
+  const libraryMatchPrompt = matchOffer ? (
     <LibraryMatchOffer
       gameName={game.name}
-      executableMatches={libraryMatchOffer.executableMatches}
+      executableMatches={matchOffer.executableMatches}
       onCover={!isList}
       onReview={() => setShowMatchCheck(true)}
       onDismiss={() =>
-        dismissLibraryMatchOffer(
-          libraryEntryKey(
-            libraryMatchOffer.entry.provider,
-            libraryMatchOffer.entry.externalId,
-          ),
-        )
+        libraryMatchOffer
+          ? dismissLibraryMatchOffer(
+              libraryEntryKey(
+                libraryMatchOffer.entry.provider,
+                libraryMatchOffer.entry.externalId,
+              ),
+            )
+          : dismissPlayCounterMatchOffer(matchOffer.entry.igdbId)
       }
     />
   ) : null;
+  const checksLibraryGame = Boolean(
+    trackingUnavailable && (matchCheckImportEntry || playcounterMatchEntry),
+  );
   const canCheckMatches = Boolean(
     (game.source && (demo ? game.exeNames[0] : checkableFiles.length > 0)) ||
-    (trackingUnavailable && matchCheckImportEntry),
+    checksLibraryGame,
   );
   const trackingWarningVisible =
-    showTrackingWarning && trackingUnavailable && !libraryMatchOffer;
+    showTrackingWarning && trackingUnavailable && !matchOffer;
   const trackingWarningMessage = trackingUnavailableMessage(
     importedProviders,
     canCheckMatches,
@@ -3537,8 +3669,8 @@ export function GameLibraryCard({
   const demoNotice = () =>
     addToast({
       tone: "info",
-      title: "Tutorial game",
-      detail: "The sample exists only for this guide - nothing was saved.",
+      title: t("Tutorial game"),
+      detail: t("The sample exists only for this guide - nothing was saved."),
     });
 
   function submitRename() {
@@ -3547,8 +3679,8 @@ export function GameLibraryCard({
     renameCustomGame(game.gameId, name);
     addToast({
       tone: "success",
-      title: "Game renamed",
-      detail: `The custom game is now called ${name}.`,
+      title: t("Game renamed"),
+      detail: t("The custom game is now called {{name}}.", { name }),
     });
     setShowRename(false);
   }
@@ -3564,7 +3696,7 @@ export function GameLibraryCard({
   }
 
   function openMatchCheck() {
-    if (!(trackingUnavailable && matchCheckImportEntry)) {
+    if (!checksLibraryGame) {
       if (checkableFiles.length > 1) {
         setFilePick("check");
         return;
@@ -3599,12 +3731,12 @@ export function GameLibraryCard({
   const filePickList =
     filePick === "convert"
       ? {
-          action: "Convert to custom game",
+          action: t("Convert to custom game"),
           files: convertibleFiles,
           canPick: canConvertFile,
         }
       : {
-          action: "Check for matches",
+          action: t("Check for matches"),
           files: checkableFiles,
           canPick: canCheckFile,
         };
@@ -3618,15 +3750,18 @@ export function GameLibraryCard({
       setShowConvert(false);
       emitTourEvent(
         "demo.action-completed",
-        `Sample converted to ${name}. Its time is kept and nothing is shared.`,
+        t(
+          "Sample converted to {{name}}. Its time is kept and nothing is shared.",
+          { name },
+        ),
       );
       return;
     }
     convertToCustomGame(exeName, name);
     addToast({
       tone: "success",
-      title: "Converted to custom game",
-      detail: `${exeName} is now tracked as ${name}.`,
+      title: t("Converted to custom game"),
+      detail: t("{{exeName}} is now tracked as {{name}}.", { exeName, name }),
     });
     setShowConvert(false);
   }
@@ -3653,8 +3788,11 @@ export function GameLibraryCard({
     void linkServerKnownFiles(match);
     addToast({
       tone: "success",
-      title: "Match applied",
-      detail: `${game.name} is now tracked as ${match.name}.`,
+      title: t("Match applied"),
+      detail: t("{{name}} is now tracked as {{name2}}.", {
+        name: game.name,
+        name2: match.name,
+      }),
     });
     setShowMatchCheck(false);
   };
@@ -3682,35 +3820,42 @@ export function GameLibraryCard({
     if (!outcome.localBlockApplied) {
       addToast({
         tone: "error",
-        title: `Could not ignore ${exeName}`,
-        detail: "PlayCounter could not ignore it on this PC. Try again.",
+        title: t("Could not ignore {{exeName}}", { exeName }),
+        detail: t("PlayCounter could not ignore it on this PC. Try again."),
       });
       return;
     }
     if (!outcome.ignoreFileUpdated) {
       addToast({
         tone: "error",
-        title: `${exeName} ignored`,
-        detail:
+        title: t("{{exeName}} ignored", { exeName }),
+        detail: t(
           "It comes back when you restart PlayCounter - the ignore file could not be saved.",
+        ),
       });
       return;
     }
     if (outcome.report === "failed" || outcome.report === "skipped") {
       addToast({
         tone: "info",
-        title: "Fixed on this PC",
-        detail: "The community report could not be sent.",
+        title: t("Fixed on this PC"),
+        detail: t("The community report could not be sent."),
       });
       return;
     }
     addToast({
       tone: "success",
-      title: "Wrong match reported",
+      title: t("Wrong match reported"),
       detail:
         outcome.report === "already_reviewed"
-          ? `${exeName} is no longer tracked here. Your earlier report was already reviewed.`
-          : `${exeName} is no longer tracked here. Your report is queued for review.`,
+          ? t(
+              "{{exeName}} is no longer tracked here. Your earlier report was already reviewed.",
+              { exeName },
+            )
+          : t(
+              "{{exeName}} is no longer tracked here. Your report is queued for review.",
+              { exeName },
+            ),
     });
   }
 
@@ -3733,7 +3878,6 @@ export function GameLibraryCard({
     void ignoreAppAsSoftware(
       exeName,
       useAppStore.getState().launchTargets.get(exeName.toLowerCase())?.path,
-      !isOffline,
       addToast,
     );
   }
@@ -3746,15 +3890,18 @@ export function GameLibraryCard({
         : shareTarget
           ? `${shareTarget.kind}:${shareTarget.key}`
           : "",
-    resultInstruction: "Pick the right game.",
+    resultInstruction: t("Pick the right game."),
     onKnownGame: (matchedGame) => {
       if (!shareTarget) return;
       applyLocalLinkGameMatch(shareTarget, matchedGame);
       closeShare();
       addToast({
         tone: "success",
-        title: "Already in IGDB",
-        detail: `${matchedGame.name} is a known IGDB match for ${flowExeName} and was applied directly.`,
+        title: t("Already in IGDB"),
+        detail: t(
+          "{{name}} is a known IGDB match for {{flowExeName}} and was applied directly.",
+          { name: matchedGame.name, flowExeName },
+        ),
       });
     },
     onRejected: (id, reviewNote, { selection }) => {
@@ -3771,8 +3918,8 @@ export function GameLibraryCard({
       closeShare();
       addToast({
         tone: "info",
-        title: "Suggestion already reviewed",
-        detail: reviewNote ?? "This suggestion was not accepted.",
+        title: t("Suggestion already reviewed"),
+        detail: reviewNote ?? t("This suggestion was not accepted."),
       });
     },
     onSuggested: (id, verified, { selection }) => {
@@ -3788,8 +3935,11 @@ export function GameLibraryCard({
       closeShare();
       addToast({
         tone: "success",
-        title: "Suggested to community",
-        detail: `Your community suggestion was submitted for ${flowExeName}.`,
+        title: t("Suggested to community"),
+        detail: t(
+          "Your community suggestion was submitted for {{flowExeName}}.",
+          { flowExeName },
+        ),
       });
     },
   });
@@ -3820,8 +3970,11 @@ export function GameLibraryCard({
     void linkServerKnownFiles(changed);
     addToast({
       tone: "success",
-      title: "Game changed",
-      detail: `${primaryLocalLink.exeName} now counts for ${changed.name} on this PC. Nothing was sent.`,
+      title: t("Game changed"),
+      detail: t(
+        "{{exeName}} now counts for {{name}} on this PC. Nothing was sent.",
+        { exeName: primaryLocalLink.exeName, name: changed.name },
+      ),
     });
   }
 
@@ -3851,13 +4004,19 @@ export function GameLibraryCard({
       applied
         ? {
             tone: "success",
-            title: "Match applied",
-            detail: `${game.name} is now tracked as ${applied.name} on this PC.`,
+            title: t("Match applied"),
+            detail: t("{{name}} is now tracked as {{name2}} on this PC.", {
+              name: game.name,
+              name2: applied.name,
+            }),
           }
         : {
             tone: "info",
-            title: "Nothing to change",
-            detail: `${flowExeName} is not linked to a folder for ${game.name} yet. Start the game once, then pick the right one.`,
+            title: t("Nothing to change"),
+            detail: t(
+              "{{flowExeName}} is not linked to a folder for {{name}} yet. Start the game once, then pick the right one.",
+              { flowExeName, name: game.name },
+            ),
           },
     );
   }
@@ -3886,7 +4045,7 @@ export function GameLibraryCard({
     if (outcome.kind === "failed") {
       addToast({
         tone: "error",
-        title: "Could not share executable",
+        title: t("Could not share executable"),
         detail: outcome.error,
       });
       return;
@@ -3895,11 +4054,14 @@ export function GameLibraryCard({
       tone: outcome.kind === "rejected" ? "info" : "success",
       title:
         outcome.kind === "already-known"
-          ? "Known match applied"
+          ? t("Known match applied")
           : outcome.kind === "rejected"
-            ? "Suggestion already reviewed"
-            : "Suggested to community",
-      detail: `${primaryLocalLink.exeName} remains linked to ${game.name} on this PC.`,
+            ? t("Suggestion already reviewed")
+            : t("Suggested to community"),
+      detail: t("{{exeName}} remains linked to {{name}} on this PC.", {
+        exeName: primaryLocalLink.exeName,
+        name: game.name,
+      }),
     });
   }
 
@@ -3910,40 +4072,46 @@ export function GameLibraryCard({
         if (outcome.kind === "cancelled") {
           addToast({
             tone: "success",
-            title: "Suggestion cancelled",
-            detail: `${game.name} is back to a private custom game. You can suggest it again anytime.`,
+            title: t("Suggestion cancelled"),
+            detail: t(
+              "{{name}} is back to a private custom game. You can suggest it again anytime.",
+              { name: game.name },
+            ),
           });
         } else if (outcome.kind === "not-pending") {
           addToast({
             tone: "info",
-            title: "Suggestion changed",
-            detail:
+            title: t("Suggestion changed"),
+            detail: t(
               "This suggestion is no longer pending and could not be cancelled.",
+            ),
           });
         } else if (outcome.kind === "not-owner") {
           addToast({
             tone: "info",
-            title: "Can't cancel automatically",
-            detail:
+            title: t("Can't cancel automatically"),
+            detail: t(
               "PlayCounter can't verify this suggestion as yours, so it remains in review.",
+            ),
           });
         } else if (outcome.kind === "unavailable") {
           addToast({
             tone: "info",
-            title: "Not available yet",
-            detail:
+            title: t("Not available yet"),
+            detail: t(
               "This server does not support cancelling suggestions yet. Try again later.",
+            ),
           });
         } else if (outcome.kind === "offline") {
           addToast({
             tone: "error",
-            title: "You're offline",
-            detail: "Reconnect and try cancelling again.",
+            title: t("You're offline"),
+            detail: t("Reconnect and try cancelling again."),
           });
         } else {
           addToast({
             tone: "error",
-            title: "Could not cancel suggestion",
+            title: t("Could not cancel suggestion"),
             detail: outcome.error,
           });
         }
@@ -3974,8 +4142,18 @@ export function GameLibraryCard({
       onDemoPlaytimeLogged?.(durationSeconds);
       addToast({
         tone: "success",
-        title: "Tutorial session added",
-        detail: `${formatDuration(durationSeconds, showDurationDays)} was added to the sample. It now shows ${formatDuration(game.totalSeconds + durationSeconds, showDurationDays)} across ${game.sessionCount + 1} sessions. Nothing was saved.`,
+        title: t("Tutorial session added"),
+        detail: t(
+          "{{duration}} was added to the sample. It now shows {{duration2}} across {{sessionCount}} sessions. Nothing was saved.",
+          {
+            duration: formatDuration(durationSeconds, showDurationDays),
+            duration2: formatDuration(
+              game.totalSeconds + durationSeconds,
+              showDurationDays,
+            ),
+            sessionCount: game.sessionCount + 1,
+          },
+        ),
       });
       emitTourEvent("mygames.demo-session-logged");
       return;
@@ -3997,8 +4175,11 @@ export function GameLibraryCard({
     });
     addToast({
       tone: "success",
-      title: "Playtime added",
-      detail: `${formatDuration(durationSeconds, showDurationDays)} added to ${game.name}.`,
+      title: t("Playtime added"),
+      detail: t("{{duration}} added to {{name}}.", {
+        duration: formatDuration(durationSeconds, showDurationDays),
+        name: game.name,
+      }),
     });
     setShowAddPlaytime(false);
   };
@@ -4010,7 +4191,9 @@ export function GameLibraryCard({
       else setDemoTotal(targetSeconds);
       emitTourEvent(
         "demo.action-completed",
-        `Sample total updated to ${formatDuration(targetSeconds)}. No session was added.`,
+        t("Sample total updated to {{duration}}. No session was added.", {
+          duration: formatDuration(targetSeconds),
+        }),
       );
       return;
     }
@@ -4031,14 +4214,20 @@ export function GameLibraryCard({
       });
       addToast({
         tone: "success",
-        title: "Playtime adjusted",
-        detail: `${game.name} now has ${formatDuration(targetSeconds, showDurationDays)} of playtime. History was not changed.`,
+        title: t("Playtime adjusted"),
+        detail: t(
+          "{{name}} now has {{duration}} of playtime. History was not changed.",
+          {
+            name: game.name,
+            duration: formatDuration(targetSeconds, showDurationDays),
+          },
+        ),
       });
       setShowAdjustPlaytime(false);
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not adjust playtime",
+        title: t("Could not adjust playtime"),
         detail: formatError(error),
       });
     }
@@ -4062,13 +4251,13 @@ export function GameLibraryCard({
       }
       addToast({
         tone: "success",
-        title: "Cover updated",
-        detail: `${game.name} now uses the selected cover.`,
+        title: t("Cover updated"),
+        detail: t("{{name}} now uses the selected cover.", { name: game.name }),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Cover update failed",
+        title: t("Cover update failed"),
         detail: formatError(error),
       });
     } finally {
@@ -4082,8 +4271,8 @@ export function GameLibraryCard({
     if (!navigator.clipboard?.read) {
       addToast({
         tone: "error",
-        title: "Clipboard unavailable",
-        detail: "This system does not expose image clipboard access.",
+        title: t("Clipboard unavailable"),
+        detail: t("This system does not expose image clipboard access."),
       });
       return;
     }
@@ -4099,13 +4288,13 @@ export function GameLibraryCard({
 
       addToast({
         tone: "error",
-        title: "No image in clipboard",
-        detail: "Copy an image, then try Paste cover again.",
+        title: t("No image in clipboard"),
+        detail: t("Copy an image, then try Paste cover again."),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Paste cover failed",
+        title: t("Paste cover failed"),
         detail: formatError(error),
       });
     }
@@ -4121,8 +4310,10 @@ export function GameLibraryCard({
     );
     addToast({
       tone: "info",
-      title: "Cover reset",
-      detail: `${game.name} is back to its automatic cover.`,
+      title: t("Cover reset"),
+      detail: t("{{name}} is back to its automatic cover.", {
+        name: game.name,
+      }),
     });
     contextMenu.close();
   }
@@ -4131,8 +4322,8 @@ export function GameLibraryCard({
     clearCustomGameCover(game.gameId);
     addToast({
       tone: "success",
-      title: "Cover removed",
-      detail: `${game.name} no longer uses a custom cover.`,
+      title: t("Cover removed"),
+      detail: t("{{name}} no longer uses a custom cover.", { name: game.name }),
     });
     contextMenu.close();
   }
@@ -4154,41 +4345,49 @@ export function GameLibraryCard({
       else
         emitTourEvent(
           "mygames.demo-launch-attempted",
-          "This sample has no saved launch file. Set one in Launch options to restore Play.",
+          t(
+            "This sample has no saved launch file. Set one in Launch options to restore Play.",
+          ),
         );
       return;
     }
     if (!target) {
       addToast({
         tone: "info",
-        title: "No launch file saved",
+        title: t("No launch file saved"),
         detail: canConfigureLaunch
-          ? `Start ${game.name} normally once, or set its launch file from the right-click menu.`
-          : `${game.name} does not have a Windows .exe that PlayCounter can launch directly. Use its normal launcher.`,
+          ? t(
+              "Start {{name}} normally once, or set its launch file from the right-click menu.",
+              { name: game.name },
+            )
+          : t(
+              "{{name}} does not have a Windows .exe that PlayCounter can launch directly. Use its normal launcher.",
+              { name: game.name },
+            ),
       });
       return;
     }
     if (hasActiveSession) {
       addToast({
         tone: "info",
-        title: `${game.name} is already running`,
-        detail: "PlayCounter is already tracking this game.",
+        title: t("{{name}} is already running", { name: game.name }),
+        detail: t("PlayCounter is already tracking this game."),
       });
       return;
     }
     if (launching || launchBlocked) {
       addToast({
         tone: "info",
-        title: "A game is already starting",
-        detail: "Wait for PlayCounter to finish the current launch first.",
+        title: t("A game is already starting"),
+        detail: t("Wait for PlayCounter to finish the current launch first."),
       });
       return;
     }
     if (!onAcquireLaunch(launchKey)) {
       addToast({
         tone: "info",
-        title: "A game is already starting",
-        detail: "Wait for PlayCounter to finish the current launch first.",
+        title: t("A game is already starting"),
+        detail: t("Wait for PlayCounter to finish the current launch first."),
       });
       return;
     }
@@ -4199,8 +4398,8 @@ export function GameLibraryCard({
       if (outcome === "busy") {
         addToast({
           tone: "info",
-          title: `${game.name} is starting`,
-          detail: "PlayCounter already sent the launch request.",
+          title: t("{{name}} is starting", { name: game.name }),
+          detail: t("PlayCounter already sent the launch request."),
         });
         return;
       }
@@ -4228,16 +4427,16 @@ export function GameLibraryCard({
     if (hasActiveSession) {
       addToast({
         tone: "info",
-        title: `${game.name} is already running`,
-        detail: "PlayCounter is already tracking this game.",
+        title: t("{{name}} is already running", { name: game.name }),
+        detail: t("PlayCounter is already tracking this game."),
       });
       return;
     }
     if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
       addToast({
         tone: "info",
-        title: "A game is already starting",
-        detail: "Wait for PlayCounter to finish the current launch first.",
+        title: t("A game is already starting"),
+        detail: t("Wait for PlayCounter to finish the current launch first."),
       });
       return;
     }
@@ -4249,16 +4448,19 @@ export function GameLibraryCard({
       if (outcome.kind === "busy") {
         addToast({
           tone: "info",
-          title: `${game.name} is starting`,
-          detail: "PlayCounter already sent the launch request.",
+          title: t("{{name}} is starting", { name: game.name }),
+          detail: t("PlayCounter already sent the launch request."),
         });
         return;
       }
       if (outcome.kind === "hostRunning") {
         addToast({
           tone: "info",
-          title: `${mapping.label} is still busy`,
-          detail: `Stop the current emulated game first. PlayCounter only replaces ${mapping.label} automatically when it is safely idle.`,
+          title: t("{{label}} is still busy", { label: mapping.label }),
+          detail: t(
+            "Stop the current emulated game first. PlayCounter only replaces {{label}} automatically when it is safely idle.",
+            { label: mapping.label },
+          ),
         });
         return;
       }
@@ -4290,16 +4492,16 @@ export function GameLibraryCard({
     if (hasActiveSession) {
       addToast({
         tone: "info",
-        title: `${game.name} is already running`,
-        detail: "PlayCounter is already tracking this game.",
+        title: t("{{name}} is already running", { name: game.name }),
+        detail: t("PlayCounter is already tracking this game."),
       });
       return;
     }
     if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
       addToast({
         tone: "info",
-        title: "A game is already starting",
-        detail: "Wait for PlayCounter to finish the current launch first.",
+        title: t("A game is already starting"),
+        detail: t("Wait for PlayCounter to finish the current launch first."),
       });
       return;
     }
@@ -4351,7 +4553,7 @@ export function GameLibraryCard({
     } catch (error) {
       addToast({
         tone: "error",
-        title: `Could not open ${game.name} in Steam`,
+        title: t("Could not open {{name}} in Steam", { name: game.name }),
         detail: launchErrorDetail(error),
       });
     }
@@ -4368,7 +4570,7 @@ export function GameLibraryCard({
     } catch (error) {
       addToast({
         tone: "error",
-        title: `Could not open ${game.name} in Steam`,
+        title: t("Could not open {{name}} in Steam", { name: game.name }),
         detail: launchErrorDetail(error),
       });
     }
@@ -4383,11 +4585,11 @@ export function GameLibraryCard({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not open Battle.net",
+        title: t("Could not open Battle.net"),
         detail:
           error instanceof Error
             ? error.message
-            : "Check that Battle.net is installed on this PC.",
+            : t("Check that Battle.net is installed on this PC."),
       });
     }
   }
@@ -4402,7 +4604,7 @@ export function GameLibraryCard({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not open Epic Games",
+        title: t("Could not open Epic Games"),
         detail: formatError(error),
       });
     }
@@ -4419,7 +4621,7 @@ export function GameLibraryCard({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not open the Xbox app",
+        title: t("Could not open the Xbox app"),
         detail: formatError(error),
       });
     }
@@ -4434,13 +4636,16 @@ export function GameLibraryCard({
       if (!target) return;
       addToast({
         tone: "success",
-        title: "Launch file saved",
-        detail: `${game.name} can now be started with ${mapping.label}.`,
+        title: t("Launch file saved"),
+        detail: t("{{name}} can now be started with {{label}}.", {
+          name: game.name,
+          label: mapping.label,
+        }),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Launch file not set",
+        title: t("Launch file not set"),
         detail: formatError(error),
       });
     }
@@ -4455,13 +4660,19 @@ export function GameLibraryCard({
       target
         ? {
             tone: "success",
-            title: "Detected launch file confirmed",
-            detail: `${game.name} can now be started with ${mapping.label}.`,
+            title: t("Detected launch file confirmed"),
+            detail: t("{{name}} can now be started with {{label}}.", {
+              name: game.name,
+              label: mapping.label,
+            }),
           }
         : {
             tone: "error",
-            title: "Detected file is no longer available",
-            detail: `Start ${game.name} again or select its game file manually.`,
+            title: t("Detected file is no longer available"),
+            detail: t(
+              "Start {{name}} again or select its game file manually.",
+              { name: game.name },
+            ),
           },
     );
   }
@@ -4473,8 +4684,10 @@ export function GameLibraryCard({
     forgetEmulatorLaunchTarget(mapping.contentKey);
     addToast({
       tone: "info",
-      title: "Launch file forgotten",
-      detail: `Start ${game.name} once or select its game file again.`,
+      title: t("Launch file forgotten"),
+      detail: t("Start {{name}} once or select its game file again.", {
+        name: game.name,
+      }),
     });
   }
 
@@ -4530,13 +4743,15 @@ export function GameLibraryCard({
       if (!target) return;
       addToast({
         tone: "success",
-        title: "Launch file saved",
-        detail: `${game.name} can now be started from My Games.`,
+        title: t("Launch file saved"),
+        detail: t("{{name}} can now be started from My Games.", {
+          name: game.name,
+        }),
       });
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Launch file not set",
+        title: t("Launch file not set"),
         detail: formatError(error),
       });
     }
@@ -4552,8 +4767,10 @@ export function GameLibraryCard({
     }
     addToast({
       tone: "info",
-      title: "Launch file forgotten",
-      detail: `Start ${game.name} once, or set its launch file again.`,
+      title: t("Launch file forgotten"),
+      detail: t("Start {{name}} once, or set its launch file again.", {
+        name: game.name,
+      }),
     });
   }
 
@@ -4565,7 +4782,7 @@ export function GameLibraryCard({
     } catch (error) {
       addToast({
         tone: "error",
-        title: "Could not open the game file",
+        title: t("Could not open the game file"),
         detail: formatError(error),
       });
     }
@@ -4645,7 +4862,7 @@ export function GameLibraryCard({
         position={contextMenu.position}
         onClose={contextMenu.close}
         returnFocusRef={contextMenu.anchorRef}
-        ariaLabel={`${game.name} actions`}
+        ariaLabel={t("{{game}} actions", { game: game.name })}
         className="min-w-56"
         dataTour={demo ? "demo-context-menu" : undefined}
         focusFirstItem
@@ -4656,14 +4873,14 @@ export function GameLibraryCard({
             disabled={hasActiveSession || launching || launchBlocked}
             onClick={handlePreferredLaunch}
           >
-            Play
+            {t("Play")}
           </ContextMenuItem>
         ) : showInstallInSteam ? (
           <ContextMenuItem
             icon={Download}
             onClick={() => void handleInstallInSteam()}
           >
-            Install in Steam
+            {t("Install in Steam")}
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem
@@ -4674,14 +4891,14 @@ export function GameLibraryCard({
             setShowDetails(true);
           }}
         >
-          Open Details
+          {t("Open Details")}
         </ContextMenuItem>
         <ContextMenuItem
           dataTour={demo ? "demo-menu-show-history" : undefined}
           icon={History}
           onClick={handleShowHistory}
         >
-          Show History
+          {t("Show History")}
         </ContextMenuItem>
         {!demo ? (
           <ContextMenuItem
@@ -4702,11 +4919,11 @@ export function GameLibraryCard({
           >
             {bannerShelf
               ? featuredInBanner
-                ? "Use library banner"
-                : "Pin to shelf banner"
+                ? t("Use library banner")
+                : t("Pin to shelf banner")
               : featuredInBanner
-                ? "Unpin from banner"
-                : "Pin to banner"}
+                ? t("Unpin from banner")
+                : t("Pin to banner")}
           </ContextMenuItem>
         ) : null}
         {!demo ? <ContextMenuSeparator /> : null}
@@ -4727,13 +4944,13 @@ export function GameLibraryCard({
               setShowRename(true);
             }}
           >
-            Rename Game
+            {t("Rename Game")}
           </ContextMenuItem>
         ) : null}
         <ContextMenuSeparator />
         {showLaunchOptions ? (
           <ContextMenuSubmenu
-            label="Launch options"
+            label={t("Launch options")}
             icon={FolderSearch}
             dataTour={demo ? "demo-menu-launch-options" : undefined}
             menuDataTour={demo ? "demo-launch-menu" : undefined}
@@ -4746,14 +4963,14 @@ export function GameLibraryCard({
                     disabled={hasActiveSession || launching || launchBlocked}
                     onClick={() => void handleSteamLaunch()}
                   >
-                    Play in Steam
+                    {t("Play in Steam")}
                   </ContextMenuItem>
                 ) : null}
                 <ContextMenuItem
                   icon={ExternalLink}
                   onClick={() => void handleOpenInSteam()}
                 >
-                  Open in Steam
+                  {t("Open in Steam")}
                 </ContextMenuItem>
               </>
             ) : null}
@@ -4765,14 +4982,14 @@ export function GameLibraryCard({
                     disabled={hasActiveSession || launching || launchBlocked}
                     onClick={() => void handleXboxLaunch()}
                   >
-                    Play on Xbox
+                    {t("Play on Xbox")}
                   </ContextMenuItem>
                 ) : null}
                 <ContextMenuItem
                   icon={ExternalLink}
                   onClick={() => void handleOpenXboxApp()}
                 >
-                  Open Xbox app
+                  {t("Open Xbox app")}
                 </ContextMenuItem>
               </>
             ) : null}
@@ -4782,7 +4999,7 @@ export function GameLibraryCard({
                   icon={ExternalLink}
                   onClick={() => void handleOpenBattleNet()}
                 >
-                  Open Battle.net
+                  {t("Open Battle.net")}
                 </ContextMenuItem>
               </>
             ) : null}
@@ -4794,14 +5011,14 @@ export function GameLibraryCard({
                     disabled={hasActiveSession || launching || launchBlocked}
                     onClick={() => void handleEpicLaunch()}
                   >
-                    Play in Epic Games
+                    {t("Play in Epic Games")}
                   </ContextMenuItem>
                 ) : null}
                 <ContextMenuItem
                   icon={ExternalLink}
                   onClick={() => void handleOpenEpic()}
                 >
-                  Open Epic Games
+                  {t("Open Epic Games")}
                 </ContextMenuItem>
               </>
             ) : null}
@@ -4814,7 +5031,7 @@ export function GameLibraryCard({
                   setDemoAction("launch");
                 }}
               >
-                Set or change launch file…
+                {t("Set or change launch file…")}
               </ContextMenuItem>
             ) : null}
             {showPickLaunchFile ? (
@@ -4825,7 +5042,7 @@ export function GameLibraryCard({
                   setSettingLaunchFile(true);
                 }}
               >
-                Set launch file…
+                {t("Set launch file…")}
               </ContextMenuItem>
             ) : null}
             {!demo && canConfigureLaunch ? (
@@ -4840,18 +5057,20 @@ export function GameLibraryCard({
                         }
                         title={
                           hasActiveSession
-                            ? "Already running"
+                            ? t("Already running")
                             : launching
-                              ? "Starting…"
+                              ? t("Starting…")
                               : launchBlocked
-                                ? "Another game is starting"
+                                ? t("Another game is starting")
                                 : undefined
                         }
                         onClick={() => void handleLaunch(target)}
                       >
                         {ownedLaunchTargets.length > 1
-                          ? `Play (${target.exeName})`
-                          : "Play"}
+                          ? t("Play ({{exeName}})", {
+                              exeName: target.exeName,
+                            })
+                          : t("Play")}
                       </ContextMenuItem>
                     ))
                   : null}
@@ -4860,8 +5079,8 @@ export function GameLibraryCard({
                   onClick={() => void handleSetLaunchFile()}
                 >
                   {ownedLaunchTargets.length > 0
-                    ? "Change launch file…"
-                    : "Set launch file…"}
+                    ? t("Change launch file…")
+                    : t("Set launch file…")}
                 </ContextMenuItem>
                 {primaryLaunchTarget ? (
                   <ContextMenuItem
@@ -4869,7 +5088,7 @@ export function GameLibraryCard({
                     title={primaryLaunchTarget.path}
                     onClick={() => void handleOpenInExplorer()}
                   >
-                    Open in Explorer
+                    {t("Open in Explorer")}
                   </ContextMenuItem>
                 ) : null}
                 {ownedLaunchTargets.length > 0 ? (
@@ -4877,7 +5096,7 @@ export function GameLibraryCard({
                     icon={Trash2}
                     onClick={handleForgetLaunchFile}
                   >
-                    Forget launch file
+                    {t("Forget launch file")}
                   </ContextMenuItem>
                 ) : null}
               </>
@@ -4905,7 +5124,10 @@ export function GameLibraryCard({
                           }
                           onClick={() => void handleEmulatorLaunch(mapping)}
                         >
-                          Play with {mapping.label} · {mapping.display}
+                          {t("Play with {{label}} · {{display}}", {
+                            label: mapping.label,
+                            display: mapping.display,
+                          })}
                         </ContextMenuItem>
                       ) : candidate ? (
                         <ContextMenuItem
@@ -4914,7 +5136,9 @@ export function GameLibraryCard({
                             handleConfirmEmulatorCandidate(mapping)
                           }
                         >
-                          Use detected {candidate.displayName}
+                          {t("Use detected {{displayName}}", {
+                            displayName: candidate.displayName,
+                          })}
                         </ContextMenuItem>
                       ) : null}
                       <ContextMenuItem
@@ -4923,7 +5147,13 @@ export function GameLibraryCard({
                           void handleSetEmulatorLaunchFile(mapping)
                         }
                       >
-                        {target ? "Change" : "Set"} {mapping.label} game file…
+                        {target
+                          ? t("Change {{emulator}} game file…", {
+                              emulator: mapping.label,
+                            })
+                          : t("Set {{emulator}} game file…", {
+                              emulator: mapping.label,
+                            })}
                       </ContextMenuItem>
                       {target ? (
                         <ContextMenuItem
@@ -4932,7 +5162,9 @@ export function GameLibraryCard({
                             handleForgetEmulatorLaunchFile(mapping)
                           }
                         >
-                          Forget {mapping.label} game file
+                          {t("Forget {{label}} game file", {
+                            label: mapping.label,
+                          })}
                         </ContextMenuItem>
                       ) : null}
                     </Fragment>
@@ -4943,7 +5175,7 @@ export function GameLibraryCard({
           </ContextMenuSubmenu>
         ) : null}
         <ContextMenuSubmenu
-          label="Playtime"
+          label={t("Playtime")}
           defaultOpen={
             demo &&
             activeTour?.tourId === "log-playtime" &&
@@ -4961,7 +5193,7 @@ export function GameLibraryCard({
               setShowAddPlaytime(true);
             }}
           >
-            Log missed session
+            {t("Log missed session")}
           </ContextMenuItem>
           <ContextMenuItem
             dataTour={demo ? "demo-menu-adjust-playtime" : undefined}
@@ -4971,11 +5203,11 @@ export function GameLibraryCard({
               setShowAdjustPlaytime(true);
             }}
           >
-            Adjust total playtime
+            {t("Adjust total playtime")}
           </ContextMenuItem>
         </ContextMenuSubmenu>
         {!demo ? (
-          <ContextMenuSubmenu label="Cover and Banner" icon={ImagePlus}>
+          <ContextMenuSubmenu label={t("Cover and Banner")} icon={ImagePlus}>
             <ContextMenuItem
               icon={ImagePlus}
               onClick={() => {
@@ -4984,7 +5216,7 @@ export function GameLibraryCard({
                 setShowArtPicker(true);
               }}
             >
-              Choose banner…
+              {t("Choose banner…")}
             </ContextMenuItem>
             <ContextMenuItem
               icon={ImagePlus}
@@ -4994,7 +5226,7 @@ export function GameLibraryCard({
                 setShowArtPicker(true);
               }}
             >
-              Choose cover…
+              {t("Choose cover…")}
             </ContextMenuItem>
             <ContextMenuItem
               icon={ImagePlus}
@@ -5003,14 +5235,14 @@ export function GameLibraryCard({
                 coverInputRef.current?.click();
               }}
             >
-              Upload cover
+              {t("Upload cover")}
             </ContextMenuItem>
             <ContextMenuItem
               dataTour={demo ? "demo-menu-paste-cover" : undefined}
               icon={Clipboard}
               onClick={() => void handlePasteCover()}
             >
-              Paste Cover
+              {t("Paste Cover")}
             </ContextMenuItem>
             {canEditCover && game.coverUrl ? (
               <ContextMenuItem
@@ -5018,21 +5250,21 @@ export function GameLibraryCard({
                 icon={Trash2}
                 onClick={handleClearCover}
               >
-                Delete Cover
+                {t("Delete Cover")}
               </ContextMenuItem>
             ) : !canEditCover && coverPicked ? (
               <ContextMenuItem
                 icon={RotateCcw}
                 onClick={handleResetPickedCover}
               >
-                Restore Cover
+                {t("Restore Cover")}
               </ContextMenuItem>
             ) : null}
           </ContextMenuSubmenu>
         ) : null}
         {showMatchingActions ? (
           <ContextMenuSubmenu
-            label="Matching"
+            label={t("Matching")}
             icon={Search}
             dataTour={demo ? "demo-menu-matching" : undefined}
             menuDataTour={demo ? "demo-matching-menu" : undefined}
@@ -5047,12 +5279,12 @@ export function GameLibraryCard({
                   else openMatchCheck();
                 }}
               >
-                Check for Matches
+                {t("Check for Matches")}
               </ContextMenuItem>
             ) : null}
             {canChangeGame ? (
               <ContextMenuItem icon={Replace} onClick={openChangeGame}>
-                Change Game…
+                {t("Change Game…")}
               </ContextMenuItem>
             ) : null}
             {game.source && game.exeNames[0] ? (
@@ -5065,7 +5297,7 @@ export function GameLibraryCard({
                       setCancelSuggestionTarget(pendingCommunitySuggestion);
                     }}
                   >
-                    Cancel Suggestion
+                    {t("Cancel Suggestion")}
                   </ContextMenuItem>
                 ) : canSuggestToCommunity ? (
                   <ContextMenuItem
@@ -5080,7 +5312,7 @@ export function GameLibraryCard({
                       void handleShareAction();
                     }}
                   >
-                    Suggest to Community
+                    {t("Suggest to Community")}
                   </ContextMenuItem>
                 ) : null}
                 {canReportMatch ? (
@@ -5093,7 +5325,7 @@ export function GameLibraryCard({
                         openReport();
                       }}
                     >
-                      Report Wrong Match
+                      {t("Report Wrong Match")}
                     </ContextMenuItem>
                     {canConvertToCustom ? (
                       <ContextMenuItem
@@ -5104,7 +5336,7 @@ export function GameLibraryCard({
                           openConvert();
                         }}
                       >
-                        Convert to Custom Game
+                        {t("Convert to Custom Game")}
                       </ContextMenuItem>
                     ) : null}
                   </>
@@ -5119,7 +5351,7 @@ export function GameLibraryCard({
               icon={MoveRight}
               onClick={requestMoveToPlayCounter}
             >
-              Move to PlayCounter
+              {t("Move to PlayCounter")}
             </ContextMenuItem>
           </>
         ) : null}
@@ -5134,7 +5366,7 @@ export function GameLibraryCard({
               contextMenu.close();
             }}
           >
-            Ignore Game
+            {t("Ignore Game")}
           </ContextMenuItem>
         ) : null}
         <ContextMenuItem
@@ -5147,7 +5379,7 @@ export function GameLibraryCard({
             contextMenu.close();
           }}
         >
-          Remove from Library
+          {t("Remove from Library")}
         </ContextMenuItem>
       </ContextMenu>
     );
@@ -5165,7 +5397,10 @@ export function GameLibraryCard({
             setDemoAction(null);
             emitTourEvent(
               "demo.action-completed",
-              `Sample reviewed as ${choice.name}. Nothing was submitted or saved to your library.`,
+              t(
+                "Sample reviewed as {{name}}. Nothing was submitted or saved to your library.",
+                { name: choice.name },
+              ),
             );
           }}
         />
@@ -5190,8 +5425,12 @@ export function GameLibraryCard({
             emitTourEvent(
               "demo.action-completed",
               clearHistory
-                ? "Sample ignored and its history cleared. Nothing on this PC was blocked."
-                : "Sample ignored. Its history is kept, and nothing on this PC was blocked.",
+                ? t(
+                    "Sample ignored and its history cleared. Nothing on this PC was blocked.",
+                  )
+                : t(
+                    "Sample ignored. Its history is kept, and nothing on this PC was blocked.",
+                  ),
             );
           }}
         />
@@ -5208,8 +5447,12 @@ export function GameLibraryCard({
             emitTourEvent(
               "demo.action-completed",
               clearHistory
-                ? "Sample removed together with its history, notes, playthroughs, and shelf membership."
-                : "Sample removed. Its history, notes, playthroughs, and shelf membership are kept.",
+                ? t(
+                    "Sample removed together with its history, notes, playthroughs, and shelf membership.",
+                  )
+                : t(
+                    "Sample removed. Its history, notes, playthroughs, and shelf membership are kept.",
+                  ),
             );
           }}
         />
@@ -5221,22 +5464,26 @@ export function GameLibraryCard({
         labelId="demo-game-action-title"
         size="xl"
         title={
-          demoAction === "history" ? "Sample history" : "Sample launch file"
+          demoAction === "history"
+            ? t("Sample history")
+            : t("Sample launch file")
         }
         onClose={() => setDemoAction(null)}
-        footer={<Button onClick={() => setDemoAction(null)}>Done</Button>}
+        footer={
+          <Button onClick={() => setDemoAction(null)}>{t("Done")}</Button>
+        }
       >
         {demoAction === "history" ? (
           <StatsPractice game={game} />
         ) : (
           <div className="grid gap-4 text-sm">
             <p className="break-all">
-              {demoLaunchPath ?? "No launch file saved for this sample."}
+              {demoLaunchPath ?? t("No launch file saved for this sample.")}
             </p>
             <p className="text-text-muted">
-              Choose a sample file or forget it. A real file picker would let
-              you select the game's executable; this practice never opens or
-              starts a program.
+              {t(
+                "Choose a sample file or forget it. A real file picker would let you select the game's executable; this practice never opens or starts a program.",
+              )}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -5244,11 +5491,13 @@ export function GameLibraryCard({
                   setDemoLaunchPath(TOUR_DEMO_GAME.exePath);
                   emitTourEvent(
                     "demo.action-completed",
-                    "Sample launch file selected. The path is local to this exercise.",
+                    t(
+                      "Sample launch file selected. The path is local to this exercise.",
+                    ),
                   );
                 }}
               >
-                Use sample Wow.exe
+                {t("Use sample Wow.exe")}
               </Button>
               <Button
                 disabled={!demoLaunchPath}
@@ -5256,11 +5505,13 @@ export function GameLibraryCard({
                   setDemoLaunchPath(null);
                   emitTourEvent(
                     "demo.action-completed",
-                    "Sample launch path forgotten. Game history is unchanged.",
+                    t(
+                      "Sample launch path forgotten. Game history is unchanged.",
+                    ),
                   );
                 }}
               >
-                Forget sample file
+                {t("Forget sample file")}
               </Button>
             </div>
           </div>
@@ -5295,10 +5546,10 @@ export function GameLibraryCard({
         className="rounded-xl border border-border bg-surface p-4"
       >
         <p role="status" className="mb-3 text-sm">
-          Sample removed from this practice library.
+          {t("Sample removed from this practice library.")}
         </p>
         <Button onClick={() => setDemoRemoved(false)}>
-          Restore sample card
+          {t("Restore sample card")}
         </Button>
       </div>
     );
@@ -5322,8 +5573,13 @@ export function GameLibraryCard({
         aria-label={
           controllerNavigable
             ? launching
-              ? `${game.name}, starting`
-              : `${game.name}, ${hasPrimaryLaunchTarget ? `press ${controllerButtonName(controllerKind, "A")}, Space or Enter to play` : "no launch file saved"}`
+              ? t("{{game}}, starting", { game: game.name })
+              : hasPrimaryLaunchTarget
+                ? t("{{game}}, press {{button}}, Space or Enter to play", {
+                    game: game.name,
+                    button: controllerButtonName(controllerKind, "A"),
+                  })
+                : t("{{game}}, no launch file saved", { game: game.name })
             : undefined
         }
         className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -5362,7 +5618,7 @@ export function GameLibraryCard({
             />
           ) : (
             <div className="grid h-full place-items-center text-xs text-text-faint">
-              No cover
+              {t("No cover")}
             </div>
           )}
 
@@ -5388,7 +5644,7 @@ export function GameLibraryCard({
                 role="img"
                 tabIndex={0}
                 aria-label={trackingWarningMessage}
-                title="New sessions won't be tracked yet"
+                title={t("New sessions won't be tracked yet")}
                 className="grid h-8 w-8 cursor-help place-items-center rounded-full border border-warning-border bg-warning-tint text-warning shadow-raised outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-warning focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
               >
                 <AlertTriangle size={16} />
@@ -5398,7 +5654,7 @@ export function GameLibraryCard({
                 className="pointer-events-none invisible absolute right-0 top-full mt-2 w-52 translate-y-1 rounded-md border border-warning-border bg-surface px-3 py-2 text-left opacity-0 shadow-raised transition group-hover/tracking-warning:visible group-hover/tracking-warning:translate-y-0 group-hover/tracking-warning:opacity-100 group-focus-within/tracking-warning:visible group-focus-within/tracking-warning:translate-y-0 group-focus-within/tracking-warning:opacity-100"
               >
                 <div className="text-xs font-semibold text-warning">
-                  New sessions won&apos;t be tracked yet
+                  {t("New sessions won't be tracked yet")}
                 </div>
                 <div className="mt-1 text-[11px] leading-4 text-text-muted">
                   {trackingWarningMessage}
@@ -5420,15 +5676,17 @@ export function GameLibraryCard({
             >
               <IconButton
                 icon={Info}
-                aria-label={`Open details for ${game.name}`}
-                title="Open details"
+                aria-label={t("Open details for {{name}}", { name: game.name })}
+                title={t("Open details")}
                 onClick={() => setShowDetails(true)}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               <IconButton
                 icon={ImagePlus}
-                aria-label={`Choose artwork for ${game.name}`}
-                title="Choose artwork"
+                aria-label={t("Choose artwork for {{name}}", {
+                  name: game.name,
+                })}
+                title={t("Choose artwork")}
                 onClick={() => {
                   if (demo) return demoNotice();
                   setArtPickerTab("banner");
@@ -5439,8 +5697,10 @@ export function GameLibraryCard({
               {canCheckMatches ? (
                 <IconButton
                   icon={Search}
-                  aria-label={`Check matches for ${game.name}`}
-                  title="Check for matches"
+                  aria-label={t("Check matches for {{name}}", {
+                    name: game.name,
+                  })}
+                  title={t("Check for matches")}
                   onClick={openMatchCheck}
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
                 />
@@ -5448,8 +5708,10 @@ export function GameLibraryCard({
               {pendingCommunitySuggestion ? (
                 <IconButton
                   icon={RotateCcw}
-                  aria-label={`Cancel community suggestion for ${game.name}`}
-                  title="Cancel suggestion"
+                  aria-label={t("Cancel community suggestion for {{name}}", {
+                    name: game.name,
+                  })}
+                  title={t("Cancel suggestion")}
                   onClick={() =>
                     setCancelSuggestionTarget(pendingCommunitySuggestion)
                   }
@@ -5458,8 +5720,10 @@ export function GameLibraryCard({
               ) : canSuggestToCommunity ? (
                 <IconButton
                   icon={Send}
-                  aria-label={`Suggest ${game.name} to the community`}
-                  title="Suggest to community"
+                  aria-label={t("Suggest {{name}} to the community", {
+                    name: game.name,
+                  })}
+                  title={t("Suggest to community")}
                   onClick={() => void handleShareAction()}
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
                 />
@@ -5467,16 +5731,20 @@ export function GameLibraryCard({
               {canReportMatch ? (
                 <IconButton
                   icon={Flag}
-                  aria-label={`Report wrong match for ${game.name}`}
-                  title="Report wrong match"
+                  aria-label={t("Report wrong match for {{name}}", {
+                    name: game.name,
+                  })}
+                  title={t("Report wrong match")}
                   onClick={() => openReport()}
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
                 />
               ) : null}
               <IconButton
                 icon={ClockPlus}
-                aria-label={`Log a missed session for ${game.name}`}
-                title="Log missed session"
+                aria-label={t("Log a missed session for {{name}}", {
+                  name: game.name,
+                })}
+                title={t("Log missed session")}
                 onClick={(event) =>
                   demo
                     ? openDemoMenu(event.currentTarget)
@@ -5487,8 +5755,8 @@ export function GameLibraryCard({
               {onStopTracking ? (
                 <IconButton
                   icon={Ban}
-                  aria-label={`Ignore ${game.name}`}
-                  title="Ignore game (never track again)"
+                  aria-label={t("Ignore {{name}}", { name: game.name })}
+                  title={t("Ignore game (never track again)")}
                   onClick={() => onStopTracking(game)}
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-warning hover:border-warning hover:text-white"
                 />
@@ -5496,8 +5764,10 @@ export function GameLibraryCard({
               <IconButton
                 icon={Trash2}
                 intent="danger"
-                aria-label={`Remove ${game.name} from library`}
-                title="Remove from library"
+                aria-label={t("Remove {{name}} from library", {
+                  name: game.name,
+                })}
+                title={t("Remove from library")}
                 onClick={() => onRemove(game)}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:!bg-danger-solid hover:!border-danger-solid hover:!text-white"
               />
@@ -5520,8 +5790,11 @@ export function GameLibraryCard({
                   );
                   addToast({
                     tone: "success",
-                    title: "Community match applied",
-                    detail: `${game.name} now uses the approved community match.`,
+                    title: t("Community match applied"),
+                    detail: t(
+                      "{{name}} now uses the approved community match.",
+                      { name: game.name },
+                    ),
                   });
                 }}
               />
@@ -5577,28 +5850,38 @@ export function GameLibraryCard({
           </div>
           <div
             data-tour={demo ? "demo-playtime-result" : undefined}
-            className="mt-1 flex min-w-0 items-baseline gap-1.5"
+            className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-1.5"
           >
             <span
               title={playtimeTitle}
               className={clsx(
-                "font-mono font-bold tracking-tight text-text",
+                "whitespace-nowrap font-mono font-bold tracking-tight text-text",
                 isLarge ? "text-xl" : "text-lg",
               )}
             >
               {formatDuration(game.totalSeconds, showDurationDays)}
             </span>
-            <span className="text-[11px] font-medium text-text-muted">in</span>
-            <button
-              type="button"
-              disabled={game.sessionCount === 0}
-              onClick={handleShowHistory}
-              className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
-              aria-label={`Show ${game.sessionCount} session${game.sessionCount === 1 ? "" : "s"} for ${game.name} in history`}
-            >
-              {game.sessionCount} session
-              {game.sessionCount !== 1 ? "s" : ""}
-            </button>
+            {/* "in 35 sessions" moves to its own line rather than being cut. */}
+            <span className="flex min-w-0 items-baseline gap-1.5">
+              <span className="text-[11px] font-medium text-text-muted">
+                {t("in")}
+              </span>
+              <button
+                type="button"
+                disabled={game.sessionCount === 0}
+                onClick={handleShowHistory}
+                className="truncate text-[11px] font-medium text-text-muted underline decoration-text-faint underline-offset-2 transition-colors hover:text-accent-ink disabled:no-underline"
+                aria-label={t(
+                  "Show {{count}} sessions for {{game}} in history",
+                  {
+                    count: game.sessionCount,
+                    game: game.name,
+                  },
+                )}
+              >
+                {t("{{count}} sessions", { count: game.sessionCount })}
+              </button>
+            </span>
           </div>
 
           {/* Persistent Community Prompts */}
@@ -5606,35 +5889,51 @@ export function GameLibraryCard({
             <div className="mt-3 flex flex-col gap-2 border-t border-border/50 pt-3">
               <div
                 className="truncate text-[11px] font-semibold text-success"
-                title={`Found in database: ${game.communityUpgradeGameName}`}
+                title={t("Found in database: {{communityUpgradeGameName}}", {
+                  communityUpgradeGameName: game.communityUpgradeGameName,
+                })}
               >
-                Match found: {game.communityUpgradeGameName}
+                {t("Match found: {{game}}", {
+                  game: game.communityUpgradeGameName ?? "",
+                })}
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="primary"
-                  title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
+                  title={t(
+                    "Track this exe as {{communityUpgradeGameName}} from now on",
+                    { communityUpgradeGameName: game.communityUpgradeGameName },
+                  )}
                   onClick={() => {
                     acceptCommunityUpgrade(game.communityUpgradeExeName!);
                     addToast({
                       tone: "success",
-                      title: "Match applied",
-                      detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
+                      title: t("Match applied"),
+                      detail: t(
+                        "{{name}} now uses {{communityUpgradeGameName}}.",
+                        {
+                          name: game.name,
+                          communityUpgradeGameName:
+                            game.communityUpgradeGameName,
+                        },
+                      ),
                     });
                   }}
                   className="flex-1 px-0 py-1 text-[11px]"
                 >
-                  Use match
+                  {t("Use match")}
                 </Button>
                 <Button
                   variant="secondary"
-                  title="Keep the custom game and never show this match again"
+                  title={t(
+                    "Keep the custom game and never show this match again",
+                  )}
                   onClick={() =>
                     dismissCommunityUpgrade(game.communityUpgradeExeName!)
                   }
                   className="px-2 py-1 text-[11px]"
                 >
-                  Keep custom
+                  {t("Keep custom")}
                 </Button>
               </div>
             </div>
@@ -5643,7 +5942,14 @@ export function GameLibraryCard({
         {primaryEmulatorCandidate && primaryEmulatorMapping ? (
           <button
             type="button"
-            title={`Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping.label} game file for ${game.name}`}
+            title={t(
+              "Confirm {{displayName}} as the {{label}} game file for {{name}}",
+              {
+                displayName: primaryEmulatorCandidate.displayName,
+                label: primaryEmulatorMapping.label,
+                name: game.name,
+              },
+            )}
             onClick={() =>
               handleConfirmEmulatorCandidate(primaryEmulatorMapping)
             }
@@ -5652,10 +5958,12 @@ export function GameLibraryCard({
             <AlertTriangle size={14} className="shrink-0" />
             <span className="min-w-0">
               <span className="block text-[10px] font-bold uppercase tracking-wide">
-                Action required
+                {t("Action required")}
               </span>
               <span className="block truncate text-xs">
-                Confirm {primaryEmulatorCandidate.displayName} to enable Play
+                {t("Confirm {{displayName}} to enable Play", {
+                  displayName: primaryEmulatorCandidate.displayName,
+                })}
               </span>
             </span>
           </button>
@@ -5667,23 +5975,36 @@ export function GameLibraryCard({
               showPlayButton
                 ? playState.ariaLabel
                 : showInstallInSteam
-                  ? `Install ${game.name} in Steam`
+                  ? t("Install {{name}} in Steam", { name: game.name })
                   : primaryEmulatorCandidate
-                    ? `Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping?.label ?? "emulator"} game file for ${game.name}`
+                    ? t(
+                        "Confirm {{file}} as the {{emulator}} game file for {{game}}",
+                        {
+                          file: primaryEmulatorCandidate.displayName,
+                          emulator:
+                            primaryEmulatorMapping?.label ?? t("emulator"),
+                          game: game.name,
+                        },
+                      )
                     : gameEmulatorMappings.length > 1
-                      ? `Choose an emulator launch option for ${game.name}`
-                      : `Set launch file for ${game.name}`
+                      ? t("Choose an emulator launch option for {{name}}", {
+                          name: game.name,
+                        })
+                      : t("Set launch file for {{name}}", { name: game.name })
             }
             title={
               showPlayButton
                 ? playState.title
                 : showInstallInSteam
-                  ? "Install in Steam"
+                  ? t("Install in Steam")
                   : primaryEmulatorCandidate
-                    ? `Confirm ${primaryEmulatorCandidate.displayName} for ${game.name}`
+                    ? t("Confirm {{displayName}} for {{name}}", {
+                        displayName: primaryEmulatorCandidate.displayName,
+                        name: game.name,
+                      })
                     : gameEmulatorMappings.length > 1
-                      ? "Choose emulator game…"
-                      : "Set launch file…"
+                      ? t("Choose emulator game…")
+                      : t("Set launch file…")
             }
             data-tour={launchTourDemo ? "demo-launch-play" : undefined}
             disabled={showPlayButton && playState.disabled}
@@ -5701,7 +6022,7 @@ export function GameLibraryCard({
             {showInstallInSteam ? (
               <>
                 <Download size={isLarge ? 16 : 14} />
-                Install in Steam
+                {t("Install in Steam")}
               </>
             ) : !showPlayButton ? (
               <>
@@ -5709,15 +6030,17 @@ export function GameLibraryCard({
                   <>
                     <Check size={isLarge ? 16 : 14} className="shrink-0" />
                     <span className="min-w-0 truncate">
-                      Use {primaryEmulatorCandidate.displayName}
+                      {t("Use {{displayName}}", {
+                        displayName: primaryEmulatorCandidate.displayName,
+                      })}
                     </span>
                   </>
                 ) : (
                   <>
                     <FolderSearch size={isLarge ? 16 : 14} />
                     {gameEmulatorMappings.length > 1
-                      ? "Choose emulator game"
-                      : "Set launch file"}
+                      ? t("Choose emulator game")
+                      : t("Set launch file")}
                   </>
                 )}
               </>
@@ -5727,12 +6050,12 @@ export function GameLibraryCard({
                   <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
                 </span>
-                Running
+                {t("Running")}
               </>
             ) : playState.loading ? (
               <>
                 <Loader2 size={isLarge ? 16 : 14} className="animate-spin" />
-                Starting…
+                {t("Starting…")}
               </>
             ) : (
               <>
@@ -5746,7 +6069,7 @@ export function GameLibraryCard({
                   )}
                 />
                 {controllerNavigable ? <LaunchKeyHint /> : null}
-                Play
+                {t("Play")}
               </>
             )}
           </button>
@@ -5755,8 +6078,8 @@ export function GameLibraryCard({
             type="button"
             title={
               showOpenInXbox
-                ? `Open ${game.name} in the Xbox app`
-                : `Pick the .exe that starts ${game.name}`
+                ? t("Open {{name}} in the Xbox app", { name: game.name })
+                : t("Pick the .exe that starts {{name}}", { name: game.name })
             }
             onClick={() =>
               showOpenInXbox
@@ -5771,25 +6094,25 @@ export function GameLibraryCard({
             {showOpenInXbox ? (
               <>
                 <ExternalLink size={isLarge ? 16 : 14} />
-                Open in Xbox
+                {t("Open in Xbox")}
               </>
             ) : (
               <>
                 <FolderSearch size={isLarge ? 16 : 14} />
-                Set launch file
+                {t("Set launch file")}
               </>
             )}
           </button>
         ) : showLaunchNote ? (
           <div
-            title="PlayCounter can't launch this game directly"
+            title={t("PlayCounter can't launch this game directly")}
             className={clsx(
               "flex shrink-0 items-center justify-center gap-2 border-t border-border text-text-faint",
               isLarge ? "h-12 text-sm" : "h-10 text-xs",
             )}
           >
             <Info size={isLarge ? 16 : 14} />
-            Not launchable
+            {t("Not launchable")}
           </div>
         ) : null}
         {renderContextMenu()}
@@ -5813,20 +6136,24 @@ export function GameLibraryCard({
           />
         ) : null}
         {showMatchCheck ? (
-          trackingUnavailable && matchCheckImportEntry ? (
+          checksLibraryGame ? (
             <LibraryImportMatchCheckDialog
               apiEndpoint={apiEndpoint}
-              entry={matchCheckImportEntry.entry}
-              install={matchCheckImportEntry.install}
+              entry={matchCheckImportEntry?.entry}
+              install={matchCheckImportEntry?.install}
+              playcounterGame={playcounterMatchEntry}
               ignoredProcesses={ignoredProcesses}
-              offeredExecutableMatches={libraryMatchOffer?.executableMatches}
+              offeredExecutableMatches={matchOffer?.executableMatches}
               onCancel={() => setShowMatchCheck(false)}
               onApplied={(executableNames) => {
                 setShowMatchCheck(false);
                 addToast({
                   tone: "success",
-                  title: "Match applied",
-                  detail: `${executableNames.join(", ")} will now be tracked as ${game.name}.`,
+                  title: t("Match applied"),
+                  detail: t("{{join}} will now be tracked as {{name}}.", {
+                    join: executableNames.join(", "),
+                    name: game.name,
+                  }),
                 });
               }}
             />
@@ -5873,7 +6200,7 @@ export function GameLibraryCard({
                 setDemoRemoved(true);
                 emitTourEvent(
                   "demo.action-completed",
-                  "Sample ignored. No anonymous report was sent.",
+                  t("Sample ignored. No anonymous report was sent."),
                 );
               } else void handleNegativeReport(exeName);
             }}
@@ -5942,7 +6269,7 @@ export function GameLibraryCard({
             onSearchChange={correction.setSearch}
             onSearchOptionsChange={correction.resetResults}
             localOnly={localSearchOnly || searchMode === "change"}
-            localAction={searchMode === "change" ? "Change game" : undefined}
+            localAction={searchMode === "change" ? t("Change game") : undefined}
             onSubmit={() =>
               localSearchOnly
                 ? applySearchedGameLocally()
@@ -5965,12 +6292,14 @@ export function GameLibraryCard({
         {showConvert ? (
           <GameNameDialog
             demo={demo}
-            title="Convert to a custom game"
+            title={t("Convert to a custom game")}
             subtitle={
               demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
             }
-            description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
-            confirmLabel="Convert to custom"
+            description={t(
+              "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
+            )}
+            confirmLabel={t("Convert to custom")}
             name={convertName}
             onNameChange={setConvertName}
             onCancel={() => setShowConvert(false)}
@@ -5980,10 +6309,12 @@ export function GameLibraryCard({
         {showRename ? (
           <GameNameDialog
             demo={demo}
-            title="Rename game"
+            title={t("Rename game")}
             subtitle={game.name}
-            description="Changes the display name of this custom game everywhere, including recorded sessions."
-            confirmLabel="Rename"
+            description={t(
+              "Changes the display name of this custom game everywhere, including recorded sessions.",
+            )}
+            confirmLabel={t("Rename")}
             name={renameName}
             onNameChange={setRenameName}
             onCancel={() => setShowRename(false)}
@@ -6013,8 +6344,13 @@ export function GameLibraryCard({
       aria-label={
         controllerNavigable
           ? launching
-            ? `${game.name}, starting`
-            : `${game.name}, ${hasPrimaryLaunchTarget ? `press ${controllerButtonName(controllerKind, "A")}, Space or Enter to play` : "no launch file saved"}`
+            ? t("{{game}}, starting", { game: game.name })
+            : hasPrimaryLaunchTarget
+              ? t("{{game}}, press {{button}}, Space or Enter to play", {
+                  game: game.name,
+                  button: controllerButtonName(controllerKind, "A"),
+                })
+              : t("{{game}}, no launch file saved", { game: game.name })
           : undefined
       }
       className="game-library-card group relative isolate rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:border-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -6054,7 +6390,7 @@ export function GameLibraryCard({
             />
           ) : (
             <div className="grid aspect-[3/4] w-full place-items-center rounded-lg bg-surface-hover text-xs text-text-faint">
-              No cover
+              {t("No cover")}
             </div>
           )}
           {game.communitySuggestionExeName && !game.communityUpgradeExeName ? (
@@ -6068,8 +6404,11 @@ export function GameLibraryCard({
                   );
                   addToast({
                     tone: "success",
-                    title: "Community match applied",
-                    detail: `${game.name} now uses the approved community match.`,
+                    title: t("Community match applied"),
+                    detail: t(
+                      "{{name}} now uses the approved community match.",
+                      { name: game.name },
+                    ),
                   });
                 }}
               />
@@ -6128,7 +6467,14 @@ export function GameLibraryCard({
           {primaryEmulatorCandidate && primaryEmulatorMapping ? (
             <button
               type="button"
-              title={`Confirm ${primaryEmulatorCandidate.displayName} as the ${primaryEmulatorMapping.label} game file for ${game.name}`}
+              title={t(
+                "Confirm {{displayName}} as the {{label}} game file for {{name}}",
+                {
+                  displayName: primaryEmulatorCandidate.displayName,
+                  label: primaryEmulatorMapping.label,
+                  name: game.name,
+                },
+              )}
               onClick={() =>
                 handleConfirmEmulatorCandidate(primaryEmulatorMapping)
               }
@@ -6136,7 +6482,9 @@ export function GameLibraryCard({
             >
               <AlertTriangle size={13} className="shrink-0" />
               <span className="truncate">
-                Action required: confirm {primaryEmulatorCandidate.displayName}
+                {t("Action required: confirm {{displayName}}", {
+                  displayName: primaryEmulatorCandidate.displayName,
+                })}
               </span>
             </button>
           ) : null}
@@ -6146,30 +6494,43 @@ export function GameLibraryCard({
             <div className="mt-3 flex gap-2">
               <Button
                 variant="secondary"
-                title={`Track this exe as ${game.communityUpgradeGameName} from now on`}
+                title={t(
+                  "Track this exe as {{communityUpgradeGameName}} from now on",
+                  { communityUpgradeGameName: game.communityUpgradeGameName },
+                )}
                 onClick={() => {
                   acceptCommunityUpgrade(game.communityUpgradeExeName!);
                   addToast({
                     tone: "success",
-                    title: "Match applied",
-                    detail: `${game.name} now uses ${game.communityUpgradeGameName}.`,
+                    title: t("Match applied"),
+                    detail: t(
+                      "{{name}} now uses {{communityUpgradeGameName}}.",
+                      {
+                        name: game.name,
+                        communityUpgradeGameName: game.communityUpgradeGameName,
+                      },
+                    ),
                   });
                 }}
                 className="max-w-64 border-success-border bg-success-tint px-3 py-1 text-xs text-success"
               >
                 <span className="truncate">
-                  Use match: {game.communityUpgradeGameName}
+                  {t("Use match: {{game}}", {
+                    game: game.communityUpgradeGameName ?? "",
+                  })}
                 </span>
               </Button>
               <Button
                 variant="secondary"
-                title="Keep the custom game and never show this match again"
+                title={t(
+                  "Keep the custom game and never show this match again",
+                )}
                 onClick={() =>
                   dismissCommunityUpgrade(game.communityUpgradeExeName!)
                 }
                 className="px-3 py-1 text-xs"
               >
-                Keep custom
+                {t("Keep custom")}
               </Button>
             </div>
           ) : null}
@@ -6185,7 +6546,7 @@ export function GameLibraryCard({
           >
             <div className="text-right">
               <div className="text-[11px] font-medium uppercase tracking-wide text-text-faint">
-                Playtime
+                {t("Playtime")}
               </div>
               <div className="mt-0.5 font-mono text-sm font-semibold text-text">
                 <span title={playtimeTitle}>
@@ -6195,7 +6556,7 @@ export function GameLibraryCard({
             </div>
             <div className="text-right">
               <div className="text-[11px] font-medium uppercase tracking-wide text-text-faint">
-                Sessions
+                {t("Sessions")}
               </div>
               <div className="mt-0.5 font-mono text-sm font-semibold text-text">
                 {game.sessionCount}
@@ -6203,7 +6564,7 @@ export function GameLibraryCard({
             </div>
             <div className="text-right">
               <div className="text-[11px] font-medium uppercase tracking-wide text-text-faint">
-                Average
+                {t("Average")}
               </div>
               <div className="mt-0.5 font-mono text-sm font-semibold text-text">
                 {formatDuration(averageSeconds, showDurationDays)}
@@ -6247,8 +6608,8 @@ export function GameLibraryCard({
           ) : showInstallInSteam ? (
             <IconButton
               icon={Download}
-              aria-label={`Install ${game.name} in Steam`}
-              title="Install in Steam"
+              aria-label={t("Install {{name}} in Steam", { name: game.name })}
+              title={t("Install in Steam")}
               onClick={() => void handleInstallInSteam()}
               className="shrink-0 border-accent/30 bg-accent-tint text-accent-ink hover:border-accent hover:bg-accent hover:text-accent-fg"
             />
@@ -6263,8 +6624,10 @@ export function GameLibraryCard({
             >
               <IconButton
                 icon={ClockPlus}
-                aria-label={`Log a missed session for ${game.name}`}
-                title="Log missed session"
+                aria-label={t("Log a missed session for {{name}}", {
+                  name: game.name,
+                })}
+                title={t("Log missed session")}
                 onClick={(event) =>
                   demo
                     ? openDemoMenu(event.currentTarget)
@@ -6274,16 +6637,18 @@ export function GameLibraryCard({
               {onStopTracking ? (
                 <IconButton
                   icon={Ban}
-                  aria-label={`Ignore ${game.name}`}
-                  title="Ignore game (never track again)"
+                  aria-label={t("Ignore {{name}}", { name: game.name })}
+                  title={t("Ignore game (never track again)")}
                   onClick={() => onStopTracking(game)}
                 />
               ) : null}
               <IconButton
                 icon={Trash2}
                 intent="danger"
-                aria-label={`Remove ${game.name} from library`}
-                title="Remove from library"
+                aria-label={t("Remove {{name}} from library", {
+                  name: game.name,
+                })}
+                title={t("Remove from library")}
                 onClick={() => onRemove(game)}
               />
             </div>
@@ -6321,20 +6686,24 @@ export function GameLibraryCard({
         />
       ) : null}
       {showMatchCheck ? (
-        trackingUnavailable && matchCheckImportEntry ? (
+        checksLibraryGame ? (
           <LibraryImportMatchCheckDialog
             apiEndpoint={apiEndpoint}
-            entry={matchCheckImportEntry.entry}
-            install={matchCheckImportEntry.install}
+            entry={matchCheckImportEntry?.entry}
+            install={matchCheckImportEntry?.install}
+            playcounterGame={playcounterMatchEntry}
             ignoredProcesses={ignoredProcesses}
-            offeredExecutableMatches={libraryMatchOffer?.executableMatches}
+            offeredExecutableMatches={matchOffer?.executableMatches}
             onCancel={() => setShowMatchCheck(false)}
             onApplied={(executableNames) => {
               setShowMatchCheck(false);
               addToast({
                 tone: "success",
-                title: "Match applied",
-                detail: `${executableNames.join(", ")} will now be tracked as ${game.name}.`,
+                title: t("Match applied"),
+                detail: t("{{join}} will now be tracked as {{name}}.", {
+                  join: executableNames.join(", "),
+                  name: game.name,
+                }),
               });
             }}
           />
@@ -6381,7 +6750,7 @@ export function GameLibraryCard({
               setDemoRemoved(true);
               emitTourEvent(
                 "demo.action-completed",
-                "Sample ignored. No anonymous report was sent.",
+                t("Sample ignored. No anonymous report was sent."),
               );
             } else void handleNegativeReport(exeName);
           }}
@@ -6450,7 +6819,7 @@ export function GameLibraryCard({
           onSearchChange={correction.setSearch}
           onSearchOptionsChange={correction.resetResults}
           localOnly={localSearchOnly || searchMode === "change"}
-          localAction={searchMode === "change" ? "Change game" : undefined}
+          localAction={searchMode === "change" ? t("Change game") : undefined}
           onSubmit={() =>
             localSearchOnly
               ? applySearchedGameLocally()
@@ -6473,12 +6842,14 @@ export function GameLibraryCard({
       {showConvert ? (
         <GameNameDialog
           demo={demo}
-          title="Convert to a custom game"
+          title={t("Convert to a custom game")}
           subtitle={
             demo || !flowExeName ? game.name : `${game.name} · ${flowExeName}`
           }
-          description="Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC."
-          confirmLabel="Convert to custom"
+          description={t(
+            "Use this when the database match is wrong and the real game is not in any database. Recorded playtime stays with the game; the change is only on this PC.",
+          )}
+          confirmLabel={t("Convert to custom")}
           name={convertName}
           onNameChange={setConvertName}
           onCancel={() => setShowConvert(false)}
@@ -6488,10 +6859,12 @@ export function GameLibraryCard({
       {showRename ? (
         <GameNameDialog
           demo={demo}
-          title="Rename game"
+          title={t("Rename game")}
           subtitle={game.name}
-          description="Changes the display name of this custom game everywhere, including recorded sessions."
-          confirmLabel="Rename"
+          description={t(
+            "Changes the display name of this custom game everywhere, including recorded sessions.",
+          )}
+          confirmLabel={t("Rename")}
           name={renameName}
           onNameChange={setRenameName}
           onCancel={() => setShowRename(false)}
@@ -6507,10 +6880,10 @@ const MemoizedGameLibraryCard = memo(GameLibraryCard);
 function NewGameBadge() {
   return (
     <span
-      title="Added in the last 7 days, not played yet"
+      title={t("Added in the last 7 days, not played yet")}
       className="shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-ink"
     >
-      New
+      {t("New")}
     </span>
   );
 }
@@ -6543,36 +6916,40 @@ function StopTrackingDialog({
       backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="sm"
       labelId="stop-tracking-dialog-title"
-      eyebrow="My Games"
-      title="Ignore this game?"
+      eyebrow={t("My Games")}
+      title={t("Ignore this game?")}
       subtitle={game.name}
       icon={Ban}
       onClose={onCancel}
       footer={
         <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
-            Ignore game
+            {t("Ignore game")}
           </Button>
           <Button variant="danger" onClick={() => onConfirm(true)}>
-            Ignore + clear history
+            {t("Ignore + clear history")}
           </Button>
           <Button variant="ghost" onClick={onCancel} data-autofocus>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
         {game.emulatorLabels.length > 0
-          ? "PlayCounter will ignore this local emulator-content mapping from now on. The emulator itself remains detectable."
-          : "PlayCounter ignores this game's file from now on - it will never be tracked again. You can undo this anytime under Discovered → Ignored."}
+          ? t(
+              "PlayCounter will ignore this local emulator-content mapping from now on. The emulator itself remains detectable.",
+            )
+          : t(
+              "PlayCounter ignores this game's file from now on - it will never be tracked again. You can undo this anytime under Discovered → Ignored.",
+            )}
       </p>
       {game.sessionCount > 0 ? (
         <p className="mt-2 text-sm leading-6 text-text-muted">
-          {game.sessionCount} completed{" "}
-          {game.sessionCount === 1 ? "session" : "sessions"} can be kept in My
-          History or cleared now. Clearing also deletes the game's notes and
-          playthroughs and takes it off your shelves.
+          {t(
+            "{{count}} completed sessions can be kept in My History or cleared now. Clearing also deletes the game's notes and playthroughs and takes it off your shelves.",
+            { count: game.sessionCount },
+          )}
         </p>
       ) : null}
       <div className="mt-4 rounded-xl border border-border bg-bg px-3 py-2 text-xs text-text-faint">
@@ -6600,33 +6977,34 @@ function RemoveGameDialog({
       backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="sm"
       labelId="remove-game-dialog-title"
-      eyebrow="My Games"
-      title="Remove from library?"
+      eyebrow={t("My Games")}
+      title={t("Remove from library?")}
       subtitle={game.name}
       icon={Trash2}
       onClose={onCancel}
       footer={
         <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
           <Button variant="secondary" onClick={() => onConfirm(false)}>
-            Remove
+            {t("Remove")}
           </Button>
           <Button variant="danger" onClick={() => onConfirm(true)}>
-            Remove + clear history
+            {t("Remove + clear history")}
           </Button>
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        The game and its file match are removed, and a running session stops.
-        PlayCounter will detect it again the next time you play, use Ignore game
-        if you want it gone for good.
+        {t(
+          "The game and its file match are removed, and a running session stops. PlayCounter will detect it again the next time you play, use Ignore game if you want it gone for good.",
+        )}
       </p>
       <p className="mt-2 text-sm leading-6 text-text-muted">
-        Your history, notes, playthroughs and shelves are kept and come back if
-        the game is detected again. Use Remove + clear history to delete them.
+        {t(
+          "Your history, notes, playthroughs and shelves are kept and come back if the game is detected again. Use Remove + clear history to delete them.",
+        )}
       </p>
     </Modal>
   );
@@ -6685,8 +7063,8 @@ function AddPlaytimeDialog({
     <Modal
       size="sm"
       labelId="log-session-title"
-      eyebrow="History"
-      title="Log a missed session"
+      eyebrow={t("History")}
+      title={t("Log a missed session")}
       subtitle={game.name}
       icon={ClockPlus}
       onClose={onCancel}
@@ -6701,25 +7079,28 @@ function AddPlaytimeDialog({
             onClick={handleSubmit}
             disabled={!canSubmit}
           >
-            Log session
+            {t("Log session")}
           </Button>
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        Use this when PlayCounter missed a session you actually played. Choose
-        how long you played and when the session ended.
+        {t(
+          "Use this when PlayCounter missed a session you actually played. Choose how long you played and when the session ended.",
+        )}
       </p>
 
       <div className="mt-4 flex gap-3 rounded-xl border border-accent/20 bg-accent-tint px-3.5 py-3 text-sm">
         <History size={17} className="mt-0.5 shrink-0 text-accent-ink" />
         <div>
-          <div className="font-semibold text-text">Added to History</div>
+          <div className="font-semibold text-text">{t("Added to History")}</div>
           <p className="mt-0.5 leading-5 text-text-muted">
-            This session will affect dates, streaks, and other play stats.
+            {t(
+              "This session will affect dates, streaks, and other play stats.",
+            )}
           </p>
         </div>
       </div>
@@ -6727,13 +7108,13 @@ function AddPlaytimeDialog({
       <div className="mt-5 rounded-xl border border-border bg-bg/60 p-4">
         {!demo ? (
           <label className="mb-4 grid gap-2 text-sm text-text-muted">
-            Playthrough
+            {t("Playthrough")}
             <Select
-              aria-label="Manual session playthrough"
+              aria-label={t("Manual session playthrough")}
               value={playthroughId}
               onChange={(event) => setPlaythroughId(event.target.value)}
             >
-              <option value="">{DEFAULT_PLAYTHROUGH_NAME}</option>
+              <option value="">{defaultPlaythroughName()}</option>
               {journal.playthroughs.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -6743,14 +7124,16 @@ function AddPlaytimeDialog({
           </label>
         ) : null}
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-text">Session length</h3>
+          <h3 className="text-sm font-semibold text-text">
+            {t("Session length")}
+          </h3>
           <p className="mt-0.5 text-xs text-text-faint">
-            Enter the time you played in this session.
+            {t("Enter the time you played in this session.")}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-            Hours
+            {t("Hours")}
             <Input
               type="number"
               min={0}
@@ -6762,7 +7145,7 @@ function AddPlaytimeDialog({
             />
           </label>
           <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-            Minutes
+            {t("Minutes")}
             <Input
               type="number"
               min={0}
@@ -6778,7 +7161,7 @@ function AddPlaytimeDialog({
         <label className="mt-4 grid gap-1.5 text-xs font-medium text-text-muted">
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays size={13} />
-            When did the session end?
+            {t("When did the session end?")}
           </span>
           <Input
             type="datetime-local"
@@ -6791,8 +7174,9 @@ function AddPlaytimeDialog({
       </div>
 
       <p className="mt-3 text-xs leading-5 text-text-faint">
-        Only know the game&apos;s total time? Use Adjust total playtime instead.
-        It will not create a History entry.
+        {t(
+          "Only know the game's total time? Use Adjust total playtime instead. It will not create a History entry.",
+        )}
       </p>
     </Modal>
   );
@@ -6835,8 +7219,8 @@ function AdjustPlaytimeDialog({
       }
       size="sm"
       labelId="adjust-playtime-title"
-      eyebrow="Library total"
-      title="Adjust total playtime"
+      eyebrow={t("Library total")}
+      title={t("Adjust total playtime")}
       subtitle={game.name}
       icon={Clock3}
       onClose={onCancel}
@@ -6850,10 +7234,10 @@ function AdjustPlaytimeDialog({
               form="adjust-playtime-form"
               disabled={!valuesValid || disabled}
             >
-              Save total
+              {t("Save total")}
             </Button>
             <Button type="button" variant="ghost" onClick={onCancel}>
-              Cancel
+              {t("Cancel")}
             </Button>
           </div>
           {game.adjustmentSeconds !== 0 ? (
@@ -6865,38 +7249,40 @@ function AdjustPlaytimeDialog({
               disabled={disabled}
               onClick={() => onConfirm(game.recordedSeconds)}
             >
-              Reset to recorded time
+              {t("Reset to recorded time")}
             </Button>
           ) : null}
         </>
       }
     >
       <p className="text-sm leading-6 text-text-muted">
-        Already played this game before using PlayCounter? Enter the full
-        playtime shown by Steam or another launcher. You can also use this to
-        correct a total that is wrong.
+        {t(
+          "Already played this game before using PlayCounter? Enter the full playtime shown by Steam or another launcher. You can also use this to correct a total that is wrong.",
+        )}
       </p>
 
       <div className="mt-4 flex gap-3 rounded-xl border border-border bg-bg/60 px-3.5 py-3 text-sm">
         <History size={17} className="mt-0.5 shrink-0 text-text-faint" />
         <div>
-          <div className="font-semibold text-text">History stays unchanged</div>
+          <div className="font-semibold text-text">
+            {t("History stays unchanged")}
+          </div>
           <p className="mt-0.5 leading-5 text-text-muted">
-            No session is added, edited, or removed.
+            {t("No session is added, edited, or removed.")}
           </p>
         </div>
       </div>
 
       <div className="mt-5 overflow-hidden rounded-xl border border-border bg-bg/60 text-sm">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 text-text-muted">
-          <span>Time from sessions</span>
+          <span>{t("Time from sessions")}</span>
           <span className="font-mono font-medium text-text">
             {formatDuration(game.recordedSeconds)}
           </span>
         </div>
         {game.adjustmentSeconds !== 0 ? (
           <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-text-muted">
-            <span>Current adjustment</span>
+            <span>{t("Current adjustment")}</span>
             <span className="font-mono font-medium text-text">
               {game.adjustmentSeconds > 0 ? "+" : "−"}
               {formatDuration(Math.abs(game.adjustmentSeconds))}
@@ -6904,7 +7290,7 @@ function AdjustPlaytimeDialog({
           </div>
         ) : null}
         <div className="flex items-center justify-between gap-3 border-t border-accent/20 bg-accent-tint px-4 py-3">
-          <span className="font-semibold text-text">Current total</span>
+          <span className="font-semibold text-text">{t("Current total")}</span>
           <span className="font-mono text-base font-bold text-accent-ink">
             {formatDuration(game.totalSeconds)}
           </span>
@@ -6913,7 +7299,7 @@ function AdjustPlaytimeDialog({
 
       {disabled ? (
         <div className="mt-4 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
-          Stop the active session before changing the total.
+          {t("Stop the active session before changing the total.")}
         </div>
       ) : null}
 
@@ -6927,14 +7313,16 @@ function AdjustPlaytimeDialog({
       >
         <div className="rounded-xl border border-border bg-bg/60 p-4">
           <div className="mb-3">
-            <h3 className="text-sm font-semibold text-text">New total</h3>
+            <h3 className="text-sm font-semibold text-text">
+              {t("New total")}
+            </h3>
             <p className="mt-0.5 text-xs text-text-faint">
-              Enter the full total, not only the hours that are missing.
+              {t("Enter the full total, not only the hours that are missing.")}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-              Hours
+              {t("Hours")}
               <Input
                 type="number"
                 min={0}
@@ -6946,7 +7334,7 @@ function AdjustPlaytimeDialog({
               />
             </label>
             <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-              Minutes
+              {t("Minutes")}
               <Input
                 type="number"
                 min={0}
@@ -6962,8 +7350,9 @@ function AdjustPlaytimeDialog({
 
         {valuesValid && targetSeconds < game.recordedSeconds ? (
           <div className="mt-3 rounded-xl border border-warning-border bg-warning-tint px-3.5 py-3 text-sm leading-5 text-warning">
-            This total is lower than your recorded sessions. Those sessions will
-            still stay in History.
+            {t(
+              "This total is lower than your recorded sessions. Those sessions will still stay in History.",
+            )}
           </div>
         ) : null}
       </form>
@@ -6971,28 +7360,87 @@ function AdjustPlaytimeDialog({
   );
 }
 
+type GameMatchCheck =
+  | {
+      kind: "found";
+      executableNames: string[];
+      executableMatches: LibraryExecutableMatch[];
+      apply: () => void;
+    }
+  | { kind: "needs_install" | "needs_file"; executableNames: string[] }
+  | { kind: "unsupported" | "not_found" };
+
+/** A launcher game's check, or a PlayCounter game's when there is no
+ *  launcher entry. */
+async function checkGameForMatches(input: {
+  apiEndpoint: string;
+  entry?: LibraryImportEntry;
+  install?: LibraryInstallEntry;
+  playcounterGame?: PlayCounterLibraryEntry;
+  ignoredProcesses: ReadonlySet<string>;
+  signal: AbortSignal;
+}): Promise<GameMatchCheck> {
+  if (input.entry) {
+    const result = await checkLibraryImportForMatches({
+      apiEndpoint: input.apiEndpoint,
+      entry: input.entry,
+      install: input.install,
+      ignoredProcesses: input.ignoredProcesses,
+      signal: input.signal,
+    });
+    if (result.kind !== "found") return result;
+    return {
+      kind: "found",
+      executableNames: result.executableNames,
+      executableMatches: result.executableMatches,
+      apply: () => void commitLibraryImports([result.commit]),
+    };
+  }
+  if (!input.playcounterGame) return { kind: "not_found" };
+  const result = await checkPlayCounterGameForMatches({
+    apiEndpoint: input.apiEndpoint,
+    game: input.playcounterGame,
+    signal: input.signal,
+  });
+  if (result.kind !== "found") return result;
+  return {
+    kind: "found",
+    executableNames: result.files.map((file) => file.exeName),
+    executableMatches: result.executableMatches,
+    apply: () => {
+      linkKnownGameFiles(result.files, result.game);
+      persist();
+    },
+  };
+}
+
 function LibraryImportMatchCheckDialog({
   apiEndpoint,
   entry,
   install,
+  playcounterGame,
   ignoredProcesses,
   offeredExecutableMatches,
   onCancel,
   onApplied,
 }: {
   apiEndpoint: string;
-  entry: LibraryImportEntry;
+  entry?: LibraryImportEntry;
   install?: LibraryInstallEntry;
+  /** Checked when there is no launcher `entry`. */
+  playcounterGame?: PlayCounterLibraryEntry;
   ignoredProcesses: ReadonlySet<string>;
   offeredExecutableMatches?: readonly LibraryExecutableMatch[];
   onCancel: () => void;
   onApplied: (executableNames: string[]) => void;
 }) {
-  const providerLabel =
-    providerTabConfig(entry.provider)?.label ?? entry.provider;
+  const providerLabel = entry
+    ? (providerTabConfig(entry.provider)?.label ?? entry.provider)
+    : "PlayCounter";
+  const gameName = entry?.name ?? playcounterGame?.name ?? "";
   const isOffline = useIsOffline();
   const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<LibraryImportMatchCheck | null>(null);
+  const [result, setResult] = useState<GameMatchCheck | null>(null);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
   const checking = !result && !error && !isOffline;
@@ -7011,10 +7459,11 @@ function LibraryImportMatchCheckDialog({
     const controller = new AbortController();
     setResult(null);
     setError("");
-    void checkLibraryImportForMatches({
+    void checkGameForMatches({
       apiEndpoint,
       entry,
       install,
+      playcounterGame,
       ignoredProcesses,
       signal: controller.signal,
     })
@@ -7028,14 +7477,22 @@ function LibraryImportMatchCheckDialog({
       cancelled = true;
       controller.abort();
     };
-  }, [apiEndpoint, attempt, entry, ignoredProcesses, install, isOffline]);
+  }, [
+    apiEndpoint,
+    attempt,
+    entry,
+    ignoredProcesses,
+    install,
+    isOffline,
+    playcounterGame,
+  ]);
 
   function applyMatch() {
     if (isOffline || applying || result?.kind !== "found") return;
     setApplying(true);
     setError("");
     try {
-      commitLibraryImports([result.commit]);
+      result.apply();
       onApplied(result.executableNames);
     } catch (cause) {
       setError(formatError(cause));
@@ -7056,10 +7513,10 @@ function LibraryImportMatchCheckDialog({
         onClick={result?.kind === "found" ? applyMatch : retry}
       >
         {showingMatch
-          ? `Use ${executableMatches.length === 1 ? "match" : "matches"}`
+          ? t("Use matches", { count: executableMatches.length })
           : checking
-            ? "Checking…"
-            : "Check again"}
+            ? t("Checking…")
+            : t("Check again")}
       </Button>
       <Button
         variant="ghost"
@@ -7067,7 +7524,7 @@ function LibraryImportMatchCheckDialog({
         disabled={applying}
         onClick={onCancel}
       >
-        {showingMatch || checking ? "Cancel" : "Close"}
+        {showingMatch || checking ? t("Cancel") : t("Close")}
       </Button>
     </div>
   );
@@ -7076,16 +7533,40 @@ function LibraryImportMatchCheckDialog({
     <Modal
       size="md"
       labelId="library-match-check-title"
-      eyebrow={`${providerLabel} executable`}
-      title={`Check matches for ${entry.name}`}
-      subtitle={`${providerLabel} ${entry.provider === "battlenet" ? "product" : entry.provider === "steam" ? "AppID" : entry.provider === "epic" ? "app name" : "Title ID"} ${entry.externalId}`}
+      eyebrow={t("{{providerLabel}} executable", { providerLabel })}
+      title={t("Check matches for {{name}}", { name: gameName })}
+      subtitle={
+        !entry
+          ? undefined
+          : entry.provider === "battlenet"
+            ? t("{{provider}} product {{id}}", {
+                provider: providerLabel,
+                id: entry.externalId,
+              })
+            : entry.provider === "steam"
+              ? t("{{provider}} AppID {{id}}", {
+                  provider: providerLabel,
+                  id: entry.externalId,
+                })
+              : entry.provider === "epic"
+                ? t("{{provider}} app name {{id}}", {
+                    provider: providerLabel,
+                    id: entry.externalId,
+                  })
+                : t("{{provider}} Title ID {{id}}", {
+                    provider: providerLabel,
+                    id: entry.externalId,
+                  })
+      }
       icon={Search}
       onClose={onCancel}
       footer={footer}
     >
       <p className="text-sm leading-6 text-text-muted">
-        Checks whether IGDB or the approved Community database now knows an
-        executable for this {providerLabel} game.
+        {t(
+          "Checks whether IGDB or the approved Community database now knows an executable for this {{providerLabel}} game.",
+          { providerLabel },
+        )}
       </p>
 
       <div
@@ -7098,6 +7579,7 @@ function LibraryImportMatchCheckDialog({
               : showingMatch
                 ? "border-success-border/35 bg-bg/60 text-success"
                 : result?.kind === "needs_install" ||
+                    result?.kind === "needs_file" ||
                     result?.kind === "unsupported"
                   ? "border-warning-border bg-warning-tint text-warning"
                   : "border-border bg-bg/60 text-text-muted",
@@ -7108,12 +7590,12 @@ function LibraryImportMatchCheckDialog({
       >
         {isOffline ? (
           <div className="flex items-center gap-2 font-medium">
-            <WifiOff size={17} className="shrink-0" /> Checking the database
-            needs an internet connection.
+            <WifiOff size={17} className="shrink-0" />{" "}
+            {t("Checking the database needs an internet connection.")}
           </div>
         ) : error ? (
           <>
-            <div className="font-semibold">The match check failed</div>
+            <div className="font-semibold">{t("The match check failed")}</div>
             <div className="mt-1 text-text-muted">{error}</div>
           </>
         ) : showingMatch ? (
@@ -7121,8 +7603,8 @@ function LibraryImportMatchCheckDialog({
             <div className="flex items-center gap-2 font-semibold">
               <Check size={18} className="shrink-0" />{" "}
               {executableMatches.length === 1
-                ? "Executable match found"
-                : "Executable matches found"}
+                ? t("Executable match found")
+                : t("Executable matches found")}
             </div>
             <ul className="mt-1.5 space-y-1.5">
               {executableMatches.map((match) => (
@@ -7138,36 +7620,57 @@ function LibraryImportMatchCheckDialog({
               ))}
             </ul>
             {checking ? (
-              <span className="sr-only">Confirming the latest match…</span>
+              <span className="sr-only">
+                {t("Confirming the latest match…")}
+              </span>
             ) : null}
           </>
         ) : !result ? (
           <div className="flex items-center gap-2">
             <Loader2 size={18} className="shrink-0 animate-spin" />
-            Checking IGDB and community databases…
+            {t("Checking IGDB and community databases…")}
           </div>
         ) : result.kind === "needs_install" ? (
           <>
-            <div className="font-semibold">Local confirmation required</div>
+            <div className="font-semibold">
+              {t("Local confirmation required")}
+            </div>
             <p className="mt-1 leading-5 text-text-muted">
-              The database knows {result.executableNames.join(", ")}, but the
-              filename can&apos;t be linked globally. Install the game and run a{" "}
-              {providerLabel} scan so PlayCounter can safely scope it to that
-              folder.
+              {t(
+                "The database knows {{join}}, but the filename can't be linked globally. Install the game and run a {{providerLabel}} scan so PlayCounter can safely scope it to that folder.",
+                { join: result.executableNames.join(", "), providerLabel },
+              )}
+            </p>
+          </>
+        ) : result.kind === "needs_file" ? (
+          <>
+            <div className="font-semibold">
+              {t("Local confirmation required")}
+            </div>
+            <p className="mt-1 leading-5 text-text-muted">
+              {t(
+                "The database knows {{join}}, but that name can't be linked on its own. Use Set launch file to pick the file on this PC.",
+                { join: result.executableNames.join(", ") },
+              )}
             </p>
           </>
         ) : result.kind === "unsupported" ? (
           <>
-            This PlayCounter backend does not support {providerLabel} executable
-            checks yet.
+            {t(
+              "This PlayCounter backend does not support {{providerLabel}} executable checks yet.",
+              { providerLabel },
+            )}
           </>
         ) : (
           <>
-            <div className="font-semibold text-text">No match found yet</div>
+            <div className="font-semibold text-text">
+              {t("No match found yet")}
+            </div>
             <p className="mt-1 leading-5">
-              There is still no approved executable for this {providerLabel}{" "}
-              game. You can check again after a Community suggestion has been
-              approved.
+              {t(
+                "There is still no approved executable for this {{providerLabel}} game. You can check again after a Community suggestion has been approved.",
+                { providerLabel },
+              )}
             </p>
           </>
         )}
@@ -7256,9 +7759,15 @@ function MatchCheckDialog({
       {state === "done" && hiddenCount > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-text-muted">
           <span>
-            Showing the first {candidates.length} of{" "}
-            {(candidates.length + hiddenCount).toLocaleString()} games that use
-            this file name.
+            {t(
+              "Showing the first {{count}} of {{count2}} games that use this file name.",
+              {
+                count: candidates.length,
+                count2: (candidates.length + hiddenCount).toLocaleString(
+                  appLocale(),
+                ),
+              },
+            )}
           </span>
           {onSearchCommunity && !isOffline ? (
             <button
@@ -7267,22 +7776,26 @@ function MatchCheckDialog({
               className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-medium text-accent-ink transition hover:bg-accent-tint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
               <Search size={14} />
-              Search for yours
+              {t("Search for yours")}
             </button>
           ) : null}
         </div>
       ) : null}
       {selection ? (
         <p className="text-xs text-text-muted">
-          <strong className="text-text">{selection.name}</strong> will be used
-          for {exeName} on this PC.
+          <Trans
+            t={t}
+            i18nKey="<game>{{game}}</game> will be used for {{file}} on this PC."
+            values={{ game: selection.name, file: exeName }}
+            components={{ game: <strong className="text-text" /> }}
+          />
         </p>
       ) : null}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button variant="ghost" onClick={onCancel}>
           {current.source === "custom"
-            ? "Keep custom game"
-            : "Keep current match"}
+            ? t("Keep custom game")
+            : t("Keep current match")}
         </Button>
         <Button
           variant="primary"
@@ -7293,13 +7806,13 @@ function MatchCheckDialog({
               onApply(selection, isPendingCommunityMatch(selection));
           }}
         >
-          Use this match
+          {t("Use this match")}
         </Button>
       </div>
       <div className="border-t border-border pt-3">
         {/* None of these: the same choices as Report wrong match. */}
         <Button variant="ghost" icon={Flag} onClick={onReport}>
-          Report wrong match…
+          {t("Report wrong match…")}
         </Button>
       </div>
     </div>
@@ -7309,8 +7822,8 @@ function MatchCheckDialog({
     <Modal
       size="md"
       labelId="match-check-title"
-      eyebrow="Database match"
-      title={`Check matches for ${game.name}`}
+      eyebrow={t("Database match")}
+      title={t("Check matches for {{name}}", { name: game.name })}
       subtitle={exeName}
       icon={state === "loading" && !isOffline ? Loader2 : Search}
       iconSpin={state === "loading" && !isOffline}
@@ -7318,9 +7831,14 @@ function MatchCheckDialog({
       footer={footer}
     >
       <p className="text-sm leading-6 text-text-muted">
-        Looks <span className="font-mono font-medium text-text">{exeName}</span>{" "}
-        up in IGDB and in approved community matches. Picking one changes it on
-        this PC only.
+        <Trans
+          t={t}
+          i18nKey="Looks <file>{{file}}</file> up in IGDB and in approved community matches. Picking one changes it on this PC only."
+          values={{ file: exeName }}
+          components={{
+            file: <span className="font-mono font-medium text-text" />,
+          }}
+        />
       </p>
 
       {flaggedIdentifier ? (
@@ -7328,8 +7846,12 @@ function MatchCheckDialog({
           <AlertTriangle size={18} className="mt-0.5 shrink-0" />
           <span>
             {flaggedIdentifier.reason === "not_a_game"
-              ? "Apps that are not games use this file name too, so PlayCounter no longer picks a game automatically."
-              : "Several games use this file name, so PlayCounter no longer picks a game automatically."}
+              ? t(
+                  "Apps that are not games use this file name too, so PlayCounter no longer picks a game automatically.",
+                )
+              : t(
+                  "Several games use this file name, so PlayCounter no longer picks a game automatically.",
+                )}
           </span>
         </div>
       ) : null}
@@ -7338,15 +7860,15 @@ function MatchCheckDialog({
         {isOffline ? (
           <div className="rounded-xl border border-warning-border bg-warning-tint p-5 text-sm text-warning">
             <div className="flex items-center gap-2 font-medium">
-              <WifiOff size={17} /> Checking the database needs an internet
-              connection.
+              <WifiOff size={17} />{" "}
+              {t("Checking the database needs an internet connection.")}
             </div>
             <Button
               className="mt-3"
               variant="secondary"
               onClick={() => setAttempt((value) => value + 1)}
             >
-              Try again
+              {t("Try again")}
             </Button>
           </div>
         ) : state === "loading" ? (
@@ -7358,28 +7880,30 @@ function MatchCheckDialog({
               />
             ))}
             <span className="sr-only">
-              Checking IGDB and community databases…
+              {t("Checking IGDB and community databases…")}
             </span>
           </div>
         ) : state === "error" ? (
           <div className="rounded-xl border border-danger-border bg-danger-tint p-5 text-sm text-danger">
-            <div className="font-medium">Match check failed</div>
+            <div className="font-medium">{t("Match check failed")}</div>
             <div className="mt-1">{error}</div>
             <Button
               className="mt-3"
               variant="secondary"
               onClick={() => setAttempt((value) => value + 1)}
             >
-              Try again
+              {t("Try again")}
             </Button>
           </div>
         ) : candidates.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-bg/60 p-6 text-center text-sm text-text-muted">
             <div className="font-medium text-text">
-              No database match for {exeName}.
+              {t("No database match for {{exeName}}.", { exeName })}
             </div>
             {current.source === "custom" ? (
-              <div className="mt-1">{game.name} stays a custom game.</div>
+              <div className="mt-1">
+                {t("{{name}} stays a custom game.", { name: game.name })}
+              </div>
             ) : null}
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <Button
@@ -7387,7 +7911,7 @@ function MatchCheckDialog({
                 icon={RotateCcw}
                 onClick={() => setAttempt((value) => value + 1)}
               >
-                Check again
+                {t("Check again")}
               </Button>
               {onSearchCommunity ? (
                 <Button
@@ -7395,7 +7919,7 @@ function MatchCheckDialog({
                   icon={Search}
                   onClick={onSearchCommunity}
                 >
-                  Search the database
+                  {t("Search the database")}
                 </Button>
               ) : null}
             </div>
@@ -7434,15 +7958,17 @@ function MatchCheckDialog({
                       ) : null}
                       {current ? (
                         <span className="rounded border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] font-medium text-text-muted">
-                          Current match
+                          {t("Current match")}
                         </span>
                       ) : null}
                       {isPendingCommunityMatch(match) ? (
                         <span
-                          title="Someone suggested this match and it is still being reviewed. Until it is approved, it only counts on this PC."
+                          title={t(
+                            "Someone suggested this match and it is still being reviewed. Until it is approved, it only counts on this PC.",
+                          )}
                           className="rounded border border-warning-border bg-warning-tint px-1.5 py-0.5 text-[11px] font-medium text-warning"
                         >
-                          In review
+                          {t("In review")}
                         </span>
                       ) : null}
                     </span>
@@ -7510,7 +8036,7 @@ function GameNameDialog({
       backdropDataTour={demo ? "demo-library-modal" : undefined}
       size="sm"
       labelId="game-name-dialog-title"
-      eyebrow="Custom game"
+      eyebrow={t("Custom game")}
       title={title}
       subtitle={subtitle}
       icon={Pencil}
@@ -7526,7 +8052,7 @@ function GameNameDialog({
             {confirmLabel}
           </Button>
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       }
@@ -7542,13 +8068,13 @@ function GameNameDialog({
         }}
       >
         <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-          Game name
+          {t("Game name")}
           <Input
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
             maxLength={120}
             data-autofocus
-            placeholder="e.g. Stardew Valley (modded)"
+            placeholder={t("e.g. Stardew Valley (modded)")}
           />
         </label>
       </form>
@@ -7557,5 +8083,5 @@ function GameNameDialog({
 }
 
 function formatError(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return nativeText(error instanceof Error ? error.message : String(error));
 }

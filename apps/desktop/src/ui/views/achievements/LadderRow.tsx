@@ -4,8 +4,12 @@ import { AchievementMedal } from "../../AchievementBadge";
 import { displayNotificationTitle } from "../../../notifications";
 import {
   remainderLabel,
+  remainingAmount,
   type AchievementCatalogItem,
 } from "./achievementCatalog";
+import { appLocale, getT } from "../../../i18n";
+
+const t = getT("achievements");
 
 /* One achievement ladder: what it is on the left, its rungs on the right.
  * Game ladders lead with a cover, milestone ladders with an icon tile. */
@@ -54,10 +58,13 @@ function Rung({ rung }: { rung: AchievementCatalogItem }) {
       })
     : rung.title;
   const tooltip = unlocked
-    ? `${title} · Unlocked ${formatAwardDate(rung.milestone!.awardedAt)}`
+    ? t("{{title}} · Unlocked {{date}}", {
+        title,
+        date: formatAwardDate(rung.milestone!.awardedAt),
+      })
     : isNext
       ? `${title} · ${remainderLabel(rung)}`
-      : `${title} · Locked`;
+      : t("{{title}} · Locked", { title });
 
   return (
     <div
@@ -90,23 +97,23 @@ function Rung({ rung }: { rung: AchievementCatalogItem }) {
 }
 
 export function thresholdLabel(rung: AchievementCatalogItem) {
-  const amount = rung.threshold.toLocaleString();
-  if (rung.unit === "hours") return `${amount}h`;
-  if (rung.unit === "days") return `${amount}d`;
-  return amount;
+  const count = rung.threshold;
+  if (rung.unit === "hours") return t("{{count, number}}h", { count });
+  if (rung.unit === "days") return t("{{count, number}}d", { count });
+  return count.toLocaleString(appLocale());
 }
 
 function remainderShort(rung: AchievementCatalogItem) {
-  return remainderLabel(rung)
-    .replace(" more hours", "h left")
-    .replace(" more hour", "h left")
-    .replace(" more days", "d left")
-    .replace(" more day", "d left")
-    .replace(/ more contributions?/, " left");
+  const count = remainingAmount(rung);
+  return rung.unit === "hours"
+    ? t("{{count, number}}h left", { count })
+    : rung.unit === "days"
+      ? t("{{count, number}}d left", { count })
+      : t("{{count, number}} left", { count });
 }
 
 function formatAwardDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], {
+  return new Date(iso).toLocaleDateString(appLocale(), {
     day: "numeric",
     month: "short",
     year: "numeric",

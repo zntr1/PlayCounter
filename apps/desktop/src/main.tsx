@@ -4,27 +4,35 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./ui/App";
 import { applyTheme, normalizeAccentColor } from "./theme";
+import { applyLanguage } from "./i18n";
 import "./styles.css";
 
-// Apply the persisted theme before the first paint so the app never flashes
-// the wrong theme while the store hydrates.
+// Apply the persisted theme and language before the first paint so the app
+// never flashes the wrong theme or language while the store hydrates.
 const persistedAppearance = readPersistedAppearance();
 applyTheme(persistedAppearance.theme, persistedAppearance.accentColor);
+applyLanguage(persistedAppearance.language);
 
 function readPersistedAppearance() {
   try {
     const raw = localStorage.getItem("playcounter:v1");
     const parsed = raw
       ? (JSON.parse(raw) as {
-          settings?: { theme?: unknown; accentColor?: unknown };
+          settings?: {
+            theme?: unknown;
+            accentColor?: unknown;
+            language?: unknown;
+          };
         })
       : null;
+    const language = parsed?.settings?.language;
     return {
       theme: parsed?.settings?.theme === "light" ? "light" : "dark",
       accentColor: normalizeAccentColor(parsed?.settings?.accentColor),
+      language: typeof language === "string" ? language : undefined,
     } as const;
   } catch {
-    return { theme: "dark", accentColor: null } as const;
+    return { theme: "dark", accentColor: null, language: undefined } as const;
   }
 }
 

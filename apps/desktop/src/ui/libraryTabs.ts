@@ -1,5 +1,8 @@
 import type { LibraryProviderId } from "@playcounter/shared";
 import { hasProviderImport, type ProviderLibraryGame } from "./providerLibrary";
+import { getT } from "../i18n";
+
+const t = getT("myGames");
 
 export type LibraryTabId = "all" | LibraryProviderId | "unimported";
 export type LibraryTabKind = "all" | "provider" | "unimported";
@@ -72,7 +75,7 @@ export function visibleLibraryTabs(input: {
   if (providers.length === 0) return [];
 
   return [
-    { id: "all", kind: "all", label: "All games", count: input.allTabCount },
+    { id: "all", kind: "all", label: t("All games"), count: input.allTabCount },
     {
       id: "unimported",
       kind: "unimported",

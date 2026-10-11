@@ -3,6 +3,9 @@ import { useAppStore } from "../../store";
 import { useLibrarySources } from "../librarySources";
 import { providerTabConfig } from "../libraryProviderTabs";
 import { Layers } from "lucide-react";
+import { getT } from "../../i18n";
+
+const t = getT("shell");
 
 /* The lower half of the sidebar: where the library's games came from. This is
    the former "Import source" tab strip, moved out of the My Games toolbar. It
@@ -29,7 +32,7 @@ export function SidebarSources() {
     <div className="sidebar-sources mb-1 mt-0.5 animate-fade-in">
       <div
         role="tablist"
-        aria-label="Game library source"
+        aria-label={t("Game library source")}
         aria-orientation="vertical"
         className="flex flex-col gap-px"
       >

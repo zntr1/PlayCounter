@@ -4,6 +4,9 @@ import { moveGamesToPlayCounter } from "../../../library/moveToPlayCounter";
 import { useAppStore, type GameIdentityRef } from "../../../store";
 import { formatDuration } from "../../components";
 import { Button, Modal } from "../../primitives";
+import { getT } from "../../../i18n";
+
+const t = getT("games");
 
 export function MoveToPlayCounterDialog({
   games,
@@ -35,11 +38,14 @@ export function MoveToPlayCounterDialog({
           tone: "success",
           title:
             moved === 1
-              ? "Moved to PlayCounter"
-              : `${moved} games moved to PlayCounter`,
+              ? t("Moved to PlayCounter")
+              : t("{{moved}} games moved to PlayCounter", { moved }),
           detail: singleGame
-            ? `${singleGame.name} is now in PlayCounter. Your playtime and history were kept.`
-            : "Your playtime and history were kept for each game.",
+            ? t(
+                "{{name}} is now in PlayCounter. Your playtime and history were kept.",
+                { name: singleGame.name },
+              )
+            : t("Your playtime and history were kept for each game."),
         });
       }
       onMoved?.();
@@ -48,7 +54,7 @@ export function MoveToPlayCounterDialog({
       setError(
         cause instanceof Error
           ? cause.message
-          : "Could not save the move. Please try again.",
+          : t("Could not save the move. Please try again."),
       );
     }
   };
@@ -56,11 +62,11 @@ export function MoveToPlayCounterDialog({
     <Modal
       size="sm"
       labelId="move-to-playcounter-title"
-      eyebrow="My Games"
+      eyebrow={t("My Games")}
       title={
         singleGame
-          ? "Move to PlayCounter?"
-          : `Move ${games.length} games to PlayCounter?`
+          ? t("Move to PlayCounter?")
+          : t("Move {{count}} games to PlayCounter?", { count: games.length })
       }
       subtitle={singleGame?.name}
       icon={MoveRight}
@@ -68,7 +74,7 @@ export function MoveToPlayCounterDialog({
       footer={
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button
             variant="primary"
@@ -76,25 +82,32 @@ export function MoveToPlayCounterDialog({
             disabled={games.length === 0}
             onClick={confirm}
           >
-            Move to PlayCounter
+            {t("Move to PlayCounter")}
           </Button>
         </div>
       }
     >
       {singleGame ? (
         <p className="text-sm leading-6 text-text-muted">
-          Keep your {formatDuration(singleGame.totalSeconds, showDurationDays)}{" "}
-          of playtime, sessions, notes, playthroughs, and shelves. Future
-          sessions add to this total.
+          {t(
+            "Keep your {{duration}} of playtime, sessions, notes, playthroughs, and shelves. Future sessions add to this total.",
+            {
+              duration: formatDuration(
+                singleGame.totalSeconds,
+                showDurationDays,
+              ),
+            },
+          )}
         </p>
       ) : (
         <>
           <p className="text-sm leading-6 text-text-muted">
-            Keep each game's playtime, sessions, notes, playthroughs, and
-            shelves. Future sessions add to each game's total.
+            {t(
+              "Keep each game's playtime, sessions, notes, playthroughs, and shelves. Future sessions add to each game's total.",
+            )}
           </p>
           <ul
-            aria-label="Games to move"
+            aria-label={t("Games to move")}
             className="mt-3 max-h-44 overflow-y-auto rounded-lg border border-border bg-bg px-3 divide-y divide-border"
           >
             {games.map((game) => (
@@ -115,18 +128,29 @@ export function MoveToPlayCounterDialog({
       )}
       {skippedCount > 0 ? (
         <p className="mt-3 text-sm leading-6 text-text-muted">
-          {skippedCount} selected {skippedCount === 1 ? "game is" : "games are"}{" "}
-          already in PlayCounter and will stay there.
+          {t(
+            "{{count}} selected games are already in PlayCounter and will stay there.",
+            { count: skippedCount },
+          )}
         </p>
       ) : null}
       <p className="mt-3 text-sm leading-6 text-text-muted">
-        {singleGame ? "The game moves" : "These games move"} out of all launcher
-        tabs into PlayCounter. This only changes your PlayCounter library.
+        {singleGame
+          ? t(
+              "The game moves out of all launcher tabs into PlayCounter. This only changes your PlayCounter library.",
+            )
+          : t(
+              "These games move out of all launcher tabs into PlayCounter. This only changes your PlayCounter library.",
+            )}
       </p>
       <p className="mt-3 text-sm leading-6 text-text-muted">
         {singleGame
-          ? "To associate it with a launcher again, import the game from that launcher."
-          : "To associate these games with a launcher again, import them from that launcher."}
+          ? t(
+              "To associate it with a launcher again, import the game from that launcher.",
+            )
+          : t(
+              "To associate these games with a launcher again, import them from that launcher.",
+            )}
       </p>
       {error ? (
         <p role="alert" className="mt-3 text-sm text-danger">

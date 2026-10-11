@@ -4,6 +4,7 @@ import { dolphinAdapter } from "./dolphin";
 import { mgbaAdapter } from "./mgba";
 import { pcsx2Adapter } from "./pcsx2";
 import type { EmulatorAdapter } from "./types";
+import { appLocale } from "../i18n";
 
 // Every EmulatorId must have an adapter. The order is the sidebar, filter and
 // copy order.
@@ -30,7 +31,9 @@ export function adapterFor(emulatorId?: string | null) {
 }
 
 /** "DOSBox, Dolphin, PCSX2, or mGBA" */
+/** "Dolphin, PCSX2, DOSBox, or mGBA" in the app's language. */
 export function emulatorLabelList(conjunction: "or" | "and") {
-  const labels = EMULATORS.map((adapter) => adapter.label);
-  return `${labels.slice(0, -1).join(", ")}, ${conjunction} ${labels.at(-1)}`;
+  return new Intl.ListFormat(appLocale(), {
+    type: conjunction === "or" ? "disjunction" : "conjunction",
+  }).format(EMULATORS.map((adapter) => adapter.label));
 }

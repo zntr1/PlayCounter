@@ -15,6 +15,9 @@ import {
 import { pickedCover } from "./pickedCovers";
 import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
+import { appLocale, getT } from "./i18n";
+
+const t = getT("overlays");
 
 type BridgeState = {
   generation: number;
@@ -63,7 +66,7 @@ export function showCurrentSessionOverlay() {
 
 export type DesktopOverlayMonitor = {
   id: string;
-  name: string;
+  name: string | null;
   width: number;
   height: number;
   primary: boolean;
@@ -125,6 +128,7 @@ function renderContext() {
   ).matchMedia;
   return {
     nowMs: Date.now(),
+    locale: appLocale(),
     theme: settings.theme,
     accentColor: settings.accentColor,
     reducedMotion:
@@ -383,8 +387,8 @@ function previewEvent(
     totalSeconds: 180_000,
     ...(kind === "milestone"
       ? {
-          milestoneTitle: "50 hours played",
-          milestoneMetric: "50 HRS",
+          milestoneTitle: t("50 hours played"),
+          milestoneMetric: t("50 HRS"),
           milestoneGameScoped: false,
         }
       : {}),
@@ -406,7 +410,7 @@ export function previewDesktopOverlay(
   const sample = store.recentSessions[0];
   const event = previewEvent(
     kind,
-    sample?.gameName ?? "Sample Game",
+    sample?.gameName ?? t("Sample Game"),
     pickedCover(store, sample) ?? sample?.coverUrl,
   );
   const message = buildOverlayMessage(kind, event, renderContext());

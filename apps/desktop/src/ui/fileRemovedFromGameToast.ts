@@ -1,5 +1,8 @@
 import type { Toast } from "../store";
 import type { FileNotOfGameOutcome } from "../tracker";
+import { getT } from "../i18n";
+
+const t = getT("dialogs");
 
 /** After "It doesn't belong to <game>" in the report picker. */
 export function notifyFileRemovedFromGame(
@@ -10,15 +13,15 @@ export function notifyFileRemovedFromGame(
 ) {
   addToast({
     tone: outcome.report === "failed" ? "info" : "success",
-    title: `${exeName} removed from ${gameName}`,
+    title: t("{{exeName}} removed from {{gameName}}", { exeName, gameName }),
     detail: outcome.folder
-      ? "Only from this game's folder, on this PC. Nothing was reported."
+      ? t("Only from this game's folder, on this PC. Nothing was reported.")
       : outcome.report === "skipped"
-        ? "Only on this PC. Nothing was reported."
+        ? t("Only on this PC. Nothing was reported.")
         : outcome.report === "failed"
-          ? "Removed on this PC. The report could not be sent."
+          ? t("Removed on this PC. The report could not be sent.")
           : outcome.report === "already_reviewed"
-            ? "Removed on this PC. Your earlier report was already reviewed."
-            : "Reported for review. If it runs, it shows up in Discovered.",
+            ? t("Removed on this PC. Your earlier report was already reviewed.")
+            : t("Reported for review. If it runs, it shows up in Discovered."),
   });
 }
