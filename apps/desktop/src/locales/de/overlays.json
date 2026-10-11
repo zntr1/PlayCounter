@@ -27,11 +27,11 @@
   "Update note": "Notiz aktualisieren",
   "SESSION TIME": "SITZUNGSZEIT",
   "50 hours played": "50 Stunden gespielt",
-  "50 HRS": "50 STD.",
+  "50 HRS": "50 Std.",
   "Sample Game": "Beispielspiel",
   "LIVE": "LIVE",
   "Playthrough: {{name}}": "Durchgang: {{name}}",
   "{{count, number}} APPROVED": "{{count, number}} FREIGEGEBEN",
   "{{count, number}} DAYS": "{{count, number}} TAGE",
-  "{{count, number}} HRS": "{{count, number}} STD."
+  "{{count, number}} HRS": "{{count, number}} Std."
 }
