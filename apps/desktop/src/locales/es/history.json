@@ -84,6 +84,7 @@
   "Entered manually": "Ingresado manualmente",
   "Remove history entry for {{gameName}}": "Eliminar la entrada del historial de {{gameName}}",
   "<time>{{duration}}</time> played today": "<time>{{duration}}</time> jugados hoy",
+  "<time>{{duration}}</time> played in total": "<time>{{duration}}</time> jugados en total",
   "average": "promedio",
   "Nothing played yet": "Aún no has jugado nada",
   "Nothing played in this range": "No has jugado nada en este periodo",

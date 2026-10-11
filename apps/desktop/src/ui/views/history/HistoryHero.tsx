@@ -59,6 +59,7 @@ export function HistoryHero({
   onFilterChange,
   rangeStats,
   allTimeStats,
+  lifetimeSeconds,
   highlights,
   firstSessionMs,
   showDurationDays,
@@ -70,6 +71,8 @@ export function HistoryHero({
   onFilterChange: (filter: HistoryFilter) => void;
   rangeStats: SummaryStats;
   allTimeStats: SummaryStats;
+  /** All time only: the My Games total, edits and launcher time included. */
+  lifetimeSeconds: number | null;
   highlights: HistoryHighlight[];
   firstSessionMs: number | null;
   showDurationDays: boolean;
@@ -95,6 +98,7 @@ export function HistoryHero({
     (entry) => entry.id === filter,
   )!.label;
   const hasSessions = rangeStats.sessionCount > 0;
+  const hasPlaytime = hasSessions || (lifetimeSeconds ?? 0) > 0;
 
   return (
     <section
@@ -126,10 +130,26 @@ export function HistoryHero({
             <BarChart3 aria-hidden="true" size={12} />
             {rangeLabel}
           </p>
-          {hasSessions ? (
+          {hasPlaytime ? (
             <>
               <h1 className="mt-2 font-serif text-[34px] font-normal leading-[1.1] tracking-tight text-text drop-shadow-md [text-wrap:balance] sm:text-[42px]">
-                {filter === "today" ? (
+                {lifetimeSeconds !== null ? (
+                  <Trans
+                    t={t}
+                    i18nKey="<time>{{duration}}</time> played in total"
+                    values={{
+                      duration: formatDuration(
+                        lifetimeSeconds,
+                        showDurationDays,
+                      ),
+                    }}
+                    components={{
+                      time: (
+                        <span className="font-mono font-bold tracking-tighter" />
+                      ),
+                    }}
+                  />
+                ) : filter === "today" ? (
                   <Trans
                     t={t}
                     i18nKey="<time>{{duration}}</time> played today"
@@ -165,38 +185,40 @@ export function HistoryHero({
                   />
                 )}
               </h1>
-              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
-                <Fact
-                  value={String(rangeStats.sessionCount)}
-                  unit={t("sessions", { count: rangeStats.sessionCount })}
-                />
-                <Fact
-                  label={t("average")}
-                  value={formatDuration(
-                    rangeStats.averageSeconds,
-                    showDurationDays,
-                  )}
-                />
-                <Fact
-                  label={t("current streak")}
-                  value={t("{{count}} days", {
-                    count: allTimeStats.currentStreakDays,
-                  })}
-                />
-                {firstSessionMs !== null ? (
+              {hasSessions ? (
+                <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-muted">
                   <Fact
-                    label={t("first session")}
-                    value={new Date(firstSessionMs).toLocaleDateString(
-                      appLocale(),
-                      {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      },
+                    value={String(rangeStats.sessionCount)}
+                    unit={t("sessions", { count: rangeStats.sessionCount })}
+                  />
+                  <Fact
+                    label={t("average")}
+                    value={formatDuration(
+                      rangeStats.averageSeconds,
+                      showDurationDays,
                     )}
                   />
-                ) : null}
-              </p>
+                  <Fact
+                    label={t("current streak")}
+                    value={t("{{count}} days", {
+                      count: allTimeStats.currentStreakDays,
+                    })}
+                  />
+                  {firstSessionMs !== null ? (
+                    <Fact
+                      label={t("first session")}
+                      value={new Date(firstSessionMs).toLocaleDateString(
+                        appLocale(),
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        },
+                      )}
+                    />
+                  ) : null}
+                </p>
+              ) : null}
             </>
           ) : (
             <>

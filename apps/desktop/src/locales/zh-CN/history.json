@@ -84,6 +84,7 @@
   "Entered manually": "手动输入",
   "Remove history entry for {{gameName}}": "删除 {{gameName}} 的历史记录",
   "<time>{{duration}}</time> played today": "今天已玩 <time>{{duration}}</time>",
+  "<time>{{duration}}</time> played in total": "总共已玩 <time>{{duration}}</time>",
   "average": "平均",
   "Nothing played yet": "尚未游玩任何游戏",
   "Nothing played in this range": "此时间范围内没有游玩",

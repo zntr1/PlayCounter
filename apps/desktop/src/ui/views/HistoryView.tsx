@@ -421,6 +421,11 @@ export function HistoryView() {
     resolveIgdbId,
     selectedGameKey,
   ]);
+  // Edits and launcher time have no date, so only All time counts them: its
+  // headline is the sum of the leaderboard, the totals My Games shows.
+  const lifetimeSeconds = lifetime
+    ? leaderboardGames.reduce((sum, game) => sum + game.seconds, 0)
+    : null;
   const { selectedRange } = analytics;
   const timelineSessions = useMemo(() => {
     if (!selectedRange) return gameFilteredSessions;
@@ -672,6 +677,7 @@ export function HistoryView() {
         onFilterChange={setFilter}
         rangeStats={analytics.rangeStats}
         allTimeStats={analytics.allTimeStats}
+        lifetimeSeconds={lifetimeSeconds}
         highlights={analytics.highlights}
         firstSessionMs={analytics.firstSessionMs}
         showDurationDays={showDurationDays}

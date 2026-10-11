@@ -84,6 +84,7 @@
   "Entered manually": "Entered manually",
   "Remove history entry for {{gameName}}": "Remove history entry for {{gameName}}",
   "<time>{{duration}}</time> played today": "<time>{{duration}}</time> played today",
+  "<time>{{duration}}</time> played in total": "<time>{{duration}}</time> played in total",
   "average": "average",
   "Nothing played yet": "Nothing played yet",
   "Nothing played in this range": "Nothing played in this range",
