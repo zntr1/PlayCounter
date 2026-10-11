@@ -60,8 +60,9 @@ export type LibraryStatDefinition = {
   format: LibraryStatFormat;
   label: (context: LibraryStatLabelContext) => string;
   /** One or two words for the summary chip beside the library title, where
-   *  the tab name already says which library these numbers describe. */
-  short: string;
+   *  the tab name already says which library these numbers describe. Gets the
+   *  number it stands next to, so counts pick their plural form. */
+  short: (value: number) => string;
   help: string;
 };
 
@@ -95,7 +96,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
         providerLabel
           ? t("{{provider}} games", { provider: providerLabel })
           : t("Games"),
-      short: t("games"),
+      short: (count) => t("games", { count }),
       help: t("How many games this tab holds."),
     },
     {
@@ -111,7 +112,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
             : kind === "unimported"
               ? t("Tracked playtime")
               : t("Total playtime"),
-      short: t("played"),
+      short: () => t("played"),
       help: t("All playtime this tab adds up to."),
     },
     {
@@ -120,7 +121,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
       metric: "trackedSeconds",
       format: "duration",
       label: () => t("Watched by PlayCounter"),
-      short: t("watched"),
+      short: () => t("watched"),
       help: t("How much of that playtime PlayCounter recorded itself."),
     },
     {
@@ -132,9 +133,10 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
         t("Played in {{days}} days", {
           days: RECENT_PLAY_WINDOW_DAYS,
         }),
-      short: t("in {{days}} days", {
-        days: RECENT_PLAY_WINDOW_DAYS,
-      }),
+      short: () =>
+        t("in {{days}} days", {
+          days: RECENT_PLAY_WINDOW_DAYS,
+        }),
       help: t("Games you played in the last {{days}} days.", {
         days: RECENT_PLAY_WINDOW_DAYS,
       }),
@@ -145,7 +147,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
       metric: "sessions",
       format: "count",
       label: () => t("Sessions tracked"),
-      short: t("sessions"),
+      short: (count) => t("sessions", { count }),
       help: t("Play sessions PlayCounter recorded for these games."),
     },
     {
@@ -159,7 +161,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
           : providerLabel
             ? t("Played on {{provider}}", { provider: providerLabel })
             : t("With play activity"),
-      short: t("with activity"),
+      short: () => t("with activity"),
       help: t("Games with playtime or activity reported by their source."),
     },
     {
@@ -171,7 +173,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
         !providerLabel || providerLabel === "Battle.net"
           ? t("No play activity found")
           : t("Never played"),
-      short: t("never played"),
+      short: (count) => t("never played", { count }),
       help: t(
         "Games without playtime or activity reported by their source. Missing Battle.net history does not prove a game was never played.",
       ),
@@ -182,7 +184,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
       metric: "installed",
       format: "count",
       label: () => t("Installed on this PC"),
-      short: t("installed"),
+      short: (count) => t("installed", { count }),
       help: t("Games this launcher currently has installed here."),
     },
     {
@@ -191,7 +193,7 @@ export function libraryStatDefinitions(): readonly LibraryStatDefinition[] {
       metric: "emulator",
       format: "count",
       label: () => t("Through an emulator"),
-      short: t("emulated"),
+      short: (count) => t("emulated", { count }),
       help: t("Games PlayCounter saw running inside an emulator."),
     },
   ];
@@ -334,12 +336,15 @@ export function libraryStatCards(
 ): LibraryStatCard[] {
   return libraryStatDefinitionsForKind(context.kind)
     .filter((definition) => ids.includes(definition.id))
-    .map((definition) => ({
-      id: definition.id,
-      label: definition.label(context),
-      short: definition.short,
-      help: definition.help,
-      value: metrics[definition.metric],
-      format: definition.format,
-    }));
+    .map((definition) => {
+      const value = metrics[definition.metric];
+      return {
+        id: definition.id,
+        label: definition.label(context),
+        short: definition.short(value),
+        help: definition.help,
+        value,
+        format: definition.format,
+      };
+    });
 }

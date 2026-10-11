@@ -247,7 +247,7 @@ describe("my games stats", () => {
       {
         id: "games",
         label: "Games",
-        short: "games",
+        short: "game",
         help: expect.any(String),
         value: 1,
         format: "count",
