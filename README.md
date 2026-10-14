@@ -38,9 +38,9 @@ Screenshots show the 1.2.0 interface with example data.
 
 ## Help translate
 
-PlayCounter is available in English, German, Portuguese (Brazil), Spanish and
-Chinese. Spot a wrong or clumsy translation? Fix it on
-**[Weblate](https://hosted.weblate.org/projects/playcounter/)**: no coding
+PlayCounter is available in English, German, French, Polish, Russian,
+Portuguese (Brazil), Spanish and Chinese. Spot a wrong or clumsy translation?
+Fix it on **[Weblate](https://hosted.weblate.org/projects/playcounter/)**: no coding
 needed. Read the short guide on the project page first; it explains the
 glossary and the placeholders like `{{game}}`.
 
@@ -74,9 +74,10 @@ and the current public/private split are documented in [BACKEND.md](./BACKEND.md
 - The optional Xbox importer uses Microsoft sign-in in your browser. The API
   temporarily handles authorization and Xbox game data for that import; the app
   does not see your Microsoft password.
-- DOSBox and Dolphin detection reads local emulator process information. Online
-  matching can send extracted game identifiers, filenames or titles; full
-  command lines are not uploaded in those automatic matching requests.
+- Emulator detection reads local emulator process information and window
+  titles. Online matching can send extracted game identifiers (like a disc
+  serial or title ID), filenames or titles; full command lines are not uploaded
+  in those automatic matching requests.
 - A blacklist lets you exclude any executable from tracking.
 
 See the [privacy policy](https://playcounter.app/datenschutz#en) for data flows
@@ -92,14 +93,17 @@ and retention details.
   matching and review before import; overlapping provider totals are not added
   together. Battle.net import brings in the game list (Battle.net shares no
   playtime)
-- Dedicated per-game DOSBox, Dolphin, PCSX2 and mGBA detection, with local
-  review for uncertain matches
+- Dedicated per-game emulator detection for DOSBox, Dolphin, PCSX2, mGBA, Cemu,
+  RPCS3, PPSSPP, DuckStation, Ryujinx and Eden, with local review for
+  uncertain matches
 - Searchable game library with provider tabs, grid/list layouts, shelves,
   statuses and custom covers
 - Session history and statistics, manual entries and playtime adjustments
 - Achievements for lifetime hours, monthly goals and per-game milestones
-- Journal with notes and playthroughs for every game
-- Available in English, German, Portuguese (Brazil), Spanish and Chinese
+- Journal with notes and playthroughs for every game, plus a note for every
+  session (also from a hotkey while you play)
+- Available in English, German, French, Polish, Russian, Portuguese (Brazil),
+  Spanish and Chinese
 - Optional game-launch actions, desktop overlays and configurable shortcuts
 - Local backup export and import, plus daily or weekly automatic snapshots in app data or a chosen folder (while PlayCounter runs, with catch-up on next launch and configurable retention)
 - Current / "now playing" view with a system-tray indicator

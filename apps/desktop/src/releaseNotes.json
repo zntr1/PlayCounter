@@ -1,5 +1,88 @@
 [
   {
+    "version": "1.4.1",
+    "headline": "Six new emulators, three new languages and a note for every session.",
+    "highlights": [
+      "Feature: Six new emulators: Cemu (Wii U), RPCS3 (PlayStation 3), PPSSPP (PSP), DuckStation (PlayStation), and Ryujinx and Eden (Nintendo Switch). Each game counts on its own.",
+      "Feature: PlayCounter now also speaks French, Polish and Russian, installer included.",
+      "Feature: Write a note for each session in My History or in the game's Journal. Set a Quick session note shortcut in Settings → Keyboard shortcuts to write one over your game without leaving it.",
+      "Improvement: Point at a game card for Journal and More. Notes, playthroughs and shelves now share one Journal item in the card menu.",
+      "Fixes: emulator programs no longer show up in Discovered, a game file you pick with Start game is remembered, a broken entry in Steam's files no longer stops the Steam lookup, and keyboard shortcuts can be recorded in every language."
+    ],
+    "translations": {
+      "de": {
+        "headline": "Sechs neue Emulatoren, drei neue Sprachen und eine Notiz für jede Sitzung.",
+        "highlights": [
+          "Neu: Sechs neue Emulatoren: Cemu (Wii U), RPCS3 (PlayStation 3), PPSSPP (PSP), DuckStation (PlayStation) sowie Ryujinx und Eden (Nintendo Switch). Jedes Spiel zählt einzeln.",
+          "Neu: PlayCounter spricht jetzt auch Französisch, Polnisch und Russisch, inklusive Installationsprogramm.",
+          "Neu: Schreib zu jeder Sitzung eine Notiz, in „Mein Verlauf“ oder im „Tagebuch“ des Spiels. Leg unter Einstellungen → Tastenkürzel ein Kürzel für „Schnelle Sitzungsnotiz“ fest, dann schreibst du sie direkt über deinem Spiel, ohne es zu verlassen.",
+          "Verbessert: Zeigst du auf eine Spielkachel, erscheinen „Tagebuch“ und „Mehr“. Notizen, Durchgänge und Regale teilen sich im Kachelmenü jetzt einen Eintrag „Tagebuch“.",
+          "Behoben: Emulator-Programme tauchen nicht mehr unter „Entdeckt“ auf, eine mit „Spiel starten“ gewählte Spieldatei wird gemerkt, ein kaputter Eintrag in Steams Dateien stoppt die Steam-Abfrage nicht mehr, und Tastenkürzel lassen sich in jeder Sprache aufnehmen."
+        ]
+      },
+      "es": {
+        "headline": "Seis emuladores nuevos, tres idiomas nuevos y una nota para cada sesión.",
+        "highlights": [
+          "Novedad: seis emuladores nuevos: Cemu (Wii U), RPCS3 (PlayStation 3), PPSSPP (PSP), DuckStation (PlayStation), y Ryujinx y Eden (Nintendo Switch). Cada juego cuenta por separado.",
+          "Novedad: PlayCounter ya habla también francés, polaco y ruso, con el instalador incluido.",
+          "Novedad: escribe una nota para cada sesión en “Mi historial” o en el “Diario” del juego. Asigna un atajo a “Nota rápida de la sesión” en Configuración → Atajos de teclado para escribirla sobre tu juego sin salir de él.",
+          "Mejora: al pasar el ratón por una tarjeta de juego aparecen “Diario” y “Más”. Las notas, partidas y estantes comparten ahora un solo elemento “Diario” en el menú de la tarjeta.",
+          "Correcciones: los programas de emulador ya no aparecen en “Descubiertos”, se recuerda el archivo de juego que eliges con “Iniciar juego”, una entrada dañada en los archivos de Steam ya no detiene la consulta de Steam, y los atajos de teclado se pueden grabar en cualquier idioma."
+        ]
+      },
+      "fr": {
+        "headline": "Six nouveaux émulateurs, trois nouvelles langues et une note pour chaque session.",
+        "highlights": [
+          "Nouveauté : six nouveaux émulateurs : Cemu (Wii U), RPCS3 (PlayStation 3), PPSSPP (PSP), DuckStation (PlayStation), ainsi que Ryujinx et Eden (Nintendo Switch). Chaque jeu est compté séparément.",
+          "Nouveauté : PlayCounter parle désormais aussi français, polonais et russe, installateur compris.",
+          "Nouveauté : écrivez une note pour chaque session dans Mon historique ou dans le Journal du jeu. Attribuez un raccourci à « Note de session rapide » dans Paramètres → Raccourcis clavier pour l'écrire par-dessus votre jeu sans le quitter.",
+          "Amélioration : survolez une vignette de jeu pour afficher Journal et Plus. Notes, parties et étagères partagent désormais un seul élément Journal dans le menu de la vignette.",
+          "Corrections : les programmes d'émulateur n'apparaissent plus dans Détectés, le fichier de jeu choisi avec « Lancer un jeu » est mémorisé, une entrée défectueuse dans les fichiers de Steam ne bloque plus la recherche Steam, et les raccourcis clavier s'enregistrent dans toutes les langues."
+        ]
+      },
+      "pl": {
+        "headline": "Sześć nowych emulatorów, trzy nowe języki i notatka do każdej sesji.",
+        "highlights": [
+          "Nowość: sześć nowych emulatorów: Cemu (Wii U), RPCS3 (PlayStation 3), PPSSPP (PSP), DuckStation (PlayStation) oraz Ryujinx i Eden (Nintendo Switch). Każda gra liczy się osobno.",
+          "Nowość: PlayCounter mówi teraz także po francusku, polsku i rosyjsku, razem z instalatorem.",
+          "Nowość: dodaj notatkę do każdej sesji w Mojej historii albo w Dzienniku gry. Ustaw skrót dla „Szybka notatka do sesji” w Ustawienia → Skróty klawiszowe, aby pisać ją nad grą, nie wychodząc z niej.",
+          "Ulepszenie: najedź na kafelek gry, aby zobaczyć Dziennik i Więcej. Notatki, przejścia i półki mają teraz jedną pozycję Dziennik w menu kafelka.",
+          "Poprawki: programy emulatorów nie pojawiają się już w Wykrytych, plik gry wybrany przez „Uruchom grę” jest zapamiętywany, uszkodzony wpis w plikach Steam nie blokuje już wyszukiwania Steam, a skróty klawiszowe można nagrać w każdym języku."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Seis emuladores novos, três idiomas novos e uma nota para cada sessão.",
+        "highlights": [
+          "Novidade: seis emuladores novos: Cemu (Wii U), RPCS3 (PlayStation 3), PPSSPP (PSP), DuckStation (PlayStation), e Ryujinx e Eden (Nintendo Switch). Cada jogo conta separadamente.",
+          "Novidade: o PlayCounter agora também fala francês, polonês e russo, com o instalador incluído.",
+          "Novidade: escreva uma nota para cada sessão em “Meu histórico” ou no “Diário” do jogo. Defina um atalho para “Nota rápida da sessão” em Configurações → Atalhos de teclado para escrevê-la sobre o jogo sem sair dele.",
+          "Melhoria: passe o mouse sobre o cartão de um jogo para ver “Diário” e “Mais”. Notas, campanhas e prateleiras agora ficam juntas em um único item “Diário” no menu do cartão.",
+          "Correções: programas de emulador não aparecem mais em “Descobertos”, o arquivo de jogo escolhido em “Iniciar jogo” é lembrado, uma entrada com defeito nos arquivos da Steam não interrompe mais a consulta da Steam, e os atalhos de teclado podem ser gravados em qualquer idioma."
+        ]
+      },
+      "ru": {
+        "headline": "Шесть новых эмуляторов, три новых языка и заметка к каждой сессии.",
+        "highlights": [
+          "Новое: шесть новых эмуляторов: Cemu (Wii U), RPCS3 (PlayStation 3), PPSSPP (PSP), DuckStation (PlayStation), а также Ryujinx и Eden (Nintendo Switch). Каждая игра считается отдельно.",
+          "Новое: PlayCounter теперь говорит также по-французски, по-польски и по-русски, включая установщик.",
+          "Новое: добавляйте заметку к каждой сессии в «Моей истории» или в «Дневнике» игры. Назначьте сочетание клавиш для «Быстрой заметки о сессии» в «Настройки» → «Сочетания клавиш», чтобы писать её поверх игры, не выходя из неё.",
+          "Улучшение: наведите курсор на карточку игры, чтобы увидеть «Дневник» и «Ещё». Заметки, прохождения и полки теперь объединены в одном пункте «Дневник» в меню карточки.",
+          "Исправления: программы эмуляторов больше не появляются в «Обнаруженных», файл игры, выбранный через «Запустить игру», запоминается, повреждённая запись в файлах Steam больше не останавливает поиск Steam, а сочетания клавиш можно записать на любом языке."
+        ]
+      },
+      "zh-CN": {
+        "headline": "新增六款模拟器、三种语言，并可为每条游玩记录写笔记。",
+        "highlights": [
+          "新功能：新增六款模拟器：Cemu（Wii U）、RPCS3（PlayStation 3）、PPSSPP（PSP）、DuckStation（PlayStation），以及 Ryujinx 和 Eden（Nintendo Switch）。每款游戏单独计时。",
+          "新功能：PlayCounter 现已支持法语、波兰语和俄语，安装程序也已翻译。",
+          "新功能：可以在“我的历史”或游戏的“日志”中为每条游玩记录写笔记。在 设置 → 键盘快捷键 中为“快速游玩记录笔记”设置快捷键，即可在游戏画面上直接书写，无需离开游戏。",
+          "改进：将鼠标指向游戏卡片即可看到“日志”和“更多”。笔记、周目和分类架现在合并为卡片菜单中的一个“日志”项。",
+          "修复：模拟器程序不再出现在“已发现”中；通过“启动游戏”选择的游戏文件会被记住；Steam 文件中的损坏条目不再导致 Steam 查询失败；键盘快捷键现在可以在任何语言下录制。"
+        ]
+      }
+    }
+  },
+  {
     "version": "1.4.0",
     "headline": "PlayCounter now speaks German, Portuguese (Brazil), Spanish and Chinese.",
     "highlights": [
