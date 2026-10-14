@@ -323,7 +323,7 @@ export const site = {
     {
       id: "duckstation",
       name: "DuckStation",
-      // No logo until its CC BY-NC-ND license is cleared for this site.
+      logo: "/brands/duckstation.png",
       systems: "PlayStation",
       detail:
         "Track individual PS1 games from the disc image DuckStation has open or the file it was started with.",

@@ -897,12 +897,6 @@ main[id] {
   height: 30px;
   object-fit: contain;
 }
-.logo-initial {
-  color: var(--muted);
-  font-family: var(--display);
-  font-size: 1.4rem;
-  font-weight: 700;
-}
 .badge {
   padding: 2px 8px;
   border-radius: 999px;
