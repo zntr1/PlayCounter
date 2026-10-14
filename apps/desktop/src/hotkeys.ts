@@ -144,7 +144,10 @@ export function disposeHotkeys() {
   });
 }
 
-/** Native Windows hotkeys use virtual letter keys, so honor the active keyboard layout. */
+/**
+ * Native Windows hotkeys use virtual letter keys, so honor the active keyboard layout.
+ * The result is the format Rust parses, so it stays English in every language.
+ */
 export function shortcutFromKey(
   event: Pick<
     KeyboardEvent,
@@ -168,10 +171,10 @@ export function shortcutFromKey(
   )
     return null;
   return [
-    event.ctrlKey && t("Control"),
-    event.altKey && t("Alt"),
-    event.shiftKey && t("Shift"),
-    event.metaKey && t("Super"),
+    event.ctrlKey && "Control", // i18n-exempt: shortcut format, translated in formatHotkey
+    event.altKey && "Alt",
+    event.shiftKey && "Shift",
+    event.metaKey && "Super",
     code,
   ]
     .filter(Boolean)
@@ -179,11 +182,19 @@ export function shortcutFromKey(
 }
 
 export function formatHotkey(shortcut: string | null | undefined) {
-  return (
-    shortcut
-      ?.replace(/Control/g, "Ctrl")
-      .replace(/Key([A-Z])/g, "$1")
-      .replace(/Digit([0-9])/g, "$1")
-      .replace(/Super/g, "Win / Cmd") ?? t("Not set")
-  );
+  if (!shortcut) return t("Not set");
+  const modifiers: Record<string, string> = {
+    Control: t("Ctrl"),
+    Alt: t("Alt"),
+    Shift: t("Shift"),
+    Super: t("Win / Cmd"),
+  };
+  return shortcut
+    .split("+")
+    .map(
+      (part) =>
+        modifiers[part] ??
+        part.replace(/^Key([A-Z])$/, "$1").replace(/^Digit([0-9])$/, "$1"),
+    )
+    .join("+");
 }

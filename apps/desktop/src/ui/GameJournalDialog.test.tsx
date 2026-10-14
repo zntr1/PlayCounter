@@ -379,3 +379,40 @@ it("caps session notes and refuses sessions that are gone", () => {
   expect(useAppStore.getState().recentSessions[0].note).toHaveLength(1000);
   expect(useAppStore.getState().setSessionNote(99, "Lost")).toBe(false);
 });
+
+it("offers the playthrough menu in Now Playing even before a game has playthroughs", async () => {
+  const fresh = { gameId: -3, source: "custom" as const, gameName: "Fresh" };
+  const running: ActiveSession = {
+    ...fresh,
+    id: 11,
+    coverUrl: "",
+    exeName: "fresh.exe",
+    startedAt: new Date().toISOString(),
+    checkpointedAt: new Date().toISOString(),
+  };
+  useAppStore.setState({ activeSessions: [running] });
+  await act(() =>
+    root.render(
+      <>
+        <SessionPlaythroughPicker session={running} />
+        <GameJournalHost />
+      </>,
+    ),
+  );
+  await clickLabel("Playthrough for session 11");
+  const items = [...document.querySelectorAll('[role^="menuitem"]')].map(
+    (item) => item.textContent?.trim(),
+  );
+  expect(items).toEqual(["Default playthrough", "Add playthrough"]);
+
+  // Add playthrough opens the journal with its form ready.
+  await click("Add playthrough");
+  expect(useAppStore.getState().journalTarget).toMatchObject({
+    game: { gameId: -3 },
+    tab: "playthroughs",
+    create: true,
+  });
+  expect(
+    document.querySelector('[aria-label="New playthrough name"]'),
+  ).not.toBeNull();
+});

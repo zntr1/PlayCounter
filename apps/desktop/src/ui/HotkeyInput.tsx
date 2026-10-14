@@ -52,7 +52,7 @@ export function HotkeyInput({
         aria-describedby={`${setting}-help`}
         readOnly
         disabled={disabled || saving}
-        value={recording ? "Press a key combination…" : formatHotkey(draft)}
+        value={recording ? t("Press a key combination…") : formatHotkey(draft)}
         onFocus={() => {
           setRecording(true);
           setHint(null);

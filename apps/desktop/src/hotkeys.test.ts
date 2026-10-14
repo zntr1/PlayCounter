@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import i18next from "i18next";
 import {
   disposeHotkeys,
+  formatHotkey,
   initializeHotkeys,
   saveHotkey,
   shortcutFromKey,
@@ -179,5 +181,16 @@ describe("shortcut recorder", () => {
     expect(
       shortcutFromKey({ ...key, code: "KeyY", key: "z", ctrlKey: true }),
     ).toBe("Control+KeyZ");
+  });
+  it("records the same shortcut in every language and only translates the label", async () => {
+    await i18next.changeLanguage("de");
+    try {
+      expect(shortcutFromKey({ ...key, ctrlKey: true, shiftKey: true })).toBe(
+        "Control+Shift+KeyP",
+      );
+      expect(formatHotkey("Control+Shift+KeyP")).toBe("Strg+Umschalt+P");
+    } finally {
+      await i18next.changeLanguage("en");
+    }
   });
 });

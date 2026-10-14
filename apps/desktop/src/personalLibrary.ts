@@ -89,6 +89,8 @@ export type JournalTarget = {
   game: GameIdentityRef;
   tab?: "note" | "playthroughs" | "organize";
   playthroughId?: string | null;
+  /** Opens with the new-playthrough form. */
+  create?: boolean;
 };
 
 export function journalKey(game: GameIdentityRef) {

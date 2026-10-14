@@ -40,6 +40,7 @@ import {
   ContextMenu,
   ContextMenuHeading,
   ContextMenuItem,
+  ContextMenuSeparator,
   IconButton,
   Input,
   Modal,
@@ -90,23 +91,14 @@ export function SessionPlaythroughPicker({
   const menu = useAnchoredMenu();
   const current = session.playthroughId ?? null;
 
-  if (!journal.playthroughs.length) {
+  // A row in a list stays quiet until the game has playthroughs to choose
+  // from; Now Playing always offers the menu.
+  if (compact && !journal.playthroughs.length) {
     if (!showDefault) return null;
-    return compact ? (
+    return (
       <span className="text-xs text-text-muted">
         {defaultPlaythroughName()}
       </span>
-    ) : (
-      <Button
-        variant="ghost"
-        icon={BookOpen}
-        onClick={(event) => {
-          event.stopPropagation();
-          open({ game: session, tab: "playthroughs", playthroughId: null });
-        }}
-      >
-        {defaultPlaythroughName()}
-      </Button>
     );
   }
 
@@ -122,7 +114,8 @@ export function SessionPlaythroughPicker({
         className={
           compact
             ? "max-w-[220px] border-transparent bg-surface-hover !px-2 !py-0.5 !text-[12px]"
-            : "max-w-[260px] !py-1"
+            : // Same look as the Journal button next to it in Now Playing.
+              "h-9 max-w-[260px] !gap-2 !rounded-lg !border-border/70 !bg-bg/40 !px-3 !text-sm !text-text backdrop-blur hover:!border-accent/40 hover:!bg-surface-hover"
         }
         onClick={(event) => {
           event.stopPropagation();
@@ -166,6 +159,21 @@ export function SessionPlaythroughPicker({
             {p.completedAt ? ` · ${t("Finished")}` : ""}
           </ContextMenuItem>
         ))}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          icon={Plus}
+          onClick={() => {
+            menu.close();
+            open({
+              game: session,
+              tab: "playthroughs",
+              playthroughId: current,
+              create: true,
+            });
+          }}
+        >
+          {t("Add playthrough")}
+        </ContextMenuItem>
       </ContextMenu>
     </>
   );
@@ -197,7 +205,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const storedNote = playthrough?.note ?? journal.note;
   const [draft, setDraft] = useState(storedNote);
   const [name, setName] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(target.create === true);
   const [deleting, setDeleting] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [shownTarget, setShownTarget] = useState(target);
@@ -206,7 +214,7 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
     setShownTarget(target);
     setSelected(targetSelection);
     setName("");
-    setAdding(false);
+    setAdding(target.create === true);
     setDeleting(false);
   }
   const sessions = usePersonalLibraryState((s) => s.recentSessions);
