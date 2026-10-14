@@ -166,7 +166,7 @@ export function LinkedGameCard({
         ) : null}
         {mapping.needsConfirmation ? (
           <span
-            className="absolute right-2 top-2 rounded-full border border-warning-border bg-warning-tint px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning shadow-sm backdrop-blur"
+            className="absolute right-2 top-2 max-w-[calc(100%-3.5rem)] rounded-xl border border-warning-border bg-warning-tint px-2 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-warning shadow-sm backdrop-blur [overflow-wrap:anywhere]"
             data-tour={demo ? "demo-emulator-check-badge" : undefined}
           >
             {t("Check this once")}
@@ -174,7 +174,7 @@ export function LinkedGameCard({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-1.5 p-3">
+      <div className="flex min-w-0 flex-col gap-1.5 p-3">
         <h3
           className="truncate text-sm font-semibold leading-tight text-text"
           title={mapping.gameName}
@@ -211,14 +211,11 @@ export function LinkedGameCard({
             {mapping.display}
           </span>
         </p>
-        <dl className="mt-1 grid gap-0.5 border-t border-border/70 pt-2 text-[11px]">
-          <div className="flex items-baseline justify-between gap-2">
+        <dl className="mt-1 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-0.5 border-t border-border/70 pt-2 text-[11px]">
+          <div className="mb-1 grid min-w-0 gap-0.5 [overflow-wrap:anywhere]">
             <dt className="text-text-faint">{t("Community")}</dt>
             <dd
-              className={clsx(
-                "truncate text-right font-medium",
-                community.tone,
-              )}
+              className={clsx("min-w-0 font-medium", community.tone)}
               title={community.tip}
             >
               {community.label}
@@ -250,7 +247,9 @@ export function LinkedGameCard({
             className="flex w-full items-center justify-center gap-2 border-t border-warning-border bg-warning-tint px-3 py-2 text-xs font-semibold text-warning transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Check size={14} className="shrink-0" />
-            {t("Looks right")}
+            <span className="min-w-0 [overflow-wrap:anywhere]">
+              {t("Looks right")}
+            </span>
           </button>
         ) : null}
 
@@ -303,13 +302,13 @@ function FooterAction({
     <button
       type="button"
       className={clsx(
-        "flex h-9 items-center justify-center gap-1.5 px-2 text-[11px] font-semibold text-text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-text-muted",
+        "flex min-h-9 min-w-0 items-center justify-center gap-1.5 px-2 py-2 text-[11px] font-semibold text-text-muted transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-text-muted",
         className,
       )}
       {...rest}
     >
       <Icon size={13} className="shrink-0" />
-      <span className="truncate">{label}</span>
+      <span className="min-w-0 [overflow-wrap:anywhere]">{label}</span>
     </button>
   );
 }
@@ -317,9 +316,9 @@ function FooterAction({
 function DateRow({ label, iso }: { label: string; iso: string }) {
   const date = new Date(iso);
   return (
-    <div className="flex items-baseline justify-between gap-2">
-      <dt className="text-text-faint">{label}</dt>
-      <dd className="font-mono tabular-nums text-text-muted">
+    <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 [overflow-wrap:anywhere]">
+      <dt className="min-w-0 text-text-faint">{label}</dt>
+      <dd className="ml-auto min-w-0 max-w-full text-right font-mono tabular-nums text-text-muted">
         <time dateTime={iso} title={date.toLocaleString(appLocale())}>
           {date.toLocaleDateString(appLocale())}
         </time>
