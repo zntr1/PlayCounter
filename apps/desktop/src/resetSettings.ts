@@ -24,5 +24,6 @@ export async function resetSettings() {
     "currentSessionHotkey",
     defaults.currentSessionHotkey ?? null,
   );
+  await saveHotkey("quickNoteHotkey", defaults.quickNoteHotkey ?? null);
   useAppStore.getState().restoreDefaultSettings();
 }

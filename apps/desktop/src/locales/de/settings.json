@@ -112,8 +112,6 @@
   "Playthrough names in popups": "Namen von Durchgängen in Pop-ups",
   "Show the note of the game's active playthrough in the popup when a game starts.": "Zeigt beim Spielstart die Notiz des aktiven Durchgangs im Pop-up.",
   "Notes in game-start popups": "Notizen in Pop-ups zum Spielstart",
-  "Show an \"Update note\" button in saved-session popups.": "Zeigt im Pop-up zur gespeicherten Sitzung einen Knopf „Notiz aktualisieren“.",
-  "Update note in popups": "„Notiz aktualisieren“ in Pop-ups",
   "Popup when you unlock a new playtime milestone.": "Pop-up, wenn du einen neuen Spielzeit-Meilenstein erreichst.",
   "Milestones": "Meilensteine",
   "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.": "Pop-up, wenn PlayCounter eine unbekannte App findet. Klick darauf, um „Entdeckt“ zu öffnen. Nur Apps, die gefunden werden, solange das an ist, zählen.",
@@ -316,5 +314,9 @@
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "Das Sitzungs-Tastenkürzel ist nicht verfügbar. Starte PlayCounter neu und versuche es erneut.",
   "Display {{number}}": "Bildschirm {{number}}",
   "The backup contains invalid data at {{path}}. No local data was changed.": "Die Sicherung enthält ungültige Daten bei {{path}}. Lokale Daten wurden nicht geändert.",
-  "{{downloaded}} of {{total}}": "{{downloaded}} von {{total}}"
+  "{{downloaded}} of {{total}}": "{{downloaded}} von {{total}}",
+  "Quick session note": "Schnelle Sitzungsnotiz",
+  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Öffnet über deinem Spiel ein kleines Notizfeld, in dem du festhältst, was in dieser Sitzung passiert ist. Enter speichert und bringt dich zurück ins Spiel. Spiele im exklusiven Vollbild können sich minimieren, solange das Feld offen ist.",
+  "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Zeigt in Pop-ups zur gespeicherten Sitzung einen Knopf „Sitzungsnotiz hinzufügen“. Er öffnet ein kleines Feld, in dem du festhältst, was in dieser Sitzung passiert ist.",
+  "Session notes in popups": "Sitzungsnotizen in Pop-ups"
 }

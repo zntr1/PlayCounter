@@ -405,7 +405,7 @@ function PracticeLibrary({
               {[
                 [t("Playthrough names in popups"), popupNames, setPopupNames],
                 [t("Notes in game-start popups"), popupNotes, setPopupNotes],
-                [t("Update note in popups"), popupUpdate, setPopupUpdate],
+                [t("Session notes in popups"), popupUpdate, setPopupUpdate],
               ].map(([label, checked, change]) => (
                 <label
                   key={String(label)}
@@ -461,9 +461,9 @@ function PracticeLibrary({
                 metric: popupKind === "session-summary" ? "45m" : undefined,
                 action:
                   popupUpdate && popupKind === "session-summary"
-                    ? "open-game-note:-1"
+                    ? "session-note:-1"
                     : undefined,
-                actionLabel: t("Update note"),
+                actionLabel: t("Add session note"),
                 theme: settings.theme === "light" ? "light" : "dark",
                 accentColor: null,
                 reducedMotion: true,

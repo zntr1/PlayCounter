@@ -27,6 +27,7 @@ mod library;
 mod notification_overlay;
 mod playstation_pad;
 mod process;
+mod quick_note;
 mod reset;
 mod session;
 mod shell_open;
@@ -446,6 +447,7 @@ pub fn run() {
         .manage(emulator_launch::EmulatorLaunchGuard::default())
         .manage(notification_overlay::OverlayState::default())
         .manage(hotkeys::HotkeyState::default())
+        .manage(quick_note::QuickNoteState::default())
         .manage(library::battlenet_account::AccountState::default())
         .manage(library::epic_account::EpicAccountState::default())
         .manage(reset::ResetState::default())
@@ -464,6 +466,7 @@ pub fn run() {
                     !label.starts_with("battlenet-sign-in-")
                         && !label.starts_with("epic-sign-in-")
                         && !label.starts_with(notification_overlay::OVERLAY_LABEL_PREFIX)
+                        && label != quick_note::LABEL
                 })
                 .build(),
         )
@@ -564,7 +567,10 @@ pub fn run() {
             notification_overlay::notification_overlay_close,
             notification_overlay::notification_overlay_ready,
             notification_overlay::notification_overlay_finished,
-            notification_overlay::notification_overlay_activate
+            notification_overlay::notification_overlay_activate,
+            quick_note::quick_note_open,
+            quick_note::quick_note_ready,
+            quick_note::quick_note_close
         ])
         .setup(|app| {
             setup_tray(app.handle())?;

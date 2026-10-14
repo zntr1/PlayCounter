@@ -13,6 +13,7 @@ import {
   type TrackerOverlayEvent,
 } from "./desktopOverlays";
 import { pickedCover } from "./pickedCovers";
+import { openQuickNote } from "./quickNote";
 import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
 import { appLocale, getT } from "./i18n";
@@ -240,20 +241,9 @@ export function initializeDesktopOverlays() {
         useAppStore.getState().setActiveView("now");
       } else if (payload === "open-discovered") {
         useAppStore.getState().setActiveView("discovered");
-      } else if (/^open-game-note:\d+$/.test(payload)) {
-        const store = useAppStore.getState();
-        if (store.settings.overlayUpdateNote !== true) return;
-        const session = store.recentSessions.find(
-          (s) => s.id === Number(payload.slice("open-game-note:".length)),
-        );
-        if (session) {
-          store.setActiveView("history");
-          store.openGameJournal({
-            game: session,
-            tab: "note",
-            playthroughId: session.playthroughId ?? null,
-          });
-        }
+      } else if (/^session-note:\d+$/.test(payload)) {
+        if (useAppStore.getState().settings.overlayUpdateNote !== true) return;
+        openQuickNote(Number(payload.slice("session-note:".length)));
       }
     }),
   );

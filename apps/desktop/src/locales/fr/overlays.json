@@ -24,7 +24,6 @@
   "SESSION SAVED": "SESSION ENREGISTRÉE",
   "Saved to {{playthroughName}}": "Enregistré dans {{playthroughName}}",
   "Added to your playtime.": "Ajouté à votre temps de jeu.",
-  "Update note": "Modifier la note",
   "SESSION TIME": "DURÉE DE LA SESSION",
   "50 hours played": "50 heures de jeu",
   "50 HRS": "50 H",
@@ -33,5 +32,13 @@
   "Playthrough: {{name}}": "Partie : {{name}}",
   "{{count, number}} APPROVED": "{{count, number}} APPROUVÉS",
   "{{count, number}} DAYS": "{{count, number}} JOURS",
-  "{{count, number}} HRS": "{{count, number}} H"
+  "{{count, number}} HRS": "{{count, number}} H",
+  "Session note": "Note de session",
+  "Playing now": "En jeu",
+  "Session saved": "Session enregistrée",
+  "What happened? Where did you stop?": "Que s'est-il passé ? Où en êtes-vous ?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Entrée enregistre · Maj+Entrée ajoute une ligne · Échap annule",
+  "Save": "Enregistrer",
+  "Cancel": "Annuler",
+  "Add session note": "Ajouter une note de session"
 }

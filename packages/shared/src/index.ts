@@ -503,6 +503,9 @@ export interface Session {
   durationSeconds: number | null;
   origin?: "manual";
   emulator?: EmulatorLaunchContext;
+  /** What the player wrote about this session. Local only, never included in
+   *  tracking API payloads. */
+  note?: string;
 }
 
 export type FeedbackType = "bug" | "feature" | "other";
@@ -598,6 +601,7 @@ export interface Settings {
   /** Global keyboard shortcuts. Null or absent means disabled. */
   showWindowHotkey?: string | null;
   currentSessionHotkey?: string | null;
+  quickNoteHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";

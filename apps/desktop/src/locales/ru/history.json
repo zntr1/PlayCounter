@@ -75,7 +75,6 @@
   "First session": "Первая сессия",
   "Back after {{comebackDays}} days": "Возвращение через {{comebackDays}} дн.",
   "Manual": "Вручную",
-  "Update note": "Изменить заметку",
   "Playthroughs": "Прохождения",
   "Filter for this game": "Фильтр по этой игре",
   "Delete Session": "Удалить сессию",
@@ -113,5 +112,11 @@
   "{{count}} sessions_one": "{{count}} сессия",
   "{{count}} sessions_few": "{{count}} сессии",
   "{{count}} sessions_many": "{{count}} сессий",
-  "{{count}} sessions_other": "{{count}} сессии"
+  "{{count}} sessions_other": "{{count}} сессии",
+  "Session note": "Заметка о сессии",
+  "Add session note": "Добавить заметку о сессии",
+  "Edit session note": "Изменить заметку о сессии",
+  "Edit game note": "Изменить заметку об игре",
+  "What happened? Where did you stop?": "Что произошло? Где вы остановились?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter — сохранить · Shift+Enter — новая строка · Esc — отмена"
 }

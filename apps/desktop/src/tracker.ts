@@ -3,6 +3,7 @@ import { requestJsonResponse, requestWithTimeout } from "./requestJson";
 import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
+import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
 import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
@@ -490,6 +491,7 @@ export async function initializeTracker() {
   initializeAutomaticBackups();
   initializeDesktopOverlays();
   initializeHotkeys();
+  initializeQuickNotes();
   initializeControllerBridge();
   syncTrayNowPlaying();
   scheduleTraySync();
@@ -535,6 +537,7 @@ export async function stopTrackerForReset() {
   unsubscribeTraySync?.();
   disposeDesktopOverlays();
   disposeHotkeys();
+  disposeQuickNotes();
   disposeControllerBridge();
   await scanInFlight;
 }
@@ -609,6 +612,7 @@ async function finishTrackerStartup() {
     lastLaunchVerificationAt = 0;
     disposeDesktopOverlays();
     disposeHotkeys();
+    disposeQuickNotes();
     disposeAutomaticBackups();
     disposeControllerBridge();
     initialized = false;
@@ -6637,6 +6641,7 @@ async function endSession(
     endedAt,
     durationSeconds,
     emulator: session.emulator,
+    note: session.note,
   });
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
@@ -9016,7 +9021,11 @@ function updateActiveSession(session: ActiveSession) {
   const key = sessionIdentityKey(session);
   useAppStore.setState((state) => ({
     activeSessions: state.activeSessions.map((active) =>
-      sessionIdentityKey(active) === key ? session : active,
+      // The caller's copy can predate a note written meanwhile; the tracker
+      // never changes notes itself.
+      sessionIdentityKey(active) === key
+        ? { ...session, note: active.note }
+        : active,
     ),
   }));
 }

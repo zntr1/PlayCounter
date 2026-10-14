@@ -15,7 +15,7 @@
   "The selected program is not a supported emulator binary.": "所选程序不是受支持的模拟器程序。",
   "The selected program does not match the requested emulator.": "所选程序与要求的模拟器不一致。",
   "The selected file type is not supported by {{emulator}}.": "{{emulator}} 不支持所选的文件类型。",
-  "This hotkey is already assigned to the other action.": "此快捷键已分配给另一个操作。",
+  "This hotkey is already assigned to another action.": "此快捷键已分配给另一个操作。",
   "Hotkey unavailable. Choose another combination. {{error}}": "快捷键不可用。请选择其他组合。{{error}}",
   "Executable name cannot be empty.": "可执行文件名称不能为空。",
   "Executable name cannot contain line breaks.": "可执行文件名称不能包含换行符。",

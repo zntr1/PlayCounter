@@ -5,7 +5,12 @@ import type { Config } from "tailwindcss";
 const rgb = (variable: string) => `rgb(var(${variable}) / <alpha-value>)`;
 
 export default {
-  content: ["./index.html", "./overlay.html", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./index.html",
+    "./overlay.html",
+    "./quick-note.html",
+    "./src/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
       colors: {

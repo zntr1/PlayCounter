@@ -18,6 +18,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         overlay: fileURLToPath(new URL("./overlay.html", import.meta.url)),
+        quickNote: fileURLToPath(new URL("./quick-note.html", import.meta.url)),
       },
     },
   },

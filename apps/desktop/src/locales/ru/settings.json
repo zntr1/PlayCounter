@@ -112,8 +112,6 @@
   "Playthrough names in popups": "Названия прохождений в окнах",
   "Show the note of the game's active playthrough in the popup when a game starts.": "Показывать заметку активного прохождения игры в окне при её запуске.",
   "Notes in game-start popups": "Заметки в окнах запуска игры",
-  "Show an \"Update note\" button in saved-session popups.": "Показывать кнопку «Изменить заметку» в окнах сохранения сессии.",
-  "Update note in popups": "Изменение заметки в окнах",
   "Popup when you unlock a new playtime milestone.": "Окно, когда вы получаете новый рубеж времени в игре.",
   "Milestones": "Рубежи",
   "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.": "Окно, когда PlayCounter находит незнакомое приложение. Нажмите на него, чтобы открыть «Обнаруженные». Учитываются только приложения, найденные, пока это включено.",
@@ -326,5 +324,9 @@
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "Обработчик сочетания клавиш для сессии недоступен. Перезапустите PlayCounter и попробуйте снова.",
   "Display {{number}}": "Экран {{number}}",
   "The backup contains invalid data at {{path}}. No local data was changed.": "Резервная копия содержит неверные данные в {{path}}. Локальные данные не изменены.",
-  "{{downloaded}} of {{total}}": "{{downloaded}} из {{total}}"
+  "{{downloaded}} of {{total}}": "{{downloaded}} из {{total}}",
+  "Quick session note": "Быстрая заметка о сессии",
+  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Открывает поверх игры небольшое поле для заметки, чтобы записать, что произошло в этой сессии. Enter сохраняет и возвращает в игру. Игры в эксклюзивном полноэкранном режиме могут свернуться, пока поле открыто.",
+  "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Показывает кнопку «Добавить заметку о сессии» в окнах сохранения сессии. Она открывает небольшое поле, где можно записать, что произошло в этой сессии.",
+  "Session notes in popups": "Заметки о сессии в окнах"
 }

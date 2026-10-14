@@ -15,7 +15,7 @@
   "The selected program is not a supported emulator binary.": "The selected program is not a supported emulator binary.",
   "The selected program does not match the requested emulator.": "The selected program does not match the requested emulator.",
   "The selected file type is not supported by {{emulator}}.": "The selected file type is not supported by {{emulator}}.",
-  "This hotkey is already assigned to the other action.": "This hotkey is already assigned to the other action.",
+  "This hotkey is already assigned to another action.": "This hotkey is already assigned to another action.",
   "Hotkey unavailable. Choose another combination. {{error}}": "Hotkey unavailable. Choose another combination. {{error}}",
   "Executable name cannot be empty.": "Executable name cannot be empty.",
   "Executable name cannot contain line breaks.": "Executable name cannot contain line breaks.",

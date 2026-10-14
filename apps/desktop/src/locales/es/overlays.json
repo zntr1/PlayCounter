@@ -24,7 +24,6 @@
   "SESSION SAVED": "SESIÓN GUARDADA",
   "Saved to {{playthroughName}}": "Guardado en {{playthroughName}}",
   "Added to your playtime.": "Añadido a tu tiempo de juego.",
-  "Update note": "Actualizar nota",
   "SESSION TIME": "TIEMPO DE SESIÓN",
   "50 hours played": "50 horas jugadas",
   "50 HRS": "50 H",
@@ -33,5 +32,13 @@
   "Playthrough: {{name}}": "Partida: {{name}}",
   "{{count, number}} APPROVED": "{{count, number}} APROBADOS",
   "{{count, number}} DAYS": "{{count, number}} DÍAS",
-  "{{count, number}} HRS": "{{count, number}} H"
+  "{{count, number}} HRS": "{{count, number}} H",
+  "Session note": "Nota de la sesión",
+  "Playing now": "Jugando ahora",
+  "Session saved": "Sesión guardada",
+  "What happened? Where did you stop?": "¿Qué pasó? ¿Dónde te quedaste?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Intro guarda · Mayús+Intro crea una línea nueva · Esc cancela",
+  "Save": "Guardar",
+  "Cancel": "Cancelar",
+  "Add session note": "Añadir nota de la sesión"
 }

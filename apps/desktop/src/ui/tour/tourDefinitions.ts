@@ -449,7 +449,7 @@ export function tours(): TourDefinition[] {
           allow: [a("demo-library-stage"), a("demo-library-modal")],
           title: t("Preview your note in desktop popups"),
           body: t(
-            "Turn on Notes in game-start popups to preview the active playthrough's note. Playthrough names is a separate switch. Choose Session saved, enable Update note in popups, and try the button. It opens the sample journal so you can save a reminder. All three real preferences are independent and off by default.",
+            "Turn on Notes in game-start popups to preview the active playthrough's note. Playthrough names is a separate switch. Choose Session saved, turn on Session notes in popups, and try the button. In the real popup it opens a small box for a note about that session; here it opens the sample journal. All three real preferences are independent and off by default.",
           ),
         },
         {
@@ -458,7 +458,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-library-cards"),
           title: t("Use notes in your own games"),
           body: t(
-            "When you start one of your own games, Now Playing shows the note of its active playthrough. In Settings → Desktop popups, turn on Notes in game-start popups to see it in the popup as well. Turn on Update note in popups to add a button to saved-session popups so you can write down where you stopped. Both options are off by default. Replay this guide any time from ? Help.",
+            "When you start one of your own games, Now Playing shows the note of its active playthrough. In Settings → Desktop popups, turn on Notes in game-start popups to see it in the popup as well. Turn on Session notes in popups to add a button to saved-session popups so you can write down what happened. Both options are off by default. Under Keyboard shortcuts you can also set a Quick session note hotkey. Replay this guide any time from ? Help.",
           ),
         },
       ],
@@ -1494,7 +1494,7 @@ export function tours(): TourDefinition[] {
           allow: [a("settings-shortcuts")],
           title: t("Keyboard shortcuts"),
           body: t(
-            "Set a hotkey that brings PlayCounter to the front from any app, and one that shows your current session time in a small popup without leaving your game. Both work while PlayCounter runs in the tray.",
+            "Set a hotkey that brings PlayCounter to the front from any app, one that shows your current session time in a small popup without leaving your game, and one that opens a note box for the session you're playing. All three work while PlayCounter runs in the tray.",
           ),
         },
         {

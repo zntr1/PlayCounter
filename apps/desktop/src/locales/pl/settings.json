@@ -112,8 +112,6 @@
   "Playthrough names in popups": "Nazwy przejść w okienkach",
   "Show the note of the game's active playthrough in the popup when a game starts.": "Pokazuj notatkę aktywnego przejścia gry w okienku przy starcie gry.",
   "Notes in game-start popups": "Notatki w okienkach startu gry",
-  "Show an \"Update note\" button in saved-session popups.": "Pokazuj przycisk „Zaktualizuj notatkę” w okienkach zapisanej sesji.",
-  "Update note in popups": "Aktualizacja notatki w okienkach",
   "Popup when you unlock a new playtime milestone.": "Okienko, gdy zdobędziesz nowy kamień milowy czasu gry.",
   "Milestones": "Kamienie milowe",
   "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.": "Okienko, gdy PlayCounter znajdzie nieznaną aplikację. Kliknij je, aby otworzyć Wykryte. Uwzględniane są tylko aplikacje znalezione, gdy to jest włączone.",
@@ -326,5 +324,9 @@
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "Nasłuch skrótu sesji jest niedostępny. Uruchom ponownie PlayCounter i spróbuj jeszcze raz.",
   "Display {{number}}": "Ekran {{number}}",
   "The backup contains invalid data at {{path}}. No local data was changed.": "Kopia zapasowa zawiera nieprawidłowe dane w {{path}}. Nie zmieniono żadnych danych lokalnych.",
-  "{{downloaded}} of {{total}}": "{{downloaded}} z {{total}}"
+  "{{downloaded}} of {{total}}": "{{downloaded}} z {{total}}",
+  "Quick session note": "Szybka notatka do sesji",
+  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Otwiera nad grą małe pole notatki, w którym zapiszesz, co wydarzyło się w tej sesji. Enter zapisuje i wraca do gry. Gry w wyłącznym trybie pełnoekranowym mogą się zminimalizować, gdy pole jest otwarte.",
+  "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Pokazuje przycisk „Dodaj notatkę do sesji” w okienkach zapisanej sesji. Otwiera małe pole, w którym zapiszesz, co wydarzyło się w tej sesji.",
+  "Session notes in popups": "Notatki do sesji w okienkach"
 }

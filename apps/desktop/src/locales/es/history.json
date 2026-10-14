@@ -75,7 +75,6 @@
   "First session": "Primera sesión",
   "Back after {{comebackDays}} days": "De vuelta tras {{comebackDays}} días",
   "Manual": "Manual",
-  "Update note": "Actualizar nota",
   "Playthroughs": "Partidas",
   "Filter for this game": "Filtrar por este juego",
   "Delete Session": "Eliminar sesión",
@@ -107,5 +106,11 @@
   "Unknown game": "Juego desconocido",
   "{{count}} sessions_one": "{{count}} sesión",
   "{{count}} sessions_other": "{{count}} sesiones",
-  "{{count}} sessions_many": "{{count}} sesiones"
+  "{{count}} sessions_many": "{{count}} sesiones",
+  "Session note": "Nota de la sesión",
+  "Add session note": "Añadir nota de la sesión",
+  "Edit session note": "Editar nota de la sesión",
+  "Edit game note": "Editar nota del juego",
+  "What happened? Where did you stop?": "¿Qué pasó? ¿Dónde te quedaste?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Intro guarda · Mayús+Intro crea una línea nueva · Esc cancela"
 }

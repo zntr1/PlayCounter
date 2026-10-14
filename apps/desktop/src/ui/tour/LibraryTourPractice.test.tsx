@@ -351,7 +351,7 @@ it("lets a learner cancel and confirm deletion inside the private journal", asyn
   expect(useAppStore.getState().gameJournals).toEqual({});
 });
 
-it("previews the learner's note and opens its private journal from Update note", async () => {
+it("previews the learner's note and opens its private journal from Add session note", async () => {
   await start("notes-playthroughs", "note");
   await enter(target() as HTMLTextAreaElement, "Remember the bridge quest");
   await act(() =>
@@ -371,14 +371,14 @@ it("previews the learner's note and opens its private journal from Update note",
     preview().querySelector(".desktop-overlay-card")?.textContent,
   ).toContain("Remember the bridge quest");
   await act(() => {
-    toggle("Update note in popups").click();
+    toggle("Session notes in popups").click();
     [...preview().querySelectorAll<HTMLButtonElement>("button")]
       .find((b) => b.textContent === "Session saved")!
       .click();
   });
   await act(() =>
     [...preview().querySelectorAll<HTMLButtonElement>("button")]
-      .find((b) => b.textContent === "Update note")!
+      .find((b) => b.textContent === "Add session note")!
       .click(),
   );
   expect(

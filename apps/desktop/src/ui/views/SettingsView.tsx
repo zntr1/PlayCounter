@@ -659,6 +659,22 @@ export function SettingsView() {
             disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
+        <SettingsRow
+          title={t("Quick session note")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Desktop popups are not supported on macOS.")
+              : t(
+                  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="quickNoteHotkey"
+            label={t("Quick session note")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
         {currentPlatform() !== "macos" ? (
           <SettingsRow
             title={t("Show clock in session popup")}
@@ -819,12 +835,12 @@ export function SettingsView() {
           </SettingsRow>
           <SettingsRow
             description={t(
-              'Show an "Update note" button in saved-session popups.',
+              'Show an "Add session note" button in saved-session popups. It opens a small box where you write what happened in that session.',
             )}
-            title={t("Update note in popups")}
+            title={t("Session notes in popups")}
           >
             <Switch
-              aria-label={t("Update note in popups")}
+              aria-label={t("Session notes in popups")}
               checked={settings.overlayUpdateNote === true}
               disabled={settings.desktopOverlaysEnabled !== true}
               onChange={(event) =>

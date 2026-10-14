@@ -23,7 +23,10 @@ pub fn set_global_hotkey(
     if window.label() != "main" {
         return Err("unauthorized window".into());
     }
-    if action != "show-window" && action != "current-session" {
+    if !matches!(
+        action.as_str(),
+        "show-window" | "current-session" | "quick-note"
+    ) {
         return Err("Unknown hotkey action".into());
     }
     let next = shortcut
@@ -37,7 +40,7 @@ pub fn set_global_hotkey(
     }
     if let Some(next) = next {
         if bindings.values().any(|existing| existing.id() == next.id()) {
-            return Err("This hotkey is already assigned to the other action.".into());
+            return Err("This hotkey is already assigned to another action.".into());
         }
         let handler_action = action.clone();
         let pressed = AtomicBool::new(false);
@@ -50,10 +53,17 @@ pub fn set_global_hotkey(
                 if pressed.swap(true, Ordering::AcqRel) {
                     return;
                 }
-                if handler_action == "show-window" {
-                    crate::show_main_window(app);
-                } else {
-                    let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
+                match handler_action.as_str() {
+                    "show-window" => crate::show_main_window(app),
+                    "quick-note" => {
+                        // The game is still in front here; the note window
+                        // gives focus back to it when it closes.
+                        crate::quick_note::remember_foreground(app);
+                        let _ = app.emit_to("main", "playcounter:quick-note-hotkey", ());
+                    }
+                    _ => {
+                        let _ = app.emit_to("main", "playcounter:current-session-hotkey", ());
+                    }
                 }
             })
             .map_err(|error| format!("Hotkey unavailable. Choose another combination. {error}"))?;

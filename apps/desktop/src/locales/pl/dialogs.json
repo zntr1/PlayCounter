@@ -248,5 +248,8 @@
   "{{count}} available": "Dostępne: {{count}}",
   "Status: {{status}}": "Status: {{status}}",
   "{{duration}} tracked": "Śledzono {{duration}}",
-  "Started {{date}}": "Rozpoczęto {{date}}"
+  "Started {{date}}": "Rozpoczęto {{date}}",
+  "Session note": "Notatka do sesji",
+  "Add session note": "Dodaj notatkę do sesji",
+  "Edit session note": "Edytuj notatkę do sesji"
 }

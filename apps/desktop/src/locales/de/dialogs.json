@@ -246,5 +246,8 @@
   "{{count}} available": "{{count}} verfügbar",
   "Status: {{status}}": "Status: {{status}}",
   "{{duration}} tracked": "{{duration}} erfasst",
-  "Started {{date}}": "Begonnen am {{date}}"
+  "Started {{date}}": "Begonnen am {{date}}",
+  "Session note": "Sitzungsnotiz",
+  "Add session note": "Sitzungsnotiz hinzufügen",
+  "Edit session note": "Sitzungsnotiz bearbeiten"
 }

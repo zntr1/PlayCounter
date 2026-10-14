@@ -2,16 +2,33 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
+import { openQuickNoteForCurrentSession } from "./quickNote";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
 import { nativeText } from "./nativeText";
 
 const t = getT("settings");
 
-export type HotkeySetting = "showWindowHotkey" | "currentSessionHotkey";
+export type HotkeySetting =
+  | "showWindowHotkey"
+  | "currentSessionHotkey"
+  | "quickNoteHotkey";
 const actions: Record<HotkeySetting, string> = {
   showWindowHotkey: "show-window",
   currentSessionHotkey: "current-session",
+  quickNoteHotkey: "quick-note",
+};
+/** Hotkeys the main window handles itself; they need its event listeners. */
+const listened: Partial<Record<HotkeySetting, () => void>> = {
+  currentSessionHotkey: () => showCurrentSessionOverlay(),
+  // With nothing running, the session popup says so.
+  quickNoteHotkey: () => {
+    if (!openQuickNoteForCurrentSession()) showCurrentSessionOverlay();
+  },
+};
+const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
+  currentSessionHotkey: "playcounter:current-session-hotkey",
+  quickNoteHotkey: "playcounter:quick-note-hotkey",
 };
 export const useHotkeyStatus = create<{
   errors: Partial<Record<HotkeySetting, string>>;
@@ -54,12 +71,14 @@ export function initializeHotkeys() {
     if (state.disposed) return;
     let listenerError: unknown;
     try {
-      const unlisten = await listen(
-        "playcounter:current-session-hotkey",
-        () => {
-          if (!state.disposed) showCurrentSessionOverlay();
-        },
+      const handlers = await Promise.all(
+        (Object.keys(hotkeyEvents) as HotkeySetting[]).map((key) =>
+          listen(hotkeyEvents[key]!, () => {
+            if (!state.disposed) listened[key]?.();
+          }),
+        ),
       );
+      const unlisten = () => handlers.forEach((handler) => handler());
       if (state.disposed) unlisten();
       else state.unlisten = unlisten;
     } catch (error) {
@@ -69,8 +88,7 @@ export function initializeHotkeys() {
       if (state.disposed) return;
       const saved = useAppStore.getState().settings[key];
       try {
-        if (key === "currentSessionHotkey" && listenerError)
-          throw listenerError;
+        if (listened[key] && listenerError) throw listenerError;
         await register(key, typeof saved === "string" && saved ? saved : null);
         setError(key);
       } catch (error) {
@@ -93,7 +111,7 @@ export function saveHotkey(key: HotkeySetting, shortcut: string | null) {
   initializeHotkeys();
   return enqueue(async () => {
     try {
-      if (shortcut && key === "currentSessionHotkey" && !lifecycle?.unlisten) {
+      if (shortcut && listened[key] && !lifecycle?.unlisten) {
         throw new Error(
           t(
             "The session hotkey listener is unavailable. Restart PlayCounter and try again.",

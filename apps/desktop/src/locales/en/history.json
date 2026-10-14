@@ -75,7 +75,6 @@
   "First session": "First session",
   "Back after {{comebackDays}} days": "Back after {{comebackDays}} days",
   "Manual": "Manual",
-  "Update note": "Update note",
   "Playthroughs": "Playthroughs",
   "Filter for this game": "Filter for this game",
   "Delete Session": "Delete Session",
@@ -101,5 +100,11 @@
   "Since your first session · {{count}} weeks_other": "Since your first session · {{count}} weeks",
   "Unknown game": "Unknown game",
   "{{count}} sessions_one": "{{count}} session",
-  "{{count}} sessions_other": "{{count}} sessions"
+  "{{count}} sessions_other": "{{count}} sessions",
+  "Session note": "Session note",
+  "Add session note": "Add session note",
+  "Edit session note": "Edit session note",
+  "Edit game note": "Edit game note",
+  "What happened? Where did you stop?": "What happened? Where did you stop?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter saves · Shift+Enter starts a new line · Esc cancels"
 }

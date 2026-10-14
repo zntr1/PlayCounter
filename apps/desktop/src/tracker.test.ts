@@ -196,6 +196,68 @@ describe("playthrough tracking", () => {
     },
   );
 
+  it("keeps a session note through checkpoints, a restart and the session's end", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-13T10:00:00Z"));
+      useAppStore.getState().setExeCacheEntry(entry());
+      let running = true;
+      invokeMock.mockImplementation(async (command: string) =>
+        command === "scan_processes"
+          ? running
+            ? [
+                {
+                  exeName: "Game.exe",
+                  exePath: "C:\\Games\\Game.exe",
+                  pid: 9871,
+                },
+              ]
+            : []
+          : undefined,
+      );
+      await scanProcessesNow();
+      const active = useAppStore.getState().activeSessions[0];
+      expect(useAppStore.getState().setSessionNote(active.id, "Boss 2")).toBe(
+        true,
+      );
+      // A checkpoint rewrites the session from the tracker's copy.
+      vi.setSystemTime(new Date("2026-09-13T10:02:00Z"));
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions[0]).toMatchObject({
+        note: "Boss 2",
+      });
+      expect(
+        Date.parse(useAppStore.getState().activeSessions[0].checkpointedAt),
+      ).toBe(Date.parse("2026-09-13T10:02:00Z"));
+      persist();
+      const saved = JSON.parse(
+        vi
+          .mocked(localStorage.setItem)
+          .mock.calls.filter(([key]) => key.includes("playcounter"))
+          .at(-1)![1],
+      );
+      expect(saved.activeSessions[0].note).toBe("Boss 2");
+      running = false;
+      vi.setSystemTime(new Date("2026-09-13T10:03:00Z"));
+      await scanProcessesNow();
+      await scanProcessesNow();
+      expect(useAppStore.getState().recentSessions).toEqual([
+        expect.objectContaining({ id: active.id, note: "Boss 2" }),
+      ]);
+      expect(() =>
+        validateBackupData(
+          { sessions: useAppStore.getState().recentSessions },
+          "backup",
+        ),
+      ).not.toThrow();
+      expect(() =>
+        validateBackupData({ sessions: [{ ...active, note: 7 }] }, "backup"),
+      ).toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([false, true])(
     "hydrates the assignment captured before a crash (named=%s)",
     (named) => {

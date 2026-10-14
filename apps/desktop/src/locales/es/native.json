@@ -15,7 +15,7 @@
   "The selected program is not a supported emulator binary.": "El programa seleccionado no es un ejecutable de emulador compatible.",
   "The selected program does not match the requested emulator.": "El programa seleccionado no coincide con el emulador solicitado.",
   "The selected file type is not supported by {{emulator}}.": "El tipo de archivo seleccionado no es compatible con {{emulator}}.",
-  "This hotkey is already assigned to the other action.": "Este atajo ya está asignado a la otra acción.",
+  "This hotkey is already assigned to another action.": "Este atajo ya está asignado a otra acción.",
   "Hotkey unavailable. Choose another combination. {{error}}": "Atajo no disponible. Elige otra combinación. {{error}}",
   "Executable name cannot be empty.": "El nombre del ejecutable no puede estar vacío.",
   "Executable name cannot contain line breaks.": "El nombre del ejecutable no puede contener saltos de línea.",

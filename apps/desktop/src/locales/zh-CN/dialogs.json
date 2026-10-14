@@ -245,5 +245,8 @@
   "{{count}} available": "{{count}} 个可用",
   "Status: {{status}}": "状态：{{status}}",
   "{{duration}} tracked": "已记录 {{duration}}",
-  "Started {{date}}": "开始于 {{date}}"
+  "Started {{date}}": "开始于 {{date}}",
+  "Session note": "游玩记录笔记",
+  "Add session note": "添加游玩记录笔记",
+  "Edit session note": "编辑游玩记录笔记"
 }

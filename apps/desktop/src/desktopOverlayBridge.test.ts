@@ -147,15 +147,15 @@ describe("desktop overlay bridge", () => {
       ).payload;
       expect(payload.body.includes("Co-op")).toBe(names === true);
       expect(payload.action).toBe(
-        updateNote === true ? "open-game-note:37" : undefined,
+        updateNote === true ? "session-note:37" : undefined,
       );
       expect(payload.actionLabel).toBe(
-        updateNote === true ? "Update note" : undefined,
+        updateNote === true ? "Add session note" : undefined,
       );
     },
   );
 
-  it("opens the completed session's note only while popup note actions are enabled", async () => {
+  it("opens the completed session's quick note only while popup note actions are enabled", async () => {
     const session = {
       id: 37,
       gameId: -1,
@@ -165,11 +165,10 @@ describe("desktop overlay bridge", () => {
       startedAt: new Date(0).toISOString(),
       endedAt: new Date(600000).toISOString(),
       durationSeconds: 600,
-      playthroughId: "old-run",
+      note: "Bridge boss",
     };
     useAppStore.setState((state) => ({
       recentSessions: [session],
-      journalTarget: null,
       settings: { ...state.settings, overlayUpdateNote: true },
     }));
     initializeDesktopOverlays();
@@ -177,20 +176,28 @@ describe("desktop overlay bridge", () => {
     const callback = listenMock.mock.calls.find(
       ([event]) => event === "playcounter:overlay-action",
     )?.[1];
-    callback?.({ payload: "open-game-note:37" } as never);
-    expect(useAppStore.getState().journalTarget).toMatchObject({
-      game: { gameId: -1 },
-      playthroughId: "old-run",
-      tab: "note",
+    const noteOpens = () =>
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "quick_note_open",
+      );
+    callback?.({ payload: "session-note:37" } as never);
+    expect(noteOpens()).toHaveLength(1);
+    expect(noteOpens()[0][1]).toMatchObject({
+      payload: {
+        sessionId: 37,
+        gameName: "Game",
+        note: "Bridge boss",
+        startedAt: null,
+        duration: "10m",
+      },
     });
-    useAppStore.setState({ journalTarget: null });
     useAppStore.getState().setDesktopOverlaySetting("overlayUpdateNote", false);
     expect(invokeMock).toHaveBeenCalledWith(
       "notification_overlay_close",
       undefined,
     );
-    callback?.({ payload: "open-game-note:37" } as never);
-    expect(useAppStore.getState().journalTarget).toBeNull();
+    callback?.({ payload: "session-note:37" } as never);
+    expect(noteOpens()).toHaveLength(1);
   });
 
   it("shows current elapsed time on request with automatic popups disabled", async () => {

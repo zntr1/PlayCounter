@@ -287,3 +287,95 @@ it("changes a recorded session's assignment without changing the next-session de
     second,
   );
 });
+
+it("keeps a log of session notes for running and recorded sessions", async () => {
+  const session = {
+    ...game,
+    id: 9,
+    exeName: "game.exe",
+    startedAt: "2026-09-13T10:00:00Z",
+    endedAt: "2026-09-13T11:00:00Z",
+    durationSeconds: 3600,
+  };
+  const running: ActiveSession = {
+    ...game,
+    id: 10,
+    coverUrl: "",
+    exeName: "game.exe",
+    startedAt: new Date().toISOString(),
+    checkpointedAt: new Date().toISOString(),
+  };
+  useAppStore.setState({
+    recentSessions: [session],
+    activeSessions: [running],
+  });
+  useAppStore
+    .getState()
+    .openGameJournal({ game, tab: "playthroughs", playthroughId: null });
+  await act(() => root.render(<GameJournalHost />));
+  const labelled = (label: string) => [
+    ...document.querySelectorAll<HTMLButtonElement>(`[aria-label="${label}"]`),
+  ];
+  const editor = () =>
+    document.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Session note"]',
+    );
+  const press = (key: string) =>
+    act(() =>
+      editor()!.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true }),
+      ),
+    );
+  expect(labelled("Add session note")).toHaveLength(2);
+
+  // The recorded session: Enter saves the trimmed text.
+  await act(() => labelled("Add session note")[1].click());
+  expect(document.activeElement).toBe(editor());
+  await type(editor()!, "  Beat the bridge boss  ");
+  await press("Enter");
+  expect(editor()).toBeNull();
+  expect(useAppStore.getState().recentSessions[0].note).toBe(
+    "Beat the bridge boss",
+  );
+  expect(document.body.textContent).toContain("Beat the bridge boss");
+
+  // Escape throws the change away and keeps the journal open.
+  await act(() => labelled("Edit session note")[0].click());
+  await type(editor()!, "Something else");
+  await press("Escape");
+  expect(editor()).toBeNull();
+  expect(useAppStore.getState().recentSessions[0].note).toBe(
+    "Beat the bridge boss",
+  );
+  expect(useAppStore.getState().journalTarget).not.toBeNull();
+
+  // The running session keeps its note until it ends.
+  await act(() => labelled("Add session note")[0].click());
+  await type(editor()!, "Halfway through chapter 3");
+  await press("Enter");
+  expect(useAppStore.getState().activeSessions[0].note).toBe(
+    "Halfway through chapter 3",
+  );
+
+  // An empty note removes it.
+  await act(() => labelled("Edit session note")[1].click());
+  await type(editor()!, "   ");
+  await press("Enter");
+  expect(useAppStore.getState().recentSessions[0]).toEqual(session);
+  expect("note" in useAppStore.getState().recentSessions[0]).toBe(false);
+});
+
+it("caps session notes and refuses sessions that are gone", () => {
+  const session = {
+    ...game,
+    id: 9,
+    exeName: "game.exe",
+    startedAt: "2026-09-13T10:00:00Z",
+    endedAt: "2026-09-13T11:00:00Z",
+    durationSeconds: 3600,
+  };
+  useAppStore.setState({ recentSessions: [session] });
+  expect(useAppStore.getState().setSessionNote(9, "a".repeat(1500))).toBe(true);
+  expect(useAppStore.getState().recentSessions[0].note).toHaveLength(1000);
+  expect(useAppStore.getState().setSessionNote(99, "Lost")).toBe(false);
+});

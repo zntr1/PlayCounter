@@ -294,8 +294,9 @@ function overlayCopy(
       action:
         event.sessionId === undefined
           ? undefined
-          : `open-game-note:${event.sessionId}`,
-      actionLabel: event.sessionId === undefined ? undefined : t("Update note"),
+          : `session-note:${event.sessionId}`,
+      actionLabel:
+        event.sessionId === undefined ? undefined : t("Add session note"),
     };
   }
   // i18n-exempt: impossible case, never shown.

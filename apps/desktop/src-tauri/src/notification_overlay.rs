@@ -149,7 +149,7 @@ fn sanitize(mut payload: OverlayPayload) -> OverlayPayload {
     payload.cover_url = truncate_optional(payload.cover_url, 2048);
     payload.action = payload.action.and_then(|action| match action.as_str() {
         "open-now-playing" | "open-discovered" => Some(action),
-        _ if action.strip_prefix("open-game-note:").is_some_and(|id| {
+        _ if action.strip_prefix("session-note:").is_some_and(|id| {
             !id.is_empty()
                 && id.bytes().all(|byte| byte.is_ascii_digit())
                 && id
@@ -246,7 +246,7 @@ mod imp {
         Ok(())
     }
 
-    fn selected_monitor(
+    pub(super) fn selected_monitor(
         app: &tauri::AppHandle,
         requested: Option<&str>,
     ) -> Result<tauri::Monitor, String> {
@@ -407,11 +407,18 @@ mod imp {
             .map_err(|error| error.to_string())?
             .take();
         close_window(app, state)?;
+        // A session note opens the quick note box, not the main window.
+        let opens_main = !action.starts_with("session-note:");
+        if !opens_main {
+            crate::quick_note::remember_foreground(app);
+        }
         app.emit_to(MAIN_LABEL, ACTION_EVENT, action)
             .map_err(|error| error.to_string())?;
         app.emit_to(MAIN_LABEL, FINISHED_EVENT, id)
             .map_err(|error| error.to_string())?;
-        crate::show_main_window(app);
+        if opens_main {
+            crate::show_main_window(app);
+        }
         Ok(())
     }
 
@@ -554,6 +561,15 @@ mod imp {
     pub async fn wait_for_game_window(_target_pids: Vec<u32>) -> bool {
         false
     }
+}
+
+/// The display picked for popups. The quick note opens there too.
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn popup_monitor(
+    app: &tauri::AppHandle,
+    requested: Option<&str>,
+) -> Result<tauri::Monitor, String> {
+    imp::selected_monitor(app, requested)
 }
 
 fn main_only(window: &tauri::Window) -> Result<(), String> {
@@ -751,13 +767,14 @@ mod tests {
 
     #[test]
     fn allows_only_numeric_session_note_actions() {
-        let valid = sanitize(payload_with_action(Some("open-game-note:123456")));
-        assert_eq!(valid.action.as_deref(), Some("open-game-note:123456"));
+        let valid = sanitize(payload_with_action(Some("session-note:123456")));
+        assert_eq!(valid.action.as_deref(), Some("session-note:123456"));
         for action in [
-            "open-game-note:",
-            "open-game-note:-1",
-            "open-game-note:abc",
-            "open-game-note:9007199254740992",
+            "session-note:",
+            "session-note:-1",
+            "session-note:abc",
+            "session-note:9007199254740992",
+            "open-game-note:123456",
         ] {
             assert!(sanitize(payload_with_action(Some(action))).action.is_none());
         }

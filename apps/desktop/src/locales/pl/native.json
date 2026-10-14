@@ -15,7 +15,7 @@
   "The selected program is not a supported emulator binary.": "Wybrany program nie jest obsługiwanym plikiem emulatora.",
   "The selected program does not match the requested emulator.": "Wybrany program nie pasuje do żądanego emulatora.",
   "The selected file type is not supported by {{emulator}}.": "{{emulator}} nie obsługuje wybranego typu pliku.",
-  "This hotkey is already assigned to the other action.": "Ten skrót klawiszowy jest już przypisany do drugiej czynności.",
+  "This hotkey is already assigned to another action.": "Ten skrót klawiszowy jest już przypisany do innej czynności.",
   "Hotkey unavailable. Choose another combination. {{error}}": "Skrót klawiszowy niedostępny. Wybierz inną kombinację. {{error}}",
   "Executable name cannot be empty.": "Nazwa pliku wykonywalnego nie może być pusta.",
   "Executable name cannot contain line breaks.": "Nazwa pliku wykonywalnego nie może zawierać podziałów wiersza.",

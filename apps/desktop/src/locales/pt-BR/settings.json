@@ -112,8 +112,6 @@
   "Playthrough names in popups": "Nomes das campanhas nos pop-ups",
   "Show the note of the game's active playthrough in the popup when a game starts.": "Mostra a nota da campanha ativa do jogo no pop-up quando um jogo inicia.",
   "Notes in game-start popups": "Notas nos pop-ups de início de jogo",
-  "Show an \"Update note\" button in saved-session popups.": "Mostra um botão “Atualizar nota” nos pop-ups de sessão salva.",
-  "Update note in popups": "Atualizar nota nos pop-ups",
   "Popup when you unlock a new playtime milestone.": "Pop-up quando você desbloqueia um novo marco de tempo de jogo.",
   "Milestones": "Marcos",
   "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.": "Pop-up quando o PlayCounter encontra um app que não conhece. Clique nele para abrir Descobertos. Só entram os apps encontrados enquanto esta opção estiver ativada.",
@@ -321,5 +319,9 @@
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "O atalho da sessão não está disponível. Reinicie o PlayCounter e tente novamente.",
   "Display {{number}}": "Tela {{number}}",
   "The backup contains invalid data at {{path}}. No local data was changed.": "O backup contém dados inválidos em {{path}}. Nenhum dado local foi alterado.",
-  "{{downloaded}} of {{total}}": "{{downloaded}} de {{total}}"
+  "{{downloaded}} of {{total}}": "{{downloaded}} de {{total}}",
+  "Quick session note": "Nota rápida da sessão",
+  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Abre uma pequena caixa de nota sobre o jogo para você anotar o que aconteceu nesta sessão. Enter salva e leva você de volta ao jogo. Em jogos em tela cheia exclusiva, o jogo pode ser minimizado enquanto a caixa está aberta.",
+  "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Mostra um botão “Adicionar nota da sessão” nos pop-ups de sessão salva. Ele abre uma pequena caixa para você anotar o que aconteceu nessa sessão.",
+  "Session notes in popups": "Notas da sessão nos pop-ups"
 }

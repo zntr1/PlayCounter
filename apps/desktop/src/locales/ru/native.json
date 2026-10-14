@@ -15,7 +15,7 @@
   "The selected program is not a supported emulator binary.": "Выбранная программа — не поддерживаемый исполняемый файл эмулятора.",
   "The selected program does not match the requested emulator.": "Выбранная программа не соответствует нужному эмулятору.",
   "The selected file type is not supported by {{emulator}}.": "{{emulator}} не поддерживает выбранный тип файла.",
-  "This hotkey is already assigned to the other action.": "Это сочетание клавиш уже назначено другому действию.",
+  "This hotkey is already assigned to another action.": "Это сочетание клавиш уже назначено другому действию.",
   "Hotkey unavailable. Choose another combination. {{error}}": "Сочетание клавиш недоступно. Выберите другое. {{error}}",
   "Executable name cannot be empty.": "Имя исполняемого файла не может быть пустым.",
   "Executable name cannot contain line breaks.": "Имя исполняемого файла не может содержать переносы строк.",

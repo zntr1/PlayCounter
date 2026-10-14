@@ -24,7 +24,6 @@
   "SESSION SAVED": "СЕССИЯ СОХРАНЕНА",
   "Saved to {{playthroughName}}": "Сохранено в {{playthroughName}}",
   "Added to your playtime.": "Добавлено к вашему времени в игре.",
-  "Update note": "Изменить заметку",
   "SESSION TIME": "ВРЕМЯ СЕССИИ",
   "50 hours played": "50 часов в игре",
   "50 HRS": "50 Ч",
@@ -33,5 +32,13 @@
   "Playthrough: {{name}}": "Прохождение: {{name}}",
   "{{count, number}} APPROVED": "ОДОБРЕНО: {{count, number}}",
   "{{count, number}} DAYS": "ДНЕЙ: {{count, number}}",
-  "{{count, number}} HRS": "ЧАСОВ: {{count, number}}"
+  "{{count, number}} HRS": "ЧАСОВ: {{count, number}}",
+  "Session note": "Заметка о сессии",
+  "Playing now": "Сейчас в игре",
+  "Session saved": "Сессия сохранена",
+  "What happened? Where did you stop?": "Что произошло? Где вы остановились?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter — сохранить · Shift+Enter — новая строка · Esc — отмена",
+  "Save": "Сохранить",
+  "Cancel": "Отмена",
+  "Add session note": "Добавить заметку о сессии"
 }

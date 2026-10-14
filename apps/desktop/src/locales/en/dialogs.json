@@ -246,5 +246,8 @@
   "{{count}} available": "{{count}} available",
   "Status: {{status}}": "Status: {{status}}",
   "{{duration}} tracked": "{{duration}} tracked",
-  "Started {{date}}": "Started {{date}}"
+  "Started {{date}}": "Started {{date}}",
+  "Session note": "Session note",
+  "Add session note": "Add session note",
+  "Edit session note": "Edit session note"
 }
