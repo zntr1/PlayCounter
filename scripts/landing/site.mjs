@@ -296,6 +296,64 @@ export const site = {
       detail:
         "Track individual Game Boy and GBA games by the game name mGBA shows in its window title.",
     },
+    {
+      id: "cemu",
+      name: "Cemu",
+      logo: "/brands/cemu.png",
+      systems: "Wii U",
+      detail:
+        "Track individual Wii U games by the title ID Cemu shows in its window title.",
+    },
+    {
+      id: "rpcs3",
+      name: "RPCS3",
+      logo: "/brands/rpcs3.svg",
+      systems: "PlayStation 3",
+      detail:
+        "Track individual PS3 games by the game serial RPCS3 shows in its game window title.",
+    },
+    {
+      id: "ppsspp",
+      name: "PPSSPP",
+      logo: "/brands/ppsspp.png",
+      systems: "PSP",
+      detail:
+        "Track individual PSP games by the disc ID and game name PPSSPP shows in its window title.",
+    },
+    {
+      id: "duckstation",
+      name: "DuckStation",
+      logo: "/brands/duckstation.png",
+      systems: "PlayStation",
+      detail:
+        "Track individual PS1 games from the disc image DuckStation has open or the file it was started with.",
+    },
+    {
+      id: "ryujinx",
+      name: "Ryujinx",
+      logo: "/brands/ryujinx.png",
+      systems: "Nintendo Switch",
+      detail:
+        "Track individual Switch games by the title ID Ryujinx shows in its window title.",
+    },
+    {
+      id: "eden",
+      name: "Eden",
+      logo: "/brands/eden.png",
+      systems: "Nintendo Switch",
+      detail:
+        "Track individual Switch games by the game name Eden shows in its window title.",
+    },
+  ],
+  languages: [
+    "English",
+    "Deutsch",
+    "Español",
+    "Français",
+    "Polski",
+    "Português (Brasil)",
+    "Русский",
+    "中文（简体）",
   ],
 };
 
@@ -325,7 +383,11 @@ export const faq = [
   ],
   [
     "Which emulators are supported?",
-    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2 and mGBA. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
+    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx and Eden. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
+  ],
+  [
+    "Which languages is the app available in?",
+    `The app is available in ${site.languages.length} languages: ${site.languages.join(", ")}. It starts in your Windows language when it is one of them; you can switch in <strong>Settings</strong>.`,
   ],
   [
     "What stays on my PC, and what goes online?",
