@@ -213,6 +213,7 @@ const BRANDS = new Set([
   "DOSBox",
   "PCSX2",
   "mGBA",
+  "Cemu",
   "Windows",
   "macOS",
   "Linux",

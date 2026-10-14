@@ -6,6 +6,7 @@ pub const DOLPHIN_CONTENT_EXTENSIONS: &[&str] = &[
 pub const PCSX2_CONTENT_EXTENSIONS: &[&str] =
     &["iso", "bin", "img", "mdf", "chd", "cso", "zso", "gz", "elf"];
 pub const MGBA_CONTENT_EXTENSIONS: &[&str] = &["gba", "gb", "gbc", "sgb", "zip", "7z"];
+pub const CEMU_CONTENT_EXTENSIONS: &[&str] = &["wud", "wux", "wua", "wuhb", "iso", "rpx", "elf"];
 
 pub struct EmulatorHost {
     pub id: &'static str,
@@ -57,6 +58,14 @@ pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
         needs_window_title: true,
         // mGBA preloads ROMs into memory and closes the file by default, so
         // open handles are not a signal. The window title is.
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "cemu",
+        exe_names: &["cemu.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The window title carries the title ID of the running game.
         content_extensions: &[],
     },
 ];
@@ -400,6 +409,10 @@ mod tests {
             assert_eq!(host_for(name).map(|host| host.id), Some("mgba"));
         }
         for name in ["mgba-updater.exe", "notmgba.exe", "mgba-qt.exe"] {
+            assert!(host_for(name).is_none());
+        }
+        assert_eq!(host_for("Cemu.exe").map(|host| host.id), Some("cemu"));
+        for name in ["cemu_release.exe", "notcemu.exe", "cemuhook.exe"] {
             assert!(host_for(name).is_none());
         }
     }

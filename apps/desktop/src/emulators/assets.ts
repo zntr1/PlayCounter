@@ -1,4 +1,5 @@
 import type { EmulatorId } from "@playcounter/shared";
+import cemuIconUrl from "../../../../assets/emulators/cemu/cemu.png";
 import dosboxIconUrl from "../../../../assets/emulators/dosbox/DOSBox_icon.png";
 import dolphinIconUrl from "../../../../assets/emulators/dolphin/dolphin-emu.svg";
 import mgbaIconUrl from "../../../../assets/emulators/mgba/mgba.png";
@@ -9,4 +10,5 @@ export const emulatorAssetUrls: Readonly<Record<string, string>> = {
   dolphin: dolphinIconUrl,
   pcsx2: pcsx2IconUrl,
   mgba: mgbaIconUrl,
+  cemu: cemuIconUrl,
 } satisfies Record<EmulatorId, string>;

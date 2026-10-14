@@ -1,4 +1,5 @@
 import type { EmulatorId } from "@playcounter/shared";
+import { cemuAdapter } from "./cemu";
 import { dosboxAdapter } from "./dosbox";
 import { dolphinAdapter } from "./dolphin";
 import { mgbaAdapter } from "./mgba";
@@ -13,6 +14,7 @@ const adapters = {
   dolphin: dolphinAdapter,
   pcsx2: pcsx2Adapter,
   mgba: mgbaAdapter,
+  cemu: cemuAdapter,
 } satisfies Record<EmulatorId, EmulatorAdapter>;
 
 export const EMULATORS: readonly EmulatorAdapter[] = Object.values(adapters);

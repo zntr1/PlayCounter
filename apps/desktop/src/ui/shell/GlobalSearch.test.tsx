@@ -37,6 +37,7 @@ const escapeOwner: Record<ViewId, "title bar" | "page"> = {
   dolphin: "title bar",
   pcsx2: "title bar",
   mgba: "title bar",
+  cemu: "title bar",
   games: "page",
   import: "title bar",
   discovered: "page",

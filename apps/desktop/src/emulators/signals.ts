@@ -15,6 +15,7 @@ export const GENERIC_IDENTITY_DENYLIST = new Set([
   "pcsx2-qt",
   "mgba",
   "mgba-sdl",
+  "cemu",
   "bios",
   "ps2 bios",
   "boot",

@@ -19,7 +19,8 @@ use std::{
 use std::process::{Command, Stdio};
 
 use crate::process::emulator::{
-    DOLPHIN_CONTENT_EXTENSIONS, MGBA_CONTENT_EXTENSIONS, PCSX2_CONTENT_EXTENSIONS,
+    CEMU_CONTENT_EXTENSIONS, DOLPHIN_CONTENT_EXTENSIONS, MGBA_CONTENT_EXTENSIONS,
+    PCSX2_CONTENT_EXTENSIONS,
 };
 const DOSBOX_EXTENSIONS: &[&str] = &["conf", "exe", "com", "bat"];
 
@@ -115,6 +116,27 @@ fn is_mgba_idle(process: &ProcessSnapshot) -> bool {
     !started_with_rom && !version.is_empty() && !version.contains(char::is_whitespace)
 }
 
+/// "Cemu <version>" is Cemu's title without a game. It is also the title right
+/// after start-up, so an instance started with a game is never closed.
+fn is_cemu_idle(process: &ProcessSnapshot) -> bool {
+    let started_with_game = process.command_line.as_ref().is_some_and(|args| {
+        args.iter().any(|arg| {
+            let lower = arg.to_ascii_lowercase();
+            ["-g", "--game", "-t", "--title-id"]
+                .iter()
+                .any(|option| lower == *option || lower.starts_with(&format!("{option}=")))
+        })
+    });
+    let Some(title) = process.window_title.as_deref().map(str::trim) else {
+        return false;
+    };
+    let version = match title.get(..5) {
+        Some(prefix) if prefix.eq_ignore_ascii_case("cemu ") => &title[5..],
+        _ => return false,
+    };
+    !started_with_game && !version.is_empty() && !version.contains(char::is_whitespace)
+}
+
 static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
     EmulatorLaunchAdapter {
         id: "dosbox",
@@ -147,6 +169,13 @@ static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
         // mGBA [options] [game]: one positional ROM path.
         arguments: |path| vec![path.as_os_str().to_os_string()],
         is_idle: is_mgba_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "cemu",
+        label: "Cemu",
+        extensions: CEMU_CONTENT_EXTENSIONS,
+        arguments: |path| vec![OsString::from("-g"), path.as_os_str().to_os_string()],
+        is_idle: is_cemu_idle,
     },
 ];
 
@@ -698,6 +727,55 @@ mod tests {
         }));
         assert!(!is_mgba_idle(&ProcessSnapshot {
             window_title: Some("mGBA".to_string()),
+            ..idle
+        }));
+    }
+
+    #[test]
+    fn builds_cemu_launch_and_closes_only_an_idle_instance() {
+        let adapter = launch_adapter_for("cemu").unwrap();
+        for extension in ["wud", "WUX", "wua", "wuhb", "iso", "rpx", "elf"] {
+            assert!(has_supported_extension(
+                adapter,
+                &format!(r"D:\WiiU\Game.{extension}")
+            ));
+        }
+        assert!(!has_supported_extension(adapter, r"D:\WiiU\meta.xml"));
+        let path = Path::new(r"D:\WiiU\Breath of the Wild.wua");
+        assert_eq!(
+            (adapter.arguments)(path),
+            vec![OsString::from("-g"), path.as_os_str().to_os_string()]
+        );
+
+        let idle = ProcessSnapshot {
+            exe_name: "Cemu.exe".to_string(),
+            exe_path: None,
+            pid: 1,
+            started_at_unix: 1,
+            emulator_id: Some("cemu"),
+            command_line: Some(Vec::new()),
+            working_directory: None,
+            window_title: Some("Cemu 2.6".to_string()),
+            open_files: None,
+        };
+        assert!(is_cemu_idle(&idle));
+        assert!(!is_cemu_idle(&ProcessSnapshot {
+            window_title: Some(
+                "Cemu 2.6 - FPS: 59.94 [Vulkan] [NVIDIA GPU] [TitleId: 00050000-101c9500] Breath of the Wild [EU v208]"
+                    .to_string()
+            ),
+            ..idle.clone()
+        }));
+        assert!(!is_cemu_idle(&ProcessSnapshot {
+            window_title: Some("Cemu 2.6 - Loading...".to_string()),
+            ..idle.clone()
+        }));
+        assert!(!is_cemu_idle(&ProcessSnapshot {
+            command_line: Some(vec!["-g".to_string(), r"D:\WiiU\BotW.wua".to_string()]),
+            ..idle.clone()
+        }));
+        assert!(!is_cemu_idle(&ProcessSnapshot {
+            window_title: Some("Cemu".to_string()),
             ..idle
         }));
     }

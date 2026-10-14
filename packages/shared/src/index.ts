@@ -569,7 +569,7 @@ export interface LibraryFeaturedGame {
 }
 
 /** Every supported emulator. The desktop registry must define each one. */
-export type EmulatorId = "dosbox" | "dolphin" | "pcsx2" | "mgba";
+export type EmulatorId = "dosbox" | "dolphin" | "pcsx2" | "mgba" | "cemu";
 
 export type DesktopViewId =
   | "now"
