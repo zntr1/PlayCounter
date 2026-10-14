@@ -203,8 +203,19 @@ export function ReportWrongMatchDialog({
   // Software is counted per file name; Game.exe would turn every game in its
   // folders into software.
   const generic = isGenericExeName(exeName);
+  // Ignore comes first: users who skim click the first app card, and a
+  // mistaken "count its time" files a software suggestion.
   const appCards = (
     <>
+      {onIgnoreApp && !generic ? (
+        <ChoiceCard
+          icon={EyeOff}
+          title={t("It's an app, ignore it")}
+          description={t("An app you don't want counted. Ignored on this PC.")}
+          autoFocus={lastChoice === "app"}
+          onClick={() => setConfirming("app")}
+        />
+      ) : null}
       {onSoftware && !generic ? (
         <ChoiceCard
           icon={AppWindow}
@@ -213,15 +224,6 @@ export function ReportWrongMatchDialog({
             "Discord, VS Code, a launcher. Its time moves to the Software page.",
           )}
           onClick={() => onSoftware(exeName)}
-        />
-      ) : null}
-      {onIgnoreApp && !generic ? (
-        <ChoiceCard
-          icon={EyeOff}
-          title={t("It's an app, ignore it")}
-          description={t("An app you don't want counted. Ignored on this PC.")}
-          autoFocus={lastChoice === "app"}
-          onClick={() => setConfirming("app")}
         />
       ) : null}
     </>
