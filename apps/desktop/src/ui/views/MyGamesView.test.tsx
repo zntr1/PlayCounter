@@ -176,14 +176,30 @@ it.each([4, 6])(
 
 async function openMatchReview(offered = true) {
   await act(() => root.render(<LibraryTestShell />));
-  const label = offered
-    ? `Review tracking match for ${steam.name}`
-    : `Check matches for ${steam.name}`;
-  await act(() =>
-    container
-      .querySelector<HTMLButtonElement>(`[aria-label="${label}"]`)!
-      .click(),
-  );
+  if (offered)
+    await act(() =>
+      container
+        .querySelector<HTMLButtonElement>(
+          `[aria-label="Review tracking match for ${steam.name}"]`,
+        )!
+        .click(),
+    );
+  else {
+    // Check for Matches lives in the card menu's Matching submenu.
+    await act(() =>
+      container
+        .querySelector(".game-library-card")!
+        .dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        ),
+    );
+    for (const label of ["Matching", "Check for Matches"])
+      await act(() =>
+        [...document.querySelectorAll<HTMLButtonElement>("button")]
+          .find((button) => button.textContent?.trim() === label)!
+          .click(),
+      );
+  }
   const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
   const action =
     dialog.lastElementChild!.querySelector<HTMLButtonElement>("button")!;

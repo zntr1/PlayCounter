@@ -342,14 +342,14 @@ export function tours(): TourDefinition[] {
           id: "open-journal",
           view: "games",
           anchor: libraryTourCard,
-          anchorTargets: [a("demo-menu-note")],
+          anchorTargets: [a("demo-menu-journal")],
           interactive: true,
           allow: [libraryTourCard, a("demo-library-menu")],
           advanceOn: { type: "anchor-present", selector: a("demo-journal") },
           skipTo: "note",
           title: t("Right-click World of Warcraft"),
           body: t(
-            "Choose Add note to open the journal. Later you can also open it with Playthroughs in the same menu, or by clicking the note icon on a game's cover.",
+            "Choose Journal. Later you can also open it with the Journal button that appears when you point at a game's cover, or by clicking the note icon on the cover.",
           ),
           keyboardHint: t("Keyboard: focus the card and press Shift+F10."),
         },
@@ -524,7 +524,7 @@ export function tours(): TourDefinition[] {
           anchorTargets: [
             a("demo-journal-shelf-choice"),
             a("demo-journal-shelf"),
-            a("demo-menu-organize"),
+            a("demo-menu-journal"),
           ],
           additionalAnchors: [libraryTourCard],
           interactive: true,
@@ -537,7 +537,7 @@ export function tours(): TourDefinition[] {
           ],
           title: t("Put games on your shelf"),
           body: t(
-            "We switched back to All games. Drag a sample card onto your new shelf. Without dragging: right-click a card, choose Shelves & status, then Add to shelf. While you drag, a shelf that cannot take the game tells you why.",
+            "We switched back to All games. Drag a sample card onto your new shelf. Without dragging: right-click a card, choose Journal, then Add to shelf. While you drag, a shelf that cannot take the game tells you why.",
           ),
         },
         {
@@ -727,7 +727,7 @@ export function tours(): TourDefinition[] {
           anchor: a("demo-library-cards"),
           title: t("Ready for your own library"),
           body: t(
-            "In My Games, use Select to change a batch of games at once, or right-click a single card and choose Shelves & status. Choices you make in the real Customize panel are remembered the next time you open PlayCounter. Everything from this practice disappears when you finish.",
+            "In My Games, use Select to change a batch of games at once, or right-click a single card and choose Journal. Choices you make in the real Customize panel are remembered the next time you open PlayCounter. Everything from this practice disappears when you finish.",
           ),
         },
       ],

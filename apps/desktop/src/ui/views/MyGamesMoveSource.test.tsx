@@ -83,6 +83,11 @@ async function contextMenu() {
       ),
   );
 }
+/** Move to PlayCounter sits in the card menu's Matching submenu. */
+async function moveMenu() {
+  await contextMenu();
+  await act(() => button("Matching").click());
+}
 async function source(id: string) {
   await act(() =>
     container.querySelector<HTMLButtonElement>(`#library-tab-${id}`)!.click(),
@@ -270,7 +275,7 @@ it.each([
     useAppStore.getState().setMyGamesCardSize(layout);
     await act(() => root.render(<LibraryTestShell />));
     await source(provider);
-    await contextMenu();
+    await moveMenu();
     await act(() => button("Move to PlayCounter").click());
     let dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain("1h");
@@ -278,7 +283,7 @@ it.each([
     expect(dialog.textContent).toContain("import the game from that launcher");
     await act(() => button("Cancel", dialog).click());
     expect(useAppStore.getState().libraryImports.size).toBe(1);
-    await contextMenu();
+    await moveMenu();
     await act(() => button("Move to PlayCounter").click());
     dialog = document.querySelector('[role="dialog"]')!;
     await act(() => button("Move to PlayCounter", dialog).click());
@@ -356,7 +361,7 @@ it("keeps archived hours from every former launcher identity in the same card", 
   expect(container.querySelector(".game-library-card")?.textContent).toContain(
     "2h",
   );
-  await contextMenu();
+  await moveMenu();
   await act(() => button("Move to PlayCounter").click());
   await act(() => button("Move to PlayCounter").click());
   expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
@@ -368,7 +373,7 @@ it("keeps archived hours from every former launcher identity in the same card", 
 it("keeps the confirmation open with a save error and preserves the launcher association", async () => {
   importGame("steam");
   await act(() => root.render(<LibraryTestShell />));
-  await contextMenu();
+  await moveMenu();
   await act(() => button("Move to PlayCounter").click());
   const fail = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
     throw new Error("Storage unavailable");

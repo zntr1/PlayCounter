@@ -94,8 +94,7 @@ it("hides shelf controls while keeping progress, favorites, and shelf membership
       </>,
     ),
   );
-  expect(container.textContent).not.toContain("Shelves & status");
-  await click("Progress status");
+  await click("Journal");
   expect(
     document.querySelector('[aria-label="Remove Campaign from Weekend"]'),
   ).toBeNull();

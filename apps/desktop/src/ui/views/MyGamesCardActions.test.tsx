@@ -144,6 +144,16 @@ async function openMatchingMenu() {
   await act(async () => matching!.click());
 }
 
+/** Opens Matching on the card menu and picks one of its actions. */
+async function matchingAction(label: string) {
+  await openMatchingMenu();
+  const action = [...document.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === label,
+  );
+  expect(action, `missing ${label}`).toBeDefined();
+  await act(async () => action!.click());
+}
+
 function menuText() {
   return document.body.textContent ?? "";
 }
@@ -172,11 +182,6 @@ it("offers no Report or Convert for the user's own .exe on a card with the datab
   });
   await act(() => root.render(<LibraryTestShell />));
 
-  expect(
-    card().querySelector(
-      `[aria-label="Report wrong match for ${DRAGON_AGE.name}"]`,
-    ),
-  ).toBeNull();
   await openMatchingMenu();
   expect(menuText()).toContain("Suggest to Community");
   expect(menuText()).not.toContain("Report Wrong Match");
@@ -213,11 +218,6 @@ it("offers Report and Convert for an .exe the database matched", async () => {
   });
   await act(() => root.render(<LibraryTestShell />));
 
-  expect(
-    card().querySelector(
-      `[aria-label="Report wrong match for ${DRAGON_AGE.name}"]`,
-    ),
-  ).not.toBeNull();
   await openMatchingMenu();
   expect(menuText()).toContain("Report Wrong Match");
   expect(menuText()).toContain("Convert to Custom Game");
@@ -245,12 +245,8 @@ function dialogButton(label: string) {
   );
 }
 
-async function suggestFromCard(name: string) {
-  const send = card().querySelector<HTMLButtonElement>(
-    `[aria-label="Suggest ${name} to the community"]`,
-  );
-  expect(send, "missing Suggest to community").not.toBeNull();
-  await act(async () => send!.click());
+async function suggestFromCard() {
+  await matchingAction("Suggest to Community");
 }
 
 it("suggests a Custom game that already names its game without a search", async () => {
@@ -259,7 +255,7 @@ it("suggests a Custom game that already names its game without a search", async 
   });
   useAppStore.getState().setExeCacheEntry(OWN_FILE);
   await act(() => root.render(<LibraryTestShell />));
-  await suggestFromCard(DRAGON_AGE.name);
+  await suggestFromCard();
 
   expect(menuText()).toContain("Suggest to community?");
   expect(menuText()).not.toContain("Suggest community game");
@@ -278,7 +274,7 @@ it("still searches for a Custom game that names no database game", async () => {
     gameName: "My Mod",
   });
   await act(() => root.render(<LibraryTestShell />));
-  await suggestFromCard("My Mod");
+  await suggestFromCard();
 
   expect(menuText()).toContain("Suggest community game");
   expect(menuText()).not.toContain("Suggest to community?");
@@ -443,7 +439,7 @@ it("searches again for a Custom game the community turned down", async () => {
     communitySuggestionNote: "Wrong game",
   });
   await act(() => root.render(<LibraryTestShell />));
-  await suggestFromCard(DRAGON_AGE.name);
+  await suggestFromCard();
 
   expect(menuText()).toContain("Suggest community game");
   expect(menuText()).not.toContain("Suggest to community?");
@@ -508,13 +504,7 @@ it("opens the search from Check for Matches without sending anything", async () 
     shareState: "unshared",
   });
   await act(() => root.render(<LibraryTestShell />));
-  await act(async () =>
-    card()
-      .querySelector<HTMLButtonElement>(
-        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
-      )!
-      .click(),
-  );
+  await matchingAction("Check for Matches");
   const searchDatabase = dialogButton("Search the database");
   expect(searchDatabase, "missing Search the database").toBeDefined();
   await act(async () => searchDatabase!.click());
@@ -527,11 +517,7 @@ it("opens the search from Check for Matches without sending anything", async () 
 const NEVER_RAN_FILE = { ...DATABASE_FILE, exeName: "DAOrigin.exe" };
 
 function reportFromCard() {
-  const report = card().querySelector<HTMLButtonElement>(
-    `[aria-label="Report wrong match for ${DRAGON_AGE.name}"]`,
-  );
-  expect(report, "missing Report wrong match").not.toBeNull();
-  return act(async () => report!.click());
+  return matchingAction("Report Wrong Match");
 }
 
 function fileChoice(exeName: string) {
@@ -556,14 +542,9 @@ it("offers Report and Check for an imported file that never ran here", async () 
   });
   await act(() => root.render(<LibraryTestShell />));
 
-  expect(
-    card().querySelector(
-      `[aria-label="Report wrong match for ${DRAGON_AGE.name}"]`,
-    ),
-  ).not.toBeNull();
-  expect(
-    card().querySelector(`[aria-label="Check matches for ${DRAGON_AGE.name}"]`),
-  ).not.toBeNull();
+  await openMatchingMenu();
+  expect(menuText()).toContain("Report Wrong Match");
+  expect(menuText()).toContain("Check for Matches");
   await openFilesTab(DRAGON_AGE.name);
   expect(fileRow(DATABASE_FILE.exeName).textContent).toContain(
     "Never ran on this PC",
@@ -692,13 +673,7 @@ it("asks which file to check and checks only that file", async () => {
   useAppStore.getState().setExeCacheEntry(NEVER_RAN_FILE);
   useAppStore.setState({ recentSessions: [ranAs(1, DATABASE_FILE.exeName)] });
   await act(() => root.render(<LibraryTestShell />));
-  await act(async () =>
-    card()
-      .querySelector<HTMLButtonElement>(
-        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
-      )!
-      .click(),
-  );
+  await matchingAction("Check for Matches");
 
   expect(menuText()).toContain("Which file?");
   expect(fileChoice(NEVER_RAN_FILE.exeName)?.disabled).toBe(false);
@@ -827,13 +802,7 @@ it("opens Report wrong match for the checked file from Check for matches", async
   vi.mocked(findGameMatches).mockResolvedValue({ games: [] });
   useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
   await act(() => root.render(<LibraryTestShell />));
-  await act(async () =>
-    card()
-      .querySelector<HTMLButtonElement>(
-        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
-      )!
-      .click(),
-  );
+  await matchingAction("Check for Matches");
   expect(menuText()).not.toContain("This is not a game");
 
   await clickButtonWith("Report wrong match…");
@@ -860,13 +829,7 @@ it("accepts a database match for the user's own file, not the card's IGDB file",
   useAppStore.getState().setExeCacheEntry(DATABASE_FILE);
   useAppStore.getState().setExeCacheEntry(OWN_FILE);
   await act(() => root.render(<LibraryTestShell />));
-  await act(async () =>
-    card()
-      .querySelector<HTMLButtonElement>(
-        `[aria-label="Check matches for ${DRAGON_AGE.name}"]`,
-      )!
-      .click(),
-  );
+  await matchingAction("Check for Matches");
   await act(async () => fileChoice(OWN_FILE.exeName)!.click());
   expect(findGameMatches).toHaveBeenCalledWith(OWN_FILE.exeName);
 

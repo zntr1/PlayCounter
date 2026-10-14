@@ -2,14 +2,8 @@ import {
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
-import {
-  BookOpen,
-  CircleDot,
-  FolderHeart,
-  Star,
-  StickyNote,
-} from "lucide-react";
-import { gameStatusLabel, journalNote } from "../personalLibrary";
+import { BookOpen, Star, StickyNote } from "lucide-react";
+import { gameStatusLabel } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
 import { ContextMenuHeading, ContextMenuItem } from "./primitives";
 import { STATUS_TONES } from "./journalStyles";
@@ -31,9 +25,6 @@ export function GameJournalMenu({
   const journal = useGameJournal(game);
   const open = usePersonalLibraryState((s) => s.openGameJournal);
   const update = usePersonalLibraryState((s) => s.updateGameJournal);
-  const showShelves = usePersonalLibraryState(
-    (s) => s.settings.libraryShowShelves !== false,
-  );
   return (
     <>
       {heading ? (
@@ -50,35 +41,14 @@ export function GameJournalMenu({
         {journal.favorite ? t("Remove from Favorites") : t("Add to Favorites")}
       </ContextMenuItem>
       <ContextMenuItem
-        dataTour={practice ? "demo-menu-note" : undefined}
-        icon={StickyNote}
+        dataTour={practice ? "demo-menu-journal" : undefined}
+        icon={BookOpen}
         onClick={() => {
           onClose();
           open({ game, tab: "note" });
         }}
       >
-        {journalNote(journal) ? t("Edit note") : t("Add note")}
-      </ContextMenuItem>
-      <ContextMenuItem
-        dataTour={practice ? "demo-menu-playthroughs" : undefined}
-        icon={BookOpen}
-        onClick={() => {
-          onClose();
-          open({ game, tab: "playthroughs" });
-        }}
-      >
-        {t("Playthroughs")}
-        {journal.playthroughs.length ? ` · ${journal.playthroughs.length}` : ""}
-      </ContextMenuItem>
-      <ContextMenuItem
-        dataTour={practice ? "demo-menu-organize" : undefined}
-        icon={showShelves ? FolderHeart : CircleDot}
-        onClick={() => {
-          onClose();
-          open({ game, tab: "organize" });
-        }}
-      >
-        {showShelves ? t("Shelves & status") : t("Progress status")}
+        {t("Journal")}
       </ContextMenuItem>
     </>
   );

@@ -6,7 +6,10 @@ import {
   OptionRow,
 } from "../LibraryAppearanceControls";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
-import { useLibraryPractice } from "../PersonalLibraryContext";
+import {
+  useLibraryPractice,
+  usePersonalLibraryState,
+} from "../PersonalLibraryContext";
 import {
   publishLibraryHeroArt,
   publishLibrarySources,
@@ -21,6 +24,7 @@ import clsx from "clsx";
 import {
   AlertTriangle,
   Ban,
+  BookOpen,
   CalendarDays,
   Clipboard,
   Check,
@@ -43,7 +47,9 @@ import {
   PanelTop,
   List,
   Loader2,
+  MoreHorizontal,
   MoveRight,
+  Palette,
   Pencil,
   Replace,
   Pin,
@@ -3043,6 +3049,7 @@ export function GameLibraryCard({
     [demo, demoTotal, demoIdentity, originalGame],
   );
   const libraryPractice = useLibraryPractice();
+  const openGameJournal = usePersonalLibraryState((s) => s.openGameJournal);
   const controllerKind = useControllerKind();
   // The tour walks through both halves, so its demo card always shows them.
   const originVisible = (demo && !libraryPractice) || showOrigin;
@@ -3655,7 +3662,9 @@ export function GameLibraryCard({
     xboxActions.showOpenInLauncher ||
     epicActions.showOpenInLauncher ||
     (!demo && isWindows && Boolean(battleNetImportEntry));
+  const canMoveToPlayCounter = !demo && game.libraryImports.length > 0;
   const showMatchingActions =
+    canMoveToPlayCounter ||
     canCheckMatches ||
     Boolean(
       game.source &&
@@ -4328,6 +4337,11 @@ export function GameLibraryCard({
     contextMenu.close();
   }
 
+  function openMenuBelow(element: HTMLElement) {
+    const rect = element.getBoundingClientRect();
+    contextMenu.openAt({ x: rect.left, y: rect.bottom + 6 });
+  }
+
   function openDemoMenu(element: HTMLElement) {
     const card = element.closest("article") ?? element;
     const rect = card.getBoundingClientRect();
@@ -4934,19 +4948,6 @@ export function GameLibraryCard({
             onClose={contextMenu.close}
           />
         ) : null}
-        {canEditCover ? (
-          <ContextMenuItem
-            dataTour={demo ? "demo-menu-rename" : undefined}
-            icon={Pencil}
-            onClick={() => {
-              contextMenu.close();
-              setRenameName(game.name);
-              setShowRename(true);
-            }}
-          >
-            {t("Rename Game")}
-          </ContextMenuItem>
-        ) : null}
         <ContextMenuSeparator />
         {showLaunchOptions ? (
           <ContextMenuSubmenu
@@ -5206,59 +5207,76 @@ export function GameLibraryCard({
             {t("Adjust total playtime")}
           </ContextMenuItem>
         </ContextMenuSubmenu>
-        {!demo ? (
-          <ContextMenuSubmenu label={t("Cover and Banner")} icon={ImagePlus}>
-            <ContextMenuItem
-              icon={ImagePlus}
-              onClick={() => {
-                contextMenu.close();
-                setArtPickerTab("banner");
-                setShowArtPicker(true);
-              }}
-            >
-              {t("Choose banner…")}
-            </ContextMenuItem>
-            <ContextMenuItem
-              icon={ImagePlus}
-              onClick={() => {
-                contextMenu.close();
-                setArtPickerTab("cover");
-                setShowArtPicker(true);
-              }}
-            >
-              {t("Choose cover…")}
-            </ContextMenuItem>
-            <ContextMenuItem
-              icon={ImagePlus}
-              onClick={() => {
-                contextMenu.close();
-                coverInputRef.current?.click();
-              }}
-            >
-              {t("Upload cover")}
-            </ContextMenuItem>
-            <ContextMenuItem
-              dataTour={demo ? "demo-menu-paste-cover" : undefined}
-              icon={Clipboard}
-              onClick={() => void handlePasteCover()}
-            >
-              {t("Paste Cover")}
-            </ContextMenuItem>
-            {canEditCover && game.coverUrl ? (
+        {!demo || canEditCover ? (
+          <ContextMenuSubmenu label={t("Appearance")} icon={Palette}>
+            {canEditCover ? (
               <ContextMenuItem
-                dataTour={demo ? "demo-menu-delete-cover" : undefined}
-                icon={Trash2}
-                onClick={handleClearCover}
+                dataTour={demo ? "demo-menu-rename" : undefined}
+                icon={Pencil}
+                onClick={() => {
+                  contextMenu.close();
+                  setRenameName(game.name);
+                  setShowRename(true);
+                }}
               >
-                {t("Delete Cover")}
+                {t("Rename Game")}
               </ContextMenuItem>
-            ) : !canEditCover && coverPicked ? (
-              <ContextMenuItem
-                icon={RotateCcw}
-                onClick={handleResetPickedCover}
-              >
-                {t("Restore Cover")}
-              </ContextMenuItem>
+            ) : null}
+            {!demo ? (
+              <>
+                <ContextMenuItem
+                  icon={ImagePlus}
+                  onClick={() => {
+                    contextMenu.close();
+                    setArtPickerTab("banner");
+                    setShowArtPicker(true);
+                  }}
+                >
+                  {t("Choose banner…")}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  icon={ImagePlus}
+                  onClick={() => {
+                    contextMenu.close();
+                    setArtPickerTab("cover");
+                    setShowArtPicker(true);
+                  }}
+                >
+                  {t("Choose cover…")}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  icon={ImagePlus}
+                  onClick={() => {
+                    contextMenu.close();
+                    coverInputRef.current?.click();
+                  }}
+                >
+                  {t("Upload cover")}
+                </ContextMenuItem>
+                <ContextMenuItem
+                  dataTour={demo ? "demo-menu-paste-cover" : undefined}
+                  icon={Clipboard}
+                  onClick={() => void handlePasteCover()}
+                >
+                  {t("Paste Cover")}
+                </ContextMenuItem>
+                {canEditCover && game.coverUrl ? (
+                  <ContextMenuItem
+                    dataTour={demo ? "demo-menu-delete-cover" : undefined}
+                    icon={Trash2}
+                    onClick={handleClearCover}
+                  >
+                    {t("Delete Cover")}
+                  </ContextMenuItem>
+                ) : !canEditCover && coverPicked ? (
+                  <ContextMenuItem
+                    icon={RotateCcw}
+                    onClick={handleResetPickedCover}
+                  >
+                    {t("Restore Cover")}
+                  </ContextMenuItem>
+                ) : null}
+              </>
             ) : null}
           </ContextMenuSubmenu>
         ) : null}
@@ -5343,17 +5361,15 @@ export function GameLibraryCard({
                 ) : null}
               </>
             ) : null}
+            {canMoveToPlayCounter ? (
+              <ContextMenuItem
+                icon={MoveRight}
+                onClick={requestMoveToPlayCounter}
+              >
+                {t("Move to PlayCounter")}
+              </ContextMenuItem>
+            ) : null}
           </ContextMenuSubmenu>
-        ) : null}
-        {!demo && game.libraryImports.length > 0 ? (
-          <>
-            <ContextMenuItem
-              icon={MoveRight}
-              onClick={requestMoveToPlayCounter}
-            >
-              {t("Move to PlayCounter")}
-            </ContextMenuItem>
-          </>
         ) : null}
         <ContextMenuSeparator />
         {onStopTracking || demo ? (
@@ -5681,61 +5697,19 @@ export function GameLibraryCard({
                 onClick={() => setShowDetails(true)}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
-              <IconButton
-                icon={ImagePlus}
-                aria-label={t("Choose artwork for {{name}}", {
-                  name: game.name,
-                })}
-                title={t("Choose artwork")}
-                onClick={() => {
-                  if (demo) return demoNotice();
-                  setArtPickerTab("banner");
-                  setShowArtPicker(true);
-                }}
-                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-              />
-              {canCheckMatches ? (
+              {!demo || libraryPractice ? (
                 <IconButton
-                  icon={Search}
-                  aria-label={t("Check matches for {{name}}", {
+                  icon={BookOpen}
+                  aria-label={t("Open journal for {{name}}", {
                     name: game.name,
                   })}
-                  title={t("Check for matches")}
-                  onClick={openMatchCheck}
-                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-                />
-              ) : null}
-              {pendingCommunitySuggestion ? (
-                <IconButton
-                  icon={RotateCcw}
-                  aria-label={t("Cancel community suggestion for {{name}}", {
-                    name: game.name,
-                  })}
-                  title={t("Cancel suggestion")}
+                  title={t("Journal")}
                   onClick={() =>
-                    setCancelSuggestionTarget(pendingCommunitySuggestion)
+                    openGameJournal({
+                      game: { ...game, gameName: game.name },
+                      tab: "note",
+                    })
                   }
-                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-                />
-              ) : canSuggestToCommunity ? (
-                <IconButton
-                  icon={Send}
-                  aria-label={t("Suggest {{name}} to the community", {
-                    name: game.name,
-                  })}
-                  title={t("Suggest to community")}
-                  onClick={() => void handleShareAction()}
-                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
-                />
-              ) : null}
-              {canReportMatch ? (
-                <IconButton
-                  icon={Flag}
-                  aria-label={t("Report wrong match for {{name}}", {
-                    name: game.name,
-                  })}
-                  title={t("Report wrong match")}
-                  onClick={() => openReport()}
                   className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
                 />
               ) : null}
@@ -5752,24 +5726,13 @@ export function GameLibraryCard({
                 }
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
-              {onStopTracking ? (
-                <IconButton
-                  icon={Ban}
-                  aria-label={t("Ignore {{name}}", { name: game.name })}
-                  title={t("Ignore game (never track again)")}
-                  onClick={() => onStopTracking(game)}
-                  className="bg-bg text-text-muted shadow-raised border-bg hover:bg-warning hover:border-warning hover:text-white"
-                />
-              ) : null}
               <IconButton
-                icon={Trash2}
-                intent="danger"
-                aria-label={t("Remove {{name}} from library", {
-                  name: game.name,
-                })}
-                title={t("Remove from library")}
-                onClick={() => onRemove(game)}
-                className="bg-bg text-text-muted shadow-raised border-bg hover:!bg-danger-solid hover:!border-danger-solid hover:!text-white"
+                icon={MoreHorizontal}
+                aria-label={t("More actions for {{name}}", { name: game.name })}
+                aria-haspopup="menu"
+                title={t("More")}
+                onClick={(event) => openMenuBelow(event.currentTarget)}
+                className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
             </div>
           ) : null}
@@ -6634,22 +6597,12 @@ export function GameLibraryCard({
                     : setShowAddPlaytime(true)
                 }
               />
-              {onStopTracking ? (
-                <IconButton
-                  icon={Ban}
-                  aria-label={t("Ignore {{name}}", { name: game.name })}
-                  title={t("Ignore game (never track again)")}
-                  onClick={() => onStopTracking(game)}
-                />
-              ) : null}
               <IconButton
-                icon={Trash2}
-                intent="danger"
-                aria-label={t("Remove {{name}} from library", {
-                  name: game.name,
-                })}
-                title={t("Remove from library")}
-                onClick={() => onRemove(game)}
+                icon={MoreHorizontal}
+                aria-label={t("More actions for {{name}}", { name: game.name })}
+                aria-haspopup="menu"
+                title={t("More")}
+                onClick={(event) => openMenuBelow(event.currentTarget)}
               />
             </div>
           ) : null}
