@@ -5,6 +5,7 @@ import {
   NEEDS_REVIEW_STATUSES,
   type DiscoveryReviewInput,
 } from "./discoveredReview";
+import { EMULATORS } from "./emulators/registry";
 import type { ExeCacheEntry, ProcessSnapshot } from "./store";
 
 const checkedAt = "2026-08-10T00:00:00.000Z";
@@ -123,6 +124,19 @@ describe("discovered review count", () => {
       [],
     );
 
+    expect(countNeedsReview(state)).toBe(0);
+  });
+
+  it("never offers an emulator's own program from a saved lookup", () => {
+    const exeNames = EMULATORS.flatMap((adapter) => adapter.exeNames);
+    const state = input(
+      [],
+      exeNames.map((exeName) =>
+        cacheEntry(exeName.toUpperCase(), "unmatched"),
+      ),
+    );
+
+    expect(exeNames.length).toBeGreaterThan(0);
     expect(countNeedsReview(state)).toBe(0);
   });
 

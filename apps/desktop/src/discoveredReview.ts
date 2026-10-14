@@ -1,3 +1,4 @@
+import { isEmulatorExe } from "./emulators/registry";
 import { matchesProcessPatternSet } from "./ignoredProcessPatterns";
 import type {
   AmbiguousProcessMatch,
@@ -45,6 +46,8 @@ export function countNeedsReview(input: DiscoveryReviewInput) {
   let count = 0;
   for (const [key, entry] of byKey) {
     if (ambiguousKeys.has(key)) continue;
+    // A lookup saved before the exe was a known emulator, or by a folder scan.
+    if (isEmulatorExe(key)) continue;
     const status = getDiscoveryStatus(
       entry?.exeName ?? key,
       entry ?? undefined,

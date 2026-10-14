@@ -42,6 +42,15 @@ export function adapterFor(emulatorId?: string | null) {
   return id && isEmulatorId(id) ? adapters[id] : null;
 }
 
+const EMULATOR_EXE_NAMES = new Set(
+  EMULATORS.flatMap((adapter) => adapter.exeNames),
+);
+
+/** An emulator's own program, which is never a game itself. */
+export function isEmulatorExe(exeName: string) {
+  return EMULATOR_EXE_NAMES.has(exeName.toLowerCase());
+}
+
 /** "DOSBox, Dolphin, PCSX2, or mGBA" */
 /** "Dolphin, PCSX2, DOSBox, or mGBA" in the app's language. */
 export function emulatorLabelList(conjunction: "or" | "and") {

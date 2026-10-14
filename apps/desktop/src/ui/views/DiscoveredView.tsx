@@ -60,6 +60,7 @@ import {
   useExeDetails,
 } from "../exeDetails";
 import { describeExeFolder, type GameLocation } from "../../exeFolder";
+import { isEmulatorExe } from "../../emulators/registry";
 import { SoftwareDialog } from "../SoftwareDialog";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import { useEscapeClearsSearch } from "../useEscapeClearsSearch";
@@ -648,7 +649,13 @@ export function DiscoveredView() {
     const savedByKey = new Map<string, ExeCacheEntry | null>();
     for (const entry of exeCache.values()) {
       const key = entry.exeName.toLowerCase();
-      if (!runningKeys.has(key) && !ambiguousKeys.has(key)) {
+      // An emulator's saved lookup predates its support or came from a folder
+      // scan; the emulator itself is not a game to review.
+      if (
+        !runningKeys.has(key) &&
+        !ambiguousKeys.has(key) &&
+        !isEmulatorExe(key)
+      ) {
         savedByKey.set(key, entry);
       }
     }

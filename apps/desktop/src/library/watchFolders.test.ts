@@ -2,6 +2,7 @@
 import type { Game } from "@playcounter/shared";
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EMULATORS } from "../emulators/registry";
 import { useAppStore } from "../store";
 import {
   adoptFolderGame,
@@ -185,6 +186,27 @@ describe("scanning watched folders", () => {
       "watch_folder_scan",
       expect.anything(),
     );
+  });
+
+  it("never sends an emulator's own program to Discovered", async () => {
+    mockFolders(
+      Object.fromEntries(
+        EMULATORS.map((adapter) => [
+          adapter.label,
+          {
+            executables: adapter.exeNames
+              .filter((exeName) => exeName.endsWith(".exe"))
+              .map((exeName) => exe(exeName.toUpperCase())),
+          },
+        ]),
+      ),
+    );
+
+    await expect(scanWatchFolders("test")).resolves.toBe(0);
+
+    expect(lookupFolderExecutables).toHaveBeenCalledWith([]);
+    expect(noteFolderExecutable).not.toHaveBeenCalled();
+    expect(readWatchFolders().pending).toEqual({});
   });
 
   it("does not add a folder whose files name different games", async () => {
