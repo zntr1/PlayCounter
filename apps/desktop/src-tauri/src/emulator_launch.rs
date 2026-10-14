@@ -22,6 +22,12 @@ use crate::process::emulator::{
     CEMU_CONTENT_EXTENSIONS, DOLPHIN_CONTENT_EXTENSIONS, MGBA_CONTENT_EXTENSIONS,
     PCSX2_CONTENT_EXTENSIONS,
 };
+const RPCS3_EXTENSIONS: &[&str] = &["bin", "self", "elf", "iso"];
+const PPSSPP_EXTENSIONS: &[&str] = &["iso", "cso", "chd", "pbp", "elf", "prx"];
+const DUCKSTATION_EXTENSIONS: &[&str] = &[
+    "cue", "bin", "img", "iso", "chd", "pbp", "ecm", "mds", "ccd", "m3u",
+];
+const SWITCH_EXTENSIONS: &[&str] = &["nsp", "xci", "nca", "nro", "nso"];
 const DOSBOX_EXTENSIONS: &[&str] = &["conf", "exe", "com", "bat"];
 
 struct EmulatorLaunchAdapter {
@@ -116,6 +122,88 @@ fn is_mgba_idle(process: &ProcessSnapshot) -> bool {
     !started_with_rom && !version.is_empty() && !version.contains(char::is_whitespace)
 }
 
+/// True when an argument names a content file, i.e. the instance was started
+/// with a game and may not show it in its title yet.
+fn started_with_content(process: &ProcessSnapshot, extensions: &[&str]) -> bool {
+    process.command_line.as_ref().is_some_and(|args| {
+        args.iter().any(|arg| {
+            let lower = file_name(arg).to_ascii_lowercase();
+            extensions
+                .iter()
+                .any(|extension| lower.ends_with(&format!(".{extension}")))
+        })
+    })
+}
+
+fn trimmed_title(process: &ProcessSnapshot) -> Option<&str> {
+    process.window_title.as_deref().map(str::trim)
+}
+
+/// The main window "RPCS3 <version> | <branch>" without a game window.
+fn is_rpcs3_idle(process: &ProcessSnapshot) -> bool {
+    !started_with_content(process, RPCS3_EXTENSIONS)
+        && trimmed_title(process).is_some_and(|title| {
+            title
+                .get(..6)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("rpcs3 "))
+        })
+}
+
+/// "PPSSPP <version>" (optionally "Gold", " (debug)", " (instance: N)").
+fn is_ppsspp_idle(process: &ProcessSnapshot) -> bool {
+    !started_with_content(process, PPSSPP_EXTENSIONS)
+        && trimmed_title(process).is_some_and(|title| {
+            let lower = title.to_ascii_lowercase();
+            lower.starts_with("ppsspp ") && !lower.contains(" - ")
+        })
+}
+
+/// "DuckStation <version>" with no disc file open.
+fn is_duckstation_idle(process: &ProcessSnapshot) -> bool {
+    if process
+        .open_files
+        .as_ref()
+        .is_some_and(|files| !files.is_empty())
+    {
+        return false;
+    }
+    !started_with_content(process, DUCKSTATION_EXTENSIONS)
+        && trimmed_title(process).is_some_and(|title| {
+            let mut parts = title.split_whitespace();
+            parts
+                .next()
+                .is_some_and(|part| part.eq_ignore_ascii_case("duckstation"))
+                && parts.next().is_some()
+                && parts.all(|part| part.starts_with('['))
+        })
+}
+
+/// "Ryujinx <version>" or "Ryujinx Canary <version>".
+fn is_ryujinx_idle(process: &ProcessSnapshot) -> bool {
+    !started_with_content(process, SWITCH_EXTENSIONS)
+        && trimmed_title(process).is_some_and(|title| {
+            let parts = title.split_whitespace().collect::<Vec<_>>();
+            match parts.as_slice() {
+                [name, _] => name.eq_ignore_ascii_case("ryujinx"),
+                [name, channel, _] => {
+                    name.eq_ignore_ascii_case("ryujinx") && channel.eq_ignore_ascii_case("canary")
+                }
+                _ => false,
+            }
+        })
+}
+
+/// "Eden | <version> | <compiler>"; a running game adds more segments.
+fn is_eden_idle(process: &ProcessSnapshot) -> bool {
+    !started_with_content(process, SWITCH_EXTENSIONS)
+        && trimmed_title(process).is_some_and(|title| {
+            let segments = title.split(" | ").collect::<Vec<_>>();
+            segments.len() == 3
+                && (segments[0].eq_ignore_ascii_case("eden")
+                    || segments[0].eq_ignore_ascii_case("eden nightly"))
+        })
+}
+
 /// "Cemu <version>" is Cemu's title without a game. It is also the title right
 /// after start-up, so an instance started with a game is never closed.
 fn is_cemu_idle(process: &ProcessSnapshot) -> bool {
@@ -176,6 +264,43 @@ static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
         extensions: CEMU_CONTENT_EXTENSIONS,
         arguments: |path| vec![OsString::from("-g"), path.as_os_str().to_os_string()],
         is_idle: is_cemu_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "rpcs3",
+        label: "RPCS3",
+        extensions: RPCS3_EXTENSIONS,
+        // rpcs3 [options] <boot path>: EBOOT.BIN, (S)ELF or ISO.
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        is_idle: is_rpcs3_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "ppsspp",
+        label: "PPSSPP",
+        extensions: PPSSPP_EXTENSIONS,
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        is_idle: is_ppsspp_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "duckstation",
+        label: "DuckStation",
+        extensions: DUCKSTATION_EXTENSIONS,
+        // "--" ends the options, so no file name is read as one.
+        arguments: |path| vec![OsString::from("--"), path.as_os_str().to_os_string()],
+        is_idle: is_duckstation_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "ryujinx",
+        label: "Ryujinx",
+        extensions: SWITCH_EXTENSIONS,
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        is_idle: is_ryujinx_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "eden",
+        label: "Eden",
+        extensions: SWITCH_EXTENSIONS,
+        arguments: |path| vec![OsString::from("-g"), path.as_os_str().to_os_string()],
+        is_idle: is_eden_idle,
     },
 ];
 
@@ -777,6 +902,107 @@ mod tests {
         assert!(!is_cemu_idle(&ProcessSnapshot {
             window_title: Some("Cemu".to_string()),
             ..idle
+        }));
+    }
+
+    fn snapshot(emulator_id: &'static str, title: &str) -> ProcessSnapshot {
+        ProcessSnapshot {
+            exe_name: format!("{emulator_id}.exe"),
+            exe_path: None,
+            pid: 1,
+            started_at_unix: 1,
+            emulator_id: Some(emulator_id),
+            command_line: Some(Vec::new()),
+            working_directory: None,
+            window_title: Some(title.to_string()),
+            open_files: None,
+        }
+    }
+
+    #[test]
+    fn builds_launches_for_the_title_based_emulators() {
+        for (id, path, arguments) in [
+            (
+                "rpcs3",
+                r"D:\PS3\dev_hdd0\game\BLUS30443\USRDIR\EBOOT.BIN",
+                vec![],
+            ),
+            ("ppsspp", r"D:\PSP\Crisis Core.iso", vec![]),
+            ("duckstation", r"D:\PS1\Final Fantasy VII.cue", vec!["--"]),
+            ("ryujinx", r"D:\Switch\Odyssey.nsp", vec![]),
+            ("eden", r"D:\Switch\Odyssey.xci", vec!["-g"]),
+        ] {
+            let adapter = launch_adapter_for(id).unwrap();
+            assert!(has_supported_extension(adapter, path), "{id}");
+            let mut expected = arguments
+                .into_iter()
+                .map(OsString::from)
+                .collect::<Vec<_>>();
+            expected.push(Path::new(path).as_os_str().to_os_string());
+            assert_eq!((adapter.arguments)(Path::new(path)), expected, "{id}");
+        }
+        for (id, path) in [
+            ("rpcs3", r"D:\PS3\save.sav"),
+            ("ppsspp", r"D:\PSP\save.sav"),
+            ("duckstation", r"D:\PS1\card.mcd"),
+            ("ryujinx", r"D:\Switch\prod.keys"),
+            ("eden", r"D:\Switch\title.keys"),
+        ] {
+            assert!(
+                !has_supported_extension(launch_adapter_for(id).unwrap(), path),
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn closes_only_idle_title_based_emulators() {
+        for (id, idle, running) in [
+            (
+                "rpcs3",
+                "RPCS3 0.0.38-18000-a1b2c3d4 Alpha | master",
+                "FPS: 59.94 | Vulkan | 0.0.38 | Demon's Souls [BLUS30443]",
+            ),
+            (
+                "ppsspp",
+                "PPSSPP v1.18.1 (instance: 2)",
+                "PPSSPP v1.18.1 - ULUS10336 : CRISIS CORE",
+            ),
+            (
+                "duckstation",
+                "DuckStation v0.1-9876 [Portable]",
+                "Final Fantasy VII",
+            ),
+            (
+                "ryujinx",
+                "Ryujinx Canary 1.3.250",
+                "Ryujinx 1.3.2 - Celeste (01002B30028F6000) (64-bit)",
+            ),
+            (
+                "eden",
+                "Eden | v0.0.4 | msvc-19.44",
+                "Eden | v0.0.4 | msvc-19.44 | Celeste (64-bit) | NVIDIA",
+            ),
+        ] {
+            let adapter = launch_adapter_for(id).unwrap();
+            assert!((adapter.is_idle)(&snapshot(id, idle)), "{id} idle");
+            assert!(!(adapter.is_idle)(&snapshot(id, running)), "{id} running");
+            assert!(
+                !(adapter.is_idle)(&ProcessSnapshot {
+                    command_line: Some(vec![
+                        r"D:\Games\game.iso".to_string(),
+                        r"D:\Games\game.nsp".to_string(),
+                        r"D:\Games\EBOOT.BIN".to_string()
+                    ]),
+                    ..snapshot(id, idle)
+                }),
+                "{id} started with a game"
+            );
+        }
+        let duckstation = launch_adapter_for("duckstation").unwrap();
+        assert!(!(duckstation.is_idle)(&ProcessSnapshot {
+            open_files: Some(vec![r"D:\PS1\Final Fantasy VII.bin".to_string()]),
+            ..snapshot("duckstation", "DuckStation v0.1-9876")
         }));
     }
 

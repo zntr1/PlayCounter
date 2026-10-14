@@ -2,8 +2,13 @@ import type { EmulatorId } from "@playcounter/shared";
 import { cemuAdapter } from "./cemu";
 import { dosboxAdapter } from "./dosbox";
 import { dolphinAdapter } from "./dolphin";
+import { duckstationAdapter } from "./duckstation";
+import { edenAdapter } from "./eden";
 import { mgbaAdapter } from "./mgba";
 import { pcsx2Adapter } from "./pcsx2";
+import { ppssppAdapter } from "./ppsspp";
+import { rpcs3Adapter } from "./rpcs3";
+import { ryujinxAdapter } from "./ryujinx";
 import type { EmulatorAdapter } from "./types";
 import { appLocale } from "../i18n";
 
@@ -15,6 +20,11 @@ const adapters = {
   pcsx2: pcsx2Adapter,
   mgba: mgbaAdapter,
   cemu: cemuAdapter,
+  rpcs3: rpcs3Adapter,
+  ppsspp: ppssppAdapter,
+  duckstation: duckstationAdapter,
+  ryujinx: ryujinxAdapter,
+  eden: edenAdapter,
 } satisfies Record<EmulatorId, EmulatorAdapter>;
 
 export const EMULATORS: readonly EmulatorAdapter[] = Object.values(adapters);

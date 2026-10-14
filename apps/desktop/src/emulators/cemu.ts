@@ -1,4 +1,9 @@
-import { basename, isShareableToken, stripQuotes } from "./signals";
+import {
+  basename,
+  namedTitleIdSignal,
+  namesAgree,
+  stripQuotes,
+} from "./signals";
 import type {
   EmulatorAdapter,
   EmulatorContentSignal,
@@ -38,26 +43,6 @@ export function readCemuTitle(title: string | null): CemuTitle | null {
   return name
     ? { titleId: `${match[1]}${match[2]}`.toLowerCase(), name }
     : null;
-}
-
-function comparable(value: string) {
-  return value
-    .replace(CONTENT_EXTENSION, "")
-    .replace(/[[(][^()[\]]*[\])]/g, "")
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
-
-/** "Breath of the Wild" fits "The Legend of Zelda Breath of the Wild [ALZP01]". */
-function namesAgree(a: string, b: string) {
-  const left = comparable(a);
-  const right = comparable(b);
-  return (
-    left.length >= 4 &&
-    right.length >= 4 &&
-    (left.includes(right) || right.includes(left))
-  );
 }
 
 /**
@@ -122,29 +107,13 @@ function titleIdSignal(
   context: EmulatorReadContext,
   detectionSource: EmulatorDetectionSource,
 ): EmulatorContentSignal {
-  const homebrew = PLACEHOLDER_TITLE_ID.test(titleId) || name === UNKNOWN_GAME;
-  const shareable = !homebrew;
-  return {
-    kind: "title_id",
-    value: titleId,
-    display: name,
-    trust: homebrew ? "weak" : "recognized",
-    shareable,
-    volatile: detectionSource === "window_title",
+  return namedTitleIdSignal({
+    titleId,
+    name,
+    local: PLACEHOLDER_TITLE_ID.test(titleId) || name === UNKNOWN_GAME,
+    privateTokens: context.privateTokens,
     detectionSource,
-    searchHint: homebrew ? undefined : name,
-    shareableSearchHint:
-      shareable &&
-      name.length >= 2 &&
-      name.length <= 120 &&
-      !/[\\/:\u0000-\u001f\u007f]/.test(name) &&
-      isShareableToken({
-        value: name.toLowerCase(),
-        kind: "title_id",
-        trust: "recognized",
-        privateTokens: context.privateTokens,
-      }),
-  };
+  });
 }
 
 export const cemuAdapter: EmulatorAdapter = {
