@@ -328,7 +328,7 @@ pub struct EmulatorContentPathRequest {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum EmulatorLaunchOutcome {
-    Spawned,
+    Spawned { pid: u32 },
     HostRunning { instance_count: usize },
     Busy,
 }
@@ -373,7 +373,7 @@ impl Drop for GuardLease<'_> {
 }
 
 trait EmulatorProcessSpawner: Send + Sync {
-    fn spawn(&self, plan: &EmulatorLaunchPlan) -> Result<(), io::Error>;
+    fn spawn(&self, plan: &EmulatorLaunchPlan) -> Result<u32, io::Error>;
 }
 
 trait EmulatorHostCloser: Send + Sync {
@@ -403,7 +403,7 @@ struct NativeSpawner;
 
 #[cfg(windows)]
 impl EmulatorProcessSpawner for NativeSpawner {
-    fn spawn(&self, plan: &EmulatorLaunchPlan) -> Result<(), io::Error> {
+    fn spawn(&self, plan: &EmulatorLaunchPlan) -> Result<u32, io::Error> {
         Command::new(&plan.exe_path)
             .args(&plan.arguments)
             .current_dir(&plan.working_directory)
@@ -411,13 +411,13 @@ impl EmulatorProcessSpawner for NativeSpawner {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map(|_| ())
+            .map(|child| child.id())
     }
 }
 
 #[cfg(not(windows))]
 impl EmulatorProcessSpawner for NativeSpawner {
-    fn spawn(&self, _plan: &EmulatorLaunchPlan) -> Result<(), io::Error> {
+    fn spawn(&self, _plan: &EmulatorLaunchPlan) -> Result<u32, io::Error> {
         Err(io::Error::new(
             io::ErrorKind::Unsupported,
             "Emulator launching is only supported on Windows.",
@@ -597,8 +597,8 @@ async fn launch_with_dependencies(
             });
         }
     }
-    spawner.spawn(&plan).map_err(map_spawn_error)?;
-    Ok(EmulatorLaunchOutcome::Spawned)
+    let pid = spawner.spawn(&plan).map_err(map_spawn_error)?;
+    Ok(EmulatorLaunchOutcome::Spawned { pid })
 }
 
 #[tauri::command]
@@ -678,9 +678,9 @@ mod tests {
     struct FakeSpawner(AtomicUsize);
 
     impl EmulatorProcessSpawner for FakeSpawner {
-        fn spawn(&self, _plan: &EmulatorLaunchPlan) -> Result<(), io::Error> {
+        fn spawn(&self, _plan: &EmulatorLaunchPlan) -> Result<u32, io::Error> {
             self.0.fetch_add(1, Ordering::SeqCst);
-            Ok(())
+            Ok(123)
         }
     }
 
@@ -1079,7 +1079,7 @@ mod tests {
             )
             .await
             .unwrap(),
-            EmulatorLaunchOutcome::Spawned
+            EmulatorLaunchOutcome::Spawned { pid: 123 }
         );
         assert_eq!(spawner.0.load(Ordering::SeqCst), 1);
         fs::remove_dir_all(dir).unwrap();
@@ -1118,7 +1118,7 @@ mod tests {
             )
             .await
             .unwrap(),
-            EmulatorLaunchOutcome::Spawned
+            EmulatorLaunchOutcome::Spawned { pid: 123 }
         );
         assert_eq!(spawner.0.load(Ordering::SeqCst), 1);
         fs::remove_dir_all(dir).unwrap();
