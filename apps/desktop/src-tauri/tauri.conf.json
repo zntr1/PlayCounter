@@ -30,18 +30,14 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "$APPDATA/covers/**/*"
-        ]
+        "scope": ["$APPDATA/covers/**/*"]
       }
     }
   },
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": [
-      "nsis"
-    ],
+    "targets": ["nsis"],
     "windows": {
       "nsis": {
         "languages": [
@@ -49,8 +45,14 @@
           "German",
           "PortugueseBR",
           "Spanish",
-          "SimpChinese"
-        ]
+          "SimpChinese",
+          "French",
+          "Polish",
+          "Russian"
+        ],
+        "customLanguageFiles": {
+          "Polish": "nsis/Polish.nsh"
+        }
       }
     },
     "icon": [
