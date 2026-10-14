@@ -7706,6 +7706,9 @@ function MatchCheckDialog({
     };
   }, [attempt, exeName, current.gameId, current.source, isOffline]);
 
+  const nothingToSwitchTo =
+    state === "done" && hiddenCount === 0 && candidates.every(isCurrentMatch);
+
   const footer = (
     <div className="grid gap-3">
       {/* In the footer: with 30 matches the end of the list is far away. */}
@@ -7745,22 +7748,29 @@ function MatchCheckDialog({
         </p>
       ) : null}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button variant="ghost" onClick={onCancel}>
+        <Button
+          variant={nothingToSwitchTo ? "primary" : "ghost"}
+          icon={nothingToSwitchTo ? Check : undefined}
+          onClick={onCancel}
+        >
           {current.source === "custom"
             ? t("Keep custom game")
             : t("Keep current match")}
         </Button>
-        <Button
-          variant="primary"
-          icon={Check}
-          disabled={!selection || isOffline || isCurrentMatch(selection)}
-          onClick={() => {
-            if (selection && !isCurrentMatch(selection))
-              onApply(selection, isPendingCommunityMatch(selection));
-          }}
-        >
-          {t("Use this match")}
-        </Button>
+        {/* Only the current match came back: keeping it is the answer. */}
+        {nothingToSwitchTo ? null : (
+          <Button
+            variant="primary"
+            icon={Check}
+            disabled={!selection || isOffline || isCurrentMatch(selection)}
+            onClick={() => {
+              if (selection && !isCurrentMatch(selection))
+                onApply(selection, isPendingCommunityMatch(selection));
+            }}
+          >
+            {t("Use this match")}
+          </Button>
+        )}
       </div>
       <div className="border-t border-border pt-3">
         {/* None of these: the same choices as Report wrong match. */}
