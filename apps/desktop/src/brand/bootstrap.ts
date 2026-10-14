@@ -8,6 +8,9 @@ import enBoot from "../locales/en/boot.json";
 import ptBRBoot from "../locales/pt-BR/boot.json";
 import zhCNBoot from "../locales/zh-CN/boot.json";
 import esBoot from "../locales/es/boot.json";
+import frBoot from "../locales/fr/boot.json";
+import plBoot from "../locales/pl/boot.json";
+import ruBoot from "../locales/ru/boot.json";
 
 // The startup screen shows before the app and its language files load, so it
 // carries its own few texts. Set them before the window is revealed.
@@ -17,6 +20,9 @@ const BOOT_TEXTS: Record<AppLanguage, Record<keyof typeof enBoot, string>> = {
   "pt-BR": ptBRBoot,
   "zh-CN": zhCNBoot,
   es: esBoot,
+  fr: frBoot,
+  pl: plBoot,
+  ru: ruBoot,
 };
 const bootLanguage = resolveLanguage(savedLanguageSetting(), systemLocales());
 const bootTexts = BOOT_TEXTS[bootLanguage];

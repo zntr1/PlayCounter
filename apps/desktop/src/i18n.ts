@@ -90,6 +90,60 @@ import esShell from "./locales/es/shell.json";
 import esSoftware from "./locales/es/software.json";
 import esTour from "./locales/es/tour.json";
 import esTracker from "./locales/es/tracker.json";
+import ruAchievements from "./locales/ru/achievements.json";
+import ruCommon from "./locales/ru/common.json";
+import ruDialogs from "./locales/ru/dialogs.json";
+import ruDiscovered from "./locales/ru/discovered.json";
+import ruEmulators from "./locales/ru/emulators.json";
+import ruGames from "./locales/ru/games.json";
+import ruHistory from "./locales/ru/history.json";
+import ruIgdb from "./locales/ru/igdb.json";
+import ruImport from "./locales/ru/import.json";
+import ruMyGames from "./locales/ru/myGames.json";
+import ruNative from "./locales/ru/native.json";
+import ruNowPlaying from "./locales/ru/nowPlaying.json";
+import ruOverlays from "./locales/ru/overlays.json";
+import ruSettings from "./locales/ru/settings.json";
+import ruShell from "./locales/ru/shell.json";
+import ruSoftware from "./locales/ru/software.json";
+import ruTour from "./locales/ru/tour.json";
+import ruTracker from "./locales/ru/tracker.json";
+import plAchievements from "./locales/pl/achievements.json";
+import plCommon from "./locales/pl/common.json";
+import plDialogs from "./locales/pl/dialogs.json";
+import plDiscovered from "./locales/pl/discovered.json";
+import plEmulators from "./locales/pl/emulators.json";
+import plGames from "./locales/pl/games.json";
+import plHistory from "./locales/pl/history.json";
+import plIgdb from "./locales/pl/igdb.json";
+import plImport from "./locales/pl/import.json";
+import plMyGames from "./locales/pl/myGames.json";
+import plNative from "./locales/pl/native.json";
+import plNowPlaying from "./locales/pl/nowPlaying.json";
+import plOverlays from "./locales/pl/overlays.json";
+import plSettings from "./locales/pl/settings.json";
+import plShell from "./locales/pl/shell.json";
+import plSoftware from "./locales/pl/software.json";
+import plTour from "./locales/pl/tour.json";
+import plTracker from "./locales/pl/tracker.json";
+import frAchievements from "./locales/fr/achievements.json";
+import frCommon from "./locales/fr/common.json";
+import frDialogs from "./locales/fr/dialogs.json";
+import frDiscovered from "./locales/fr/discovered.json";
+import frEmulators from "./locales/fr/emulators.json";
+import frGames from "./locales/fr/games.json";
+import frHistory from "./locales/fr/history.json";
+import frIgdb from "./locales/fr/igdb.json";
+import frImport from "./locales/fr/import.json";
+import frMyGames from "./locales/fr/myGames.json";
+import frNative from "./locales/fr/native.json";
+import frNowPlaying from "./locales/fr/nowPlaying.json";
+import frOverlays from "./locales/fr/overlays.json";
+import frSettings from "./locales/fr/settings.json";
+import frShell from "./locales/fr/shell.json";
+import frSoftware from "./locales/fr/software.json";
+import frTour from "./locales/fr/tour.json";
+import frTracker from "./locales/fr/tracker.json";
 import {
   isAppLanguage,
   resolveLanguage,
@@ -122,6 +176,9 @@ export const LANGUAGE_NAMES: Record<AppLanguage, string> = {
   "pt-BR": "Português (Brasil)",
   "zh-CN": "中文（简体）",
   es: "Español",
+  fr: "Français",
+  pl: "Polski",
+  ru: "Русский",
 };
 
 const resources = {
@@ -224,6 +281,66 @@ const resources = {
     software: esSoftware,
     tour: esTour,
     tracker: esTracker,
+  },
+  ru: {
+    achievements: ruAchievements,
+    common: ruCommon,
+    dialogs: ruDialogs,
+    discovered: ruDiscovered,
+    emulators: ruEmulators,
+    games: ruGames,
+    history: ruHistory,
+    igdb: ruIgdb,
+    import: ruImport,
+    myGames: ruMyGames,
+    native: ruNative,
+    nowPlaying: ruNowPlaying,
+    overlays: ruOverlays,
+    settings: ruSettings,
+    shell: ruShell,
+    software: ruSoftware,
+    tour: ruTour,
+    tracker: ruTracker,
+  },
+  pl: {
+    achievements: plAchievements,
+    common: plCommon,
+    dialogs: plDialogs,
+    discovered: plDiscovered,
+    emulators: plEmulators,
+    games: plGames,
+    history: plHistory,
+    igdb: plIgdb,
+    import: plImport,
+    myGames: plMyGames,
+    native: plNative,
+    nowPlaying: plNowPlaying,
+    overlays: plOverlays,
+    settings: plSettings,
+    shell: plShell,
+    software: plSoftware,
+    tour: plTour,
+    tracker: plTracker,
+  },
+  fr: {
+    achievements: frAchievements,
+    common: frCommon,
+    dialogs: frDialogs,
+    discovered: frDiscovered,
+    emulators: frEmulators,
+    games: frGames,
+    history: frHistory,
+    igdb: frIgdb,
+    import: frImport,
+    myGames: frMyGames,
+    native: frNative,
+    nowPlaying: frNowPlaying,
+    overlays: frOverlays,
+    settings: frSettings,
+    shell: frShell,
+    software: frSoftware,
+    tour: frTour,
+    tracker: frTracker,
   },
 };
 
