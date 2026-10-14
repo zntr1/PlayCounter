@@ -406,6 +406,7 @@ type PendingRemoval = {
   gameId: number;
   source: GameSource | null;
   name: string;
+  sessionCount: number;
   aliases: GameAliasRef[];
   libraryImports: GameSummary["libraryImports"];
 } | null;
@@ -2036,6 +2037,7 @@ export function MyGamesView({
         gameId: game.gameId,
         source: game.source,
         name: game.name,
+        sessionCount: game.sessionCount,
         aliases: game.aliases,
         libraryImports: game.libraryImports,
       });
@@ -6875,12 +6877,17 @@ function StopTrackingDialog({
       icon={Ban}
       onClose={onCancel}
       footer={
-        <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
+        // One full-width row per button: the labels are long in some languages.
+        <div className="grid gap-2">
+          <Button variant="danger" onClick={() => onConfirm(true)}>
+            {game.sessionCount > 0
+              ? t("Ignore + delete {{count}} sessions", {
+                  count: game.sessionCount,
+                })
+              : t("Ignore + clear history")}
+          </Button>
           <Button variant="secondary" onClick={() => onConfirm(false)}>
             {t("Ignore game")}
-          </Button>
-          <Button variant="danger" onClick={() => onConfirm(true)}>
-            {t("Ignore + clear history")}
           </Button>
           <Button variant="ghost" onClick={onCancel} data-autofocus>
             {t("Cancel")}
@@ -6936,12 +6943,17 @@ function RemoveGameDialog({
       icon={Trash2}
       onClose={onCancel}
       footer={
-        <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:whitespace-nowrap">
+        // One full-width row per button: the labels are long in some languages.
+        <div className="grid gap-2">
+          <Button variant="danger" onClick={() => onConfirm(true)}>
+            {game.sessionCount > 0
+              ? t("Remove + delete {{count}} sessions", {
+                  count: game.sessionCount,
+                })
+              : t("Remove + clear history")}
+          </Button>
           <Button variant="secondary" onClick={() => onConfirm(false)}>
             {t("Remove")}
-          </Button>
-          <Button variant="danger" onClick={() => onConfirm(true)}>
-            {t("Remove + clear history")}
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             {t("Cancel")}
@@ -6956,7 +6968,7 @@ function RemoveGameDialog({
       </p>
       <p className="mt-2 text-sm leading-6 text-text-muted">
         {t(
-          "Your history, notes, playthroughs and shelves are kept and come back if the game is detected again. Use Remove + clear history to delete them.",
+          "Your history, notes, playthroughs and shelves are kept and come back if the game is detected again, unless you delete them here.",
         )}
       </p>
     </Modal>
