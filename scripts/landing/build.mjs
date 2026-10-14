@@ -348,7 +348,7 @@ function home() {
   const emulatorCards = site.emulators
     .map(
       (item) =>
-        `<article class="support-card"><div class="support-heading"><span class="provider-logo ${item.id}"><img src="${item.logo}" width="42" height="42" alt="" loading="lazy" /></span><div><h3>${item.name}</h3><span>${item.systems}</span></div></div><p>${item.detail}</p></article>`,
+        `<article class="support-card"><div class="support-heading"><span class="provider-logo ${item.id}">${item.logo ? `<img src="${item.logo}" width="42" height="42" alt="" loading="lazy" />` : `<span class="logo-initial" aria-hidden="true">${item.name[0]}</span>`}</span><div><h3>${item.name}</h3><span>${item.systems}</span></div></div><p>${item.detail}</p></article>`,
     )
     .join("");
   const selected = [
