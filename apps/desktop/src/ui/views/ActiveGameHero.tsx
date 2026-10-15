@@ -269,7 +269,7 @@ export function ActiveGameHero({
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <SessionPlaythroughPicker session={session} />
-            <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-border/70 bg-bg/40 px-3 text-sm text-text-muted backdrop-blur">
+            <span className="inline-flex h-9 items-center gap-2 px-1.5 text-sm text-text-muted">
               <Clock3 size={15} className="text-text-faint" />
               <Trans
                 t={t}

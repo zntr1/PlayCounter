@@ -24,7 +24,6 @@
   "SESSION SAVED": "SITZUNG GESPEICHERT",
   "Saved to {{playthroughName}}": "Gespeichert in {{playthroughName}}",
   "Added to your playtime.": "Zu deiner Spielzeit hinzugefügt.",
-  "Update note": "Notiz aktualisieren",
   "SESSION TIME": "SITZUNGSZEIT",
   "50 hours played": "50 Stunden gespielt",
   "50 HRS": "50 STD.",
@@ -33,5 +32,13 @@
   "Playthrough: {{name}}": "Durchgang: {{name}}",
   "{{count, number}} APPROVED": "{{count, number}} FREIGEGEBEN",
   "{{count, number}} DAYS": "{{count, number}} TAGE",
-  "{{count, number}} HRS": "{{count, number}} STD."
+  "{{count, number}} HRS": "{{count, number}} STD.",
+  "Session note": "Sitzungsnotiz",
+  "Playing now": "Läuft gerade",
+  "Session saved": "Sitzung gespeichert",
+  "What happened? Where did you stop?": "Was ist passiert? Wo hast du aufgehört?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter speichert · Umschalt+Enter für neue Zeile · Esc bricht ab",
+  "Save": "Speichern",
+  "Cancel": "Abbrechen",
+  "Add session note": "Sitzungsnotiz hinzufügen"
 }

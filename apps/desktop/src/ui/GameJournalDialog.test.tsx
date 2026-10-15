@@ -94,8 +94,7 @@ it("hides shelf controls while keeping progress, favorites, and shelf membership
       </>,
     ),
   );
-  expect(container.textContent).not.toContain("Shelves & status");
-  await click("Progress status");
+  await click("Journal");
   expect(
     document.querySelector('[aria-label="Remove Campaign from Weekend"]'),
   ).toBeNull();
@@ -286,4 +285,133 @@ it("changes a recorded session's assignment without changing the next-session de
   expect(getGameJournal(useAppStore.getState(), game).activePlaythroughId).toBe(
     second,
   );
+});
+
+it("keeps a log of session notes for running and recorded sessions", async () => {
+  const session = {
+    ...game,
+    id: 9,
+    exeName: "game.exe",
+    startedAt: "2026-09-13T10:00:00Z",
+    endedAt: "2026-09-13T11:00:00Z",
+    durationSeconds: 3600,
+  };
+  const running: ActiveSession = {
+    ...game,
+    id: 10,
+    coverUrl: "",
+    exeName: "game.exe",
+    startedAt: new Date().toISOString(),
+    checkpointedAt: new Date().toISOString(),
+  };
+  useAppStore.setState({
+    recentSessions: [session],
+    activeSessions: [running],
+  });
+  useAppStore
+    .getState()
+    .openGameJournal({ game, tab: "playthroughs", playthroughId: null });
+  await act(() => root.render(<GameJournalHost />));
+  const labelled = (label: string) => [
+    ...document.querySelectorAll<HTMLButtonElement>(`[aria-label="${label}"]`),
+  ];
+  const editor = () =>
+    document.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Session note"]',
+    );
+  const press = (key: string) =>
+    act(() =>
+      editor()!.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true }),
+      ),
+    );
+  expect(labelled("Add session note")).toHaveLength(2);
+
+  // The recorded session: Enter saves the trimmed text.
+  await act(() => labelled("Add session note")[1].click());
+  expect(document.activeElement).toBe(editor());
+  await type(editor()!, "  Beat the bridge boss  ");
+  await press("Enter");
+  expect(editor()).toBeNull();
+  expect(useAppStore.getState().recentSessions[0].note).toBe(
+    "Beat the bridge boss",
+  );
+  expect(document.body.textContent).toContain("Beat the bridge boss");
+
+  // Escape throws the change away and keeps the journal open.
+  await act(() => labelled("Edit session note")[0].click());
+  await type(editor()!, "Something else");
+  await press("Escape");
+  expect(editor()).toBeNull();
+  expect(useAppStore.getState().recentSessions[0].note).toBe(
+    "Beat the bridge boss",
+  );
+  expect(useAppStore.getState().journalTarget).not.toBeNull();
+
+  // The running session keeps its note until it ends.
+  await act(() => labelled("Add session note")[0].click());
+  await type(editor()!, "Halfway through chapter 3");
+  await press("Enter");
+  expect(useAppStore.getState().activeSessions[0].note).toBe(
+    "Halfway through chapter 3",
+  );
+
+  // An empty note removes it.
+  await act(() => labelled("Edit session note")[1].click());
+  await type(editor()!, "   ");
+  await press("Enter");
+  expect(useAppStore.getState().recentSessions[0]).toEqual(session);
+  expect("note" in useAppStore.getState().recentSessions[0]).toBe(false);
+});
+
+it("caps session notes and refuses sessions that are gone", () => {
+  const session = {
+    ...game,
+    id: 9,
+    exeName: "game.exe",
+    startedAt: "2026-09-13T10:00:00Z",
+    endedAt: "2026-09-13T11:00:00Z",
+    durationSeconds: 3600,
+  };
+  useAppStore.setState({ recentSessions: [session] });
+  expect(useAppStore.getState().setSessionNote(9, "a".repeat(1500))).toBe(true);
+  expect(useAppStore.getState().recentSessions[0].note).toHaveLength(1000);
+  expect(useAppStore.getState().setSessionNote(99, "Lost")).toBe(false);
+});
+
+it("offers the playthrough menu in Now Playing even before a game has playthroughs", async () => {
+  const fresh = { gameId: -3, source: "custom" as const, gameName: "Fresh" };
+  const running: ActiveSession = {
+    ...fresh,
+    id: 11,
+    coverUrl: "",
+    exeName: "fresh.exe",
+    startedAt: new Date().toISOString(),
+    checkpointedAt: new Date().toISOString(),
+  };
+  useAppStore.setState({ activeSessions: [running] });
+  await act(() =>
+    root.render(
+      <>
+        <SessionPlaythroughPicker session={running} />
+        <GameJournalHost />
+      </>,
+    ),
+  );
+  await clickLabel("Playthrough for session 11");
+  const items = [...document.querySelectorAll('[role^="menuitem"]')].map(
+    (item) => item.textContent?.trim(),
+  );
+  expect(items).toEqual(["Default playthrough", "Add playthrough"]);
+
+  // Add playthrough opens the journal with its form ready.
+  await click("Add playthrough");
+  expect(useAppStore.getState().journalTarget).toMatchObject({
+    game: { gameId: -3 },
+    tab: "playthroughs",
+    create: true,
+  });
+  expect(
+    document.querySelector('[aria-label="New playthrough name"]'),
+  ).not.toBeNull();
 });

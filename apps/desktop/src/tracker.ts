@@ -3,6 +3,7 @@ import { requestJsonResponse, requestWithTimeout } from "./requestJson";
 import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
+import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
 import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
@@ -430,6 +431,19 @@ const communitySuggestionCancelGuard = new Map<
 let lastEmulatorRunningKeys = new Set<string>();
 const launchInFlight = new Map<string, number>();
 const emulatorLaunchInFlight = new Map<string, number>();
+// A file explicitly picked in Start game belongs to the process we spawned.
+// Keep it only until that process first identifies its content, not until a
+// database match arrives (the player may switch games while choosing a match).
+const pendingEmulatorLaunchFiles = new Map<
+  number,
+  {
+    emulatorId: string;
+    filePath: string;
+    launchedAt: number;
+    returnedAt: number;
+    processStartedAt?: number;
+  }
+>();
 let launchVerificationInFlight: Promise<number> | undefined;
 let lastLaunchVerificationAt = 0;
 const LAUNCH_REENTRY_GUARD_MS = 3_000;
@@ -477,6 +491,7 @@ export async function initializeTracker() {
   initializeAutomaticBackups();
   initializeDesktopOverlays();
   initializeHotkeys();
+  initializeQuickNotes();
   initializeControllerBridge();
   syncTrayNowPlaying();
   scheduleTraySync();
@@ -522,6 +537,7 @@ export async function stopTrackerForReset() {
   unsubscribeTraySync?.();
   disposeDesktopOverlays();
   disposeHotkeys();
+  disposeQuickNotes();
   disposeControllerBridge();
   await scanInFlight;
 }
@@ -590,11 +606,13 @@ async function finishTrackerStartup() {
     lastEmulatorRunningKeys.clear();
     launchInFlight.clear();
     emulatorLaunchInFlight.clear();
+    pendingEmulatorLaunchFiles.clear();
     launchVerificationInFlight = undefined;
     installPresencePingInFlight = undefined;
     lastLaunchVerificationAt = 0;
     disposeDesktopOverlays();
     disposeHotkeys();
+    disposeQuickNotes();
     disposeAutomaticBackups();
     disposeControllerBridge();
     initialized = false;
@@ -1981,6 +1999,7 @@ function isEmulatorLaunchGuarded(emulatorId: string) {
 
 export function resetEmulatorLaunchGuardForTests() {
   emulatorLaunchInFlight.clear();
+  pendingEmulatorLaunchFiles.clear();
 }
 
 async function dispatchEmulatorLaunch(
@@ -2103,11 +2122,25 @@ export async function startEmulatorGame(
     );
   }
 
-  return dispatchEmulatorLaunch(emulatorId, {
+  const launchedAt = Date.now();
+  const outcome = await dispatchEmulatorLaunch(emulatorId, {
     emulatorId,
     exePath: binary.exePath,
     contentPath: selected,
   });
+  if (
+    outcome.kind === "spawned" &&
+    outcome.pid !== undefined &&
+    useAppStore.getState().settings.rememberLaunchPaths !== false
+  ) {
+    pendingEmulatorLaunchFiles.set(outcome.pid, {
+      emulatorId,
+      filePath: selected,
+      launchedAt,
+      returnedAt: Date.now(),
+    });
+  }
+  return outcome;
 }
 
 async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
@@ -2386,6 +2419,7 @@ function isIgnoredProcess(
 }
 
 function disableEmulatorDetectionForScan(): ProcessMatch[] {
+  pendingEmulatorLaunchFiles.clear();
   if (
     useAppStore.getState().emulatorObservations.length > 0 ||
     emulatorRuntime.size > 0
@@ -2529,6 +2563,69 @@ function readEmulatorSignals(
   });
 }
 
+function rememberStartedEmulatorFiles(hosts: ProcessSnapshot[], now: number) {
+  const state = useAppStore.getState();
+  if (state.settings.rememberLaunchPaths === false) {
+    pendingEmulatorLaunchFiles.clear();
+    return;
+  }
+  for (const [pid, pending] of pendingEmulatorLaunchFiles) {
+    const host = hosts.find(
+      (process) =>
+        process.pid === pid && process.emulatorId === pending.emulatorId,
+    );
+    // Do not associate a recycled PID or a later game with an old launch.
+    if (
+      now - pending.returnedAt > 120_000 ||
+      (!host && pending.processStartedAt !== undefined)
+    ) {
+      pendingEmulatorLaunchFiles.delete(pid);
+      continue;
+    }
+    if (!host) continue;
+    const startedAt = host.startedAtUnix;
+    if (
+      !startedAt ||
+      startedAt < Math.floor(pending.launchedAt / 1000) ||
+      startedAt > Math.floor(pending.returnedAt / 1000) ||
+      (pending.processStartedAt !== undefined &&
+        pending.processStartedAt !== startedAt)
+    ) {
+      pendingEmulatorLaunchFiles.delete(pid);
+      continue;
+    }
+    pending.processStartedAt = startedAt;
+    const signals = rawEmulatorSignals(host);
+    const reading =
+      signals &&
+      adapterFor(pending.emulatorId)?.read(signals, {
+        denylist: GENERIC_IDENTITY_DENYLIST,
+        privateTokens: [emulatorPrivacy.userName, emulatorPrivacy.homeDirName],
+      });
+    if (!reading || reading.state !== "content") continue;
+    pendingEmulatorLaunchFiles.delete(pid);
+    const key = contentKey({
+      emulatorId: pending.emulatorId,
+      contentKind: reading.content.kind,
+      contentValue: reading.content.value,
+    });
+    state.setEmulatorManualLaunchTarget({
+      contentKey: key,
+      emulatorId: pending.emulatorId,
+      filePath: pending.filePath,
+      setAt: new Date(now).toISOString(),
+    });
+    state.setEmulatorLaunchCandidates(
+      [...useAppStore.getState().emulatorLaunchCandidates.values()].filter(
+        (candidate) => candidate.contentKey !== key,
+      ),
+    );
+    logRuntime(
+      `selected emulator launch target saved emulator=${pending.emulatorId} contentKey=${key}`,
+    );
+  }
+}
+
 async function learnEmulatorContentTargets(
   hosts: ProcessSnapshot[],
   nowIso: string,
@@ -2644,6 +2741,7 @@ async function applyEmulatorReadings(
   const state = useAppStore.getState();
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
+  rememberStartedEmulatorFiles(hosts, now);
   for (const host of hosts) {
     const adapter = adapterFor(host.emulatorId);
     if (!adapter || !host.emulatorId) continue;
@@ -6543,6 +6641,7 @@ async function endSession(
     endedAt,
     durationSeconds,
     emulator: session.emulator,
+    note: session.note,
   });
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
@@ -8398,6 +8497,7 @@ export function clearFakeHistory() {
 // processes. Active sessions are intentionally discarded instead of being
 // finalized so a reset cannot immediately recreate cards through History.
 export function clearLocalLibrary() {
+  pendingEmulatorLaunchFiles.clear();
   const state = useAppStore.getState();
   const cleared = {
     matches: state.exeCache.size,
@@ -8921,7 +9021,11 @@ function updateActiveSession(session: ActiveSession) {
   const key = sessionIdentityKey(session);
   useAppStore.setState((state) => ({
     activeSessions: state.activeSessions.map((active) =>
-      sessionIdentityKey(active) === key ? session : active,
+      // The caller's copy can predate a note written meanwhile; the tracker
+      // never changes notes itself.
+      sessionIdentityKey(active) === key
+        ? { ...session, note: active.note }
+        : active,
     ),
   }));
 }

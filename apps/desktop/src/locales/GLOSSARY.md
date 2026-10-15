@@ -198,3 +198,95 @@ the complete translations still need native-speaker review.
 | controller          | controle                      | mando                          | 手柄             |
 | launcher            | launcher                      | lanzador                       | 启动器           |
 | Report wrong match  | Informar associação incorreta | Informar asociación incorrecta | 报告错误匹配     |
+
+## Русский, Polski, Français — translation drafts
+
+Same English source and area files. Written 2026-10-14; they still need
+native-speaker review (Weblate).
+
+**Style**
+
+- Russian (`ru`): address the player as **вы**, lowercase. Guillemets «…» for
+  page and button names. Durations use Russian units: 12 ч 3 мин, 3 д 4 ч.
+- Polish (`pl`): address the player as **ty**, lowercase. Never use gendered
+  past-tense forms for the player (zrobiłeś/zrobiłaś): rephrase with present
+  tense, an impersonal form or a noun. Quotes „…” for button and setting names;
+  page names stay unquoted, like in Spanish. Durations: 12 h 3 min, 3 d 4 h.
+- French (`fr`): address the player as **vous**. Avoid past participles that
+  agree with the player (prêt, connecté, arrêté): rephrase. Guillemets « … »,
+  with a no-break space before : ; ! ? and inside « ».
+  Durations: 12 h 3 min, 3 j 4 h.
+- Plurals: Russian and Polish need `one`, `few`, `many` and `other`; `other`
+  covers fractions and uses the `few` (ru) or `many` (pl) wording. French has
+  `one`, `many` and `other`; `many` uses the same wording as `other`.
+- A count without plural keys becomes a label: "Найдено новых приложений: 3",
+  "Znalezione nowe aplikacje: 3".
+- A stand-in that fills a {{placeholder}} is written in the case its sentences
+  need: ru "this game" = этой игре (dative/prepositional), pl = tej gry
+  (genitive), fr = ce jeu.
+- Sample names stay as in English (World of Warcraft, Zelda, Speedrun); the
+  sample note uses the official place names (ru Западный Край, Штормград;
+  fr Marche de l'Ouest, Hurlevent; pl stays English, like Polish WoW).
+- Tauri has no Polish installer texts, so `src-tauri/nsis/Polish.nsh` holds
+  them (`customLanguageFiles` in tauri.conf.json).
+
+| English              | Русский                           | Polski                        | Français                          |
+| -------------------- | --------------------------------- | ----------------------------- | --------------------------------- |
+| Now Playing          | Сейчас в игре                     | Teraz grasz                   | En jeu                            |
+| Now Emulating        | Сейчас в эмуляторе                | Teraz emulujesz               | En émulation                      |
+| My Games             | Мои игры                          | Moje gry                      | Mes jeux                          |
+| My History           | Моя история                       | Moja historia                 | Mon historique                    |
+| Library              | Библиотека                        | Biblioteka                    | Bibliothèque                      |
+| Discover             | Обзор                             | Odkrywaj                      | Découvrir                         |
+| Discovered           | Обнаруженные                      | Wykryte                       | Détectés                          |
+| Software             | Программы                         | Oprogramowanie                | Logiciels                         |
+| Achievements         | Достижения                        | Osiągnięcia                   | Succès                            |
+| Settings             | Настройки                         | Ustawienia                    | Paramètres                        |
+| Help & Feedback      | Помощь и отзывы                   | Pomoc i opinie                | Aide et commentaires              |
+| Import library       | Импорт библиотеки                 | Importuj bibliotekę           | Importer la bibliothèque          |
+| game                 | игра                              | gra                           | jeu                               |
+| playtime             | время в игре                      | czas gry                      | temps de jeu                      |
+| session              | сессия                            | sesja                         | session                           |
+| playthrough          | прохождение                       | przejście                     | partie                            |
+| Default playthrough  | Прохождение по умолчанию          | Domyślne przejście            | Partie par défaut                 |
+| journal              | дневник                           | dziennik                      | journal                           |
+| track, tracking      | учитывать, учёт                   | śledzić, śledzenie            | suivre, suivi                     |
+| detect               | обнаруживать                      | wykrywać                      | détecter                          |
+| Play                 | Играть                            | Graj                          | Jouer                             |
+| streak               | серия                             | seria                         | série                             |
+| Insights             | Статистика                        | Statystyki                    | Statistiques                      |
+| shelf                | полка                             | półka                         | étagère                           |
+| Favorites            | Избранное                         | Ulubione                      | Favoris                           |
+| card                 | карточка                          | kafelek                       | vignette                          |
+| cover, banner        | обложка, баннер                   | okładka, baner                | jaquette, bannière                |
+| badge                | значок                            | odznaka                       | badge                             |
+| In progress          | В процессе                        | W trakcie                     | En cours                          |
+| On hold              | Отложено                          | Wstrzymane                    | En pause                          |
+| Finished             | Пройдено                          | Ukończone                     | Terminé                           |
+| Want to play         | Хочу поиграть                     | Chcę zagrać                   | Envie d'y jouer                   |
+| Custom game          | своя игра                         | własna gra                    | jeu personnalisé                  |
+| Level up             | Улучшить                          | Ulepsz                        | Améliorer                         |
+| launcher             | лаунчер                           | launcher                      | launcher                          |
+| app                  | приложение                        | aplikacja                     | application                       |
+| launch file          | файл запуска                      | plik uruchomieniowy           | fichier de lancement              |
+| executable           | исполняемый файл                  | plik wykonywalny              | exécutable                        |
+| match (search hit)   | совпадение                        | dopasowanie                   | correspondance                    |
+| match (file-to-game) | привязка                          | powiązanie                    | association                       |
+| Report wrong match   | Пожаловаться на неверную привязку | Zgłoś błędne powiązanie       | Signaler une mauvaise association |
+| ignore               | игнорировать                      | ignorować                     | ignorer                           |
+| watched folders      | отслеживаемые папки               | obserwowane foldery           | dossiers surveillés               |
+| community            | сообщество                        | społeczność                   | communauté                        |
+| suggest, suggestion  | предложить, предложение           | zaproponować, propozycja      | suggérer, suggestion              |
+| review               | проверка                          | weryfikacja                   | vérification                      |
+| trophy               | трофей                            | trofeum                       | trophée                           |
+| milestone            | рубеж                             | kamień milowy                 | palier                            |
+| Game ladders         | Уровни игр                        | Poziomy gier                  | Échelons par jeu                  |
+| Bronze … Legendary   | Бронза … Легенда                  | Brąz … Legenda                | Bronze … Légendaire               |
+| tray                 | трей                              | zasobnik systemowy            | zone de notification              |
+| desktop popup        | всплывающее окно                  | wyskakujące okienko           | fenêtre contextuelle              |
+| keyboard shortcut    | сочетание клавиш                  | skrót klawiszowy              | raccourci clavier                 |
+| backup               | резервная копия                   | kopia zapasowa                | sauvegarde                        |
+| guide, Quick tour    | руководство, Краткий тур          | przewodnik, Krótki przewodnik | guide, Visite rapide              |
+| What's new           | Что нового                        | Co nowego                     | Nouveautés                        |
+| controller           | геймпад                           | kontroler                     | manette                           |
+| sample               | пример                            | przykład                      | exemple                           |

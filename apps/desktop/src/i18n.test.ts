@@ -21,6 +21,10 @@ describe("language selection", () => {
     ["zh-Hans", "zh-CN"],
     ["zh-Hans-TW", "zh-CN"],
     ["zh", "zh-CN"],
+    ["fr-FR", "fr"],
+    ["fr-CA", "fr"],
+    ["pl-PL", "pl"],
+    ["ru-RU", "ru"],
   ])("resolves system locale %s to %s", (locale, language) => {
     expect(resolveLanguage("system", [locale])).toBe(language);
   });
@@ -51,6 +55,9 @@ describe("registered translations", () => {
     ["pt-BR", "Meus jogos"],
     ["zh-CN", "我的游戏"],
     ["es", "Mis juegos"],
+    ["fr", "Mes jeux"],
+    ["pl", "Moje gry"],
+    ["ru", "Мои игры"],
   ] as const)("switches the app to %s", (language, label) => {
     applyLanguage(language);
     expect(appLanguage()).toBe(language);
@@ -90,5 +97,18 @@ describe("registered translations", () => {
       }),
     ).toContain("test error");
     expect(appLocale()).toBe("zh-CN");
+  });
+
+  it.each([
+    ["ru", ["1 сессия", "2 сессии", "5 сессий", "21 сессия", "1000000 сессий"]],
+    ["pl", ["1 sesja", "2 sesje", "5 sesji", "21 sesji", "1000000 sesji"]],
+  ] as const)("uses the %s one, few and many forms", (language, expected) => {
+    applyLanguage(language);
+    const t = getT("common");
+    expect(
+      [1, 2, 5, 21, 1_000_000].map((count) =>
+        t("{{count}} sessions", { count }),
+      ),
+    ).toEqual(expected);
   });
 });

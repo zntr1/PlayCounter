@@ -186,9 +186,6 @@
   "Create shelf and add this game": "Crear estante y añadir este juego",
   "My library": "Mi biblioteca",
   "Remove from Favorites": "Quitar de Favoritos",
-  "Edit note": "Editar nota",
-  "Add note": "Añadir nota",
-  "Shelves & status": "Estantes y estado",
   "Read note": "Leer nota",
   "Suggest": "Sugerir",
   "You're offline. Reconnect to suggest it.": "No tienes conexión. Vuelve a conectarte para sugerirlo.",
@@ -247,5 +244,8 @@
   "{{count}} available": "{{count}} disponibles",
   "Status: {{status}}": "Estado: {{status}}",
   "{{duration}} tracked": "{{duration}} registrados",
-  "Started {{date}}": "Iniciada el {{date}}"
+  "Started {{date}}": "Iniciada el {{date}}",
+  "Session note": "Nota de la sesión",
+  "Add session note": "Añadir nota de la sesión",
+  "Edit session note": "Editar nota de la sesión"
 }

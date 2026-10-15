@@ -292,14 +292,17 @@ pub fn launch_app(external_id: &str, mode: &str) -> Result<(), LaunchError> {
     }
 }
 
+/// The same rule the server applies to Steam ids. Steam sometimes stores an
+/// app "0" in localconfig.vdf; sending it fails the whole library lookup.
+fn valid_app_id(value: &str) -> bool {
+    !value.is_empty()
+        && !value.starts_with('0')
+        && value.len() <= 10
+        && value.chars().all(|character| character.is_ascii_digit())
+}
+
 fn steam_url(external_id: &str, mode: &str) -> Result<String, LaunchError> {
-    if external_id.is_empty()
-        || external_id.starts_with('0')
-        || external_id.len() > 10
-        || !external_id
-            .chars()
-            .all(|character| character.is_ascii_digit())
-    {
+    if !valid_app_id(external_id) {
         return Err(LaunchError::new(
             LaunchErrorKind::InvalidPath,
             "Invalid Steam AppID.",
@@ -434,7 +437,7 @@ fn read_playtimes(root: &Path, account_id: u32) -> Result<BTreeMap<String, Local
     let apps = vdf::object(steam, "apps").ok_or("Steam localconfig has no apps section.")?;
     let mut result = BTreeMap::new();
     for (app_id, value) in apps {
-        if !app_id.chars().all(|character| character.is_ascii_digit()) {
+        if !valid_app_id(app_id) {
             continue;
         }
         let vdf::Value::Object(app) = value else {
@@ -484,6 +487,7 @@ fn read_manifest_index(
             let Some(app_id) = file_name
                 .strip_prefix("appmanifest_")
                 .and_then(|value| value.strip_suffix(".acf"))
+                .filter(|value| valid_app_id(value))
             else {
                 continue;
             };
@@ -701,6 +705,35 @@ mod tests {
                 .map(|app| app.external_id.as_str())
                 .collect::<Vec<_>>(),
             ["440", "730"]
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn skips_app_ids_the_server_would_reject() {
+        let root = steam_root_with_manifest("730", "4", true);
+        add_manifest(&root, "0", "Broken Entry", "Broken Entry");
+        let config = root.join("userdata").join("7").join("config");
+        fs::create_dir_all(&config).unwrap();
+        fs::write(
+            config.join("localconfig.vdf"),
+            "\"UserLocalConfigStore\"\n{\n\"Software\"\n{\n\"Valve\"\n{\n\"Steam\"\n{\n\"apps\"\n{\n\"0\"\n{\n\"Playtime\"\t\"5\"\n}\n\"0440\"\n{\n\"Playtime\"\t\"5\"\n}\n\"440\"\n{\n\"Playtime\"\t\"5\"\n}\n}\n}\n}\n}\n}\n",
+        )
+        .unwrap();
+
+        let result = scan_root(&root, 7, None).unwrap();
+        let ids = result
+            .games
+            .iter()
+            .map(|game| game.external_id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(ids, ["440", "730"]);
+        let apps = Installs::read_from(&root).installed_games();
+        assert_eq!(
+            apps.iter()
+                .map(|app| app.external_id.as_str())
+                .collect::<Vec<_>>(),
+            ["730"]
         );
         let _ = fs::remove_dir_all(root);
     }

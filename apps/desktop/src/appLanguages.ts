@@ -2,7 +2,16 @@
    imports: the startup screen needs it before the app has loaded. */
 
 /** Languages PlayCounter has texts for. */
-export const APP_LANGUAGES = ["en", "de", "pt-BR", "zh-CN", "es"] as const;
+export const APP_LANGUAGES = [
+  "en",
+  "de",
+  "pt-BR",
+  "zh-CN",
+  "es",
+  "fr",
+  "pl",
+  "ru",
+] as const;
 export type AppLanguage = (typeof APP_LANGUAGES)[number];
 
 export function isAppLanguage(value: unknown): value is AppLanguage {

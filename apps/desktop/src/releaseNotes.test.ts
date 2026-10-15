@@ -87,7 +87,7 @@ describe("release note catalog", () => {
         highlights: ["One"],
         translations: {
           de: { headline: "Deutsch\u0007", highlights: ["Eins"] },
-          fr: { headline: "Francais", highlights: ["Un"] },
+          it: { headline: "Italiano", highlights: ["Uno"] },
           en: { headline: "Not English", highlights: [] },
         },
       },
@@ -139,7 +139,7 @@ describe("updater manifest notes", () => {
   it("uses the update's notes in the app's language, else English", () => {
     const translatedNotes = sanitizeTranslatedNotes({
       de: "Neu\n• Eins",
-      fr: "Nouveau\n• Un",
+      it: "Nuovo\n• Uno",
       en: "Not English",
     });
 

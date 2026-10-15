@@ -147,6 +147,7 @@ const session = object(
     origin: oneOf("manual"),
     emulator: emulatorContext,
     playthroughId: nonempty,
+    note: string,
   },
 );
 const exeEntry = object(
@@ -307,6 +308,7 @@ const featuredGame = object(
 const settings = object({}, {
   showWindowHotkey: nullable(string),
   currentSessionHotkey: nullable(string),
+  quickNoteHotkey: nullable(string),
   launchOnStartup: boolean,
   startView: oneOf("now", "games"),
   language: string,

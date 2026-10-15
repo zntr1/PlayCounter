@@ -3,6 +3,7 @@ import { getGameJournal, personalGameIdentity, type AppState } from "./store";
 import {
   NAME_LIMIT,
   NOTE_LIMIT,
+  SESSION_NOTE_LIMIT,
   addJournalGamesToShelf,
   normalizeLibraryFilters,
   updateJournalStatuses,
@@ -21,6 +22,7 @@ export type PersonalLibraryActions = Pick<
   | "setActivePlaythrough"
   | "deletePlaythrough"
   | "assignSessionPlaythrough"
+  | "setSessionNote"
   | "savePersonalShelf"
   | "deletePersonalShelf"
 >;
@@ -280,6 +282,32 @@ export function createPersonalLibraryActions(
         recentSessions,
       });
       persistSoon();
+      return true;
+    },
+    setSessionNote: (sessionId, note) => {
+      const state = get();
+      const text = note.slice(0, SESSION_NOTE_LIMIT).trim() || undefined;
+      const write = <T extends { id: number; note?: string }>(
+        sessions: T[],
+      ): T[] =>
+        sessions.map((s) => {
+          if (s.id !== sessionId || s.note === text) return s;
+          const { note: _note, ...rest } = s;
+          return (text ? { ...rest, note: text } : rest) as T;
+        });
+      const found = [...state.activeSessions, ...state.recentSessions].some(
+        (s) => s.id === sessionId,
+      );
+      if (!found) return false;
+      const activeSessions = write(state.activeSessions);
+      const recentSessions = write(state.recentSessions);
+      if (
+        activeSessions.some((s, i) => s !== state.activeSessions[i]) ||
+        recentSessions.some((s, i) => s !== state.recentSessions[i])
+      ) {
+        set({ activeSessions, recentSessions });
+        persistSoon();
+      }
       return true;
     },
     savePersonalShelf: (shelf) => {

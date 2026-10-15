@@ -1,20 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import i18next from "i18next";
 import {
   disposeHotkeys,
+  formatHotkey,
   initializeHotkeys,
   saveHotkey,
   shortcutFromKey,
   useHotkeyStatus,
 } from "./hotkeys";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
+import { openQuickNoteForCurrentSession } from "./quickNote";
 import { useAppStore } from "./store";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 vi.mock("./desktopOverlayBridge", () => ({
   showCurrentSessionOverlay: vi.fn(),
+}));
+vi.mock("./quickNote", () => ({
+  openQuickNoteForCurrentSession: vi.fn(),
 }));
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
@@ -34,6 +40,7 @@ beforeEach(() => {
       ...state.settings,
       showWindowHotkey: null,
       currentSessionHotkey: null,
+      quickNoteHotkey: null,
     },
   }));
 });
@@ -50,21 +57,35 @@ describe("global hotkeys", () => {
         ...state.settings,
         showWindowHotkey: "Control+KeyP",
         currentSessionHotkey: "Alt+F8",
+        quickNoteHotkey: "Alt+F9",
       },
     }));
     initializeHotkeys();
     initializeHotkeys();
     await flush();
-    expect(listenMock).toHaveBeenCalledTimes(1);
+    expect(listenMock.mock.calls.map(([event]) => event)).toEqual([
+      "playcounter:current-session-hotkey",
+      "playcounter:quick-note-hotkey",
+    ]);
     expect(invokeMock.mock.calls).toEqual([
       [
         "set_global_hotkey",
         { action: "show-window", shortcut: "Control+KeyP" },
       ],
       ["set_global_hotkey", { action: "current-session", shortcut: "Alt+F8" }],
+      ["set_global_hotkey", { action: "quick-note", shortcut: "Alt+F9" }],
     ]);
     listenMock.mock.calls[0][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
+    expect(openQuickNoteForCurrentSession).not.toHaveBeenCalled();
+    vi.mocked(openQuickNoteForCurrentSession).mockReturnValueOnce(true);
+    listenMock.mock.calls[1][1]({ payload: null } as never);
+    expect(openQuickNoteForCurrentSession).toHaveBeenCalledOnce();
+    expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
+    // Nothing running: the session popup says so instead.
+    vi.mocked(openQuickNoteForCurrentSession).mockReturnValueOnce(false);
+    listenMock.mock.calls[1][1]({ payload: null } as never);
+    expect(showCurrentSessionOverlay).toHaveBeenCalledTimes(2);
   });
 
   it("keeps saved settings when registration fails and can clear the binding", async () => {
@@ -95,7 +116,7 @@ describe("global hotkeys", () => {
     invokeMock.mockRejectedValueOnce("In use");
     initializeHotkeys();
     await flush();
-    expect(invokeMock).toHaveBeenLastCalledWith("set_global_hotkey", {
+    expect(invokeMock).toHaveBeenCalledWith("set_global_hotkey", {
       action: "current-session",
       shortcut: "Alt+F8",
     });
@@ -119,6 +140,7 @@ describe("global hotkeys", () => {
     expect(invokeMock.mock.calls).toEqual([
       ["set_global_hotkey", { action: "show-window", shortcut: null }],
       ["set_global_hotkey", { action: "current-session", shortcut: null }],
+      ["set_global_hotkey", { action: "quick-note", shortcut: null }],
     ]);
   });
 });
@@ -159,5 +181,16 @@ describe("shortcut recorder", () => {
     expect(
       shortcutFromKey({ ...key, code: "KeyY", key: "z", ctrlKey: true }),
     ).toBe("Control+KeyZ");
+  });
+  it("records the same shortcut in every language and only translates the label", async () => {
+    await i18next.changeLanguage("de");
+    try {
+      expect(shortcutFromKey({ ...key, ctrlKey: true, shiftKey: true })).toBe(
+        "Control+Shift+KeyP",
+      );
+      expect(formatHotkey("Control+Shift+KeyP")).toBe("Strg+Umschalt+P");
+    } finally {
+      await i18next.changeLanguage("en");
+    }
   });
 });

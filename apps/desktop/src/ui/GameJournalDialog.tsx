@@ -11,12 +11,13 @@ import {
   Flag,
   Gamepad2,
   Info,
+  NotebookPen,
   Plus,
   Star,
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   defaultPlaythroughName,
   gameStatusLabel,
@@ -39,6 +40,7 @@ import {
   ContextMenu,
   ContextMenuHeading,
   ContextMenuItem,
+  ContextMenuSeparator,
   IconButton,
   Input,
   Modal,
@@ -48,6 +50,7 @@ import {
 import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import { formatDuration } from "./components";
 import { GameCover } from "./GameCover";
+import { SessionNote } from "./SessionNote";
 import { useGameJournal } from "./useGameJournal";
 import type { Session } from "@playcounter/shared";
 import { gameSecondsRefFromKey } from "../gameSeconds";
@@ -88,23 +91,14 @@ export function SessionPlaythroughPicker({
   const menu = useAnchoredMenu();
   const current = session.playthroughId ?? null;
 
-  if (!journal.playthroughs.length) {
+  // A row in a list stays quiet until the game has playthroughs to choose
+  // from; Now Playing always offers the menu.
+  if (compact && !journal.playthroughs.length) {
     if (!showDefault) return null;
-    return compact ? (
+    return (
       <span className="text-xs text-text-muted">
         {defaultPlaythroughName()}
       </span>
-    ) : (
-      <Button
-        variant="ghost"
-        icon={BookOpen}
-        onClick={(event) => {
-          event.stopPropagation();
-          open({ game: session, tab: "playthroughs", playthroughId: null });
-        }}
-      >
-        {defaultPlaythroughName()}
-      </Button>
     );
   }
 
@@ -120,7 +114,8 @@ export function SessionPlaythroughPicker({
         className={
           compact
             ? "max-w-[220px] border-transparent bg-surface-hover !px-2 !py-0.5 !text-[12px]"
-            : "max-w-[260px] !py-1"
+            : // Same look as the Journal button next to it in Now Playing.
+              "h-9 max-w-[260px] !gap-2 !rounded-lg !border-border/70 !bg-bg/40 !px-3 !text-sm !text-text backdrop-blur hover:!border-accent/40 hover:!bg-surface-hover"
         }
         onClick={(event) => {
           event.stopPropagation();
@@ -164,6 +159,21 @@ export function SessionPlaythroughPicker({
             {p.completedAt ? ` · ${t("Finished")}` : ""}
           </ContextMenuItem>
         ))}
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          icon={Plus}
+          onClick={() => {
+            menu.close();
+            open({
+              game: session,
+              tab: "playthroughs",
+              playthroughId: current,
+              create: true,
+            });
+          }}
+        >
+          {t("Add playthrough")}
+        </ContextMenuItem>
       </ContextMenu>
     </>
   );
@@ -195,15 +205,16 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
   const storedNote = playthrough?.note ?? journal.note;
   const [draft, setDraft] = useState(storedNote);
   const [name, setName] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(target.create === true);
   const [deleting, setDeleting] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [shownTarget, setShownTarget] = useState(target);
   if (shownTarget !== target) {
     // Same reset a fresh dialog would get, without remounting it.
     setShownTarget(target);
     setSelected(targetSelection);
     setName("");
-    setAdding(false);
+    setAdding(target.create === true);
     setDeleting(false);
   }
   const sessions = usePersonalLibraryState((s) => s.recentSessions);
@@ -772,55 +783,48 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
                       <th className={`px-3 py-2 font-semibold ${eyebrowClass}`}>
                         {t("Playthrough")}
                       </th>
+                      <th className="w-12">
+                        <span className="sr-only">{t("Session note")}</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {runningSelected.map((s) => (
-                      <tr key={`live-${s.id}`}>
-                        <td className="whitespace-nowrap px-3 py-2">
+                      <JournalSessionRows
+                        key={`live-${s.id}`}
+                        session={s}
+                        editingNote={editingNoteId === s.id}
+                        onEditingNoteChange={(editing) =>
+                          setEditingNoteId(editing ? s.id : null)
+                        }
+                        date={
                           <span className="inline-flex items-center gap-2 text-success">
                             <span className="h-1.5 w-1.5 rounded-full bg-success" />
                             {t("Playing now")}
                           </span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-text">
-                          {formatDuration(
-                            Math.max(
-                              0,
-                              Math.floor(
-                                (now - Date.parse(s.startedAt)) / 1000,
-                              ),
-                            ),
-                            showDays,
-                          )}
-                        </td>
-                        <td className="px-3 py-1.5 [&>button]:w-full [&>button]:max-w-none [&>button]:justify-between">
-                          <SessionPlaythroughPicker
-                            session={s}
-                            compact
-                            showDefault
-                          />
-                        </td>
-                      </tr>
+                        }
+                        seconds={Math.max(
+                          0,
+                          Math.floor((now - Date.parse(s.startedAt)) / 1000),
+                        )}
+                        showDays={showDays}
+                      />
                     ))}
                     {selectedSessions.map((s) => (
-                      <tr key={s.id} className="text-text-muted">
-                        <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                          {new Date(s.startedAt).toLocaleDateString(
-                            appLocale(),
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-text">
-                          {formatDuration(s.durationSeconds ?? 0, showDays)}
-                        </td>
-                        <td className="px-3 py-1.5 [&>button]:w-full [&>button]:max-w-none [&>button]:justify-between">
-                          <SessionPlaythroughPicker
-                            session={s}
-                            compact
-                            showDefault
-                          />
-                        </td>
-                      </tr>
+                      <JournalSessionRows
+                        key={s.id}
+                        session={s}
+                        muted
+                        editingNote={editingNoteId === s.id}
+                        onEditingNoteChange={(editing) =>
+                          setEditingNoteId(editing ? s.id : null)
+                        }
+                        date={new Date(s.startedAt).toLocaleDateString(
+                          appLocale(),
+                        )}
+                        seconds={s.durationSeconds ?? 0}
+                        showDays={showDays}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -836,6 +840,61 @@ function GameJournalDialog({ target }: { target: JournalTarget }) {
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** One session in the journal's list, with its note on a line of its own. */
+function JournalSessionRows({
+  session,
+  date,
+  seconds,
+  showDays,
+  muted = false,
+  editingNote,
+  onEditingNoteChange,
+}: {
+  session: Session | ActiveSession;
+  date: ReactNode;
+  seconds: number;
+  showDays: boolean;
+  muted?: boolean;
+  editingNote: boolean;
+  onEditingNoteChange: (editing: boolean) => void;
+}) {
+  const noteLabel = session.note
+    ? t("Edit session note")
+    : t("Add session note");
+  return (
+    <>
+      <tr className={muted ? "text-text-muted" : undefined}>
+        <td className="whitespace-nowrap px-3 py-2 tabular-nums">{date}</td>
+        <td className="whitespace-nowrap px-3 py-2 font-mono tabular-nums text-text">
+          {formatDuration(seconds, showDays)}
+        </td>
+        <td className="px-3 py-1.5 [&>button]:w-full [&>button]:max-w-none [&>button]:justify-between">
+          <SessionPlaythroughPicker session={session} compact showDefault />
+        </td>
+        <td className="px-2 py-1.5 text-right">
+          <IconButton
+            icon={NotebookPen}
+            aria-label={noteLabel}
+            title={noteLabel}
+            onClick={() => onEditingNoteChange(true)}
+          />
+        </td>
+      </tr>
+      {session.note || editingNote ? (
+        <tr className="!border-t-0">
+          <td colSpan={4} className="px-3 pb-2.5">
+            <SessionNote
+              session={session}
+              editing={editingNote}
+              onEditingChange={onEditingNoteChange}
+            />
+          </td>
+        </tr>
+      ) : null}
+    </>
   );
 }
 

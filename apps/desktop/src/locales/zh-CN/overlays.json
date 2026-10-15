@@ -24,7 +24,6 @@
   "SESSION SAVED": "游玩记录已保存",
   "Saved to {{playthroughName}}": "已保存到 {{playthroughName}}",
   "Added to your playtime.": "已计入你的游戏时长。",
-  "Update note": "更新笔记",
   "SESSION TIME": "本次游玩时长",
   "50 hours played": "已游玩 50 小时",
   "50 HRS": "50 小时",
@@ -33,5 +32,13 @@
   "Playthrough: {{name}}": "游玩周目：{{name}}",
   "{{count, number}} APPROVED": "{{count, number}} 项已通过审核",
   "{{count, number}} DAYS": "{{count, number}} 天",
-  "{{count, number}} HRS": "{{count, number}} 小时"
+  "{{count, number}} HRS": "{{count, number}} 小时",
+  "Session note": "游玩记录笔记",
+  "Playing now": "正在游玩",
+  "Session saved": "游玩记录已保存",
+  "What happened? Where did you stop?": "发生了什么？玩到哪里了？",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter 保存 · Shift+Enter 换行 · Esc 取消",
+  "Save": "保存",
+  "Cancel": "取消",
+  "Add session note": "添加游玩记录笔记"
 }

@@ -75,7 +75,6 @@
   "First session": "首次游玩",
   "Back after {{comebackDays}} days": "{{comebackDays}} 天后回归",
   "Manual": "手动",
-  "Update note": "更新笔记",
   "Playthroughs": "游玩周目",
   "Filter for this game": "按此游戏筛选",
   "Delete Session": "删除游玩记录",
@@ -95,5 +94,11 @@
   "{{count}} games_other": "{{count}} 个游戏",
   "Since your first session · {{count}} weeks_other": "自第一次游玩以来 · {{count}} 周",
   "Unknown game": "未知游戏",
-  "{{count}} sessions_other": "{{count}} 次游玩"
+  "{{count}} sessions_other": "{{count}} 次游玩",
+  "Session note": "游玩记录笔记",
+  "Add session note": "添加游玩记录笔记",
+  "Edit session note": "编辑游玩记录笔记",
+  "Edit game note": "编辑游戏笔记",
+  "What happened? Where did you stop?": "发生了什么？玩到哪里了？",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter 保存 · Shift+Enter 换行 · Esc 取消"
 }

@@ -30,7 +30,7 @@ export type EmulatorLaunchCandidate = EmulatorLaunchTarget & {
 };
 
 export type EmulatorLaunchOutcome =
-  | { kind: "spawned" }
+  | { kind: "spawned"; pid?: number }
   | { kind: "hostRunning"; instanceCount: number }
   | { kind: "busy" };
 

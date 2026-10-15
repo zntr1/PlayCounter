@@ -7,6 +7,7 @@ import {
   Sparkles,
   Timer,
   StickyNote,
+  NotebookPen,
   BookOpen,
   Trash2,
   Trophy,
@@ -19,6 +20,7 @@ import { emulatorSessionProvenance } from "../../../emulators/provenance";
 import { usePickedCovers } from "../../../pickedCovers";
 import { GameCover } from "../../GameCover";
 import { SessionPlaythroughPicker } from "../../GameJournalDialog";
+import { SessionNote } from "../../SessionNote";
 import {
   useLibraryPractice,
   usePersonalLibraryApi,
@@ -112,6 +114,10 @@ export const HistorySessionRow = memo(function HistorySessionRow({
     x: number;
     y: number;
   } | null>(null);
+  const [editingNote, setEditingNote] = useState(false);
+  const noteLabel = session.note
+    ? t("Edit session note")
+    : t("Add session note");
   const showDurationDays = useAppStore(
     (state) => state.settings.showDurationDays,
   );
@@ -406,6 +412,15 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             </span>
           ) : null}
         </div>
+        {session.note || editingNote ? (
+          <div className="mt-1.5">
+            <SessionNote
+              session={session}
+              editing={editingNote}
+              onEditingChange={setEditingNote}
+            />
+          </div>
+        ) : null}
       </div>
       <div className="min-w-0 text-right">
         <div className="font-mono text-[15px] font-bold leading-none tabular-nums text-accent-ink">
@@ -421,19 +436,35 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           />
         </div>
       </div>
-      <IconButton
-        icon={Trash2}
-        intent="danger"
-        aria-label={t("Remove history entry for {{gameName}}", { gameName })}
-        onClick={requestDelete}
-        className="hidden opacity-0 transition-opacity group-hover:grid group-hover:opacity-100 group-focus-within:grid group-focus-within:opacity-100"
-      />
+      <div className="hidden gap-1 opacity-0 transition-opacity group-hover:flex group-hover:opacity-100 group-focus-within:flex group-focus-within:opacity-100">
+        <IconButton
+          icon={NotebookPen}
+          aria-label={noteLabel}
+          title={noteLabel}
+          onClick={() => setEditingNote(true)}
+        />
+        <IconButton
+          icon={Trash2}
+          intent="danger"
+          aria-label={t("Remove history entry for {{gameName}}", { gameName })}
+          onClick={requestDelete}
+        />
+      </div>
       <ContextMenu
         dataTour={practice ? "demo-library-menu" : undefined}
         open={contextMenu.open}
         position={contextMenu.position}
         onClose={contextMenu.close}
       >
+        <ContextMenuItem
+          icon={NotebookPen}
+          onClick={() => {
+            contextMenu.close();
+            setEditingNote(true);
+          }}
+        >
+          {noteLabel}
+        </ContextMenuItem>
         <ContextMenuItem
           icon={StickyNote}
           onClick={() => {
@@ -445,7 +476,7 @@ export const HistorySessionRow = memo(function HistorySessionRow({
             });
           }}
         >
-          {t("Update note")}
+          {t("Edit game note")}
         </ContextMenuItem>
         <ContextMenuItem
           icon={BookOpen}

@@ -6,6 +6,9 @@ pub const DOLPHIN_CONTENT_EXTENSIONS: &[&str] = &[
 pub const PCSX2_CONTENT_EXTENSIONS: &[&str] =
     &["iso", "bin", "img", "mdf", "chd", "cso", "zso", "gz", "elf"];
 pub const MGBA_CONTENT_EXTENSIONS: &[&str] = &["gba", "gb", "gbc", "sgb", "zip", "7z"];
+pub const CEMU_CONTENT_EXTENSIONS: &[&str] = &["wud", "wux", "wua", "wuhb", "iso", "rpx", "elf"];
+/// Disc files DuckStation keeps open while a game runs.
+pub const DUCKSTATION_DISC_EXTENSIONS: &[&str] = &["bin", "img", "iso", "chd", "pbp", "ecm", "mdf"];
 
 pub struct EmulatorHost {
     pub id: &'static str,
@@ -57,6 +60,62 @@ pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
         needs_window_title: true,
         // mGBA preloads ROMs into memory and closes the file by default, so
         // open handles are not a signal. The window title is.
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "cemu",
+        exe_names: &["cemu.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The window title carries the title ID of the running game.
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "rpcs3",
+        exe_names: &["rpcs3.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The game window's title carries the serial.
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "ppsspp",
+        exe_names: &[
+            "ppssppwindows64.exe",
+            "ppssppwindows.exe",
+            "ppssppwindowsarm64.exe",
+        ],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The window title carries the disc ID.
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "duckstation",
+        exe_names: &[
+            "duckstation-qt-x64-releaseltcg.exe",
+            "duckstation-qt-x64-releaseltcg-sse2.exe",
+            "duckstation-qt-arm64-releaseltcg.exe",
+        ],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The title is only the game's name; the open disc file identifies it.
+        content_extensions: DUCKSTATION_DISC_EXTENSIONS,
+    },
+    EmulatorHost {
+        id: "ryujinx",
+        exe_names: &["ryujinx.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The window title carries the program ID.
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "eden",
+        exe_names: &["eden.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The window title carries the game's name.
         content_extensions: &[],
     },
 ];
@@ -400,6 +459,34 @@ mod tests {
             assert_eq!(host_for(name).map(|host| host.id), Some("mgba"));
         }
         for name in ["mgba-updater.exe", "notmgba.exe", "mgba-qt.exe"] {
+            assert!(host_for(name).is_none());
+        }
+        assert_eq!(host_for("Cemu.exe").map(|host| host.id), Some("cemu"));
+        for name in ["cemu_release.exe", "notcemu.exe", "cemuhook.exe"] {
+            assert!(host_for(name).is_none());
+        }
+        for (name, id) in [
+            ("rpcs3.exe", "rpcs3"),
+            ("PPSSPPWindows64.exe", "ppsspp"),
+            ("PPSSPPWindows.exe", "ppsspp"),
+            ("PPSSPPWindowsARM64.exe", "ppsspp"),
+            ("duckstation-qt-x64-ReleaseLTCG.exe", "duckstation"),
+            ("duckstation-qt-x64-ReleaseLTCG-SSE2.exe", "duckstation"),
+            ("duckstation-qt-ARM64-ReleaseLTCG.exe", "duckstation"),
+            ("Ryujinx.exe", "ryujinx"),
+            ("eden.exe", "eden"),
+        ] {
+            assert_eq!(host_for(name).map(|host| host.id), Some(id));
+        }
+        for name in [
+            "rpcs3-updater.exe",
+            "ppsspp.exe",
+            "updater-x64-ReleaseLTCG.exe",
+            "duckstation.exe",
+            "Ryujinx.Headless.SDL3.exe",
+            "eden-cli.exe",
+            "yuzu.exe",
+        ] {
             assert!(host_for(name).is_none());
         }
     }

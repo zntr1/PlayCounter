@@ -112,8 +112,6 @@
   "Playthrough names in popups": "Playthrough names in popups",
   "Show the note of the game's active playthrough in the popup when a game starts.": "Show the note of the game's active playthrough in the popup when a game starts.",
   "Notes in game-start popups": "Notes in game-start popups",
-  "Show an \"Update note\" button in saved-session popups.": "Show an \"Update note\" button in saved-session popups.",
-  "Update note in popups": "Update note in popups",
   "Popup when you unlock a new playtime milestone.": "Popup when you unlock a new playtime milestone.",
   "Milestones": "Milestones",
   "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.": "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.",
@@ -273,10 +271,11 @@
   "Backup saved, but its schedule could not be saved: {{error}}": "Backup saved, but its schedule could not be saved: {{error}}",
   "Hotkey could not be enabled": "Hotkey could not be enabled",
   "{{saved}}: {{error}}. Check Keyboard shortcuts in Settings.": "{{saved}}: {{error}}. Check Keyboard shortcuts in Settings.",
-  "Control": "Control",
+  "Ctrl": "Ctrl",
   "Alt": "Alt",
   "Shift": "Shift",
-  "Super": "Super",
+  "Win / Cmd": "Win / Cmd",
+  "Press a key combination…": "Press a key combination…",
   "Not set": "Not set",
   "Keep": "Keep",
   "Backup error: {{error}} PlayCounter tries again in 15 minutes. You can also click Back up now.": "Backup error: {{error}} PlayCounter tries again in 15 minutes. You can also click Back up now.",
@@ -316,5 +315,9 @@
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "The session hotkey listener is unavailable. Restart PlayCounter and try again.",
   "Display {{number}}": "Display {{number}}",
   "The backup contains invalid data at {{path}}. No local data was changed.": "The backup contains invalid data at {{path}}. No local data was changed.",
-  "{{downloaded}} of {{total}}": "{{downloaded}} of {{total}}"
+  "{{downloaded}} of {{total}}": "{{downloaded}} of {{total}}",
+  "Quick session note": "Quick session note",
+  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.",
+  "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.",
+  "Session notes in popups": "Session notes in popups"
 }

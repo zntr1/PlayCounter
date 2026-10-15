@@ -24,7 +24,6 @@
   "SESSION SAVED": "SESSION SAVED",
   "Saved to {{playthroughName}}": "Saved to {{playthroughName}}",
   "Added to your playtime.": "Added to your playtime.",
-  "Update note": "Update note",
   "SESSION TIME": "SESSION TIME",
   "50 hours played": "50 hours played",
   "50 HRS": "50 HRS",
@@ -33,5 +32,13 @@
   "Playthrough: {{name}}": "Playthrough: {{name}}",
   "{{count, number}} APPROVED": "{{count, number}} APPROVED",
   "{{count, number}} DAYS": "{{count, number}} DAYS",
-  "{{count, number}} HRS": "{{count, number}} HRS"
+  "{{count, number}} HRS": "{{count, number}} HRS",
+  "Session note": "Session note",
+  "Playing now": "Playing now",
+  "Session saved": "Session saved",
+  "What happened? Where did you stop?": "What happened? Where did you stop?",
+  "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter saves · Shift+Enter starts a new line · Esc cancels",
+  "Save": "Save",
+  "Cancel": "Cancel",
+  "Add session note": "Add session note"
 }

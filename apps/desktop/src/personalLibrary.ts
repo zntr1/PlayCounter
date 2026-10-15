@@ -9,6 +9,7 @@ import { getT } from "./i18n";
 const t = getT("myGames");
 
 export const NOTE_LIMIT = 4000;
+export const SESSION_NOTE_LIMIT = 1000;
 export const NAME_LIMIT = 80;
 export function defaultPlaythroughName() {
   return t("Default playthrough");
@@ -88,6 +89,8 @@ export type JournalTarget = {
   game: GameIdentityRef;
   tab?: "note" | "playthroughs" | "organize";
   playthroughId?: string | null;
+  /** Opens with the new-playthrough form. */
+  create?: boolean;
 };
 
 export function journalKey(game: GameIdentityRef) {

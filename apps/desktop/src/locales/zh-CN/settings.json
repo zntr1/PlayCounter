@@ -112,8 +112,6 @@
   "Playthrough names in popups": "在弹窗中显示周目名称",
   "Show the note of the game's active playthrough in the popup when a game starts.": "游戏启动时，在弹窗中显示该游戏当前周目的笔记。",
   "Notes in game-start popups": "在游戏启动弹窗中显示笔记",
-  "Show an \"Update note\" button in saved-session popups.": "在游玩记录已保存弹窗中显示“更新笔记”按钮。",
-  "Update note in popups": "在弹窗中更新笔记",
   "Popup when you unlock a new playtime milestone.": "解锁新的游戏时长里程碑时弹出。",
   "Milestones": "里程碑",
   "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.": "当 PlayCounter 发现不认识的应用时弹出。点击可打开“已发现”。只包括此选项开启期间发现的应用。",
@@ -273,10 +271,11 @@
   "Backup saved, but its schedule could not be saved: {{error}}": "备份已保存，但无法保存备份计划：{{error}}",
   "Hotkey could not be enabled": "无法启用快捷键",
   "{{saved}}: {{error}}. Check Keyboard shortcuts in Settings.": "{{saved}}：{{error}}。请检查设置中的“键盘快捷键”。",
-  "Control": "Control",
+  "Ctrl": "Ctrl",
   "Alt": "Alt",
   "Shift": "Shift",
-  "Super": "Super",
+  "Win / Cmd": "Win / Cmd",
+  "Press a key combination…": "按下组合键…",
   "Not set": "未设置",
   "Keep": "保留",
   "Backup error: {{error}} PlayCounter tries again in 15 minutes. You can also click Back up now.": "备份错误：{{error}} PlayCounter 会在 15 分钟后重试。你也可以点击“立即备份”。",
@@ -311,5 +310,9 @@
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "本次游玩快捷键不可用。请重新启动 PlayCounter 后重试。",
   "Display {{number}}": "显示器 {{number}}",
   "The backup contains invalid data at {{path}}. No local data was changed.": "备份中 {{path}} 处包含无效数据。本地数据未作任何更改。",
-  "{{downloaded}} of {{total}}": "{{downloaded}} / {{total}}"
+  "{{downloaded}} of {{total}}": "{{downloaded}} / {{total}}",
+  "Quick session note": "快速游玩记录笔记",
+  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "在游戏上方打开一个小笔记框，记下这次游玩发生了什么。按 Enter 保存并回到游戏。在独占全屏的游戏中，笔记框打开时游戏可能会最小化。",
+  "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "在游玩记录已保存弹窗中显示“添加游玩记录笔记”按钮。它会打开一个小框，让你记下这次游玩发生了什么。",
+  "Session notes in popups": "在弹窗中添加游玩记录笔记"
 }

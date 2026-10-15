@@ -132,6 +132,8 @@ export type ActiveSession = {
   checkpointedAt: string;
   recoveredFromCheckpoint?: boolean;
   emulator?: EmulatorLaunchContext;
+  /** Written while playing; moves to the finished session. */
+  note?: string;
 };
 
 export type AmbiguousProcessMatch = {
@@ -435,6 +437,8 @@ export type AppState = {
   setActivePlaythrough: (game: GameIdentityRef, id: string | null) => void;
   deletePlaythrough: (game: GameIdentityRef, id: string) => void;
   assignSessionPlaythrough: (sessionId: number, id: string | null) => boolean;
+  /** Empty text removes the note. False when the session is gone. */
+  setSessionNote: (sessionId: number, note: string) => boolean;
   savePersonalShelf: (
     shelf: Omit<PersonalShelf, "id"> & { id?: string },
   ) => string | null;
@@ -655,7 +659,7 @@ export type AppState = {
   ) => void;
   setOverlayMonitor: (monitor: string) => void;
   setHotkey: (
-    key: "showWindowHotkey" | "currentSessionHotkey",
+    key: "showWindowHotkey" | "currentSessionHotkey" | "quickNoteHotkey",
     shortcut: string | null,
   ) => void;
   setDesktopOverlaySetting: (

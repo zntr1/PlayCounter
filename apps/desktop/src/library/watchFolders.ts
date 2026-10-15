@@ -1,6 +1,7 @@
 import type { Game } from "@playcounter/shared";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { isEmulatorExe } from "../emulators/registry";
 import { currentPlatform } from "../platform";
 import { useAppStore } from "../store";
 import {
@@ -199,8 +200,10 @@ async function runScan(reason: string): Promise<number> {
         exePath: `${folder.path}\\${executable.relativePath.replaceAll("/", "\\")}`,
       }))
       // A Game.exe whose folder was ignored on this PC is not offered again.
+      // An emulator's own program is tracked through its games, never as one.
       .filter(
         (candidate) =>
+          !isEmulatorExe(candidate.exeName) &&
           !isInIgnoredFolder(
             candidate,
             useAppStore.getState().ignoredExeFolders,

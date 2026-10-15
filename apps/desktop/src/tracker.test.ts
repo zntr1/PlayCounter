@@ -196,6 +196,68 @@ describe("playthrough tracking", () => {
     },
   );
 
+  it("keeps a session note through checkpoints, a restart and the session's end", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-09-13T10:00:00Z"));
+      useAppStore.getState().setExeCacheEntry(entry());
+      let running = true;
+      invokeMock.mockImplementation(async (command: string) =>
+        command === "scan_processes"
+          ? running
+            ? [
+                {
+                  exeName: "Game.exe",
+                  exePath: "C:\\Games\\Game.exe",
+                  pid: 9871,
+                },
+              ]
+            : []
+          : undefined,
+      );
+      await scanProcessesNow();
+      const active = useAppStore.getState().activeSessions[0];
+      expect(useAppStore.getState().setSessionNote(active.id, "Boss 2")).toBe(
+        true,
+      );
+      // A checkpoint rewrites the session from the tracker's copy.
+      vi.setSystemTime(new Date("2026-09-13T10:02:00Z"));
+      await scanProcessesNow();
+      expect(useAppStore.getState().activeSessions[0]).toMatchObject({
+        note: "Boss 2",
+      });
+      expect(
+        Date.parse(useAppStore.getState().activeSessions[0].checkpointedAt),
+      ).toBe(Date.parse("2026-09-13T10:02:00Z"));
+      persist();
+      const saved = JSON.parse(
+        vi
+          .mocked(localStorage.setItem)
+          .mock.calls.filter(([key]) => key.includes("playcounter"))
+          .at(-1)![1],
+      );
+      expect(saved.activeSessions[0].note).toBe("Boss 2");
+      running = false;
+      vi.setSystemTime(new Date("2026-09-13T10:03:00Z"));
+      await scanProcessesNow();
+      await scanProcessesNow();
+      expect(useAppStore.getState().recentSessions).toEqual([
+        expect.objectContaining({ id: active.id, note: "Boss 2" }),
+      ]);
+      expect(() =>
+        validateBackupData(
+          { sessions: useAppStore.getState().recentSessions },
+          "backup",
+        ),
+      ).not.toThrow();
+      expect(() =>
+        validateBackupData({ sessions: [{ ...active, note: 7 }] }, "backup"),
+      ).toThrow();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([false, true])(
     "hydrates the assignment captured before a crash (named=%s)",
     (named) => {
@@ -1712,6 +1774,187 @@ describe("game launching", () => {
       expect(
         messages.some((message) => message.includes("emulator=dolphin")),
       ).toBe(true);
+    });
+
+    function configurePickedLaunch(
+      emulatorId = "cemu",
+      exeName = "Cemu.exe",
+      filePath = String.raw`D:\Games\renamed-dump.wua`,
+    ) {
+      const host = {
+        emulatorId,
+        exeName,
+        exePath: `C:\\Emulators\\${exeName}`,
+        pid: 8765,
+        startedAtUnix: Math.floor(Date.now() / 1000),
+        commandLine: [] as string[],
+        windowTitle: null as string | null,
+      };
+      useAppStore.setState({
+        settings: {
+          ...useAppStore.getState().settings,
+          emulatorDetection: true,
+          emulatorContentLookup: false,
+          ignoredEmulatorIds: [],
+        },
+        emulatorAutoBinaries: new Map([
+          [
+            emulatorId,
+            {
+              emulatorId,
+              exePath: host.exePath,
+              setAt: new Date().toISOString(),
+            },
+          ],
+        ]),
+      });
+      openMock.mockResolvedValueOnce(filePath);
+      invokeMock.mockImplementation(async (command: string) => {
+        if (command === "launch_emulator_content")
+          return { kind: "spawned", pid: 8765 };
+        if (command === "scan_processes") return [host];
+        return undefined;
+      });
+      return { host, filePath };
+    }
+
+    const cemuTitle =
+      "Cemu 2.6 - FPS: 60 [Vulkan] [TitleId: 00050000-101c9500] The Legend of Zelda: Breath of the Wild [EU v208]";
+    const cemuKey = "cemu:title_id:00050000101c9500";
+
+    it.each([
+      ["cemu", "Cemu.exe", "wua", cemuTitle, cemuKey],
+      [
+        "rpcs3",
+        "rpcs3.exe",
+        "iso",
+        "FPS: 59.94 | Vulkan | 0.0.38-18000 | Demon's Souls [BLUS30443]",
+        "rpcs3:title_id:blus30443",
+      ],
+      [
+        "ppsspp",
+        "PPSSPPWindows64.exe",
+        "iso",
+        "PPSSPP v1.18.1 - ULUS10336 : CRISIS CORE -FINAL FANTASY VII-",
+        "ppsspp:title_id:ulus10336",
+      ],
+      [
+        "ryujinx",
+        "Ryujinx.exe",
+        "nsp",
+        "Ryujinx 1.3.2 - Super Mario Odyssey v1.3.0 (0100000000010000) (64-bit)",
+        "ryujinx:title_id:0100000000010000",
+      ],
+      [
+        "eden",
+        "eden.exe",
+        "nsp",
+        "Eden | v0.0.4 | msvc-19.44 | Celeste (64-Bit) | AMD",
+        "eden:rom:celeste",
+      ],
+      [
+        "mgba",
+        "mGBA.exe",
+        "gba",
+        "mGBA - POKEMON FIRE (60 fps) - 0.10.5",
+        "mgba:rom:pokemon fire",
+      ],
+    ])(
+      "saves the picked %s file after loading even without readable arguments or a database match",
+      async (id, exe, extension, title, key) => {
+        const { host, filePath } = configurePickedLaunch(
+          id,
+          exe,
+          `D:\\Games\\renamed-dump.${extension}`,
+        );
+        await startEmulatorGame(id);
+        await scanProcessesNow();
+        expect(useAppStore.getState().emulatorManualLaunchTargets.size).toBe(0);
+        host.windowTitle = title;
+        await scanProcessesNow();
+        expect(
+          useAppStore.getState().emulatorManualLaunchTargets.get(key),
+        ).toMatchObject({ filePath, emulatorId: id });
+        expect(useAppStore.getState().emulatorLaunchCandidates.size).toBe(0);
+        persist();
+        const payload = JSON.parse(
+          vi.mocked(localStorage.setItem).mock.calls.at(-1)![1],
+        );
+        expect(payload.emulatorManualLaunchTargets).toContainEqual(
+          expect.objectContaining({ contentKey: key, filePath }),
+        );
+        useAppStore.setState({ emulatorManualLaunchTargets: new Map() });
+        vi.mocked(localStorage.getItem).mockReturnValue(
+          JSON.stringify(payload),
+        );
+        hydrate();
+        expect(
+          useAppStore.getState().emulatorManualLaunchTargets.get(key),
+        ).toMatchObject({ filePath });
+        expect(
+          useAppStore
+            .getState()
+            .runtimeLog.some((entry) => entry.message.includes(filePath)),
+        ).toBe(false);
+      },
+    );
+
+    it("uses a picked path only for the first game in the launched process", async () => {
+      const { host, filePath } = configurePickedLaunch();
+      await startEmulatorGame("cemu");
+      host.windowTitle = cemuTitle;
+      await scanProcessesNow();
+      host.windowTitle = cemuTitle
+        .replace("101c9500", "1010ed00")
+        .replace(
+          "The Legend of Zelda: Breath of the Wild",
+          "Super Mario 3D World",
+        );
+      await scanProcessesNow();
+      expect([
+        ...useAppStore.getState().emulatorManualLaunchTargets.values(),
+      ]).toEqual([expect.objectContaining({ contentKey: cemuKey, filePath })]);
+    });
+
+    it.each([
+      "wrong process",
+      "recycled pid",
+      "expired",
+      "library cleared",
+      "storage disabled",
+      "host running",
+      "failed",
+    ])("does not save a selected file for %s", async (reason) => {
+      const { host } = configurePickedLaunch();
+      if (reason === "host running")
+        invokeMock.mockResolvedValueOnce({
+          kind: "hostRunning",
+          instanceCount: 1,
+        });
+      if (reason === "failed")
+        invokeMock.mockRejectedValueOnce(new Error("Launch failed"));
+      if (reason === "failed")
+        await expect(startEmulatorGame("cemu")).rejects.toThrow(
+          "Launch failed",
+        );
+      else await startEmulatorGame("cemu");
+      host.windowTitle = cemuTitle;
+      if (reason === "wrong process") host.pid += 1;
+      if (reason === "recycled pid") host.startedAtUnix += 60;
+      if (reason === "library cleared") clearLocalLibrary();
+      if (reason === "storage disabled")
+        useAppStore.getState().setLauncherSetting("rememberLaunchPaths", false);
+      const now = Date.now();
+      const clock =
+        reason === "expired"
+          ? vi.spyOn(Date, "now").mockReturnValue(now + 121_000)
+          : undefined;
+      try {
+        await scanProcessesNow();
+        expect(useAppStore.getState().emulatorManualLaunchTargets.size).toBe(0);
+      } finally {
+        clock?.mockRestore();
+      }
     });
   });
 

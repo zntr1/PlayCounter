@@ -112,8 +112,6 @@
   "Playthrough names in popups": "Nombres de partidas en ventanas emergentes",
   "Show the note of the game's active playthrough in the popup when a game starts.": "Muestra la nota de la partida activa del juego en la ventana emergente cuando comienza un juego.",
   "Notes in game-start popups": "Notas en ventanas emergentes de inicio de juego",
-  "Show an \"Update note\" button in saved-session popups.": "Muestra un botón “Actualizar nota” en las ventanas emergentes de sesión guardada.",
-  "Update note in popups": "Actualizar nota en ventanas emergentes",
   "Popup when you unlock a new playtime milestone.": "Ventana emergente cuando desbloqueas un nuevo hito de tiempo de juego.",
   "Milestones": "Hitos",
   "Popup when PlayCounter finds an app it does not know. Click it to open Discovered. Only apps found while this is on are included.": "Ventana emergente cuando PlayCounter encuentra una aplicación que no conoce. Haz clic en ella para abrir Descubiertos. Solo se incluyen las aplicaciones encontradas mientras esto está activado.",
@@ -273,10 +271,11 @@
   "Backup saved, but its schedule could not be saved: {{error}}": "Se guardó la copia de seguridad, pero no se pudo guardar su programación: {{error}}",
   "Hotkey could not be enabled": "No se pudo activar el atajo",
   "{{saved}}: {{error}}. Check Keyboard shortcuts in Settings.": "{{saved}}: {{error}}. Revisa “Atajos de teclado” en Configuración.",
-  "Control": "Control",
+  "Ctrl": "Ctrl",
   "Alt": "Alt",
   "Shift": "Shift",
-  "Super": "Super",
+  "Win / Cmd": "Win / Cmd",
+  "Press a key combination…": "Pulsa una combinación de teclas…",
   "Not set": "Sin configurar",
   "Keep": "Conservar",
   "Backup error: {{error}} PlayCounter tries again in 15 minutes. You can also click Back up now.": "Error de copia de seguridad: {{error}} PlayCounter lo vuelve a intentar en 15 minutos. También puedes hacer clic en “Hacer copia de seguridad ahora”.",
@@ -321,5 +320,9 @@
   "The session hotkey listener is unavailable. Restart PlayCounter and try again.": "El atajo de la sesión no está disponible. Reinicia PlayCounter y vuelve a intentarlo.",
   "Display {{number}}": "Pantalla {{number}}",
   "The backup contains invalid data at {{path}}. No local data was changed.": "La copia de seguridad contiene datos no válidos en {{path}}. No se cambiaron datos locales.",
-  "{{downloaded}} of {{total}}": "{{downloaded}} de {{total}}"
+  "{{downloaded}} of {{total}}": "{{downloaded}} de {{total}}",
+  "Quick session note": "Nota rápida de la sesión",
+  "Open a small note box over your game and write down what happened in this session. Enter saves and takes you back to the game. In exclusive fullscreen games, the game may minimize while the box is open.": "Abre un pequeño cuadro de nota sobre tu juego para que anotes lo que pasó en esta sesión. Intro guarda y te devuelve al juego. En juegos en pantalla completa exclusiva, el juego puede minimizarse mientras el cuadro está abierto.",
+  "Show an \"Add session note\" button in saved-session popups. It opens a small box where you write what happened in that session.": "Muestra un botón “Añadir nota de la sesión” en las ventanas emergentes de sesión guardada. Abre un pequeño cuadro para que anotes lo que pasó en esa sesión.",
+  "Session notes in popups": "Notas de la sesión en ventanas emergentes"
 }
