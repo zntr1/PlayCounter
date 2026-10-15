@@ -42,7 +42,7 @@ import {
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import { isGenericExeName } from "../../library/exeCandidates";
 import {
-  providerFloorRecord,
+  providerFloorsByKey,
   providerFloors as collectProviderFloors,
 } from "../../library/playtimeFloor";
 import { getT } from "../../i18n";
@@ -70,8 +70,8 @@ export function NowPlayingView() {
     () => createGameIdentityResolver(gameMetadata, exeCache, libraryImports),
     [exeCache, gameMetadata, libraryImports],
   );
-  const providerFloorSeconds = useMemo(
-    () => providerFloorRecord(collectProviderFloors(libraryImports.values())),
+  const providerFloorByGame = useMemo(
+    () => providerFloorsByKey(collectProviderFloors(libraryImports.values())),
     [libraryImports],
   );
   const showDurationDays = useAppStore(
@@ -237,12 +237,12 @@ export function NowPlayingView() {
                 playtimeAdjustments={
                   isTourSession ? EMPTY_SECONDS : playtimeAdjustments
                 }
-                providerFloorSeconds={
+                providerFloor={
                   isTourSession
-                    ? 0
-                    : (providerFloorSeconds[
+                    ? undefined
+                    : providerFloorByGame[
                         resolvedCanonicalGameKey(activeSession, resolveIgdbId)
-                      ] ?? 0)
+                      ]
                 }
                 onReport={() => setReportTarget(activeSession)}
                 statusLabel={t("Now playing")}

@@ -138,11 +138,14 @@ import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
+  trackedSinceReadSeconds,
 } from "../../playtimeAdjustments";
+import { recordedSecondsByGame } from "../../milestones";
 import {
   providerFloorKey,
   providerFloorRecord,
   providerFloors,
+  providerFloorsByKey,
   providerFloorsForProvider,
 } from "../../library/playtimeFloor";
 import { commitLibraryImports } from "../../library/commit";
@@ -398,6 +401,8 @@ export type GameSummary = {
     install?: LibraryInstallEntry;
   }>;
   providerFloorSeconds: number;
+  /** PlayCounter time since the launcher read, added on top of it. */
+  trackedSinceImportSeconds?: number;
   /** Play can start it; see isLaunchable. Absent on tour sample games. */
   launchable?: boolean;
 };
@@ -920,9 +925,20 @@ export function MyGamesView({
       ),
     [exeCache, hydratedGameMetadata, libraryImports],
   );
-  const providerFloorSeconds = useMemo(
-    () => providerFloorRecord(providerFloors(libraryImports.values())),
+  const providerFloorByGame = useMemo(
+    () => providerFloorsByKey(providerFloors(libraryImports.values())),
     [libraryImports],
+  );
+  // Counted like the import snapshot, so time since the import is the same
+  // on every screen.
+  const recordedByGame = useMemo(
+    () =>
+      recordedSecondsByGame({
+        sessions,
+        archivedGameSeconds,
+        resolveIgdbId,
+      }),
+    [archivedGameSeconds, resolveIgdbId, sessions],
   );
   const localLinks = useMemo(
     () => listLocalLinks(exeCache, scopedExeLinks),
@@ -1315,6 +1331,7 @@ export function MyGamesView({
       }
     }
 
+    const activeSecondsBySummary = new Map<GameSummary, number>();
     for (const activeSession of activeSessions) {
       if (isIgnored(activeSession.exeName)) continue;
 
@@ -1402,6 +1419,10 @@ export function MyGamesView({
         activeSession.startedAt,
       );
       existing.sessionSeconds += activeSeconds;
+      activeSecondsBySummary.set(
+        existing,
+        (activeSecondsBySummary.get(existing) ?? 0) + activeSeconds,
+      );
       if (!activeSession.emulator) {
         existing.exeRunningNow ??= [];
         existing.exeRunningNow.push(activeSession.exeName.toLowerCase());
@@ -1647,11 +1668,18 @@ export function MyGamesView({
         summary.sessionSeconds + summary.archivedSeconds;
       const summaryKey = providerFloorKey(summary);
       summary.hasLastPlayedEvidence = summariesWithPlayEvidence.has(summaryKey);
-      summary.providerFloorSeconds = providerFloorSeconds[summaryKey] ?? 0;
+      const providerFloor = providerFloorByGame[summaryKey];
+      summary.providerFloorSeconds = providerFloor?.seconds ?? 0;
+      summary.trackedSinceImportSeconds = trackedSinceReadSeconds(
+        providerFloor?.recordedSecondsAtRead,
+        recordedByGame.secondsFor(summaryKey) +
+          (activeSecondsBySummary.get(summary) ?? 0),
+      );
       summary.totalSeconds = effectiveTotalSeconds(
         summary.recordedSeconds,
         summary.adjustmentSeconds,
         summary.providerFloorSeconds,
+        summary.trackedSinceImportSeconds,
       );
       summary.launchable = isLaunchable(summary, {
         launchTargets,
@@ -1682,8 +1710,9 @@ export function MyGamesView({
     manualLaunchTargets,
     playcounterLibrary,
     playtimeAdjustments,
-    providerFloorSeconds,
+    providerFloorByGame,
     recentSortNow,
+    recordedByGame,
     rejectedGameFiles,
     resolveIgdbId,
     scopedExeLinks,
@@ -3582,14 +3611,18 @@ export function GameLibraryCard({
   const playtimeTitle =
     game.libraryImports.length > 0
       ? t(
-          "Launchers combined: {{duration}} · PlayCounter: {{duration2}} · shown: {{duration3}} (higher total).",
+          "Launchers combined: {{duration}} · played since the import: {{duration2}} · PlayCounter: {{duration3}} · shown: {{duration4}}.",
           {
             duration: formatDuration(
               game.providerFloorSeconds,
               showDurationDays,
             ),
-            duration2: formatDuration(localDisplayedSeconds, showDurationDays),
-            duration3: formatDuration(game.totalSeconds, showDurationDays),
+            duration2: formatDuration(
+              game.trackedSinceImportSeconds ?? 0,
+              showDurationDays,
+            ),
+            duration3: formatDuration(localDisplayedSeconds, showDurationDays),
+            duration4: formatDuration(game.totalSeconds, showDurationDays),
           },
         )
       : undefined;

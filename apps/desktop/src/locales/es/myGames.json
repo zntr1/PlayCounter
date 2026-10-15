@@ -209,7 +209,7 @@
   "Play {{name}} on Xbox": "Jugar a {{name}} en Xbox",
   "Play {{name}} in Steam": "Jugar a {{name}} en Steam",
   "Play {{name}} in Epic Games": "Jugar a {{name}} en Epic Games",
-  "Launchers combined: {{duration}} · PlayCounter: {{duration2}} · shown: {{duration3}} (higher total).": "Lanzadores en total: {{duration}} · PlayCounter: {{duration2}} · se muestra: {{duration3}} (el total más alto).",
+  "Launchers combined: {{duration}} · played since the import: {{duration2}} · PlayCounter: {{duration3}} · shown: {{duration4}}.": "Lanzadores en total: {{duration}} · jugado desde la importación: {{duration2}} · PlayCounter: {{duration3}} · se muestra: {{duration4}}.",
   "Game renamed": "Juego renombrado",
   "The custom game is now called {{name}}.": "El juego personalizado ahora se llama {{name}}.",
   "Sample converted to {{name}}. Its time is kept and nothing is shared.": "El ejemplo se convirtió en {{name}}. Su tiempo se conserva y no se comparte nada.",

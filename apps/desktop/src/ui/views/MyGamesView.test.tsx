@@ -135,15 +135,27 @@ function seedMatchReview(
   return entry;
 }
 
-it.each([4, 6])(
-  "shows combined launcher time or higher PlayCounter time on every source tab (%sh tracked)",
-  async (trackedHours) => {
+it.each([
+  { atReadHours: 4, nowHours: 4, since: "0m", expectedHours: 5 },
+  { atReadHours: 4, nowHours: 6, since: "2h 0m", expectedHours: 7 },
+  { atReadHours: 6, nowHours: 6, since: "0m", expectedHours: 6 },
+  { atReadHours: 6, nowHours: 8, since: "2h 0m", expectedHours: 8 },
+])(
+  "shows launcher time plus time played since the import on every source tab ($atReadHours h at import, $nowHours h now)",
+  async ({ atReadHours, nowHours, since, expectedHours }) => {
     useAppStore.setState({
       exeCache: new Map(),
-      archivedSeconds: trackedHours * 3600,
-      archivedGameSeconds: { "igdb:1": trackedHours * 3600 },
+      archivedSeconds: nowHours * 3600,
+      archivedGameSeconds: { "igdb:1": nowHours * 3600 },
       libraryImports: new Map([
-        ["steam:100", { ...steam, providerSeconds: 2 * 3600 }],
+        [
+          "steam:100",
+          {
+            ...steam,
+            providerSeconds: 2 * 3600,
+            recordedSecondsAtRead: atReadHours * 3600,
+          },
+        ],
         [
           "xbox:200",
           {
@@ -152,6 +164,7 @@ it.each([4, 6])(
             externalId: "200",
             gameId: 2,
             providerSeconds: 3 * 3600,
+            recordedSecondsAtRead: atReadHours * 3600,
           },
         ],
       ]),
@@ -159,7 +172,7 @@ it.each([4, 6])(
     useAppStore.getState().setMyGamesCardSize("grid");
     await act(() => root.render(<LibraryTestShell />));
 
-    const expected = `${Math.max(5, trackedHours)}h 0m`;
+    const expected = `${expectedHours}h 0m`;
     for (const source of ["all", "steam", "xbox"]) {
       await selectSource(source);
       expect(container.querySelectorAll(".game-library-card")).toHaveLength(1);
@@ -168,7 +181,7 @@ it.each([4, 6])(
       );
       expect(time?.textContent).toBe(expected);
       expect(time?.getAttribute("title")).toBe(
-        `Launchers combined: 5h 0m · PlayCounter: ${trackedHours}h 0m · shown: ${expected} (higher total).`,
+        `Launchers combined: 5h 0m · played since the import: ${since} · PlayCounter: ${nowHours}h 0m · shown: ${expected}.`,
       );
     }
   },

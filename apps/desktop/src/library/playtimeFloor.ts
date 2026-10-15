@@ -4,6 +4,12 @@ import type { LibraryImportEntry } from "./types";
 export type ProviderFloor = {
   canonicalKey: string;
   seconds: number;
+  /**
+   * PlayCounter's recorded time at the latest launcher read in this total
+   * (the largest snapshot). Undefined when one of the reads predates
+   * snapshots: the total then stays flat.
+   */
+  recordedSecondsAtRead?: number;
   name: string;
   coverUrl: string;
 };
@@ -34,6 +40,9 @@ export function providerFloors(
       providers.set(entry.provider, {
         canonicalKey,
         seconds,
+        recordedSecondsAtRead: validRecordedSeconds(
+          entry.recordedSecondsAtRead,
+        ),
         name: entry.name,
         coverUrl: entry.coverUrl,
       });
@@ -42,16 +51,32 @@ export function providerFloors(
   }
   // Launcher counters are independent. Keep one lifetime total per launcher,
   // then sum them before comparing with overlapping PlayCounter tracking.
+  // PlayCounter time counts as new from the latest read on (the largest
+  // snapshot): an older read may miss some of it until that launcher is
+  // imported again, but nothing is ever counted twice.
   return [...floors.values()].map((providers) => {
     const values = [...providers.values()];
     const largest = values.reduce((current, floor) =>
       floor.seconds > current.seconds ? floor : current,
     );
     return {
-      ...largest,
+      canonicalKey: largest.canonicalKey,
       seconds: values.reduce((total, floor) => total + floor.seconds, 0),
+      recordedSecondsAtRead: values.every(
+        (floor) => floor.recordedSecondsAtRead !== undefined,
+      )
+        ? Math.max(...values.map((floor) => floor.recordedSecondsAtRead!))
+        : undefined,
+      name: largest.name,
+      coverUrl: largest.coverUrl,
     };
   });
+}
+
+function validRecordedSeconds(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value)
+    : undefined;
 }
 
 export function providerFloorsForProvider(
@@ -63,6 +88,14 @@ export function providerFloorsForProvider(
     if (entry.provider === provider) scopedEntries.push(entry);
   }
   return providerFloors(scopedEntries);
+}
+
+export function providerFloorsByKey(
+  floors: Iterable<ProviderFloor>,
+): Record<string, ProviderFloor> {
+  const result: Record<string, ProviderFloor> = {};
+  for (const floor of floors) result[floor.canonicalKey] = floor;
+  return result;
 }
 
 export function providerFloorRecord(

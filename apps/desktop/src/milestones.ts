@@ -4,6 +4,10 @@ import { gameSecondsKey, gameSecondsRefFromKey } from "./gameSeconds";
 import type { AppNotification, NotificationKind } from "./notifications";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 import type { ProviderFloor } from "./library/playtimeFloor";
+import {
+  effectiveTotalSeconds,
+  trackedSinceReadSeconds,
+} from "./playtimeAdjustments";
 import { appLocale, getT } from "./i18n";
 
 const t = getT("achievements");
@@ -127,10 +131,14 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
   >();
   const adjustmentDeltaSeconds = [...games.entries()].reduce(
     (sum, [key, game]) => {
-      const totalSeconds = Math.max(
-        0,
-        game.recordedSeconds + game.adjustmentSeconds,
+      const totalSeconds = effectiveTotalSeconds(
+        game.recordedSeconds,
+        game.adjustmentSeconds,
         game.providerFloorSeconds,
+        trackedSinceReadSeconds(
+          game.providerFloorRecordedSecondsAtRead,
+          game.recordedSeconds,
+        ),
       );
       visibleGames.set(key, {
         hours: totalSeconds / 3600,
@@ -165,6 +173,7 @@ export type GameLifetimeTotal = {
   recordedSeconds: number;
   adjustmentSeconds: number;
   providerFloorSeconds: number;
+  providerFloorRecordedSecondsAtRead?: number;
   /** Empty when only archived time or an edit knows the game. */
   name: string;
   coverUrl: string;
@@ -229,10 +238,10 @@ export function gameLifetimeTotals(
       name: floor.name,
       coverUrl: floor.coverUrl,
     };
-    game.providerFloorSeconds = Math.max(
-      game.providerFloorSeconds,
-      floor.seconds,
-    );
+    if (floor.seconds >= game.providerFloorSeconds) {
+      game.providerFloorSeconds = floor.seconds;
+      game.providerFloorRecordedSecondsAtRead = floor.recordedSecondsAtRead;
+    }
     if (!game.name) game.name = floor.name;
     if (!game.coverUrl) game.coverUrl = floor.coverUrl;
     games.set(floor.canonicalKey, game);
@@ -240,6 +249,60 @@ export function gameLifetimeTotals(
   }
 
   return { games, canonicalByAlias };
+}
+
+/**
+ * PlayCounter's recorded time per game (sessions + archive), keyed like
+ * launcher totals. `secondsFor` with a date counts only sessions started
+ * before it; archived time has no dates and always counts.
+ */
+export function recordedSecondsByGame(
+  input: Pick<
+    MilestoneInput,
+    "sessions" | "archivedGameSeconds" | "resolveIgdbId"
+  >,
+) {
+  const games = new Map<
+    string,
+    {
+      archivedSeconds: number;
+      sessions: { startedMs: number; seconds: number }[];
+    }
+  >();
+  const game = (key: string) => {
+    let entry = games.get(key);
+    if (!entry) {
+      entry = { archivedSeconds: 0, sessions: [] };
+      games.set(key, entry);
+    }
+    return entry;
+  };
+  for (const [key, seconds] of Object.entries(input.archivedGameSeconds)) {
+    const ref = gameSecondsRefFromKey(key);
+    if (!ref) continue;
+    game(resolvedCanonicalGameKey(ref, input.resolveIgdbId)).archivedSeconds +=
+      Math.max(0, seconds);
+  }
+  for (const session of input.sessions) {
+    game(getSessionGameKey(session, input.resolveIgdbId)).sessions.push({
+      startedMs: Date.parse(session.startedAt),
+      seconds: Math.max(0, session.durationSeconds ?? 0),
+    });
+  }
+  return {
+    secondsFor(canonicalKey: string, beforeMs = Infinity) {
+      const entry = games.get(canonicalKey);
+      if (!entry) return 0;
+      return Math.round(
+        entry.sessions.reduce(
+          (total, session) =>
+            // A session without a valid start counts as before the read.
+            session.startedMs >= beforeMs ? total : total + session.seconds,
+          entry.archivedSeconds,
+        ),
+      );
+    },
+  };
 }
 
 export function evaluateMilestones(

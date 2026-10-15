@@ -109,6 +109,7 @@ import {
   milestoneMetrics,
   migrateAwardedMilestones,
   parseMilestoneId,
+  recordedSecondsByGame,
 } from "./milestones";
 import {
   contributionKey,
@@ -228,7 +229,7 @@ import {
   readWatchFolders,
   restoreDismissedFolder,
 } from "./library/watchFolderState";
-import { providerFloors } from "./library/playtimeFloor";
+import { providerFloorKey, providerFloors } from "./library/playtimeFloor";
 import { normalizePlayCounterLibraryEntry } from "./library/playcounterLibrary";
 import {
   normalizeWindowsDir,
@@ -717,9 +718,45 @@ export function normalizePersistedLibraryImport(
       entry.providerSeconds === null
         ? null
         : Math.round(entry.providerSeconds as number),
+    recordedSecondsAtRead:
+      typeof entry.recordedSecondsAtRead === "number" &&
+      Number.isFinite(entry.recordedSecondsAtRead) &&
+      entry.recordedSecondsAtRead >= 0
+        ? Math.round(entry.recordedSecondsAtRead)
+        : undefined,
     linkedExeNames,
     linkedExeSources: [...new Set(linkedExeSources)],
   } as LibraryImportEntry;
+}
+
+/**
+ * Imports saved before PlayCounter time counted on top of launcher totals
+ * have no snapshot. Sessions that started before the last read are in the
+ * launcher total; archived time has no dates and counts as before, so the
+ * total can only grow from what these saves showed.
+ */
+export function fillRecordedSecondsAtRead(
+  libraryImports: Map<string, LibraryImportEntry>,
+  recorded: ReturnType<typeof recordedSecondsByGame>,
+) {
+  let changed = false;
+  for (const [key, entry] of libraryImports) {
+    if (
+      entry.providerSeconds === null ||
+      entry.recordedSecondsAtRead !== undefined
+    )
+      continue;
+    const readAtMs = Date.parse(entry.lastReadAt);
+    libraryImports.set(key, {
+      ...entry,
+      recordedSecondsAtRead: recorded.secondsFor(
+        providerFloorKey(entry),
+        Number.isFinite(readAtMs) ? readAtMs : Infinity,
+      ),
+    });
+    changed = true;
+  }
+  return changed;
 }
 
 export function backfillLibraryExecutableCache(
@@ -1146,6 +1183,22 @@ export function hydrate() {
     hydratedOverflow,
     sanitizePlaythroughSeconds(persisted.archivedPlaythroughSeconds),
   );
+  if (
+    fillRecordedSecondsAtRead(
+      libraryImports,
+      recordedSecondsByGame({
+        sessions: hydratedSessions,
+        archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+        resolveIgdbId: createGameIdentityResolver(
+          gameMetadataMap,
+          exeCacheMap,
+          libraryImports,
+        ),
+      }),
+    )
+  ) {
+    shouldPersistAchievementMigration = true;
+  }
   const autoDetectedGameKeys = (() => {
     if (Array.isArray(persisted.autoDetectedGameKeys)) {
       return [

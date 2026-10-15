@@ -207,7 +207,7 @@
   "Play {{name}} on Xbox": "Play {{name}} on Xbox",
   "Play {{name}} in Steam": "Play {{name}} in Steam",
   "Play {{name}} in Epic Games": "Play {{name}} in Epic Games",
-  "Launchers combined: {{duration}} · PlayCounter: {{duration2}} · shown: {{duration3}} (higher total).": "Launchers combined: {{duration}} · PlayCounter: {{duration2}} · shown: {{duration3}} (higher total).",
+  "Launchers combined: {{duration}} · played since the import: {{duration2}} · PlayCounter: {{duration3}} · shown: {{duration4}}.": "Launchers combined: {{duration}} · played since the import: {{duration2}} · PlayCounter: {{duration3}} · shown: {{duration4}}.",
   "Game renamed": "Game renamed",
   "The custom game is now called {{name}}.": "The custom game is now called {{name}}.",
   "Sample converted to {{name}}. Its time is kept and nothing is shared.": "Sample converted to {{name}}. Its time is kept and nothing is shared.",

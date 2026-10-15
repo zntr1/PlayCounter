@@ -211,7 +211,7 @@
   "Play {{name}} on Xbox": "Играть в {{name}} через Xbox",
   "Play {{name}} in Steam": "Играть в {{name}} в Steam",
   "Play {{name}} in Epic Games": "Играть в {{name}} в Epic Games",
-  "Launchers combined: {{duration}} · PlayCounter: {{duration2}} · shown: {{duration3}} (higher total).": "Лаунчеры вместе: {{duration}} · PlayCounter: {{duration2}} · показано: {{duration3}} (большая сумма).",
+  "Launchers combined: {{duration}} · played since the import: {{duration2}} · PlayCounter: {{duration3}} · shown: {{duration4}}.": "Лаунчеры вместе: {{duration}} · сыграно после импорта: {{duration2}} · PlayCounter: {{duration3}} · показано: {{duration4}}.",
   "Game renamed": "Игра переименована",
   "The custom game is now called {{name}}.": "Своя игра теперь называется {{name}}.",
   "Sample converted to {{name}}. Its time is kept and nothing is shared.": "Пример преобразован в {{name}}. Время сохранено, ничего не отправлено.",

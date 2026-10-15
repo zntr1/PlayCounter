@@ -205,7 +205,7 @@
   "Play {{name}} on Xbox": "通过 Xbox 启动 {{name}}",
   "Play {{name}} in Steam": "通过 Steam 启动 {{name}}",
   "Play {{name}} in Epic Games": "通过 Epic Games 启动 {{name}}",
-  "Launchers combined: {{duration}} · PlayCounter: {{duration2}} · shown: {{duration3}} (higher total).": "启动器合计：{{duration}} · PlayCounter：{{duration2}} · 显示：{{duration3}}（取较高的总时长）。",
+  "Launchers combined: {{duration}} · played since the import: {{duration2}} · PlayCounter: {{duration3}} · shown: {{duration4}}.": "启动器合计：{{duration}} · 导入后游玩：{{duration2}} · PlayCounter：{{duration3}} · 显示：{{duration4}}。",
   "Game renamed": "游戏已重命名",
   "The custom game is now called {{name}}.": "自定义游戏现在名为 {{name}}。",
   "Sample converted to {{name}}. Its time is kept and nothing is shared.": "示例已转换为 {{name}}。它的时长会保留，且不会分享任何内容。",

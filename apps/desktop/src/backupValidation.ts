@@ -190,6 +190,7 @@ const libraryImport = object(
   {
     providerLastPlayedAt: date,
     providerHasPlayedEvidence: boolean,
+    recordedSecondsAtRead: nonnegative,
     linkedExeSources: array(source),
   },
 );
