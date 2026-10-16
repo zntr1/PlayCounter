@@ -7,7 +7,12 @@ import {
   trackedSinceReadSeconds,
 } from "../playtimeAdjustments";
 import { createGameIdentityResolver, useAppStore } from "../store";
-import { fillRecordedSecondsAtRead, hydrate } from "../tracker";
+import {
+  fillRecordedSecondsAtRead,
+  hydrate,
+  removeHistorySession,
+  setGamePlaytime,
+} from "../tracker";
 import { commitLibraryImports, recordedSecondsAtRead } from "./commit";
 import { providerFloors } from "./playtimeFloor";
 import type { LibraryImportCommit, LibraryImportEntry } from "./types";
@@ -166,12 +171,6 @@ describe("imported playtime grows with PlayCounter sessions", () => {
     expect(shownHours()).toBe(100);
   });
 
-  it("lets a manual total above the launcher total win", () => {
-    commitLibraryImports([steamRead(100)]);
-    useAppStore.setState({ playtimeAdjustments: { "igdb:1": 150 * H } });
-    expect(shownHours()).toBe(150);
-  });
-
   it("counts a running session's time live on top of the launcher total", () => {
     commitLibraryImports([steamRead(100)]);
     const floor = providerFloors(
@@ -304,6 +303,15 @@ describe("Hitman: Steam first, then Game Pass", () => {
     expect(shownHours()).toBe(85);
   });
 
+  it("gives back the hours a removed launcher's read took in", () => {
+    commitLibraryImports([steamRead(40)]);
+    play(5, "2026-10-02T12:00:00.000Z");
+    commitLibraryImports([xboxRead(20, "2026-10-05T12:00:00.000Z")]);
+    expect(shownHours()).toBe(60);
+    useAppStore.getState().removeLibraryImport("xbox", "200");
+    expect(shownHours()).toBe(45);
+  });
+
   it("drops only Steam's hours when Steam is removed", () => {
     commitLibraryImports([
       steamRead(40),
@@ -313,6 +321,134 @@ describe("Hitman: Steam first, then Game Pass", () => {
     expect(shownHours()).toBe(65);
     useAppStore.getState().removeLibraryImport("steam", "100");
     expect(shownHours()).toBe(25);
+  });
+});
+
+describe("PlayCounter time from before the import removed later", () => {
+  const hoursOf = (sessions: Session[]) =>
+    sessions.reduce((total, entry) => total + entry.durationSeconds! / H, 0);
+  const randomHours = (max: number) => Math.floor(Math.random() * (max + 1));
+
+  it("never holds back the sessions played after the import", () => {
+    for (let run = 0; run < 100; run += 1) {
+      useAppStore.setState(useAppStore.getInitialState(), true);
+      const before = [0, 1, 2, 3].map((day) =>
+        session(randomHours(30), `2026-09-1${day}T12:00:00.000Z`),
+      );
+      useAppStore.setState({ recentSessions: before });
+      const launcherHours = randomHours(100);
+      commitLibraryImports([steamRead(launcherHours)]);
+
+      const removed = before.filter(() => Math.random() < 0.5);
+      for (const entry of removed) removeHistorySession(entry.id);
+      const newHours = randomHours(20);
+      play(newHours, "2026-10-02T12:00:00.000Z");
+
+      expect(shownHours()).toBe(
+        Math.max(hoursOf(before) - hoursOf(removed), launcherHours) + newHours,
+      );
+    }
+  });
+
+  it.each([
+    { launcherHours: 100, expectedHours: 103, why: "Steam saw nothing" },
+    { launcherHours: 103, expectedHours: 103, why: "Steam saw the 3h" },
+    { launcherHours: 110, expectedHours: 110, why: "plus 7h elsewhere" },
+  ])(
+    "keeps the sessions played after the import when importing again ($why)",
+    ({ launcherHours, expectedHours }) => {
+      const old = session(5, "2026-09-20T12:00:00.000Z");
+      useAppStore.setState({ recentSessions: [old] });
+      commitLibraryImports([steamRead(100)]);
+      removeHistorySession(old.id);
+      play(3, "2026-10-02T12:00:00.000Z");
+      expect(shownHours()).toBe(103);
+
+      commitLibraryImports([
+        steamRead(launcherHours, "2026-10-05T12:00:00.000Z"),
+      ]);
+      expect(shownHours()).toBe(expectedHours);
+      play(1, "2026-10-06T12:00:00.000Z");
+      expect(shownHours()).toBe(expectedHours + 1);
+    },
+  );
+});
+
+function setTotal(hours: number) {
+  setGamePlaytime({
+    gameId: 1,
+    igdbId: 100,
+    gameName: "Shared game",
+    coverUrl: "",
+    source: "igdb",
+    exeName: "shared.exe",
+    targetSeconds: hours * H,
+  });
+}
+
+describe("Set total before the first import", () => {
+  it.each([
+    { totalHours: 100, expectedHours: 100, why: "the Steam hours typed in" },
+    { totalHours: 30, expectedHours: 100, why: "lower: Steam wins" },
+    { totalHours: 150, expectedHours: 150, why: "higher: it wins" },
+  ])(
+    "counts no hour twice when the launcher is imported ($why)",
+    ({ totalHours, expectedHours }) => {
+      play(5, "2026-09-20T12:00:00.000Z");
+      setTotal(totalHours);
+      commitLibraryImports([steamRead(100)]);
+      expect(shownHours()).toBe(expectedHours);
+      play(1, "2026-10-02T12:00:00.000Z");
+      expect(shownHours()).toBe(expectedHours + 1);
+    },
+  );
+});
+
+describe("Set total on an imported game", () => {
+  it.each([
+    { targetHours: 200, why: "above the shown total" },
+    { targetHours: 120, why: "below the shown total" },
+    { targetHours: 80, why: "below the launcher total" },
+    { targetHours: 0, why: "zero" },
+  ])(
+    "shows exactly the new total and keeps adding sessions ($why)",
+    ({ targetHours }) => {
+      play(5, "2026-09-20T12:00:00.000Z");
+      commitLibraryImports([steamRead(100)]);
+      play(50, "2026-10-02T12:00:00.000Z");
+      expect(shownHours()).toBe(150);
+
+      setTotal(targetHours);
+      expect(shownHours()).toBe(targetHours);
+      play(1, "2026-10-03T12:00:00.000Z");
+      expect(shownHours()).toBe(targetHours + 1);
+    },
+  );
+
+  it.each([
+    { launcherHours: 100, expectedHours: 120, why: "Steam saw nothing" },
+    { launcherHours: 150, expectedHours: 120, why: "Steam saw the 50h" },
+    { launcherHours: 160, expectedHours: 130, why: "plus 10h elsewhere" },
+  ])(
+    "keeps the change on top when importing again ($why)",
+    ({ launcherHours, expectedHours }) => {
+      commitLibraryImports([steamRead(100)]);
+      play(50, "2026-10-02T12:00:00.000Z");
+      setTotal(120);
+      commitLibraryImports([
+        steamRead(launcherHours, "2026-10-05T12:00:00.000Z"),
+      ]);
+      expect(shownHours()).toBe(expectedHours);
+    },
+  );
+
+  it("goes back to the launcher total plus new sessions when reset", () => {
+    commitLibraryImports([steamRead(100)]);
+    play(50, "2026-10-02T12:00:00.000Z");
+    setTotal(120);
+    setTotal(150);
+    expect(useAppStore.getState().playtimeAdjustments).toEqual({});
+    expect(shownHours()).toBe(150);
   });
 });
 
@@ -367,7 +503,7 @@ describe("launchers combined", () => {
 describe("imports saved before the snapshot existed", () => {
   it("counts sessions before the last read and all archived time as already in the launcher total", () => {
     const imports = new Map([["steam:100", steamEntry]]);
-    const changed = fillRecordedSecondsAtRead(
+    const filled = fillRecordedSecondsAtRead(
       imports,
       recordedSecondsByGame({
         sessions: [
@@ -386,7 +522,7 @@ describe("imports saved before the snapshot existed", () => {
         ),
       }),
     );
-    expect(changed).toBe(true);
+    expect([...filled]).toEqual(["igdb#100"]);
     expect(imports.get("steam:100")?.recordedSecondsAtRead).toBe(7 * H);
   });
 
@@ -407,8 +543,8 @@ describe("imports saved before the snapshot existed", () => {
       fillRecordedSecondsAtRead(
         imports,
         recordedSecondsByGame({ sessions: [], archivedGameSeconds: {} }),
-      ),
-    ).toBe(false);
+      ).size,
+    ).toBe(0);
     expect(imports.get("battlenet:x")?.recordedSecondsAtRead).toBeUndefined();
   });
 
@@ -437,4 +573,40 @@ describe("imports saved before the snapshot existed", () => {
         .recordedSecondsAtRead,
     ).toBe(5 * H);
   });
+
+  it.each([
+    {
+      adjustmentHours: -5,
+      expectedHours: 100,
+      keptHours: undefined,
+      why: "a lower total that did nothing",
+    },
+    {
+      adjustmentHours: 140,
+      expectedHours: 150,
+      keptHours: 50,
+      why: "a higher total",
+    },
+  ])(
+    "keeps the total a save showed after Set total ($why)",
+    async ({ adjustmentHours, expectedHours, keptHours }) => {
+      useAppStore.setState({
+        libraryImports: new Map([["steam:100", steamEntry]]),
+        recentSessions: [session(10, "2026-09-20T12:00:00.000Z")],
+        playtimeAdjustments: { "igdb:1": adjustmentHours * H },
+      });
+      persistAppState(useAppStore.getState());
+
+      for (const restart of [1, 2]) {
+        useAppStore.setState(useAppStore.getInitialState(), true);
+        await hydrate();
+        expect(shownHours(), `restart ${restart}`).toBe(expectedHours);
+        expect(useAppStore.getState().playtimeAdjustments["igdb:1"]).toBe(
+          keptHours === undefined ? undefined : keptHours * H,
+        );
+      }
+      play(1, "2026-10-02T12:00:00.000Z");
+      expect(shownHours()).toBe(expectedHours + 1);
+    },
+  );
 });

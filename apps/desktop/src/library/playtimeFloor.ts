@@ -10,6 +10,8 @@ export type ProviderFloor = {
    * snapshots: the total then stays flat.
    */
   recordedSecondsAtRead?: number;
+  /** When the latest launcher read in this total was taken. */
+  readAtMs?: number;
   name: string;
   coverUrl: string;
 };
@@ -43,6 +45,7 @@ export function providerFloors(
         recordedSecondsAtRead: validRecordedSeconds(
           entry.recordedSecondsAtRead,
         ),
+        readAtMs: validDateMs(entry.lastReadAt),
         name: entry.name,
         coverUrl: entry.coverUrl,
       });
@@ -67,6 +70,9 @@ export function providerFloors(
       )
         ? Math.max(...values.map((floor) => floor.recordedSecondsAtRead!))
         : undefined,
+      readAtMs: values.every((floor) => floor.readAtMs !== undefined)
+        ? Math.max(...values.map((floor) => floor.readAtMs!))
+        : undefined,
       name: largest.name,
       coverUrl: largest.coverUrl,
     };
@@ -77,6 +83,11 @@ function validRecordedSeconds(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? Math.round(value)
     : undefined;
+}
+
+function validDateMs(value: string) {
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : undefined;
 }
 
 export function providerFloorsForProvider(

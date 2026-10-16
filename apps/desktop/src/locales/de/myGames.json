@@ -109,6 +109,7 @@
   "History stays unchanged": "Der Verlauf bleibt unverändert",
   "No session is added, edited, or removed.": "Keine Sitzung wird hinzugefügt, bearbeitet oder entfernt.",
   "Time from sessions": "Zeit aus Sitzungen",
+  "Launchers combined + played since the import": "Launcher zusammen + seit dem Import gespielt",
   "Current adjustment": "Aktuelle Anpassung",
   "Current total": "Aktuelle Gesamtzeit",
   "Stop the active session before changing the total.": "Beende die laufende Sitzung, bevor du die Gesamtzeit änderst.",

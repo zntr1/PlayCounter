@@ -107,6 +107,7 @@
   "History stays unchanged": "历史记录保持不变",
   "No session is added, edited, or removed.": "不会添加、编辑或删除任何游玩记录。",
   "Time from sessions": "已记录的游玩时长",
+  "Launchers combined + played since the import": "启动器合计 + 导入后游玩",
   "Current adjustment": "当前调整",
   "Current total": "当前总时长",
   "Stop the active session before changing the total.": "更改总时长前，请先结束正在进行的游玩。",

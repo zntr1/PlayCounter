@@ -10,7 +10,11 @@ import { scopedExeLinkKey } from "./scopedLinks";
 import { scopedLocalGameId } from "./localGameIds";
 import { libraryEntryKey, type LibraryImportCommit } from "./types";
 import { undismissLauncherGames } from "./libraryAutoAddState";
-import { evaluateMilestones, recordedSecondsByGame } from "../milestones";
+import {
+  evaluateMilestones,
+  moveAdjustmentsOnTop,
+  recordedSecondsByGame,
+} from "../milestones";
 import {
   providerFloorKey,
   providerFloors,
@@ -166,11 +170,17 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   const floorsAfter = providerFloorsByKey(
     providerFloors(libraryImports.values()),
   );
+  const firstReadGames = new Set<string>();
   for (const gameKey of readGames) {
     const floor = floorsAfter[gameKey];
     if (!floor) continue;
+    const before = floorsBefore[gameKey];
+    if (!before) firstReadGames.add(gameKey);
     const snapshot = recordedSecondsAtRead(
-      floorsBefore[gameKey],
+      before && {
+        seconds: before.seconds,
+        recordedSecondsAtRead: recorded.secondsAtRead(before),
+      },
       floor.seconds,
       recorded.secondsFor(gameKey),
     );
@@ -181,11 +191,20 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
       libraryImports.set(key, { ...entry, recordedSecondsAtRead: snapshot });
     }
   }
+  // Hours typed in by hand before the first launcher read are not counted
+  // twice: the higher of the shown total and the launcher total wins.
+  const playtimeAdjustments = { ...state.playtimeAdjustments };
+  moveAdjustmentsOnTop(playtimeAdjustments, firstReadGames, {
+    sessions: split.kept,
+    archivedGameSeconds: archive.archivedGameSeconds,
+    providerFloors: providerFloors(libraryImports.values()),
+    resolveIgdbId,
+  });
   const milestoneResult = evaluateMilestones({
     sessions: split.kept,
     archivedSeconds: archive.archivedSeconds,
     archivedGameSeconds: archive.archivedGameSeconds,
-    playtimeAdjustments: state.playtimeAdjustments,
+    playtimeAdjustments,
     providerFloors: providerFloors(libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
     verifiedEmulatorContributions: state.emulatorContributionCounts.verified,
@@ -208,6 +227,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     awardedMilestones: milestoneResult.awardedMilestones,
     milestonesInitializedAt: milestoneResult.milestonesInitializedAt,
     notifications,
+    playtimeAdjustments,
     recentSessions: split.kept,
     archivedSeconds: archive.archivedSeconds,
     archivedGameSeconds: archive.archivedGameSeconds,
@@ -225,6 +245,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     gameMetadata,
     awardedMilestones: milestoneResult.awardedMilestones,
     milestonesInitializedAt: milestoneResult.milestonesInitializedAt,
+    playtimeAdjustments,
     recentSessions: result.sessions,
     notifications: result.notifications,
     archivedSeconds: result.archivedSeconds,

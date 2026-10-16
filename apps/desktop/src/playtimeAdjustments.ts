@@ -25,7 +25,8 @@ export function displayTotalSeconds(
  * The sum of launcher lifetime totals is a historical floor, never an
  * adjustment. At the import, PlayCounter tracking can overlap those totals, so
  * the higher of the two counts. Everything PlayCounter records after the
- * import is new, so it is added on top of the launcher total.
+ * import is new, so it is added on top of the launcher total. A manual
+ * adjustment ("Set total") moves the whole result, launcher time included.
  */
 export function effectiveTotalSeconds(
   recordedSeconds: number,
@@ -34,9 +35,12 @@ export function effectiveTotalSeconds(
   trackedSinceReadSeconds = 0,
 ) {
   const floor = Math.max(0, Math.round(providerFloorSeconds));
-  return Math.max(
-    displayTotalSeconds(recordedSeconds, adjustmentSeconds),
-    floor > 0 ? floor + Math.max(0, Math.round(trackedSinceReadSeconds)) : 0,
+  return displayTotalSeconds(
+    Math.max(
+      recordedSeconds,
+      floor > 0 ? floor + Math.max(0, Math.round(trackedSinceReadSeconds)) : 0,
+    ),
+    adjustmentSeconds,
   );
 }
 

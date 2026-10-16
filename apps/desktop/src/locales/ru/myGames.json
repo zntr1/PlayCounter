@@ -113,6 +113,7 @@
   "History stays unchanged": "История не меняется",
   "No session is added, edited, or removed.": "Ни одна сессия не добавляется, не меняется и не удаляется.",
   "Time from sessions": "Время из сессий",
+  "Launchers combined + played since the import": "Лаунчеры вместе + сыграно после импорта",
   "Current adjustment": "Текущая поправка",
   "Current total": "Текущая сумма",
   "Stop the active session before changing the total.": "Остановите активную сессию, прежде чем менять сумму.",

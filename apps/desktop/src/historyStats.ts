@@ -1,9 +1,6 @@
 import type { Session } from "@playcounter/shared";
 import type { GameLifetimeTotal } from "./milestones";
-import {
-  effectiveTotalSeconds,
-  trackedSinceReadSeconds,
-} from "./playtimeAdjustments";
+import { effectiveTotalSeconds } from "./playtimeAdjustments";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 import { appLocale, getT } from "./i18n";
 
@@ -547,10 +544,7 @@ export function withLifetimeTotals(
       total.recordedSeconds,
       total.adjustmentSeconds,
       total.providerFloorSeconds,
-      trackedSinceReadSeconds(
-        total.providerFloorRecordedSecondsAtRead,
-        total.recordedSeconds,
-      ),
+      total.trackedSinceReadSeconds,
     );
     const played = ranked.get(key);
     if (played) {

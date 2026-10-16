@@ -4,7 +4,6 @@ import { MIN_SESSION_DURATION_SECONDS } from "../sessionPersistence";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
-  trackedSinceReadSeconds,
 } from "../playtimeAdjustments";
 import { recordedSecondsByGame } from "../milestones";
 import {
@@ -203,12 +202,7 @@ function applyGameMove(
     adjustmentSecondsFor(state.playtimeAdjustments, aliases),
     floors.reduce((total, floor) => total + floor.seconds, 0),
     floors.reduce(
-      (total, floor) =>
-        total +
-        trackedSinceReadSeconds(
-          floor.recordedSecondsAtRead,
-          recorded.secondsFor(floor.canonicalKey) + activeSeconds,
-        ),
+      (total, floor) => total + recorded.secondsSinceRead(floor, activeSeconds),
       0,
     ),
   );

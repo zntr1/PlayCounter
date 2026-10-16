@@ -138,7 +138,6 @@ import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
-  trackedSinceReadSeconds,
 } from "../../playtimeAdjustments";
 import { recordedSecondsByGame } from "../../milestones";
 import {
@@ -1670,10 +1669,9 @@ export function MyGamesView({
       summary.hasLastPlayedEvidence = summariesWithPlayEvidence.has(summaryKey);
       const providerFloor = providerFloorByGame[summaryKey];
       summary.providerFloorSeconds = providerFloor?.seconds ?? 0;
-      summary.trackedSinceImportSeconds = trackedSinceReadSeconds(
-        providerFloor?.recordedSecondsAtRead,
-        recordedByGame.secondsFor(summaryKey) +
-          (activeSecondsBySummary.get(summary) ?? 0),
+      summary.trackedSinceImportSeconds = recordedByGame.secondsSinceRead(
+        providerFloor,
+        activeSecondsBySummary.get(summary) ?? 0,
       );
       summary.totalSeconds = effectiveTotalSeconds(
         summary.recordedSeconds,
@@ -7245,7 +7243,16 @@ function AdjustPlaytimeDialog({
               icon={RotateCcw}
               className="mt-2 w-full"
               disabled={disabled}
-              onClick={() => onConfirm(game.recordedSeconds)}
+              onClick={() =>
+                onConfirm(
+                  effectiveTotalSeconds(
+                    game.recordedSeconds,
+                    0,
+                    game.providerFloorSeconds,
+                    game.trackedSinceImportSeconds,
+                  ),
+                )
+              }
             >
               {t("Reset to recorded time")}
             </Button>
@@ -7278,6 +7285,17 @@ function AdjustPlaytimeDialog({
             {formatDuration(game.recordedSeconds)}
           </span>
         </div>
+        {game.providerFloorSeconds > 0 ? (
+          <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-text-muted">
+            <span>{t("Launchers combined + played since the import")}</span>
+            <span className="font-mono font-medium text-text">
+              {formatDuration(
+                game.providerFloorSeconds +
+                  (game.trackedSinceImportSeconds ?? 0),
+              )}
+            </span>
+          </div>
+        ) : null}
         {game.adjustmentSeconds !== 0 ? (
           <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2.5 text-text-muted">
             <span>{t("Current adjustment")}</span>

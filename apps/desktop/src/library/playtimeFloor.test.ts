@@ -104,9 +104,10 @@ describe("combined launcher playtime", () => {
     { trackedHours: 4, adjustmentHours: 0, expectedHours: 5 },
     { trackedHours: 5, adjustmentHours: 0, expectedHours: 5 },
     { trackedHours: 6, adjustmentHours: 0, expectedHours: 6 },
-    { trackedHours: 4, adjustmentHours: 2, expectedHours: 6 },
+    { trackedHours: 4, adjustmentHours: 2, expectedHours: 7 },
+    { trackedHours: 4, adjustmentHours: -1, expectedHours: 4 },
   ])(
-    "uses the higher total for display and milestones: $trackedHours tracked + $adjustmentHours adjusted",
+    "uses the higher total plus the adjustment for display and milestones: $trackedHours tracked + $adjustmentHours adjusted",
     ({ trackedHours, adjustmentHours, expectedHours }) => {
       const floors = providerFloors([steam, xbox]);
       const tracked = trackedHours * 3600;

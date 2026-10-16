@@ -5,6 +5,7 @@ import type { AppNotification, NotificationKind } from "./notifications";
 import { resolvedCanonicalGameKey, type GameIdentityResolver } from "./store";
 import type { ProviderFloor } from "./library/playtimeFloor";
 import {
+  displayTotalSeconds,
   effectiveTotalSeconds,
   trackedSinceReadSeconds,
 } from "./playtimeAdjustments";
@@ -135,10 +136,7 @@ export function milestoneMetrics(input: MilestoneInput): MilestoneMetrics {
         game.recordedSeconds,
         game.adjustmentSeconds,
         game.providerFloorSeconds,
-        trackedSinceReadSeconds(
-          game.providerFloorRecordedSecondsAtRead,
-          game.recordedSeconds,
-        ),
+        game.trackedSinceReadSeconds,
       );
       visibleGames.set(key, {
         hours: totalSeconds / 3600,
@@ -173,7 +171,8 @@ export type GameLifetimeTotal = {
   recordedSeconds: number;
   adjustmentSeconds: number;
   providerFloorSeconds: number;
-  providerFloorRecordedSecondsAtRead?: number;
+  /** PlayCounter time since the launcher read, added on top of it. */
+  trackedSinceReadSeconds: number;
   /** Empty when only archived time or an edit knows the game. */
   name: string;
   coverUrl: string;
@@ -232,7 +231,9 @@ export function gameLifetimeTotals(
     games.set(canonicalKey, game);
     rememberAlias(canonicalKey, key);
   }
-  for (const floor of input.providerFloors ?? []) {
+  const floors = input.providerFloors ?? [];
+  const recorded = floors.length > 0 ? recordedSecondsByGame(input) : null;
+  for (const floor of floors) {
     const game = games.get(floor.canonicalKey) ?? {
       ...emptyGame(),
       name: floor.name,
@@ -240,7 +241,7 @@ export function gameLifetimeTotals(
     };
     if (floor.seconds >= game.providerFloorSeconds) {
       game.providerFloorSeconds = floor.seconds;
-      game.providerFloorRecordedSecondsAtRead = floor.recordedSecondsAtRead;
+      game.trackedSinceReadSeconds = recorded!.secondsSinceRead(floor);
     }
     if (!game.name) game.name = floor.name;
     if (!game.coverUrl) game.coverUrl = floor.coverUrl;
@@ -249,6 +250,51 @@ export function gameLifetimeTotals(
   }
 
   return { games, canonicalByAlias };
+}
+
+/**
+ * A manual adjustment ("Set total") moves the whole total, launcher time
+ * included. An adjustment made before a game had launcher time only knew
+ * PlayCounter's time (it may hold the Steam hours typed in by hand), so when
+ * launcher time first counts, the higher of the two wins: the adjustment
+ * becomes the part of the shown total above the higher of PlayCounter and
+ * launcher time. Used on a game's first launcher read, and once for saves
+ * from before adjustments moved the whole total, which keep what they showed.
+ */
+export function moveAdjustmentsOnTop(
+  playtimeAdjustments: Record<string, number>,
+  gameKeys: ReadonlySet<string>,
+  input: Omit<Parameters<typeof gameLifetimeTotals>[0], "playtimeAdjustments">,
+) {
+  if (gameKeys.size === 0) return false;
+  const { games, canonicalByAlias } = gameLifetimeTotals({
+    ...input,
+    playtimeAdjustments,
+  });
+  let changed = false;
+  for (const gameKey of gameKeys) {
+    const game = games.get(gameKey);
+    if (!game || game.adjustmentSeconds === 0) continue;
+    const launcherSeconds =
+      game.providerFloorSeconds > 0
+        ? game.providerFloorSeconds + game.trackedSinceReadSeconds
+        : 0;
+    const shown = Math.max(
+      displayTotalSeconds(game.recordedSeconds, game.adjustmentSeconds),
+      launcherSeconds,
+    );
+    const adjustment = Math.round(
+      shown - Math.max(game.recordedSeconds, launcherSeconds),
+    );
+    if (adjustment === game.adjustmentSeconds) continue;
+    const keys = Object.keys(playtimeAdjustments)
+      .filter((key) => canonicalByAlias.get(key) === gameKey)
+      .sort();
+    for (const key of keys) delete playtimeAdjustments[key];
+    if (adjustment !== 0) playtimeAdjustments[keys[0]] = adjustment;
+    changed = true;
+  }
+  return changed;
 }
 
 /**
@@ -289,21 +335,49 @@ export function recordedSecondsByGame(
       seconds: Math.max(0, session.durationSeconds ?? 0),
     });
   }
+  const secondsFor = (canonicalKey: string, beforeMs = Infinity) => {
+    const entry = games.get(canonicalKey);
+    if (!entry) return 0;
+    return Math.round(
+      entry.sessions.reduce(
+        (total, session) =>
+          // A session without a valid start counts as before the read.
+          session.startedMs >= beforeMs ? total : total + session.seconds,
+        entry.archivedSeconds,
+      ),
+    );
+  };
+  /**
+   * PlayCounter's time the launcher total holds: the snapshot, but never more
+   * than what is still recorded from before the read. Time removed from back
+   * then (a deleted session, a file removed with its history) must not hold
+   * back the sessions played after the import.
+   */
+  const secondsAtRead = (floor: LauncherRead) =>
+    floor.recordedSecondsAtRead === undefined
+      ? undefined
+      : Math.min(
+          floor.recordedSecondsAtRead,
+          secondsFor(floor.canonicalKey, floor.readAtMs),
+        );
   return {
-    secondsFor(canonicalKey: string, beforeMs = Infinity) {
-      const entry = games.get(canonicalKey);
-      if (!entry) return 0;
-      return Math.round(
-        entry.sessions.reduce(
-          (total, session) =>
-            // A session without a valid start counts as before the read.
-            session.startedMs >= beforeMs ? total : total + session.seconds,
-          entry.archivedSeconds,
-        ),
+    secondsFor,
+    secondsAtRead,
+    /** PlayCounter time since the launcher read, added on top of it. */
+    secondsSinceRead(floor: LauncherRead | undefined, runningSeconds = 0) {
+      if (!floor) return 0;
+      return trackedSinceReadSeconds(
+        secondsAtRead(floor),
+        secondsFor(floor.canonicalKey) + runningSeconds,
       );
     },
   };
 }
+
+type LauncherRead = Pick<
+  ProviderFloor,
+  "canonicalKey" | "recordedSecondsAtRead" | "readAtMs"
+>;
 
 export function evaluateMilestones(
   input: MilestoneInput & {
@@ -475,6 +549,7 @@ function emptyGame(): GameLifetimeTotal {
     recordedSeconds: 0,
     adjustmentSeconds: 0,
     providerFloorSeconds: 0,
+    trackedSinceReadSeconds: 0,
     name: "",
     coverUrl: "",
   };

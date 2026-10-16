@@ -21,7 +21,6 @@ import { usePickedCovers } from "../../pickedCovers";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
-  trackedSinceReadSeconds,
 } from "../../playtimeAdjustments";
 import { recordedSecondsByGame } from "../../milestones";
 import {
@@ -59,7 +58,7 @@ type ActiveGameHeroProps = {
   resolveIgdbId: GameIdentityResolver;
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
-  providerFloor?: Pick<ProviderFloor, "seconds" | "recordedSecondsAtRead">;
+  providerFloor?: ProviderFloor;
   /** "Now playing" or "Now emulating", already translated. */
   statusLabel: string;
   onReport?: () => void;
@@ -186,10 +185,7 @@ export function ActiveGameHero({
     recordedSeconds,
     adjustmentSecondsFor(playtimeAdjustments, keys),
     providerFloor?.seconds,
-    trackedSinceReadSeconds(
-      providerFloor?.recordedSecondsAtRead,
-      recordedByGame.secondsFor(sessionKey) + elapsedSeconds,
-    ),
+    recordedByGame.secondsSinceRead(providerFloor, elapsedSeconds),
   );
   const lifetimeSessionCount = priorSessions.length + 1;
   // A Game.exe game named or picked on this PC is custom, but its folder can

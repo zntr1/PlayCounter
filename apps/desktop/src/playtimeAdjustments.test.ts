@@ -23,9 +23,11 @@ describe("playtime adjustments", () => {
     expect(displayTotalSeconds(300, -500)).toBe(0);
   });
 
-  it("uses provider playtime as a monotone display floor", () => {
-    expect(effectiveTotalSeconds(300, -100, 500)).toBe(500);
+  it("takes the higher of PlayCounter and launcher time, then the adjustment on top", () => {
+    expect(effectiveTotalSeconds(300, -100, 500)).toBe(400);
     expect(effectiveTotalSeconds(700, -100, 500)).toBe(600);
     expect(effectiveTotalSeconds(900, 50, 500)).toBe(950);
+    expect(effectiveTotalSeconds(300, 0, 500, 200)).toBe(700);
+    expect(effectiveTotalSeconds(300, -900, 500)).toBe(0);
   });
 });
