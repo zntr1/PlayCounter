@@ -1,58 +1,58 @@
 [
   {
     "version": "1.4.2",
-    "headline": "Imported playtime keeps growing as you play.",
+    "headline": "Hotfix: imported games now show their full playtime.",
     "highlights": [
-      "Fixes: playtime imported from Steam, Xbox or Epic Games now grows with every session PlayCounter records. It used to stay at the imported number until PlayCounter alone caught up. The hours you played since importing count now, so some totals go up with this update and you may unlock achievements right away.",
+      "Fixes: games imported from Steam, Xbox or Epic Games stayed at the imported playtime instead of growing as you played. This was only a display error: PlayCounter recorded every session the whole time, so none of your playtime was lost. The hours since your import now show up, so some totals go up with this update and you may unlock achievements right away.",
       "Improvement: Adjust total playtime now sets exactly the total you enter, also below the hours a launcher reports. Use it to take out idle hours or to start a game from zero. New sessions are added on top."
     ],
     "translations": {
       "de": {
-        "headline": "Importierte Spielzeit wächst jetzt weiter, während du spielst.",
+        "headline": "Hotfix: Importierte Spiele zeigen jetzt ihre volle Spielzeit.",
         "highlights": [
-          "Behoben: Spielzeit, die aus Steam, Xbox oder Epic Games importiert wurde, wächst jetzt mit jeder Sitzung, die PlayCounter erfasst. Bisher blieb sie beim importierten Wert stehen, bis PlayCounter allein aufgeholt hatte. Die seit dem Import gespielten Stunden zählen jetzt mit, deshalb steigen manche Gesamtzeiten mit diesem Update, und du schaltest vielleicht gleich Erfolge frei.",
+          "Behoben: Spiele, die aus Steam, Xbox oder Epic Games importiert wurden, blieben bei der importierten Spielzeit stehen, statt beim Spielen weiterzuwachsen. Das war nur ein Anzeigefehler: PlayCounter hat die ganze Zeit jede Sitzung erfasst, deine Spielzeit ist also nicht verloren. Die Stunden seit deinem Import werden jetzt angezeigt, deshalb steigen manche Gesamtzeiten mit diesem Update, und du schaltest vielleicht gleich Erfolge frei.",
           "Verbessert: „Gesamte Spielzeit anpassen“ setzt jetzt genau die Gesamtzeit, die du eingibst, auch unter den Stunden, die ein Launcher meldet. So nimmst du Leerlaufstunden heraus oder startest ein Spiel bei null. Neue Sitzungen kommen obendrauf."
         ]
       },
       "es": {
-        "headline": "El tiempo de juego importado sigue creciendo mientras juegas.",
+        "headline": "Corrección rápida: los juegos importados ya muestran todo su tiempo de juego.",
         "highlights": [
-          "Correcciones: el tiempo de juego importado de Steam, Xbox o Epic Games ahora crece con cada sesión que registra PlayCounter. Antes se quedaba en la cifra importada hasta que PlayCounter la alcanzaba por su cuenta. Las horas que jugaste desde la importación ahora cuentan, así que algunos totales suben con esta actualización y puede que desbloquees logros enseguida.",
+          "Correcciones: los juegos importados de Steam, Xbox o Epic Games se quedaban en el tiempo de juego importado en lugar de crecer mientras jugabas. Era solo un error de visualización: PlayCounter registró cada sesión todo el tiempo, así que no se perdió nada de tu tiempo de juego. Las horas desde tu importación ya aparecen, así que algunos totales suben con esta actualización y puede que desbloquees logros enseguida.",
           "Mejora: “Ajustar tiempo de juego total” ahora fija exactamente el total que escribes, incluso por debajo de las horas que indica un lanzador. Úsalo para quitar horas de inactividad o para empezar un juego desde cero. Las sesiones nuevas se suman encima."
         ]
       },
       "fr": {
-        "headline": "Le temps de jeu importé continue d'augmenter pendant que vous jouez.",
+        "headline": "Correctif : les jeux importés affichent désormais tout leur temps de jeu.",
         "highlights": [
-          "Corrections : le temps de jeu importé depuis Steam, Xbox ou Epic Games augmente désormais à chaque session enregistrée par PlayCounter. Avant, il restait bloqué à la valeur importée jusqu'à ce que PlayCounter la rattrape seul. Les heures jouées depuis l'import comptent maintenant, donc certains totaux augmentent avec cette mise à jour et vous pourriez débloquer des succès tout de suite.",
+          "Corrections : les jeux importés depuis Steam, Xbox ou Epic Games restaient bloqués au temps de jeu importé au lieu d'augmenter pendant vos parties. C'était seulement une erreur d'affichage : PlayCounter a enregistré chaque session tout du long, votre temps de jeu n'est donc pas perdu. Les heures jouées depuis l'import s'affichent maintenant, donc certains totaux augmentent avec cette mise à jour et vous pourriez débloquer des succès tout de suite.",
           "Amélioration : « Ajuster le temps de jeu total » fixe désormais exactement le total que vous saisissez, même en dessous des heures indiquées par un launcher. Utilisez-le pour retirer des heures d'inactivité ou pour repartir de zéro. Les nouvelles sessions s'ajoutent par-dessus."
         ]
       },
       "pl": {
-        "headline": "Zaimportowany czas gry rośnie dalej, gdy grasz.",
+        "headline": "Poprawka: zaimportowane gry pokazują teraz cały czas gry.",
         "highlights": [
-          "Poprawki: czas gry zaimportowany ze Steam, Xbox lub Epic Games rośnie teraz z każdą sesją zapisaną przez PlayCounter. Wcześniej zatrzymywał się na zaimportowanej wartości, dopóki PlayCounter sam go nie dogonił. Godziny rozegrane od importu są teraz liczone, więc niektóre sumy rosną po tej aktualizacji i możesz od razu odblokować osiągnięcia.",
+          "Poprawki: gry zaimportowane ze Steam, Xbox lub Epic Games zatrzymywały się na zaimportowanym czasie gry, zamiast rosnąć podczas grania. To był tylko błąd wyświetlania: PlayCounter cały czas zapisywał każdą sesję, więc twój czas gry nie przepadł. Godziny od importu są teraz widoczne, więc niektóre sumy rosną po tej aktualizacji i możesz od razu odblokować osiągnięcia.",
           "Ulepszenie: „Dostosuj łączny czas gry” ustawia teraz dokładnie sumę, którą wpiszesz, także poniżej godzin podawanych przez launcher. Użyj go, aby usunąć godziny bezczynności albo zacząć grę od zera. Nowe sesje są dodawane do tej sumy."
         ]
       },
       "pt-BR": {
-        "headline": "O tempo de jogo importado continua crescendo enquanto você joga.",
+        "headline": "Correção rápida: jogos importados agora mostram todo o tempo de jogo.",
         "highlights": [
-          "Correções: o tempo de jogo importado do Steam, do Xbox ou da Epic Games agora cresce a cada sessão que o PlayCounter registra. Antes ele ficava parado no valor importado até o PlayCounter alcançá-lo sozinho. As horas que você jogou desde a importação agora contam, então alguns totais sobem com esta atualização e você pode desbloquear conquistas logo em seguida.",
+          "Correções: jogos importados do Steam, do Xbox ou da Epic Games ficavam parados no tempo de jogo importado em vez de crescer enquanto você jogava. Era só um erro de exibição: o PlayCounter registrou todas as sessões o tempo todo, então nenhum tempo de jogo foi perdido. As horas desde a importação agora aparecem, então alguns totais sobem com esta atualização e você pode desbloquear conquistas logo em seguida.",
           "Melhoria: “Ajustar tempo de jogo total” agora define exatamente o total que você digitar, mesmo abaixo das horas informadas por um launcher. Use para tirar horas paradas ou para começar um jogo do zero. As novas sessões são somadas a esse total."
         ]
       },
       "ru": {
-        "headline": "Импортированное время в игре растёт дальше, пока вы играете.",
+        "headline": "Срочное исправление: импортированные игры теперь показывают всё время в игре.",
         "highlights": [
-          "Исправления: время в игре, импортированное из Steam, Xbox или Epic Games, теперь растёт с каждой сессией, которую записывает PlayCounter. Раньше оно оставалось на импортированном значении, пока PlayCounter сам его не догонял. Часы, сыгранные после импорта, теперь учитываются, поэтому после обновления некоторые суммы вырастут, и вы можете сразу получить достижения.",
+          "Исправления: у игр, импортированных из Steam, Xbox или Epic Games, время в игре оставалось на импортированном значении и не росло, пока вы играли. Это была только ошибка отображения: PlayCounter всё это время записывал каждую сессию, так что ваше время в игре не потеряно. Часы, сыгранные после импорта, теперь видны, поэтому после обновления некоторые суммы вырастут, и вы можете сразу получить достижения.",
           "Улучшение: «Изменить общее время в игре» теперь задаёт ровно ту сумму, которую вы ввели, даже если она меньше часов, которые показывает лаунчер. Так можно убрать часы простоя или начать игру с нуля. Новые сессии прибавляются к этой сумме."
         ]
       },
       "zh-CN": {
-        "headline": "导入的游戏时长会随着你的游玩继续增长。",
+        "headline": "紧急修复：导入的游戏现在会显示完整的游戏时长。",
         "highlights": [
-          "修复：从 Steam、Xbox 或 Epic Games 导入的游戏时长，现在会随着 PlayCounter 记录的每条游玩记录继续增长。以前它会停在导入时的数值，直到 PlayCounter 自己记录的时长追上为止。导入之后游玩的时长现在都会计入，因此本次更新后部分总时长会增加，你也可能马上解锁成就。",
+          "修复：从 Steam、Xbox 或 Epic Games 导入的游戏，时长会停在导入时的数值，不会随着你的游玩继续增长。这只是显示问题：PlayCounter 一直在记录每条游玩记录，你的游戏时长没有丢失。导入之后游玩的时长现在都会显示出来，因此本次更新后部分总时长会增加，你也可能马上解锁成就。",
           "改进：“调整累计游戏时长”现在会准确设为你输入的总时长，即使低于启动器显示的小时数也可以。可以用它去掉挂机时长，或让游戏从零开始。之后的新游玩记录会在此基础上累加。"
         ]
       }
