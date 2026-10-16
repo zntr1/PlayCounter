@@ -87,7 +87,10 @@ async function saveAndReload() {
 describe.each([
   ["v1.0", v10Seconds],
   ["v1.1", archivedSeconds],
-  ["v1.2", archivedSeconds],
+  // Hades' +30m adjustment sat below its 25h Steam total and never showed.
+  // Adjustments now move the whole total, so it is dropped and Hades keeps
+  // showing the same.
+  ["v1.2", { ...archivedSeconds, "igdb:1002": 13_000 }],
 ])("upgrading a %s save", (version, expectedSeconds) => {
   function expectEverythingKept() {
     const state = useAppStore.getState();

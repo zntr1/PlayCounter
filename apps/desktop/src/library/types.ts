@@ -18,6 +18,12 @@ export type LibraryImportEntry = {
   coverUrl: string;
   importedAt: string;
   providerSeconds: number | null;
+  /**
+   * PlayCounter's recorded time for this game when providerSeconds was read.
+   * Time tracked after that is added on top of the launcher total. Missing
+   * only on entries saved before this existed, until the app fills it in.
+   */
+  recordedSecondsAtRead?: number;
   /** False means no provider play evidence, not proof of never playing. */
   providerHasPlayedEvidence?: boolean;
   providerLastPlayedAt?: string;

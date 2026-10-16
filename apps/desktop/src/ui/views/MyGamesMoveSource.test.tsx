@@ -348,14 +348,18 @@ it("offers the same move from game details and merges an explicit re-import into
 });
 
 it("keeps archived hours from every former launcher identity in the same card", async () => {
-  importGame("steam");
-  const imported = useAppStore.getState().libraryImports.get("steam:100")!;
-  useAppStore
-    .getState()
-    .setLibraryImport({ ...imported, provider: "xbox", gameId: 7 });
+  // The hours were played before the import, so the launcher totals hold them.
   useAppStore.setState({
     archivedSeconds: 7200,
     archivedGameSeconds: { "igdb:1": 3600, "igdb:7": 3600 },
+  });
+  importGame("steam");
+  const imported = useAppStore.getState().libraryImports.get("steam:100")!;
+  useAppStore.getState().setLibraryImport({
+    ...imported,
+    provider: "xbox",
+    gameId: 7,
+    recordedSecondsAtRead: 7200,
   });
   await act(() => root.render(<LibraryTestShell />));
   expect(container.querySelector(".game-library-card")?.textContent).toContain(

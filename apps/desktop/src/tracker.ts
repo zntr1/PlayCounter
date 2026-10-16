@@ -109,6 +109,8 @@ import {
   milestoneMetrics,
   migrateAwardedMilestones,
   parseMilestoneId,
+  moveAdjustmentsOnTop,
+  recordedSecondsByGame,
 } from "./milestones";
 import {
   contributionKey,
@@ -135,7 +137,10 @@ import {
   withToolArt,
   type RunningTool,
 } from "./toolUsage";
-import { nextAdjustmentSeconds } from "./playtimeAdjustments";
+import {
+  effectiveTotalSeconds,
+  nextAdjustmentSeconds,
+} from "./playtimeAdjustments";
 import {
   blockPersistenceAfterFailedLoad,
   isPersistenceSuspended,
@@ -228,7 +233,11 @@ import {
   readWatchFolders,
   restoreDismissedFolder,
 } from "./library/watchFolderState";
-import { providerFloors } from "./library/playtimeFloor";
+import {
+  providerFloorKey,
+  providerFloors,
+  providerFloorsByKey,
+} from "./library/playtimeFloor";
 import { normalizePlayCounterLibraryEntry } from "./library/playcounterLibrary";
 import {
   normalizeWindowsDir,
@@ -717,9 +726,46 @@ export function normalizePersistedLibraryImport(
       entry.providerSeconds === null
         ? null
         : Math.round(entry.providerSeconds as number),
+    recordedSecondsAtRead:
+      typeof entry.recordedSecondsAtRead === "number" &&
+      Number.isFinite(entry.recordedSecondsAtRead) &&
+      entry.recordedSecondsAtRead >= 0
+        ? Math.round(entry.recordedSecondsAtRead)
+        : undefined,
     linkedExeNames,
     linkedExeSources: [...new Set(linkedExeSources)],
   } as LibraryImportEntry;
+}
+
+/**
+ * Imports saved before PlayCounter time counted on top of launcher totals
+ * have no snapshot. Sessions that started before the last read are in the
+ * launcher total; archived time has no dates and counts as before, so the
+ * total can only grow from what these saves showed. Returns the games it
+ * filled.
+ */
+export function fillRecordedSecondsAtRead(
+  libraryImports: Map<string, LibraryImportEntry>,
+  recorded: ReturnType<typeof recordedSecondsByGame>,
+) {
+  const filled = new Set<string>();
+  for (const [key, entry] of libraryImports) {
+    if (
+      entry.providerSeconds === null ||
+      entry.recordedSecondsAtRead !== undefined
+    )
+      continue;
+    const readAtMs = Date.parse(entry.lastReadAt);
+    libraryImports.set(key, {
+      ...entry,
+      recordedSecondsAtRead: recorded.secondsFor(
+        providerFloorKey(entry),
+        Number.isFinite(readAtMs) ? readAtMs : Infinity,
+      ),
+    });
+    filled.add(providerFloorKey(entry));
+  }
+  return filled;
 }
 
 export function backfillLibraryExecutableCache(
@@ -1146,6 +1192,34 @@ export function hydrate() {
     hydratedOverflow,
     sanitizePlaythroughSeconds(persisted.archivedPlaythroughSeconds),
   );
+  const hydratedResolver = createGameIdentityResolver(
+    gameMetadataMap,
+    exeCacheMap,
+    libraryImports,
+  );
+  const gamesReadBeforeSnapshots = fillRecordedSecondsAtRead(
+    libraryImports,
+    recordedSecondsByGame({
+      sessions: hydratedSessions,
+      archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+      resolveIgdbId: hydratedResolver,
+    }),
+  );
+  const playtimeAdjustments = sanitizeGameSecondsRecord(
+    persisted.playtimeAdjustments,
+    { signed: true },
+  );
+  if (
+    moveAdjustmentsOnTop(playtimeAdjustments, gamesReadBeforeSnapshots, {
+      sessions: hydratedSessions,
+      archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+      providerFloors: providerFloors(libraryImports.values()),
+      resolveIgdbId: hydratedResolver,
+    }) ||
+    gamesReadBeforeSnapshots.size > 0
+  ) {
+    shouldPersistAchievementMigration = true;
+  }
   const autoDetectedGameKeys = (() => {
     if (Array.isArray(persisted.autoDetectedGameKeys)) {
       return [
@@ -1347,10 +1421,7 @@ export function hydrate() {
     milestonesInitializedAt: persisted.milestonesInitializedAt ?? null,
     archivedSeconds: hydratedArchive.archivedSeconds,
     archivedGameSeconds: hydratedArchive.archivedGameSeconds,
-    playtimeAdjustments: sanitizeGameSecondsRecord(
-      persisted.playtimeAdjustments,
-      { signed: true },
-    ),
+    playtimeAdjustments,
     customHeroArt: sanitizeCustomHeroArt(persisted.customHeroArt),
     customCoverArt: sanitizeCustomCoverArt(persisted.customCoverArt),
     toolUsage: sanitizeToolUsage(persisted.toolUsage),
@@ -8270,8 +8341,26 @@ export function setGamePlaytime(params: {
     0,
   );
   const recordedSeconds = retainedSeconds + archivedSeconds;
-  const adjustmentSeconds = nextAdjustmentSeconds(
+  // The new total replaces the whole shown total, launcher time included.
+  const launcher = providerFloorsByKey(
+    providerFloors(state.libraryImports.values()),
+  )[providerFloorKey(params)];
+  const shownWithoutAdjustment = effectiveTotalSeconds(
     recordedSeconds,
+    0,
+    launcher?.seconds,
+    recordedSecondsByGame({
+      sessions: state.recentSessions,
+      archivedGameSeconds: state.archivedGameSeconds,
+      resolveIgdbId: createGameIdentityResolver(
+        state.gameMetadata,
+        state.exeCache,
+        state.libraryImports,
+      ),
+    }).secondsSinceRead(launcher),
+  );
+  const adjustmentSeconds = nextAdjustmentSeconds(
+    shownWithoutAdjustment,
     targetSeconds,
   );
   state.setPlaytimeAdjustment(
@@ -8280,7 +8369,7 @@ export function setGamePlaytime(params: {
     keys,
   );
   logRuntime(
-    `game playtime adjustment set gameId=${params.gameId} source=${params.source ?? "unknown"} recorded=${recordedSeconds} target=${targetSeconds} offset=${adjustmentSeconds}`,
+    `game playtime adjustment set gameId=${params.gameId} source=${params.source ?? "unknown"} recorded=${recordedSeconds} shown=${shownWithoutAdjustment} target=${targetSeconds} offset=${adjustmentSeconds}`,
   );
   evaluateAndStoreMilestones();
 }

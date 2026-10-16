@@ -56,12 +56,15 @@ const JUNK: [string, unknown][] = [
 ];
 
 // Fields whose content is playtime. Junk there may drop that playtime, but
-// must not break loading or anything else.
+// must not break loading or anything else. Launcher totals are playtime too:
+// a save from before keeps its shown total by rewriting manual adjustments of
+// imported games on load.
 const PLAYTIME_FIELDS = new Set([
   "sessions",
   "archivedSeconds",
   "archivedGameSeconds",
   "playtimeAdjustments",
+  "libraryImports",
 ]);
 
 let storage: Map<string, string>;

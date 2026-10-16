@@ -10,8 +10,17 @@ import { scopedExeLinkKey } from "./scopedLinks";
 import { scopedLocalGameId } from "./localGameIds";
 import { libraryEntryKey, type LibraryImportCommit } from "./types";
 import { undismissLauncherGames } from "./libraryAutoAddState";
-import { evaluateMilestones } from "../milestones";
-import { providerFloors } from "./playtimeFloor";
+import {
+  evaluateMilestones,
+  moveAdjustmentsOnTop,
+  recordedSecondsByGame,
+} from "../milestones";
+import {
+  providerFloorKey,
+  providerFloors,
+  providerFloorsByKey,
+  type ProviderFloor,
+} from "./playtimeFloor";
 import { splitStoredSessions } from "../sessionPersistence";
 import type { Session } from "@playcounter/shared";
 import {
@@ -32,6 +41,12 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
   const backfillSessions: Session[] = [];
   const backfilledExecutables = new Set<string>();
   const now = new Date();
+  // Games with a new launcher reading. Their PlayCounter snapshot is taken
+  // once the sessions below are final.
+  const floorsBefore = providerFloorsByKey(
+    providerFloors(state.libraryImports.values()),
+  );
+  const readGames = new Set<string>();
 
   for (const original of commits) {
     const commit = withoutRejectedFiles(original, state.rejectedGameFiles);
@@ -67,7 +82,10 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
         previous?.providerSeconds,
         commit.entry.providerSeconds,
       ),
+      recordedSecondsAtRead: previous?.recordedSecondsAtRead,
     });
+    if (commit.entry.providerSeconds !== null)
+      readGames.add(providerFloorKey(commit.entry));
     if (commit.install) libraryInstalls.set(key, commit.install);
     else if (!commit.preserveInstall) libraryInstalls.delete(key);
     gameMetadata.set(gameMetadataKey(commit.metadata), commit.metadata);
@@ -144,11 +162,49 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     split.removed,
     state.archivedPlaythroughSeconds,
   );
+  const recorded = recordedSecondsByGame({
+    sessions: split.kept,
+    archivedGameSeconds: archive.archivedGameSeconds,
+    resolveIgdbId,
+  });
+  const floorsAfter = providerFloorsByKey(
+    providerFloors(libraryImports.values()),
+  );
+  const firstReadGames = new Set<string>();
+  for (const gameKey of readGames) {
+    const floor = floorsAfter[gameKey];
+    if (!floor) continue;
+    const before = floorsBefore[gameKey];
+    if (!before) firstReadGames.add(gameKey);
+    const snapshot = recordedSecondsAtRead(
+      before && {
+        seconds: before.seconds,
+        recordedSecondsAtRead: recorded.secondsAtRead(before),
+      },
+      floor.seconds,
+      recorded.secondsFor(gameKey),
+    );
+    // One snapshot per game: its launchers form one combined total.
+    for (const [key, entry] of libraryImports) {
+      if (entry.providerSeconds === null || providerFloorKey(entry) !== gameKey)
+        continue;
+      libraryImports.set(key, { ...entry, recordedSecondsAtRead: snapshot });
+    }
+  }
+  // Hours typed in by hand before the first launcher read are not counted
+  // twice: the higher of the shown total and the launcher total wins.
+  const playtimeAdjustments = { ...state.playtimeAdjustments };
+  moveAdjustmentsOnTop(playtimeAdjustments, firstReadGames, {
+    sessions: split.kept,
+    archivedGameSeconds: archive.archivedGameSeconds,
+    providerFloors: providerFloors(libraryImports.values()),
+    resolveIgdbId,
+  });
   const milestoneResult = evaluateMilestones({
     sessions: split.kept,
     archivedSeconds: archive.archivedSeconds,
     archivedGameSeconds: archive.archivedGameSeconds,
-    playtimeAdjustments: state.playtimeAdjustments,
+    playtimeAdjustments,
     providerFloors: providerFloors(libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
     verifiedEmulatorContributions: state.emulatorContributionCounts.verified,
@@ -171,6 +227,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     awardedMilestones: milestoneResult.awardedMilestones,
     milestonesInitializedAt: milestoneResult.milestonesInitializedAt,
     notifications,
+    playtimeAdjustments,
     recentSessions: split.kept,
     archivedSeconds: archive.archivedSeconds,
     archivedGameSeconds: archive.archivedGameSeconds,
@@ -188,6 +245,7 @@ export function commitLibraryImports(commits: readonly LibraryImportCommit[]) {
     gameMetadata,
     awardedMilestones: milestoneResult.awardedMilestones,
     milestonesInitializedAt: milestoneResult.milestonesInitializedAt,
+    playtimeAdjustments,
     recentSessions: result.sessions,
     notifications: result.notifications,
     archivedSeconds: result.archivedSeconds,
@@ -206,6 +264,27 @@ export function mergeProviderSeconds(
   if (incoming === null) return previous ?? null;
   if (previous === null || previous === undefined) return incoming;
   return Math.max(previous, incoming);
+}
+
+/**
+ * PlayCounter's time that the combined launcher total already holds. On a
+ * game's first read that is all of it: the higher of the two counts. On a
+ * later read (the same launcher again, or another one), the higher of the
+ * shown total and the new combined launcher total becomes the new starting
+ * point. So importing never lowers the total and never counts an hour twice.
+ */
+export function recordedSecondsAtRead(
+  before: Pick<ProviderFloor, "seconds" | "recordedSecondsAtRead"> | undefined,
+  launcherSeconds: number,
+  recordedSeconds: number,
+) {
+  const recordedNow = Math.max(0, Math.round(recordedSeconds));
+  if (before?.recordedSecondsAtRead === undefined) return recordedNow;
+  const launcherGrowth = Math.max(
+    0,
+    Math.round(launcherSeconds) - before.seconds,
+  );
+  return Math.min(recordedNow, before.recordedSecondsAtRead + launcherGrowth);
 }
 
 function addBackfillSession(
