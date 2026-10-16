@@ -5,7 +5,7 @@
   "Rating": "Bewertung",
   "Details need a connection to the PlayCounter database.": "Für Details ist eine Verbindung zur PlayCounter-Datenbank nötig.",
   "Details could not be loaded right now. Your summary below comes from this PC and is unaffected.": "Details konnten gerade nicht geladen werden. Deine Übersicht unten stammt von diesem PC und ist nicht betroffen.",
-  "The database has no description for this game yet.": "Die Datenbank hat noch keine Beschreibung für dieses Spiel.",
+  "The database has no description for this game yet.": "PlayCounter hat noch keine Beschreibung für dieses Spiel.",
   "Install in Steam": "In Steam installieren",
   "Open on IGDB": "Auf IGDB öffnen",
   "Show in History": "Im Verlauf anzeigen",
