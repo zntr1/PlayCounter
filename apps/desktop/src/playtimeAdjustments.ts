@@ -23,16 +23,38 @@ export function displayTotalSeconds(
 
 /**
  * The sum of launcher lifetime totals is a historical floor, never an
- * adjustment. PlayCounter tracking can overlap those totals, so use the
- * higher of its adjusted time and the combined launcher time.
+ * adjustment. At the import, PlayCounter tracking can overlap those totals, so
+ * the higher of the two counts. Everything PlayCounter records after the
+ * import is new, so it is added on top of the launcher total. A manual
+ * adjustment ("Set total") moves the whole result, launcher time included.
  */
 export function effectiveTotalSeconds(
   recordedSeconds: number,
   adjustmentSeconds: number,
   providerFloorSeconds = 0,
+  trackedSinceReadSeconds = 0,
 ) {
-  return Math.max(
-    displayTotalSeconds(recordedSeconds, adjustmentSeconds),
-    Math.max(0, Math.round(providerFloorSeconds)),
+  const floor = Math.max(0, Math.round(providerFloorSeconds));
+  return displayTotalSeconds(
+    Math.max(
+      recordedSeconds,
+      floor > 0 ? floor + Math.max(0, Math.round(trackedSinceReadSeconds)) : 0,
+    ),
+    adjustmentSeconds,
   );
+}
+
+/**
+ * PlayCounter time recorded since the launcher read. Both numbers must come
+ * from recordedSecondsByGame() (plus running time), the way the snapshot was
+ * taken, so every screen counts the same hours. No snapshot (saves from
+ * before it existed): nothing counts yet.
+ */
+export function trackedSinceReadSeconds(
+  recordedSecondsAtRead: number | undefined,
+  recordedSecondsNow: number,
+) {
+  return recordedSecondsAtRead === undefined
+    ? 0
+    : Math.max(0, recordedSecondsNow - recordedSecondsAtRead);
 }

@@ -57,6 +57,8 @@ const NOTIFICATION_STATE_KEYS = [
   "suppressContributionNotificationsOnce",
   "lastSeenReleaseNotesVersion",
   "languageNoticeSeen",
+  "discordInviteSnoozedAt",
+  "discordInviteDone",
 ];
 
 const JSON_FILTER = [{ name: "PlayCounter backup", extensions: ["json"] }];

@@ -519,6 +519,11 @@ export type AppState = {
   suppressContributionNotificationsOnce: boolean;
   /** The one-time "PlayCounter is now in German" notice was answered. */
   languageNoticeSeen: boolean;
+  /** When "Not now" first hid the Discord invite. It comes back two weeks
+   *  later, once. */
+  discordInviteSnoozedAt: string | null;
+  /** The Discord invite was joined or put off twice; it never opens again. */
+  discordInviteDone: boolean;
   activeTour: ActiveTour | null;
   demoResetToken: number;
   helpMenuOpen: boolean;
@@ -536,6 +541,8 @@ export type AppState = {
   resetTourProgress: () => void;
   markReleaseNotesSeen: (version: string) => void;
   dismissLanguageNotice: () => void;
+  snoozeDiscordInvite: () => void;
+  finishDiscordInvite: () => void;
   openCurrentReleaseNotes: () => void;
   closeCurrentReleaseNotes: (version: string) => void;
   setHistoryQuery: (query: string) => void;
@@ -923,6 +930,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   suppressStartupNotificationsOnce: false,
   suppressContributionNotificationsOnce: false,
   languageNoticeSeen: false,
+  discordInviteSnoozedAt: null,
+  discordInviteDone: false,
   activeTour: null,
   demoResetToken: 0,
   helpMenuOpen: false,
@@ -1022,6 +1031,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   dismissLanguageNotice: () => {
     set({ languageNoticeSeen: true });
+    persistSoon();
+  },
+  snoozeDiscordInvite: () => {
+    if (get().discordInviteSnoozedAt) set({ discordInviteDone: true });
+    else set({ discordInviteSnoozedAt: new Date().toISOString() });
+    persistSoon();
+  },
+  finishDiscordInvite: () => {
+    set({ discordInviteDone: true });
     persistSoon();
   },
   openCurrentReleaseNotes: () => set({ currentNotesOpen: true }),

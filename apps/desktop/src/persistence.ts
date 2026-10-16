@@ -82,6 +82,8 @@ type PersistableAppState = {
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
+  discordInviteSnoozedAt?: string | null;
+  discordInviteDone?: boolean;
 };
 
 export type PersistedPayload = {
@@ -135,6 +137,8 @@ export type PersistedPayload = {
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
+  discordInviteSnoozedAt?: string;
+  discordInviteDone?: boolean;
 };
 
 export type PersistedProjection = Pick<
@@ -252,6 +256,8 @@ function buildPersistedPayload(
     suppressContributionNotificationsOnce:
       state.suppressContributionNotificationsOnce || undefined,
     languageNoticeSeen: state.languageNoticeSeen || undefined,
+    discordInviteSnoozedAt: state.discordInviteSnoozedAt ?? undefined,
+    discordInviteDone: state.discordInviteDone || undefined,
   };
   if (state.recentSessions.length > MAX_STORED_SESSIONS) {
     const kept = new Set(sessions);

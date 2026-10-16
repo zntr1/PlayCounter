@@ -214,7 +214,7 @@ describe("moving to PlayCounter", () => {
     { local: 1200, archive: 600, adjustment: 0, expected: 1800 },
     { local: 4200, archive: 600, adjustment: 300, expected: 300 },
     { local: 4200, archive: 0, adjustment: -600, expected: -600 },
-    { local: 4200, archive: 0, adjustment: -1800, expected: -600 },
+    { local: 4200, archive: 0, adjustment: -1800, expected: -1800 },
   ])(
     "preserves overlapping totals and existing adjustments: $local/$archive/$adjustment",
     ({ local, archive, adjustment, expected }) => {

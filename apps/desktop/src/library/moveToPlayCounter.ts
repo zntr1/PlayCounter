@@ -5,7 +5,9 @@ import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
 } from "../playtimeAdjustments";
+import { recordedSecondsByGame } from "../milestones";
 import {
+  createGameIdentityResolver,
   gameMetadataKey,
   personalGameIdentity,
   useAppStore,
@@ -185,10 +187,24 @@ function applyGameMove(
     0,
   );
   const recordedSeconds = completedSeconds + activeSeconds + archivedSeconds;
+  const floors = providerFloors(imports);
+  const recorded = recordedSecondsByGame({
+    sessions: state.recentSessions,
+    archivedGameSeconds: state.archivedGameSeconds,
+    resolveIgdbId: createGameIdentityResolver(
+      state.gameMetadata,
+      state.exeCache,
+      state.libraryImports,
+    ),
+  });
   const totalSeconds = effectiveTotalSeconds(
     recordedSeconds,
     adjustmentSecondsFor(state.playtimeAdjustments, aliases),
-    providerFloors(imports).reduce((total, floor) => total + floor.seconds, 0),
+    floors.reduce((total, floor) => total + floor.seconds, 0),
+    floors.reduce(
+      (total, floor) => total + recorded.secondsSinceRead(floor, activeSeconds),
+      0,
+    ),
   );
   for (const alias of aliases) delete playtimeAdjustments[alias];
   const adjustment = Math.round(totalSeconds - recordedSeconds);

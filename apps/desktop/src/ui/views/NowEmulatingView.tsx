@@ -13,7 +13,7 @@ import {
 import { ActiveGameHero } from "./ActiveGameHero";
 import { EmulatorPickerCard } from "./emulators/EmulatorPickerCard";
 import {
-  providerFloorRecord,
+  providerFloorsByKey,
   providerFloors as collectProviderFloors,
 } from "../../library/playtimeFloor";
 import { resolvedCanonicalGameKey } from "../../store";
@@ -43,8 +43,8 @@ export function NowEmulatingView() {
     () => createGameIdentityResolver(gameMetadata, exeCache, libraryImports),
     [exeCache, gameMetadata, libraryImports],
   );
-  const providerFloorSeconds = useMemo(
-    () => providerFloorRecord(collectProviderFloors(libraryImports.values())),
+  const providerFloorByGame = useMemo(
+    () => providerFloorsByKey(collectProviderFloors(libraryImports.values())),
     [libraryImports],
   );
   const showDurationDays = useAppStore(
@@ -107,7 +107,6 @@ export function NowEmulatingView() {
         resolveIgdbId={resolveIgdbId}
         archivedGameSeconds={EMPTY_SECONDS}
         playtimeAdjustments={EMPTY_SECONDS}
-        providerFloorSeconds={0}
         statusLabel={t("Now emulating")}
         tourAnchor="demo-emulator-now"
       />
@@ -157,10 +156,10 @@ export function NowEmulatingView() {
           resolveIgdbId={resolveIgdbId}
           archivedGameSeconds={archivedGameSeconds}
           playtimeAdjustments={playtimeAdjustments}
-          providerFloorSeconds={
-            providerFloorSeconds[
+          providerFloor={
+            providerFloorByGame[
               resolvedCanonicalGameKey(session, resolveIgdbId)
-            ] ?? 0
+            ]
           }
           statusLabel={t("Now emulating")}
         />

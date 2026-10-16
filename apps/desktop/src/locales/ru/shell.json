@@ -163,5 +163,9 @@
   "downloading {{downloaded}}": "загрузка {{downloaded}}",
   "PlayCounter is now in {{language}}. You can change the language anytime in Settings.": "Язык PlayCounter: {{language}}. Его можно сменить в любой момент в настройках.",
   "Switch to English": "Switch to English",
-  "Keep": "Оставить"
+  "Keep": "Оставить",
+  "Join the Discord": "Заходите в Discord",
+  "PlayCounter is still in development. On Discord you can share ideas, report bugs and chat with other players. We'd love to hear your thoughts and ideas!": "PlayCounter ещё в разработке. В Discord можно делиться идеями, сообщать об ошибках и общаться с другими игроками. Будем рады услышать ваше мнение и идеи!",
+  "Not now": "Не сейчас",
+  "Join Discord": "Зайти в Discord"
 }

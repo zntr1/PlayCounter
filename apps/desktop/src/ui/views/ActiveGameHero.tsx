@@ -8,18 +8,21 @@ import {
   Play,
   StickyNote,
 } from "lucide-react";
+import { useMemo } from "react";
 import { Trans } from "react-i18next";
 import { useShallow } from "zustand/react/shallow";
 import { useGameDetails } from "../../gameDetails";
 import { emulatorSessionProvenance } from "../../emulators/provenance";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { isGenericExeName } from "../../library/exeCandidates";
+import type { ProviderFloor } from "../../library/playtimeFloor";
 import { GameCover } from "../GameCover";
 import { usePickedCovers } from "../../pickedCovers";
 import {
   adjustmentSecondsFor,
   effectiveTotalSeconds,
 } from "../../playtimeAdjustments";
+import { recordedSecondsByGame } from "../../milestones";
 import {
   resolvedCanonicalGameKey,
   useAppStore,
@@ -55,7 +58,7 @@ type ActiveGameHeroProps = {
   resolveIgdbId: GameIdentityResolver;
   archivedGameSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
-  providerFloorSeconds?: number;
+  providerFloor?: ProviderFloor;
   /** "Now playing" or "Now emulating", already translated. */
   statusLabel: string;
   onReport?: () => void;
@@ -77,7 +80,7 @@ export function ActiveGameHero({
   resolveIgdbId,
   archivedGameSeconds,
   playtimeAdjustments,
-  providerFloorSeconds = 0,
+  providerFloor,
   statusLabel,
   onReport,
   tourAnchor,
@@ -104,6 +107,17 @@ export function ActiveGameHero({
   const activeNote = journalNote(journal, session.playthroughId ?? null);
   const sessionKey = resolvedCanonicalGameKey(session, resolveIgdbId);
   const coverUrl = pickedCovers[sessionKey] ?? session.coverUrl;
+  // Counted like the import snapshot, so time since the import matches My
+  // Games.
+  const recordedByGame = useMemo(
+    () =>
+      recordedSecondsByGame({
+        sessions: recentSessions,
+        archivedGameSeconds,
+        resolveIgdbId,
+      }),
+    [archivedGameSeconds, recentSessions, resolveIgdbId],
+  );
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,
   );
@@ -170,7 +184,8 @@ export function ActiveGameHero({
   const lifetimeSeconds = effectiveTotalSeconds(
     recordedSeconds,
     adjustmentSecondsFor(playtimeAdjustments, keys),
-    providerFloorSeconds,
+    providerFloor?.seconds,
+    recordedByGame.secondsSinceRead(providerFloor, elapsedSeconds),
   );
   const lifetimeSessionCount = priorSessions.length + 1;
   // A Game.exe game named or picked on this PC is custom, but its folder can

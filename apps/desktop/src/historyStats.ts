@@ -544,6 +544,7 @@ export function withLifetimeTotals(
       total.recordedSeconds,
       total.adjustmentSeconds,
       total.providerFloorSeconds,
+      total.trackedSinceReadSeconds,
     );
     const played = ranked.get(key);
     if (played) {

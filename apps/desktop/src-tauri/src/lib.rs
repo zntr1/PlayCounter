@@ -39,6 +39,8 @@ const TRAY_STATUS_IDLE: &str = "No game active";
 const TRAY_UPDATE_POSITION: usize = 4;
 const WEBSITE_URL: &str = "https://playcounter.app/";
 const DISCORD_URL: &str = "https://discord.gg/t2nG3jaEEY";
+/// The Discord invite dialog's own invite, so Discord counts its joins.
+const DISCORD_INVITE_URL: &str = "https://discord.gg/FeW3jUhR4h";
 
 struct TrayState {
     icon: Mutex<Option<TrayIcon<Wry>>>,
@@ -274,7 +276,8 @@ fn open_external_url(url: String) -> Result<(), String> {
     let url = match trimmed {
         WEBSITE_URL | "https://playcounter.app" => WEBSITE_URL,
         DISCORD_URL => DISCORD_URL,
-        // The game details view links out to IGDB. Unlike the two fixed URLs
+        DISCORD_INVITE_URL => DISCORD_INVITE_URL,
+        // The game details view links out to IGDB. Unlike the fixed URLs
         // above this one is built at runtime, so it is validated rather than
         // compared.
         _ if is_allowed_igdb_url(trimmed) => trimmed,
