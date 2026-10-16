@@ -64,6 +64,7 @@ import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
 import { SidebarButton } from "./SidebarButton";
 import { LanguageNotice } from "./LanguageNotice";
+import { DiscordInviteDialog, discordInviteDue } from "./DiscordInviteDialog";
 import { GlobalSearch } from "./shell/GlobalSearch";
 import { GlobalTooltip } from "./shell/GlobalTooltip";
 import { HeaderLinks } from "./shell/HeaderLinks";
@@ -466,6 +467,17 @@ export function App() {
   const closeCurrentReleaseNotes = useAppStore(
     (state) => state.closeCurrentReleaseNotes,
   );
+  const discordInviteDone = useAppStore((state) => state.discordInviteDone);
+  const discordInviteSnoozedAt = useAppStore(
+    (state) => state.discordInviteSnoozedAt,
+  );
+  const hasFinishedSession = useAppStore(
+    (state) =>
+      state.archivedSeconds > 0 ||
+      state.recentSessions.some((session) => session.endedAt !== null),
+  );
+  const [discordInviteOpen, setDiscordInviteOpen] = useState(false);
+  const popupThisStart = useRef(false);
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setHistoryQuery = useAppStore((state) => state.setHistoryQuery);
   const setHistoryGameKey = useAppStore((state) => state.setHistoryGameKey);
@@ -746,6 +758,43 @@ export function App() {
     lastSeenReleaseNotesVersion,
     markReleaseNotesSeen,
     openCurrentReleaseNotes,
+    tourProgress,
+  ]);
+
+  // One pop-up per start: the Discord invite waits for a start where neither
+  // the welcome nor the release notes opened, and never covers a guide or
+  // another dialog. Runs after the release notes decision above, so the store
+  // already says whether they just opened.
+  useEffect(() => {
+    if (!appVersion) return;
+    if (
+      shouldShowWelcome(tourProgress) ||
+      useAppStore.getState().currentNotesOpen
+    ) {
+      popupThisStart.current = true;
+      return;
+    }
+    if (popupThisStart.current || activeTourId !== null || isOffline) return;
+    if (
+      !discordInviteDue({
+        done: discordInviteDone,
+        snoozedAt: discordInviteSnoozedAt,
+        hasFinishedSession,
+      })
+    ) {
+      return;
+    }
+    if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+    popupThisStart.current = true;
+    setDiscordInviteOpen(true);
+  }, [
+    activeTourId,
+    appVersion,
+    currentNotesOpen,
+    discordInviteDone,
+    discordInviteSnoozedAt,
+    hasFinishedSession,
+    isOffline,
     tourProgress,
   ]);
 
@@ -1335,6 +1384,9 @@ export function App() {
             </div>
           }
         />
+      ) : null}
+      {discordInviteOpen ? (
+        <DiscordInviteDialog onClose={() => setDiscordInviteOpen(false)} />
       ) : null}
       {startupNotesOpen && startupUpdate?.status === "available" ? (
         <ReleaseNotesDialog

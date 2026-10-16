@@ -340,6 +340,8 @@ type PersistedState = {
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
+  discordInviteSnoozedAt?: unknown;
+  discordInviteDone?: boolean;
 };
 
 type ProcessMatch = {
@@ -1444,6 +1446,12 @@ export function hydrate() {
     // Only people who used PlayCounter before get told it changed language.
     languageNoticeSeen:
       persisted.languageNoticeSeen === true || !hadPersistedStateOnStartup,
+    discordInviteSnoozedAt:
+      typeof persisted.discordInviteSnoozedAt === "string" &&
+      Number.isFinite(Date.parse(persisted.discordInviteSnoozedAt))
+        ? persisted.discordInviteSnoozedAt
+        : null,
+    discordInviteDone: persisted.discordInviteDone === true,
   });
   if (
     shouldPersistAchievementMigration ||

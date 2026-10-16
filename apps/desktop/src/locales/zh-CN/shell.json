@@ -163,5 +163,9 @@
   "downloading {{downloaded}}": "正在下载 {{downloaded}}",
   "PlayCounter is now in {{language}}. You can change the language anytime in Settings.": "PlayCounter 现已切换为{{language}}。你可以随时在设置中更改语言。",
   "Switch to English": "Switch to English",
-  "Keep": "保留"
+  "Keep": "保留",
+  "Join the Discord": "加入 Discord 社区",
+  "PlayCounter is still in development. On Discord you can share ideas, report bugs and chat with other players. We'd love to hear your thoughts and ideas!": "PlayCounter 仍在开发中。在 Discord 上，你可以分享想法、报告问题，并和其他玩家交流。我们很想听听你的意见和想法！",
+  "Not now": "以后再说",
+  "Join Discord": "加入 Discord"
 }

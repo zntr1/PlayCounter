@@ -64,7 +64,7 @@ export function HeaderLinks() {
   );
 }
 
-const DiscordIcon = forwardRef<
+export const DiscordIcon = forwardRef<
   SVGSVGElement,
   { size?: number | string; className?: string }
 >(function DiscordIcon({ size = 14, className }, ref) {
