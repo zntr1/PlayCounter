@@ -397,12 +397,17 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           <span className="whitespace-nowrap tabular-nums">
             {formatTimeRange(session.startedAt, session.endedAt)}
           </span>
-          <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
-          <span className="truncate text-text-faint">
-            {session.emulator
-              ? `${session.emulator.label} · ${session.emulator.display}`
-              : session.exeName}
-          </span>
+          {/* A manual session of a game without a file has no name to show. */}
+          {session.emulator || session.exeName ? (
+            <>
+              <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
+              <span className="truncate text-text-faint">
+                {session.emulator
+                  ? `${session.emulator.label} · ${session.emulator.display}`
+                  : session.exeName}
+              </span>
+            </>
+          ) : null}
           {session.origin === "manual" ? (
             <span
               title={t("Entered manually")}
