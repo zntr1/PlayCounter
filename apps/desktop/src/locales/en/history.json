@@ -111,7 +111,6 @@
   "Split session": "Split session",
   "Combine with…": "Combine with…",
   "Save": "Save",
-  "Change any two of the three. The third one fills in.": "Change any two of the three. The third one fills in.",
   "Ended": "Ended",
   "Length": "Length",
   "Hours": "Hours",
@@ -141,5 +140,11 @@
   "Custom": "Custom",
   "The break is too long for this session.": "The break is too long for this session.",
   "This session": "This session",
-  "or": "or"
+  "or": "or",
+  "Stops here: the end has to stay after the start.": "Stops here: the end has to stay after the start.",
+  "Stops here: the end can't be in the future.": "Stops here: the end can't be in the future.",
+  "Stops here: a session needs at least one minute.": "Stops here: a session needs at least one minute.",
+  "Stops here: your next session of this game starts at {{time}}. Combine them instead.": "Stops here: your next session of this game starts at {{time}}. Combine them instead.",
+  "Stops here: your previous session of this game ends at {{time}}. Combine them instead.": "Stops here: your previous session of this game ends at {{time}}. Combine them instead.",
+  "Pick the two you know: click them or change them. The third one fills in.": "Pick the two you know: click them or change them. The third one fills in."
 }

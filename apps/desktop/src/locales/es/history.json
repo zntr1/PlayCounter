@@ -117,7 +117,6 @@
   "Split session": "Dividir sesión",
   "Combine with…": "Combinar con…",
   "Save": "Guardar",
-  "Change any two of the three. The third one fills in.": "Cambia dos de los tres. El tercero se completa solo.",
   "Ended": "Fin",
   "Length": "Duración",
   "Hours": "Horas",
@@ -147,5 +146,11 @@
   "Custom": "Personalizada",
   "The break is too long for this session.": "La pausa es demasiado larga para esta sesión.",
   "This session": "Esta sesión",
-  "or": "o"
+  "or": "o",
+  "Stops here: the end has to stay after the start.": "Hasta aquí: el fin debe quedar después del inicio.",
+  "Stops here: the end can't be in the future.": "Hasta aquí: el fin no puede estar en el futuro.",
+  "Stops here: a session needs at least one minute.": "Hasta aquí: una sesión necesita al menos un minuto.",
+  "Stops here: your next session of this game starts at {{time}}. Combine them instead.": "Hasta aquí: tu siguiente sesión de este juego empieza a las {{time}}. Mejor combínalas.",
+  "Stops here: your previous session of this game ends at {{time}}. Combine them instead.": "Hasta aquí: tu sesión anterior de este juego termina a las {{time}}. Mejor combínalas.",
+  "Pick the two you know: click them or change them. The third one fills in.": "Elige los dos que conoces: haz clic en ellos o cámbialos. El tercero se completa solo."
 }

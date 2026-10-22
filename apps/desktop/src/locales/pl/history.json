@@ -123,7 +123,6 @@
   "Split session": "Podziel sesję",
   "Combine with…": "Połącz z…",
   "Save": "Zapisz",
-  "Change any two of the three. The third one fills in.": "Zmień dowolne dwa z trzech pól. Trzecie uzupełni się samo.",
   "Ended": "Zakończono",
   "Length": "Długość",
   "Hours": "Godziny",
@@ -153,5 +152,11 @@
   "Custom": "Własna",
   "The break is too long for this session.": "Przerwa jest za długa na tę sesję.",
   "This session": "Ta sesja",
-  "or": "lub"
+  "or": "lub",
+  "Stops here: the end has to stay after the start.": "Dalej się nie da: koniec musi pozostać po początku.",
+  "Stops here: the end can't be in the future.": "Dalej się nie da: koniec nie może być w przyszłości.",
+  "Stops here: a session needs at least one minute.": "Dalej się nie da: sesja musi trwać co najmniej minutę.",
+  "Stops here: your next session of this game starts at {{time}}. Combine them instead.": "Dalej się nie da: twoja następna sesja w tej grze zaczyna się o {{time}}. Zamiast tego połącz je.",
+  "Stops here: your previous session of this game ends at {{time}}. Combine them instead.": "Dalej się nie da: twoja poprzednia sesja w tej grze kończy się o {{time}}. Zamiast tego połącz je.",
+  "Pick the two you know: click them or change them. The third one fills in.": "Wybierz dwa znane pola: kliknij je albo zmień. Trzecie uzupełni się samo."
 }

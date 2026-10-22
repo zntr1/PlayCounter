@@ -111,7 +111,6 @@
   "Split session": "Sitzung teilen",
   "Combine with…": "Zusammenführen mit…",
   "Save": "Speichern",
-  "Change any two of the three. The third one fills in.": "Ändere zwei der drei Angaben. Die dritte füllt sich von selbst.",
   "Ended": "Beendet",
   "Length": "Dauer",
   "Hours": "Stunden",
@@ -141,5 +140,11 @@
   "Custom": "Eigene",
   "The break is too long for this session.": "Die Pause ist zu lang für diese Sitzung.",
   "This session": "Diese Sitzung",
-  "or": "oder"
+  "or": "oder",
+  "Stops here: the end has to stay after the start.": "Hier ist Schluss: Das Ende muss nach dem Beginn bleiben.",
+  "Stops here: the end can't be in the future.": "Hier ist Schluss: Das Ende darf nicht in der Zukunft liegen.",
+  "Stops here: a session needs at least one minute.": "Hier ist Schluss: Eine Sitzung braucht mindestens eine Minute.",
+  "Stops here: your next session of this game starts at {{time}}. Combine them instead.": "Hier ist Schluss: Deine nächste Sitzung dieses Spiels beginnt um {{time}}. Führ sie stattdessen zusammen.",
+  "Stops here: your previous session of this game ends at {{time}}. Combine them instead.": "Hier ist Schluss: Deine vorige Sitzung dieses Spiels endet um {{time}}. Führ sie stattdessen zusammen.",
+  "Pick the two you know: click them or change them. The third one fills in.": "Wähl die zwei, die du kennst: Klick sie an oder ändere sie. Die dritte füllt sich von selbst."
 }

@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -14,10 +13,10 @@ export function NumberDrum({
   caption,
   cycle,
   digits = 2,
-  dimmed = false,
   autoFocus = false,
   canStep = () => true,
   onStep,
+  onBlocked,
   onSet,
 }: {
   value: number;
@@ -29,12 +28,12 @@ export function NumberDrum({
   cycle?: number;
   /** How many digits typing may enter. */
   digits?: number;
-  /** The value is filled in from the other two fields. */
-  dimmed?: boolean;
   autoFocus?: boolean;
   /** False where a step would cause a problem: no step, no neighbour. */
   canStep?: (delta: number) => boolean;
   onStep: (delta: number) => void;
+  /** A step that canStep refused, so the parent can say why. */
+  onBlocked?: (delta: number) => void;
   onSet: (value: number) => void;
 }) {
   const wheelRef = useRef<HTMLDivElement>(null);
@@ -47,20 +46,35 @@ export function NumberDrum({
     return next < 0 ? "" : pad(next);
   };
 
-  const step = (delta: number) => {
-    if (!canStep(delta)) return;
-    onStep(delta);
+  const animate = (keyframes: Keyframe[], duration: number) => {
     const reduceMotion = window.matchMedia?.(
       "(prefers-reduced-motion: reduce)",
     ).matches;
     if (!reduceMotion)
-      drumRef.current?.animate?.(
+      drumRef.current?.animate?.(keyframes, { duration, easing: "ease-out" });
+  };
+  const step = (delta: number) => {
+    if (!canStep(delta)) {
+      // A short bump against the limit.
+      onBlocked?.(delta);
+      animate(
         [
-          { transform: `translateY(${delta > 0 ? 30 : -30}%)`, opacity: 0.4 },
-          { transform: "none", opacity: 1 },
+          { transform: "none" },
+          { transform: `translateY(${delta > 0 ? 8 : -8}%)` },
+          { transform: "none" },
         ],
-        { duration: 140, easing: "ease-out" },
+        180,
       );
+      return;
+    }
+    onStep(delta);
+    animate(
+      [
+        { transform: `translateY(${delta > 0 ? 30 : -30}%)`, opacity: 0.4 },
+        { transform: "none", opacity: 1 },
+      ],
+      140,
+    );
   };
   const stepRef = useRef(step);
   stepRef.current = step;
@@ -114,12 +128,7 @@ export function NumberDrum({
               step(event.key === "ArrowUp" ? 1 : -1);
             }
           }}
-          className={clsx(
-            "w-14 rounded-lg border bg-surface py-1 text-center selection:bg-accent/30 font-mono text-2xl font-bold tabular-nums outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/30",
-            dimmed
-              ? "border-border text-text-muted"
-              : "border-border text-text",
-          )}
+          className="w-14 rounded-lg border border-border bg-surface py-1 text-center font-mono text-2xl font-bold tabular-nums text-text outline-none transition selection:bg-accent/30 hover:border-accent/50 focus:border-accent focus:ring-2 focus:ring-accent/30"
         />
         <button
           type="button"

@@ -123,7 +123,6 @@
   "Split session": "Разделить сессию",
   "Combine with…": "Объединить с…",
   "Save": "Сохранить",
-  "Change any two of the three. The third one fills in.": "Измените любые два поля из трёх. Третье заполнится само.",
   "Ended": "Закончено",
   "Length": "Длительность",
   "Hours": "Часы",
@@ -153,5 +152,11 @@
   "Custom": "Свой",
   "The break is too long for this session.": "Перерыв слишком длинный для этой сессии.",
   "This session": "Эта сессия",
-  "or": "или"
+  "or": "или",
+  "Stops here: the end has to stay after the start.": "Дальше нельзя: конец должен оставаться позже начала.",
+  "Stops here: the end can't be in the future.": "Дальше нельзя: конец не может быть в будущем.",
+  "Stops here: a session needs at least one minute.": "Дальше нельзя: сессия должна длиться не меньше минуты.",
+  "Stops here: your next session of this game starts at {{time}}. Combine them instead.": "Дальше нельзя: ваша следующая сессия в этой игре начинается в {{time}}. Лучше объедините их.",
+  "Stops here: your previous session of this game ends at {{time}}. Combine them instead.": "Дальше нельзя: ваша предыдущая сессия в этой игре заканчивается в {{time}}. Лучше объедините их.",
+  "Pick the two you know: click them or change them. The third one fills in.": "Выберите два известных поля: нажмите на них или измените их. Третье заполнится само."
 }

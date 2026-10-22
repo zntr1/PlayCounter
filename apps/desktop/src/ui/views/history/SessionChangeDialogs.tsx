@@ -3,6 +3,7 @@ import clsx from "clsx";
 import {
   ArrowRight,
   Equal,
+  Info,
   Merge,
   Pencil,
   Plus,
@@ -194,28 +195,32 @@ function lengthTexts(seconds: number) {
   };
 }
 
-/** A card of the edit box. The one that fills in from the other two has a
- *  dashed border. */
+/** A card of the edit box. The two picked ones count and have an amber
+ *  border; the third fills in from them. A click picks a card, changing
+ *  something in it does too. */
 function TimeFieldCard({
   labelId,
   label,
-  filled,
+  picked,
+  onPick,
   children,
 }: {
   labelId: string;
   label: string;
-  filled: boolean;
+  picked: boolean;
+  onPick: () => void;
   children: ReactNode;
 }) {
   return (
     <div
       role="group"
       aria-labelledby={labelId}
+      onClick={onPick}
       className={clsx(
-        "flex h-full flex-col rounded-lg border p-3.5",
-        filled
-          ? "border-dashed border-border bg-surface/40"
-          : "border-border bg-surface-hover",
+        "flex h-full cursor-pointer flex-col rounded-lg border p-3.5 transition",
+        picked
+          ? "border-accent/60 bg-accent-tint"
+          : "border-border bg-surface-hover hover:border-accent/40",
       )}
     >
       <div
@@ -253,6 +258,55 @@ function nextForm(
 }
 
 type FormPatch = (state: EditForm) => Partial<EditForm> | null;
+
+type TimesCheck =
+  | { kind: "ok" | "incomplete" | "order" | "future" | "short" }
+  | { kind: "overlap"; startMs: number; other: SessionTimes };
+
+function problemText(check: TimesCheck) {
+  switch (check.kind) {
+    case "ok":
+      return null;
+    case "incomplete":
+      return t("Enter when the session started and ended.");
+    case "order":
+      return t("The end must be after the start.");
+    case "future":
+      return t("The end can't be in the future.");
+    case "short":
+      return t("A session needs at least one minute.");
+    case "overlap":
+      return t(
+        "This overlaps your session from {{time}}. Combine them instead.",
+        { time: overlapStart(check.other.startMs, check.startMs) },
+      );
+  }
+}
+
+// Why a step stopped: the problem the step would have caused.
+function stopText(check: TimesCheck) {
+  switch (check.kind) {
+    case "ok":
+    case "incomplete":
+      return null;
+    case "order":
+      return t("Stops here: the end has to stay after the start.");
+    case "future":
+      return t("Stops here: the end can't be in the future.");
+    case "short":
+      return t("Stops here: a session needs at least one minute.");
+    case "overlap":
+      return check.other.startMs >= check.startMs
+        ? t(
+            "Stops here: your next session of this game starts at {{time}}. Combine them instead.",
+            { time: overlapStart(check.other.startMs, check.startMs) },
+          )
+        : t(
+            "Stops here: your previous session of this game ends at {{time}}. Combine them instead.",
+            { time: overlapStart(check.other.endMs, check.startMs) },
+          );
+  }
+}
 
 // A step moves the moment itself, so 23:59 + 1 minute is the next day.
 const timeStep =
@@ -297,26 +351,35 @@ export function EditSessionDialog({
     };
   });
 
-  const update = (field: SessionTimeField, patch: Partial<EditForm>) =>
+  // Picking a card changes nothing: the three values always agree.
+  const pick = (field: SessionTimeField) =>
+    setForm((current) => ({
+      ...current,
+      changed: changedFields(current.changed, field),
+    }));
+  const update = (field: SessionTimeField, patch: Partial<EditForm>) => {
+    setStopHint(null);
     setForm((current) => nextForm(current, field, patch));
+  };
 
-  const problemOf = (state: EditForm) => {
+  const checkTimes = (state: EditForm): TimesCheck => {
     const { startMs, endMs, lengthSeconds } = fillSessionTimes(
       state.changed,
       formValues(state),
     );
-    if (!Number.isFinite(startMs + endMs))
-      return t("Enter when the session started and ended.");
-    if (endMs <= startMs) return t("The end must be after the start.");
-    if (endMs > Date.now()) return t("The end can't be in the future.");
-    if (lengthSeconds < 60) return t("A session needs at least one minute.");
+    if (!Number.isFinite(startMs + endMs)) return { kind: "incomplete" };
+    // End on the start is a length of zero: too short, not out of order.
+    if (endMs < startMs) return { kind: "order" };
+    if (endMs > Date.now()) return { kind: "future" };
+    if (lengthSeconds < 60) return { kind: "short" };
     const overlap = overlapFor({ startMs, endMs });
     return overlap
-      ? t("This overlaps your session from {{time}}. Combine them instead.", {
-          time: overlapStart(sessionTimes(overlap).startMs, startMs),
-        })
-      : null;
+      ? { kind: "overlap", startMs, other: sessionTimes(overlap) }
+      : { kind: "ok" };
   };
+  const problemOf = (state: EditForm) => problemText(checkTimes(state));
+  // The reason the last step stopped, until the next change.
+  const [stopHint, setStopHint] = useState<string | null>(null);
   // Wheel, arrow keys and clicks stop where a step would cause a problem.
   // Typing still can, and says why.
   const stepAllowed = (
@@ -331,13 +394,22 @@ export function EditSessionDialog({
       problemOf(nextForm(state, field, change)) === null
     );
   };
-  const step = (field: SessionTimeField, patch: FormPatch) =>
+  const step = (field: SessionTimeField, patch: FormPatch) => {
+    setStopHint(null);
     setForm((current) => {
       const change = patch(current);
       return change && stepAllowed(current, field, patch)
         ? nextForm(current, field, change)
         : current;
     });
+  };
+  // No step at all (the length can't go below 0h) needs no explaining.
+  const stopped = (field: SessionTimeField, patch: FormPatch) => {
+    const change = patch(form);
+    setStopHint(
+      change ? stopText(checkTimes(nextForm(form, field, change))) : null,
+    );
+  };
   const setTime = (
     field: "start" | "end",
     part: "hours" | "minutes",
@@ -373,7 +445,8 @@ export function EditSessionDialog({
       <TimeFieldCard
         labelId={labelId}
         label={label}
-        filled={filledField === field}
+        picked={filledField !== field}
+        onPick={() => pick(field)}
       >
         <Input
           type="date"
@@ -389,12 +462,12 @@ export function EditSessionDialog({
             labelledBy={`${labelId} ${ids}-hours`}
             caption={t("Hours")}
             cycle={24}
-            dimmed={filledField === field}
             autoFocus={field === "start"}
             canStep={(delta) =>
               stepAllowed(form, field, timeStep(field, delta * 60))
             }
             onStep={(delta) => step(field, timeStep(field, delta * 60))}
+            onBlocked={(delta) => stopped(field, timeStep(field, delta * 60))}
             onSet={(value) => setTime(field, "hours", value)}
           />
           {/* Level with the numbers, above the captions. */}
@@ -409,11 +482,11 @@ export function EditSessionDialog({
             labelledBy={`${labelId} ${ids}-minutes`}
             caption={t("Minutes")}
             cycle={60}
-            dimmed={filledField === field}
             canStep={(delta) =>
               stepAllowed(form, field, timeStep(field, delta))
             }
             onStep={(delta) => step(field, timeStep(field, delta))}
+            onBlocked={(delta) => stopped(field, timeStep(field, delta))}
             onSet={(value) => setTime(field, "minutes", value)}
           />
         </div>
@@ -442,7 +515,9 @@ export function EditSessionDialog({
         }}
       >
         <p className="text-sm leading-6 text-text-muted">
-          {t("Change any two of the three. The third one fills in.")}
+          {t(
+            "Pick the two you know: click them or change them. The third one fills in.",
+          )}
         </p>
         <span id={`${ids}-hours`} className="sr-only">
           {t("Hours")}
@@ -458,7 +533,8 @@ export function EditSessionDialog({
           <TimeFieldCard
             labelId={`${ids}-length`}
             label={t("Length")}
-            filled={filledField === "length"}
+            picked={filledField !== "length"}
+            onPick={() => pick("length")}
           >
             <div className="mt-auto flex items-center justify-center gap-3 pt-3">
               <NumberDrum
@@ -466,11 +542,11 @@ export function EditSessionDialog({
                 labelledBy={`${ids}-length ${ids}-hours`}
                 caption={t("Hours")}
                 digits={3}
-                dimmed={filledField === "length"}
                 canStep={(delta) =>
                   stepAllowed(form, "length", lengthStep(delta * 60))
                 }
                 onStep={(delta) => step("length", lengthStep(delta * 60))}
+                onBlocked={(delta) => stopped("length", lengthStep(delta * 60))}
                 onSet={(value) => update("length", { hours: String(value) })}
               />
               <NumberDrum
@@ -478,11 +554,11 @@ export function EditSessionDialog({
                 labelledBy={`${ids}-length ${ids}-minutes`}
                 caption={t("Minutes")}
                 cycle={60}
-                dimmed={filledField === "length"}
                 canStep={(delta) =>
                   stepAllowed(form, "length", lengthStep(delta))
                 }
                 onStep={(delta) => step("length", lengthStep(delta))}
+                onBlocked={(delta) => stopped("length", lengthStep(delta))}
                 onSet={(value) =>
                   value < 60
                     ? update("length", { minutes: String(value) })
@@ -492,7 +568,17 @@ export function EditSessionDialog({
             </div>
           </TimeFieldCard>
         </div>
-        {problem ? <Problem>{problem}</Problem> : null}
+        {problem ? (
+          <Problem>{problem}</Problem>
+        ) : stopHint ? (
+          <p
+            aria-live="polite"
+            className="mt-3 flex items-start gap-2 text-xs leading-5 text-text-muted"
+          >
+            <Info size={14} className="mt-0.5 shrink-0 text-accent-ink" />
+            {stopHint}
+          </p>
+        ) : null}
       </form>
     </SessionChangeModal>
   );
