@@ -152,6 +152,12 @@ import { sanitizePersistedShape } from "./persistedShape";
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions, splitStoredSessions } from "./sessionPersistence";
 import {
+  combineSessions,
+  editSession,
+  splitSession,
+  type SessionTimes,
+} from "./sessionEdits";
+import {
   journalNote,
   playthroughName,
   sanitizePlaythroughSeconds,
@@ -8464,6 +8470,50 @@ export function removeHistorySession(sessionId: number) {
     previousCount - useAppStore.getState().recentSessions.length;
   if (removedCount > 0) logRuntime(`history session removed ${sessionId}`);
   evaluateAndStoreMilestones();
+}
+
+// Edit, split and combine store like a new session does: sorted, the oldest
+// beyond the limit moved into the archive, achievements checked again.
+function changeHistorySessions(
+  change: (sessions: Session[]) => Session[],
+  message: string,
+) {
+  useAppStore.setState((state) => {
+    const { kept, removed } = splitStoredSessions(change(state.recentSessions));
+    return {
+      recentSessions: kept,
+      ...foldSessionsIntoArchive(
+        state.archivedSeconds,
+        state.archivedGameSeconds,
+        removed,
+        state.archivedPlaythroughSeconds,
+      ),
+    };
+  });
+  logRuntime(message);
+  evaluateAndStoreMilestones();
+}
+
+export function editHistorySession(sessionId: number, times: SessionTimes) {
+  changeHistorySessions(
+    (sessions) => editSession(sessions, sessionId, times),
+    `history session edited ${sessionId}`,
+  );
+}
+
+export function splitHistorySession(sessionId: number, pause: SessionTimes) {
+  const newId = createSessionId();
+  changeHistorySessions(
+    (sessions) => splitSession(sessions, sessionId, pause, newId),
+    `history session split ${sessionId} -> ${newId}`,
+  );
+}
+
+export function combineHistorySessions(firstId: number, secondId: number) {
+  changeHistorySessions(
+    (sessions) => combineSessions(sessions, firstId, secondId),
+    `history sessions combined ${firstId} + ${secondId}`,
+  );
 }
 
 export function removeGameHistory(

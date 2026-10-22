@@ -6,6 +6,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useAppStore } from "../../../store";
 import { HistorySessionRow } from "./HistorySessionRow";
 
+type RowProps = Partial<Parameters<typeof HistorySessionRow>[0]>;
+
 let root: Root;
 let container: HTMLDivElement;
 
@@ -34,8 +36,8 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function renderRow() {
-  useAppStore.setState({ recentSessions: [session] });
+async function renderRow(props: RowProps = {}, shown: Session = session) {
+  useAppStore.setState({ recentSessions: [shown] });
   const Row = () => (
     <HistorySessionRow
       session={useAppStore((s) => s.recentSessions[0])}
@@ -44,6 +46,7 @@ async function renderRow() {
       onFilterGame={() => {}}
       onClearGameFilter={() => {}}
       onRequestDelete={() => {}}
+      {...props}
     />
   );
   await act(() => root.render(<Row />));
@@ -98,15 +101,13 @@ it("adds a note to one session and shows it under the session", async () => {
 it("offers the session note and the game note separately in the menu", async () => {
   await renderRow();
   await act(() =>
-    container
-      .querySelector("[data-history-session-row]")!
-      .dispatchEvent(
-        new MouseEvent("contextmenu", {
-          bubbles: true,
-          clientX: 5,
-          clientY: 5,
-        }),
-      ),
+    container.querySelector("[data-history-session-row]")!.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        clientX: 5,
+        clientY: 5,
+      }),
+    ),
   );
   const items = [...document.querySelectorAll('[role="menuitem"]')].map(
     (item) => item.textContent,
@@ -115,4 +116,80 @@ it("offers the session note and the game note separately in the menu", async () 
     expect.arrayContaining(["Add session note", "Edit game note"]),
   );
   expect(items).not.toContain("Update note");
+});
+
+async function openMenu() {
+  await act(() =>
+    container.querySelector("[data-history-session-row]")!.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        clientX: 5,
+        clientY: 5,
+      }),
+    ),
+  );
+  return menuItems();
+}
+
+const menuItems = () =>
+  [...document.querySelectorAll('[role="menuitem"]')].map(
+    (item) => item.textContent,
+  );
+
+async function openPlaytime() {
+  await openMenu();
+  const trigger = [
+    ...document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+  ].find((item) => item.textContent === "Playtime");
+  await act(() => trigger!.click());
+  return menuItems();
+}
+
+const changeProps = (canCombine: boolean): RowProps => ({
+  onRequestEdit: () => {},
+  onRequestSplit: () => {},
+  onRequestCombine: () => {},
+  canCombine,
+});
+
+it("groups Edit, Split and Combine under Playtime", async () => {
+  await renderRow(changeProps(true));
+  const items = await openMenu();
+  expect(items.slice(items.indexOf("Filter for this game"))).toEqual([
+    "Filter for this game",
+    "Playtime",
+    "Delete Session",
+  ]);
+  expect(await openPlaytime()).toEqual(
+    expect.arrayContaining(["Edit session", "Split session", "Combine with…"]),
+  );
+});
+
+it("hides Combine when the game has no session right before or after", async () => {
+  await renderRow(changeProps(false));
+  const items = await openPlaytime();
+  expect(items).toContain("Split session");
+  expect(items).not.toContain("Combine with…");
+});
+
+it("hides Split for a session under two minutes", async () => {
+  await renderRow(changeProps(true), {
+    ...session,
+    endedAt: "2026-10-14T18:01:59Z",
+    durationSeconds: 119,
+  });
+  const items = await openPlaytime();
+  expect(items).toContain("Edit session");
+  expect(items).not.toContain("Split session");
+});
+
+it("opens Edit session from the pencil next to the note", async () => {
+  const onRequestEdit = vi.fn();
+  await renderRow({ ...changeProps(true), onRequestEdit });
+  await act(() =>
+    container
+      .querySelector<HTMLButtonElement>('[aria-label="Edit session"]')!
+      .click(),
+  );
+  expect(onRequestEdit).toHaveBeenCalledWith(session);
 });
