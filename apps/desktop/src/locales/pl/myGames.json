@@ -43,6 +43,8 @@
   "Forget {{label}} game file": "Zapomnij plik gry {{label}}",
   "Log missed session": "Dodaj pominiętą sesję",
   "Adjust total playtime": "Dostosuj łączny czas gry",
+  "Start timer": "Uruchom stoper",
+  "Stop timer · {{time}}": "Zatrzymaj stoper · {{time}}",
   "Choose banner…": "Wybierz baner…",
   "Choose cover…": "Wybierz okładkę…",
   "Upload cover": "Prześlij okładkę",

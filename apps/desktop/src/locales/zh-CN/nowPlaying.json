@@ -16,6 +16,8 @@
   "Start the game again, then correct it while it runs.": "请重新启动游戏，并在运行时进行更正。",
   "Choose the correct game": "选择正确的游戏",
   "Something wrong?": "有什么问题吗？",
+  "Stop": "停止",
+  "Stop the timer for {{gameName}}": "停止 {{gameName}} 的计时",
   "Journal": "日志",
   "This session": "本次游玩",
   "Total playtime": "累计游戏时长",

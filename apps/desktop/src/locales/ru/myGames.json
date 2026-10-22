@@ -43,6 +43,8 @@
   "Forget {{label}} game file": "Забыть файл игры {{label}}",
   "Log missed session": "Внести пропущенную сессию",
   "Adjust total playtime": "Изменить общее время в игре",
+  "Start timer": "Запустить таймер",
+  "Stop timer · {{time}}": "Остановить таймер · {{time}}",
   "Choose banner…": "Выбрать баннер…",
   "Choose cover…": "Выбрать обложку…",
   "Upload cover": "Загрузить обложку",

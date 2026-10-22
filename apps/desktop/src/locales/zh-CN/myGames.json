@@ -43,6 +43,8 @@
   "Forget {{label}} game file": "清除 {{label}} 游戏文件路径",
   "Log missed session": "补记遗漏的游玩记录",
   "Adjust total playtime": "调整累计游戏时长",
+  "Start timer": "开始计时",
+  "Stop timer · {{time}}": "停止计时 · {{time}}",
   "Choose banner…": "选择横幅…",
   "Choose cover…": "选择封面…",
   "Upload cover": "上传封面",

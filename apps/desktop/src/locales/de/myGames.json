@@ -43,6 +43,8 @@
   "Forget {{label}} game file": "{{label}}-Spieldatei vergessen",
   "Log missed session": "Verpasste Sitzung nachtragen",
   "Adjust total playtime": "Gesamte Spielzeit anpassen",
+  "Start timer": "Timer starten",
+  "Stop timer · {{time}}": "Timer stoppen · {{time}}",
   "Choose banner…": "Banner wählen…",
   "Choose cover…": "Cover wählen…",
   "Upload cover": "Cover hochladen",

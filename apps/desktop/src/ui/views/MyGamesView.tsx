@@ -61,6 +61,8 @@ import {
   Send,
   Settings2,
   SlidersHorizontal,
+  Square,
+  Timer,
   Trash2,
   WifiOff,
 } from "lucide-react";
@@ -107,6 +109,8 @@ import {
   linkServerKnownFiles,
   persist,
   setGamePlaytime,
+  startGameTimer,
+  stopGameTimer,
   setCustomGameCover,
   setPickedCoverFile,
   suggestTrackedGameToCommunity,
@@ -132,6 +136,7 @@ import {
   type PendingCommunitySuggestionTarget,
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
+import { formatClock } from "./ActiveGameHero";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
@@ -1422,7 +1427,8 @@ export function MyGamesView({
         existing,
         (activeSecondsBySummary.get(existing) ?? 0) + activeSeconds,
       );
-      if (!activeSession.emulator) {
+      // A timer only borrows the file name; the file is not running.
+      if (!activeSession.emulator && !activeSession.timer) {
         existing.exeRunningNow ??= [];
         existing.exeRunningNow.push(activeSession.exeName.toLowerCase());
       }
@@ -3247,6 +3253,17 @@ export function GameLibraryCard({
       ),
     ),
   );
+  const timerSession = useAppStore((state) =>
+    state.activeSessions.find(
+      (session) =>
+        session.timer &&
+        game.aliases.some(
+          (alias) =>
+            session.gameId === alias.gameId &&
+            (session.source ?? null) === alias.source,
+        ),
+    ),
+  );
   useEffect(() => {
     if (!launching || !launchTourDemo) return;
     const timeout = window.setTimeout(() => {
@@ -4171,6 +4188,22 @@ export function GameLibraryCard({
     setHistoryGameKey(game.historyGameKey);
     setActiveView("history");
     contextMenu.close();
+  };
+
+  const handleStartTimer = () => {
+    contextMenu.close();
+    startGameTimer({
+      gameId: game.gameId,
+      igdbId: game.igdbId,
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+      source: game.source,
+      exeName: game.exeNames[0] ?? "",
+      communitySuggestionId: game.communitySuggestionId,
+      communitySuggestionVerified: game.communitySuggestionVerified,
+      communitySuggestionStatus: game.communitySuggestionStatus,
+      communitySuggestionNote: game.communitySuggestionNote,
+    });
   };
 
   const handleAddPlaytime = (
@@ -5239,6 +5272,19 @@ export function GameLibraryCard({
           >
             {t("Adjust total playtime")}
           </ContextMenuItem>
+          {demo ? null : timerSession ? (
+            <StopTimerMenuItem
+              startedAt={timerSession.startedAt}
+              onClick={() => {
+                contextMenu.close();
+                void stopGameTimer(timerSession.id);
+              }}
+            />
+          ) : !hasActiveSession ? (
+            <ContextMenuItem icon={Timer} onClick={handleStartTimer}>
+              {t("Start timer")}
+            </ContextMenuItem>
+          ) : null}
         </ContextMenuSubmenu>
         {!demo || canEditCover ? (
           <ContextMenuSubmenu label={t("Appearance")} icon={Palette}>
@@ -6862,6 +6908,34 @@ export function GameLibraryCard({
 }
 
 const MemoizedGameLibraryCard = memo(GameLibraryCard);
+
+// Counts while the Playtime menu is open; menus only render while open.
+function StopTimerMenuItem({
+  startedAt,
+  onClick,
+}: {
+  startedAt: string;
+  onClick: () => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <ContextMenuItem
+      icon={Square}
+      className="tabular-nums [&>svg]:fill-current"
+      onClick={onClick}
+    >
+      {t("Stop timer · {{time}}", {
+        time: formatClock(
+          Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000)),
+        ),
+      })}
+    </ContextMenuItem>
+  );
+}
 
 function NewGameBadge() {
   return (

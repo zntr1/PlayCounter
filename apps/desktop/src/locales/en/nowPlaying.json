@@ -16,6 +16,8 @@
   "Start the game again, then correct it while it runs.": "Start the game again, then correct it while it runs.",
   "Choose the correct game": "Choose the correct game",
   "Something wrong?": "Something wrong?",
+  "Stop": "Stop",
+  "Stop the timer for {{gameName}}": "Stop the timer for {{gameName}}",
   "Journal": "Journal",
   "This session": "This session",
   "Total playtime": "Total playtime",

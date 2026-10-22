@@ -16,6 +16,8 @@
   "Start the game again, then correct it while it runs.": "Запустите игру снова и исправьте привязку, пока она работает.",
   "Choose the correct game": "Выберите правильную игру",
   "Something wrong?": "Что-то не так?",
+  "Stop": "Остановить",
+  "Stop the timer for {{gameName}}": "Остановить таймер для {{gameName}}",
   "Journal": "Дневник",
   "This session": "Эта сессия",
   "Total playtime": "Всего в игре",

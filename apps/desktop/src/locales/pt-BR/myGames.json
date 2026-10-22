@@ -43,6 +43,8 @@
   "Forget {{label}} game file": "Esquecer o arquivo de jogo do {{label}}",
   "Log missed session": "Adicionar sessão não registrada",
   "Adjust total playtime": "Ajustar tempo de jogo total",
+  "Start timer": "Iniciar cronômetro",
+  "Stop timer · {{time}}": "Parar cronômetro · {{time}}",
   "Choose banner…": "Escolher banner…",
   "Choose cover…": "Escolher capa…",
   "Upload cover": "Carregar capa",

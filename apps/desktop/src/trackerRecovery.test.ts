@@ -24,7 +24,13 @@ vi.mock("./automaticBackups", () => ({
 }));
 
 import { useAppStore, type ActiveSession, type ProcessSnapshot } from "./store";
-import { initializeTracker, scanProcessesNow } from "./tracker";
+import {
+  ignoreTrackedProcessLocally,
+  initializeTracker,
+  scanProcessesNow,
+  startGameTimer,
+  stopGameTimer,
+} from "./tracker";
 
 const startedAt = "2026-09-06T10:00:00.000Z";
 const checkpointedAt = "2026-09-06T10:10:00.000Z";
@@ -353,5 +359,70 @@ describe("session recovery through startup and process scans", () => {
     await scanProcessesNow();
     expect(useAppStore.getState().activeSessions[0].id).toBe(original.id);
     expect(useAppStore.getState().recentSessions).toEqual([]);
+  });
+});
+
+describe("game timer", () => {
+  const timer: ActiveSession = { ...original, timer: true };
+  const game = {
+    gameId: original.gameId,
+    gameName: original.gameName,
+    coverUrl: original.coverUrl,
+    source: original.source ?? null,
+    exeName: original.exeName,
+  };
+
+  it("keeps counting through scans and a restart, and Stop saves a manual session", async () => {
+    await restart("2026-09-06T20:10:00.000Z", { activeSessions: [timer] });
+    await scanProcessesNow();
+    expect(useAppStore.getState().activeSessions).toMatchObject([
+      { id: original.id, startedAt, timer: true },
+    ]);
+    expect(useAppStore.getState().recentSessions).toEqual([]);
+
+    vi.setSystemTime(new Date("2026-09-06T20:15:00.000Z"));
+    await stopGameTimer(original.id);
+    expect(useAppStore.getState().activeSessions).toEqual([]);
+    expect(useAppStore.getState().recentSessions[0]).toMatchObject({
+      id: original.id,
+      origin: "manual",
+      startedAt,
+      endedAt: "2026-09-06T20:15:00.000Z",
+      durationSeconds: 615 * 60,
+    });
+    expect(JSON.parse(storage.get(STORAGE_KEY)!).sessions[0].origin).toBe(
+      "manual",
+    );
+  });
+
+  it("lets the game's file join a running timer, and its exit or ignore leaves the timer", async () => {
+    await restart("2026-09-06T12:00:00.000Z", { activeSessions: [timer] });
+    processes = [runningProcess];
+    await scanProcessesNow();
+    vi.setSystemTime(new Date("2026-09-06T12:05:00.000Z"));
+    processes = [];
+    await scanProcessesNow();
+    await ignoreTrackedProcessLocally(original.exeName, null);
+    expect(useAppStore.getState().activeSessions).toMatchObject([
+      { id: original.id, startedAt, timer: true },
+    ]);
+    expect(useAppStore.getState().recentSessions).toEqual([]);
+  });
+
+  it("starts one session per game, never next to a detected one", async () => {
+    await restart("2026-09-06T12:00:00.000Z", { activeSessions: [] });
+    startGameTimer(game);
+    startGameTimer(game);
+    expect(useAppStore.getState().activeSessions).toMatchObject([
+      { gameId: original.gameId, startedAt: "2026-09-06T12:00:00.000Z" },
+    ]);
+    expect(useAppStore.getState().activeSessions[0].timer).toBe(true);
+
+    await stopGameTimer(useAppStore.getState().activeSessions[0].id);
+    processes = [runningProcess];
+    await scanProcessesNow();
+    startGameTimer(game);
+    expect(useAppStore.getState().activeSessions).toHaveLength(1);
+    expect(useAppStore.getState().activeSessions[0].timer).toBeUndefined();
   });
 });

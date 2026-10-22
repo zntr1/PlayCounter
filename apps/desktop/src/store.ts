@@ -134,6 +134,9 @@ export type ActiveSession = {
   emulator?: EmulatorLaunchContext;
   /** Written while playing; moves to the finished session. */
   note?: string;
+  /** Started by hand for play away from this PC (a console). No process
+   *  starts or ends it, only Stop; it is saved as a manual session. */
+  timer?: true;
 };
 
 export type AmbiguousProcessMatch = {

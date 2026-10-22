@@ -43,6 +43,8 @@
   "Forget {{label}} game file": "Oublier le fichier de jeu {{label}}",
   "Log missed session": "Ajouter une session manquée",
   "Adjust total playtime": "Ajuster le temps de jeu total",
+  "Start timer": "Démarrer le chronomètre",
+  "Stop timer · {{time}}": "Arrêter le chronomètre · {{time}}",
   "Choose banner…": "Choisir la bannière…",
   "Choose cover…": "Choisir la jaquette…",
   "Upload cover": "Importer une jaquette",

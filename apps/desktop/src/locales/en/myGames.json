@@ -43,6 +43,8 @@
   "Forget {{label}} game file": "Forget {{label}} game file",
   "Log missed session": "Log missed session",
   "Adjust total playtime": "Adjust total playtime",
+  "Start timer": "Start timer",
+  "Stop timer · {{time}}": "Stop timer · {{time}}",
   "Choose banner…": "Choose banner…",
   "Choose cover…": "Choose cover…",
   "Upload cover": "Upload cover",
