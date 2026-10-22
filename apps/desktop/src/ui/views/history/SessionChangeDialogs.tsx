@@ -1,6 +1,7 @@
 import type { Session } from "@playcounter/shared";
 import clsx from "clsx";
 import {
+  ArrowRight,
   Equal,
   Merge,
   Pencil,
@@ -9,7 +10,13 @@ import {
   Timer,
   type LucideIcon,
 } from "lucide-react";
-import { Fragment, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  Fragment,
+  useId,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { appLocale, getT } from "../../../i18n";
 import { useCoverUrl } from "../../../pickedCovers";
 import {
@@ -30,6 +37,7 @@ import {
 import { formatDuration } from "../../components";
 import { localDateTimeValue } from "../../dateTimeInput";
 import { GameCover } from "../../GameCover";
+import { NumberDrum } from "./NumberDrum";
 import { Button, Input, Modal, Pill, type ModalSize } from "../../primitives";
 
 const t = getT("history");
@@ -158,34 +166,6 @@ function Problem({ children }: { children: ReactNode }) {
   );
 }
 
-function DateTimeField({
-  label,
-  value,
-  max,
-  autoFocus,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  max?: string;
-  autoFocus?: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="grid gap-1.5 text-xs font-medium text-text-muted">
-      {label}
-      <Input
-        type="datetime-local"
-        value={value}
-        max={max}
-        data-autofocus={autoFocus ? true : undefined}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full"
-      />
-    </label>
-  );
-}
-
 type EditForm = {
   start: string;
   end: string;
@@ -214,11 +194,88 @@ function lengthTexts(seconds: number) {
   };
 }
 
-/** Started, Ended and Length: the two typed last win, the third fills in. */
+/** A card of the edit box. The one that fills in from the other two has a
+ *  dashed border. */
+function TimeFieldCard({
+  labelId,
+  label,
+  filled,
+  children,
+}: {
+  labelId: string;
+  label: string;
+  filled: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      role="group"
+      aria-labelledby={labelId}
+      className={clsx(
+        "flex h-full flex-col rounded-lg border p-3.5",
+        filled
+          ? "border-dashed border-border bg-surface/40"
+          : "border-border bg-surface-hover",
+      )}
+    >
+      <div
+        id={labelId}
+        className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-faint"
+      >
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// The form after a change to one field: it and the field changed before it
+// win, the third fills in.
+function nextForm(
+  current: EditForm,
+  field: SessionTimeField,
+  patch: Partial<EditForm>,
+): EditForm {
+  const next: EditForm = {
+    ...current,
+    ...patch,
+    changed: changedFields(current.changed, field),
+    touched: true,
+  };
+  const filled = fillSessionTimes(next.changed, formValues(next));
+  if (!next.changed.includes("length"))
+    return { ...next, ...lengthTexts(filled.lengthSeconds) };
+  if (!next.changed.includes("start") && Number.isFinite(filled.startMs))
+    return { ...next, start: localDateTimeValue(new Date(filled.startMs)) };
+  if (!next.changed.includes("end") && Number.isFinite(filled.endMs))
+    return { ...next, end: localDateTimeValue(new Date(filled.endMs)) };
+  return next;
+}
+
+type FormPatch = (state: EditForm) => Partial<EditForm> | null;
+
+// A step moves the moment itself, so 23:59 + 1 minute is the next day.
+const timeStep =
+  (field: "start" | "end", minutes: number): FormPatch =>
+  (state) => {
+    const ms = parseLocal(state[field]);
+    return Number.isFinite(ms)
+      ? { [field]: localDateTimeValue(new Date(ms + minutes * minuteMs)) }
+      : null;
+  };
+
+const lengthStep =
+  (minutes: number): FormPatch =>
+  (state) => {
+    const total =
+      wholeNumber(state.hours) * 60 + wholeNumber(state.minutes) + minutes;
+    return total < 0 ? null : lengthTexts(total * 60);
+  };
+
+/** Started → Ended = Length. Change any two, the third fills in. */
 export function EditSessionDialog({
   session,
   gameName,
-  coverUrl,
   onCancel,
   overlapFor,
   onConfirm,
@@ -226,6 +283,7 @@ export function EditSessionDialog({
   overlapFor: (times: SessionTimes) => Session | undefined;
   onConfirm: (times: SessionTimes) => void;
 }) {
+  const ids = useId();
   const [form, setForm] = useState<EditForm>(() => {
     const { startMs, endMs } = sessionTimes(session);
     const start = localDateTimeValue(new Date(startMs));
@@ -240,49 +298,128 @@ export function EditSessionDialog({
   });
 
   const update = (field: SessionTimeField, patch: Partial<EditForm>) =>
-    setForm((current) => {
-      const next: EditForm = {
-        ...current,
-        ...patch,
-        changed: changedFields(current.changed, field),
-        touched: true,
-      };
-      const filled = fillSessionTimes(next.changed, formValues(next));
-      if (!next.changed.includes("length"))
-        return { ...next, ...lengthTexts(filled.lengthSeconds) };
-      if (!next.changed.includes("start") && Number.isFinite(filled.startMs))
-        return { ...next, start: localDateTimeValue(new Date(filled.startMs)) };
-      if (!next.changed.includes("end") && Number.isFinite(filled.endMs))
-        return { ...next, end: localDateTimeValue(new Date(filled.endMs)) };
-      return next;
-    });
+    setForm((current) => nextForm(current, field, patch));
 
-  const { startMs, endMs, lengthSeconds } = fillSessionTimes(
-    form.changed,
-    formValues(form),
-  );
+  const problemOf = (state: EditForm) => {
+    const { startMs, endMs, lengthSeconds } = fillSessionTimes(
+      state.changed,
+      formValues(state),
+    );
+    if (!Number.isFinite(startMs + endMs))
+      return t("Enter when the session started and ended.");
+    if (endMs <= startMs) return t("The end must be after the start.");
+    if (endMs > Date.now()) return t("The end can't be in the future.");
+    if (lengthSeconds < 60) return t("A session needs at least one minute.");
+    const overlap = overlapFor({ startMs, endMs });
+    return overlap
+      ? t("This overlaps your session from {{time}}. Combine them instead.", {
+          time: overlapStart(sessionTimes(overlap).startMs, startMs),
+        })
+      : null;
+  };
+  // Wheel, arrow keys and clicks stop where a step would cause a problem.
+  // Typing still can, and says why.
+  const stepAllowed = (
+    state: EditForm,
+    field: SessionTimeField,
+    patch: FormPatch,
+  ) => {
+    const change = patch(state);
+    if (!change) return false;
+    return (
+      problemOf(state) !== null ||
+      problemOf(nextForm(state, field, change)) === null
+    );
+  };
+  const step = (field: SessionTimeField, patch: FormPatch) =>
+    setForm((current) => {
+      const change = patch(current);
+      return change && stepAllowed(current, field, patch)
+        ? nextForm(current, field, change)
+        : current;
+    });
+  const setTime = (
+    field: "start" | "end",
+    part: "hours" | "minutes",
+    value: number,
+  ) => {
+    const date = new Date(parseLocal(form[field]));
+    if (Number.isNaN(date.getTime())) return;
+    if (part === "hours" && value < 24) date.setHours(value);
+    else if (part === "minutes" && value < 60) date.setMinutes(value);
+    else return;
+    update(field, { [field]: localDateTimeValue(date) });
+  };
+  const setDay = (field: "start" | "end", day: string) => {
+    if (!day) return;
+    update(field, { [field]: `${day}T${form[field].slice(11)}` });
+  };
+  const lengthMinutes =
+    wholeNumber(form.hours) * 60 + wholeNumber(form.minutes);
+
+  const { startMs, endMs } = fillSessionTimes(form.changed, formValues(form));
   const times = { startMs, endMs };
-  const overlap =
-    Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
-      ? overlapFor(times)
-      : undefined;
-  const problem = !Number.isFinite(startMs + endMs)
-    ? t("Enter when the session started and ended.")
-    : endMs <= startMs
-      ? t("The end must be after the start.")
-      : endMs > Date.now()
-        ? t("The end can't be in the future.")
-        : lengthSeconds < 60
-          ? t("A session needs at least one minute.")
-          : overlap
-            ? t(
-                "This overlaps your session from {{time}}. Combine them instead.",
-                {
-                  time: overlapStart(sessionTimes(overlap).startMs, startMs),
-                },
-              )
-            : null;
+  const filledField = (["start", "end", "length"] as const).find(
+    (field) => !form.changed.includes(field),
+  );
+  const problem = problemOf(form);
   const canSubmit = form.touched && problem === null;
+
+  const timeCard = (field: "start" | "end", label: string) => {
+    const date = new Date(parseLocal(form[field]));
+    const valid = !Number.isNaN(date.getTime());
+    const labelId = `${ids}-${field}`;
+    return (
+      <TimeFieldCard
+        labelId={labelId}
+        label={label}
+        filled={filledField === field}
+      >
+        <Input
+          type="date"
+          aria-labelledby={labelId}
+          value={form[field].slice(0, 10)}
+          max={localDateTimeValue(new Date()).slice(0, 10)}
+          onChange={(event) => setDay(field, event.target.value)}
+          className="mt-2 w-full"
+        />
+        <div className="mt-auto flex items-center justify-center gap-1.5 pt-3">
+          <NumberDrum
+            value={valid ? date.getHours() : 0}
+            labelledBy={`${labelId} ${ids}-hours`}
+            caption={t("Hours")}
+            cycle={24}
+            dimmed={filledField === field}
+            autoFocus={field === "start"}
+            canStep={(delta) =>
+              stepAllowed(form, field, timeStep(field, delta * 60))
+            }
+            onStep={(delta) => step(field, timeStep(field, delta * 60))}
+            onSet={(value) => setTime(field, "hours", value)}
+          />
+          {/* Level with the numbers, above the captions. */}
+          <span
+            aria-hidden="true"
+            className="pb-4 font-mono text-2xl font-bold text-text-faint"
+          >
+            :
+          </span>
+          <NumberDrum
+            value={valid ? date.getMinutes() : 0}
+            labelledBy={`${labelId} ${ids}-minutes`}
+            caption={t("Minutes")}
+            cycle={60}
+            dimmed={filledField === field}
+            canStep={(delta) =>
+              stepAllowed(form, field, timeStep(field, delta))
+            }
+            onStep={(delta) => step(field, timeStep(field, delta))}
+            onSet={(value) => setTime(field, "minutes", value)}
+          />
+        </div>
+      </TimeFieldCard>
+    );
+  };
 
   return (
     <SessionChangeModal
@@ -295,6 +432,7 @@ export function EditSessionDialog({
       submitLabel={t("Save")}
       submitIcon={Pencil}
       canSubmit={canSubmit}
+      size="wide"
     >
       <form
         id="edit-history-session-form"
@@ -306,60 +444,53 @@ export function EditSessionDialog({
         <p className="text-sm leading-6 text-text-muted">
           {t("Change any two of the three. The third one fills in.")}
         </p>
-        <div className="mt-4 flex items-start gap-4 rounded-lg border border-border bg-surface-hover p-4">
-          <SessionCover
-            session={session}
-            gameName={gameName}
-            coverUrl={coverUrl}
-          />
-          <div className="grid min-w-0 flex-1 gap-3">
-            <DateTimeField
-              label={t("Started")}
-              value={form.start}
-              autoFocus
-              onChange={(start) => update("start", { start })}
-            />
-            <DateTimeField
-              label={t("Ended")}
-              value={form.end}
-              max={localDateTimeValue(new Date())}
-              onChange={(end) => update("end", { end })}
-            />
-            <fieldset className="grid gap-1.5">
-              <legend className="mb-1.5 text-xs font-medium text-text-muted">
-                {t("Length")}
-              </legend>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="grid gap-1 text-[11px] text-text-faint">
-                  {t("Hours")}
-                  <Input
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    value={form.hours}
-                    placeholder="0"
-                    onChange={(event) =>
-                      update("length", { hours: event.target.value })
-                    }
-                  />
-                </label>
-                <label className="grid gap-1 text-[11px] text-text-faint">
-                  {t("Minutes")}
-                  <Input
-                    type="number"
-                    min={0}
-                    max={59}
-                    inputMode="numeric"
-                    value={form.minutes}
-                    placeholder="0"
-                    onChange={(event) =>
-                      update("length", { minutes: event.target.value })
-                    }
-                  />
-                </label>
-              </div>
-            </fieldset>
-          </div>
+        <span id={`${ids}-hours`} className="sr-only">
+          {t("Hours")}
+        </span>
+        <span id={`${ids}-minutes`} className="sr-only">
+          {t("Minutes")}
+        </span>
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-3">
+          {timeCard("start", t("Started"))}
+          <Operator icon={ArrowRight} />
+          {timeCard("end", t("Ended"))}
+          <Operator icon={Equal} />
+          <TimeFieldCard
+            labelId={`${ids}-length`}
+            label={t("Length")}
+            filled={filledField === "length"}
+          >
+            <div className="mt-auto flex items-center justify-center gap-3 pt-3">
+              <NumberDrum
+                value={Math.floor(lengthMinutes / 60)}
+                labelledBy={`${ids}-length ${ids}-hours`}
+                caption={t("Hours")}
+                digits={3}
+                dimmed={filledField === "length"}
+                canStep={(delta) =>
+                  stepAllowed(form, "length", lengthStep(delta * 60))
+                }
+                onStep={(delta) => step("length", lengthStep(delta * 60))}
+                onSet={(value) => update("length", { hours: String(value) })}
+              />
+              <NumberDrum
+                value={lengthMinutes % 60}
+                labelledBy={`${ids}-length ${ids}-minutes`}
+                caption={t("Minutes")}
+                cycle={60}
+                dimmed={filledField === "length"}
+                canStep={(delta) =>
+                  stepAllowed(form, "length", lengthStep(delta))
+                }
+                onStep={(delta) => step("length", lengthStep(delta))}
+                onSet={(value) =>
+                  value < 60
+                    ? update("length", { minutes: String(value) })
+                    : undefined
+                }
+              />
+            </div>
+          </TimeFieldCard>
         </div>
         {problem ? <Problem>{problem}</Problem> : null}
       </form>
