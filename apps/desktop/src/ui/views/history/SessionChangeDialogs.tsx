@@ -9,7 +9,7 @@ import {
   Timer,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useState, type CSSProperties, type ReactNode } from "react";
 import { appLocale, getT } from "../../../i18n";
 import { useCoverUrl } from "../../../pickedCovers";
 import {
@@ -30,7 +30,7 @@ import {
 import { formatDuration } from "../../components";
 import { localDateTimeValue } from "../../dateTimeInput";
 import { GameCover } from "../../GameCover";
-import { Button, Input, Modal, Pill } from "../../primitives";
+import { Button, Input, Modal, Pill, type ModalSize } from "../../primitives";
 
 const t = getT("history");
 
@@ -78,6 +78,7 @@ function SessionChangeModal({
   submitLabel,
   submitIcon,
   canSubmit,
+  size = "sm",
   children,
 }: {
   labelId: string;
@@ -89,11 +90,12 @@ function SessionChangeModal({
   submitLabel: string;
   submitIcon: LucideIcon;
   canSubmit: boolean;
+  size?: ModalSize;
   children: ReactNode;
 }) {
   return (
     <Modal
-      size="sm"
+      size={size}
       labelId={labelId}
       eyebrow={t("My History")}
       title={title}
@@ -688,9 +690,9 @@ function SessionSummary({
           {new Date(session.startedAt).toLocaleDateString(appLocale())}
         </span>
         <SessionTimes session={session} taken={taken} />
-      </span>
-      <span className="font-mono font-bold tabular-nums text-accent-ink">
-        {formatDuration(session.durationSeconds ?? 0, showDurationDays)}
+        <span className="mt-1.5 block font-mono font-bold tabular-nums text-accent-ink">
+          {formatDuration(session.durationSeconds ?? 0, showDurationDays)}
+        </span>
       </span>
     </>
   );
@@ -793,6 +795,7 @@ export function CombineSessionDialog({
       submitLabel={t("Combine")}
       submitIcon={Merge}
       canSubmit={Boolean(picked)}
+      size="wide"
     >
       <form
         id="combine-history-sessions-form"
@@ -804,9 +807,10 @@ export function CombineSessionDialog({
         <p className="text-sm leading-6 text-text-muted">
           {t("Pick the session to combine this one with.")}
         </p>
-        <div className="mt-4 grid gap-2">
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 text-sm">
-            <span aria-hidden="true" className="w-4 shrink-0" />
+        {/* This session + (the one before or the one after) = the result,
+            side by side. */}
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1.2fr)] items-center gap-3">
+          <div className="rounded-lg border border-border bg-surface px-3.5 py-3 text-sm">
             <SessionSummary
               label={t("This session")}
               session={session}
@@ -815,101 +819,115 @@ export function CombineSessionDialog({
             />
           </div>
           <Operator icon={Plus} />
-          {options.map((option) => {
-            const selected = option.session.id === pickedId;
-            return (
-              <label
-                key={option.session.id}
-                className={clsx(
-                  "flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/40",
-                  selected
-                    ? "border-accent/60 bg-accent-tint"
-                    : "border-border bg-surface-hover hover:border-accent/40",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="combine-with"
-                  className="sr-only"
-                  checked={selected}
-                  data-autofocus={selected ? true : undefined}
-                  onChange={() => setPickedId(option.session.id)}
-                />
-                <span
-                  aria-hidden="true"
-                  className={clsx(
-                    "grid h-4 w-4 shrink-0 place-items-center rounded-full border",
-                    selected ? "border-accent" : "border-border",
-                  )}
-                >
-                  {selected ? (
-                    <span className="h-2 w-2 rounded-full bg-accent" />
+          <div className="grid gap-1.5">
+            {options.map((option, index) => {
+              const selected = option.session.id === pickedId;
+              return (
+                <Fragment key={option.session.id}>
+                  {index > 0 ? (
+                    <div className="text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-text-faint">
+                      {t("or")}
+                    </div>
                   ) : null}
-                </span>
-                <SessionSummary
-                  label={option.label}
-                  session={option.session}
-                  showDurationDays={showDurationDays}
-                  taken={takenFrom(option.session)}
-                />
-              </label>
-            );
-          })}
+                  <label
+                    className={clsx(
+                      "flex cursor-pointer items-start gap-3 rounded-lg border px-3.5 py-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/40",
+                      selected
+                        ? "border-accent/60 bg-accent-tint"
+                        : "border-border bg-surface-hover hover:border-accent/40",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="combine-with"
+                      className="sr-only"
+                      checked={selected}
+                      data-autofocus={selected ? true : undefined}
+                      onChange={() => setPickedId(option.session.id)}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={clsx(
+                        "mt-px grid h-4 w-4 shrink-0 place-items-center rounded-full border",
+                        selected ? "border-accent" : "border-border",
+                      )}
+                    >
+                      {selected ? (
+                        <span className="h-2 w-2 rounded-full bg-accent" />
+                      ) : null}
+                    </span>
+                    <SessionSummary
+                      label={option.label}
+                      session={option.session}
+                      showDurationDays={showDurationDays}
+                      taken={takenFrom(option.session)}
+                    />
+                  </label>
+                </Fragment>
+              );
+            })}
+          </div>
           <Operator icon={Equal} />
           {combined && picked && bar ? (
-            <div className="flex items-center gap-4 rounded-lg border border-border bg-surface-hover p-4">
-              <SessionCover
-                session={session}
-                gameName={gameName}
-                coverUrl={coverUrl}
-              />
-              <div className="min-w-0 flex-1 text-sm">
-                <div className="text-text-faint">{t("Combined session")}</div>
-                <div className="mt-1 flex items-center gap-1 font-medium tabular-nums text-text">
+            <div className="rounded-lg border border-border bg-surface-hover p-3.5 text-sm">
+              <div className="flex items-start gap-3">
+                <SessionCover
+                  session={session}
+                  gameName={gameName}
+                  coverUrl={coverUrl}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-faint">
+                    {t("Combined session")}
+                  </div>
+                  <div className="mt-1 text-[12.5px] tabular-nums text-text-muted">
+                    {new Date(combined.startedAt).toLocaleDateString(
+                      appLocale(),
+                    )}
+                  </div>
                   <SessionTimes
                     session={combined}
                     taken={{ start: true, end: true }}
                   />
-                  ·
-                  <span className="font-mono font-bold">
+                  <div className="mt-1.5 font-mono font-bold tabular-nums text-accent-ink">
                     {formatDuration(
                       combined.durationSeconds ?? 0,
                       showDurationDays,
                     )}
-                  </span>
+                  </div>
                 </div>
-                <div aria-hidden="true" className="mt-2.5 flex h-2 gap-0.5">
-                  <span
-                    className="min-w-1 basis-0 rounded-l-full bg-accent"
-                    style={{ flexGrow: bar.first }}
-                  />
-                  {bar.gap > 0 ? (
-                    <span
-                      className="min-w-1 basis-0"
-                      style={{ ...countedGap, flexGrow: bar.gap }}
-                    />
-                  ) : null}
-                  <span
-                    className="min-w-1 basis-0 rounded-r-full bg-accent"
-                    style={{ flexGrow: bar.second }}
-                  />
-                </div>
-                {picked.gapMs >= minuteMs ? (
-                  <p className="mt-2 flex items-center gap-2 text-xs leading-5 text-text-muted">
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                      style={countedGap}
-                    />
-                    {t("The {{duration}} between them count as playtime.", {
-                      duration: formatDuration(
-                        picked.gapMs / 1000,
-                        showDurationDays,
-                      ),
-                    })}
-                  </p>
-                ) : null}
               </div>
+              <div aria-hidden="true" className="mt-3 flex h-2 gap-0.5">
+                <span
+                  className="min-w-1 basis-0 rounded-l-full bg-accent"
+                  style={{ flexGrow: bar.first }}
+                />
+                {bar.gap > 0 ? (
+                  <span
+                    className="min-w-1 basis-0"
+                    style={{ ...countedGap, flexGrow: bar.gap }}
+                  />
+                ) : null}
+                <span
+                  className="min-w-1 basis-0 rounded-r-full bg-accent"
+                  style={{ flexGrow: bar.second }}
+                />
+              </div>
+              {picked.gapMs >= minuteMs ? (
+                <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-text-muted">
+                  <span
+                    aria-hidden="true"
+                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm"
+                    style={countedGap}
+                  />
+                  {t("The {{duration}} between them count as playtime.", {
+                    duration: formatDuration(
+                      picked.gapMs / 1000,
+                      showDurationDays,
+                    ),
+                  })}
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>

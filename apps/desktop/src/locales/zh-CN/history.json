@@ -134,5 +134,6 @@
   "{{hours}}h": "{{hours}}小时",
   "Custom": "自定义",
   "The break is too long for this session.": "休息时间太长，超出了这次游玩。",
-  "This session": "这次游玩"
+  "This session": "这次游玩",
+  "or": "或"
 }

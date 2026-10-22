@@ -146,5 +146,6 @@
   "{{hours}}h": "{{hours}}h",
   "Custom": "Personalizada",
   "The break is too long for this session.": "A pausa é longa demais para esta sessão.",
-  "This session": "Esta sessão"
+  "This session": "Esta sessão",
+  "or": "ou"
 }

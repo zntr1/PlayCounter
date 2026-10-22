@@ -152,5 +152,6 @@
   "{{hours}}h": "{{hours}} ч",
   "Custom": "Свой",
   "The break is too long for this session.": "Перерыв слишком длинный для этой сессии.",
-  "This session": "Эта сессия"
+  "This session": "Эта сессия",
+  "or": "или"
 }
