@@ -170,6 +170,7 @@ describe("tour definitions", () => {
         "demo-menu-check-matches",
         "demo-menu-report-match",
       ],
+      "demo-menu-tier": ["demo-tier-menu", "demo-tier-S"],
     };
     for (const tour of tours()) {
       for (const step of tour.steps) {

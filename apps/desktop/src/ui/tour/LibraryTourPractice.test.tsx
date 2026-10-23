@@ -959,3 +959,50 @@ it("does not start the hotkey recorder when the guide reaches Keyboard shortcuts
   );
   expect(currentStep().id).not.toBe("shortcuts");
 });
+
+it("walks the tier guide: rate GTA V, sort by tier, then filter its tier", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  const cards = () =>
+    [...document.querySelectorAll('[data-tour="demo-game-card"]')].map((card) =>
+      card.getAttribute("data-tour-game-id"),
+    );
+  await start("rate-games", "rate");
+  const gta = document.querySelector(
+    '[data-tour="demo-game-card"][data-tour-game-id="-2"]',
+  )!;
+  expect(target()).toBe(gta);
+  await act(() =>
+    gta.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        clientX: 10,
+        clientY: 10,
+      }),
+    ),
+  );
+  expect(target().getAttribute("data-tour")).toBe("demo-menu-tier");
+  await act(() => target().click());
+  expect(target().getAttribute("data-tour")).toBe("demo-tier-S");
+  await act(() => target().click());
+  await act(() => vi.advanceTimersByTime(800));
+  expect(currentStep().id).toBe("sort");
+
+  expect(cards()).toEqual(["-1", "-2"]);
+  const sort = target() as HTMLSelectElement;
+  await act(() => {
+    sort.value = "tier";
+    sort.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  // Unrated World of Warcraft drops behind the rated sample.
+  expect(cards()).toEqual(["-2", "-1"]);
+  await act(() => vi.advanceTimersByTime(800));
+  expect(currentStep().id).toBe("filter");
+
+  expect(target().textContent).toBe("S");
+  await act(() => target().click());
+  expect(cards()).toEqual(["-2"]);
+  await act(() => vi.advanceTimersByTime(800));
+  expect(currentStep().id).toBe("finish");
+  expect(cards()).toEqual(["-2", "-1"]);
+  vi.useRealTimers();
+});

@@ -24,6 +24,9 @@ export function tourSessionsForGame(game: GameSummary): Session[] {
   });
 }
 
+/** The second practice card, Grand Theft Auto V. */
+export const TOUR_GTA_GAME_ID = -2;
+
 export const TOUR_DEMO_GAME = {
   gameId: -1,
   name: "World of Warcraft",

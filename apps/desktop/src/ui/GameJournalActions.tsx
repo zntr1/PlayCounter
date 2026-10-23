@@ -54,11 +54,14 @@ export function GameJournalMenu({
       >
         {t("Journal")}
       </ContextMenuItem>
-      {practice ? null : (
-        <ContextMenuSubmenu label={t("Tier")} icon={Medal}>
-          <GameTierMenuItems game={game} onClose={onClose} />
-        </ContextMenuSubmenu>
-      )}
+      <ContextMenuSubmenu
+        label={t("Tier")}
+        icon={Medal}
+        dataTour={practice ? "demo-menu-tier" : undefined}
+        menuDataTour={practice ? "demo-tier-menu" : undefined}
+      >
+        <GameTierMenuItems game={game} onClose={onClose} />
+      </ContextMenuSubmenu>
     </>
   );
 }
@@ -79,6 +82,7 @@ export function GameTierMenuItems({
   game: GameIdentityRef;
   onClose: () => void;
 }) {
+  const practice = useLibraryPractice();
   const journal = useGameJournal(game);
   const setTier = usePersonalLibraryState((s) => s.setGameTier);
   return (
@@ -86,6 +90,7 @@ export function GameTierMenuItems({
       {GAME_TIERS.map((tier) => (
         <ContextMenuItem
           key={tier}
+          dataTour={practice ? `demo-tier-${tier}` : undefined}
           selected={journal.tier === tier}
           onClick={() => {
             onClose();

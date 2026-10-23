@@ -267,7 +267,11 @@ import type {
   IdentifierFlagReason,
   LibraryProviderId,
 } from "@playcounter/shared";
-import { TOUR_DEMO_GAME, TOUR_DEMO_EMULATOR } from "../tour/tourDemoGame";
+import {
+  TOUR_DEMO_GAME,
+  TOUR_DEMO_EMULATOR,
+  TOUR_GTA_GAME_ID,
+} from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
 import { findTour } from "../tour/tourDefinitions";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
@@ -356,6 +360,33 @@ function sortOptions(): Array<{ key: SortKey; label: string }> {
     { key: "sessions", label: t("Sessions") },
     { key: "tier", label: t("Tier") },
   ];
+}
+
+/** The library's sort menu; the tier guide's practice library shows it too. */
+export function MyGamesSortSelect({
+  value,
+  onChange,
+  dataTour,
+}: {
+  value: SortKey;
+  onChange: (key: SortKey) => void;
+  dataTour?: string;
+}) {
+  return (
+    <Select
+      aria-label={t("Sort games")}
+      data-tour={dataTour}
+      value={value}
+      onChange={(event) => onChange(event.target.value as SortKey)}
+      className="h-9 rounded-lg !py-0 font-medium"
+    >
+      {sortOptions().map((option) => (
+        <option key={option.key} value={option.key}>
+          {t("Sort: {{label}}", { label: option.label })}
+        </option>
+      ))}
+    </Select>
+  );
 }
 
 const GTA_V_TOUR_COVER = "/tour/gta-v-cover.webp";
@@ -497,7 +528,7 @@ export function makeCoreTourDemoGames(): GameSummary[] {
     },
     {
       kind: "tour-demo",
-      gameId: -2,
+      gameId: TOUR_GTA_GAME_ID,
       name: "Grand Theft Auto V",
       coverUrl: GTA_V_TOUR_COVER,
       source: "igdb",
@@ -2321,20 +2352,10 @@ export function MyGamesView({
                 }
                 trailing={
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Select
-                      aria-label={t("Sort games")}
+                    <MyGamesSortSelect
                       value={sortKey}
-                      onChange={(event) =>
-                        setMyGamesSortKey(event.target.value as MyGamesSortKey)
-                      }
-                      className="h-9 rounded-lg !py-0 font-medium"
-                    >
-                      {sortOptions().map((option) => (
-                        <option key={option.key} value={option.key}>
-                          {t("Sort: {{label}}", { label: option.label })}
-                        </option>
-                      ))}
-                    </Select>
+                      onChange={setMyGamesSortKey}
+                    />
                     <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
                       <button
                         type="button"
