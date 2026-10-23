@@ -6,6 +6,7 @@ import {
   Flag,
   Gamepad2,
   Play,
+  Square,
   StickyNote,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -62,6 +63,8 @@ type ActiveGameHeroProps = {
   /** "Now playing" or "Now emulating", already translated. */
   statusLabel: string;
   onReport?: () => void;
+  /** Only for a timer: Stop sits next to its clock. */
+  onStopTimer?: () => void;
   tourAnchor?: string;
 };
 
@@ -83,6 +86,7 @@ export function ActiveGameHero({
   providerFloor,
   statusLabel,
   onReport,
+  onStopTimer,
   tourAnchor,
 }: ActiveGameHeroProps) {
   const journal = useGameJournal(session);
@@ -189,9 +193,10 @@ export function ActiveGameHero({
   );
   const lifetimeSessionCount = priorSessions.length + 1;
   // A Game.exe game named or picked on this PC is custom, but its folder can
-  // still hold the wrong game, or no game at all.
+  // still hold the wrong game, or no game at all. A timer runs no file.
   const canReport =
     Boolean(onReport) &&
+    !session.timer &&
     (session.source === "igdb" ||
       session.source === "community" ||
       (!session.emulator && isGenericExeName(session.exeName)));
@@ -342,7 +347,7 @@ export function ActiveGameHero({
               <span className="rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent-ink">
                 {session.emulator.label} · {session.emulator.display}
               </span>
-            ) : (
+            ) : session.timer ? null : (
               <span className="truncate rounded-lg border border-border/60 bg-bg/40 px-2.5 py-1 font-mono text-[12px] font-medium tracking-wide text-text-muted backdrop-blur">
                 {exeNames.join(", ")}
               </span>
@@ -384,8 +389,23 @@ export function ActiveGameHero({
       <div className="active-hero-figures relative mx-7 mb-7 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] divide-x divide-border/60 rounded-xl border border-border/60">
         <div className="px-6 py-4">
           <FigureLabel icon={Play}>{t("This session")}</FigureLabel>
-          <div className="mt-1.5 font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-accent-ink drop-shadow-[0_0_18px_rgb(var(--color-accent)/0.35)]">
-            {formatClock(elapsedSeconds)}
+          <div className="mt-1.5 flex items-center gap-5">
+            <div className="font-mono text-[44px] font-bold leading-none tabular-nums tracking-tight text-accent-ink drop-shadow-[0_0_18px_rgb(var(--color-accent)/0.35)]">
+              {formatClock(elapsedSeconds)}
+            </div>
+            {onStopTimer ? (
+              <button
+                type="button"
+                aria-label={t("Stop the timer for {{gameName}}", {
+                  gameName: session.gameName,
+                })}
+                title={t("Stop")}
+                onClick={onStopTimer}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-danger/50 bg-danger/10 text-danger transition hover:border-danger-solid hover:bg-danger-solid hover:text-white hover:shadow-[0_0_18px_rgb(var(--color-danger-solid)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/60"
+              >
+                <Square size={14} fill="currentColor" aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="px-6 py-4">

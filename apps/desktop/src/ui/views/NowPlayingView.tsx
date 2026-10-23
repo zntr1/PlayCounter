@@ -23,6 +23,7 @@ import {
   reportNegativeMatch,
   suggestTrackedGameToCommunity,
   rejectFileForGame,
+  stopGameTimer,
 } from "../../tracker";
 import { Panel } from "../components";
 import { Button } from "../primitives";
@@ -245,6 +246,11 @@ export function NowPlayingView() {
                       ]
                 }
                 onReport={() => setReportTarget(activeSession)}
+                onStopTimer={
+                  activeSession.timer
+                    ? () => void stopGameTimer(activeSession.id)
+                    : undefined
+                }
                 statusLabel={t("Now playing")}
                 tourAnchor={isTourSession ? "now-playing-demo" : undefined}
               />

@@ -1,15 +1,18 @@
 import type { EmulatorId } from "@playcounter/shared";
+import { azaharAdapter } from "./azahar";
 import { cemuAdapter } from "./cemu";
 import { dosboxAdapter } from "./dosbox";
 import { dolphinAdapter } from "./dolphin";
 import { duckstationAdapter } from "./duckstation";
 import { edenAdapter } from "./eden";
+import { melondsAdapter } from "./melonds";
 import { mgbaAdapter } from "./mgba";
 import { pcsx2Adapter } from "./pcsx2";
 import { ppssppAdapter } from "./ppsspp";
 import { rpcs3Adapter } from "./rpcs3";
 import { ryujinxAdapter } from "./ryujinx";
 import type { EmulatorAdapter } from "./types";
+import { xeniaAdapter } from "./xenia";
 import { appLocale } from "../i18n";
 
 // Every EmulatorId must have an adapter. The order is the sidebar, filter and
@@ -25,6 +28,9 @@ const adapters = {
   duckstation: duckstationAdapter,
   ryujinx: ryujinxAdapter,
   eden: edenAdapter,
+  azahar: azaharAdapter,
+  melonds: melondsAdapter,
+  xenia: xeniaAdapter,
 } satisfies Record<EmulatorId, EmulatorAdapter>;
 
 export const EMULATORS: readonly EmulatorAdapter[] = Object.values(adapters);

@@ -152,6 +152,12 @@ import { sanitizePersistedShape } from "./persistedShape";
 import { normalizeCollapsedSections } from "./sectionCollapse";
 import { normalizeSessions, splitStoredSessions } from "./sessionPersistence";
 import {
+  combineSessions,
+  editSession,
+  splitSession,
+  type SessionTimes,
+} from "./sessionEdits";
+import {
   journalNote,
   playthroughName,
   sanitizePlaythroughSeconds,
@@ -2306,6 +2312,12 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   );
 
   for (const current of currentSessions) {
+    // A timer counts play away from this PC: no process ends it, only Stop.
+    // A running exe of the same game joins it instead of opening a session.
+    if (current.timer) {
+      checkpointActiveSessionIfDue(current);
+      continue;
+    }
     const continuingGroup = matchesByGame.get(sessionIdentityKey(current));
     if (
       continuingGroup &&
@@ -2525,6 +2537,7 @@ function rawEmulatorSignals(
     workingDirectory: process.workingDirectory ?? null,
     windowTitle: process.windowTitle ?? null,
     openFiles: process.openFiles ?? undefined,
+    recentFile: process.recentFile ?? undefined,
   };
 }
 
@@ -5252,7 +5265,10 @@ function moveGameTimeToSoftware(exeName: string) {
     intervals.push({ fromMs, toMs: fromMs + seconds * 1000 });
   }
   const until = lastToolTickAt ?? Date.now();
-  for (const session of state.activeSessions.filter(isThisExe)) {
+  // A timer only borrows the file name; its time is the game's.
+  for (const session of state.activeSessions.filter(
+    (session) => isThisExe(session) && !session.timer,
+  )) {
     intervals.push({ fromMs: Date.parse(session.startedAt), toMs: until });
     removeActiveSession(session);
   }
@@ -6388,8 +6404,9 @@ async function ignoreProcessLocally(
   // user-ignore file update succeeds. It prevents a running process from
   // racing the async IPC call and being matched again on the next scan.
   state.toggleBlacklist(exeName, true);
+  // A timer only borrows the file name; no copy of the file runs for it.
   for (const session of state.activeSessions.filter(
-    (candidate) => candidate.exeName.toLowerCase() === key,
+    (candidate) => candidate.exeName.toLowerCase() === key && !candidate.timer,
   )) {
     removeActiveSession(session);
   }
@@ -6447,6 +6464,7 @@ function ignoreExeFoldersLocally(
       for (const session of state.activeSessions.filter(
         (active) =>
           active.exeName.toLowerCase() === key &&
+          !active.timer &&
           active.gameId === link.gameId &&
           (active.source ?? "igdb") === link.source,
       )) {
@@ -6680,7 +6698,8 @@ type SessionEndReason =
   | "process-ended"
   | "recovered-checkpoint"
   | "settings-change"
-  | "route-change";
+  | "route-change"
+  | "timer-stopped";
 
 async function endSession(
   session: ActiveSession,
@@ -6719,6 +6738,7 @@ async function endSession(
     startedAt: session.startedAt,
     endedAt,
     durationSeconds,
+    origin: session.timer ? "manual" : undefined,
     emulator: session.emulator,
     note: session.note,
   });
@@ -8304,6 +8324,64 @@ export function addManualSession(params: {
   evaluateAndStoreMilestones();
 }
 
+// A timer for play away from this PC, e.g. on a console. It runs like a
+// detected session until Stop and is saved like a logged one. Not while the
+// game already runs here.
+export function startGameTimer(params: {
+  gameId: number;
+  igdbId?: number;
+  gameName: string;
+  coverUrl: string;
+  source: Game["source"] | null;
+  exeName: string;
+  communitySuggestionId?: number;
+  communitySuggestionVerified?: boolean;
+  communitySuggestionStatus?: ContributionStatus;
+  communitySuggestionNote?: string;
+}) {
+  const state = useAppStore.getState();
+  const source = params.source ?? undefined;
+  const key = activeSessionKey(params.gameId, source, params.igdbId);
+  if (
+    state.activeSessions.some((session) => sessionIdentityKey(session) === key)
+  ) {
+    return;
+  }
+  const startedAt = new Date().toISOString();
+  const session: ActiveSession = {
+    id: createSessionId(),
+    playthroughId:
+      getGameJournal(state, params).activePlaythroughId ?? undefined,
+    gameId: params.gameId,
+    igdbId: params.igdbId,
+    gameName: params.gameName,
+    exeName: params.exeName,
+    coverUrl: params.coverUrl,
+    source,
+    communitySuggestionId: params.communitySuggestionId,
+    communitySuggestionVerified: params.communitySuggestionVerified,
+    communitySuggestionStatus: params.communitySuggestionStatus,
+    communitySuggestionNote: params.communitySuggestionNote,
+    startedAt,
+    checkpointedAt: startedAt,
+    timer: true,
+  };
+  useAppStore.setState((current) => ({
+    activeSessions: [...current.activeSessions, session],
+  }));
+  logRuntime(`timer started ${params.gameName} (${params.exeName})`);
+  persist();
+}
+
+export async function stopGameTimer(sessionId: number) {
+  const session = useAppStore
+    .getState()
+    .activeSessions.find((active) => active.id === sessionId && active.timer);
+  if (!session) return;
+  await endSession(session, undefined, "timer-stopped");
+  persist();
+}
+
 export function setGamePlaytime(params: {
   gameId: number;
   igdbId?: number;
@@ -8393,6 +8471,50 @@ export function removeHistorySession(sessionId: number) {
     previousCount - useAppStore.getState().recentSessions.length;
   if (removedCount > 0) logRuntime(`history session removed ${sessionId}`);
   evaluateAndStoreMilestones();
+}
+
+// Edit, split and combine store like a new session does: sorted, the oldest
+// beyond the limit moved into the archive, achievements checked again.
+function changeHistorySessions(
+  change: (sessions: Session[]) => Session[],
+  message: string,
+) {
+  useAppStore.setState((state) => {
+    const { kept, removed } = splitStoredSessions(change(state.recentSessions));
+    return {
+      recentSessions: kept,
+      ...foldSessionsIntoArchive(
+        state.archivedSeconds,
+        state.archivedGameSeconds,
+        removed,
+        state.archivedPlaythroughSeconds,
+      ),
+    };
+  });
+  logRuntime(message);
+  evaluateAndStoreMilestones();
+}
+
+export function editHistorySession(sessionId: number, times: SessionTimes) {
+  changeHistorySessions(
+    (sessions) => editSession(sessions, sessionId, times),
+    `history session edited ${sessionId}`,
+  );
+}
+
+export function splitHistorySession(sessionId: number, pause: SessionTimes) {
+  const newId = createSessionId();
+  changeHistorySessions(
+    (sessions) => splitSession(sessions, sessionId, pause, newId),
+    `history session split ${sessionId} -> ${newId}`,
+  );
+}
+
+export function combineHistorySessions(firstId: number, secondId: number) {
+  changeHistorySessions(
+    (sessions) => combineSessions(sessions, firstId, secondId),
+    `history sessions combined ${firstId} + ${secondId}`,
+  );
 }
 
 export function removeGameHistory(
@@ -8983,7 +9105,9 @@ function normalizePersistedActiveSessions(persisted: PersistedState) {
     sessions.map((session) => ({
       ...inferSuggestionStatus(session),
       checkpointedAt: session.checkpointedAt ?? session.startedAt,
-      recoveredFromCheckpoint: true,
+      // The console kept going while PlayCounter was closed: a timer keeps
+      // counting from its start.
+      recoveredFromCheckpoint: !session.timer,
     })),
   );
 }

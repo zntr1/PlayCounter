@@ -102,11 +102,14 @@ type CardProps = {
   showMatch: boolean;
   showStatus: boolean;
   showNotes: boolean;
+  /** Left out by the tour's practice library, whose games have no tiers. */
+  showTiers?: boolean;
   showTrackingWarnings: boolean;
   setMyGamesShowOriginBadges: (value: boolean) => void;
   setMyGamesShowMatchBadges: (value: boolean) => void;
   setMyGamesShowStatusBadges: (value: boolean) => void;
   setMyGamesShowNoteBadges: (value: boolean) => void;
+  setMyGamesShowTierBadges?: (value: boolean) => void;
   setMyGamesShowTrackingWarnings: (value: boolean) => void;
 };
 
@@ -209,11 +212,13 @@ export function LibraryCardControls({
   showMatch,
   showStatus,
   showNotes,
+  showTiers,
   showTrackingWarnings,
   setMyGamesShowOriginBadges,
   setMyGamesShowMatchBadges,
   setMyGamesShowStatusBadges,
   setMyGamesShowNoteBadges,
+  setMyGamesShowTierBadges,
   setMyGamesShowTrackingWarnings,
 }: CardProps) {
   const { practice, fieldId } = useFieldId();
@@ -251,6 +256,15 @@ export function LibraryCardControls({
         dataTour={practice ? "demo-show-notes" : undefined}
         onChange={setMyGamesShowNoteBadges}
       />
+      {setMyGamesShowTierBadges ? (
+        <OptionRow
+          id={fieldId("show-tiers")}
+          label={t("Tiers on cards")}
+          help={t("Your tier, S to F, on every game you rated.")}
+          checked={showTiers !== false}
+          onChange={setMyGamesShowTierBadges}
+        />
+      ) : null}
       <OptionRow
         id={fieldId("show-tracking-warnings")}
         label={t("Tracking warnings")}

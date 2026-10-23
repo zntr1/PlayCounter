@@ -236,25 +236,25 @@ export const productGuides = [
     category: "Using PlayCounter",
     title: "Track emulator game playtime with PlayCounter",
     description:
-      "Track individual games in DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx and Eden on Windows. See supported emulators, setup steps and how to review uncertain game matches.",
+      "Track individual games in DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia on Windows. See supported emulators, setup steps and how to review uncertain game matches.",
     answer:
-      "PlayCounter has dedicated per-game detection for DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx and Eden on Windows. When the emulator exposes recognizable game information, PlayCounter records the game itself with its own cover, total and sessions.",
+      "PlayCounter has dedicated per-game detection for DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia on Windows. When the emulator exposes recognizable game information, PlayCounter records the game itself with its own cover, total and sessions.",
     thumb: "dosbox",
     sections: [
       {
         id: "supported",
         title: "Supported emulators",
-        html: '<div class="table-wrap"><table><thead><tr><th>Emulator</th><th>Games</th><th>Detection</th></tr></thead><tbody><tr><td>DOSBox</td><td>DOS</td><td>Supported DOSBox variants, including DOSBox-X and DOSBox Staging; game information comes from the running emulator.</td></tr><tr><td>Dolphin</td><td>GameCube and Wii</td><td>Game identifiers or recognizable window titles exposed by Dolphin.</td></tr><tr><td>PCSX2</td><td>PlayStation 2</td><td>The disc image PCSX2 has open or was started with, including the game serial in its file name.</td></tr><tr><td>mGBA</td><td>Game Boy, Game Boy Color and Game Boy Advance</td><td>The game name mGBA shows in its window title. Keep mGBA’s <strong>Dynamically update window title</strong> setting on, as it is by default.</td></tr><tr><td>Cemu</td><td>Wii U</td><td>The title ID and game name Cemu shows in its window title while a game runs.</td></tr><tr><td>RPCS3</td><td>PlayStation 3</td><td>The game serial and name RPCS3 shows in its game window title. A custom <strong>Window Title Format</strong> without the serial cannot be read.</td></tr><tr><td>PPSSPP</td><td>PSP</td><td>The disc ID and game name PPSSPP shows in its window title.</td></tr><tr><td>DuckStation</td><td>PlayStation</td><td>The disc image DuckStation has open or the file it was started with.</td></tr><tr><td>Ryujinx</td><td>Nintendo Switch</td><td>The title ID and game name Ryujinx shows in its window title.</td></tr><tr><td>Eden</td><td>Nintendo Switch</td><td>The game name Eden shows in its window title.</td></tr></tbody></table></div><p>This is the current dedicated per-game support list. Other emulator processes can be assigned a local entry, but that alone does not identify each game inside them.</p>',
+        html: '<div class="table-wrap"><table><thead><tr><th>Emulator</th><th>Games</th><th>Detection</th></tr></thead><tbody><tr><td>DOSBox</td><td>DOS</td><td>Supported DOSBox variants, including DOSBox-X and DOSBox Staging; game information comes from the running emulator.</td></tr><tr><td>Dolphin</td><td>GameCube and Wii</td><td>Game identifiers or recognizable window titles exposed by Dolphin.</td></tr><tr><td>PCSX2</td><td>PlayStation 2</td><td>The disc image PCSX2 has open or was started with, including the game serial in its file name.</td></tr><tr><td>mGBA</td><td>Game Boy, Game Boy Color and Game Boy Advance</td><td>The game name mGBA shows in its window title. Keep mGBA’s <strong>Dynamically update window title</strong> setting on, as it is by default.</td></tr><tr><td>Cemu</td><td>Wii U</td><td>The title ID and game name Cemu shows in its window title while a game runs.</td></tr><tr><td>RPCS3</td><td>PlayStation 3</td><td>The game serial and name RPCS3 shows in its game window title. A custom <strong>Window Title Format</strong> without the serial cannot be read.</td></tr><tr><td>PPSSPP</td><td>PSP</td><td>The disc ID and game name PPSSPP shows in its window title.</td></tr><tr><td>DuckStation</td><td>PlayStation</td><td>The disc image DuckStation has open or the file it was started with.</td></tr><tr><td>Ryujinx</td><td>Nintendo Switch</td><td>The title ID and game name Ryujinx shows in its window title.</td></tr><tr><td>Eden</td><td>Nintendo Switch</td><td>The game name Eden shows in its window title.</td></tr><tr><td>Azahar</td><td>Nintendo 3DS</td><td>The game name Azahar shows in its window title.</td></tr><tr><td>melonDS</td><td>Nintendo DS</td><td>The ROM at the top of melonDS’s recent list, read from <code>melonDS.toml</code> next to <code>melonDS.exe</code> while a game runs. A paused game counts as stopped.</td></tr><tr><td>Xenia</td><td>Xbox 360</td><td>The title ID and game name Xenia (or Xenia Canary) shows in its window title.</td></tr></tbody></table></div><p>This is the current dedicated per-game support list. Other emulator processes can be assigned a local entry, but that alone does not identify each game inside them.</p>',
       },
       {
         id: "setup",
         title: "Start tracking an emulated game",
-        html: "<ol><li>Open PlayCounter and keep emulator detection enabled in <strong>Settings</strong>.</li><li>Launch a game in DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx or Eden normally.</li><li>Check the emulator’s page, which appears in the PlayCounter sidebar under <strong>Library</strong>. Recognized content is matched to its game; review any choice the app asks you to confirm.</li><li>Play and close the game as usual. Its recorded time is available in your library and history.</li></ol><p>For DOS games bundled with their own DOSBox copy, launch the game through its normal shortcut. The emulator does not need to have been installed separately.</p>",
+        html: "<ol><li>Open PlayCounter and keep emulator detection enabled in <strong>Settings</strong>.</li><li>Launch a game in DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS or Xenia normally.</li><li>Check the emulator’s page, which appears in the PlayCounter sidebar under <strong>Library</strong>. Recognized content is matched to its game; review any choice the app asks you to confirm.</li><li>Play and close the game as usual. Its recorded time is available in your library and history.</li></ol><p>For DOS games bundled with their own DOSBox copy, launch the game through its normal shortcut. The emulator does not need to have been installed separately.</p>",
       },
       {
         id: "matches",
         title: "Review uncertain matches",
-        html: "<p>Detection depends on what the emulator exposes. An empty window title, generic executable or missing game identifier may require a local choice. Use the detected content on the emulator’s page to pick the correct game instead of assigning every game to the emulator executable.</p><p>Support for these ten emulators does not imply support for every emulator or every game configuration. Check <strong>Now Playing</strong> on your first session to confirm the title being recorded.</p>",
+        html: "<p>Detection depends on what the emulator exposes. An empty window title, generic executable or missing game identifier may require a local choice. Use the detected content on the emulator’s page to pick the correct game instead of assigning every game to the emulator executable.</p><p>Support for these thirteen emulators does not imply support for every emulator or every game configuration. Check <strong>Now Playing</strong> on your first session to confirm the title being recorded.</p>",
         screenshot: "dosbox",
       },
       {
@@ -290,7 +290,7 @@ export const productGuides = [
       {
         id: "matching",
         title: "From a running process to a game",
-        html: "<p>On Windows, normal game matching uses the executable filename, such as <code>Hades2.exe</code>. PlayCounter uses cached matches and online lookups to find the game name and artwork. It does not upload the full Windows executable path for that lookup.</p><p>Recognition covers games launched through stores, launchers and direct shortcuts. Dedicated adapters for ten emulators, from DOSBox to Ryujinx and Eden, also look for the game running inside the emulator.</p>",
+        html: "<p>On Windows, normal game matching uses the executable filename, such as <code>Hades2.exe</code>. PlayCounter uses cached matches and online lookups to find the game name and artwork. It does not upload the full Windows executable path for that lookup.</p><p>Recognition covers games launched through stores, launchers and direct shortcuts. Dedicated adapters for thirteen emulators, from DOSBox to Xenia, also look for the game running inside the emulator.</p>",
       },
       {
         id: "review",
@@ -317,7 +317,7 @@ export const productGuides = [
     category: "Using PlayCounter",
     title: "Which games does PlayCounter support?",
     description:
-      "Understand PlayCounter game detection across Windows launchers, Steam, Xbox, Epic and Battle.net imports, ten emulators from DOSBox to Ryujinx, and local matches for unknown games.",
+      "Understand PlayCounter game detection across Windows launchers, Steam, Xbox, Epic and Battle.net imports, thirteen emulators from DOSBox to Xenia, and local matches for unknown games.",
     answer:
       "PlayCounter detects games from their running processes on Windows. There is no required launcher: recognized games from Steam, Epic, Xbox, GOG, EA, Ubisoft, Battle.net and standalone installations can all appear in one library.",
     sections: [
@@ -333,8 +333,8 @@ export const productGuides = [
       },
       {
         id: "emulators",
-        title: "Emulated games: ten supported emulators",
-        html: '<p>DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx and Eden have dedicated adapters for identifying the game inside the emulator. A recognizable identifier, file or title is needed, and some matches require your review. <a href="/playtime-tracker-for-emulators/">See the emulator guide</a>.</p>',
+        title: "Emulated games: thirteen supported emulators",
+        html: '<p>DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia have dedicated adapters for identifying the game inside the emulator. A recognizable identifier, file or title is needed, and some matches require your review. <a href="/playtime-tracker-for-emulators/">See the emulator guide</a>.</p>',
       },
       {
         id: "guides",

@@ -16,6 +16,8 @@
   "Start the game again, then correct it while it runs.": "Inicie o jogo de novo e corrija enquanto ele estiver aberto.",
   "Choose the correct game": "Escolha o jogo correto",
   "Something wrong?": "Algo errado?",
+  "Stop": "Parar",
+  "Stop the timer for {{gameName}}": "Parar o cronômetro de {{gameName}}",
   "Journal": "Diário",
   "This session": "Esta sessão",
   "Total playtime": "Tempo de jogo total",

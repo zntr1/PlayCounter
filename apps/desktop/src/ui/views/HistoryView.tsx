@@ -35,7 +35,22 @@ import {
   gameMetadataKey,
   useAppStore,
 } from "../../store";
-import { hydrateGameMetadata, removeHistorySession } from "../../tracker";
+import {
+  combineSessions,
+  editSession,
+  overlappingSession,
+  sessionNeighbours,
+  sessionTimes,
+  splitSession,
+  type SessionTimes,
+} from "../../sessionEdits";
+import {
+  combineHistorySessions,
+  editHistorySession,
+  hydrateGameMetadata,
+  removeHistorySession,
+  splitHistorySession,
+} from "../../tracker";
 import { TopGamesBars } from "../charts/TopGamesBars";
 import { formatDuration } from "../components";
 import { hasOpenContextMenu } from "../ContextMenu";
@@ -56,12 +71,21 @@ import {
   HistorySessionRow,
   type HistoryRowMetadata,
 } from "./history/HistorySessionRow";
+import {
+  CombineSessionDialog,
+  EditSessionDialog,
+  SplitSessionDialog,
+} from "./history/SessionChangeDialogs";
 import { appLocale, getT } from "../../i18n";
 
 const t = getT("history");
 
 type HistorySort = "newest" | "oldest" | "duration";
 type HistoryTab = "sessions" | "insights" | "games";
+type PendingChange = {
+  kind: "edit" | "split" | "combine";
+  session: Session;
+};
 
 function historySorts(): Array<{ id: HistorySort; label: string }> {
   return [
@@ -169,6 +193,9 @@ export function HistoryView() {
   const [detailedChart, setDetailedChart] = useState(false);
   const [visibleCount, setVisibleCount] = useState(25);
   const [pendingDeletion, setPendingDeletion] = useState<Session | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingChange | null>(
+    null,
+  );
   const timelineBodyRef = useRef<HTMLDivElement>(null);
   const nowMs = useHistoryNow();
   const [insightsReady, setInsightsReady] = useState(() =>
@@ -326,6 +353,23 @@ export function HistoryView() {
   const markers = useMemo(
     () => sessionMarkers(sessions, resolveIgdbId),
     [resolveIgdbId, sessions],
+  );
+  // From all sessions, not only the filtered ones: Combine offers the game's
+  // session right before or after, whatever the filters show.
+  const sessionGameKey = useCallback(
+    (session: Session) => getSessionGameKey(session, resolveIgdbId),
+    [resolveIgdbId],
+  );
+  const neighbours = useMemo(
+    () => sessionNeighbours(sessions, sessionGameKey),
+    [sessionGameKey, sessions],
+  );
+  const canCombine = useCallback(
+    (session: Session) => {
+      const around = neighbours.get(session.id);
+      return Boolean(around?.before || around?.after);
+    },
+    [neighbours],
   );
 
   const lifetime = useMemo(
@@ -651,6 +695,70 @@ export function HistoryView() {
     libraryApi,
   ]);
 
+  const requestEdit = useCallback(
+    (session: Session) => setPendingChange({ kind: "edit", session }),
+    [],
+  );
+  const requestSplit = useCallback(
+    (session: Session) => setPendingChange({ kind: "split", session }),
+    [],
+  );
+  const requestCombine = useCallback(
+    (session: Session) => setPendingChange({ kind: "combine", session }),
+    [],
+  );
+  const pendingChangeGame = pendingChange
+    ? resolveGame(pendingChange.session)
+    : null;
+  const cancelChange = useCallback(() => {
+    const sessionId = pendingChange?.session.id ?? null;
+    setPendingChange(null);
+    focusTimelineSession(sessionId);
+  }, [focusTimelineSession, pendingChange]);
+  // The tour's sample History runs the same change on its own store.
+  const applyChange = useCallback(
+    (
+      change: (sessions: Session[]) => Session[],
+      save: () => void,
+      focusId: number,
+    ) => {
+      if (practice)
+        libraryApi.setState((state) => ({
+          recentSessions: change(state.recentSessions),
+        }));
+      else save();
+      setPendingChange(null);
+      focusTimelineSession(focusId);
+    },
+    [focusTimelineSession, libraryApi, practice],
+  );
+  const confirmEdit = (session: Session, times: SessionTimes) =>
+    applyChange(
+      (all) => editSession(all, session.id, times),
+      () => editHistorySession(session.id, times),
+      session.id,
+    );
+  const confirmSplit = (session: Session, pause: SessionTimes) =>
+    applyChange(
+      (all) =>
+        splitSession(
+          all,
+          session.id,
+          pause,
+          Math.max(0, ...all.map((entry) => entry.id)) + 1,
+        ),
+      () => splitHistorySession(session.id, pause),
+      session.id,
+    );
+  const confirmCombine = (session: Session, other: Session) =>
+    applyChange(
+      (all) => combineSessions(all, session.id, other.id),
+      () => combineHistorySessions(session.id, other.id),
+      sessionTimes(other).startMs > sessionTimes(session).startMs
+        ? other.id
+        : session.id,
+    );
+
   const handleTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
@@ -809,6 +917,10 @@ export function HistoryView() {
                     onFilterGame={selectGame}
                     onClearGameFilter={clearGameFilter}
                     onRequestDelete={setPendingDeletion}
+                    onRequestEdit={requestEdit}
+                    onRequestSplit={requestSplit}
+                    onRequestCombine={requestCombine}
+                    canCombine={canCombine(session)}
                   />
                 ))}
               </div>
@@ -854,6 +966,10 @@ export function HistoryView() {
                               onFilterGame={selectGame}
                               onClearGameFilter={clearGameFilter}
                               onRequestDelete={setPendingDeletion}
+                              onRequestEdit={requestEdit}
+                              onRequestSplit={requestSplit}
+                              onRequestCombine={requestCombine}
+                              canCombine={canCombine(session)}
                             />
                           ))}
                         </DayGroup>
@@ -926,6 +1042,45 @@ export function HistoryView() {
           showDurationDays={showDurationDays}
           onCancel={cancelDeletion}
           onConfirm={confirmDeletion}
+        />
+      ) : null}
+      {pendingChange?.kind === "edit" && pendingChangeGame ? (
+        <EditSessionDialog
+          session={pendingChange.session}
+          gameName={pendingChangeGame.name}
+          coverUrl={pendingChangeGame.coverUrl}
+          showDurationDays={showDurationDays}
+          onCancel={cancelChange}
+          overlapFor={(times) =>
+            overlappingSession(
+              sessions,
+              pendingChange.session,
+              times,
+              sessionGameKey,
+            )
+          }
+          onConfirm={(times) => confirmEdit(pendingChange.session, times)}
+        />
+      ) : null}
+      {pendingChange?.kind === "split" && pendingChangeGame ? (
+        <SplitSessionDialog
+          session={pendingChange.session}
+          gameName={pendingChangeGame.name}
+          coverUrl={pendingChangeGame.coverUrl}
+          showDurationDays={showDurationDays}
+          onCancel={cancelChange}
+          onConfirm={(pause) => confirmSplit(pendingChange.session, pause)}
+        />
+      ) : null}
+      {pendingChange?.kind === "combine" && pendingChangeGame ? (
+        <CombineSessionDialog
+          session={pendingChange.session}
+          gameName={pendingChangeGame.name}
+          coverUrl={pendingChangeGame.coverUrl}
+          showDurationDays={showDurationDays}
+          onCancel={cancelChange}
+          neighbours={neighbours.get(pendingChange.session.id) ?? {}}
+          onConfirm={(other) => confirmCombine(pendingChange.session, other)}
         />
       ) : null}
     </div>

@@ -24,12 +24,15 @@ export type RawEmulatorSignals = {
   workingDirectory?: string | null;
   windowTitle: string | null;
   openFiles?: string[];
+  /** Newest entry of the emulator's recent-games list (melonDS). */
+  recentFile?: string;
 };
 
 export type EmulatorDetectionSource =
   | "window_title"
   | "launch_arguments"
-  | "open_file_handle";
+  | "open_file_handle"
+  | "recent_file";
 
 export type EmulatorContentSignal = {
   kind: EmulatorContentKind;
@@ -79,7 +82,7 @@ export type EmulatorFileLaunchTarget = {
 
 export type EmulatorLaunchDiscovery = {
   target: EmulatorFileLaunchTarget;
-  source: "launch_arguments" | "open_file_handle";
+  source: "launch_arguments" | "open_file_handle" | "recent_file";
 };
 
 export type EmulatorTargetCompatibility =

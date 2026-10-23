@@ -1700,6 +1700,36 @@ body.shift-held
   background: rgb(var(--color-accent));
   box-shadow: 0 0 0 1px rgb(var(--color-accent) / 0.5);
 }
+/* Split slider: both parts on the track, the break between them as a gap.
+   --break-from/--break-to are positions on the thumb's path. */
+.pc-range-split::-webkit-slider-runnable-track {
+  height: 8px;
+  background: linear-gradient(
+    to right,
+    rgb(var(--color-accent)) var(--break-from, 50%),
+    rgb(var(--color-border)) var(--break-from, 50%),
+    rgb(var(--color-border)) var(--break-to, 50%),
+    rgb(var(--color-accent) / 0.55) var(--break-to, 50%)
+  );
+}
+.pc-range-split::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -5px;
+}
+.pc-range-split::-moz-range-track {
+  height: 8px;
+  background: linear-gradient(
+    to right,
+    rgb(var(--color-accent)) var(--break-from, 50%),
+    rgb(var(--color-border)) var(--break-from, 50%),
+    rgb(var(--color-border)) var(--break-to, 50%),
+    rgb(var(--color-accent) / 0.55) var(--break-to, 50%)
+  );
+}
+.pc-range-split::-moz-range-progress {
+  background: transparent;
+}
 .pc-range:focus-visible {
   outline: 2px solid rgb(var(--color-accent));
   outline-offset: 2px;

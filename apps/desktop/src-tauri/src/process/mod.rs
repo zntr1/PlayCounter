@@ -14,6 +14,8 @@ pub struct ProcessSnapshot {
     pub working_directory: Option<String>,
     pub window_title: Option<String>,
     pub open_files: Option<Vec<String>>,
+    /// The newest entry of an emulator's recent-games list (melonDS only).
+    pub recent_file: Option<String>,
 }
 
 #[async_trait]

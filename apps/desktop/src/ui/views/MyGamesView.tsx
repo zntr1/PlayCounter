@@ -61,6 +61,8 @@ import {
   Send,
   Settings2,
   SlidersHorizontal,
+  Square,
+  Timer,
   Trash2,
   WifiOff,
 } from "lucide-react";
@@ -107,6 +109,8 @@ import {
   linkServerKnownFiles,
   persist,
   setGamePlaytime,
+  startGameTimer,
+  stopGameTimer,
   setCustomGameCover,
   setPickedCoverFile,
   suggestTrackedGameToCommunity,
@@ -132,6 +136,7 @@ import {
   type PendingCommunitySuggestionTarget,
 } from "../../store";
 import { CommunitySuggestionForm } from "./DiscoveredView";
+import { formatClock } from "./ActiveGameHero";
 import { matchesProcessPatternSet } from "../../ignoredProcessPatterns";
 import { gameSecondsKeys } from "../../gameSeconds";
 import { useCommunityGameCorrection } from "../useCommunityGameCorrection";
@@ -222,6 +227,7 @@ import {
   listGameFiles,
 } from "./games/gameFiles";
 import { GameCover } from "../GameCover";
+import { localDateTimeValue } from "../dateTimeInput";
 import { GameJournalBadges, GameJournalMenu } from "../GameJournalActions";
 import {
   LibraryBulkActions,
@@ -261,7 +267,11 @@ import type {
   IdentifierFlagReason,
   LibraryProviderId,
 } from "@playcounter/shared";
-import { TOUR_DEMO_GAME, TOUR_DEMO_EMULATOR } from "../tour/tourDemoGame";
+import {
+  TOUR_DEMO_GAME,
+  TOUR_DEMO_EMULATOR,
+  TOUR_GTA_GAME_ID,
+} from "../tour/tourDemoGame";
 import { emitTourEvent, useTourDemo } from "../tour/TourUI";
 import { findTour } from "../tour/tourDefinitions";
 import { TourSampleSearch } from "../tour/TourSampleSearch";
@@ -348,7 +358,35 @@ function sortOptions(): Array<{ key: SortKey; label: string }> {
     { key: "playtime", label: t("Most played") },
     { key: "name", label: t("Name") },
     { key: "sessions", label: t("Sessions") },
+    { key: "tier", label: t("Tier") },
   ];
+}
+
+/** The library's sort menu; the tier guide's practice library shows it too. */
+export function MyGamesSortSelect({
+  value,
+  onChange,
+  dataTour,
+}: {
+  value: SortKey;
+  onChange: (key: SortKey) => void;
+  dataTour?: string;
+}) {
+  return (
+    <Select
+      aria-label={t("Sort games")}
+      data-tour={dataTour}
+      value={value}
+      onChange={(event) => onChange(event.target.value as SortKey)}
+      className="h-9 rounded-lg !py-0 font-medium"
+    >
+      {sortOptions().map((option) => (
+        <option key={option.key} value={option.key}>
+          {t("Sort: {{label}}", { label: option.label })}
+        </option>
+      ))}
+    </Select>
+  );
 }
 
 const GTA_V_TOUR_COVER = "/tour/gta-v-cover.webp";
@@ -490,7 +528,7 @@ export function makeCoreTourDemoGames(): GameSummary[] {
     },
     {
       kind: "tour-demo",
-      gameId: -2,
+      gameId: TOUR_GTA_GAME_ID,
       name: "Grand Theft Auto V",
       coverUrl: GTA_V_TOUR_COVER,
       source: "igdb",
@@ -805,6 +843,9 @@ export function MyGamesView({
   const showNotes = useAppStore(
     (state) => state.settings.libraryShowNoteBadges !== false,
   );
+  const showTiers = useAppStore(
+    (state) => state.settings.libraryShowTierBadges !== false,
+  );
   const showTrackingWarnings = useAppStore(
     (state) => state.settings.libraryShowTrackingWarnings !== false,
   );
@@ -824,6 +865,9 @@ export function MyGamesView({
   );
   const setMyGamesShowNoteBadges = useAppStore(
     (state) => state.setMyGamesShowNoteBadges,
+  );
+  const setMyGamesShowTierBadges = useAppStore(
+    (state) => state.setMyGamesShowTierBadges,
   );
   const setMyGamesShowTrackingWarnings = useAppStore(
     (state) => state.setMyGamesShowTrackingWarnings,
@@ -1422,7 +1466,8 @@ export function MyGamesView({
         existing,
         (activeSecondsBySummary.get(existing) ?? 0) + activeSeconds,
       );
-      if (!activeSession.emulator) {
+      // A timer only borrows the file name; the file is not running.
+      if (!activeSession.emulator && !activeSession.timer) {
         existing.exeRunningNow ??= [];
         existing.exeRunningNow.push(activeSession.exeName.toLowerCase());
       }
@@ -1911,9 +1956,22 @@ export function MyGamesView({
   );
   const displayedGames = useMemo(() => {
     const sorted = filterByLibraryTab(matchingGames, activeLibraryTab);
+    if (sortKey === "tier") {
+      // The tier lives in the journal, not on the game summary.
+      return sorted
+        .map((game) => ({
+          game,
+          value: {
+            ...game,
+            tier: journalFor({ ...game, gameName: game.name }).tier,
+          },
+        }))
+        .sort((left, right) => compareMyGames(left.value, right.value, "tier"))
+        .map((entry) => entry.game);
+    }
     sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
-  }, [activeLibraryTab, matchingGames, sortKey]);
+  }, [activeLibraryTab, matchingGames, sortKey, journalFor]);
   // Counted from what the library actually shows, search included, so the
   // numbers never contradict the count sitting right next to them.
   const statCards = useMemo(() => {
@@ -2294,20 +2352,10 @@ export function MyGamesView({
                 }
                 trailing={
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Select
-                      aria-label={t("Sort games")}
+                    <MyGamesSortSelect
                       value={sortKey}
-                      onChange={(event) =>
-                        setMyGamesSortKey(event.target.value as MyGamesSortKey)
-                      }
-                      className="h-9 rounded-lg !py-0 font-medium"
-                    >
-                      {sortOptions().map((option) => (
-                        <option key={option.key} value={option.key}>
-                          {t("Sort: {{label}}", { label: option.label })}
-                        </option>
-                      ))}
-                    </Select>
+                      onChange={setMyGamesSortKey}
+                    />
                     <div className="flex h-9 items-center gap-0.5 rounded-lg border border-border bg-surface p-0.5">
                       <button
                         type="button"
@@ -2440,11 +2488,13 @@ export function MyGamesView({
                         showMatch={showMatch}
                         showStatus={showStatus}
                         showNotes={showNotes}
+                        showTiers={showTiers}
                         showTrackingWarnings={showTrackingWarnings}
                         setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
                         setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
                         setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
                         setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
                         setMyGamesShowTrackingWarnings={
                           setMyGamesShowTrackingWarnings
                         }
@@ -3245,6 +3295,17 @@ export function GameLibraryCard({
           session.gameId === alias.gameId &&
           (session.source ?? null) === alias.source,
       ),
+    ),
+  );
+  const timerSession = useAppStore((state) =>
+    state.activeSessions.find(
+      (session) =>
+        session.timer &&
+        game.aliases.some(
+          (alias) =>
+            session.gameId === alias.gameId &&
+            (session.source ?? null) === alias.source,
+        ),
     ),
   );
   useEffect(() => {
@@ -4171,6 +4232,22 @@ export function GameLibraryCard({
     setHistoryGameKey(game.historyGameKey);
     setActiveView("history");
     contextMenu.close();
+  };
+
+  const handleStartTimer = () => {
+    contextMenu.close();
+    startGameTimer({
+      gameId: game.gameId,
+      igdbId: game.igdbId,
+      gameName: game.name,
+      coverUrl: game.coverUrl,
+      source: game.source,
+      exeName: game.exeNames[0] ?? "",
+      communitySuggestionId: game.communitySuggestionId,
+      communitySuggestionVerified: game.communitySuggestionVerified,
+      communitySuggestionStatus: game.communitySuggestionStatus,
+      communitySuggestionNote: game.communitySuggestionNote,
+    });
   };
 
   const handleAddPlaytime = (
@@ -5239,6 +5316,19 @@ export function GameLibraryCard({
           >
             {t("Adjust total playtime")}
           </ContextMenuItem>
+          {demo ? null : timerSession ? (
+            <StopTimerMenuItem
+              startedAt={timerSession.startedAt}
+              onClick={() => {
+                contextMenu.close();
+                void stopGameTimer(timerSession.id);
+              }}
+            />
+          ) : !hasActiveSession ? (
+            <ContextMenuItem icon={Timer} onClick={handleStartTimer}>
+              {t("Start timer")}
+            </ContextMenuItem>
+          ) : null}
         </ContextMenuSubmenu>
         {!demo || canEditCover ? (
           <ContextMenuSubmenu label={t("Appearance")} icon={Palette}>
@@ -6863,6 +6953,34 @@ export function GameLibraryCard({
 
 const MemoizedGameLibraryCard = memo(GameLibraryCard);
 
+// Counts while the Playtime menu is open; menus only render while open.
+function StopTimerMenuItem({
+  startedAt,
+  onClick,
+}: {
+  startedAt: string;
+  onClick: () => void;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <ContextMenuItem
+      icon={Square}
+      className="tabular-nums [&>svg]:fill-current"
+      onClick={onClick}
+    >
+      {t("Stop timer · {{time}}", {
+        time: formatClock(
+          Math.max(0, Math.floor((now - Date.parse(startedAt)) / 1000)),
+        ),
+      })}
+    </ContextMenuItem>
+  );
+}
+
 function NewGameBadge() {
   return (
     <span
@@ -7003,16 +7121,6 @@ function RemoveGameDialog({
         )}
       </p>
     </Modal>
-  );
-}
-
-function localDateTimeValue(date: Date) {
-  // Format a Date as the value expected by <input type="datetime-local">
-  // (local time, no timezone suffix): YYYY-MM-DDTHH:mm.
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return (
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
   );
 }
 

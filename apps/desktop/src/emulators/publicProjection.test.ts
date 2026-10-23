@@ -13,6 +13,7 @@ describe("emulator public projection", () => {
         workingDirectory: String.raw`C:\Private`,
         windowTitle: "secret",
         openFiles: [String.raw`C:\Private\Game.rvz`],
+        recentFile: String.raw`C:\Private\Game.nds`,
       },
       {
         exeName: "dosbox.exe",
@@ -28,5 +29,6 @@ describe("emulator public projection", () => {
     expect(result[0]).not.toHaveProperty("workingDirectory");
     expect(result[0]).not.toHaveProperty("windowTitle");
     expect(result[0]).not.toHaveProperty("openFiles");
+    expect(result[0]).not.toHaveProperty("recentFile");
   });
 });

@@ -28,6 +28,13 @@ const DUCKSTATION_EXTENSIONS: &[&str] = &[
     "cue", "bin", "img", "iso", "chd", "pbp", "ecm", "mds", "ccd", "m3u",
 ];
 const SWITCH_EXTENSIONS: &[&str] = &["nsp", "xci", "nca", "nro", "nso"];
+// GameList::supported_file_extensions in Azahar's citra_qt/game_list.cpp.
+const AZAHAR_EXTENSIONS: &[&str] = &[
+    "3ds", "cci", "cxi", "3dsx", "app", "elf", "axf", "z3dsx", "zcci", "zcxi", "bcci",
+];
+// NdsRomExtensions in melonDS's Window.cpp, also as .zst.
+const MELONDS_EXTENSIONS: &[&str] = &["nds", "srl", "dsi", "ids", "zst"];
+const XENIA_EXTENSIONS: &[&str] = &["iso", "xex", "zar"];
 const DOSBOX_EXTENSIONS: &[&str] = &["conf", "exe", "com", "bat"];
 
 struct EmulatorLaunchAdapter {
@@ -204,6 +211,25 @@ fn is_eden_idle(process: &ProcessSnapshot) -> bool {
         })
 }
 
+/// "Azahar <version>"; a running game adds " | <name>".
+fn is_azahar_idle(process: &ProcessSnapshot) -> bool {
+    !started_with_content(process, AZAHAR_EXTENSIONS)
+        && trimmed_title(process).is_some_and(|title| {
+            title.to_ascii_lowercase().starts_with("azahar ") && !title.contains(" | ")
+        })
+}
+
+/// "Xenia-canary (<build>)" or "Xenia (<build>)"; a running game adds
+/// " | [<title ID>…".
+fn is_xenia_idle(process: &ProcessSnapshot) -> bool {
+    !started_with_content(process, XENIA_EXTENSIONS)
+        && trimmed_title(process).is_some_and(|title| {
+            let lower = title.to_ascii_lowercase();
+            (lower.starts_with("xenia ") || lower.starts_with("xenia-canary "))
+                && !title.contains(" | [")
+        })
+}
+
 /// "Cemu <version>" is Cemu's title without a game. It is also the title right
 /// after start-up, so an instance started with a game is never closed.
 fn is_cemu_idle(process: &ProcessSnapshot) -> bool {
@@ -301,6 +327,29 @@ static EMULATOR_LAUNCH_ADAPTERS: &[EmulatorLaunchAdapter] = &[
         extensions: SWITCH_EXTENSIONS,
         arguments: |path| vec![OsString::from("-g"), path.as_os_str().to_os_string()],
         is_idle: is_eden_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "azahar",
+        label: "Azahar",
+        extensions: AZAHAR_EXTENSIONS,
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        is_idle: is_azahar_idle,
+    },
+    EmulatorLaunchAdapter {
+        id: "melonds",
+        label: "melonDS",
+        extensions: MELONDS_EXTENSIONS,
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        // A paused game has the same title as no game, so a running melonDS
+        // is never closed.
+        is_idle: |_| false,
+    },
+    EmulatorLaunchAdapter {
+        id: "xenia",
+        label: "Xenia",
+        extensions: XENIA_EXTENSIONS,
+        arguments: |path| vec![path.as_os_str().to_os_string()],
+        is_idle: is_xenia_idle,
     },
 ];
 
@@ -735,6 +784,7 @@ mod tests {
             working_directory: None,
             window_title: Some("Dolphin 2606".to_string()),
             open_files: None,
+            recent_file: None,
         };
         assert!(is_dolphin_idle(&idle));
         assert!(!is_dolphin_idle(&ProcessSnapshot {
@@ -787,6 +837,7 @@ mod tests {
                 "DOSBox 0.74-3, Cpu speed: max 100% cycles, Program: DOSBOX".to_string(),
             ),
             open_files: None,
+            recent_file: None,
         };
         assert!(is_dosbox_idle(&idle));
         assert!(!is_dosbox_idle(&ProcessSnapshot {
@@ -840,6 +891,7 @@ mod tests {
             working_directory: None,
             window_title: Some("mGBA - 0.10.5".to_string()),
             open_files: None,
+            recent_file: None,
         };
         assert!(is_mgba_idle(&idle));
         assert!(!is_mgba_idle(&ProcessSnapshot {
@@ -882,6 +934,7 @@ mod tests {
             working_directory: None,
             window_title: Some("Cemu 2.6".to_string()),
             open_files: None,
+            recent_file: None,
         };
         assert!(is_cemu_idle(&idle));
         assert!(!is_cemu_idle(&ProcessSnapshot {
@@ -916,6 +969,7 @@ mod tests {
             working_directory: None,
             window_title: Some(title.to_string()),
             open_files: None,
+            recent_file: None,
         }
     }
 
@@ -931,6 +985,12 @@ mod tests {
             ("duckstation", r"D:\PS1\Final Fantasy VII.cue", vec!["--"]),
             ("ryujinx", r"D:\Switch\Odyssey.nsp", vec![]),
             ("eden", r"D:\Switch\Odyssey.xci", vec!["-g"]),
+            ("azahar", r"D:\3DS\Pokemon X.3ds", vec![]),
+            ("azahar", r"D:\3DS\Pokemon X.zcci", vec![]),
+            ("melonds", r"D:\DS\Mario Kart DS.nds", vec![]),
+            ("melonds", r"D:\DS\Mario Kart DS.nds.zst", vec![]),
+            ("xenia", r"D:\X360\Halo 3.iso", vec![]),
+            ("xenia", r"D:\X360\Halo 3\default.xex", vec![]),
         ] {
             let adapter = launch_adapter_for(id).unwrap();
             assert!(has_supported_extension(adapter, path), "{id}");
@@ -947,6 +1007,9 @@ mod tests {
             ("duckstation", r"D:\PS1\card.mcd"),
             ("ryujinx", r"D:\Switch\prod.keys"),
             ("eden", r"D:\Switch\title.keys"),
+            ("azahar", r"D:\3DS\Pokemon X.cia"),
+            ("melonds", r"D:\DS\Mario Kart DS.sav"),
+            ("xenia", r"D:\X360\Halo 3.zip"),
         ] {
             assert!(
                 !has_supported_extension(launch_adapter_for(id).unwrap(), path),
@@ -983,6 +1046,17 @@ mod tests {
                 "Eden | v0.0.4 | msvc-19.44",
                 "Eden | v0.0.4 | msvc-19.44 | Celeste (64-bit) | NVIDIA",
             ),
+            ("azahar", "Azahar 2126.2", "Azahar 2126.2 | Pokémon X"),
+            (
+                "xenia",
+                "Xenia-canary (canary_experimental@534aeb6 on 2026-10-22)",
+                "Xenia-canary (canary_experimental@534aeb6 on 2026-10-22) | [4D5307E6 v1.0.0] Halo 3 <Vulkan>",
+            ),
+            (
+                "xenia",
+                "Xenia (master@95a5c3e on 2026-02-18)",
+                "Xenia (master@95a5c3e on 2026-02-18) | [4D5307E6] <D3D12>",
+            ),
         ] {
             let adapter = launch_adapter_for(id).unwrap();
             assert!((adapter.is_idle)(&snapshot(id, idle)), "{id} idle");
@@ -992,7 +1066,8 @@ mod tests {
                     command_line: Some(vec![
                         r"D:\Games\game.iso".to_string(),
                         r"D:\Games\game.nsp".to_string(),
-                        r"D:\Games\EBOOT.BIN".to_string()
+                        r"D:\Games\EBOOT.BIN".to_string(),
+                        r"D:\Games\game.3ds".to_string()
                     ]),
                     ..snapshot(id, idle)
                 }),
@@ -1004,6 +1079,9 @@ mod tests {
             open_files: Some(vec![r"D:\PS1\Final Fantasy VII.bin".to_string()]),
             ..snapshot("duckstation", "DuckStation v0.1-9876")
         }));
+        // "melonDS 1.0" is also the title of a paused game.
+        let melonds = launch_adapter_for("melonds").unwrap();
+        assert!(!(melonds.is_idle)(&snapshot("melonds", "melonDS 1.0")));
     }
 
     #[cfg(windows)]
@@ -1047,6 +1125,7 @@ mod tests {
             working_directory: None,
             window_title: None,
             open_files: None,
+            recent_file: None,
         }]);
         assert_eq!(
             launch_with_dependencies(
@@ -1099,6 +1178,7 @@ mod tests {
             working_directory: None,
             window_title: Some("Dolphin 2606".to_string()),
             open_files: None,
+            recent_file: None,
         };
         let state = Arc::new(Mutex::new(vec![process]));
         let scanner = SharedScanner(Arc::clone(&state));

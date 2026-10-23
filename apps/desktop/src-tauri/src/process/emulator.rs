@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, path::Path};
 
 pub const DOLPHIN_CONTENT_EXTENSIONS: &[&str] = &[
     "elf", "dol", "gcm", "iso", "tgc", "wbfs", "ciso", "gcz", "wad", "dff", "wia", "rvz", "json",
@@ -9,6 +9,8 @@ pub const MGBA_CONTENT_EXTENSIONS: &[&str] = &["gba", "gb", "gbc", "sgb", "zip",
 pub const CEMU_CONTENT_EXTENSIONS: &[&str] = &["wud", "wux", "wua", "wuhb", "iso", "rpx", "elf"];
 /// Disc files DuckStation keeps open while a game runs.
 pub const DUCKSTATION_DISC_EXTENSIONS: &[&str] = &["bin", "img", "iso", "chd", "pbp", "ecm", "mdf"];
+/// melonDS's config is a few KB; anything far larger is not its config.
+const MELONDS_CONFIG_MAX_BYTES: u64 = 256 * 1024;
 
 pub struct EmulatorHost {
     pub id: &'static str,
@@ -118,6 +120,30 @@ pub static EMULATOR_HOSTS: &[EmulatorHost] = &[
         // The window title carries the game's name.
         content_extensions: &[],
     },
+    EmulatorHost {
+        id: "azahar",
+        exe_names: &["azahar.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The window title carries the game's name.
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "melonds",
+        exe_names: &["melonds.exe"],
+        needs_command_line: true,
+        // The title only says whether a game runs; melonds_recent_rom names it.
+        needs_window_title: true,
+        content_extensions: &[],
+    },
+    EmulatorHost {
+        id: "xenia",
+        exe_names: &["xenia_canary.exe", "xenia.exe"],
+        needs_command_line: true,
+        needs_window_title: true,
+        // The window title carries the title ID.
+        content_extensions: &[],
+    },
 ];
 
 pub fn host_for(exe_name: &str) -> Option<&'static EmulatorHost> {
@@ -135,6 +161,32 @@ pub fn sanitize_args(args: &[OsString]) -> Vec<String> {
         .take(32)
         .map(|arg| arg.chars().take(512).collect())
         .collect()
+}
+
+/// melonDS reads a ROM into memory and closes it, and its title never names
+/// the game. After every load it moves the ROM to the top of `RecentROM` in
+/// melonDS.toml and saves, so that entry is the running game. Windows builds
+/// keep the file next to the exe, or in "portable" when that folder exists.
+pub fn melonds_recent_rom(exe_path: &str) -> Option<String> {
+    let exe_dir = Path::new(exe_path).parent()?;
+    let portable = exe_dir.join("portable");
+    let config_dir = if portable.is_dir() {
+        portable
+    } else {
+        exe_dir.to_path_buf()
+    };
+    let config = config_dir.join("melonDS.toml");
+    if std::fs::metadata(&config).ok()?.len() > MELONDS_CONFIG_MAX_BYTES {
+        return None;
+    }
+    first_recent_rom(&std::fs::read_to_string(config).ok()?)
+}
+
+/// `RecentROM = ["D:\\DS\\game.nds", "D:\\DS\\games.zip|other.nds"]`
+fn first_recent_rom(config: &str) -> Option<String> {
+    let table = config.parse::<toml::Table>().ok()?;
+    let first = table.get("RecentROM")?.as_array()?.first()?.as_str()?;
+    (!first.trim().is_empty() && first.chars().count() <= 1024).then(|| first.to_string())
 }
 
 #[cfg(target_os = "windows")]
@@ -475,6 +527,10 @@ mod tests {
             ("duckstation-qt-ARM64-ReleaseLTCG.exe", "duckstation"),
             ("Ryujinx.exe", "ryujinx"),
             ("eden.exe", "eden"),
+            ("azahar.exe", "azahar"),
+            ("melonDS.exe", "melonds"),
+            ("xenia_canary.exe", "xenia"),
+            ("xenia.exe", "xenia"),
         ] {
             assert_eq!(host_for(name).map(|host| host.id), Some(id));
         }
@@ -486,9 +542,89 @@ mod tests {
             "Ryujinx.Headless.SDL3.exe",
             "eden-cli.exe",
             "yuzu.exe",
+            "azahar-room.exe",
+            "citra-qt.exe",
+            "melonDS-x64.exe",
+            "xenia-canary.exe",
+            "xenia_canary_netplay.exe",
         ] {
             assert!(host_for(name).is_none());
         }
+    }
+
+    #[test]
+    fn reads_the_newest_melonds_rom() {
+        let config = r#"
+LastROMFolder = "D:\\DS"
+RecentROM = ["D:\\DS\\Pokemon - Platinum Version (USA).nds", "D:\\DS\\old.nds"]
+
+[Instance0]
+JoystickID = 0
+"#;
+        assert_eq!(
+            super::first_recent_rom(config).as_deref(),
+            Some(r"D:\DS\Pokemon - Platinum Version (USA).nds")
+        );
+        let multiline = r"RecentROM = [
+  'D:\DS\games.zip|Mario Kart DS (USA).nds',
+]
+";
+        assert_eq!(
+            super::first_recent_rom(multiline).as_deref(),
+            Some(r"D:\DS\games.zip|Mario Kart DS (USA).nds")
+        );
+        for config in [
+            "RecentROM = []",
+            r#"RecentROM = [""]"#,
+            "[Instance0]\nRecentROM = ['D:/DS/game.nds']",
+            "RecentROM = 'D:/DS/game.nds'",
+            "RecentROM = ['D:/DS/game.nds'",
+            "",
+        ] {
+            assert_eq!(super::first_recent_rom(config), None, "{config}");
+        }
+    }
+
+    #[test]
+    fn finds_the_melonds_config_next_to_the_exe_or_in_portable() {
+        let dir = std::env::temp_dir().join(format!(
+            "playcounter-melonds-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("melonDS.exe");
+        let exe = exe.to_str().unwrap();
+        assert_eq!(super::melonds_recent_rom(exe), None);
+
+        std::fs::write(dir.join("melonDS.toml"), r"RecentROM = ['D:\next.nds']").unwrap();
+        assert_eq!(
+            super::melonds_recent_rom(exe).as_deref(),
+            Some(r"D:\next.nds")
+        );
+
+        std::fs::create_dir(dir.join("portable")).unwrap();
+        assert_eq!(super::melonds_recent_rom(exe), None);
+        std::fs::write(
+            dir.join("portable").join("melonDS.toml"),
+            r"RecentROM = ['D:\portable.nds']",
+        )
+        .unwrap();
+        assert_eq!(
+            super::melonds_recent_rom(exe).as_deref(),
+            Some(r"D:\portable.nds")
+        );
+
+        std::fs::write(
+            dir.join("portable").join("melonDS.toml"),
+            format!("RecentROM = ['D:/big.nds']\n#{}", "x".repeat(300 * 1024)),
+        )
+        .unwrap();
+        assert_eq!(super::melonds_recent_rom(exe), None);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

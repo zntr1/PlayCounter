@@ -1,6 +1,6 @@
 [package]
 name = "playcounter"
-version = "1.4.2"
+version = "1.4.3"
 description = "Launcher-agnostic game play tracker"
 authors = ["PlayCounter"]
 edition = "2021"
@@ -14,6 +14,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 async-trait = "0.1"
+toml = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 quick-xml = "0.42"

@@ -93,6 +93,7 @@ import {
   type GameJournal,
   type GameStatus,
   type GameStatusChange,
+  type GameTier,
   type JournalTarget,
   type PersonalShelf,
   type Playthrough,
@@ -112,6 +113,7 @@ export type ProcessSnapshot = {
   workingDirectory?: string | null;
   windowTitle?: string | null;
   openFiles?: string[] | null;
+  recentFile?: string | null;
 };
 
 export type ActiveSession = {
@@ -134,6 +136,9 @@ export type ActiveSession = {
   emulator?: EmulatorLaunchContext;
   /** Written while playing; moves to the finished session. */
   note?: string;
+  /** Started by hand for play away from this PC (a console). No process
+   *  starts or ends it, only Stop; it is saved as a manual session. */
+  timer?: true;
 };
 
 export type AmbiguousProcessMatch = {
@@ -419,6 +424,8 @@ export type AppState = {
       Pick<GameJournal, "note" | "favorite" | "status" | "shelfIds">
     >,
   ) => void;
+  /** Null clears the tier. */
+  setGameTier: (game: GameIdentityRef, tier: GameTier | null) => void;
   addGamesToShelf: (
     games: readonly GameIdentityRef[],
     shelfId: string,
@@ -641,6 +648,7 @@ export type AppState = {
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
   setMyGamesShowStatusBadges: (enabled: boolean) => void;
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
+  setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
   setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
@@ -717,6 +725,7 @@ const defaultSettings: Settings = {
   libraryShowMatchBadges: true,
   libraryShowStatusBadges: true,
   libraryShowNoteBadges: true,
+  libraryShowTierBadges: true,
   libraryShowTrackingWarnings: true,
   libraryHighResCovers: false,
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
@@ -1826,6 +1835,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowNoteBadges: (libraryShowNoteBadges) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowNoteBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowTierBadges: (libraryShowTierBadges) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowTierBadges },
     }));
     persistSoon();
   },

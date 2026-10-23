@@ -2,8 +2,12 @@ import type { GameSource, Session } from "@playcounter/shared";
 import clsx from "clsx";
 import {
   ArrowLeft,
+  Clock3,
   Filter,
+  Merge,
+  Pencil,
   RotateCcw,
+  Scissors,
   Sparkles,
   Timer,
   StickyNote,
@@ -35,6 +39,7 @@ import {
 import {
   ContextMenu,
   ContextMenuItem,
+  ContextMenuSubmenu,
   IconButton,
   useContextMenu,
 } from "../../primitives";
@@ -89,6 +94,10 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   onFilterGame,
   onClearGameFilter,
   onRequestDelete,
+  onRequestEdit,
+  onRequestSplit,
+  onRequestCombine,
+  canCombine = false,
 }: {
   session: Session;
   metadata?: HistoryRowMetadata;
@@ -101,6 +110,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   onFilterGame: (key: string, name: string) => void;
   onClearGameFilter: () => void;
   onRequestDelete: (session: Session) => void;
+  onRequestEdit?: (session: Session) => void;
+  onRequestSplit?: (session: Session) => void;
+  onRequestCombine?: (session: Session) => void;
+  /** The game has a session right before or after this one. */
+  canCombine?: boolean;
 }) {
   const contextMenu = useContextMenu();
   const libraryApi = usePersonalLibraryApi();
@@ -149,6 +163,11 @@ export const HistorySessionRow = memo(function HistorySessionRow({
   function requestDelete() {
     contextMenu.close();
     onRequestDelete(session);
+  }
+
+  function requestChange(onRequest?: (session: Session) => void) {
+    contextMenu.close();
+    onRequest?.(session);
   }
 
   function handleFilterForGame() {
@@ -397,12 +416,17 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           <span className="whitespace-nowrap tabular-nums">
             {formatTimeRange(session.startedAt, session.endedAt)}
           </span>
-          <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
-          <span className="truncate text-text-faint">
-            {session.emulator
-              ? `${session.emulator.label} · ${session.emulator.display}`
-              : session.exeName}
-          </span>
+          {/* A manual session of a game without a file has no name to show. */}
+          {session.emulator || session.exeName ? (
+            <>
+              <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-border" />
+              <span className="truncate text-text-faint">
+                {session.emulator
+                  ? `${session.emulator.label} · ${session.emulator.display}`
+                  : session.exeName}
+              </span>
+            </>
+          ) : null}
           {session.origin === "manual" ? (
             <span
               title={t("Entered manually")}
@@ -443,6 +467,14 @@ export const HistorySessionRow = memo(function HistorySessionRow({
           title={noteLabel}
           onClick={() => setEditingNote(true)}
         />
+        {onRequestEdit ? (
+          <IconButton
+            icon={Pencil}
+            aria-label={t("Edit session")}
+            title={t("Edit session")}
+            onClick={() => onRequestEdit(session)}
+          />
+        ) : null}
         <IconButton
           icon={Trash2}
           intent="danger"
@@ -494,6 +526,32 @@ export const HistorySessionRow = memo(function HistorySessionRow({
         <ContextMenuItem icon={Filter} onClick={handleFilterForGame}>
           {t("Filter for this game")}
         </ContextMenuItem>
+        {onRequestEdit ? (
+          <ContextMenuSubmenu label={t("Playtime")} icon={Clock3}>
+            <ContextMenuItem
+              icon={Pencil}
+              onClick={() => requestChange(onRequestEdit)}
+            >
+              {t("Edit session")}
+            </ContextMenuItem>
+            {onRequestSplit && seconds >= 120 ? (
+              <ContextMenuItem
+                icon={Scissors}
+                onClick={() => requestChange(onRequestSplit)}
+              >
+                {t("Split session")}
+              </ContextMenuItem>
+            ) : null}
+            {onRequestCombine && canCombine ? (
+              <ContextMenuItem
+                icon={Merge}
+                onClick={() => requestChange(onRequestCombine)}
+              >
+                {t("Combine with…")}
+              </ContextMenuItem>
+            ) : null}
+          </ContextMenuSubmenu>
+        ) : null}
         <ContextMenuItem icon={Trash2} danger onClick={requestDelete}>
           {t("Delete Session")}
         </ContextMenuItem>

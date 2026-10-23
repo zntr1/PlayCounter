@@ -37,6 +37,9 @@ impl ProcessScanner for WindowsScanner {
                 if emulator_processes.len() >= 16 {
                     continue;
                 }
+                let recent_file = (host.id == "melonds")
+                    .then(|| exe_path.as_deref().and_then(emulator::melonds_recent_rom))
+                    .flatten();
                 emulator_processes.push(ProcessSnapshot {
                     exe_name,
                     exe_path,
@@ -55,6 +58,7 @@ impl ProcessScanner for WindowsScanner {
                         .then(|| emulator::open_content_files(pid, host.content_extensions))
                         .flatten()
                         .filter(|paths| host.id == "pcsx2" || !paths.is_empty()),
+                    recent_file,
                 });
                 continue;
             }
@@ -69,6 +73,7 @@ impl ProcessScanner for WindowsScanner {
                 working_directory: None,
                 window_title: None,
                 open_files: None,
+                recent_file: None,
             });
         }
 

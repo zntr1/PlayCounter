@@ -1853,6 +1853,20 @@ describe("game launching", () => {
         "eden:rom:celeste",
       ],
       [
+        "azahar",
+        "azahar.exe",
+        "3ds",
+        "Azahar 2126.2 | Pokémon X",
+        "azahar:rom:pokémon x",
+      ],
+      [
+        "xenia",
+        "xenia_canary.exe",
+        "iso",
+        "Xenia-canary (canary_experimental@534aeb6 on 2026-10-22) | [4D5307E6 v0.0.0.11] Halo 3 <Vulkan>",
+        "xenia:title_id:4d5307e6",
+      ],
+      [
         "mgba",
         "mGBA.exe",
         "gba",
@@ -1898,6 +1912,25 @@ describe("game launching", () => {
         ).toBe(false);
       },
     );
+
+    it("saves the picked melonDS file once melonDS lists it as its newest ROM", async () => {
+      const { host, filePath } = configurePickedLaunch(
+        "melonds",
+        "melonDS.exe",
+        String.raw`D:\Games\Mario Kart DS (USA).nds`,
+      );
+      await startEmulatorGame("melonds");
+      Object.assign(host, {
+        windowTitle: "[60/60] melonDS 1.1",
+        recentFile: filePath,
+      });
+      await scanProcessesNow();
+      expect(
+        useAppStore
+          .getState()
+          .emulatorManualLaunchTargets.get("melonds:rom:mario kart ds (usa)"),
+      ).toMatchObject({ filePath, emulatorId: "melonds" });
+    });
 
     it("uses a picked path only for the first game in the launched process", async () => {
       const { host, filePath } = configurePickedLaunch();

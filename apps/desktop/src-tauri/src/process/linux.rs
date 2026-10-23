@@ -40,6 +40,7 @@ impl ProcessScanner for LinuxScanner {
                     working_directory: None,
                     window_title: None,
                     open_files: None,
+                    recent_file: None,
                 });
         }
 

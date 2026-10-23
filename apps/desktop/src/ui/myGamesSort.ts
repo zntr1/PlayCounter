@@ -1,9 +1,12 @@
+import { tierRank, type GameTier } from "../personalLibrary";
+
 export type MyGamesSortKey =
   | "recent"
   | "added"
   | "playtime"
   | "name"
-  | "sessions";
+  | "sessions"
+  | "tier";
 
 export const LAST_PLAYED_PROMOTION_DELAY_MS = 30_000;
 export const NEW_GAME_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -20,6 +23,8 @@ export type MyGamesSortValue = {
   /** When the game joined the library. Absent for games added before the
    *  date was kept and never played since. */
   addedAt?: string;
+  /** Your tier from the game's journal. Absent = not rated. */
+  tier?: GameTier;
 };
 
 function newestFirst(left: string, right: string) {
@@ -120,6 +125,12 @@ export function compareMyGames(
       break;
     case "added":
       order = addedTime(right) - addedTime(left);
+      break;
+    case "tier":
+      // Unrated games come last; inside a tier, the most played first.
+      order =
+        tierRank(right.tier) - tierRank(left.tier) ||
+        right.totalSeconds - left.totalSeconds;
       break;
     case "recent":
     default: {

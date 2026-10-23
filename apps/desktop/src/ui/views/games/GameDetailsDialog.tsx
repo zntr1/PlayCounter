@@ -11,6 +11,7 @@ import {
   Gamepad2,
   Info,
   Loader2,
+  Medal,
   MoveRight,
   Play,
   Trash2,
@@ -35,6 +36,7 @@ import {
   gameMetadataKey,
   useAppStore,
   type ExeCacheEntry,
+  type GameIdentityRef,
 } from "../../../store";
 import { removeOwnGameFile } from "../../../tracker";
 import { artSrcSet } from "../../artSrcSet";
@@ -42,6 +44,9 @@ import { heroArtwork } from "../../GameBanner";
 import { GameCover } from "../../GameCover";
 import { ExeIcon } from "../../ExeIcon";
 import { Button, IconButton, Modal } from "../../primitives";
+import { ContextMenu, useAnchoredMenu } from "../../ContextMenu";
+import { GameTierMenuItems } from "../../GameJournalActions";
+import { useGameJournal } from "../../useGameJournal";
 import {
   formatDuration,
   GameProvenanceBadges,
@@ -198,6 +203,48 @@ function SourceTag({ label, onClick }: { label: string; onClick: () => void }) {
       {label}
       <ExternalLink size={12} />
     </button>
+  );
+}
+
+/** Your own tier beside IGDB's rating, so the two never read as one. */
+function TierTile({ game }: { game: GameIdentityRef }) {
+  const journal = useGameJournal(game);
+  const menu = useAnchoredMenu();
+  return (
+    <>
+      <button
+        ref={menu.anchorRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        onClick={menu.toggle}
+        className="flex shrink-0 items-center gap-3 rounded-lg border border-border bg-surface/80 px-3 py-2 backdrop-blur transition hover:border-accent/40 hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        {journal.tier ? (
+          <>
+            <span className="max-w-[4.5rem] text-left text-[11px] leading-tight text-text-muted">
+              {t("Your tier")}
+            </span>
+            <span className="font-mono text-2xl font-bold text-text">
+              {journal.tier}
+            </span>
+          </>
+        ) : (
+          <span className="flex items-center gap-2 py-1.5 text-sm font-semibold text-text-muted">
+            <Medal size={15} />
+            {t("Set tier")}
+          </span>
+        )}
+      </button>
+      <ContextMenu
+        open={menu.open}
+        position={menu.position}
+        anchorRef={menu.anchorRef}
+        onClose={menu.close}
+      >
+        <GameTierMenuItems game={game} onClose={menu.close} />
+      </ContextMenu>
+    </>
   );
 }
 
@@ -582,21 +629,26 @@ export function GameDetailsDialog({
                 );
               })}
             </div>
-            {resolved?.rating !== undefined ? (
-              <div
-                className="mb-2 flex shrink-0 items-center gap-3 rounded-lg border border-border bg-surface/80 px-3 py-2 backdrop-blur"
-                title={t("IGDB user rating")}
-              >
-                <div className="text-[11px] leading-tight text-text-muted">
-                  IGDB
-                  <br />
-                  {t("Rating")}
+            <div className="mb-2 flex shrink-0 items-stretch gap-2">
+              {!demo ? (
+                <TierTile game={{ ...game, gameName: game.name }} />
+              ) : null}
+              {resolved?.rating !== undefined ? (
+                <div
+                  className="flex shrink-0 items-center gap-3 rounded-lg border border-border bg-surface/80 px-3 py-2 backdrop-blur"
+                  title={t("IGDB user rating")}
+                >
+                  <div className="text-[11px] leading-tight text-text-muted">
+                    IGDB
+                    <br />
+                    {t("Rating")}
+                  </div>
+                  <div className="font-mono text-2xl font-bold text-text">
+                    {resolved.rating}
+                  </div>
                 </div>
-                <div className="font-mono text-2xl font-bold text-text">
-                  {resolved.rating}
-                </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

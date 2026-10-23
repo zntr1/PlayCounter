@@ -29,6 +29,15 @@ export type GameStatus = keyof typeof GAME_STATUSES;
 export function gameStatusLabel(status: GameStatus): string {
   return t(GAME_STATUSES[status]);
 }
+/** Best first. The letters read the same in every language. */
+export const GAME_TIERS = ["S", "A", "B", "C", "D", "F"] as const;
+export type GameTier = (typeof GAME_TIERS)[number];
+
+/** S = 6 … F = 1, 0 for no tier. The sort uses it, and a later community
+ *  ranking averages it. */
+export function tierRank(tier: GameTier | undefined) {
+  return tier ? GAME_TIERS.length - GAME_TIERS.indexOf(tier) : 0;
+}
 export type Playthrough = {
   id: string;
   name: string;
@@ -41,6 +50,9 @@ export type GameJournal = {
   note: string;
   favorite: boolean;
   status: GameStatus | null;
+  /** Absent until rated. Set and cleared together with tierAt. */
+  tier?: GameTier;
+  tierAt?: string;
   /** Manual additions stay here while a shelf uses saved filters. */
   shelfIds: string[];
   /** Null selects the built-in default playthrough. */
@@ -51,6 +63,7 @@ export type LibraryFilters = {
   search?: string;
   source?: "all" | "steam" | "xbox" | "battlenet" | "epic" | "unimported";
   status?: GameStatus | "none";
+  tier?: GameTier | "none";
   favorite?: boolean;
   /** Launchable (Play can start it). Keeps its old saved name for shelves and backups. */
   installed?: boolean;
@@ -77,6 +90,7 @@ export function normalizeLibraryFilters(
   if (filters.source && filters.source !== "all")
     normalized.source = filters.source;
   if (filters.status) normalized.status = filters.status;
+  if (filters.tier) normalized.tier = filters.tier;
   if (filters.favorite) normalized.favorite = true;
   if (filters.installed !== undefined) normalized.installed = filters.installed;
   if (filters.played) normalized.played = filters.played;
@@ -127,6 +141,11 @@ export function mergeJournals(
     note: notes.join("\n\n"),
     favorite: target.favorite || incoming.favorite,
     status: target.status ?? incoming.status,
+    ...(target.tier
+      ? { tier: target.tier, tierAt: target.tierAt }
+      : incoming.tier
+        ? { tier: incoming.tier, tierAt: incoming.tierAt }
+        : {}),
     shelfIds: [...new Set([...target.shelfIds, ...incoming.shelfIds])],
     activePlaythroughId:
       target.activePlaythroughId ?? incoming.activePlaythroughId,
@@ -442,6 +461,11 @@ export function matchesLibraryFilters(
   if (
     filters.status &&
     journal.status !== (filters.status === "none" ? null : filters.status)
+  )
+    return false;
+  if (
+    filters.tier &&
+    journal.tier !== (filters.tier === "none" ? undefined : filters.tier)
   )
     return false;
   if (filters.favorite && !journal.favorite) return false;

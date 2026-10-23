@@ -26,7 +26,13 @@ import {
   librarySelectionKey,
   useLibrarySelection,
 } from "../useLibrarySelection";
-import { GameLibraryCard, makeCoreTourDemoGames } from "../views/MyGamesView";
+import {
+  GameLibraryCard,
+  makeCoreTourDemoGames,
+  MyGamesSortSelect,
+} from "../views/MyGamesView";
+import { compareMyGames, type MyGamesSortKey } from "../myGamesSort";
+import { TOUR_GTA_GAME_ID } from "./tourDemoGame";
 import {
   createLibraryTourStore,
   LIBRARY_TOUR_GAME,
@@ -53,6 +59,9 @@ type ExerciseProgress = {
   runNote: string;
   moved: number;
   finishedRuns: number;
+  gtaTier: string | null;
+  sortKey: MyGamesSortKey;
+  tierFilter: string | null;
 };
 
 /** Whether the learner did what the step asks, compared with its start. */
@@ -92,6 +101,16 @@ export function exerciseDone(
       return now.columns !== before.columns;
     case "library-progress:card-details":
       return now.detailCycles > before.detailCycles;
+    case "rate-games:rate":
+      return now.gtaTier !== null && now.gtaTier !== before.gtaTier;
+    case "rate-games:sort":
+      return now.sortKey === "tier" && before.sortKey !== "tier";
+    case "rate-games:filter":
+      return (
+        now.tierFilter !== null &&
+        now.tierFilter === now.gtaTier &&
+        before.tierFilter !== now.tierFilter
+      );
     default:
       return false;
   }
@@ -138,6 +157,8 @@ function PracticeLibrary({
   const [filters, setFilters] = useState<LibraryFilters>({});
   const [expanded, setExpanded] = useState(false);
   const [customize, setCustomize] = useState(false);
+  // Only the tier guide shows the sort menu; "Last played" keeps the order.
+  const [sortKey, setSortKey] = useState<MyGamesSortKey>("recent");
   const [popupNames, setPopupNames] = useState(false);
   const [popupNotes, setPopupNotes] = useState(false);
   const [popupUpdate, setPopupUpdate] = useState(false);
@@ -173,19 +194,34 @@ function PracticeLibrary({
     [sessions],
   );
   const selectedShelf = shelves.find((s) => s.id === shelfId);
-  const visible = useMemo(
-    () =>
-      games.filter((game) => {
-        const journal = journalFor(game);
-        return (
-          (expanded && selectedShelf
-            ? true
-            : matchesShelf(game, journal, shelfId, shelves)) &&
-          matchesLibraryFilters(game, journal, filters)
-        );
-      }),
-    [games, journalFor, expanded, selectedShelf, shelfId, shelves, filters],
-  );
+  const visible = useMemo(() => {
+    const shown = games.filter((game) => {
+      const journal = journalFor(game);
+      return (
+        (expanded && selectedShelf
+          ? true
+          : matchesShelf(game, journal, shelfId, shelves)) &&
+        matchesLibraryFilters(game, journal, filters)
+      );
+    });
+    if (sortKey !== "tier") return shown;
+    return shown.sort((left, right) =>
+      compareMyGames(
+        { ...left, tier: journalFor(left).tier },
+        { ...right, tier: journalFor(right).tier },
+        "tier",
+      ),
+    );
+  }, [
+    games,
+    journalFor,
+    expanded,
+    selectedShelf,
+    shelfId,
+    shelves,
+    filters,
+    sortKey,
+  ]);
   const selection = useLibrarySelection(
     visible,
     JSON.stringify([shelfId, filters]),
@@ -289,6 +325,20 @@ function PracticeLibrary({
         });
       }
     }
+    if (tourId === "rate-games") {
+      const gta = games.find((game) => game.gameId === TOUR_GTA_GAME_ID)!;
+      // Supply the rating if the learner skipped that exercise.
+      if (
+        ["sort", "filter", "finish"].includes(stepId) &&
+        !journalFor(gta).tier
+      )
+        store.getState().setGameTier(gta, "S");
+      setExpanded(stepId === "filter");
+      if (stepId === "finish") {
+        clearFilters();
+        setSortKey("tier");
+      }
+    }
   }, [store, tourId, stepId, resetToken]);
 
   // Exercise steps move on by themselves once the learner has done what the
@@ -322,6 +372,11 @@ function PracticeLibrary({
     ).length,
     finishedRuns: sampleJournal.playthroughs.filter((run) => run.completedAt)
       .length,
+    gtaTier:
+      journalFor(games.find((game) => game.gameId === TOUR_GTA_GAME_ID)!)
+        .tier ?? null,
+    sortKey,
+    tierFilter: filters.tier ?? null,
   };
   const progressKey = JSON.stringify(progress);
   const entry = useRef<{ step: string; progress: ExerciseProgress } | null>(
@@ -380,6 +435,13 @@ function PracticeLibrary({
               )}
             </p>
           </div>
+          {tourId === "rate-games" ? (
+            <MyGamesSortSelect
+              dataTour="demo-sort"
+              value={sortKey}
+              onChange={setSortKey}
+            />
+          ) : null}
           {tourId === "library-progress" ? (
             <Button
               data-tour="demo-customize-toggle"
