@@ -128,7 +128,7 @@
   "This overlaps your session from {{time}}. Combine them instead.": "Isso se sobrepõe à sua sessão de {{time}}. Combine as duas em vez disso.",
   "Split": "Dividir",
   "First part": "Primeira parte",
-  "Removed": "Removido",
+  "The {{duration}} break doesn't count as playtime.": "A pausa de {{duration}} não conta como tempo de jogo.",
   "Second part": "Segunda parte",
   "Each part needs at least one minute.": "Cada parte precisa de pelo menos um minuto.",
   "Combine sessions": "Combinar sessões",

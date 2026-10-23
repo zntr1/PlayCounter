@@ -68,13 +68,6 @@ function formatTime(ms: number) {
   });
 }
 
-// Start and end time only. Each box is about one session, so "next day"
-// would only make the line wrap.
-function rangeOf(session: Session) {
-  const { startMs, endMs } = sessionTimes(session);
-  return `${formatTime(startMs)} – ${formatTime(endMs)}`;
-}
-
 /* Same look as the delete box: the game in the header, its cover next to
    what can be changed. */
 function SessionChangeModal({
@@ -673,6 +666,7 @@ export function SplitSessionDialog({
       submitLabel={t("Split")}
       submitIcon={Scissors}
       canSubmit={canSubmit}
+      size="wide"
     >
       <form
         id="split-history-session-form"
@@ -767,7 +761,7 @@ export function SplitSessionDialog({
             </Pill>
           </div>
           {preset === "custom" ? (
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid max-w-sm grid-cols-2 gap-3">
               <label className="grid gap-1 text-[11px] text-text-faint">
                 {t("Hours")}
                 <Input
@@ -807,39 +801,54 @@ export function SplitSessionDialog({
         {problem ? (
           <Problem>{problem}</Problem>
         ) : (
-          <div className="mt-4 flex items-center gap-4 rounded-lg border border-border bg-surface-hover p-4">
-            <SessionCover
-              session={session}
-              gameName={gameName}
-              coverUrl={coverUrl}
-            />
-            <dl className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
-              <dt className="text-text-faint">{t("First part")}</dt>
-              <dd className="text-right font-medium tabular-nums text-text">
-                {rangeOf(parts[0]!)} ·{" "}
-                {formatDuration(
-                  parts[0]!.durationSeconds ?? 0,
-                  showDurationDays,
-                )}
-              </dd>
-              {breakMinutes > 0 ? (
-                <>
-                  <dt className="text-text-faint">{t("Removed")}</dt>
-                  <dd className="text-right font-medium tabular-nums text-text-muted">
-                    {formatDuration(breakMinutes * 60, showDurationDays)}
-                  </dd>
-                </>
-              ) : null}
-              <dt className="text-text-faint">{t("Second part")}</dt>
-              <dd className="text-right font-medium tabular-nums text-text">
-                {rangeOf(parts[1]!)} ·{" "}
-                {formatDuration(
-                  parts[1]!.durationSeconds ?? 0,
-                  showDurationDays,
-                )}
-              </dd>
-            </dl>
-          </div>
+          <>
+            {/* This session = the first part + the second part, side by
+                side. */}
+            <div className="mt-4 grid grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-surface px-3.5 py-3 text-sm">
+                <SessionCover
+                  session={session}
+                  gameName={gameName}
+                  coverUrl={coverUrl}
+                />
+                <SessionSummary
+                  label={t("This session")}
+                  session={session}
+                  showDurationDays={showDurationDays}
+                />
+              </div>
+              <Operator icon={Equal} />
+              <div className="rounded-lg border border-border bg-surface-hover px-3.5 py-3 text-sm">
+                <SessionSummary
+                  label={t("First part")}
+                  session={parts[0]!}
+                  showDurationDays={showDurationDays}
+                  taken={{ end: true }}
+                />
+              </div>
+              <Operator icon={Plus} />
+              <div className="rounded-lg border border-border bg-surface-hover px-3.5 py-3 text-sm">
+                <SessionSummary
+                  label={t("Second part")}
+                  session={parts[1]!}
+                  showDurationDays={showDurationDays}
+                  taken={{ start: true }}
+                />
+              </div>
+            </div>
+            {breakMinutes > 0 ? (
+              <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-text-muted">
+                {/* The break's grey, as on the slider. */}
+                <span
+                  aria-hidden="true"
+                  className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm bg-border"
+                />
+                {t("The {{duration}} break doesn't count as playtime.", {
+                  duration: formatDuration(breakMinutes * 60, showDurationDays),
+                })}
+              </p>
+            ) : null}
+          </>
         )}
       </form>
     </SessionChangeModal>
@@ -847,8 +856,9 @@ export function SplitSessionDialog({
 }
 
 /* Combine marks the start and end the combined session takes with an amber
-   pill and greys out the two it drops. */
-type TakenTimes = { start: boolean; end: boolean };
+   pill and greys out the two it drops. Split marks the two times the knob
+   sets. */
+type TakenTimes = { start?: boolean; end?: boolean };
 
 // The gap counted as playtime: amber stripes, on the bar and in the note.
 const countedGap = {

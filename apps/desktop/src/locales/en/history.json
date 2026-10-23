@@ -122,7 +122,7 @@
   "This overlaps your session from {{time}}. Combine them instead.": "This overlaps your session from {{time}}. Combine them instead.",
   "Split": "Split",
   "First part": "First part",
-  "Removed": "Removed",
+  "The {{duration}} break doesn't count as playtime.": "The {{duration}} break doesn't count as playtime.",
   "Second part": "Second part",
   "Each part needs at least one minute.": "Each part needs at least one minute.",
   "Combine sessions": "Combine sessions",

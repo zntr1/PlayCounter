@@ -116,7 +116,7 @@
   "This overlaps your session from {{time}}. Combine them instead.": "这与你 {{time}} 开始的游玩记录重叠。请改为合并它们。",
   "Split": "拆分",
   "First part": "第一部分",
-  "Removed": "已移除",
+  "The {{duration}} break doesn't count as playtime.": "休息的 {{duration}} 不计入游戏时长。",
   "Second part": "第二部分",
   "Each part needs at least one minute.": "每一部分至少需要一分钟。",
   "Combine sessions": "合并游玩记录",

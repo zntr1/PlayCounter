@@ -134,7 +134,7 @@
   "This overlaps your session from {{time}}. Combine them instead.": "Это пересекается с вашей сессией от {{time}}. Лучше объедините их.",
   "Split": "Разделить",
   "First part": "Первая часть",
-  "Removed": "Удалено",
+  "The {{duration}} break doesn't count as playtime.": "Перерыв ({{duration}}) не считается временем в игре.",
   "Second part": "Вторая часть",
   "Each part needs at least one minute.": "Каждая часть должна длиться не меньше минуты.",
   "Combine sessions": "Объединить сессии",
