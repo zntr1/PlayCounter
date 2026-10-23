@@ -2779,6 +2779,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
  "tokio",
+ "toml 0.9.12+spec-1.1.0",
  "uuid",
  "webview2-com",
  "windows 0.59.0",

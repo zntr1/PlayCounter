@@ -582,7 +582,10 @@ export type EmulatorId =
   | "ppsspp"
   | "duckstation"
   | "ryujinx"
-  | "eden";
+  | "eden"
+  | "azahar"
+  | "melonds"
+  | "xenia";
 
 export type DesktopViewId =
   | "now"

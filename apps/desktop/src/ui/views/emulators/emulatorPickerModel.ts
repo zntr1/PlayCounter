@@ -13,6 +13,7 @@ export function emulatorDetectionSourceLabel(source?: EmulatorDetectionSource) {
   if (source === "window_title") return t("window title");
   if (source === "launch_arguments") return t("start-up options");
   if (source === "open_file_handle") return t("loaded game file");
+  if (source === "recent_file") return t("recent games list");
   return null;
 }
 

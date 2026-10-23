@@ -2537,6 +2537,7 @@ function rawEmulatorSignals(
     workingDirectory: process.workingDirectory ?? null,
     windowTitle: process.windowTitle ?? null,
     openFiles: process.openFiles ?? undefined,
+    recentFile: process.recentFile ?? undefined,
   };
 }
 

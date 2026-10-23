@@ -6,6 +6,7 @@ type Snapshot = {
   workingDirectory?: string | null;
   windowTitle?: string | null;
   openFiles?: string[] | null;
+  recentFile?: string | null;
   [key: string]: unknown;
 };
 
@@ -16,6 +17,7 @@ export function toPublicSnapshots<T extends Snapshot>(snapshots: T[]): T[] {
       workingDirectory: _workingDirectory,
       windowTitle: _windowTitle,
       openFiles: _openFiles,
+      recentFile: _recentFile,
       ...safe
     } = snapshot;
     return safe as T;

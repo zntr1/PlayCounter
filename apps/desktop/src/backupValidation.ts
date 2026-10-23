@@ -110,6 +110,7 @@ const detectionSource = oneOf(
   "window_title",
   "launch_arguments",
   "open_file_handle",
+  "recent_file",
 );
 const game = object(
   { id: integer, name: nonempty, coverUrl: string, source },

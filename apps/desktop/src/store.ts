@@ -112,6 +112,7 @@ export type ProcessSnapshot = {
   workingDirectory?: string | null;
   windowTitle?: string | null;
   openFiles?: string[] | null;
+  recentFile?: string | null;
 };
 
 export type ActiveSession = {
