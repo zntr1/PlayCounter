@@ -206,3 +206,19 @@ describe("Recently added", () => {
     );
   });
 });
+
+describe("Tier", () => {
+  it("puts S first and unrated last, most played first inside a tier", () => {
+    const s = game(1, { tier: "S" });
+    const aLong = game(2, { tier: "A", totalSeconds: 7200 });
+    const aShort = game(3, { tier: "A", totalSeconds: 60 });
+    const f = game(4, { tier: "F", totalSeconds: 99999 });
+    const unrated = game(5, { totalSeconds: 999999 });
+
+    expect(
+      [unrated, f, aShort, s, aLong].sort((left, right) =>
+        compareMyGames(left, right, "tier"),
+      ),
+    ).toEqual([s, aLong, aShort, f, unrated]);
+  });
+});

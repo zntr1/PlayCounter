@@ -1,4 +1,8 @@
-import { GAME_STATUSES, type GameStatus } from "../personalLibrary";
+import {
+  GAME_STATUSES,
+  type GameStatus,
+  type GameTier,
+} from "../personalLibrary";
 
 /** Progress status is the one place in the journal where colour carries
  *  meaning, so each status owns a hue and keeps it on every surface: the
@@ -31,6 +35,16 @@ export const STATUS_TONES: Record<GameStatus, { dot: string; chip: string }> = {
 };
 
 export const GAME_STATUS_LIST = Object.keys(GAME_STATUSES) as GameStatus[];
+
+/** Tier-list colours, hot to cold. Only drawn on the dark cover badge. */
+export const TIER_TONES: Record<GameTier, string> = {
+  S: "text-rose-300",
+  A: "text-orange-300",
+  B: "text-amber-200",
+  C: "text-lime-300",
+  D: "text-sky-300",
+  F: "text-zinc-400",
+};
 
 /** First line of a note, trimmed to fit a single-line preview. */
 export function notePreview(note: string, limit = 120) {

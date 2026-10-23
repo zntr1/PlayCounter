@@ -14,6 +14,7 @@ export type PersonalLibraryActions = Pick<
   AppState,
   | "openGameJournal"
   | "updateGameJournal"
+  | "setGameTier"
   | "addGamesToShelf"
   | "setGameStatuses"
   | "undoGameStatuses"
@@ -81,6 +82,24 @@ export function createPersonalLibraryActions(
                     ),
                   ),
           },
+          personalGameIdentity(state),
+        ),
+      });
+      persistSoon();
+    },
+    setGameTier: (game, tier) => {
+      const state = get();
+      const {
+        tier: _tier,
+        tierAt: _tierAt,
+        ...journal
+      } = getGameJournal(state, game);
+      set({
+        gameJournals: writeJournal(
+          state.gameJournals,
+          tier
+            ? { ...journal, tier, tierAt: new Date().toISOString() }
+            : journal,
           personalGameIdentity(state),
         ),
       });

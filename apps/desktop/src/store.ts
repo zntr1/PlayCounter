@@ -93,6 +93,7 @@ import {
   type GameJournal,
   type GameStatus,
   type GameStatusChange,
+  type GameTier,
   type JournalTarget,
   type PersonalShelf,
   type Playthrough,
@@ -423,6 +424,8 @@ export type AppState = {
       Pick<GameJournal, "note" | "favorite" | "status" | "shelfIds">
     >,
   ) => void;
+  /** Null clears the tier. */
+  setGameTier: (game: GameIdentityRef, tier: GameTier | null) => void;
   addGamesToShelf: (
     games: readonly GameIdentityRef[],
     shelfId: string,
@@ -645,6 +648,7 @@ export type AppState = {
   setMyGamesShowMatchBadges: (enabled: boolean) => void;
   setMyGamesShowStatusBadges: (enabled: boolean) => void;
   setMyGamesShowNoteBadges: (enabled: boolean) => void;
+  setMyGamesShowTierBadges: (enabled: boolean) => void;
   setMyGamesShowTrackingWarnings: (enabled: boolean) => void;
   setMyGamesHighResCovers: (enabled: boolean) => void;
   setMyGamesShowStatCards: (enabled: boolean) => void;
@@ -721,6 +725,7 @@ const defaultSettings: Settings = {
   libraryShowMatchBadges: true,
   libraryShowStatusBadges: true,
   libraryShowNoteBadges: true,
+  libraryShowTierBadges: true,
   libraryShowTrackingWarnings: true,
   libraryHighResCovers: false,
   libraryStatCards: [...DEFAULT_LIBRARY_STAT_CARD_IDS],
@@ -1830,6 +1835,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setMyGamesShowNoteBadges: (libraryShowNoteBadges) => {
     set((state) => ({
       settings: { ...state.settings, libraryShowNoteBadges },
+    }));
+    persistSoon();
+  },
+  setMyGamesShowTierBadges: (libraryShowTierBadges) => {
+    set((state) => ({
+      settings: { ...state.settings, libraryShowTierBadges },
     }));
     persistSoon();
   },

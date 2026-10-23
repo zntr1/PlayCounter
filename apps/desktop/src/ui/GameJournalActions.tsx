@@ -2,11 +2,15 @@ import {
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
-import { BookOpen, Star, StickyNote } from "lucide-react";
-import { gameStatusLabel } from "../personalLibrary";
+import { BookOpen, Medal, Star, StickyNote, X } from "lucide-react";
+import { GAME_TIERS, gameStatusLabel, type GameTier } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
-import { ContextMenuHeading, ContextMenuItem } from "./primitives";
-import { STATUS_TONES } from "./journalStyles";
+import {
+  ContextMenuHeading,
+  ContextMenuItem,
+  ContextMenuSubmenu,
+} from "./primitives";
+import { STATUS_TONES, TIER_TONES } from "./journalStyles";
 import { useGameJournal } from "./useGameJournal";
 import { getT } from "../i18n";
 
@@ -50,6 +54,58 @@ export function GameJournalMenu({
       >
         {t("Journal")}
       </ContextMenuItem>
+      {practice ? null : (
+        <ContextMenuSubmenu label={t("Tier")} icon={Medal}>
+          <GameTierMenuItems game={game} onClose={onClose} />
+        </ContextMenuSubmenu>
+      )}
+    </>
+  );
+}
+
+/** The ends say which way the scale runs; the letters between need no words. */
+function tierMenuLabel(tier: GameTier) {
+  if (tier === "S") return t("S – Best");
+  if (tier === "F") return t("F – Worst");
+  return tier;
+}
+
+/** S to F, the current one checked, and Clear once there is one. Shared by
+ *  the card menu and the tier tile in game details. */
+export function GameTierMenuItems({
+  game,
+  onClose,
+}: {
+  game: GameIdentityRef;
+  onClose: () => void;
+}) {
+  const journal = useGameJournal(game);
+  const setTier = usePersonalLibraryState((s) => s.setGameTier);
+  return (
+    <>
+      {GAME_TIERS.map((tier) => (
+        <ContextMenuItem
+          key={tier}
+          selected={journal.tier === tier}
+          onClick={() => {
+            onClose();
+            setTier(game, tier);
+          }}
+        >
+          {tierMenuLabel(tier)}
+        </ContextMenuItem>
+      ))}
+      {journal.tier ? (
+        <ContextMenuItem
+          icon={X}
+          onClick={() => {
+            onClose();
+            setTier(game, null);
+          }}
+        >
+          {t("Clear tier")}
+        </ContextMenuItem>
+      ) : null}
     </>
   );
 }
@@ -58,7 +114,8 @@ const badgeShell =
   "grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-black/75 text-white shadow-md";
 
 /** What the journal knows about a game, read from its cover: a note to pick up,
- *  a favorite, and where the game stands. Nothing else earns cover space. */
+ *  a favorite, your tier, and where the game stands. Nothing else earns cover
+ *  space. */
 export function GameJournalBadges({
   game,
   compact = false,
@@ -75,17 +132,22 @@ export function GameJournalBadges({
   const showNotes = usePersonalLibraryState(
     (s) => s.settings.libraryShowNoteBadges !== false,
   );
+  const showTiers = usePersonalLibraryState(
+    (s) => s.settings.libraryShowTierBadges !== false,
+  );
   const status = showStatus ? journal.status : null;
   const statusLabel = status
     ? t("Status: {{status}}", { status: gameStatusLabel(status) })
     : undefined;
   const other = journal.playthroughs.find((p) => p.note);
   const hasNote = showNotes && Boolean(journal.note || other);
+  const tier = showTiers ? journal.tier : undefined;
+  const tierLabel = tier ? t("Tier: {{tier}}", { tier }) : undefined;
   const notePlaythroughId =
     journal.playthroughs.find(
       (p) => p.id === journal.activePlaythroughId && p.note,
     )?.id ?? (journal.note ? null : other?.id);
-  if (!hasNote && !journal.favorite && !status) return null;
+  if (!hasNote && !journal.favorite && !tier && !status) return null;
   return (
     <div
       className={`absolute ${compact ? "left-1 top-1" : "bottom-2 left-2"} z-40 flex items-center gap-1`}
@@ -113,6 +175,15 @@ export function GameJournalBadges({
           className={`${badgeShell} text-amber-300 ${compact ? "h-6 w-6" : ""}`}
         >
           <Star size={compact ? 11 : 13} fill="currentColor" />
+        </span>
+      ) : null}
+      {tier ? (
+        <span
+          aria-label={tierLabel}
+          title={tierLabel}
+          className={`${badgeShell} font-mono font-bold ${TIER_TONES[tier]} ${compact ? "h-6 w-6 text-[11px]" : "text-[13px]"}`}
+        >
+          {tier}
         </span>
       ) : null}
       {status ? (

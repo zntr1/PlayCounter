@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getGameJournal, useAppStore, type ActiveSession } from "../store";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
 import { GameJournalBadges, GameJournalMenu } from "./GameJournalActions";
+import { ContextMenu } from "./ContextMenu";
 import { ActiveGameHero } from "./views/ActiveGameHero";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
@@ -89,7 +90,9 @@ it("hides shelf controls while keeping progress, favorites, and shelf membership
   await act(() =>
     root.render(
       <>
-        <GameJournalMenu game={game} onClose={() => {}} />
+        <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+          <GameJournalMenu game={game} onClose={() => {}} />
+        </ContextMenu>
         <GameJournalHost />
       </>,
     ),
@@ -207,6 +210,31 @@ it.each([true, false])(
     expect(useAppStore.getState().journalTarget?.playthroughId).toBeNull();
   },
 );
+
+it("rates a game from the card menu, shows the tier on the cover, and hides it by setting", async () => {
+  await act(() =>
+    root.render(
+      <>
+        <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+          <GameJournalMenu game={game} onClose={() => {}} />
+        </ContextMenu>
+        <GameJournalBadges game={game} />
+      </>,
+    ),
+  );
+  expect(document.querySelector('[aria-label^="Tier:"]')).toBeNull();
+  await click("Tier");
+  await click("A");
+  expect(getGameJournal(useAppStore.getState(), game).tier).toBe("A");
+  expect(document.querySelector('[aria-label="Tier: A"]')).not.toBeNull();
+
+  await act(() => useAppStore.getState().setMyGamesShowTierBadges(false));
+  expect(document.querySelector('[aria-label="Tier: A"]')).toBeNull();
+
+  await click("Tier");
+  await click("Clear tier");
+  expect(getGameJournal(useAppStore.getState(), game).tier).toBeUndefined();
+});
 
 it("shows only the running session's playthrough note when switching assignments in Now Playing", async () => {
   const session: ActiveSession = {

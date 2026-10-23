@@ -49,7 +49,8 @@ export function isMyGamesSortKey(value: unknown): value is MyGamesSortKey {
     value === "added" ||
     value === "playtime" ||
     value === "name" ||
-    value === "sessions"
+    value === "sessions" ||
+    value === "tier"
   );
 }
 

@@ -5,6 +5,7 @@ import { isFeedbackReplyId } from "./notifications";
 import { isLibraryGridColumns } from "./ui/myGamesPresentation";
 import {
   GAME_STATUSES,
+  GAME_TIERS,
   journalKey,
   type GameJournal,
   type PersonalShelf,
@@ -317,12 +318,20 @@ const settings = object({}, {
   showDurationDays: boolean,
   libraryCardSize: oneOf("grid", "large", "list"),
   libraryGridColumns: nullable(check(isLibraryGridColumns)),
-  librarySortKey: oneOf("recent", "added", "playtime", "name", "sessions"),
+  librarySortKey: oneOf(
+    "recent",
+    "added",
+    "playtime",
+    "name",
+    "sessions",
+    "tier",
+  ),
   libraryShowBadges: boolean,
   libraryShowOriginBadges: boolean,
   libraryShowMatchBadges: boolean,
   libraryShowStatusBadges: boolean,
   libraryShowNoteBadges: boolean,
+  libraryShowTierBadges: boolean,
   libraryShowTrackingWarnings: boolean,
   libraryHighResCovers: boolean,
   libraryShowStatCards: boolean,
@@ -405,31 +414,34 @@ const validateBackupShape: Validator = object(
     settings,
     sessions: array(session),
     gameJournals: dictionary(
-      object({
-        game: object(
-          { gameId: integer },
-          {
-            source: nullable(source),
-            igdbId: positiveId,
-            gameName: string,
-            coverUrl: string,
-          },
-        ),
-        note: string,
-        favorite: boolean,
-        status: nullable(gameStatus),
-        shelfIds: array(nonempty),
-        activePlaythroughId: nullable(nonempty),
-        playthroughs: array(
-          object({
-            id: nonempty,
-            name: nonempty,
-            note: string,
-            createdAt: date,
-            completedAt: nullable(date),
-          }),
-        ),
-      }),
+      object(
+        {
+          game: object(
+            { gameId: integer },
+            {
+              source: nullable(source),
+              igdbId: positiveId,
+              gameName: string,
+              coverUrl: string,
+            },
+          ),
+          note: string,
+          favorite: boolean,
+          status: nullable(gameStatus),
+          shelfIds: array(nonempty),
+          activePlaythroughId: nullable(nonempty),
+          playthroughs: array(
+            object({
+              id: nonempty,
+              name: nonempty,
+              note: string,
+              createdAt: date,
+              completedAt: nullable(date),
+            }),
+          ),
+        },
+        { tier: oneOf(...GAME_TIERS), tierAt: date },
+      ),
     ),
     personalShelves: array(
       object(

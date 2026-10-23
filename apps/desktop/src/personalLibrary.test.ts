@@ -605,6 +605,61 @@ describe("durable playthrough time", () => {
   });
 });
 
+describe("game tiers", () => {
+  it("sets, replaces and clears a tier with the date it was set", () => {
+    useAppStore.getState().setGameTier(game, "A");
+    const rated = getGameJournal(useAppStore.getState(), game);
+    expect(rated.tier).toBe("A");
+    expect(Number.isFinite(Date.parse(rated.tierAt!))).toBe(true);
+
+    useAppStore.getState().setGameTier(game, "S");
+    expect(getGameJournal(useAppStore.getState(), game).tier).toBe("S");
+
+    useAppStore.getState().setGameTier(game, null);
+    const cleared = getGameJournal(useAppStore.getState(), game);
+    expect("tier" in cleared).toBe(false);
+    expect("tierAt" in cleared).toBe(false);
+  });
+
+  it("keeps the tier when identities merge or local ids change", () => {
+    const alias = {
+      gameId: -5,
+      source: "custom" as const,
+      igdbId: 123,
+      gameName: game.gameName,
+    };
+    useAppStore.getState().setGameTier(game, "B");
+    useAppStore.getState().updateGameJournal(alias, { favorite: true });
+    expect(getGameJournal(useAppStore.getState(), alias)).toMatchObject({
+      tier: "B",
+      favorite: true,
+    });
+    useAppStore.getState().rekeyGameSeconds("custom:-5", "community:99");
+    expect(
+      getGameJournal(useAppStore.getState(), {
+        gameId: 99,
+        source: "community",
+      }).tier,
+    ).toBe("B");
+  });
+
+  it("transfers tiers in backups and rejects unknown letters", () => {
+    useAppStore.getState().setGameTier(game, "F");
+    const data = createTransferData(
+      createPersistedPayload(useAppStore.getState()),
+    );
+    expect(() => validateBackupData(data, "data")).not.toThrow();
+    expect(data.gameJournals).toEqual(useAppStore.getState().gameJournals);
+    const [key, journal] = Object.entries(data.gameJournals!)[0];
+    expect(() =>
+      validateBackupData(
+        { ...data, gameJournals: { [key]: { ...journal, tier: "E" } } },
+        "data",
+      ),
+    ).toThrow("tier");
+  });
+});
+
 describe("saved library filters", () => {
   it("preserves a shelf banner during partial edits and clears it explicitly", () => {
     const state = useAppStore.getState();

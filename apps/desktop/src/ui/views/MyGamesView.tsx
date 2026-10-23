@@ -354,6 +354,7 @@ function sortOptions(): Array<{ key: SortKey; label: string }> {
     { key: "playtime", label: t("Most played") },
     { key: "name", label: t("Name") },
     { key: "sessions", label: t("Sessions") },
+    { key: "tier", label: t("Tier") },
   ];
 }
 
@@ -811,6 +812,9 @@ export function MyGamesView({
   const showNotes = useAppStore(
     (state) => state.settings.libraryShowNoteBadges !== false,
   );
+  const showTiers = useAppStore(
+    (state) => state.settings.libraryShowTierBadges !== false,
+  );
   const showTrackingWarnings = useAppStore(
     (state) => state.settings.libraryShowTrackingWarnings !== false,
   );
@@ -830,6 +834,9 @@ export function MyGamesView({
   );
   const setMyGamesShowNoteBadges = useAppStore(
     (state) => state.setMyGamesShowNoteBadges,
+  );
+  const setMyGamesShowTierBadges = useAppStore(
+    (state) => state.setMyGamesShowTierBadges,
   );
   const setMyGamesShowTrackingWarnings = useAppStore(
     (state) => state.setMyGamesShowTrackingWarnings,
@@ -1918,9 +1925,22 @@ export function MyGamesView({
   );
   const displayedGames = useMemo(() => {
     const sorted = filterByLibraryTab(matchingGames, activeLibraryTab);
+    if (sortKey === "tier") {
+      // The tier lives in the journal, not on the game summary.
+      return sorted
+        .map((game) => ({
+          game,
+          value: {
+            ...game,
+            tier: journalFor({ ...game, gameName: game.name }).tier,
+          },
+        }))
+        .sort((left, right) => compareMyGames(left.value, right.value, "tier"))
+        .map((entry) => entry.game);
+    }
     sorted.sort((left, right) => compareMyGames(left, right, sortKey));
     return sorted;
-  }, [activeLibraryTab, matchingGames, sortKey]);
+  }, [activeLibraryTab, matchingGames, sortKey, journalFor]);
   // Counted from what the library actually shows, search included, so the
   // numbers never contradict the count sitting right next to them.
   const statCards = useMemo(() => {
@@ -2447,11 +2467,13 @@ export function MyGamesView({
                         showMatch={showMatch}
                         showStatus={showStatus}
                         showNotes={showNotes}
+                        showTiers={showTiers}
                         showTrackingWarnings={showTrackingWarnings}
                         setMyGamesShowOriginBadges={setMyGamesShowOriginBadges}
                         setMyGamesShowMatchBadges={setMyGamesShowMatchBadges}
                         setMyGamesShowStatusBadges={setMyGamesShowStatusBadges}
                         setMyGamesShowNoteBadges={setMyGamesShowNoteBadges}
+                        setMyGamesShowTierBadges={setMyGamesShowTierBadges}
                         setMyGamesShowTrackingWarnings={
                           setMyGamesShowTrackingWarnings
                         }

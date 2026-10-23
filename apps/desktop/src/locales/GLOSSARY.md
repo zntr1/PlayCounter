@@ -69,6 +69,7 @@ Discord, Windows, Dolphin, DOSBox, PCSX2, mGBA.
 | Want to play                | Will ich spielen                     | game status                                            |
 | Want to replay              | Will ich nochmal spielen             | game status                                            |
 | Not planned                 | Nicht geplant                        | game status                                            |
+| tier (S to F)               | Tier                                 | gamer word, as in S-Tier; letters stay S A B C D F     |
 | Custom game, Custom games   | Eigenes Spiel, Eigene Spiele         | badge: Eigenes                                         |
 | Level up, Level up all      | Aufwerten, Alle aufwerten            | gamer alternative: aufleveln                           |
 | import, imported, installed | importieren, importiert, installiert |                                                        |
@@ -178,6 +179,7 @@ the complete translations still need native-speaker review.
 | Play                | Jogar                         | Jugar                          | 开始游戏         |
 | shelf               | prateleira                    | estante                        | 分类架           |
 | favorite            | favorito                      | favorito                       | 收藏             |
+| tier (S to F)       | tier                          | tier                           | 评级             |
 | match               | associação                    | asociación                     | 匹配             |
 | ignore              | ignorar                       | ignorar                        | 忽略             |
 | community           | comunidade                    | comunidad                      | 社区             |
@@ -257,6 +259,7 @@ native-speaker review (Weblate).
 | Insights             | Статистика                        | Statystyki                    | Statistiques                      |
 | shelf                | полка                             | półka                         | étagère                           |
 | Favorites            | Избранное                         | Ulubione                      | Favoris                           |
+| tier (S to F)        | тир                               | tier                          | tier                              |
 | card                 | карточка                          | kafelek                       | vignette                          |
 | cover, banner        | обложка, баннер                   | okładka, baner                | jaquette, bannière                |
 | badge                | значок                            | odznaka                       | badge                             |

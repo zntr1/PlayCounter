@@ -616,7 +616,13 @@ export interface Settings {
   libraryCardSize?: "grid" | "large" | "list";
   /** Custom grid columns. Null or absent uses the selected view's responsive default. */
   libraryGridColumns?: number | null;
-  librarySortKey?: "recent" | "added" | "playtime" | "name" | "sessions";
+  librarySortKey?:
+    | "recent"
+    | "added"
+    | "playtime"
+    | "name"
+    | "sessions"
+    | "tier";
   /** Retired single toggle. Still read once so an existing opt-out seeds both
    *  of the toggles below; never written again. */
   libraryShowBadges?: boolean;
@@ -628,6 +634,8 @@ export interface Settings {
   libraryShowStatusBadges?: boolean;
   /** Show the note shortcut on game covers. Absent = enabled. */
   libraryShowNoteBadges?: boolean;
+  /** Show your tier (S-F) on game covers. Absent = enabled. */
+  libraryShowTierBadges?: boolean;
   /** Warn on covers of games with no known .exe yet. Absent = enabled. */
   libraryShowTrackingWarnings?: boolean;
   /** Request IGDB cover art one size up. Absent = off, the smaller default. */

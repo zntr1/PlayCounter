@@ -29,6 +29,15 @@ export type GameStatus = keyof typeof GAME_STATUSES;
 export function gameStatusLabel(status: GameStatus): string {
   return t(GAME_STATUSES[status]);
 }
+/** Best first. The letters read the same in every language. */
+export const GAME_TIERS = ["S", "A", "B", "C", "D", "F"] as const;
+export type GameTier = (typeof GAME_TIERS)[number];
+
+/** S = 6 … F = 1, 0 for no tier. The sort uses it, and a later community
+ *  ranking averages it. */
+export function tierRank(tier: GameTier | undefined) {
+  return tier ? GAME_TIERS.length - GAME_TIERS.indexOf(tier) : 0;
+}
 export type Playthrough = {
   id: string;
   name: string;
@@ -41,6 +50,9 @@ export type GameJournal = {
   note: string;
   favorite: boolean;
   status: GameStatus | null;
+  /** Absent until rated. Set and cleared together with tierAt. */
+  tier?: GameTier;
+  tierAt?: string;
   /** Manual additions stay here while a shelf uses saved filters. */
   shelfIds: string[];
   /** Null selects the built-in default playthrough. */
@@ -127,6 +139,11 @@ export function mergeJournals(
     note: notes.join("\n\n"),
     favorite: target.favorite || incoming.favorite,
     status: target.status ?? incoming.status,
+    ...(target.tier
+      ? { tier: target.tier, tierAt: target.tierAt }
+      : incoming.tier
+        ? { tier: incoming.tier, tierAt: incoming.tierAt }
+        : {}),
     shelfIds: [...new Set([...target.shelfIds, ...incoming.shelfIds])],
     activePlaythroughId:
       target.activePlaythroughId ?? incoming.activePlaythroughId,
