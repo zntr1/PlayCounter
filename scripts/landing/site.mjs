@@ -344,6 +344,30 @@ export const site = {
       detail:
         "Track individual Switch games by the game name Eden shows in its window title.",
     },
+    {
+      id: "azahar",
+      name: "Azahar",
+      logo: "/brands/azahar.png",
+      systems: "Nintendo 3DS",
+      detail:
+        "Track individual 3DS games by the game name Azahar shows in its window title.",
+    },
+    {
+      id: "melonds",
+      name: "melonDS",
+      logo: "/brands/melonds.png",
+      systems: "Nintendo DS",
+      detail:
+        "Track individual DS games by the ROM melonDS last loaded, while a game is running.",
+    },
+    {
+      id: "xenia",
+      name: "Xenia",
+      logo: "/brands/xenia.png",
+      systems: "Xbox 360",
+      detail:
+        "Track individual Xbox 360 games by the title ID Xenia shows in its window title.",
+    },
   ],
   languages: [
     "English",
@@ -383,7 +407,7 @@ export const faq = [
   ],
   [
     "Which emulators are supported?",
-    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx and Eden. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
+    'Dedicated per-game detection supports DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia. Recognition depends on the game information the emulator exposes; uncertain matches can be reviewed. <a href="/playtime-tracker-for-emulators/">Emulator setup and limits</a>.',
   ],
   [
     "Which languages is the app available in?",

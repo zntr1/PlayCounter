@@ -139,9 +139,11 @@
 
 <h3>Emulator-Erkennung</h3>
 <p>
-  Für unterstützte Emulatoren (derzeit DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx und Eden) liest die App
+  Für unterstützte Emulatoren (derzeit DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS und Xenia) liest die App
   lokal auch Prozessinformationen wie Kommandozeilen, Fenstertitel und die vom
-  Emulator geöffnete Spieldatei, um das darin gestartete Spiel zu erkennen. Beim
+  Emulator geöffnete Spieldatei, um das darin gestartete Spiel zu erkennen. Bei
+  melonDS liest sie dazu den ersten Eintrag der Liste zuletzt geladener Spiele
+  aus dessen Einstellungsdatei <code>melonDS.toml</code>. Beim
   Online-Abgleich können daraus abgeleitete Spielkennungen, Dateinamen oder
   Titel an die API übertragen werden. Diese Abfragen sind keine Übermittlung
   deines Sitzungsverlaufs. Vollständige Kommandozeilen werden nicht als Teil
@@ -501,9 +503,11 @@
   </p>
   <h3>Emulator detection</h3>
   <p>
-    For supported emulators (currently DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx and Eden), the app also
+    For supported emulators (currently DOSBox, Dolphin, PCSX2, mGBA, Cemu, RPCS3, PPSSPP, DuckStation, Ryujinx, Eden, Azahar, melonDS and Xenia), the app also
     reads local process information such as command lines, window titles and the
     game file the emulator has open to identify the game inside the emulator.
+    For melonDS, it also reads the first entry of the recently loaded games list
+    from melonDS's settings file <code>melonDS.toml</code>.
     Online matching can send extracted game identifiers, filenames or titles to
     the API. These lookups do not transmit your session history. Full command
     lines are not uploaded as part of these automatic matching requests.

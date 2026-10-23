@@ -40,7 +40,8 @@ before the deployment action runs.
   clearance. The September update adds Steam and emulator disclosures; the 1.2.0
   update adds the Battle.net import, PCSX2 and the self-hosted heading font;
   the next one adds the Epic Games import and mGBA; the one after adds Cemu,
-  RPCS3, PPSSPP, DuckStation, Ryujinx and Eden.
+  RPCS3, PPSSPP, DuckStation, Ryujinx and Eden; the next adds Azahar, melonDS
+  (which also reads its recent-games list from `melonDS.toml`) and Xenia.
 
 `site.reviewed` is the explicit date of the full September 2026 content review;
 it is not the build date. Do not bump it on every build or ordinary release.
