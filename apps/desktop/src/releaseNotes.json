@@ -1,5 +1,88 @@
 [
   {
+    "version": "1.4.3",
+    "headline": "Rate your games, fine-tune your history and count playtime beyond your PC.",
+    "highlights": [
+      "Feature: Give your games a personal tier rating from S to F. Show your ratings on cards, sort and filter by tier, or save a filter as a shelf that stays up to date. Try it with sample games in the new Rate your games guide.",
+      "Feature: Playing on a console or away from this PC? Right-click a game in My Games and choose Playtime → Start timer. Stop it from the same menu or Now Playing to save a manual session. It keeps counting until you stop it, even across app restarts.",
+      "Feature: Edit, split and combine saved sessions in My History. Correct the start, end or length, split a session into two and remove a break, or combine two sessions of the same game. Combining includes the time between them; the preview shows the result before you save.",
+      "Feature: Track games in three more emulators: Azahar (Nintendo 3DS), melonDS (Nintendo DS) and Xenia (Xbox 360). Each game gets its own playtime.",
+      "Improvement: Session editing has scrollable time controls, a clear split preview and explanations when a time can't move further. Set any two of start, end and length, and the third fills in for you."
+    ],
+    "translations": {
+      "de": {
+        "headline": "Bewerte deine Spiele, passe deinen Verlauf an und zähle Spielzeit auch abseits deines PCs.",
+        "highlights": [
+          "Neu: Gib deinen Spielen ein persönliches Tier-Rating von S bis F. Zeige deine Bewertungen auf den Kacheln, sortiere und filtere nach Tier oder speichere einen Filter als Regal, das sich automatisch aktuell hält. Probier es im neuen Rundgang „Bewerte deine Spiele“ mit Beispielspielen aus.",
+          "Neu: Spielst du auf einer Konsole oder abseits dieses PCs? Klick in „Meine Spiele“ mit rechts auf ein Spiel und wähle „Spielzeit“ → „Timer starten“. Stoppe ihn im selben Menü oder unter „Läuft gerade“, um eine manuelle Sitzung zu speichern. Er zählt weiter, bis du ihn stoppst, auch nach einem App-Neustart.",
+          "Neu: Bearbeite, teile und verbinde gespeicherte Sitzungen in „Mein Verlauf“. Korrigiere Start, Ende oder Dauer, teile eine Sitzung in zwei und entferne eine Pause oder verbinde zwei Sitzungen desselben Spiels. Beim Verbinden zählt die Zeit dazwischen mit; die Vorschau zeigt dir das Ergebnis vor dem Speichern.",
+          "Neu: Erfasse Spiele in drei weiteren Emulatoren: Azahar (Nintendo 3DS), melonDS (Nintendo DS) und Xenia (Xbox 360). Jedes Spiel bekommt seine eigene Spielzeit.",
+          "Verbessert: Beim Bearbeiten von Sitzungen gibt es scrollbare Zeitregler, eine klare Vorschau beim Teilen und Erklärungen, wenn sich eine Zeit nicht weiter verschieben lässt. Leg zwei Werte aus Start, Ende und Dauer fest, der dritte wird automatisch ergänzt."
+        ]
+      },
+      "es": {
+        "headline": "Valora tus juegos, ajusta tu historial y cuenta el tiempo de juego más allá de tu PC.",
+        "highlights": [
+          "Novedad: Asigna a tus juegos un tier personal de S a F. Muestra tus valoraciones en las tarjetas, ordena y filtra por tier o guarda un filtro como estante que se mantiene actualizado. Pruébalo con juegos de ejemplo en la nueva guía para valorar tus juegos.",
+          "Novedad: ¿Juegas en una consola o fuera de este PC? Haz clic derecho en un juego de Mis juegos y elige “Tiempo de juego” → “Iniciar cronómetro”. Detenlo desde el mismo menú o Jugando ahora para guardar una sesión manual. Sigue contando hasta que lo detengas, incluso si reinicias la app.",
+          "Novedad: Edita, divide y combina sesiones guardadas en Mi historial. Corrige el inicio, el final o la duración, divide una sesión en dos y elimina un descanso, o combina dos sesiones del mismo juego. Al combinar, se incluye el tiempo entre ambas; la vista previa muestra el resultado antes de guardar.",
+          "Novedad: Registra juegos en tres emuladores más: Azahar (Nintendo 3DS), melonDS (Nintendo DS) y Xenia (Xbox 360). Cada juego tiene su propio tiempo de juego.",
+          "Mejora: La edición de sesiones tiene controles de tiempo desplazables, una vista previa clara al dividir y explicaciones cuando una hora no se puede mover más. Fija dos valores entre inicio, final y duración, y el tercero se completa automáticamente."
+        ]
+      },
+      "fr": {
+        "headline": "Notez vos jeux, ajustez votre historique et comptez votre temps de jeu au-delà du PC.",
+        "highlights": [
+          "Nouveauté : attribuez à vos jeux un tier personnel de S à F. Affichez vos notes sur les vignettes, triez et filtrez par tier, ou enregistrez un filtre comme étagère qui reste à jour. Essayez avec des jeux d'exemple dans le nouveau guide pour noter vos jeux.",
+          "Nouveauté : vous jouez sur console ou ailleurs que sur ce PC ? Faites un clic droit sur un jeu dans Mes jeux et choisissez « Temps de jeu » → « Démarrer le chronomètre ». Arrêtez-le depuis le même menu ou En jeu pour enregistrer une session manuelle. Il continue de compter jusqu'à ce que vous l'arrêtiez, même après un redémarrage de l'application.",
+          "Nouveauté : modifiez, scindez et combinez des sessions enregistrées dans Mon historique. Corrigez le début, la fin ou la durée, divisez une session en deux en retirant une pause, ou combinez deux sessions du même jeu. Le temps entre les deux est inclus lors de la combinaison ; l'aperçu montre le résultat avant l'enregistrement.",
+          "Nouveauté : suivez vos jeux dans trois émulateurs supplémentaires : Azahar (Nintendo 3DS), melonDS (Nintendo DS) et Xenia (Xbox 360). Chaque jeu a son propre temps de jeu.",
+          "Amélioration : l'édition des sessions propose des sélecteurs de temps à faire défiler, un aperçu clair de la division et des explications lorsqu'une heure ne peut plus être déplacée. Fixez deux valeurs parmi le début, la fin et la durée : la troisième se remplit automatiquement."
+        ]
+      },
+      "pl": {
+        "headline": "Oceniaj gry, poprawiaj historię i licz czas gry także poza swoim PC.",
+        "highlights": [
+          "Nowość: przypisz swoim grom własny tier od S do F. Pokazuj oceny na kafelkach, sortuj i filtruj według tieru lub zapisz filtr jako półkę, która aktualizuje się automatycznie. Wypróbuj to na przykładowych grach w nowym przewodniku po ocenianiu gier.",
+          "Nowość: grasz na konsoli lub poza tym PC? Kliknij prawym przyciskiem grę w Moje gry i wybierz „Czas gry” → „Uruchom stoper”. Zatrzymaj go w tym samym menu lub w Teraz grasz, aby zapisać ręczną sesję. Liczy czas aż do zatrzymania, nawet po ponownym uruchomieniu aplikacji.",
+          "Nowość: edytuj, dziel i łącz zapisane sesje w Moja historia. Popraw początek, koniec lub długość, podziel sesję na dwie i usuń przerwę albo połącz dwie sesje tej samej gry. Łączenie wlicza czas między nimi; podgląd pokazuje wynik przed zapisaniem.",
+          "Nowość: śledź gry w trzech kolejnych emulatorach: Azahar (Nintendo 3DS), melonDS (Nintendo DS) i Xenia (Xbox 360). Każda gra ma osobny czas gry.",
+          "Ulepszenie: edycja sesji ma przewijane pola czasu, czytelny podgląd podziału i wyjaśnienia, gdy nie można dalej przesunąć czasu. Ustaw dwie wartości spośród początku, końca i długości, a trzecia uzupełni się automatycznie."
+        ]
+      },
+      "pt-BR": {
+        "headline": "Avalie seus jogos, ajuste seu histórico e conte o tempo de jogo além do PC.",
+        "highlights": [
+          "Novidade: dê aos seus jogos um tier pessoal de S a F. Mostre suas avaliações nos cartões, ordene e filtre por tier ou salve um filtro como prateleira que se mantém atualizada. Experimente com jogos de exemplo no novo guia para avaliar seus jogos.",
+          "Novidade: vai jogar em um console ou fora deste PC? Clique com o botão direito em um jogo de Meus jogos e escolha “Tempo de jogo” → “Iniciar cronômetro”. Pare pelo mesmo menu ou em Jogando agora para salvar uma sessão manual. Ele continua contando até você parar, mesmo após reiniciar o app.",
+          "Novidade: edite, divida e combine sessões salvas em Meu histórico. Corrija o início, o fim ou a duração, divida uma sessão em duas e remova uma pausa, ou combine duas sessões do mesmo jogo. A combinação inclui o tempo entre elas; a prévia mostra o resultado antes de salvar.",
+          "Novidade: acompanhe jogos em mais três emuladores: Azahar (Nintendo 3DS), melonDS (Nintendo DS) e Xenia (Xbox 360). Cada jogo tem seu próprio tempo de jogo.",
+          "Melhoria: a edição de sessões tem controles de tempo roláveis, uma prévia clara da divisão e explicações quando não dá para mover um horário além do limite. Defina dois valores entre início, fim e duração, e o terceiro é preenchido automaticamente."
+        ]
+      },
+      "ru": {
+        "headline": "Оценивайте игры, редактируйте историю и учитывайте время в игре за пределами ПК.",
+        "highlights": [
+          "Новое: присваивайте играм свой тир от S до F. Показывайте оценки на карточках, сортируйте и фильтруйте по тиру или сохраните фильтр как полку, которая обновляется автоматически. Попробуйте на примерах игр в новом руководстве по оценке игр.",
+          "Новое: играете на консоли или не за этим ПК? Нажмите правой кнопкой на игру в «Мои игры» и выберите «Время в игре» → «Запустить таймер». Остановите его в том же меню или в «Сейчас в игре», чтобы сохранить ручную сессию. Он считает время до остановки, даже после перезапуска приложения.",
+          "Новое: редактируйте, разделяйте и объединяйте сохранённые сессии в «Моя история». Исправляйте начало, конец или длительность, делите сессию на две с удалением перерыва или объединяйте две сессии одной игры. При объединении время между ними учитывается; результат виден до сохранения.",
+          "Новое: учитывайте игры ещё в трёх эмуляторах: Azahar (Nintendo 3DS), melonDS (Nintendo DS) и Xenia (Xbox 360). У каждой игры своё время в игре.",
+          "Улучшение: при редактировании сессий доступны прокручиваемые поля времени, наглядный просмотр разделения и объяснения, когда время нельзя сдвинуть дальше. Задайте любые два значения из начала, конца и длительности — третье заполнится автоматически."
+        ]
+      },
+      "zh-CN": {
+        "headline": "为游戏评级，调整游玩历史，也记录电脑之外的游戏时长。",
+        "highlights": [
+          "新功能：为游戏设置从 S 到 F 的个人评级。在卡片上显示评级，按评级排序和筛选，或将筛选条件保存为自动更新的分类架。在新的游戏评级指南中，你可以用示例游戏练习。",
+          "新功能：在主机或这台电脑之外游玩？在“我的游戏”中右键点击游戏，选择“游戏时长”→“开始计时”。从同一菜单或“正在游玩”停止计时，即可保存一条手动游玩记录。计时会一直持续到你主动停止，即使重启应用也会继续。",
+          "新功能：在“我的历史”中编辑、拆分和合并已保存的游玩记录。修正开始时间、结束时间或时长，将一条记录拆成两条并去掉休息时间，或合并同一游戏的两条记录。合并会计入两条记录之间的时间，保存前可预览结果。",
+          "新功能：新增对三款模拟器的支持：Azahar（Nintendo 3DS）、melonDS（Nintendo DS）和 Xenia（Xbox 360）。每款游戏分别记录时长。",
+          "改进：编辑游玩记录时，可以滚动调整时间、清楚预览拆分结果，并在时间无法继续调整时看到原因。开始时间、结束时间和时长任选两项设置，第三项会自动计算。"
+        ]
+      }
+    }
+  },
+  {
     "version": "1.4.2",
     "headline": "Hotfix: imported games now show their full playtime.",
     "highlights": [
