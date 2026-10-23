@@ -461,6 +461,7 @@ const validateBackupShape: Validator = object(
                 "unimported",
               ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),
+              tier: oneOf(...GAME_TIERS, "none"),
               favorite: boolean,
               installed: boolean,
               played: oneOf("played", "unplayed"),

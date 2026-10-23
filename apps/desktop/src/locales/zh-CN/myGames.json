@@ -437,6 +437,7 @@
   "Tier": "评级",
   "Tiers on cards": "在卡片上显示评级",
   "Your tier, S to F, on every game you rated.": "在你评过级的每个游戏上显示你的评级（S 到 F）。",
+  "No tier": "未评级",
   "Tracking warnings": "记录警告",
   "The warning sign on games with no known .exe yet.": "在尚无已知 .exe 的游戏上显示警告标志。",
   "Steam library": "Steam 游戏库",

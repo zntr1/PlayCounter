@@ -797,6 +797,47 @@ describe("saved library filters", () => {
       ),
     ).toThrow("status");
   });
+  it("filters by one tier or by no tier, and keeps the rule in saved shelves and backups", () => {
+    const journal = emptyJournal(game);
+    const rated = { ...journal, tier: "S" as const };
+    expect(matchesLibraryFilters(candidate, rated, { tier: "S" })).toBe(true);
+    expect(matchesLibraryFilters(candidate, rated, { tier: "A" })).toBe(false);
+    expect(matchesLibraryFilters(candidate, journal, { tier: "S" })).toBe(
+      false,
+    );
+    expect(matchesLibraryFilters(candidate, journal, { tier: "none" })).toBe(
+      true,
+    );
+    expect(matchesLibraryFilters(candidate, rated, { tier: "none" })).toBe(
+      false,
+    );
+    expect(normalizeLibraryFilters({ tier: "S" })).toEqual({ tier: "S" });
+    useAppStore.getState().savePersonalShelf({
+      name: "S tier",
+      filters: { tier: "S" },
+    });
+    const data = createTransferData(
+      createPersistedPayload(useAppStore.getState()),
+    );
+    expect(data.personalShelves).toEqual([
+      expect.objectContaining({ filters: { tier: "S" } }),
+    ]);
+    expect(() => validateBackupData(data, "data")).not.toThrow();
+    expect(() =>
+      validateBackupData(
+        {
+          ...data,
+          personalShelves: [
+            {
+              ...useAppStore.getState().personalShelves[0],
+              filters: { tier: "E" },
+            },
+          ],
+        },
+        "data",
+      ),
+    ).toThrow("tier");
+  });
   it("filters launchable games by the Play check, not by launcher imports", () => {
     const journal = emptyJournal(game);
     const importedOnly = { ...candidate, launchable: false };

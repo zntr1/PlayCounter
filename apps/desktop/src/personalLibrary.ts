@@ -63,6 +63,7 @@ export type LibraryFilters = {
   search?: string;
   source?: "all" | "steam" | "xbox" | "battlenet" | "epic" | "unimported";
   status?: GameStatus | "none";
+  tier?: GameTier | "none";
   favorite?: boolean;
   /** Launchable (Play can start it). Keeps its old saved name for shelves and backups. */
   installed?: boolean;
@@ -89,6 +90,7 @@ export function normalizeLibraryFilters(
   if (filters.source && filters.source !== "all")
     normalized.source = filters.source;
   if (filters.status) normalized.status = filters.status;
+  if (filters.tier) normalized.tier = filters.tier;
   if (filters.favorite) normalized.favorite = true;
   if (filters.installed !== undefined) normalized.installed = filters.installed;
   if (filters.played) normalized.played = filters.played;
@@ -459,6 +461,11 @@ export function matchesLibraryFilters(
   if (
     filters.status &&
     journal.status !== (filters.status === "none" ? null : filters.status)
+  )
+    return false;
+  if (
+    filters.tier &&
+    journal.tier !== (filters.tier === "none" ? undefined : filters.tier)
   )
     return false;
   if (filters.favorite && !journal.favorite) return false;

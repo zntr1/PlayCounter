@@ -24,6 +24,7 @@ import {
   useState,
 } from "react";
 import {
+  GAME_TIERS,
   gameStatusLabel,
   NAME_LIMIT,
   matchesLibraryFilters,
@@ -489,6 +490,41 @@ export function LibraryOrganizationToolbar({
               </Pill>
             ))}
           </FilterGroup>
+          {practice ? null : (
+            <FilterGroup label={t("Tier")}>
+              <Pill
+                selected={!filters.tier}
+                onClick={() => setFilter("tier", undefined)}
+              >
+                {t("Any")}
+              </Pill>
+              {GAME_TIERS.map((value) => (
+                <Pill
+                  key={value}
+                  selected={filters.tier === value}
+                  onClick={() =>
+                    setFilter(
+                      "tier",
+                      filters.tier === value ? undefined : value,
+                    )
+                  }
+                >
+                  {value}
+                </Pill>
+              ))}
+              <Pill
+                selected={filters.tier === "none"}
+                onClick={() =>
+                  setFilter(
+                    "tier",
+                    filters.tier === "none" ? undefined : "none",
+                  )
+                }
+              >
+                {t("No tier")}
+              </Pill>
+            </FilterGroup>
+          )}
           <FilterGroup label={t("Playtime")}>
             <Pill
               selected={!filters.played}
