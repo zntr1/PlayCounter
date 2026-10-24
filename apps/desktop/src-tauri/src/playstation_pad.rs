@@ -5,7 +5,7 @@
 
 use crate::controller::{
     ControllerKind, BUTTON_A, BUTTON_B, BUTTON_DPAD_DOWN, BUTTON_DPAD_LEFT, BUTTON_DPAD_RIGHT,
-    BUTTON_DPAD_UP, BUTTON_RIGHT_SHOULDER, BUTTON_VIEW,
+    BUTTON_DPAD_UP, BUTTON_MENU, BUTTON_RIGHT_SHOULDER, BUTTON_VIEW,
 };
 
 pub const SONY_VENDOR_ID: u16 = 0x054c;
@@ -51,6 +51,7 @@ const CROSS: u8 = 0x20;
 const CIRCLE: u8 = 0x40;
 const R1: u8 = 0x02;
 const CREATE_OR_SHARE: u8 = 0x10;
+const OPTIONS: u8 = 0x20;
 const ADAPTER_STATUS_BYTE: usize = 31;
 const ADAPTER_PAD_DISCONNECTED: u8 = 0x04;
 
@@ -103,6 +104,9 @@ pub fn parse_report(model: PadModel, data: &[u8]) -> Option<PadState> {
     }
     if buttons1 & CREATE_OR_SHARE != 0 {
         buttons |= BUTTON_VIEW;
+    }
+    if buttons1 & OPTIONS != 0 {
+        buttons |= BUTTON_MENU;
     }
 
     Some(PadState {
@@ -373,6 +377,20 @@ mod tests {
         assert_eq!(
             parse_report(PadModel::DualShock4, &data).map(|state| state.buttons),
             Some(BUTTON_B | BUTTON_VIEW)
+        );
+    }
+
+    #[test]
+    fn maps_options_to_menu() {
+        let data = report(0x31, 78, 2, 9, [HAT_RELEASED, OPTIONS]);
+        assert_eq!(
+            parse_report(PadModel::DualSense, &data).map(|state| state.buttons),
+            Some(BUTTON_MENU)
+        );
+        let data = report(0x01, 64, 1, 5, [HAT_RELEASED, OPTIONS]);
+        assert_eq!(
+            parse_report(PadModel::DualShock4, &data).map(|state| state.buttons),
+            Some(BUTTON_MENU)
         );
     }
 

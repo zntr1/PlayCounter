@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { toggleFullscreen } from "./fullscreen";
 import { currentPlatform } from "./platform";
 import { useAppStore } from "./store";
 import {
@@ -364,6 +365,12 @@ function handleControllerEvent(
     return;
   setControllerKind(event.kind ?? "xbox");
   emitControllerMode(true);
+  if (event.action === "toggleFullscreen") {
+    void toggleFullscreen().catch((error) =>
+      console.warn("fullscreen toggle failed", error),
+    );
+    return;
+  }
   if (useAppStore.getState().activeTour) return;
   if (event.action === "scrollUp" || event.action === "scrollDown") {
     scrollCurrentView(event.action);

@@ -1,11 +1,13 @@
-import { Copy, Minus, Square, X } from "lucide-react";
+import { Copy, Maximize, Minimize, Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toggleFullscreen, useFullscreen } from "../../fullscreen";
 import { getT } from "../../i18n";
 
 const t = getT("shell");
 
 /* The window has no native frame (tauri.conf.json: decorations false), so
-   these three buttons stand in for it. They only exist inside Tauri: in the
+   these buttons stand in for it, plus one for fullscreen. In fullscreen the
+   maximize button goes: maximizing would bring back the taskbar gap. They only exist inside Tauri: in the
    browser dev server and in tests there is no window to control, and the row
    renders nothing rather than three dead buttons. Close goes through the
    normal close request, which the Rust side turns into hide-to-tray. */
@@ -30,6 +32,7 @@ async function currentWindow(): Promise<TauriWindow> {
 export function WindowControls() {
   const [available] = useState(insideTauri);
   const [maximized, setMaximized] = useState(false);
+  const fullscreen = useFullscreen();
 
   useEffect(() => {
     if (!available) return;
@@ -66,6 +69,23 @@ export function WindowControls() {
     <div className="window-controls flex h-full shrink-0 items-stretch">
       <button
         type="button"
+        aria-label={fullscreen ? t("Exit fullscreen") : t("Enter fullscreen")}
+        title={fullscreen ? t("Exit fullscreen (F11)") : t("Fullscreen (F11)")}
+        onClick={() =>
+          void toggleFullscreen().catch((error) =>
+            console.warn("window control failed", error),
+          )
+        }
+        className="window-control"
+      >
+        {fullscreen ? (
+          <Minimize size={16} strokeWidth={2} />
+        ) : (
+          <Maximize size={16} strokeWidth={2} />
+        )}
+      </button>
+      <button
+        type="button"
         aria-label={t("Minimize window")}
         title={t("Minimize")}
         onClick={run((win) => win.minimize())}
@@ -73,19 +93,21 @@ export function WindowControls() {
       >
         <Minus size={18} strokeWidth={2} />
       </button>
-      <button
-        type="button"
-        aria-label={maximized ? t("Restore window") : t("Maximize window")}
-        title={maximized ? t("Restore") : t("Maximize")}
-        onClick={run((win) => win.toggleMaximize())}
-        className="window-control"
-      >
-        {maximized ? (
-          <Copy size={15} strokeWidth={2} className="-scale-x-100" />
-        ) : (
-          <Square size={14} strokeWidth={2} />
-        )}
-      </button>
+      {fullscreen ? null : (
+        <button
+          type="button"
+          aria-label={maximized ? t("Restore window") : t("Maximize window")}
+          title={maximized ? t("Restore") : t("Maximize")}
+          onClick={run((win) => win.toggleMaximize())}
+          className="window-control"
+        >
+          {maximized ? (
+            <Copy size={15} strokeWidth={2} className="-scale-x-100" />
+          ) : (
+            <Square size={14} strokeWidth={2} />
+          )}
+        </button>
+      )}
       <button
         type="button"
         aria-label={t("Close window")}

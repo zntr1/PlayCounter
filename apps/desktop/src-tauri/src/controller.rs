@@ -24,6 +24,7 @@ pub(crate) const BUTTON_DPAD_UP: u16 = 0x0001;
 pub(crate) const BUTTON_DPAD_DOWN: u16 = 0x0002;
 pub(crate) const BUTTON_DPAD_LEFT: u16 = 0x0004;
 pub(crate) const BUTTON_DPAD_RIGHT: u16 = 0x0008;
+pub(crate) const BUTTON_MENU: u16 = 0x0010;
 pub(crate) const BUTTON_VIEW: u16 = 0x0020;
 pub(crate) const BUTTON_RIGHT_SHOULDER: u16 = 0x0200;
 pub(crate) const BUTTON_A: u16 = 0x1000;
@@ -42,6 +43,7 @@ pub enum ControllerAction {
     ScrollDown,
     Confirm,
     Back,
+    ToggleFullscreen,
 }
 
 // Which button art the UI shows. A PlayStation pad that reaches us through
@@ -144,6 +146,9 @@ impl ControllerMachine {
         }
         if pressed & BUTTON_B != 0 {
             actions.push(ControllerAction::Back);
+        }
+        if pressed & BUTTON_MENU != 0 {
+            actions.push(ControllerAction::ToggleFullscreen);
         }
 
         let dpad_direction = if buttons & BUTTON_DPAD_UP != 0 {
@@ -383,6 +388,21 @@ mod tests {
         assert_eq!(
             machine.update(BUTTON_B, (0, 0), 0, 300),
             vec![ControllerAction::Back]
+        );
+    }
+
+    #[test]
+    fn menu_toggles_fullscreen_once_per_press() {
+        let mut machine = ControllerMachine::default();
+        assert_eq!(
+            machine.update(BUTTON_MENU, (0, 0), 0, 0),
+            vec![ControllerAction::ToggleFullscreen]
+        );
+        assert!(machine.update(BUTTON_MENU, (0, 0), 0, 1_000).is_empty());
+        machine.update(0, (0, 0), 0, 1_100);
+        assert_eq!(
+            machine.update(BUTTON_MENU, (0, 0), 0, 1_200),
+            vec![ControllerAction::ToggleFullscreen]
         );
     }
 

@@ -81,6 +81,7 @@ import {
   DEFAULT_MENU_SCALE,
   normalizeInterfaceScale,
 } from "../interfaceScale";
+import { toggleFullscreen, useWindowDragRegion } from "../fullscreen";
 import {
   ControllerButtonGlyph,
   controllerButtonName,
@@ -391,6 +392,7 @@ export function App() {
   const activeView = useAppStore((state) => state.activeView);
   const language = useAppStore((state) => state.settings.language);
   const parkedInTray = useParkedInTray();
+  const dragRegion = useWindowDragRegion();
   // My Games and Now Playing carry their own hero; My History too, built
   // from the play history itself, so the pinned-game banner stays off there.
   const viewBannerEnabled = useAppStore(
@@ -628,6 +630,25 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const handleFullscreenKey = (event: KeyboardEvent) => {
+      if (
+        event.key !== "F11" ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey
+      )
+        return;
+      event.preventDefault();
+      void toggleFullscreen().catch((error) =>
+        console.warn("fullscreen toggle failed", error),
+      );
+    };
+    window.addEventListener("keydown", handleFullscreenKey);
+    return () => window.removeEventListener("keydown", handleFullscreenKey);
+  }, []);
+
+  useEffect(() => {
     const handleControllerMode = (event: Event) => {
       const detail = (event as CustomEvent<{ active?: boolean }>).detail;
       const active = detail?.active === true;
@@ -850,7 +871,7 @@ export function App() {
         )}
       >
         <div
-          data-tauri-drag-region
+          data-tauri-drag-region={dragRegion}
           className={clsx(
             "flex h-[72px] shrink-0 items-center",
             sidebarCollapsed ? "justify-center px-2" : "gap-2 px-4",
@@ -881,14 +902,14 @@ export function App() {
           ) : (
             <>
               <img
-                data-tauri-drag-region
+                data-tauri-drag-region={dragRegion}
                 src="/brand/playcounter-mark.svg"
                 alt=""
                 draggable={false}
                 className="h-11 w-11 shrink-0 object-contain"
               />
               <span
-                data-tauri-drag-region
+                data-tauri-drag-region={dragRegion}
                 className="min-w-0 flex-1 animate-label-in leading-none motion-reduce:animate-none"
               >
                 <PlayCounterWordmark
@@ -1107,7 +1128,7 @@ export function App() {
         <header
           ref={titleBarRef}
           data-tour="header"
-          data-tauri-drag-region
+          data-tauri-drag-region={dragRegion}
           style={{ zoom: menuScale }}
           className={clsx(
             // z-30 lifts help and notification popovers above the content;
@@ -1154,7 +1175,7 @@ export function App() {
             </div>
           ) : null}
           <div
-            data-tauri-drag-region
+            data-tauri-drag-region={dragRegion}
             className="flex min-w-0 flex-1 items-center justify-center px-4"
           >
             <GlobalSearch />
@@ -1488,6 +1509,7 @@ function ControllerModeFooter() {
         <ControllerHint button="B" label={t("Back")} />
         <ControllerHint button="RIGHT_STICK" label={t("Scroll")} />
         <ControllerHint button="VIEW" label={t("Card size")} />
+        <ControllerHint button="MENU" label={t("Fullscreen")} />
         <div
           className="flex min-w-0 items-center gap-1.5"
           aria-label={t(

@@ -18,6 +18,7 @@ import {
   DEFAULT_MENU_SCALE,
   normalizeInterfaceScale,
 } from "../../interfaceScale";
+import { useWindowDragRegion } from "../../fullscreen";
 import { currentPlatform } from "../../platform";
 import { useAppStore } from "../../store";
 import { Button, IconButton, Switch } from "../primitives";
@@ -428,6 +429,7 @@ function ModalFrame({
   children: ReactNode;
   onEscape: () => void;
 }) {
+  const dragRegion = useWindowDragRegion();
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") onEscape();
@@ -438,7 +440,7 @@ function ModalFrame({
   return (
     <div
       // The backdrop covers the title bar, so it must also allow window dragging.
-      data-tauri-drag-region
+      data-tauri-drag-region={dragRegion}
       className="fixed inset-0 z-[70] grid place-items-center bg-black/65 p-4"
       role="dialog"
       aria-modal="true"
