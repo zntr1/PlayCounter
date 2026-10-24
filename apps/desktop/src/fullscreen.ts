@@ -34,80 +34,61 @@ async function currentWindow() {
   return getCurrentWindow();
 }
 
-// The window as it was before fullscreen, in physical pixels.
-type WindowBounds = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+// The window's normal bounds (Windows workspace coordinates) and whether it
+// was maximized, from before fullscreen. Rust reads and applies it.
+type WindowPlacement = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
   maximized: boolean;
 };
 
-const BOUNDS_KEY = "playcounter:window-before-fullscreen";
+const PLACEMENT_KEY = "playcounter:window-placement-before-fullscreen";
 
-function readBounds(): WindowBounds | null {
+function isPlacement(value: unknown): value is WindowPlacement {
+  if (typeof value !== "object" || value === null) return false;
+  const placement = value as Record<string, unknown>;
+  return (
+    ["left", "top", "right", "bottom"].every((key) =>
+      Number.isInteger(placement[key]),
+    ) && typeof placement.maximized === "boolean"
+  );
+}
+
+function readPlacement(): WindowPlacement | null {
   try {
-    const raw = localStorage.getItem(BOUNDS_KEY);
-    return raw ? (JSON.parse(raw) as WindowBounds) : null;
+    const value: unknown = JSON.parse(
+      localStorage.getItem(PLACEMENT_KEY) ?? "null",
+    );
+    return isPlacement(value) ? value : null;
   } catch {
     return null;
   }
 }
 
-function writeBounds(bounds: WindowBounds) {
+function writePlacement(placement: WindowPlacement) {
   try {
-    localStorage.setItem(BOUNDS_KEY, JSON.stringify(bounds));
+    localStorage.setItem(PLACEMENT_KEY, JSON.stringify(placement));
   } catch {
     // Without it, leaving fullscreen after a restart keeps the screen size.
   }
 }
 
+// Within one run the window returns to where it was. After a restart in
+// fullscreen it would return screen-sized: the window-state plugin saved the
+// fullscreen bounds as the window size, so the stored placement replaces them.
 export async function toggleFullscreen() {
   if (!insideTauri()) return;
-  const { availableMonitors, PhysicalPosition, PhysicalSize } = await import(
-    "@tauri-apps/api/window"
-  );
+  const { invoke } = await import("@tauri-apps/api/core");
   const win = await currentWindow();
-  if (!(await win.isFullscreen())) {
-    // tao keeps a maximized borderless window clear of the taskbar, also in
-    // fullscreen, so the window leaves maximized first.
-    const maximized = await win.isMaximized();
-    if (maximized) await win.unmaximize();
-    const position = await win.outerPosition();
-    const size = await win.innerSize();
-    writeBounds({
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
-      maximized,
-    });
-    await win.setFullscreen(true);
-    setFullscreenState(true);
-    return;
-  }
-  await win.setFullscreen(false);
-  // Within one run the window comes back as it was. After a restart in
-  // fullscreen it comes back screen-sized: the window-state plugin saved the
-  // fullscreen bounds as the window size, so the stored bounds replace them.
-  const bounds = readBounds();
-  if (bounds) {
-    const centerX = bounds.x + bounds.width / 2;
-    const centerY = bounds.y + bounds.height / 2;
-    const onScreen = (await availableMonitors()).some(
-      (monitor) =>
-        centerX >= monitor.position.x &&
-        centerX < monitor.position.x + monitor.size.width &&
-        centerY >= monitor.position.y &&
-        centerY < monitor.position.y + monitor.size.height,
-    );
-    if (onScreen) {
-      await win.setPosition(new PhysicalPosition(bounds.x, bounds.y));
-      await win.setSize(new PhysicalSize(bounds.width, bounds.height));
-    }
-    if (bounds.maximized) await win.maximize();
-  }
-  setFullscreenState(false);
+  const fullscreen = !(await win.isFullscreen());
+  const placement = await invoke<WindowPlacement | null>(
+    "set_main_fullscreen",
+    { fullscreen, restore: fullscreen ? null : readPlacement() },
+  );
+  if (placement) writePlacement(placement);
+  setFullscreenState(fullscreen);
 }
 
 // The restored fullscreen arrives while the window is still hidden, so the

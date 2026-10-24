@@ -20,6 +20,7 @@ mod automatic_backups;
 mod controller;
 mod emulator_launch;
 mod exe_details;
+mod fullscreen;
 mod hotkeys;
 mod ignored_processes;
 mod launch;
@@ -516,6 +517,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             main_window_ready,
             main_window_parked,
+            fullscreen::set_main_fullscreen,
             hotkeys::set_global_hotkey,
             install_uuid,
             adopt_install_uuid,
