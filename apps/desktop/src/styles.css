@@ -360,6 +360,24 @@
   display: inline-flex;
 }
 
+/* A running card's Close button shows ■, or the X / Square glyph on the
+   selected card while a controller drives the app. */
+.close-key-hint {
+  display: none;
+}
+
+:root[data-controller-mode="true"]
+  .game-library-card[data-controller-selected="true"]
+  .close-key-hint {
+  display: inline-flex;
+}
+
+:root[data-controller-mode="true"]
+  .game-library-card[data-controller-selected="true"]
+  .close-key-icon {
+  display: none;
+}
+
 .controller-scroll-focus-indicator {
   opacity: 0;
   transform: translateY(-4px);

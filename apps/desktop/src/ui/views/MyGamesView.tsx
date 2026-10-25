@@ -292,6 +292,8 @@ import {
 import { CommunityLevelUpButton } from "../CommunityLevelUpButton";
 import { LaunchKeyHint } from "./games/LaunchKeyHint";
 import { controllerButtonName } from "../ControllerButtonGlyph";
+import { CloseGameDialog } from "./games/CloseGameDialog";
+import { CloseKeyHint } from "./games/CloseKeyHint";
 import { useControllerKind } from "../../controllerKind";
 import {
   findManualLaunchTarget,
@@ -3238,6 +3240,11 @@ export function GameLibraryCard({
   );
   const [renameName, setRenameName] = useState("");
   const [launching, setLaunching] = useState(false);
+  // Close game, or "Close A and start B?" when `start` is set.
+  const [closeRequest, setCloseRequest] = useState<{
+    sessions: ActiveSession[];
+    start?: () => void;
+  } | null>(null);
 
   const closeDemoDialogs = () => {
     setDemoAction(null);
@@ -3307,6 +3314,20 @@ export function GameLibraryCard({
             (session.source ?? null) === alias.source,
         ),
     ),
+  );
+  // The game runs on this PC (not a timer), so it can be closed. Only the
+  // id: a checkpoint of the running session must not re-render the card.
+  const runningSessionId = useAppStore(
+    (state) =>
+      state.activeSessions.find(
+        (session) =>
+          !session.timer &&
+          game.aliases.some(
+            (alias) =>
+              session.gameId === alias.gameId &&
+              (session.source ?? null) === alias.source,
+          ),
+      )?.id,
   );
   useEffect(() => {
     if (!launching || !launchTourDemo) return;
@@ -3555,6 +3576,25 @@ export function GameLibraryCard({
           : basePlayState;
   const playButtonRunning = !launching && hasActiveSession;
   const controllerNavigable = !demo && !selectionMode && canLaunchExecutables;
+  const closableSessionId =
+    showPlayButton && playButtonRunning && controllerNavigable
+      ? runningSessionId
+      : undefined;
+  const canCloseGame = closableSessionId !== undefined;
+  const handleCloseGame = () => {
+    const session = useAppStore
+      .getState()
+      .activeSessions.find((active) => active.id === closableSessionId);
+    if (session) setCloseRequest({ sessions: [session] });
+  };
+  const closeGameDialog = closeRequest ? (
+    <CloseGameDialog
+      sessions={closeRequest.sessions}
+      nextGameName={closeRequest.start ? game.name : undefined}
+      onStart={closeRequest.start}
+      onClose={() => setCloseRequest(null)}
+    />
+  ) : null;
   const canEditCover = game.source === "custom";
   const shownCover = useCoverUrl(
     { ...game, gameName: game.name },
@@ -4461,7 +4501,29 @@ export function GameLibraryCard({
     });
   }
 
-  async function handleLaunch(target = primaryLaunchTarget) {
+  /** Play while another game runs asks "Close A and start B?" first. */
+  function askToCloseOtherGames(start: () => void) {
+    if (demo) return false;
+    const others = useAppStore
+      .getState()
+      .activeSessions.filter(
+        (session) =>
+          !session.timer &&
+          !game.aliases.some(
+            (alias) =>
+              session.gameId === alias.gameId &&
+              (session.source ?? null) === alias.source,
+          ),
+      );
+    if (others.length === 0) return false;
+    setCloseRequest({ sessions: others, start });
+    return true;
+  }
+
+  async function handleLaunch(
+    target = primaryLaunchTarget,
+    alongsideOthers = false,
+  ) {
     contextMenu.close();
     if (launchTourDemo) {
       // Show the usual Starting… state first; the sample finishes on a timer.
@@ -4507,6 +4569,12 @@ export function GameLibraryCard({
       });
       return;
     }
+    if (
+      !alongsideOthers &&
+      askToCloseOtherGames(() => void handleLaunch(target, true))
+    ) {
+      return;
+    }
     if (!onAcquireLaunch(launchKey)) {
       addToast({
         tone: "info",
@@ -4546,6 +4614,7 @@ export function GameLibraryCard({
 
   async function handleEmulatorLaunch(
     mapping: (typeof gameEmulatorMappings)[number],
+    alongsideOthers = false,
   ) {
     contextMenu.close();
     if (hasActiveSession) {
@@ -4554,6 +4623,14 @@ export function GameLibraryCard({
         title: t("{{name}} is already running", { name: game.name }),
         detail: t("PlayCounter is already tracking this game."),
       });
+      return;
+    }
+    if (
+      !alongsideOthers &&
+      !launching &&
+      !launchBlocked &&
+      askToCloseOtherGames(() => void handleEmulatorLaunch(mapping, true))
+    ) {
       return;
     }
     if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
@@ -4610,6 +4687,7 @@ export function GameLibraryCard({
   async function handleLauncherLaunch(
     providerId: "steam" | "xbox" | "epic",
     entry: { externalId: string } | undefined,
+    alongsideOthers = false,
   ) {
     if (!entry) return;
     contextMenu.close();
@@ -4619,6 +4697,16 @@ export function GameLibraryCard({
         title: t("{{name}} is already running", { name: game.name }),
         detail: t("PlayCounter is already tracking this game."),
       });
+      return;
+    }
+    if (
+      !alongsideOthers &&
+      !launching &&
+      !launchBlocked &&
+      askToCloseOtherGames(
+        () => void handleLauncherLaunch(providerId, entry, true),
+      )
+    ) {
       return;
     }
     if (launching || launchBlocked || !onAcquireLaunch(launchKey)) {
@@ -5713,12 +5801,17 @@ export function GameLibraryCard({
           controllerNavigable
             ? launching
               ? t("{{game}}, starting", { game: game.name })
-              : hasPrimaryLaunchTarget
-                ? t("{{game}}, press {{button}}, Space or Enter to play", {
+              : canCloseGame
+                ? t("{{game}}, running, press {{button}} to close", {
                     game: game.name,
-                    button: controllerButtonName(controllerKind, "A"),
+                    button: controllerButtonName(controllerKind, "X"),
                   })
-                : t("{{game}}, no launch file saved", { game: game.name })
+                : hasPrimaryLaunchTarget
+                  ? t("{{game}}, press {{button}}, Space or Enter to play", {
+                      game: game.name,
+                      button: controllerButtonName(controllerKind, "A"),
+                    })
+                  : t("{{game}}, no launch file saved", { game: game.name })
             : undefined
         }
         className="game-library-card group relative isolate flex flex-col overflow-hidden rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:-translate-y-1 hover:border-accent/80 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.04] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -6054,7 +6147,33 @@ export function GameLibraryCard({
             </span>
           </button>
         ) : null}
-        {showLaunchFooter ? (
+        {canCloseGame ? (
+          <div
+            className={clsx(
+              "flex shrink-0 items-stretch border-t border-success-border bg-success-tint font-semibold",
+              isLarge ? "h-12 text-sm" : "h-10 text-xs",
+            )}
+          >
+            <span className="flex min-w-0 flex-1 items-center justify-center gap-2 text-success">
+              <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_6px_rgb(var(--color-success)/0.8)]" />
+              </span>
+              {t("Running")}
+            </span>
+            <button
+              type="button"
+              data-controller-stop
+              aria-label={t("Close {{name}}", { name: game.name })}
+              title={t("Close game")}
+              onClick={handleCloseGame}
+              className="flex shrink-0 items-center gap-1.5 border-l border-success-border px-3 text-danger transition hover:bg-danger-solid hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-danger/60"
+            >
+              <CloseKeyHint size={isLarge ? 12 : 11} />
+              {t("Close")}
+            </button>
+          </div>
+        ) : showLaunchFooter ? (
           <button
             type="button"
             aria-label={
@@ -6204,6 +6323,7 @@ export function GameLibraryCard({
         {renderContextMenu()}
         {renderDetailsDialog()}
         {launchFileDialog}
+        {closeGameDialog}
         {renderDemoAction()}
         {showAddPlaytime ? (
           <AddPlaytimeDialog
@@ -6431,12 +6551,17 @@ export function GameLibraryCard({
         controllerNavigable
           ? launching
             ? t("{{game}}, starting", { game: game.name })
-            : hasPrimaryLaunchTarget
-              ? t("{{game}}, press {{button}}, Space or Enter to play", {
+            : canCloseGame
+              ? t("{{game}}, running, press {{button}} to close", {
                   game: game.name,
-                  button: controllerButtonName(controllerKind, "A"),
+                  button: controllerButtonName(controllerKind, "X"),
                 })
-              : t("{{game}}, no launch file saved", { game: game.name })
+              : hasPrimaryLaunchTarget
+                ? t("{{game}}, press {{button}}, Space or Enter to play", {
+                    game: game.name,
+                    button: controllerButtonName(controllerKind, "A"),
+                  })
+                : t("{{game}}, no launch file saved", { game: game.name })
           : undefined
       }
       className="game-library-card group relative isolate rounded-xl border border-border/70 bg-surface shadow-raised transition duration-200 hover:border-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg data-[controller-selected=true]:z-20 data-[controller-selected=true]:scale-[1.025] data-[controller-selected=true]:border-accent data-[controller-selected=true]:brightness-110 data-[controller-selected=true]:shadow-card-hover data-[controller-selected=true]:outline data-[controller-selected=true]:outline-2 data-[controller-selected=true]:outline-offset-[7px] data-[controller-selected=true]:outline-white/80 data-[controller-selected=true]:ring-[7px] data-[controller-selected=true]:ring-accent data-[controller-selected=true]:ring-offset-4 data-[controller-selected=true]:ring-offset-bg"
@@ -6700,6 +6825,17 @@ export function GameLibraryCard({
               className="shrink-0 border-accent/30 bg-accent-tint text-accent-ink hover:border-accent hover:bg-accent hover:text-accent-fg"
             />
           ) : null}
+          {canCloseGame ? (
+            <IconButton
+              data-controller-stop
+              aria-label={t("Close {{name}}", { name: game.name })}
+              title={t("Close game")}
+              onClick={handleCloseGame}
+              className="border-danger/50 bg-danger/10 text-danger hover:border-danger-solid hover:bg-danger-solid hover:text-white"
+            >
+              <CloseKeyHint size={11} />
+            </IconButton>
+          ) : null}
 
           {!selectionMode ? (
             <div
@@ -6744,6 +6880,7 @@ export function GameLibraryCard({
       {renderContextMenu()}
       {renderDetailsDialog()}
       {launchFileDialog}
+      {closeGameDialog}
       {renderDemoAction()}
       {showAddPlaytime ? (
         <AddPlaytimeDialog

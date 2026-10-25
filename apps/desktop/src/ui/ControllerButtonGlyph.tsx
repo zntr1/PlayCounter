@@ -5,6 +5,7 @@ import xboxMenuUrl from "../../../../assets/xbox/XboxSeriesX_Menu.png";
 import xboxRbUrl from "../../../../assets/xbox/XboxSeriesX_RB.png";
 import xboxRightStickUrl from "../../../../assets/xbox/XboxSeriesX_Right_Stick_Click.png";
 import xboxViewUrl from "../../../../assets/xbox/XboxSeriesX_View.png";
+import xboxXUrl from "../../../../assets/xbox/XboxSeriesX_X.png";
 import ps5CrossUrl from "../../../../assets/playstation/PS5_Cross.png";
 import ps5CircleUrl from "../../../../assets/playstation/PS5_Circle.png";
 import ps5DpadUrl from "../../../../assets/playstation/PS5_Dpad.png";
@@ -12,6 +13,7 @@ import ps5OptionsUrl from "../../../../assets/playstation/PS5_Options.png";
 import ps5R1Url from "../../../../assets/playstation/PS5_R1.png";
 import ps5RightStickUrl from "../../../../assets/playstation/PS5_Right_Stick_Click.png";
 import ps5CreateUrl from "../../../../assets/playstation/PS5_Share.png";
+import ps5SquareUrl from "../../../../assets/playstation/PS5_Square.png";
 import ps4CrossUrl from "../../../../assets/playstation/PS4_Cross.png";
 import ps4CircleUrl from "../../../../assets/playstation/PS4_Circle.png";
 import ps4DpadUrl from "../../../../assets/playstation/PS4_Dpad.png";
@@ -19,17 +21,19 @@ import ps4OptionsUrl from "../../../../assets/playstation/PS4_Options.png";
 import ps4R1Url from "../../../../assets/playstation/PS4_R1.png";
 import ps4RightStickUrl from "../../../../assets/playstation/PS4_Right_Stick_Click.png";
 import ps4ShareUrl from "../../../../assets/playstation/PS4_Share.png";
+import ps4SquareUrl from "../../../../assets/playstation/PS4_Square.png";
 import { useControllerKind, type ControllerKind } from "../controllerKind";
 import { getT } from "../i18n";
 
 const t = getT("common");
 
 // Button ids follow the Xbox layout. PlayStation pads show the button in the
-// same place: Cross for A, Circle for B, Create/Share for View, R1 for RB,
-// Options for Menu.
+// same place: Cross for A, Circle for B, Square for X, Create/Share for View,
+// R1 for RB, Options for Menu.
 export type ControllerControl =
   | "A"
   | "B"
+  | "X"
   | "DPAD"
   | "RIGHT_STICK"
   | "VIEW"
@@ -40,6 +44,7 @@ const glyphUrls: Record<ControllerKind, Record<ControllerControl, string>> = {
   xbox: {
     A: xboxAUrl,
     B: xboxBUrl,
+    X: xboxXUrl,
     DPAD: xboxDpadUrl,
     RIGHT_STICK: xboxRightStickUrl,
     VIEW: xboxViewUrl,
@@ -49,6 +54,7 @@ const glyphUrls: Record<ControllerKind, Record<ControllerControl, string>> = {
   ps5: {
     A: ps5CrossUrl,
     B: ps5CircleUrl,
+    X: ps5SquareUrl,
     DPAD: ps5DpadUrl,
     RIGHT_STICK: ps5RightStickUrl,
     VIEW: ps5CreateUrl,
@@ -58,6 +64,7 @@ const glyphUrls: Record<ControllerKind, Record<ControllerControl, string>> = {
   ps4: {
     A: ps4CrossUrl,
     B: ps4CircleUrl,
+    X: ps4SquareUrl,
     DPAD: ps4DpadUrl,
     RIGHT_STICK: ps4RightStickUrl,
     VIEW: ps4ShareUrl,
@@ -75,6 +82,7 @@ function buttonNames(): Record<
     xbox: {
       A: "A",
       B: "B",
+      X: "X",
       DPAD: t("D-pad"),
       RIGHT_STICK: t("Right stick"),
       VIEW: t("View"),
@@ -84,6 +92,7 @@ function buttonNames(): Record<
     ps5: {
       A: t("Cross"),
       B: t("Circle"),
+      X: t("Square"),
       DPAD: t("D-pad"),
       RIGHT_STICK: t("Right stick"),
       VIEW: t("Create"),
@@ -93,6 +102,7 @@ function buttonNames(): Record<
     ps4: {
       A: t("Cross"),
       B: t("Circle"),
+      X: t("Square"),
       DPAD: t("D-pad"),
       RIGHT_STICK: t("Right stick"),
       VIEW: t("Share"),

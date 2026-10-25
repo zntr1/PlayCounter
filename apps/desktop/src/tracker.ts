@@ -448,6 +448,10 @@ const communitySuggestionCancelGuard = new Map<
 let lastEmulatorRunningKeys = new Set<string>();
 const launchInFlight = new Map<string, number>();
 const emulatorLaunchInFlight = new Map<string, number>();
+// Per running game (session key), its processes in the last scan. Close game
+// ends these. Sessions being closed end without the session popup.
+const runningGameProcesses = new Map<string, ProcessSnapshot[]>();
+const closingSessionIds = new Set<number>();
 // A file explicitly picked in Start game belongs to the process we spawned.
 // Keep it only until that process first identifies its content, not until a
 // database match arrives (the player may switch games while choosing a match).
@@ -2301,6 +2305,10 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
     }
   }
   const nextKeys = new Set(matchesByGame.keys());
+  runningGameProcesses.clear();
+  for (const [key, group] of matchesByGame) {
+    runningGameProcesses.set(key, group.processes);
+  }
   // A Game.exe matched through its folder link is not the unknown Game.exe
   // that Discovered or the picker waits for; its time must not count there.
   const matchedProcesses = new Set(matches.map((match) => match.process));
@@ -2343,7 +2351,9 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
       recoveredSessionEndAt(current),
       current.recoveredFromCheckpoint
         ? "recovered-checkpoint"
-        : "process-ended",
+        : closingSessionIds.has(current.id)
+          ? "closed-in-app"
+          : "process-ended",
     );
   }
 
@@ -6699,7 +6709,8 @@ type SessionEndReason =
   | "recovered-checkpoint"
   | "settings-change"
   | "route-change"
-  | "timer-stopped";
+  | "timer-stopped"
+  | "closed-in-app";
 
 async function endSession(
   session: ActiveSession,
@@ -8380,6 +8391,65 @@ export async function stopGameTimer(sessionId: number) {
   if (!session) return;
   await endSession(session, undefined, "timer-stopped");
   persist();
+}
+
+export type CloseGameOutcome = "closed" | "stillRunning" | "blocked";
+
+/** Closes a running game from My Games: politely (its windows get the ✕),
+ *  or by force. Every process of the game goes, the ones the scan grouped
+ *  into its session. The session ends here, without the session popup. */
+export async function closeRunningGame(
+  sessionId: number,
+  force: boolean,
+): Promise<CloseGameOutcome> {
+  const findSession = () =>
+    useAppStore
+      .getState()
+      .activeSessions.find(
+        (active) => active.id === sessionId && !active.timer,
+      );
+  const session = findSession();
+  if (!session) return "closed";
+  closingSessionIds.add(sessionId);
+  try {
+    // A fresh scan, so a process the game started since the last one goes too.
+    await requestProcessScan("before closing a game");
+    const current = findSession();
+    if (!current) return "closed";
+    const targets = (
+      runningGameProcesses.get(sessionIdentityKey(current)) ?? []
+    ).flatMap((process) =>
+      process.pid !== undefined && process.startedAtUnix
+        ? [
+            {
+              pid: process.pid,
+              startedAtUnix: process.startedAtUnix,
+              exePath: process.exePath,
+            },
+          ]
+        : [],
+    );
+    if (targets.length === 0) {
+      logRuntime(`close game ${current.gameName}: no process to close`);
+      return "blocked";
+    }
+    const outcome = await invoke<CloseGameOutcome>("close_game_processes", {
+      targets,
+      force,
+    });
+    logRuntime(
+      `close game ${current.gameName} force=${force} processes=${targets.length} outcome=${outcome}`,
+    );
+    if (outcome === "closed") {
+      const ended = findSession();
+      if (ended) await endSession(ended, undefined, "closed-in-app");
+      persist();
+      void requestProcessScan("after closing a game");
+    }
+    return outcome;
+  } finally {
+    closingSessionIds.delete(sessionId);
+  }
 }
 
 export function setGamePlaytime(params: {

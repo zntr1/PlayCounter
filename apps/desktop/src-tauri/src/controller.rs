@@ -29,6 +29,7 @@ pub(crate) const BUTTON_VIEW: u16 = 0x0020;
 pub(crate) const BUTTON_RIGHT_SHOULDER: u16 = 0x0200;
 pub(crate) const BUTTON_A: u16 = 0x1000;
 pub(crate) const BUTTON_B: u16 = 0x2000;
+pub(crate) const BUTTON_X: u16 = 0x4000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,6 +45,7 @@ pub enum ControllerAction {
     Confirm,
     Back,
     ToggleFullscreen,
+    StopGame,
 }
 
 // Which button art the UI shows. A PlayStation pad that reaches us through
@@ -149,6 +151,9 @@ impl ControllerMachine {
         }
         if pressed & BUTTON_MENU != 0 {
             actions.push(ControllerAction::ToggleFullscreen);
+        }
+        if pressed & BUTTON_X != 0 {
+            actions.push(ControllerAction::StopGame);
         }
 
         let dpad_direction = if buttons & BUTTON_DPAD_UP != 0 {
@@ -403,6 +408,21 @@ mod tests {
         assert_eq!(
             machine.update(BUTTON_MENU, (0, 0), 0, 1_200),
             vec![ControllerAction::ToggleFullscreen]
+        );
+    }
+
+    #[test]
+    fn x_stops_a_game_once_per_press() {
+        let mut machine = ControllerMachine::default();
+        assert_eq!(
+            machine.update(BUTTON_X, (0, 0), 0, 0),
+            vec![ControllerAction::StopGame]
+        );
+        assert!(machine.update(BUTTON_X, (0, 0), 0, 1_000).is_empty());
+        machine.update(0, (0, 0), 0, 1_100);
+        assert_eq!(
+            machine.update(BUTTON_X, (0, 0), 0, 1_200),
+            vec![ControllerAction::StopGame]
         );
     }
 

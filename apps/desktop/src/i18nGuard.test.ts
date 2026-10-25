@@ -548,6 +548,7 @@ describe("UI code", () => {
 const RUST_ENGLISH_ON_PURPOSE = new Set([
   "A PlayCounter data path points outside its app folder.",
   "Battle.net sign-in must be cancelled from PlayCounter.",
+  "Closing games is only supported on Windows.",
   "Could not close the idle emulator window: {error}",
   "Could not create the Xbox app activator: {error}",
   "Could not create the Xbox package family name ({result}).",

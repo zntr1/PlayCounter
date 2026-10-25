@@ -5,6 +5,7 @@ import {
   armControllerBridge,
   disposeControllerBridge,
   initializeControllerBridge,
+  selectControllerItem,
 } from "./controllerBridge";
 import { useAppStore } from "./store";
 
@@ -421,4 +422,53 @@ it("lets go of the selected card and its ring on Escape", () => {
   search.focus();
   press("Escape");
   expect(document.activeElement).toBe(search);
+});
+
+it("closes the game on the selected running card with X / Square, never elsewhere", () => {
+  showLibrary();
+  useAppStore.setState((state) => ({
+    settings: { ...state.settings, controllerNavigationEnabled: true },
+  }));
+  const stop = document.createElement("button");
+  stop.setAttribute("data-controller-stop", "");
+  const stopped = vi.fn();
+  stop.addEventListener("click", stopped);
+  document.querySelector("#card-b")!.append(stop);
+
+  input("right");
+  expect(document.activeElement?.id).toBe("card-a");
+  input("stopGame");
+  expect(stopped).not.toHaveBeenCalled();
+
+  input("right");
+  expect(document.activeElement?.id).toBe("card-b");
+  input("stopGame");
+  expect(stopped).toHaveBeenCalledTimes(1);
+
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    '<div role="dialog" aria-modal="true"></div>',
+  );
+  input("stopGame");
+  expect(stopped).toHaveBeenCalledTimes(1);
+});
+
+it("moves the ring to a dialog's new safe button only while a controller drives the app", () => {
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    '<div role="dialog" aria-modal="true"><button id="safe" data-controller-item="dialog-action">Cancel</button></div>',
+  );
+  const safe = document.querySelector<HTMLElement>("#safe")!;
+  safe.scrollIntoView = vi.fn();
+
+  selectControllerItem(safe);
+  expect(document.activeElement).toBe(safe);
+  expect(safe.hasAttribute("data-controller-selected")).toBe(false);
+
+  safe.blur();
+  document.documentElement.setAttribute("data-controller-mode", "true");
+  selectControllerItem(safe);
+  expect(document.activeElement).toBe(safe);
+  expect(safe.getAttribute("data-controller-selected")).toBe("true");
+  document.documentElement.removeAttribute("data-controller-mode");
 });

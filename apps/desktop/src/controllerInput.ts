@@ -9,7 +9,8 @@ export type ControllerAction =
   | "scrollDown"
   | "confirm"
   | "back"
-  | "toggleFullscreen";
+  | "toggleFullscreen"
+  | "stopGame";
 
 export type ControllerItemRect = {
   top: number;

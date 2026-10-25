@@ -17,6 +17,7 @@ use tauri::{
 use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 mod automatic_backups;
+mod close_game;
 mod controller;
 mod emulator_launch;
 mod exe_details;
@@ -545,6 +546,7 @@ pub fn run() {
             get_exe_icon,
             get_exe_details,
             launch::launch_executable,
+            close_game::close_game_processes,
             launch::reveal_executable,
             launch::verify_launch_paths,
             library::library_detect_providers,
