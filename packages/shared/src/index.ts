@@ -600,11 +600,18 @@ export type DesktopViewId =
   | "settings"
   | "dev";
 
+export type LiveTimerCorner =
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
 export interface Settings {
   /** Global keyboard shortcuts. Null or absent means disabled. */
   showWindowHotkey?: string | null;
   currentSessionHotkey?: string | null;
   quickNoteHotkey?: string | null;
+  liveTimerHotkey?: string | null;
   launchOnStartup: boolean;
   /** Page shown when PlayCounter opens. Absent = Now Playing. */
   startView?: "now" | "games";
@@ -698,6 +705,13 @@ export interface Settings {
   overlayDiscoveries?: boolean;
   /** Show the time of day on the current-session hotkey popup. Absent = off. */
   overlayShowClock?: boolean;
+  /** Small session timer over the screen while a game runs. Absent = off. */
+  liveTimerEnabled?: boolean;
+  /** Screen corner of the live timer. Absent = top left. */
+  liveTimerCorner?: LiveTimerCorner;
+  /** Popup each time today's playtime passes another multiple of this many
+   *  minutes. Null or absent = off. */
+  playtimeReminderMinutes?: number | null;
   rememberLaunchPaths?: boolean;
   gameLaunchingEnabled?: boolean;
   controllerNavigationEnabled?: boolean;

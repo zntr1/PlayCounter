@@ -40,5 +40,13 @@
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter — сохранить · Shift+Enter — новая строка · Esc — отмена",
   "Save": "Сохранить",
   "Cancel": "Отмена",
-  "Add session note": "Добавить заметку о сессии"
+  "Add session note": "Добавить заметку о сессии",
+  "PLAYTIME REMINDER": "НАПОМИНАНИЕ О ВРЕМЕНИ В ИГРЕ",
+  "Playtime today": "Время в игре сегодня",
+  "Time for a short break?": "Может, пора сделать перерыв?",
+  "PLAYED TODAY": "СЕГОДНЯ В ИГРЕ",
+  "LIVE TIMER": "ТАЙМЕР НА ЭКРАНЕ",
+  "Live timer on": "Таймер на экране включён",
+  "Live timer off": "Таймер на экране выключен",
+  "It appears while a game is running.": "Он появляется, пока запущена игра."
 }

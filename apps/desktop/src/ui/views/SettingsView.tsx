@@ -17,7 +17,7 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useEffect, useState } from "react";
 import { Trans } from "react-i18next";
 import { PlayCounterAnimatedIcon } from "../../brand/PlayCounterAnimatedIcon";
-import type { LibraryProviderId } from "@playcounter/shared";
+import type { LibraryProviderId, LiveTimerCorner } from "@playcounter/shared";
 import {
   chooseEmulatorBinary,
   forgetImportedLibraryData,
@@ -63,6 +63,7 @@ import { ResetPlayCounterDialog } from "../ResetPlayCounterDialog";
 import { ResetSettingsDialog } from "../ResetSettingsDialog";
 import { HotkeyInput } from "../HotkeyInput";
 import type { DesktopOverlayKind } from "../../desktopOverlays";
+import { PLAYTIME_REMINDER_MINUTES } from "../../playtimeReminder";
 import { TutorialSettingsPanel } from "../tour/TourUI";
 import { ReleaseNotesDialog } from "../ReleaseNotesDialog";
 import { resolveEmulatorBinary } from "../../emulatorLaunch";
@@ -95,9 +96,25 @@ function overlayPreviews(): ReadonlyArray<
     ["session-start", t("Game start")],
     ["session-summary", t("Session summary")],
     ["current-session", t("Current session")],
+    ["playtime-reminder", t("Playtime reminder")],
     ["milestone", t("Milestone")],
     ["discovery", t("Discovery")],
   ];
+}
+
+function liveTimerCorners(): ReadonlyArray<readonly [LiveTimerCorner, string]> {
+  return [
+    ["top-left", t("Top left")],
+    ["top-right", t("Top right")],
+    ["bottom-left", t("Bottom left")],
+    ["bottom-right", t("Bottom right")],
+  ];
+}
+
+function playtimeReminderLabel(minutes: number) {
+  return minutes % 60 === 0
+    ? t("Every {{count, number}} hours", { count: minutes / 60 })
+    : t("Every {{count, number}} minutes", { count: minutes });
 }
 
 export function SettingsView() {
@@ -145,6 +162,10 @@ export function SettingsView() {
   const setEmulatorSetting = useAppStore((state) => state.setEmulatorSetting);
   const setDesktopOverlaySetting = useAppStore(
     (state) => state.setDesktopOverlaySetting,
+  );
+  const setLiveTimerCorner = useAppStore((state) => state.setLiveTimerCorner);
+  const setPlaytimeReminderMinutes = useAppStore(
+    (state) => state.setPlaytimeReminderMinutes,
   );
   const setLauncherSetting = useAppStore((state) => state.setLauncherSetting);
   const forgetExecutableLaunchTargets = useAppStore(
@@ -675,6 +696,22 @@ export function SettingsView() {
             disabled={currentPlatform() === "macos"}
           />
         </SettingsRow>
+        <SettingsRow
+          title={t("Show or hide live timer")}
+          description={
+            currentPlatform() === "macos"
+              ? t("Desktop popups are not supported on macOS.")
+              : t(
+                  "Turn the live timer on or off from inside your game. It stays that way for your next games too.",
+                )
+          }
+        >
+          <HotkeyInput
+            setting="liveTimerHotkey"
+            label={t("Show or hide live timer")}
+            disabled={currentPlatform() === "macos"}
+          />
+        </SettingsRow>
         {currentPlatform() !== "macos" ? (
           <SettingsRow
             title={t("Show clock in session popup")}
@@ -695,6 +732,77 @@ export function SettingsView() {
           </SettingsRow>
         ) : null}
       </SettingsPanel>
+
+      {currentPlatform() !== "macos" ? (
+        <SettingsPanel
+          description={t(
+            "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.",
+          )}
+          title={t("While you play")}
+        >
+          <SettingsRow
+            description={t(
+              "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.",
+            )}
+            title={t("Live timer")}
+          >
+            <Switch
+              aria-label={t("Live timer")}
+              checked={settings.liveTimerEnabled === true}
+              onChange={(event) =>
+                setDesktopOverlaySetting(
+                  "liveTimerEnabled",
+                  event.target.checked,
+                )
+              }
+            />
+          </SettingsRow>
+          <SettingsRow
+            description={t("Pick a corner your game's HUD leaves free.")}
+            title={t("Timer position")}
+          >
+            <Select
+              aria-label={t("Timer position")}
+              value={settings.liveTimerCorner ?? "top-left"}
+              disabled={settings.liveTimerEnabled !== true}
+              onChange={(event) =>
+                setLiveTimerCorner(event.target.value as LiveTimerCorner)
+              }
+            >
+              {liveTimerCorners().map(([corner, label]) => (
+                <option key={corner} value={corner}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </SettingsRow>
+          <SettingsRow
+            description={t(
+              "A popup every time today's playtime grows by this much. All games count together.",
+            )}
+            title={t("Playtime reminder")}
+          >
+            <Select
+              aria-label={t("Playtime reminder")}
+              value={String(settings.playtimeReminderMinutes ?? "off")}
+              onChange={(event) =>
+                setPlaytimeReminderMinutes(
+                  event.target.value === "off"
+                    ? null
+                    : Number(event.target.value),
+                )
+              }
+            >
+              <option value="off">{t("Off")}</option>
+              {PLAYTIME_REMINDER_MINUTES.map((minutes) => (
+                <option key={minutes} value={String(minutes)}>
+                  {playtimeReminderLabel(minutes)}
+                </option>
+              ))}
+            </Select>
+          </SettingsRow>
+        </SettingsPanel>
+      ) : null}
 
       {currentPlatform() !== "macos" ? (
         <SettingsPanel

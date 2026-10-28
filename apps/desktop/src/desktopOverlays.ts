@@ -23,6 +23,8 @@ export type {
 
 export const OVERLAY_PRIORITY: Record<DesktopOverlayKind, number> = {
   "current-session": 7,
+  "live-timer": 7,
+  "playtime-reminder": 6,
   "action-required": 6,
   milestone: 5,
   "first-detection": 4,
@@ -48,6 +50,8 @@ export const DISCOVERY_COOLDOWN_MS = 1_800_000;
 
 const HOLD_MS: Record<DesktopOverlayKind, number> = {
   "current-session": 6_000,
+  "live-timer": 3_000,
+  "playtime-reminder": 10_000,
   "action-required": 15_000,
   "session-start": 10_000,
   "first-detection": 10_000,
@@ -58,6 +62,8 @@ const HOLD_MS: Record<DesktopOverlayKind, number> = {
 
 const TTL_MS: Record<DesktopOverlayKind, number> = {
   "current-session": 10_000,
+  "live-timer": 10_000,
+  "playtime-reminder": 5 * 60_000,
   "action-required": 15 * 60_000,
   "session-start": 20_000,
   "session-summary": 15 * 60_000,
@@ -103,11 +109,18 @@ export type OverlayEvent =
       milestoneMetric?: string;
       milestoneGameScoped?: boolean;
     }
-  | { type: "discovery-burst"; exeCount: number };
+  | { type: "discovery-burst"; exeCount: number }
+  | {
+      type: "playtime-reminder";
+      gameName?: string;
+      coverUrl?: string;
+      todaySeconds: number;
+    }
+  | { type: "live-timer"; enabled: boolean };
 
 export type TrackerOverlayEvent = Exclude<
   OverlayEvent,
-  { type: "discovery-burst" }
+  { type: "discovery-burst" | "playtime-reminder" | "live-timer" }
 >;
 
 let nextSequence = 0;
@@ -122,6 +135,9 @@ export function overlayGate(
 ): DesktopOverlayKind | null {
   // Requested explicitly by a hotkey; automatic notification preferences do not apply.
   if (event.type === "current-session") return "current-session";
+  // Switched on by the player for themselves, apart from the popup settings.
+  if (event.type === "playtime-reminder") return "playtime-reminder";
+  if (event.type === "live-timer") return "live-timer";
   if (settings.desktopOverlaysEnabled !== true) return null;
   if (event.type === "choice-required") {
     return settings.overlayActionRequired !== false ? "action-required" : null;
@@ -161,7 +177,7 @@ export function buildOverlayMessage(
     priority: OVERLAY_PRIORITY[kind],
     ...copy,
     locale: context.locale,
-    ...overlayLabels(),
+    ...overlayLabels(kind),
     theme: context.theme,
     accentColor: context.accentColor,
     reducedMotion: context.reducedMotion,
@@ -206,6 +222,24 @@ function overlayCopy(
             )
           : undefined,
       showClock: event.showClock,
+    };
+  }
+  if (event.type === "playtime-reminder") {
+    return {
+      kicker: t("PLAYTIME REMINDER"),
+      title: event.gameName ?? t("Playtime today"),
+      body: t("Time for a short break?"),
+      metric: formatDuration(event.todaySeconds),
+      coverUrl: event.coverUrl,
+    };
+  }
+  if (event.type === "live-timer") {
+    return {
+      kicker: t("LIVE TIMER"),
+      title: event.enabled ? t("Live timer on") : t("Live timer off"),
+      body: event.enabled
+        ? t("It appears while a game is running.")
+        : undefined,
     };
   }
   if (kind === "action-required" && event.type === "choice-required") {
@@ -631,6 +665,10 @@ export class DiscoveryAggregator {
 }
 
 /** The overlay window has no texts of its own: its labels come with each card. */
-function overlayLabels() {
-  return { sessionTimeLabel: t("SESSION TIME"), liveLabel: t("LIVE") };
+function overlayLabels(kind: DesktopOverlayKind) {
+  return {
+    sessionTimeLabel:
+      kind === "playtime-reminder" ? t("PLAYED TODAY") : t("SESSION TIME"),
+    liveLabel: t("LIVE"),
+  };
 }

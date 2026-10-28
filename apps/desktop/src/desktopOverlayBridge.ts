@@ -65,6 +65,50 @@ export function showCurrentSessionOverlay() {
   state.queue.showImmediately(message);
 }
 
+/** Waits its turn behind a card already on screen. */
+export function showPlaytimeReminderOverlay(todaySeconds: number) {
+  const state = bridge;
+  if (!state || state.disposed) return;
+  const store = useAppStore.getState();
+  const session = newestSession(store.activeSessions);
+  const message = buildOverlayMessage(
+    "playtime-reminder",
+    {
+      type: "playtime-reminder",
+      gameName: session?.gameName,
+      coverUrl: pickedCover(store, session) ?? session?.coverUrl,
+      todaySeconds,
+    },
+    renderContext(),
+  );
+  state.queue.push(message);
+}
+
+/** Without a running game the hotkey has nothing to show or hide, so it says
+ *  what it did. */
+export function showLiveTimerToggledOverlay(enabled: boolean) {
+  const state = bridge;
+  if (!state || state.disposed) return;
+  state.queue.showImmediately(
+    buildOverlayMessage(
+      "live-timer",
+      { type: "live-timer", enabled },
+      renderContext(),
+    ),
+  );
+}
+
+/** The game started last, the same pick as the quick note hotkey. */
+export function newestSession<
+  T extends { startedAt: string; recoveredFromCheckpoint?: boolean },
+>(sessions: T[]) {
+  return sessions
+    .filter((session) => !session.recoveredFromCheckpoint)
+    .reduce<
+      T | undefined
+    >((latest, session) => (!latest || session.startedAt > latest.startedAt ? session : latest), undefined);
+}
+
 export type DesktopOverlayMonitor = {
   id: string;
   name: string | null;
@@ -353,6 +397,17 @@ function previewEvent(
   }
   if (kind === "discovery") {
     return { type: "discovery-burst", exeCount: 3 };
+  }
+  if (kind === "playtime-reminder") {
+    return {
+      type: "playtime-reminder",
+      gameName,
+      coverUrl,
+      todaySeconds: 7_200,
+    };
+  }
+  if (kind === "live-timer") {
+    return { type: "live-timer", enabled: true };
   }
   if (kind === "action-required") {
     return {

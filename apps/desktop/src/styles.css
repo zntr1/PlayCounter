@@ -579,7 +579,10 @@ html[data-window="notification-overlay"] body,
 html[data-window="notification-overlay"] #overlay-root,
 html[data-window="quick-note"],
 html[data-window="quick-note"] body,
-html[data-window="quick-note"] #quick-note-root {
+html[data-window="quick-note"] #quick-note-root,
+html[data-window="live-timer"],
+html[data-window="live-timer"] body,
+html[data-window="live-timer"] #live-timer-root {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -852,6 +855,57 @@ html[data-window="quick-note"] #quick-note-root {
   overflow: hidden;
 }
 
+/* Live timer: a dark glass pill that reads over any game, light or dark. The
+   window is a little larger than the pill so its shadow is not cut off. */
+.live-timer {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  padding: 8px;
+}
+
+.live-timer-right {
+  justify-content: flex-end;
+}
+
+.live-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 999px;
+  padding: 7px 15px 7px 12px;
+  background: rgb(12 12 14 / 0.72);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  color: rgb(255 255 255 / 0.94);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+  white-space: nowrap;
+}
+
+.live-timer-pill i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(var(--color-accent));
+  box-shadow: 0 0 8px rgb(var(--color-accent) / 0.8);
+  animation: live-timer-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-timer-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
 .desktop-overlay-glints i {
   position: absolute;
   width: 4px;
@@ -970,6 +1024,9 @@ html[data-window="quick-note"] #quick-note-root {
   }
   .desktop-overlay-glints {
     display: none;
+  }
+  .live-timer-pill i {
+    animation: none;
   }
   .app-toast {
     animation: none !important;

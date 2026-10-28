@@ -40,5 +40,13 @@
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter speichert · Umschalt+Enter für neue Zeile · Esc bricht ab",
   "Save": "Speichern",
   "Cancel": "Abbrechen",
-  "Add session note": "Sitzungsnotiz hinzufügen"
+  "Add session note": "Sitzungsnotiz hinzufügen",
+  "PLAYTIME REMINDER": "SPIELZEIT-ERINNERUNG",
+  "Playtime today": "Spielzeit heute",
+  "Time for a short break?": "Zeit für eine kurze Pause?",
+  "PLAYED TODAY": "HEUTE GESPIELT",
+  "LIVE TIMER": "LIVE-TIMER",
+  "Live timer on": "Live-Timer an",
+  "Live timer off": "Live-Timer aus",
+  "It appears while a game is running.": "Er erscheint, solange ein Spiel läuft."
 }

@@ -52,7 +52,9 @@ export function DesktopNotificationOverlay({
     message.kind === "first-detection" || message.kind === "milestone";
   const compact = message.kind === "session-start" && !message.body;
   const sessionSummary =
-    message.kind === "session-summary" || message.kind === "current-session";
+    message.kind === "session-summary" ||
+    message.kind === "current-session" ||
+    message.kind === "playtime-reminder";
   const phaseClass =
     phase === "enter"
       ? "overlay-card-enter"

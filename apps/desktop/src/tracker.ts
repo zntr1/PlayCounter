@@ -4,6 +4,11 @@ import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
+import { initializeLiveTimer, disposeLiveTimer } from "./liveTimer";
+import {
+  initializePlaytimeReminder,
+  disposePlaytimeReminder,
+} from "./playtimeReminder";
 import {
   initializeAutomaticBackups,
   disposeAutomaticBackups,
@@ -513,6 +518,8 @@ export async function initializeTracker() {
   initializeDesktopOverlays();
   initializeHotkeys();
   initializeQuickNotes();
+  initializeLiveTimer();
+  initializePlaytimeReminder();
   initializeControllerBridge();
   syncTrayNowPlaying();
   scheduleTraySync();
@@ -559,6 +566,8 @@ export async function stopTrackerForReset() {
   disposeDesktopOverlays();
   disposeHotkeys();
   disposeQuickNotes();
+  disposeLiveTimer();
+  disposePlaytimeReminder();
   disposeControllerBridge();
   await scanInFlight;
 }
@@ -634,6 +643,8 @@ async function finishTrackerStartup() {
     disposeDesktopOverlays();
     disposeHotkeys();
     disposeQuickNotes();
+    disposeLiveTimer();
+    disposePlaytimeReminder();
     disposeAutomaticBackups();
     disposeControllerBridge();
     initialized = false;

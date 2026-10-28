@@ -10,6 +10,7 @@ import type {
   IdentifierFlagReason,
   LibraryFeaturedGame,
   LibraryStatCardId,
+  LiveTimerCorner,
   Session,
   Settings,
   Theme,
@@ -406,7 +407,8 @@ export type DesktopOverlaySettingKey =
   | "overlayMilestones"
   | "overlayActionRequired"
   | "overlayDiscoveries"
-  | "overlayShowClock";
+  | "overlayShowClock"
+  | "liveTimerEnabled";
 
 export type ActiveTour = {
   tourId: string;
@@ -676,8 +678,14 @@ export type AppState = {
     enabled: boolean,
   ) => void;
   setOverlayMonitor: (monitor: string) => void;
+  setLiveTimerCorner: (corner: LiveTimerCorner) => void;
+  setPlaytimeReminderMinutes: (minutes: number | null) => void;
   setHotkey: (
-    key: "showWindowHotkey" | "currentSessionHotkey" | "quickNoteHotkey",
+    key:
+      | "showWindowHotkey"
+      | "currentSessionHotkey"
+      | "quickNoteHotkey"
+      | "liveTimerHotkey",
     shortcut: string | null,
   ) => void;
   setDesktopOverlaySetting: (
@@ -767,6 +775,9 @@ const defaultSettings: Settings = {
   overlayActionRequired: true,
   overlayDiscoveries: false,
   overlayShowClock: false,
+  liveTimerEnabled: false,
+  liveTimerCorner: "top-left",
+  playtimeReminderMinutes: null,
   rememberLaunchPaths: true,
   gameLaunchingEnabled: false,
   controllerNavigationEnabled: false,
@@ -1975,6 +1986,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setOverlayMonitor: (overlayMonitor) => {
     set((state) => ({ settings: { ...state.settings, overlayMonitor } }));
+    persistSoon();
+  },
+  setLiveTimerCorner: (liveTimerCorner) => {
+    set((state) => ({ settings: { ...state.settings, liveTimerCorner } }));
+    persistSoon();
+  },
+  setPlaytimeReminderMinutes: (playtimeReminderMinutes) => {
+    set((state) => ({
+      settings: { ...state.settings, playtimeReminderMinutes },
+    }));
     persistSoon();
   },
   setHotkey: (key, shortcut) => {

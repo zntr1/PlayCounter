@@ -133,6 +133,34 @@ describe("desktop overlay policy", () => {
     ).toBeNull();
   });
 
+  it("shows the reminder and the timer toggle even with popups off", () => {
+    const off = { ...settings, desktopOverlaysEnabled: false };
+    expect(
+      overlayGate({ type: "playtime-reminder", todaySeconds: 7_200 }, off),
+    ).toBe("playtime-reminder");
+    expect(overlayGate({ type: "live-timer", enabled: true }, off)).toBe(
+      "live-timer",
+    );
+  });
+
+  it("labels the reminder's number as today's playtime", () => {
+    const card = buildOverlayMessage(
+      "playtime-reminder",
+      {
+        type: "playtime-reminder",
+        gameName: "Game",
+        todaySeconds: 7_260,
+      },
+      { nowMs: 0, theme: "dark", accentColor: null, reducedMotion: false },
+    );
+    expect(card).toMatchObject({
+      kicker: "PLAYTIME REMINDER",
+      title: "Game",
+      metric: "2h 1m",
+      sessionTimeLabel: "PLAYED TODAY",
+    });
+  });
+
   it("keeps the launched process on session-start cards for monitor targeting", () => {
     const card = buildOverlayMessage(
       "session-start",

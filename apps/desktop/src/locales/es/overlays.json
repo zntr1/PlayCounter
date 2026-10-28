@@ -40,5 +40,13 @@
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Intro guarda · Mayús+Intro crea una línea nueva · Esc cancela",
   "Save": "Guardar",
   "Cancel": "Cancelar",
-  "Add session note": "Añadir nota de la sesión"
+  "Add session note": "Añadir nota de la sesión",
+  "PLAYTIME REMINDER": "RECORDATORIO DE TIEMPO DE JUEGO",
+  "Playtime today": "Tiempo de juego de hoy",
+  "Time for a short break?": "¿Hora de un breve descanso?",
+  "PLAYED TODAY": "JUGADO HOY",
+  "LIVE TIMER": "CRONÓMETRO EN PANTALLA",
+  "Live timer on": "Cronómetro en pantalla activado",
+  "Live timer off": "Cronómetro en pantalla desactivado",
+  "It appears while a game is running.": "Aparece mientras se ejecuta un juego."
 }

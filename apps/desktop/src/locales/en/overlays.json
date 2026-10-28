@@ -40,5 +40,13 @@
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter saves · Shift+Enter starts a new line · Esc cancels",
   "Save": "Save",
   "Cancel": "Cancel",
-  "Add session note": "Add session note"
+  "Add session note": "Add session note",
+  "PLAYTIME REMINDER": "PLAYTIME REMINDER",
+  "Playtime today": "Playtime today",
+  "Time for a short break?": "Time for a short break?",
+  "PLAYED TODAY": "PLAYED TODAY",
+  "LIVE TIMER": "LIVE TIMER",
+  "Live timer on": "Live timer on",
+  "Live timer off": "Live timer off",
+  "It appears while a game is running.": "It appears while a game is running."
 }

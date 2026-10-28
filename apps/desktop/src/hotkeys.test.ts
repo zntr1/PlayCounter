@@ -11,6 +11,7 @@ import {
   useHotkeyStatus,
 } from "./hotkeys";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
+import { toggleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
 import { useAppStore } from "./store";
 
@@ -22,6 +23,7 @@ vi.mock("./desktopOverlayBridge", () => ({
 vi.mock("./quickNote", () => ({
   openQuickNoteForCurrentSession: vi.fn(),
 }));
+vi.mock("./liveTimer", () => ({ toggleLiveTimer: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
 
@@ -41,6 +43,7 @@ beforeEach(() => {
       showWindowHotkey: null,
       currentSessionHotkey: null,
       quickNoteHotkey: null,
+      liveTimerHotkey: null,
     },
   }));
 });
@@ -58,6 +61,7 @@ describe("global hotkeys", () => {
         showWindowHotkey: "Control+KeyP",
         currentSessionHotkey: "Alt+F8",
         quickNoteHotkey: "Alt+F9",
+        liveTimerHotkey: "Alt+F10",
       },
     }));
     initializeHotkeys();
@@ -66,6 +70,7 @@ describe("global hotkeys", () => {
     expect(listenMock.mock.calls.map(([event]) => event)).toEqual([
       "playcounter:current-session-hotkey",
       "playcounter:quick-note-hotkey",
+      "playcounter:live-timer-hotkey",
     ]);
     expect(invokeMock.mock.calls).toEqual([
       [
@@ -74,6 +79,7 @@ describe("global hotkeys", () => {
       ],
       ["set_global_hotkey", { action: "current-session", shortcut: "Alt+F8" }],
       ["set_global_hotkey", { action: "quick-note", shortcut: "Alt+F9" }],
+      ["set_global_hotkey", { action: "live-timer", shortcut: "Alt+F10" }],
     ]);
     listenMock.mock.calls[0][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledOnce();
@@ -86,6 +92,8 @@ describe("global hotkeys", () => {
     vi.mocked(openQuickNoteForCurrentSession).mockReturnValueOnce(false);
     listenMock.mock.calls[1][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledTimes(2);
+    listenMock.mock.calls[2][1]({ payload: null } as never);
+    expect(toggleLiveTimer).toHaveBeenCalledOnce();
   });
 
   it("keeps saved settings when registration fails and can clear the binding", async () => {
@@ -141,6 +149,7 @@ describe("global hotkeys", () => {
       ["set_global_hotkey", { action: "show-window", shortcut: null }],
       ["set_global_hotkey", { action: "current-session", shortcut: null }],
       ["set_global_hotkey", { action: "quick-note", shortcut: null }],
+      ["set_global_hotkey", { action: "live-timer", shortcut: null }],
     ]);
   });
 });

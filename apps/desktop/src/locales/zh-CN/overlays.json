@@ -40,5 +40,13 @@
   "Enter saves · Shift+Enter starts a new line · Esc cancels": "Enter 保存 · Shift+Enter 换行 · Esc 取消",
   "Save": "保存",
   "Cancel": "取消",
-  "Add session note": "添加游玩记录笔记"
+  "Add session note": "添加游玩记录笔记",
+  "PLAYTIME REMINDER": "游戏时长提醒",
+  "Playtime today": "今日游戏时长",
+  "Time for a short break?": "要不要稍微休息一下？",
+  "PLAYED TODAY": "今日游戏时长",
+  "LIVE TIMER": "实时计时器",
+  "Live timer on": "实时计时器已开启",
+  "Live timer off": "实时计时器已关闭",
+  "It appears while a game is running.": "游戏运行时会显示。"
 }

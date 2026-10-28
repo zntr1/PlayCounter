@@ -585,6 +585,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "PlayCounter cannot list games for this launcher.",
   "PlayCounter notification",
   "PlayCounter quick note",
+  "PlayCounter timer",
   "PlayCounter requires a full Windows path without traversal segments.",
   "Quit PlayCounter",
   "Reset is only available in the main PlayCounter window.",
