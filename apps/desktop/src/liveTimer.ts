@@ -12,22 +12,29 @@ export type LiveTimerPayload = {
   corner: LiveTimerCorner;
   monitor: string;
   accentColor: string | null;
+  /** The game's processes; the pill sits in the corner of their window. */
+  targetPids: number[];
 };
+
+type GamePids = (session: ActiveSession) => number[];
 
 /** What the timer window shows, or null while it should not exist. */
 export function liveTimerPayload(
   settings: Settings,
   activeSessions: ActiveSession[],
+  gamePids: GamePids,
 ): LiveTimerPayload | null {
   if (settings.liveTimerEnabled !== true) return null;
   const session = newestSession(activeSessions);
   const startedAtMs = session ? Date.parse(session.startedAt) : Number.NaN;
-  if (!Number.isFinite(startedAtMs)) return null;
+  if (!session || !Number.isFinite(startedAtMs)) return null;
   return {
     startedAtMs,
     corner: settings.liveTimerCorner ?? "top-left",
     monitor: settings.overlayMonitor ?? "primary",
     accentColor: settings.accentColor,
+    // A console timer has no process: the pill stays in the screen corner.
+    targetPids: session.timer ? [] : gamePids(session),
   };
 }
 
@@ -42,13 +49,15 @@ function samePayload(
       left.startedAtMs === right.startedAtMs &&
       left.corner === right.corner &&
       left.monitor === right.monitor &&
-      left.accentColor === right.accentColor)
+      left.accentColor === right.accentColor &&
+      left.targetPids.join() === right.targetPids.join())
   );
 }
 
 let lifecycle: {
   unsubscribe: () => void;
   shown: LiveTimerPayload | null;
+  gamePids: GamePids;
 } | null = null;
 // Show and hide run in order, so a quick toggle cannot leave a stale window.
 let pending: Promise<unknown> = Promise.resolve();
@@ -63,29 +72,32 @@ function send(payload: LiveTimerPayload | null) {
     .catch((error) => console.warn("live timer update failed", error));
 }
 
-function sync() {
+/** Also called after each process scan, when the game's processes may have
+ *  changed without its session changing. */
+export function syncLiveTimer() {
   if (!lifecycle) return;
   const { settings, activeSessions } = useAppStore.getState();
-  const next = liveTimerPayload(settings, activeSessions);
+  const next = liveTimerPayload(settings, activeSessions, lifecycle.gamePids);
   if (samePayload(next, lifecycle.shown)) return;
   lifecycle.shown = next;
   send(next);
 }
 
-export function initializeLiveTimer() {
+export function initializeLiveTimer(gamePids: GamePids) {
   if (lifecycle || currentPlatform() === "macos") return;
   lifecycle = {
     shown: null,
+    gamePids,
     unsubscribe: useAppStore.subscribe((state, previous) => {
       if (
         state.settings !== previous.settings ||
         state.activeSessions !== previous.activeSessions
       ) {
-        sync();
+        syncLiveTimer();
       }
     }),
   };
-  sync();
+  syncLiveTimer();
 }
 
 export function disposeLiveTimer() {

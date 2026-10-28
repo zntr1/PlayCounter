@@ -435,7 +435,7 @@ mod imp {
         let started = std::time::Instant::now();
         let mut ready_polls = 0;
         while started.elapsed() < TIMEOUT {
-            if process_window_center(&target_pids).is_some() {
+            if largest_process_window(&target_pids).is_some() {
                 ready_polls += 1;
                 if ready_polls >= REQUIRED_READY_POLLS {
                     return true;
@@ -453,8 +453,10 @@ mod imp {
         true
     }
 
+    /// The biggest visible window of these processes, as a raw HWND. The live
+    /// timer sits in its corner.
     #[cfg(target_os = "windows")]
-    fn process_window_center(target_pids: &[u32]) -> Option<(f64, f64)> {
+    pub(crate) fn largest_process_window(target_pids: &[u32]) -> Option<isize> {
         use windows_sys::Win32::{
             Foundation::{BOOL, HWND, LPARAM, RECT},
             UI::WindowsAndMessaging::{
@@ -464,7 +466,7 @@ mod imp {
 
         struct SearchContext {
             target_pids: Vec<u32>,
-            best_center: Option<(f64, f64)>,
+            best_window: Option<isize>,
             best_area: i64,
         }
 
@@ -501,17 +503,14 @@ mod imp {
             let area = width * height;
             if area > context.best_area {
                 context.best_area = area;
-                context.best_center = Some((
-                    f64::from(rect.left + (rect.right - rect.left) / 2),
-                    f64::from(rect.top + (rect.bottom - rect.top) / 2),
-                ));
+                context.best_window = Some(hwnd as isize);
             }
             1
         }
 
         let mut context = SearchContext {
             target_pids: target_pids.to_vec(),
-            best_center: None,
+            best_window: None,
             best_area: 0,
         };
         unsafe {
@@ -520,7 +519,7 @@ mod imp {
                 &mut context as *mut SearchContext as LPARAM,
             );
         }
-        context.best_center
+        context.best_window
     }
 }
 
@@ -562,6 +561,9 @@ mod imp {
         false
     }
 }
+
+#[cfg(target_os = "windows")]
+pub(crate) use imp::largest_process_window;
 
 /// The display picked for popups. The quick note opens there too.
 #[cfg(not(target_os = "macos"))]

@@ -4,6 +4,7 @@ import {
   disposeLiveTimer,
   initializeLiveTimer,
   liveTimerPayload,
+  syncLiveTimer,
 } from "./liveTimer";
 import { useAppStore, type ActiveSession } from "./store";
 import { formatLiveTimer } from "./ui/LiveTimerPill";
@@ -39,6 +40,8 @@ beforeEach(() => {
 });
 afterEach(() => disposeLiveTimer());
 
+const pidsById = (session: ActiveSession) => [session.id * 100];
+
 it("times the game started last, not one waiting after a crash", () => {
   const settings = {
     ...useAppStore.getState().settings,
@@ -46,27 +49,48 @@ it("times the game started last, not one waiting after a crash", () => {
     liveTimerCorner: "bottom-right" as const,
   };
   expect(
-    liveTimerPayload(settings, [
-      session(1, "2026-10-28T10:00:00Z"),
-      session(2, "2026-10-28T11:00:00Z"),
-      session(3, "2026-10-28T12:00:00Z", { recoveredFromCheckpoint: true }),
-    ]),
+    liveTimerPayload(
+      settings,
+      [
+        session(1, "2026-10-28T10:00:00Z"),
+        session(2, "2026-10-28T11:00:00Z"),
+        session(3, "2026-10-28T12:00:00Z", { recoveredFromCheckpoint: true }),
+      ],
+      pidsById,
+    ),
   ).toEqual({
     startedAtMs: Date.parse("2026-10-28T11:00:00Z"),
     corner: "bottom-right",
     monitor: "primary",
     accentColor: null,
+    targetPids: [200],
   });
-  expect(liveTimerPayload(settings, [])).toBeNull();
+  expect(liveTimerPayload(settings, [], pidsById)).toBeNull();
   expect(
-    liveTimerPayload({ ...settings, liveTimerEnabled: false }, [
-      session(1, "2026-10-28T10:00:00Z"),
-    ]),
+    liveTimerPayload(
+      { ...settings, liveTimerEnabled: false },
+      [session(1, "2026-10-28T10:00:00Z")],
+      pidsById,
+    ),
   ).toBeNull();
 });
 
+it("keeps a console timer in the screen corner", () => {
+  const settings = {
+    ...useAppStore.getState().settings,
+    liveTimerEnabled: true,
+  };
+  expect(
+    liveTimerPayload(
+      settings,
+      [session(1, "2026-10-28T10:00:00Z", { timer: true })],
+      pidsById,
+    )?.targetPids,
+  ).toEqual([]);
+});
+
 it("opens the timer with a game and closes it when the game ends", async () => {
-  initializeLiveTimer();
+  initializeLiveTimer(pidsById);
   useAppStore.getState().setDesktopOverlaySetting("liveTimerEnabled", true);
   expect(invokeMock).not.toHaveBeenCalled();
 
@@ -85,10 +109,29 @@ it("opens the timer with a game and closes it when the game ends", async () => {
       {
         payload: expect.objectContaining({
           startedAtMs: Date.parse("2026-10-28T10:00:00Z"),
+          targetPids: [100],
         }),
       },
     ],
     ["live_timer_hide"],
+  ]);
+});
+
+it("follows the game to a process that started after it", async () => {
+  let pids = [10];
+  initializeLiveTimer(() => pids);
+  useAppStore.getState().setDesktopOverlaySetting("liveTimerEnabled", true);
+  useAppStore.setState({
+    activeSessions: [session(1, "2026-10-28T10:00:00Z")],
+  });
+  // A scan with the same processes sends nothing new.
+  syncLiveTimer();
+  pids = [10, 11];
+  syncLiveTimer();
+  await vi.waitFor(() => expect(invokeMock).toHaveBeenCalledTimes(2));
+  expect(invokeMock.mock.calls.map(([, args]) => args)).toEqual([
+    { payload: expect.objectContaining({ targetPids: [10] }) },
+    { payload: expect.objectContaining({ targetPids: [10, 11] }) },
   ]);
 });
 

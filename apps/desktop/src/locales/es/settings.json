@@ -330,7 +330,7 @@
   "While you play": "Mientras juegas",
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Controla tu tiempo sin salir del juego. Ambos funcionan aunque las ventanas emergentes de escritorio estén desactivadas.",
   "Live timer": "Cronómetro en pantalla",
-  "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.": "Un pequeño cronómetro en una esquina de la pantalla que cuenta el tiempo mientras se ejecuta un juego. Los clics lo atraviesan. Usa la pantalla elegida en “Ventanas emergentes de escritorio”.",
+  "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.": "Un pequeño cronómetro en una esquina de la ventana del juego que cuenta el tiempo mientras el juego se ejecuta. Los clics lo atraviesan. Sin ventana de juego, aparece en la pantalla elegida en “Ventanas emergentes de escritorio”.",
   "Timer position": "Posición del cronómetro",
   "Pick a corner your game's HUD leaves free.": "Elige una esquina que el HUD de tu juego deje libre.",
   "Top left": "Arriba a la izquierda",

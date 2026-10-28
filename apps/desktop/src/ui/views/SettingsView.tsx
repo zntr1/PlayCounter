@@ -742,7 +742,7 @@ export function SettingsView() {
         >
           <SettingsRow
             description={t(
-              "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.",
+              "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.",
             )}
             title={t("Live timer")}
           >

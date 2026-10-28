@@ -4,7 +4,11 @@ import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
-import { initializeLiveTimer, disposeLiveTimer } from "./liveTimer";
+import {
+  initializeLiveTimer,
+  disposeLiveTimer,
+  syncLiveTimer,
+} from "./liveTimer";
 import {
   initializePlaytimeReminder,
   disposePlaytimeReminder,
@@ -518,7 +522,7 @@ export async function initializeTracker() {
   initializeDesktopOverlays();
   initializeHotkeys();
   initializeQuickNotes();
-  initializeLiveTimer();
+  initializeLiveTimer(runningGamePids);
   initializePlaytimeReminder();
   initializeControllerBridge();
   syncTrayNowPlaying();
@@ -2320,6 +2324,8 @@ async function handleProcessSnapshot(processes: ProcessSnapshot[]) {
   for (const [key, group] of matchesByGame) {
     runningGameProcesses.set(key, group.processes);
   }
+  // A game can open its window from a process that started after it did.
+  syncLiveTimer();
   // A Game.exe matched through its folder link is not the unknown Game.exe
   // that Discovered or the picker waits for; its time must not count there.
   const matchedProcesses = new Set(matches.map((match) => match.process));
@@ -9335,6 +9341,14 @@ function sessionIdentityKey(
   session: Pick<ActiveSession, "gameId" | "source" | "igdbId">,
 ) {
   return activeSessionKey(session.gameId, session.source, session.igdbId);
+}
+
+/** A running game's processes in the last scan; the live timer sits in the
+ *  corner of their window. */
+function runningGamePids(session: ActiveSession) {
+  return (runningGameProcesses.get(sessionIdentityKey(session)) ?? [])
+    .flatMap((process) => (process.pid === undefined ? [] : [process.pid]))
+    .sort((left, right) => left - right);
 }
 
 function updateActiveSession(session: ActiveSession) {

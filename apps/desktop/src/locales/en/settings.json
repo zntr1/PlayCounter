@@ -325,7 +325,7 @@
   "While you play": "While you play",
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.",
   "Live timer": "Live timer",
-  "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.": "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.",
+  "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.": "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.",
   "Timer position": "Timer position",
   "Pick a corner your game's HUD leaves free.": "Pick a corner your game's HUD leaves free.",
   "Top left": "Top left",

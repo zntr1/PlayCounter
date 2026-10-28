@@ -325,7 +325,7 @@
   "While you play": "Während du spielst",
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Behalte deine Zeit im Blick, ohne das Spiel zu verlassen. Beides funktioniert auch, wenn Desktop-Pop-ups aus sind.",
   "Live timer": "Live-Timer",
-  "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.": "Ein kleiner Timer in einer Ecke deines Bildschirms, der hochzählt, solange ein Spiel läuft. Klicks gehen durch ihn hindurch. Er nutzt den Bildschirm, der unter „Desktop-Pop-ups“ gewählt ist.",
+  "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.": "Ein kleiner Timer in einer Ecke deines Spielfensters, der hochzählt, solange das Spiel läuft. Klicks gehen durch ihn hindurch. Ohne Spielfenster erscheint er auf dem Bildschirm, der unter „Desktop-Pop-ups“ gewählt ist.",
   "Timer position": "Position des Timers",
   "Pick a corner your game's HUD leaves free.": "Wähle eine Ecke, die das HUD deines Spiels frei lässt.",
   "Top left": "Oben links",

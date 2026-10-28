@@ -335,7 +335,7 @@
   "While you play": "Podczas gry",
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Miej oko na swój czas bez wychodzenia z gry. Obie funkcje działają nawet przy wyłączonych wyskakujących okienkach.",
   "Live timer": "Licznik na ekranie",
-  "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.": "Mały licznik w rogu ekranu, który odlicza czas, gdy działa gra. Kliknięcia przechodzą przez niego. Używa ekranu wybranego w sekcji Wyskakujące okienka.",
+  "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.": "Mały licznik w rogu okna gry, który odlicza czas, gdy gra działa. Kliknięcia przechodzą przez niego. Bez okna gry pojawia się na ekranie wybranym w sekcji Wyskakujące okienka.",
   "Timer position": "Położenie licznika",
   "Pick a corner your game's HUD leaves free.": "Wybierz róg, którego nie zasłania interfejs gry.",
   "Top left": "Lewy górny róg",

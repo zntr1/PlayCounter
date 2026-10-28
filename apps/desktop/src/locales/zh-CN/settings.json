@@ -320,7 +320,7 @@
   "While you play": "游戏时",
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "无需离开游戏即可留意时间。即使关闭了桌面弹窗，这两项也能使用。",
   "Live timer": "实时计时器",
-  "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.": "屏幕角落里的小计时器，游戏运行时持续计时。点击会直接穿过它。使用“桌面弹窗”中选择的显示器。",
+  "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.": "游戏窗口角落里的小计时器，游戏运行时持续计时。点击会直接穿过它。没有游戏窗口时，它会显示在“桌面弹窗”中选择的显示器上。",
   "Timer position": "计时器位置",
   "Pick a corner your game's HUD leaves free.": "选择一个不会被游戏界面遮挡的角落。",
   "Top left": "左上角",

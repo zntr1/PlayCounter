@@ -1,11 +1,16 @@
-//! The live timer: a small pill in a screen corner that counts the running
-//! session up. Like the notification overlay it never takes focus or clicks,
-//! and its window exists only while it is shown, since a hidden webview still
-//! holds its own renderer process.
+//! The live timer: a small pill that counts the running session up, in a
+//! corner of the game's window, or of the screen while the game shows none.
+//! Like the notification overlay it never takes focus or clicks, and its
+//! window exists only while it is shown, since a hidden webview still holds
+//! its own renderer process.
 
 use crate::notification_overlay::PhysRect;
 use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicU64, Mutex};
+
+/// How often the pill checks where the game's window went.
+#[cfg(not(target_os = "macos"))]
+const FOLLOW_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
 
 /// Every timer window gets this prefix plus a counter, so a new one never
 /// waits for the previous one to finish closing.
@@ -28,6 +33,9 @@ pub struct LiveTimerPayload {
     #[serde(default)]
     monitor: Option<String>,
     accent_color: Option<String>,
+    /// The game's processes; the pill sits in their biggest window.
+    #[serde(default)]
+    target_pids: Vec<u32>,
 }
 
 #[derive(Default)]
@@ -50,10 +58,15 @@ fn sanitize(mut payload: LiveTimerPayload) -> LiveTimerPayload {
     }
     payload.monitor = payload.monitor.map(|value| truncate(value, 200));
     payload.accent_color = payload.accent_color.map(|value| truncate(value, 16));
+    payload.target_pids.retain(|pid| *pid > 0);
+    payload.target_pids.sort_unstable();
+    payload.target_pids.dedup();
+    payload.target_pids.truncate(16);
     payload
 }
 
-/// The window's place in a corner of the work area, in physical pixels.
+/// The window's place in a corner of an area (the game's window or the work
+/// area), in physical pixels.
 pub fn timer_rect(
     work_area: PhysRect,
     scale_factor: f64,
@@ -101,14 +114,50 @@ mod imp {
     use std::sync::atomic::Ordering;
     use tauri::{Emitter, Manager};
 
-    fn position_window(
-        app: &tauri::AppHandle,
-        window: &tauri::WebviewWindow,
-        payload: &LiveTimerPayload,
-    ) -> Result<(), String> {
+    /// The inside of the game's biggest window (no title bar or borders), in
+    /// screen pixels. None while it shows no window, e.g. minimized.
+    #[cfg(target_os = "windows")]
+    fn game_area(target_pids: &[u32]) -> Option<PhysRect> {
+        use windows_sys::Win32::{
+            Foundation::HWND,
+            UI::WindowsAndMessaging::{GetWindowInfo, WINDOWINFO},
+        };
+        let hwnd = crate::notification_overlay::largest_process_window(target_pids)?;
+        // SAFETY: WINDOWINFO is plain data; all zeroes is a valid value.
+        let mut info: WINDOWINFO = unsafe { std::mem::zeroed() };
+        info.cbSize = std::mem::size_of::<WINDOWINFO>() as u32;
+        if unsafe { GetWindowInfo(hwnd as HWND, &mut info) } == 0 {
+            return None;
+        }
+        let client = info.rcClient;
+        (client.right > client.left && client.bottom > client.top).then(|| PhysRect {
+            x: client.left,
+            y: client.top,
+            width: (client.right - client.left) as u32,
+            height: (client.bottom - client.top) as u32,
+        })
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn game_area(_target_pids: &[u32]) -> Option<PhysRect> {
+        None
+    }
+
+    fn target_rect(app: &tauri::AppHandle, payload: &LiveTimerPayload) -> Result<PhysRect, String> {
+        let size = (WINDOW_LOGICAL_WIDTH, WINDOW_LOGICAL_HEIGHT);
+        if let Some(area) = game_area(&payload.target_pids) {
+            let center_x = f64::from(area.x) + f64::from(area.width) / 2.0;
+            let center_y = f64::from(area.y) + f64::from(area.height) / 2.0;
+            let scale = app
+                .monitor_from_point(center_x, center_y)
+                .ok()
+                .flatten()
+                .map_or(1.0, |monitor| monitor.scale_factor());
+            return Ok(timer_rect(area, scale, &payload.corner, size));
+        }
         let monitor = crate::notification_overlay::popup_monitor(app, payload.monitor.as_deref())?;
         let area = monitor.work_area();
-        let rect = timer_rect(
+        Ok(timer_rect(
             PhysRect {
                 x: area.position.x,
                 y: area.position.y,
@@ -117,14 +166,43 @@ mod imp {
             },
             monitor.scale_factor(),
             &payload.corner,
-            (WINDOW_LOGICAL_WIDTH, WINDOW_LOGICAL_HEIGHT),
-        );
+            size,
+        ))
+    }
+
+    fn place(window: &tauri::WebviewWindow, rect: PhysRect) -> Result<(), String> {
         window
             .set_size(tauri::PhysicalSize::new(rect.width, rect.height))
             .map_err(|error| error.to_string())?;
         window
             .set_position(tauri::PhysicalPosition::new(rect.x, rect.y))
             .map_err(|error| error.to_string())
+    }
+
+    /// Moves the pill along with the game's window until the pill is closed.
+    fn follow(app: tauri::AppHandle, label: String) {
+        tauri::async_runtime::spawn(async move {
+            let mut placed = None;
+            loop {
+                tokio::time::sleep(FOLLOW_INTERVAL).await;
+                let Some(window) = app.get_webview_window(&label) else {
+                    return;
+                };
+                let payload = match app.state::<LiveTimerState>().payload.lock() {
+                    Ok(payload) => payload.clone(),
+                    Err(_) => return,
+                };
+                let Some(payload) = payload else {
+                    return;
+                };
+                let Ok(rect) = target_rect(&app, &payload) else {
+                    continue;
+                };
+                if placed != Some(rect) && place(&window, rect).is_ok() {
+                    placed = Some(rect);
+                }
+            }
+        });
     }
 
     pub fn show(
@@ -177,11 +255,12 @@ mod imp {
                 window
                     .set_ignore_cursor_events(true)
                     .map_err(|error| error.to_string())?;
+                follow(app.clone(), next.clone());
                 *label = Some(next);
                 window
             }
         };
-        position_window(app, &window, &payload)?;
+        place(&window, target_rect(app, &payload)?)?;
         window.show().map_err(|error| error.to_string())
     }
 
@@ -344,17 +423,19 @@ mod tests {
     }
 
     #[test]
-    fn falls_back_to_the_top_left_for_unknown_corners() {
+    fn cleans_what_the_main_window_sends() {
         let payload = sanitize(LiveTimerPayload {
             started_at_ms: 0,
             corner: "middle".to_string(),
             monitor: Some("m".repeat(500)),
             accent_color: None,
+            target_pids: vec![30, 0, 7, 30],
         });
         assert_eq!(payload.corner, "top-left");
         assert_eq!(
             payload.monitor.map(|value| value.chars().count()),
             Some(200)
         );
+        assert_eq!(payload.target_pids, vec![7, 30]);
     }
 }

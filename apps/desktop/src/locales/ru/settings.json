@@ -335,7 +335,7 @@
   "While you play": "Во время игры",
   "Keep an eye on your time without leaving the game. Both work even when desktop popups are off.": "Следите за временем, не выходя из игры. Обе функции работают, даже когда всплывающие окна выключены.",
   "Live timer": "Таймер на экране",
-  "A small timer in a corner of your screen that counts up while a game runs. Clicks pass through it. It uses the display selected under Desktop popups.": "Небольшой таймер в углу экрана, который считает время, пока запущена игра. Клики проходят сквозь него. Использует экран, выбранный в разделе «Всплывающие окна».",
+  "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.": "Небольшой таймер в углу окна игры, который считает время, пока игра запущена. Клики проходят сквозь него. Без окна игры он показывается на экране, выбранном в разделе «Всплывающие окна».",
   "Timer position": "Положение таймера",
   "Pick a corner your game's HUD leaves free.": "Выберите угол, который не занят интерфейсом игры.",
   "Top left": "Вверху слева",
