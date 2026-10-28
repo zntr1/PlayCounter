@@ -874,7 +874,7 @@ html[data-window="live-timer"] #live-timer-root {
   gap: 9px;
   border: 1px solid rgb(255 255 255 / 0.12);
   border-radius: 999px;
-  padding: 7px 15px 7px 12px;
+  padding: 6px 15px 6px 9px;
   background: rgb(12 12 14 / 0.72);
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
   color: rgb(255 255 255 / 0.94);
@@ -887,23 +887,12 @@ html[data-window="live-timer"] #live-timer-root {
   white-space: nowrap;
 }
 
-.live-timer-pill i {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgb(var(--color-accent));
-  box-shadow: 0 0 8px rgb(var(--color-accent) / 0.8);
-  animation: live-timer-pulse 2s ease-in-out infinite;
-}
-
-@keyframes live-timer-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
+/* Nothing in the pill animates: it sits over a game for hours, and an endless
+   animation redraws it every frame instead of once a second. */
+.live-timer-pill img {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.5));
 }
 
 .desktop-overlay-glints i {
@@ -1024,9 +1013,6 @@ html[data-window="live-timer"] #live-timer-root {
   }
   .desktop-overlay-glints {
     display: none;
-  }
-  .live-timer-pill i {
-    animation: none;
   }
   .app-toast {
     animation: none !important;

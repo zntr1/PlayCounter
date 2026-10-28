@@ -31,7 +31,7 @@ export function LiveTimerPill({ payload }: { payload: LiveTimerPayload }) {
       className={`live-timer ${payload.corner.endsWith("right") ? "live-timer-right" : ""}`}
     >
       <div className="live-timer-pill">
-        <i aria-hidden="true" />
+        <img src="/brand/playcounter-mark-small.svg" alt="" />
         <time>{formatLiveTimer((nowMs - payload.startedAtMs) / 1000)}</time>
       </div>
     </div>
