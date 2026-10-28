@@ -207,6 +207,9 @@ export type ExeCacheEntry = {
   /** Last seen path of an unmatched executable, so Discovered can show its
    *  folder, icon and product name after it stops. Stays on this PC. */
   exePath?: string;
+  /** An unmatched executable that came in with a backup and has not run on
+   *  this PC yet. Discovered hides it until it does; its time is kept. */
+  fromBackup?: boolean;
 };
 
 export type LaunchTargetOwner = {

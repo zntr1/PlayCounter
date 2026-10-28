@@ -789,6 +789,64 @@ describe("backup import", () => {
     expect(useAppStore.getState().feedbackReplyCursor).toEqual(expected);
   });
 
+  it("hides the other PC's Discovered apps until they run here", async () => {
+    const values = installLocalStorage(null);
+    values.set(
+      "playcounter.watchFolders",
+      JSON.stringify({
+        pending: {
+          "found.exe": {
+            exePath: "D:/Games/Found/Found.exe",
+            folderPath: "D:/Games/Found",
+            folderName: "Found",
+          },
+        },
+      }),
+    );
+    openMock.mockResolvedValue("backup.json");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "read_text_file") {
+        return backup({
+          sessions: [],
+          exeCache: [
+            validEntry,
+            {
+              exeName: "Tool.exe",
+              state: "unmatched",
+              lastCheckedAt: "2026-08-19T00:00:00.000Z",
+              trackedSeconds: 360_000,
+            },
+            {
+              exeName: "Found.exe",
+              state: "unmatched",
+              lastCheckedAt: "2026-08-19T00:00:00.000Z",
+            },
+          ],
+        });
+      }
+      return undefined;
+    });
+
+    await expect(importLocalData()).resolves.toMatchObject({ imported: true });
+
+    const imported = JSON.parse(values.get(STORAGE_KEY) ?? "{}");
+    expect(imported.exeCache).toEqual([
+      validEntry,
+      {
+        exeName: "Tool.exe",
+        state: "unmatched",
+        lastCheckedAt: "2026-08-19T00:00:00.000Z",
+        trackedSeconds: 360_000,
+        fromBackup: true,
+      },
+      {
+        exeName: "Found.exe",
+        state: "unmatched",
+        lastCheckedAt: "2026-08-19T00:00:00.000Z",
+      },
+    ]);
+  });
+
   it("still imports when the running version cannot be read", async () => {
     const values = installLocalStorage(null);
     getVersionMock.mockRejectedValue(new Error("version unavailable"));

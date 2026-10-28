@@ -173,6 +173,7 @@ const exeEntry = object(
     trackedSeconds: nonnegative,
     runningSince: date,
     addedAt: date,
+    fromBackup: boolean,
   },
 );
 const libraryImport = object(

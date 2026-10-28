@@ -4348,7 +4348,16 @@ function hasLibraryGame(igdbId: number) {
 
 /** An unclear find waits in Discovered like an unknown running game. */
 export function noteFolderExecutable(exeName: string) {
-  if (useAppStore.getState().exeCache.has(exeName.toLowerCase())) return;
+  const state = useAppStore.getState();
+  const existing = state.exeCache.get(exeName.toLowerCase());
+  // A watched folder holds the file: an app from a backup is on this PC.
+  if (existing?.fromBackup) {
+    const { fromBackup: _fromBackup, ...rest } = existing;
+    state.setExeCacheEntry(rest);
+    persist();
+    return;
+  }
+  if (existing) return;
   cacheMatchResult(exeName, null);
   persist();
 }
@@ -4995,6 +5004,8 @@ function cachePendingCommunityMatch(exeName: string, game: Game) {
     runningSince:
       existing?.state === "unmatched" ? existing.runningSince : undefined,
     exePath: existing?.state === "unmatched" ? existing.exePath : undefined,
+    fromBackup:
+      existing?.state === "unmatched" ? existing.fromBackup : undefined,
   });
   logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
 }
@@ -5604,6 +5615,11 @@ function accumulateUnmatchedRuntime(
       // product name after the app has stopped too.
       const exePath = runningPaths.get(key);
       if (exePath && entry.exePath !== exePath) next = { ...next, exePath };
+      // It runs here: an app from a backup belongs in Discovered now.
+      if (entry.fromBackup) {
+        const { fromBackup: _fromBackup, ...rest } = next;
+        next = rest;
+      }
       if (!entry.runningSince) {
         // Open a new running window; nothing folded yet.
         next = { ...next, runningSince: nowIso };
@@ -5861,6 +5877,8 @@ function cacheMatchResult(
       runningSince:
         existing?.state === "unmatched" ? existing.runningSince : undefined,
       exePath: existing?.state === "unmatched" ? existing.exePath : undefined,
+      fromBackup:
+        existing?.state === "unmatched" ? existing.fromBackup : undefined,
     });
     return;
   }

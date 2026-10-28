@@ -62,6 +62,24 @@ describe("discovered review count", () => {
     expect(countNeedsReview(state)).toBe(1);
   });
 
+  it("hides an app from a backup that has not run on this PC", () => {
+    const state = input(
+      [],
+      [{ ...cacheEntry("tool.exe", "unmatched"), fromBackup: true }],
+    );
+
+    expect(
+      getDiscoveryStatus(
+        "tool.exe",
+        state.exeCache.get("tool.exe"),
+        state.ignoredProcesses,
+        state.userIgnoredProcesses,
+        state.blacklist,
+      ),
+    ).toBeNull();
+    expect(countNeedsReview(state)).toBe(0);
+  });
+
   it("does not expose a process before its database check completes", () => {
     const state = input([{ exeName: "subnautica.exe", exePath: null }]);
 

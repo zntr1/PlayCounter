@@ -88,7 +88,10 @@ export function getDiscoveryStatus(
     return "custom";
   }
   if (cacheEntry?.state === "matched") return "matched";
-  if (cacheEntry?.state === "unmatched") return "unmatched";
+  if (cacheEntry?.state === "unmatched") {
+    // An app from another PC's backup may not be installed here at all.
+    return cacheEntry.fromBackup ? null : "unmatched";
+  }
 
   // An executable without a cache result is still being checked (or its
   // lookup failed). It must not enter Discovered until it has been classified.
