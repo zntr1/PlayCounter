@@ -46,7 +46,10 @@
   "Time for a short break?": "C'est l'heure d'une petite pause ?",
   "PLAYED TODAY": "JOUÉ AUJOURD'HUI",
   "LIVE TIMER": "CHRONO À L'ÉCRAN",
-  "Live timer on": "Chrono à l'écran activé",
+  "Live timer at the top left": "Chrono à l'écran en haut à gauche",
+  "Live timer at the top right": "Chrono à l'écran en haut à droite",
+  "Live timer at the bottom right": "Chrono à l'écran en bas à droite",
+  "Live timer at the bottom left": "Chrono à l'écran en bas à gauche",
   "Live timer off": "Chrono à l'écran désactivé",
   "It appears while a game is running.": "Il s'affiche pendant qu'un jeu est en cours."
 }

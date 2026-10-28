@@ -46,7 +46,10 @@
   "Time for a short break?": "Hora de uma pausa rápida?",
   "PLAYED TODAY": "JOGADO HOJE",
   "LIVE TIMER": "CRONÔMETRO NA TELA",
-  "Live timer on": "Cronômetro na tela ativado",
+  "Live timer at the top left": "Cronômetro na tela no canto superior esquerdo",
+  "Live timer at the top right": "Cronômetro na tela no canto superior direito",
+  "Live timer at the bottom right": "Cronômetro na tela no canto inferior direito",
+  "Live timer at the bottom left": "Cronômetro na tela no canto inferior esquerdo",
   "Live timer off": "Cronômetro na tela desativado",
   "It appears while a game is running.": "Ele aparece enquanto um jogo está rodando."
 }

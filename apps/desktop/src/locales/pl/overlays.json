@@ -46,7 +46,10 @@
   "Time for a short break?": "Czas na krótką przerwę?",
   "PLAYED TODAY": "GRANO DZIŚ",
   "LIVE TIMER": "LICZNIK NA EKRANIE",
-  "Live timer on": "Licznik na ekranie włączony",
+  "Live timer at the top left": "Licznik na ekranie w lewym górnym rogu",
+  "Live timer at the top right": "Licznik na ekranie w prawym górnym rogu",
+  "Live timer at the bottom right": "Licznik na ekranie w prawym dolnym rogu",
+  "Live timer at the bottom left": "Licznik na ekranie w lewym dolnym rogu",
   "Live timer off": "Licznik na ekranie wyłączony",
   "It appears while a game is running.": "Pojawia się, gdy działa gra."
 }

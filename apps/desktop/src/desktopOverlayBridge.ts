@@ -1,3 +1,4 @@
+import type { LiveTimerCorner } from "@playcounter/shared";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
@@ -84,15 +85,15 @@ export function showPlaytimeReminderOverlay(todaySeconds: number) {
   state.queue.push(message);
 }
 
-/** Without a running game the hotkey has nothing to show or hide, so it says
- *  what it did. */
-export function showLiveTimerToggledOverlay(enabled: boolean) {
+/** Without a running game the hotkey has nothing to move or hide, so it says
+ *  what it did. Null = switched off. */
+export function showLiveTimerToggledOverlay(corner: LiveTimerCorner | null) {
   const state = bridge;
   if (!state || state.disposed) return;
   state.queue.showImmediately(
     buildOverlayMessage(
       "live-timer",
-      { type: "live-timer", enabled },
+      { type: "live-timer", corner },
       renderContext(),
     ),
   );
@@ -407,7 +408,7 @@ function previewEvent(
     };
   }
   if (kind === "live-timer") {
-    return { type: "live-timer", enabled: true };
+    return { type: "live-timer", corner: "top-left" };
   }
   if (kind === "action-required") {
     return {

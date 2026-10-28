@@ -46,7 +46,10 @@
   "Time for a short break?": "要不要稍微休息一下？",
   "PLAYED TODAY": "今日游戏时长",
   "LIVE TIMER": "实时计时器",
-  "Live timer on": "实时计时器已开启",
+  "Live timer at the top left": "实时计时器：左上角",
+  "Live timer at the top right": "实时计时器：右上角",
+  "Live timer at the bottom right": "实时计时器：右下角",
+  "Live timer at the bottom left": "实时计时器：左下角",
   "Live timer off": "实时计时器已关闭",
   "It appears while a game is running.": "游戏运行时会显示。"
 }

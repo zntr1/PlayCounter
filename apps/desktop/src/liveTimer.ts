@@ -107,13 +107,30 @@ export function disposeLiveTimer() {
   lifecycle = null;
 }
 
-/** The hotkey. With a game running, the timer appearing or going is the
+const HOTKEY_CORNERS: LiveTimerCorner[] = [
+  "top-left",
+  "top-right",
+  "bottom-right",
+  "bottom-left",
+];
+
+/** The hotkey's next step: off, then each corner clockwise from the top
+ *  left, then off again. Null = off. */
+export function nextLiveTimerCorner(settings: Settings) {
+  if (settings.liveTimerEnabled !== true) return HOTKEY_CORNERS[0];
+  const index = HOTKEY_CORNERS.indexOf(settings.liveTimerCorner ?? "top-left");
+  return HOTKEY_CORNERS[index + 1] ?? null;
+}
+
+/** The hotkey. With a game running, the timer moving or going is the
  *  answer; without one a short popup says what happened. */
-export function toggleLiveTimer() {
+export function cycleLiveTimer() {
   const store = useAppStore.getState();
-  const enabled = store.settings.liveTimerEnabled !== true;
-  store.setDesktopOverlaySetting("liveTimerEnabled", enabled);
+  const corner = nextLiveTimerCorner(store.settings);
+  // Corner first: switching on then shows the timer once, in its place.
+  if (corner) store.setLiveTimerCorner(corner);
+  store.setDesktopOverlaySetting("liveTimerEnabled", corner !== null);
   if (!newestSession(store.activeSessions)) {
-    showLiveTimerToggledOverlay(enabled);
+    showLiveTimerToggledOverlay(corner);
   }
 }

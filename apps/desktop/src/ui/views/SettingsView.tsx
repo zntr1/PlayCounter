@@ -702,7 +702,7 @@ export function SettingsView() {
             currentPlatform() === "macos"
               ? t("Desktop popups are not supported on macOS.")
               : t(
-                  "Turn the live timer on or off from inside your game. It stays that way for your next games too.",
+                  "Each press moves the live timer to the next corner: top left, top right, bottom right, bottom left, then off. The last choice stays for your next games.",
                 )
           }
         >
@@ -742,7 +742,7 @@ export function SettingsView() {
         >
           <SettingsRow
             description={t(
-              "A small timer in a corner of your game's window that counts up while the game runs. Clicks pass through it. Without a game window, it shows on the display selected under Desktop popups.",
+              "A small timer in a corner of your game's window that counts up while you play. It hides while another app is in front, and clicks pass through it. Timers you start by hand show on the display selected under Desktop popups.",
             )}
             title={t("Live timer")}
           >

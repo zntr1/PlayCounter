@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import {
+  cycleLiveTimer,
   disposeLiveTimer,
   initializeLiveTimer,
   liveTimerPayload,
@@ -133,6 +134,37 @@ it("follows the game to a process that started after it", async () => {
     { payload: expect.objectContaining({ targetPids: [10] }) },
     { payload: expect.objectContaining({ targetPids: [10, 11] }) },
   ]);
+});
+
+it("steps the hotkey through the corners clockwise, then off", () => {
+  const seen: Array<string | null> = [];
+  for (let press = 0; press < 6; press += 1) {
+    cycleLiveTimer();
+    const { liveTimerEnabled, liveTimerCorner } =
+      useAppStore.getState().settings;
+    seen.push(liveTimerEnabled ? (liveTimerCorner ?? null) : null);
+  }
+  expect(seen).toEqual([
+    "top-left",
+    "top-right",
+    "bottom-right",
+    "bottom-left",
+    null,
+    "top-left",
+  ]);
+});
+
+it("switches on in its corner, without a stop in the old one", async () => {
+  initializeLiveTimer(pidsById);
+  useAppStore.setState({
+    activeSessions: [session(1, "2026-10-28T10:00:00Z")],
+  });
+  useAppStore.getState().setLiveTimerCorner("bottom-left");
+  cycleLiveTimer();
+  await vi.waitFor(() => expect(invokeMock).toHaveBeenCalledOnce());
+  expect(invokeMock).toHaveBeenCalledWith("live_timer_show", {
+    payload: expect.objectContaining({ corner: "top-left" }),
+  });
 });
 
 it("counts in hours, minutes and seconds", () => {

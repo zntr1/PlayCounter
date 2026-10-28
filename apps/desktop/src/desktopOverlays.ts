@@ -1,4 +1,4 @@
-import type { Settings } from "@playcounter/shared";
+import type { LiveTimerCorner, Settings } from "@playcounter/shared";
 import type { AppNotification } from "./notifications";
 import { parseMilestoneId } from "./milestones";
 import { formatDuration } from "./ui/components";
@@ -116,7 +116,8 @@ export type OverlayEvent =
       coverUrl?: string;
       todaySeconds: number;
     }
-  | { type: "live-timer"; enabled: boolean };
+  /** Null = switched off. */
+  | { type: "live-timer"; corner: LiveTimerCorner | null };
 
 export type TrackerOverlayEvent = Exclude<
   OverlayEvent,
@@ -234,12 +235,16 @@ function overlayCopy(
     };
   }
   if (event.type === "live-timer") {
+    const titles: Record<LiveTimerCorner, string> = {
+      "top-left": t("Live timer at the top left"),
+      "top-right": t("Live timer at the top right"),
+      "bottom-right": t("Live timer at the bottom right"),
+      "bottom-left": t("Live timer at the bottom left"),
+    };
     return {
       kicker: t("LIVE TIMER"),
-      title: event.enabled ? t("Live timer on") : t("Live timer off"),
-      body: event.enabled
-        ? t("It appears while a game is running.")
-        : undefined,
+      title: event.corner ? titles[event.corner] : t("Live timer off"),
+      body: event.corner ? t("It appears while a game is running.") : undefined,
     };
   }
   if (kind === "action-required" && event.type === "choice-required") {

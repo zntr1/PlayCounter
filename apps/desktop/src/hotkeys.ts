@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
-import { toggleLiveTimer } from "./liveTimer";
+import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
 import { useAppStore } from "./store";
 import { getT } from "./i18n";
@@ -28,7 +28,7 @@ const listened: Partial<Record<HotkeySetting, () => void>> = {
   quickNoteHotkey: () => {
     if (!openQuickNoteForCurrentSession()) showCurrentSessionOverlay();
   },
-  liveTimerHotkey: () => toggleLiveTimer(),
+  liveTimerHotkey: () => cycleLiveTimer(),
 };
 const hotkeyEvents: Partial<Record<HotkeySetting, string>> = {
   currentSessionHotkey: "playcounter:current-session-hotkey",

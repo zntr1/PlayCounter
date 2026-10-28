@@ -46,7 +46,10 @@
   "Time for a short break?": "Zeit für eine kurze Pause?",
   "PLAYED TODAY": "HEUTE GESPIELT",
   "LIVE TIMER": "LIVE-TIMER",
-  "Live timer on": "Live-Timer an",
+  "Live timer at the top left": "Live-Timer oben links",
+  "Live timer at the top right": "Live-Timer oben rechts",
+  "Live timer at the bottom right": "Live-Timer unten rechts",
+  "Live timer at the bottom left": "Live-Timer unten links",
   "Live timer off": "Live-Timer aus",
   "It appears while a game is running.": "Er erscheint, solange ein Spiel läuft."
 }

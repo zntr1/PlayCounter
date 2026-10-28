@@ -138,7 +138,7 @@ describe("desktop overlay policy", () => {
     expect(
       overlayGate({ type: "playtime-reminder", todaySeconds: 7_200 }, off),
     ).toBe("playtime-reminder");
-    expect(overlayGate({ type: "live-timer", enabled: true }, off)).toBe(
+    expect(overlayGate({ type: "live-timer", corner: "top-left" }, off)).toBe(
       "live-timer",
     );
   });

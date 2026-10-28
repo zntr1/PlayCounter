@@ -11,7 +11,7 @@ import {
   useHotkeyStatus,
 } from "./hotkeys";
 import { showCurrentSessionOverlay } from "./desktopOverlayBridge";
-import { toggleLiveTimer } from "./liveTimer";
+import { cycleLiveTimer } from "./liveTimer";
 import { openQuickNoteForCurrentSession } from "./quickNote";
 import { useAppStore } from "./store";
 
@@ -23,7 +23,7 @@ vi.mock("./desktopOverlayBridge", () => ({
 vi.mock("./quickNote", () => ({
   openQuickNoteForCurrentSession: vi.fn(),
 }));
-vi.mock("./liveTimer", () => ({ toggleLiveTimer: vi.fn() }));
+vi.mock("./liveTimer", () => ({ cycleLiveTimer: vi.fn() }));
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
 
@@ -93,7 +93,7 @@ describe("global hotkeys", () => {
     listenMock.mock.calls[1][1]({ payload: null } as never);
     expect(showCurrentSessionOverlay).toHaveBeenCalledTimes(2);
     listenMock.mock.calls[2][1]({ payload: null } as never);
-    expect(toggleLiveTimer).toHaveBeenCalledOnce();
+    expect(cycleLiveTimer).toHaveBeenCalledOnce();
   });
 
   it("keeps saved settings when registration fails and can clear the binding", async () => {

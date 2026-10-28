@@ -46,7 +46,10 @@
   "Time for a short break?": "Может, пора сделать перерыв?",
   "PLAYED TODAY": "СЕГОДНЯ В ИГРЕ",
   "LIVE TIMER": "ТАЙМЕР НА ЭКРАНЕ",
-  "Live timer on": "Таймер на экране включён",
+  "Live timer at the top left": "Таймер на экране вверху слева",
+  "Live timer at the top right": "Таймер на экране вверху справа",
+  "Live timer at the bottom right": "Таймер на экране внизу справа",
+  "Live timer at the bottom left": "Таймер на экране внизу слева",
   "Live timer off": "Таймер на экране выключен",
   "It appears while a game is running.": "Он появляется, пока запущена игра."
 }

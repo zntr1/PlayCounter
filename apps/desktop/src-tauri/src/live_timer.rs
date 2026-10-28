@@ -1,16 +1,18 @@
 //! The live timer: a small pill that counts the running session up, in a
-//! corner of the game's window, or of the screen while the game shows none.
-//! Like the notification overlay it never takes focus or clicks, and its
-//! window exists only while it is shown, since a hidden webview still holds
-//! its own renderer process.
+//! corner of the game's window while the game is in front, hidden otherwise.
+//! A console timer has no window and sits in a screen corner. Like the
+//! notification overlay it never takes focus or clicks, and its window exists
+//! only while a session runs, since a hidden webview still holds its own
+//! renderer process.
 
 use crate::notification_overlay::PhysRect;
 use serde::{Deserialize, Serialize};
 use std::sync::{atomic::AtomicU64, Mutex};
 
-/// How often the pill checks where the game's window went.
+/// How often the pill checks where the game's window went and whether the
+/// game is still in front.
 #[cfg(not(target_os = "macos"))]
-const FOLLOW_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+const FOLLOW_INTERVAL: std::time::Duration = std::time::Duration::from_millis(250);
 
 /// Every timer window gets this prefix plus a counter, so a new one never
 /// waits for the previous one to finish closing.
@@ -143,21 +145,52 @@ mod imp {
         None
     }
 
-    fn target_rect(app: &tauri::AppHandle, payload: &LiveTimerPayload) -> Result<PhysRect, String> {
+    /// Whether the window in front belongs to the game.
+    #[cfg(target_os = "windows")]
+    fn game_in_front(target_pids: &[u32]) -> bool {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetForegroundWindow, GetWindowThreadProcessId,
+        };
+        let hwnd = unsafe { GetForegroundWindow() };
+        if hwnd.is_null() {
+            return false;
+        }
+        let mut pid = 0;
+        unsafe { GetWindowThreadProcessId(hwnd, &mut pid) };
+        target_pids.contains(&pid)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn game_in_front(_target_pids: &[u32]) -> bool {
+        true
+    }
+
+    /// Where the pill goes now; None while the game is not the active
+    /// window (alt-tabbed, minimized, another app clicked).
+    fn target_rect(
+        app: &tauri::AppHandle,
+        payload: &LiveTimerPayload,
+    ) -> Result<Option<PhysRect>, String> {
         let size = (WINDOW_LOGICAL_WIDTH, WINDOW_LOGICAL_HEIGHT);
-        if let Some(area) = game_area(&payload.target_pids) {
-            let center_x = f64::from(area.x) + f64::from(area.width) / 2.0;
-            let center_y = f64::from(area.y) + f64::from(area.height) / 2.0;
-            let scale = app
-                .monitor_from_point(center_x, center_y)
-                .ok()
-                .flatten()
-                .map_or(1.0, |monitor| monitor.scale_factor());
-            return Ok(timer_rect(area, scale, &payload.corner, size));
+        // A console timer has no process, so nothing to follow or hide for.
+        if !payload.target_pids.is_empty() {
+            if !game_in_front(&payload.target_pids) {
+                return Ok(None);
+            }
+            if let Some(area) = game_area(&payload.target_pids) {
+                let center_x = f64::from(area.x) + f64::from(area.width) / 2.0;
+                let center_y = f64::from(area.y) + f64::from(area.height) / 2.0;
+                let scale = app
+                    .monitor_from_point(center_x, center_y)
+                    .ok()
+                    .flatten()
+                    .map_or(1.0, |monitor| monitor.scale_factor());
+                return Ok(Some(timer_rect(area, scale, &payload.corner, size)));
+            }
         }
         let monitor = crate::notification_overlay::popup_monitor(app, payload.monitor.as_deref())?;
         let area = monitor.work_area();
-        Ok(timer_rect(
+        Ok(Some(timer_rect(
             PhysRect {
                 x: area.position.x,
                 y: area.position.y,
@@ -167,22 +200,50 @@ mod imp {
             monitor.scale_factor(),
             &payload.corner,
             size,
-        ))
+        )))
     }
 
-    fn place(window: &tauri::WebviewWindow, rect: PhysRect) -> Result<(), String> {
+    /// Shows or hides without ever activating the pill, so the game keeps
+    /// focus, and without waiting on the window's thread.
+    #[cfg(target_os = "windows")]
+    fn set_shown(window: &tauri::WebviewWindow, shown: bool) -> Result<(), String> {
+        use windows_sys::Win32::{
+            Foundation::HWND,
+            UI::WindowsAndMessaging::{ShowWindowAsync, SW_HIDE, SW_SHOWNOACTIVATE},
+        };
+        let hwnd = window.hwnd().map_err(|error| error.to_string())?;
+        unsafe {
+            ShowWindowAsync(
+                hwnd.0 as HWND,
+                if shown { SW_SHOWNOACTIVATE } else { SW_HIDE },
+            )
+        };
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn set_shown(window: &tauri::WebviewWindow, shown: bool) -> Result<(), String> {
+        if shown { window.show() } else { window.hide() }.map_err(|error| error.to_string())
+    }
+
+    fn apply(window: &tauri::WebviewWindow, target: Option<PhysRect>) -> Result<(), String> {
+        let Some(rect) = target else {
+            return set_shown(window, false);
+        };
         window
             .set_size(tauri::PhysicalSize::new(rect.width, rect.height))
             .map_err(|error| error.to_string())?;
         window
             .set_position(tauri::PhysicalPosition::new(rect.x, rect.y))
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        set_shown(window, true)
     }
 
-    /// Moves the pill along with the game's window until the pill is closed.
+    /// Moves the pill along with the game's window, and hides it while the
+    /// game is not in front, until the pill is closed.
     fn follow(app: tauri::AppHandle, label: String) {
         tauri::async_runtime::spawn(async move {
-            let mut placed = None;
+            let mut applied = None;
             loop {
                 tokio::time::sleep(FOLLOW_INTERVAL).await;
                 let Some(window) = app.get_webview_window(&label) else {
@@ -195,11 +256,11 @@ mod imp {
                 let Some(payload) = payload else {
                     return;
                 };
-                let Ok(rect) = target_rect(&app, &payload) else {
+                let Ok(target) = target_rect(&app, &payload) else {
                     continue;
                 };
-                if placed != Some(rect) && place(&window, rect).is_ok() {
-                    placed = Some(rect);
+                if applied != Some(target) && apply(&window, target).is_ok() {
+                    applied = Some(target);
                 }
             }
         });
@@ -260,8 +321,7 @@ mod imp {
                 window
             }
         };
-        place(&window, target_rect(app, &payload)?)?;
-        window.show().map_err(|error| error.to_string())
+        apply(&window, target_rect(app, &payload)?)
     }
 
     pub fn hide(app: &tauri::AppHandle, state: &LiveTimerState) -> Result<(), String> {
