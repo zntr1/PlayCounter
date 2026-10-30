@@ -100,7 +100,10 @@ import {
   readWatchFolders,
 } from "../../library/watchFolderState";
 import { isGenericExeName } from "../../library/exeCandidates";
-import { isSortedGenericCopy } from "../../library/genericExeLinks";
+import {
+  gameFolderName,
+  isSortedGenericCopy,
+} from "../../library/genericExeLinks";
 import { notifyFolderIgnored } from "./folderIgnoredToast";
 import { appLocale, getT } from "../../i18n";
 import { nativeText } from "../../nativeText";
@@ -568,7 +571,7 @@ export function DiscoveredView() {
     const folderName =
       pendingFolderFind(exeName)?.folderName ??
       (localOnly && exePath
-        ? exePath.split(/[\\/]/).filter(Boolean).at(-2)
+        ? gameFolderName(exePath.replace(/[\\/][^\\/]*$/, ""))
         : undefined);
     if (folderName) correction.setSearch(folderName);
     setSuggestionTarget({

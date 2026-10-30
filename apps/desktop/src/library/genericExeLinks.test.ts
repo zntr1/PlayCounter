@@ -4,6 +4,7 @@ import { canSuggestCustomGameToCommunity } from "../store";
 import { launchTargetsForGame } from "../gameLaunch";
 import { isGenericExeName } from "./exeCandidates";
 import {
+  gameFolderName,
   gamesLinkedToExe,
   genericExeFolder,
   genericFolderLink,
@@ -63,8 +64,30 @@ describe("generic exe names", () => {
     "love.exe",
     "Launcher.exe",
     "start.exe",
+    "games.exe",
+    "javaw.exe",
+    "java.exe",
+    "start_protected_game.exe",
   ])("treats %s as generic", (exeName) => {
     expect(isGenericExeName(exeName)).toBe(true);
+  });
+
+  it.each([
+    [String.raw`D:\Games\Tupac`, "Tupac"],
+    [
+      String.raw`D:\SteamLibrary\steamapps\common\Age of History 3\jre\bin`,
+      "Age of History 3",
+    ],
+    [String.raw`D:\Games\Zomboid\jre64\bin`, "Zomboid"],
+    [String.raw`D:\Games\Tool\runtime\bin`, "Tool"],
+    [String.raw`D:\Games\ELDEN RING\Game`, "ELDEN RING"],
+    [String.raw`C:\Program Files\Java\jre1.8.0_401\bin`, "Program Files"],
+    [String.raw`D:\Games\Java Island`, "Java Island"],
+    [String.raw`\\nas\games\Tupac`, "Tupac"],
+    [String.raw`D:\bin`, "bin"],
+    ["D:\\", undefined],
+  ])("calls %s %j", (folder, name) => {
+    expect(gameFolderName(folder)).toBe(name);
   });
 
   it.each(["eldenring.exe", "Celeste.exe", "GameA.exe", "Tupac.exe"])(

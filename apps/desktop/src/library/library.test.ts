@@ -323,6 +323,54 @@ describe("library import", () => {
       externalId: "730",
     });
   });
+  it("links a game's own Java only to its install folder", () => {
+    // IGDB lists javaw.exe for many Java games. A name link would claim every
+    // other Java game on the PC, Minecraft included.
+    const commit = buildLibraryImportCommit({
+      scanned: {
+        ...scanned,
+        externalId: "2",
+        name: "Age of History III",
+        installPath: String.raw`D:\SteamLibrary\steamapps\common\Age of History 3`,
+        executables: [],
+      },
+      resolved: {
+        ...resolved,
+        key: "steam:2",
+        game: { ...resolved.game!, igdbId: 283881, name: "Age of History III" },
+        executables: [
+          { ...resolved.executables[0], value: "javaw.exe", ambiguous: true },
+        ],
+      },
+    });
+
+    expect(commit?.exeCacheEntries).toEqual([]);
+    const links = new Map(
+      commit!.scopedLinks.map((link) => [
+        scopedExeLinkKey(link.exeName, link.pathPrefix)!,
+        link,
+      ]),
+    );
+    expect(
+      resolveScopedLink(
+        {
+          exeName: "javaw.exe",
+          exePath: String.raw`D:\SteamLibrary\steamapps\common\Age of History 3\jre\bin\javaw.exe`,
+        },
+        links,
+      )?.igdbId,
+    ).toBe(283881);
+    expect(
+      resolveScopedLink(
+        {
+          exeName: "javaw.exe",
+          exePath: String.raw`C:\Users\Phil\AppData\Roaming\.minecraft\runtime\java-runtime-delta\bin\javaw.exe`,
+        },
+        links,
+      ),
+    ).toBeNull();
+  });
+
   it("uses an AppID-resolved executable for an uninstalled import", () => {
     const commit = buildLibraryImportCommit({
       scanned: {

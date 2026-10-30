@@ -18,6 +18,7 @@ const GENERIC_BASENAMES = new Set([
   "start",
   "play",
   "game",
+  "games",
   "main",
   "run",
   "client",
@@ -40,6 +41,13 @@ const GENERIC_BASENAMES = new Set([
   "nw",
   "player",
   "love",
+  // Files many games bring in their own folder: a bundled Java
+  // (jre\bin\javaw.exe) and Easy Anti-Cheat's start_protected_game.exe. A Java
+  // installed once for the whole PC runs every Java game from one folder;
+  // those cannot be told apart this way.
+  "java",
+  "javaw",
+  "startprotectedgame",
 ]);
 
 export function importExeCandidates(

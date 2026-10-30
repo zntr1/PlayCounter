@@ -29,6 +29,21 @@ export function genericExeFolder({ exeName, exePath }: ExeFile) {
   return normalizeWindowsDir(folder) ? folder : null;
 }
 
+/** Folders that hold a game's runtime or files, never its name: a bundled
+ *  Java (`jre\bin`, `runtime\bin`), a JDK, a `Game` subfolder. */
+const UNNAMED_FOLDER = /^(?:bin|jre|jdk|java|runtime|game)(?:$|[-_.\d])/i;
+
+/** What a generic exe's folder is called, as a search term or in a message:
+ *  the folder itself, or the first one above it that names something
+ *  (`…\Age of History 3\jre\bin` → "Age of History 3"). Never the drive. */
+export function gameFolderName(folder: string) {
+  const names = folder.split(/[\\/]/).filter(Boolean).slice(1);
+  for (let index = names.length - 1; index >= 0; index -= 1) {
+    if (!UNNAMED_FOLDER.test(names[index])) return names[index];
+  }
+  return names.at(-1);
+}
+
 /** Local id for a game named on this PC. Generic names get one per folder, so
  *  two custom games on Game.exe never share hours. */
 export function localCustomGameId(file: ExeFile, fallback: number) {
