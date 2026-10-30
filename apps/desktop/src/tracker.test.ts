@@ -685,13 +685,13 @@ describe("persisted library imports", () => {
             importedAt: "2026-09-02T00:00:00.000Z",
             providerSeconds: 0,
             lastReadAt: "2026-09-02T00:00:00.000Z",
-            linkedExeNames: ["Game.exe"],
+            linkedExeNames: ["ExampleGame.exe"],
             linkedExeSources: ["custom"],
           },
         ],
         exeCache: [
           {
-            exeName: "Game.exe",
+            exeName: "ExampleGame.exe",
             state: "matched",
             gameId: 42,
             igdbId: 133430,
@@ -710,7 +710,7 @@ describe("persisted library imports", () => {
     hydrate();
 
     const state = useAppStore.getState();
-    expect(state.exeCache.get("game.exe")).toMatchObject({
+    expect(state.exeCache.get("examplegame.exe")).toMatchObject({
       source: "community",
       identifierSource: "community",
     });

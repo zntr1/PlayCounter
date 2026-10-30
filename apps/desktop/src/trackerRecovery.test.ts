@@ -98,6 +98,8 @@ async function restart(at: string, overrides: Record<string, unknown> = {}) {
         pollingIntervalSeconds: 30,
       },
       activeSessions: [original],
+      // Generic names: their old name links stay on a start only while this
+      // game still runs from before it (moveGenericNameLinksToFolders).
       exeCache: ["Game.exe", "Client.exe"].map((exeName) => ({
         exeName,
         state: "matched",
@@ -412,7 +414,18 @@ describe("game timer", () => {
   });
 
   it("starts one session per game, never next to a detected one", async () => {
-    await restart("2026-09-06T12:00:00.000Z", { activeSessions: [] });
+    await restart("2026-09-06T12:00:00.000Z", {
+      activeSessions: [],
+      // Nothing runs on this start: Game.exe's name link moves to the folder
+      // it last ran from.
+      launchTargets: [
+        {
+          exeName: original.exeName,
+          path: runningProcess.exePath,
+          owner: { gameId: original.gameId, source: original.source },
+        },
+      ],
+    });
     startGameTimer(game);
     startGameTimer(game);
     expect(useAppStore.getState().activeSessions).toMatchObject([

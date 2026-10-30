@@ -81,10 +81,13 @@ describe("generic exe names", () => {
     [String.raw`D:\Games\Zomboid\jre64\bin`, "Zomboid"],
     [String.raw`D:\Games\Tool\runtime\bin`, "Tool"],
     [String.raw`D:\Games\ELDEN RING\Game`, "ELDEN RING"],
-    [String.raw`C:\Program Files\Java\jre1.8.0_401\bin`, "Program Files"],
+    // Where the Minecraft launcher keeps the Java it runs.
+    [
+      String.raw`C:\Users\Phil\AppData\Roaming\.minecraft\runtime\java-runtime-gamma\windows-x64\java-runtime-gamma\bin`,
+      "minecraft",
+    ],
     [String.raw`D:\Games\Java Island`, "Java Island"],
     [String.raw`\\nas\games\Tupac`, "Tupac"],
-    [String.raw`D:\bin`, "bin"],
     ["D:\\", undefined],
   ])("calls %s %j", (folder, name) => {
     expect(gameFolderName(folder)).toBe(name);
@@ -233,13 +236,30 @@ describe("moving name links of generic exes to folders", () => {
     ]);
   });
 
+  // Nothing tells which folder it meant, and a name link claims every copy on
+  // the PC. The game's hours are in its sessions, not in the link.
   it.each([
     ["no Play file", new Map<string, LaunchTarget>()],
     ["another game's Play file", new Map([["game.exe", target(TUPAC, -9)]])],
-  ])("keeps the name link with %s", (_label, launchTargets) => {
+  ])("drops the name link with %s", (_label, launchTargets) => {
+    const exeCache = new Map([["game.exe", nameLink()]]);
+    const scoped = new Map<string, ScopedExeLink>();
+    expect(moveGenericNameLinksToFolders(exeCache, scoped, launchTargets)).toBe(
+      true,
+    );
+    expect(exeCache.has("game.exe")).toBe(false);
+    expect(scoped.size).toBe(0);
+  });
+
+  // A game still running from before this start (an update restarts the
+  // app) only gets the time PlayCounter was closed if its copy still counts as
+  // it. A later start moves or drops the link.
+  it("keeps the name link while its game still runs from before this start", () => {
     const exeCache = new Map([["game.exe", nameLink()]]);
     expect(
-      moveGenericNameLinksToFolders(exeCache, new Map(), launchTargets),
+      moveGenericNameLinksToFolders(exeCache, new Map(), new Map(), [
+        { gameId: -5, source: "custom" },
+      ]),
     ).toBe(false);
     expect(exeCache.get("game.exe")).toEqual(nameLink());
   });

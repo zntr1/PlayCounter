@@ -217,6 +217,7 @@ import {
 import { knownGameFiles } from "./library/knownGameFiles";
 import {
   gamesLinkedToExe,
+  gamesPlayedWithExe,
   genericExeFolder,
   genericFolderLink,
   isInFolder,
@@ -1202,11 +1203,13 @@ export function hydrate() {
     libraryImports.values(),
     scopedExeLinks.values(),
   );
+  const hydratedActiveSessions = normalizePersistedActiveSessions(persisted);
   // Saves from before folder links hold Game.exe as a name link.
   const movedGenericNameLinks = moveGenericNameLinksToFolders(
     exeCacheMap,
     scopedExeLinks,
     launchTargets,
+    hydratedActiveSessions,
   );
   const gameMetadataMap = new Map(
     (persisted.gameMetadata ?? []).map((game) => [gameMetadataKey(game), game]),
@@ -1398,7 +1401,7 @@ export function hydrate() {
     personalShelves: persisted.personalShelves ?? [],
     archivedPlaythroughSeconds: hydratedArchive.archivedPlaythroughSeconds,
     journalTarget: null,
-    activeSessions: normalizePersistedActiveSessions(persisted),
+    activeSessions: hydratedActiveSessions,
     // Pickers saved before the cap held every database candidate.
     ambiguousMatches: (persisted.ambiguousMatches ?? []).map((match) =>
       Array.isArray(match.candidates) &&
@@ -3360,14 +3363,9 @@ async function resolveProcesses(
     // A generic name in a new folder, with games already linked to it on
     // this PC: ask which one it is (or a new one) instead of guessing.
     if (asksForLinkedGames(process)) {
-      const current = useAppStore.getState();
       const candidates = new Map<string, Game>();
       for (const game of [
-        ...gamesLinkedToExe(
-          process.exeName,
-          current.exeCache,
-          current.scopedExeLinks,
-        ),
+        ...gamesKnownForExe(process.exeName),
         ...(result.ambiguousGames ?? (result.game ? [result.game] : [])),
       ]) {
         const id = `${game.source}:${game.id}`;
@@ -5027,17 +5025,28 @@ function cachePendingCommunityMatch(exeName: string, game: Game) {
   logRuntime(`match pending community approval ${exeName} -> ${game.name}`);
 }
 
+/** The games this PC knows for a generic exe name: linked ones first, then
+ *  ones played with it whose link is gone. A file rejected for a game stays
+ *  off it. */
+function gamesKnownForExe(exeName: string) {
+  const state = useAppStore.getState();
+  return [
+    ...gamesLinkedToExe(exeName, state.exeCache, state.scopedExeLinks),
+    ...gamesPlayedWithExe(exeName, state.recentSessions).filter(
+      (game) => !isRejectedGameFile(state.rejectedGameFiles, exeName, game),
+    ),
+  ];
+}
+
 /** A copy of a generic exe outside every folder link, while that name already
- *  has games here: the picker asks which one it is. */
+ *  has games here (linked, or played with it before): the picker asks which
+ *  one it is. */
 function asksForLinkedGames(process: ProcessSnapshot) {
   if (!genericExeFolder(process)) return false;
   const state = useAppStore.getState();
   const cached = state.exeCache.get(processCacheKey(process));
   if (cached?.state === "tool" || cached?.state === "blacklisted") return false;
-  return (
-    gamesLinkedToExe(process.exeName, state.exeCache, state.scopedExeLinks)
-      .length > 0
-  );
+  return gamesKnownForExe(process.exeName).length > 0;
 }
 
 /** The first candidates a picker shows and saves; the rest are only counted. */

@@ -567,11 +567,14 @@ describe("backup import", () => {
               filters: { played: "played" },
             },
           ],
+          // A file that names its game: a backup brings no paths, so a
+          // Game.exe name link would be dropped on load.
           exeCache: new Map([
             [
-              "game.exe",
+              "celeste.exe",
               {
                 ...validEntry,
+                exeName: "celeste.exe",
                 state: "matched" as const,
                 source: "igdb" as const,
               },
@@ -613,7 +616,9 @@ describe("backup import", () => {
         overlayUpdateNote === true,
       );
       expect(useAppStore.getState().recentSessions).toEqual([validSession]);
-      expect(useAppStore.getState().exeCache.get("game.exe")?.gameId).toBe(42);
+      expect(useAppStore.getState().exeCache.get("celeste.exe")?.gameId).toBe(
+        42,
+      );
       expect(
         useAppStore.getState().emulatorMappings.get(validMapping.contentKey)
           ?.gameId,

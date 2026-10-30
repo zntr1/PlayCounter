@@ -121,6 +121,25 @@ function ambiguous(exePath: string, candidates: Game[] = []) {
   });
 }
 
+/** App data an older version saved; hydrate() loads it as on start. */
+function save(values: Record<string, unknown>) {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      settings: { rememberLaunchPaths: true },
+      exeCache: [],
+      gameMetadata: [],
+      sessions: [],
+      activeSessions: [],
+      ambiguousMatches: [],
+      blacklist: [],
+      notifications: [],
+      seenContributionStatus: {},
+      ...values,
+    }),
+  );
+}
+
 beforeEach(() => {
   running = [];
   serverGame = null;
@@ -375,24 +394,6 @@ describe.each(SHARED_FILES)("$exeName", ({ exeName: EXE, subfolder }) => {
   });
 
   describe("saves from before folder links", () => {
-    function save(values: Record<string, unknown>) {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          settings: { rememberLaunchPaths: true },
-          exeCache: [],
-          gameMetadata: [],
-          sessions: [],
-          activeSessions: [],
-          ambiguousMatches: [],
-          blacklist: [],
-          notifications: [],
-          seenContributionStatus: {},
-          ...values,
-        }),
-      );
-    }
-
     it(`moves ${EXE}'s name link to its Play file's folder on load`, async () => {
       save({
         exeCache: [
@@ -820,5 +821,186 @@ describe.each(SHARED_FILES)("$exeName", ({ exeName: EXE, subfolder }) => {
         [`custom:${game!.id}`]: 7200,
       });
     });
+  });
+});
+
+/* A game that brings its own Java, next to Minecraft ────────────────────────
+   From a bug report: Age of History III runs javaw.exe from its own jre\bin
+   and was counted as Minecraft, whose launcher runs javaw.exe from its
+   runtime folder. Paths as the two install them. */
+
+describe("Minecraft and a game that brings its own Java", () => {
+  const MINECRAFT_JAVA = String.raw`C:\Users\Phil\AppData\Roaming\.minecraft\runtime\java-runtime-gamma\windows-x64\java-runtime-gamma\bin\javaw.exe`;
+  const AOH3_JAVA = String.raw`D:\SteamLibrary\steamapps\common\Age of History 3\jre\bin\javaw.exe`;
+  const MINECRAFT = igdbGame(1, "Minecraft: Java Edition");
+  const AOH3 = igdbGame(2, "Age of History III");
+
+  /** The picker's entry for Minecraft, if it offers one. */
+  function offeredMinecraft() {
+    return useAppStore
+      .getState()
+      .ambiguousMatches[0]?.candidates.find(
+        (game) => game.name === MINECRAFT.name,
+      );
+  }
+
+  it("counts both apart after one question", async () => {
+    // The server knows javaw.exe for many games.
+    serverAmbiguous = [MINECRAFT, igdbGame(3, "Slay the Spire")];
+    running = [process(MINECRAFT_JAVA, 1)];
+    await scanProcessesNow();
+    selectAmbiguousMatch("javaw.exe", MINECRAFT);
+    expect(activeGameNames()).toEqual(["Minecraft: Java Edition"]);
+
+    // Age of History III starts: it asks instead of counting Minecraft.
+    running = [process(MINECRAFT_JAVA, 1), process(AOH3_JAVA, 2)];
+    await scanProcessesNow();
+    expect(activeGameNames()).toEqual(["Minecraft: Java Edition"]);
+    expect(useAppStore.getState().ambiguousMatches).toEqual([
+      expect.objectContaining({ exePath: AOH3_JAVA }),
+    ]);
+
+    // Found through the search.
+    selectAmbiguousMatch("javaw.exe", AOH3);
+    expect(activeGameNames()).toEqual([
+      "Minecraft: Java Edition",
+      "Age of History III",
+    ]);
+
+    // From then on each starts as itself, without a question.
+    running = [];
+    await scanProcessesNow();
+    running = [process(AOH3_JAVA, 3)];
+    await scanProcessesNow();
+    expect(activeGameNames()).toEqual(["Age of History III"]);
+    running = [process(MINECRAFT_JAVA, 4)];
+    await scanProcessesNow();
+    expect(activeGameNames()).toEqual(["Minecraft: Java Edition"]);
+    expect(useAppStore.getState().ambiguousMatches).toEqual([]);
+  });
+
+  describe("an old save that counts every javaw.exe as Minecraft", () => {
+    const MINECRAFT_HOUR = {
+      id: 1,
+      gameId: 1,
+      igdbId: 1,
+      gameName: "Minecraft: Java Edition",
+      coverUrl: "cover",
+      source: "igdb",
+      exeName: "javaw.exe",
+      startedAt: "2026-10-01T10:00:00.000Z",
+      endedAt: "2026-10-01T11:00:00.000Z",
+      durationSeconds: 3600,
+    };
+
+    function loadOldSave(values: Record<string, unknown>) {
+      save({
+        exeCache: [
+          {
+            exeName: "javaw.exe",
+            state: "matched",
+            gameId: 1,
+            igdbId: 1,
+            gameName: "Minecraft: Java Edition",
+            coverUrl: "cover",
+            source: "igdb",
+            lastCheckedAt: "2026-10-01T00:00:00.000Z",
+          },
+        ],
+        sessions: [MINECRAFT_HOUR],
+        ...values,
+      });
+      hydrate();
+    }
+
+    it("moves it to the Java game that ran last; Wrong game fixes a wrong one, the hours stay", async () => {
+      // Age of History III ran last and was counted as Minecraft.
+      loadOldSave({
+        launchTargets: [
+          {
+            exeName: "javaw.exe",
+            path: AOH3_JAVA,
+            owner: { gameId: 1, source: "igdb" },
+          },
+        ],
+      });
+      running = [process(AOH3_JAVA, 1)];
+      await scanProcessesNow();
+      expect(activeGameNames()).toEqual(["Minecraft: Java Edition"]);
+
+      const [session] = useAppStore.getState().activeSessions;
+      correctRunningGenericExe(session, {
+        igdbId: 2,
+        name: "Age of History III",
+        coverUrl: "cover",
+      });
+      expect(activeGameNames()).toEqual(["Age of History III"]);
+
+      // Minecraft's own Java asks once and offers the Minecraft with the hours.
+      running = [];
+      await scanProcessesNow();
+      running = [process(MINECRAFT_JAVA, 2)];
+      await scanProcessesNow();
+      expect(activeGameNames()).toEqual([]);
+      expect(offeredMinecraft()).toMatchObject({ id: 1, source: "igdb" });
+
+      selectAmbiguousMatch("javaw.exe", offeredMinecraft()!);
+      expect(useAppStore.getState().activeSessions).toEqual([
+        expect.objectContaining({ gameId: 1, source: "igdb" }),
+      ]);
+      expect(useAppStore.getState().recentSessions).toContainEqual(
+        expect.objectContaining({ id: 1, gameId: 1, durationSeconds: 3600 }),
+      );
+    });
+
+    it.each([
+      [
+        "Remember launch paths is off",
+        { settings: { rememberLaunchPaths: false } },
+      ],
+      ["a backup brought no paths", {}],
+      [
+        "the remembered file is another game's",
+        {
+          launchTargets: [
+            {
+              exeName: "javaw.exe",
+              path: AOH3_JAVA,
+              owner: { gameId: 2, source: "igdb" },
+            },
+          ],
+        },
+      ],
+    ])(
+      "drops it when %s; Minecraft keeps its hours",
+      async (_label, values) => {
+        loadOldSave(values);
+        expect(
+          useAppStore.getState().exeCache.get("javaw.exe")?.state,
+        ).not.toBe("matched");
+        expect(useAppStore.getState().recentSessions).toEqual([
+          expect.objectContaining({ id: 1, gameId: 1, durationSeconds: 3600 }),
+        ]);
+
+        // Age of History III asks instead of counting Minecraft.
+        running = [process(AOH3_JAVA, 1)];
+        await scanProcessesNow();
+        expect(activeGameNames()).toEqual([]);
+        selectAmbiguousMatch("javaw.exe", AOH3);
+        running = [];
+        await scanProcessesNow();
+
+        // Minecraft asks once and offers the Minecraft with the hours.
+        running = [process(MINECRAFT_JAVA, 2)];
+        await scanProcessesNow();
+        expect(activeGameNames()).toEqual([]);
+        expect(offeredMinecraft()).toMatchObject({ id: 1, source: "igdb" });
+
+        selectAmbiguousMatch("javaw.exe", offeredMinecraft()!);
+        expect(useAppStore.getState().activeSessions).toEqual([
+          expect.objectContaining({ gameId: 1, source: "igdb" }),
+        ]);
+      },
+    );
   });
 });
