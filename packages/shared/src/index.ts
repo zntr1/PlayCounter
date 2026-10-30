@@ -1,3 +1,5 @@
+import type { AchievementList, XboxAchievementError } from "./achievements.js";
+
 export type GameSource = "igdb" | "community" | "custom";
 
 /** What an entry is. Tools (Discord, Spotify, launchers) are recognized like
@@ -65,6 +67,13 @@ export {
   isLibraryProvider,
   validLibraryExternalId,
 } from "./libraryProviders.js";
+export type {
+  AchievementList,
+  AchievementProvider,
+  GameAchievement,
+  XboxAchievementError,
+  XboxImportStartRequest,
+} from "./achievements.js";
 
 export interface LibraryResolveRequest {
   items: Array<{
@@ -154,6 +163,9 @@ export interface XboxImportGame {
    * one before importing; no Xbox-provided identifier proves an IGDB match.
    */
   candidates: Game[];
+  /** Only when the start request asked for achievements. */
+  achievements?: AchievementList;
+  achievementError?: XboxAchievementError;
 }
 
 export type XboxImportProgressStage = "authorization" | "history";

@@ -323,7 +323,7 @@ fn steam_url(external_id: &str, mode: &str) -> Result<String, LaunchError> {
     Ok(format!("steam://{action}/{external_id}"))
 }
 
-fn find_steam_root() -> (Option<PathBuf>, Vec<String>) {
+pub(super) fn find_steam_root() -> (Option<PathBuf>, Vec<String>) {
     let mut candidates = Vec::new();
     #[cfg(windows)]
     if let Some(path) = registry_steam_path() {

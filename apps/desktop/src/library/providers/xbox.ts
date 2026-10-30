@@ -6,14 +6,18 @@ import {
 import { requestLibraryJson } from "../request";
 import { parseLibraryGameMetadata } from "../gameLookup";
 import type {
+  AchievementList,
+  XboxAchievementError,
   XboxImportCancelRequest,
   XboxImportFailureReason,
   XboxImportFailureStage,
   XboxImportGame,
   XboxImportProgressStage,
+  XboxImportStartRequest,
   XboxImportStartResponse,
 } from "@playcounter/shared";
 import { invoke } from "@tauri-apps/api/core";
+import { parseAchievementList } from "../../achievements/model";
 import { DEFAULT_API_ENDPOINT, type GameMetadata } from "../../store";
 import type { LocalLibraryProvider, LibraryScanOptions } from "../provider";
 import type {
@@ -21,7 +25,7 @@ import type {
   ResolvedLibraryGame,
   ScannedExecutable,
 } from "../types";
-import { getT } from "../../i18n";
+import { appLanguage, getT } from "../../i18n";
 
 const t = getT("import");
 
@@ -87,6 +91,46 @@ export const xboxProvider: LocalLibraryProvider = {
 export async function scanXboxLibrary(
   options: LibraryScanOptions = {},
 ): Promise<LibraryScanResult> {
+  // A server without achievement support refuses the option: import plainly.
+  const games =
+    (await signInToXbox(options, {
+      includeAchievements: true,
+      language: appLanguage(),
+    })) ?? (await signInToXbox(options));
+  const localGames = await scanLocalXboxGames();
+  ensureNotAborted(options.signal);
+  return mapXboxImportGames(games ?? [], localGames);
+}
+
+/** One Xbox title's achievements, after a Microsoft sign-in. Skips game
+ *  matching, playtime and this PC's scan. */
+export async function refreshXboxAchievementList(
+  titleId: string,
+  options: LibraryScanOptions = {},
+): Promise<{ list: AchievementList } | { error: XboxAchievementError }> {
+  const games = await signInToXbox(options, {
+    achievementTitleIds: [titleId],
+    language: appLanguage(),
+  });
+  if (!games) {
+    throw new Error(
+      t(
+        "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.",
+      ),
+    );
+  }
+  const game = games.find((item) => item.externalId === titleId);
+  return game?.achievements
+    ? { list: game.achievements }
+    : { error: game?.achievementError ?? "failed" };
+}
+
+/** Signs in through the backend and returns Xbox's titles. With a `request`
+ *  an older server answers 400 before any sign-in starts: null then. */
+async function signInToXbox(
+  options: LibraryScanOptions,
+  request?: XboxImportStartRequest,
+): Promise<ParsedXboxImportGame[] | null> {
   const apiEndpoint = (options.apiEndpoint ?? DEFAULT_API_ENDPOINT).replace(
     /\/+$/,
     "",
@@ -138,8 +182,15 @@ export async function scanXboxLibrary(
         cache: "no-store",
         signal: requestController.signal,
         onRateLimitWait: options.onRateLimitWait,
+        ...(request
+          ? {
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(request),
+            }
+          : {}),
       },
     );
+    if (request && startResponse.status === 400) return null;
     if (!startResponse.ok) {
       throw responseError(
         startResponse,
@@ -201,9 +252,7 @@ export async function scanXboxLibrary(
       ensureNotAborted(requestController.signal);
       if (result.status === "done") {
         attemptActive = false;
-        const localGames = await scanLocalXboxGames();
-        ensureNotAborted(requestController.signal);
-        return mapXboxImportGames(result.games, localGames);
+        return result.games;
       }
       if (result.status === "failed") {
         attemptActive = false;
@@ -257,8 +306,12 @@ function mapXboxImportGames(
     executables: [],
     candidates: game.candidates,
   }));
+  const achievementLists = games.flatMap((game) =>
+    game.achievements ? [game.achievements] : [],
+  );
 
   return {
+    ...(achievementLists.length ? { achievementLists } : {}),
     games: games.map((game) => {
       const localGame = byExternalId.get(game.externalId);
       return {
@@ -409,6 +462,8 @@ function parseXboxImportGame(value: unknown): ParsedXboxImportGame {
   ) {
     throw new Error(t("Xbox import returned invalid game data."));
   }
+  // A broken list never costs the game its import: it is just left out.
+  const achievements = parseAchievementList(record.achievements);
   return {
     externalId: record.externalId,
     name: record.name,
@@ -417,7 +472,23 @@ function parseXboxImportGame(value: unknown): ParsedXboxImportGame {
       ? { providerLastPlayedAt: record.providerLastPlayedAt }
       : {}),
     candidates: uniqueGames(record.candidates.map(parseLibraryGameMetadata)),
+    ...(achievements?.provider === "xbox" &&
+    achievements.externalId === record.externalId
+      ? { achievements }
+      : {}),
+    ...(isXboxAchievementError(record.achievementError)
+      ? { achievementError: record.achievementError }
+      : {}),
   };
+}
+
+function isXboxAchievementError(value: unknown): value is XboxAchievementError {
+  return (
+    value === "unavailable" ||
+    value === "forbidden" ||
+    value === "rate_limited" ||
+    value === "failed"
+  );
 }
 
 function uniqueGames(games: GameMetadata[]) {

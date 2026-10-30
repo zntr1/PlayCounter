@@ -666,5 +666,6 @@
   "Force close": "Forcer la fermeture",
   "PlayCounter can't close {{gameName}}": "PlayCounter ne peut pas fermer {{gameName}}",
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "Il tourne peut-être en tant qu'administrateur ou est protégé par un anti-triche. Fermez-le depuis le jeu.",
-  "OK": "OK"
+  "OK": "OK",
+  "Achievements": "Succès"
 }

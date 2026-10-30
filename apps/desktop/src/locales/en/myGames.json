@@ -646,5 +646,6 @@
   "Force close": "Force close",
   "PlayCounter can't close {{gameName}}": "PlayCounter can't close {{gameName}}",
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "It may run as administrator or be protected by anti-cheat. Close it in the game.",
-  "OK": "OK"
+  "OK": "OK",
+  "Achievements": "Achievements"
 }

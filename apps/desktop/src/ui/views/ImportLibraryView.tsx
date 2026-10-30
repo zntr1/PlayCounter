@@ -20,6 +20,7 @@ import { PlayCounterLoader } from "../../brand/PlayCounterLoader";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
+import { saveXboxAchievementLists } from "../../achievements/xboxLists";
 import { rememberSteamImportAccount } from "../../library/libraryAutoAddState";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { buildLibraryImportCommit } from "../../library/importPlan";
@@ -371,6 +372,10 @@ export function ImportLibraryView() {
         }
       }
       setScan(result);
+      // Saved now, whatever gets imported: Details shows a title's list once
+      // the game is in the library.
+      if (result.achievementLists)
+        void saveXboxAchievementLists(result.achievementLists).catch(() => {});
       setManualExecutables(
         Object.fromEntries(
           result.games.flatMap((game) => {
