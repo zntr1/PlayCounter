@@ -67,7 +67,20 @@ describe("generic exe names", () => {
     "games.exe",
     "javaw.exe",
     "java.exe",
-    "start_protected_game.exe",
+    // Spelled as the games ship them: an entry that does not match the real
+    // name fails here.
+    "AdvHD.exe",
+    "SiglusEngine_Steam.exe",
+    "BGI.exe",
+    "LyraGame.exe",
+    "ShooterGame.exe",
+    "VRExpPluginExample.exe",
+    "VRExpPluginExample-Win64-Shipping.exe",
+    "fm.exe",
+    "CricketCaptain.exe",
+    "xrEngine.exe",
+    "Windows.exe",
+    "GameClient.exe",
   ])("treats %s as generic", (exeName) => {
     expect(isGenericExeName(exeName)).toBe(true);
   });
@@ -99,6 +112,19 @@ describe("generic exe names", () => {
       expect(isGenericExeName(exeName)).toBe(false);
     },
   );
+
+  // Only game files belong on the list. Starters and launchers many games ship
+  // are not the game.
+  it.each([
+    "start_protected_game.exe",
+    "EOSBootstrapper.exe",
+    "EAAntiCheat.GameServiceLauncher.exe",
+    "REDprelauncher.exe",
+    "SteamLauncher.exe",
+    "WPLauncher.exe",
+  ])("keeps %s, which only starts a game, off the list", (exeName) => {
+    expect(isGenericExeName(exeName)).toBe(false);
+  });
 
   it("links a generic exe to the folder it runs from, as the path spells it", () => {
     expect(genericExeFolder({ exeName: "Game.exe", exePath: TUPAC })).toBe(
