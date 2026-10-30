@@ -6,7 +6,6 @@
   "World of Warcraft example": "《魔兽世界》示例",
   "PlayCounter tracks new sessions automatically.": "PlayCounter 会自动记录新的游玩。",
   "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.": "请使用与你的 Xbox 玩家代号关联的 Microsoft 账户。如果不确定，请复制登录链接并在浏览器的无痕窗口中打开。",
-  "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.": "登录会在临时的 {{providerName}} 窗口中打开，扫描完成后即被清除。每次登录都可以选择账户。",
   "Copy sign-in link": "复制登录链接",
   "Find installed games": "查找已安装的游戏",
   "PlayCounter cannot look up {{providerName}} games right now. Your library was scanned, but importing is switched off so you do not end up with wrongly named games.": "PlayCounter 暂时无法查找 {{providerName}} 游戏。你的游戏库已扫描，但导入已关闭，以免导入名称错误的游戏。",
@@ -189,5 +188,11 @@
   "Account {{id}}": "账户 {{id}}",
   "{{provider}} game {{id}}": "{{provider}} 游戏 {{id}}",
   "The server is still busy. Please try importing again after the pause.": "服务器仍然繁忙。请在暂停结束后再次尝试导入。",
-  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "刷新 Xbox 成就需要更新版本的 PlayCounter 服务器。请稍后重试。"
+  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "刷新 Xbox 成就需要更新版本的 PlayCounter 服务器。请稍后重试。",
+  "Microsoft sign-in opens in your browser. PlayCounter never sees your password and keeps you signed in on this PC, so the next import needs no sign-in.": "Microsoft 登录会在你的浏览器中打开。PlayCounter 永远看不到你的密码，并会在这台电脑上保持你的登录，下次导入无需再次登录。",
+  "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.": "登录会在单独的 {{providerName}} 窗口中打开。PlayCounter 会在这台电脑上保持你的登录，直到你退出登录。",
+  "Signed in as {{name}}.": "已登录为 {{name}}。",
+  "Signed in.": "已登录。",
+  "Sign out": "退出登录",
+  "Could not sign out. Please try again.": "无法退出登录。请重试。"
 }

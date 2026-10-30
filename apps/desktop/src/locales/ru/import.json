@@ -6,7 +6,6 @@
   "World of Warcraft example": "Пример с World of Warcraft",
   "PlayCounter tracks new sessions automatically.": "PlayCounter автоматически учитывает новые сессии.",
   "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.": "Используйте аккаунт Microsoft, к которому привязан ваш геймертег Xbox. Если не уверены, скопируйте ссылку для входа и откройте её в приватном окне браузера.",
-  "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.": "Вход открывается во временном окне {{providerName}} и удаляется после сканирования. При каждом входе можно выбрать аккаунт.",
   "Copy sign-in link": "Копировать ссылку для входа",
   "Find installed games": "Найти установленные игры",
   "PlayCounter cannot look up {{providerName}} games right now. Your library was scanned, but importing is switched off so you do not end up with wrongly named games.": "PlayCounter сейчас не может найти сведения об играх {{providerName}}. Библиотека просканирована, но импорт отключён, чтобы у вас не появились игры с неверными названиями.",
@@ -210,5 +209,11 @@
   "Account {{id}}": "Аккаунт {{id}}",
   "{{provider}} game {{id}}": "Игра {{provider}} {{id}}",
   "The server is still busy. Please try importing again after the pause.": "Сервер всё ещё занят. Попробуйте импортировать снова после паузы.",
-  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Для обновления достижений Xbox нужен более новый сервер PlayCounter. Попробуйте позже."
+  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Для обновления достижений Xbox нужен более новый сервер PlayCounter. Попробуйте позже.",
+  "Microsoft sign-in opens in your browser. PlayCounter never sees your password and keeps you signed in on this PC, so the next import needs no sign-in.": "Вход в Microsoft открывается в браузере. PlayCounter никогда не видит ваш пароль и сохраняет вход на этом ПК, поэтому для следующего импорта входить не нужно.",
+  "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.": "Вход открывается в отдельном окне {{providerName}}. PlayCounter сохраняет вход на этом ПК, пока вы не выйдете.",
+  "Signed in as {{name}}.": "Вы вошли как {{name}}.",
+  "Signed in.": "Вход выполнен.",
+  "Sign out": "Выйти",
+  "Could not sign out. Please try again.": "Не удалось выйти. Попробуйте снова."
 }

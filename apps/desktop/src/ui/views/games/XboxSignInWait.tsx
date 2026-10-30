@@ -7,14 +7,18 @@ import { Button } from "../../primitives";
 const t = getT("import");
 
 /** While a Microsoft sign-in runs in the browser: the link to copy into
- *  another browser, and a way out. */
+ *  another browser, and a way out. With a kept sign-in there is no browser
+ *  until Microsoft asks for a new sign-in. */
 export function XboxSignInWait({
   url,
+  kept = false,
   onCancel,
 }: {
   url?: string;
+  kept?: boolean;
   onCancel: () => void;
 }) {
+  const signingIn = Boolean(url) || !kept;
   const addToast = useAppStore((state) => state.addToast);
 
   async function copy() {
@@ -45,16 +49,20 @@ export function XboxSignInWait({
     >
       <Loader2 size={15} className="animate-spin motion-reduce:animate-none" />
       <span className="min-w-0 flex-1">
-        {t("Waiting for Microsoft sign-in…")}
+        {signingIn
+          ? t("Waiting for Microsoft sign-in…")
+          : t("Reading your Xbox history…")}
       </span>
-      <Button
-        variant="ghost"
-        icon={Copy}
-        disabled={!url}
-        onClick={() => void copy()}
-      >
-        {t("Copy sign-in link")}
-      </Button>
+      {signingIn ? (
+        <Button
+          variant="ghost"
+          icon={Copy}
+          disabled={!url}
+          onClick={() => void copy()}
+        >
+          {t("Copy sign-in link")}
+        </Button>
+      ) : null}
       <Button onClick={onCancel}>{t("Cancel")}</Button>
     </div>
   );

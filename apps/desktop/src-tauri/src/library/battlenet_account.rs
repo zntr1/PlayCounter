@@ -1,13 +1,83 @@
-//! Optional, temporary account-site session. These are website endpoints, not
+//! Optional account-site session. These are website endpoints, not
 //! Blizzard's public OAuth API. Remote pages receive no Tauri capabilities.
+//!
+//! Battle.net has no token to keep. Its sign-in stays in a browser profile
+//! of its own, used for nothing else, like a browser that stays signed in.
+//! The kept-sign-in marker (see `kept_logins`) says whether that profile may
+//! be used as it is; without it the profile is cleared before use.
+use super::kept_logins::{KeptLogin, Service, Store};
 use serde::{Deserialize, Serialize};
-use std::{collections::VecDeque, sync::Mutex, time::Duration};
-use tauri::{webview::NewWindowResponse, AppHandle, Manager, State, WebviewUrl, WebviewWindow};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+    sync::Mutex,
+    time::{Duration, Instant},
+};
+use tauri::{
+    webview::{NewWindowResponse, PageLoadEvent},
+    AppHandle, Manager, State, WebviewUrl, WebviewWindow,
+};
 use tokio::sync::oneshot;
 
 const ACCOUNT_URL: &str = "https://account.battle.net/oauth2/authorization/account-settings";
 const READ_LIBRARY: &str = include_str!("battlenet_account.js");
 pub(super) const CANCELLED: &str = "Battle.net sign-in was cancelled.";
+const EXPIRED: &str = "Battle.net sign-in expired or could not be verified. Please sign in again.";
+/// A kept sign-in goes straight to the account page; the window shows when
+/// Battle.net asks for a sign-in, or after this long.
+const SHOW_WINDOW_AFTER: Duration = Duration::from_secs(8);
+
+/// The webview profile a sign-in window must use before anything loads.
+#[derive(Clone)]
+pub(super) enum ExpectedProfile {
+    /// InPrivate: nothing is written to disk.
+    Private,
+    /// Battle.net's own lasting profile in this folder.
+    Dedicated(PathBuf),
+}
+
+fn profile_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(app
+        .path()
+        .app_local_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("battlenet-profile"))
+}
+
+/// Sign out: the marker is gone already; the profile follows. While its
+/// browser processes still hold files, the next start deletes it, and an
+/// import clears it first anyway.
+pub(super) fn forget_profile(app: &AppHandle) {
+    if let Ok(dir) = profile_dir(app) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+/// At start, before any Battle.net window: a profile without a kept sign-in
+/// is left over from a sign-out or a failed import.
+pub(crate) fn clean_up_profile(app: &AppHandle) {
+    let kept = Store::of(app)
+        .map(|store| store.load(Service::BattleNet).is_some())
+        .unwrap_or(false);
+    if !kept {
+        forget_profile(app);
+    }
+}
+
+/// WebView2 reports `<profile folder>\EBWebView\Default`. Compared without
+/// case, as Windows does.
+fn inside_profile(reported: &str, dir: &Path) -> bool {
+    let normalize = |value: &str| {
+        let value = value.replace('/', "\\");
+        value
+            .strip_prefix(r"\\?\")
+            .unwrap_or(&value)
+            .trim_end_matches('\\')
+            .to_lowercase()
+    };
+    let dir = normalize(&dir.to_string_lossy());
+    !dir.is_empty() && normalize(reported).starts_with(&format!("{dir}\\"))
+}
 
 #[derive(Default)]
 pub struct AccountState(Mutex<Sessions>);
@@ -138,23 +208,46 @@ const PRIVATE_SESSION_ERROR: &str = "Could not create a secure private Battle.ne
 const CLEANUP_ERROR: &str =
     "Could not clear the Battle.net sign-in session. Close PlayCounter before signing in again.";
 
-// Start at about:blank. Some old WebView2 runtimes silently ignore Wry's
-// incognito flag; no remote content may load until we verify the actual profile.
+/// Whether the webview runs on the expected profile, never on the main
+/// application's.
 #[cfg(windows)]
-pub(super) async fn secure_window(window: &WebviewWindow) -> Result<(), String> {
+unsafe fn uses_profile(
+    profile: &webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Profile,
+    expected: &ExpectedProfile,
+) -> windows_core::Result<bool> {
+    let mut private = Default::default();
+    profile.IsInPrivateModeEnabled(&mut private)?;
+    Ok(match expected {
+        ExpectedProfile::Private => private.as_bool(),
+        ExpectedProfile::Dedicated(dir) => {
+            let mut path = windows_core::PWSTR::null();
+            profile.ProfilePath(&mut path)?;
+            !private.as_bool() && inside_profile(&webview2_com::take_pwstr(path), dir)
+        }
+    })
+}
+
+// Start at about:blank. Some old WebView2 runtimes silently ignore Wry's
+// incognito flag or data folder; no remote content may load until we verify
+// the actual profile. `clear` empties it first.
+#[cfg(windows)]
+pub(super) async fn secure_window(
+    window: &WebviewWindow,
+    expected: ExpectedProfile,
+    clear: bool,
+) -> Result<(), String> {
     use webview2_com::{Microsoft::Web::WebView2::Win32::*, PermissionRequestedEventHandler};
     use windows_core::Interface;
 
     let (sender, receiver) = oneshot::channel();
+    let check = expected.clone();
     window
         .with_webview(move |platform| {
             let configure = || -> windows_core::Result<bool> {
                 unsafe {
                     let webview = platform.controller().CoreWebView2()?;
                     let profile = webview.cast::<ICoreWebView2_13>()?.Profile()?;
-                    let mut private = Default::default();
-                    profile.IsInPrivateModeEnabled(&mut private)?;
-                    if !private.as_bool() {
+                    if !uses_profile(&profile, &check)? {
                         return Ok(false);
                     }
                     let settings = webview.Settings()?;
@@ -185,13 +278,17 @@ pub(super) async fn secure_window(window: &WebviewWindow) -> Result<(), String> 
         })
         .map_err(|_| PRIVATE_SESSION_ERROR)?;
     match tokio::time::timeout(Duration::from_secs(10), receiver).await {
-        Ok(Ok(true)) => clear_private_data(window).await,
+        Ok(Ok(true)) if clear => clear_profile_data(window, expected).await,
+        Ok(Ok(true)) => Ok(()),
         _ => Err(PRIVATE_SESSION_ERROR.into()),
     }
 }
 
 #[cfg(windows)]
-pub(super) async fn clear_private_data(window: &WebviewWindow) -> Result<(), String> {
+pub(super) async fn clear_profile_data(
+    window: &WebviewWindow,
+    expected: ExpectedProfile,
+) -> Result<(), String> {
     use webview2_com::{ClearBrowsingDataCompletedHandler, Microsoft::Web::WebView2::Win32::*};
     use windows_core::Interface;
 
@@ -205,10 +302,8 @@ pub(super) async fn clear_private_data(window: &WebviewWindow) -> Result<(), Str
                 unsafe {
                     let webview = platform.controller().CoreWebView2()?;
                     let profile = webview.cast::<ICoreWebView2_13>()?.Profile()?;
-                    let mut private = Default::default();
-                    profile.IsInPrivateModeEnabled(&mut private)?;
                     // Never clear the main application's persistent profile.
-                    if !private.as_bool() {
+                    if !uses_profile(&profile, &expected)? {
                         return Err(windows_core::Error::from_hresult(windows_core::HRESULT(
                             0x80004005u32 as i32,
                         )));
@@ -245,12 +340,19 @@ pub(super) async fn clear_private_data(window: &WebviewWindow) -> Result<(), Str
 }
 
 #[cfg(not(windows))]
-async fn secure_window(_: &WebviewWindow) -> Result<(), String> {
+pub(super) async fn secure_window(
+    _: &WebviewWindow,
+    _: ExpectedProfile,
+    _: bool,
+) -> Result<(), String> {
     Err(PRIVATE_SESSION_ERROR.into())
 }
 
 #[cfg(not(windows))]
-async fn clear_private_data(_: &WebviewWindow) -> Result<(), String> {
+pub(super) async fn clear_profile_data(
+    _: &WebviewWindow,
+    _: ExpectedProfile,
+) -> Result<(), String> {
     Err(CLEANUP_ERROR.into())
 }
 
@@ -263,7 +365,7 @@ fn decode_result(value: &str) -> Result<Option<AccountLibrary>, String> {
     match result {
         None | Some(ReadResult::Pending) => Ok(None),
         Some(ReadResult::Error { error }) => Err(if error == "expired" {
-            "Battle.net sign-in expired or could not be verified. Please sign in again."
+            EXPIRED
         } else {
             "Battle.net could not provide your game list. Try again, or scan installed games."
         }
@@ -289,8 +391,13 @@ fn decode_result(value: &str) -> Result<Option<AccountLibrary>, String> {
 
 async fn read_library(window: &WebviewWindow) -> Result<AccountLibrary, String> {
     let mut interval = tokio::time::interval(Duration::from_millis(750));
+    let started = Instant::now();
     loop {
         interval.tick().await;
+        if started.elapsed() >= SHOW_WINDOW_AFTER && !window.is_visible().unwrap_or(true) {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
         if !account_page(&window.url().map_err(|_| CANCELLED)?) {
             continue;
         }
@@ -338,6 +445,17 @@ pub async fn library_battlenet_account_games(
         .lock()
         .map_err(|_| "Could not start Battle.net sign-in.")?
         .start(&id)?;
+    let (store, profile) = match (Store::of(&app), profile_dir(&app)) {
+        (Ok(store), Ok(profile)) => (store, profile),
+        _ => {
+            if let Ok(mut sessions) = state.0.lock() {
+                sessions.finish(&id);
+            }
+            return Err(PRIVATE_SESSION_ERROR.into());
+        }
+    };
+    let kept = store.load(Service::BattleNet).is_some();
+    let expected = ExpectedProfile::Dedicated(profile.clone());
     let (navigation_rejected, rejected_navigation) = oneshot::channel();
     let navigation_rejected = Mutex::new(Some(navigation_rejected));
     let sign_in = tauri::WebviewWindowBuilder::new(
@@ -350,7 +468,7 @@ pub async fn library_battlenet_account_games(
     .inner_size(1000.0, 760.0)
     .min_inner_size(640.0, 560.0)
     .visible(false)
-    .incognito(true)
+    .data_directory(profile)
     .devtools(false)
     .browser_extensions_enabled(false)
     .general_autofill_enabled(false)
@@ -370,6 +488,14 @@ pub async fn library_battlenet_account_games(
     .on_page_load(move |window, payload| {
         if let Some(host) = payload.url().host_str() {
             let _ = window.set_title(&format!("{title} — {host}"));
+        }
+        // Hidden while a kept sign-in goes straight to the account page.
+        if payload.event() == PageLoadEvent::Finished
+            && payload.url().as_str() != "about:blank"
+            && !account_page(payload.url())
+        {
+            let _ = window.show();
+            let _ = window.set_focus();
         }
     })
     .on_new_window(|_, _| NewWindowResponse::Deny)
@@ -396,7 +522,8 @@ pub async fn library_battlenet_account_games(
             });
             // Do not cancel native preparation halfway through: its queued
             // profile clearing must finish before another attempt can start.
-            let setup = secure_window(&sign_in).await;
+            // Without a kept sign-in the profile starts empty.
+            let setup = secure_window(&sign_in, expected.clone(), !kept).await;
             let session_ready = setup.is_ok();
             let result = tokio::select! {
                 biased;
@@ -406,26 +533,33 @@ pub async fn library_battlenet_account_games(
                     setup?;
                     sign_in.navigate(ACCOUNT_URL.parse().expect("fixed Battle.net URL"))
                         .map_err(|_| PRIVATE_SESSION_ERROR)?;
-                    sign_in.show().map_err(|_| PRIVATE_SESSION_ERROR)?;
-                    let _ = sign_in.set_focus();
                     read_library(&sign_in).await
                 }) => {
                     result.unwrap_or_else(|_| Err("Battle.net sign-in timed out. Please try again.".into()))
                 }
             };
-            // Await clearing, not just its scheduling. A retry cannot start
-            // while the prior private profile is still authenticated.
             let _ = sign_in.hide();
             let _ = sign_in.navigate("about:blank".parse().unwrap());
-            let cleared = if session_ready {
-                clear_private_data(&sign_in).await
+            // A read account keeps its sign-in. An expired one, or a failed
+            // first sign-in, leaves nothing behind.
+            let keep_session = match &result {
+                Ok(_) => store
+                    .save(Service::BattleNet, &KeptLogin::new(String::new(), None))
+                    .is_ok(),
+                Err(error) => kept && error != EXPIRED,
+            };
+            // Await clearing, not just its scheduling. A retry cannot start
+            // while an unkept profile is still authenticated.
+            let cleared = if session_ready && !keep_session {
+                let _ = store.delete(Service::BattleNet);
+                clear_profile_data(&sign_in, expected).await
             } else {
                 Ok(())
             };
             let destroyed = sign_in.destroy();
             if cleared.is_err() || destroyed.is_err() {
-                // Leave the slot locked; restarting the app destroys its
-                // private profile. Never silently reuse an uncleared session.
+                // Leave the slot locked; the next start deletes a profile
+                // without a kept sign-in. Never silently reuse it.
                 return Err(CLEANUP_ERROR.into());
             }
             result
@@ -525,6 +659,33 @@ mod tests {
             .unwrap_err()
             .contains("expired"));
         assert!(decode_result("null").unwrap().is_none());
+    }
+
+    #[test]
+    fn only_battle_nets_own_folder_counts_as_its_profile() {
+        let dir =
+            Path::new(r"C:\Users\Player\AppData\Local\app.playcounter.desktop\battlenet-profile");
+        assert!(inside_profile(
+            r"C:\Users\Player\AppData\Local\app.playcounter.desktop\battlenet-profile\EBWebView\Default",
+            dir
+        ));
+        assert!(inside_profile(
+            r"c:/users/player/appdata/local/app.playcounter.desktop/battlenet-profile/EBWebView/Default",
+            dir
+        ));
+        assert!(inside_profile(
+            r"\\?\C:\Users\Player\AppData\Local\app.playcounter.desktop\battlenet-profile\EBWebView\Default",
+            dir
+        ));
+        for reported in [
+            r"C:\Users\Player\AppData\Local\app.playcounter.desktop\EBWebView\Default",
+            r"C:\Users\Player\AppData\Local\app.playcounter.desktop\battlenet-profile-evil\EBWebView\Default",
+            r"C:\Users\Player\AppData\Local\app.playcounter.desktop\battlenet-profile",
+            "",
+        ] {
+            assert!(!inside_profile(reported, dir), "{reported}");
+        }
+        assert!(!inside_profile(r"C:\anything", Path::new("")));
     }
 
     #[test]

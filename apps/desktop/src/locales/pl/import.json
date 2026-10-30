@@ -6,7 +6,6 @@
   "World of Warcraft example": "Przykład z World of Warcraft",
   "PlayCounter tracks new sessions automatically.": "PlayCounter śledzi nowe sesje automatycznie.",
   "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.": "Użyj konta Microsoft powiązanego z twoim gamertagiem Xbox. Jeśli nie masz pewności, skopiuj link logowania i otwórz go w prywatnym oknie przeglądarki.",
-  "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.": "Logowanie otwiera się w tymczasowym oknie {{providerName}} i jest usuwane po skanowaniu. Przy każdym logowaniu możesz wybrać konto.",
   "Copy sign-in link": "Kopiuj link logowania",
   "Find installed games": "Znajdź zainstalowane gry",
   "PlayCounter cannot look up {{providerName}} games right now. Your library was scanned, but importing is switched off so you do not end up with wrongly named games.": "PlayCounter nie może teraz wyszukać gier {{providerName}}. Biblioteka została przeskanowana, ale import jest wyłączony, żeby nie pojawiły się gry ze złymi nazwami.",
@@ -210,5 +209,11 @@
   "Account {{id}}": "Konto {{id}}",
   "{{provider}} game {{id}}": "Gra {{provider}} {{id}}",
   "The server is still busy. Please try importing again after the pause.": "Serwer jest nadal zajęty. Spróbuj zaimportować ponownie po przerwie.",
-  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Odświeżenie osiągnięć Xbox wymaga nowszego serwera PlayCounter. Spróbuj ponownie później."
+  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Odświeżenie osiągnięć Xbox wymaga nowszego serwera PlayCounter. Spróbuj ponownie później.",
+  "Microsoft sign-in opens in your browser. PlayCounter never sees your password and keeps you signed in on this PC, so the next import needs no sign-in.": "Logowanie Microsoft otwiera się w przeglądarce. PlayCounter nigdy nie widzi twojego hasła i utrzymuje twoje logowanie na tym PC, więc następny import nie wymaga logowania.",
+  "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.": "Logowanie otwiera się w osobnym oknie {{providerName}}. PlayCounter utrzymuje twoje logowanie na tym PC, dopóki się nie wylogujesz.",
+  "Signed in as {{name}}.": "Zalogowano jako {{name}}.",
+  "Signed in.": "Zalogowano.",
+  "Sign out": "Wyloguj się",
+  "Could not sign out. Please try again.": "Nie udało się wylogować. Spróbuj ponownie."
 }

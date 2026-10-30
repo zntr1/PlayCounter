@@ -4,11 +4,13 @@ pub mod battlenet_account;
 pub mod epic;
 pub mod epic_account;
 mod exe_scan;
+pub mod kept_logins;
 pub mod steam;
 mod types;
 mod vdf;
 pub mod watch_folders;
 pub mod xbox;
+pub mod xbox_login;
 
 use crate::launch::{
     is_absolute_windows_path, is_missing_at, volume_is_present, LaunchError, LaunchErrorKind,

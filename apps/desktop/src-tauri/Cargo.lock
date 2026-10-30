@@ -2739,6 +2739,7 @@ dependencies = [
  "hidapi",
  "quick-xml",
  "reqwest",
+ "ring",
  "rustls",
  "serde",
  "serde_json",

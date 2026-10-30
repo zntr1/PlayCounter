@@ -26,6 +26,7 @@ import type {
   ScannedExecutable,
 } from "../types";
 import { appLanguage, getT } from "../../i18n";
+import { refreshKeptLogins } from "../keptLogins";
 
 const t = getT("import");
 
@@ -125,8 +126,9 @@ export async function refreshXboxAchievementList(
     : { error: game?.achievementError ?? "failed" };
 }
 
-/** Signs in through the backend and returns Xbox's titles. With a `request`
- *  an older server answers 400 before any sign-in starts: null then. */
+/** Signs in through the backend and returns Xbox's titles. A kept sign-in
+ *  needs no browser. With a `request` an older server answers 400 before any
+ *  sign-in starts: null then. */
 async function signInToXbox(
   options: LibraryScanOptions,
   request?: XboxImportStartRequest,
@@ -174,47 +176,46 @@ async function signInToXbox(
   };
 
   try {
-    const startResponse = await requestLibraryJson<unknown>(
-      `${apiEndpoint}/api/xbox/import/start`,
-      {
-        method: "POST",
-        redirect: "error",
-        cache: "no-store",
-        signal: requestController.signal,
-        onRateLimitWait: options.onRateLimitWait,
-        ...(request
-          ? {
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(request),
-            }
-          : {}),
-      },
+    // The claim hash lets the Rust part keep this sign-in. The web UI never
+    // sees its secret or the token.
+    let claimHash: string | null = null;
+    const keptAttemptId = await startKeptXboxImport(
+      apiEndpoint,
+      request,
+      options,
+      requestController.signal,
     );
-    if (request && startResponse.status === 400) return null;
-    if (!startResponse.ok) {
-      throw responseError(
-        startResponse,
-        t("Xbox import could not start ({{status}}).", {
-          status: startResponse.status,
-        }),
+    if (keptAttemptId) {
+      attemptId = keptAttemptId;
+      attemptActive = true;
+      reportProgress("history");
+    } else {
+      claimHash = await xboxLoginClaimHash(apiEndpoint);
+      const start = await startXboxSignIn(
+        apiEndpoint,
+        request,
+        claimHash,
+        options,
+        requestController.signal,
       );
-    }
+      if (!start) return null;
+      // An older server refused keepLogin: there is nothing to claim.
+      if (!start.keeping) claimHash = null;
+      attemptId = start.attemptId;
+      attemptActive = true;
+      ensureNotAborted(requestController.signal);
+      options.onAuthorizeUrl?.(start.authorizeUrl);
+      reportProgress("authorization");
 
-    const start = parseXboxImportStart(startResponse.data);
-    attemptId = start.attemptId;
-    attemptActive = true;
-    ensureNotAborted(requestController.signal);
-    options.onAuthorizeUrl?.(start.authorizeUrl);
-    reportProgress("authorization");
-
-    if (options.openAuthorizeUrl !== false) {
-      try {
-        await invoke<void>("open_microsoft_signin_url", {
-          url: start.authorizeUrl,
-        });
-      } catch {
-        // Keep polling: the importer exposes the same URL for manual copying
-        // when the system browser integration is unavailable or has stale state.
+      if (options.openAuthorizeUrl !== false) {
+        try {
+          await invoke<void>("open_microsoft_signin_url", {
+            url: start.authorizeUrl,
+          });
+        } catch {
+          // Keep polling: the importer exposes the same URL for manual copying
+          // when the system browser integration is unavailable or has stale state.
+        }
       }
     }
 
@@ -252,6 +253,7 @@ async function signInToXbox(
       ensureNotAborted(requestController.signal);
       if (result.status === "done") {
         attemptActive = false;
+        if (claimHash) keepXboxLogin(attemptId, claimHash);
         return result.games;
       }
       if (result.status === "failed") {
@@ -283,6 +285,136 @@ async function signInToXbox(
     globalThis.clearTimeout(timeout);
     externalSignal?.removeEventListener("abort", onExternalAbort);
   }
+}
+
+/** Starts an import with the kept sign-in. null: nothing kept, Microsoft
+ *  refused it, or the server cannot do it yet. Then the browser opens. */
+async function startKeptXboxImport(
+  apiEndpoint: string,
+  request: XboxImportStartRequest | undefined,
+  options: LibraryScanOptions,
+  signal: AbortSignal,
+): Promise<string | null> {
+  for (let tries = 0; tries < 5; tries++) {
+    ensureNotAborted(signal);
+    let answer: Record<string, unknown> | null;
+    try {
+      answer = asRecord(
+        await invoke<unknown>("xbox_login_sync_start", {
+          apiEndpoint,
+          options: request ?? {},
+        }),
+      );
+    } catch {
+      return null;
+    }
+    if (
+      answer?.status === "started" &&
+      typeof answer.attemptId === "string" &&
+      /^[a-f0-9]{48}$/.test(answer.attemptId)
+    ) {
+      return answer.attemptId;
+    }
+    if (answer?.status === "busy") {
+      const seconds =
+        typeof answer.retryAfterSeconds === "number"
+          ? Math.min(60, Math.max(1, answer.retryAfterSeconds))
+          : 5;
+      options.onRateLimitWait?.(true);
+      try {
+        await abortableDelay(seconds * 1_000, signal);
+      } finally {
+        options.onRateLimitWait?.(false);
+      }
+      continue;
+    }
+    // 400 and 404: a server without kept sign-ins. The browser still works.
+    if (
+      answer?.status === "unavailable" &&
+      answer.httpStatus !== 400 &&
+      answer.httpStatus !== 404
+    ) {
+      throw new Error(
+        typeof answer.httpStatus === "number"
+          ? t("Xbox import could not start ({{status}}).", {
+              status: answer.httpStatus,
+            })
+          : t(
+              "The Xbox import is unavailable right now. Check your connection and try again.",
+            ),
+      );
+    }
+    return null;
+  }
+  return null;
+}
+
+/** null when this PC keeps no sign-ins or the server is not PlayCounter's. */
+async function xboxLoginClaimHash(apiEndpoint: string) {
+  try {
+    const hash = await invoke<unknown>("xbox_login_claim_hash", {
+      apiEndpoint,
+    });
+    return typeof hash === "string" && /^[a-f0-9]{64}$/.test(hash)
+      ? hash
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function keepXboxLogin(attemptId: string, claimHash: string) {
+  void invoke<boolean>("xbox_login_keep", { attemptId, claimHash })
+    .then((kept) => {
+      if (kept) void refreshKeptLogins();
+    })
+    .catch(() => {});
+}
+
+/** The browser sign-in's start. An older server refuses options it does not
+ *  know before any sign-in starts: first `keepLogin`, then `request` (null). */
+async function startXboxSignIn(
+  apiEndpoint: string,
+  request: XboxImportStartRequest | undefined,
+  claimHash: string | null,
+  options: LibraryScanOptions,
+  signal: AbortSignal,
+): Promise<(XboxImportStartResponse & { keeping: boolean }) | null> {
+  const bodies = claimHash
+    ? [{ ...request, keepLogin: { claimHash } }, request]
+    : [request];
+  for (const body of bodies) {
+    const startResponse = await requestLibraryJson<unknown>(
+      `${apiEndpoint}/api/xbox/import/start`,
+      {
+        method: "POST",
+        redirect: "error",
+        cache: "no-store",
+        signal,
+        onRateLimitWait: options.onRateLimitWait,
+        ...(body
+          ? {
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            }
+          : {}),
+      },
+    );
+    if (body && startResponse.status === 400) continue;
+    if (!startResponse.ok) {
+      throw responseError(
+        startResponse,
+        t("Xbox import could not start ({{status}}).", {
+          status: startResponse.status,
+        }),
+      );
+    }
+    return {
+      ...parseXboxImportStart(startResponse.data),
+      keeping: Boolean(body && "keepLogin" in body),
+    };
+  }
+  return null;
 }
 
 async function scanLocalXboxGames(): Promise<XboxLocalScan> {

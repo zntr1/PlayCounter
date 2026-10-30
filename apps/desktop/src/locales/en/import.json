@@ -6,7 +6,6 @@
   "World of Warcraft example": "World of Warcraft example",
   "PlayCounter tracks new sessions automatically.": "PlayCounter tracks new sessions automatically.",
   "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.": "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.",
-  "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.": "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.",
   "Copy sign-in link": "Copy sign-in link",
   "Find installed games": "Find installed games",
   "PlayCounter cannot look up {{providerName}} games right now. Your library was scanned, but importing is switched off so you do not end up with wrongly named games.": "PlayCounter cannot look up {{providerName}} games right now. Your library was scanned, but importing is switched off so you do not end up with wrongly named games.",
@@ -196,5 +195,11 @@
   "Account {{id}}": "Account {{id}}",
   "{{provider}} game {{id}}": "{{provider}} game {{id}}",
   "The server is still busy. Please try importing again after the pause.": "The server is still busy. Please try importing again after the pause.",
-  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later."
+  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.",
+  "Microsoft sign-in opens in your browser. PlayCounter never sees your password and keeps you signed in on this PC, so the next import needs no sign-in.": "Microsoft sign-in opens in your browser. PlayCounter never sees your password and keeps you signed in on this PC, so the next import needs no sign-in.",
+  "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.": "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.",
+  "Signed in as {{name}}.": "Signed in as {{name}}.",
+  "Signed in.": "Signed in.",
+  "Sign out": "Sign out",
+  "Could not sign out. Please try again.": "Could not sign out. Please try again."
 }

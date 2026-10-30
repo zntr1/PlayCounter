@@ -338,5 +338,11 @@
   "Every {{count, number}} hours_one": "Jede Stunde",
   "Every {{count, number}} hours_other": "Alle {{count, number}} Stunden",
   "Every {{count, number}} minutes_one": "Jede Minute",
-  "Every {{count, number}} minutes_other": "Alle {{count, number}} Minuten"
+  "Every {{count, number}} minutes_other": "Alle {{count, number}} Minuten",
+  "{{providerName}} sign-in": "{{providerName}}-Anmeldung",
+  "Signed in as {{name}}.": "Angemeldet als {{name}}.",
+  "Signed in.": "Angemeldet.",
+  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "PlayCounter speichert diese Anmeldung verschlüsselt auf diesem PC, sodass nur dein Windows-Konto sie lesen kann.",
+  "Sign out": "Abmelden",
+  "Could not sign out. Please try again.": "Abmelden hat nicht geklappt. Bitte versuche es erneut."
 }

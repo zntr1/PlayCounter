@@ -48,7 +48,10 @@ describe("Xbox library provider", () => {
       scanXboxLibrary({ apiEndpoint: endpoint, onAuthorizeUrl }),
     ).rejects.toThrow("unsupported sign-in URL");
     expect(onAuthorizeUrl).not.toHaveBeenCalled();
-    expect(invokeMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
   });
   it("waits and retries a throttled sign-in start before opening the browser", async () => {
     vi.useFakeTimers();
@@ -73,7 +76,10 @@ describe("Xbox library provider", () => {
       onRateLimitWait: waiting,
     });
     await vi.advanceTimersByTimeAsync(19_999);
-    expect(invokeMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(waiting).toHaveBeenLastCalledWith(true);
     await vi.advanceTimersByTimeAsync(1);
@@ -106,7 +112,10 @@ describe("Xbox library provider", () => {
     await rejected;
     await vi.advanceTimersByTimeAsync(30_000);
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(invokeMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -355,7 +364,10 @@ describe("Xbox library provider", () => {
     );
 
     expect(onAuthorizeUrl).toHaveBeenCalledWith(authorizeUrl);
-    expect(invokeMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
   });
 
   it("cancels promptly even when server cleanup does not respond", async () => {
@@ -761,6 +773,261 @@ describe("Xbox achievements", () => {
     await expect(
       refreshXboxAchievementList("1234", { apiEndpoint: endpoint }),
     ).rejects.toThrow(/server/i);
-    expect(invokeMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+  });
+});
+
+describe("Kept Xbox sign-in", () => {
+  const authorizeUrl =
+    "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
+  const claimHash = "f".repeat(64);
+  const localScan = { games: [], warnings: [], partial: false };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    invokeMock.mockReset();
+  });
+
+  function answer(commands: Record<string, unknown>) {
+    invokeMock.mockImplementation(async (command: string) => commands[command]);
+  }
+
+  function startBody(fetchMock: ReturnType<typeof vi.fn>, call: number) {
+    const body = fetchMock.mock.calls[call][1]?.body;
+    return body === undefined ? undefined : JSON.parse(String(body));
+  }
+
+  it("imports with the kept sign-in, without a browser", async () => {
+    answer({
+      xbox_login_sync_start: { status: "started", attemptId: firstAttemptId },
+      library_scan_xbox_local: localScan,
+    });
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        status: "done",
+        games: [
+          {
+            externalId: "1234",
+            name: "Forza Horizon 5",
+            providerSeconds: 60,
+            candidates: [],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const onAuthorizeUrl = vi.fn();
+    const onXboxProgress = vi.fn();
+
+    const result = await scanXboxLibrary({
+      apiEndpoint: endpoint,
+      onAuthorizeUrl,
+      onXboxProgress,
+    });
+
+    expect(result.games.map((game) => game.externalId)).toEqual(["1234"]);
+    expect(invokeMock).toHaveBeenCalledWith("xbox_login_sync_start", {
+      apiEndpoint: endpoint,
+      options: { includeAchievements: true, language: "en" },
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      `/api/xbox/import/result?attemptId=${firstAttemptId}`,
+    );
+    expect(onAuthorizeUrl).not.toHaveBeenCalled();
+    expect(onXboxProgress).toHaveBeenCalledWith("history");
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "xbox_login_claim_hash",
+      expect.anything(),
+    );
+  });
+
+  it("signs in in the browser when nothing is kept, and keeps that sign-in", async () => {
+    answer({
+      xbox_login_sync_start: { status: "signedOut" },
+      xbox_login_claim_hash: claimHash,
+      xbox_login_keep: true,
+      logins_list: [{ service: "xbox", name: "Chief", savedAt: 1 }],
+      library_scan_xbox_local: localScan,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await scanXboxLibrary({ apiEndpoint: endpoint });
+
+    expect(startBody(fetchMock, 0)).toEqual({
+      includeAchievements: true,
+      language: "en",
+      keepLogin: { claimHash },
+    });
+    expect(invokeMock).toHaveBeenCalledWith("xbox_login_claim_hash", {
+      apiEndpoint: endpoint,
+    });
+    expect(invokeMock).toHaveBeenCalledWith("open_microsoft_signin_url", {
+      url: authorizeUrl,
+    });
+    expect(invokeMock).toHaveBeenCalledWith("xbox_login_keep", {
+      attemptId: firstAttemptId,
+      claimHash,
+    });
+  });
+
+  it("keeps nothing when the sign-in does not finish", async () => {
+    answer({
+      xbox_login_sync_start: { status: "signedOut" },
+      xbox_login_claim_hash: claimHash,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            status: "failed",
+            reason: "oauth_error",
+            stage: "authorization",
+          }),
+        ),
+    );
+
+    await expect(
+      scanXboxLibrary({ apiEndpoint: endpoint, openAuthorizeUrl: false }),
+    ).rejects.toThrow("not completed");
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "xbox_login_keep",
+      expect.anything(),
+    );
+  });
+
+  it("an older server without kept sign-ins still imports with achievements", async () => {
+    answer({
+      xbox_login_sync_start: { status: "unavailable", httpStatus: 404 },
+      xbox_login_claim_hash: claimHash,
+      library_scan_xbox_local: localScan,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: "Bad Request" }, 400))
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await scanXboxLibrary({ apiEndpoint: endpoint, openAuthorizeUrl: false });
+
+    expect(startBody(fetchMock, 0)).toEqual({
+      includeAchievements: true,
+      language: "en",
+      keepLogin: { claimHash },
+    });
+    expect(startBody(fetchMock, 1)).toEqual({
+      includeAchievements: true,
+      language: "en",
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "xbox_login_keep",
+      expect.anything(),
+    );
+  });
+
+  it("waits while the server is busy, then imports with the kept sign-in", async () => {
+    vi.useFakeTimers();
+    const syncAnswers = [
+      { status: "busy", retryAfterSeconds: 3 },
+      { status: "started", attemptId: firstAttemptId },
+    ];
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "xbox_login_sync_start"
+        ? syncAnswers.shift()
+        : command === "library_scan_xbox_local"
+          ? localScan
+          : undefined,
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ status: "done", games: [] })),
+    );
+    const waiting = vi.fn();
+
+    const run = scanXboxLibrary({
+      apiEndpoint: endpoint,
+      onRateLimitWait: waiting,
+    });
+    await vi.advanceTimersByTimeAsync(2_999);
+    expect(waiting).toHaveBeenLastCalledWith(true);
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(run).resolves.toMatchObject({ games: [] });
+    expect(waiting).toHaveBeenLastCalledWith(false);
+    expect(
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "xbox_login_sync_start",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("stops with the server error and opens no browser", async () => {
+    answer({
+      xbox_login_sync_start: { status: "unavailable", httpStatus: 502 },
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(scanXboxLibrary({ apiEndpoint: endpoint })).rejects.toThrow(
+      "(502)",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+  });
+
+  it("refreshes one title with the kept sign-in", async () => {
+    answer({
+      xbox_login_sync_start: { status: "started", attemptId: firstAttemptId },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          status: "done",
+          games: [
+            {
+              externalId: "1234",
+              name: "Xbox title 1234",
+              providerSeconds: null,
+              candidates: [],
+              achievementError: "unavailable",
+            },
+          ],
+        }),
+      ),
+    );
+
+    await expect(
+      refreshXboxAchievementList("1234", { apiEndpoint: endpoint }),
+    ).resolves.toEqual({ error: "unavailable" });
+    expect(invokeMock).toHaveBeenCalledWith("xbox_login_sync_start", {
+      apiEndpoint: endpoint,
+      options: { achievementTitleIds: ["1234"], language: "en" },
+    });
   });
 });

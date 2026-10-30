@@ -40,6 +40,13 @@ let container: HTMLDivElement;
 let store: typeof import("../../store").useAppStore;
 let View: typeof import("./ImportLibraryView").ImportLibraryView;
 
+/** Tauri calls other than reading which sign-ins are kept. */
+function sideEffects() {
+  return mocks.invoke.mock.calls.filter(
+    ([command]) => command !== "logins_list",
+  );
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -125,7 +132,7 @@ it.each([
     expect(dialog?.textContent).toContain("Adjust total playtime");
     expect(dialog?.textContent).toContain("/played");
     expect(mocks.scan).not.toHaveBeenCalled();
-    expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(sideEffects()).toEqual([]);
     expect(mocks.lookup).not.toHaveBeenCalled();
     await click("OK");
     expect(document.querySelector('[role="dialog"]')).toBeNull();
@@ -164,7 +171,7 @@ it.each(["Cancel", "Close", "Escape"])(
     }
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(mocks.scan).not.toHaveBeenCalled();
-    expect(mocks.invoke).not.toHaveBeenCalled();
+    expect(sideEffects()).toEqual([]);
     expect(mocks.lookup).not.toHaveBeenCalled();
   },
 );
@@ -672,5 +679,5 @@ it("does not commit an Xbox confirmation after switching providers", async () =>
     reverse.resolve({ game: result.resolvedGames![0].game, executables: [] }),
   );
   expect(mocks.run).not.toHaveBeenCalled();
-  expect(mocks.invoke).not.toHaveBeenCalled();
+  expect(sideEffects()).toEqual([]);
 });

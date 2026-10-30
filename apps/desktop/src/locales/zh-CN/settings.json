@@ -331,5 +331,11 @@
   "A popup every time today's playtime grows by this much. All games count together.": "今天的游戏时长每增加这么多，就会弹窗提醒一次。所有游戏合并计算。",
   "Off": "关闭",
   "Every {{count, number}} hours_other": "每 {{count, number}} 小时",
-  "Every {{count, number}} minutes_other": "每 {{count, number}} 分钟"
+  "Every {{count, number}} minutes_other": "每 {{count, number}} 分钟",
+  "{{providerName}} sign-in": "{{providerName}} 登录",
+  "Signed in as {{name}}.": "已登录为 {{name}}。",
+  "Signed in.": "已登录。",
+  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "PlayCounter 会把此登录加密保存在这台电脑上，只有你的 Windows 账户能读取。",
+  "Sign out": "退出登录",
+  "Could not sign out. Please try again.": "无法退出登录。请重试。"
 }

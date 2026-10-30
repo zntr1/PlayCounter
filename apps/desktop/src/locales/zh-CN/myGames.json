@@ -627,5 +627,6 @@
   "PlayCounter can't close {{gameName}}": "PlayCounter 无法关闭 {{gameName}}",
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "它可能以管理员身份运行，或受反作弊保护。请在游戏内关闭它。",
   "OK": "确定",
-  "Achievements": "成就"
+  "Achievements": "成就",
+  "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import.": "在浏览器中登录 Microsoft，然后确认 PlayCounter 识别出的游戏。其中大多数需要你确认。PlayCounter 永远看不到你的密码，并会在这台电脑上保持你的登录，供下次导入使用。"
 }
