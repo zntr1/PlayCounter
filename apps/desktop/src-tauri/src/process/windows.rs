@@ -4,7 +4,7 @@ use std::{
     collections::{BTreeMap, HashSet},
     error::Error,
 };
-use sysinfo::{ProcessesToUpdate, System};
+use sysinfo::{Process, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
 pub struct WindowsScanner;
 
@@ -15,19 +15,39 @@ pub fn create_scanner() -> Box<dyn ProcessScanner> {
 #[async_trait]
 impl ProcessScanner for WindowsScanner {
     async fn scan(&self) -> Result<Vec<ProcessSnapshot>, Box<dyn Error + Send + Sync>> {
-        let mut system = System::new_all();
-        system.refresh_processes(ProcessesToUpdate::All, true);
+        // Scans run every few seconds, so only exe paths are read for every
+        // process, and command line and folder for emulators alone. Reading
+        // everything for every process cost about four times the CPU.
+        let mut system = System::new();
+        system.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_exe(UpdateKind::OnlyIfNotSet),
+        );
+        let emulator_pids = system
+            .processes()
+            .values()
+            .filter(|process| {
+                let exe_path = process.exe().map(|path| path.to_string_lossy());
+                emulator::host_for(&exe_name_of(process, exe_path.as_deref())).is_some()
+            })
+            .map(Process::pid)
+            .collect::<Vec<_>>();
+        if !emulator_pids.is_empty() {
+            system.refresh_processes_specifics(
+                ProcessesToUpdate::Some(&emulator_pids),
+                false,
+                ProcessRefreshKind::nothing()
+                    .with_cmd(UpdateKind::Always)
+                    .with_cwd(UpdateKind::Always),
+            );
+        }
 
         let mut processes = BTreeMap::new();
         let mut emulator_processes = Vec::new();
         for process in system.processes().values() {
             let exe_path = process.exe().map(|path| path.to_string_lossy().to_string());
-            let exe_name = exe_path
-                .as_deref()
-                .and_then(|exe_path_value| exe_path_value.rsplit(['\\', '/']).next())
-                .filter(|name| !name.is_empty())
-                .map(str::to_string)
-                .unwrap_or_else(|| process.name().to_string_lossy().to_string());
+            let exe_name = exe_name_of(process, exe_path.as_deref());
             if exe_name.is_empty() {
                 continue;
             }
@@ -97,6 +117,15 @@ impl ProcessScanner for WindowsScanner {
         snapshots.extend(emulator_processes);
         Ok(snapshots)
     }
+}
+
+/// The exe's file name, or the process name when its path is unknown.
+fn exe_name_of(process: &Process, exe_path: Option<&str>) -> String {
+    exe_path
+        .and_then(|exe_path_value| exe_path_value.rsplit(['\\', '/']).next())
+        .filter(|name| !name.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| process.name().to_string_lossy().to_string())
 }
 
 #[cfg(test)]
