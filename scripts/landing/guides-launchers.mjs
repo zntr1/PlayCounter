@@ -97,7 +97,7 @@ export const launcherGuides = [
             html: "<p>Back in PlayCounter, review the detected games and confirm the correct game where a match is needed. Import your selection; available Xbox playtime is included in the game totals.</p>",
           },
         ],
-        html: '<p>PlayCounter does not see your Microsoft password. The API temporarily handles authorization and Xbox game data for the import; the sign-in is discarded afterward. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+        html: '<p>PlayCounter does not see your Microsoft password. The API handles authorization and Xbox game data during the import. On Windows, the app keeps the sign-in on your PC, encrypted for your Windows account, so the next import needs no sign-in; Sign out in Settings deletes it. <a href="/datenschutz#en">Import privacy details</a>.</p>',
       },
       {
         id: "tracking",
@@ -161,7 +161,7 @@ export const launcherGuides = [
             html: "<p>Recognized games wait in <strong>Ready to import</strong>. Games you never played and have not installed start unchecked, because Epic accounts often collect many free games: check the ones you want. Games under <strong>Needs attention</strong> ask you to confirm the right game first. Then select <strong>Import</strong>.</p>",
           },
         ],
-        html: '<p>You sign in directly with Epic in a temporary private window; PlayCounter does not see your password. The sign-in is ended when the import is done and is not stored. Only your game list and playtime reach the app, and the PlayCounter API only receives Epic game IDs and titles to look them up. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+        html: '<p>You sign in directly with Epic in a private window; PlayCounter does not see your password. The app keeps the sign-in on your PC, encrypted for your Windows account, so the next import needs no sign-in; Sign out in Settings ends it at Epic. Only your game list and playtime reach the app, and the PlayCounter API only receives Epic game IDs and titles to look them up. <a href="/datenschutz#en">Import privacy details</a>.</p>',
       },
       {
         id: "sessions",
@@ -365,7 +365,7 @@ export const launcherGuides = [
             image: "battlenet-review",
           },
         ],
-        html: '<p>The sign-in window is temporary and is discarded when the scan finishes. Only the list of games leaves it: your password, account details and CD keys are not passed to PlayCounter. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+        html: '<p>The sign-in stays in a browser profile on your PC that only Battle.net uses, so the next scan needs no sign-in; Sign out in Settings deletes it. Only the list of games leaves it: your password, account details and CD keys are not passed to PlayCounter. <a href="/datenschutz#en">Import privacy details</a>.</p>',
       },
       {
         id: "versions",

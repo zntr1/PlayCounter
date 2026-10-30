@@ -165,8 +165,19 @@
   Microsoft-Anmeldung. Unsere API verarbeitet den kurzlebigen Autorisierungscode
   und Zugriffstoken, die Xbox-Benutzerkennung sowie von Xbox Live gelieferte
   Titel, Spielzeiten und letzte Aktivitäten, um dir deine importierbaren Spiele
-  anzuzeigen. Die Token werden nur für diesen Import verwendet und nicht
-  dauerhaft gespeichert.
+  anzuzeigen. Zugriffstoken werden nur für den jeweiligen Import verwendet
+  und nicht gespeichert.
+</p>
+<p>
+  Damit der nächste Import ohne neue Anmeldung auskommt, gibt die API unter
+  Windows das Aktualisierungstoken (Refresh-Token) von Microsoft einmalig an
+  die App weiter. Die App speichert es auf deinem PC, verschlüsselt mit dem
+  Windows-Datenschutz (DPAPI), sodass nur dein Windows-Konto es lesen kann;
+  unsere API speichert es nicht. Beim nächsten Import sendet die App es an
+  unsere API, die damit bei Microsoft eine neue Anmeldung erzeugt. Microsoft
+  gibt dabei ein neues Token aus, das die App statt des alten speichert. Mit
+  „Abmelden“ in den Einstellungen unter „Bibliotheksimport“ löscht die App das
+  Token; unbenutzt läuft es bei Microsoft ab.
 </p>
 <p>
   Microsoft kann zusätzlich eine E-Mail-Adresse, einen bevorzugten Benutzernamen
@@ -188,14 +199,18 @@
 </p>
 <p>
   Wählst du zusätzlich die Anmeldung, öffnet PlayCounter die
-  Battle.net-Kontoseite von Blizzard in einem temporären, privaten Fenster. Die
-  Anmeldung erfolgt direkt bei Blizzard; PlayCounter sieht dein Passwort nicht.
+  Battle.net-Kontoseite von Blizzard in einem eigenen Fenster mit einem
+  Browserprofil, das nur für Battle.net verwendet wird. Die Anmeldung erfolgt
+  direkt bei Blizzard; PlayCounter sieht dein Passwort nicht.
   Aus dem Fenster übernimmt die App nur die Liste deiner Spiele (Titelkennung,
   Spielname und bei Classic-Spielen die Spielreihe). Kontokennungen, Abonnements
   und CD-Keys werden weder an die App-Oberfläche noch an unsere API
-  weitergegeben. Cookies und Browserdaten dieses Fensters werden nach dem Import
-  gelöscht. Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a
-  DSGVO; du kannst den Vorgang jederzeit abbrechen.
+  weitergegeben. Damit der nächste Import ohne neue Anmeldung auskommt, bleibt
+  die Anmeldung in diesem Browserprofil auf deinem PC gespeichert (Cookies, die
+  WebView2 mit dem Windows-Datenschutz verschlüsselt). Mit „Abmelden“ in den
+  Einstellungen unter „Bibliotheksimport“ löscht PlayCounter dieses Profil.
+  Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO; du
+  kannst den Vorgang jederzeit abbrechen.
 </p>
 <h3>Optionaler Epic-Games-Import</h3>
 <p>
@@ -207,12 +222,16 @@
 </p>
 <p>
   Wählst du zusätzlich die Anmeldung, öffnet PlayCounter die Anmeldeseite von
-  Epic Games in einem temporären, privaten Fenster. Die Anmeldung erfolgt direkt
+  Epic Games in einem privaten Fenster. Die Anmeldung erfolgt direkt
   bei Epic Games; PlayCounter sieht dein Passwort nicht. Aus dem Fenster
   übernimmt die App nur einen einmaligen Autorisierungscode. Damit ruft die App
   direkt von deinem PC aus bei Epic Games deine Spielebibliothek, Spieltitel und
-  die von Epic erfassten Spielzeiten ab. Das Zugriffstoken wird nicht
-  gespeichert und nach dem Import widerrufen. An unsere API werden daraus nur
+  die von Epic erfassten Spielzeiten ab. Damit der nächste Import ohne neue
+  Anmeldung auskommt, speichert die App das Aktualisierungstoken von Epic auf
+  deinem PC, verschlüsselt mit dem Windows-Datenschutz (DPAPI), sodass nur dein
+  Windows-Konto es lesen kann; es wird nicht an unsere API übermittelt. Mit
+  „Abmelden“ in den Einstellungen unter „Bibliotheksimport“ beendet PlayCounter
+  die Sitzung bei Epic Games und löscht das Token. An unsere API werden nur
   Spielkennungen und Titel übermittelt; die Spielzeiten bleiben auf deinem
   Gerät. Cookies und Browserdaten dieses Fensters werden nach der Anmeldung
   gelöscht. Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a
@@ -317,8 +336,15 @@
   <li>
     Daten eines Xbox-Importversuchs, einschließlich Token und optionaler
     Kontobezeichnung, werden nach Abschluss oder Abbruch entfernt, spätestens
-    jedoch nach fünf Minuten. Importierte Spielzeiten werden nur lokal auf
-    deinem Gerät gespeichert.
+    jedoch nach fünf Minuten. Ein Aktualisierungstoken, das die App behalten
+    soll, hält die API bis zur Abholung durch die App bereit, höchstens zwei
+    Minuten nach Abschluss des Imports. Importierte Spielzeiten werden nur
+    lokal auf deinem Gerät gespeichert.
+  </li>
+  <li>
+    Gespeicherte Anmeldungen bei Xbox, Epic Games und Battle.net bleiben nur
+    verschlüsselt auf deinem PC, bis du dich in den Einstellungen abmeldest,
+    „PlayCounter zurücksetzen“ wählst oder der Anbieter sie ablaufen lässt.
   </li>
   <li>
     Technische Provider- und Anwendungsprotokolle werden nach den konfigurierten
@@ -527,8 +553,18 @@
     When you actively start an Xbox import, PlayCounter opens a Microsoft
     sign-in. Our API temporarily processes the authorization code and access
     tokens, the Xbox user identifier, and titles, playtime and last activity
-    returned by Xbox Live to show your importable games. Tokens are used only
-    for this import and are not stored permanently.
+    returned by Xbox Live to show your importable games. Access tokens are
+    used only for that import and are not stored.
+  </p>
+  <p>
+    So that the next import needs no new sign-in, on Windows the API hands
+    Microsoft’s refresh token to the app once. The app stores it on your PC,
+    encrypted with Windows data protection (DPAPI) so that only your Windows
+    account can read it; our API does not store it. On the next import the app
+    sends it to our API, which uses it to create a new sign-in with Microsoft.
+    Microsoft then issues a new token, which the app stores in place of the old
+    one. “Sign out” under “Library import” in Settings deletes the token;
+    unused, it expires at Microsoft.
   </p>
   <p>
     Microsoft may also provide an email address, preferred username or display
@@ -547,14 +583,17 @@
   </p>
   <p>
     If you also choose to sign in, PlayCounter opens Blizzard’s Battle.net
-    account page in a temporary private window. You sign in directly with
+    account page in a separate window with a browser profile used only for
+    Battle.net. You sign in directly with
     Blizzard; PlayCounter does not see your password. The app takes only the
     list of your games from that window (title identifier, game name and, for
     classic games, the franchise). Account identifiers, subscriptions and CD
-    keys are passed neither to the app interface nor to our API. The window’s
-    cookies and browsing data are deleted after the import. The legal basis is
-    your consent under Art. 6(1)(a) GDPR; you can cancel the process at any
-    time.
+    keys are passed neither to the app interface nor to our API. So that the
+    next import needs no new sign-in, the sign-in stays in this browser profile
+    on your PC (cookies that WebView2 encrypts with Windows data protection).
+    “Sign out” under “Library import” in Settings deletes this profile. The
+    legal basis is your consent under Art. 6(1)(a) GDPR; you can cancel the
+    process at any time.
   </p>
   <h3>Optional Epic Games import</h3>
   <p>
@@ -566,12 +605,16 @@
   </p>
   <p>
     If you also choose to sign in, PlayCounter opens Epic Games’ sign-in page in
-    a temporary private window. You sign in directly with Epic Games;
+    a private window. You sign in directly with Epic Games;
     PlayCounter does not see your password. The app takes only a one-time
     authorization code from that window. With it, the app retrieves your game
     library, game titles and the playtime Epic recorded directly from Epic Games,
-    from your PC. The access token is not stored and is revoked after the
-    import. Of this data, only game identifiers and titles are sent to our API;
+    from your PC. So that the next import needs no new sign-in, the app stores
+    Epic’s refresh token on your PC, encrypted with Windows data protection
+    (DPAPI) so that only your Windows account can read it; it is not sent to
+    our API. “Sign out” under “Library import” in Settings ends the session at
+    Epic Games and deletes the token. Of this data, only game identifiers and
+    titles are sent to our API;
     the playtime stays on your device. The window’s cookies and browsing data
     are deleted after sign-in. The legal basis is your consent under Art.
     6(1)(a) GDPR; you can cancel the process at any time.
@@ -664,7 +707,14 @@
     <li>
       Xbox import-attempt data, including tokens and any optional account label,
       is removed after completion or cancellation and no later than five
-      minutes. Imported playtime is stored only on your device.
+      minutes. A refresh token the app is to keep waits for the app to collect
+      it, at most two minutes after the import finishes. Imported playtime is
+      stored only on your device.
+    </li>
+    <li>
+      Kept sign-ins for Xbox, Epic Games and Battle.net stay only on your PC,
+      encrypted, until you sign out in Settings, choose “Reset PlayCounter”, or
+      the provider lets them expire.
     </li>
     <li>
       Technical provider and application logs are deleted or overwritten under
