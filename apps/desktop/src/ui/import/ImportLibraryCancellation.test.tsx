@@ -124,6 +124,8 @@ beforeEach(async () => {
   vi.resetModules();
   vi.resetAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  // A shown game is looked up at once; tests that import one set the answer.
+  mocks.reverse.mockReturnValue(new Promise(() => {}));
   ({ useAppStore: store } = await import("../../store"));
   ({ ImportLibraryView: View } = await import("./ImportLibraryView"));
   container = document.createElement("div");
@@ -525,8 +527,13 @@ it("populates Battle.net review suggestions on the initial scan using a clean ti
     )?.value,
   ).toBe("Warcraft III: Reign of Chaos");
   expect(container.textContent).toContain(`Which game is “${title}”?`);
+  // Shown with the suggestion picked: looked up, but nothing is imported.
+  expect(mocks.reverse).toHaveBeenCalledExactlyOnceWith(
+    store.getState().settings.apiEndpoint,
+    candidate.id,
+    expect.any(AbortSignal),
+  );
   expect(mocks.run).not.toHaveBeenCalled();
-  expect(mocks.reverse).not.toHaveBeenCalled();
   expect(store.getState().libraryImports.size).toBe(0);
 });
 

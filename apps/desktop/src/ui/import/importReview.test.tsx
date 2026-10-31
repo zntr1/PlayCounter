@@ -250,6 +250,8 @@ beforeEach(async () => {
   mocks.localAccounts = 1;
   mocks.search.mockResolvedValue([]);
   mocks.run.mockResolvedValue({ shareOutcomes: [] });
+  // A shown game is looked up at once; tests that import one set the answer.
+  mocks.reverse.mockReturnValue(new Promise(() => {}));
   ({ useAppStore: store } = await import("../../store"));
   const { ImportLibraryView } = await import("./ImportLibraryView");
   container = document.createElement("div");
@@ -406,7 +408,7 @@ describe("Needs you", () => {
   const forza5 = metadata(42, "Forza Horizon 5", { releaseYear: 2021 });
   const forza4 = metadata(41, "Forza Horizon 4", { releaseYear: 2018 });
 
-  it("imports the cover you picked, once, with one Import", async () => {
+  it("looks up the picked game when it is shown, so Import does not wait for the server", async () => {
     mocks.reverse.mockImplementation(async (_endpoint: string, id: number) => ({
       game: id === forza4.id ? forza4 : forza5,
       executables: [],
@@ -417,6 +419,13 @@ describe("Needs you", () => {
     });
     expect(shelf("attention").open).toBe(true);
     expect(container.textContent).toContain("Which game is “Forza Horizon”?");
+    const endpoint = store.getState().settings.apiEndpoint;
+    // Shown with the first suggestion picked: the server is asked at once.
+    expect(mocks.reverse).toHaveBeenCalledExactlyOnceWith(
+      endpoint,
+      forza5.id,
+      expect.any(AbortSignal),
+    );
 
     const tiles = [
       ...container.querySelectorAll<HTMLButtonElement>(
@@ -429,14 +438,19 @@ describe("Needs you", () => {
     ]);
     await act(() => tiles[1].click());
     expect(tiles[1].getAttribute("aria-pressed")).toBe("true");
-    expect(mocks.run).not.toHaveBeenCalled();
-
-    await click("Import");
-    expect(mocks.reverse).toHaveBeenCalledExactlyOnceWith(
-      store.getState().settings.apiEndpoint,
+    // Another pick is asked about too.
+    expect(mocks.reverse).toHaveBeenCalledTimes(2);
+    expect(mocks.reverse).toHaveBeenLastCalledWith(
+      endpoint,
       forza4.id,
       expect.any(AbortSignal),
     );
+    expect(mocks.run).not.toHaveBeenCalled();
+
+    // The server would not answer again: Import uses what it already said.
+    mocks.reverse.mockImplementation(() => new Promise(() => {}));
+    await click("Import");
+    expect(mocks.reverse).toHaveBeenCalledTimes(2);
     expect(mocks.run).toHaveBeenCalledTimes(1);
     expect(mocks.run.mock.calls[0][0]).toEqual([
       expect.objectContaining({
@@ -449,6 +463,47 @@ describe("Needs you", () => {
     ]);
     // Done: the decision is gone and the game moved to My Games.
     expect(findButton("Import")).toBeUndefined();
+    expect(shelf("imported").count).toBe(1);
+  });
+
+  it("asks the server again on Import when the lookup made on showing failed", async () => {
+    mocks.reverse.mockRejectedValueOnce(new Error("Server unreachable"));
+    mocks.reverse.mockImplementation(async () => ({
+      game: forza5,
+      executables: [],
+    }));
+    await scan("xbox", {
+      games: [game("1234", "Forza Horizon")],
+      resolvedGames: [unmatched("xbox:1234", [forza5])],
+    });
+    expect(mocks.reverse).toHaveBeenCalledTimes(1);
+    // Nobody asked for it yet, so a failure shows nothing.
+    expect(container.textContent).not.toContain("Server unreachable");
+
+    await click("Import");
+    expect(mocks.reverse).toHaveBeenCalledTimes(2);
+    expect(mocks.run).toHaveBeenCalledTimes(1);
+    expect(shelf("imported").count).toBe(1);
+  });
+
+  it("does not wait for the server on Import after a visit to another page", async () => {
+    mocks.reverse.mockImplementation(async () => ({
+      game: forza5,
+      executables: [],
+    }));
+    await act(() => store.getState().setActiveView("import"));
+    await scan("xbox", {
+      games: [game("1234", "Forza Horizon")],
+      resolvedGames: [unmatched("xbox:1234", [forza5])],
+    });
+    expect(mocks.reverse).toHaveBeenCalledTimes(1);
+
+    await act(() => store.getState().setActiveView("games"));
+    await act(() => store.getState().setActiveView("import"));
+    // The server would not answer again.
+    mocks.reverse.mockImplementation(() => new Promise(() => {}));
+    await click("Import");
+    expect(mocks.run).toHaveBeenCalledTimes(1);
     expect(shelf("imported").count).toBe(1);
   });
 });

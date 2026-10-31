@@ -1,5 +1,5 @@
 import { Download, Gamepad2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { getT } from "../../i18n";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { searchLibraryGames } from "../../library/gameLookup";
@@ -11,6 +11,7 @@ import { importProfile } from "../../library/importProfiles";
 import {
   browseGameFile,
   importOneGame,
+  lookUpPickedGame,
   pickGameFile,
   pickImportGame,
   setImportChoices,
@@ -163,6 +164,11 @@ function ImportDecision({
   const { game } = row;
   const id = game.externalId;
   const pick = session.picks[id];
+  const pickedId = row.needsGame ? pick?.id : undefined;
+  // Asked as soon as the game is shown, so Import does not wait for the server.
+  useEffect(() => {
+    if (pickedId !== undefined) void lookUpPickedGame(pickedId);
+  }, [pickedId]);
   const requiresFile = requiresExecutableChoice(
     game,
     row.resolved,

@@ -175,10 +175,47 @@ function isCurrent(signal: AbortSignal, providerId: BuiltinImportProviderId) {
   );
 }
 
+type PickedGame = Awaited<ReturnType<typeof reverseResolveLibraryGame>>;
+
+// What the server knows about a game the player picked, asked for as soon as
+// the game is shown, so Import does not wait for it. Kept for the scan, also
+// across a visit to another page.
+const pickedGames = new Map<
+  number,
+  { endpoint: string; answer: Promise<PickedGame> }
+>();
+
 function freshController() {
   controller.abort();
   controller = new AbortController();
+  pickedGames.clear();
   return controller.signal;
+}
+
+/** Asks the server about a picked game once per scan, and remembers the answer. */
+export function lookUpPickedGame(gameId: number) {
+  const endpoint = useAppStore.getState().settings.apiEndpoint;
+  const known = pickedGames.get(gameId);
+  if (known?.endpoint === endpoint) return known.answer;
+  const answer = reverseResolveLibraryGame(endpoint, gameId, controller.signal);
+  // Nobody waits for it before Import, and Import asks again after a failure.
+  answer.catch(() => undefined);
+  pickedGames.set(gameId, { endpoint, answer });
+  return answer;
+}
+
+async function pickedGameForImport(gameId: number, signal: AbortSignal) {
+  const earlier = pickedGames.get(gameId)?.answer;
+  const answer = lookUpPickedGame(gameId);
+  try {
+    return await answer;
+  } catch (cause) {
+    // A lookup made when the game was shown failed or was cut off by leaving
+    // the page: ask once more.
+    if (answer !== earlier || signal.aborted) throw cause;
+    pickedGames.delete(gameId);
+    return lookUpPickedGame(gameId);
+  }
 }
 
 const clearedReview = {
@@ -713,11 +750,7 @@ export async function importOneGame(externalId: string) {
     if (needsGameChoice(providerId, scanned, resolvedGame)) {
       const pick = start.picks[externalId];
       if (!pick) return;
-      const reverse = await reverseResolveLibraryGame(
-        app.settings.apiEndpoint,
-        pick.id,
-        signal,
-      );
+      const reverse = await pickedGameForImport(pick.id, signal);
       if (!isCurrent(signal, providerId)) return;
       resolvedGame = {
         key,
