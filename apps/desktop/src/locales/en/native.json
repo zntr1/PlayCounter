@@ -46,7 +46,6 @@
   "Pick the game's executable, rather than a Battle.net launcher or helper.": "Pick the game's executable, rather than a Battle.net launcher or helper.",
   "Pick the game's executable, rather than an Epic Games launcher or helper.": "Pick the game's executable, rather than an Epic Games launcher or helper.",
   "Executable scanning reached its 45 second budget.": "Executable scanning reached its 45 second budget.",
-  "Some executable folders reached their safe scan limit; found games remain usable.": "Some executable folders reached their safe scan limit; found games remain usable.",
   "Steam installation was not found.": "Steam installation was not found.",
   "Steam library was capped at {{limit}} games.": "Steam library was capped at {{limit}} games.",
   "Steam no longer has this game installed.": "Steam no longer has this game installed.",

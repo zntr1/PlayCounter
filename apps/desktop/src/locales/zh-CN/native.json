@@ -46,7 +46,6 @@
   "Pick the game's executable, rather than a Battle.net launcher or helper.": "请选择游戏本身的可执行文件，而不是 Battle.net 启动器或辅助程序。",
   "Pick the game's executable, rather than an Epic Games launcher or helper.": "请选择游戏本身的可执行文件，而不是 Epic Games 启动器或辅助程序。",
   "Executable scanning reached its 45 second budget.": "可执行文件扫描已达到 45 秒的时间上限。",
-  "Some executable folders reached their safe scan limit; found games remain usable.": "部分可执行文件夹已达到安全扫描上限；已找到的游戏仍可使用。",
   "Steam installation was not found.": "未找到 Steam 安装。",
   "Steam library was capped at {{limit}} games.": "Steam 游戏库最多读取 {{limit}} 个游戏。",
   "Steam no longer has this game installed.": "Steam 中已不再安装此游戏。",

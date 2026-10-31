@@ -46,7 +46,6 @@
   "Pick the game's executable, rather than a Battle.net launcher or helper.": "Wähle die Programmdatei des Spiels, nicht einen Battle.net-Launcher oder ein Hilfsprogramm.",
   "Pick the game's executable, rather than an Epic Games launcher or helper.": "Wähle die Programmdatei des Spiels, nicht einen Epic Games-Launcher oder ein Hilfsprogramm.",
   "Executable scanning reached its 45 second budget.": "Die Suche nach Programmdateien hat ihr Zeitlimit von 45 Sekunden erreicht.",
-  "Some executable folders reached their safe scan limit; found games remain usable.": "Einige Ordner haben die sichere Suchgrenze erreicht; gefundene Spiele bleiben nutzbar.",
   "Steam installation was not found.": "Keine Steam-Installation gefunden.",
   "Steam library was capped at {{limit}} games.": "Die Steam-Bibliothek wurde auf {{limit}} Spiele begrenzt.",
   "Steam no longer has this game installed.": "Steam hat dieses Spiel nicht mehr installiert.",
