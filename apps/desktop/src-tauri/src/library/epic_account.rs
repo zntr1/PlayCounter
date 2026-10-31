@@ -12,6 +12,7 @@ use super::battlenet_account::{
     clear_profile_data, secure_window, ExpectedProfile, Sessions, CANCELLED as SESSION_CANCELLED,
 };
 use super::kept_logins::{KeptLogin, Service, Store};
+use super::login_status::LoginStatus;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
@@ -57,6 +58,9 @@ const CANCELLED: &str = "Epic Games sign-in was cancelled.";
 const MAX_LIBRARY_PAGES: usize = 50;
 const MAX_GAMES: usize = 5_000;
 const CATALOG_REQUESTS_IN_FLIGHT: usize = 6;
+// Refresh tokens can rotate. Background validation and foreground imports
+// must never redeem the same saved token concurrently.
+static AUTHENTICATING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[derive(Default)]
 pub struct EpicAccountState(Mutex<Sessions>);
@@ -456,11 +460,75 @@ pub(super) async fn end_kept_session(refresh_token: &str) {
         return;
     };
     let _ = tokio::time::timeout(Duration::from_secs(10), async {
+        let _guard = AUTHENTICATING.lock().await;
         if let Ok(token) = renew(&client, refresh_token).await {
             end_session(&client, &token.access_token).await;
         }
     })
     .await;
+}
+
+/// Check only the saved credential. No webview, library request or remote
+/// account details are exposed to the application UI.
+pub(super) async fn check_saved_login(app: &AppHandle) -> LoginStatus {
+    if !cfg!(windows) {
+        return LoginStatus::SignedOut;
+    }
+    let Ok(_guard) = AUTHENTICATING.try_lock() else {
+        return LoginStatus::Busy;
+    };
+    if app.try_state::<EpicAccountState>().is_some_and(|state| {
+        state
+            .0
+            .lock()
+            .map(|sessions| sessions.is_active())
+            .unwrap_or(true)
+    }) {
+        return LoginStatus::Busy;
+    }
+    let Ok(store) = Store::of(app) else {
+        return LoginStatus::Unavailable;
+    };
+    let previous = match store.try_load(Service::Epic) {
+        Ok(Some(previous)) => previous,
+        Ok(None) => return LoginStatus::SignedOut,
+        Err(_) => return LoginStatus::Unavailable,
+    };
+    let Ok(client) = http_client() else {
+        return LoginStatus::Unavailable;
+    };
+    let response = renew(&client, &previous.secret).await;
+    if !store.is_current(Service::Epic) {
+        if let Ok(token) = &response {
+            // Explicit logout may have happened while Epic issued a rotated
+            // token; end that response too rather than persisting it late.
+            end_session(&client, &token.access_token).await;
+        }
+    }
+    finish_saved_check(&store, &previous, response)
+}
+
+fn finish_saved_check(
+    store: &Store,
+    previous: &KeptLogin,
+    response: Result<Token, TokenFailure>,
+) -> LoginStatus {
+    if !store.is_current(Service::Epic) {
+        return LoginStatus::SignedOut;
+    }
+    match response {
+        Ok(token) => {
+            if keep(store, &token, Some(previous)).is_ok() {
+                LoginStatus::Valid
+            } else {
+                LoginStatus::Unavailable
+            }
+        }
+        // Preserve the saved record until the user reconnects or signs out;
+        // background failure must remain distinguishable from no account.
+        Err(TokenFailure::Refused(_) | TokenFailure::ActionRequired(_)) => LoginStatus::NeedsSignIn,
+        Err(TokenFailure::Unavailable) => LoginStatus::Unavailable,
+    }
 }
 
 async fn get_json<T: serde::de::DeserializeOwned>(
@@ -781,6 +849,7 @@ async fn run_account_session(
     };
     // Refresh and persist without racing cancellation. The HTTP client bounds
     // this work to 30 seconds, and sign-out still invalidates the store.
+    let authenticating = AUTHENTICATING.lock().await;
     let previous = match store.try_load(Service::Epic) {
         Ok(previous) => previous,
         Err(_) => {
@@ -794,6 +863,7 @@ async fn run_account_session(
         let kept =
             finish_authentication(&store, &client, Some(&login), renew(&client, &login.secret))
                 .await;
+        drop(authenticating);
         if !matches!(kept, Ok(None)) {
             let result = match kept {
                 Ok(Some(token)) => {
@@ -807,6 +877,8 @@ async fn run_account_session(
             }
             return result;
         }
+    } else {
+        drop(authenticating);
     }
     if !matches!(
         cancelled.try_recv(),
@@ -908,6 +980,7 @@ async fn run_account_session(
             let _ = sign_in.hide();
             let authentication = match code {
                 Ok(code) if store.is_current(Service::Epic) => {
+                    let _guard = AUTHENTICATING.lock().await;
                     finish_authentication(&store, &client, None, exchange_code(&client, &code))
                         .await
                 }
@@ -1344,6 +1417,54 @@ mod tests {
             store.load(Service::Epic).unwrap().secret,
             "previous-refresh"
         );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn background_checks_preserve_expired_and_temporarily_unavailable_accounts() {
+        let (store, dir) = Store::for_test();
+        keep(&store, &token(Some("refresh"), None), None).unwrap();
+        let previous = store.load(Service::Epic).unwrap();
+        for (failure, expected) in [
+            (TokenFailure::Unavailable, LoginStatus::Unavailable),
+            (
+                TokenFailure::Refused("Expired".into()),
+                LoginStatus::NeedsSignIn,
+            ),
+            (
+                TokenFailure::ActionRequired("Confirm account".into()),
+                LoginStatus::NeedsSignIn,
+            ),
+        ] {
+            assert_eq!(
+                finish_saved_check(&store, &previous, Err(failure)),
+                expected
+            );
+            assert_eq!(store.load(Service::Epic).unwrap().secret, "refresh");
+        }
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn background_checks_save_rotation_before_reporting_valid_and_report_disk_failures() {
+        let (store, dir) = Store::for_test();
+        keep(&store, &token(Some("previous"), Some("Player")), None).unwrap();
+        let previous = store.load(Service::Epic).unwrap();
+        assert_eq!(
+            finish_saved_check(&store, &previous, Ok(token(Some("rotated"), None))),
+            LoginStatus::Valid
+        );
+        let renewed = store.load(Service::Epic).unwrap();
+        assert_eq!(renewed.secret, "rotated");
+        assert_eq!(renewed.name.as_deref(), Some("Player"));
+        std::fs::create_dir(dir.join("epic.tmp")).unwrap();
+        assert_eq!(
+            finish_saved_check(&store, &renewed, Ok(token(Some("unsaved"), None))),
+            LoginStatus::Unavailable
+        );
+        assert_eq!(store.load(Service::Epic).unwrap().secret, "rotated");
         let _ = std::fs::remove_dir_all(dir);
     }
 }

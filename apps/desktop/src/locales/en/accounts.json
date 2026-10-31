@@ -1,6 +1,12 @@
 {
+  "Needs sign-in": "Needs sign-in",
+  "Could not check connection": "Could not check connection",
+  "Check connection": "Check connection",
+  "Sign in again": "Sign in again",
+  "{{launcher}} needs you to sign in again.": "{{launcher}} needs you to sign in again.",
+  "Open Launcher accounts to reconnect.": "Open Launcher accounts to reconnect.",
+  "Last checked {{time}}": "Last checked {{time}}",
   "Complete Battle.net sign-in in the window that opened.": "Complete Battle.net sign-in in the window that opened.",
-  "Sign-in saved": "Sign-in saved",
   "Sign-ins stay on this PC. Signing out keeps your imported games and playtime.": "Sign-ins stay on this PC. Signing out keeps your imported games and playtime.",
   "Choose which games to import after connecting an account.": "Choose which games to import after connecting an account.",
   "Local library": "Local library",

@@ -41,7 +41,8 @@ export async function refreshKeptLogins() {
   try {
     logins = parseKeptLogins(await invoke<unknown>("logins_list"));
   } catch {
-    // Nothing kept on systems without the store.
+    // A temporary native failure is not a sign-out. Keep the last known list.
+    return useKeptLogins.getState().logins.slice();
   }
   useKeptLogins.setState({ logins });
   return logins;
@@ -49,8 +50,12 @@ export async function refreshKeptLogins() {
 
 /** Deletes the kept sign-in. Epic's session also ends at Epic. */
 export async function signOutKeptLogin(service: KeptLoginService) {
+  const { beginLoginAccountChange, clearLoginHealth } =
+    await import("./loginHealth");
+  beginLoginAccountChange(service);
   try {
     await invoke("logins_sign_out", { service });
+    clearLoginHealth(service);
   } finally {
     await refreshKeptLogins();
   }

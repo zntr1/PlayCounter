@@ -90,6 +90,7 @@ beforeEach(() => {
   mocks.invoke.mockImplementation(
     async (command: string, args?: { service: string }) => {
       if (command === "logins_list") return mocks.logins;
+      if (command === "logins_check") return "valid";
       if (command === "logins_sign_out")
         mocks.logins = mocks.logins.filter(
           (login) => login.service !== args?.service,
@@ -117,13 +118,48 @@ it("shows all launchers with saved connection status and a local Steam account",
   await render();
   expect(container.querySelectorAll("section")).toHaveLength(4);
   expect(card("epic").textContent).toContain("Signed in as Epic Player");
-  expect(card("battlenet").textContent).toContain("Sign-in saved");
-  expect(card("battlenet").textContent).not.toContain("Signed in");
+  expect(card("battlenet").textContent).toContain("Signed in");
   expect(card("xbox").textContent).toContain("Not signed in");
   expect(card("steam").textContent).toContain("Steam account: Local Player");
   expect(card("steam").textContent).toContain("Local library");
   expect(card("steam").textContent).not.toContain("Sign out");
   expect(mocks.scan).not.toHaveBeenCalled();
+});
+
+it("shows a confirmed expired connection and only signs in again on an explicit click", async () => {
+  mocks.logins = [{ service: "epic", name: "Player", savedAt: 1 }];
+  mocks.invoke.mockImplementation(async (command: string) => {
+    if (command === "logins_list") return mocks.logins;
+    if (command === "logins_check") return "needsSignIn";
+  });
+  await render();
+  expect(card("epic").textContent).toContain("Needs sign-in");
+  expect(card("epic").textContent).not.toContain("Signed in as");
+  expect(mocks.connect).not.toHaveBeenCalled();
+  await act(() => button(card("epic"), "Sign in again").click());
+  expect(mocks.connect).toHaveBeenCalledOnce();
+  expect(card("epic").textContent).toContain("Signed in as Player");
+});
+
+it("preserves saved accounts during check failures and offers a silent retry", async () => {
+  mocks.logins = [{ service: "battlenet", name: null, savedAt: 1 }];
+  let result = "unavailable";
+  mocks.invoke.mockImplementation(async (command: string) => {
+    if (command === "logins_list") return mocks.logins;
+    if (command === "logins_check") return result;
+  });
+  await render();
+  expect(card("battlenet").textContent).toContain("Could not check connection");
+  expect(button(card("battlenet"), "Sign out")).toBeDefined();
+  expect(button(card("battlenet"), "Import games")).toBeDefined();
+  result = "valid";
+  await act(() => button(card("battlenet"), "Check connection").click());
+  expect(card("battlenet").textContent).toContain("Signed in");
+  expect(
+    mocks.invoke.mock.calls.some(
+      ([command]) => command === "library_battlenet_sign_in",
+    ),
+  ).toBe(false);
 });
 
 it("signs in without importing or altering library data, then offers an import separately", async () => {
@@ -208,7 +244,7 @@ it("shows a Battle.net connection saved after leaving and returning to accounts"
     mocks.logins = [{ service: "battlenet", name: null, savedAt: 3 }];
     complete();
   });
-  expect(card("battlenet").textContent).toContain("Sign-in saved");
+  expect(card("battlenet").textContent).toContain("Signed in");
   expect(button(card("battlenet"), "Import games")).toBeDefined();
   expect(mocks.scan).not.toHaveBeenCalled();
 });

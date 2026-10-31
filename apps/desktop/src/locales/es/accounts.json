@@ -1,6 +1,12 @@
 {
+  "Needs sign-in": "Necesita iniciar sesión",
+  "Could not check connection": "No se pudo comprobar la conexión",
+  "Check connection": "Comprobar conexión",
+  "Sign in again": "Volver a iniciar sesión",
+  "{{launcher}} needs you to sign in again.": "Debes volver a iniciar sesión en {{launcher}}.",
+  "Open Launcher accounts to reconnect.": "Abre Cuentas de lanzadores para volver a conectarte.",
+  "Last checked {{time}}": "Última comprobación: {{time}}",
   "Complete Battle.net sign-in in the window that opened.": "Completa el inicio de sesión de Battle.net en la ventana que se abrió.",
-  "Sign-in saved": "Inicio de sesión guardado",
   "Sign-ins stay on this PC. Signing out keeps your imported games and playtime.": "Los inicios de sesión se guardan en este PC. Al cerrar sesión, conservas tus juegos importados y el tiempo de juego.",
   "Choose which games to import after connecting an account.": "Elige qué juegos importar después de conectar una cuenta.",
   "Local library": "Biblioteca local",

@@ -44,6 +44,15 @@ describe("kept sign-ins in the web UI", () => {
     await expect(refreshKeptLogins()).resolves.toEqual([]);
   });
 
+  it("keeps the last known accounts when the secure store cannot be read", async () => {
+    const saved = [{ service: "epic" as const, name: "Player One", savedAt: 1 }];
+    useKeptLogins.setState({ logins: saved });
+    invokeMock.mockRejectedValue(new Error("secure store temporarily locked"));
+
+    await expect(refreshKeptLogins()).resolves.toEqual(saved);
+    expect(useKeptLogins.getState().logins).toEqual(saved);
+  });
+
   it("Sign out asks the Rust part and reads the list again, even when it fails", async () => {
     useKeptLogins.setState({
       logins: [{ service: "epic", name: "Player One", savedAt: 1 }],

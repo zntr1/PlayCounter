@@ -4,6 +4,7 @@
 //! holder of the claim secret, and this part claims and stores it. A kept
 //! sign-in only ever goes back to the PlayCounter server it came from.
 use super::kept_logins::{KeptLogin, Service, Store};
+use super::login_status::LoginStatus;
 use serde::{Deserialize, Serialize};
 use std::{
     sync::Mutex,
@@ -260,7 +261,7 @@ pub enum SyncStart {
         #[serde(rename = "attemptId")]
         attempt_id: String,
     },
-    /// Nothing kept for this server, or Microsoft refused it: sign in.
+    /// No saved sign-in, or Microsoft confirmed it expired: sign in.
     #[serde(rename = "signedOut")]
     SignedOut,
     #[serde(rename = "busy")]
@@ -291,6 +292,109 @@ fn is_expired_login(status: reqwest::StatusCode, error: &str) -> bool {
     status == reqwest::StatusCode::UNAUTHORIZED && error == "login_expired"
 }
 
+/// Validate and renew an existing Microsoft session without browser UI or a
+/// game import. The shared lock also protects foreground renewals and claims.
+pub(super) async fn check_saved_login(app: &AppHandle, api_endpoint: &str) -> LoginStatus {
+    if !cfg!(windows) {
+        return LoginStatus::SignedOut;
+    }
+    let Ok(_guard) = SYNCING.try_lock() else {
+        return LoginStatus::Busy;
+    };
+    let Ok(store) = Store::of(app) else {
+        return LoginStatus::Unavailable;
+    };
+    let Some(client) = client() else {
+        return LoginStatus::Unavailable;
+    };
+    check_saved_login_with_client(&store, api_endpoint, &client).await
+}
+
+async fn check_saved_login_with_client(
+    store: &Store,
+    api_endpoint: &str,
+    client: &reqwest::Client,
+) -> LoginStatus {
+    let login = match store.try_load(Service::Xbox) {
+        Ok(Some(login)) => login,
+        Ok(None) => return LoginStatus::SignedOut,
+        Err(_) => return LoginStatus::Unavailable,
+    };
+    let Some(origin) =
+        trusted_origin(api_endpoint).filter(|origin| login.origin.as_ref() == Some(origin))
+    else {
+        // A development endpoint switch says nothing about the saved account.
+        return LoginStatus::Unavailable;
+    };
+    let response = match client
+        .post(format!("{origin}/api/xbox/import/sync"))
+        .json(&serde_json::json!({
+            "refreshToken": login.secret,
+            "authenticationOnly": true,
+        }))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(_) => return LoginStatus::Unavailable,
+    };
+    let status = response.status();
+    if status == reqwest::StatusCode::UNAUTHORIZED {
+        let expired = response
+            .json::<SyncError>()
+            .await
+            .is_ok_and(|error| is_expired_login(status, &error.error));
+        return if !store.is_current(Service::Xbox) {
+            LoginStatus::SignedOut
+        } else if expired {
+            // Keep the record so the account screen can offer reauthentication.
+            LoginStatus::NeedsSignIn
+        } else {
+            LoginStatus::Unavailable
+        };
+    }
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        return LoginStatus::Busy;
+    }
+    if !status.is_success() {
+        // In particular, an older server rejecting authenticationOnly must not
+        // turn a background check into a full import or interactive sign-in.
+        return LoginStatus::Unavailable;
+    }
+    let Ok(answer) = response.json::<SyncAnswer>().await else {
+        return LoginStatus::Unavailable;
+    };
+    let valid_attempt = valid_hex(&answer.attempt_id, 48);
+    let result = if !store.is_current(Service::Xbox) {
+        LoginStatus::SignedOut
+    } else if !valid_attempt || !valid_token(&answer.refresh_token) {
+        LoginStatus::Unavailable
+    } else {
+        let mut renewed = KeptLogin::new(answer.refresh_token, login.name);
+        renewed.origin = login.origin;
+        if store.save(Service::Xbox, &renewed).is_ok() {
+            LoginStatus::Valid
+        } else {
+            LoginStatus::Unavailable
+        }
+    };
+    if valid_attempt {
+        // /sync returns after renewing Microsoft authentication. We need no
+        // ongoing Xbox title work, even if storing the result failed locally.
+        let _ = client
+            .post(format!("{origin}/api/xbox/import/cancel"))
+            .timeout(Duration::from_secs(3))
+            .json(&serde_json::json!({ "attemptId": answer.attempt_id }))
+            .send()
+            .await;
+    }
+    if store.is_current(Service::Xbox) {
+        result
+    } else {
+        LoginStatus::SignedOut
+    }
+}
+
 /// Starts an import with the kept sign-in, without a browser.
 #[tauri::command]
 pub async fn xbox_login_sync_start(
@@ -315,7 +419,9 @@ pub async fn xbox_login_sync_start(
     let Some(origin) =
         trusted_origin(&api_endpoint).filter(|origin| login.origin.as_ref() == Some(origin))
     else {
-        return SyncStart::SignedOut;
+        // An unavailable/different server does not mean Microsoft rejected
+        // the saved login. Keep it and let the caller retry this connection.
+        return SyncStart::Unavailable { http_status: None };
     };
     let Some(client) = client() else {
         return SyncStart::Unavailable { http_status: None };
@@ -386,6 +492,142 @@ pub async fn xbox_login_sync_start(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    fn check_server(
+        responses: Vec<(u16, String)>,
+    ) -> (String, std::thread::JoinHandle<Vec<serde_json::Value>>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let mut bodies = Vec::new();
+            for (index, (status, body)) in responses.into_iter().enumerate() {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut request = Vec::new();
+                let mut chunk = [0u8; 4096];
+                loop {
+                    let count = stream.read(&mut chunk).unwrap();
+                    assert_ne!(count, 0);
+                    request.extend_from_slice(&chunk[..count]);
+                    if let Some(end) = request.windows(4).position(|part| part == b"\r\n\r\n") {
+                        let headers = String::from_utf8_lossy(&request[..end]);
+                        let length = headers
+                            .lines()
+                            .find_map(|line| {
+                                let (name, value) = line.split_once(':')?;
+                                name.eq_ignore_ascii_case("content-length")
+                                    .then(|| value.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap();
+                        if request.len() >= end + 4 + length {
+                            let path = if index == 0 { "sync" } else { "cancel" };
+                            assert!(headers
+                                .starts_with(&format!("POST /api/xbox/import/{path} HTTP/1.1")));
+                            bodies.push(
+                                serde_json::from_slice(&request[end + 4..end + 4 + length])
+                                    .unwrap(),
+                            );
+                            break;
+                        }
+                    }
+                }
+                write!(stream, "HTTP/1.1 {status} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+            }
+            bodies
+        });
+        (origin, server)
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn background_check_saves_rotated_token_and_cancels_the_lightweight_attempt() {
+        let attempt = "a".repeat(48);
+        let (origin, server) = check_server(vec![
+            (
+                200,
+                serde_json::json!({"attemptId": attempt, "refreshToken": "rotated"}).to_string(),
+            ),
+            (200, "{}".into()),
+        ]);
+        let (store, dir) = Store::for_test();
+        let mut previous = KeptLogin::new("previous".into(), Some("Player".into()));
+        previous.origin = Some(origin.clone());
+        store.save(Service::Xbox, &previous).unwrap();
+        assert_eq!(
+            check_saved_login_with_client(&store, &origin, &client().unwrap()).await,
+            LoginStatus::Valid
+        );
+        let saved = store.load(Service::Xbox).unwrap();
+        assert_eq!(saved.secret, "rotated");
+        assert_eq!(saved.name.as_deref(), Some("Player"));
+        let bodies = server.join().unwrap();
+        assert_eq!(
+            bodies,
+            vec![
+                serde_json::json!({"refreshToken": "previous", "authenticationOnly": true}),
+                serde_json::json!({"attemptId": attempt}),
+            ]
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn background_checks_distinguish_expiry_from_errors_without_deleting_credentials() {
+        for (status, body, expected) in [
+            (
+                401,
+                r#"{"error":"login_expired"}"#,
+                LoginStatus::NeedsSignIn,
+            ),
+            (401, r#"{"error":"proxy_denied"}"#, LoginStatus::Unavailable),
+            (400, r#"{"error":"bad_request"}"#, LoginStatus::Unavailable),
+            (502, r#"{"error":"unavailable"}"#, LoginStatus::Unavailable),
+            (429, r#"{"error":"busy"}"#, LoginStatus::Busy),
+        ] {
+            let (origin, server) = check_server(vec![(status, body.into())]);
+            let (store, dir) = Store::for_test();
+            let mut previous = KeptLogin::new("previous".into(), None);
+            previous.origin = Some(origin.clone());
+            store.save(Service::Xbox, &previous).unwrap();
+            assert_eq!(
+                check_saved_login_with_client(&store, &origin, &client().unwrap()).await,
+                expected
+            );
+            assert_eq!(store.load(Service::Xbox).unwrap().secret, "previous");
+            assert_eq!(server.join().unwrap().len(), 1);
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn background_check_never_reports_valid_when_rotated_token_cannot_be_saved() {
+        let (origin, server) = check_server(vec![
+            (
+                200,
+                serde_json::json!({"attemptId": "a".repeat(48), "refreshToken": "rotated"})
+                    .to_string(),
+            ),
+            (200, "{}".into()),
+        ]);
+        let (store, dir) = Store::for_test();
+        let mut previous = KeptLogin::new("previous".into(), None);
+        previous.origin = Some(origin.clone());
+        store.save(Service::Xbox, &previous).unwrap();
+        std::fs::create_dir(dir.join("xbox.tmp")).unwrap();
+        assert_eq!(
+            check_saved_login_with_client(&store, &origin, &client().unwrap()).await,
+            LoginStatus::Unavailable
+        );
+        assert_eq!(store.load(Service::Xbox).unwrap().secret, "previous");
+        assert_eq!(server.join().unwrap().len(), 2);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[cfg(windows)]
     fn claim_server(responses: Vec<(u16, &'static str)>) -> (String, std::thread::JoinHandle<()>) {

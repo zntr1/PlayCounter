@@ -1,7 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryScanResult, ScannedLibraryGame } from "./types";
 import { getT } from "../i18n";
-import { refreshKeptLogins } from "./keptLogins";
+import { refreshKeptLogins, useKeptLogins } from "./keptLogins";
+import {
+  getLoginOperationRevision,
+  recordLoginHealth,
+  supersedeLoginCheck,
+} from "./loginHealth";
 
 const t = getT("import");
 
@@ -77,6 +82,11 @@ export function signInEpicAccount(signal?: AbortSignal) {
 
 async function runEpicAccountCommand<T>(command: string, signal?: AbortSignal) {
   signal?.throwIfAborted();
+  supersedeLoginCheck("epic");
+  const revision = getLoginOperationRevision("epic");
+  const savedAt = useKeptLogins.getState().logins.find(
+    (login) => login.service === "epic",
+  )?.savedAt;
   const requestId = crypto.randomUUID();
   let onAbort: (() => void) | undefined;
   const aborted = new Promise<never>((_, reject) => {
@@ -95,7 +105,24 @@ async function runEpicAccountCommand<T>(command: string, signal?: AbortSignal) {
       invoke<T>(command, {
         requestId,
         title: t("Epic Games sign-in"),
-      }).finally(() => refreshKeptLogins()),
+      })
+        .then((result) => {
+          if (revision === getLoginOperationRevision("epic"))
+            recordLoginHealth("epic", "valid");
+          return result;
+        })
+        .finally(async () => {
+          const saved = (await refreshKeptLogins()).find(
+            (login) => login.service === "epic",
+          );
+          // Native cancellation can save a newly verified login before rejecting.
+          if (
+            saved &&
+            saved.savedAt !== savedAt &&
+            revision === getLoginOperationRevision("epic")
+          )
+            recordLoginHealth("epic", "valid");
+        }),
       aborted,
     ]);
   } finally {

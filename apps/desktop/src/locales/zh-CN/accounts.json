@@ -1,6 +1,12 @@
 {
+  "Needs sign-in": "需要登录",
+  "Could not check connection": "无法检查连接",
+  "Check connection": "检查连接",
+  "Sign in again": "重新登录",
+  "{{launcher}} needs you to sign in again.": "你需要重新登录 {{launcher}}。",
+  "Open Launcher accounts to reconnect.": "打开“启动器账户”以重新连接。",
+  "Last checked {{time}}": "上次检查：{{time}}",
   "Complete Battle.net sign-in in the window that opened.": "请在打开的窗口中完成 Battle.net 登录。",
-  "Sign-in saved": "登录状态已保存",
   "Sign-ins stay on this PC. Signing out keeps your imported games and playtime.": "登录信息保存在这台电脑上。退出登录会保留已导入的游戏和游玩时间。",
   "Choose which games to import after connecting an account.": "连接账户后，选择要导入的游戏。",
   "Local library": "本地游戏库",

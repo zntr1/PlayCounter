@@ -6,6 +6,7 @@
 //! login store and restore it into the dedicated profile before navigation.
 use super::battlenet_cookies;
 use super::kept_logins::{KeptLogin, Service, Store};
+use super::login_status::LoginStatus;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
@@ -104,11 +105,31 @@ pub(super) fn cancel_active(app: &AppHandle) {
 #[derive(Default)]
 pub(super) struct Sessions {
     active: Option<(String, Option<oneshot::Sender<()>>)>,
+    background: bool,
     // Cancellation can arrive while the start command is still queued.
     cancelled: VecDeque<String>,
 }
 
 impl Sessions {
+    pub(super) fn is_active(&self) -> bool {
+        self.active.is_some()
+    }
+
+    fn start_background(&mut self, id: &str) -> Result<oneshot::Receiver<()>, String> {
+        let receiver = self.start(id)?;
+        self.background = true;
+        Ok(receiver)
+    }
+
+    fn preempt_background(&mut self) -> bool {
+        if self.background && self.active.is_some() {
+            self.cancel_active();
+            true
+        } else {
+            false
+        }
+    }
+
     pub(super) fn cancel_active(&mut self) {
         if let Some(sender) = self.active.as_mut().and_then(|(_, sender)| sender.take()) {
             let _ = sender.send(());
@@ -126,6 +147,7 @@ impl Sessions {
         }
         let (sender, receiver) = oneshot::channel();
         self.active = Some((id.into(), Some(sender)));
+        self.background = false;
         Ok(receiver)
     }
 
@@ -147,7 +169,29 @@ impl Sessions {
     pub(super) fn finish(&mut self, id: &str) {
         if self.active.as_ref().is_some_and(|(active, _)| active == id) {
             self.active = None;
+            self.background = false;
         }
+    }
+}
+
+async fn start_foreground(state: &AccountState, id: &str) -> Result<oneshot::Receiver<()>, String> {
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        {
+            let mut sessions = state
+                .0
+                .lock()
+                .map_err(|_| "Could not start Battle.net sign-in.")?;
+            // An explicit account action takes priority over a silent probe.
+            // The old webview must finish cleanup before its profile is reused.
+            if sessions.cancelled.iter().any(|cancelled| cancelled == id)
+                || !sessions.preempt_background()
+                || Instant::now() >= deadline
+            {
+                return sessions.start(id);
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
 }
 
@@ -642,6 +686,265 @@ async fn unload_account_page(_: &WebviewWindow) -> Result<(), String> {
     Err(PRIVATE_SESSION_ERROR.into())
 }
 
+/// Completion state for a hidden authentication probe. None of these callbacks
+/// reveal or focus its window, including when Blizzard redirects to a login.
+#[derive(Default)]
+pub(super) struct SilentPages {
+    account_pages: AtomicU64,
+    navigation: AtomicU64,
+    login_loaded: AtomicBool,
+    challenge_loaded: AtomicBool,
+}
+
+impl SilentPages {
+    fn loaded(&self, url: &tauri::Url, event: PageLoadEvent) {
+        self.login_loaded.store(false, Ordering::SeqCst);
+        self.challenge_loaded.store(false, Ordering::SeqCst);
+        if event != PageLoadEvent::Finished {
+            self.navigation.fetch_add(1, Ordering::SeqCst);
+            return;
+        }
+        if account_page(url) {
+            self.account_pages.fetch_add(1, Ordering::SeqCst);
+        }
+        let login = login_form_page(url);
+        self.login_loaded.store(login, Ordering::SeqCst);
+        self.challenge_loaded
+            .store(!login && interactive_login_page(url), Ordering::SeqCst);
+    }
+}
+
+fn login_form_page(url: &tauri::Url) -> bool {
+    login_navigation(url)
+        && url
+            .path()
+            .split('/')
+            .any(|part| matches!(part, "login" | "signin"))
+}
+
+async fn has_login_controls(window: &WebviewWindow) -> bool {
+    // A login URL can also serve a maintenance/error page. Read only whether
+    // a rendered login control exists, never its value or the document text.
+    // Password is a standard HTML control; accountName is Blizzard's username
+    // field and covers its username-first form without matching arbitrary email
+    // inputs on a maintenance or challenge page.
+    const SCRIPT: &str = r#"(() => {
+      const fields = document.querySelectorAll('input[type="password"], input[name="accountName"]');
+      return Array.from(fields).some((field) => !field.disabled
+        && field.getClientRects().length > 0
+        && getComputedStyle(field).visibility === 'visible');
+    })()"#;
+    let (sender, receiver) = oneshot::channel();
+    let sender = Mutex::new(Some(sender));
+    if window
+        .eval_with_callback(SCRIPT, move |value| {
+            if let Some(sender) = sender.lock().ok().and_then(|mut sender| sender.take()) {
+                let _ = sender.send(value);
+            }
+        })
+        .is_err()
+    {
+        return false;
+    }
+    matches!(
+        tokio::time::timeout(Duration::from_secs(2), receiver).await,
+        Ok(Ok(value)) if value == "true"
+    )
+}
+
+pub(super) fn build_silent_window(
+    app: &AppHandle,
+    id: &str,
+    profile: PathBuf,
+) -> Result<(WebviewWindow, Arc<SilentPages>, oneshot::Receiver<()>), String> {
+    let pages = Arc::new(SilentPages::default());
+    let loaded = pages.clone();
+    let (sender, rejected) = oneshot::channel();
+    let sender = Mutex::new(Some(sender));
+    let window = tauri::WebviewWindowBuilder::new(
+        app,
+        format!("battlenet-status-{id}"),
+        WebviewUrl::External("about:blank".parse().unwrap()),
+    )
+    .title("PlayCounter")
+    .additional_browser_args(crate::webview_args::WEBVIEW_BROWSER_ARGS)
+    .visible(false)
+    .focused(false)
+    .skip_taskbar(true)
+    .data_directory(profile)
+    .devtools(false)
+    .browser_extensions_enabled(false)
+    .general_autofill_enabled(false)
+    .on_navigation(move |url| {
+        let allowed = url.as_str() == "about:blank" || login_navigation(url);
+        if !allowed {
+            if let Some(sender) = sender.lock().ok().and_then(|mut sender| sender.take()) {
+                let _ = sender.send(());
+            }
+        }
+        allowed
+    })
+    .on_page_load(move |_, payload| loaded.loaded(payload.url(), payload.event()))
+    .on_new_window(|_, _| NewWindowResponse::Deny)
+    .on_download(|_, _| false)
+    .build()
+    .map_err(|_| PRIVATE_SESSION_ERROR.to_owned())?;
+    Ok((window, pages, rejected))
+}
+
+async fn read_silent_status(window: &WebviewWindow, pages: &SilentPages) -> LoginStatus {
+    let mut poll = tokio::time::interval(Duration::from_millis(100));
+    let mut attempt = AccountReadAttempt::default();
+    let mut login_since: Option<Instant> = None;
+    loop {
+        poll.tick().await;
+        let Ok(url) = window.url() else {
+            return LoginStatus::Unavailable;
+        };
+        if pages.login_loaded.load(Ordering::SeqCst) && login_form_page(&url) {
+            // A cached SSO page can immediately redirect again. Require the
+            // completed login document to settle before requesting user action.
+            if login_since.get_or_insert_with(Instant::now).elapsed() >= Duration::from_secs(1) {
+                let navigation = pages.navigation.load(Ordering::SeqCst);
+                let has_controls = has_login_controls(window).await;
+                if navigation != pages.navigation.load(Ordering::SeqCst)
+                    || !pages.login_loaded.load(Ordering::SeqCst)
+                    || window.url().ok().as_ref() != Some(&url)
+                {
+                    login_since = None;
+                    continue;
+                }
+                return if has_controls {
+                    LoginStatus::NeedsSignIn
+                } else {
+                    LoginStatus::Unavailable
+                };
+            }
+            continue;
+        }
+        login_since = None;
+        if pages.challenge_loaded.load(Ordering::SeqCst) && interactive_login_page(&url) {
+            // A CAPTCHA or network challenge does not prove token expiry.
+            return LoginStatus::Unavailable;
+        }
+        let page = pages.account_pages.load(Ordering::SeqCst);
+        if !account_page(&url) || !attempt.page_ready(page) {
+            continue;
+        }
+        match evaluate_account_page(window, &pages.account_pages, page, READ_AUTH).await {
+            Ok(Some(_)) => return LoginStatus::Valid,
+            Ok(None) => {}
+            Err(error) if attempt.renew(page, &error) => {
+                if window
+                    .navigate(ACCOUNT_URL.parse().expect("fixed Battle.net URL"))
+                    .is_err()
+                {
+                    return LoginStatus::Unavailable;
+                }
+            }
+            Err(error) if error == EXPIRED => return LoginStatus::NeedsSignIn,
+            Err(_) => return LoginStatus::Unavailable,
+        }
+    }
+}
+
+/// Silent probes never call the foreground reader or its reveal/focus paths.
+/// Store and browser cleanup use the same generation checks as explicit login.
+pub(super) async fn run_silent_session(
+    window: &WebviewWindow,
+    store: &Store,
+    expected: ExpectedProfile,
+    pages: &SilentPages,
+    mut cancelled: oneshot::Receiver<()>,
+    rejected: oneshot::Receiver<()>,
+) -> Result<LoginStatus, String> {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+    let setup = secure_window(window, expected.clone(), false).await;
+    let session_ready = setup.is_ok();
+    // Cookie restoration must settle before cancellation can destroy its
+    // controller; a late native callback must not repopulate a cleared profile.
+    let setup = match setup {
+        Ok(()) => match store.try_load(Service::BattleNet) {
+            Ok(Some(login)) => battlenet_cookies::restore(window, &login.secret).await,
+            Ok(None) => Err(CANCELLED.into()),
+            Err(error) => Err(error),
+        },
+        Err(error) => Err(error),
+    };
+    let mut status = tokio::select! {
+        biased;
+        _ = &mut cancelled => LoginStatus::Busy,
+        _ = rejected => LoginStatus::Unavailable,
+        checked = tokio::time::timeout_at(deadline, async {
+            if setup.is_err() {
+                return LoginStatus::Unavailable;
+            }
+            if !store.is_current(Service::BattleNet) {
+                return LoginStatus::SignedOut;
+            }
+            if window.navigate(ACCOUNT_URL.parse().expect("fixed Battle.net URL")).is_err() {
+                return LoginStatus::Unavailable;
+            }
+            read_silent_status(window, pages).await
+        }) => checked.unwrap_or(LoginStatus::Unavailable),
+    };
+    let unloaded = unload_account_page(window).await;
+    if status == LoginStatus::Valid && store.is_current(Service::BattleNet) {
+        if unloaded.is_err() || save_authenticated_session(window, store).await.is_err() {
+            status = LoginStatus::Unavailable;
+        }
+    }
+    let cleared = if session_ready && !store.is_current(Service::BattleNet) {
+        status = LoginStatus::SignedOut;
+        clear_profile_data(window, expected).await
+    } else {
+        Ok(())
+    };
+    let destroyed = window.destroy();
+    if cleared.is_err() || destroyed.is_err() {
+        return Err(CLEANUP_ERROR.into());
+    }
+    Ok(status)
+}
+
+/// Check only an existing saved connection. This function never opens an
+/// interactive window and leaves a foreground connection/import undisturbed.
+pub(super) async fn check_saved_login(app: &AppHandle) -> LoginStatus {
+    if !cfg!(windows) {
+        return LoginStatus::SignedOut;
+    }
+    let Some(state) = app.try_state::<AccountState>() else {
+        return LoginStatus::Unavailable;
+    };
+    let id = uuid::Uuid::new_v4().to_string();
+    let cancelled = match state.0.lock() {
+        Ok(mut sessions) => match sessions.start_background(&id) {
+            Ok(cancelled) => cancelled,
+            Err(_) => return LoginStatus::Busy,
+        },
+        Err(_) => return LoginStatus::Unavailable,
+    };
+    let result: Result<LoginStatus, String> = async {
+        let store = Store::of(app)?;
+        if store.try_load(Service::BattleNet)?.is_none() {
+            return Ok(LoginStatus::SignedOut);
+        }
+        let profile = profile_dir(app)?;
+        let expected = ExpectedProfile::Dedicated(profile.clone());
+        let (window, pages, rejected) = build_silent_window(app, &id, profile)?;
+        run_silent_session(&window, &store, expected, &pages, cancelled, rejected).await
+    }
+    .await;
+    if result.as_ref().is_err_and(|error| error == CLEANUP_ERROR) {
+        // An uncleared window must not share its profile with a later attempt.
+        return LoginStatus::Unavailable;
+    }
+    if let Ok(mut sessions) = state.0.lock() {
+        sessions.finish(&id);
+    }
+    result.unwrap_or(LoginStatus::Unavailable)
+}
+
 /// The native lifecycle shared by account connection and library import.
 /// Authentication is durable before slow library reads or cancellation.
 pub(super) async fn run_account_session(
@@ -781,11 +1084,7 @@ async fn run_account(
     let id = uuid::Uuid::parse_str(&request_id)
         .map_err(|_| "Invalid Battle.net sign-in request.")?
         .to_string();
-    let cancelled = state
-        .0
-        .lock()
-        .map_err(|_| "Could not start Battle.net sign-in.")?
-        .start(&id)?;
+    let cancelled = start_foreground(&state, &id).await?;
     let (store, profile) = match (Store::of(&app), profile_dir(&app)) {
         (Ok(store), Ok(profile)) => (store, profile),
         _ => {
@@ -1095,5 +1394,54 @@ mod tests {
         assert!(sessions.start("new-account").is_err());
         sessions.finish("sign-in");
         assert!(sessions.start("new-account").is_ok());
+    }
+
+    #[tokio::test]
+    async fn foreground_preempts_a_probe_but_waits_for_its_profile_cleanup() {
+        let state = Arc::new(AccountState::default());
+        let cancelled = state.0.lock().unwrap().start_background("probe").unwrap();
+        let foreground_state = state.clone();
+        let foreground =
+            tokio::spawn(async move { start_foreground(&foreground_state, "interactive").await });
+        tokio::time::timeout(Duration::from_secs(1), cancelled)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!foreground.is_finished());
+        assert!(state.0.lock().unwrap().is_active());
+        state.0.lock().unwrap().finish("probe");
+        let _cancelled = tokio::time::timeout(Duration::from_secs(1), foreground)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let sessions = state.0.lock().unwrap();
+        assert_eq!(sessions.active.as_ref().unwrap().0, "interactive");
+        assert!(!sessions.background);
+    }
+
+    #[test]
+    fn a_background_probe_never_preempts_a_foreground_connection() {
+        let mut sessions = Sessions::default();
+        let mut cancelled = sessions.start("interactive").unwrap();
+        assert!(sessions.start_background("probe").is_err());
+        assert!(!sessions.preempt_background());
+        assert!(cancelled.try_recv().is_err());
+    }
+
+    #[test]
+    fn a_login_form_is_distinct_from_a_temporary_challenge() {
+        assert!(login_form_page(
+            &"https://eu.account.battle.net/login/en-us/"
+                .parse()
+                .unwrap()
+        ));
+        for url in [
+            "https://account.battle.net/overview",
+            "https://eu.account.battle.net/challenge",
+            "https://eu.account.battle.net.evil.test/login/",
+        ] {
+            assert!(!login_form_page(&url.parse().unwrap()));
+        }
     }
 }

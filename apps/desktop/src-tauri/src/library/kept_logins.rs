@@ -143,8 +143,8 @@ impl Store {
         self.dir.join(format!("{}.bin", service.id()))
     }
 
-    /// Best-effort summaries may omit an unavailable record. Authentication
-    /// must use try_load so a storage failure never opens a fresh sign-in.
+    /// Best-effort access for explicit sign-out, which must also remove
+    /// unreadable records. Authentication and summaries must use try_load.
     pub(crate) fn load(&self, service: Service) -> Option<KeptLogin> {
         self.try_load(service).ok().flatten()
     }
@@ -227,17 +227,18 @@ impl Store {
         }
     }
 
-    fn list(&self) -> Vec<KeptLoginSummary> {
-        Service::ALL
-            .into_iter()
-            .filter_map(|service| {
-                self.load(service).map(|login| KeptLoginSummary {
+    fn list(&self) -> Result<Vec<KeptLoginSummary>, String> {
+        let mut summaries = Vec::new();
+        for service in Service::ALL {
+            if let Some(login) = self.try_load(service)? {
+                summaries.push(KeptLoginSummary {
                     service: service.id(),
                     name: login.name,
                     saved_at: login.saved_at,
-                })
-            })
-            .collect()
+                });
+            }
+        }
+        Ok(summaries)
     }
 }
 
@@ -356,10 +357,28 @@ pub(crate) async fn sign_out_everywhere(app: &AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn logins_list(app: AppHandle) -> Vec<KeptLoginSummary> {
-    Store::of(&app)
-        .map(|store| store.list())
-        .unwrap_or_default()
+pub fn logins_list(app: AppHandle) -> Result<Vec<KeptLoginSummary>, String> {
+    Store::of(&app)?.list()
+}
+
+/// Validate a saved connection without ever starting interactive sign-in.
+#[tauri::command]
+pub async fn logins_check(
+    app: AppHandle,
+    window: WebviewWindow,
+    service: String,
+    api_endpoint: String,
+) -> super::login_status::LoginStatus {
+    use super::login_status::LoginStatus;
+    if window.label() != "main" || !cfg!(windows) {
+        return LoginStatus::Unavailable;
+    }
+    match Service::parse(&service) {
+        Some(Service::Xbox) => super::xbox_login::check_saved_login(&app, &api_endpoint).await,
+        Some(Service::Epic) => super::epic_account::check_saved_login(&app).await,
+        Some(Service::BattleNet) => super::battlenet_account::check_saved_login(&app).await,
+        None => LoginStatus::Unavailable,
+    }
 }
 
 #[tauri::command]
@@ -460,6 +479,10 @@ mod tests {
     fn an_unreadable_or_invalid_file_is_preserved_and_reports_unavailable() {
         let (store, dir) = store();
         store
+            .save(Service::Xbox, &KeptLogin::new("healthy-token".into(), None))
+            .unwrap();
+        let healthy_bytes = fs::read(dir.join("xbox.bin")).unwrap();
+        store
             .save(Service::Epic, &KeptLogin::new("token".into(), None))
             .unwrap();
         let path = dir.join("epic.bin");
@@ -468,18 +491,23 @@ mod tests {
         bytes[last] ^= 0xff;
         fs::write(&path, &bytes).unwrap();
         assert!(store.try_load(Service::Epic).is_err());
+        // A partial list would hide Epic and falsely show it signed out.
+        assert!(store.list().is_err());
         assert_eq!(store.load(Service::Epic), None);
         assert_eq!(fs::read(&path).unwrap(), bytes);
 
         fs::write(&path, b"not encrypted").unwrap();
         assert!(store.try_load(Service::Epic).is_err());
+        assert!(store.list().is_err());
         assert_eq!(store.load(Service::Epic), None);
         assert_eq!(fs::read(&path).unwrap(), b"not encrypted");
 
         let invalid_json = seal(b"not json").unwrap();
         fs::write(&path, &invalid_json).unwrap();
         assert!(store.try_load(Service::Epic).is_err());
+        assert!(store.list().is_err());
         assert_eq!(fs::read(&path).unwrap(), invalid_json);
+        assert_eq!(fs::read(dir.join("xbox.bin")).unwrap(), healthy_bytes);
 
         // Explicit sign-out can still remove an unavailable saved record.
         store.invalidate(Service::Epic).unwrap();
@@ -494,13 +522,18 @@ mod tests {
         let login = KeptLogin::new("synthetic-refresh-token".into(), None);
         store.save(Service::Xbox, &login).unwrap();
         let path = dir.join("xbox.bin");
+        let saved_bytes = fs::read(&path).unwrap();
+        let summaries = store.list().unwrap();
         let held = fs::OpenOptions::new()
             .read(true)
             .share_mode(0)
             .open(&path)
             .unwrap();
         assert!(store.try_load(Service::Xbox).is_err());
+        assert!(store.list().is_err());
         drop(held);
+        assert_eq!(fs::read(&path).unwrap(), saved_bytes);
+        assert_eq!(store.list().unwrap(), summaries);
         assert_eq!(store.try_load(Service::Xbox).unwrap(), Some(login));
         store.delete(Service::Xbox).unwrap();
         assert_eq!(store.try_load(Service::Xbox).unwrap(), None);
@@ -556,7 +589,7 @@ mod tests {
             .save(Service::BattleNet, &KeptLogin::new(String::new(), None))
             .unwrap();
 
-        let list = store.list();
+        let list = store.list().unwrap();
         let text = serde_json::to_string(&list).unwrap();
         assert_eq!(list.len(), 2);
         assert!(text.contains(r#""service":"xbox","name":"Chief""#));

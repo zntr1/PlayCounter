@@ -2,6 +2,10 @@ import { isLibraryProvider, validLibraryExternalId } from "@playcounter/shared";
 import { requestJsonResponse, requestWithTimeout } from "./requestJson";
 import { RateLimitError, responseError } from "./rateLimitedFetch";
 import { startLibraryImportMatchChecks } from "./library/matchOffers";
+import {
+  disposePostGameAchievementRefresh,
+  schedulePostGameAchievementRefresh,
+} from "./achievements/backgroundRefresh";
 import { initializeHotkeys, disposeHotkeys } from "./hotkeys";
 import { initializeQuickNotes, disposeQuickNotes } from "./quickNote";
 import {
@@ -560,6 +564,7 @@ export async function initializeTracker() {
 }
 
 export async function stopTrackerForReset() {
+  disposePostGameAchievementRefresh();
   window.clearTimeout(startupTimer);
   window.clearTimeout(readyTimer);
   await Promise.allSettled([startupWork, readyWork]);
@@ -615,6 +620,7 @@ async function finishTrackerStartup() {
 
   useAppStore.getState().setCleanup(() => {
     logRuntime("tracker cleanup running");
+    disposePostGameAchievementRefresh();
     stopFocusLaunchVerification?.();
     stopFocusLaunchVerification = undefined;
     stopWatchFolderLinks?.();
@@ -6800,6 +6806,7 @@ async function endSession(
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
   if (reason === "process-ended") {
+    schedulePostGameAchievementRefresh(session);
     const top = pickTopMilestone(freshMilestones);
     emitOverlayEvent({
       type: "session-ended",

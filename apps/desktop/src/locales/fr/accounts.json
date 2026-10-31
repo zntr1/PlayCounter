@@ -1,6 +1,12 @@
 {
+  "Needs sign-in": "Connexion requise",
+  "Could not check connection": "Impossible de vérifier la connexion",
+  "Check connection": "Vérifier la connexion",
+  "Sign in again": "Se reconnecter",
+  "{{launcher}} needs you to sign in again.": "{{launcher}} nécessite une nouvelle connexion.",
+  "Open Launcher accounts to reconnect.": "Ouvrez les comptes des launchers pour vous reconnecter.",
+  "Last checked {{time}}": "Dernière vérification : {{time}}",
   "Complete Battle.net sign-in in the window that opened.": "Termine la connexion à Battle.net dans la fenêtre qui s’est ouverte.",
-  "Sign-in saved": "Connexion enregistrée",
   "Sign-ins stay on this PC. Signing out keeps your imported games and playtime.": "Les connexions sont conservées sur ce PC. La déconnexion conserve vos jeux importés et leur temps de jeu.",
   "Choose which games to import after connecting an account.": "Choisissez les jeux à importer après avoir connecté un compte.",
   "Local library": "Bibliothèque locale",

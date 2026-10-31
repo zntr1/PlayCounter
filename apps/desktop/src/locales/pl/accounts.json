@@ -1,6 +1,12 @@
 {
+  "Needs sign-in": "Wymagane logowanie",
+  "Could not check connection": "Nie udało się sprawdzić połączenia",
+  "Check connection": "Sprawdź połączenie",
+  "Sign in again": "Zaloguj się ponownie",
+  "{{launcher}} needs you to sign in again.": "{{launcher}} wymaga ponownego zalogowania.",
+  "Open Launcher accounts to reconnect.": "Otwórz Konta launcherów, aby połączyć się ponownie.",
+  "Last checked {{time}}": "Ostatnio sprawdzono: {{time}}",
   "Complete Battle.net sign-in in the window that opened.": "Dokończ logowanie do Battle.net w otwartym oknie.",
-  "Sign-in saved": "Zapisano logowanie",
   "Sign-ins stay on this PC. Signing out keeps your imported games and playtime.": "Dane logowania pozostają na tym komputerze. Wylogowanie zachowuje zaimportowane gry i czas gry.",
   "Choose which games to import after connecting an account.": "Po połączeniu konta wybierz gry do zaimportowania.",
   "Local library": "Lokalna biblioteka",

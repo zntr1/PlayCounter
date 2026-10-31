@@ -1,6 +1,12 @@
 {
+  "Needs sign-in": "Требуется вход",
+  "Could not check connection": "Не удалось проверить подключение",
+  "Check connection": "Проверить подключение",
+  "Sign in again": "Войти снова",
+  "{{launcher}} needs you to sign in again.": "{{launcher}} требует повторного входа.",
+  "Open Launcher accounts to reconnect.": "Откройте «Аккаунты лаунчеров», чтобы подключиться снова.",
+  "Last checked {{time}}": "Последняя проверка: {{time}}",
   "Complete Battle.net sign-in in the window that opened.": "Завершите вход в Battle.net в открывшемся окне.",
-  "Sign-in saved": "Вход сохранён",
   "Sign-ins stay on this PC. Signing out keeps your imported games and playtime.": "Данные входа хранятся на этом ПК. При выходе импортированные игры и время игры сохраняются.",
   "Choose which games to import after connecting an account.": "После подключения аккаунта выберите игры для импорта.",
   "Local library": "Локальная библиотека",

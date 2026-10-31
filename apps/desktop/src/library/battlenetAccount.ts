@@ -1,7 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryScanResult, ScannedLibraryGame } from "./types";
 import { getT } from "../i18n";
-import { refreshKeptLogins } from "./keptLogins";
+import { refreshKeptLogins, useKeptLogins } from "./keptLogins";
+import {
+  getLoginOperationRevision,
+  recordLoginHealth,
+  supersedeLoginCheck,
+} from "./loginHealth";
 
 const t = getT("import");
 
@@ -154,6 +159,11 @@ async function runBattleNetAccountCommand<T>(
   signal?: AbortSignal,
 ) {
   signal?.throwIfAborted();
+  supersedeLoginCheck("battlenet");
+  const revision = getLoginOperationRevision("battlenet");
+  const savedAt = useKeptLogins.getState().logins.find(
+    (login) => login.service === "battlenet",
+  )?.savedAt;
   const requestId = crypto.randomUUID();
   let onAbort: (() => void) | undefined;
   const aborted = new Promise<never>((_, reject) => {
@@ -174,7 +184,24 @@ async function runBattleNetAccountCommand<T>(
       invoke<T>(command, {
         requestId,
         title: t("Battle.net sign-in"),
-      }).finally(() => refreshKeptLogins()),
+      })
+        .then((result) => {
+          if (revision === getLoginOperationRevision("battlenet"))
+            recordLoginHealth("battlenet", "valid");
+          return result;
+        })
+        .finally(async () => {
+          const saved = (await refreshKeptLogins()).find(
+            (login) => login.service === "battlenet",
+          );
+          // Native cancellation can save a newly verified login before rejecting.
+          if (
+            saved &&
+            saved.savedAt !== savedAt &&
+            revision === getLoginOperationRevision("battlenet")
+          )
+            recordLoginHealth("battlenet", "valid");
+        }),
       aborted,
     ]);
   } finally {

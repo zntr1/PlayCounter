@@ -48,6 +48,10 @@ import {
   Suspense,
 } from "react";
 import { initializeTracker } from "../tracker";
+import {
+  useLauncherAccountChecks,
+  useLoginHealth,
+} from "../library/loginHealth";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
 import { PlayCounterAnimatedIcon } from "../brand/PlayCounterAnimatedIcon";
 import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
@@ -371,7 +375,7 @@ function sidebarSections(): Array<{
     {
       id: "library",
       label: t("Library"),
-      items: ["now", "games", "accounts", "emulating", ...EMULATOR_IDS],
+      items: ["now", "games", "emulating", ...EMULATOR_IDS],
     },
     {
       id: "discover",
@@ -381,7 +385,7 @@ function sidebarSections(): Array<{
     {
       id: "system",
       label: t("System"),
-      items: ["discovered", "settings", "dev"],
+      items: ["discovered", "accounts", "settings", "dev"],
     },
   ];
 }
@@ -515,6 +519,13 @@ export function App() {
   const backendHealth = useAppStore((state) => state.backendHealth);
   const isOffline = useIsOffline();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  useLauncherAccountChecks(apiEndpoint);
+  const accountsNeedingSignIn = useLoginHealth(
+    (state) =>
+      Object.values(state.checks).filter(
+        (check) => check.status === "needsSignIn",
+      ).length,
+  );
   const addToast = useAppStore((state) => state.addToast);
   const needsReviewCount = useNeedsReviewCount();
   const hasAmbiguousMatch = useAppStore(
@@ -1008,11 +1019,19 @@ export function App() {
                     badge={
                       item === "discovered"
                         ? needsReviewCount
-                        : isEmulatorId(item)
-                          ? sidebarEmulatorBadge(item)
+                        : item === "accounts"
+                          ? accountsNeedingSignIn || undefined
+                          : isEmulatorId(item)
+                            ? sidebarEmulatorBadge(item)
+                            : undefined
+                    }
+                    warn={
+                      item === "now"
+                        ? hasAmbiguousMatch
+                        : item === "accounts"
+                          ? accountsNeedingSignIn > 0
                           : undefined
                     }
-                    warn={item === "now" ? hasAmbiguousMatch : undefined}
                     isPlaying={
                       item === "now" && !hasAmbiguousMatch
                         ? activeSessionsCount > 0

@@ -6,6 +6,7 @@ pub mod epic;
 pub mod epic_account;
 mod exe_scan;
 pub mod kept_logins;
+pub(crate) mod login_status;
 pub mod steam;
 mod types;
 mod vdf;

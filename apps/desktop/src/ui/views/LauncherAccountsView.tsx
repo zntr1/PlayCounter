@@ -12,7 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import type { XboxImportProgressStage } from "@playcounter/shared";
-import { getT } from "../../i18n";
+import { appLocale, getT } from "../../i18n";
 import { currentPlatform } from "../../platform";
 import { nativeText } from "../../nativeText";
 import { useAppStore } from "../../store";
@@ -26,6 +26,13 @@ import { loadLibraryProvider } from "../../library/providers";
 import { signInBattleNetAccount } from "../../library/battlenetAccount";
 import { signInEpicAccount } from "../../library/epicAccount";
 import { signInXboxAccount } from "../../library/providers/xbox";
+import {
+  beginLoginAccountChange,
+  checkLauncherLogin,
+  checkLauncherLogins,
+  recordLoginHealth,
+  useLoginHealth,
+} from "../../library/loginHealth";
 import { openLauncherImport } from "../../library/importRequest";
 import type { LocalLibraryAccount } from "../../library/types";
 import { providerTabConfigs } from "../libraryProviderTabs";
@@ -48,6 +55,7 @@ type Activity = { service: KeptLoginService; kind: "connect" | "disconnect" };
 export function LauncherAccountsView() {
   const platform = currentPlatform();
   const logins = useAllKeptLogins();
+  const health = useLoginHealth((state) => state.checks);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const addToast = useAppStore((state) => state.addToast);
   const [steam, setSteam] = useState<SteamState>({
@@ -74,6 +82,10 @@ export function LauncherAccountsView() {
       operation.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    void checkLauncherLogins(apiEndpoint);
+  }, [apiEndpoint]);
 
   useEffect(() => {
     if (platform !== "windows") return;
@@ -111,6 +123,7 @@ export function LauncherAccountsView() {
 
   async function connect(service: KeptLoginService) {
     if (operation.current) return;
+    beginLoginAccountChange(service);
     const controller = new AbortController();
     operation.current = controller;
     const current = () =>
@@ -150,6 +163,7 @@ export function LauncherAccountsView() {
           [service]: t("Sign-in was not saved. Please try again."),
         }));
       } else {
+        recordLoginHealth(service, "valid");
         setNotice(service);
       }
       setAuthorizeUrl(null);
@@ -233,6 +247,8 @@ export function LauncherAccountsView() {
           const isSteam = id === "steam";
           const service = isSteam ? null : (id as KeptLoginService);
           const login = logins.find((item) => item.service === service);
+          const check = service ? health[service] : undefined;
+          const needsSignIn = check?.status === "needsSignIn";
           const busy = activity?.service === service;
           const error = service ? errors[service] : steam.error;
           const localAccount =
@@ -250,15 +266,25 @@ export function LauncherAccountsView() {
                     : localAccount
                       ? t("Local library")
                       : t("No local Steam accounts found")
-              : login
-                ? id === "battlenet"
-                  ? t("Sign-in saved")
-                  : t("Signed in")
-                : platform !== "windows"
-                  ? t("Sign-in needed for each import")
-                  : t("Not signed in");
+              : needsSignIn
+                ? t("Needs sign-in")
+                : login
+                  ? check?.status === "checking"
+                    ? t("Checking…")
+                    : check?.status === "unavailable"
+                      ? t("Could not check connection")
+                      : t("Signed in")
+                  : platform !== "windows"
+                    ? t("Sign-in needed for each import")
+                    : t("Not signed in");
           const connected =
-            supported && (isSteam ? Boolean(localAccount) : Boolean(login));
+            supported &&
+            (isSteam
+              ? Boolean(localAccount)
+              : Boolean(login) &&
+                !needsSignIn &&
+                check?.status !== "unavailable" &&
+                check?.status !== "checking");
           return (
             <section
               key={id}
@@ -292,10 +318,20 @@ export function LauncherAccountsView() {
                     ) : null}
                     {status}
                   </p>
+                  {check?.checkedAt != null ? (
+                    <p className="mt-1 text-xs text-text-faint">
+                      {t("Last checked {{time}}", {
+                        time: new Date(check.checkedAt).toLocaleTimeString(
+                          appLocale(),
+                          { hour: "2-digit", minute: "2-digit" },
+                        ),
+                      })}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-4 flex-1 space-y-2 text-sm text-text-muted">
-                {login?.name ? (
+                {login?.name && !needsSignIn ? (
                   <p className="break-words font-medium text-text">
                     {t("Signed in as {{name}}", { name: login.name })}
                   </p>
@@ -394,16 +430,28 @@ export function LauncherAccountsView() {
                       </Button>
                     ) : null}
                   </>
-                ) : login ? (
+                ) : login || needsSignIn ? (
                   <>
-                    <Button
-                      icon={Download}
-                      variant="primary"
-                      disabled={!supported || Boolean(activity)}
-                      onClick={() => openLauncherImport(id)}
-                    >
-                      {t("Import games")}
-                    </Button>
+                    {needsSignIn ? (
+                      <Button
+                        icon={LogIn}
+                        variant="primary"
+                        loading={busy && activity.kind === "connect"}
+                        disabled={!supported || Boolean(activity)}
+                        onClick={() => void connect(service!)}
+                      >
+                        {t("Sign in again")}
+                      </Button>
+                    ) : (
+                      <Button
+                        icon={Download}
+                        variant="primary"
+                        disabled={!supported || Boolean(activity)}
+                        onClick={() => openLauncherImport(id)}
+                      >
+                        {t("Import games")}
+                      </Button>
+                    )}
                     <Button
                       icon={LogOut}
                       variant="ghost"
@@ -413,6 +461,21 @@ export function LauncherAccountsView() {
                     >
                       {t("Sign out")}
                     </Button>
+                    {!needsSignIn && service ? (
+                      <Button
+                        icon={RefreshCw}
+                        variant="ghost"
+                        loading={check?.status === "checking"}
+                        disabled={
+                          Boolean(activity) || check?.status === "checking"
+                        }
+                        onClick={() =>
+                          void checkLauncherLogin(service, apiEndpoint)
+                        }
+                      >
+                        {t("Check connection")}
+                      </Button>
+                    ) : null}
                   </>
                 ) : (
                   <Button

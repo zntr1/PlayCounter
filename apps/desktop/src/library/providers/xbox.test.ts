@@ -1,20 +1,37 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
+const { invokeMock, recordHealthMock, accountOperation } = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+  recordHealthMock: vi.fn(),
+  accountOperation: { revision: 0 },
+}));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
+vi.mock("../loginHealth", () => ({
+  recordLoginHealth: recordHealthMock,
+  supersedeLoginCheck: vi.fn(),
+  getLoginOperationRevision: () => accountOperation.revision,
+}));
 
 import {
   refreshXboxAchievementList,
   scanXboxLibrary,
   signInXboxAccount,
   xboxProvider,
+  XboxSignInRequiredError,
 } from "./xbox";
+import { useKeptLogins } from "../keptLogins";
 import { reverseResolveLibraryGame, searchLibraryGames } from "../gameLookup";
 import { buildLibraryImportCommit } from "../importPlan";
 
 const endpoint = "https://api.playcounter.test";
 const firstAttemptId = "a".repeat(48);
 const secondAttemptId = "b".repeat(48);
+
+beforeEach(() => {
+  recordHealthMock.mockReset();
+  accountOperation.revision = 0;
+  useKeptLogins.setState({ logins: [] });
+});
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -808,6 +825,137 @@ describe("Kept Xbox sign-in", () => {
     const body = fetchMock.mock.calls[call][1]?.body;
     return body === undefined ? undefined : JSON.parse(String(body));
   }
+
+  it("never creates an OAuth attempt when a background refresh has no saved sign-in", async () => {
+    answer({ xbox_login_sync_start: { status: "signedOut" } });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      refreshXboxAchievementList("1234", {
+        apiEndpoint: endpoint,
+        savedLoginOnly: true,
+      }),
+    ).rejects.toBeInstanceOf(XboxSignInRequiredError);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "xbox_login_claim_hash",
+      expect.anything(),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+  });
+
+  it("marks a rejected saved sign-in as requiring login without creating an OAuth attempt", async () => {
+    useKeptLogins.setState({
+      logins: [{ service: "xbox", name: "Chief", savedAt: 1 }],
+    });
+    answer({ xbox_login_sync_start: { status: "signedOut" } });
+    vi.stubGlobal("fetch", vi.fn());
+    await expect(
+      refreshXboxAchievementList("1234", {
+        apiEndpoint: endpoint,
+        savedLoginOnly: true,
+      }),
+    ).rejects.toBeInstanceOf(XboxSignInRequiredError);
+    expect(recordHealthMock).toHaveBeenCalledWith("xbox", "needsSignIn");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps transient background failures distinct from expired authentication", async () => {
+    useKeptLogins.setState({
+      logins: [{ service: "xbox", name: "Chief", savedAt: 1 }],
+    });
+    answer({
+      xbox_login_sync_start: { status: "unavailable", httpStatus: 502 },
+    });
+    vi.stubGlobal("fetch", vi.fn());
+    await expect(
+      refreshXboxAchievementList("1234", {
+        apiEndpoint: endpoint,
+        savedLoginOnly: true,
+      }),
+    ).rejects.not.toBeInstanceOf(XboxSignInRequiredError);
+    expect(recordHealthMock).toHaveBeenCalledWith("xbox", "unavailable");
+    expect(recordHealthMock).not.toHaveBeenCalledWith("xbox", "needsSignIn");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refreshes achievements silently with a saved login and records successful renewal", async () => {
+    answer({
+      xbox_login_sync_start: { status: "started", attemptId: firstAttemptId },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(
+        jsonResponse({
+          status: "done",
+          games: [
+            {
+              externalId: "1234",
+              name: "Game",
+              providerSeconds: null,
+              candidates: [],
+              achievementError: "unavailable",
+            },
+          ],
+        }),
+      ),
+    );
+    await expect(
+      refreshXboxAchievementList("1234", {
+        apiEndpoint: endpoint,
+        savedLoginOnly: true,
+      }),
+    ).resolves.toEqual({ error: "unavailable" });
+    expect(recordHealthMock).toHaveBeenCalledWith("xbox", "valid");
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "xbox_login_claim_hash",
+      expect.anything(),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+  });
+
+  it("treats an unexpected native answer as unavailable without starting OAuth", async () => {
+    answer({ xbox_login_sync_start: undefined });
+    vi.stubGlobal("fetch", vi.fn());
+    await expect(
+      refreshXboxAchievementList("1234", {
+        apiEndpoint: endpoint,
+        savedLoginOnly: true,
+      }),
+    ).rejects.not.toBeInstanceOf(XboxSignInRequiredError);
+    expect(recordHealthMock).toHaveBeenCalledWith("xbox", "unavailable");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not publish an old account's late authentication result after an account change", async () => {
+    let finish!: (value: unknown) => void;
+    invokeMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] })),
+    );
+    const pending = refreshXboxAchievementList("1234", {
+      apiEndpoint: endpoint,
+      savedLoginOnly: true,
+    });
+    accountOperation.revision++;
+    finish({ status: "started", attemptId: firstAttemptId });
+    await pending;
+    expect(recordHealthMock).not.toHaveBeenCalled();
+  });
 
   it("imports with the kept sign-in, without a browser", async () => {
     answer({

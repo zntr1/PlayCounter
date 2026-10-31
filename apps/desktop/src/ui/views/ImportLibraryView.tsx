@@ -23,6 +23,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
 import { useLibraryImportRequest } from "../../library/importRequest";
 import { saveXboxAchievementLists } from "../../achievements/xboxLists";
+import { useLoginHealth } from "../../library/loginHealth";
 import {
   refreshKeptLogins,
   signOutKeptLogin,
@@ -119,8 +120,16 @@ export function ImportLibraryView() {
   const isEpic = providerId === "epic";
   /** Installed games on this PC, plus an optional account sign-in. */
   const scansInstalls = isBattleNet || isEpic;
-  const keptLogin = useKeptLogin(
-    isXbox ? "xbox" : isEpic ? "epic" : isBattleNet ? "battlenet" : null,
+  const loginService = isXbox
+    ? "xbox"
+    : isEpic
+      ? "epic"
+      : isBattleNet
+        ? "battlenet"
+        : null;
+  const keptLogin = useKeptLogin(loginService);
+  const loginHealth = useLoginHealth((state) =>
+    loginService ? state.checks[loginService] : undefined,
   );
   const providerName = LIBRARY_PROVIDER_LABELS[providerId];
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
@@ -1231,14 +1240,20 @@ export function ImportLibraryView() {
                 )}
               </p>
             ) : null}
-            {keptLogin ? (
+            {keptLogin || loginHealth?.status === "needsSignIn" ? (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-text-muted">
                 <span>
-                  {isBattleNet
-                    ? getT("accounts")("Sign-in saved")
-                    : keptLogin.name
-                      ? t("Signed in as {{name}}.", { name: keptLogin.name })
-                      : t("Signed in.")}
+                  {loginHealth?.status === "needsSignIn"
+                    ? getT("accounts")("Needs sign-in")
+                    : loginHealth?.status === "unavailable"
+                      ? getT("accounts")("Could not check connection")
+                      : loginHealth?.status === "checking"
+                        ? getT("accounts")("Checking…")
+                        : keptLogin?.name
+                          ? t("Signed in as {{name}}.", {
+                              name: keptLogin.name,
+                            })
+                          : t("Signed in.")}
                 </span>
                 <Button
                   variant="ghost"

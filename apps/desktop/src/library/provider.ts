@@ -15,6 +15,8 @@ export type LibraryScanOptions = {
   onXboxProgress?: (stage: XboxImportProgressStage) => void;
   onRateLimitWait?: (waiting: boolean) => void;
   openAuthorizeUrl?: boolean;
+  /** Background work: never create an interactive OAuth attempt. */
+  savedLoginOnly?: boolean;
   /** Explicit user action only; background scans must never open sign-in. */
   battleNetAccount?: boolean;
   battleNetProductIds?: readonly string[];

@@ -118,8 +118,7 @@ it("Battle.net has no name to show, only that the sign-in is kept", async () => 
   mocks.logins = [{ service: "battlenet", name: null, savedAt: 1 }];
   await open("battlenet");
 
-  expect(text()).toContain("Sign-in saved");
-  expect(text()).not.toContain("Signed in.");
+  expect(text()).toContain("Signed in.");
   expect(buttons()).toContain("Sign out");
 });
 

@@ -565,6 +565,7 @@ pub fn run() {
             library::epic_account::library_epic_sign_in,
             library::epic_account::library_cancel_epic_account,
             library::kept_logins::logins_list,
+            library::kept_logins::logins_check,
             library::kept_logins::logins_sign_out,
             library::xbox_login::xbox_login_claim_hash,
             library::xbox_login::xbox_login_keep,

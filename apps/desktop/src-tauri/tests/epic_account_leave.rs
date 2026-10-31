@@ -13,8 +13,20 @@ mod epic_account;
 #[allow(dead_code)]
 #[path = "../src/library/kept_logins.rs"]
 mod kept_logins;
+#[allow(dead_code)]
+#[path = "../src/library/login_status.rs"]
+mod login_status;
 #[path = "../src/webview_args.rs"]
 mod webview_args;
+
+mod xbox_login {
+    pub async fn check_saved_login(
+        _: &tauri::AppHandle,
+        _: &str,
+    ) -> super::login_status::LoginStatus {
+        panic!("Epic fixtures must never validate Xbox accounts");
+    }
+}
 
 // The account module's game-ID check is unrelated to this fixture. Include its
 // small dependency here without bringing in installation scanning or launching.
