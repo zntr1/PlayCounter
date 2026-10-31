@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 
-import { scanXboxLibrary, xboxProvider } from "./xbox";
+import {
+  refreshXboxAchievementList,
+  scanXboxLibrary,
+  xboxProvider,
+} from "./xbox";
 import { reverseResolveLibraryGame, searchLibraryGames } from "../gameLookup";
 import { buildLibraryImportCommit } from "../importPlan";
 
@@ -539,5 +543,224 @@ describe("Xbox library provider", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
       gameId: 42,
     });
+  });
+});
+
+describe("Xbox achievements", () => {
+  const authorizeUrl =
+    "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
+  const list = {
+    provider: "xbox",
+    externalId: "1234",
+    fetchedAt: 1_790_000_000_000,
+    achievements: [
+      {
+        id: "scid:1",
+        name: "First win",
+        description: "Win a race.",
+        hidden: false,
+        unlocked: true,
+        unlockedAt: 1_780_000_000_000,
+        gamerscore: 30,
+      },
+    ],
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    invokeMock.mockReset();
+  });
+
+  function startBody(fetchMock: ReturnType<typeof vi.fn>, call: number) {
+    const body = fetchMock.mock.calls[call][1]?.body;
+    return body === undefined ? undefined : JSON.parse(String(body));
+  }
+
+  it("an import asks Xbox for achievements and hands the lists back", async () => {
+    invokeMock.mockResolvedValue({ games: [], warnings: [], partial: false });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "done",
+          games: [
+            {
+              externalId: "1234",
+              name: "Forza Horizon 5",
+              providerSeconds: 60,
+              candidates: [],
+              achievements: list,
+            },
+            {
+              externalId: "5678",
+              name: "Old game",
+              providerSeconds: null,
+              candidates: [],
+              achievementError: "unavailable",
+            },
+            {
+              externalId: "9012",
+              name: "Broken list",
+              providerSeconds: null,
+              candidates: [],
+              achievements: { ...list, externalId: "9012", achievements: "x" },
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await scanXboxLibrary({ apiEndpoint: endpoint });
+
+    expect(startBody(fetchMock, 0)).toEqual({
+      includeAchievements: true,
+      language: "en",
+    });
+    expect(result.achievementLists).toEqual([list]);
+    // A broken list never costs the game its import.
+    expect(result.games.map((game) => game.externalId)).toEqual([
+      "1234",
+      "5678",
+      "9012",
+    ]);
+  });
+
+  it("a list for another title than its game is dropped", async () => {
+    invokeMock.mockResolvedValue({ games: [], warnings: [], partial: false });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            status: "done",
+            games: [
+              {
+                externalId: "5678",
+                name: "Other",
+                providerSeconds: null,
+                candidates: [],
+                achievements: list,
+              },
+            ],
+          }),
+        ),
+    );
+    const result = await scanXboxLibrary({ apiEndpoint: endpoint });
+    expect(result.achievementLists).toBeUndefined();
+  });
+
+  it("an older server that refuses the option still imports", async () => {
+    invokeMock.mockResolvedValue({ games: [], warnings: [], partial: false });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: "Bad Request" }, 400))
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(scanXboxLibrary({ apiEndpoint: endpoint })).resolves.toEqual({
+      games: [],
+      warnings: [],
+      partial: false,
+      resolvedGames: [],
+    });
+    expect(startBody(fetchMock, 0)).toEqual({
+      includeAchievements: true,
+      language: "en",
+    });
+    expect(startBody(fetchMock, 1)).toBeUndefined();
+  });
+
+  it("refresh asks only for the one title and skips this PC's scan", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "done",
+          games: [
+            {
+              externalId: "1234",
+              name: "Xbox title 1234",
+              providerSeconds: null,
+              candidates: [],
+              achievements: list,
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const onAuthorizeUrl = vi.fn();
+
+    await expect(
+      refreshXboxAchievementList("1234", {
+        apiEndpoint: endpoint,
+        onAuthorizeUrl,
+      }),
+    ).resolves.toEqual({ list });
+    expect(startBody(fetchMock, 0)).toEqual({
+      achievementTitleIds: ["1234"],
+      language: "en",
+    });
+    expect(onAuthorizeUrl).toHaveBeenCalledWith(authorizeUrl);
+    expect(invokeMock).toHaveBeenCalledWith("open_microsoft_signin_url", {
+      url: authorizeUrl,
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith("library_scan_xbox_local");
+  });
+
+  it("refresh reports why Xbox sent no list", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({
+            status: "done",
+            games: [
+              {
+                externalId: "1234",
+                name: "Xbox title 1234",
+                providerSeconds: null,
+                candidates: [],
+                achievementError: "unavailable",
+              },
+            ],
+          }),
+        ),
+    );
+    await expect(
+      refreshXboxAchievementList("1234", {
+        apiEndpoint: endpoint,
+        openAuthorizeUrl: false,
+      }),
+    ).resolves.toEqual({ error: "unavailable" });
+  });
+
+  it("refresh on an older server says it isn't there yet", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ error: "Bad Request" }, 400)),
+    );
+    await expect(
+      refreshXboxAchievementList("1234", { apiEndpoint: endpoint }),
+    ).rejects.toThrow(/server/i);
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 });

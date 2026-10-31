@@ -195,5 +195,6 @@
   "{{game}} has no IGDB id.": "{{game}} hat keine IGDB-ID.",
   "Account {{id}}": "Konto {{id}}",
   "{{provider}} game {{id}}": "{{provider}}-Spiel {{id}}",
-  "The server is still busy. Please try importing again after the pause.": "Der Server ist noch ausgelastet. Bitte versuche den Import nach der Pause erneut."
+  "The server is still busy. Please try importing again after the pause.": "Der Server ist noch ausgelastet. Bitte versuche den Import nach der Pause erneut.",
+  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Zum Aktualisieren der Xbox-Erfolge braucht es einen neueren PlayCounter-Server. Bitte versuche es später erneut."
 }

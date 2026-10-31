@@ -64,6 +64,7 @@ import {
   Square,
   Timer,
   Trash2,
+  Trophy,
   WifiOff,
 } from "lucide-react";
 import {
@@ -218,6 +219,7 @@ import { ignoreAppAsSoftware, SoftwareDialog } from "../SoftwareDialog";
 import { notifyFileRemovedFromGame } from "../fileRemovedFromGameToast";
 import { exeProductName, peekExeDetails } from "../exeDetails";
 import { GameDetailsDialog } from "./games/GameDetailsDialog";
+import { achievementSources } from "./games/GameAchievementsTab";
 import { isRejectedGameFile } from "../../rejectedGameFiles";
 import { PickGameFileDialog } from "./games/GameFileList";
 import {
@@ -3216,6 +3218,18 @@ export function GameLibraryCard({
     [game.igdbId, playcounterLibrary],
   );
   const [showDetails, setShowDetails] = useState(false);
+  // "Achievements" in the card menu opens Details on that tab.
+  const [detailsTab, setDetailsTab] = useState<"general" | "achievements">(
+    "general",
+  );
+  const openDetails = (tab: "general" | "achievements" = "general") => {
+    setDetailsTab(tab);
+    setShowDetails(true);
+  };
+  const hasGameAchievements = useMemo(
+    () => achievementSources(game).length > 0,
+    [game],
+  );
   const [showMoveToPlayCounter, setShowMoveToPlayCounter] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   // The one file Report, Convert or Check match is about (see flowExeName).
@@ -5026,6 +5040,7 @@ export function GameLibraryCard({
     ) : showDetails ? (
       <GameDetailsDialog
         game={game}
+        initialTab={detailsTab}
         launchKey={`${launchKey}:details`}
         launchBlocked={launchBlocked}
         onAcquireLaunch={onAcquireLaunch}
@@ -5100,11 +5115,22 @@ export function GameLibraryCard({
           dataTour={demo ? "demo-menu-details" : undefined}
           onClick={() => {
             contextMenu.close();
-            setShowDetails(true);
+            openDetails();
           }}
         >
           {t("Open Details")}
         </ContextMenuItem>
+        {hasGameAchievements ? (
+          <ContextMenuItem
+            icon={Trophy}
+            onClick={() => {
+              contextMenu.close();
+              openDetails("achievements");
+            }}
+          >
+            {t("Achievements")}
+          </ContextMenuItem>
+        ) : null}
         <ContextMenuItem
           dataTour={demo ? "demo-menu-show-history" : undefined}
           icon={History}
@@ -5910,7 +5936,7 @@ export function GameLibraryCard({
                 icon={Info}
                 aria-label={t("Open details for {{name}}", { name: game.name })}
                 title={t("Open details")}
-                onClick={() => setShowDetails(true)}
+                onClick={() => openDetails()}
                 className="bg-bg text-text-muted shadow-raised border-bg hover:bg-accent hover:border-accent hover:text-accent-fg"
               />
               {!demo || libraryPractice ? (

@@ -626,5 +626,6 @@
   "Force close": "强制关闭",
   "PlayCounter can't close {{gameName}}": "PlayCounter 无法关闭 {{gameName}}",
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "它可能以管理员身份运行，或受反作弊保护。请在游戏内关闭它。",
-  "OK": "确定"
+  "OK": "确定",
+  "Achievements": "成就"
 }

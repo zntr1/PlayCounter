@@ -15,6 +15,7 @@ import {
   MoveRight,
   Play,
   Trash2,
+  Trophy,
   Users,
   UserRound,
   WifiOff,
@@ -61,6 +62,7 @@ import {
 import { summarizeGameSessions } from "../../gameDetailsStats";
 import { useHeroLauncher } from "./useHeroLauncher";
 import { canReportFile, fileRunStatus, listGameFiles } from "./gameFiles";
+import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 import type { GameSummary } from "../MyGamesView";
 import { emitTourEvent } from "../../tour/TourUI";
 import { tourSessionsForGame } from "../../tour/tourDemoGame";
@@ -95,7 +97,7 @@ function providerIdLabels(): Record<LibraryProviderId, string> {
   };
 }
 
-type DetailsTab = "general" | "files";
+export type DetailsTab = "general" | "files" | "achievements";
 
 function formatDate(value: string | null | undefined) {
   if (!value) return null;
@@ -258,8 +260,11 @@ export function GameDetailsDialog({
   onMoveToPlayCounter,
   onDemoHistory,
   onReportFile,
+  initialTab = "general",
 }: {
   game: GameSummary;
+  /** "achievements" falls back to General for a game without them. */
+  initialTab?: DetailsTab;
   /** Own lock key, distinct from the opener's, so closing the dialog never
    *  releases a launch the card or banner still has in flight. */
   launchKey: string;
@@ -329,10 +334,20 @@ export function GameDetailsDialog({
         launchTargets: [],
       }
     : realLauncher;
-  const [tab, setTab] = useState<DetailsTab>("general");
+  // The store's own achievements: only games with a Steam or Xbox entry.
+  const gameAchievementSources = useMemo(
+    () => achievementSources(game),
+    [game],
+  );
+  const [tab, setTab] = useState<DetailsTab>(() =>
+    initialTab === "achievements" && !gameAchievementSources.length
+      ? "general"
+      : initialTab,
+  );
   const tabRefs = useRef<Record<DetailsTab, HTMLButtonElement | null>>({
     general: null,
     files: null,
+    achievements: null,
   });
 
   const stats = useMemo(
@@ -478,7 +493,9 @@ export function GameDetailsDialog({
   function handleTabKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    selectTab(tab === "general" ? "files" : "general");
+    const index = tabs.findIndex(({ id }) => id === tab);
+    const step = event.key === "ArrowRight" ? 1 : -1;
+    selectTab(tabs[(index + step + tabs.length) % tabs.length].id);
   }
 
   const launchTitle = launcher.hasActiveSession
@@ -492,6 +509,15 @@ export function GameDetailsDialog({
   const tabs: Array<{ id: DetailsTab; label: string; icon: LucideIcon }> = [
     { id: "general", label: t("General"), icon: Info },
     { id: "files", label: t("Files"), icon: FolderOpen },
+    ...(gameAchievementSources.length
+      ? [
+          {
+            id: "achievements" as const,
+            label: t("Achievements"),
+            icon: Trophy,
+          },
+        ]
+      : []),
   ];
 
   const header = (
@@ -1111,7 +1137,13 @@ export function GameDetailsDialog({
         id={`game-details-panel-${tab}`}
         aria-labelledby={`game-details-tab-${tab}`}
       >
-        {tab === "general" ? generalTab : filesTab}
+        {tab === "general" ? (
+          generalTab
+        ) : tab === "files" ? (
+          filesTab
+        ) : (
+          <GameAchievementsTab sources={gameAchievementSources} />
+        )}
       </div>
     </Modal>
   );

@@ -188,5 +188,6 @@
   "{{game}} has no IGDB id.": "{{game}} 没有 IGDB ID。",
   "Account {{id}}": "账户 {{id}}",
   "{{provider}} game {{id}}": "{{provider}} 游戏 {{id}}",
-  "The server is still busy. Please try importing again after the pause.": "服务器仍然繁忙。请在暂停结束后再次尝试导入。"
+  "The server is still busy. Please try importing again after the pause.": "服务器仍然繁忙。请在暂停结束后再次尝试导入。",
+  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "刷新 Xbox 成就需要更新版本的 PlayCounter 服务器。请稍后重试。"
 }

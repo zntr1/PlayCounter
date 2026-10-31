@@ -556,6 +556,8 @@ pub fn run() {
             library::library_list_accounts,
             library::library_scan,
             library::library_scan_xbox_local,
+            library::achievements::steam_read_achievements,
+            library::achievements::steam_achievement_catalog,
             library::battlenet_account::library_battlenet_account_games,
             library::battlenet_account::library_cancel_battlenet_account,
             library::epic_account::library_epic_account_games,

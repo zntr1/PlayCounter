@@ -1,3 +1,4 @@
+pub mod achievements;
 pub mod battlenet;
 pub mod battlenet_account;
 pub mod epic;

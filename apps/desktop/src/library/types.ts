@@ -1,4 +1,5 @@
 import type {
+  AchievementList,
   ContributionStatus,
   Game,
   GameSource,
@@ -129,6 +130,8 @@ export type LibraryScanResult = {
   warnings: string[];
   partial: boolean;
   resolvedGames?: ResolvedLibraryGame[];
+  /** Xbox: the achievements read during the same sign-in. */
+  achievementLists?: AchievementList[];
 };
 
 export type ResolvedLibraryGame = {

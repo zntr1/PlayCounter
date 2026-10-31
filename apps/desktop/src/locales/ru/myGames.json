@@ -686,5 +686,6 @@
   "Force close": "Закрыть принудительно",
   "PlayCounter can't close {{gameName}}": "PlayCounter не может закрыть {{gameName}}",
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "Возможно, игра запущена от имени администратора или защищена античитом. Закройте её в самой игре.",
-  "OK": "ОК"
+  "OK": "ОК",
+  "Achievements": "Достижения"
 }
