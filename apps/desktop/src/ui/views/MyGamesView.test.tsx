@@ -904,6 +904,7 @@ it("shows shelves for older settings without a shelf preference", async () => {
   expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("2");
 });
 
+// It opens 24 shelves: over 5 s when the whole suite runs at once.
 it("scopes every shelf count to the selected library and keeps that source when opening shelves", async () => {
   const xbox: LibraryImportEntry = {
     ...steam,
@@ -978,7 +979,7 @@ it("scopes every shelf count to the selected library and keeps that source when 
   expect(shelfChip("All games").lastElementChild?.textContent).toBe("2");
   expect(shelfChip("Favorites").lastElementChild?.textContent).toBe("1");
   expect(shelfChip("Weekend").lastElementChild?.textContent).toBe("0");
-});
+}, 15_000);
 
 it("keeps a shelf with games in other libraries empty in Xbox while editing its filters", async () => {
   useAppStore.setState({
