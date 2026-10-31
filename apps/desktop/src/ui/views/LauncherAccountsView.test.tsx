@@ -97,9 +97,7 @@ async function openMore(provider: string) {
 
 function menuItems() {
   return [
-    ...document.body.querySelectorAll<HTMLButtonElement>(
-      '[role="menuitem"], [role="menuitemradio"]',
-    ),
+    ...document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
   ];
 }
 
@@ -109,10 +107,21 @@ function menuItem(label: string) {
   return found;
 }
 
-/** The buttons a card shows, without its ⋯. */
+/** The bell beside a launcher's name, or null when it has none. */
+function bell(provider: string) {
+  return card(provider).querySelector<HTMLButtonElement>(
+    'button[aria-label="Sign-in warnings"]',
+  );
+}
+
+/** The buttons a card shows, without its ⋯ and its bell. */
 function cardButtons(provider: string) {
   return [...card(provider).querySelectorAll("button")]
-    .filter((item) => item.getAttribute("aria-label") !== "More")
+    .filter(
+      (item) =>
+        item.getAttribute("aria-label") !== "More" &&
+        item.getAttribute("aria-label") !== "Sign-in warnings",
+    )
     .map((item) => item.textContent?.trim());
 }
 
@@ -205,7 +214,6 @@ it("keeps Check connection, Find installed games and Sign out in the ⋯ menu", 
   expect(menuItems().map((item) => item.textContent)).toEqual([
     expect.stringMatching(/^Check connectionLast checked /),
     "Find installed games",
-    "Sign-in warningsBadge and message when you need to sign in again",
     "Sign out",
   ]);
   await act(() => menuItem("Sign out").click());
@@ -232,7 +240,7 @@ it("offers Retry when Steam is not found", async () => {
   expect(cardButtons("steam")).toEqual(["Retry"]);
 });
 
-it("ticks Sign-in warnings in the ⋯ of every launcher with a sign-in, ran out or not", async () => {
+it("shows a bell beside the name of every launcher with a sign-in, on by default, and none in ⋯", async () => {
   mocks.logins = [
     { service: "epic", name: "Player", savedAt: 1 },
     { service: "battlenet", name: null, savedAt: 1 },
@@ -246,19 +254,30 @@ it("ticks Sign-in warnings in the ⋯ of every launcher with a sign-in, ran out 
   );
   await render();
   expect(card("battlenet").textContent).toContain("Needs sign-in");
-  for (const provider of ["epic", "battlenet"]) {
+  for (const [provider, label] of [
+    ["epic", "Epic Games"],
+    ["battlenet", "Battle.net"],
+  ]) {
+    const name = card(provider).querySelector("h2")!;
+    expect(name.textContent).toBe(label);
+    expect(name.parentElement!.contains(bell(provider))).toBe(true);
+    expect(bell(provider)!.getAttribute("aria-pressed")).toBe("true");
+    expect(bell(provider)!.title).toContain("Sign-in warnings on");
+    expect(bell(provider)!.title).toContain(label);
     await openMore(provider);
-    expect(menuItem("Sign-in warnings").getAttribute("aria-checked")).toBe(
-      "true",
-    );
+    expect(
+      [...document.body.querySelectorAll('[role^="menuitem"]')].some((item) =>
+        item.textContent?.includes("Sign-in warnings"),
+      ),
+    ).toBe(false);
     await openMore(provider);
   }
   // Steam has no sign-in, and Xbox is not signed in here.
-  expect(moreButton("steam")).toBeNull();
-  expect(moreButton("xbox")).toBeNull();
+  expect(bell("steam")).toBeNull();
+  expect(bell("xbox")).toBeNull();
 });
 
-it("turns Sign-in warnings off for that launcher only and keeps its card amber", async () => {
+it("turns sign-in warnings off with the bell for that launcher only and keeps its card amber", async () => {
   const { useAppStore } = await import("../../store");
   mocks.logins = [
     { service: "epic", name: "Player", savedAt: 1 },
@@ -269,31 +288,24 @@ it("turns Sign-in warnings off for that launcher only and keeps its card amber",
     if (command === "logins_check") return "needsSignIn";
   });
   await render();
-  await openMore("battlenet");
-  await act(() => menuItem("Sign-in warnings").click());
+  await act(() => bell("battlenet")!.click());
   expect(useAppStore.getState().settings.loginWarningsOff).toEqual([
     "battlenet",
   ]);
+  expect(bell("battlenet")!.getAttribute("aria-pressed")).toBe("false");
+  expect(bell("battlenet")!.title).toContain("Sign-in warnings off");
+  expect(bell("battlenet")!.title).toContain("Battle.net");
   expect(card("battlenet").textContent).toContain("Needs sign-in");
   expect(
     button(card("battlenet"), "Sign in again").classList.contains("bg-accent"),
   ).toBe(true);
-  await openMore("battlenet");
-  expect(menuItem("Sign-in warnings").getAttribute("aria-checked")).toBe(
-    "false",
-  );
-  await openMore("battlenet");
-  await openMore("epic");
-  expect(menuItem("Sign-in warnings").getAttribute("aria-checked")).toBe(
-    "true",
-  );
-  await openMore("epic");
-  await openMore("battlenet");
-  await act(() => menuItem("Sign-in warnings").click());
+  expect(bell("epic")!.getAttribute("aria-pressed")).toBe("true");
+  await act(() => bell("battlenet")!.click());
   expect(useAppStore.getState().settings.loginWarningsOff).toEqual([]);
+  expect(bell("battlenet")!.getAttribute("aria-pressed")).toBe("true");
 });
 
-it("keeps Sign-in warnings off after signing in again and after signing out", async () => {
+it("keeps sign-in warnings off after signing in again and after signing out", async () => {
   const { useAppStore } = await import("../../store");
   mocks.logins = [{ service: "epic", name: "Player", savedAt: 1 }];
   mocks.invoke.mockImplementation(
@@ -307,16 +319,14 @@ it("keeps Sign-in warnings off after signing in again and after signing out", as
     },
   );
   await render();
-  await openMore("epic");
-  await act(() => menuItem("Sign-in warnings").click());
+  await act(() => bell("epic")!.click());
   await act(() => button(card("epic"), "Sign in again").click());
   expect(card("epic").textContent).toContain("Signed in as Player");
+  expect(bell("epic")!.getAttribute("aria-pressed")).toBe("false");
   await openMore("epic");
-  expect(menuItem("Sign-in warnings").getAttribute("aria-checked")).toBe(
-    "false",
-  );
   await act(() => menuItem("Sign out").click());
   expect(card("epic").textContent).toContain("Not signed in");
+  expect(bell("epic")).toBeNull();
   expect(useAppStore.getState().settings.loginWarningsOff).toEqual(["epic"]);
 });
 

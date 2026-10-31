@@ -46,5 +46,6 @@
   "Manage accounts": "Управление аккаунтами",
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter считывает аккаунты Steam на этом ПК. Отдельный вход не требуется.",
   "Sign-in warnings": "Предупреждения о входе",
-  "Badge and message when you need to sign in again": "Значок и сообщение, когда нужно войти снова"
+  "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Предупреждения о входе включены: значок и сообщение, когда {{launcher}} требует повторного входа. Нажмите, чтобы выключить.",
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Предупреждения о входе выключены: ни значка, ни сообщения, когда {{launcher}} требует повторного входа. Нажмите, чтобы включить."
 }

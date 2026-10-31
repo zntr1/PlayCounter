@@ -269,6 +269,7 @@ export function LauncherAccountsView() {
           const login = logins.find((item) => item.service === service);
           const check = service ? health[service] : undefined;
           const needsSignIn = check?.status === "needsSignIn";
+          const warns = !loginWarningsOff?.includes(id);
           const busy = activity?.service === service;
           const connecting = busy && activity.kind === "connect";
           const error = service ? errors[service] : steam.error;
@@ -353,23 +354,13 @@ export function LauncherAccountsView() {
               label: t("Copy sign-in link"),
               onSelect: () => void copySignInLink(),
             });
-          if (login || needsSignIn) {
-            const warns = !loginWarningsOff?.includes(service!);
-            menuActions.push({
-              icon: warns ? Bell : BellOff,
-              label: t("Sign-in warnings"),
-              detail: t("Badge and message when you need to sign in again"),
-              checked: warns,
-              onSelect: () =>
-                useAppStore.getState().setLoginWarning(service!, !warns),
-            });
+          if (login || needsSignIn)
             menuActions.push({
               icon: LogOut,
               label: t("Sign out"),
               danger: true,
               onSelect: () => void disconnect(service!),
             });
-          }
           // Amber only when something needs the player.
           const mainButton = isSteam ? (
             supported && steam.phase !== "loading" && !connected ? (
@@ -449,12 +440,48 @@ export function LauncherAccountsView() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2
-                    id={`launcher-account-${id}`}
-                    className="text-base font-semibold text-text"
-                  >
-                    {provider.label}
-                  </h2>
+                  <div className="flex items-center gap-1">
+                    <h2
+                      id={`launcher-account-${id}`}
+                      className="text-base font-semibold text-text"
+                    >
+                      {provider.label}
+                    </h2>
+                    {service && (login || needsSignIn) ? (
+                      <button
+                        type="button"
+                        data-controller-item="library-option"
+                        aria-label={t("Sign-in warnings")}
+                        aria-pressed={warns}
+                        title={
+                          warns
+                            ? t(
+                                "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.",
+                                { launcher: provider.label },
+                              )
+                            : t(
+                                "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.",
+                                { launcher: provider.label },
+                              )
+                        }
+                        onClick={() =>
+                          useAppStore
+                            .getState()
+                            .setLoginWarning(service, !warns)
+                        }
+                        className={clsx(
+                          "inline-grid h-6 w-6 shrink-0 place-items-center rounded-md transition hover:bg-surface-hover hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60",
+                          warns ? "text-text-muted" : "text-text-faint",
+                        )}
+                      >
+                        {warns ? (
+                          <Bell size={14} aria-hidden="true" />
+                        ) : (
+                          <BellOff size={14} aria-hidden="true" />
+                        )}
+                      </button>
+                    ) : null}
+                  </div>
                   <p
                     aria-live="polite"
                     className={clsx(
@@ -575,8 +602,6 @@ type CardMenuAction = {
   icon: LucideIcon;
   label: string;
   detail?: string | null;
-  /** On/off items show a check while on. */
-  checked?: boolean;
   danger?: boolean;
   disabled?: boolean;
   onSelect: () => void;
@@ -618,7 +643,6 @@ function CardMenu({
               icon={action.icon}
               danger={action.danger}
               disabled={action.disabled}
-              selected={action.checked}
               onClick={() => {
                 menu.close();
                 action.onSelect();

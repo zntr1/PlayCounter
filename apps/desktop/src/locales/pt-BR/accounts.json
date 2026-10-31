@@ -46,5 +46,6 @@
   "Manage accounts": "Gerenciar contas",
   "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "O PlayCounter lê as contas do Steam deste PC. Não é necessário fazer login separadamente.",
   "Sign-in warnings": "Alertas de login",
-  "Badge and message when you need to sign in again": "Selo e mensagem quando você precisar entrar novamente"
+  "Sign-in warnings on: a badge and a message when {{launcher}} needs you to sign in again. Click to turn them off.": "Alertas de login ativados: um selo e uma mensagem quando você precisar entrar novamente no {{launcher}}. Clique para desativá-los.",
+  "Sign-in warnings off: no badge and no message when {{launcher}} needs you to sign in again. Click to turn them on.": "Alertas de login desativados: sem selo nem mensagem quando você precisar entrar novamente no {{launcher}}. Clique para ativá-los."
 }
