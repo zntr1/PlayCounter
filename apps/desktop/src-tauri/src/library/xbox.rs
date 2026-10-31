@@ -109,7 +109,10 @@ fn scan_local_games_windows() -> XboxLocalScan {
         for entry in entries.flatten() {
             if Instant::now() >= deadline {
                 partial = true;
-                warnings.push("Executable scanning reached its 45 second budget.".to_string());
+                warnings.push(
+                    "Not every installed Xbox game could be checked in time, so some may show as not installed. Scan again to retry."
+                        .to_string(),
+                );
                 break 'roots;
             }
             let Ok(file_type) = entry.file_type() else {

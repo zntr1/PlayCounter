@@ -45,7 +45,7 @@
   "Could not read the file you picked: {{error}}": "Impossible de lire le fichier choisi : {{error}}",
   "Pick the game's executable, rather than a Battle.net launcher or helper.": "Choisissez l'exécutable du jeu, plutôt qu'un launcher ou un utilitaire Battle.net.",
   "Pick the game's executable, rather than an Epic Games launcher or helper.": "Choisissez l'exécutable du jeu, plutôt qu'un launcher ou un utilitaire Epic Games.",
-  "Executable scanning reached its 45 second budget.": "L'analyse des exécutables a atteint sa limite de 45 secondes.",
+  "Not every installed Xbox game could be checked in time, so some may show as not installed. Scan again to retry.": "Tous les jeux Xbox installés n'ont pas pu être vérifiés à temps : certains peuvent apparaître comme non installés. Cliquez sur « Relancer l'analyse » pour réessayer.",
   "Steam installation was not found.": "Installation de Steam introuvable.",
   "Steam library was capped at {{limit}} games.": "La bibliothèque Steam a été limitée à {{limit}} jeux.",
   "Steam no longer has this game installed.": "Ce jeu n'est plus installé dans Steam.",
