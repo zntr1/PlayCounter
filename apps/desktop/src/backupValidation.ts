@@ -398,6 +398,7 @@ const settings = object({}, {
   controllerNavigationEnabled: boolean,
   hideToTrayOnGameStart: boolean,
   autoAddInstalledGames: boolean,
+  loginWarningsOff: array(nonempty),
   showInstallInSteam: boolean,
   showAdultArt: boolean,
 } satisfies Record<keyof Settings, Validator>);

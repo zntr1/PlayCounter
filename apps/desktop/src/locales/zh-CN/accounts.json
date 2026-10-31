@@ -44,5 +44,7 @@
   "Launcher accounts": "启动器账户",
   "Manage your launcher connections in one place.": "在同一个页面管理你的启动器连接。",
   "Manage accounts": "管理账户",
-  "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter 会读取这台电脑上的 Steam 账户，无需单独登录。"
+  "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter 会读取这台电脑上的 Steam 账户，无需单独登录。",
+  "Sign-in warnings": "登录警告",
+  "Badge and message when you need to sign in again": "需要重新登录时显示徽章和消息"
 }

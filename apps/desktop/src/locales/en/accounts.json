@@ -44,5 +44,7 @@
   "Launcher accounts": "Launcher accounts",
   "Manage your launcher connections in one place.": "Manage your launcher connections in one place.",
   "Manage accounts": "Manage accounts",
-  "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed."
+  "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.",
+  "Sign-in warnings": "Sign-in warnings",
+  "Badge and message when you need to sign in again": "Badge and message when you need to sign in again"
 }

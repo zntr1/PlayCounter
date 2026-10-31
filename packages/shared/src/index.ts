@@ -771,6 +771,9 @@ export interface Settings {
   /** Add newly installed Steam and Battle.net games after the first import
    * from that launcher. Absent = enabled. */
   autoAddInstalledGames?: boolean;
+  /** Launchers (xbox, epic, battlenet) whose sign-in running out adds no badge
+   * to Launcher accounts and shows no message. Absent = every launcher warns. */
+  loginWarningsOff?: string[];
   /** Offer Steam's installer for imported Steam games that are not installed.
    * Absent = disabled. */
   showInstallInSteam?: boolean;

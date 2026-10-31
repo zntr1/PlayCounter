@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
@@ -16,6 +18,7 @@ import {
   recordLoginHealth,
   startLauncherAccountChecks,
   useLoginHealth,
+  useLoginWarningCount,
 } from "./loginHealth";
 
 const endpoint = "https://api.playcounter.test";
@@ -27,7 +30,10 @@ beforeEach(() => {
   for (const service of ["xbox", "epic", "battlenet"] as const)
     clearLoginHealth(service);
   useLoginHealth.setState({ checks: {} });
-  useAppStore.setState({ toasts: [] });
+  useAppStore.setState((state) => ({
+    toasts: [],
+    settings: { ...state.settings, loginWarningsOff: [] },
+  }));
   saved = [{ service: "xbox", name: "Player", savedAt: 1 }];
   useKeptLogins.setState({ logins: saved });
   invokeMock.mockImplementation(async (command: string) => {
@@ -153,7 +159,9 @@ describe("silent launcher account checks", () => {
     let finish!: (status: string) => void;
     invokeMock.mockImplementation((command: string) =>
       command === "logins_check"
-        ? new Promise((resolve) => { finish = resolve; })
+        ? new Promise((resolve) => {
+            finish = resolve;
+          })
         : Promise.resolve(saved),
     );
     const pending = checkLauncherLogin("xbox", endpoint);
@@ -210,5 +218,72 @@ describe("silent launcher account checks", () => {
     expect(
       invokeMock.mock.calls.filter(([command]) => command === "logins_check"),
     ).toHaveLength(calls);
+  });
+});
+
+describe("sign-in warnings per launcher", () => {
+  /** Epic and Battle.net are signed in on this PC, and both sign-ins ran out. */
+  function bothSignInsRanOut() {
+    saved = [
+      { service: "epic", name: "Player", savedAt: 1 },
+      { service: "battlenet", name: null, savedAt: 1 },
+    ];
+    useKeptLogins.setState({ logins: saved });
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "logins_check" ? "needsSignIn" : saved,
+    );
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("shows no message for a launcher whose warnings are off; the others still warn", async () => {
+    bothSignInsRanOut();
+    useAppStore.getState().setLoginWarning("battlenet", false);
+    await checkLauncherLogins(endpoint, 0);
+    expect(useAppStore.getState().toasts.map((toast) => toast.title)).toEqual([
+      "Epic Games needs you to sign in again.",
+    ]);
+  });
+
+  it("keeps checking a launcher whose warnings are off, so the app knows its real state", async () => {
+    bothSignInsRanOut();
+    useAppStore.getState().setLoginWarning("battlenet", false);
+    await checkLauncherLogins(endpoint, 0);
+    expect(invokeMock).toHaveBeenCalledWith("logins_check", {
+      service: "battlenet",
+      apiEndpoint: endpoint,
+    });
+    expect(getLoginHealth("battlenet")?.status).toBe("needsSignIn");
+  });
+
+  it("leaves a launcher with warnings off out of the Launcher accounts badge, and puts it back at once when ticked again", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const Badge = () => String(useLoginWarningCount());
+    await act(() => root.render(createElement(Badge)));
+    await act(() => {
+      recordLoginHealth("epic", "needsSignIn");
+      recordLoginHealth("battlenet", "needsSignIn");
+    });
+    expect(container.textContent).toBe("2");
+    await act(() => useAppStore.getState().setLoginWarning("battlenet", false));
+    expect(container.textContent).toBe("1");
+    await act(() => useAppStore.getState().setLoginWarning("battlenet", true));
+    expect(container.textContent).toBe("2");
+    await act(() => root.unmount());
+  });
+
+  it("stays off when the launcher is signed in again and its sign-in runs out once more", () => {
+    useAppStore.getState().setLoginWarning("battlenet", false);
+    recordLoginHealth("battlenet", "needsSignIn");
+    recordLoginHealth("battlenet", "valid");
+    recordLoginHealth("battlenet", "needsSignIn");
+    expect(useAppStore.getState().toasts).toHaveLength(0);
+    expect(useAppStore.getState().settings.loginWarningsOff).toEqual([
+      "battlenet",
+    ]);
   });
 });

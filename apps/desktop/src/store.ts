@@ -66,6 +66,7 @@ import type {
 import { libraryEntryKey } from "./library/types";
 import { scopedExeLinkKey } from "./library/scopedLinks";
 import { isGenericExeName } from "./library/exeCandidates";
+import type { KeptLoginService } from "./library/keptLogins";
 import type { LocalLinkRef } from "./localLinks";
 import type { RejectedGameFile } from "./rejectedGameFiles";
 import {
@@ -706,6 +707,7 @@ export type AppState = {
   recordAutomaticDetection: (keys: string[]) => boolean;
   carryAutoDetectedGameKey: (from: string, to: string) => void;
   setEmulatorIgnoredSetting: (emulatorId: string, ignored: boolean) => void;
+  setLoginWarning: (service: KeptLoginService, enabled: boolean) => void;
   setDevNumber: (
     key: "pollingIntervalSeconds" | "unmatchedRetryDays",
     value: number,
@@ -2100,6 +2102,17 @@ export const useAppStore = create<AppState>((set, get) => ({
           ...state.settings,
           ignoredEmulatorIds: [...ignoredEmulatorIds].sort(),
         },
+      };
+    });
+    persistSoon();
+  },
+  setLoginWarning: (service, enabled) => {
+    set((state) => {
+      const off = new Set(state.settings.loginWarningsOff ?? []);
+      if (enabled) off.delete(service);
+      else off.add(service);
+      return {
+        settings: { ...state.settings, loginWarningsOff: [...off].sort() },
       };
     });
     persistSoon();

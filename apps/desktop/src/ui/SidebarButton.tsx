@@ -51,10 +51,10 @@ export function SidebarButton({
      badge on the icon's own corner, ringed in the sidebar's colour the way a
      presence dot is. A loose speck in the button's corner reads as a
      rendering glitch rather than as state. */
-  const statusTitle = badge
-    ? t("{{badge}} waiting for review", { badge })
-    : warn
-      ? t("Needs your attention")
+  const statusTitle = warn
+    ? t("Needs your attention")
+    : badge
+      ? t("{{badge}} waiting for review", { badge })
       : isPlaying
         ? t("Currently tracking play session")
         : undefined;

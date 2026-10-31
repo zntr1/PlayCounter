@@ -44,5 +44,7 @@
   "Launcher accounts": "Konta launcherów",
   "Manage your launcher connections in one place.": "Zarządzaj połączeniami z launcherami w jednym miejscu.",
   "Manage accounts": "Zarządzaj kontami",
-  "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter odczytuje konta Steam z tego komputera. Osobne logowanie nie jest potrzebne."
+  "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.": "PlayCounter odczytuje konta Steam z tego komputera. Osobne logowanie nie jest potrzebne.",
+  "Sign-in warnings": "Ostrzeżenia o logowaniu",
+  "Badge and message when you need to sign in again": "Odznaka i komunikat, gdy trzeba zalogować się ponownie"
 }

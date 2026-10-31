@@ -50,7 +50,7 @@ import {
 import { initializeTracker } from "../tracker";
 import {
   useLauncherAccountChecks,
-  useLoginHealth,
+  useLoginWarningCount,
 } from "../library/loginHealth";
 import { importProfile } from "../library/importProfiles";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
@@ -524,12 +524,7 @@ export function App() {
   const isOffline = useIsOffline();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   useLauncherAccountChecks(apiEndpoint);
-  const accountsNeedingSignIn = useLoginHealth(
-    (state) =>
-      Object.values(state.checks).filter(
-        (check) => check.status === "needsSignIn",
-      ).length,
-  );
+  const accountsNeedingSignIn = useLoginWarningCount();
   const addToast = useAppStore((state) => state.addToast);
   const needsReviewCount = useNeedsReviewCount();
   const hasAmbiguousMatch = useAppStore(

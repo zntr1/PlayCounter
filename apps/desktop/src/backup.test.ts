@@ -377,6 +377,14 @@ describe("backup import", () => {
       "settings.ignoredEmulatorIds[0]",
       { settings: { ignoredEmulatorIds: [null] } },
     ],
+    [
+      "settings.loginWarningsOff",
+      { settings: { loginWarningsOff: "battlenet" } },
+    ],
+    [
+      "settings.loginWarningsOff[0]",
+      { settings: { loginWarningsOff: [null] } },
+    ],
     ["settings.apiEndpoint", { settings: { apiEndpoint: 42 } }],
     [
       "settings.libraryShowShelves",

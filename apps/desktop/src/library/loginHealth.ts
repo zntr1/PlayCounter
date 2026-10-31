@@ -43,6 +43,19 @@ export function getLoginHealth(service: KeptLoginService) {
   return useLoginHealth.getState().checks[service];
 }
 
+/** The badge on Launcher accounts: sign-ins that ran out, leaving out the
+ *  launchers whose sign-in warnings the player turned off. */
+export function useLoginWarningCount() {
+  const off = useAppStore((state) => state.settings.loginWarningsOff);
+  return useLoginHealth(
+    (state) =>
+      Object.entries(state.checks).filter(
+        ([service, check]) =>
+          check.status === "needsSignIn" && !off?.includes(service),
+      ).length,
+  );
+}
+
 function putHealth(service: KeptLoginService, value?: LoginHealth) {
   useLoginHealth.setState(({ checks }) => {
     const next = { ...checks };
@@ -75,13 +88,14 @@ export function recordLoginHealth(
   if (status === "valid") notifiedExpired.delete(service);
   if (status === "needsSignIn" && !notifiedExpired.has(service)) {
     notifiedExpired.add(service);
-    useAppStore.getState().addToast({
-      tone: "info",
-      title: t("{{launcher}} needs you to sign in again.", {
-        launcher: labels[service],
-      }),
-      detail: t("Open Launcher accounts to reconnect."),
-    });
+    if (!useAppStore.getState().settings.loginWarningsOff?.includes(service))
+      useAppStore.getState().addToast({
+        tone: "info",
+        title: t("{{launcher}} needs you to sign in again.", {
+          launcher: labels[service],
+        }),
+        detail: t("Open Launcher accounts to reconnect."),
+      });
   }
 }
 

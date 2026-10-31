@@ -7,6 +7,8 @@ import {
 } from "react";
 import clsx from "clsx";
 import {
+  Bell,
+  BellOff,
   Copy,
   Download,
   HardDrive,
@@ -72,6 +74,9 @@ export function LauncherAccountsView() {
   const logins = useAllKeptLogins();
   const health = useLoginHealth((state) => state.checks);
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  const loginWarningsOff = useAppStore(
+    (state) => state.settings.loginWarningsOff,
+  );
   const addToast = useAppStore((state) => state.addToast);
   const [steam, setSteam] = useState<SteamState>({
     phase: "loading",
@@ -348,13 +353,23 @@ export function LauncherAccountsView() {
               label: t("Copy sign-in link"),
               onSelect: () => void copySignInLink(),
             });
-          if (login || needsSignIn)
+          if (login || needsSignIn) {
+            const warns = !loginWarningsOff?.includes(service!);
+            menuActions.push({
+              icon: warns ? Bell : BellOff,
+              label: t("Sign-in warnings"),
+              detail: t("Badge and message when you need to sign in again"),
+              checked: warns,
+              onSelect: () =>
+                useAppStore.getState().setLoginWarning(service!, !warns),
+            });
             menuActions.push({
               icon: LogOut,
               label: t("Sign out"),
               danger: true,
               onSelect: () => void disconnect(service!),
             });
+          }
           // Amber only when something needs the player.
           const mainButton = isSteam ? (
             supported && steam.phase !== "loading" && !connected ? (
@@ -560,6 +575,8 @@ type CardMenuAction = {
   icon: LucideIcon;
   label: string;
   detail?: string | null;
+  /** On/off items show a check while on. */
+  checked?: boolean;
   danger?: boolean;
   disabled?: boolean;
   onSelect: () => void;
@@ -601,6 +618,7 @@ function CardMenu({
               icon={action.icon}
               danger={action.danger}
               disabled={action.disabled}
+              selected={action.checked}
               onClick={() => {
                 menu.close();
                 action.onSelect();
