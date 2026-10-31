@@ -135,5 +135,6 @@
   "Unlocked {{date}}": "解锁于 {{date}}",
   "Unlocked, date unknown": "已解锁，日期未知",
   "{{score}} G": "{{score}} G",
-  "{{percent}} of players": "{{percent}} 的玩家"
+  "{{percent}} of players": "{{percent}} 的玩家",
+  "Your Xbox achievements are not loaded yet.": "你的 Xbox 成就尚未加载。"
 }

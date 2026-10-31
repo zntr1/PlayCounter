@@ -647,5 +647,6 @@
   "PlayCounter can't close {{gameName}}": "PlayCounter can't close {{gameName}}",
   "It may run as administrator or be protected by anti-cheat. Close it in the game.": "It may run as administrator or be protected by anti-cheat. Close it in the game.",
   "OK": "OK",
-  "Achievements": "Achievements"
+  "Achievements": "Achievements",
+  "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import.": "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import."
 }

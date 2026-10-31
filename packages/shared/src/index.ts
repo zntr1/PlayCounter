@@ -1,4 +1,8 @@
-import type { AchievementList, XboxAchievementError } from "./achievements.js";
+import type {
+  AchievementList,
+  XboxAchievementError,
+  XboxImportStartRequest,
+} from "./achievements.js";
 
 export type GameSource = "igdb" | "community" | "custom";
 
@@ -123,8 +127,9 @@ export interface LibraryReverseResolveResponse {
 /**
  * Xbox playtime import: the local desktop client has no on-disk source for
  * Xbox/Game Pass playtime, so the whole OAuth + Xbox Live lookup + IGDB
- * matching flow runs server-side. The desktop client never receives a
- * Microsoft or Xbox Live token.
+ * matching flow runs server-side. The desktop's web UI never receives a
+ * Microsoft or Xbox Live token. Its Rust part keeps the Microsoft refresh
+ * token (encrypted), which only this server can redeem.
  */
 export interface XboxImportStartResponse {
   /** Opaque handle correlating the browser sign-in with later polling. */
@@ -185,6 +190,37 @@ export type XboxImportResultResponse =
 export interface XboxImportCancelRequest {
   attemptId: string;
 }
+
+/** Sent only by the desktop's Rust part, once the import is done. */
+export interface XboxLoginClaimRequest {
+  attemptId: string;
+  /** The secret behind `keepLogin.claimHash`. */
+  claim: string;
+}
+
+export interface XboxKeptLogin {
+  refreshToken: string;
+  /** Display-only, for "Signed in as". */
+  gamertag?: string;
+}
+
+/** An import with a kept sign-in instead of the browser. */
+export interface XboxImportSyncRequest extends Omit<
+  XboxImportStartRequest,
+  "keepLogin"
+> {
+  refreshToken: string;
+}
+
+export type XboxImportSyncResponse = {
+  /** Poll /api/xbox/import/result with it, as after a browser sign-in. */
+  attemptId: string;
+  /** Microsoft renews the sign-in on every use: keep this one. */
+  refreshToken: string;
+};
+
+/** 401: sign in again. 502: Microsoft did not answer; keep the sign-in. */
+export type XboxImportSyncError = { error: "login_expired" | "unavailable" };
 
 export interface EmulatorContentSuggestionPayload extends EmulatorContentRef {
   /** Server-local igdb_games.id. Local custom games use negative ids. */

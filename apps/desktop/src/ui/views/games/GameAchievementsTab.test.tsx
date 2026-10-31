@@ -24,7 +24,14 @@ vi.mock("../../../achievements/xboxLists", async (importOriginal) => {
   };
 });
 
+const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
+vi.mock("../../../library/providers/xbox", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../library/providers/xbox")>()),
+  refreshXboxAchievementList: refreshMock,
+}));
+
 import { useXboxAchievementLists } from "../../../achievements/xboxLists";
+import { useKeptLogins } from "../../../library/keptLogins";
 import { useAppStore } from "../../../store";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 
@@ -265,6 +272,94 @@ describe("Xbox", () => {
     expect(container.textContent).toContain("30 of 100 Gamerscore");
     expect(container.textContent).toContain("Refresh with Microsoft");
     expect(loadListMock).not.toHaveBeenCalled();
+  });
+
+  describe("with a kept sign-in", () => {
+    const kept = [{ service: "xbox" as const, name: "Chief", savedAt: 1 }];
+    const buttons = () =>
+      [...container.querySelectorAll("button")].map((button) =>
+        button.textContent?.trim(),
+      );
+
+    beforeEach(() => {
+      invokeMock.mockImplementation(async (command: string) =>
+        command === "logins_list" ? kept : undefined,
+      );
+      useKeptLogins.setState({ logins: kept });
+    });
+
+    afterEach(() => {
+      useKeptLogins.setState({ logins: [] });
+      refreshMock.mockReset();
+    });
+
+    it("loads without a Microsoft sign-in", async () => {
+      loadListMock.mockImplementation(async (titleId: string) => {
+        useXboxAchievementLists.setState({ lists: new Map([[titleId, null]]) });
+        return null;
+      });
+      await render([{ provider: "xbox", externalId: "1234" }]);
+
+      expect(container.textContent).toContain(
+        "Your Xbox achievements are not loaded yet.",
+      );
+      expect(buttons()).toContain("Refresh");
+      expect(buttons()).not.toContain("Sign in with Microsoft");
+    });
+
+    it("refreshes a saved list without Microsoft in the button", async () => {
+      useXboxAchievementLists.setState({
+        lists: new Map([
+          [
+            "1234",
+            {
+              provider: "xbox",
+              externalId: "1234",
+              fetchedAt: Date.UTC(2026, 9, 20),
+              achievements: [achievement("Win", { unlocked: true })],
+            },
+          ],
+        ]),
+      });
+      await render([{ provider: "xbox", externalId: "1234" }]);
+
+      expect(buttons()).toContain("Refresh");
+      expect(buttons()).not.toContain("Refresh with Microsoft");
+    });
+
+    it("shows no sign-in link while it reads, until Microsoft asks for one", async () => {
+      loadListMock.mockImplementation(async (titleId: string) => {
+        useXboxAchievementLists.setState({ lists: new Map([[titleId, null]]) });
+        return null;
+      });
+      let askForSignIn: ((url: string) => void) | undefined;
+      refreshMock.mockImplementation(
+        (
+          _titleId: string,
+          options: { onAuthorizeUrl?: (url: string) => void },
+        ) => {
+          askForSignIn = options.onAuthorizeUrl;
+          return new Promise(() => {});
+        },
+      );
+      await render([{ provider: "xbox", externalId: "1234" }]);
+      const refresh = [...container.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Refresh",
+      );
+      await act(async () => refresh!.click());
+
+      expect(container.textContent).toContain("Reading your Xbox history…");
+      expect(buttons()).not.toContain("Copy sign-in link");
+
+      // Microsoft refused the kept sign-in: the browser sign-in takes over.
+      await act(async () =>
+        askForSignIn?.(
+          "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+        ),
+      );
+      expect(container.textContent).toContain("Waiting for Microsoft sign-in…");
+      expect(buttons()).toContain("Copy sign-in link");
+    });
   });
 });
 

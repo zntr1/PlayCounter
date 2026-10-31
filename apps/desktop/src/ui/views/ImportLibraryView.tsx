@@ -6,6 +6,7 @@ import {
   FolderOpen,
   HardDrive,
   LibraryBig,
+  LogOut,
   RefreshCw,
   Search,
   Share2,
@@ -21,6 +22,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
 import { saveXboxAchievementLists } from "../../achievements/xboxLists";
+import {
+  refreshKeptLogins,
+  signOutKeptLogin,
+  useKeptLogin,
+} from "../../library/keptLogins";
+import { currentPlatform } from "../../platform";
 import { rememberSteamImportAccount } from "../../library/libraryAutoAddState";
 import { importExeCandidates } from "../../library/exeCandidates";
 import { buildLibraryImportCommit } from "../../library/importPlan";
@@ -109,6 +116,9 @@ export function ImportLibraryView() {
   const isEpic = providerId === "epic";
   /** Installed games on this PC, plus an optional account sign-in. */
   const scansInstalls = isBattleNet || isEpic;
+  const keptLogin = useKeptLogin(
+    isXbox ? "xbox" : isEpic ? "epic" : isBattleNet ? "battlenet" : null,
+  );
   const providerName = LIBRARY_PROVIDER_LABELS[providerId];
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const existingImports = useAppStore((state) => state.libraryImports);
@@ -528,6 +538,22 @@ export function ImportLibraryView() {
       if (!isCurrentImport(signal)) return;
       setError(formatError(cause));
       setPhase("ready");
+    } finally {
+      // A sign-in may have been kept, renewed or refused.
+      if (isXbox || includeAccount) void refreshKeptLogins();
+    }
+  }
+
+  async function signOut() {
+    if (!keptLogin) return;
+    try {
+      await signOutKeptLogin(keptLogin.service);
+    } catch (cause) {
+      addToast({
+        tone: "error",
+        title: t("Could not sign out. Please try again."),
+        detail: formatError(cause),
+      });
     }
   }
 
@@ -1027,10 +1053,10 @@ export function ImportLibraryView() {
           waitingForServer
             ? t("The server is busy. Your import will continue automatically…")
             : isXbox
-              ? authorizeUrl
+              ? authorizeUrl || xboxProgress === "history"
                 ? xboxScanLabel(xboxProgress)
                 : t("Connecting to Xbox…")
-              : accountSignInScan && !scan
+              : accountSignInScan && !scan && !keptLogin
                 ? isEpic
                   ? t(
                       "Complete Epic Games sign-in in the window that opened. Reading your library and playtime…",
@@ -1132,9 +1158,14 @@ export function ImportLibraryView() {
             </h2>
             <p className="mt-1 text-sm text-text-muted">
               {isXbox
-                ? t(
-                    "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
-                  )
+                ? // Only Windows keeps sign-ins (see keptLogins).
+                  currentPlatform() === "windows"
+                  ? t(
+                      "Microsoft sign-in opens in your browser. PlayCounter never sees your password and keeps you signed in on this PC, so the next import needs no sign-in.",
+                    )
+                  : t(
+                      "Microsoft sign-in opens in your browser. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
+                    )
                 : isBattleNet
                   ? t(
                       "Sign in to include games from your account, even when they are not installed. You can also scan installed games without signing in.",
@@ -1147,7 +1178,7 @@ export function ImportLibraryView() {
                         "Your game list stays on this PC. PlayCounter only looks up the Steam AppIDs it found, to get game names and covers.",
                       )}
             </p>
-            {isXbox ? (
+            {isXbox && !keptLogin ? (
               <p className="mt-2 text-sm text-text-faint">
                 {t(
                   "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.",
@@ -1157,10 +1188,26 @@ export function ImportLibraryView() {
             {scansInstalls ? (
               <p className="mt-2 text-sm text-text-faint">
                 {t(
-                  "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.",
+                  "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.",
                   { providerName },
                 )}
               </p>
+            ) : null}
+            {keptLogin ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-text-muted">
+                <span>
+                  {keptLogin.name
+                    ? t("Signed in as {{name}}.", { name: keptLogin.name })
+                    : t("Signed in.")}
+                </span>
+                <Button
+                  variant="ghost"
+                  icon={LogOut}
+                  onClick={() => void signOut()}
+                >
+                  {t("Sign out")}
+                </Button>
+              </div>
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1194,7 +1241,7 @@ export function ImportLibraryView() {
                 ))}
               </Select>
             ) : null}
-            {isXbox ? (
+            {isXbox && !keptLogin ? (
               <Button
                 variant="secondary"
                 icon={Copy}
@@ -1224,10 +1271,12 @@ export function ImportLibraryView() {
               onClick={() => requestScan(scansInstalls)}
             >
               {scansInstalls
-                ? t("Sign in and find games")
+                ? keptLogin
+                  ? t("Find games")
+                  : t("Sign in and find games")
                 : scan
                   ? t("Scan again")
-                  : isXbox
+                  : isXbox && !keptLogin
                     ? t("Sign in and find games")
                     : t("Find games")}
             </Button>

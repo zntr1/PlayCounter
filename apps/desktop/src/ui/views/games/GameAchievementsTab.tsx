@@ -23,6 +23,7 @@ import {
   useXboxAchievementLists,
 } from "../../../achievements/xboxLists";
 import { refreshXboxAchievementList } from "../../../library/providers/xbox";
+import { refreshKeptLogins, useKeptLogin } from "../../../library/keptLogins";
 import { appLocale, getT } from "../../../i18n";
 import { useAppStore } from "../../../store";
 import { Button, Pill } from "../../primitives";
@@ -208,6 +209,7 @@ function xboxErrorText(
 function XboxAchievements({ titleId }: { titleId: string }) {
   const list = useXboxAchievementLists((state) => state.lists.get(titleId));
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  const kept = useKeptLogin("xbox") !== null;
   const [storageFailed, setStorageFailed] = useState(false);
   const [signIn, setSignIn] = useState<{ url?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -256,12 +258,15 @@ function XboxAchievements({ titleId }: { titleId: string }) {
         controller.current = null;
         setSignIn(null);
       }
+      // The sign-in may have been kept, renewed or refused.
+      void refreshKeptLogins();
     }
   }
 
   const waiting = signIn ? (
     <XboxSignInWait
       url={signIn.url}
+      kept={kept}
       onCancel={() => {
         controller.current?.abort();
         controller.current = null;
@@ -283,12 +288,14 @@ function XboxAchievements({ titleId }: { titleId: string }) {
           action={
             signIn ? null : (
               <Button variant="primary" onClick={() => void refresh()}>
-                {t("Sign in with Microsoft")}
+                {kept ? t("Refresh") : t("Sign in with Microsoft")}
               </Button>
             )
           }
         >
-          {t("Sign in with Microsoft to load your Xbox achievements.")}
+          {kept
+            ? t("Your Xbox achievements are not loaded yet.")
+            : t("Sign in with Microsoft to load your Xbox achievements.")}
         </Message>
         {waiting}
         {errorLine}
@@ -310,7 +317,7 @@ function XboxAchievements({ titleId }: { titleId: string }) {
             disabled={signIn !== null}
             onClick={() => void refresh()}
           >
-            {t("Refresh with Microsoft")}
+            {kept ? t("Refresh") : t("Refresh with Microsoft")}
           </Button>
         }
       />

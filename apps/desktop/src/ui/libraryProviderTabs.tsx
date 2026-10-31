@@ -5,6 +5,7 @@ import steamIconUrl from "../../../../assets/steam/Steam_icon_logo.svg";
 import xboxIconUrl from "../../../../assets/xbox/xbox-logo.svg";
 import type { BuiltinImportProviderId } from "../library/importProviders";
 import { getT } from "../i18n";
+import { currentPlatform } from "../platform";
 
 const t = getT("myGames");
 
@@ -58,9 +59,15 @@ export function providerTabConfigs(): readonly ProviderTabConfig[] {
       subtitle: t("Imported from your Xbox account."),
       importCtaLabel: t("Import more from Xbox"),
       emptyTitle: t("No Xbox games imported yet"),
-      emptyBody: t(
-        "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
-      ),
+      // Only Windows keeps sign-ins (see keptLogins).
+      emptyBody:
+        currentPlatform() === "windows"
+          ? t(
+              "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password and keeps you signed in on this PC for the next import.",
+            )
+          : t(
+              "Sign in with Microsoft in your browser, then confirm the games PlayCounter recognized. Most of them need your confirmation. PlayCounter never sees your password, and your sign-in is thrown away as soon as the import is done.",
+            ),
       firstImportCtaLabel: t("Import from Xbox"),
       import: { kind: "builtin", platforms: ["windows", "macos", "linux"] },
     },

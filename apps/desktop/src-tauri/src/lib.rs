@@ -562,6 +562,11 @@ pub fn run() {
             library::battlenet_account::library_cancel_battlenet_account,
             library::epic_account::library_epic_account_games,
             library::epic_account::library_cancel_epic_account,
+            library::kept_logins::logins_list,
+            library::kept_logins::logins_sign_out,
+            library::xbox_login::xbox_login_claim_hash,
+            library::xbox_login::xbox_login_keep,
+            library::xbox_login::xbox_login_sync_start,
             library::library_inspect_executable,
             library::library_launch_app,
             library::library_verify_installs,
@@ -589,6 +594,7 @@ pub fn run() {
         ])
         .setup(|app| {
             setup_tray(app.handle())?;
+            library::battlenet_account::clean_up_profile(app.handle());
             // The loader (including its startup-error/retry state) and the app
             // call main_window_ready after painting. A timer must not bypass
             // that handshake: a slow WebView would expose an empty, immovable

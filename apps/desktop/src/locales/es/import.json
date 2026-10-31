@@ -6,7 +6,6 @@
   "World of Warcraft example": "Ejemplo de World of Warcraft",
   "PlayCounter tracks new sessions automatically.": "PlayCounter registra las nuevas sesiones automáticamente.",
   "Use the Microsoft account that belongs to your Xbox gamertag. If you are not sure, copy the sign-in link and open it in a private browser window.": "Usa la cuenta de Microsoft de tu gamertag de Xbox. Si no estás seguro, copia el enlace de inicio de sesión y ábrelo en una ventana privada del navegador.",
-  "Sign-in opens in a temporary {{providerName}} window and is discarded when the scan finishes. Each sign-in lets you choose an account.": "El inicio de sesión se abre en una ventana temporal de {{providerName}} y se descarta al terminar el escaneo. En cada inicio de sesión puedes elegir una cuenta.",
   "Copy sign-in link": "Copiar enlace de inicio de sesión",
   "Find installed games": "Buscar juegos instalados",
   "PlayCounter cannot look up {{providerName}} games right now. Your library was scanned, but importing is switched off so you do not end up with wrongly named games.": "PlayCounter no puede buscar juegos de {{providerName}} ahora mismo. Se escaneó tu biblioteca, pero la importación está desactivada para que no acabes con juegos con nombres incorrectos.",
@@ -203,5 +202,11 @@
   "Account {{id}}": "Cuenta {{id}}",
   "{{provider}} game {{id}}": "Juego de {{provider}} {{id}}",
   "The server is still busy. Please try importing again after the pause.": "El servidor sigue ocupado. Vuelve a intentar la importación después de la pausa.",
-  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Actualizar los logros de Xbox requiere un servidor de PlayCounter más reciente. Vuelve a intentarlo más tarde."
+  "Refreshing Xbox achievements needs a newer PlayCounter server. Try again later.": "Actualizar los logros de Xbox requiere un servidor de PlayCounter más reciente. Vuelve a intentarlo más tarde.",
+  "Microsoft sign-in opens in your browser. PlayCounter never sees your password and keeps you signed in on this PC, so the next import needs no sign-in.": "El inicio de sesión de Microsoft se abre en tu navegador. PlayCounter nunca ve tu contraseña y mantiene tu sesión iniciada en este PC, así que la próxima importación no necesita iniciar sesión.",
+  "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.": "El inicio de sesión se abre en una ventana aparte de {{providerName}}. PlayCounter mantiene tu sesión iniciada en este PC hasta que cierres sesión.",
+  "Signed in as {{name}}.": "Sesión iniciada como {{name}}.",
+  "Signed in.": "Sesión iniciada.",
+  "Sign out": "Cerrar sesión",
+  "Could not sign out. Please try again.": "No se pudo cerrar sesión. Vuelve a intentarlo."
 }

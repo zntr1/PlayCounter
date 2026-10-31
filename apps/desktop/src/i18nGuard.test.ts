@@ -590,6 +590,8 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Quit PlayCounter",
   "Reset is only available in the main PlayCounter window.",
   "Some executable folders",
+  "Sign-ins are kept only on Windows.",
+  "Sign-ins can only be removed in PlayCounter.",
   "Steam localconfig has no Software section.",
   "Steam localconfig has no Steam section.",
   "Steam localconfig has no Valve section.",
@@ -607,11 +609,13 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Unexpected character in VDF file at {cursor}.",
   "Unexpected closing brace in VDF file.",
   "Unknown hotkey action",
+  "Unknown sign-in.",
   "Unsupported Battle.net database field.",
   "Unsupported Microsoft sign-in URL.",
   "Unsupported external URL.",
   "User ignored processes folder is unavailable.",
   "VDF nesting exceeds the supported depth.",
+  "Windows could not encrypt the sign-in.",
 ]);
 
 const RUST_LOG =

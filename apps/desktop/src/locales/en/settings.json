@@ -338,5 +338,11 @@
   "Every {{count, number}} hours_one": "Every hour",
   "Every {{count, number}} hours_other": "Every {{count, number}} hours",
   "Every {{count, number}} minutes_one": "Every minute",
-  "Every {{count, number}} minutes_other": "Every {{count, number}} minutes"
+  "Every {{count, number}} minutes_other": "Every {{count, number}} minutes",
+  "{{providerName}} sign-in": "{{providerName}} sign-in",
+  "Signed in as {{name}}.": "Signed in as {{name}}.",
+  "Signed in.": "Signed in.",
+  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.",
+  "Sign out": "Sign out",
+  "Could not sign out. Please try again.": "Could not sign out. Please try again."
 }
