@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { Gamepad2, Search } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { getT } from "../../i18n";
 import type { ImportGroupKey } from "../../library/importGroups";
 import { GameCover } from "../GameCover";
@@ -91,81 +91,16 @@ export function ImportQueue({
         ) : (
           shown.map((row) => {
             const id = row.game.externalId;
-            const active = id === currentId;
-            const asks = row.group === "attention" && !skipped.has(id);
             return (
-              <div
+              <QueueRow
                 key={id}
-                className={clsx(
-                  "relative flex min-w-0 items-center gap-2.5 rounded-xl pl-3 pr-2 transition",
-                  active ? "sidebar-button-active" : "hover:bg-surface-hover",
-                )}
-              >
-                {row.selectable ? (
-                  <input
-                    type="checkbox"
-                    checked={selected.has(id)}
-                    onChange={(event) => onSelected(id, event.target.checked)}
-                    aria-label={t("Import {{name}}", { name: row.title })}
-                    className="h-4 w-4 shrink-0 accent-[rgb(var(--color-accent))]"
-                  />
-                ) : (
-                  <span
-                    aria-hidden="true"
-                    className={clsx(
-                      "h-2 w-2 shrink-0 rounded-full",
-                      asks ? "bg-accent" : "border border-text-faint",
-                      "mx-1",
-                    )}
-                  />
-                )}
-                <button
-                  type="button"
-                  aria-current={active}
-                  onClick={() => onShow(id)}
-                  onDoubleClick={
-                    row.selectable
-                      ? () => onSelected(id, !selected.has(id))
-                      : undefined
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key !== " " || !row.selectable) return;
-                    event.preventDefault();
-                    if (!event.repeat) onSelected(id, !selected.has(id));
-                  }}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-                >
-                  <span
-                    className={clsx(
-                      "grid h-10 w-[30px] shrink-0 place-items-center overflow-hidden rounded bg-surface-hover text-text-faint",
-                      row.group === "unavailable" && "grayscale brightness-50",
-                    )}
-                  >
-                    {row.coverUrl ? (
-                      <GameCover
-                        src={row.coverUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <Gamepad2 size={14} aria-hidden="true" />
-                    )}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-text">
-                      {row.title}
-                    </span>
-                    <span
-                      className={clsx(
-                        "block truncate text-xs",
-                        asks ? "text-accent-ink" : "text-text-muted",
-                      )}
-                    >
-                      {rowFact(row, skipped.has(id))}
-                    </span>
-                  </span>
-                </button>
-              </div>
+                row={row}
+                active={id === currentId}
+                checked={selected.has(id)}
+                skipped={skipped.has(id)}
+                onShow={onShow}
+                onSelected={onSelected}
+              />
             );
           })
         )}
@@ -173,3 +108,94 @@ export function ImportQueue({
     </section>
   );
 }
+
+/** One game in the list. Redrawn only when its own row or state changes. */
+const QueueRow = memo(function QueueRow({
+  row,
+  active,
+  checked,
+  skipped,
+  onShow,
+  onSelected,
+}: {
+  row: ImportRow;
+  active: boolean;
+  checked: boolean;
+  skipped: boolean;
+  onShow: (externalId: string) => void;
+  onSelected: (externalId: string, checked: boolean) => void;
+}) {
+  const id = row.game.externalId;
+  const asks = row.group === "attention" && !skipped;
+  return (
+    <div
+      className={clsx(
+        "relative flex min-w-0 items-center gap-2.5 rounded-xl pl-3 pr-2 transition",
+        active ? "sidebar-button-active" : "hover:bg-surface-hover",
+      )}
+    >
+      {row.selectable ? (
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onSelected(id, event.target.checked)}
+          aria-label={t("Import {{name}}", { name: row.title })}
+          className="h-4 w-4 shrink-0 accent-[rgb(var(--color-accent))]"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className={clsx(
+            "h-2 w-2 shrink-0 rounded-full",
+            asks ? "bg-accent" : "border border-text-faint",
+            "mx-1",
+          )}
+        />
+      )}
+      <button
+        type="button"
+        aria-current={active}
+        onClick={() => onShow(id)}
+        onDoubleClick={
+          row.selectable ? () => onSelected(id, !checked) : undefined
+        }
+        onKeyDown={(event) => {
+          if (event.key !== " " || !row.selectable) return;
+          event.preventDefault();
+          if (!event.repeat) onSelected(id, !checked);
+        }}
+        className="flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <span
+          className={clsx(
+            "grid h-10 w-[30px] shrink-0 place-items-center overflow-hidden rounded bg-surface-hover text-text-faint",
+            row.group === "unavailable" && "grayscale brightness-50",
+          )}
+        >
+          {row.coverUrl ? (
+            <GameCover
+              src={row.coverUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <Gamepad2 size={14} aria-hidden="true" />
+          )}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-text">
+            {row.title}
+          </span>
+          <span
+            className={clsx(
+              "block truncate text-xs",
+              asks ? "text-accent-ink" : "text-text-muted",
+            )}
+          >
+            {rowFact(row, skipped)}
+          </span>
+        </span>
+      </button>
+    </div>
+  );
+});

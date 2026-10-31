@@ -9,7 +9,7 @@ import {
   effectiveTotalSeconds,
   trackedSinceReadSeconds,
 } from "./playtimeAdjustments";
-import { appLocale, getT } from "./i18n";
+import { appLanguage, appLocale, getT } from "./i18n";
 
 const t = getT("achievements");
 
@@ -772,6 +772,30 @@ function monthLabel(scope: string) {
   });
 }
 
+// Every evaluation (each import, each session end) titles every milestone
+// reached so far. A title only changes with the language, the number format or
+// the game's name, so it is made once per language.
+const reachedTitles = new Map<string, string>();
+let reachedTitlesLocale = "";
+
+function reachedTitle(
+  milestone: { category: MilestoneCategory; scope: string; threshold: number },
+  gameName?: string,
+) {
+  const locale = `${appLanguage()}\u0000${appLocale()}`;
+  if (locale !== reachedTitlesLocale) {
+    reachedTitles.clear();
+    reachedTitlesLocale = locale;
+  }
+  const key = `${milestone.category}\u0000${milestone.scope}\u0000${milestone.threshold}\u0000${gameName ?? ""}`;
+  let title = reachedTitles.get(key);
+  if (title === undefined) {
+    title = milestoneTitle(milestone, gameName);
+    reachedTitles.set(key, title);
+  }
+  return title;
+}
+
 function addThresholds(
   notifications: AppNotification[],
   category: MilestoneCategory,
@@ -789,7 +813,7 @@ function addThresholds(
         ? `milestone:${category}:${scope}:${threshold}`
         : `milestone:${category}:${threshold}`,
       kind: kindForCategory(category),
-      title: milestoneTitle({ category, scope, threshold }, game?.name),
+      title: reachedTitle({ category, scope, threshold }, game?.name),
       coverUrl: game?.coverUrl,
       ...(game ? { params: { game: game.name } } : {}),
       createdAt,

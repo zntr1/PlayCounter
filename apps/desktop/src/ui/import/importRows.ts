@@ -33,8 +33,18 @@ export type ImportRow = {
   showsFile: boolean;
 };
 
+/** The parts of the import its rows are made from. */
+export type ImportRowSource = Pick<
+  ImportSession,
+  "providerId" | "scan" | "resolved" | "completed"
+>;
+
+// A game whose row did not change keeps the same row object, so the list only
+// redraws the games an import or a pick changed.
+const previousRows = new WeakMap<ScannedLibraryGame, ImportRow>();
+
 export function importRows(
-  session: ImportSession,
+  session: ImportRowSource,
   libraryImports: ReadonlyMap<string, LibraryImportEntry>,
   ignoredProcesses: ReadonlySet<string>,
   selectable: ReadonlySet<string>,
@@ -45,7 +55,7 @@ export function importRows(
     const resolved = session.resolved.get(key);
     const existing = libraryImports.get(key);
     const completed = session.completed.has(game.externalId);
-    return {
+    return unchangedRow({
       game,
       key,
       title:
@@ -70,8 +80,21 @@ export function importRows(
       selectable: selectable.has(game.externalId),
       needsGame: needsGameChoice(providerId, game, resolved),
       showsFile: showsFileChoice(providerId, game, resolved, ignoredProcesses),
-    };
+    });
   });
+}
+
+function unchangedRow(row: ImportRow) {
+  const previous = previousRows.get(row.game);
+  if (
+    previous &&
+    (Object.keys(row) as (keyof ImportRow)[]).every((field) =>
+      Object.is(previous[field], row[field]),
+    )
+  )
+    return previous;
+  previousRows.set(row.game, row);
+  return row;
 }
 
 function noImportablePlaytime(game: ScannedLibraryGame) {

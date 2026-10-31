@@ -2166,15 +2166,41 @@ export function customHeroArtKey(game: {
   return `${game.source ?? "custom"}:${game.gameId}`;
 }
 
+// Every card in My Games asks for its journal with the same three maps, and
+// building the index reads all of them: one index per set of maps. The store
+// replaces a map when it changes, so the same map means the same contents.
+let lastPersonalIdentity:
+  | {
+      gameMetadata: AppState["gameMetadata"];
+      exeCache: AppState["exeCache"];
+      libraryImports: AppState["libraryImports"];
+      identity: (game: GameIdentityRef) => string;
+    }
+  | undefined;
+
 export function personalGameIdentity(
   state: Pick<AppState, "gameMetadata" | "exeCache" | "libraryImports">,
 ) {
+  if (
+    lastPersonalIdentity?.gameMetadata === state.gameMetadata &&
+    lastPersonalIdentity.exeCache === state.exeCache &&
+    lastPersonalIdentity.libraryImports === state.libraryImports
+  )
+    return lastPersonalIdentity.identity;
   const resolver = createGameIdentityResolver(
     state.gameMetadata,
     state.exeCache,
     state.libraryImports,
   );
-  return (game: GameIdentityRef) => resolvedCanonicalGameKey(game, resolver);
+  const identity = (game: GameIdentityRef) =>
+    resolvedCanonicalGameKey(game, resolver);
+  lastPersonalIdentity = {
+    gameMetadata: state.gameMetadata,
+    exeCache: state.exeCache,
+    libraryImports: state.libraryImports,
+    identity,
+  };
+  return identity;
 }
 
 export function getGameJournal(

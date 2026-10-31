@@ -31,14 +31,17 @@ import { AccountLine, LauncherLogo } from "./LauncherIdentity";
 
 const t = getT("import");
 
-/** Rows of the scan, sorted onto the four shelves. */
+/** Rows of the scan, sorted onto the four shelves. Showing, checking or
+ *  skipping a game leaves them as they are. */
 export function useImportGroups(session: ImportSession) {
   const libraryImports = useAppStore((state) => state.libraryImports);
   const ignoredProcesses = useAppStore((state) => state.ignoredProcesses);
+  const { providerId, scan, resolved, completed } = session;
   return useMemo(() => {
-    const selectable = selectableGameIds(session);
+    const source = { providerId, scan, resolved, completed };
+    const selectable = selectableGameIds(source);
     const rows = importRows(
-      session,
+      source,
       libraryImports,
       ignoredProcesses,
       selectable,
@@ -50,8 +53,7 @@ export function useImportGroups(session: ImportSession) {
       ]),
     ) as Record<ImportGroupKey, ImportRow[]>;
     return { rows, groups, selectable };
-    // The session object changes with every update of the import.
-  }, [session, libraryImports, ignoredProcesses]);
+  }, [providerId, scan, resolved, completed, libraryImports, ignoredProcesses]);
 }
 
 /** The launcher, who is read, and the buttons to change or repeat the scan. */

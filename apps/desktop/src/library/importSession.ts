@@ -589,7 +589,12 @@ export function selectedExecutableFor(
 }
 
 /** Games whose checkbox counts: importable and not imported just now. */
-export function selectableGameIds(current: ImportSession) {
+export function selectableGameIds(
+  current: Pick<
+    ImportSession,
+    "providerId" | "scan" | "resolved" | "completed"
+  >,
+) {
   const { providerId } = current;
   const app = useAppStore.getState();
   const ids = new Set<string>();
