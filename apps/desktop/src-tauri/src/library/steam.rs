@@ -170,8 +170,8 @@ fn scan_root(
     let deadline = Instant::now() + EXE_WALK_BUDGET;
     for game in &mut games {
         if Instant::now() >= deadline {
+            // The games left get no file list and ask for it in the review.
             partial = true;
-            warnings.push("Executable scanning reached its 45 second budget.".to_string());
             break;
         }
         let Some(install_path) = game.install_path.as_deref() else {
@@ -182,16 +182,8 @@ fn scan_root(
         }
         let (executables, capped) = scan_executables(Path::new(install_path), deadline);
         game.executables = executables;
-        if capped
-            && !warnings
-                .iter()
-                .any(|warning| warning.starts_with("Some executable folders"))
-        {
-            warnings.push(
-                "Some executable folders reached their safe scan limit; found games remain usable."
-                    .to_string(),
-            );
-        }
+        // A game whose file lies beyond the limit asks for it in the review,
+        // so the limit needs no warning of its own.
         partial |= capped;
     }
     Ok(ScanResult {
@@ -706,6 +698,21 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["440", "730"]
         );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_big_game_folder_stops_the_file_search_without_a_warning() {
+        let root = steam_root_with_manifest("730", "4", true);
+        add_playtime(&root, 7, "730", 10);
+        let folder = root.join("steamapps").join("common").join("Test Game");
+        for index in 0..700 {
+            fs::write(folder.join(format!("asset{index}.pak")), b"").unwrap();
+        }
+
+        let result = scan_root(&root, 7, None).unwrap();
+        assert!(result.partial, "the folder did not reach the scan limit");
+        assert!(result.warnings.is_empty(), "{:?}", result.warnings);
         let _ = fs::remove_dir_all(root);
     }
 

@@ -1,5 +1,6 @@
 import type { Session } from "@playcounter/shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { applyLanguage } from "./i18n";
 import {
   evaluateMilestones,
   migrateAwardedMilestones,
@@ -582,5 +583,35 @@ describe("game award names", () => {
     expect(
       again.awardedMilestones.find((item) => item.id === id)?.gameName,
     ).toBe("Test Game");
+  });
+});
+
+describe("award titles", () => {
+  afterEach(() => applyLanguage("en"));
+
+  it("follow a language switch, also for awards already saved", () => {
+    const input = {
+      sessions: [session(30)],
+      archivedSeconds: 0,
+      archivedGameSeconds: {},
+      playtimeAdjustments: {},
+      verifiedContributions: 0,
+      milestonesInitializedAt: "2026-08-01T00:00:00.000Z",
+      now: new Date("2026-08-09T12:00:00.000Z"),
+    };
+    const id = "milestone:game:community:42:25";
+    const english = evaluateMilestones({ ...input, awardedMilestones: [] });
+    expect(
+      english.awardedMilestones.find((item) => item.id === id)?.title,
+    ).toBe("25 hours played in Test Game");
+
+    applyLanguage("de");
+    const german = evaluateMilestones({
+      ...input,
+      awardedMilestones: english.awardedMilestones,
+    });
+    expect(german.awardedMilestones.find((item) => item.id === id)?.title).toBe(
+      "25 Stunden in Test Game gespielt",
+    );
   });
 });

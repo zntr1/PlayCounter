@@ -2284,31 +2284,20 @@ export function MyGamesView({
                     activeImportableProviderConfig?.import.platforms.includes(
                       platform,
                     ) ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          variant="secondary"
-                          icon={UsersRound}
-                          data-controller-item="view-link"
-                          onClick={() => setActiveView("accounts")}
-                          className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
-                        >
-                          {getT("accounts")("Manage accounts")}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          icon={Download}
-                          data-controller-item="view-link"
-                          onClick={() => {
-                            setLibraryImportProvider(
-                              activeImportableProviderConfig.id,
-                            );
-                            setActiveView("import");
-                          }}
-                          className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
-                        >
-                          {activeImportableProviderConfig.importCtaLabel}
-                        </Button>
-                      </div>
+                      <Button
+                        variant="secondary"
+                        icon={Download}
+                        data-controller-item="view-link"
+                        onClick={() => {
+                          setLibraryImportProvider(
+                            activeImportableProviderConfig.id,
+                          );
+                          setActiveView("import");
+                        }}
+                        className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
+                      >
+                        {activeImportableProviderConfig.importCtaLabel}
+                      </Button>
                     ) : null}
                     {levelUpOffers.length > 0 && !tourDemo.active ? (
                       <Button

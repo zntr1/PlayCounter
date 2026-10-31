@@ -76,6 +76,44 @@ function button(scope: ParentNode, label: string) {
   return found;
 }
 
+function hasButton(scope: ParentNode, label: string) {
+  return [...scope.querySelectorAll("button")].some(
+    (item) => item.textContent?.trim() === label,
+  );
+}
+
+/** The card's ⋯ button, or null when it has nothing more to offer. */
+function moreButton(provider: string) {
+  return card(provider).querySelector<HTMLButtonElement>(
+    'button[aria-label="More"]',
+  );
+}
+
+async function openMore(provider: string) {
+  const more = moreButton(provider);
+  if (!more) throw new Error(`No ⋯ for ${provider}`);
+  await act(() => more.click());
+}
+
+function menuItems() {
+  return [
+    ...document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+  ];
+}
+
+function menuItem(label: string) {
+  const found = menuItems().find((item) => item.textContent?.startsWith(label));
+  if (!found) throw new Error(`Menu item not found: ${label}`);
+  return found;
+}
+
+/** The buttons a card shows, without its ⋯. */
+function cardButtons(provider: string) {
+  return [...card(provider).querySelectorAll("button")]
+    .filter((item) => item.getAttribute("aria-label") !== "More")
+    .map((item) => item.textContent?.trim());
+}
+
 beforeEach(() => {
   vi.resetModules();
   vi.resetAllMocks();
@@ -121,9 +159,74 @@ it("shows all launchers with saved connection status and a local Steam account",
   expect(card("battlenet").textContent).toContain("Signed in");
   expect(card("xbox").textContent).toContain("Not signed in");
   expect(card("steam").textContent).toContain("Steam account: Local Player");
-  expect(card("steam").textContent).toContain("Local library");
   expect(card("steam").textContent).not.toContain("Sign out");
   expect(mocks.scan).not.toHaveBeenCalled();
+});
+
+it("shows one button per card, amber only where something needs you", async () => {
+  mocks.logins = [
+    { service: "battlenet", name: null, savedAt: 1 },
+    { service: "epic", name: "Player", savedAt: 1 },
+  ];
+  mocks.invoke.mockImplementation(
+    async (command: string, args?: { service: string }) => {
+      if (command === "logins_list") return mocks.logins;
+      if (command === "logins_check")
+        return args?.service === "epic" ? "needsSignIn" : "valid";
+    },
+  );
+  await render();
+  expect(cardButtons("steam")).toEqual(["Import games"]);
+  expect(cardButtons("battlenet")).toEqual(["Import games"]);
+  expect(cardButtons("xbox")).toEqual(["Sign in"]);
+  expect(cardButtons("epic")).toEqual(["Sign in again"]);
+  const amber = (provider: string) =>
+    button(card(provider), cardButtons(provider)[0]!).classList.contains(
+      "bg-accent",
+    );
+  expect(amber("steam")).toBe(false);
+  expect(amber("battlenet")).toBe(false);
+  expect(amber("xbox")).toBe(true);
+  expect(amber("epic")).toBe(true);
+});
+
+it("keeps Check connection, Find installed games and Sign out in the ⋯ menu", async () => {
+  mocks.logins = [{ service: "epic", name: "Epic Player", savedAt: 1 }];
+  await render();
+  // The status shows once, under the name.
+  expect(card("epic").textContent!.split("Signed in").length - 1).toBe(1);
+  expect(hasButton(card("epic"), "Sign out")).toBe(false);
+  expect(hasButton(card("epic"), "Check connection")).toBe(false);
+  expect(hasButton(card("epic"), "Find installed games")).toBe(false);
+
+  await openMore("epic");
+  expect(menuItems().map((item) => item.textContent)).toEqual([
+    expect.stringMatching(/^Check connectionLast checked /),
+    "Find installed games",
+    "Sign out",
+  ]);
+  await act(() => menuItem("Sign out").click());
+  expect(mocks.invoke).toHaveBeenCalledWith("logins_sign_out", {
+    service: "epic",
+  });
+  expect(card("epic").textContent).toContain("Not signed in");
+});
+
+it("has no ⋯ where there is nothing more to do", async () => {
+  await render();
+  expect(moreButton("steam")).toBeNull();
+  expect(moreButton("xbox")).toBeNull();
+  await openMore("epic");
+  expect(menuItems().map((item) => item.textContent)).toEqual([
+    "Find installed games",
+  ]);
+});
+
+it("offers Retry when Steam is not found", async () => {
+  mocks.steamAvailable = false;
+  await render();
+  expect(card("steam").textContent).toContain("Steam not found");
+  expect(cardButtons("steam")).toEqual(["Retry"]);
 });
 
 it("shows a confirmed expired connection and only signs in again on an explicit click", async () => {
@@ -150,10 +253,11 @@ it("preserves saved accounts during check failures and offers a silent retry", a
   });
   await render();
   expect(card("battlenet").textContent).toContain("Could not check connection");
-  expect(button(card("battlenet"), "Sign out")).toBeDefined();
   expect(button(card("battlenet"), "Import games")).toBeDefined();
+  await openMore("battlenet");
+  expect(menuItem("Sign out")).toBeDefined();
   result = "valid";
-  await act(() => button(card("battlenet"), "Check connection").click());
+  await act(() => menuItem("Check connection").click());
   expect(card("battlenet").textContent).toContain("Signed in");
   expect(
     mocks.invoke.mock.calls.some(
@@ -194,7 +298,8 @@ it("signs out just the selected account and leaves library data intact", async (
     { service: "xbox", name: "Xbox Player", savedAt: 1 },
   ];
   await render();
-  await act(() => button(card("epic"), "Sign out").click());
+  await openMore("epic");
+  await act(() => menuItem("Sign out").click());
   expect(mocks.invoke).toHaveBeenCalledWith("logins_sign_out", {
     service: "epic",
   });
@@ -204,6 +309,7 @@ it("signs out just the selected account and leaves library data intact", async (
 });
 
 it("requires Battle.net's playtime notice before starting its account connection", async () => {
+  const { useAppStore } = await import("../../store");
   await render();
   await act(() => button(card("battlenet"), "Sign in").click());
   expect(mocks.scan).not.toHaveBeenCalled();
@@ -217,6 +323,20 @@ it("requires Battle.net's playtime notice before starting its account connection
     expect.objectContaining({ requestId: expect.any(String) }),
   );
   expect(mocks.scan).not.toHaveBeenCalled();
+  // The importer and this page share the answer.
+  expect(useAppStore.getState().battleNetPlaytimeNoticeSeen).toBe(true);
+});
+
+it("signs in to Battle.net without the notice once it was answered", async () => {
+  const { useAppStore } = await import("../../store");
+  useAppStore.setState({ battleNetPlaytimeNoticeSeen: true });
+  await render();
+  await act(() => button(card("battlenet"), "Sign in").click());
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(mocks.invoke).toHaveBeenCalledWith(
+    "library_battlenet_sign_in",
+    expect.objectContaining({ requestId: expect.any(String) }),
+  );
 });
 
 it("shows a Battle.net connection saved after leaving and returning to accounts", async () => {
@@ -305,7 +425,8 @@ it("aborts an active connection when leaving the accounts view", async () => {
 
 it("passes installed-only actions to the importer without signing in", async () => {
   await render();
-  await act(() => button(card("epic"), "Find installed games").click());
+  await openMore("epic");
+  await act(() => menuItem("Find installed games").click());
   expect(mocks.openImport).toHaveBeenCalledWith("epic", "installed");
   expect(mocks.scan).not.toHaveBeenCalled();
 });

@@ -1,15 +1,22 @@
-import { useEffect, useRef, useState, type ComponentProps } from "react";
-import { Trans } from "react-i18next";
 import {
-  CheckCircle2,
-  Clock3,
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
+import clsx from "clsx";
+import {
   Copy,
   Download,
   HardDrive,
+  Loader2,
   LockKeyhole,
   LogIn,
   LogOut,
+  MoreHorizontal,
   RefreshCw,
+  type LucideIcon,
 } from "lucide-react";
 import type { XboxImportProgressStage } from "@playcounter/shared";
 import { appLocale, getT } from "../../i18n";
@@ -36,10 +43,18 @@ import {
 import { openLauncherImport } from "../../library/importRequest";
 import type { LocalLibraryAccount } from "../../library/types";
 import { providerTabConfigs } from "../libraryProviderTabs";
-import { Button as SharedButton, Modal } from "../primitives";
+import {
+  Button as SharedButton,
+  ContextMenu,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  IconButton,
+  useAnchoredMenu,
+} from "../primitives";
+import { BattleNetPlaytimeNotice } from "../import/BattleNetPlaytimeNotice";
 
 const t = getT("accounts");
-const importT = getT("import");
+const commonT = getT("common");
 
 function Button(props: ComponentProps<typeof SharedButton>) {
   return <SharedButton data-controller-item="library-option" {...props} />;
@@ -250,33 +265,11 @@ export function LauncherAccountsView() {
           const check = service ? health[service] : undefined;
           const needsSignIn = check?.status === "needsSignIn";
           const busy = activity?.service === service;
+          const connecting = busy && activity.kind === "connect";
           const error = service ? errors[service] : steam.error;
           const localAccount =
             steam.accounts.find((account) => account.mostRecent) ??
             steam.accounts[0];
-          const status = !supported
-            ? t("Not available on this platform")
-            : isSteam
-              ? steam.phase === "loading"
-                ? t("Checking…")
-                : steam.phase === "missing"
-                  ? t("Steam not found")
-                  : steam.phase === "error"
-                    ? t("Could not connect. Please try again.")
-                    : localAccount
-                      ? t("Local library")
-                      : t("No local Steam accounts found")
-              : needsSignIn
-                ? t("Needs sign-in")
-                : login
-                  ? check?.status === "checking"
-                    ? t("Checking…")
-                    : check?.status === "unavailable"
-                      ? t("Could not check connection")
-                      : t("Signed in")
-                  : platform !== "windows"
-                    ? t("Sign-in needed for each import")
-                    : t("Not signed in");
           const connected =
             supported &&
             (isSteam
@@ -285,6 +278,147 @@ export function LauncherAccountsView() {
                 !needsSignIn &&
                 check?.status !== "unavailable" &&
                 check?.status !== "checking");
+          const checking = check?.status === "checking";
+          const tone = connected ? "ok" : needsSignIn ? "warn" : "off";
+          const statusSpin =
+            connecting ||
+            checking ||
+            (isSteam && supported && steam.phase === "loading");
+          const statusText = isSteam
+            ? !supported
+              ? t("Not available on this platform")
+              : steam.phase === "loading"
+                ? t("Checking…")
+                : steam.phase === "missing"
+                  ? t("Steam not found")
+                  : steam.phase === "error"
+                    ? t("Could not connect. Please try again.")
+                    : localAccount
+                      ? t("Steam account: {{name}}", {
+                          name:
+                            localAccount.personaName ||
+                            String(localAccount.accountId),
+                        })
+                      : t("No local Steam accounts found")
+            : !supported
+              ? t("Not available on this platform")
+              : connecting
+                ? t("Connecting…")
+                : needsSignIn
+                  ? t("Needs sign-in")
+                  : login
+                    ? checking
+                      ? t("Checking…")
+                      : check?.status === "unavailable"
+                        ? t("Could not check connection")
+                        : login.name
+                          ? t("Signed in as {{name}}", { name: login.name })
+                          : t("Signed in")
+                    : platform !== "windows"
+                      ? t("Sign-in needed for each import")
+                      : t("Not signed in");
+          // Everything but the one main button goes into ⋯.
+          const menuActions: CardMenuAction[] = [];
+          if (login && !needsSignIn)
+            menuActions.push({
+              icon: RefreshCw,
+              label: t("Check connection"),
+              detail: checking
+                ? t("Checking…")
+                : check?.checkedAt != null
+                  ? t("Last checked {{time}}", {
+                      time: new Date(check.checkedAt).toLocaleTimeString(
+                        appLocale(),
+                        { hour: "2-digit", minute: "2-digit" },
+                      ),
+                    })
+                  : null,
+              disabled: checking,
+              onSelect: () => void checkLauncherLogin(service!, apiEndpoint),
+            });
+          if ((id === "epic" || id === "battlenet") && supported)
+            menuActions.push({
+              icon: HardDrive,
+              label: t("Find installed games"),
+              onSelect: () => openLauncherImport(id, "installed"),
+            });
+          if (id === "xbox" && authorizeUrl && !busy)
+            menuActions.push({
+              icon: Copy,
+              label: t("Copy sign-in link"),
+              onSelect: () => void copySignInLink(),
+            });
+          if (login || needsSignIn)
+            menuActions.push({
+              icon: LogOut,
+              label: t("Sign out"),
+              danger: true,
+              onSelect: () => void disconnect(service!),
+            });
+          // Amber only when something needs the player.
+          const mainButton = isSteam ? (
+            supported && steam.phase !== "loading" && !connected ? (
+              <Button
+                icon={RefreshCw}
+                variant="secondary"
+                className="w-full"
+                disabled={Boolean(activity)}
+                onClick={() => setSteamAttempt((previous) => previous + 1)}
+              >
+                {t("Retry")}
+              </Button>
+            ) : (
+              <Button
+                icon={Download}
+                variant="secondary"
+                className="w-full"
+                disabled={!connected || Boolean(activity)}
+                onClick={() => openLauncherImport("steam")}
+              >
+                {t("Import games")}
+              </Button>
+            )
+          ) : needsSignIn ? (
+            <Button
+              icon={LogIn}
+              variant="primary"
+              className="w-full"
+              disabled={!supported || Boolean(activity)}
+              onClick={() => void connect(service!)}
+            >
+              {t("Sign in again")}
+            </Button>
+          ) : login ? (
+            <Button
+              icon={Download}
+              variant="secondary"
+              className="w-full"
+              disabled={!supported || Boolean(activity)}
+              onClick={() => openLauncherImport(id)}
+            >
+              {t("Import games")}
+            </Button>
+          ) : (
+            <Button
+              icon={LogIn}
+              variant="primary"
+              className="w-full"
+              disabled={!supported || Boolean(activity)}
+              onClick={() => {
+                if (platform !== "windows") openLauncherImport(id);
+                else if (
+                  id === "battlenet" &&
+                  !useAppStore.getState().battleNetPlaytimeNoticeSeen
+                )
+                  setBattleNetNotice(true);
+                else void connect(service!);
+              }}
+            >
+              {platform !== "windows" && id === "xbox"
+                ? t("Sign in and import")
+                : t("Sign in")}
+            </Button>
+          );
           return (
             <section
               key={id}
@@ -307,59 +441,63 @@ export function LauncherAccountsView() {
                     {provider.label}
                   </h2>
                   <p
-                    className={`mt-0.5 flex items-center gap-1.5 text-xs ${connected ? "text-success" : "text-text-muted"}`}
+                    aria-live="polite"
+                    className={clsx(
+                      "mt-0.5 flex items-center gap-2 text-sm",
+                      tone === "warn" ? "text-warning" : "text-text-muted",
+                    )}
                   >
-                    {connected ? (
-                      <CheckCircle2
+                    {statusSpin ? (
+                      <Loader2
                         size={13}
-                        className="shrink-0"
                         aria-hidden="true"
+                        className="shrink-0 animate-spin"
                       />
-                    ) : null}
-                    {status}
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className={clsx(
+                          "h-2 w-2 shrink-0 rounded-full",
+                          tone === "ok"
+                            ? "bg-success"
+                            : tone === "warn"
+                              ? "bg-warning"
+                              : "border border-text-faint",
+                        )}
+                      />
+                    )}
+                    <span className="min-w-0 break-words">{statusText}</span>
                   </p>
-                  {check?.checkedAt != null ? (
-                    <p className="mt-1 text-xs text-text-faint">
-                      {t("Last checked {{time}}", {
-                        time: new Date(check.checkedAt).toLocaleTimeString(
-                          appLocale(),
-                          { hour: "2-digit", minute: "2-digit" },
-                        ),
-                      })}
-                    </p>
-                  ) : null}
                 </div>
+                <CardMenu actions={menuActions} disabled={Boolean(activity)} />
               </div>
-              <div className="mt-4 flex-1 space-y-2 text-sm text-text-muted">
-                {login?.name && !needsSignIn ? (
-                  <p className="break-words font-medium text-text">
-                    {t("Signed in as {{name}}", { name: login.name })}
-                  </p>
-                ) : null}
-                {isSteam && localAccount ? (
-                  <p className="break-words font-medium text-text">
-                    {t("Steam account: {{name}}", {
-                      name:
-                        localAccount.personaName ||
-                        String(localAccount.accountId),
-                    })}
-                  </p>
-                ) : null}
-                <p>
-                  {isSteam
-                    ? t(
-                        "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.",
-                      )
-                    : id === "xbox"
-                      ? t("Your Xbox library, playtime and achievements.")
-                      : id === "epic"
-                        ? t("Your Epic Games library and recorded playtime.")
-                        : t(
-                            "Your Battle.net library. PlayCounter tracks new sessions.",
-                          )}
+              <p className="mt-3 flex-1 text-sm text-text-muted">
+                {isSteam
+                  ? t(
+                      "PlayCounter reads Steam accounts on this PC. No separate sign-in is needed.",
+                    )
+                  : id === "xbox"
+                    ? t("Your Xbox library, playtime and achievements.")
+                    : id === "epic"
+                      ? t("Your Epic Games library and recorded playtime.")
+                      : t(
+                          "Your Battle.net library. PlayCounter tracks new sessions.",
+                        )}
+              </p>
+              {error ? (
+                <p
+                  role="alert"
+                  className="mt-3 break-words text-sm text-danger"
+                >
+                  {error}
                 </p>
-              </div>
-              {busy && activity.kind === "connect" ? (
+              ) : null}
+              {notice === service && service ? (
+                <p role="status" className="mt-3 text-sm text-success">
+                  {t("Connected. You can now choose games to import.")}
+                </p>
+              ) : null}
+              {connecting ? (
                 <div
                   role="status"
                   className="mt-4 rounded-lg bg-accent-tint p-3 text-sm text-accent-ink"
@@ -392,173 +530,23 @@ export function LauncherAccountsView() {
                     ) : null}
                   </div>
                 </div>
-              ) : null}
-              {error ? (
-                <p
-                  role="alert"
-                  className="mt-3 break-words text-sm text-danger"
-                >
-                  {error}
-                </p>
-              ) : null}
-              {notice === service && service ? (
-                <p role="status" className="mt-3 text-sm text-success">
-                  {t("Connected. You can now choose games to import.")}
-                </p>
-              ) : null}
-              <div className="mt-5 flex flex-wrap gap-2">
-                {isSteam ? (
-                  <>
-                    <Button
-                      icon={Download}
-                      variant="primary"
-                      disabled={!connected || Boolean(activity)}
-                      onClick={() => openLauncherImport("steam")}
-                    >
-                      {t("Import games")}
-                    </Button>
-                    {supported && steam.phase !== "loading" ? (
-                      <Button
-                        icon={RefreshCw}
-                        variant="ghost"
-                        disabled={Boolean(activity)}
-                        onClick={() =>
-                          setSteamAttempt((previous) => previous + 1)
-                        }
-                      >
-                        {t("Retry")}
-                      </Button>
-                    ) : null}
-                  </>
-                ) : login || needsSignIn ? (
-                  <>
-                    {needsSignIn ? (
-                      <Button
-                        icon={LogIn}
-                        variant="primary"
-                        loading={busy && activity.kind === "connect"}
-                        disabled={!supported || Boolean(activity)}
-                        onClick={() => void connect(service!)}
-                      >
-                        {t("Sign in again")}
-                      </Button>
-                    ) : (
-                      <Button
-                        icon={Download}
-                        variant="primary"
-                        disabled={!supported || Boolean(activity)}
-                        onClick={() => openLauncherImport(id)}
-                      >
-                        {t("Import games")}
-                      </Button>
-                    )}
-                    <Button
-                      icon={LogOut}
-                      variant="ghost"
-                      loading={busy && activity.kind === "disconnect"}
-                      disabled={Boolean(activity)}
-                      onClick={() => void disconnect(service!)}
-                    >
-                      {t("Sign out")}
-                    </Button>
-                    {!needsSignIn && service ? (
-                      <Button
-                        icon={RefreshCw}
-                        variant="ghost"
-                        loading={check?.status === "checking"}
-                        disabled={
-                          Boolean(activity) || check?.status === "checking"
-                        }
-                        onClick={() =>
-                          void checkLauncherLogin(service, apiEndpoint)
-                        }
-                      >
-                        {t("Check connection")}
-                      </Button>
-                    ) : null}
-                  </>
-                ) : (
-                  <Button
-                    icon={LogIn}
-                    variant="primary"
-                    loading={busy}
-                    disabled={!supported || Boolean(activity)}
-                    onClick={() => {
-                      if (platform !== "windows") openLauncherImport(id);
-                      else if (id === "battlenet") setBattleNetNotice(true);
-                      else void connect(service!);
-                    }}
-                  >
-                    {busy
-                      ? t("Connecting…")
-                      : platform !== "windows" && id === "xbox"
-                        ? t("Sign in and import")
-                        : t("Sign in")}
-                  </Button>
-                )}
-                {(id === "epic" || id === "battlenet") && supported ? (
-                  <Button
-                    icon={HardDrive}
-                    variant="ghost"
-                    disabled={Boolean(activity)}
-                    onClick={() => openLauncherImport(id, "installed")}
-                  >
-                    {t("Find installed games")}
-                  </Button>
-                ) : null}
-                {id === "xbox" && authorizeUrl && !busy ? (
-                  <Button
-                    icon={Copy}
-                    variant="ghost"
-                    onClick={() => void copySignInLink()}
-                  >
-                    {t("Copy sign-in link")}
-                  </Button>
-                ) : null}
-              </div>
+              ) : (
+                <div className="mt-4">{mainButton}</div>
+              )}
             </section>
           );
         })}
       </div>
       {battleNetNotice ? (
-        <Modal
-          labelId="accounts-battlenet-playtime"
-          title={importT("Battle.net playtime")}
-          icon={Clock3}
-          onClose={() => setBattleNetNotice(false)}
-          footer={
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setBattleNetNotice(false)}>
-                {t("Cancel")}
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setBattleNetNotice(false);
-                  void connect("battlenet");
-                }}
-              >
-                {t("Sign in")}
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4 text-sm leading-6 text-text-muted">
-            <p>
-              {importT(
-                "Battle.net does not provide historical playtime. To include your previous hours, you need to set each game's total yourself.",
-              )}
-            </p>
-            <p>
-              <Trans
-                t={importT}
-                i18nKey="After importing, right-click a game in <strong>My Games</strong> and choose <strong>Adjust total playtime</strong>."
-                components={{ strong: <strong className="text-text" /> }}
-              />
-            </p>
-            <p>{importT("PlayCounter tracks new sessions automatically.")}</p>
-          </div>
-        </Modal>
+        <BattleNetPlaytimeNotice
+          confirmLabel={t("Sign in")}
+          onCancel={() => setBattleNetNotice(false)}
+          onConfirm={() => {
+            useAppStore.getState().markBattleNetPlaytimeNoticeSeen();
+            setBattleNetNotice(false);
+            void connect("battlenet");
+          }}
+        />
       ) : null}
     </div>
   );
@@ -566,6 +554,70 @@ export function LauncherAccountsView() {
 
 function formatError(error: unknown) {
   return nativeText(error instanceof Error ? error.message : String(error));
+}
+
+type CardMenuAction = {
+  icon: LucideIcon;
+  label: string;
+  detail?: string | null;
+  danger?: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+};
+
+/** The ⋯ beside a launcher's name: everything but its main button. */
+function CardMenu({
+  actions,
+  disabled,
+}: {
+  actions: CardMenuAction[];
+  disabled: boolean;
+}) {
+  const menu = useAnchoredMenu();
+  if (actions.length === 0) return null;
+  return (
+    <>
+      <IconButton
+        ref={menu.anchorRef}
+        data-controller-item="library-option"
+        aria-label={commonT("More")}
+        title={commonT("More")}
+        aria-haspopup="menu"
+        aria-expanded={menu.open}
+        icon={MoreHorizontal}
+        disabled={disabled}
+        onClick={menu.toggle}
+      />
+      <ContextMenu
+        open={menu.open && !disabled}
+        position={menu.position}
+        onClose={menu.close}
+        anchorRef={menu.anchorRef}
+      >
+        {actions.map((action, index) => (
+          <Fragment key={action.label}>
+            {action.danger && index > 0 ? <ContextMenuSeparator /> : null}
+            <ContextMenuItem
+              icon={action.icon}
+              danger={action.danger}
+              disabled={action.disabled}
+              onClick={() => {
+                menu.close();
+                action.onSelect();
+              }}
+            >
+              {action.label}
+              {action.detail ? (
+                <span className="block text-xs text-text-faint">
+                  {action.detail}
+                </span>
+              ) : null}
+            </ContextMenuItem>
+          </Fragment>
+        ))}
+      </ContextMenu>
+    </>
+  );
 }
 
 export default LauncherAccountsView;

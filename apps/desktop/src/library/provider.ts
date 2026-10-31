@@ -14,6 +14,8 @@ export type LibraryScanOptions = {
   onAuthorizeUrl?: (url: string) => void;
   onXboxProgress?: (stage: XboxImportProgressStage) => void;
   onRateLimitWait?: (waiting: boolean) => void;
+  /** Called as the scan moves from the account to the installs on this PC. */
+  onStage?: (stage: "account" | "installs") => void;
   openAuthorizeUrl?: boolean;
   /** Background work: never create an interactive OAuth attempt. */
   savedLoginOnly?: boolean;

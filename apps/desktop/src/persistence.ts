@@ -82,6 +82,7 @@ type PersistableAppState = {
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
+  battleNetPlaytimeNoticeSeen?: boolean;
   discordInviteSnoozedAt?: string | null;
   discordInviteDone?: boolean;
 };
@@ -137,6 +138,7 @@ export type PersistedPayload = {
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
+  battleNetPlaytimeNoticeSeen?: boolean;
   discordInviteSnoozedAt?: string;
   discordInviteDone?: boolean;
 };
@@ -256,6 +258,7 @@ function buildPersistedPayload(
     suppressContributionNotificationsOnce:
       state.suppressContributionNotificationsOnce || undefined,
     languageNoticeSeen: state.languageNoticeSeen || undefined,
+    battleNetPlaytimeNoticeSeen: state.battleNetPlaytimeNoticeSeen || undefined,
     discordInviteSnoozedAt: state.discordInviteSnoozedAt ?? undefined,
     discordInviteDone: state.discordInviteDone || undefined,
   };
