@@ -24,6 +24,7 @@ import {
   Play,
   Settings,
   Trophy,
+  UsersRound,
   Wifi,
   WifiOff,
   X,
@@ -47,6 +48,10 @@ import {
   Suspense,
 } from "react";
 import { initializeTracker } from "../tracker";
+import {
+  useLauncherAccountChecks,
+  useLoginHealth,
+} from "../library/loginHealth";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
 import { PlayCounterAnimatedIcon } from "../brand/PlayCounterAnimatedIcon";
 import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
@@ -136,8 +141,10 @@ import {
 import { appLocale, getT } from "../i18n";
 
 const t = getT("shell");
+const accountsT = getT("accounts");
 
 const ImportLibraryView = lazy(() => import("./views/ImportLibraryView"));
+const LauncherAccountsView = lazy(() => import("./views/LauncherAccountsView"));
 
 class ImporterErrorBoundary extends Component<
   { children: ReactNode },
@@ -270,13 +277,30 @@ function views(): Record<ViewId, ViewMeta> {
       // Mounted separately so its shared data can load before the cards.
       component: null,
     },
+    accounts: {
+      label: accountsT("Launcher accounts"),
+      subtitle: accountsT("Manage your launcher connections in one place."),
+      icon: UsersRound,
+      component: (
+        <Suspense
+          fallback={
+            <PlayCounterLoader
+              label={accountsT("Launcher accounts")}
+              className="min-h-[320px] text-text-muted"
+            />
+          }
+        >
+          <LauncherAccountsView />
+        </Suspense>
+      ),
+    },
     import: {
       label: t("Import library"),
       subtitle: t("Bring an existing game library into PlayCounter"),
       icon: Download,
       component: (
         <div className="grid gap-4">
-          <div>
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
               icon={ArrowLeft}
@@ -284,6 +308,14 @@ function views(): Record<ViewId, ViewMeta> {
               onClick={backToMyGames}
             >
               {t("Back to My Games")}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={UsersRound}
+              data-controller-item="view-link"
+              onClick={() => useAppStore.getState().setActiveView("accounts")}
+            >
+              {accountsT("Manage accounts")}
             </Button>
           </div>
           <ImporterErrorBoundary>
@@ -353,7 +385,7 @@ function sidebarSections(): Array<{
     {
       id: "system",
       label: t("System"),
-      items: ["discovered", "settings", "dev"],
+      items: ["discovered", "accounts", "settings", "dev"],
     },
   ];
 }
@@ -487,6 +519,13 @@ export function App() {
   const backendHealth = useAppStore((state) => state.backendHealth);
   const isOffline = useIsOffline();
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
+  useLauncherAccountChecks(apiEndpoint);
+  const accountsNeedingSignIn = useLoginHealth(
+    (state) =>
+      Object.values(state.checks).filter(
+        (check) => check.status === "needsSignIn",
+      ).length,
+  );
   const addToast = useAppStore((state) => state.addToast);
   const needsReviewCount = useNeedsReviewCount();
   const hasAmbiguousMatch = useAppStore(
@@ -980,11 +1019,19 @@ export function App() {
                     badge={
                       item === "discovered"
                         ? needsReviewCount
-                        : isEmulatorId(item)
-                          ? sidebarEmulatorBadge(item)
+                        : item === "accounts"
+                          ? accountsNeedingSignIn || undefined
+                          : isEmulatorId(item)
+                            ? sidebarEmulatorBadge(item)
+                            : undefined
+                    }
+                    warn={
+                      item === "now"
+                        ? hasAmbiguousMatch
+                        : item === "accounts"
+                          ? accountsNeedingSignIn > 0
                           : undefined
                     }
-                    warn={item === "now" ? hasAmbiguousMatch : undefined}
                     isPlaying={
                       item === "now" && !hasAmbiguousMatch
                         ? activeSessionsCount > 0

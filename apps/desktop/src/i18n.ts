@@ -1,5 +1,6 @@
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
+import enAccounts from "./locales/en/accounts.json";
 import enAchievements from "./locales/en/achievements.json";
 import enCommon from "./locales/en/common.json";
 import enDialogs from "./locales/en/dialogs.json";
@@ -18,6 +19,7 @@ import enShell from "./locales/en/shell.json";
 import enSoftware from "./locales/en/software.json";
 import enTour from "./locales/en/tour.json";
 import enTracker from "./locales/en/tracker.json";
+import deAccounts from "./locales/de/accounts.json";
 import deAchievements from "./locales/de/achievements.json";
 import deCommon from "./locales/de/common.json";
 import deDialogs from "./locales/de/dialogs.json";
@@ -36,6 +38,7 @@ import deShell from "./locales/de/shell.json";
 import deSoftware from "./locales/de/software.json";
 import deTour from "./locales/de/tour.json";
 import deTracker from "./locales/de/tracker.json";
+import ptBRAccounts from "./locales/pt-BR/accounts.json";
 import ptBRAchievements from "./locales/pt-BR/achievements.json";
 import ptBRCommon from "./locales/pt-BR/common.json";
 import ptBRDialogs from "./locales/pt-BR/dialogs.json";
@@ -54,6 +57,7 @@ import ptBRShell from "./locales/pt-BR/shell.json";
 import ptBRSoftware from "./locales/pt-BR/software.json";
 import ptBRTour from "./locales/pt-BR/tour.json";
 import ptBRTracker from "./locales/pt-BR/tracker.json";
+import zhCNAccounts from "./locales/zh-CN/accounts.json";
 import zhCNAchievements from "./locales/zh-CN/achievements.json";
 import zhCNCommon from "./locales/zh-CN/common.json";
 import zhCNDialogs from "./locales/zh-CN/dialogs.json";
@@ -72,6 +76,7 @@ import zhCNShell from "./locales/zh-CN/shell.json";
 import zhCNSoftware from "./locales/zh-CN/software.json";
 import zhCNTour from "./locales/zh-CN/tour.json";
 import zhCNTracker from "./locales/zh-CN/tracker.json";
+import esAccounts from "./locales/es/accounts.json";
 import esAchievements from "./locales/es/achievements.json";
 import esCommon from "./locales/es/common.json";
 import esDialogs from "./locales/es/dialogs.json";
@@ -90,6 +95,7 @@ import esShell from "./locales/es/shell.json";
 import esSoftware from "./locales/es/software.json";
 import esTour from "./locales/es/tour.json";
 import esTracker from "./locales/es/tracker.json";
+import ruAccounts from "./locales/ru/accounts.json";
 import ruAchievements from "./locales/ru/achievements.json";
 import ruCommon from "./locales/ru/common.json";
 import ruDialogs from "./locales/ru/dialogs.json";
@@ -108,6 +114,7 @@ import ruShell from "./locales/ru/shell.json";
 import ruSoftware from "./locales/ru/software.json";
 import ruTour from "./locales/ru/tour.json";
 import ruTracker from "./locales/ru/tracker.json";
+import plAccounts from "./locales/pl/accounts.json";
 import plAchievements from "./locales/pl/achievements.json";
 import plCommon from "./locales/pl/common.json";
 import plDialogs from "./locales/pl/dialogs.json";
@@ -126,6 +133,7 @@ import plShell from "./locales/pl/shell.json";
 import plSoftware from "./locales/pl/software.json";
 import plTour from "./locales/pl/tour.json";
 import plTracker from "./locales/pl/tracker.json";
+import frAccounts from "./locales/fr/accounts.json";
 import frAchievements from "./locales/fr/achievements.json";
 import frCommon from "./locales/fr/common.json";
 import frDialogs from "./locales/fr/dialogs.json";
@@ -183,6 +191,7 @@ export const LANGUAGE_NAMES: Record<AppLanguage, string> = {
 
 const resources = {
   en: {
+    accounts: enAccounts,
     achievements: enAchievements,
     common: enCommon,
     dialogs: enDialogs,
@@ -203,6 +212,7 @@ const resources = {
     tracker: enTracker,
   },
   de: {
+    accounts: deAccounts,
     achievements: deAchievements,
     common: deCommon,
     dialogs: deDialogs,
@@ -223,6 +233,7 @@ const resources = {
     tracker: deTracker,
   },
   "pt-BR": {
+    accounts: ptBRAccounts,
     achievements: ptBRAchievements,
     common: ptBRCommon,
     dialogs: ptBRDialogs,
@@ -243,6 +254,7 @@ const resources = {
     tracker: ptBRTracker,
   },
   "zh-CN": {
+    accounts: zhCNAccounts,
     achievements: zhCNAchievements,
     common: zhCNCommon,
     dialogs: zhCNDialogs,
@@ -263,6 +275,7 @@ const resources = {
     tracker: zhCNTracker,
   },
   es: {
+    accounts: esAccounts,
     achievements: esAchievements,
     common: esCommon,
     dialogs: esDialogs,
@@ -283,6 +296,7 @@ const resources = {
     tracker: esTracker,
   },
   ru: {
+    accounts: ruAccounts,
     achievements: ruAchievements,
     common: ruCommon,
     dialogs: ruDialogs,
@@ -303,6 +317,7 @@ const resources = {
     tracker: ruTracker,
   },
   pl: {
+    accounts: plAccounts,
     achievements: plAchievements,
     common: plCommon,
     dialogs: plDialogs,
@@ -323,6 +338,7 @@ const resources = {
     tracker: plTracker,
   },
   fr: {
+    accounts: frAccounts,
     achievements: frAchievements,
     common: frCommon,
     dialogs: frDialogs,

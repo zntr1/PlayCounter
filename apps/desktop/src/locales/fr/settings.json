@@ -345,11 +345,5 @@
   "Every {{count, number}} hours_other": "Toutes les {{count, number}} heures",
   "Every {{count, number}} minutes_one": "Toutes les minutes",
   "Every {{count, number}} minutes_many": "Toutes les {{count, number}} minutes",
-  "Every {{count, number}} minutes_other": "Toutes les {{count, number}} minutes",
-  "{{providerName}} sign-in": "Connexion {{providerName}}",
-  "Signed in as {{name}}.": "Connecté en tant que {{name}}.",
-  "Signed in.": "Connecté.",
-  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "PlayCounter conserve cette connexion chiffrée sur ce PC, de sorte que seul votre compte Windows peut la lire.",
-  "Sign out": "Se déconnecter",
-  "Could not sign out. Please try again.": "Impossible de se déconnecter. Veuillez réessayer."
+  "Every {{count, number}} minutes_other": "Toutes les {{count, number}} minutes"
 }

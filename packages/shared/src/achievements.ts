@@ -43,6 +43,8 @@ export type XboxAchievementError =
 
 /** Body of POST /api/xbox/import/start. Empty = the plain import. */
 export interface XboxImportStartRequest {
+  /** Connect the account without reading its games or achievements. */
+  authenticationOnly?: boolean;
   /** Also read every title's achievements. */
   includeAchievements?: boolean;
   /** Only these titles' achievements: no game matching, no playtime. */
@@ -50,6 +52,6 @@ export interface XboxImportStartRequest {
   /** The player's language (BCP 47) for achievement names and texts. */
   language?: string;
   /** Keep the Microsoft sign-in: SHA-256 (hex) of a secret only the desktop's
-   *  Rust part knows. It claims the sign-in once with that secret. */
+   *  Rust part knows. Only that secret can retrieve the sign-in. */
   keepLogin?: { claimHash: string };
 }

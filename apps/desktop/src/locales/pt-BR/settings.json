@@ -345,11 +345,5 @@
   "Every {{count, number}} hours_other": "A cada {{count, number}} horas",
   "Every {{count, number}} minutes_one": "A cada minuto",
   "Every {{count, number}} minutes_many": "A cada {{count, number}} minutos",
-  "Every {{count, number}} minutes_other": "A cada {{count, number}} minutos",
-  "{{providerName}} sign-in": "Login do {{providerName}}",
-  "Signed in as {{name}}.": "Conectado como {{name}}.",
-  "Signed in.": "Conectado.",
-  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "O PlayCounter guarda este login criptografado neste PC, de modo que só sua conta do Windows pode lê-lo.",
-  "Sign out": "Sair",
-  "Could not sign out. Please try again.": "Não foi possível sair. Tente novamente."
+  "Every {{count, number}} minutes_other": "A cada {{count, number}} minutos"
 }

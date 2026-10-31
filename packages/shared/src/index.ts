@@ -175,7 +175,7 @@ export interface XboxImportGame {
 
 export type XboxImportProgressStage = "authorization" | "history";
 
-export type XboxImportResultResponse =
+export type XboxImportResultResponse = { loginReady?: boolean } & (
   | { status: "pending"; stage?: XboxImportProgressStage }
   | { status: "done"; games: XboxImportGame[] }
   | {
@@ -185,13 +185,14 @@ export type XboxImportResultResponse =
       errorCode?: string;
       /** Display-only Microsoft account label; never use for authorization. */
       accountLabel?: string;
-    };
+    }
+);
 
 export interface XboxImportCancelRequest {
   attemptId: string;
 }
 
-/** Sent only by the desktop's Rust part, once the import is done. */
+/** Sent only by the desktop's Rust part, as soon as authentication finishes. */
 export interface XboxLoginClaimRequest {
   attemptId: string;
   /** The secret behind `keepLogin.claimHash`. */
@@ -641,6 +642,7 @@ export type DesktopViewId =
   | EmulatorId
   | "games"
   | "import"
+  | "accounts"
   | "discovered"
   | "history"
   | "achievements"

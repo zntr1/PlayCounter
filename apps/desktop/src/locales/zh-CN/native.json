@@ -1,4 +1,6 @@
 {
+  "Epic Games did not provide a reusable sign-in. Please try again.": "Epic Games 未提供可重复使用的登录信息。请重试。",
+  "Could not securely save the Epic Games sign-in. Please try again.": "无法安全保存 Epic Games 登录信息。请重试。",
   "Choose an absolute backup folder path.": "请选择备份文件夹的绝对路径。",
   "Keep between 1 and 100 automatic backups.": "保留 1 到 100 个自动备份。",
   "Backup exceeds the 64 MB import limit.": "备份超过 64 MB 导入限制。",
@@ -121,5 +123,9 @@
   "MicrosoftGame.config is too large to read safely.": "MicrosoftGame.config 太大，无法安全读取。",
   "The local Xbox game registration could not be found.": "找不到本地 Xbox 游戏注册信息。",
   "Local Xbox launching is only available on Windows.": "本地 Xbox 启动仅在 Windows 上可用。",
-  "Could not start Xbox game: {{error}}": "无法启动 Xbox 游戏：{{error}}"
+  "Could not start Xbox game: {{error}}": "无法启动 Xbox 游戏：{{error}}",
+  "Could not open saved sign-ins.": "无法打开已保存的登录信息。",
+  "Could not save the sign-in.": "无法保存登录信息。",
+  "This sign-in was cancelled by signing out.": "本次登录已因退出登录而取消。",
+  "Could not remove the sign-in.": "无法移除登录信息。"
 }

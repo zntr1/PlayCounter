@@ -1,6 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryScanResult, ScannedLibraryGame } from "./types";
 import { getT } from "../i18n";
+import { refreshKeptLogins, useKeptLogins } from "./keptLogins";
+import {
+  getLoginOperationRevision,
+  recordLoginHealth,
+  supersedeLoginCheck,
+} from "./loginHealth";
 
 const t = getT("import");
 
@@ -136,8 +142,28 @@ function classicProductId(name: string, franchise: string | null) {
   return `classic_${hash.toString(16)}`;
 }
 
-export async function readBattleNetAccountLibrary(signal?: AbortSignal) {
+export function readBattleNetAccountLibrary(signal?: AbortSignal) {
+  return runBattleNetAccountCommand<BattleNetAccountLibrary>(
+    "library_battlenet_account_games",
+    signal,
+  );
+}
+
+/** Connects the account without waiting for game discovery or local scanning. */
+export function signInBattleNetAccount(signal?: AbortSignal) {
+  return runBattleNetAccountCommand<void>("library_battlenet_sign_in", signal);
+}
+
+async function runBattleNetAccountCommand<T>(
+  command: string,
+  signal?: AbortSignal,
+) {
   signal?.throwIfAborted();
+  supersedeLoginCheck("battlenet");
+  const revision = getLoginOperationRevision("battlenet");
+  const savedAt = useKeptLogins.getState().logins.find(
+    (login) => login.service === "battlenet",
+  )?.savedAt;
   const requestId = crypto.randomUUID();
   let onAbort: (() => void) | undefined;
   const aborted = new Promise<never>((_, reject) => {
@@ -153,10 +179,29 @@ export async function readBattleNetAccountLibrary(signal?: AbortSignal) {
   });
   try {
     return await Promise.race([
-      invoke<BattleNetAccountLibrary>("library_battlenet_account_games", {
+      // Native cleanup can finish saving a verified login after navigation
+      // has already cancelled this caller. Refresh on its completion too.
+      invoke<T>(command, {
         requestId,
         title: t("Battle.net sign-in"),
-      }),
+      })
+        .then((result) => {
+          if (revision === getLoginOperationRevision("battlenet"))
+            recordLoginHealth("battlenet", "valid");
+          return result;
+        })
+        .finally(async () => {
+          const saved = (await refreshKeptLogins()).find(
+            (login) => login.service === "battlenet",
+          );
+          // Native cancellation can save a newly verified login before rejecting.
+          if (
+            saved &&
+            saved.savedAt !== savedAt &&
+            revision === getLoginOperationRevision("battlenet")
+          )
+            recordLoginHealth("battlenet", "valid");
+        }),
       aborted,
     ]);
   } finally {

@@ -12,6 +12,7 @@ use super::battlenet_account::{
     clear_profile_data, secure_window, ExpectedProfile, Sessions, CANCELLED as SESSION_CANCELLED,
 };
 use super::kept_logins::{KeptLogin, Service, Store};
+use super::login_status::LoginStatus;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
@@ -57,9 +58,20 @@ const CANCELLED: &str = "Epic Games sign-in was cancelled.";
 const MAX_LIBRARY_PAGES: usize = 50;
 const MAX_GAMES: usize = 5_000;
 const CATALOG_REQUESTS_IN_FLIGHT: usize = 6;
+// Refresh tokens can rotate. Background validation and foreground imports
+// must never redeem the same saved token concurrently.
+static AUTHENTICATING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[derive(Default)]
 pub struct EpicAccountState(Mutex<Sessions>);
+
+pub(super) fn cancel_active(app: &AppHandle) {
+    if let Some(state) = app.try_state::<EpicAccountState>() {
+        if let Ok(mut sessions) = state.0.lock() {
+            sessions.cancel_active();
+        }
+    }
+}
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -109,8 +121,10 @@ struct Token {
 /// Why Epic gave no token.
 #[derive(Debug, PartialEq)]
 enum TokenFailure {
-    /// Epic refused the code or the kept sign-in: sign in again.
+    /// Epic confirmed that this credential expired or was revoked.
     Refused(String),
+    /// Account action is required, but this does not revoke the saved login.
+    ActionRequired(String),
     /// Epic did not answer properly. A kept sign-in stays.
     Unavailable,
 }
@@ -368,7 +382,8 @@ async fn request_token(
     Ok(token)
 }
 
-/// A busy or failing Epic keeps a kept sign-in; any other refusal ends it.
+/// Only an explicit credential rejection ends a saved login. Proxy errors,
+/// changed endpoints and other unexpected 4xx responses must not sign out.
 fn token_failure(status: u16, body: &str) -> TokenFailure {
     if status >= 500 || status == 429 {
         return TokenFailure::Unavailable;
@@ -376,14 +391,20 @@ fn token_failure(status: u16, body: &str) -> TokenFailure {
     let error_code = serde_json::from_str::<serde_json::Value>(body)
         .ok()
         .and_then(|value| value["errorCode"].as_str().map(str::to_owned));
-    TokenFailure::Refused(
-        corrective_action_message(error_code.as_deref()).unwrap_or_else(|| {
-            "Epic Games sign-in expired or could not be verified. Please sign in again.".into()
-        }),
-    )
+    if let Some(message) = corrective_action_message(error_code.as_deref()) {
+        return TokenFailure::ActionRequired(message);
+    }
+    match error_code.as_deref() {
+        Some("errors.com.epicgames.account.auth_token.invalid_refresh_token") => {
+            TokenFailure::Refused(
+                "Epic Games sign-in expired or could not be verified. Please sign in again.".into(),
+            )
+        }
+        _ => TokenFailure::Unavailable,
+    }
 }
 
-async fn exchange_code(client: &reqwest::Client, code: &str) -> Result<Token, String> {
+async fn exchange_code(client: &reqwest::Client, code: &str) -> Result<Token, TokenFailure> {
     request_token(
         client,
         &[
@@ -393,10 +414,6 @@ async fn exchange_code(client: &reqwest::Client, code: &str) -> Result<Token, St
         ],
     )
     .await
-    .map_err(|failure| match failure {
-        TokenFailure::Refused(message) => message,
-        TokenFailure::Unavailable => UNAVAILABLE.into(),
-    })
 }
 
 async fn renew(client: &reqwest::Client, refresh_token: &str) -> Result<Token, TokenFailure> {
@@ -411,22 +428,22 @@ async fn renew(client: &reqwest::Client, refresh_token: &str) -> Result<Token, T
     .await
 }
 
-/// Keeps the token's sign-in for the next import. `false` when Epic sent no
-/// refresh token or it could not be saved.
-fn keep(store: Option<&Store>, token: &Token, fallback_name: Option<String>) -> bool {
-    let (Some(store), Some(secret)) = (
-        store,
-        token
-            .refresh_token
-            .as_deref()
-            .filter(|secret| !secret.is_empty() && secret.len() <= 8192),
-    ) else {
-        return false;
-    };
-    let name = token.display_name.clone().or(fallback_name);
+/// Persist before returning authentication success or starting game discovery.
+/// OAuth permits an unchanged refresh token to be omitted during renewal.
+fn keep(store: &Store, token: &Token, previous: Option<&KeptLogin>) -> Result<(), String> {
+    let secret = token
+        .refresh_token
+        .as_deref()
+        .or_else(|| previous.map(|login| login.secret.as_str()))
+        .filter(|secret| !secret.is_empty() && secret.len() <= 8192)
+        .ok_or("Epic Games did not provide a reusable sign-in. Please try again.")?;
+    let name = token
+        .display_name
+        .clone()
+        .or_else(|| previous.and_then(|login| login.name.clone()));
     store
         .save(Service::Epic, &KeptLogin::new(secret.to_owned(), name))
-        .is_ok()
+        .map_err(|_| "Could not securely save the Epic Games sign-in. Please try again.".into())
 }
 
 async fn end_session(client: &reqwest::Client, access_token: &str) {
@@ -443,11 +460,75 @@ pub(super) async fn end_kept_session(refresh_token: &str) {
         return;
     };
     let _ = tokio::time::timeout(Duration::from_secs(10), async {
+        let _guard = AUTHENTICATING.lock().await;
         if let Ok(token) = renew(&client, refresh_token).await {
             end_session(&client, &token.access_token).await;
         }
     })
     .await;
+}
+
+/// Check only the saved credential. No webview, library request or remote
+/// account details are exposed to the application UI.
+pub(super) async fn check_saved_login(app: &AppHandle) -> LoginStatus {
+    if !cfg!(windows) {
+        return LoginStatus::SignedOut;
+    }
+    let Ok(_guard) = AUTHENTICATING.try_lock() else {
+        return LoginStatus::Busy;
+    };
+    if app.try_state::<EpicAccountState>().is_some_and(|state| {
+        state
+            .0
+            .lock()
+            .map(|sessions| sessions.is_active())
+            .unwrap_or(true)
+    }) {
+        return LoginStatus::Busy;
+    }
+    let Ok(store) = Store::of(app) else {
+        return LoginStatus::Unavailable;
+    };
+    let previous = match store.try_load(Service::Epic) {
+        Ok(Some(previous)) => previous,
+        Ok(None) => return LoginStatus::SignedOut,
+        Err(_) => return LoginStatus::Unavailable,
+    };
+    let Ok(client) = http_client() else {
+        return LoginStatus::Unavailable;
+    };
+    let response = renew(&client, &previous.secret).await;
+    if !store.is_current(Service::Epic) {
+        if let Ok(token) = &response {
+            // Explicit logout may have happened while Epic issued a rotated
+            // token; end that response too rather than persisting it late.
+            end_session(&client, &token.access_token).await;
+        }
+    }
+    finish_saved_check(&store, &previous, response)
+}
+
+fn finish_saved_check(
+    store: &Store,
+    previous: &KeptLogin,
+    response: Result<Token, TokenFailure>,
+) -> LoginStatus {
+    if !store.is_current(Service::Epic) {
+        return LoginStatus::SignedOut;
+    }
+    match response {
+        Ok(token) => {
+            if keep(store, &token, Some(previous)).is_ok() {
+                LoginStatus::Valid
+            } else {
+                LoginStatus::Unavailable
+            }
+        }
+        // Preserve the saved record until the user reconnects or signs out;
+        // background failure must remain distinguishable from no account.
+        Err(TokenFailure::Refused(_) | TokenFailure::ActionRequired(_)) => LoginStatus::NeedsSignIn,
+        Err(TokenFailure::Unavailable) => LoginStatus::Unavailable,
+    }
 }
 
 async fn get_json<T: serde::de::DeserializeOwned>(
@@ -572,42 +653,109 @@ async fn read_account(client: &reqwest::Client, token: &Token) -> Result<Account
     ))
 }
 
-/// After the sign-in window: reads the account and keeps the sign-in.
-async fn read_library(store: Option<&Store>, code: &str) -> Result<AccountLibrary, String> {
-    let client = http_client()?;
-    let token = exchange_code(&client, code).await?;
-    let kept = keep(store, &token, None);
-    let result = read_account(&client, &token).await;
-    if !kept {
-        // Nothing kept: sign out again at Epic.
-        end_session(&client, &token.access_token).await;
-    }
-    result
-}
-
-/// With the kept sign-in, no window. `Ok(None)`: nothing kept, or Epic refused
-/// it and the window has to open.
-async fn read_kept_library(store: &Store) -> Result<Option<AccountLibrary>, String> {
-    let Some(login) = store.load(Service::Epic) else {
-        return Ok(None);
-    };
-    let client = http_client()?;
-    let token = match renew(&client, &login.secret).await {
+/// Once a code exchange or refresh has started, finish it and save the token
+/// even if the caller leaves the view. Dropping that HTTP request can lose a
+/// one-time code or the replacement for an already rotated refresh token.
+async fn finish_authentication(
+    store: &Store,
+    client: &reqwest::Client,
+    previous: Option<&KeptLogin>,
+    request: impl std::future::Future<Output = Result<Token, TokenFailure>>,
+) -> Result<Option<Token>, String> {
+    let token = match request.await {
         Ok(token) => token,
-        Err(TokenFailure::Refused(_)) => {
-            let _ = store.delete(Service::Epic);
+        Err(TokenFailure::Refused(_)) if previous.is_some() => {
+            store.delete(Service::Epic)?;
             return Ok(None);
+        }
+        Err(TokenFailure::Refused(message) | TokenFailure::ActionRequired(message)) => {
+            return Err(message);
         }
         Err(TokenFailure::Unavailable) => return Err(UNAVAILABLE.into()),
     };
-    let kept = keep(Some(store), &token, login.name);
-    let result = read_account(&client, &token).await;
-    if !kept {
-        // The renewed sign-in could not be saved: end it rather than leave it.
-        let _ = store.delete(Service::Epic);
-        end_session(&client, &token.access_token).await;
+    if let Err(error) = keep(store, &token, previous) {
+        if !store.is_current(Service::Epic) {
+            // Explicit sign-out wins over a late token response. A disk error,
+            // however, must not revoke an otherwise valid saved session.
+            end_session(client, &token.access_token).await;
+        }
+        return Err(error);
     }
-    result.map(Some)
+    Ok(Some(token))
+}
+
+/// Authentication is already durable. Only the optional game read is
+/// cancellable; neither cancellation nor library errors remove the login.
+async fn finish_account(
+    client: &reqwest::Client,
+    token: &Token,
+    cancelled: &mut oneshot::Receiver<()>,
+    was_cancelled: bool,
+    read_games: bool,
+) -> Result<Option<AccountLibrary>, String> {
+    if was_cancelled {
+        return Err(CANCELLED.into());
+    }
+    tokio::select! {
+        biased;
+        _ = cancelled => Err(CANCELLED.into()),
+        result = async {
+            if !read_games {
+                return Ok(None);
+            }
+            tokio::time::timeout(Duration::from_secs(300), read_account(client, token))
+                .await
+                .unwrap_or_else(|_| Err("Epic Games took too long to answer. Please try again.".into()))
+                .map(Some)
+        } => result,
+    }
+}
+
+/// One read without navigating or reloading. Also used during cancellation to
+/// capture an authorization code that arrived at the same time as navigation.
+async fn read_ready_code(window: &WebviewWindow) -> Result<CodePage, String> {
+    if !redirect_page(&window.url().map_err(|_| CANCELLED)?) {
+        return Ok(CodePage::Pending);
+    }
+    let (sender, receiver) = oneshot::channel();
+    let sender = Mutex::new(Some(sender));
+    window
+        .eval_with_callback(READ_CODE, move |value| {
+            if let Some(sender) = sender.lock().ok().and_then(|mut value| value.take()) {
+                let _ = sender.send(value);
+            }
+        })
+        .map_err(|_| "Could not read the Epic Games sign-in window.")?;
+    let value = tokio::time::timeout(Duration::from_secs(5), receiver)
+        .await
+        .map_err(|_| "The Epic Games sign-in window stopped responding. Please try again.")?
+        .map_err(|_| CANCELLED)?;
+    decode_code(&value)
+}
+
+pub(super) async fn read_code_after_cancel(
+    window: &WebviewWindow,
+    store: &Store,
+) -> Result<String, String> {
+    let _ = window.hide();
+    tokio::time::timeout(Duration::from_secs(2), async {
+        let mut interval = tokio::time::interval(Duration::from_millis(50));
+        loop {
+            interval.tick().await;
+            if !store.is_current(Service::Epic) {
+                return Err(CANCELLED.into());
+            }
+            match read_ready_code(window).await? {
+                CodePage::Code(code) if store.is_current(Service::Epic) => return Ok(code),
+                // The redirect may still be loading when the user leaves. Wait
+                // briefly for that existing page; never navigate or reload it.
+                CodePage::Pending | CodePage::Missing(_) => {}
+                CodePage::Code(_) => return Err(CANCELLED.into()),
+            }
+        }
+    })
+    .await
+    .unwrap_or_else(|_| Err(CANCELLED.into()))
 }
 
 async fn read_code(window: &WebviewWindow) -> Result<String, String> {
@@ -615,23 +763,7 @@ async fn read_code(window: &WebviewWindow) -> Result<String, String> {
     let mut reloads = 0;
     loop {
         interval.tick().await;
-        if !redirect_page(&window.url().map_err(|_| CANCELLED)?) {
-            continue;
-        }
-        let (sender, receiver) = oneshot::channel();
-        let sender = Mutex::new(Some(sender));
-        window
-            .eval_with_callback(READ_CODE, move |value| {
-                if let Some(sender) = sender.lock().ok().and_then(|mut value| value.take()) {
-                    let _ = sender.send(value);
-                }
-            })
-            .map_err(|_| "Could not read the Epic Games sign-in window.")?;
-        let value = tokio::time::timeout(Duration::from_secs(5), receiver)
-            .await
-            .map_err(|_| "The Epic Games sign-in window stopped responding. Please try again.")?
-            .map_err(|_| CANCELLED)?;
-        match decode_code(&value)? {
+        match read_ready_code(window).await? {
             CodePage::Pending => {}
             CodePage::Code(code) => return Ok(code),
             CodePage::Missing(detail) if reloads >= CODE_RELOADS => {
@@ -661,6 +793,33 @@ pub async fn library_epic_account_games(
     // "Epic Games sign-in" in the main window's language, for the window title.
     title: String,
 ) -> Result<AccountLibrary, String> {
+    run_account_session(app, window, state, request_id, title, true)
+        .await?
+        .ok_or_else(|| UNAVAILABLE.into())
+}
+
+/// Account management connects immediately, without fetching the library.
+#[tauri::command]
+pub async fn library_epic_sign_in(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, EpicAccountState>,
+    request_id: String,
+    title: String,
+) -> Result<(), String> {
+    run_account_session(app, window, state, request_id, title, false)
+        .await
+        .map(|_| ())
+}
+
+async fn run_account_session(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, EpicAccountState>,
+    request_id: String,
+    title: String,
+    read_games: bool,
+) -> Result<Option<AccountLibrary>, String> {
     if window.label() != "main" || !cfg!(windows) {
         return Err("Epic Games sign-in is available in the Windows desktop app.".into());
     }
@@ -679,22 +838,56 @@ pub async fn library_epic_account_games(
                 "An Epic Games sign-in is already open. Finish or cancel it first.".to_string()
             }
         })?;
-    let store = Store::of(&app).ok();
-    // A kept sign-in reads the account without a window.
-    if let Some(store) = store.as_ref() {
-        let kept = tokio::select! {
-            biased;
-            _ = &mut cancelled => Err(CANCELLED.into()),
-            result = tokio::time::timeout(Duration::from_secs(300), read_kept_library(store)) => {
-                result.unwrap_or_else(|_| Err("Epic Games took too long to answer. Please try again.".into()))
-            }
-        };
-        if !matches!(kept, Ok(None)) {
+    let (store, client) = match Store::of(&app).and_then(|store| Ok((store, http_client()?))) {
+        Ok(ready) => ready,
+        Err(error) => {
             if let Ok(mut sessions) = state.0.lock() {
                 sessions.finish(&id);
             }
-            return kept.and_then(|library| library.ok_or_else(|| UNAVAILABLE.into()));
+            return Err(error);
         }
+    };
+    // Refresh and persist without racing cancellation. The HTTP client bounds
+    // this work to 30 seconds, and sign-out still invalidates the store.
+    let authenticating = AUTHENTICATING.lock().await;
+    let previous = match store.try_load(Service::Epic) {
+        Ok(previous) => previous,
+        Err(_) => {
+            if let Ok(mut sessions) = state.0.lock() {
+                sessions.finish(&id);
+            }
+            return Err(UNAVAILABLE.into());
+        }
+    };
+    if let Some(login) = previous {
+        let kept =
+            finish_authentication(&store, &client, Some(&login), renew(&client, &login.secret))
+                .await;
+        drop(authenticating);
+        if !matches!(kept, Ok(None)) {
+            let result = match kept {
+                Ok(Some(token)) => {
+                    finish_account(&client, &token, &mut cancelled, false, read_games).await
+                }
+                Err(error) => Err(error),
+                Ok(None) => unreachable!(),
+            };
+            if let Ok(mut sessions) = state.0.lock() {
+                sessions.finish(&id);
+            }
+            return result;
+        }
+    } else {
+        drop(authenticating);
+    }
+    if !matches!(
+        cancelled.try_recv(),
+        Err(oneshot::error::TryRecvError::Empty)
+    ) {
+        if let Ok(mut sessions) = state.0.lock() {
+            sessions.finish(&id);
+        }
+        return Err(CANCELLED.into());
     }
     let (navigation_rejected, rejected_navigation) = oneshot::channel();
     let navigation_rejected = Mutex::new(Some(navigation_rejected));
@@ -733,7 +926,8 @@ pub async fn library_epic_account_games(
     .on_new_window(|_, _| NewWindowResponse::Deny)
     .on_download(|_, _| false)
     .build();
-    let code = match sign_in {
+    let mut was_cancelled = false;
+    let authentication = match sign_in {
         Err(_) => Err("Could not open Epic Games sign-in. Please try again.".into()),
         Ok(sign_in) => {
             let close_app = app.clone();
@@ -762,7 +956,12 @@ pub async fn library_epic_account_games(
             let session_ready = setup.is_ok();
             let code = tokio::select! {
                 biased;
-                _ = &mut cancelled => Err(CANCELLED.into()),
+                _ = &mut cancelled => {
+                    was_cancelled = true;
+                    // Switching views immediately after a successful sign-in
+                    // must still capture the code already on the redirect page.
+                    read_code_after_cancel(&sign_in, &store).await
+                },
                 _ = rejected_navigation => Err("Epic Games tried to open an unsupported sign-in page. Update PlayCounter or use Find installed games.".into()),
                 result = tokio::time::timeout(Duration::from_secs(600), async {
                     setup?;
@@ -775,9 +974,19 @@ pub async fn library_epic_account_games(
                     result.unwrap_or_else(|_| Err("Epic Games sign-in timed out. Please try again.".into()))
                 }
             };
-            // The code is all that is needed; close the window before reading.
+            // Save authentication before cleanup or reading any games. The
+            // private webview can be hidden now; tokens never reach the UI.
             closing.store(true, Ordering::SeqCst);
             let _ = sign_in.hide();
+            let authentication = match code {
+                Ok(code) if store.is_current(Service::Epic) => {
+                    let _guard = AUTHENTICATING.lock().await;
+                    finish_authentication(&store, &client, None, exchange_code(&client, &code))
+                        .await
+                }
+                Ok(_) => Err(CANCELLED.into()),
+                Err(error) => Err(error),
+            };
             let _ = sign_in.navigate("about:blank".parse().unwrap());
             let cleared = if session_ready {
                 clear_profile_data(&sign_in, ExpectedProfile::Private).await
@@ -793,18 +1002,15 @@ pub async fn library_epic_account_games(
                         .into(),
                 );
             }
-            code
+            authentication
         }
     };
-    let result = match code {
+    let result = match authentication {
         Err(error) => Err(error),
-        Ok(code) => tokio::select! {
-            biased;
-            _ = &mut cancelled => Err(CANCELLED.into()),
-            result = tokio::time::timeout(Duration::from_secs(300), read_library(store.as_ref(), &code)) => {
-                result.unwrap_or_else(|_| Err("Epic Games took too long to answer. Please try again.".into()))
-            }
-        },
+        Ok(Some(token)) => {
+            finish_account(&client, &token, &mut cancelled, was_cancelled, read_games).await
+        }
+        Ok(None) => Err(UNAVAILABLE.into()),
     };
     if let Ok(mut sessions) = state.0.lock() {
         sessions.finish(&id);
@@ -1046,36 +1252,32 @@ mod tests {
     #[test]
     fn a_sign_in_is_kept_only_with_a_refresh_token() {
         let (store, dir) = Store::for_test();
-        assert!(!keep(Some(&store), &token(None, Some("Player One")), None));
-        assert!(!keep(Some(&store), &token(Some(""), None), None));
-        assert!(!keep(None, &token(Some("eg1~r"), None), None));
+        assert!(keep(&store, &token(None, Some("Player One")), None).is_err());
+        assert!(keep(&store, &token(Some(""), None), None).is_err());
         assert_eq!(store.load(Service::Epic), None);
 
-        assert!(keep(
-            Some(&store),
-            &token(Some("eg1~r"), Some("Player One")),
-            None
-        ));
+        keep(&store, &token(Some("eg1~r"), Some("Player One")), None).unwrap();
         let kept = store.load(Service::Epic).unwrap();
         assert_eq!(kept.secret, "eg1~r");
         assert_eq!(kept.name.as_deref(), Some("Player One"));
         // A renewal without a name keeps the old one.
-        assert!(keep(
-            Some(&store),
-            &token(Some("eg1~r2"), None),
-            Some("Player One".into())
-        ));
+        keep(&store, &token(Some("eg1~r2"), None), Some(&kept)).unwrap();
         assert_eq!(
             store.load(Service::Epic).unwrap().name.as_deref(),
             Some("Player One")
         );
+        let renewed = store.load(Service::Epic).unwrap();
+        keep(&store, &token(None, None), Some(&renewed)).unwrap();
+        assert_eq!(store.load(Service::Epic).unwrap().secret, "eg1~r2");
         let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
-    fn a_busy_epic_keeps_the_sign_in_and_a_refusal_ends_it() {
-        for status in [500, 503, 429] {
-            assert_eq!(token_failure(status, "{}"), TokenFailure::Unavailable);
+    fn only_a_confirmed_credential_rejection_ends_the_sign_in() {
+        for status in [400, 401, 403, 404, 408, 429, 500, 503] {
+            for body in ["{}", "not json", r#"{"errorCode":"unknown_error"}"#] {
+                assert_eq!(token_failure(status, body), TokenFailure::Unavailable);
+            }
         }
         assert!(matches!(
             token_failure(400, r#"{"errorCode":"errors.com.epicgames.account.auth_token.invalid_refresh_token"}"#),
@@ -1083,11 +1285,186 @@ mod tests {
         ));
         assert!(matches!(
             token_failure(400, r#"{"errorCode":"errors.com.epicgames.oauth.corrective_action_required"}"#),
-            TokenFailure::Refused(message) if message.contains("confirm something")
+            TokenFailure::ActionRequired(message) if message.contains("confirm something")
         ));
-        assert!(matches!(
-            token_failure(401, "not json"),
-            TokenFailure::Refused(_)
-        ));
+        // Epic also uses this generic grant error for unsupported grant types,
+        // so it does not prove that this user's refresh token is invalid.
+        assert_eq!(
+            token_failure(
+                400,
+                r#"{"errorCode":"errors.com.epicgames.common.oauth.invalid_grant"}"#
+            ),
+            TokenFailure::Unavailable
+        );
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn cancelling_during_authentication_still_saves_the_new_or_rotated_token() {
+        for existing in [false, true] {
+            let (store, dir) = Store::for_test();
+            let client = http_client().unwrap();
+            if existing {
+                keep(
+                    &store,
+                    &token(Some("old-refresh"), Some("Player One")),
+                    None,
+                )
+                .unwrap();
+            }
+            let previous = store.load(Service::Epic);
+            let (cancel, mut cancelled) = oneshot::channel();
+            let (ready, started) = oneshot::channel();
+            let (respond, response) = oneshot::channel();
+            let session = async {
+                let authenticated =
+                    finish_authentication(&store, &client, previous.as_ref(), async {
+                        ready.send(()).unwrap();
+                        response.await.unwrap()
+                    })
+                    .await
+                    .unwrap()
+                    .unwrap();
+                finish_account(&client, &authenticated, &mut cancelled, false, false).await
+            };
+            let leave_after_request_started = async {
+                started.await.unwrap();
+                cancel.send(()).unwrap();
+                // The response arrives only after the UI has cancelled.
+                tokio::task::yield_now().await;
+                respond
+                    .send(Ok(token(Some("new-refresh"), Some("Player One"))))
+                    .ok()
+                    .unwrap();
+            };
+            let (result, ()) = tokio::join!(session, leave_after_request_started);
+            assert!(matches!(result, Err(error) if error == CANCELLED));
+            let saved = store.load(Service::Epic).unwrap();
+            assert_eq!(saved.secret, "new-refresh");
+            assert_eq!(saved.name.as_deref(), Some("Player One"));
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn temporary_refresh_errors_and_account_actions_preserve_the_saved_login() {
+        let (store, dir) = Store::for_test();
+        let client = http_client().unwrap();
+        keep(&store, &token(Some("refresh"), None), None).unwrap();
+        let previous = store.load(Service::Epic).unwrap();
+        for failure in [
+            TokenFailure::Unavailable,
+            TokenFailure::ActionRequired("Confirm account".into()),
+        ] {
+            assert!(
+                finish_authentication(&store, &client, Some(&previous), async { Err(failure) })
+                    .await
+                    .is_err()
+            );
+            assert_eq!(store.load(Service::Epic).unwrap().secret, "refresh");
+        }
+        assert!(
+            finish_authentication(&store, &client, Some(&previous), async {
+                Err(TokenFailure::Refused("Expired".into()))
+            })
+            .await
+            .unwrap()
+            .is_none()
+        );
+        assert_eq!(store.load(Service::Epic), None);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn connecting_succeeds_as_soon_as_authentication_is_saved() {
+        let (store, dir) = Store::for_test();
+        let client = http_client().unwrap();
+        let (_cancel, mut cancelled) = oneshot::channel();
+        let authenticated = finish_authentication(&store, &client, None, async {
+            Ok(token(Some("refresh"), Some("Player One")))
+        })
+        .await
+        .unwrap()
+        .unwrap();
+        // No library or network fixture exists: connecting cannot depend on it.
+        assert!(
+            finish_account(&client, &authenticated, &mut cancelled, false, false)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(store.load(Service::Epic).unwrap().secret, "refresh");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_secure_store_write_error_does_not_claim_success_or_delete_the_previous_login() {
+        let (store, dir) = Store::for_test();
+        let client = http_client().unwrap();
+        keep(&store, &token(Some("previous-refresh"), None), None).unwrap();
+        let previous = store.load(Service::Epic).unwrap();
+        // Block the atomic temporary-file write while preserving the old file.
+        std::fs::create_dir(dir.join("epic.tmp")).unwrap();
+        let result = finish_authentication(&store, &client, Some(&previous), async {
+            Ok(token(Some("rotated-refresh"), None))
+        })
+        .await;
+        assert!(matches!(result, Err(error) if error.contains("securely save")));
+        assert_eq!(
+            store.load(Service::Epic).unwrap().secret,
+            "previous-refresh"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn background_checks_preserve_expired_and_temporarily_unavailable_accounts() {
+        let (store, dir) = Store::for_test();
+        keep(&store, &token(Some("refresh"), None), None).unwrap();
+        let previous = store.load(Service::Epic).unwrap();
+        for (failure, expected) in [
+            (TokenFailure::Unavailable, LoginStatus::Unavailable),
+            (
+                TokenFailure::Refused("Expired".into()),
+                LoginStatus::NeedsSignIn,
+            ),
+            (
+                TokenFailure::ActionRequired("Confirm account".into()),
+                LoginStatus::NeedsSignIn,
+            ),
+        ] {
+            assert_eq!(
+                finish_saved_check(&store, &previous, Err(failure)),
+                expected
+            );
+            assert_eq!(store.load(Service::Epic).unwrap().secret, "refresh");
+        }
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn background_checks_save_rotation_before_reporting_valid_and_report_disk_failures() {
+        let (store, dir) = Store::for_test();
+        keep(&store, &token(Some("previous"), Some("Player")), None).unwrap();
+        let previous = store.load(Service::Epic).unwrap();
+        assert_eq!(
+            finish_saved_check(&store, &previous, Ok(token(Some("rotated"), None))),
+            LoginStatus::Valid
+        );
+        let renewed = store.load(Service::Epic).unwrap();
+        assert_eq!(renewed.secret, "rotated");
+        assert_eq!(renewed.name.as_deref(), Some("Player"));
+        std::fs::create_dir(dir.join("epic.tmp")).unwrap();
+        assert_eq!(
+            finish_saved_check(&store, &renewed, Ok(token(Some("unsaved"), None))),
+            LoginStatus::Unavailable
+        );
+        assert_eq!(store.load(Service::Epic).unwrap().secret, "rotated");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

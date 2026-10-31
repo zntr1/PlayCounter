@@ -345,11 +345,5 @@
   "Every {{count, number}} hours_other": "Cada {{count, number}} horas",
   "Every {{count, number}} minutes_one": "Cada minuto",
   "Every {{count, number}} minutes_many": "Cada {{count, number}} minutos",
-  "Every {{count, number}} minutes_other": "Cada {{count, number}} minutos",
-  "{{providerName}} sign-in": "Inicio de sesión de {{providerName}}",
-  "Signed in as {{name}}.": "Sesión iniciada como {{name}}.",
-  "Signed in.": "Sesión iniciada.",
-  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "PlayCounter guarda este inicio de sesión cifrado en este PC, de modo que solo tu cuenta de Windows puede leerlo.",
-  "Sign out": "Cerrar sesión",
-  "Could not sign out. Please try again.": "No se pudo cerrar sesión. Vuelve a intentarlo."
+  "Every {{count, number}} minutes_other": "Cada {{count, number}} minutos"
 }

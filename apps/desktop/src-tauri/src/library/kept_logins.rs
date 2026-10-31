@@ -7,9 +7,11 @@
 //! never a token. Other systems keep nothing for now.
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::HashMap,
     fs,
     io::ErrorKind,
     path::PathBuf,
+    sync::{LazyLock, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Manager, WebviewWindow};
@@ -35,13 +37,21 @@ impl Service {
     fn parse(value: &str) -> Option<Service> {
         Self::ALL.into_iter().find(|service| service.id() == value)
     }
+
+    fn index(self) -> usize {
+        match self {
+            Service::Xbox => 0,
+            Service::Epic => 1,
+            Service::BattleNet => 2,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct KeptLogin {
-    /// The refresh token. Empty for Battle.net, whose sign-in lives in its
-    /// own browser profile.
+    /// The refresh token, or Battle.net's native cookie snapshot. Older
+    /// Battle.net records have an empty marker and rely on the browser profile.
     #[serde(default)]
     pub secret: String,
     /// "Signed in as …": the Xbox gamertag or the Epic display name.
@@ -82,16 +92,39 @@ pub struct KeptLoginSummary {
 
 pub(crate) struct Store {
     dir: PathBuf,
+    generations: [u64; 3],
 }
+
+// A sign-out invalidates every operation already using that service. Hold
+// this lock through the file mutation so a late network response cannot
+// recreate a credential after sign-out (or delete a newer account's login).
+static GENERATIONS: LazyLock<Mutex<HashMap<PathBuf, [u64; 3]>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 impl Store {
     pub(crate) fn of(app: &AppHandle) -> Result<Self, String> {
-        Ok(Self {
-            dir: app
-                .path()
+        Self::at(
+            app.path()
                 .app_local_data_dir()
                 .map_err(|error| error.to_string())?
                 .join("logins"),
+        )
+    }
+
+    fn at(dir: PathBuf) -> Result<Self, String> {
+        let generations = *GENERATIONS
+            .lock()
+            .map_err(|_| "Could not open saved sign-ins.")?
+            .entry(dir.clone())
+            .or_default();
+        Ok(Self { dir, generations })
+    }
+
+    pub(crate) fn is_current(&self, service: Service) -> bool {
+        GENERATIONS.lock().ok().is_some_and(|generations| {
+            generations.get(&self.dir).is_some_and(|current| {
+                current[service.index()] == self.generations[service.index()]
+            })
         })
     }
 
@@ -99,7 +132,7 @@ impl Store {
     #[cfg(test)]
     pub(crate) fn for_test() -> (Self, PathBuf) {
         let dir = std::env::temp_dir().join(format!("playcounter-logins-{}", uuid::Uuid::new_v4()));
-        (Self { dir: dir.clone() }, dir)
+        (Self::at(dir.clone()).unwrap(), dir)
     }
 
     pub(crate) fn dir(&self) -> &PathBuf {
@@ -110,21 +143,48 @@ impl Store {
         self.dir.join(format!("{}.bin", service.id()))
     }
 
-    /// `None` when nothing is kept. A file that cannot be opened counts as
-    /// signed out and is deleted.
+    /// Best-effort access for explicit sign-out, which must also remove
+    /// unreadable records. Authentication and summaries must use try_load.
     pub(crate) fn load(&self, service: Service) -> Option<KeptLogin> {
-        let path = self.path(service);
-        let sealed = fs::read(&path).ok()?;
-        match unseal(&sealed).and_then(|bytes| serde_json::from_slice(&bytes).map_err(|_| ())) {
-            Ok(login) => Some(login),
-            Err(()) => {
-                let _ = fs::remove_file(&path);
-                None
-            }
+        self.try_load(service).ok().flatten()
+    }
+
+    /// Only a missing file or invalidated operation means there is no login.
+    /// Read/decryption errors preserve the file: they do not prove expiry.
+    pub(crate) fn try_load(&self, service: Service) -> Result<Option<KeptLogin>, String> {
+        let generations = GENERATIONS
+            .lock()
+            .map_err(|_| "Could not open saved sign-ins.")?;
+        if generations
+            .get(&self.dir)
+            .map(|current| current[service.index()])
+            != Some(self.generations[service.index()])
+        {
+            return Ok(None);
         }
+        let path = self.path(service);
+        let sealed = match fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+            Err(_) => return Err("Could not open saved sign-ins.".into()),
+        };
+        let bytes = unseal(&sealed).map_err(|_| "Could not open saved sign-ins.")?;
+        serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(|_| "Could not open saved sign-ins.".into())
     }
 
     pub(crate) fn save(&self, service: Service, login: &KeptLogin) -> Result<(), String> {
+        let generations = GENERATIONS
+            .lock()
+            .map_err(|_| "Could not save the sign-in.")?;
+        if generations
+            .get(&self.dir)
+            .map(|current| current[service.index()])
+            != Some(self.generations[service.index()])
+        {
+            return Err("This sign-in was cancelled by signing out.".into());
+        }
         let bytes = serde_json::to_vec(login).map_err(|error| error.to_string())?;
         let sealed = seal(&bytes)?;
         fs::create_dir_all(&self.dir).map_err(|error| error.to_string())?;
@@ -138,23 +198,47 @@ impl Store {
     }
 
     pub(crate) fn delete(&self, service: Service) -> Result<(), String> {
+        let generations = GENERATIONS
+            .lock()
+            .map_err(|_| "Could not remove the sign-in.")?;
+        if generations
+            .get(&self.dir)
+            .map(|current| current[service.index()])
+            != Some(self.generations[service.index()])
+        {
+            return Ok(());
+        }
+        self.delete_file(service)
+    }
+
+    fn invalidate(&self, service: Service) -> Result<(), String> {
+        let mut generations = GENERATIONS
+            .lock()
+            .map_err(|_| "Could not remove the sign-in.")?;
+        let current = generations.entry(self.dir.clone()).or_default();
+        current[service.index()] = current[service.index()].wrapping_add(1);
+        self.delete_file(service)
+    }
+
+    fn delete_file(&self, service: Service) -> Result<(), String> {
         match fs::remove_file(self.path(service)) {
             Err(error) if error.kind() != ErrorKind::NotFound => Err(error.to_string()),
             _ => Ok(()),
         }
     }
 
-    fn list(&self) -> Vec<KeptLoginSummary> {
-        Service::ALL
-            .into_iter()
-            .filter_map(|service| {
-                self.load(service).map(|login| KeptLoginSummary {
+    fn list(&self) -> Result<Vec<KeptLoginSummary>, String> {
+        let mut summaries = Vec::new();
+        for service in Service::ALL {
+            if let Some(login) = self.try_load(service)? {
+                summaries.push(KeptLoginSummary {
                     service: service.id(),
                     name: login.name,
                     saved_at: login.saved_at,
-                })
-            })
-            .collect()
+                });
+            }
+        }
+        Ok(summaries)
     }
 }
 
@@ -243,14 +327,18 @@ fn unseal(_: &[u8]) -> Result<Vec<u8>, ()> {
 pub(crate) async fn sign_out(app: &AppHandle, service: Service) -> Result<(), String> {
     let store = Store::of(app)?;
     let kept = store.load(service);
-    store.delete(service)?;
+    store.invalidate(service)?;
     match service {
         Service::Epic => {
+            super::epic_account::cancel_active(app);
             if let Some(login) = kept {
                 super::epic_account::end_kept_session(&login.secret).await;
             }
         }
-        Service::BattleNet => super::battlenet_account::forget_profile(app),
+        Service::BattleNet => {
+            super::battlenet_account::cancel_active(app);
+            super::battlenet_account::forget_profile(app);
+        }
         // Microsoft has no call to end it from here. Unused, it ends by itself.
         Service::Xbox => {}
     }
@@ -269,10 +357,28 @@ pub(crate) async fn sign_out_everywhere(app: &AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn logins_list(app: AppHandle) -> Vec<KeptLoginSummary> {
-    Store::of(&app)
-        .map(|store| store.list())
-        .unwrap_or_default()
+pub fn logins_list(app: AppHandle) -> Result<Vec<KeptLoginSummary>, String> {
+    Store::of(&app)?.list()
+}
+
+/// Validate a saved connection without ever starting interactive sign-in.
+#[tauri::command]
+pub async fn logins_check(
+    app: AppHandle,
+    window: WebviewWindow,
+    service: String,
+    api_endpoint: String,
+) -> super::login_status::LoginStatus {
+    use super::login_status::LoginStatus;
+    if window.label() != "main" || !cfg!(windows) {
+        return LoginStatus::Unavailable;
+    }
+    match Service::parse(&service) {
+        Some(Service::Xbox) => super::xbox_login::check_saved_login(&app, &api_endpoint).await,
+        Some(Service::Epic) => super::epic_account::check_saved_login(&app).await,
+        Some(Service::BattleNet) => super::battlenet_account::check_saved_login(&app).await,
+        None => LoginStatus::Unavailable,
+    }
 }
 
 #[tauri::command]
@@ -313,6 +419,43 @@ mod tests {
     }
 
     #[test]
+    fn sign_out_prevents_late_refreshes_and_claims_from_recreating_each_login() {
+        for service in Service::ALL {
+            let (pending, dir) = store();
+            let old = KeptLogin::new("old-token".into(), None);
+            pending.save(service, &old).unwrap();
+            let signing_out = Store::at(dir.clone()).unwrap();
+            signing_out.invalidate(service).unwrap();
+
+            // A network request/claim began before sign-out, then completed.
+            assert!(pending.save(service, &old).is_err());
+            assert!(!pending.is_current(service));
+            let next = Store::at(dir.clone()).unwrap();
+            assert_eq!(next.load(service), None);
+
+            // An explicitly started sign-in can save, and an old failure
+            // cannot delete that newer account's credentials.
+            let new = KeptLogin::new("new-token".into(), Some("New account".into()));
+            next.save(service, &new).unwrap();
+            pending.delete(service).unwrap();
+            assert_eq!(pending.load(service), None);
+            assert_eq!(next.load(service), Some(new));
+            let _ = fs::remove_dir_all(dir);
+        }
+    }
+
+    #[test]
+    fn signing_out_one_service_does_not_cancel_another() {
+        let (pending, dir) = store();
+        let signing_out = Store::at(dir.clone()).unwrap();
+        signing_out.invalidate(Service::Xbox).unwrap();
+        let login = KeptLogin::new("epic-token".into(), None);
+        pending.save(Service::Epic, &login).unwrap();
+        assert_eq!(pending.load(Service::Epic), Some(login));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn the_file_never_holds_the_token_as_text() {
         let (store, dir) = store();
         store
@@ -333,8 +476,12 @@ mod tests {
     }
 
     #[test]
-    fn an_unreadable_file_counts_as_signed_out_and_is_deleted() {
+    fn an_unreadable_or_invalid_file_is_preserved_and_reports_unavailable() {
         let (store, dir) = store();
+        store
+            .save(Service::Xbox, &KeptLogin::new("healthy-token".into(), None))
+            .unwrap();
+        let healthy_bytes = fs::read(dir.join("xbox.bin")).unwrap();
         store
             .save(Service::Epic, &KeptLogin::new("token".into(), None))
             .unwrap();
@@ -342,13 +489,54 @@ mod tests {
         let mut bytes = fs::read(&path).unwrap();
         let last = bytes.len() - 1;
         bytes[last] ^= 0xff;
-        fs::write(&path, bytes).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        assert!(store.try_load(Service::Epic).is_err());
+        // A partial list would hide Epic and falsely show it signed out.
+        assert!(store.list().is_err());
+        assert_eq!(store.load(Service::Epic), None);
+        assert_eq!(fs::read(&path).unwrap(), bytes);
 
-        assert_eq!(store.load(Service::Epic), None);
-        assert!(!path.exists());
         fs::write(&path, b"not encrypted").unwrap();
+        assert!(store.try_load(Service::Epic).is_err());
+        assert!(store.list().is_err());
         assert_eq!(store.load(Service::Epic), None);
+        assert_eq!(fs::read(&path).unwrap(), b"not encrypted");
+
+        let invalid_json = seal(b"not json").unwrap();
+        fs::write(&path, &invalid_json).unwrap();
+        assert!(store.try_load(Service::Epic).is_err());
+        assert!(store.list().is_err());
+        assert_eq!(fs::read(&path).unwrap(), invalid_json);
+        assert_eq!(fs::read(dir.join("xbox.bin")).unwrap(), healthy_bytes);
+
+        // Explicit sign-out can still remove an unavailable saved record.
+        store.invalidate(Service::Epic).unwrap();
         assert!(!path.exists());
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_temporarily_locked_file_remains_signed_in_when_it_becomes_readable() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let (store, dir) = store();
+        let login = KeptLogin::new("synthetic-refresh-token".into(), None);
+        store.save(Service::Xbox, &login).unwrap();
+        let path = dir.join("xbox.bin");
+        let saved_bytes = fs::read(&path).unwrap();
+        let summaries = store.list().unwrap();
+        let held = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&path)
+            .unwrap();
+        assert!(store.try_load(Service::Xbox).is_err());
+        assert!(store.list().is_err());
+        drop(held);
+        assert_eq!(fs::read(&path).unwrap(), saved_bytes);
+        assert_eq!(store.list().unwrap(), summaries);
+        assert_eq!(store.try_load(Service::Xbox).unwrap(), Some(login));
+        store.delete(Service::Xbox).unwrap();
+        assert_eq!(store.try_load(Service::Xbox).unwrap(), None);
         let _ = fs::remove_dir_all(dir);
     }
 
@@ -401,7 +589,7 @@ mod tests {
             .save(Service::BattleNet, &KeptLogin::new(String::new(), None))
             .unwrap();
 
-        let list = store.list();
+        let list = store.list().unwrap();
         let text = serde_json::to_string(&list).unwrap();
         assert_eq!(list.len(), 2);
         assert!(text.contains(r#""service":"xbox","name":"Chief""#));

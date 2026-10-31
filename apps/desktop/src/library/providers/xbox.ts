@@ -26,13 +26,26 @@ import type {
   ScannedExecutable,
 } from "../types";
 import { appLanguage, getT } from "../../i18n";
-import { refreshKeptLogins } from "../keptLogins";
+import { refreshKeptLogins, useKeptLogins } from "../keptLogins";
+import {
+  getLoginOperationRevision,
+  recordLoginHealth,
+  supersedeLoginCheck,
+} from "../loginHealth";
 
 const t = getT("import");
 
 const XBOX_IMPORT_POLL_INTERVAL_MS = 1_500;
 const XBOX_IMPORT_TIMEOUT_MS = 5 * 60 * 1_000;
 const XBOX_CANCEL_TIMEOUT_MS = 3_000;
+
+/** A background operation has no reusable account and must wait for the user. */
+export class XboxSignInRequiredError extends Error {
+  constructor() {
+    super(t("Sign in with Microsoft"));
+    this.name = "XboxSignInRequiredError";
+  }
+}
 type ParsedXboxImportGame = Omit<XboxImportGame, "candidates"> & {
   candidates: GameMetadata[];
 };
@@ -57,10 +70,11 @@ type XboxFailureContext = {
   accountLabel?: string;
 };
 
-type ParsedXboxImportResult =
+type ParsedXboxImportResult = { loginReady?: boolean } & (
   | { status: "pending"; stage?: XboxImportProgressStage }
   | { status: "done"; games: ParsedXboxImportGame[] }
-  | ({ status: "failed" } & XboxFailureContext);
+  | ({ status: "failed" } & XboxFailureContext)
+);
 
 export const xboxProvider: LocalLibraryProvider = {
   id: "xbox",
@@ -101,6 +115,15 @@ export async function scanXboxLibrary(
   const localGames = await scanLocalXboxGames();
   ensureNotAborted(options.signal);
   return mapXboxImportGames(games ?? [], localGames);
+}
+
+/** Connect without importing or reading the account's library. */
+export async function signInXboxAccount(
+  options: LibraryScanOptions = {},
+): Promise<void> {
+  const result = await signInToXbox(options, { authenticationOnly: true });
+  // Older servers can still connect through the existing import flow.
+  if (result === null) await signInToXbox(options);
 }
 
 /** One Xbox title's achievements, after a Microsoft sign-in. Skips game
@@ -159,6 +182,8 @@ async function signInToXbox(
   }
 
   const requestController = new AbortController();
+  const accountRevision = getLoginOperationRevision("xbox");
+  if (!options.savedLoginOnly) supersedeLoginCheck("xbox");
   const onExternalAbort = () => requestController.abort();
   externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
   let timedOut = false;
@@ -168,6 +193,23 @@ async function signInToXbox(
   }, XBOX_IMPORT_TIMEOUT_MS);
   let attemptId: string | undefined;
   let attemptActive = false;
+  let claimHash: string | null = null;
+  let savingLogin: Promise<boolean> | null = null;
+  const persistLogin = (): Promise<boolean> => {
+    if (savingLogin) return savingLogin;
+    if (!attemptId || !claimHash) return Promise.resolve(false);
+    // This native operation deliberately outlives a cancelled view. Its store
+    // generation prevents an explicit sign-out from being undone by a late save.
+    savingLogin = keepXboxLogin(attemptId, claimHash, accountRevision)
+      .then((kept) => {
+        if (kept) claimHash = null;
+        return kept;
+      })
+      .finally(() => {
+        savingLogin = null;
+      });
+    return savingLogin;
+  };
   let reportedProgress: XboxImportProgressStage | undefined;
   const reportProgress = (stage: XboxImportProgressStage) => {
     if (reportedProgress === stage) return;
@@ -178,18 +220,19 @@ async function signInToXbox(
   try {
     // The claim hash lets the Rust part keep this sign-in. The web UI never
     // sees its secret or the token.
-    let claimHash: string | null = null;
     const keptAttemptId = await startKeptXboxImport(
       apiEndpoint,
       request,
       options,
       requestController.signal,
+      accountRevision,
     );
     if (keptAttemptId) {
       attemptId = keptAttemptId;
       attemptActive = true;
       reportProgress("history");
     } else {
+      if (options.savedLoginOnly) throw new XboxSignInRequiredError();
       claimHash = await xboxLoginClaimHash(apiEndpoint);
       const start = await startXboxSignIn(
         apiEndpoint,
@@ -250,10 +293,28 @@ async function signInToXbox(
       }
 
       const result = parseXboxImportResult(await resultResponse.json());
+      // The Microsoft refresh token is ready before Xbox history completes.
+      // Save even if leaving the view just aborted the import in the meantime.
+      if (result.loginReady || result.status === "done") {
+        const saved = await persistLogin();
+        // A terminal response has no next poll to retry a transient claim or
+        // secure-store failure. Do not report success with an unsaved login.
+        if (
+          result.status === "done" &&
+          claimHash &&
+          !saved &&
+          !(await persistLogin())
+        ) {
+          throw new Error(
+            t(
+              "The Xbox import is unavailable right now. Check your connection and try again.",
+            ),
+          );
+        }
+      }
       ensureNotAborted(requestController.signal);
       if (result.status === "done") {
         attemptActive = false;
-        if (claimHash) keepXboxLogin(attemptId, claimHash);
         return result.games;
       }
       if (result.status === "failed") {
@@ -274,6 +335,9 @@ async function signInToXbox(
     if (attemptActive && attemptId) {
       void cancelXboxImport(apiEndpoint, attemptId);
     }
+    // An OAuth callback already in progress can finish after the last poll.
+    // The backend retains that claim after cancellation; Rust retries briefly.
+    if (attemptId && claimHash) void persistLogin();
     if (timedOut) {
       throw new Error(xboxImportFailureMessage({ reason: "timed_out" }));
     }
@@ -287,14 +351,25 @@ async function signInToXbox(
   }
 }
 
-/** Starts an import with the kept sign-in. null: nothing kept, Microsoft
- *  refused it, or the server cannot do it yet. Then the browser opens. */
+/** Starts with a kept sign-in. Only a missing or rejected login opens a browser. */
 async function startKeptXboxImport(
   apiEndpoint: string,
   request: XboxImportStartRequest | undefined,
   options: LibraryScanOptions,
   signal: AbortSignal,
+  accountRevision: number,
 ): Promise<string | null> {
+  let syncRequest = request;
+  const recordHealth = (status: "valid" | "needsSignIn" | "unavailable") => {
+    if (
+      !signal.aborted &&
+      accountRevision === getLoginOperationRevision("xbox")
+    )
+      recordLoginHealth("xbox", status);
+  };
+  const hadSavedLogin = useKeptLogins
+    .getState()
+    .logins.some((login) => login.service === "xbox");
   for (let tries = 0; tries < 5; tries++) {
     ensureNotAborted(signal);
     let answer: Record<string, unknown> | null;
@@ -302,17 +377,23 @@ async function startKeptXboxImport(
       answer = asRecord(
         await invoke<unknown>("xbox_login_sync_start", {
           apiEndpoint,
-          options: request ?? {},
+          options: syncRequest ?? {},
         }),
       );
     } catch {
-      return null;
+      recordHealth("unavailable");
+      throw new Error(
+        t(
+          "The Xbox import is unavailable right now. Check your connection and try again.",
+        ),
+      );
     }
     if (
       answer?.status === "started" &&
       typeof answer.attemptId === "string" &&
       /^[a-f0-9]{48}$/.test(answer.attemptId)
     ) {
+      recordHealth("valid");
       return answer.attemptId;
     }
     if (answer?.status === "busy") {
@@ -328,12 +409,15 @@ async function startKeptXboxImport(
       }
       continue;
     }
-    // 400 and 404: a server without kept sign-ins. The browser still works.
-    if (
-      answer?.status === "unavailable" &&
-      answer.httpStatus !== 400 &&
-      answer.httpStatus !== 404
-    ) {
+    if (answer?.status === "unavailable") {
+      if (answer.httpStatus === 400 && syncRequest?.authenticationOnly) {
+        // A server predating separate account connections can still renew
+        // this saved login. Retry its old flow without opening a browser.
+        const { authenticationOnly: _ignored, ...legacyRequest } = syncRequest;
+        syncRequest = legacyRequest;
+        continue;
+      }
+      recordHealth("unavailable");
       throw new Error(
         typeof answer.httpStatus === "number"
           ? t("Xbox import could not start ({{status}}).", {
@@ -344,9 +428,24 @@ async function startKeptXboxImport(
             ),
       );
     }
+    if (answer?.status === "signedOut" && hadSavedLogin) {
+      recordHealth("needsSignIn");
+    }
+    if (options.savedLoginOnly && answer?.status !== "signedOut") {
+      recordHealth("unavailable");
+      throw new Error(
+        t(
+          "The Xbox import is unavailable right now. Check your connection and try again.",
+        ),
+      );
+    }
     return null;
   }
-  return null;
+  throw new Error(
+    t(
+      "The Xbox import is unavailable right now. Check your connection and try again.",
+    ),
+  );
 }
 
 /** null when this PC keeps no sign-ins or the server is not PlayCounter's. */
@@ -363,12 +462,22 @@ async function xboxLoginClaimHash(apiEndpoint: string) {
   }
 }
 
-function keepXboxLogin(attemptId: string, claimHash: string) {
-  void invoke<boolean>("xbox_login_keep", { attemptId, claimHash })
-    .then((kept) => {
-      if (kept) void refreshKeptLogins();
+async function keepXboxLogin(
+  attemptId: string,
+  claimHash: string,
+  accountRevision: number,
+) {
+  return invoke<boolean>("xbox_login_keep", { attemptId, claimHash })
+    .then(async (kept) => {
+      if (kept) {
+        await refreshKeptLogins();
+        if (accountRevision === getLoginOperationRevision("xbox")) {
+          recordLoginHealth("xbox", "valid");
+        }
+      }
+      return kept;
     })
-    .catch(() => {});
+    .catch(() => false);
 }
 
 /** The browser sign-in's start. An older server refuses options it does not
@@ -521,6 +630,7 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
   if (!record || typeof record.status !== "string") {
     throw new Error(t("Xbox import returned an invalid status."));
   }
+  const loginReady = record.loginReady === true;
   if (record.status === "pending") {
     if (
       record.stage !== undefined &&
@@ -531,6 +641,7 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
     }
     return {
       status: "pending",
+      loginReady,
       ...(record.stage === "authorization" || record.stage === "history"
         ? { stage: record.stage }
         : {}),
@@ -540,7 +651,11 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
     if (!Array.isArray(record.games)) {
       throw new Error(t("Xbox import returned an invalid game list."));
     }
-    return { status: "done", games: record.games.map(parseXboxImportGame) };
+    return {
+      status: "done",
+      loginReady,
+      games: record.games.map(parseXboxImportGame),
+    };
   }
   if (record.status === "failed" && isXboxFailureReason(record.reason)) {
     if (record.stage !== undefined && !isXboxFailureStage(record.stage)) {
@@ -562,6 +677,7 @@ function parseXboxImportResult(value: unknown): ParsedXboxImportResult {
     }
     return {
       status: "failed",
+      loginReady,
       reason: record.reason,
       ...(isXboxFailureStage(record.stage) ? { stage: record.stage } : {}),
       ...(typeof record.errorCode === "string"

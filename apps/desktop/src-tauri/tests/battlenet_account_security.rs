@@ -4,13 +4,11 @@
 
 // Compile the production session helpers into this separate test executable so
 // its Windows manifest cannot affect the application or library unit tests.
-#[allow(dead_code)]
-#[path = "../src/library/battlenet_account.rs"]
-mod battlenet_account;
+include!("support/battlenet_modules.rs");
 #[path = "../src/webview_args.rs"]
 mod webview_args;
 
-use battlenet_account::{clear_private_data, secure_window};
+use battlenet_account::{clear_profile_data, secure_window, ExpectedProfile};
 use std::{sync::Mutex, time::Duration};
 use tauri::{WebviewUrl, WebviewWindow};
 use tokio::sync::oneshot;
@@ -137,23 +135,59 @@ fn private_profile_enforces_security_settings_and_clears_only_its_own_cookies() 
                 WebviewUrl::External("about:blank".parse().unwrap()),
             )
             .visible(false)
-            .data_directory(directory)
+            .data_directory(directory.clone())
             .incognito(true)
+            .build()?;
+            let account_directory = directory.join("battlenet");
+            let dedicated = tauri::WebviewWindowBuilder::new(
+                app,
+                "security-dedicated",
+                WebviewUrl::External("about:blank".parse().unwrap()),
+            )
+            .visible(false)
+            .data_directory(account_directory.clone())
             .build()?;
             let handle = app.handle().clone();
             let check = tauri::async_runtime::spawn(async move {
-                assert!(secure_window(&persistent).await.is_err());
+                assert!(secure_window(&persistent, ExpectedProfile::Private, true)
+                    .await
+                    .is_err());
                 assert_eq!(cookies(&persistent, true).await, 1);
-                secure_window(&private).await.unwrap();
+                secure_window(&private, ExpectedProfile::Private, true)
+                    .await
+                    .unwrap();
                 verify_settings_and_reader(&private).await;
                 assert_eq!(cookies(&private, false).await, 0);
                 assert_eq!(cookies(&private, true).await, 1);
-                clear_private_data(&private).await.unwrap();
+                clear_profile_data(&private, ExpectedProfile::Private)
+                    .await
+                    .unwrap();
                 assert_eq!(cookies(&private, false).await, 0);
                 assert_eq!(cookies(&persistent, false).await, 1);
                 // A subsequent sign-in starts empty while the main profile survives.
-                secure_window(&private).await.unwrap();
+                secure_window(&private, ExpectedProfile::Private, true)
+                    .await
+                    .unwrap();
                 assert_eq!(cookies(&private, false).await, 0);
+                let expected = ExpectedProfile::Dedicated(account_directory);
+                secure_window(&dedicated, expected.clone(), true)
+                    .await
+                    .unwrap();
+                verify_settings_and_reader(&dedicated).await;
+                assert_eq!(cookies(&dedicated, true).await, 1);
+                // Reusing the saved profile must retain authentication cookies.
+                secure_window(&dedicated, expected.clone(), false)
+                    .await
+                    .unwrap();
+                assert_eq!(cookies(&dedicated, false).await, 1);
+                assert!(secure_window(&persistent, expected.clone(), true)
+                    .await
+                    .is_err());
+                assert_eq!(cookies(&persistent, false).await, 1);
+                clear_profile_data(&dedicated, expected).await.unwrap();
+                assert_eq!(cookies(&dedicated, false).await, 0);
+                assert_eq!(cookies(&persistent, false).await, 1);
+                dedicated.destroy().unwrap();
                 private.destroy().unwrap();
                 persistent.destroy().unwrap();
             });
