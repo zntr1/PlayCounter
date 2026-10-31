@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
+  scan: vi.fn(),
   logins: [] as { service: string; name: string | null; savedAt: number }[],
 }));
 vi.mock("@tauri-apps/api/core", () => ({
@@ -19,7 +20,7 @@ vi.mock("../../library/providers", () => ({
       provider === "xbox"
         ? [{ accountId: 0, mostRecent: true, gamesWithPlaytime: 0 }]
         : [],
-    scan: vi.fn(),
+    scan: mocks.scan,
   }),
 }));
 
@@ -45,7 +46,7 @@ async function open(provider: "xbox" | "epic" | "battlenet") {
   await act(async () => {});
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.resetModules();
   vi.resetAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -64,6 +65,8 @@ beforeEach(() => {
     }
     return undefined;
   });
+  // Loaded before the test, so a busy test run does not time it out.
+  await import("./ImportLibraryView");
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -79,7 +82,7 @@ it("with a kept Epic sign-in, the import shows who is signed in and needs no sig
   mocks.logins = [{ service: "epic", name: "Player One", savedAt: 1 }];
   await open("epic");
 
-  expect(text()).toContain("Signed in as Player One.");
+  expect(text()).toContain("Signed in as Player One");
   expect(text()).toContain(
     "PlayCounter keeps you signed in on this PC until you sign out.",
   );
@@ -118,7 +121,8 @@ it("Battle.net has no name to show, only that the sign-in is kept", async () => 
   mocks.logins = [{ service: "battlenet", name: null, savedAt: 1 }];
   await open("battlenet");
 
-  expect(text()).toContain("Signed in.");
+  expect(text()).toContain("Signed in");
+  expect(text()).not.toContain("Signed in as");
   expect(buttons()).toContain("Sign out");
 });
 
@@ -126,12 +130,42 @@ it("with a kept Xbox sign-in there is no sign-in link to copy", async () => {
   mocks.logins = [{ service: "xbox", name: "Master Chief", savedAt: 1 }];
   await open("xbox");
 
-  expect(text()).toContain("Signed in as Master Chief.");
+  expect(text()).toContain("Signed in as Master Chief");
   expect(text()).toContain(
     "keeps you signed in on this PC, so the next import needs no sign-in.",
   );
   expect(buttons()).not.toContain("Copy sign-in link");
   expect(buttons()).toContain("Find games");
+});
+
+it("an expired sign-in asks to sign in again, and the button opens the sign-in", async () => {
+  mocks.logins = [{ service: "epic", name: "Player One", savedAt: 1 }];
+  mocks.scan.mockReturnValue(new Promise(() => {}));
+  const { useLoginHealth } = await import("../../library/loginHealth");
+  useLoginHealth.setState({
+    checks: {
+      epic: { status: "needsSignIn", checkedAt: 1, lastSuccessAt: null },
+    },
+  });
+  await open("epic");
+
+  expect(text()).toContain("Needs sign-in");
+  // The sign-in is still saved, so it can still be removed.
+  expect(buttons()).toContain("Sign out");
+  expect(buttons()).not.toContain("Find games");
+
+  const signIn = [...document.body.querySelectorAll("button")].find(
+    (button) => button.textContent?.trim() === "Sign in and find games",
+  );
+  await act(() => signIn!.click());
+
+  expect(mocks.scan).toHaveBeenCalledWith(
+    0,
+    expect.objectContaining({ epicAccount: true }),
+  );
+  expect(text()).toContain(
+    "Complete the Epic Games sign-in in the window that opened…",
+  );
 });
 
 it("another launcher's kept sign-in does not count for this one", async () => {

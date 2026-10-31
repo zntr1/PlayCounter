@@ -18,10 +18,12 @@ export const battleNetProvider: LocalLibraryProvider = {
   listAccounts: async () => [],
   scan: async (_accountId, options) => {
     options?.signal?.throwIfAborted();
+    if (options?.battleNetAccount) options.onStage?.("account");
     const account = options?.battleNetAccount
       ? await readBattleNetAccountLibrary(options.signal)
       : undefined;
     options?.signal?.throwIfAborted();
+    options?.onStage?.("installs");
     const result = await invoke<LibraryScanResult>("library_scan", {
       provider: "battlenet",
       accountId: 0,

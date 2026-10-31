@@ -204,6 +204,7 @@ it("signs out just the selected account and leaves library data intact", async (
 });
 
 it("requires Battle.net's playtime notice before starting its account connection", async () => {
+  const { useAppStore } = await import("../../store");
   await render();
   await act(() => button(card("battlenet"), "Sign in").click());
   expect(mocks.scan).not.toHaveBeenCalled();
@@ -217,6 +218,20 @@ it("requires Battle.net's playtime notice before starting its account connection
     expect.objectContaining({ requestId: expect.any(String) }),
   );
   expect(mocks.scan).not.toHaveBeenCalled();
+  // The importer and this page share the answer.
+  expect(useAppStore.getState().battleNetPlaytimeNoticeSeen).toBe(true);
+});
+
+it("signs in to Battle.net without the notice once it was answered", async () => {
+  const { useAppStore } = await import("../../store");
+  useAppStore.setState({ battleNetPlaytimeNoticeSeen: true });
+  await render();
+  await act(() => button(card("battlenet"), "Sign in").click());
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(mocks.invoke).toHaveBeenCalledWith(
+    "library_battlenet_sign_in",
+    expect.objectContaining({ requestId: expect.any(String) }),
+  );
 });
 
 it("shows a Battle.net connection saved after leaving and returning to accounts", async () => {

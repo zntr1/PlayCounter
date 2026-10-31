@@ -32,10 +32,6 @@
   "Discover": "Découvrir",
   "System": "Système",
   "Import from {{LIBRARY_PROVIDER_LABELS}}": "Importer depuis {{LIBRARY_PROVIDER_LABELS}}",
-  "Bring your Xbox games and playtime into PlayCounter": "Importez vos jeux Xbox et votre temps de jeu dans PlayCounter",
-  "Add your Battle.net games to PlayCounter": "Ajoutez vos jeux Battle.net à PlayCounter",
-  "Bring your Epic Games library and playtime into PlayCounter": "Importez votre bibliothèque Epic Games et votre temps de jeu dans PlayCounter",
-  "Bring your Steam library and playtime into PlayCounter": "Importez votre bibliothèque Steam et votre temps de jeu dans PlayCounter",
   "Expand sidebar": "Déplier la barre latérale",
   "Expand sidebar (Ctrl+B)": "Déplier la barre latérale (Ctrl+B)",
   "Show sources": "Afficher les sources",
@@ -172,5 +168,7 @@
   "Join the Discord": "Rejoignez le Discord",
   "PlayCounter is still in development. On Discord you can share ideas, report bugs and chat with other players. We'd love to hear your thoughts and ideas!": "PlayCounter est encore en développement. Sur Discord, vous pouvez partager vos idées, signaler des bugs et discuter avec d'autres joueurs. Nous aimerions beaucoup connaître votre avis et vos idées !",
   "Not now": "Pas maintenant",
-  "Join Discord": "Rejoindre Discord"
+  "Join Discord": "Rejoindre Discord",
+  "Bring your {{providerName}} games and their playtime into PlayCounter": "Importez vos jeux {{providerName}} et leur temps de jeu dans PlayCounter",
+  "Add your {{providerName}} games to PlayCounter": "Ajoutez vos jeux {{providerName}} à PlayCounter"
 }

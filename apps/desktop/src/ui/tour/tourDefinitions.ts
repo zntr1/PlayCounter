@@ -212,9 +212,9 @@ export function tours(): TourDefinition[] {
           interactive: true,
           manualAdvance: true,
           allow: [a("demo-library-stage")],
-          title: t("Confirm and Import"),
+          title: t("Pick the game, then import"),
           body: t(
-            "Try searching the bundled sample titles, select the exact game, then click Confirm and Import. Selecting a suggestion alone imports nothing. The result here is temporary.",
+            "Try searching the bundled sample titles, click the exact game, then click Import. Clicking a suggestion alone imports nothing. The result here is temporary.",
           ),
         },
         {

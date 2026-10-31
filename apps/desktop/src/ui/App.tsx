@@ -52,6 +52,7 @@ import {
   useLauncherAccountChecks,
   useLoginHealth,
 } from "../library/loginHealth";
+import { importProfile } from "../library/importProfiles";
 import { PlayCounterLoader } from "../brand/PlayCounterLoader";
 import { PlayCounterAnimatedIcon } from "../brand/PlayCounterAnimatedIcon";
 import { PlayCounterWordmark } from "../brand/PlayCounterWordmark";
@@ -143,7 +144,7 @@ import { appLocale, getT } from "../i18n";
 const t = getT("shell");
 const accountsT = getT("accounts");
 
-const ImportLibraryView = lazy(() => import("./views/ImportLibraryView"));
+const ImportLibraryView = lazy(() => import("./import/ImportLibraryView"));
 const LauncherAccountsView = lazy(() => import("./views/LauncherAccountsView"));
 
 class ImporterErrorBoundary extends Component<
@@ -468,13 +469,16 @@ export function App() {
       : views()[activeView].label;
   const activeViewSubtitle =
     activeView === "import"
-      ? libraryImportProvider === "xbox"
-        ? t("Bring your Xbox games and playtime into PlayCounter")
-        : libraryImportProvider === "battlenet"
-          ? t("Add your Battle.net games to PlayCounter")
-          : libraryImportProvider === "epic"
-            ? t("Bring your Epic Games library and playtime into PlayCounter")
-            : t("Bring your Steam library and playtime into PlayCounter")
+      ? importProfile(libraryImportProvider).hasPlaytime
+        ? t(
+            "Bring your {{providerName}} games and their playtime into PlayCounter",
+            {
+              providerName: LIBRARY_PROVIDER_LABELS[libraryImportProvider],
+            },
+          )
+        : t("Add your {{providerName}} games to PlayCounter", {
+            providerName: LIBRARY_PROVIDER_LABELS[libraryImportProvider],
+          })
       : views()[activeView].subtitle;
   const activeTour = useAppStore((state) => state.activeTour);
   const activeTourId = activeTour?.tourId ?? null;

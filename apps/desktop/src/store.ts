@@ -531,6 +531,8 @@ export type AppState = {
   suppressContributionNotificationsOnce: boolean;
   /** The one-time "PlayCounter is now in German" notice was answered. */
   languageNoticeSeen: boolean;
+  /** "Battle.net has no past playtime" was confirmed once on this PC. */
+  battleNetPlaytimeNoticeSeen: boolean;
   /** When "Not now" first hid the Discord invite. It comes back two weeks
    *  later, once. */
   discordInviteSnoozedAt: string | null;
@@ -553,6 +555,7 @@ export type AppState = {
   resetTourProgress: () => void;
   markReleaseNotesSeen: (version: string) => void;
   dismissLanguageNotice: () => void;
+  markBattleNetPlaytimeNoticeSeen: () => void;
   snoozeDiscordInvite: () => void;
   finishDiscordInvite: () => void;
   openCurrentReleaseNotes: () => void;
@@ -953,6 +956,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   suppressStartupNotificationsOnce: false,
   suppressContributionNotificationsOnce: false,
   languageNoticeSeen: false,
+  battleNetPlaytimeNoticeSeen: false,
   discordInviteSnoozedAt: null,
   discordInviteDone: false,
   activeTour: null,
@@ -1054,6 +1058,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   dismissLanguageNotice: () => {
     set({ languageNoticeSeen: true });
+    persistSoon();
+  },
+  markBattleNetPlaytimeNoticeSeen: () => {
+    if (get().battleNetPlaytimeNoticeSeen) return;
+    set({ battleNetPlaytimeNoticeSeen: true });
     persistSoon();
   },
   snoozeDiscordInvite: () => {

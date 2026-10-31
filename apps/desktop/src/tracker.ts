@@ -360,6 +360,7 @@ type PersistedState = {
   suppressStartupNotificationsOnce?: boolean;
   suppressContributionNotificationsOnce?: boolean;
   languageNoticeSeen?: boolean;
+  battleNetPlaytimeNoticeSeen?: boolean;
   discordInviteSnoozedAt?: unknown;
   discordInviteDone?: boolean;
 };
@@ -1480,6 +1481,7 @@ export function hydrate() {
     // Only people who used PlayCounter before get told it changed language.
     languageNoticeSeen:
       persisted.languageNoticeSeen === true || !hadPersistedStateOnStartup,
+    battleNetPlaytimeNoticeSeen: persisted.battleNetPlaytimeNoticeSeen === true,
     discordInviteSnoozedAt:
       typeof persisted.discordInviteSnoozedAt === "string" &&
       Number.isFinite(Date.parse(persisted.discordInviteSnoozedAt))

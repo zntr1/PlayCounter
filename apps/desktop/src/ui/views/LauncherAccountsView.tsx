@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
-import { Trans } from "react-i18next";
 import {
   CheckCircle2,
-  Clock3,
   Copy,
   Download,
   HardDrive,
@@ -36,10 +34,10 @@ import {
 import { openLauncherImport } from "../../library/importRequest";
 import type { LocalLibraryAccount } from "../../library/types";
 import { providerTabConfigs } from "../libraryProviderTabs";
-import { Button as SharedButton, Modal } from "../primitives";
+import { Button as SharedButton } from "../primitives";
+import { BattleNetPlaytimeNotice } from "../import/BattleNetPlaytimeNotice";
 
 const t = getT("accounts");
-const importT = getT("import");
 
 function Button(props: ComponentProps<typeof SharedButton>) {
   return <SharedButton data-controller-item="library-option" {...props} />;
@@ -485,7 +483,11 @@ export function LauncherAccountsView() {
                     disabled={!supported || Boolean(activity)}
                     onClick={() => {
                       if (platform !== "windows") openLauncherImport(id);
-                      else if (id === "battlenet") setBattleNetNotice(true);
+                      else if (
+                        id === "battlenet" &&
+                        !useAppStore.getState().battleNetPlaytimeNoticeSeen
+                      )
+                        setBattleNetNotice(true);
                       else void connect(service!);
                     }}
                   >
@@ -521,44 +523,15 @@ export function LauncherAccountsView() {
         })}
       </div>
       {battleNetNotice ? (
-        <Modal
-          labelId="accounts-battlenet-playtime"
-          title={importT("Battle.net playtime")}
-          icon={Clock3}
-          onClose={() => setBattleNetNotice(false)}
-          footer={
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setBattleNetNotice(false)}>
-                {t("Cancel")}
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setBattleNetNotice(false);
-                  void connect("battlenet");
-                }}
-              >
-                {t("Sign in")}
-              </Button>
-            </div>
-          }
-        >
-          <div className="space-y-4 text-sm leading-6 text-text-muted">
-            <p>
-              {importT(
-                "Battle.net does not provide historical playtime. To include your previous hours, you need to set each game's total yourself.",
-              )}
-            </p>
-            <p>
-              <Trans
-                t={importT}
-                i18nKey="After importing, right-click a game in <strong>My Games</strong> and choose <strong>Adjust total playtime</strong>."
-                components={{ strong: <strong className="text-text" /> }}
-              />
-            </p>
-            <p>{importT("PlayCounter tracks new sessions automatically.")}</p>
-          </div>
-        </Modal>
+        <BattleNetPlaytimeNotice
+          confirmLabel={t("Sign in")}
+          onCancel={() => setBattleNetNotice(false)}
+          onConfirm={() => {
+            useAppStore.getState().markBattleNetPlaytimeNoticeSeen();
+            setBattleNetNotice(false);
+            void connect("battlenet");
+          }}
+        />
       ) : null}
     </div>
   );

@@ -58,6 +58,7 @@ const NOTIFICATION_STATE_KEYS = [
   "suppressContributionNotificationsOnce",
   "lastSeenReleaseNotesVersion",
   "languageNoticeSeen",
+  "battleNetPlaytimeNoticeSeen",
   "discordInviteSnoozedAt",
   "discordInviteDone",
 ];
