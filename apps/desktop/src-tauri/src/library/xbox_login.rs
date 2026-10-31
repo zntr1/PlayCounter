@@ -15,11 +15,26 @@ const PRODUCTION_ORIGIN: &str = "https://api.playcounter.app";
 const CLAIM_LIFETIME: Duration = Duration::from_secs(15 * 60);
 const MAX_OPEN_CLAIMS: usize = 8;
 
+#[derive(Clone, Copy)]
+struct ClaimRetry {
+    budget: Duration,
+    delay: Duration,
+}
+
+const CLAIM_RETRY: ClaimRetry = ClaimRetry {
+    // A browser callback already exchanging its Microsoft code may finish
+    // after the user leaves the view. Give that exchange time to publish
+    // its login, independently of the cancelled import.
+    budget: Duration::from_secs(35),
+    delay: Duration::from_secs(1),
+};
+
 struct Claim {
     hash: String,
     secret: String,
     origin: String,
     created: Instant,
+    store: Store,
 }
 
 static CLAIMS: Mutex<Vec<Claim>> = Mutex::new(Vec::new());
@@ -53,7 +68,7 @@ fn sha256_hex(value: &str) -> String {
     hex(ring::digest::digest(&ring::digest::SHA256, value.as_bytes()).as_ref())
 }
 
-fn new_claim(origin: String) -> Option<Claim> {
+fn new_claim(origin: String, store: Store) -> Option<Claim> {
     let mut secret = [0u8; 32];
     ring::rand::SecureRandom::fill(&ring::rand::SystemRandom::new(), &mut secret).ok()?;
     let secret = hex(&secret);
@@ -62,6 +77,7 @@ fn new_claim(origin: String) -> Option<Claim> {
         secret,
         origin,
         created: Instant::now(),
+        store,
     })
 }
 
@@ -109,11 +125,15 @@ fn valid_token(value: &str) -> bool {
 /// A hash for the import's start request, or `None` when this PC keeps no
 /// sign-ins or the server is not a PlayCounter server.
 #[tauri::command]
-pub fn xbox_login_claim_hash(window: WebviewWindow, api_endpoint: String) -> Option<String> {
+pub fn xbox_login_claim_hash(
+    app: AppHandle,
+    window: WebviewWindow,
+    api_endpoint: String,
+) -> Option<String> {
     if window.label() != "main" || !cfg!(windows) {
         return None;
     }
-    let claim = new_claim(trusted_origin(&api_endpoint)?)?;
+    let claim = new_claim(trusted_origin(&api_endpoint)?, Store::of(&app).ok()?)?;
     let hash = claim.hash.clone();
     let mut claims = CLAIMS.lock().ok()?;
     remember(&mut claims, claim);
@@ -127,11 +147,10 @@ struct ClaimedLogin {
     gamertag: Option<String>,
 }
 
-/// After a finished import: claims the sign-in and keeps it. `false` when
-/// there was nothing to keep.
+/// Claims a completed sign-in independently of the library import. A view
+/// cancellation does not cancel this native command or its secure save.
 #[tauri::command]
 pub async fn xbox_login_keep(
-    app: AppHandle,
     window: WebviewWindow,
     attempt_id: String,
     claim_hash: String,
@@ -139,45 +158,91 @@ pub async fn xbox_login_keep(
     if window.label() != "main" || !valid_hex(&attempt_id, 48) || !valid_hex(&claim_hash, 64) {
         return false;
     }
-    let Some(claim) = CLAIMS
+    keep_claim(&CLAIMS, &attempt_id, &claim_hash, CLAIM_RETRY).await
+}
+
+async fn keep_claim(
+    open_claims: &Mutex<Vec<Claim>>,
+    attempt_id: &str,
+    claim_hash: &str,
+    retry: ClaimRetry,
+) -> bool {
+    let Some(claim) = open_claims
         .lock()
         .ok()
-        .and_then(|mut claims| take(&mut claims, &claim_hash))
+        .and_then(|mut claims| take(&mut claims, claim_hash))
     else {
+        return false;
+    };
+    let saved = save_claim(&claim, attempt_id, retry).await;
+    // Taking the claim serializes duplicate invocations. A failed request
+    // must not consume the only local copy of its secret: polling or a later
+    // finalizer can retry it. Signing out invalidates the original Store.
+    if !saved && claim.created.elapsed() < CLAIM_LIFETIME && claim.store.is_current(Service::Xbox) {
+        if let Ok(mut claims) = open_claims.lock() {
+            remember(&mut claims, claim);
+        }
+    }
+    saved
+}
+
+fn retryable_claim_status(status: reqwest::StatusCode) -> bool {
+    // The server intentionally uses the same 404 for a pending claim and
+    // an unknown one, so no caller can inspect another attempt's state.
+    matches!(status.as_u16(), 404 | 408 | 425 | 429) || status.is_server_error()
+}
+
+async fn save_claim(claim: &Claim, attempt_id: &str, retry: ClaimRetry) -> bool {
+    let started = Instant::now();
+    let Ok(_guard) = tokio::time::timeout(retry.budget, SYNCING.lock()).await else {
         return false;
     };
     let Some(client) = client() else {
         return false;
     };
-    let response = client
-        .post(format!("{}/api/xbox/import/login", claim.origin))
-        .json(&serde_json::json!({ "attemptId": attempt_id, "claim": claim.secret }))
-        .send()
-        .await;
-    let Ok(response) = response else {
-        return false;
-    };
-    if !response.status().is_success() {
-        return false;
+    loop {
+        if !claim.store.is_current(Service::Xbox) || claim.created.elapsed() >= CLAIM_LIFETIME {
+            return false;
+        }
+        let Some(remaining) = retry.budget.checked_sub(started.elapsed()) else {
+            return false;
+        };
+        let response = client
+            .post(format!("{}/api/xbox/import/login", claim.origin))
+            .timeout(remaining.min(Duration::from_secs(10)))
+            .json(&serde_json::json!({ "attemptId": attempt_id, "claim": claim.secret }))
+            .send()
+            .await;
+        if let Ok(response) = response {
+            let status = response.status();
+            if status.is_success() {
+                if let Ok(login) = response.json::<ClaimedLogin>().await {
+                    if !valid_token(&login.refresh_token) {
+                        return false;
+                    }
+                    let mut kept = KeptLogin::new(login.refresh_token, login.gamertag);
+                    kept.origin = Some(claim.origin.clone());
+                    // No await between receiving a usable token and saving.
+                    // Store::save also atomically checks sign-out generations.
+                    return claim.store.save(Service::Xbox, &kept).is_ok();
+                }
+            } else if !retryable_claim_status(status) {
+                return false;
+            }
+        }
+        let Some(remaining) = retry.budget.checked_sub(started.elapsed()) else {
+            return false;
+        };
+        tokio::time::sleep(retry.delay.min(remaining)).await;
     }
-    let Ok(login) = response.json::<ClaimedLogin>().await else {
-        return false;
-    };
-    if !valid_token(&login.refresh_token) {
-        return false;
-    }
-    let _guard = SYNCING.lock().await;
-    let mut kept = KeptLogin::new(login.refresh_token, login.gamertag);
-    kept.origin = Some(claim.origin);
-    Store::of(&app)
-        .and_then(|store| store.save(Service::Xbox, &kept))
-        .is_ok()
 }
 
 /// The import options the web UI may pass on. Anything else is refused.
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SyncOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authentication_only: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     include_achievements: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -217,6 +282,15 @@ struct SyncAnswer {
     refresh_token: String,
 }
 
+#[derive(Deserialize)]
+struct SyncError {
+    error: String,
+}
+
+fn is_expired_login(status: reqwest::StatusCode, error: &str) -> bool {
+    status == reqwest::StatusCode::UNAUTHORIZED && error == "login_expired"
+}
+
 /// Starts an import with the kept sign-in, without a browser.
 #[tauri::command]
 pub async fn xbox_login_sync_start(
@@ -229,11 +303,13 @@ pub async fn xbox_login_sync_start(
         return SyncStart::SignedOut;
     }
     let Ok(store) = Store::of(&app) else {
-        return SyncStart::SignedOut;
+        return SyncStart::Unavailable { http_status: None };
     };
     let _guard = SYNCING.lock().await;
-    let Some(login) = store.load(Service::Xbox) else {
-        return SyncStart::SignedOut;
+    let login = match store.try_load(Service::Xbox) {
+        Ok(Some(login)) => login,
+        Ok(None) => return SyncStart::SignedOut,
+        Err(_) => return SyncStart::Unavailable { http_status: None },
     };
     // Kept for another server (a development switch): leave it alone.
     let Some(origin) =
@@ -257,8 +333,17 @@ pub async fn xbox_login_sync_start(
     };
     let status = response.status();
     if status == reqwest::StatusCode::UNAUTHORIZED {
-        let _ = store.delete(Service::Xbox);
-        return SyncStart::SignedOut;
+        if response
+            .json::<SyncError>()
+            .await
+            .is_ok_and(|error| is_expired_login(status, &error.error))
+        {
+            let _ = store.delete(Service::Xbox);
+            return SyncStart::SignedOut;
+        }
+        return SyncStart::Unavailable {
+            http_status: Some(status.as_u16()),
+        };
     }
     if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
         let retry_after_seconds = response
@@ -280,13 +365,18 @@ pub async fn xbox_login_sync_start(
     let Ok(answer) = response.json::<SyncAnswer>().await else {
         return SyncStart::Unavailable { http_status: None };
     };
-    if !valid_hex(&answer.attempt_id, 48) {
+    if !valid_hex(&answer.attempt_id, 48)
+        || !valid_token(&answer.refresh_token)
+        || !store.is_current(Service::Xbox)
+    {
         return SyncStart::Unavailable { http_status: None };
     }
-    if valid_token(&answer.refresh_token) && answer.refresh_token != login.secret {
+    if answer.refresh_token != login.secret {
         let mut renewed = KeptLogin::new(answer.refresh_token, login.name.clone());
         renewed.origin = login.origin.clone();
-        let _ = store.save(Service::Xbox, &renewed);
+        if store.save(Service::Xbox, &renewed).is_err() {
+            return SyncStart::Unavailable { http_status: None };
+        }
     }
     SyncStart::Started {
         attempt_id: answer.attempt_id,
@@ -296,6 +386,71 @@ pub async fn xbox_login_sync_start(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    fn claim_server(responses: Vec<(u16, &'static str)>) -> (String, std::thread::JoinHandle<()>) {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            for (status, body) in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut request = Vec::new();
+                let mut chunk = [0u8; 4096];
+                loop {
+                    let count = stream.read(&mut chunk).unwrap();
+                    assert_ne!(count, 0);
+                    request.extend_from_slice(&chunk[..count]);
+                    if let Some(end) = request.windows(4).position(|part| part == b"\r\n\r\n") {
+                        let headers = String::from_utf8_lossy(&request[..end]);
+                        let length = headers
+                            .lines()
+                            .find_map(|line| {
+                                let (name, value) = line.split_once(':')?;
+                                name.eq_ignore_ascii_case("content-length")
+                                    .then(|| value.trim().parse::<usize>().unwrap())
+                            })
+                            .unwrap();
+                        if request.len() >= end + 4 + length {
+                            assert!(headers.starts_with("POST /api/xbox/import/login HTTP/1.1"));
+                            let value: serde_json::Value =
+                                serde_json::from_slice(&request[end + 4..end + 4 + length])
+                                    .unwrap();
+                            assert!(valid_hex(value["claim"].as_str().unwrap(), 64));
+                            assert!(valid_hex(value["attemptId"].as_str().unwrap(), 48));
+                            break;
+                        }
+                    }
+                }
+                // A dropped response models the callback completing while
+                // its first single-use claim response is lost in transit.
+                if status != 0 {
+                    write!(
+                        stream,
+                        "HTTP/1.1 {status} Test\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    )
+                    .unwrap();
+                }
+            }
+        });
+        (origin, server)
+    }
+
+    #[cfg(windows)]
+    fn fast_claim_retry() -> ClaimRetry {
+        ClaimRetry {
+            budget: Duration::from_secs(5),
+            delay: Duration::from_millis(5),
+        }
+    }
+
+    fn claim() -> Claim {
+        new_claim(PRODUCTION_ORIGIN.into(), Store::for_test().0).unwrap()
+    }
 
     #[test]
     fn a_sign_in_only_goes_to_the_playcounter_server() {
@@ -330,12 +485,14 @@ mod tests {
 
     #[test]
     fn a_claim_hash_belongs_to_one_secret_and_is_taken_once() {
-        let claim = new_claim(PRODUCTION_ORIGIN.into()).unwrap();
+        let claim = claim();
         assert!(valid_hex(&claim.secret, 64));
         assert_eq!(claim.hash, sha256_hex(&claim.secret));
         assert_ne!(
             claim.hash,
-            new_claim(PRODUCTION_ORIGIN.into()).unwrap().hash
+            new_claim(PRODUCTION_ORIGIN.into(), Store::for_test().0)
+                .unwrap()
+                .hash
         );
 
         let hash = claim.hash.clone();
@@ -349,11 +506,11 @@ mod tests {
     #[test]
     fn open_claims_stay_few() {
         let mut claims = Vec::new();
-        let first = new_claim(PRODUCTION_ORIGIN.into()).unwrap();
+        let first = claim();
         let first_hash = first.hash.clone();
         remember(&mut claims, first);
         for _ in 0..MAX_OPEN_CLAIMS {
-            remember(&mut claims, new_claim(PRODUCTION_ORIGIN.into()).unwrap());
+            remember(&mut claims, claim());
         }
         assert_eq!(claims.len(), MAX_OPEN_CLAIMS);
         assert!(take(&mut claims, &first_hash).is_none());
@@ -362,16 +519,17 @@ mod tests {
     #[test]
     fn the_web_ui_can_pass_import_options_but_nothing_else() {
         let options: SyncOptions = serde_json::from_str(
-            r#"{"includeAchievements":true,"achievementTitleIds":["42"],"language":"de-DE"}"#,
+            r#"{"authenticationOnly":true,"includeAchievements":true,"achievementTitleIds":["42"],"language":"de-DE"}"#,
         )
         .unwrap();
         assert_eq!(
             serde_json::to_value(&options).unwrap(),
-            serde_json::json!({"includeAchievements":true,"achievementTitleIds":["42"],"language":"de-DE"})
+            serde_json::json!({"authenticationOnly":true,"includeAchievements":true,"achievementTitleIds":["42"],"language":"de-DE"})
         );
         assert!(serde_json::from_str::<SyncOptions>(r#"{"refreshToken":"x"}"#).is_err());
         assert_eq!(
             serde_json::to_value(&SyncOptions {
+                authentication_only: None,
                 include_achievements: None,
                 achievement_title_ids: None,
                 language: None
@@ -411,5 +569,65 @@ mod tests {
             assert!(!valid_token(bad), "{bad}");
         }
         assert!(!valid_token(&"x".repeat(8193)));
+    }
+
+    #[test]
+    fn only_confirmed_expiry_invalidates_a_saved_login() {
+        assert!(is_expired_login(
+            reqwest::StatusCode::UNAUTHORIZED,
+            "login_expired"
+        ));
+        assert!(!is_expired_login(
+            reqwest::StatusCode::UNAUTHORIZED,
+            "unavailable"
+        ));
+        assert!(!is_expired_login(
+            reqwest::StatusCode::BAD_GATEWAY,
+            "login_expired"
+        ));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_pending_callback_and_lost_response_still_save_the_login() {
+        let (origin, server) = claim_server(vec![
+            (404, r#"{"error":"Not Found"}"#),
+            (503, r#"{"error":"unavailable"}"#),
+            (0, ""),
+            (200, r#"{"refreshToken":"synthetic-refresh-token"}"#),
+        ]);
+        let (store, dir) = Store::for_test();
+        let claim = new_claim(origin.clone(), store).unwrap();
+        assert!(save_claim(&claim, &"a".repeat(48), fast_claim_retry()).await);
+        let kept = claim.store.load(Service::Xbox).unwrap();
+        assert_eq!(kept.secret, "synthetic-refresh-token");
+        assert_eq!(kept.origin.as_deref(), Some(origin.as_str()));
+        assert_eq!(kept.name, None);
+        server.join().unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn an_unsaved_claim_can_be_retried_but_a_saved_claim_is_consumed() {
+        let (origin, server) = claim_server(vec![
+            (400, r#"{"error":"bad request"}"#),
+            (
+                200,
+                r#"{"refreshToken":"synthetic-refresh-token","gamertag":"Example"}"#,
+            ),
+        ]);
+        let (store, dir) = Store::for_test();
+        let claim = new_claim(origin, store).unwrap();
+        let hash = claim.hash.clone();
+        let claims = Mutex::new(vec![claim]);
+        let attempt = "a".repeat(48);
+        assert!(!keep_claim(&claims, &attempt, &hash, fast_claim_retry()).await);
+        assert_eq!(claims.lock().unwrap().len(), 1);
+        assert!(keep_claim(&claims, &attempt, &hash, fast_claim_retry()).await);
+        assert!(claims.lock().unwrap().is_empty());
+        assert!(!keep_claim(&claims, &attempt, &hash, fast_claim_retry()).await);
+        server.join().unwrap();
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

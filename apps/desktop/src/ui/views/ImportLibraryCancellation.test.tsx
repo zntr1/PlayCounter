@@ -114,6 +114,58 @@ it("opening the importer only detects local accounts and does not start API look
   expect(mocks.run).not.toHaveBeenCalled();
 });
 
+it("leaving the retained importer for accounts cancels pending work", async () => {
+  await act(() => store.getState().setActiveView("import"));
+  const pending = deferred<LibraryScanResult>();
+  mocks.scan.mockReturnValue(pending.promise);
+  await click("Find games");
+  const signal = mocks.scan.mock.calls[0][1].signal as AbortSignal;
+  await act(() => store.getState().setActiveView("accounts"));
+  expect(signal.aborted).toBe(true);
+  await act(() => pending.resolve(scanResult("Late game")));
+  expect(container.textContent).not.toContain("Late game");
+  expect(mocks.run).not.toHaveBeenCalled();
+});
+
+it("an account-page import starts once after detection", async () => {
+  const { openLauncherImport, useLibraryImportRequest } =
+    await import("../../library/importRequest");
+  mocks.scan.mockResolvedValue(scanResult("Requested game"));
+  await act(() => openLauncherImport("steam"));
+  expect(mocks.scan).toHaveBeenCalledTimes(1);
+  expect(container.textContent).toContain("Requested game");
+  expect(useLibraryImportRequest.getState().request).toBeNull();
+  expect(mocks.run).not.toHaveBeenCalled();
+});
+
+it("keeps a completed review when navigating away and back", async () => {
+  const { openLauncherImport } = await import("../../library/importRequest");
+  mocks.scan.mockResolvedValue(scanResult("Reviewed game"));
+  await act(() => openLauncherImport("steam"));
+  await act(() => store.getState().setActiveView("accounts"));
+  await act(() => store.getState().setActiveView("import"));
+  expect(container.textContent).toContain("Reviewed game");
+  expect(mocks.scan).toHaveBeenCalledTimes(1);
+});
+
+it("the installed-only request retains the Battle.net notice and never signs in", async () => {
+  const { openLauncherImport } = await import("../../library/importRequest");
+  mocks.scan.mockResolvedValue({
+    games: [],
+    resolvedGames: [],
+    warnings: [],
+    partial: false,
+  });
+  await act(() => openLauncherImport("battlenet", "installed"));
+  expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
+    "/played",
+  );
+  expect(mocks.scan).not.toHaveBeenCalled();
+  await click("OK");
+  expect(mocks.scan).toHaveBeenCalledTimes(1);
+  expect(mocks.scan.mock.calls[0][1].battleNetAccount).toBe(false);
+});
+
 it.each([
   ["Find installed games", false],
   ["Sign in and find games", true],

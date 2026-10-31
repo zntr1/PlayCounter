@@ -24,6 +24,7 @@ import {
   Play,
   Settings,
   Trophy,
+  UsersRound,
   Wifi,
   WifiOff,
   X,
@@ -136,8 +137,10 @@ import {
 import { appLocale, getT } from "../i18n";
 
 const t = getT("shell");
+const accountsT = getT("accounts");
 
 const ImportLibraryView = lazy(() => import("./views/ImportLibraryView"));
+const LauncherAccountsView = lazy(() => import("./views/LauncherAccountsView"));
 
 class ImporterErrorBoundary extends Component<
   { children: ReactNode },
@@ -270,13 +273,30 @@ function views(): Record<ViewId, ViewMeta> {
       // Mounted separately so its shared data can load before the cards.
       component: null,
     },
+    accounts: {
+      label: accountsT("Launcher accounts"),
+      subtitle: accountsT("Manage your launcher connections in one place."),
+      icon: UsersRound,
+      component: (
+        <Suspense
+          fallback={
+            <PlayCounterLoader
+              label={accountsT("Launcher accounts")}
+              className="min-h-[320px] text-text-muted"
+            />
+          }
+        >
+          <LauncherAccountsView />
+        </Suspense>
+      ),
+    },
     import: {
       label: t("Import library"),
       subtitle: t("Bring an existing game library into PlayCounter"),
       icon: Download,
       component: (
         <div className="grid gap-4">
-          <div>
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="secondary"
               icon={ArrowLeft}
@@ -284,6 +304,14 @@ function views(): Record<ViewId, ViewMeta> {
               onClick={backToMyGames}
             >
               {t("Back to My Games")}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={UsersRound}
+              data-controller-item="view-link"
+              onClick={() => useAppStore.getState().setActiveView("accounts")}
+            >
+              {accountsT("Manage accounts")}
             </Button>
           </div>
           <ImporterErrorBoundary>
@@ -343,7 +371,7 @@ function sidebarSections(): Array<{
     {
       id: "library",
       label: t("Library"),
-      items: ["now", "games", "emulating", ...EMULATOR_IDS],
+      items: ["now", "games", "accounts", "emulating", ...EMULATOR_IDS],
     },
     {
       id: "discover",

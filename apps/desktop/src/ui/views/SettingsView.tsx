@@ -59,11 +59,6 @@ import { previewDesktopOverlay } from "../../desktopOverlayBridge";
 import { DesktopOverlayMonitorSelect } from "../DesktopOverlayMonitorSelect";
 import { AutomaticBackupSettings } from "../AutomaticBackupSettings";
 import { WatchFoldersSettings } from "../WatchFoldersSettings";
-import {
-  signOutKeptLogin,
-  useAllKeptLogins,
-  type KeptLogin,
-} from "../../library/keptLogins";
 import { ResetPlayCounterDialog } from "../ResetPlayCounterDialog";
 import { ResetSettingsDialog } from "../ResetSettingsDialog";
 import { HotkeyInput } from "../HotkeyInput";
@@ -1456,7 +1451,18 @@ export function SettingsView() {
             <div role="separator" className="border-t border-border" />
           </>
         ) : null}
-        <KeptLoginRows />
+        <SettingsRow
+          title={getT("accounts")("Launcher accounts")}
+          description={getT("accounts")(
+            "Manage your launcher connections in one place.",
+          )}
+        >
+          <Button
+            onClick={() => useAppStore.getState().setActiveView("accounts")}
+          >
+            {getT("accounts")("Manage accounts")}
+          </Button>
+        </SettingsRow>
         <SettingsRow
           description={t(
             "Removes the Steam mark, the imported Steam playtime, the game files Steam linked, and where they are installed. Sessions PlayCounter recorded itself are kept.",
@@ -1931,66 +1937,6 @@ function SettingsPanel({
       </div>
       <div className="grid gap-5 p-5">{children}</div>
     </Panel>
-  );
-}
-
-/** Launcher sign-ins kept on this PC, each with Sign out. */
-function KeptLoginRows() {
-  const logins = useAllKeptLogins();
-  const addToast = useAppStore((state) => state.addToast);
-  const [signingOut, setSigningOut] = useState<KeptLogin["service"] | null>(
-    null,
-  );
-
-  async function signOut(service: KeptLogin["service"]) {
-    setSigningOut(service);
-    try {
-      await signOutKeptLogin(service);
-    } catch (error) {
-      addToast({
-        tone: "error",
-        title: t("Could not sign out. Please try again."),
-        detail: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setSigningOut(null);
-    }
-  }
-
-  if (!logins.length) return null;
-  return (
-    <>
-      {logins.map((login) => {
-        const providerName = LIBRARY_PROVIDER_LABELS[login.service];
-        return (
-          <SettingsRow
-            key={login.service}
-            description={[
-              login.name
-                ? t("Signed in as {{name}}.", { name: login.name })
-                : t("Signed in."),
-              t(
-                "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.",
-              ),
-            ].join(" ")}
-            title={
-              <span className="flex items-center gap-2">
-                <ProviderBadge provider={login.service} variant="mark" />
-                {t("{{providerName}} sign-in", { providerName })}
-              </span>
-            }
-          >
-            <Button
-              disabled={signingOut !== null}
-              onClick={() => void signOut(login.service)}
-            >
-              {t("Sign out")}
-            </Button>
-          </SettingsRow>
-        );
-      })}
-      <div role="separator" className="border-t border-border" />
-    </>
   );
 }
 

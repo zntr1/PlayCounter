@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryScanResult, ScannedLibraryGame } from "./types";
 import { getT } from "../i18n";
+import { refreshKeptLogins } from "./keptLogins";
 
 const t = getT("import");
 
@@ -62,7 +63,19 @@ export function mergeEpicAccountLibrary(
   };
 }
 
-export async function readEpicAccountLibrary(signal?: AbortSignal) {
+export function readEpicAccountLibrary(signal?: AbortSignal) {
+  return runEpicAccountCommand<EpicAccountLibrary>(
+    "library_epic_account_games",
+    signal,
+  );
+}
+
+/** Connects the account without waiting for game discovery or local scanning. */
+export function signInEpicAccount(signal?: AbortSignal) {
+  return runEpicAccountCommand<void>("library_epic_sign_in", signal);
+}
+
+async function runEpicAccountCommand<T>(command: string, signal?: AbortSignal) {
   signal?.throwIfAborted();
   const requestId = crypto.randomUUID();
   let onAbort: (() => void) | undefined;
@@ -77,10 +90,12 @@ export async function readEpicAccountLibrary(signal?: AbortSignal) {
   });
   try {
     return await Promise.race([
-      invoke<EpicAccountLibrary>("library_epic_account_games", {
+      // A token exchange already underway finishes saving even after the
+      // caller leaves this view. Refresh its durable result when native ends.
+      invoke<T>(command, {
         requestId,
         title: t("Epic Games sign-in"),
-      }),
+      }).finally(() => refreshKeptLogins()),
       aborted,
     ]);
   } finally {

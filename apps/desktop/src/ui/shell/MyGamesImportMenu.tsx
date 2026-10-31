@@ -43,6 +43,14 @@ export function MyGamesImportMenu({
       focusFirstItem
     >
       <ContextMenuHeading>{t("Import games")}</ContextMenuHeading>
+      <ContextMenuItem
+        onClick={() => {
+          onClose();
+          setActiveView("accounts");
+        }}
+      >
+        {getT("accounts")("Manage accounts")}
+      </ContextMenuItem>
       {providers.map((config) => (
         <ContextMenuItem
           key={config.id}

@@ -352,11 +352,5 @@
   "Every {{count, number}} minutes_one": "Co minutę",
   "Every {{count, number}} minutes_few": "Co {{count, number}} minuty",
   "Every {{count, number}} minutes_many": "Co {{count, number}} minut",
-  "Every {{count, number}} minutes_other": "Co {{count, number}} minuty",
-  "{{providerName}} sign-in": "Logowanie {{providerName}}",
-  "Signed in as {{name}}.": "Zalogowano jako {{name}}.",
-  "Signed in.": "Zalogowano.",
-  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "PlayCounter przechowuje to logowanie zaszyfrowane na tym PC, tak że odczyta je tylko twoje konto Windows.",
-  "Sign out": "Wyloguj się",
-  "Could not sign out. Please try again.": "Nie udało się wylogować. Spróbuj ponownie."
+  "Every {{count, number}} minutes_other": "Co {{count, number}} minuty"
 }

@@ -21,6 +21,7 @@ import { PlayCounterLoader } from "../../brand/PlayCounterLoader";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { runLibraryImport } from "../../library/importRun";
+import { useLibraryImportRequest } from "../../library/importRequest";
 import { saveXboxAchievementLists } from "../../achievements/xboxLists";
 import {
   refreshKeptLogins,
@@ -106,6 +107,8 @@ function createImporterSession(
 let importerSession = createImporterSession("steam");
 
 export function ImportLibraryView() {
+  const activeView = useAppStore((state) => state.activeView);
+  const importRequest = useLibraryImportRequest((state) => state.request);
   const providerId = useAppStore((state) => state.libraryImportProvider);
   if (importerSession.providerId !== providerId) {
     importerSession = createImporterSession(providerId);
@@ -171,6 +174,40 @@ export function ImportLibraryView() {
   const importAbortController = useRef(new AbortController());
   const copyAuthorizeUrlOnStart = useRef(false);
   const activeProviderId = useRef(providerId);
+  const previousView = useRef(activeView);
+
+  useEffect(() => {
+    if (previousView.current === "import" && activeView !== "import") {
+      if (phase === "scanning" || phase === "importing") {
+        cancelImport();
+      } else {
+        importAbortController.current.abort();
+        setPendingBattleNetScan(null);
+      }
+      useLibraryImportRequest.setState({ request: null });
+    }
+    if (
+      activeView === "import" &&
+      importAbortController.current.signal.aborted
+    ) {
+      importAbortController.current = new AbortController();
+    }
+    previousView.current = activeView;
+  }, [activeView]);
+
+  useEffect(() => {
+    if (
+      activeView !== "import" ||
+      importRequest?.provider !== providerId ||
+      status?.provider !== providerId ||
+      !status.available ||
+      accountId === null ||
+      (phase !== "ready" && phase !== "done")
+    )
+      return;
+    useLibraryImportRequest.setState({ request: null });
+    requestScan(importRequest.mode === "account");
+  }, [activeView, importRequest, providerId, status, accountId, phase]);
 
   useEffect(() => {
     if (importAbortController.current.signal.aborted) {
@@ -291,6 +328,7 @@ export function ImportLibraryView() {
 
   function cancelImport() {
     importAbortController.current.abort();
+    setPendingBattleNetScan(null);
     setPhase("ready");
     setScan(null);
     setResolved(new Map());
@@ -1196,13 +1234,16 @@ export function ImportLibraryView() {
             {keptLogin ? (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-text-muted">
                 <span>
-                  {keptLogin.name
-                    ? t("Signed in as {{name}}.", { name: keptLogin.name })
-                    : t("Signed in.")}
+                  {isBattleNet
+                    ? getT("accounts")("Sign-in saved")
+                    : keptLogin.name
+                      ? t("Signed in as {{name}}.", { name: keptLogin.name })
+                      : t("Signed in.")}
                 </span>
                 <Button
                   variant="ghost"
                   icon={LogOut}
+                  disabled={phase === "importing"}
                   onClick={() => void signOut()}
                 >
                   {t("Sign out")}

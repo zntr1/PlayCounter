@@ -1,4 +1,6 @@
 {
+  "Epic Games did not provide a reusable sign-in. Please try again.": "Epic Games не предоставила данные для повторного входа. Попробуйте ещё раз.",
+  "Could not securely save the Epic Games sign-in. Please try again.": "Не удалось безопасно сохранить вход в Epic Games. Попробуйте ещё раз.",
   "Choose an absolute backup folder path.": "Выберите абсолютный путь к папке для резервных копий.",
   "Keep between 1 and 100 automatic backups.": "Храните от 1 до 100 автоматических резервных копий.",
   "Backup exceeds the 64 MB import limit.": "Резервная копия превышает лимит импорта 64 МБ.",
@@ -121,5 +123,9 @@
   "MicrosoftGame.config is too large to read safely.": "MicrosoftGame.config слишком большой для безопасного чтения.",
   "The local Xbox game registration could not be found.": "Локальная регистрация игры Xbox не найдена.",
   "Local Xbox launching is only available on Windows.": "Локальный запуск Xbox доступен только в Windows.",
-  "Could not start Xbox game: {{error}}": "Не удалось запустить игру Xbox: {{error}}"
+  "Could not start Xbox game: {{error}}": "Не удалось запустить игру Xbox: {{error}}",
+  "Could not open saved sign-ins.": "Не удалось открыть сохранённые данные входа.",
+  "Could not save the sign-in.": "Не удалось сохранить данные входа.",
+  "This sign-in was cancelled by signing out.": "Этот вход отменён при выходе из аккаунта.",
+  "Could not remove the sign-in.": "Не удалось удалить данные входа."
 }

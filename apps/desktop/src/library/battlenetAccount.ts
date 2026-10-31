@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryScanResult, ScannedLibraryGame } from "./types";
 import { getT } from "../i18n";
+import { refreshKeptLogins } from "./keptLogins";
 
 const t = getT("import");
 
@@ -136,7 +137,22 @@ function classicProductId(name: string, franchise: string | null) {
   return `classic_${hash.toString(16)}`;
 }
 
-export async function readBattleNetAccountLibrary(signal?: AbortSignal) {
+export function readBattleNetAccountLibrary(signal?: AbortSignal) {
+  return runBattleNetAccountCommand<BattleNetAccountLibrary>(
+    "library_battlenet_account_games",
+    signal,
+  );
+}
+
+/** Connects the account without waiting for game discovery or local scanning. */
+export function signInBattleNetAccount(signal?: AbortSignal) {
+  return runBattleNetAccountCommand<void>("library_battlenet_sign_in", signal);
+}
+
+async function runBattleNetAccountCommand<T>(
+  command: string,
+  signal?: AbortSignal,
+) {
   signal?.throwIfAborted();
   const requestId = crypto.randomUUID();
   let onAbort: (() => void) | undefined;
@@ -153,10 +169,12 @@ export async function readBattleNetAccountLibrary(signal?: AbortSignal) {
   });
   try {
     return await Promise.race([
-      invoke<BattleNetAccountLibrary>("library_battlenet_account_games", {
+      // Native cleanup can finish saving a verified login after navigation
+      // has already cancelled this caller. Refresh on its completion too.
+      invoke<T>(command, {
         requestId,
         title: t("Battle.net sign-in"),
-      }),
+      }).finally(() => refreshKeptLogins()),
       aborted,
     ]);
   } finally {

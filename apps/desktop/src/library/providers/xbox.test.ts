@@ -6,6 +6,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 import {
   refreshXboxAchievementList,
   scanXboxLibrary,
+  signInXboxAccount,
   xboxProvider,
 } from "./xbox";
 import { reverseResolveLibraryGame, searchLibraryGames } from "../gameLookup";
@@ -313,7 +314,14 @@ describe("Xbox library provider", () => {
   });
 
   it("keeps the import alive when automatic browser opening fails", async () => {
-    invokeMock.mockRejectedValue(new Error("stale browser session"));
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "open_microsoft_signin_url") {
+        throw new Error("stale browser session");
+      }
+      if (command === "library_scan_xbox_local") {
+        return { games: [], warnings: [], partial: false };
+      }
+    });
     const authorizeUrl =
       "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
     const onAuthorizeUrl = vi.fn();
@@ -885,7 +893,268 @@ describe("Kept Xbox sign-in", () => {
     });
   });
 
-  it("keeps nothing when the sign-in does not finish", async () => {
+  it("does not report a completed sign-in before the native claim is saved", async () => {
+    let finishClaim!: (kept: boolean) => void;
+    const pendingClaim = new Promise<boolean>((resolve) => {
+      finishClaim = resolve;
+    });
+    answer({
+      xbox_login_sync_start: { status: "signedOut" },
+      xbox_login_claim_hash: claimHash,
+      xbox_login_keep: pendingClaim,
+      logins_list: [{ service: "xbox", name: "Chief", savedAt: 1 }],
+      library_scan_xbox_local: localScan,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+        )
+        .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] })),
+    );
+    const completed = vi.fn();
+    const run = scanXboxLibrary({ apiEndpoint: endpoint }).then(completed);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("xbox_login_keep", {
+        attemptId: firstAttemptId,
+        claimHash,
+      }),
+    );
+    expect(completed).not.toHaveBeenCalled();
+    finishClaim(true);
+    await run;
+    expect(completed).toHaveBeenCalledOnce();
+    expect(invokeMock).toHaveBeenCalledWith("logins_list");
+  });
+
+  it("saves authentication while history is pending and retains it if history fails", async () => {
+    vi.useFakeTimers();
+    answer({
+      xbox_login_sync_start: { status: "signedOut" },
+      xbox_login_claim_hash: claimHash,
+      xbox_login_keep: true,
+      logins_list: [{ service: "xbox", name: "Chief", savedAt: 1 }],
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ status: "pending", stage: "history", loginReady: true }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          status: "failed",
+          reason: "provider_error",
+          loginReady: true,
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const run = scanXboxLibrary({
+      apiEndpoint: endpoint,
+      openAuthorizeUrl: false,
+    });
+    const rejected = expect(run).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(invokeMock).toHaveBeenCalledWith("xbox_login_keep", {
+      attemptId: firstAttemptId,
+      claimHash,
+    });
+    expect(invokeMock).toHaveBeenCalledWith("logins_list");
+    await vi.advanceTimersByTimeAsync(1_500);
+    await rejected;
+    expect(
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "xbox_login_keep",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("finishes saving after leaving before the next authentication status poll", async () => {
+    vi.useFakeTimers();
+    let finishClaim!: (kept: boolean) => void;
+    const pendingClaim = new Promise<boolean>((resolve) => {
+      finishClaim = resolve;
+    });
+    answer({
+      xbox_login_sync_start: { status: "signedOut" },
+      xbox_login_claim_hash: claimHash,
+      xbox_login_keep: pendingClaim,
+      logins_list: [{ service: "xbox", name: "Chief", savedAt: 1 }],
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ status: "pending", stage: "authorization" }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ cancelled: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+    const run = scanXboxLibrary({
+      apiEndpoint: endpoint,
+      signal: controller.signal,
+      openAuthorizeUrl: false,
+    });
+    const rejected = expect(run).rejects.toThrow(/cancelled/i);
+    await vi.advanceTimersByTimeAsync(0);
+    controller.abort();
+    await rejected;
+    expect(invokeMock).toHaveBeenCalledWith("xbox_login_keep", {
+      attemptId: firstAttemptId,
+      claimHash,
+    });
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith("/cancel")),
+    ).toBe(true);
+    expect(invokeMock).not.toHaveBeenCalledWith("logins_list");
+    finishClaim(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(invokeMock).toHaveBeenCalledWith("logins_list");
+    expect(invokeMock).not.toHaveBeenCalledWith("library_scan_xbox_local");
+  });
+
+  it("connects an account without requesting games, achievements, or local scans", async () => {
+    answer({
+      xbox_login_sync_start: { status: "signedOut" },
+      xbox_login_claim_hash: claimHash,
+      xbox_login_keep: true,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ status: "done", games: [], loginReady: true }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    await signInXboxAccount({ apiEndpoint: endpoint, openAuthorizeUrl: false });
+    expect(startBody(fetchMock, 0)).toEqual({
+      authenticationOnly: true,
+      keepLogin: { claimHash },
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith("library_scan_xbox_local");
+  });
+
+  it("retries a terminal login save before completing the connection", async () => {
+    const claims = [false, true];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "xbox_login_sync_start") return { status: "signedOut" };
+      if (command === "xbox_login_claim_hash") return claimHash;
+      if (command === "xbox_login_keep") return claims.shift();
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({ status: "done", games: [], loginReady: true }),
+        ),
+    );
+    await expect(
+      signInXboxAccount({ apiEndpoint: endpoint, openAuthorizeUrl: false }),
+    ).resolves.toBeUndefined();
+    expect(
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "xbox_login_keep",
+      ),
+    ).toHaveLength(2);
+    expect(invokeMock).toHaveBeenCalledWith("logins_list");
+  });
+
+  it("reports a save failure instead of completing with an unsaved connection", async () => {
+    answer({
+      xbox_login_sync_start: { status: "signedOut" },
+      xbox_login_claim_hash: claimHash,
+      xbox_login_keep: false,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ attemptId: firstAttemptId, authorizeUrl }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({ status: "done", games: [], loginReady: true }),
+        )
+        .mockResolvedValueOnce(jsonResponse({ cancelled: true })),
+    );
+    await expect(
+      signInXboxAccount({ apiEndpoint: endpoint, openAuthorizeUrl: false }),
+    ).rejects.toThrow("unavailable");
+    expect(invokeMock).not.toHaveBeenCalledWith("logins_list");
+  });
+
+  it("uses a saved login on an older server that lacks separate account connections", async () => {
+    const syncAnswers = [
+      { status: "unavailable", httpStatus: 400 },
+      { status: "started", attemptId: firstAttemptId },
+    ];
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "xbox_login_sync_start" ? syncAnswers.shift() : undefined,
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ status: "done", games: [] })),
+    );
+    await signInXboxAccount({ apiEndpoint: endpoint });
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "xbox_login_sync_start", {
+      apiEndpoint: endpoint,
+      options: { authenticationOnly: true },
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(2, "xbox_login_sync_start", {
+      apiEndpoint: endpoint,
+      options: {},
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+  });
+
+  it("does not replace a temporarily failing native login lookup with a browser sign-in", async () => {
+    invokeMock.mockRejectedValue(new Error("temporary native failure"));
+    vi.stubGlobal("fetch", vi.fn());
+    await expect(signInXboxAccount({ apiEndpoint: endpoint })).rejects.toThrow(
+      "unavailable",
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("does not open a browser when saved-login renewal stays busy", async () => {
+    vi.useFakeTimers();
+    answer({ xbox_login_sync_start: { status: "busy", retryAfterSeconds: 1 } });
+    vi.stubGlobal("fetch", vi.fn());
+    const rejected = expect(
+      signInXboxAccount({ apiEndpoint: endpoint }),
+    ).rejects.toThrow("unavailable");
+    await vi.advanceTimersByTimeAsync(5_000);
+    await rejected;
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "open_microsoft_signin_url",
+      expect.anything(),
+    );
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("makes a final claim check when authentication fails without saving a login", async () => {
     answer({
       xbox_login_sync_start: { status: "signedOut" },
       xbox_login_claim_hash: claimHash,
@@ -909,15 +1178,16 @@ describe("Kept Xbox sign-in", () => {
     await expect(
       scanXboxLibrary({ apiEndpoint: endpoint, openAuthorizeUrl: false }),
     ).rejects.toThrow("not completed");
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      "xbox_login_keep",
-      expect.anything(),
-    );
+    expect(invokeMock).toHaveBeenCalledWith("xbox_login_keep", {
+      attemptId: firstAttemptId,
+      claimHash,
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith("logins_list");
   });
 
   it("an older server without kept sign-ins still imports with achievements", async () => {
     answer({
-      xbox_login_sync_start: { status: "unavailable", httpStatus: 404 },
+      xbox_login_sync_start: { status: "signedOut" },
       xbox_login_claim_hash: claimHash,
       library_scan_xbox_local: localScan,
     });
@@ -983,22 +1253,25 @@ describe("Kept Xbox sign-in", () => {
     ).toHaveLength(2);
   });
 
-  it("stops with the server error and opens no browser", async () => {
-    answer({
-      xbox_login_sync_start: { status: "unavailable", httpStatus: 502 },
-    });
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+  it.each([400, 404, 502])(
+    "preserves a saved login on server error %s without opening a browser",
+    async (status) => {
+      answer({
+        xbox_login_sync_start: { status: "unavailable", httpStatus: status },
+      });
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
 
-    await expect(scanXboxLibrary({ apiEndpoint: endpoint })).rejects.toThrow(
-      "(502)",
-    );
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      "open_microsoft_signin_url",
-      expect.anything(),
-    );
-  });
+      await expect(scanXboxLibrary({ apiEndpoint: endpoint })).rejects.toThrow(
+        `(${status})`,
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "open_microsoft_signin_url",
+        expect.anything(),
+      );
+    },
+  );
 
   it("refreshes one title with the kept sign-in", async () => {
     answer({

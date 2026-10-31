@@ -48,6 +48,7 @@ const escapeOwner: Record<ViewId, "title bar" | "page"> = {
   xenia: "title bar",
   games: "page",
   import: "title bar",
+  accounts: "title bar",
   discovered: "page",
   history: "page",
   achievements: "title bar",

@@ -1,4 +1,6 @@
 {
+  "Epic Games did not provide a reusable sign-in. Please try again.": "Epic Games hat keine wiederverwendbare Anmeldung bereitgestellt. Bitte versuche es erneut.",
+  "Could not securely save the Epic Games sign-in. Please try again.": "Die Epic-Games-Anmeldung konnte nicht sicher gespeichert werden. Bitte versuche es erneut.",
   "Choose an absolute backup folder path.": "Wähle einen vollständigen Pfad für den Sicherungsordner.",
   "Keep between 1 and 100 automatic backups.": "Behalte zwischen 1 und 100 automatische Sicherungen.",
   "Backup exceeds the 64 MB import limit.": "Die Sicherung überschreitet die Importgrenze von 64 MB.",
@@ -121,5 +123,9 @@
   "MicrosoftGame.config is too large to read safely.": "MicrosoftGame.config ist zu groß, um sie sicher zu lesen.",
   "The local Xbox game registration could not be found.": "Die lokale Xbox-Spielregistrierung wurde nicht gefunden.",
   "Local Xbox launching is only available on Windows.": "Lokale Xbox-Spiele zu starten geht nur unter Windows.",
-  "Could not start Xbox game: {{error}}": "Das Xbox-Spiel konnte nicht gestartet werden: {{error}}"
+  "Could not start Xbox game: {{error}}": "Das Xbox-Spiel konnte nicht gestartet werden: {{error}}",
+  "Could not open saved sign-ins.": "Gespeicherte Anmeldungen konnten nicht geöffnet werden.",
+  "Could not save the sign-in.": "Die Anmeldung konnte nicht gespeichert werden.",
+  "This sign-in was cancelled by signing out.": "Diese Anmeldung wurde durch das Abmelden abgebrochen.",
+  "Could not remove the sign-in.": "Die Anmeldung konnte nicht entfernt werden."
 }

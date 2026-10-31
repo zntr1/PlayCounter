@@ -352,11 +352,5 @@
   "Every {{count, number}} minutes_one": "Каждую минуту",
   "Every {{count, number}} minutes_few": "Каждые {{count, number}} минуты",
   "Every {{count, number}} minutes_many": "Каждые {{count, number}} минут",
-  "Every {{count, number}} minutes_other": "Каждые {{count, number}} минуты",
-  "{{providerName}} sign-in": "Вход в {{providerName}}",
-  "Signed in as {{name}}.": "Вы вошли как {{name}}.",
-  "Signed in.": "Вход выполнен.",
-  "PlayCounter keeps this sign-in on this PC, encrypted so only your Windows account can read it.": "PlayCounter хранит этот вход на этом ПК в зашифрованном виде, так что прочитать его может только ваша учётная запись Windows.",
-  "Sign out": "Выйти",
-  "Could not sign out. Please try again.": "Не удалось выйти. Попробуйте снова."
+  "Every {{count, number}} minutes_other": "Каждые {{count, number}} минуты"
 }

@@ -65,6 +65,7 @@ import {
   Timer,
   Trash2,
   Trophy,
+  UsersRound,
   WifiOff,
 } from "lucide-react";
 import {
@@ -2283,20 +2284,31 @@ export function MyGamesView({
                     activeImportableProviderConfig?.import.platforms.includes(
                       platform,
                     ) ? (
-                      <Button
-                        variant="secondary"
-                        icon={Download}
-                        data-controller-item="view-link"
-                        onClick={() => {
-                          setLibraryImportProvider(
-                            activeImportableProviderConfig.id,
-                          );
-                          setActiveView("import");
-                        }}
-                        className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
-                      >
-                        {activeImportableProviderConfig.importCtaLabel}
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          icon={UsersRound}
+                          data-controller-item="view-link"
+                          onClick={() => setActiveView("accounts")}
+                          className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
+                        >
+                          {getT("accounts")("Manage accounts")}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          icon={Download}
+                          data-controller-item="view-link"
+                          onClick={() => {
+                            setLibraryImportProvider(
+                              activeImportableProviderConfig.id,
+                            );
+                            setActiveView("import");
+                          }}
+                          className="h-8 shrink-0 rounded-lg px-2.5 text-[13px]"
+                        >
+                          {activeImportableProviderConfig.importCtaLabel}
+                        </Button>
+                      </div>
                     ) : null}
                     {levelUpOffers.length > 0 && !tourDemo.active ? (
                       <Button
@@ -2948,6 +2960,15 @@ function EmptyLibraryPanel({
       </div>
       {importProviders.length > 0 ? (
         <div className="border-t border-border/60 px-6 py-6">
+          <Button
+            variant="secondary"
+            icon={UsersRound}
+            className="mx-auto mb-4"
+            data-controller-item="view-link"
+            onClick={() => setActiveView("accounts")}
+          >
+            {getT("accounts")("Manage accounts")}
+          </Button>
           <p className="text-sm text-text-muted">
             {t(
               "You can also import games and past playtime. It's completely optional.",
@@ -3008,6 +3029,15 @@ function ProviderImportCallout({
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">
         {config.emptyBody}
       </p>
+      <Button
+        variant="secondary"
+        icon={UsersRound}
+        className="mx-auto mt-6"
+        data-controller-item="view-link"
+        onClick={() => setActiveView("accounts")}
+      >
+        {getT("accounts")("Manage accounts")}
+      </Button>
       <Button
         variant="primary"
         icon={Download}
