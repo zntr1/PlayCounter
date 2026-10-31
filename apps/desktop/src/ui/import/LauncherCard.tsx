@@ -231,7 +231,7 @@ export function LauncherCard({
   );
 }
 
-export function scopeTitle(option: ImportScope, providerName: string) {
+function scopeTitle(option: ImportScope, providerName: string) {
   return option === "account"
     ? t("Your {{providerName}} account", { providerName })
     : t("Only installed games");

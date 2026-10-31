@@ -194,12 +194,9 @@
   "Import": "Import",
   "Not listed?": "Not listed?",
   "Named by the game": "Named by the game",
-  "Change": "Change",
   "Check the games you want to import.": "Check the games you want to import.",
   "Their playtime is in My Games now. New sessions are tracked automatically.": "Their playtime is in My Games now. New sessions are tracked automatically.",
   "They are in My Games now. New sessions are tracked automatically.": "They are in My Games now. New sessions are tracked automatically.",
-  "{{count}} games found_one": "{{count}} game found",
-  "{{count}} games found_other": "{{count}} games found",
   "{{count}} games selected_one": "{{count}} game selected",
   "{{count}} games selected_other": "{{count}} games selected",
   "{{count}} new_one": "{{count}} new",
@@ -215,5 +212,6 @@
   "{{count}} games still need you_one": "{{count}} game still needs you",
   "{{count}} games still need you_other": "{{count}} games still need you",
   "Decide {{count}} games_one": "Decide {{count}} game",
-  "Decide {{count}} games_other": "Decide {{count}} games"
+  "Decide {{count}} games_other": "Decide {{count}} games",
+  "Change what to import": "Change what to import"
 }

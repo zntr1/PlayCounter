@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   search: vi.fn(),
   run: vi.fn(),
   invoke: vi.fn(),
+  localAccounts: 1,
 }));
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: mocks.invoke,
@@ -33,7 +34,11 @@ vi.mock("../../library/providers", () => ({
     listAccounts: async () =>
       provider === "epic" || provider === "battlenet"
         ? []
-        : [{ accountId: 1, mostRecent: true, gamesWithPlaytime: 1 }],
+        : Array.from({ length: mocks.localAccounts }, (_, index) => ({
+            accountId: index + 1,
+            mostRecent: index === 0,
+            gamesWithPlaytime: 1,
+          })),
     scan: mocks.scan,
   }),
 }));
@@ -188,6 +193,26 @@ function listed() {
   ].map((title) => title.textContent);
 }
 
+/** A game's row in the list of the open shelf. */
+function row(title: string) {
+  const found = [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      '[role="tabpanel"] button[aria-current]',
+    ),
+  ].find((item) => item.querySelector(".font-semibold")?.textContent === title);
+  expect(found, title).toBeDefined();
+  return found!;
+}
+
+function key(name: string, repeat = false) {
+  return new KeyboardEvent("keydown", {
+    key: name,
+    repeat,
+    bubbles: true,
+    cancelable: true,
+  });
+}
+
 function checkbox(title: string) {
   return container.querySelector<HTMLInputElement>(
     `input[aria-label="Import ${title}"]`,
@@ -222,6 +247,7 @@ beforeEach(async () => {
   vi.resetModules();
   vi.resetAllMocks();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  mocks.localAccounts = 1;
   mocks.search.mockResolvedValue([]);
   mocks.run.mockResolvedValue({ shareOutcomes: [] });
   ({ useAppStore: store } = await import("../../store"));
@@ -612,4 +638,114 @@ it("shows suggestions as covers to click, with the year", async () => {
   expect(html).toContain("Forza Horizon 5");
   expect(html).toContain("2021");
   expect(html).not.toContain("Released 2021");
+});
+
+describe("the list", () => {
+  const twoReady = {
+    games: [game("620", "Portal 2"), game("400", "Portal")],
+    resolvedGames: [
+      matched("steam:620", metadata(72, "Portal 2")),
+      matched("steam:400", metadata(71, "Portal")),
+    ],
+  };
+
+  it("checks and unchecks a game with a double click", async () => {
+    await scan("steam", twoReady);
+    expect(checkbox("Portal 2")?.checked).toBe(true);
+
+    await act(() =>
+      row("Portal 2").dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true }),
+      ),
+    );
+    expect(checkbox("Portal 2")?.checked).toBe(false);
+    expect(checkbox("Portal")?.checked).toBe(true);
+
+    await act(() =>
+      row("Portal 2").dispatchEvent(
+        new MouseEvent("dblclick", { bubbles: true }),
+      ),
+    );
+    expect(checkbox("Portal 2")?.checked).toBe(true);
+  });
+
+  it("checks and unchecks the focused game with Space, once per press", async () => {
+    await scan("steam", twoReady);
+
+    await act(() => row("Portal").dispatchEvent(key(" ")));
+    expect(checkbox("Portal")?.checked).toBe(false);
+    // Holding Space down repeats the key: still one change.
+    await act(() => row("Portal").dispatchEvent(key(" ", true)));
+    expect(checkbox("Portal")?.checked).toBe(false);
+
+    await act(() => row("Portal").dispatchEvent(key(" ")));
+    expect(checkbox("Portal")?.checked).toBe(true);
+  });
+
+  it("only shows the game on a single click", async () => {
+    await scan("steam", twoReady);
+    await act(() => row("Portal").click());
+    expect(checkbox("Portal")?.checked).toBe(true);
+    expect(
+      container.querySelector('section[aria-label="Portal"]'),
+    ).not.toBeNull();
+  });
+
+  it("clears its search with Escape, from the search box or a game", async () => {
+    await scan("steam", twoReady);
+    const search = container.querySelector<HTMLInputElement>(
+      'input[placeholder="Search games"]',
+    )!;
+    // Without a search, Escape is left to others.
+    expect(search.dispatchEvent(key("Escape"))).toBe(true);
+
+    await type(search, "portal 2");
+    expect(listed()).toEqual(["Portal 2"]);
+    await act(() => search.dispatchEvent(key("Escape")));
+    expect(search.value).toBe("");
+    expect(listed()).toEqual(["Portal 2", "Portal"]);
+
+    await type(search, "portal 2");
+    await act(() => row("Portal 2").dispatchEvent(key("Escape")));
+    expect(search.value).toBe("");
+    expect(listed()).toEqual(["Portal 2", "Portal"]);
+  });
+});
+
+describe("the bar above the shelves", () => {
+  const twoGames = (provider: BuiltinImportProviderId) => ({
+    games: [game("a", "Hades"), game("b", "Celeste")],
+    resolvedGames: [
+      matched(`${provider}:a`, metadata(113_112, "Hades")),
+      matched(`${provider}:b`, metadata(26_226, "Celeste")),
+    ],
+  });
+
+  it("offers to change what to import next to Scan again, without a game count", async () => {
+    await scan("epic", twoGames("epic"));
+    const change = findButton("Change what to import");
+    expect(change?.nextElementSibling).toBe(findButton("Scan again"));
+    expect(container.textContent).not.toContain("games in your account");
+    expect(container.textContent).not.toContain("games found");
+
+    await click("Change what to import");
+    expect(container.textContent).toContain("What to import");
+    expect(findButton("Back to the games")).toBeDefined();
+  });
+
+  it.each([
+    ["xbox", 1, false],
+    ["steam", 1, false],
+    ["steam", 2, true],
+  ] as const)(
+    "offers it on %s with %i local account(s) only when there is a choice: %s",
+    async (provider, accounts, offered) => {
+      mocks.localAccounts = accounts;
+      // Another launcher first, so this one is detected with these accounts.
+      await act(() => store.setState({ libraryImportProvider: "epic" }));
+      await scan(provider, twoGames(provider));
+      expect(findButton("Scan again")).toBeDefined();
+      expect(Boolean(findButton("Change what to import"))).toBe(offered);
+    },
+  );
 });

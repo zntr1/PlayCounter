@@ -1,4 +1,4 @@
-import { Download, RefreshCw } from "lucide-react";
+import { Download, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { useMemo } from "react";
 import { getT } from "../../i18n";
 import { nativeText } from "../../nativeText";
@@ -28,7 +28,6 @@ import { importRows, type ImportRow } from "./importRows";
 import { ImportShelves } from "./ImportShelves";
 import { launcherName } from "./importTexts";
 import { AccountLine, LauncherLogo } from "./LauncherIdentity";
-import { scopeTitle } from "./LauncherCard";
 
 const t = getT("import");
 
@@ -55,7 +54,7 @@ export function useImportGroups(session: ImportSession) {
   }, [session, libraryImports, ignoredProcesses]);
 }
 
-/** The launcher, who is read, how many games were found, Scan again. */
+/** The launcher, who is read, and the buttons to change or repeat the scan. */
 export function ImportSourceBar({
   session,
   keptLogin,
@@ -76,6 +75,10 @@ export function ImportSourceBar({
   const localAccount = session.accounts.find(
     (account) => account.accountId === session.accountId,
   );
+  // Xbox, and Steam with one account on this PC, have nothing to choose.
+  const hasChoice =
+    profile.choice === "accountOrInstalled" ||
+    (profile.choice === "localAccounts" && session.accounts.length > 1);
   return (
     <Panel className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
       <LauncherLogo providerId={providerId} />
@@ -92,32 +95,26 @@ export function ImportSourceBar({
           signOutDisabled={session.phase === "importing"}
         />
       </div>
-      {profile.choice === "accountOrInstalled" && session.scannedScope ? (
-        <span className="rounded-full bg-surface-hover px-3 py-1 text-xs text-text-muted">
-          {scopeTitle(session.scannedScope, launcherName(providerId))}
-        </span>
-      ) : null}
-      {session.scan ? (
-        <span className="rounded-full bg-surface-hover px-3 py-1 text-xs text-text-muted">
-          {t("{{count}} games found", { count: session.scan.games.length })}
-        </span>
-      ) : null}
-      <button
-        type="button"
-        onClick={onChange}
-        className="rounded text-sm font-semibold text-accent-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-      >
-        {t("Change")}
-      </button>
-      <div className="flex-1" />
-      <Button
-        variant="secondary"
-        icon={RefreshCw}
-        disabled={session.phase === "importing" || session.accountId === null}
-        onClick={onScanAgain}
-      >
-        {t("Scan again")}
-      </Button>
+      <div className="ml-auto flex flex-wrap gap-2">
+        {hasChoice ? (
+          <Button
+            variant="secondary"
+            icon={SlidersHorizontal}
+            disabled={session.phase === "importing"}
+            onClick={onChange}
+          >
+            {t("Change what to import")}
+          </Button>
+        ) : null}
+        <Button
+          variant="secondary"
+          icon={RefreshCw}
+          disabled={session.phase === "importing" || session.accountId === null}
+          onClick={onScanAgain}
+        >
+          {t("Scan again")}
+        </Button>
+      </div>
     </Panel>
   );
 }

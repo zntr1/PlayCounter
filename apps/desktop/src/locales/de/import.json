@@ -194,12 +194,9 @@
   "Import": "Importieren",
   "Not listed?": "Nicht dabei?",
   "Named by the game": "Vom Spiel angegeben",
-  "Change": "Ändern",
   "Check the games you want to import.": "Markier die Spiele, die du importieren willst.",
   "Their playtime is in My Games now. New sessions are tracked automatically.": "Ihre Spielzeit ist jetzt in „Meine Spiele“. Neue Sitzungen werden automatisch erfasst.",
   "They are in My Games now. New sessions are tracked automatically.": "Sie sind jetzt in „Meine Spiele“. Neue Sitzungen werden automatisch erfasst.",
-  "{{count}} games found_one": "{{count}} Spiel gefunden",
-  "{{count}} games found_other": "{{count}} Spiele gefunden",
   "{{count}} games selected_one": "{{count}} Spiel ausgewählt",
   "{{count}} games selected_other": "{{count}} Spiele ausgewählt",
   "{{count}} new_one": "{{count}} neu",
@@ -215,5 +212,6 @@
   "{{count}} games still need you_one": "{{count}} Spiel braucht dich noch",
   "{{count}} games still need you_other": "{{count}} Spiele brauchen dich noch",
   "Decide {{count}} games_one": "{{count}} Spiel entscheiden",
-  "Decide {{count}} games_other": "{{count}} Spiele entscheiden"
+  "Decide {{count}} games_other": "{{count}} Spiele entscheiden",
+  "Change what to import": "Importauswahl ändern"
 }

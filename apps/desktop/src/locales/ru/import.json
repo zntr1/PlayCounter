@@ -208,14 +208,9 @@
   "Import": "Импортировать",
   "Not listed?": "Нет в списке?",
   "Named by the game": "Указан игрой",
-  "Change": "Изменить",
   "Check the games you want to import.": "Отметьте игры, которые хотите импортировать.",
   "Their playtime is in My Games now. New sessions are tracked automatically.": "Их время в игре теперь в разделе «Мои игры». Новые сессии учитываются автоматически.",
   "They are in My Games now. New sessions are tracked automatically.": "Теперь они в разделе «Мои игры». Новые сессии учитываются автоматически.",
-  "{{count}} games found_one": "Найдена {{count}} игра",
-  "{{count}} games found_few": "Найдены {{count}} игры",
-  "{{count}} games found_many": "Найдено {{count}} игр",
-  "{{count}} games found_other": "Найдены {{count}} игры",
   "{{count}} games selected_one": "Выбрана {{count}} игра",
   "{{count}} games selected_few": "Выбраны {{count}} игры",
   "{{count}} games selected_many": "Выбрано {{count}} игр",
@@ -247,5 +242,6 @@
   "Decide {{count}} games_one": "Решить по {{count}} игре",
   "Decide {{count}} games_few": "Решить по {{count}} играм",
   "Decide {{count}} games_many": "Решить по {{count}} играм",
-  "Decide {{count}} games_other": "Решить по {{count}} играм"
+  "Decide {{count}} games_other": "Решить по {{count}} играм",
+  "Change what to import": "Изменить, что импортировать"
 }

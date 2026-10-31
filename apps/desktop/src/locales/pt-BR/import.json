@@ -201,13 +201,9 @@
   "Import": "Importar",
   "Not listed?": "Não está na lista?",
   "Named by the game": "Indicado pelo jogo",
-  "Change": "Alterar",
   "Check the games you want to import.": "Marque os jogos que você quer importar.",
   "Their playtime is in My Games now. New sessions are tracked automatically.": "O tempo de jogo deles já está em Meus jogos. Novas sessões são registradas automaticamente.",
   "They are in My Games now. New sessions are tracked automatically.": "Eles já estão em Meus jogos. Novas sessões são registradas automaticamente.",
-  "{{count}} games found_one": "{{count}} jogo encontrado",
-  "{{count}} games found_many": "{{count}} jogos encontrados",
-  "{{count}} games found_other": "{{count}} jogos encontrados",
   "{{count}} games selected_one": "{{count}} jogo selecionado",
   "{{count}} games selected_many": "{{count}} jogos selecionados",
   "{{count}} games selected_other": "{{count}} jogos selecionados",
@@ -231,5 +227,6 @@
   "{{count}} games still need you_other": "{{count}} jogos ainda precisam de você",
   "Decide {{count}} games_one": "Decidir {{count}} jogo",
   "Decide {{count}} games_many": "Decidir {{count}} jogos",
-  "Decide {{count}} games_other": "Decidir {{count}} jogos"
+  "Decide {{count}} games_other": "Decidir {{count}} jogos",
+  "Change what to import": "Alterar o que importar"
 }

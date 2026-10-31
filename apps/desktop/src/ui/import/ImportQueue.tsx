@@ -40,6 +40,12 @@ export function ImportQueue({
       id={`import-panel-${group}`}
       role="tabpanel"
       aria-labelledby={`import-tab-${group}`}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && query) {
+          event.preventDefault();
+          setQuery("");
+        }
+      }}
       className="overflow-hidden rounded-lg border border-border bg-surface shadow-raised"
     >
       <div className="flex items-center gap-1 px-3 pt-3">
@@ -117,6 +123,16 @@ export function ImportQueue({
                   type="button"
                   aria-current={active}
                   onClick={() => onShow(id)}
+                  onDoubleClick={
+                    row.selectable
+                      ? () => onSelected(id, !selected.has(id))
+                      : undefined
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key !== " " || !row.selectable) return;
+                    event.preventDefault();
+                    if (!event.repeat) onSelected(id, !selected.has(id));
+                  }}
                   className="flex min-w-0 flex-1 items-center gap-3 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
                 >
                   <span

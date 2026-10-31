@@ -234,7 +234,7 @@ it("shows the Battle.net playtime warning on the card after the first OK", async
   );
   await click("Sign in and find games");
   await click("OK");
-  await click("Change");
+  await click("Change what to import");
   expect(document.querySelector('[role="dialog"]')).toBeNull();
   expect(container.textContent).toContain(
     "Battle.net does not provide historical playtime",

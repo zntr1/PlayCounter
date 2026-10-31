@@ -187,11 +187,9 @@
   "Import": "导入",
   "Not listed?": "列表中没有？",
   "Named by the game": "游戏指定的文件",
-  "Change": "更改",
   "Check the games you want to import.": "勾选你要导入的游戏。",
   "Their playtime is in My Games now. New sessions are tracked automatically.": "它们的游戏时长现已在“我的游戏”中。新的游玩记录会自动记录。",
   "They are in My Games now. New sessions are tracked automatically.": "它们现已在“我的游戏”中。新的游玩记录会自动记录。",
-  "{{count}} games found_other": "找到 {{count}} 个游戏",
   "{{count}} games selected_other": "已选择 {{count}} 个游戏",
   "{{count}} new_other": "{{count}} 个新游戏",
   "{{count}} updates_other": "{{count}} 个更新",
@@ -199,5 +197,6 @@
   "{{count}} games imported from {{providerName}}_other": "已从 {{providerName}} 导入 {{count}} 个游戏",
   "{{count}} games in My Games updated_other": "已更新“我的游戏”中的 {{count}} 个游戏",
   "{{count}} games still need you_other": "还有 {{count}} 个游戏需要你确认",
-  "Decide {{count}} games_other": "决定 {{count}} 个游戏"
+  "Decide {{count}} games_other": "决定 {{count}} 个游戏",
+  "Change what to import": "更改要导入的内容"
 }
