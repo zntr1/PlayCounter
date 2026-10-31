@@ -1543,7 +1543,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ installPresenceMarker }),
   addToast: (toast) =>
     set((state) => ({
-      toasts: [{ ...toast, id: nextToastId++ }, ...state.toasts].slice(0, 5),
+      // Two at most: toasts take clicks, a taller stack covers the buttons
+      // the user is clicking through.
+      toasts: [{ ...toast, id: nextToastId++ }, ...state.toasts].slice(0, 2),
     })),
   dismissToast: (toastId) =>
     set((state) => ({
