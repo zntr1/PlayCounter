@@ -42,7 +42,7 @@
       "url": "https://playcounter.app/",
       "name": "PlayCounter",
       "inLanguage": "en",
-      "description": "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox and Epic hours and your Battle.net games."
+      "description": "Free Windows app that tracks how long you play your PC games, from any launcher, disc or emulator. Import Steam, Xbox, Epic and GOG hours and your Battle.net games."
     },
     {
       "@type": "Organization",
@@ -60,7 +60,7 @@
 <body><a class="skip-link" href="#main">Skip to content</a><header class="site-header"><div class="nav-wrap"><a class="brand" href="/" aria-label="PlayCounter home"><img class="brand-mark" src="/brands/playcounter-mark.svg" width="34" height="34" alt="" /><img class="brand-wordmark" src="/brands/playcounter-wordmark-on-dark.svg" width="1087" height="208" alt="PlayCounter" /></a><nav class="desktop-nav" aria-label="Main"><a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a></nav><a class="nav-download" href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download <span aria-hidden="true">↓</span></a><details class="mobile-menu"><summary>Menu</summary><nav aria-label="Mobile"><a href="/#features">Features</a><a href="/#imports">Imports</a><a href="/#emulators">Emulators</a><a href="/guides/">Guides</a><a href="https://github.com/zntr1/PlayCounter/releases/latest/download/PlayCounter-Setup.exe">Download for Windows</a></nav></details></div></header><main id="main" class="article-wrap legal article-body"><p class="lede">Datenschutz</p>
 <h1>Datenschutzerklärung</h1>
 <p class="lang-jump"><a href="#en">English version below ↓</a></p>
-<p class="updated">Stand: 27. September 2026</p>
+<p class="updated">Stand: 1. November 2026</p>
 
 <p>
   Diese Datenschutzerklärung gilt für die Website
@@ -299,6 +299,39 @@
   gelöscht. Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a
   DSGVO; du kannst den Vorgang jederzeit abbrechen.
 </p>
+<h3>Optionaler GOG-Import</h3>
+<p>
+  Wenn du den GOG-Import startest, liest PlayCounter lokal aus der
+  Windows-Liste installierter Programme und aus den Infodateien, die GOG in die
+  Spielordner legt, welche GOG-Spiele auf diesem PC installiert sind und mit
+  welcher Datei sie starten. Zur Auflösung von Spielnamen und Cover-Bildern
+  werden GOG-Spielkennungen (Produkt-IDs) an die API übermittelt. Erkennt die
+  API eine Kennung nicht, sendet die App den Spieltitel als Suchanfrage, um
+  passende Spiele vorzuschlagen. Installationspfade und Spielzeiten werden
+  dabei nicht hochgeladen.
+</p>
+<p>
+  Wählst du zusätzlich die Anmeldung, öffnet PlayCounter die Anmeldeseite von
+  GOG in einem privaten Fenster. Die Anmeldung erfolgt direkt bei GOG;
+  PlayCounter sieht dein Passwort nicht. Aus dem Fenster übernimmt die App nur
+  einen einmaligen Autorisierungscode. Damit ruft die App direkt von deinem PC
+  aus bei GOG deine Spielebibliothek, Spieltitel und die von GOG erfassten
+  Spielzeiten ab. Aus deinen Kontodaten übernimmt die App nur deinen
+  Benutzernamen, um anzuzeigen, mit welchem Konto du angemeldet bist; deine
+  GOG-Benutzerkennung verwendet sie nur für diese Abfragen bei GOG und
+  speichert sie nicht. Damit der nächste Import ohne neue Anmeldung auskommt,
+  speichert die App das Aktualisierungstoken von GOG auf deinem PC,
+  verschlüsselt mit dem Windows-Datenschutz (DPAPI), sodass nur dein
+  Windows-Konto es lesen kann; es wird nicht an unsere API übermittelt. Wenn
+  die App die gespeicherte Anmeldung verwendet oder prüft, gibt GOG ein neues
+  Token aus, das die App statt des alten speichert. Mit „Abmelden“ unter
+  „Launcher-Konten“ löscht die App das Token. An unsere API werden daraus nur
+  Spielkennungen und, für nicht erkannte Spiele, Spieltitel als Suchanfrage
+  übermittelt; die Spielzeiten bleiben auf deinem Gerät. Cookies und
+  Browserdaten dieses Fensters werden nach der Anmeldung gelöscht.
+  Rechtsgrundlage ist deine Einwilligung nach Art. 6 Abs. 1 lit. a DSGVO; du
+  kannst den Vorgang jederzeit abbrechen.
+</p>
 <h3>Community-Spiele-Vorschläge</h3>
 <p>
   Wenn du ein noch nicht erkanntes Spiel zur Community-Datenbank vorschlägst,
@@ -361,7 +394,9 @@
   Hosting von Website und API), <strong>Blizzard Entertainment</strong>
   (Battle.net-Anmeldung, nur wenn du sie beim Battle.net-Import wählst),
   <strong>Epic Games</strong> (Epic-Anmeldung, Spielebibliothek und
-  Spielzeiten, nur wenn du die Anmeldung beim Epic-Games-Import wählst), der für
+  Spielzeiten, nur wenn du die Anmeldung beim Epic-Games-Import wählst),
+  <strong>GOG</strong> (GOG sp. z o.o., Polen; GOG-Anmeldung, Spielebibliothek
+  und Spielzeiten, nur wenn du die Anmeldung beim GOG-Import wählst), der für
   die API konfigurierte
   <strong>Microsoft Azure Database for PostgreSQL</strong> (serverseitige
   Matching-, Vorschlags-, Feedback- und Präsenzdaten),
@@ -404,7 +439,7 @@
     lokal auf deinem Gerät gespeichert.
   </li>
   <li>
-    Gespeicherte Anmeldungen bei Xbox, Epic Games und Battle.net bleiben nur
+    Gespeicherte Anmeldungen bei Xbox, Epic Games, GOG und Battle.net bleiben nur
     verschlüsselt auf deinem PC, bis du dich in den Einstellungen abmeldest,
     „PlayCounter zurücksetzen“ wählst oder der Anbieter sie ablaufen lässt.
   </li>
@@ -477,7 +512,7 @@
 <section lang="en" aria-labelledby="privacy-policy-title">
   <p class="lede" id="en">Privacy</p>
   <h2 id="privacy-policy-title">Privacy Policy</h2>
-  <p class="updated">Last updated: 27 September 2026</p>
+  <p class="updated">Last updated: 1 November 2026</p>
 
   <p>
     This privacy policy covers the
@@ -684,6 +719,35 @@
     are deleted after sign-in. The legal basis is your consent under Art.
     6(1)(a) GDPR; you can cancel the process at any time.
   </p>
+  <h3>Optional GOG import</h3>
+  <p>
+    When you start a GOG import, PlayCounter reads locally, from Windows’ list
+    of installed programs and the info files GOG places in each game folder,
+    which GOG games are installed on this PC and which file starts them. GOG
+    game identifiers (product IDs) are sent to the API to resolve game names and
+    cover artwork. If the API does not recognise an identifier, the app sends
+    the game title as a search query to suggest matching games. Installation
+    paths and playtime are not uploaded in that process.
+  </p>
+  <p>
+    If you also choose to sign in, PlayCounter opens GOG’s sign-in page in a
+    private window. You sign in directly with GOG; PlayCounter does not see your
+    password. The app takes only a one-time authorization code from that window.
+    With it, the app retrieves your game library, game titles and the playtime
+    GOG recorded directly from GOG, from your PC. Of your account details, the
+    app keeps only your user name, to show which account is signed in; it uses
+    your GOG user ID only for these requests to GOG and does not store it. So
+    that the next import needs no new sign-in, the app stores GOG’s refresh
+    token on your PC, encrypted with Windows data protection (DPAPI) so that
+    only your Windows account can read it; it is not sent to our API. Whenever
+    the app uses or checks the kept sign-in, GOG issues a new token, which the
+    app stores in place of the old one. “Sign out” under “Launcher accounts”
+    deletes the token. Of this data, only game identifiers and, for games the
+    API does not recognise, game titles as search queries are sent to our API;
+    the playtime stays on your device. The window’s cookies and browsing data
+    are deleted after sign-in. The legal basis is your consent under Art.
+    6(1)(a) GDPR; you can cancel the process at any time.
+  </p>
   <h3>Community game suggestions</h3>
   <p>
     If you suggest an unrecognised game to the community database, the
@@ -738,7 +802,9 @@
     <strong>Blizzard Entertainment</strong> (Battle.net sign-in, only if you
     choose it during a Battle.net import), <strong>Epic Games</strong> (Epic
     sign-in, game library and playtime, only if you choose to sign in during an
-    Epic Games import), the
+    Epic Games import), <strong>GOG</strong> (GOG sp. z o.o., Poland; GOG
+    sign-in, game library and playtime, only if you choose to sign in during a
+    GOG import), the
     <strong>Microsoft Azure Database for PostgreSQL</strong> (server-side
     matching, suggestion, feedback and presence data), <strong>GitHub</strong>
     (updates, downloads and source repository),
@@ -777,7 +843,7 @@
       stored only on your device.
     </li>
     <li>
-      Kept sign-ins for Xbox, Epic Games and Battle.net stay only on your PC,
+      Kept sign-ins for Xbox, Epic Games, GOG and Battle.net stay only on your PC,
       encrypted, until you sign out in Settings, choose “Reset PlayCounter”, or
       the provider lets them expire.
     </li>

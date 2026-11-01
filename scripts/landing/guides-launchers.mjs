@@ -193,11 +193,16 @@ export const launcherGuides = [
   {
     slug: "check-playtime-gog-galaxy",
     category: "Launcher guides",
-    title: "Check GOG playtime and track standalone games",
+    title: "Check and import your GOG playtime",
     description:
-      "Find game hours in GOG GALAXY and track sessions from GALAXY or standalone GOG installations with PlayCounter on Windows.",
+      "Find hours played in GOG GALAXY, import your GOG library with its playtime into PlayCounter, and track GOG games with or without GALAXY.",
     answer:
-      "GOG GALAXY includes hours played and game statistics in its library. PlayCounter can separately record recognized GOG games running on your PC, including games started directly from their executable.",
+      "GOG GALAXY includes hours played and game statistics in its library. To bring those hours into PlayCounter, open My Games, choose GOG and select Import from GOG.",
+    glance: [
+      ["Find hours in GALAXY", "#galaxy"],
+      ["Import into PlayCounter", "#import"],
+      ["Track new sessions", "#standalone"],
+    ],
     sections: [
       {
         id: "galaxy",
@@ -205,25 +210,50 @@ export const launcherGuides = [
         html: "<p>Open GOG GALAXY, select your game and check its playtime and statistics. GALAXY also supports library organization and connected-platform statistics; what is available depends on the game and integration.</p>",
       },
       {
+        id: "import",
+        title: "Import your GOG hours into PlayCounter",
+        intro:
+          "<p>Worth doing once: signing in brings in the playtime GOG recorded, so your totals start with your real hours instead of zero. New GOG sessions are tracked either way, with or without an import.</p>",
+        steps: [
+          {
+            title: "Open GOG in My Games",
+            html: "<p>In the sidebar under <strong>My Games</strong>, select <strong>GOG</strong>, then <strong>Import from GOG</strong>. After your first import, the button says <strong>Import more from GOG</strong>.</p>",
+          },
+          {
+            title: "Choose what to import",
+            html: "<p><strong>Your GOG account</strong> brings in every game on your account with the playtime GOG recorded, including games that are not installed: select <strong>Sign in and find games</strong>. Once you are signed in, the button says <strong>Find games</strong>. <strong>Only installed games</strong> scans this PC and needs no sign-in; those games arrive without earlier hours.</p>",
+          },
+          {
+            title: "Review and import",
+            html: "<p>Recognized games wait in <strong>Ready to import</strong>. Games you never played and have not installed start unchecked, because GOG accounts often collect many free games: check the ones you want. Games under <strong>Needs you</strong> ask you to pick the right game first. Then select <strong>Import</strong>.</p>",
+          },
+        ],
+        html: '<p>You sign in directly with GOG in a private window; PlayCounter does not see your password. The app keeps the sign-in on your PC, encrypted for your Windows account, so the next import needs no sign-in; <strong>Sign out</strong> on the <strong>Launcher accounts</strong> page deletes it. Only your game list, your playtime and your GOG user name reach the app, and the PlayCounter API only receives GOG game IDs, plus the titles of games it does not recognize, to look them up. <a href="/datenschutz#en">Import privacy details</a>.</p>',
+      },
+      {
         id: "standalone",
         title: "Track a GOG game with or without GALAXY",
-        html: "<ol><li>Leave PlayCounter running.</li><li>Start your GOG game from GALAXY, a desktop shortcut or the installed executable.</li><li>Confirm the game in <strong>Now Playing</strong>.</li><li>Close it when finished and find the session in <strong>My History</strong>.</li></ol><p>For an unrecognized older game, use <strong>Discovered</strong> to assign the process a local game entry. Match the game rather than a setup program or launcher.</p>",
+        html: "<ol><li>Leave PlayCounter running.</li><li>Start your GOG game from GALAXY, a desktop shortcut or the installed executable.</li><li>Confirm the game in <strong>Now Playing</strong>.</li><li>Close it when finished and find the session in <strong>My History</strong>.</li></ol><p>After an import, <strong>Play</strong> in My Games starts an installed GOG game directly, without GOG GALAXY.</p><p>For an unrecognized older game, use <strong>Discovered</strong> to assign the process a local game entry. Match the game rather than a setup program or launcher.</p>",
       },
       {
         id: "dos",
         title: "GOG games packaged with DOSBox",
-        html: '<p>Some DOS releases run through a bundled DOSBox copy. PlayCounter has dedicated DOSBox game detection, so a recognizable title can get its own sessions instead of sharing one generic emulator total. Check the <a href="/playtime-tracker-for-emulators/">emulator guide</a> if a game needs review.</p>',
+        html: '<p>Some DOS releases run through a bundled DOSBox copy. PlayCounter has dedicated DOSBox game detection, so a recognizable title can get its own sessions instead of sharing one generic emulator total. Check the <a href="/playtime-tracker-for-emulators/">emulator guide</a> if a game needs review.</p><p>The GOG import adds these games without asking you to pick a game file.</p>',
       },
       {
         id: "history",
-        title: "Earlier hours remain a separate source",
-        html: '<p>PlayCounter currently has no GOG importer. It records new sessions while running. To include older time, <a href="/adjust-total-playtime/">set the game’s total yourself</a>. GALAXY’s existing statistics remain available in GALAXY.</p>',
+        title: "How imported GOG hours add up",
+        html: '<p>Imported hours do not create old sessions in <strong>My History</strong>. GOG’s total counts once, next to any Steam, Xbox or Epic total for the same game. PlayCounter compares that sum with the time it tracked itself and shows the higher number, so overlapping hours are not counted twice. <a href="/total-playtime-across-all-launchers/#totals">See an example</a>.</p><p>Run the import again to refresh GOG’s totals. If a game has no GOG hours, for example because you only scanned installed games or it is not in the GOG account you signed in with, <a href="/adjust-total-playtime/">set its earlier total yourself</a>. GALAXY’s own statistics remain available in GALAXY.</p>',
       },
     ],
     sources: [
       {
         label: "GOG: GALAXY library and statistics features",
         url: "https://www.gog.com/galaxy",
+      },
+      {
+        label: "PlayCounter: GOG importer",
+        url: `${site.repository}/blob/v${site.version}/apps/desktop/src/library/providers/gog.ts`,
       },
     ],
     related: ["playtime-tracker-for-emulators", "track-playtime-outside-steam"],
