@@ -11,6 +11,7 @@ pub mod gog_account;
 pub mod gog_achievements;
 pub mod kept_logins;
 pub(crate) mod login_status;
+pub mod playstation_account;
 pub mod steam;
 mod types;
 mod vdf;

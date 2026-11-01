@@ -22,14 +22,16 @@ pub(crate) enum Service {
     Epic,
     BattleNet,
     Gog,
+    PlayStation,
 }
 
 impl Service {
-    pub(crate) const ALL: [Service; 4] = [
+    pub(crate) const ALL: [Service; 5] = [
         Service::Xbox,
         Service::Epic,
         Service::BattleNet,
         Service::Gog,
+        Service::PlayStation,
     ];
 
     pub(crate) fn id(self) -> &'static str {
@@ -38,6 +40,7 @@ impl Service {
             Service::Epic => "epic",
             Service::BattleNet => "battlenet",
             Service::Gog => "gog",
+            Service::PlayStation => "playstation",
         }
     }
 
@@ -51,6 +54,7 @@ impl Service {
             Service::Epic => 1,
             Service::BattleNet => 2,
             Service::Gog => 3,
+            Service::PlayStation => 4,
         }
     }
 }
@@ -58,12 +62,14 @@ impl Service {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct KeptLogin {
-    /// The refresh token, or Battle.net's native cookie snapshot. Older
-    /// Battle.net records have an empty marker and rely on the browser profile.
+    /// The refresh token, or Battle.net's native cookie snapshot, or for
+    /// PlayStation a small record with Sony's session cookie and the refresh
+    /// token. Older Battle.net records have an empty marker and rely on the
+    /// browser profile.
     #[serde(default)]
     pub secret: String,
-    /// "Signed in as …": the Xbox gamertag, the Epic display name or the GOG
-    /// user name.
+    /// "Signed in as …": the Xbox gamertag, the Epic display name, the GOG
+    /// user name or the PSN online id.
     #[serde(default)]
     pub name: Option<String>,
     /// Xbox only: the PlayCounter server that can redeem the token.
@@ -236,7 +242,7 @@ impl Store {
         }
     }
 
-    fn list(&self) -> Result<Vec<KeptLoginSummary>, String> {
+    pub(crate) fn list(&self) -> Result<Vec<KeptLoginSummary>, String> {
         let mut summaries = Vec::new();
         for service in Service::ALL {
             if let Some(login) = self.try_load(service)? {
@@ -350,6 +356,9 @@ pub(crate) async fn sign_out(app: &AppHandle, service: Service) -> Result<(), St
         }
         // GOG has no call to end it from here, as far as known.
         Service::Gog => super::gog_account::cancel_active(app),
+        // Sony has no known call to end it from here. The session cookie
+        // ends at Sony after about two months, or when signing out there.
+        Service::PlayStation => super::playstation_account::cancel_active(app),
         // Microsoft has no call to end it from here. Unused, it ends by itself.
         Service::Xbox => {}
     }
@@ -389,6 +398,7 @@ pub async fn logins_check(
         Some(Service::Epic) => super::epic_account::check_saved_login(&app).await,
         Some(Service::BattleNet) => super::battlenet_account::check_saved_login(&app).await,
         Some(Service::Gog) => super::gog_account::check_saved_login(&app).await,
+        Some(Service::PlayStation) => super::playstation_account::check_saved_login(&app).await,
         None => LoginStatus::Unavailable,
     }
 }
