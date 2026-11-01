@@ -130,6 +130,7 @@
   "Xbox import returned an invalid Microsoft error code.": "Xbox 导入返回了无效的 Microsoft 错误代码。",
   "Xbox import returned invalid game data.": "Xbox 导入返回了无效的游戏数据。",
   "Pick at least one game to import.": "请至少选择一个游戏进行导入。",
+  "{{name}} could not be imported. Please try again.": "无法导入 {{name}}。请重试。",
   "The selected {{providerName}} game cannot be imported.": "无法导入所选的 {{providerName}} 游戏。",
   "Pick the game file to track before importing this game.": "导入此游戏前，请选择要记录的游戏文件。",
   "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.": "{{fileName}} 在 PlayCounter 的忽略列表中，因此不能用作游戏文件。",

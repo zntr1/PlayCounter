@@ -106,7 +106,8 @@ export type ImportSession = {
   current: string | null;
   busy: string | null;
   browsing: string | null;
-  lastImport: { added: string[]; updated: number } | null;
+  /** `notImported`: picked games the server could not be asked about. */
+  lastImport: { added: string[]; updated: number; notImported: string[] } | null;
 };
 
 let sessionCount = 0;
@@ -227,6 +228,21 @@ export function lookUpPickedGame(gameId: number) {
   answer.catch(() => undefined);
   pickedGames.set(gameId, { endpoint, answer });
   return answer;
+}
+
+/** The files the server knows for a game saved in My Games. Without an answer
+ *  the review goes on without them: one game must not stop the whole list. */
+async function savedGameFiles(
+  apiEndpoint: string,
+  gameId: number,
+  signal: AbortSignal,
+) {
+  try {
+    return (await reverseResolveLibraryGame(apiEndpoint, gameId, signal))
+      .executables;
+  } catch {
+    return [];
+  }
 }
 
 async function pickedGameForImport(gameId: number, signal: AbortSignal) {
@@ -482,13 +498,7 @@ export async function startImportScan(
         serverMatch?.game?.id === existing.gameId
           ? serverMatch.executables
           : serverMatch?.game || profile.accountAndInstalls
-            ? (
-                await reverseResolveLibraryGame(
-                  apiEndpoint,
-                  existing.gameId,
-                  signal,
-                )
-              ).executables
+            ? await savedGameFiles(apiEndpoint, existing.gameId, signal)
             : [];
       if (!isCurrent(signal, providerId)) return;
       saved.set(key, {
@@ -685,6 +695,11 @@ export function selectableGameIds(
   return ids;
 }
 
+/** A picked game the server could not be asked about on Import. */
+export function notImportedText(name: string) {
+  return t("{{name}} could not be imported. Please try again.", { name });
+}
+
 export async function importSelectedGames() {
   const start = session();
   const { providerId, scan } = start;
@@ -701,6 +716,7 @@ export async function importSelectedGames() {
     let updated = 0;
     const commits: LibraryImportCommit[] = [];
     const imported = new Map<string, ResolvedLibraryGame>();
+    const notImported: string[] = [];
     for (const game of scan.games) {
       if (
         !start.selected.has(game.externalId) ||
@@ -714,7 +730,15 @@ export async function importSelectedGames() {
         ? undefined
         : start.replacements[game.externalId];
       if (replacement) {
-        const picked = await pickedGameForImport(replacement.id, signal);
+        let picked: PickedGame;
+        try {
+          picked = await pickedGameForImport(replacement.id, signal);
+        } catch {
+          if (!isCurrent(signal, providerId)) return;
+          // The other games still go in. This one stays checked.
+          notImported.push(replacement.name);
+          continue;
+        }
         if (!isCurrent(signal, providerId)) return;
         match = {
           key,
@@ -742,7 +766,11 @@ export async function importSelectedGames() {
       imported.set(key, match);
     }
     if (commits.length === 0)
-      throw new Error(t("Pick at least one game to import."));
+      throw new Error(
+        notImported.length > 0
+          ? notImported.map(notImportedText).join(" ")
+          : t("Pick at least one game to import."),
+      );
     await backupOnce(signal);
     if (!isCurrent(signal, providerId)) return;
     const result = await runLibraryImport(commits, signal);
@@ -760,7 +788,7 @@ export async function importSelectedGames() {
         [...current.selected].filter((id) => !importedIds.has(id)),
       ),
       phase: "done",
-      lastImport: { added, updated },
+      lastImport: { added, updated, notImported },
     }));
     useAppStore.getState().addToast({
       tone: "success",

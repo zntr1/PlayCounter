@@ -148,6 +148,7 @@
   "Xbox import returned an invalid Microsoft error code.": "Импорт из Xbox вернул неверный код ошибки Microsoft.",
   "Xbox import returned invalid game data.": "Импорт из Xbox вернул неверные данные игр.",
   "Pick at least one game to import.": "Выберите хотя бы одну игру для импорта.",
+  "{{name}} could not be imported. Please try again.": "Не удалось импортировать {{name}}. Попробуйте ещё раз.",
   "The selected {{providerName}} game cannot be imported.": "Выбранную игру {{providerName}} нельзя импортировать.",
   "Pick the game file to track before importing this game.": "Перед импортом выберите файл игры для учёта.",
   "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.": "{{fileName}} в списке игнорирования PlayCounter, поэтому его нельзя использовать как файл игры.",

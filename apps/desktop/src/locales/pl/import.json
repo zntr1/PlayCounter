@@ -148,6 +148,7 @@
   "Xbox import returned an invalid Microsoft error code.": "Import z Xbox zwrócił nieprawidłowy kod błędu Microsoft.",
   "Xbox import returned invalid game data.": "Import z Xbox zwrócił nieprawidłowe dane gier.",
   "Pick at least one game to import.": "Wybierz co najmniej jedną grę do importu.",
+  "{{name}} could not be imported. Please try again.": "Nie udało się zaimportować {{name}}. Spróbuj ponownie.",
   "The selected {{providerName}} game cannot be imported.": "Wybranej gry {{providerName}} nie można zaimportować.",
   "Pick the game file to track before importing this game.": "Przed importem tej gry wybierz plik gry do śledzenia.",
   "{{fileName}} is on PlayCounter's ignore list, so it cannot be used as the game file.": "{{fileName}} jest na liście ignorowanych PlayCounter, więc nie może być plikiem gry.",

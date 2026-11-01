@@ -1006,6 +1006,56 @@ describe("Wrong game?", () => {
     );
   });
 
+  it("imports the other games when the server can't be asked about your pick, which stays checked", async () => {
+    mocks.search.mockResolvedValue([theHighLife]);
+    // The server does not answer about the picked game, also not on Import.
+    mocks.reverse.mockRejectedValue(
+      new Error("The game file lookup failed (504)."),
+    );
+    await scan("steam", {
+      games: [game("1234560", "The High lifE"), game("620", "Portal 2")],
+      resolvedGames: [
+        matched("steam:1234560", highOnLife),
+        matched("steam:620", metadata(72, "Portal 2")),
+      ],
+    });
+    await act(() => row("High on Life").click());
+    await click("Wrong game?");
+    await act(() => tile("The High lifE", "The High Life").click());
+
+    await click("Import 2 games");
+    expect(
+      mocks.run.mock.calls[0][0].map(
+        ({ entry }: { entry: LibraryImportEntry }) => entry.name,
+      ),
+    ).toEqual(["Portal 2"]);
+    expect(container.textContent).toContain(
+      "The High Life could not be imported. Please try again.",
+    );
+    await click("Back to the games");
+    expect(checkbox("The High Life")?.checked).toBe(true);
+  });
+
+  it("names your pick when it was the only game to import and the server can't be asked about it", async () => {
+    mocks.search.mockResolvedValue([theHighLife]);
+    mocks.reverse.mockRejectedValue(
+      new Error("The game file lookup failed (504)."),
+    );
+    await scan("steam", {
+      games: [game("1234560", "The High lifE")],
+      resolvedGames: [matched("steam:1234560", highOnLife)],
+    });
+    await click("Wrong game?");
+    await act(() => tile("The High lifE", "The High Life").click());
+
+    await click("Import 1 game");
+    expect(mocks.run).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(
+      "The High Life could not be imported. Please try again.",
+    );
+    expect(checkbox("The High Life")?.checked).toBe(true);
+  });
+
   it("sends nothing: a file on this PC that only the matched game knows is not handed to your pick", async () => {
     mocks.search.mockResolvedValue([theHighLife]);
     mocks.reverse.mockResolvedValue({ game: theHighLife, executables: [] });
@@ -1112,5 +1162,28 @@ describe("a game already in My Games", () => {
     });
     // The matched game's file is not linked to the saved one.
     expect(commit.exeCacheEntries).toEqual([]);
+  });
+
+  it("does not stop the review when the server can't be asked about it", async () => {
+    // The saved game was deleted on the server, or the server did not answer.
+    mocks.reverse.mockRejectedValue(
+      new Error("The game file lookup failed (404)."),
+    );
+    await scan(
+      "steam",
+      {
+        games: [game("1234560", "The High lifE"), game("620", "Portal 2")],
+        resolvedGames: [
+          matched("steam:1234560", highOnLife, [knownFile("HighOnLife.exe")]),
+          matched("steam:620", metadata(72, "Portal 2")),
+        ],
+      },
+      [inMyGames("steam", "1234560", theHighLife)],
+    );
+    expect(container.textContent).not.toContain("The game file lookup failed");
+    expect(counts()).toMatchObject({ ready: 1, imported: 1 });
+    expect(listed()).toEqual(["Portal 2"]);
+    await act(() => shelf("imported").tab.click());
+    expect(listed()).toEqual(["The High Life"]);
   });
 });

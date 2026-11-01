@@ -4,6 +4,7 @@ import { Trans } from "react-i18next";
 import { getT } from "../../i18n";
 import { importProfile } from "../../library/importProfiles";
 import {
+  notImportedText,
   reviewRemainingGames,
   showImportList,
   type ImportSession,
@@ -26,6 +27,7 @@ export function ImportDone({ session }: { session: ImportSession }) {
   const providerName = launcherName(session.providerId);
   const added = session.lastImport?.added ?? [];
   const updated = session.lastImport?.updated ?? 0;
+  const notImported = session.lastImport?.notImported ?? [];
   const remaining = groups.attention.filter((row) => !row.completed).length;
   const covers = rows
     .filter((row) => added.includes(row.game.externalId) && row.coverUrl)
@@ -76,7 +78,9 @@ export function ImportDone({ session }: { session: ImportSession }) {
             </>
           )}
         </p>
-        {(added.length > 0 && updated > 0) || remaining > 0 ? (
+        {(added.length > 0 && updated > 0) ||
+        notImported.length > 0 ||
+        remaining > 0 ? (
           <ul className="mt-4 grid gap-1.5 text-sm text-text-muted">
             {added.length > 0 && updated > 0 ? (
               <li className="flex items-center gap-2">
@@ -84,6 +88,16 @@ export function ImportDone({ session }: { session: ImportSession }) {
                 {t("{{count}} games in My Games updated", { count: updated })}
               </li>
             ) : null}
+            {notImported.map((name, index) => (
+              <li key={index} className="flex items-center gap-2">
+                <AlertTriangle
+                  size={16}
+                  aria-hidden="true"
+                  className="text-accent-ink"
+                />
+                {notImportedText(name)}
+              </li>
+            ))}
             {remaining > 0 ? (
               <li className="flex items-center gap-2">
                 <AlertTriangle
