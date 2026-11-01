@@ -152,6 +152,48 @@ describe("latest.json", () => {
     });
   });
 
+  it("writes a point with a title as one line, title first, in every language", async () => {
+    await writeFile(
+      join(root, "releaseNotes.json"),
+      JSON.stringify([
+        {
+          version: "9.9.9",
+          headline: "Headline",
+          highlights: [
+            {
+              title: "Your achievements",
+              text: "See what you unlocked.",
+              hint: "Right-click a game → Achievements",
+              image: "achievements",
+            },
+            "A line written the old way",
+          ],
+          translations: {
+            de: {
+              headline: "Überschrift",
+              highlights: [
+                {
+                  title: "Deine Erfolge",
+                  text: "Sieh, was du freigeschaltet hast.",
+                },
+                "Eine Zeile wie früher",
+              ],
+            },
+          },
+        },
+      ]),
+    );
+    await createManifest();
+    const manifest = JSON.parse(await readFile(manifestPath(), "utf8"));
+    assert.equal(
+      manifest.notes,
+      "Headline\n• Your achievements: See what you unlocked.\n• A line written the old way",
+    );
+    assert.deepEqual(manifest.notes_translations, {
+      de: "Überschrift\n• Deine Erfolge: Sieh, was du freigeschaltet hast.\n• Eine Zeile wie früher",
+    });
+  });
+
   it("refuses an installer that changed after signing", async () => {
     await writeInstaller(Buffer.concat([installer, Buffer.from("x")]));
     await assert.rejects(createManifest(), /does not match the file/);

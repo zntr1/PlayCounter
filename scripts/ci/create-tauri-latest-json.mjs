@@ -116,10 +116,21 @@ function formatReleaseNotes(text) {
     return "";
   }
   const highlights = text.highlights
-    .filter((highlight) => typeof highlight === "string" && highlight.trim())
-    .map((highlight) => `• ${highlight.trim()}`);
+    .map(pointLine)
+    .filter(Boolean)
+    .map((line) => `• ${line}`);
   if (highlights.length === 0) return "";
   return [text.headline.trim(), ...highlights].join("\n").slice(0, 4_000);
+}
+
+// One line per point: older releases write it so, newer ones as a title
+// with its text (the picture and hint only exist in the app).
+function pointLine(point) {
+  if (typeof point === "string") return point.trim();
+  if (!point || typeof point !== "object") return "";
+  const title = typeof point.title === "string" ? point.title.trim() : "";
+  const text = typeof point.text === "string" ? point.text.trim() : "";
+  return title && text ? `${title}: ${text}` : "";
 }
 
 async function listFiles(directory) {

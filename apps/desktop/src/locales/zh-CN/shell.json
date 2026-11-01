@@ -170,5 +170,11 @@
   "Not now": "以后再说",
   "Join Discord": "加入 Discord",
   "Bring your {{providerName}} games and their playtime into PlayCounter": "将你的 {{providerName}} 游戏及其游戏时长导入 PlayCounter",
-  "Add your {{providerName}} games to PlayCounter": "将你的 {{providerName}} 游戏添加到 PlayCounter"
+  "Add your {{providerName}} games to PlayCounter": "将你的 {{providerName}} 游戏添加到 PlayCounter",
+  "Next": "下一步",
+  "{{page}} of {{pages}}": "{{page}} / {{pages}}",
+  "Also new in {{version}}": "{{version}} 的其他新内容",
+  "Also since your last update": "自上次更新以来的其他内容",
+  "Show changes": "显示更改",
+  "Hide changes": "隐藏更改"
 }

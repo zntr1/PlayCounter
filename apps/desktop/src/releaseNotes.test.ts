@@ -10,6 +10,7 @@ import {
   sanitizeReleaseNotes,
   sanitizeTranslatedNotes,
   toDisplayNotes,
+  toWhatsNew,
   updateDisplayNotes,
   type ReleaseNote,
 } from "./releaseNotes";
@@ -47,7 +48,7 @@ describe("release note catalog", () => {
     );
     expect(result[0].highlights).toHaveLength(MAX_RELEASE_NOTE_HIGHLIGHTS);
     expect(result[0].highlights[0]).not.toContain("\u0007");
-    expect(result[0].highlights[0].length).toBeLessThanOrEqual(
+    expect((result[0].highlights[0] as string).length).toBeLessThanOrEqual(
       MAX_RELEASE_NOTE_LINE_LENGTH,
     );
     expect(sanitizeReleaseNotes({})).toEqual([]);
@@ -198,5 +199,138 @@ describe("release note display decision", () => {
         "1.1.5",
       ]);
     }
+  });
+});
+
+describe("points with pictures (paged What's new)", () => {
+  // Shaped like 1.5.0's entry: points with pictures become pages, the rest
+  // goes to "Also new", and older entries keep plain lines.
+  const [paged] = sanitizeReleaseNotes([
+    {
+      version: "1.5.0",
+      headline: "See your achievements",
+      highlights: [
+        {
+          title: "Your achievements, game by game",
+          text: "See what you unlocked on Steam, Xbox and Epic Games.",
+          hint: "Right-click a game in My Games → Achievements",
+          image: "achievements",
+        },
+        { title: "Sign in once", text: "Kept sign-ins.", image: "accounts" },
+        { title: "Less CPU", text: "About a sixth of the CPU." },
+        "A line written the old way",
+      ],
+      translations: {
+        de: {
+          headline: "Sieh deine Erfolge",
+          highlights: [
+            {
+              title: "Deine Erfolge, Spiel für Spiel",
+              text: "Sieh, was du freigeschaltet hast.",
+              hint: "Rechtsklick → „Erfolge“",
+              // A translation never picks its own picture.
+              image: "accounts",
+            },
+            { title: "Nur einmal anmelden", text: "Gespeicherte Anmeldungen." },
+            { title: "Weniger CPU", text: "Etwa ein Sechstel der CPU." },
+            "Eine Zeile wie früher",
+          ],
+        },
+      },
+    },
+  ]);
+  const images = {
+    "1.5.0/achievements": "/assets/achievements.webp",
+    "1.5.0/accounts": "/assets/accounts.webp",
+  };
+
+  it("reads a point as title, text, hint and picture, and plain lines still", () => {
+    expect(paged.highlights).toEqual([
+      {
+        title: "Your achievements, game by game",
+        text: "See what you unlocked on Steam, Xbox and Epic Games.",
+        hint: "Right-click a game in My Games → Achievements",
+        image: "achievements",
+      },
+      { title: "Sign in once", text: "Kept sign-ins.", image: "accounts" },
+      { title: "Less CPU", text: "About a sixth of the CPU." },
+      "A line written the old way",
+    ]);
+  });
+
+  it("drops points without a title or text, and pictures that are no plain name", () => {
+    const [note] = sanitizeReleaseNotes([
+      {
+        version: "1.5.0",
+        headline: "Headline",
+        highlights: [
+          { title: "", text: "No title" },
+          { title: "No text", text: " " },
+          { title: "Bad picture", text: "Text", image: "../secret" },
+          { title: 5, text: "Wrong type" },
+        ],
+      },
+    ]);
+    expect(note.highlights).toEqual([{ title: "Bad picture", text: "Text" }]);
+  });
+
+  it("gives every point with a picture its own page, in order, and the rest to Also new", () => {
+    const view = toWhatsNew(paged, "en", images);
+    expect(view.version).toBe("1.5.0");
+    expect(view.headline).toBe("See your achievements");
+    expect(view.pages).toEqual([
+      {
+        title: "Your achievements, game by game",
+        text: "See what you unlocked on Steam, Xbox and Epic Games.",
+        hint: "Right-click a game in My Games → Achievements",
+        imageUrl: "/assets/achievements.webp",
+      },
+      {
+        title: "Sign in once",
+        text: "Kept sign-ins.",
+        imageUrl: "/assets/accounts.webp",
+      },
+    ]);
+    expect(view.more).toEqual([
+      { title: "Less CPU", text: "About a sixth of the CPU." },
+      { text: "A line written the old way" },
+    ]);
+  });
+
+  it("shows a translation with the English picture", () => {
+    const view = toWhatsNew(paged, "de", images);
+    expect(view.headline).toBe("Sieh deine Erfolge");
+    expect(view.pages.map((page) => [page.title, page.imageUrl])).toEqual([
+      ["Deine Erfolge, Spiel für Spiel", "/assets/achievements.webp"],
+      ["Nur einmal anmelden", "/assets/accounts.webp"],
+    ]);
+    expect(view.pages[0].hint).toBe("Rechtsklick → „Erfolge“");
+    expect(view.more).toEqual([
+      { title: "Weniger CPU", text: "Etwa ein Sechstel der CPU." },
+      { text: "Eine Zeile wie früher" },
+    ]);
+  });
+
+  it("keeps a page whose picture file is missing, without the picture", () => {
+    const view = toWhatsNew(paged, "en", {});
+    expect(view.pages.map((page) => [page.title, page.imageUrl])).toEqual([
+      ["Your achievements, game by game", undefined],
+      ["Sign in once", undefined],
+    ]);
+  });
+
+  it("gives a version written the old way no pages", () => {
+    const view = toWhatsNew(notes[0], "en", images);
+    expect(view.pages).toEqual([]);
+    expect(view.more).toEqual([{ text: "The important change" }]);
+  });
+
+  it("lists a point as one line where a list is shown", () => {
+    expect(toDisplayNotes(paged, "en").highlights).toEqual([
+      "Your achievements, game by game: See what you unlocked on Steam, Xbox and Epic Games.",
+      "Sign in once: Kept sign-ins.",
+      "Less CPU: About a sixth of the CPU.",
+      "A line written the old way",
+    ]);
   });
 });

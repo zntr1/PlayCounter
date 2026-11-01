@@ -170,5 +170,11 @@
   "Not now": "Не сейчас",
   "Join Discord": "Зайти в Discord",
   "Bring your {{providerName}} games and their playtime into PlayCounter": "Перенесите игры {{providerName}} и время в них в PlayCounter",
-  "Add your {{providerName}} games to PlayCounter": "Добавьте игры {{providerName}} в PlayCounter"
+  "Add your {{providerName}} games to PlayCounter": "Добавьте игры {{providerName}} в PlayCounter",
+  "Next": "Далее",
+  "{{page}} of {{pages}}": "{{page}} из {{pages}}",
+  "Also new in {{version}}": "Также в {{version}}",
+  "Also since your last update": "Также с прошлого обновления",
+  "Show changes": "Показать изменения",
+  "Hide changes": "Скрыть изменения"
 }

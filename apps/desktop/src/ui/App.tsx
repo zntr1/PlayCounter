@@ -68,6 +68,7 @@ import { RequestWarning } from "./RequestWarning";
 import { GameJournalHost } from "./GameJournalDialog";
 import { NotificationBell } from "./NotificationBell";
 import { ReleaseNotesDialog } from "./ReleaseNotesDialog";
+import { WhatsNewDialog } from "./WhatsNewDialog";
 import { SidebarButton } from "./SidebarButton";
 import { LanguageNotice } from "./LanguageNotice";
 import { DiscordInviteDialog, discordInviteDue } from "./DiscordInviteDialog";
@@ -136,7 +137,6 @@ import {
   findUnseenReleaseNotes,
   isEmptyDisplayNotes,
   parseManifestNotes,
-  toDisplayNotes,
   updateDisplayNotes,
 } from "../releaseNotes";
 import { appLocale, getT } from "../i18n";
@@ -1427,29 +1427,13 @@ export function App() {
         <FeedbackDialog onClose={() => setFeedbackOpen(false)} />
       ) : null}
       {currentNotesOpen && appVersion && installedReleaseNotes.length > 0 ? (
-        <ReleaseNotesDialog
-          version={appVersion}
-          eyebrow={t("New update")}
-          sections={installedReleaseNotes.map((note) => ({
-            version: note.version,
-            notes: toDisplayNotes(note),
-          }))}
+        <WhatsNewDialog
+          releases={installedReleaseNotes}
           onClose={() => closeCurrentReleaseNotes(appVersion)}
           onStartTour={(id) => {
             closeCurrentReleaseNotes(appVersion);
             useAppStore.getState().startTour(id);
           }}
-          footer={
-            <div className="flex justify-end">
-              <Button
-                variant="primary"
-                data-autofocus
-                onClick={() => closeCurrentReleaseNotes(appVersion)}
-              >
-                {t("Got it")}
-              </Button>
-            </div>
-          }
         />
       ) : null}
       {discordInviteOpen ? (

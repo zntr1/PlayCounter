@@ -170,5 +170,11 @@
   "Not now": "Ahora no",
   "Join Discord": "Unirse a Discord",
   "Bring your {{providerName}} games and their playtime into PlayCounter": "Trae tus juegos de {{providerName}} y su tiempo de juego a PlayCounter",
-  "Add your {{providerName}} games to PlayCounter": "Añade tus juegos de {{providerName}} a PlayCounter"
+  "Add your {{providerName}} games to PlayCounter": "Añade tus juegos de {{providerName}} a PlayCounter",
+  "Next": "Siguiente",
+  "{{page}} of {{pages}}": "{{page}} de {{pages}}",
+  "Also new in {{version}}": "Más novedades de {{version}}",
+  "Also since your last update": "También desde tu última actualización",
+  "Show changes": "Mostrar cambios",
+  "Hide changes": "Ocultar cambios"
 }

@@ -6,10 +6,25 @@ export const MAX_RELEASE_NOTE_HEADLINE_LENGTH = 240;
 export const MAX_RELEASE_NOTE_LINE_LENGTH = 600;
 export const MAX_RELEASE_NOTE_HIGHLIGHTS = 12;
 export const MAX_RELEASE_NOTE_PARAGRAPHS = 8;
+export const MAX_RELEASE_NOTE_TITLE_LENGTH = 80;
+export const MAX_RELEASE_NOTE_HINT_LENGTH = 120;
+
+/** A point of a release written as title and text (from 1.5.0 on). `hint`
+ *  says where to find it; `image` names a picture in
+ *  src/assets/whats-new/<version>/ and counts on the English point only. */
+export type ReleaseNotePoint = {
+  title: string;
+  text: string;
+  hint?: string;
+  image?: string;
+};
+
+/** Older releases write a point as one line. */
+export type ReleaseNoteItem = string | ReleaseNotePoint;
 
 export type ReleaseNoteText = {
   headline: string;
-  highlights: string[];
+  highlights: ReleaseNoteItem[];
 };
 
 export type ReleaseNote = ReleaseNoteText & {
@@ -28,12 +43,32 @@ export type DisplayNotes = {
   paragraphs: string[];
 };
 
+/** A point as the What's new dialog shows it. Lines written the old way
+ *  have no title. */
+export type WhatsNewPoint = {
+  title?: string;
+  text: string;
+  hint?: string;
+  imageUrl?: string;
+};
+
+/** One release in the app's language: a page per point with a picture, the
+ *  other points for "Also new". */
+export type WhatsNewRelease = {
+  version: string;
+  headline: string;
+  pages: WhatsNewPoint[];
+  more: WhatsNewPoint[];
+};
+
 export type ReleaseNotesDecision =
   | { action: "wait" }
   | { action: "mark-seen"; version: string }
   | { action: "show"; version: string; notes: ReleaseNote[] };
 
 const CONTROL_CHARACTERS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+// A picture's file name in src/assets/whats-new/<version>/, without .webp.
+const IMAGE_NAME = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const BULLET_PREFIX = /^\s*[-*+•–]\s+/;
 const MARKDOWN_HEADING = /^\s*#{1,6}\s+/;
 
@@ -68,6 +103,27 @@ function compareReleaseVersions(left: string, right: string): number | null {
   return 0;
 }
 
+function sanitizeItem(value: unknown): ReleaseNoteItem | null {
+  if (typeof value === "string")
+    return cleanText(value, MAX_RELEASE_NOTE_LINE_LENGTH);
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const title = cleanText(raw.title, MAX_RELEASE_NOTE_TITLE_LENGTH);
+  const text = cleanText(raw.text, MAX_RELEASE_NOTE_LINE_LENGTH);
+  if (!title || !text) return null;
+  const hint = cleanText(raw.hint, MAX_RELEASE_NOTE_HINT_LENGTH);
+  const image =
+    typeof raw.image === "string" && IMAGE_NAME.test(raw.image)
+      ? raw.image
+      : null;
+  return {
+    title,
+    text,
+    ...(hint ? { hint } : {}),
+    ...(image ? { image } : {}),
+  };
+}
+
 function sanitizeNoteText(value: unknown): ReleaseNoteText | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as Record<string, unknown>;
@@ -76,8 +132,8 @@ function sanitizeNoteText(value: unknown): ReleaseNoteText | null {
 
   const highlights = Array.isArray(raw.highlights)
     ? raw.highlights
-        .map((item) => cleanText(item, MAX_RELEASE_NOTE_LINE_LENGTH))
-        .filter((item): item is string => item !== null)
+        .map(sanitizeItem)
+        .filter((item): item is ReleaseNoteItem => item !== null)
         .slice(0, MAX_RELEASE_NOTE_HIGHLIGHTS)
     : [];
   return { headline, highlights };
@@ -119,6 +175,21 @@ export function sanitizeReleaseNotes(value: unknown): ReleaseNote[] {
 }
 
 export const RELEASE_NOTES = sanitizeReleaseNotes(rawReleaseNotes);
+
+/** The pictures bundled with this version: "1.5.0/achievements" → its URL. */
+export const WHATS_NEW_IMAGES: Readonly<Record<string, string>> =
+  Object.fromEntries(
+    Object.entries(
+      import.meta.glob<string>("./assets/whats-new/*/*.webp", {
+        eager: true,
+        query: "?url",
+        import: "default",
+      }),
+    ).map(([path, url]) => [
+      path.slice("./assets/whats-new/".length, -".webp".length),
+      url,
+    ]),
+  );
 
 export function findReleaseNote(
   version: string | null | undefined,
@@ -169,7 +240,8 @@ export function findUnseenReleaseNotes(
   );
 }
 
-/** The note in the app's language, or in English when it has no translation. */
+/** The note in the app's language, or in English when it has no translation.
+ *  A point with a title becomes one line, as in latest.json. */
 export function toDisplayNotes(
   note: ReleaseNote,
   language: AppLanguage = appLanguage(),
@@ -177,8 +249,50 @@ export function toDisplayNotes(
   const text = note.translations?.[language] ?? note;
   return {
     headline: text.headline,
-    highlights: text.highlights,
+    highlights: text.highlights.map((item) =>
+      typeof item === "string" ? item : `${item.title}: ${item.text}`,
+    ),
     paragraphs: [],
+  };
+}
+
+/** The note for the What's new dialog, in the app's language. A translated
+ *  point shows the English point's picture; a point the translation lacks
+ *  stays English. */
+export function toWhatsNew(
+  note: ReleaseNote,
+  language: AppLanguage = appLanguage(),
+  images: Readonly<Record<string, string>> = WHATS_NEW_IMAGES,
+): WhatsNewRelease {
+  const translated =
+    language === "en" ? undefined : note.translations?.[language];
+  const pages: WhatsNewPoint[] = [];
+  const more: WhatsNewPoint[] = [];
+  note.highlights.forEach((english, index) => {
+    const own = translated?.highlights[index];
+    const item =
+      own !== undefined && typeof own === typeof english ? own : english;
+    const point: WhatsNewPoint =
+      typeof item === "string"
+        ? { text: item }
+        : {
+            title: item.title,
+            text: item.text,
+            ...(item.hint ? { hint: item.hint } : {}),
+          };
+    const image = typeof english === "string" ? undefined : english.image;
+    if (!image) {
+      more.push(point);
+      return;
+    }
+    const imageUrl = images[`${note.version}/${image}`];
+    pages.push(imageUrl ? { ...point, imageUrl } : point);
+  });
+  return {
+    version: note.version,
+    headline: (translated ?? note).headline,
+    pages,
+    more,
   };
 }
 
