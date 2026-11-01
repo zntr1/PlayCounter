@@ -244,6 +244,8 @@
   "{{count}} sessions_other": "{{count}} сессии",
   "{{count}} available": "Доступно: {{count}}",
   "Status: {{status}}": "Статус: {{status}}",
+  "Status": "Статус",
+  "Clear status": "Убрать статус",
   "Tier": "Тир",
   "Clear tier": "Убрать тир",
   "Tier: {{tier}}": "Тир: {{tier}}",

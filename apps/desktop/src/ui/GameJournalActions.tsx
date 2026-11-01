@@ -2,7 +2,7 @@ import {
   usePersonalLibraryState,
   useLibraryPractice,
 } from "./PersonalLibraryContext";
-import { BookOpen, Medal, Star, StickyNote, X } from "lucide-react";
+import { BookOpen, CircleDot, Medal, Star, StickyNote, X } from "lucide-react";
 import { GAME_TIERS, gameStatusLabel, type GameTier } from "../personalLibrary";
 import { type GameIdentityRef } from "../store";
 import {
@@ -10,7 +10,7 @@ import {
   ContextMenuItem,
   ContextMenuSubmenu,
 } from "./primitives";
-import { STATUS_TONES, TIER_TONES } from "./journalStyles";
+import { GAME_STATUS_LIST, STATUS_TONES, TIER_TONES } from "./journalStyles";
 import { useGameJournal } from "./useGameJournal";
 import { getT } from "../i18n";
 
@@ -54,6 +54,35 @@ export function GameJournalMenu({
       >
         {t("Journal")}
       </ContextMenuItem>
+      <ContextMenuSubmenu label={t("Status")} icon={CircleDot}>
+        {GAME_STATUS_LIST.map((status) => (
+          <ContextMenuItem
+            key={status}
+            selected={journal.status === status}
+            onClick={() => {
+              onClose();
+              update(game, { status });
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className={`mr-2 inline-block h-2 w-2 rounded-full align-middle ${STATUS_TONES[status].dot}`}
+            />
+            {gameStatusLabel(status)}
+          </ContextMenuItem>
+        ))}
+        {journal.status ? (
+          <ContextMenuItem
+            icon={X}
+            onClick={() => {
+              onClose();
+              update(game, { status: null });
+            }}
+          >
+            {t("Clear status")}
+          </ContextMenuItem>
+        ) : null}
+      </ContextMenuSubmenu>
       <ContextMenuSubmenu
         label={t("Tier")}
         icon={Medal}

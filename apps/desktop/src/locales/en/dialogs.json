@@ -242,6 +242,8 @@
   "{{count}} sessions_other": "{{count}} sessions",
   "{{count}} available": "{{count}} available",
   "Status: {{status}}": "Status: {{status}}",
+  "Status": "Status",
+  "Clear status": "Clear status",
   "Tier": "Tier",
   "Clear tier": "Clear tier",
   "Tier: {{tier}}": "Tier: {{tier}}",

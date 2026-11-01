@@ -243,6 +243,8 @@
   "{{count}} sessions_many": "{{count}} sessões",
   "{{count}} available": "{{count}} disponíveis",
   "Status: {{status}}": "Status: {{status}}",
+  "Status": "Status",
+  "Clear status": "Limpar status",
   "Tier": "Tier",
   "Clear tier": "Remover tier",
   "Tier: {{tier}}": "Tier: {{tier}}",

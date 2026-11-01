@@ -6,6 +6,7 @@ import { getGameJournal, useAppStore, type ActiveSession } from "../store";
 import { GameJournalHost, SessionPlaythroughPicker } from "./GameJournalDialog";
 import { GameJournalBadges, GameJournalMenu } from "./GameJournalActions";
 import { ContextMenu } from "./ContextMenu";
+import { GAME_STATUS_LIST, STATUS_TONES } from "./journalStyles";
 import { ActiveGameHero } from "./views/ActiveGameHero";
 
 const game = { gameId: -1, source: "custom" as const, gameName: "Campaign" };
@@ -234,6 +235,76 @@ it("rates a game from the card menu, shows the tier on the cover, and hides it b
   await click("Tier");
   await click("Clear tier");
   expect(getGameJournal(useAppStore.getState(), game).tier).toBeUndefined();
+});
+
+it("sets the status from the card menu in one click, ticks the current one, and clears it", async () => {
+  const onClose = vi.fn();
+  await act(() =>
+    root.render(
+      <>
+        <ContextMenu open position={{ x: 0, y: 0 }} onClose={() => {}}>
+          <GameJournalMenu game={game} onClose={onClose} />
+        </ContextMenu>
+        <GameJournalBadges game={game} />
+      </>,
+    ),
+  );
+  const menuLabels = [
+    ...document.querySelectorAll("[data-context-menu-item]"),
+  ].map((item) => item.textContent?.trim());
+  expect(menuLabels.indexOf("Status")).toBe(menuLabels.indexOf("Tier") - 1);
+  expect(document.querySelector('[aria-label^="Status:"]')).toBeNull();
+  const statusItems = () => {
+    const trigger = [
+      ...document.querySelectorAll("[data-context-menu-item]"),
+    ].find((item) => item.textContent?.trim() === "Status")!;
+    return [
+      ...document
+        .getElementById(trigger.getAttribute("aria-controls")!)!
+        .querySelectorAll("[data-context-menu-item]"),
+    ];
+  };
+
+  await click("Status");
+  expect(statusItems().map((item) => item.textContent?.trim())).toEqual([
+    "In progress",
+    "On hold",
+    "Finished",
+    "Want to play",
+    "Want to replay",
+    "Not planned",
+  ]);
+  // Each status keeps the colour it has on covers and filter pills.
+  GAME_STATUS_LIST.forEach((status, index) =>
+    expect(
+      statusItems()[index].querySelector(`.${STATUS_TONES[status].dot}`),
+    ).not.toBeNull(),
+  );
+  expect(
+    statusItems().every(
+      (item) => item.getAttribute("aria-checked") === "false",
+    ),
+  ).toBe(true);
+
+  await click("Finished");
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(getGameJournal(useAppStore.getState(), game).status).toBe("finished");
+  expect(
+    document.querySelector('[aria-label="Status: Finished"]'),
+  ).not.toBeNull();
+
+  await click("Status");
+  expect(
+    statusItems()
+      .filter((item) => item.getAttribute("aria-checked") === "true")
+      .map((item) => item.textContent?.trim()),
+  ).toEqual(["Finished"]);
+  expect(statusItems().at(-1)?.textContent?.trim()).toBe("Clear status");
+
+  await click("Clear status");
+  expect(onClose).toHaveBeenCalledTimes(2);
+  expect(getGameJournal(useAppStore.getState(), game).status).toBeNull();
+  expect(document.querySelector('[aria-label^="Status:"]')).toBeNull();
 });
 
 it("shows only the running session's playthrough note when switching assignments in Now Playing", async () => {
