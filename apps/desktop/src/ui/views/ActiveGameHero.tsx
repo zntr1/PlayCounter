@@ -58,6 +58,8 @@ type ActiveGameHeroProps = {
   exeCache: ReadonlyMap<string, ExeCacheEntry>;
   resolveIgdbId: GameIdentityResolver;
   archivedGameSeconds: Record<string, number>;
+  /** The console part of archivedGameSeconds; none on tour cards. */
+  archivedConsoleSeconds?: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   providerFloor?: ProviderFloor;
   /** "Now playing" or "Now emulating", already translated. */
@@ -74,6 +76,8 @@ type ActiveGameHeroProps = {
    palette. The session timer is the only big number; lifetime totals sit
    beside it in a smaller voice. */
 
+const NO_CONSOLE_SECONDS: Record<string, number> = {};
+
 export function ActiveGameHero({
   session,
   elapsedSeconds,
@@ -82,6 +86,7 @@ export function ActiveGameHero({
   exeCache,
   resolveIgdbId,
   archivedGameSeconds,
+  archivedConsoleSeconds = NO_CONSOLE_SECONDS,
   playtimeAdjustments,
   providerFloor,
   statusLabel,
@@ -118,9 +123,10 @@ export function ActiveGameHero({
       recordedSecondsByGame({
         sessions: recentSessions,
         archivedGameSeconds,
+        archivedConsoleSeconds,
         resolveIgdbId,
       }),
-    [archivedGameSeconds, recentSessions, resolveIgdbId],
+    [archivedConsoleSeconds, archivedGameSeconds, recentSessions, resolveIgdbId],
   );
   const priorSessions = recentSessions.filter(
     (entry) => resolvedCanonicalGameKey(entry, resolveIgdbId) === sessionKey,

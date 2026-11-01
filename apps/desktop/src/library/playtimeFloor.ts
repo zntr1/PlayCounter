@@ -1,17 +1,34 @@
 import type { LibraryProviderId } from "@playcounter/shared";
 import type { LibraryImportEntry } from "./types";
 
+/**
+ * Launchers that count console play. It never overlaps the sessions
+ * PlayCounter sees on this PC, so a game's total is this PC's side plus the
+ * console side, each with its own snapshot (docs/psn-import-plan.md).
+ */
+export const CONSOLE_PROVIDERS: ReadonlySet<string> = new Set(["playstation"]);
+
+export type LauncherSide = {
+  seconds: number;
+  /** PlayCounter's time on this side at the side's latest read. */
+  recordedSecondsAtRead?: number;
+  readAtMs?: number;
+};
+
 export type ProviderFloor = {
   canonicalKey: string;
+  /** Every launcher together: this PC's launchers and the console side. */
   seconds: number;
   /**
-   * PlayCounter's recorded time at the latest launcher read in this total
+   * PlayCounter's recorded time at the latest read of this PC's launchers
    * (the largest snapshot). Undefined when one of the reads predates
-   * snapshots: the total then stays flat.
+   * snapshots (the total then stays flat), or without a PC launcher.
    */
   recordedSecondsAtRead?: number;
-  /** When the latest launcher read in this total was taken. */
+  /** When the latest read of this PC's launchers was taken. */
   readAtMs?: number;
+  /** PlayStation's total: console play, with its own snapshot. */
+  console?: LauncherSide;
   name: string;
   coverUrl: string;
 };
@@ -38,6 +55,25 @@ export function providerFloors(
     const providers =
       floors.get(canonicalKey) ?? new Map<LibraryProviderId, ProviderFloor>();
     const current = providers.get(entry.provider);
+    // Each console entry is its own copy (a PS4 and a PS5 concept IGDB calls
+    // one game): their times add up.
+    if (current && CONSOLE_PROVIDERS.has(entry.provider)) {
+      const recorded = validRecordedSeconds(entry.recordedSecondsAtRead);
+      const readAtMs = validDateMs(entry.lastReadAt);
+      providers.set(entry.provider, {
+        ...current,
+        seconds: current.seconds + seconds,
+        recordedSecondsAtRead:
+          current.recordedSecondsAtRead === undefined || recorded === undefined
+            ? undefined
+            : Math.max(current.recordedSecondsAtRead, recorded),
+        readAtMs:
+          current.readAtMs === undefined || readAtMs === undefined
+            ? undefined
+            : Math.max(current.readAtMs, readAtMs),
+      });
+      continue;
+    }
     if (!current || seconds > current.seconds) {
       providers.set(entry.provider, {
         canonicalKey,
@@ -62,21 +98,41 @@ export function providerFloors(
     const largest = values.reduce((current, floor) =>
       floor.seconds > current.seconds ? floor : current,
     );
+    const thisPc = launcherSide(
+      [...providers]
+        .filter(([provider]) => !CONSOLE_PROVIDERS.has(provider))
+        .map(([, floor]) => floor),
+    );
+    const consoleSide = launcherSide(
+      [...providers]
+        .filter(([provider]) => CONSOLE_PROVIDERS.has(provider))
+        .map(([, floor]) => floor),
+    );
     return {
       canonicalKey: largest.canonicalKey,
-      seconds: values.reduce((total, floor) => total + floor.seconds, 0),
-      recordedSecondsAtRead: values.every(
-        (floor) => floor.recordedSecondsAtRead !== undefined,
-      )
-        ? Math.max(...values.map((floor) => floor.recordedSecondsAtRead!))
-        : undefined,
-      readAtMs: values.every((floor) => floor.readAtMs !== undefined)
-        ? Math.max(...values.map((floor) => floor.readAtMs!))
-        : undefined,
+      seconds: (thisPc?.seconds ?? 0) + (consoleSide?.seconds ?? 0),
+      recordedSecondsAtRead: thisPc?.recordedSecondsAtRead,
+      readAtMs: thisPc?.readAtMs,
+      ...(consoleSide ? { console: consoleSide } : {}),
       name: largest.name,
       coverUrl: largest.coverUrl,
     };
   });
+}
+
+function launcherSide(values: ProviderFloor[]): LauncherSide | undefined {
+  if (values.length === 0) return undefined;
+  return {
+    seconds: values.reduce((total, floor) => total + floor.seconds, 0),
+    recordedSecondsAtRead: values.every(
+      (floor) => floor.recordedSecondsAtRead !== undefined,
+    )
+      ? Math.max(...values.map((floor) => floor.recordedSecondsAtRead!))
+      : undefined,
+    readAtMs: values.every((floor) => floor.readAtMs !== undefined)
+      ? Math.max(...values.map((floor) => floor.readAtMs!))
+      : undefined,
+  };
 }
 
 function validRecordedSeconds(value: unknown) {

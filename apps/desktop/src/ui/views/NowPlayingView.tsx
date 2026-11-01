@@ -63,6 +63,9 @@ export function NowPlayingView() {
   const ambiguousMatches = useAppStore((state) => state.ambiguousMatches);
   const recentSessions = useAppStore((state) => state.recentSessions);
   const archivedGameSeconds = useAppStore((state) => state.archivedGameSeconds);
+  const archivedConsoleSeconds = useAppStore(
+    (state) => state.archivedConsoleSeconds,
+  );
   const playtimeAdjustments = useAppStore((state) => state.playtimeAdjustments);
   const exeCache = useAppStore((state) => state.exeCache);
   const gameMetadata = useAppStore((state) => state.gameMetadata);
@@ -234,6 +237,9 @@ export function NowPlayingView() {
                 resolveIgdbId={resolveIgdbId}
                 archivedGameSeconds={
                   isTourSession ? EMPTY_SECONDS : archivedGameSeconds
+                }
+                archivedConsoleSeconds={
+                  isTourSession ? EMPTY_SECONDS : archivedConsoleSeconds
                 }
                 playtimeAdjustments={
                   isTourSession ? EMPTY_SECONDS : playtimeAdjustments

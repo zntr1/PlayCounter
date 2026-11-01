@@ -550,7 +550,11 @@ export interface Session {
   startedAt: string;
   endedAt: string | null;
   durationSeconds: number | null;
-  origin?: "manual";
+  /** "manual": timed or logged by hand. "playstation": a PS5 or PS4 session
+   *  PlayCounter saw live through the PlayStation sign-in. */
+  origin?: "manual" | "playstation";
+  /** The console of a "playstation" session. */
+  console?: "PS5" | "PS4";
   emulator?: EmulatorLaunchContext;
   /** What the player wrote about this session. Local only, never included in
    *  tracking API payloads. */

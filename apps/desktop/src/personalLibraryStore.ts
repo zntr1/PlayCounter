@@ -41,6 +41,7 @@ export type PersonalLibraryState = PersonalLibraryActions &
     | "exeCache"
     | "libraryImports"
     | "archivedGameSeconds"
+    | "archivedConsoleSeconds"
     | "playtimeAdjustments"
     | "settings"
     | "activeView"

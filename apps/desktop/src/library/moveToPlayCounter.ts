@@ -92,6 +92,7 @@ export function moveGamesToPlayCounter(games: readonly MoveTarget[]) {
     archivedSeconds: result.archivedSeconds,
     archivedGameSeconds: result.archivedGameSeconds,
     archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
+    archivedConsoleSeconds: result.archivedConsoleSeconds,
   });
   // A game moved away from its launcher must not come back as a new game.
   dismissLauncherGames(moves.flatMap(([, { imports }]) => imports));
@@ -191,6 +192,7 @@ function applyGameMove(
   const recorded = recordedSecondsByGame({
     sessions: state.recentSessions,
     archivedGameSeconds: state.archivedGameSeconds,
+    archivedConsoleSeconds: state.archivedConsoleSeconds,
     resolveIgdbId: createGameIdentityResolver(
       state.gameMetadata,
       state.exeCache,

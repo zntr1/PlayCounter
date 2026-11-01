@@ -7,7 +7,7 @@ import type {
 import type { AppNotification, FeedbackReplyCursor } from "./notifications";
 import type { DiscoveredReviewReminder } from "./discoveredReminder";
 import type { AwardedMilestone } from "./milestones";
-import { gameSecondsKey } from "./gameSeconds";
+import { gameSecondsKey, isConsoleSession } from "./gameSeconds";
 import {
   normalizeSessions,
   MAX_STORED_SESSIONS,
@@ -71,6 +71,7 @@ type PersistableAppState = {
   milestonesInitializedAt: string | null;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  archivedConsoleSeconds?: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
   customCoverArt?: Record<string, string>;
@@ -127,6 +128,8 @@ export type PersistedPayload = {
   milestonesInitializedAt?: string;
   archivedSeconds: number;
   archivedGameSeconds: Record<string, number>;
+  /** The console part of archivedGameSeconds; absent in older saves. */
+  archivedConsoleSeconds: Record<string, number>;
   playtimeAdjustments: Record<string, number>;
   customHeroArt?: Record<string, string>;
   customCoverArt?: Record<string, string>;
@@ -150,6 +153,7 @@ export type PersistedProjection = Pick<
   | "archivedSeconds"
   | "archivedGameSeconds"
   | "archivedPlaythroughSeconds"
+  | "archivedConsoleSeconds"
 >;
 
 export type PersistResult =
@@ -236,6 +240,7 @@ function buildPersistedPayload(
     milestonesInitializedAt: state.milestonesInitializedAt ?? undefined,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
+    archivedConsoleSeconds: state.archivedConsoleSeconds ?? {},
     playtimeAdjustments: state.playtimeAdjustments,
     customHeroArt:
       state.customHeroArt && Object.keys(state.customHeroArt).length > 0
@@ -289,21 +294,26 @@ function projection(payload: PersistedPayload): PersistedProjection {
     archivedSeconds: payload.archivedSeconds,
     archivedGameSeconds: payload.archivedGameSeconds,
     archivedPlaythroughSeconds: payload.archivedPlaythroughSeconds,
+    archivedConsoleSeconds: payload.archivedConsoleSeconds,
   };
 }
 
 function archiveRemovedSessions(payload: PersistedPayload, removed: Session[]) {
   const archivedGameSeconds = { ...payload.archivedGameSeconds };
+  const archivedConsoleSeconds = { ...payload.archivedConsoleSeconds };
   let archivedSeconds = payload.archivedSeconds;
   for (const session of removed) {
     const seconds = Math.max(0, session.durationSeconds ?? 0);
     archivedSeconds += seconds;
     const key = gameSecondsKey(session);
     archivedGameSeconds[key] = (archivedGameSeconds[key] ?? 0) + seconds;
+    if (seconds > 0 && isConsoleSession(session))
+      archivedConsoleSeconds[key] = (archivedConsoleSeconds[key] ?? 0) + seconds;
   }
   return {
     archivedSeconds,
     archivedGameSeconds,
+    archivedConsoleSeconds,
     archivedPlaythroughSeconds: archivePlaythroughSeconds(
       payload.archivedPlaythroughSeconds,
       removed,

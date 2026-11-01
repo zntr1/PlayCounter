@@ -796,6 +796,7 @@ export function MyGamesView({
     recentSessions: sessions,
     activeSessions,
     archivedGameSeconds,
+    archivedConsoleSeconds,
   } = useLibrarySessionState();
   const libraryTab = useAppStore((state) => state.libraryTab);
   const setLibraryTab = useAppStore((state) => state.setLibraryTab);
@@ -984,9 +985,10 @@ export function MyGamesView({
       recordedSecondsByGame({
         sessions,
         archivedGameSeconds,
+        archivedConsoleSeconds,
         resolveIgdbId,
       }),
-    [archivedGameSeconds, resolveIgdbId, sessions],
+    [archivedConsoleSeconds, archivedGameSeconds, resolveIgdbId, sessions],
   );
   const localLinks = useMemo(
     () => listLocalLinks(exeCache, scopedExeLinks),
@@ -1320,7 +1322,11 @@ export function MyGamesView({
       existing.sessionCount += 1;
       // Proof a file ran here. A manual session only borrows a file name, and
       // an emulator session names the emulator, not a file of this game.
-      if (session.origin !== "manual" && !session.emulator) {
+      if (
+        session.origin !== "manual" &&
+        session.origin !== "playstation" &&
+        !session.emulator
+      ) {
         const exeKey = session.exeName.toLowerCase();
         existing.exeLastRanAt ??= {};
         const previous = existing.exeLastRanAt[exeKey];

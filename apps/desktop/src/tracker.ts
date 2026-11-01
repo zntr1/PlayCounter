@@ -349,6 +349,7 @@ type PersistedState = {
   milestonesInitializedAt?: string;
   archivedSeconds?: number;
   archivedGameSeconds?: Record<string, number>;
+  archivedConsoleSeconds?: Record<string, number>;
   playtimeAdjustments?: Record<string, number>;
   customHeroArt?: unknown;
   customCoverArt?: unknown;
@@ -1228,6 +1229,9 @@ export function hydrate() {
     sanitizeGameSecondsRecord(persisted.archivedGameSeconds, { signed: false }),
     hydratedOverflow,
     sanitizePlaythroughSeconds(persisted.archivedPlaythroughSeconds),
+    sanitizeGameSecondsRecord(persisted.archivedConsoleSeconds, {
+      signed: false,
+    }),
   );
   const hydratedResolver = createGameIdentityResolver(
     gameMetadataMap,
@@ -1239,6 +1243,7 @@ export function hydrate() {
     recordedSecondsByGame({
       sessions: hydratedSessions,
       archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+      archivedConsoleSeconds: hydratedArchive.archivedConsoleSeconds,
       resolveIgdbId: hydratedResolver,
     }),
   );
@@ -1250,6 +1255,7 @@ export function hydrate() {
     moveAdjustmentsOnTop(playtimeAdjustments, gamesReadBeforeSnapshots, {
       sessions: hydratedSessions,
       archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+      archivedConsoleSeconds: hydratedArchive.archivedConsoleSeconds,
       providerFloors: providerFloors(libraryImports.values()),
       resolveIgdbId: hydratedResolver,
     }) ||
@@ -1458,6 +1464,7 @@ export function hydrate() {
     milestonesInitializedAt: persisted.milestonesInitializedAt ?? null,
     archivedSeconds: hydratedArchive.archivedSeconds,
     archivedGameSeconds: hydratedArchive.archivedGameSeconds,
+    archivedConsoleSeconds: hydratedArchive.archivedConsoleSeconds,
     playtimeAdjustments,
     customHeroArt: sanitizeCustomHeroArt(persisted.customHeroArt),
     customCoverArt: sanitizeCustomCoverArt(persisted.customCoverArt),
@@ -7012,6 +7019,12 @@ export function persist() {
       )
         ? current.archivedGameSeconds
         : result.archivedGameSeconds;
+      const archivedConsoleSeconds = sameNumberRecord(
+        current.archivedConsoleSeconds,
+        result.archivedConsoleSeconds,
+      )
+        ? current.archivedConsoleSeconds
+        : result.archivedConsoleSeconds;
       if (
         recentSessions === current.recentSessions &&
         notifications === current.notifications &&
@@ -7020,7 +7033,8 @@ export function persist() {
           current.archivedPlaythroughSeconds,
           result.archivedPlaythroughSeconds,
         ) &&
-        archivedGameSeconds === current.archivedGameSeconds
+        archivedGameSeconds === current.archivedGameSeconds &&
+        archivedConsoleSeconds === current.archivedConsoleSeconds
       ) {
         return current;
       }
@@ -7030,6 +7044,7 @@ export function persist() {
         archivedSeconds: result.archivedSeconds,
         archivedGameSeconds,
         archivedPlaythroughSeconds: result.archivedPlaythroughSeconds,
+        archivedConsoleSeconds,
       };
     });
   }
@@ -7376,6 +7391,7 @@ export function evaluateAndStoreMilestones(
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
+    archivedConsoleSeconds: state.archivedConsoleSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
     providerFloors: providerFloors(state.libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
@@ -7429,6 +7445,7 @@ function currentGameTotalSeconds(session: ActiveSession) {
     sessions: state.recentSessions,
     archivedSeconds: state.archivedSeconds,
     archivedGameSeconds: state.archivedGameSeconds,
+    archivedConsoleSeconds: state.archivedConsoleSeconds,
     playtimeAdjustments: state.playtimeAdjustments,
     providerFloors: providerFloors(state.libraryImports.values()),
     verifiedContributions: state.contributionCounts.verified,
@@ -8573,6 +8590,7 @@ export function setGamePlaytime(params: {
     recordedSecondsByGame({
       sessions: state.recentSessions,
       archivedGameSeconds: state.archivedGameSeconds,
+      archivedConsoleSeconds: state.archivedConsoleSeconds,
       resolveIgdbId: createGameIdentityResolver(
         state.gameMetadata,
         state.exeCache,
@@ -8623,6 +8641,7 @@ function changeHistorySessions(
         state.archivedGameSeconds,
         removed,
         state.archivedPlaythroughSeconds,
+        state.archivedConsoleSeconds,
       ),
     };
   });
@@ -8875,6 +8894,7 @@ export function clearLocalLibrary() {
     emulatorLaunchCandidates: new Map(),
     archivedSeconds: 0,
     archivedGameSeconds: {},
+    archivedConsoleSeconds: {},
     gameJournals: {},
     personalShelves: [],
     archivedPlaythroughSeconds: {},

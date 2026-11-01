@@ -146,7 +146,8 @@ const session = object(
   },
   {
     ...gameFields,
-    origin: oneOf("manual"),
+    origin: oneOf("manual", "playstation"),
+    console: oneOf("PS5", "PS4"),
     emulator: emulatorContext,
     playthroughId: nonempty,
     note: string,
@@ -525,6 +526,7 @@ const validateBackupShape: Validator = object(
     milestonesInitializedAt: nullable(date),
     archivedSeconds: nonnegative,
     archivedGameSeconds: dictionary(nonnegative),
+    archivedConsoleSeconds: dictionary(nonnegative),
     playtimeAdjustments: dictionary(number),
     customHeroArt: dictionary(string),
     customCoverArt: dictionary(string),
