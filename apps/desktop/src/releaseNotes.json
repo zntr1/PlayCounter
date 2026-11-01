@@ -5,13 +5,13 @@
     "highlights": [
       {
         "title": "Your achievements, game by game",
-        "text": "See what you unlocked on Steam, Xbox and Epic Games, when you got it and what's still missing.",
+        "text": "See what you unlocked on Steam, Xbox, Epic Games and GOG, when you got it and what's still missing.",
         "hint": "Right-click a game in My Games → Achievements",
         "image": "achievements"
       },
       {
         "title": "Sign in once",
-        "text": "PlayCounter keeps your Xbox, Epic Games and Battle.net sign-ins on this PC, encrypted by Windows, and shows all your launchers on one page.",
+        "text": "PlayCounter keeps your Xbox, Epic Games, GOG and Battle.net sign-ins on this PC, encrypted by Windows, and shows all your launchers on one page.",
         "hint": "Sidebar → System → Launcher accounts",
         "image": "accounts"
       },
@@ -29,9 +29,13 @@
       },
       {
         "title": "One import for every launcher",
-        "text": "Steam, Xbox, Epic Games and Battle.net now import the same way. Your games come sorted, and Wrong game? fixes a bad match.",
+        "text": "Steam, Xbox, Epic Games, GOG and Battle.net now import the same way. Your games come sorted, and Wrong game? fixes a bad match.",
         "hint": "Right-click a launcher under My Games → Import games",
         "image": "import"
+      },
+      {
+        "title": "Import from GOG",
+        "text": "Bring in your GOG games with the playtime GOG recorded, start installed ones with Play and see their achievements."
       },
       {
         "title": "Fullscreen for your TV",
@@ -56,12 +60,12 @@
         "highlights": [
           {
             "title": "Deine Erfolge, Spiel für Spiel",
-            "text": "Sieh, was du bei Steam, Xbox und Epic Games freigeschaltet hast, wann, und was noch fehlt.",
+            "text": "Sieh, was du bei Steam, Xbox, Epic Games und GOG freigeschaltet hast, wann, und was noch fehlt.",
             "hint": "Rechtsklick auf ein Spiel in „Meine Spiele“ → „Erfolge“"
           },
           {
             "title": "Nur einmal anmelden",
-            "text": "PlayCounter behält deine Anmeldungen bei Xbox, Epic Games und Battle.net auf diesem PC, von Windows verschlüsselt, und zeigt alle deine Launcher auf einer Seite.",
+            "text": "PlayCounter behält deine Anmeldungen bei Xbox, Epic Games, GOG und Battle.net auf diesem PC, von Windows verschlüsselt, und zeigt alle deine Launcher auf einer Seite.",
             "hint": "Seitenleiste → „System“ → „Launcher-Konten“"
           },
           {
@@ -76,8 +80,12 @@
           },
           {
             "title": "Ein Import für alle Launcher",
-            "text": "Steam, Xbox, Epic Games und Battle.net importierst du jetzt gleich. Deine Spiele kommen sortiert an, und „Falsches Spiel?“ korrigiert eine falsche Zuordnung.",
+            "text": "Steam, Xbox, Epic Games, GOG und Battle.net importierst du jetzt gleich. Deine Spiele kommen sortiert an, und „Falsches Spiel?“ korrigiert eine falsche Zuordnung.",
             "hint": "Rechtsklick auf einen Launcher unter „Meine Spiele“ → „Spiele importieren“"
+          },
+          {
+            "title": "Aus GOG importieren",
+            "text": "Hol deine GOG-Spiele mit der Spielzeit, die GOG erfasst hat, starte installierte mit „Spielen“ und sieh dir ihre Erfolge an."
           },
           {
             "title": "Vollbild für deinen Fernseher",
@@ -102,12 +110,12 @@
         "highlights": [
           {
             "title": "Tus logros, juego a juego",
-            "text": "Mira qué desbloqueaste en Steam, Xbox y Epic Games, cuándo y qué te falta.",
+            "text": "Mira qué desbloqueaste en Steam, Xbox, Epic Games y GOG, cuándo y qué te falta.",
             "hint": "Clic derecho en un juego de Mis juegos → “Logros”"
           },
           {
             "title": "Inicia sesión una sola vez",
-            "text": "PlayCounter guarda tus sesiones de Xbox, Epic Games y Battle.net en este PC, cifradas por Windows, y muestra todos tus lanzadores en una sola página.",
+            "text": "PlayCounter guarda tus sesiones de Xbox, Epic Games, GOG y Battle.net en este PC, cifradas por Windows, y muestra todos tus lanzadores en una sola página.",
             "hint": "Barra lateral → Sistema → Cuentas de lanzadores"
           },
           {
@@ -122,8 +130,12 @@
           },
           {
             "title": "Una importación para todos los lanzadores",
-            "text": "Steam, Xbox, Epic Games y Battle.net ahora se importan igual. Tus juegos llegan ordenados y “¿Juego equivocado?” corrige una asociación incorrecta.",
+            "text": "Steam, Xbox, Epic Games, GOG y Battle.net ahora se importan igual. Tus juegos llegan ordenados y “¿Juego equivocado?” corrige una asociación incorrecta.",
             "hint": "Clic derecho en un lanzador bajo Mis juegos → “Importar juegos”"
+          },
+          {
+            "title": "Importar desde GOG",
+            "text": "Trae tus juegos de GOG con el tiempo de juego que registró GOG, inicia los instalados con “Jugar” y mira sus logros."
           },
           {
             "title": "Pantalla completa para tu tele",
@@ -148,12 +160,12 @@
         "highlights": [
           {
             "title": "Vos succès, jeu par jeu",
-            "text": "Voyez ce que vous avez débloqué sur Steam, Xbox et Epic Games, quand, et ce qui manque encore.",
+            "text": "Voyez ce que vous avez débloqué sur Steam, Xbox, Epic Games et GOG, quand, et ce qui manque encore.",
             "hint": "Clic droit sur un jeu dans Mes jeux → « Succès »"
           },
           {
             "title": "Une seule connexion",
-            "text": "PlayCounter garde vos connexions Xbox, Epic Games et Battle.net sur ce PC, chiffrées par Windows, et réunit tous vos launchers sur une seule page.",
+            "text": "PlayCounter garde vos connexions Xbox, Epic Games, GOG et Battle.net sur ce PC, chiffrées par Windows, et réunit tous vos launchers sur une seule page.",
             "hint": "Barre latérale → Système → Comptes des launchers"
           },
           {
@@ -168,8 +180,12 @@
           },
           {
             "title": "Un import pour tous les launchers",
-            "text": "Steam, Xbox, Epic Games et Battle.net s'importent désormais de la même façon. Vos jeux arrivent triés, et « Mauvais jeu ? » corrige une mauvaise association.",
+            "text": "Steam, Xbox, Epic Games, GOG et Battle.net s'importent désormais de la même façon. Vos jeux arrivent triés, et « Mauvais jeu ? » corrige une mauvaise association.",
             "hint": "Clic droit sur un launcher sous Mes jeux → « Importer des jeux »"
+          },
+          {
+            "title": "Importer depuis GOG",
+            "text": "Importez vos jeux GOG avec le temps de jeu enregistré par GOG, lancez les jeux installés avec « Jouer » et voyez leurs succès."
           },
           {
             "title": "Le plein écran pour votre télé",
@@ -194,12 +210,12 @@
         "highlights": [
           {
             "title": "Twoje osiągnięcia, gra po grze",
-            "text": "Zobacz, co jest odblokowane w Steam, Xbox i Epic Games, kiedy, i czego jeszcze brakuje.",
+            "text": "Zobacz, co jest odblokowane w Steam, Xbox, Epic Games i GOG, kiedy, i czego jeszcze brakuje.",
             "hint": "Kliknij prawym przyciskiem grę w Moje gry → „Osiągnięcia”"
           },
           {
             "title": "Zaloguj się tylko raz",
-            "text": "PlayCounter przechowuje logowania do Xbox, Epic Games i Battle.net na tym PC, zaszyfrowane przez Windows, i pokazuje wszystkie launchery na jednej stronie.",
+            "text": "PlayCounter przechowuje logowania do Xbox, Epic Games, GOG i Battle.net na tym PC, zaszyfrowane przez Windows, i pokazuje wszystkie launchery na jednej stronie.",
             "hint": "Pasek boczny → System → Konta launcherów"
           },
           {
@@ -214,8 +230,12 @@
           },
           {
             "title": "Jeden import dla wszystkich launcherów",
-            "text": "Steam, Xbox, Epic Games i Battle.net importują się teraz tak samo. Gry przychodzą uporządkowane, a „Nie ta gra?” poprawia błędne powiązanie.",
+            "text": "Steam, Xbox, Epic Games, GOG i Battle.net importują się teraz tak samo. Gry przychodzą uporządkowane, a „Nie ta gra?” poprawia błędne powiązanie.",
             "hint": "Kliknij prawym przyciskiem launcher pod Moje gry → „Importuj gry”"
+          },
+          {
+            "title": "Importuj z GOG",
+            "text": "Przenieś swoje gry z GOG razem z czasem gry zapisanym przez GOG, uruchamiaj zainstalowane przyciskiem „Graj” i sprawdzaj ich osiągnięcia."
           },
           {
             "title": "Pełny ekran dla telewizora",
@@ -240,12 +260,12 @@
         "highlights": [
           {
             "title": "Suas conquistas, jogo a jogo",
-            "text": "Veja o que você desbloqueou no Steam, no Xbox e na Epic Games, quando, e o que ainda falta.",
+            "text": "Veja o que você desbloqueou no Steam, no Xbox, na Epic Games e na GOG, quando, e o que ainda falta.",
             "hint": "Clique com o botão direito em um jogo de Meus jogos → “Conquistas”"
           },
           {
             "title": "Entre uma vez só",
-            "text": "O PlayCounter guarda seus logins do Xbox, da Epic Games e do Battle.net neste PC, criptografados pelo Windows, e mostra todos os seus launchers em uma só página.",
+            "text": "O PlayCounter guarda seus logins do Xbox, da Epic Games, da GOG e do Battle.net neste PC, criptografados pelo Windows, e mostra todos os seus launchers em uma só página.",
             "hint": "Barra lateral → Sistema → Contas dos launchers"
           },
           {
@@ -260,8 +280,12 @@
           },
           {
             "title": "Uma importação para todos os launchers",
-            "text": "O Steam, o Xbox, a Epic Games e o Battle.net agora importam do mesmo jeito. Seus jogos chegam organizados, e “Jogo errado?” corrige uma associação errada.",
+            "text": "O Steam, o Xbox, a Epic Games, a GOG e o Battle.net agora importam do mesmo jeito. Seus jogos chegam organizados, e “Jogo errado?” corrige uma associação errada.",
             "hint": "Clique com o botão direito em um launcher em Meus jogos → “Importar jogos”"
+          },
+          {
+            "title": "Importar da GOG",
+            "text": "Traga seus jogos da GOG com o tempo de jogo que a GOG registrou, inicie os instalados com “Jogar” e veja as conquistas deles."
           },
           {
             "title": "Tela cheia para a sua TV",
@@ -286,12 +310,12 @@
         "highlights": [
           {
             "title": "Ваши достижения, игра за игрой",
-            "text": "Смотрите, что открыто в Steam, Xbox и Epic Games, когда и что ещё осталось.",
+            "text": "Смотрите, что открыто в Steam, Xbox, Epic Games и GOG, когда и что ещё осталось.",
             "hint": "Правый клик по игре в «Мои игры» → «Достижения»"
           },
           {
             "title": "Вход всего один раз",
-            "text": "PlayCounter хранит входы в Xbox, Epic Games и Battle.net на этом ПК, зашифрованные Windows, и показывает все ваши лаунчеры на одной странице.",
+            "text": "PlayCounter хранит входы в Xbox, Epic Games, GOG и Battle.net на этом ПК, зашифрованные Windows, и показывает все ваши лаунчеры на одной странице.",
             "hint": "Боковая панель → «Система» → «Аккаунты лаунчеров»"
           },
           {
@@ -306,8 +330,12 @@
           },
           {
             "title": "Один импорт для всех лаунчеров",
-            "text": "Steam, Xbox, Epic Games и Battle.net теперь импортируются одинаково. Игры приходят уже разложенными, а «Не та игра?» исправляет неверную привязку.",
+            "text": "Steam, Xbox, Epic Games, GOG и Battle.net теперь импортируются одинаково. Игры приходят уже разложенными, а «Не та игра?» исправляет неверную привязку.",
             "hint": "Правый клик по лаунчеру под «Мои игры» → «Импортировать игры»"
+          },
+          {
+            "title": "Импорт из GOG",
+            "text": "Перенесите свои игры из GOG вместе со временем игры, которое учёл GOG, запускайте установленные кнопкой «Играть» и смотрите их достижения."
           },
           {
             "title": "Полный экран для телевизора",
@@ -332,12 +360,12 @@
         "highlights": [
           {
             "title": "你的成就，一款一款看",
-            "text": "查看你在 Steam、Xbox 和 Epic Games 上解锁了哪些、何时解锁，以及还差哪些。",
+            "text": "查看你在 Steam、Xbox、Epic Games 和 GOG 上解锁了哪些、何时解锁，以及还差哪些。",
             "hint": "在“我的游戏”中右键点击游戏 → “成就”"
           },
           {
             "title": "只需登录一次",
-            "text": "PlayCounter 会把 Xbox、Epic Games 和 Battle.net 的登录保存在这台电脑上，由 Windows 加密，并在一个页面上显示你的所有启动器。",
+            "text": "PlayCounter 会把 Xbox、Epic Games、GOG 和 Battle.net 的登录保存在这台电脑上，由 Windows 加密，并在一个页面上显示你的所有启动器。",
             "hint": "侧边栏 → “系统” → “启动器账户”"
           },
           {
@@ -352,8 +380,12 @@
           },
           {
             "title": "所有启动器，一种导入",
-            "text": "Steam、Xbox、Epic Games 和 Battle.net 现在用同一种方式导入。游戏会自动分好类，“游戏不对？”可以修正错误的匹配。",
+            "text": "Steam、Xbox、Epic Games、GOG 和 Battle.net 现在用同一种方式导入。游戏会自动分好类，“游戏不对？”可以修正错误的匹配。",
             "hint": "在侧边栏“我的游戏”下右键点击启动器 → “导入游戏”"
+          },
+          {
+            "title": "从 GOG 导入",
+            "text": "导入你的 GOG 游戏及 GOG 记录的游玩时间，用“开始游戏”启动已安装的游戏，并查看它们的成就。"
           },
           {
             "title": "电视全屏",
