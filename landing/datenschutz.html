@@ -317,7 +317,12 @@
   PlayCounter sieht dein Passwort nicht. Aus dem Fenster übernimmt die App nur
   einen einmaligen Autorisierungscode. Damit ruft die App direkt von deinem PC
   aus bei GOG deine Spielebibliothek, Spieltitel und die von GOG erfassten
-  Spielzeiten ab. Aus deinen Kontodaten übernimmt die App nur deinen
+  Spielzeiten ab. Öffnest du die Erfolge eines GOG-Spiels oder hast du es
+  gerade gespielt, ruft die App mit dieser Anmeldung bei GOG die Erfolge des
+  Spiels und deine Freischaltungen ab und speichert sie nur auf deinem PC. Die
+  Kennung, unter der GOG die Erfolge eines Spiels führt, liest sie ohne
+  Anmeldung aus den öffentlichen Spieldaten von GOG. Aus deinen Kontodaten
+  übernimmt die App nur deinen
   Benutzernamen, um anzuzeigen, mit welchem Konto du angemeldet bist; deine
   GOG-Benutzerkennung verwendet sie nur für diese Abfragen bei GOG und
   speichert sie nicht. Damit der nächste Import ohne neue Anmeldung auskommt,
@@ -738,7 +743,12 @@
     private window. You sign in directly with GOG; PlayCounter does not see your
     password. The app takes only a one-time authorization code from that window.
     With it, the app retrieves your game library, game titles and the playtime
-    GOG recorded directly from GOG, from your PC. Of your account details, the
+    GOG recorded directly from GOG, from your PC. When you open a GOG game’s
+    achievements, or right after you play it, the app uses this sign-in to
+    retrieve the game’s achievements and your unlocks from GOG and keeps them
+    only on your PC. The identifier GOG files a game’s achievements under is
+    read from GOG’s public game data, without the sign-in. Of your account
+    details, the
     app keeps only your user name, to show which account is signed in; it uses
     your GOG user ID only for these requests to GOG and does not store it. So
     that the next import needs no new sign-in, the app stores GOG’s refresh
