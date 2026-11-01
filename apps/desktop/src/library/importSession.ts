@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { LIBRARY_PROVIDER_LABELS } from "@playcounter/shared";
 import { create } from "zustand";
-import { saveXboxAchievementLists } from "../achievements/xboxLists";
+import { saveAchievementLists } from "../achievements/achievementLists";
 import { getT } from "../i18n";
 import { matchesProcessPatternSet } from "../ignoredProcessPatterns";
 import { nativeText } from "../nativeText";
@@ -449,7 +449,7 @@ export async function startImportScan(
     // Saved now, whatever gets imported: Details shows a title's list once
     // the game is in the library.
     if (result.achievementLists)
-      void saveXboxAchievementLists(result.achievementLists).catch(() => {});
+      void saveAchievementLists(result.achievementLists).catch(() => {});
     const manualExecutables = Object.fromEntries(
       result.games.flatMap((game) => {
         const preselected = preselectedExecutable(

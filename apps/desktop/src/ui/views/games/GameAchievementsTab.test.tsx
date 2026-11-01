@@ -7,22 +7,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { invokeMock } = vi.hoisted(() => ({ invokeMock: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 
-const { loadListMock } = vi.hoisted(() => ({ loadListMock: vi.fn() }));
-vi.mock("../../../achievements/xboxLists", async (importOriginal) => {
+const { loadListMock, saveListsMock } = vi.hoisted(() => ({
+  loadListMock: vi.fn(),
+  saveListsMock: vi.fn(),
+}));
+vi.mock("../../../achievements/achievementLists", async (importOriginal) => {
   const original =
-    await importOriginal<typeof import("../../../achievements/xboxLists")>();
+    await importOriginal<
+      typeof import("../../../achievements/achievementLists")
+    >();
+  saveListsMock.mockImplementation(async (lists: AchievementList[]) => {
+    original.useAchievementLists.setState((state) => {
+      const next = new Map(state.lists);
+      for (const list of lists)
+        next.set(`${list.provider}:${list.externalId}`, list);
+      return { lists: next };
+    });
+  });
   return {
     ...original,
-    loadXboxAchievementList: loadListMock,
-    saveXboxAchievementLists: vi.fn(async (lists: AchievementList[]) => {
-      original.useXboxAchievementLists.setState((state) => {
-        const next = new Map(state.lists);
-        for (const list of lists) next.set(list.externalId, list);
-        return { lists: next };
-      });
-    }),
+    loadAchievementList: loadListMock,
+    saveAchievementLists: saveListsMock,
   };
 });
+
+const platform = vi.hoisted(() => ({ value: "windows" }));
+vi.mock("../../../platform", () => ({
+  currentPlatform: () => platform.value,
+}));
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
 vi.mock("../../../library/providers/xbox", async (importOriginal) => ({
@@ -30,8 +42,13 @@ vi.mock("../../../library/providers/xbox", async (importOriginal) => ({
   refreshXboxAchievementList: refreshMock,
 }));
 
-import { useXboxAchievementLists } from "../../../achievements/xboxLists";
+import { useAchievementLists } from "../../../achievements/achievementLists";
 import { useKeptLogins } from "../../../library/keptLogins";
+import {
+  clearLoginHealth,
+  recordLoginHealth,
+} from "../../../library/loginHealth";
+import { appLocale } from "../../../i18n";
 import { useAppStore } from "../../../store";
 import { achievementSources, GameAchievementsTab } from "./GameAchievementsTab";
 
@@ -56,7 +73,10 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
   useAppStore.setState(useAppStore.getInitialState(), true);
-  useXboxAchievementLists.setState({ lists: new Map() });
+  useAchievementLists.setState({ lists: new Map() });
+  useKeptLogins.setState({ logins: [] });
+  clearLoginHealth("epic");
+  platform.value = "windows";
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -93,25 +113,36 @@ const rowNames = () =>
   );
 
 describe("which games get the tab", () => {
-  it("games with a Steam or Xbox entry, Steam first", () => {
-    const entry = (provider: string, externalId: string) =>
-      ({ provider, externalId }) as never;
+  const entry = (provider: string, externalId: string) =>
+    ({ provider, externalId }) as never;
+
+  it("games with a Steam, Epic Games or Xbox entry: Steam, Epic, Xbox last", () => {
     expect(
       achievementSources({
         libraryImports: [
           entry("xbox", "1234"),
-          entry("epic", "fortnite"),
+          entry("epic", "Sugar"),
           entry("steam", "620"),
           entry("steam", "620"),
         ],
       }),
     ).toEqual([
       { provider: "steam", externalId: "620" },
+      { provider: "epic", externalId: "Sugar" },
       { provider: "xbox", externalId: "1234" },
     ]);
     expect(
       achievementSources({ libraryImports: [entry("battlenet", "wow")] }),
     ).toEqual([]);
+  });
+
+  it("Epic Games only on Windows, where its sign-in exists", () => {
+    platform.value = "macos";
+    expect(
+      achievementSources({
+        libraryImports: [entry("epic", "Sugar"), entry("steam", "620")],
+      }),
+    ).toEqual([{ provider: "steam", externalId: "620" }]);
   });
 });
 
@@ -235,8 +266,10 @@ describe("Steam", () => {
 
 describe("Xbox", () => {
   it("offers the sign-in when nothing is saved for the title", async () => {
-    loadListMock.mockImplementation(async (titleId: string) => {
-      useXboxAchievementLists.setState({ lists: new Map([[titleId, null]]) });
+    loadListMock.mockImplementation(async (_: string, titleId: string) => {
+      useAchievementLists.setState({
+        lists: new Map([[`xbox:${titleId}`, null]]),
+      });
       return null;
     });
     await render([{ provider: "xbox", externalId: "1234" }]);
@@ -251,10 +284,10 @@ describe("Xbox", () => {
   });
 
   it("shows a saved list with its Gamerscore", async () => {
-    useXboxAchievementLists.setState({
+    useAchievementLists.setState({
       lists: new Map([
         [
-          "1234",
+          "xbox:1234",
           {
             provider: "xbox",
             externalId: "1234",
@@ -294,8 +327,10 @@ describe("Xbox", () => {
     });
 
     it("loads without a Microsoft sign-in", async () => {
-      loadListMock.mockImplementation(async (titleId: string) => {
-        useXboxAchievementLists.setState({ lists: new Map([[titleId, null]]) });
+      loadListMock.mockImplementation(async (_: string, titleId: string) => {
+        useAchievementLists.setState({
+          lists: new Map([[`xbox:${titleId}`, null]]),
+        });
         return null;
       });
       await render([{ provider: "xbox", externalId: "1234" }]);
@@ -308,10 +343,10 @@ describe("Xbox", () => {
     });
 
     it("refreshes a saved list without Microsoft in the button", async () => {
-      useXboxAchievementLists.setState({
+      useAchievementLists.setState({
         lists: new Map([
           [
-            "1234",
+            "xbox:1234",
             {
               provider: "xbox",
               externalId: "1234",
@@ -328,8 +363,10 @@ describe("Xbox", () => {
     });
 
     it("shows no sign-in link while it reads, until Microsoft asks for one", async () => {
-      loadListMock.mockImplementation(async (titleId: string) => {
-        useXboxAchievementLists.setState({ lists: new Map([[titleId, null]]) });
+      loadListMock.mockImplementation(async (_: string, titleId: string) => {
+        useAchievementLists.setState({
+          lists: new Map([[`xbox:${titleId}`, null]]),
+        });
         return null;
       });
       let askForSignIn: ((url: string) => void) | undefined;
@@ -370,10 +407,10 @@ describe("both stores", () => {
       hasPlayerStats: true,
       achievements: [achievement("Steam win", { unlocked: true })],
     });
-    useXboxAchievementLists.setState({
+    useAchievementLists.setState({
       lists: new Map([
         [
-          "1234",
+          "xbox:1234",
           {
             provider: "xbox",
             externalId: "1234",
@@ -393,5 +430,264 @@ describe("both stores", () => {
     );
     await act(async () => xbox!.click());
     expect(rowNames()).toEqual(["Xbox win"]);
+  });
+
+  it("names Steam and Epic Games in the pills", async () => {
+    steamAnswers({
+      status: "ok",
+      hasPlayerStats: true,
+      achievements: [achievement("Steam win", { unlocked: true })],
+    });
+    useAchievementLists.setState({
+      lists: new Map([
+        [
+          "epic:Sugar",
+          {
+            provider: "epic",
+            externalId: "Sugar",
+            fetchedAt: 1,
+            achievements: [achievement("Epic win", { unlocked: true, xp: 5 })],
+          },
+        ],
+      ]),
+    });
+    await render([
+      { provider: "steam", externalId: "620" },
+      { provider: "epic", externalId: "Sugar" },
+    ]);
+    const pills = [...container.querySelectorAll('[role="group"] button')].map(
+      (button) => button.textContent,
+    );
+    expect(pills).toEqual(["Steam", "Epic Games"]);
+    const epic = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "Epic Games",
+    );
+    await act(async () => epic!.click());
+    expect(rowNames()).toEqual(["Epic win"]);
+  });
+});
+
+describe("Epic Games", () => {
+  const sugar = [{ provider: "epic" as const, externalId: "Sugar" }];
+  const kept = [{ service: "epic" as const, name: "Player One", savedAt: 1 }];
+  const buttons = () =>
+    [...container.querySelectorAll("button")].map((button) =>
+      button.textContent?.trim(),
+    );
+  const number = (value: number) =>
+    new Intl.NumberFormat(appLocale()).format(value);
+  const epicReads = () =>
+    invokeMock.mock.calls.filter(
+      ([command]) => command === "epic_read_achievements",
+    );
+
+  async function click(label: string) {
+    const button = [...container.querySelectorAll("button")].find(
+      (item) => item.textContent?.trim() === label,
+    );
+    expect(button, label).toBeDefined();
+    await act(async () => button!.click());
+    await act(async () => {});
+    await act(async () => {});
+  }
+
+  function nothingSaved() {
+    useAchievementLists.setState({ lists: new Map() });
+    loadListMock.mockImplementation(async (provider: string, id: string) => {
+      useAchievementLists.setState({
+        lists: new Map([[`${provider}:${id}`, null]]),
+      });
+      return null;
+    });
+  }
+
+  function saved(achievements: GameAchievement[]) {
+    useAchievementLists.setState({
+      lists: new Map([
+        [
+          "epic:Sugar",
+          {
+            provider: "epic",
+            externalId: "Sugar",
+            fetchedAt: Date.UTC(2026, 9, 31),
+            achievements,
+          },
+        ],
+      ]),
+    });
+  }
+
+  /** What the Rust part answers, with these kept sign-ins. */
+  function epic(answer: () => unknown, logins: typeof kept | [] = kept) {
+    useKeptLogins.setState({ logins });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "logins_list") return logins;
+      if (command === "epic_read_achievements") return answer();
+      throw new Error(`unexpected ${command}`);
+    });
+  }
+
+  afterEach(() => {
+    saveListsMock.mockClear();
+  });
+
+  it("opening the tab with a kept sign-in and nothing saved loads the list once, without a window", async () => {
+    nothingSaved();
+    epic(() => ({
+      status: "ok",
+      achievements: [
+        achievement("0", { name: "Virtuoso", xp: 100 }),
+        achievement("1", { name: "Stocked", unlocked: true, xp: 50 }),
+      ],
+    }));
+    await render(sugar);
+    expect(epicReads()).toEqual([
+      ["epic_read_achievements", { appName: "Sugar", language: "en-US" }],
+    ]);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "library_epic_sign_in",
+      expect.anything(),
+    );
+    expect(container.textContent).toContain("1 of 2 unlocked");
+    expect(rowNames()).toEqual(["Stocked", "Virtuoso"]);
+    expect(saveListsMock).toHaveBeenCalledOnce();
+
+    // Saved now: opening the tab again reads nothing.
+    await act(async () => root.render(<></>));
+    await render(sugar);
+    expect(epicReads()).toHaveLength(1);
+  });
+
+  it("never loads without a kept sign-in, and offers the Epic Games sign-in", async () => {
+    nothingSaved();
+    epic(() => ({ status: "ok", achievements: [] }), []);
+    await render(sugar);
+    expect(epicReads()).toHaveLength(0);
+    expect(container.textContent).toContain(
+      "Sign in to Epic Games to load your achievements.",
+    );
+    expect(buttons()).toContain("Sign in to Epic Games");
+  });
+
+  it("signs in through the existing Epic Games window, then loads once", async () => {
+    nothingSaved();
+    let logins: typeof kept | [] = [];
+    useKeptLogins.setState({ logins });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "library_epic_sign_in") {
+        logins = kept;
+        return undefined;
+      }
+      if (command === "logins_list") return logins;
+      if (command === "epic_read_achievements")
+        return {
+          status: "ok",
+          achievements: [achievement("1", { unlocked: true, xp: 50 })],
+        };
+      throw new Error(`unexpected ${command}`);
+    });
+    await render(sugar);
+    await click("Sign in to Epic Games");
+    await act(async () => {});
+    expect(invokeMock).toHaveBeenCalledWith(
+      "library_epic_sign_in",
+      expect.objectContaining({ requestId: expect.any(String) }),
+    );
+    expect(epicReads()).toHaveLength(1);
+    expect(container.textContent).toContain("1 of 1 unlocked");
+  });
+
+  it("shows the XP under the count and on each row, and where the list is from", async () => {
+    saved([
+      achievement("0", { name: "Virtuoso", unlocked: true, xp: 200 }),
+      achievement("1", { name: "Stocked", unlocked: true, xp: 50 }),
+      achievement("2", { name: "Pitch Veteran", xp: 750 }),
+    ]);
+    epic(() => ({ status: "unavailable" }));
+    await render(sugar);
+    expect(container.textContent).toContain(
+      `${number(250)} of ${number(1000)} XP`,
+    );
+    for (const xp of ["200 XP", "50 XP", "750 XP"])
+      expect(container.textContent).toContain(xp);
+    expect(container.textContent).toContain(
+      `From Epic Games, updated ${new Date(Date.UTC(2026, 9, 31)).toLocaleDateString(appLocale())}`,
+    );
+    expect(buttons()).toContain("Refresh");
+    // A saved list doesn't reload by itself.
+    expect(epicReads()).toHaveLength(0);
+  });
+
+  it("has a text for every answer without a list", async () => {
+    for (const [status, text] of [
+      ["noAchievements", "This game has no Epic achievements."],
+      ["notInAccount", "This game isn't in your Epic Games account."],
+      ["blocked", "Epic Games didn't send the achievements. Try again later."],
+      [
+        "unavailable",
+        "Epic Games didn't send the achievements. Try again later.",
+      ],
+      ["noLogin", "Sign in to Epic Games to load your achievements."],
+      ["needsSignIn", "Epic Games needs you to sign in again."],
+    ] as const) {
+      nothingSaved();
+      clearLoginHealth("epic");
+      epic(() => ({ status }));
+      await act(async () => root.render(<></>));
+      await render(sugar);
+      expect(container.textContent, status).toContain(text);
+    }
+    expect(buttons()).toContain("Sign in again");
+  });
+
+  it("reads nothing with a sign-in that already needs renewing", async () => {
+    nothingSaved();
+    epic(() => ({ status: "ok", achievements: [] }));
+    recordLoginHealth("epic", "needsSignIn");
+    await render(sugar);
+    expect(epicReads()).toHaveLength(0);
+    expect(container.textContent).toContain(
+      "Epic Games needs you to sign in again.",
+    );
+    expect(buttons()).toContain("Sign in again");
+  });
+
+  it("says Reading achievements… while it reads", async () => {
+    nothingSaved();
+    epic(() => new Promise(() => {}));
+    await render(sugar);
+    expect(container.textContent).toContain("Reading achievements…");
+  });
+
+  it("a refresh that fails keeps the saved list on screen, with the line above it", async () => {
+    saved([achievement("1", { name: "Stocked", unlocked: true, xp: 50 })]);
+    epic(() => ({ status: "blocked" }));
+    await render(sugar);
+    await click("Refresh");
+    expect(epicReads()).toHaveLength(1);
+    expect(rowNames()).toEqual(["Stocked"]);
+    expect(container.textContent).toContain(
+      "Epic Games didn't send the achievements. Try again later.",
+    );
+    expect(saveListsMock).not.toHaveBeenCalled();
+  });
+
+  it("a refresh replaces the saved list with Epic's newer one", async () => {
+    saved([achievement("1", { name: "Stocked" })]);
+    epic(() => ({
+      status: "ok",
+      achievements: [
+        achievement("1", {
+          name: "Stocked",
+          unlocked: true,
+          unlockedAt: 1_793_471_047_123,
+        }),
+      ],
+    }));
+    await render(sugar);
+    expect(container.textContent).toContain("0 of 1 unlocked");
+    await click("Refresh");
+    expect(container.textContent).toContain("1 of 1 unlocked");
+    expect(saveListsMock).toHaveBeenCalledOnce();
   });
 });

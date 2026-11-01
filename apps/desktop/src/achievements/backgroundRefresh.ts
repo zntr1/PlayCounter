@@ -1,3 +1,4 @@
+import type { AchievementList } from "@playcounter/shared";
 import {
   createGameIdentityResolver,
   resolvedCanonicalGameKey,
@@ -14,12 +15,18 @@ import {
   refreshXboxAchievementList,
   XboxSignInRequiredError,
 } from "../library/providers/xbox";
-import { saveXboxAchievementLists } from "./xboxLists";
+import { saveAchievementLists } from "./achievementLists";
+import { readEpicAchievements } from "./epic";
 
 // Give the launcher a moment to upload unlocks after its game exits.
 const AFTER_GAME_DELAY_MS = 15_000;
 
+/** Lists that refresh with a kept launcher sign-in. */
+type Provider = "xbox" | "epic";
+
 type Job = {
+  provider: Provider;
+  externalId: string;
   game: GameIdentityRef;
   timer?: ReturnType<typeof setTimeout>;
   controller: AbortController;
@@ -28,13 +35,22 @@ type Job = {
 
 const jobs = new Map<string, Job>();
 
-function xboxReady() {
+function signedIn(provider: Provider) {
   return (
-    useKeptLogins.getState().logins.some((login) => login.service === "xbox") &&
-    getLoginHealth("xbox")?.status !== "needsSignIn"
+    useKeptLogins
+      .getState()
+      .logins.some((login) => login.service === provider) &&
+    getLoginHealth(provider)?.status !== "needsSignIn"
   );
 }
 
+function account(provider: Provider) {
+  return useKeptLogins
+    .getState()
+    .logins.find((login) => login.service === provider);
+}
+
+/** Whether the game runs, and its Xbox title ids and Epic app names. */
 function currentGameSources(game: GameIdentityRef) {
   const state = useAppStore.getState();
   const resolve = createGameIdentityResolver(
@@ -46,71 +62,77 @@ function currentGameSources(game: GameIdentityRef) {
   const running = state.activeSessions.some(
     (session) => resolvedCanonicalGameKey(session, resolve) === key,
   );
-  const titleIds = [...state.libraryImports.values()]
-    .filter(
-      (entry) =>
-        entry.provider === "xbox" &&
-        resolvedCanonicalGameKey(
-          { ...entry, gameName: entry.name },
-          resolve,
-        ) === key,
-    )
-    .map((entry) => entry.externalId);
-  return { running, titleIds: new Set(titleIds) };
+  const sources = new Set(
+    [...state.libraryImports.values()]
+      .filter(
+        (entry) =>
+          (entry.provider === "xbox" || entry.provider === "epic") &&
+          resolvedCanonicalGameKey(
+            { ...entry, gameName: entry.name },
+            resolve,
+          ) === key,
+      )
+      .map((entry) => `${entry.provider}:${entry.externalId}`),
+  );
+  return { running, sources };
 }
 
-async function refresh(titleId: string, job: Job) {
+async function readList(job: Job, apiEndpoint: string) {
+  if (job.provider === "epic") {
+    const result = await readEpicAchievements(job.externalId);
+    return "list" in result ? result.list : null;
+  }
+  const result = await refreshXboxAchievementList(job.externalId, {
+    apiEndpoint,
+    signal: job.controller.signal,
+    savedLoginOnly: true,
+  });
+  return "list" in result ? result.list : null;
+}
+
+async function refresh(key: string, job: Job) {
   job.timer = undefined;
-  const { running, titleIds } = currentGameSources(job.game);
+  const { running, sources } = currentGameSources(job.game);
   if (
     running ||
-    !titleIds.has(titleId) ||
-    !xboxReady() ||
-    job.accountRevision !== getLoginOperationRevision("xbox")
+    !sources.has(key) ||
+    !signedIn(job.provider) ||
+    job.accountRevision !== getLoginOperationRevision(job.provider)
   ) {
-    if (jobs.get(titleId) === job) jobs.delete(titleId);
+    if (jobs.get(key) === job) jobs.delete(key);
     return;
   }
   // Do not write a previous account's result after logout, account switching,
   // reset, or a server change while the network operation is in flight.
   const apiEndpoint = useAppStore.getState().settings.apiEndpoint;
-  const account = useKeptLogins
-    .getState()
-    .logins.find((login) => login.service === "xbox");
+  const before = account(job.provider);
   const stopWatchingAccount = useKeptLogins.subscribe((state) => {
-    const current = state.logins.find((login) => login.service === "xbox");
-    if (!current || current.name !== account?.name) job.controller.abort();
+    const current = state.logins.find(
+      (login) => login.service === job.provider,
+    );
+    if (!current || current.name !== before?.name) job.controller.abort();
   });
   try {
-    const result = await refreshXboxAchievementList(titleId, {
-      apiEndpoint,
-      signal: job.controller.signal,
-      savedLoginOnly: true,
-    });
-    const currentAccount = useKeptLogins
-      .getState()
-      .logins.find((login) => login.service === "xbox");
-    const sources = currentGameSources(job.game);
+    const list: AchievementList | null = await readList(job, apiEndpoint);
+    const current = currentGameSources(job.game);
     if (
       job.controller.signal.aborted ||
-      !xboxReady() ||
-      job.accountRevision !== getLoginOperationRevision("xbox") ||
+      !signedIn(job.provider) ||
+      job.accountRevision !== getLoginOperationRevision(job.provider) ||
       useAppStore.getState().settings.apiEndpoint !== apiEndpoint ||
-      currentAccount?.name !== account?.name ||
-      sources.running ||
-      !sources.titleIds.has(titleId)
+      account(job.provider)?.name !== before?.name ||
+      current.running ||
+      !current.sources.has(key)
     )
       return;
-    if ("list" in result) {
-      await saveXboxAchievementLists([result.list], { show: true });
-    }
+    if (list) await saveAchievementLists([list], { show: true });
   } catch (error) {
-    // A background task never opens account UI. The provider records expired
+    // A background task never opens account UI. The providers record expired
     // credentials in loginHealth; all failures preserve the previous list.
     if (error instanceof XboxSignInRequiredError) return;
   } finally {
     stopWatchingAccount();
-    if (jobs.get(titleId) === job) jobs.delete(titleId);
+    if (jobs.get(key) === job) jobs.delete(key);
   }
 }
 
@@ -118,22 +140,22 @@ async function refresh(titleId: string, job: Job) {
  *  is checked when the refresh runs: kept sign-ins load a few seconds after
  *  the start, when a game that ended while PlayCounter was closed ends. */
 export function schedulePostGameAchievementRefresh(session: ActiveSession) {
-  const { running, titleIds } = currentGameSources(session);
+  const { running, sources } = currentGameSources(session);
   if (running) return;
-  for (const titleId of titleIds) {
-    const previous = jobs.get(titleId);
+  for (const key of sources) {
+    const previous = jobs.get(key);
     if (previous && previous.timer === undefined) continue;
     if (previous?.timer !== undefined) clearTimeout(previous.timer);
+    const [provider, ...rest] = key.split(":");
     const job: Job = {
+      provider: provider as Provider,
+      externalId: rest.join(":"),
       game: { ...session },
       controller: new AbortController(),
-      accountRevision: getLoginOperationRevision("xbox"),
+      accountRevision: getLoginOperationRevision(provider as Provider),
     };
-    job.timer = setTimeout(
-      () => void refresh(titleId, job),
-      AFTER_GAME_DELAY_MS,
-    );
-    jobs.set(titleId, job);
+    job.timer = setTimeout(() => void refresh(key, job), AFTER_GAME_DELAY_MS);
+    jobs.set(key, job);
   }
 }
 

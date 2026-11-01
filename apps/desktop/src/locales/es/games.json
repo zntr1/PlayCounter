@@ -138,5 +138,13 @@
   "Unlocked, date unknown": "Desbloqueado, fecha desconocida",
   "{{score}} G": "{{score}} G",
   "{{percent}} of players": "{{percent}} de los jugadores",
-  "Your Xbox achievements are not loaded yet.": "Tus logros de Xbox aún no están cargados."
+  "Your Xbox achievements are not loaded yet.": "Tus logros de Xbox aún no están cargados.",
+  "Sign in to Epic Games to load your achievements.": "Inicia sesión en Epic Games para cargar tus logros.",
+  "Sign in to Epic Games": "Iniciar sesión en Epic Games",
+  "This game isn't in your Epic Games account.": "Este juego no está en tu cuenta de Epic Games.",
+  "This game has no Epic achievements.": "Este juego no tiene logros de Epic.",
+  "Epic Games didn't send the achievements. Try again later.": "Epic Games no envió los logros. Vuelve a intentarlo más tarde.",
+  "From Epic Games, updated {{date}}": "De Epic Games, actualizado el {{date}}",
+  "{{earned}} of {{total}} XP": "{{earned}} de {{total}} XP",
+  "{{xp}} XP": "{{xp}} XP"
 }

@@ -564,6 +564,7 @@ pub fn run() {
             library::epic_account::library_epic_account_games,
             library::epic_account::library_epic_sign_in,
             library::epic_account::library_cancel_epic_account,
+            library::epic_achievements::epic_read_achievements,
             library::kept_logins::logins_list,
             library::kept_logins::logins_check,
             library::kept_logins::logins_sign_out,

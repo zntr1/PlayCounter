@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AchievementList } from "@playcounter/shared";
 import { useAppStore, type ActiveSession } from "../store";
 import { useKeptLogins } from "../library/keptLogins";
@@ -6,6 +6,7 @@ import type { LibraryImportEntry } from "../library/types";
 
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
+  readEpic: vi.fn(),
   save: vi.fn(),
   health: "valid",
   revision: 0,
@@ -18,7 +19,8 @@ vi.mock("../library/providers/xbox", () => ({
   refreshXboxAchievementList: mocks.refresh,
   XboxSignInRequiredError: class XboxSignInRequiredError extends Error {},
 }));
-vi.mock("./xboxLists", () => ({ saveXboxAchievementLists: mocks.save }));
+vi.mock("./epic", () => ({ readEpicAchievements: mocks.readEpic }));
+vi.mock("./achievementLists", () => ({ saveAchievementLists: mocks.save }));
 
 import {
   disposePostGameAchievementRefresh,
@@ -61,6 +63,7 @@ const list: AchievementList = {
 beforeEach(() => {
   vi.useFakeTimers();
   mocks.refresh.mockReset().mockResolvedValue({ list });
+  mocks.readEpic.mockReset().mockResolvedValue({ status: "unavailable" });
   mocks.save.mockReset().mockResolvedValue(undefined);
   mocks.health = "valid";
   mocks.revision = 0;
@@ -222,10 +225,9 @@ it("cancels queued jobs and in-flight work when tracking is reset", async () => 
   expect(signal.aborted).toBe(true);
 });
 
-it("does not invent achievement refresh support for Epic or Battle.net", async () => {
+it("does not invent achievement refresh support for Battle.net", async () => {
   useAppStore.setState({
     libraryImports: new Map([
-      ["epic:game", { ...imported, provider: "epic", externalId: "game" }],
       [
         "battlenet:game",
         { ...imported, provider: "battlenet", externalId: "game" },
@@ -235,4 +237,92 @@ it("does not invent achievement refresh support for Epic or Battle.net", async (
   schedulePostGameAchievementRefresh(session);
   await vi.advanceTimersByTimeAsync(15_000);
   expect(mocks.refresh).not.toHaveBeenCalled();
+  expect(mocks.readEpic).not.toHaveBeenCalled();
+});
+
+describe("Epic Games", () => {
+  const epicImport: LibraryImportEntry = {
+    ...imported,
+    provider: "epic",
+    externalId: "Sugar",
+  };
+  const epicList: AchievementList = {
+    provider: "epic",
+    externalId: "Sugar",
+    fetchedAt: 2,
+    achievements: [],
+  };
+  const signedIn = [
+    { service: "epic" as const, name: "Player One", savedAt: 1 },
+  ];
+
+  beforeEach(() => {
+    useAppStore.setState({
+      libraryImports: new Map([["epic:Sugar", epicImport]]),
+    });
+    useKeptLogins.setState({ logins: signedIn });
+    mocks.readEpic.mockResolvedValue({ list: epicList });
+  });
+
+  it("refreshes the list 15 s after an Epic game's session ends", async () => {
+    schedulePostGameAchievementRefresh(session);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(mocks.readEpic).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mocks.readEpic).toHaveBeenCalledExactlyOnceWith("Sugar");
+    expect(mocks.save).toHaveBeenCalledWith([epicList], { show: true });
+    // Epic needs no Microsoft sign-in.
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing while the game runs", async () => {
+    useAppStore.setState({ activeSessions: [{ ...session, id: 2 }] });
+    schedulePostGameAchievementRefresh(session);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(mocks.readEpic).not.toHaveBeenCalled();
+
+    // Started again during the wait.
+    useAppStore.setState({ activeSessions: [] });
+    schedulePostGameAchievementRefresh(session);
+    useAppStore.setState({ activeSessions: [session] });
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(mocks.readEpic).not.toHaveBeenCalled();
+  });
+
+  it.each(["signed out", "needs a new sign-in"])(
+    "reads nothing when Epic Games %s",
+    async (state) => {
+      schedulePostGameAchievementRefresh(session);
+      if (state === "signed out") useKeptLogins.setState({ logins: [] });
+      else mocks.health = "needsSignIn";
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(mocks.readEpic).not.toHaveBeenCalled();
+    },
+  );
+
+  it("drops a read that finishes after signing out", async () => {
+    let complete!: (value: { list: AchievementList }) => void;
+    mocks.readEpic.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    schedulePostGameAchievementRefresh(session);
+    await vi.advanceTimersByTimeAsync(15_000);
+    useKeptLogins.setState({ logins: [] });
+    complete({ list: epicList });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it("keeps the saved list when Epic sends none", async () => {
+    for (const status of ["blocked", "unavailable", "needsSignIn"]) {
+      mocks.readEpic.mockResolvedValue({ status });
+      schedulePostGameAchievementRefresh(session);
+      await vi.advanceTimersByTimeAsync(15_000);
+    }
+    expect(mocks.readEpic).toHaveBeenCalledTimes(3);
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
 });

@@ -578,6 +578,7 @@ const RUST_ENGLISH_ON_PURPOSE = new Set([
   "Invalid field size.",
   "Invalid install UUID.",
   "Missing value for VDF key {key}.",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) EpicGamesLauncher",
   "No game active",
   "No monitor is available for the notification overlay.",
   "Open PlayCounter",

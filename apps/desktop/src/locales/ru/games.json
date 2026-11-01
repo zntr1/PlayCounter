@@ -139,5 +139,13 @@
   "Unlocked, date unknown": "Получено, дата неизвестна",
   "{{score}} G": "{{score}} G",
   "{{percent}} of players": "{{percent}} игроков",
-  "Your Xbox achievements are not loaded yet.": "Ваши достижения Xbox ещё не загружены."
+  "Your Xbox achievements are not loaded yet.": "Ваши достижения Xbox ещё не загружены.",
+  "Sign in to Epic Games to load your achievements.": "Войдите в Epic Games, чтобы загрузить ваши достижения.",
+  "Sign in to Epic Games": "Войти в Epic Games",
+  "This game isn't in your Epic Games account.": "Этой игры нет в вашем аккаунте Epic Games.",
+  "This game has no Epic achievements.": "У этой игры нет достижений Epic.",
+  "Epic Games didn't send the achievements. Try again later.": "Достижения от Epic Games не пришли. Попробуйте позже.",
+  "From Epic Games, updated {{date}}": "Из Epic Games, обновлено {{date}}",
+  "{{earned}} of {{total}} XP": "{{earned}} из {{total}} XP",
+  "{{xp}} XP": "{{xp}} XP"
 }

@@ -521,7 +521,7 @@ export function LauncherAccountsView() {
                   : id === "xbox"
                     ? t("Your Xbox library, playtime and achievements.")
                     : id === "epic"
-                      ? t("Your Epic Games library and recorded playtime.")
+                      ? t("Your Epic Games library, playtime and achievements.")
                       : t(
                           "Your Battle.net library. PlayCounter tracks new sessions.",
                         )}

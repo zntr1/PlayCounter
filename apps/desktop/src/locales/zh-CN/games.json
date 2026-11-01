@@ -136,5 +136,13 @@
   "Unlocked, date unknown": "已解锁，日期未知",
   "{{score}} G": "{{score}} G",
   "{{percent}} of players": "{{percent}} 的玩家",
-  "Your Xbox achievements are not loaded yet.": "你的 Xbox 成就尚未加载。"
+  "Your Xbox achievements are not loaded yet.": "你的 Xbox 成就尚未加载。",
+  "Sign in to Epic Games to load your achievements.": "登录 Epic Games 以加载你的成就。",
+  "Sign in to Epic Games": "登录 Epic Games",
+  "This game isn't in your Epic Games account.": "这款游戏不在你的 Epic Games 账户中。",
+  "This game has no Epic achievements.": "这款游戏没有 Epic 成就。",
+  "Epic Games didn't send the achievements. Try again later.": "Epic Games 未发送成就。请稍后重试。",
+  "From Epic Games, updated {{date}}": "来自 Epic Games，更新于 {{date}}",
+  "{{earned}} of {{total}} XP": "{{earned}} / {{total}} XP",
+  "{{xp}} XP": "{{xp}} XP"
 }

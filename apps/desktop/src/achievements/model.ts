@@ -22,28 +22,38 @@ const ICON_HOSTS = [
   "xboxlive.com",
   "xbox.com",
   "xboxservices.com",
+  "epicgames.com",
 ];
+
+/** Unlocked of all points, for the achievements that carry any. */
+function points(
+  achievements: readonly GameAchievement[],
+  value: (achievement: GameAchievement) => number | undefined,
+) {
+  const scored = achievements.filter((a) => value(a) !== undefined);
+  return scored.length
+    ? {
+        earned: scored.reduce(
+          (sum, a) => sum + (a.unlocked ? value(a)! : 0),
+          0,
+        ),
+        total: scored.reduce((sum, a) => sum + value(a)!, 0),
+      }
+    : undefined;
+}
 
 export function achievementSummary(achievements: readonly GameAchievement[]) {
   const unlocked = achievements.filter((a) => a.unlocked).length;
   const total = achievements.length;
-  const scored = achievements.filter((a) => a.gamerscore !== undefined);
+  const gamerscore = points(achievements, (a) => a.gamerscore);
+  const xp = points(achievements, (a) => a.xp);
   return {
     total,
     unlocked,
     // Rounded down: 99.5% is not done.
     percent: total ? Math.floor((unlocked / total) * 100) : 0,
-    ...(scored.length
-      ? {
-          gamerscore: {
-            earned: scored.reduce(
-              (sum, a) => sum + (a.unlocked ? a.gamerscore! : 0),
-              0,
-            ),
-            total: scored.reduce((sum, a) => sum + a.gamerscore!, 0),
-          },
-        }
-      : {}),
+    ...(gamerscore ? { gamerscore } : {}),
+    ...(xp ? { xp } : {}),
   };
 }
 
@@ -185,6 +195,7 @@ function parseAchievement(value: unknown): GameAchievement | null {
     ...(finite(raw.gamerscore) && raw.gamerscore >= 0
       ? { gamerscore: raw.gamerscore }
       : {}),
+    ...(finite(raw.xp) && raw.xp >= 0 ? { xp: raw.xp } : {}),
     ...(finite(raw.globalPercent) &&
     raw.globalPercent >= 0 &&
     raw.globalPercent <= 100
@@ -200,15 +211,27 @@ function parseAchievement(value: unknown): GameAchievement | null {
   };
 }
 
-/** A list from the backend or from this PC's storage. Fields that can't be
+/** Steam app ids and Xbox title ids are numbers; Epic app names follow the
+ *  launcher's own rule (`valid_id` in epic.rs). */
+const EXTERNAL_IDS = {
+  steam: /^[1-9][0-9]{0,9}$/,
+  xbox: /^[1-9][0-9]{0,9}$/,
+  epic: /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/,
+} as const;
+
+function isProvider(value: unknown): value is keyof typeof EXTERNAL_IDS {
+  return typeof value === "string" && Object.hasOwn(EXTERNAL_IDS, value);
+}
+
+/** A list from the backend, Epic or this PC's storage. Fields that can't be
  *  trusted are dropped; a list that isn't one is rejected. */
 export function parseAchievementList(value: unknown): AchievementList | null {
   const raw = record(value);
   if (
     !raw ||
-    (raw.provider !== "steam" && raw.provider !== "xbox") ||
+    !isProvider(raw.provider) ||
     typeof raw.externalId !== "string" ||
-    !/^[1-9][0-9]{0,9}$/.test(raw.externalId) ||
+    !EXTERNAL_IDS[raw.provider].test(raw.externalId) ||
     !finite(raw.fetchedAt) ||
     raw.fetchedAt < 0 ||
     !Array.isArray(raw.achievements) ||

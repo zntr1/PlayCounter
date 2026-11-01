@@ -249,3 +249,82 @@ describe("stored lists", () => {
     ]);
   });
 });
+
+describe("Epic lists", () => {
+  // From Epic's Rocket League answer (app name "Sugar"), 2026-11-01.
+  const icons =
+    "https://shared-static-prod.epicgames.com/epic-achievements/e6bcca5b37d0457ca881aec508205542/9773aa1aa54f4f7b80e44bef04986cea/icons";
+  const epicList = (
+    externalId: string,
+    fields: Partial<GameAchievement> = {},
+  ) => ({
+    provider: "epic",
+    externalId,
+    fetchedAt: 1_793_471_100_000,
+    achievements: [
+      {
+        id: "1",
+        name: "Stocked",
+        description: "Collect 150 Items",
+        hidden: false,
+        unlocked: true,
+        unlockedAt: 1_793_471_047_123,
+        iconUrl: `${icons}/d4ecb934e2415a74c66f75c49fee22ee`,
+        lockedIconUrl: `${icons}/4b370970a13bf6933ed19baf50373115`,
+        globalPercent: 35,
+        xp: 50,
+        ...fields,
+      },
+    ],
+  });
+
+  it("parse with the app name as id, their XP and Epic's icons", () => {
+    expect(parseAchievementList(epicList("Sugar"))).toEqual(epicList("Sugar"));
+    // Epic also names apps with 32 hex digits.
+    expect(
+      parseAchievementList(epicList("4fe75bbc5a674f4f9b356b5c90567da5"))
+        ?.externalId,
+    ).toBe("4fe75bbc5a674f4f9b356b5c90567da5");
+  });
+
+  it("are dropped when the app name is not one", () => {
+    for (const name of ["", "../Sugar", "Sugar Rush", "-Sugar", "a".repeat(65)])
+      expect(parseAchievementList(epicList(name))).toBeNull();
+  });
+
+  it("drop icons from other hosts", () => {
+    for (const url of [
+      "https://evil.example/icon.png",
+      "https://epicgames.com.evil.test/icon.png",
+      `http://shared-static-prod.epicgames.com/icons/x`,
+    ]) {
+      const [parsed] = parseAchievementList(
+        epicList("Sugar", { iconUrl: url, lockedIconUrl: url }),
+      )!.achievements;
+      expect(parsed.iconUrl).toBeUndefined();
+      expect(parsed.lockedIconUrl).toBeUndefined();
+    }
+  });
+
+  it("drop XP that isn't a number of points", () => {
+    for (const xp of [-5, Number.NaN, "50" as unknown as number])
+      expect(
+        parseAchievementList(epicList("Sugar", { xp }))!.achievements[0].xp,
+      ).toBeUndefined();
+  });
+
+  it("sum XP like Gamerscore: unlocked of all", () => {
+    expect(
+      achievementSummary([
+        achievement("0", { xp: 100 }),
+        achievement("1", { unlocked: true, xp: 50 }),
+        achievement("10", { unlocked: true, xp: 15 }),
+      ]),
+    ).toEqual({
+      total: 3,
+      unlocked: 2,
+      percent: 66,
+      xp: { earned: 65, total: 165 },
+    });
+  });
+});

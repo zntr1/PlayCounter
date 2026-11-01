@@ -58,9 +58,9 @@ const CANCELLED: &str = "Epic Games sign-in was cancelled.";
 const MAX_LIBRARY_PAGES: usize = 50;
 const MAX_GAMES: usize = 5_000;
 const CATALOG_REQUESTS_IN_FLIGHT: usize = 6;
-// Refresh tokens can rotate. Background validation and foreground imports
-// must never redeem the same saved token concurrently.
-static AUTHENTICATING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+// Refresh tokens can rotate. Background validation, foreground imports and
+// achievement reads must never redeem the same saved token concurrently.
+pub(super) static AUTHENTICATING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[derive(Default)]
 pub struct EpicAccountState(Mutex<Sessions>);
@@ -109,9 +109,9 @@ enum CodePage {
 }
 
 #[derive(Deserialize)]
-struct Token {
-    access_token: String,
-    account_id: String,
+pub(super) struct Token {
+    pub(super) access_token: String,
+    pub(super) account_id: String,
     #[serde(default)]
     refresh_token: Option<String>,
     #[serde(default, rename = "displayName")]
@@ -120,7 +120,7 @@ struct Token {
 
 /// Why Epic gave no token.
 #[derive(Debug, PartialEq)]
-enum TokenFailure {
+pub(super) enum TokenFailure {
     /// Epic confirmed that this credential expired or was revoked.
     Refused(String),
     /// Account action is required, but this does not revoke the saved login.
@@ -146,13 +146,14 @@ struct PageMetadata {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct LibraryRecord {
+pub(super) struct LibraryRecord {
+    /// Also the game's sandbox id for its achievements.
     #[serde(default)]
-    namespace: String,
+    pub(super) namespace: String,
     #[serde(default)]
     catalog_item_id: String,
     #[serde(default)]
-    app_name: String,
+    pub(super) app_name: String,
     #[serde(default)]
     sandbox_type: Option<String>,
 }
@@ -320,7 +321,7 @@ fn build_library(
     }
 }
 
-fn http_client() -> Result<reqwest::Client, String> {
+pub(super) fn http_client() -> Result<reqwest::Client, String> {
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
@@ -416,7 +417,10 @@ async fn exchange_code(client: &reqwest::Client, code: &str) -> Result<Token, To
     .await
 }
 
-async fn renew(client: &reqwest::Client, refresh_token: &str) -> Result<Token, TokenFailure> {
+pub(super) async fn renew(
+    client: &reqwest::Client,
+    refresh_token: &str,
+) -> Result<Token, TokenFailure> {
     request_token(
         client,
         &[
@@ -549,7 +553,7 @@ async fn get_json<T: serde::de::DeserializeOwned>(
     response.json().await.map_err(|_| UNAVAILABLE.into())
 }
 
-async fn read_records(
+pub(super) async fn read_records(
     client: &reqwest::Client,
     token: &Token,
 ) -> Result<(Vec<LibraryRecord>, bool), String> {
@@ -656,7 +660,7 @@ async fn read_account(client: &reqwest::Client, token: &Token) -> Result<Account
 /// Once a code exchange or refresh has started, finish it and save the token
 /// even if the caller leaves the view. Dropping that HTTP request can lose a
 /// one-time code or the replacement for an already rotated refresh token.
-async fn finish_authentication(
+pub(super) async fn finish_authentication(
     store: &Store,
     client: &reqwest::Client,
     previous: Option<&KeptLogin>,

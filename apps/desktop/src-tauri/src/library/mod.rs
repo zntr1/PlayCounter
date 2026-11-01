@@ -4,6 +4,7 @@ pub mod battlenet_account;
 mod battlenet_cookies;
 pub mod epic;
 pub mod epic_account;
+pub mod epic_achievements;
 mod exe_scan;
 pub mod kept_logins;
 pub(crate) mod login_status;

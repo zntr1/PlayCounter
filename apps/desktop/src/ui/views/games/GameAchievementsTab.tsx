@@ -18,48 +18,74 @@ import {
   type SteamAchievementRead,
 } from "../../../achievements/steam";
 import {
-  loadXboxAchievementList,
-  saveXboxAchievementLists,
-  useXboxAchievementLists,
-} from "../../../achievements/xboxLists";
+  achievementListKey,
+  loadAchievementList,
+  saveAchievementLists,
+  useAchievementLists,
+} from "../../../achievements/achievementLists";
+import {
+  readEpicAchievements,
+  type EpicAchievementStatus,
+} from "../../../achievements/epic";
 import { refreshXboxAchievementList } from "../../../library/providers/xbox";
+import { signInEpicAccount } from "../../../library/epicAccount";
 import { refreshKeptLogins, useKeptLogin } from "../../../library/keptLogins";
+import {
+  beginLoginAccountChange,
+  recordLoginHealth,
+  useLoginHealth,
+} from "../../../library/loginHealth";
 import { appLocale, getT } from "../../../i18n";
+import { nativeText } from "../../../nativeText";
+import { currentPlatform } from "../../../platform";
 import { useAppStore } from "../../../store";
 import { Button, Pill } from "../../primitives";
 import type { GameSummary } from "../MyGamesView";
 import { XboxSignInWait } from "./XboxSignInWait";
 
 const t = getT("games");
+const accountsT = getT("accounts");
 
 /* A game's own achievements, the ones its developers made, from Steam's
-   files on this PC or from the last Xbox sign-in. Not PlayCounter's
-   milestones: those live on the Achievements page. */
+   files on this PC or from the last Xbox or Epic Games sign-in. Not
+   PlayCounter's milestones: those live on the Achievements page. */
 
 export type AchievementSource = {
-  provider: "steam" | "xbox";
+  provider: "steam" | "epic" | "xbox";
   externalId: string;
 };
 
-/** The game's Steam and Xbox entries, Steam first. None: no tab. */
+/** Steam first, Xbox last. */
+const ORDER = { steam: 0, epic: 1, xbox: 2 } as const;
+
+/** The game's Steam, Epic Games and Xbox entries. Epic only on Windows,
+ *  where its sign-in exists. None: no tab. */
 export function achievementSources(
   game: Pick<GameSummary, "libraryImports">,
 ): AchievementSource[] {
+  const epic = currentPlatform() === "windows";
   const seen = new Set<string>();
   const sources: AchievementSource[] = [];
   for (const { provider, externalId } of game.libraryImports) {
-    if (provider !== "steam" && provider !== "xbox") continue;
+    if (
+      provider !== "steam" &&
+      provider !== "xbox" &&
+      !(provider === "epic" && epic)
+    )
+      continue;
     const key = `${provider}:${externalId}`;
     if (seen.has(key)) continue;
     seen.add(key);
     sources.push({ provider, externalId });
   }
-  return sources.sort(
-    (a, b) => Number(a.provider === "xbox") - Number(b.provider === "xbox"),
-  );
+  return sources.sort((a, b) => ORDER[a.provider] - ORDER[b.provider]);
 }
 
-const PROVIDER_LABEL = { steam: "Steam", xbox: "Xbox" } as const;
+const PROVIDER_LABEL = {
+  steam: "Steam",
+  epic: "Epic Games",
+  xbox: "Xbox",
+} as const;
 
 export function GameAchievementsTab({
   sources,
@@ -94,6 +120,8 @@ export function GameAchievementsTab({
       ) : null}
       {source.provider === "steam" ? (
         <SteamAchievements key={source.externalId} appId={source.externalId} />
+      ) : source.provider === "epic" ? (
+        <EpicAchievements key={source.externalId} appName={source.externalId} />
       ) : (
         <XboxAchievements key={source.externalId} titleId={source.externalId} />
       )}
@@ -207,7 +235,9 @@ function xboxErrorText(
 }
 
 function XboxAchievements({ titleId }: { titleId: string }) {
-  const list = useXboxAchievementLists((state) => state.lists.get(titleId));
+  const list = useAchievementLists((state) =>
+    state.lists.get(achievementListKey("xbox", titleId)),
+  );
   const apiEndpoint = useAppStore((state) => state.settings.apiEndpoint);
   const kept = useKeptLogin("xbox") !== null;
   const [storageFailed, setStorageFailed] = useState(false);
@@ -217,7 +247,7 @@ function XboxAchievements({ titleId }: { titleId: string }) {
 
   useEffect(() => {
     if (list !== undefined) return;
-    loadXboxAchievementList(titleId).catch(() => setStorageFailed(true));
+    loadAchievementList("xbox", titleId).catch(() => setStorageFailed(true));
   }, [list, titleId]);
 
   // Closing Details ends a sign-in that is still waiting.
@@ -240,7 +270,7 @@ function XboxAchievements({ titleId }: { titleId: string }) {
       if (request.signal.aborted) return;
       if ("list" in result) {
         // Shown at once; kept for the next start when storage works.
-        await saveXboxAchievementLists([result.list], { show: true }).catch(
+        await saveAchievementLists([result.list], { show: true }).catch(
           () => {},
         );
       } else {
@@ -320,6 +350,174 @@ function XboxAchievements({ titleId }: { titleId: string }) {
             {kept ? t("Refresh") : t("Refresh with Microsoft")}
           </Button>
         }
+      />
+    </div>
+  );
+}
+
+function epicStatusText(status: EpicAchievementStatus) {
+  return {
+    noLogin: t("Sign in to Epic Games to load your achievements."),
+    needsSignIn: accountsT("{{launcher}} needs you to sign in again.", {
+      launcher: "Epic Games",
+    }),
+    notInAccount: t("This game isn't in your Epic Games account."),
+    noAchievements: t("This game has no Epic achievements."),
+    blocked: t("Epic Games didn't send the achievements. Try again later."),
+    unavailable: t("Epic Games didn't send the achievements. Try again later."),
+  }[status];
+}
+
+function EpicAchievements({ appName }: { appName: string }) {
+  const list = useAchievementLists((state) =>
+    state.lists.get(achievementListKey("epic", appName)),
+  );
+  const login = useKeptLogin("epic");
+  const expired = useLoginHealth(
+    (state) => state.checks.epic?.status === "needsSignIn",
+  );
+  const [storageFailed, setStorageFailed] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [status, setStatus] = useState<EpicAchievementStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const loaded = useRef(false);
+  const mounted = useRef(false);
+  const signInRequest = useRef<AbortController | null>(null);
+
+  const signedOut = !login || status === "noLogin";
+  const needsSignIn = expired || status === "needsSignIn";
+  const nothingSaved = list === null || (list === undefined && storageFailed);
+
+  useEffect(() => {
+    if (list !== undefined) return;
+    loadAchievementList("epic", appName).catch(() => setStorageFailed(true));
+  }, [list, appName]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // Closing Details ends a sign-in that is still waiting.
+      signInRequest.current?.abort();
+    };
+  }, []);
+
+  async function read() {
+    loaded.current = true;
+    setReading(true);
+    setStatus(null);
+    setError(null);
+    try {
+      const result = await readEpicAchievements(appName);
+      if ("list" in result) {
+        // Shown at once; kept for the next start when storage works.
+        await saveAchievementLists([result.list], { show: true }).catch(
+          () => {},
+        );
+      } else if (mounted.current) setStatus(result.status);
+    } finally {
+      if (mounted.current) setReading(false);
+    }
+  }
+
+  // Nothing saved and a kept sign-in: load at once, once. No window opens.
+  useEffect(() => {
+    if (!nothingSaved || signedOut || needsSignIn || loaded.current) return;
+    void read();
+  });
+
+  async function signIn() {
+    if (signInRequest.current) return;
+    const request = new AbortController();
+    signInRequest.current = request;
+    // The read after the sign-in is the load.
+    loaded.current = true;
+    beginLoginAccountChange("epic");
+    setSigningIn(true);
+    setStatus(null);
+    setError(null);
+    try {
+      await signInEpicAccount(request.signal);
+      const kept = await refreshKeptLogins();
+      if (request.signal.aborted) return;
+      if (!kept.some((item) => item.service === "epic")) {
+        if (mounted.current)
+          setError(accountsT("Sign-in was not saved. Please try again."));
+        return;
+      }
+      recordLoginHealth("epic", "valid");
+      if (mounted.current) setSigningIn(false);
+      await read();
+    } catch (cause) {
+      if (!request.signal.aborted && mounted.current)
+        setError(
+          nativeText(cause instanceof Error ? cause.message : String(cause)),
+        );
+    } finally {
+      if (signInRequest.current === request) signInRequest.current = null;
+      if (mounted.current) setSigningIn(false);
+    }
+  }
+
+  const action =
+    needsSignIn || signedOut ? (
+      <Button
+        variant="primary"
+        loading={signingIn}
+        disabled={reading}
+        onClick={() => void signIn()}
+      >
+        {needsSignIn ? accountsT("Sign in again") : t("Sign in to Epic Games")}
+      </Button>
+    ) : (
+      <Button
+        icon={RefreshCw}
+        loading={reading}
+        disabled={signingIn}
+        onClick={() => void read()}
+      >
+        {t("Refresh")}
+      </Button>
+    );
+  const line = needsSignIn
+    ? epicStatusText("needsSignIn")
+    : status
+      ? epicStatusText(status)
+      : null;
+  const errorLine = error ? (
+    <p role="alert" className="text-sm text-danger">
+      {error}
+    </p>
+  ) : null;
+
+  if (!nothingSaved && !list) return <Reading />;
+  if (!list) {
+    // A kept sign-in without an answer yet is about to load.
+    if (reading || (!line && !signedOut)) return <Reading />;
+    return (
+      <div className="grid gap-3">
+        <Message action={action}>
+          {line ?? t("Sign in to Epic Games to load your achievements.")}
+        </Message>
+        {errorLine}
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-3">
+      {line ? (
+        <p role="alert" className="text-sm text-danger">
+          {line}
+        </p>
+      ) : null}
+      {errorLine}
+      <AchievementOverview
+        achievements={list.achievements}
+        origin={t("From Epic Games, updated {{date}}", {
+          date: new Date(list.fetchedAt).toLocaleDateString(appLocale()),
+        })}
+        action={action}
       />
     </div>
   );
@@ -426,6 +624,14 @@ function AchievementOverview({
                 {t("{{earned}} of {{total}} Gamerscore", {
                   earned: number(summary.gamerscore.earned),
                   total: number(summary.gamerscore.total),
+                })}
+              </p>
+            ) : null}
+            {summary.xp ? (
+              <p className="text-sm text-text-muted">
+                {t("{{earned}} of {{total}} XP", {
+                  earned: number(summary.xp.earned),
+                  total: number(summary.xp.total),
                 })}
               </p>
             ) : null}
@@ -576,6 +782,11 @@ function AchievementRow({
         {achievement.gamerscore !== undefined ? (
           <span className="font-mono text-xs text-text-muted">
             {t("{{score}} G", { score: number(achievement.gamerscore) })}
+          </span>
+        ) : null}
+        {achievement.xp !== undefined ? (
+          <span className="font-mono text-xs text-text-muted">
+            {t("{{xp}} XP", { xp: number(achievement.xp) })}
           </span>
         ) : null}
         {achievement.globalPercent !== undefined ? (
