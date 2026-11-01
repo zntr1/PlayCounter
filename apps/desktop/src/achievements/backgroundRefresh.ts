@@ -114,9 +114,10 @@ async function refresh(titleId: string, job: Job) {
   }
 }
 
-/** Called only after a process-ended session has been removed from tracking. */
+/** Called after a session of play has been removed from tracking. The sign-in
+ *  is checked when the refresh runs: kept sign-ins load a few seconds after
+ *  the start, when a game that ended while PlayCounter was closed ends. */
 export function schedulePostGameAchievementRefresh(session: ActiveSession) {
-  if (!xboxReady()) return;
   const { running, titleIds } = currentGameSources(session);
   if (running) return;
   for (const titleId of titleIds) {

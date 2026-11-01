@@ -6807,8 +6807,17 @@ async function endSession(
   });
   removeActiveSession(session);
   const freshMilestones = evaluateAndStoreMilestones();
-  if (reason === "process-ended") {
+  // Every end of play: a game that exited, was closed from My Games or ended
+  // while PlayCounter was closed, and a timer for play on a console.
+  if (
+    reason === "process-ended" ||
+    reason === "closed-in-app" ||
+    reason === "recovered-checkpoint" ||
+    reason === "timer-stopped"
+  ) {
     schedulePostGameAchievementRefresh(session);
+  }
+  if (reason === "process-ended") {
     const top = pickTopMilestone(freshMilestones);
     emitOverlayEvent({
       type: "session-ended",

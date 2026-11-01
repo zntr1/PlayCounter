@@ -116,6 +116,21 @@ it.each(["missing", "needsSignIn"])(
   },
 );
 
+it("refreshes a session that ended before the kept sign-in was loaded, as in the first scan after a crash", async () => {
+  // Kept sign-ins load a few seconds after the app starts.
+  useKeptLogins.setState({ logins: [] });
+  schedulePostGameAchievementRefresh(session);
+  await vi.advanceTimersByTimeAsync(5_000);
+  useKeptLogins.setState({
+    logins: [{ service: "xbox", name: "Player", savedAt: 1 }],
+  });
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(mocks.refresh).toHaveBeenCalledExactlyOnceWith(
+    "1234",
+    expect.objectContaining({ savedLoginOnly: true }),
+  );
+});
+
 it("waits until every process for the canonical game has ended", async () => {
   useAppStore.setState({ activeSessions: [{ ...session, id: 2, gameId: 11 }] });
   schedulePostGameAchievementRefresh(session);
