@@ -226,7 +226,10 @@
   bei Epic Games; PlayCounter sieht dein Passwort nicht. Aus dem Fenster
   übernimmt die App nur einen einmaligen Autorisierungscode. Damit ruft die App
   direkt von deinem PC aus bei Epic Games deine Spielebibliothek, Spieltitel und
-  die von Epic erfassten Spielzeiten ab. Damit der nächste Import ohne neue
+  die von Epic erfassten Spielzeiten ab. Öffnest du die Erfolge eines Epic-Spiels
+  oder hast du es gerade gespielt, ruft die App mit dieser Anmeldung bei Epic
+  Games die Erfolge des Spiels und deine Freischaltungen ab und speichert sie nur
+  auf deinem PC. Damit der nächste Import ohne neue
   Anmeldung auskommt, speichert die App das Aktualisierungstoken von Epic auf
   deinem PC, verschlüsselt mit dem Windows-Datenschutz (DPAPI), sodass nur dein
   Windows-Konto es lesen kann; es wird nicht an unsere API übermittelt. Mit
@@ -609,7 +612,10 @@
     PlayCounter does not see your password. The app takes only a one-time
     authorization code from that window. With it, the app retrieves your game
     library, game titles and the playtime Epic recorded directly from Epic Games,
-    from your PC. So that the next import needs no new sign-in, the app stores
+    from your PC. When you open an Epic game’s achievements, or right after you
+    play it, the app uses this sign-in to retrieve the game’s achievements and
+    your unlocks from Epic Games and keeps them only on your PC. So that the
+    next import needs no new sign-in, the app stores
     Epic’s refresh token on your PC, encrypted with Windows data protection
     (DPAPI) so that only your Windows account can read it; it is not sent to
     our API. “Sign out” under “Library import” in Settings ends the session at
