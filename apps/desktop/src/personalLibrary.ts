@@ -61,7 +61,14 @@ export type GameJournal = {
 };
 export type LibraryFilters = {
   search?: string;
-  source?: "all" | "steam" | "xbox" | "battlenet" | "epic" | "unimported";
+  source?:
+    | "all"
+    | "steam"
+    | "xbox"
+    | "battlenet"
+    | "epic"
+    | "gog"
+    | "unimported";
   status?: GameStatus | "none";
   tier?: GameTier | "none";
   favorite?: boolean;

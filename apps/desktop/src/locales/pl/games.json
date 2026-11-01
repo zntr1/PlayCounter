@@ -24,6 +24,7 @@
   "Xbox title ID": "ID tytułu Xbox",
   "Battle.net product": "Produkt Battle.net",
   "Epic app name": "Nazwa aplikacji Epic",
+  "GOG ID": "ID GOG",
   "{{exeName}} removed": "Usunięto {{exeName}}",
   "It no longer counts for {{name}} on this PC. If it runs again, it shows up in Discovered.": "Na tym PC nie liczy się już do {{name}}. Jeśli uruchomi się ponownie, pojawi się w Wykrytych.",
   "{{exeName}} not removed": "Nie usunięto {{exeName}}",
@@ -146,6 +147,11 @@
   "This game has no Epic achievements.": "Ta gra nie ma osiągnięć Epic.",
   "Epic Games didn't send the achievements. Try again later.": "Epic Games nie przesłało osiągnięć. Spróbuj ponownie później.",
   "From Epic Games, updated {{date}}": "Z Epic Games, zaktualizowano {{date}}",
+  "Sign in to GOG to load your achievements.": "Zaloguj się do GOG, aby wczytać swoje osiągnięcia.",
+  "Sign in to GOG": "Zaloguj się do GOG",
+  "This game has no GOG achievements.": "Ta gra nie ma osiągnięć GOG.",
+  "GOG didn't send the achievements. Try again later.": "GOG nie przesłał osiągnięć. Spróbuj ponownie później.",
+  "From GOG, updated {{date}}": "Z GOG, zaktualizowano {{date}}",
   "{{earned}} of {{total}} XP": "{{earned}} z {{total}} XP",
   "{{xp}} XP": "{{xp}} XP"
 }

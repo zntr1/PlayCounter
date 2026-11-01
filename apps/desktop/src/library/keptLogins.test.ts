@@ -24,6 +24,7 @@ describe("kept sign-ins in the web UI", () => {
         secret: "M.C5_refresh",
       },
       { service: "battlenet", name: null, savedAt: 6 },
+      { service: "gog", name: "zesarex", savedAt: 8, secret: "gog_refresh" },
       { service: "steam", name: "Not a kept sign-in", savedAt: 7 },
       "garbage",
     ]);
@@ -34,6 +35,7 @@ describe("kept sign-ins in the web UI", () => {
     expect(logins).toEqual([
       { service: "xbox", name: "Master Chief", savedAt: 5 },
       { service: "battlenet", name: null, savedAt: 6 },
+      { service: "gog", name: "zesarex", savedAt: 8 },
     ]);
     expect(JSON.stringify(useKeptLogins.getState())).not.toContain("refresh");
   });
@@ -45,7 +47,9 @@ describe("kept sign-ins in the web UI", () => {
   });
 
   it("keeps the last known accounts when the secure store cannot be read", async () => {
-    const saved = [{ service: "epic" as const, name: "Player One", savedAt: 1 }];
+    const saved = [
+      { service: "epic" as const, name: "Player One", savedAt: 1 },
+    ];
     useKeptLogins.setState({ logins: saved });
     invokeMock.mockRejectedValue(new Error("secure store temporarily locked"));
 

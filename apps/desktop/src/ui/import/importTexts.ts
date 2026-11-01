@@ -26,6 +26,8 @@ export function launcherIdLabel(id: BuiltinImportProviderId) {
       return t("Product");
     case "epic":
       return t("App name");
+    case "gog":
+      return t("GOG ID");
   }
 }
 
@@ -48,6 +50,7 @@ export function launcherNote(id: BuiltinImportProviderId) {
           );
     case "battlenet":
     case "epic":
+    case "gog":
       return t(
         "Sign-in opens in a separate {{providerName}} window. PlayCounter keeps you signed in on this PC until you sign out.",
         { providerName },
@@ -77,6 +80,7 @@ export function launcherMissingText(id: BuiltinImportProviderId) {
       );
     case "battlenet":
     case "epic":
+    case "gog":
       return t("{{providerName}} import is available on Windows.", {
         providerName: launcherName(id),
       });

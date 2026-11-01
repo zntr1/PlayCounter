@@ -457,6 +457,7 @@ pub fn run() {
         .manage(live_timer::LiveTimerState::default())
         .manage(library::battlenet_account::AccountState::default())
         .manage(library::epic_account::EpicAccountState::default())
+        .manage(library::gog_account::GogAccountState::default())
         .manage(reset::ResetState::default())
         .manage(StartupWindow {
             autostart: launched_from_autostart(),
@@ -472,6 +473,7 @@ pub fn run() {
                 .with_filter(|label| {
                     !label.starts_with("battlenet-sign-in-")
                         && !label.starts_with("epic-sign-in-")
+                        && !label.starts_with("gog-sign-in-")
                         && !label.starts_with(notification_overlay::OVERLAY_LABEL_PREFIX)
                         && label != quick_note::LABEL
                         && !label.starts_with(live_timer::LABEL_PREFIX)
@@ -565,6 +567,10 @@ pub fn run() {
             library::epic_account::library_epic_sign_in,
             library::epic_account::library_cancel_epic_account,
             library::epic_achievements::epic_read_achievements,
+            library::gog_account::library_gog_account_games,
+            library::gog_account::library_gog_sign_in,
+            library::gog_account::library_cancel_gog_account,
+            library::gog_achievements::gog_read_achievements,
             library::kept_logins::logins_list,
             library::kept_logins::logins_check,
             library::kept_logins::logins_sign_out,

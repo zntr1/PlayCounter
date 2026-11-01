@@ -94,6 +94,20 @@ const PROFILES: Record<BuiltinImportProviderId, ImportProfile> = {
     mainGamesOnlySearch: false,
     playtimeNotice: false,
   },
+  // GOG ids name the game, like Steam AppIDs, but GOG also gives the title,
+  // so an id the server doesn't know can still be found by name.
+  gog: {
+    id: "gog",
+    login: "gog",
+    choice: "accountOrInstalled",
+    matchedBy: "name",
+    hasPlaytime: true,
+    accountAndInstalls: true,
+    linksFilesPerInstall: false,
+    copySignInLink: false,
+    mainGamesOnlySearch: false,
+    playtimeNotice: false,
+  },
 };
 
 export function importProfile(id: BuiltinImportProviderId): ImportProfile {

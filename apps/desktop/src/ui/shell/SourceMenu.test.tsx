@@ -96,7 +96,7 @@ function buttonLabels() {
   );
 }
 
-it.each(["steam", "xbox", "battlenet", "epic"])(
+it.each(["steam", "xbox", "battlenet", "epic", "gog"])(
   "right-click on the %s launcher in the sidebar shows Manage accounts and Import games",
   async (launcher) => {
     await act(() => root.render(<LibraryTestShell />));

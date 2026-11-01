@@ -34,6 +34,9 @@ import {
 import { loadLibraryProvider } from "../../library/providers";
 import { signInBattleNetAccount } from "../../library/battlenetAccount";
 import { signInEpicAccount } from "../../library/epicAccount";
+import { signInGogAccount } from "../../library/gogAccount";
+import { importProfile } from "../../library/importProfiles";
+import type { BuiltinImportProviderId } from "../../library/importProviders";
 import { signInXboxAccount } from "../../library/providers/xbox";
 import {
   beginLoginAccountChange,
@@ -159,6 +162,8 @@ export function LauncherAccountsView() {
         await signInBattleNetAccount(controller.signal);
       } else if (service === "epic") {
         await signInEpicAccount(controller.signal);
+      } else if (service === "gog") {
+        await signInGogAccount(controller.signal);
       } else {
         await signInXboxAccount({
           apiEndpoint,
@@ -342,11 +347,16 @@ export function LauncherAccountsView() {
               disabled: checking,
               onSelect: () => void checkLauncherLogin(service!, apiEndpoint),
             });
-          if ((id === "epic" || id === "battlenet") && supported)
+          if (
+            supported &&
+            importProfile(id as BuiltinImportProviderId).choice ===
+              "accountOrInstalled"
+          )
             menuActions.push({
               icon: HardDrive,
               label: t("Find installed games"),
-              onSelect: () => openLauncherImport(id, "installed"),
+              onSelect: () =>
+                openLauncherImport(id as BuiltinImportProviderId, "installed"),
             });
           if (id === "xbox" && authorizeUrl && !busy)
             menuActions.push({
@@ -522,9 +532,11 @@ export function LauncherAccountsView() {
                     ? t("Your Xbox library, playtime and achievements.")
                     : id === "epic"
                       ? t("Your Epic Games library, playtime and achievements.")
-                      : t(
-                          "Your Battle.net library. PlayCounter tracks new sessions.",
-                        )}
+                      : id === "gog"
+                        ? t("Your GOG library, playtime and achievements.")
+                        : t(
+                            "Your Battle.net library. PlayCounter tracks new sessions.",
+                          )}
               </p>
               {error ? (
                 <p

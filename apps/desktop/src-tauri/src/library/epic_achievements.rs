@@ -244,9 +244,10 @@ fn answer(status: u16, body: &[u8]) -> Answer {
     }
 }
 
-/// Unix ms from Epic's ISO 8601 time, such as "2026-10-31T18:24:07.123Z"
-/// (what SuccessStory reads). None for anything else or before 1970.
-fn unlock_time(text: &str) -> Option<u64> {
+/// Unix ms from an ISO 8601 time: Epic's "2026-10-31T18:24:07.123Z" (what
+/// SuccessStory reads) or GOG's "2026-10-31T18:24:07+0000". None for
+/// anything else or before 1970.
+pub(super) fn unlock_time(text: &str) -> Option<u64> {
     let digits = |part: &str| -> Option<i64> {
         (!part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
             .then(|| part.parse().ok())
@@ -291,8 +292,9 @@ fn unlock_time(text: &str) -> Option<u64> {
     }
     let offset_minutes = match rest {
         "Z" => 0,
-        _ if rest.len() == 6 && rest.as_bytes()[3] == b':' => {
-            let minutes = digits(&rest[1..3])? * 60 + digits(&rest[4..6])?;
+        // "+02:00", or GOG's "+0200".
+        _ if (rest.len() == 6 && rest.as_bytes()[3] == b':') || rest.len() == 5 => {
+            let minutes = digits(&rest[1..3])? * 60 + digits(&rest[rest.len() - 2..])?;
             match rest.as_bytes()[0] {
                 b'+' => minutes,
                 b'-' => -minutes,

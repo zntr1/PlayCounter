@@ -1,5 +1,6 @@
 import battleNetIconUrl from "../../../../assets/battlenet/battlenet.svg";
 import epicIconUrl from "../../../../assets/epic/epic.svg";
+import gogIconUrl from "../../../../assets/gog/gog.svg";
 import type { PropsWithChildren, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -350,6 +351,15 @@ function providerMeta(): Record<
       tone: "text-text",
       coinTone: "shadow-raised",
       chipTone: "border-white/25 bg-[#2a2a2a] text-white",
+      coinFill: true,
+    },
+    gog: {
+      label: "GOG",
+      tip: t("Imported from your GOG account or installations on this PC."),
+      iconUrl: gogIconUrl,
+      tone: "text-[#c7a2e8]",
+      coinTone: "shadow-raised",
+      chipTone: "border-[#86328a]/60 bg-[#2a1030] text-[#e3c8f5]",
       coinFill: true,
     },
     steam: {

@@ -227,7 +227,7 @@ function ImportPractice() {
   return (
     <div data-tour="demo-import" className="grid gap-4">
       <div data-tour="demo-import-providers" className="flex flex-wrap gap-2">
-        {(["steam", "xbox", "battlenet", "epic"] as const).map((id) => (
+        {(["steam", "xbox", "battlenet", "epic", "gog"] as const).map((id) => (
           <Pill
             key={id}
             selected={provider === id}
@@ -242,7 +242,9 @@ function ImportPractice() {
                 ? "Xbox"
                 : id === "epic"
                   ? "Epic Games"
-                  : "Steam"}
+                  : id === "gog"
+                    ? "GOG"
+                    : "Steam"}
           </Pill>
         ))}
       </div>

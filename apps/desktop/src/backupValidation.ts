@@ -102,7 +102,7 @@ function dictionary(validate: Validator): Validator {
 }
 
 const source = oneOf("igdb", "community", "custom");
-const provider = oneOf("steam", "xbox", "battlenet", "epic");
+const provider = oneOf("steam", "xbox", "battlenet", "epic", "gog");
 const gameStatus = oneOf(...Object.keys(GAME_STATUSES));
 const contributionStatus = oneOf("pending", "verified", "rejected");
 const contentKind = oneOf("conf", "program", "folder", "rom", "title_id");
@@ -469,6 +469,7 @@ const validateBackupShape: Validator = object(
                 "xbox",
                 "battlenet",
                 "epic",
+                "gog",
                 "unimported",
               ),
               status: oneOf(...Object.keys(GAME_STATUSES), "none"),

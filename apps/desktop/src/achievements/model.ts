@@ -23,6 +23,8 @@ const ICON_HOSTS = [
   "xbox.com",
   "xboxservices.com",
   "epicgames.com",
+  "gog.com",
+  "gog-statics.com",
 ];
 
 /** Unlocked of all points, for the achievements that carry any. */
@@ -211,19 +213,21 @@ function parseAchievement(value: unknown): GameAchievement | null {
   };
 }
 
-/** Steam app ids and Xbox title ids are numbers; Epic app names follow the
- *  launcher's own rule (`valid_id` in epic.rs). */
+/** Steam app ids, Xbox title ids and GOG product ids are numbers (GOG's rule
+ *  is `valid_id` in gog.rs); Epic app names follow the launcher's own rule
+ *  (`valid_id` in epic.rs). */
 const EXTERNAL_IDS = {
   steam: /^[1-9][0-9]{0,9}$/,
   xbox: /^[1-9][0-9]{0,9}$/,
   epic: /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/,
+  gog: /^[1-9][0-9]{0,9}$/,
 } as const;
 
 function isProvider(value: unknown): value is keyof typeof EXTERNAL_IDS {
   return typeof value === "string" && Object.hasOwn(EXTERNAL_IDS, value);
 }
 
-/** A list from the backend, Epic or this PC's storage. Fields that can't be
+/** A list from the backend, Epic, GOG or this PC's storage. Fields that can't be
  *  trusted are dropped; a list that isn't one is rejected. */
 export function parseAchievementList(value: unknown): AchievementList | null {
   const raw = record(value);

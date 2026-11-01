@@ -6,6 +6,9 @@ pub mod epic;
 pub mod epic_account;
 pub mod epic_achievements;
 mod exe_scan;
+pub mod gog;
+pub mod gog_account;
+pub mod gog_achievements;
 pub mod kept_logins;
 pub(crate) mod login_status;
 pub mod steam;
@@ -25,7 +28,12 @@ use std::{fs, path::Path};
 #[tauri::command]
 pub async fn library_detect_providers() -> Result<Vec<types::ProviderStatus>, String> {
     tauri::async_runtime::spawn_blocking(|| {
-        vec![steam::detect(), battlenet::detect(), epic::detect()]
+        vec![
+            steam::detect(),
+            battlenet::detect(),
+            epic::detect(),
+            gog::detect(),
+        ]
     })
     .await
     .map_err(|error| error.to_string())
@@ -51,6 +59,7 @@ pub async fn library_scan(
         "steam" => steam::scan(account_id, app_ids.as_deref()),
         "battlenet" => battlenet::scan(),
         "epic" => epic::scan(),
+        "gog" => gog::scan(),
         _ => Err("PlayCounter cannot import from this launcher.".to_string()),
     })
     .await
@@ -78,6 +87,12 @@ pub async fn library_inspect_executable(
                     .to_string(),
             );
         }
+        if provider == "gog" && !gog::game_executable(&candidate.file_name) {
+            return Err(
+                "Pick the game's executable, rather than a GOG installer, helper or emulator."
+                    .to_string(),
+            );
+        }
         Ok(candidate)
     })
     .await
@@ -102,6 +117,7 @@ pub async fn library_launch_app(
         "xbox" => xbox::launch_app(&external_id, &mode),
         "battlenet" => battlenet::launch_app(&external_id, &mode),
         "epic" => epic::launch_app(&external_id, &mode),
+        "gog" => gog::launch_app(&external_id, &mode),
         _ => Err(LaunchError::new(
             LaunchErrorKind::Unsupported,
             "PlayCounter cannot import from this launcher.",
@@ -122,6 +138,7 @@ pub async fn library_installed_games(
         "xbox" => Ok(Some(xbox::installed_games())),
         "battlenet" => Ok(Some(battlenet::installed_games())),
         "epic" => Ok(Some(epic::installed_games())),
+        "gog" => Ok(Some(gog::installed_games())),
         _ => Err("PlayCounter cannot list games for this launcher.".to_string()),
     })
     .await
@@ -165,11 +182,20 @@ pub async fn library_verify_installs(
             .iter()
             .any(|install| install.provider == "epic")
             .then(epic::InstalledApps::read);
+        let gog = installs
+            .iter()
+            .any(|install| install.provider == "gog")
+            .then(gog::InstalledApps::read);
         installs
             .into_iter()
             .map(|install| {
-                let status =
-                    install_status(&install, steam.as_ref(), battlenet.as_ref(), epic.as_ref());
+                let status = install_status(
+                    &install,
+                    steam.as_ref(),
+                    battlenet.as_ref(),
+                    epic.as_ref(),
+                    gog.as_ref(),
+                );
                 InstallCheckReport {
                     provider: install.provider,
                     external_id: install.external_id,
@@ -187,6 +213,7 @@ fn install_status(
     steam: Option<&steam::Installs>,
     battlenet: Option<&battlenet::InstalledProducts>,
     epic: Option<&epic::InstalledApps>,
+    gog: Option<&gog::InstalledApps>,
 ) -> LaunchPathStatus {
     if !cfg!(windows) {
         return LaunchPathStatus::Unreadable;
@@ -212,6 +239,7 @@ fn install_status(
                 .or(folder_exists.filter(|exists| !exists))
         }
         "epic" => epic.and_then(|apps| apps.state(&install.external_id)),
+        "gog" => gog.and_then(|apps| apps.state(&install.external_id)),
         _ => return LaunchPathStatus::Invalid,
     };
     match installed {
@@ -222,7 +250,7 @@ fn install_status(
 }
 
 fn require_local_provider(provider: &str) -> Result<(), String> {
-    if matches!(provider, "steam" | "xbox" | "battlenet" | "epic") {
+    if matches!(provider, "steam" | "xbox" | "battlenet" | "epic" | "gog") {
         Ok(())
     } else {
         Err("PlayCounter cannot import from this launcher.".to_string())

@@ -13,8 +13,13 @@ import {
 export const LOGIN_CHECK_INTERVAL_MS = 30 * 60_000;
 const RETRY_INTERVAL_MS = 5 * 60_000;
 const t = getT("accounts");
-const services: KeptLoginService[] = ["xbox", "epic", "battlenet"];
-const labels = { xbox: "Xbox", epic: "Epic Games", battlenet: "Battle.net" };
+const services: KeptLoginService[] = ["xbox", "epic", "battlenet", "gog"];
+const labels = {
+  xbox: "Xbox",
+  epic: "Epic Games",
+  battlenet: "Battle.net",
+  gog: "GOG",
+};
 
 export type LoginHealth = {
   status: "checking" | "valid" | "needsSignIn" | "unavailable";
@@ -29,11 +34,13 @@ const versions: Record<KeptLoginService, number> = {
   xbox: 0,
   epic: 0,
   battlenet: 0,
+  gog: 0,
 };
 const operationRevisions: Record<KeptLoginService, number> = {
   xbox: 0,
   epic: 0,
   battlenet: 0,
+  gog: 0,
 };
 const inFlight = new Map<KeptLoginService, Promise<void>>();
 const previousChecks = new Map<KeptLoginService, LoginHealth | undefined>();

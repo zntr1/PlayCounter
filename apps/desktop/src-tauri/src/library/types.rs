@@ -36,6 +36,10 @@ pub struct ScannedGame {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub install_path: Option<String>,
     pub executables: Vec<ScannedExecutable>,
+    /// The launcher starts the game in an emulator it ships with the game
+    /// (GOG's DOSBox and ScummVM games), so there is no game file to link.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub runs_in_emulator: bool,
 }
 
 #[derive(Serialize)]

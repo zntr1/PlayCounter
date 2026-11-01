@@ -27,6 +27,7 @@ const SYNC_PROVIDERS: readonly LibraryProviderId[] = [
   "xbox",
   "battlenet",
   "epic",
+  "gog",
 ];
 const SYNC_THROTTLE_MS = 60_000;
 /** The catalog often learns a new release's launcher id days after launch. */
@@ -39,7 +40,7 @@ let lastSyncAt = 0;
 /**
  * Keeps imported launcher games in step with this PC: a reinstalled game gets
  * its install back, and (unless turned off) newly installed Steam,
- * Battle.net and Epic Games games are added. Each launcher takes part only after the user
+ * Battle.net, Epic Games and GOG games are added. Each launcher takes part only after the user
  * imported from it once. Returns how many games were added.
  */
 export function syncLibraryInstalls(reason: string): Promise<number> {
@@ -105,7 +106,7 @@ async function runSync(reason: string): Promise<number> {
       tone: "success",
       title: t("{{count}} games added", { count: added }),
       detail: t(
-        "Games you install in Steam, Battle.net or Epic Games now show up in My Games on their own. You can turn this off in Settings under Library import.",
+        "Games you install in Steam, Battle.net, Epic Games or GOG now show up in My Games on their own. You can turn this off in Settings under Library import.",
       ),
     });
   }
@@ -209,8 +210,8 @@ async function scanNewGames(
     });
     return scan.games;
   }
-  // Battle.net and Epic scans have no per-game filter. A game that is still
-  // downloading has no executable yet and is left for a later run.
+  // Battle.net, Epic and GOG scans have no per-game filter. A game that is
+  // still downloading has no executable yet and is left for a later run.
   const scan = await invoke<LibraryScanResult>("library_scan", {
     provider,
     accountId: 0,

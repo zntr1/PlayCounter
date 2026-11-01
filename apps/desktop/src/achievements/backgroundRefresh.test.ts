@@ -7,6 +7,7 @@ import type { LibraryImportEntry } from "../library/types";
 const mocks = vi.hoisted(() => ({
   refresh: vi.fn(),
   readEpic: vi.fn(),
+  readGog: vi.fn(),
   save: vi.fn(),
   health: "valid",
   revision: 0,
@@ -20,6 +21,7 @@ vi.mock("../library/providers/xbox", () => ({
   XboxSignInRequiredError: class XboxSignInRequiredError extends Error {},
 }));
 vi.mock("./epic", () => ({ readEpicAchievements: mocks.readEpic }));
+vi.mock("./gog", () => ({ readGogAchievements: mocks.readGog }));
 vi.mock("./achievementLists", () => ({ saveAchievementLists: mocks.save }));
 
 import {
@@ -64,6 +66,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   mocks.refresh.mockReset().mockResolvedValue({ list });
   mocks.readEpic.mockReset().mockResolvedValue({ status: "unavailable" });
+  mocks.readGog.mockReset().mockResolvedValue({ status: "unavailable" });
   mocks.save.mockReset().mockResolvedValue(undefined);
   mocks.health = "valid";
   mocks.revision = 0;
@@ -323,6 +326,84 @@ describe("Epic Games", () => {
       await vi.advanceTimersByTimeAsync(15_000);
     }
     expect(mocks.readEpic).toHaveBeenCalledTimes(3);
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+});
+
+describe("GOG", () => {
+  const gogImport: LibraryImportEntry = {
+    ...imported,
+    provider: "gog",
+    externalId: "1213504814",
+  };
+  const gogList: AchievementList = {
+    provider: "gog",
+    externalId: "1213504814",
+    fetchedAt: 3,
+    achievements: [],
+  };
+  const signedIn = [{ service: "gog" as const, name: "zesarex", savedAt: 1 }];
+
+  beforeEach(() => {
+    useAppStore.setState({
+      libraryImports: new Map([["gog:1213504814", gogImport]]),
+    });
+    useKeptLogins.setState({ logins: signedIn });
+    mocks.readGog.mockResolvedValue({ list: gogList });
+  });
+
+  it("refreshes the list 15 s after a GOG game's session ends", async () => {
+    schedulePostGameAchievementRefresh(session);
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(mocks.readGog).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mocks.readGog).toHaveBeenCalledExactlyOnceWith("1213504814");
+    expect(mocks.save).toHaveBeenCalledWith([gogList], { show: true });
+    expect(mocks.readEpic).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing while the game runs", async () => {
+    useAppStore.setState({ activeSessions: [{ ...session, id: 2 }] });
+    schedulePostGameAchievementRefresh(session);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(mocks.readGog).not.toHaveBeenCalled();
+  });
+
+  it.each(["signed out", "needs a new sign-in"])(
+    "reads nothing when GOG %s",
+    async (state) => {
+      schedulePostGameAchievementRefresh(session);
+      if (state === "signed out") useKeptLogins.setState({ logins: [] });
+      else mocks.health = "needsSignIn";
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(mocks.readGog).not.toHaveBeenCalled();
+    },
+  );
+
+  it("drops a read that finishes after signing out", async () => {
+    let complete!: (value: { list: AchievementList }) => void;
+    mocks.readGog.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    schedulePostGameAchievementRefresh(session);
+    await vi.advanceTimersByTimeAsync(15_000);
+    useKeptLogins.setState({ logins: [] });
+    complete({ list: gogList });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it("keeps the saved list when GOG sends none", async () => {
+    for (const status of ["noAchievements", "unavailable", "needsSignIn"]) {
+      mocks.readGog.mockResolvedValue({ status });
+      schedulePostGameAchievementRefresh(session);
+      await vi.advanceTimersByTimeAsync(15_000);
+    }
+    expect(mocks.readGog).toHaveBeenCalledTimes(3);
     expect(mocks.save).not.toHaveBeenCalled();
   });
 });

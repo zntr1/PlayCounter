@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { signInEpicAccount } from "./epicAccount";
 import { signInBattleNetAccount } from "./battlenetAccount";
+import { signInGogAccount } from "./gogAccount";
 import { useKeptLogins } from "./keptLogins";
 import {
   clearLoginHealth,
@@ -15,12 +16,14 @@ beforeEach(() => {
   vi.resetAllMocks();
   clearLoginHealth("epic");
   clearLoginHealth("battlenet");
+  clearLoginHealth("gog");
   useKeptLogins.setState({ logins: [] });
 });
 
 const launchers = [
   ["epic", signInEpicAccount, "library_epic_sign_in"],
   ["battlenet", signInBattleNetAccount, "library_battlenet_sign_in"],
+  ["gog", signInGogAccount, "library_gog_sign_in"],
 ] as const;
 
 it.each(launchers)(
@@ -35,19 +38,25 @@ it.each(launchers)(
           finish = () => reject(new Error("CANCELLED"));
         });
       return Promise.resolve(
-        command === "logins_list" ? [{ service, name: null, savedAt: 2 }] : undefined,
+        command === "logins_list"
+          ? [{ service, name: null, savedAt: 2 }]
+          : undefined,
       );
     });
 
     const controller = new AbortController();
     const pending = start(controller.signal);
-    const cancelled = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    const cancelled = expect(pending).rejects.toMatchObject({
+      name: "AbortError",
+    });
     controller.abort();
     await cancelled;
     expect(getLoginHealth(service)?.status).toBe("needsSignIn");
     finish();
 
-    await vi.waitFor(() => expect(getLoginHealth(service)?.status).toBe("valid"));
+    await vi.waitFor(() =>
+      expect(getLoginHealth(service)?.status).toBe("valid"),
+    );
     expect(useKeptLogins.getState().logins[0].savedAt).toBe(2);
   },
 );

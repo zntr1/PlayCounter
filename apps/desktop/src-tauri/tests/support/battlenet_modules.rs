@@ -37,3 +37,14 @@ mod xbox_login {
         panic!("Battle.net fixtures must never check Xbox sessions");
     }
 }
+
+#[allow(dead_code)]
+mod gog_account {
+    pub async fn check_saved_login(_: &tauri::AppHandle) -> super::login_status::LoginStatus {
+        panic!("Battle.net fixtures must never check GOG sessions");
+    }
+
+    pub fn cancel_active(_: &tauri::AppHandle) {
+        panic!("Battle.net fixtures must never cancel GOG sessions");
+    }
+}

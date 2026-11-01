@@ -28,6 +28,17 @@ mod xbox_login {
     }
 }
 
+#[allow(dead_code)]
+mod gog_account {
+    pub async fn check_saved_login(_: &tauri::AppHandle) -> super::login_status::LoginStatus {
+        panic!("Epic fixtures must never validate GOG accounts");
+    }
+
+    pub fn cancel_active(_: &tauri::AppHandle) {
+        panic!("Epic fixtures must never cancel GOG sessions");
+    }
+}
+
 // The account module's game-ID check is unrelated to this fixture. Include its
 // small dependency here without bringing in installation scanning or launching.
 mod epic {

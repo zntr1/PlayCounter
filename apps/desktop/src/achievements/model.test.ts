@@ -328,3 +328,67 @@ describe("Epic lists", () => {
     });
   });
 });
+
+describe("GOG lists", () => {
+  // A written example: no real GOG answer has been seen yet. The id is the
+  // GOG product id PlayCounter imports (Shadow of Mordor GOTY), not the
+  // GALAXY client id GOG's achievement service is asked with.
+  const gogList = (
+    externalId: string,
+    fields: Partial<GameAchievement> = {},
+  ) => ({
+    provider: "gog",
+    externalId,
+    fetchedAt: 1_793_471_100_000,
+    achievements: [
+      {
+        id: "WIN_10",
+        name: "Ten Wins",
+        description: "About Ten Wins",
+        hidden: false,
+        unlocked: true,
+        unlockedAt: 1_793_471_047_000,
+        iconUrl: "https://images.gog.com/WIN_10_unlocked.png",
+        lockedIconUrl: "https://images.gog-statics.com/WIN_10_locked.png",
+        globalPercent: 12.5,
+        ...fields,
+      },
+    ],
+  });
+
+  it("parse with the GOG product id as id and GOG's icons", () => {
+    expect(parseAchievementList(gogList("1213504814"))).toEqual(
+      gogList("1213504814"),
+    );
+    expect(parseAchievementList(gogList("1"))?.externalId).toBe("1");
+  });
+
+  it("are dropped when the id is not a GOG product id", () => {
+    for (const id of [
+      "",
+      "0",
+      "01",
+      "12345678901",
+      "1213504814a",
+      "Sugar",
+      // The GALAXY client id of the same game.
+      "55687131321183296",
+    ])
+      expect(parseAchievementList(gogList(id)), id).toBeNull();
+  });
+
+  it("drop icons from other hosts", () => {
+    for (const url of [
+      "https://evil.example/icon.png",
+      "https://gog.com.evil.test/icon.png",
+      "https://notgog.com/icon.png",
+      "http://images.gog.com/WIN_10_unlocked.png",
+    ]) {
+      const [parsed] = parseAchievementList(
+        gogList("1213504814", { iconUrl: url, lockedIconUrl: url }),
+      )!.achievements;
+      expect(parsed.iconUrl, url).toBeUndefined();
+      expect(parsed.lockedIconUrl, url).toBeUndefined();
+    }
+  });
+});

@@ -5,7 +5,12 @@ import type { LibraryProviderId } from "@playcounter/shared";
  * Widen this only together with a provider adapter, a generalized import plan,
  * and a provider-aware ImportLibraryView.
  */
-export type BuiltinImportProviderId = "steam" | "xbox" | "battlenet" | "epic";
+export type BuiltinImportProviderId =
+  | "steam"
+  | "xbox"
+  | "battlenet"
+  | "epic"
+  | "gog";
 
 export const DEFAULT_IMPORT_PROVIDER: BuiltinImportProviderId = "steam";
 
@@ -16,6 +21,7 @@ export function isBuiltinImportProvider(
     provider === "steam" ||
     provider === "xbox" ||
     provider === "battlenet" ||
-    provider === "epic"
+    provider === "epic" ||
+    provider === "gog"
   );
 }

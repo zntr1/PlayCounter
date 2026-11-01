@@ -57,7 +57,8 @@ export function startsUnchecked(game: ScannedLibraryGame) {
   );
 }
 
-/** An installed, matched game none of whose known files is on this PC. */
+/** An installed, matched game none of whose known files is on this PC. A
+ *  game its launcher runs in an emulator has no file of its own to pick. */
 export function requiresExecutableChoice(
   game: ScannedLibraryGame,
   resolved?: ResolvedLibraryGame,
@@ -66,7 +67,8 @@ export function requiresExecutableChoice(
   if (
     resolved?.status !== "resolved" ||
     !resolved.game?.igdbId ||
-    !game.installed
+    !game.installed ||
+    game.runsInEmulator
   ) {
     return false;
   }
@@ -110,7 +112,8 @@ export function showsFileChoice(
     requiresExecutableChoice(game, resolved, ignoredProcesses) ||
     (needsGameChoice(provider, game, resolved) &&
       game.installed &&
-      game.installPath !== undefined)
+      game.installPath !== undefined &&
+      !game.runsInEmulator)
   );
 }
 

@@ -315,6 +315,7 @@ fn inspect_install(
         installed: true,
         install_path: Some(exe_scan::path_string(&root)),
         executables,
+        runs_in_emulator: false,
     }))
 }
 
