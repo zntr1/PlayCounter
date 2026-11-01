@@ -336,6 +336,37 @@ describe("Xbox", () => {
     expect(loadListMock).not.toHaveBeenCalled();
   });
 
+  it("shows progress only once it started: Xbox sends 0 / 100 for every locked one", async () => {
+    useAchievementLists.setState({
+      lists: new Map([
+        [
+          "xbox:1234",
+          {
+            provider: "xbox",
+            externalId: "1234",
+            fetchedAt: 1,
+            achievements: [
+              achievement("Not started", {
+                progress: { current: 0, target: 100 },
+              }),
+              achievement("Halfway", {
+                progress: { current: 45, target: 100 },
+              }),
+            ],
+          },
+        ],
+      ]),
+    });
+    await render([{ provider: "xbox", externalId: "1234" }]);
+    const row = (name: string) =>
+      [...container.querySelectorAll("[data-achievement-row]")].find(
+        (node) => node.querySelector("h4")?.textContent === name,
+      )?.textContent;
+    expect(row("Halfway")).toContain("45 / 100");
+    expect(row("Not started")).toBeDefined();
+    expect(row("Not started")).not.toContain("/ 100");
+  });
+
   describe("with a kept sign-in", () => {
     const kept = [{ service: "xbox" as const, name: "Chief", savedAt: 1 }];
     const buttons = () =>

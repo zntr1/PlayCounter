@@ -774,7 +774,11 @@ function AchievementRow({
   const icon = achievement.unlocked
     ? achievement.iconUrl
     : (achievement.lockedIconUrl ?? achievement.iconUrl);
-  const { progress } = achievement;
+  // 0 / 100 is not started: Xbox sends it for every locked achievement.
+  const progress =
+    achievement.progress && achievement.progress.current > 0
+      ? achievement.progress
+      : undefined;
   return (
     <li
       data-achievement-row
